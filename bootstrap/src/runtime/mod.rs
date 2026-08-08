@@ -3,9 +3,9 @@
 //! This module provides runtime evaluation of formula expressions from .t27 specs.
 //! It parses AST, resolves function dependencies, and evaluates with f64 arithmetic.
 
+use crate::compiler::{Compiler, Node, NodeKind};
 use std::collections::HashMap;
 use std::path::Path;
-use crate::compiler::{Compiler, Node, NodeKind};
 
 /// Sacred constants
 pub const PHI: f64 = 1.6180339887498948_f64;
@@ -57,17 +57,11 @@ struct FunctionDef {
 
 /// Runtime formula evaluator with memoization
 pub struct FormulaRuntime {
-    /// Symbol table for constants (PHI, PI, E, GA)
     symbol_table: HashMap<String, f64>,
-
-    /// Function definitions extracted from source
     functions: HashMap<String, FunctionDef>,
-
-    /// Cache for memoization
     function_cache: HashMap<String, f64>,
-
-    /// Local variable values during evaluation
     local_vars: Vec<HashMap<String, f64>>,
+    visiting: std::collections::HashSet<String>,
 }
 
 impl FormulaRuntime {
@@ -84,6 +78,7 @@ impl FormulaRuntime {
             functions: HashMap::new(),
             function_cache: HashMap::new(),
             local_vars: vec![HashMap::new()],
+            visiting: std::collections::HashSet::new(),
         }
     }
 
@@ -161,93 +156,102 @@ impl FormulaRuntime {
 
     /// Resolve dependencies for all loaded functions
     fn resolve_all_dependencies(&mut self) -> Result<()> {
+        let mut visited = std::collections::HashSet::new();
+        let mut visiting = std::collections::HashSet::new();
         for name in self.functions.keys().cloned().collect::<Vec<_>>() {
-            if !self.dependencies_sorted(&name)? {
-                self.update_dependencies_sorted(&name, true);
-            }
+            self.check_cycles_dfs(&name, &mut visited, &mut visiting)?;
         }
         Ok(())
     }
 
-    /// Check if dependencies are sorted (topologically ordered)
-    fn dependencies_sorted(&self, name: &str) -> Result<bool> {
-        if let Some(func) = self.functions.iter().find(|f| f.0 == name).map(|f| f.1.clone()) {
-            let mut seen = std::collections::HashSet::new();
+    fn check_cycles_dfs(
+        &self,
+        name: &str,
+        visited: &mut std::collections::HashSet<String>,
+        visiting: &mut std::collections::HashSet<String>,
+    ) -> Result<()> {
+        if visited.contains(name) {
+            return Ok(());
+        }
+        if !visiting.insert(name.to_string()) {
+            return Err(RuntimeError::CircularDependency(name.to_string()));
+        }
+        if let Some(func) = self.functions.get(name) {
             for dep in &func.dependencies {
-                if !seen.insert(dep) {
-                    if let Some(dep_func) = self.functions.get(&dep.to_string()) {
-                        // Check if this dependency also depends on us (circular)
-                        if dep_func.dependencies.iter().any(|x| x == name) {
-                            return Err(RuntimeError::CircularDependency(format!(
-                                "{} <-> {}", name, dep
-                            )));
-                        }
-                    }
-                }
+                self.check_cycles_dfs(dep, visited, visiting)?;
             }
         }
-        Ok(true)
-    }
-
-    /// Update the sorted flag for a function
-    fn update_dependencies_sorted(&mut self, _name: &str, _sorted: bool) {
-        // In this implementation, we just track dependencies
-        // The actual topological sort happens during evaluation
+        visiting.remove(name);
+        visited.insert(name.to_string());
+        Ok(())
     }
 
     /// Evaluate a formula by ID (function name)
     pub fn evaluate(&mut self, formula_id: &str) -> Result<f64> {
-        println!("DEBUG: evaluate() called with formula_id='{}'", formula_id);
-
-        // Check cache first
-        if let Some(&cached) = self.function_cache.get(formula_id) {
-            println!("DEBUG: Found in cache: {}", cached);
-            return Ok(cached);
+        if !self.visiting.insert(formula_id.to_string()) {
+            return Err(RuntimeError::CircularDependency(formula_id.to_string()));
         }
 
-        // Find the function and clone its data to avoid borrow checker issues
-        let func_def = self.functions.get(&formula_id.to_string())
+        let func_def = self
+            .functions
+            .get(&formula_id.to_string())
             .ok_or_else(|| RuntimeError::FunctionNotFound(formula_id.to_string()))?
             .clone();
 
-        println!("DEBUG: Found function: {} (return_type: {})", formula_id, func_def.return_type);
+        let cache_key = if func_def.params.is_empty() {
+            formula_id.to_string()
+        } else {
+            let mut key = formula_id.to_string();
+            for param in &func_def.params {
+                let val = self
+                    .local_vars
+                    .iter()
+                    .rev()
+                    .find_map(|s| s.get(param))
+                    .copied()
+                    .unwrap_or(0.0);
+                key.push_str(&format!(":{}:{}", param, val.to_bits()));
+            }
+            key
+        };
 
-        // Check return type is f64
+        if let Some(&cached) = self.function_cache.get(&cache_key) {
+            self.visiting.remove(formula_id);
+            return Ok(cached);
+        }
+
         if func_def.return_type != "f64" {
+            self.visiting.remove(formula_id);
             return Err(RuntimeError::InvalidExpression(format!(
-                "Function {} returns {}, expected f64", formula_id, func_def.return_type
+                "Function {} returns {}, expected f64",
+                formula_id, func_def.return_type
             )));
         }
 
-        // Save current local scope
-        let saved_vars = self.local_vars.last().cloned().unwrap_or_default();
         self.local_vars.push(HashMap::new());
 
-        // Evaluate dependencies first (if any)
-        println!("DEBUG: Dependencies: {:?}", func_def.dependencies);
         for dep in &func_def.dependencies {
-            println!("DEBUG: Evaluating dependency: {}", dep);
             self.evaluate(dep)?;
         }
 
-        // Evaluate the function body
         let mut result: Option<f64> = None;
         for stmt in &func_def.body {
-            println!("DEBUG: Evaluating statement: {:?}", stmt.kind);
             if let Some(val) = self.evaluate_stmt(stmt)? {
                 result = Some(val);
             }
         }
 
-        // Restore local scope
         self.local_vars.pop();
+        self.visiting.remove(formula_id);
 
         let value = result.ok_or_else(|| {
-            RuntimeError::InvalidExpression(format!("Function {} did not return a value", formula_id))
+            RuntimeError::InvalidExpression(format!(
+                "Function {} did not return a value",
+                formula_id
+            ))
         })?;
 
-        // Cache the result
-        self.function_cache.insert(formula_id.to_string(), value);
+        self.function_cache.insert(cache_key, value);
         Ok(value)
     }
 
@@ -255,7 +259,6 @@ impl FormulaRuntime {
     fn evaluate_stmt(&mut self, node: &Node) -> Result<Option<f64>> {
         match node.kind {
             NodeKind::StmtLocal => {
-                // Local variable declaration: let x = expr;
                 if node.children.len() >= 2 {
                     let var_name = node.children[0].name.clone();
                     let value = self.evaluate_expr(&node.children[1])?;
@@ -266,7 +269,6 @@ impl FormulaRuntime {
                 Ok(None)
             }
             NodeKind::StmtAssign => {
-                // Assignment: x = expr;
                 if node.children.len() >= 2 {
                     let var_name = node.children[0].name.clone();
                     let value = self.evaluate_expr(&node.children[1])?;
@@ -280,7 +282,6 @@ impl FormulaRuntime {
                 Ok(None)
             }
             NodeKind::ExprReturn => {
-                // Return statement: return expr;
                 if !node.children.is_empty() {
                     Ok(Some(self.evaluate_expr(&node.children[0])?))
                 } else {
@@ -288,7 +289,6 @@ impl FormulaRuntime {
                 }
             }
             NodeKind::StmtExpr => {
-                // Expression statement: func(a, b);
                 if !node.children.is_empty() {
                     let val = self.evaluate_expr(&node.children[0])?;
                     Ok(Some(val))
@@ -296,10 +296,28 @@ impl FormulaRuntime {
                     Ok(None)
                 }
             }
-            _ => {
-                // Other statement types (if, while, for) - evaluate as expression
-                self.evaluate_expr(node).map(Some)
+            NodeKind::StmtIf => {
+                if node.children.len() >= 2 {
+                    let cond = self.evaluate_expr(&node.children[0])?;
+                    if cond != 0.0 {
+                        for stmt in &node.children[1].children {
+                            if let Some(val) = self.evaluate_stmt(stmt)? {
+                                return Ok(Some(val));
+                            }
+                        }
+                    } else if node.children.len() >= 3 {
+                        for stmt in &node.children[2].children {
+                            if let Some(val) = self.evaluate_stmt(stmt)? {
+                                return Ok(Some(val));
+                            }
+                        }
+                    }
+                }
+                Ok(None)
             }
+            NodeKind::StmtWhile | NodeKind::StmtFor => Ok(None),
+            NodeKind::StmtBreak | NodeKind::StmtContinue => Ok(None),
+            _ => self.evaluate_expr(node).map(Some),
         }
     }
 
@@ -311,36 +329,30 @@ impl FormulaRuntime {
                 let val_str = node.value.trim();
                 let is_negative = val_str.starts_with('-');
                 let abs_str = if is_negative { &val_str[1..] } else { val_str };
-                abs_str.parse::<f64>()
+                abs_str
+                    .parse::<f64>()
                     .map(|v| if is_negative { -v } else { v })
-                    .map_err(|_| RuntimeError::InvalidExpression(format!("Invalid number: {}", val_str)))
+                    .map_err(|_| {
+                        RuntimeError::InvalidExpression(format!("Invalid number: {}", val_str))
+                    })
             }
             NodeKind::ExprIdentifier => {
-                // Variable or constant lookup
                 let name = node.name.trim();
 
-                // DEBUG: Show what we're looking up
-                println!("DEBUG: Looking up identifier: '{}' (is_function: {}, in_symbol_table: {}, in_local_vars: {})",
-                    name,
-                    self.functions.contains_key(name),
-                    self.symbol_table.contains_key(name),
-                    self.local_vars.last().map_or(false, |v| v.contains_key(name))
-                );
-
-                // Check if it's a user-defined function FIRST
-                if self.functions.contains_key(name) {
-                    // User-defined function - delegate to evaluate()
+                let should_auto_invoke = self
+                    .functions
+                    .get(name)
+                    .map_or(false, |f| f.params.is_empty() && f.dependencies.is_empty());
+                if should_auto_invoke {
                     return self.evaluate(name);
                 }
 
-                // Check local variables
                 for scope in self.local_vars.iter().rev() {
                     if let Some(&val) = scope.get(name) {
                         return Ok(val);
                     }
                 }
 
-                // Check symbol table (constants)
                 if let Some(&val) = self.symbol_table.get(name) {
                     return Ok(val);
                 }
@@ -362,7 +374,8 @@ impl FormulaRuntime {
             _ => {
                 // For now, skip other node types or return error
                 Err(RuntimeError::InvalidExpression(format!(
-                    "Unsupported expression type: {:?}", node.kind
+                    "Unsupported expression type: {:?}",
+                    node.kind
                 )))
             }
         }
@@ -371,11 +384,15 @@ impl FormulaRuntime {
     /// Evaluate a function call node
     fn evaluate_function_call(&mut self, node: &Node) -> Result<f64> {
         if node.children.is_empty() {
-            return Err(RuntimeError::InvalidExpression("Empty function call".to_string()));
+            return Err(RuntimeError::InvalidExpression(
+                "Empty function call".to_string(),
+            ));
         }
 
         let func_name = node.name.trim().to_string();
-        let args: Vec<f64> = node.children.iter()
+        let args: Vec<f64> = node
+            .children
+            .iter()
             .map(|arg| self.evaluate_expr(arg))
             .collect::<Result<_>>()?;
 
@@ -393,7 +410,7 @@ impl FormulaRuntime {
                 }
                 if args[0] <= 0.0 {
                     return Err(RuntimeError::InvalidExpression(
-                        "ln() requires positive argument".to_string()
+                        "ln() requires positive argument".to_string(),
                     ));
                 }
                 Ok(args[0].ln())
@@ -428,7 +445,7 @@ impl FormulaRuntime {
                 }
                 if args[0] < 0.0 {
                     return Err(RuntimeError::InvalidExpression(
-                        "sqrt() requires non-negative argument".to_string()
+                        "sqrt() requires non-negative argument".to_string(),
                     ));
                 }
                 Ok(args[0].sqrt())
@@ -451,8 +468,7 @@ impl FormulaRuntime {
                                 args.len(),
                             ));
                         }
-                        let saved = self.local_vars.last().cloned().unwrap_or_default();
-                        let mut new_scope = saved;
+                        let mut new_scope = HashMap::new();
                         for (param_name, arg_val) in func.params.iter().zip(args.iter()) {
                             new_scope.insert(param_name.clone(), *arg_val);
                         }
@@ -483,7 +499,7 @@ impl FormulaRuntime {
     fn evaluate_binary(&mut self, node: &Node) -> Result<f64> {
         if node.children.len() < 2 {
             return Err(RuntimeError::InvalidExpression(
-                "Binary expression missing operands".to_string()
+                "Binary expression missing operands".to_string(),
             ));
         }
 
@@ -497,13 +513,17 @@ impl FormulaRuntime {
             "*" | "·" => Ok(left * right),
             "/" | "÷" => {
                 if right.abs() < 1e-15 {
-                    return Err(RuntimeError::InvalidExpression("Division by zero".to_string()));
+                    return Err(RuntimeError::InvalidExpression(
+                        "Division by zero".to_string(),
+                    ));
                 }
                 Ok(left / right)
             }
             "%" => {
                 if right.abs() < 1e-15 {
-                    return Err(RuntimeError::InvalidExpression("Modulo by zero".to_string()));
+                    return Err(RuntimeError::InvalidExpression(
+                        "Modulo by zero".to_string(),
+                    ));
                 }
                 Ok(left % right)
             }
@@ -512,10 +532,26 @@ impl FormulaRuntime {
             ">" => Ok(if left > right { 1.0 } else { 0.0 }),
             "<=" => Ok(if left <= right { 1.0 } else { 0.0 }),
             ">=" => Ok(if left >= right { 1.0 } else { 0.0 }),
-            "==" => Ok(if (left - right).abs() < 1e-12 { 1.0 } else { 0.0 }),
-            "!=" => Ok(if (left - right).abs() >= 1e-12 { 1.0 } else { 0.0 }),
-            "&&" => Ok(if left != 0.0 && right != 0.0 { 1.0 } else { 0.0 }),
-            "||" => Ok(if left != 0.0 || right != 0.0 { 1.0 } else { 0.0 }),
+            "==" => Ok(if (left - right).abs() < 1e-12 {
+                1.0
+            } else {
+                0.0
+            }),
+            "!=" => Ok(if (left - right).abs() >= 1e-12 {
+                1.0
+            } else {
+                0.0
+            }),
+            "&&" => Ok(if left != 0.0 && right != 0.0 {
+                1.0
+            } else {
+                0.0
+            }),
+            "||" => Ok(if left != 0.0 || right != 0.0 {
+                1.0
+            } else {
+                0.0
+            }),
             _ => Err(RuntimeError::UnknownOperator(op.to_string())),
         }
     }
@@ -524,7 +560,7 @@ impl FormulaRuntime {
     fn evaluate_unary(&mut self, node: &Node) -> Result<f64> {
         if node.children.is_empty() {
             return Err(RuntimeError::InvalidExpression(
-                "Unary expression missing operand".to_string()
+                "Unary expression missing operand".to_string(),
             ));
         }
 

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4dc50fae851ee03bf50b34eea433d9644459d9020cd366521299d19320d91ad5",
+  "gen_hash_rust": "sha256:50a78a43f73d32b2d426368edabd1abe8cf3765a7706e4a89f3266b1185fd450",
+  "gen_hash_verilog": "sha256:6fabcec3c405fba269ae425f5eff1853af404aa09cf47213801bd6c09259ac1e",
+  "gen_hash_zig": "sha256:9326e19adedb8c7ff590020f3beca27149c28f4ede80983329028e4ecaf33461",
+  "module": "SPI_Master",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:ff4be233953f854d3a992da31e1751d9ef9a530891514866f365130f313ea5e9",
+  "spec_path": "specs/fpga/spi.t27"
+}

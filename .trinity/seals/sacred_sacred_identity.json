@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:a8268b9cb6726ce086f8c0e0553a7593015b628e236de3fc457b31b5267f123c",
+  "gen_hash_rust": "sha256:a119b357a4e61c786d48fcbeba5d2a990ae84c5b57e00f359030e320b224e5e8",
+  "gen_hash_verilog": "sha256:85ff719509a409483e3323903bbf35d73f87c69729b3284006a412d7ef28c85e",
+  "gen_hash_zig": "sha256:e70515e94d76bdf5023fe9ec9ee852fdd8e6b65970bcf14d23fbf079253a20d6",
+  "module": "SacredIdentity",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:ecea27e185ed847dde4df4c4eb06be26568bcfc22f5447b75f88c7520a494461",
+  "spec_path": "specs/sacred/sacred_identity.t27"
+}

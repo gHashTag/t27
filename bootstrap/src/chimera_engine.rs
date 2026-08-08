@@ -85,8 +85,16 @@ pub fn chimera_search(
                             "FOUND"
                         };
 
+                        let expr = match op {
+                            ChimeraOp::Sin
+                            | ChimeraOp::Cos
+                            | ChimeraOp::Log
+                            | ChimeraOp::Exp => format!("{}({})", op_str, f1_id),
+                            _ => format!("{} {} {}", f1_id, op_str, f2_id),
+                        };
+
                         results.push(ChimeraCandidate {
-                            expr: format!("{} {} {}", f1_id, op_str, f2_id),
+                            expr,
                             target_name: target_name.clone(),
                             target_value: *target_val,
                             chimera_value: chimera_val,

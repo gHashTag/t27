@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b1e72575ba540ac98a6047bc726089156564de34ea43b89c6ef5e6bf55b1857d",
+  "gen_hash_rust": "sha256:9fb3653fea173ccb4ef5f8b06b8112d714f2cc98ff92bdd66ac688ce2be7f330",
+  "gen_hash_verilog": "sha256:07514bb94d22931f13e5a1a9dd77369bd5f12a82fc2c9e27f97492756120ba89",
+  "gen_hash_zig": "sha256:61fb065b614e2ffa3ca80d0661967e1bd93659df5ae97263385ac8aab14959ba",
+  "module": "BoardArtyA7",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:44Z",
+  "spec_hash": "sha256:7b96fe0feb3e7bc3e57acad912c8ab1fba60c054d3e1305abcc27f1e0b94ddd8",
+  "spec_path": "specs/boards/arty_a7.t27"
+}

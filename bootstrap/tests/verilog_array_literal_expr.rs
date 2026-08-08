@@ -56,7 +56,7 @@ const SPEC: &str = r#"module RCA2Probe {
 fn compile_spec(spec_text: &str, file_stem: &str) -> Option<String> {
     let bin = env!("CARGO_BIN_EXE_t27c");
     let tmp_dir = std::env::temp_dir();
-    let spec_path = tmp_dir.join(format!("{}.t27", file_stem));
+    let spec_path = tmp_dir.join(format!("{}_{}.t27", file_stem, std::process::id()));
     {
         let mut f = std::fs::File::create(&spec_path).ok()?;
         f.write_all(spec_text.as_bytes()).ok()?;

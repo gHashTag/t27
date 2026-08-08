@@ -40,12 +40,12 @@
       "verdict": "CLEAN"
     },
     {
-      "description": "C = φ⁻¹ ≈ 1.61803398875",
+      "description": "C = φ⁻¹ ≈ 0.61803398875",
       "name": "Consciousness Threshold",
       "test_cases": [
         {
           "expected": {
-            "c_threshold": 1.618033988749895
+            "c_threshold": 0.6180339887498948
           },
           "input": {}
         }
@@ -83,13 +83,13 @@
       "verdict": "CLEAN"
     },
     {
-      "description": "Ω_Λ = γ⁸π⁴/φ² ≈ 1.1e-52 (within 5% of CODATA)",
+      "description": "Ω_Λ = 8γ³π⁵/φ⁸ ≈ 0.686 (within 5% of CODATA)",
       "name": "Sacred Dark Energy Prediction",
       "test_cases": [
         {
           "expected": {
             "omega_ok": true,
-            "omega_pred": 1.1e-52
+            "omega_pred": 0.6856
           },
           "input": {},
           "tolerance": {

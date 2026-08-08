@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:eeb2ba633947a6bc9d15bade994491d38cae031c07d0d5ead405692e431e8f7b",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:f93c860ee18077fa1480065abd8d52cfa080385197669a0fe707af30ae6dfd22",
+  "gen_hash_zig": "sha256:65e78d238d58c79b07544ff0e8c9c061f64e9b89d112d3f1193b7cf901d90a16",
+  "module": "CloudOrchestrator",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:47Z",
+  "spec_hash": "sha256:9c52bd5e42a414e2d0ed5da344bf5ff4c61a5ccca57c35537983483a38b480db",
+  "spec_path": "specs/tri/pipeline/cloud_orchestrator.t27"
+}

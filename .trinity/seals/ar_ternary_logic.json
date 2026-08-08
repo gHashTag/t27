@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:a0f029e4f435a3996a91b60b3f0e7632c510e1d368462aacbc3c652b9eba0d56",
+  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "module": "ternary_logic",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:44Z",
+  "spec_hash": "sha256:003820a1908b213b5c065d89ace38ed0ce6d40a4ddbf077c5f3d640f5f66f612",
+  "spec_path": "specs/ar/ternary_logic.t27"
+}

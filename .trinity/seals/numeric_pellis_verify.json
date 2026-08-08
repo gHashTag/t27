@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:dfd88a39c15b6851ec6e986c888f5d5aa9d381aa7edaab988b9d744093b0fe3f",
+  "gen_hash_rust": "sha256:478d06949198cd864b565440f1391126505725de82367e2245fe9cf1236ead05",
+  "gen_hash_verilog": "sha256:97ae13569b6c9e6afc9ced8cb9698d9f0704622511746a05a98aa2102a6004f4",
+  "gen_hash_zig": "sha256:b5dd9bcb8b0a42ca72dc9a4c05a78c8965ae6634135c2e967f38ecbe4429bf00",
+  "module": "PellisVerify",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:d1c8b70e3fe2176c599433da14052d4628bed850866bb109b217723af830ca5f",
+  "spec_path": "specs/numeric/pellis_verify.t27"
+}

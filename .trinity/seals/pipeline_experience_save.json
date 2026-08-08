@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:42eb4930610ef2e1351fc516e518d76b4262afaf7c2557805bf7965a06ae4174",
+  "gen_hash_rust": "sha256:7e358c691533016885cef35b53ef46b066615d792fa367ca915594438778110d",
+  "gen_hash_verilog": "sha256:231bb66b95167087785f30bc0e97f3ddfef95e59bc6a4f0565c55af90af13541",
+  "gen_hash_zig": "sha256:d61e4a059ca5d42d10d6fcc81429f9ec91f1cb6f8f8e23eb4f361dc805a0c230",
+  "module": "ExperienceSave",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:df15f1fbd549cad6bc01b0599d4765ea3d8be69eb2759ef112ca8c94c101168d",
+  "spec_path": "specs/pipeline/experience_save.t27"
+}

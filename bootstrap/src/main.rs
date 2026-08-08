@@ -3711,14 +3711,25 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     })
 }
 
-fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
-    let path = Path::new(input_path);
-    let parent = path.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    let name = if parent.is_empty() {
-        format!("{}.json", module)
-    } else {
-        format!("{}_{}.json", parent, module)
-    };
+/// Canonical `.trinity/seals/` path for a spec.
+///
+/// Derived from the spec's **path** (`<parent-dir>_<file-stem>.json`), not from
+/// its `module` declaration. The previous scheme used `<parent-dir>_<module>`
+/// and was **not injective**: `specs/ml/transformer/feed_forward.t27` and
+/// `specs/ml/transformer/feed_forward_network.t27` are different specs (436 and
+/// 41 lines) that both declare `module FeedForward;`, so both mapped onto
+/// `transformer_FeedForward.json`. Whichever was sealed last silently
+/// overwrote the other, leaving one spec permanently unverifiable -- the single
+/// stale entry left after a full 496-spec re-baseline.
+///
+/// File stems are unique within a directory by filesystem guarantee, so this
+/// mapping is injective by construction. It is also a *pure path function*:
+/// resolving a seal path no longer requires parsing or compiling the spec.
+fn seal_file_path(input_path: &str) -> std::path::PathBuf {
+    let norm = input_path.replace('\\', "/");
+    let rel = norm.strip_prefix("specs/").unwrap_or(&norm);
+    let rel = rel.strip_suffix(".t27").unwrap_or(rel);
+    let name = format!("{}.json", rel.replace('/', "_"));
     Path::new(".trinity").join("seals").join(name)
 }
 
@@ -3727,7 +3738,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
 
     if verify {
         // --verify: load saved seal and compare
-        let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
+        let seal_path = seal_file_path(&hashes.spec_path);
         if !seal_path.exists() {
             anyhow::bail!(
                 "No saved seal found at {}. Run with --save first.",
@@ -3784,7 +3795,30 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
             "ring": 12
         });
 
-        let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
+        let seal_path = seal_file_path(&hashes.spec_path);
+
+        // Refuse to overwrite another spec's seal. The old <parent>_<module>
+        // scheme was not injective, and the overwrite was silent: two specs
+        // mapped to one file, the loser stayed permanently unverifiable, and
+        // nothing reported it. Even with an injective path function this guard
+        // stays, so any future scheme change fails loudly instead of quietly
+        // eating a seal.
+        if let Ok(existing) = fs::read_to_string(&seal_path) {
+            if let Ok(prev) = serde_json::from_str::<serde_json::Value>(&existing) {
+                if let Some(prev_spec) = prev.get("spec_path").and_then(|v| v.as_str()) {
+                    if prev_spec != hashes.spec_path {
+                        anyhow::bail!(
+                            "seal path collision: {} already belongs to {}, refusing to \
+                             overwrite it with {}. Two specs map to one seal file.",
+                            seal_path.display(),
+                            prev_spec,
+                            hashes.spec_path
+                        );
+                    }
+                }
+            }
+        }
+
         let pretty = serde_json::to_string_pretty(&seal_obj)?;
         fs::write(&seal_path, &pretty)?;
 
@@ -4409,7 +4443,7 @@ fn run_validate_seals(pr_files: &str) -> Result<(), anyhow::Error> {
         }
         match compute_seal_hashes(spec_path) {
             Ok(current) => {
-                let seal_path = seal_file_path(&current.module, spec_path);
+                let seal_path = seal_file_path(spec_path);
                 if seal_path.exists() {
                     let saved_data = std::fs::read_to_string(&seal_path)
                         .with_context(|| format!("reading seal {}", seal_path.display()))?;
@@ -8251,8 +8285,8 @@ async fn main() -> anyhow::Result<()> {
             suite::clara_coverage(&repo_root, output)?
         }
         Commands::SealPath { input } => {
-            let h = compute_seal_hashes(&input)?;
-            println!("{}", seal_file_path(&h.module, &h.spec_path).display());
+            // Pure path function: no parse, no compile needed.
+            println!("{}", seal_file_path(&input).display());
         }
         Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
@@ -8508,8 +8542,8 @@ fn main() -> anyhow::Result<()> {
             suite::clara_coverage(&repo_root, output)?
         }
         Commands::SealPath { input } => {
-            let h = compute_seal_hashes(&input)?;
-            println!("{}", seal_file_path(&h.module, &h.spec_path).display());
+            // Pure path function: no parse, no compile needed.
+            println!("{}", seal_file_path(&input).display());
         }
         Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
@@ -8633,4 +8667,83 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod seal_path_tests {
+    use super::seal_file_path;
+    use std::collections::HashSet;
+
+    // The scheme this replaced was <parent-dir>_<module-name>, which is not
+    // injective: feed_forward.t27 and feed_forward_network.t27 are different
+    // specs (436 and 41 lines) that both declare `module FeedForward;`, so both
+    // landed on transformer_FeedForward.json and the loser was silently
+    // overwritten and left permanently unverifiable.
+    #[test]
+    fn distinct_specs_sharing_a_module_name_get_distinct_seals() {
+        let a = seal_file_path("specs/ml/transformer/feed_forward.t27");
+        let b = seal_file_path("specs/ml/transformer/feed_forward_network.t27");
+        assert_ne!(a, b);
+    }
+
+    // Second collision class the parent+stem scheme still had: same directory
+    // name and same file stem at different depths.
+    #[test]
+    fn same_stem_in_same_named_dir_at_different_depths_differs() {
+        let a = seal_file_path("specs/math/constants.t27");
+        let b = seal_file_path("specs/tri/math/constants.t27");
+        assert_ne!(a, b);
+        assert!(a.to_string_lossy().ends_with("math_constants.json"));
+        assert!(b.to_string_lossy().ends_with("tri_math_constants.json"));
+    }
+
+    #[test]
+    fn path_is_flattened_under_the_seals_dir() {
+        let p = seal_file_path("specs/numeric/gf16.t27");
+        assert_eq!(p, std::path::Path::new(".trinity/seals/numeric_gf16.json"));
+    }
+
+    #[test]
+    fn is_a_pure_function_of_the_path() {
+        // No parse, no compile: the same string always maps to the same seal.
+        assert_eq!(
+            seal_file_path("specs/base/types.t27"),
+            seal_file_path("specs/base/types.t27")
+        );
+    }
+
+    #[test]
+    fn windows_separators_normalise() {
+        assert_eq!(
+            seal_file_path(r"specs\numeric\gf16.t27"),
+            seal_file_path("specs/numeric/gf16.t27")
+        );
+    }
+
+    #[test]
+    fn a_path_outside_specs_still_maps_somewhere_unique() {
+        let a = seal_file_path("tests/comprehensive_suite.t27");
+        let b = seal_file_path("specs/comprehensive_suite.t27");
+        assert_ne!(a, b);
+    }
+
+    // Injectivity over a representative slice of the real corpus, including
+    // the two pairs that broke the previous two schemes.
+    #[test]
+    fn corpus_slice_is_injective() {
+        let specs = [
+            "specs/ml/transformer/feed_forward.t27",
+            "specs/ml/transformer/feed_forward_network.t27",
+            "specs/math/constants.t27",
+            "specs/tri/math/constants.t27",
+            "specs/numeric/gf16.t27",
+            "specs/numeric/gf32.t27",
+            "specs/base/types.t27",
+            "specs/tri/utils/logger.t27",
+            "specs/fpga/testbench/mac_tb.t27",
+            "specs/fpga/mac.t27",
+        ];
+        let set: HashSet<_> = specs.iter().map(|s| seal_file_path(s)).collect();
+        assert_eq!(set.len(), specs.len(), "seal paths must be injective");
+    }
 }

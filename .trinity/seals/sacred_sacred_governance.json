@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:21cdb232720fcd700023c4fbaaa2af64a09b5543a084186a623e5f792bf4b966",
+  "gen_hash_rust": "sha256:6cb51b1154d772b42b5d746c5cca8673b4b972e9e411cab0b743c8021ffe572d",
+  "gen_hash_verilog": "sha256:0f5dcf4a6e8710a6fdb70b824f3547f48bbb838b6a09ee54792788816146468f",
+  "gen_hash_zig": "sha256:1e61fbe8413865cb0710600fbded806a18e3ff2018b3f24e14b3d48ac236d7eb",
+  "module": "SacredGovernance",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:ff6c8ba52702d18ca9e515c7722c8744c9a93a8b4156edd4cc049b0c370ad250",
+  "spec_path": "specs/sacred/sacred_governance.t27"
+}

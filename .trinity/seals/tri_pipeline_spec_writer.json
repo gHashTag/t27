@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f1fcfb4f82964d55344ef7a5ef29ca5e894ec33ab6b85d70b0746954704bb40a",
+  "gen_hash_rust": "sha256:60ac0f54d1a8c306dc8612d18b95f2ad81733bbffb8cd4287dc5196554173a0a",
+  "gen_hash_verilog": "sha256:7fb972d5b4ab4e9a8000edd6dba40fc601a4167cdde4eaf8215751abb9ce842b",
+  "gen_hash_zig": "sha256:20f691d03d5f58a70982b004fec78a6f6bc5e1b89278893a7c9622af7ce5dc65",
+  "module": "SpecWriter",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:47Z",
+  "spec_hash": "sha256:25f9fc3d90e52759cffe88f17cb3788364c8cda728c9c363bdff0a57dbca19e3",
+  "spec_path": "specs/tri/pipeline/spec_writer.t27"
+}

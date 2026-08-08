@@ -396,7 +396,14 @@ pub fn generate_bilingual_audio(
         episode_focus: russian_focus.clone(),
         source_ids: None,
     };
-    let _ru_status = create_audio_overview(base_url, notebook_id, &ru_config, token)?;
+    let ru_status = create_audio_overview(base_url, notebook_id, &ru_config, token)?;
+
+    if ru_status.status == AudioStatus::Failed {
+        return Err(anyhow::anyhow!(
+            "Russian audio overview creation failed: {}",
+            ru_status.name
+        ));
+    }
 
     // Simulate audio content (in real implementation, this would call AI service)
     let english_audio = generate_mock_audio(notebook_id, Lang::En, title.len() * 20);
@@ -568,9 +575,9 @@ pub fn generate_all(
             let mut guard = processed.lock().unwrap();
             guard.push(nb_id.clone());
 
-            let elapsed = _start.elapsed().as_millis() as u64;
+            let elapsed_secs = _start.elapsed().as_secs();
             let mut rep = report_inner.lock().unwrap();
-            rep.total_duration_secs += elapsed;
+            rep.total_duration_secs += elapsed_secs;
             rep.notebooks_success += 1;
         });
         handles.push(handle);

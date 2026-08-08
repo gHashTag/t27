@@ -301,10 +301,10 @@ fn extract_delay_cycles(then: &str) -> Option<usize> {
 fn remove_delay_phrase(then: &str) -> String {
     let lower = then.to_ascii_lowercase();
     if let Some(pos) = lower.find("after") {
-        let rest = &lower[pos + 5..].trim();
+        let rest = &lower[pos + 6..];
         if let Some(n) = rest.split_whitespace().next() {
             if n.parse::<usize>().is_ok() {
-                let phrase = &then[pos..pos + 5 + n.len() + " cycles".len().min(rest.len())];
+                let phrase = &then[pos..pos + 6 + n.len()];
                 let cleaned = then.replace(phrase.trim(), "");
                 return cleaned.trim().to_string();
             }

@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 
 const RAILWAY_GRAPHQL: &str = "https://backpack.railway.com/graphql";
 
+fn escape_graphql_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 #[derive(Serialize)]
 struct ServiceCreateInput {
     name: String,
@@ -76,7 +80,8 @@ pub async fn create_railway_service(
                 id
             }}
         }}"#,
-        service_name, base_service_id
+        escape_graphql_string(service_name),
+        escape_graphql_string(base_service_id)
     );
 
     let resp = client.post(RAILWAY_GRAPHQL)
@@ -141,7 +146,7 @@ pub async fn set_service_variables(
                 id
             }}
         }}"#,
-        service_id,
+        escape_graphql_string(service_id),
         serde_json::to_string(&variable_inputs)?
     );
 
@@ -182,7 +187,7 @@ pub async fn delete_railway_service(
                 id
             }}
         }}"#,
-        service_id
+        escape_graphql_string(service_id)
     );
 
     let resp = client.post(RAILWAY_GRAPHQL)
@@ -230,7 +235,7 @@ pub async fn check_service_health(
                 }}
             }}
         }}"#,
-        service_id
+        escape_graphql_string(service_id)
     );
 
     let resp = client.post(RAILWAY_GRAPHQL)

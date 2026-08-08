@@ -81,7 +81,7 @@
   ],
   "is_primary": false,
   "module": "GF20",
-  "phi_distance": 0.03463264154356299,
+  "phi_distance": 0.03470065541656142,
   "ring": 27,
   "sacred_ok": true,
   "schema_version": 2,
@@ -156,7 +156,7 @@
         "less_than": 0.04
       },
       "inputs": {
-        "phi_distance": 0.03463264154356299
+        "phi_distance": 0.03470065541656142
       },
       "test_name": "gf20_phi_distance_within_tolerance",
       "verdict": "CLEAN"

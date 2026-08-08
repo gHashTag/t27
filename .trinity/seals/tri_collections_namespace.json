@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:fee55d52c704800683e12cfc25a3988b3fad154c8f14aa60832f16fb7c0d9edd",
+  "gen_hash_rust": "sha256:bdb52fe19c8698d4ac1e67aeb71d5e4f843875657bbdfc2ce9a5e86b93bf2219",
+  "gen_hash_verilog": "sha256:c83ea4ada9b5871994b3761fc33d0bc331e0a548224b328dcff005083e8962ae",
+  "gen_hash_zig": "sha256:b7025d5f06719fe2a9eecc4137421247ce1e2a2ed2392bdd84f97b26e7cb0c5e",
+  "module": "TriNamespace",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:49Z",
+  "spec_hash": "sha256:007581c4bf2790f1cfea1054a87af9d5f5e57df6c967b1c2513d726293412ef8",
+  "spec_path": "specs/tri/collections/namespace.t27"
+}

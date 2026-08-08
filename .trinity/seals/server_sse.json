@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1cc9e93bbed54bcd20d2844030c39839521971f04831240a58aeb8bbbfc4aed8",
+  "gen_hash_rust": "sha256:f7f5b92dfe90109f536809177629c1b534c807f7f28c1d3e977c29ad62ca380f",
+  "gen_hash_verilog": "sha256:2db51a0f70c88ddc3a45716c3a54c97821687913dccdafdd620212c5e17bf06c",
+  "gen_hash_zig": "sha256:766f59d62faa2ee2ea8705db631e9ea6ec5e184c49c00c13c5a279da5f7bb119",
+  "module": "server-sse",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:b17e79a559a18949041fd3ba3bce6f83b286b6b905fceddc6b1f497d41a8532a",
+  "spec_path": "specs/server/sse.t27"
+}

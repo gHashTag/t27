@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:eddd3be5fc1eeaf62041d32e7fb8d392ef88370ccdcd0dae6da49855b7e743a9",
+  "gen_hash_rust": "sha256:8438370341a4c7f8b02114003fb583e822c347d5c7b0d04f813f046feb61ed4c",
+  "gen_hash_verilog": "sha256:5910f752f06e3bb48a29d31b2c7b47b768c58879ffd51346717049fb660b060e",
+  "gen_hash_zig": "sha256:f56ee1717417d90a76a2aacc13893dfdf353b746178ce666de7dd01442486259",
+  "module": "ZeroDSP_MAC",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:136aee0b279e14e2d44bbf40b8c858c61b4b2f275ecb5a598ab5b8a4dcba4e83",
+  "spec_path": "specs/fpga/mac.t27"
+}

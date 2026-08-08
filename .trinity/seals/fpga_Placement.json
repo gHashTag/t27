@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:edb63ffb309e7527f8b2531036a37f262c5d0182bc680485b3e6d5bb4d8aaf80",
-  "gen_hash_rust": "sha256:7406a95c5d3b0fda4a712d017ac8e3e5d86ada79c727d5d4aa9fe0f259ec7a9e",
-  "gen_hash_verilog": "sha256:194c861cc31f903f5cacdb49c9c34ea6a962781f4ce8d508bb7a66d22b45fee4",
-  "gen_hash_zig": "sha256:20fa5f2057dada30dffc629d00d24dd3dae162a30736b4a7112f0860c48c2b16",
+  "gen_hash_c": "sha256:9a64bc39416581acc659c281c2d4202f748033ff17179b601c7aed6590d37772",
+  "gen_hash_rust": "sha256:f1a03f20c8d1d182a4c0fc829dcc5d34f9bb72e2c670a1e0e6535e3e5956c574",
+  "gen_hash_verilog": "sha256:4dbd8018df240b1bd05cdf2ef955f6aeb997fdda3a1c859d92d9dd2c6e041075",
+  "gen_hash_zig": "sha256:ff2df46c87061787c6cab8c399622373ebcd02a53b3717a6247369598b54e9e2",
   "module": "Placement",
   "ring": 12,
-  "sealed_at": "2026-04-13T11:00:45Z",
+  "sealed_at": "2026-08-08T18:23:47Z",
   "spec_hash": "sha256:107a9d65a33d6ab72b3a3b119cd6ab33bad72e10964c329bab4b2ca889661c96",
   "spec_path": "specs/fpga/placement.t27"
 }

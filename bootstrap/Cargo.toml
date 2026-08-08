@@ -6,33 +6,32 @@ description = "T27 Bootstrap Compiler for Trinity S³AI Framework"
 license = "MIT"
 
 [features]
-server = ["axum", "tokio"]
+server = ["axum", "tokio", "tower-http", "tokio-stream", "futures-util", "serde_urlencoded", "hyper", "hyper-util", "http-body-util"]
 
 [dependencies]
 anyhow = "1"
 axum = { version = "0.8", optional = true }
-tokio = { version = "1", features = ["full"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "net", "time", "macros"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"
-reqwest = { version = "0.12", features = ["json", "blocking", "stream"] }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
 colored = "2"
-tower-http = { version = "0.6", features = ["fs"] }
-tokio-stream = { version = "0.1", features = ["sync", "time"] }
-futures-util = "0.3"
-uuid = { version = "1", features = ["v4", "serde"] }
-tower = "0.5"
-ignore = "0.4"
-rusqlite = { version = "0.32", features = ["bundled"] }
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
-serde_urlencoded = "0.7"
-hyper = { version = "1", features = ["full"] }
-hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
-http-body-util = "0.1"
+tower-http = { version = "0.6", features = ["fs"], optional = true }
+tokio-stream = { version = "0.1", features = ["sync", "time"], optional = true }
+futures-util = { version = "0.3", optional = true }
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto"] }
+serde_urlencoded = { version = "0.7", optional = true }
+hyper = { version = "1", features = ["client", "http1"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"], optional = true }
+http-body-util = { version = "0.1", optional = true }
 lazy_static = "1.5"
-regex = "1"
-candle-core = "0.10.2"
-candle-nn = "0.10.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1

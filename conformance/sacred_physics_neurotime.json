@@ -44,7 +44,7 @@
       "sacred_physics_link": true,
       "input": {},
       "expected": {
-        "c_threshold": 1.6180339887498948,
+        "c_threshold": 0.6180339887498949,
         "matches_theory": true,
         "theory": "IIT critical threshold"
       }
@@ -67,8 +67,8 @@
     },
     {
       "constant": "C_THRESHOLD",
-      "value": 1.6180339887498948,
-      "encoded": 1.6180339887498948,
+      "value": 0.6180339887498949,
+      "encoded": 0.6180339887498949,
       "relative_error": 0.0,
       "ok": true
     }

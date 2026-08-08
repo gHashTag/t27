@@ -24,13 +24,9 @@ product of t27 is the path `.t27 → Verilog RTL → Tiny Tapeout` with sealed,
 inspectable artefacts at every step.
 
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
-  → **1157 / 1157 passed** (full Quick Start below).
-  Validators: `./scripts/tri validate-conformance` and `validate-gen-headers`, both green.
-  **`./scripts/tri test` currently exits non-zero** — its Phase 5 runs
-  `seal --verify` across the corpus and every seal is stale (see *Seal
-  integrity* below). That is a true report, not a broken harness; it will stay
-  red until `.trinity/seals/` is re-baselined. Measure it alone with
-  `./scripts/tri seal-audit`.
+  → **1164 / 1164 passed** (full Quick Start below).
+  Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and
+  `seal-audit --strict` — all green as of the 2026-08-09 seal re-baseline.
 - **Primary numeric path:** GoldenFloat **GF16** (default), with the family
   GF4–GF32 registered in [`conformance/FORMAT-SPEC-001.json`](conformance/FORMAT-SPEC-001.json).
   FP8 compat and NF4 / INT4 / INT8 quant bridges are **planned**, not shipped.
@@ -61,7 +57,7 @@ inspectable artefacts at every step.
 |--------|-----------|--------|---------|
 | Compiler | `t27c parse` | GREEN | **496 / 496** specs parse (measured 2026-08-09) |
 | Compiler | `t27c gen-verilog` | GREEN | 5/5 FPGA modules synthesize |
-| Compiler | `t27c seal` | GREEN | emits/verifies seals; **730** files in `.trinity/seals/` (see Seal integrity below) |
+| Compiler | `t27c seal` | GREEN | injective seal paths; **496** files in `.trinity/seals/`, all verifying |
 | FPGA | Yosys synthesis | GREEN | 5/5 modules pass synth_xilinx |
 | FPGA | E2E bitstream | GREEN | Yosys→nextpnr→prjxray→.bit (zero Vivado) |
 | FPGA | Board profiles | GREEN | QMTECH XC7A100T (minimal+full), Arty A7 |
@@ -69,8 +65,8 @@ inspectable artefacts at every step.
 | Pins | Pins IR | GREEN | `specs/pins/ir.t27` — conflict detection invariants |
 | Pins | XDC emitter | GREEN | `specs/pins/emitter_xdc.t27` — QMTECH + Arty presets |
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
-| CI | Seal **presence** | GREEN | 730 seal files in `.trinity/seals/` |
-| CI | Seal **integrity** | RED | **0 / 496 seals verify** — last written April 2026, never re-baselined. `t27c seal-audit`; CI job reports it non-blocking |
+| CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
+| CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -88,11 +84,12 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1155 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1164 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
-ls .trinity/seals/ | wc -l                           # 730
+ls .trinity/seals/ | wc -l                           # 496 (one per spec)
+./target/release/t27c seal-audit --strict             # 496 verify, 0 stale
 grep -rh --include='*.v' 'Qed\.' coq trios-coq | wc -l  # 546 across 41 files
 ```
 
@@ -203,7 +200,7 @@ git submodule update --init --recursive
 - BitNet HLS suites: 9 modules x dedicated integration suite each
 - Host stack: `host_driver` (25), `host_irq` (25)
 - R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
-- Regression: **22 integration suites green**, total **1155 / 1155 passed,
+- Regression: **22 integration suites green**, total **1164 / 1164 passed,
   0 failed** (`cargo test --release`, measured 2026-08-09 at `1be60604`).
   The long-standing fail in
   `verilog_const_array::r_ca_1_emitter_on_real_mac_spec` is **fixed** as of

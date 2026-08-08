@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b826fd4804a24b2f103c16598010fd31dbcd782fb29f7807a474aa60cd17a993",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:76d2e0e26f49f31287f99f71bf51d249cfcf294598d28ce92e6abb29101de107",
+  "gen_hash_zig": "sha256:4bf0280da06bf058b0e6fc63dac3ef70710ed90a73e1d592bf26c571daee7806",
+  "module": "AutonomousUniverse",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:48Z",
+  "spec_hash": "sha256:3a86f39a7c8d0462b028a88aa5b2e9c7e7ed151c0404e4efef134c64654dd4b0",
+  "spec_path": "specs/tri/agent/autonomous_universe.t27"
+}

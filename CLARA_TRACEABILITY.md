@@ -40,7 +40,7 @@ a build target.
 | Bounded reasoning / explainability over inference steps         | `clara-bridge/` proof-trace work; `specs/ar/` AR specs      | demo/SPEC |
 | Polynomial-time complexity guarantees on the assurance path     | Stated in `clara-bridge/README.md`; specs under `specs/ar/` | demo      |
 | Formal verification of components prior to composition          | `coq/Kernel/`, `coq/Theorems/`, `coq/IGLA/`, `proofs/`      | partial   |
-| Reproducible build pipeline auditable end-to-end                | `.t27` -> `t27c` -> `gen/*` (GREEN, 496/496); `-> .trinity/seals/` **RED**, see below | partial   |
+| Reproducible build pipeline auditable end-to-end                | `.t27` -> `t27c` -> `gen/*` -> `.trinity/seals/` — all legs measured green (496/496)      | GREEN     |
 | Open and inspectable artefacts                                  | This repo + linked chip repos (see [`LINEUP.md`](LINEUP.md))| n/a       |
 
 Honest gaps:
@@ -52,14 +52,14 @@ Honest gaps:
   When the public program page details such structure, a follow-up PR can
   refine this table.
 - **Coq surface is "partial"**: see [`STATUS.md`](STATUS.md) section 2.4.
-- **The seal leg of the pipeline does not currently verify.** `.trinity/seals/`
-  holds 730 seal files, and **0 of 496 specs** verify against them: the seals
-  were last written in April 2026 and were never re-baselined after subsequent
-  spec and codegen changes. The pre-commit gate checks only that a seal *file
-  exists*, so this drifted unnoticed. The `.t27 -> t27c -> gen/*` legs are
-  measured green (496/496); the seal leg is not. Measure with
-  `t27c seal-audit`. Until a re-baseline lands, read the "reproducible build
-  pipeline" row as covering generation but **not** seal integrity.
+- **The seal leg verifies as of 2026-08-09.** It did not for four months:
+  `.trinity/seals/` held 730 files and **0 of 496** verified, because
+  `seal_file_path` was not injective (two specs could map to one seal file,
+  silently overwriting each other) and nothing had been re-baselined since
+  April 2026. The path function is now derived from the spec path and is
+  injective; the corpus was re-sealed. Current state: **496 specs, 496 seal
+  files, 496 verify, 0 stale**, enforced in CI. Check with
+  `t27c seal-audit --strict`.
 - **Coverage evidence was regenerated on 2026-08-09.** The previous
   `conformance/clara_spec_coverage.json` covered 36 specs and recorded a
   passing result for `bash scripts/clara/demo.sh` — a path that does not exist
@@ -80,12 +80,12 @@ Anyone with this repo can verify the mapping:
 # Whole-corpus coverage evidence, regenerable
 ./scripts/tri clara-coverage            # -> conformance/clara_spec_coverage.json
                                         # parse 496/496, gen_zig 496/496,
-                                        # gen_verilog 496/496, seal 0/496
+                                        # gen_verilog 496/496, seal 496/496
 
-# Seal integrity. This currently FAILS, by design of this document:
-# it reports the real state rather than a state we would prefer.
-./scripts/tri seal-audit                # -> Verifying: 0, stale: 496
-./scripts/tri seal specs/numeric/gf16.t27 --verify   # exits 1, hashes differ
+# Seal integrity (enforcing in CI since the 2026-08-09 re-baseline)
+./scripts/tri seal-audit --strict       # -> Verifying: 496, stale: 0
+./scripts/tri seal specs/numeric/gf16.t27 --verify   # all hashes MATCH
+./scripts/tri seal-path specs/math/constants.t27     # canonical, injective path
 
 # Assurance bridge examples
 ls clara-bridge/

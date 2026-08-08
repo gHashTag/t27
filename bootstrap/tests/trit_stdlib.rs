@@ -187,7 +187,7 @@ fn trit_multiply_uses_sign_comparison_not_arithmetic() {
         "trit_multiply must return TRIT_P when signs match (both nonzero)"
     );
     assert!(
-        !body.contains(" * "),
+        !body.contains("*"),
         "trit_multiply must not contain the Verilog `*` operator: {}",
         body
     );

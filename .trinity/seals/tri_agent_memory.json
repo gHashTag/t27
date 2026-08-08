@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b660b94a08939ecd1b8797c68d17c768ca86a51c4501e06e48494f42bc145d5e",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:0ad612c45024c3767df336a7c76492e4cc897455d7646dd92c727820d7d59eee",
+  "gen_hash_zig": "sha256:9979dc58f7a3fa4023fd68613669c93d91bf1f1d5e39768d63f5763f54435198",
+  "module": "memory",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:48Z",
+  "spec_hash": "sha256:13eea0478571c3e79f3cb8e8796d92342967e70b390bb9022d1af2c88e3972ab",
+  "spec_path": "specs/tri/agent/memory.t27"
+}

@@ -48,7 +48,7 @@ const SPEC: &str = r#"module RCA1Probe {
 fn compile_spec() -> Option<String> {
     let bin = env!("CARGO_BIN_EXE_t27c");
     let tmp_dir = std::env::temp_dir();
-    let spec_path = tmp_dir.join("wave28_r_ca_1_probe.t27");
+    let spec_path = tmp_dir.join(format!("wave28_r_ca_1_probe_{}.t27", std::process::id()));
     {
         let mut f = std::fs::File::create(&spec_path).ok()?;
         f.write_all(SPEC.as_bytes()).ok()?;
@@ -100,8 +100,7 @@ fn has_comment_only_initializer(src: &str) -> bool {
 #[test]
 fn r_ca_1_emitter_does_not_emit_comment_only_initializer() {
     let Some(verilog) = compile_spec() else {
-        eprintln!("compile_spec returned None -- test inconclusive");
-        return;
+        panic!("t27c failed on probe spec -- front-end regression masked");
     };
 
     assert!(
@@ -126,8 +125,7 @@ fn r_ca_1_emitter_on_real_mac_spec() {
             break candidate;
         }
         if !dir.pop() {
-            eprintln!("could not locate specs/fpga/mac.t27 -- test inconclusive");
-            return;
+            panic!("t27c failed on probe spec -- front-end regression masked");
         }
     };
 
@@ -138,17 +136,11 @@ fn r_ca_1_emitter_on_real_mac_spec() {
     {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("t27c invocation failed ({e}) -- test inconclusive");
-            return;
+            panic!("t27c failed on probe spec -- front-end regression masked");
         }
     };
     if !out.status.success() {
-        eprintln!(
-            "t27c gen-verilog on mac.t27 failed ({:?}) -- test inconclusive\nstderr: {}",
-            out.status.code(),
-            String::from_utf8_lossy(&out.stderr)
-        );
-        return;
+        panic!("t27c failed on probe spec -- front-end regression masked");
     }
     let verilog = String::from_utf8_lossy(&out.stdout).into_owned();
 

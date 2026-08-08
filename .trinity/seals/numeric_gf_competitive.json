@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:7cfc3cd26094c0f8e575d5a6d8ce333d3236de4d0cc70d2ee8997fa803ecc05d",
+  "gen_hash_rust": "sha256:a2af92335558da46d52c1bbea4d15ec07bbfeb14fed03eba006c10a36f8b6af5",
+  "gen_hash_verilog": "sha256:99eb25fa6beb2ac02a6c5676e8eb4f98f4bcaff2586698b6398c5805b3fa502d",
+  "gen_hash_zig": "sha256:e566b6a06bd94be78dfa72b269fe89327b53132955aa7f149da92d6b683690e4",
+  "module": "GFCompetitive",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:8deff6f95e04a674b0b6677969b4a46c704f13ec0ac17816ce356230eae6b487",
+  "spec_path": "specs/numeric/gf_competitive.t27"
+}

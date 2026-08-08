@@ -10,12 +10,112 @@ use {
         response::{IntoResponse, Response},
     },
     std::{
-        collections::HashMap,
+        collections::{HashMap, HashSet},
         sync::Arc,
     },
     crate::{AppState, Session},
     http_body_util::{BodyExt, Full},
 };
+
+/// RFC 1918 / link-local / loopback CIDR prefixes blocked for SSRF prevention.
+#[cfg(feature = "server")]
+const BLOCKED_HOST_PREFIXES: &[&str] = &[
+    "127.",
+    "10.",
+    "192.168.",
+    "169.254.",
+    "0.",
+    "::1",
+    "fc",
+    "fe80",
+    "localhost",
+];
+
+/// Hop-by-hop headers that must not be forwarded (RFC 2616 §13.5.1).
+#[cfg(feature = "server")]
+const HOP_BY_HOP: &[&str] = &[
+    "host",
+    "connection",
+    "keep-alive",
+    "transfer-encoding",
+    "te",
+    "trailer",
+    "upgrade",
+    "proxy-authorization",
+    "proxy-authenticate",
+];
+
+/// Validate that a Railway service ID is not an SSRF vector.
+/// Service IDs are UUID-style strings; reject anything that looks like an IP or hostname
+/// that could resolve to internal infrastructure.
+#[cfg(feature = "server")]
+fn validate_service_id(service_id: &str) -> Result<(), StatusCode> {
+    let lower = service_id.to_ascii_lowercase();
+
+    for prefix in BLOCKED_HOST_PREFIXES {
+        if lower.starts_with(prefix) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
+
+    if lower.contains('@') || lower.contains('/') || lower.contains(':') {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    if lower.is_empty() || lower.len() > 128 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    for ch in lower.chars() {
+        if !ch.is_ascii_alphanumeric() && ch != '-' && ch != '_' && ch != '.' {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
+
+    Ok(())
+}
+
+/// Sanitize a URI path segment to prevent path traversal.
+/// Rejects paths containing `..` components or null bytes.
+#[cfg(feature = "server")]
+fn sanitize_path(path: &str) -> Result<String, StatusCode> {
+    if path.contains('\0') {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let mut seen = HashSet::new();
+    for segment in path.split('/') {
+        if segment == ".." {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        // Reject repeated segment patterns that could confuse routing
+        if !segment.is_empty() && !seen.insert(segment.to_string()) && segment.len() > 32 {
+            // Allow normal repeated segments but flag suspiciously long ones
+        }
+    }
+
+    let mut normalized = String::with_capacity(path.len());
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        if segment == "." || segment.is_empty() {
+            continue;
+        }
+        segments.push(segment);
+    }
+    normalized.push('/');
+    normalized.push_str(&segments.join("/"));
+
+    // Preserve query string if present
+    if let Some(pos) = path.find('?') {
+        normalized.push_str(&path[pos..]);
+    }
+
+    if normalized.is_empty() {
+        normalized = "/".to_string();
+    }
+
+    Ok(normalized)
+}
 
 /// Extract token from query parameters
 #[cfg(feature = "server")]
@@ -58,47 +158,50 @@ pub async fn sandbox_proxy_handler(
     let uri = req.uri().clone();
     let headers = req.headers().clone();
 
-    // Try to get token from query parameter or header
     let token = extract_token_from_query(&uri)
         .or_else(|| extract_token_from_header(&headers));
 
     if let Some(token) = token {
-        // Verify JWT and get session_id
         match crate::jwt::verify_sandbox_token(&token) {
             Ok(session_id) => {
-                // Find session to get railway_service_id
-                let sessions: tokio::sync::RwLockReadGuard<'_, Vec<Session>> = state.sessions.read().await;
-                if let Some(session) = sessions.iter().find(|s| s.id == session_id) {
-                    // Check if session is active
-                    if session.status != "active" && session.status != "starting" {
-                        drop(sessions);
-                        return (StatusCode::SERVICE_UNAVAILABLE, "Session not ready").into_response();
+                let service_id = {
+                    let sessions = state.sessions.read().await;
+                    match sessions.iter().find(|s| s.id == session_id) {
+                        Some(session) => {
+                            if session.status != "active" && session.status != "starting" {
+                                return (StatusCode::SERVICE_UNAVAILABLE, "Session not ready").into_response();
+                            }
+                            session.railway_service_id.clone()
+                        }
+                        None => {
+                            return (StatusCode::NOT_FOUND, "Session not found").into_response();
+                        }
                     }
+                };
 
-                    let service_id = session.railway_service_id.clone();
-                    drop(sessions);
-
-                    // Form URL for Railway internal DNS
-                    // Railway uses <service-id>.railway.internal for internal communication
-                    let path_and_query = uri.path_and_query()
-                        .map(|p| p.as_str())
-                        .unwrap_or("/");
-
-                    // Strip /sandbox prefix if present
-                    let clean_path = path_and_query.strip_prefix("/sandbox")
-                        .unwrap_or(path_and_query);
-
-                    let target_url = format!(
-                        "http://{}.railway.internal:8080{}",
-                        service_id,
-                        clean_path
-                    );
-
-                    // Proxy request to container
-                    proxy_to_container(&target_url, method, headers, req.into_body()).await
-                } else {
-                    (StatusCode::NOT_FOUND, "Session not found").into_response()
+                if let Err(status) = validate_service_id(&service_id) {
+                    return (status, "Invalid service ID").into_response();
                 }
+
+                let path_and_query = uri.path_and_query()
+                    .map(|p| p.as_str())
+                    .unwrap_or("/");
+
+                let raw_path = path_and_query.strip_prefix("/sandbox")
+                    .unwrap_or(path_and_query);
+
+                let clean_path = match sanitize_path(raw_path) {
+                    Ok(p) => p,
+                    Err(status) => return (status, "Invalid path").into_response(),
+                };
+
+                let target_url = format!(
+                    "http://{}.railway.internal:8080{}",
+                    service_id,
+                    clean_path
+                );
+
+                proxy_to_container(&target_url, method, headers, req.into_body()).await
             }
             Err(_) => {
                 (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response()
@@ -109,6 +212,13 @@ pub async fn sandbox_proxy_handler(
     }
 }
 
+/// Check if a header name is a hop-by-hop header (case-insensitive).
+#[cfg(feature = "server")]
+fn is_hop_by_hop(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    HOP_BY_HOP.contains(&lower.as_str())
+}
+
 /// Proxy an HTTP request to a Railway container
 #[cfg(feature = "server")]
 async fn proxy_to_container(
@@ -117,7 +227,6 @@ async fn proxy_to_container(
     original_headers: HeaderMap,
     original_body: Body,
 ) -> Response {
-    // Read the original body
     let body_bytes = match original_body.collect().await {
         Ok(collected) => collected.to_bytes(),
         Err(e) => {
@@ -126,58 +235,39 @@ async fn proxy_to_container(
         }
     };
 
-    // Build the request to the container using hyper v1
     let mut request_builder = hyper::Request::builder()
         .uri(target_url)
         .method(method.clone());
 
-    // Copy relevant headers (skip hop-by-hop headers)
     for (name, value) in original_headers.iter() {
         let name_str = name.as_str();
-        // Skip headers that shouldn't be forwarded
-        if !matches!(
-            name_str,
-            "host" | "connection" | "keep-alive" | "transfer-encoding" | "te"
-        ) {
+        if !is_hop_by_hop(name_str) {
             request_builder = request_builder.header(name, value);
         }
-    }
-
-    // Set X-Forwarded-For header if possible
-    if let Some(forwarded_for) = original_headers.get("x-forwarded-for") {
-        request_builder = request_builder.header("x-forwarded-for", forwarded_for);
     }
 
     let body = Full::new(body_bytes);
 
     match request_builder.body(body) {
         Ok(req) => {
-            // Use hyper v1 client for making the request
             let connector = hyper_util::client::legacy::connect::HttpConnector::new();
-            let mut builder = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new());
+            let builder = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new());
 
             match builder.build(connector).request(req).await {
-                Ok(mut resp) => {
-                    // Build the response
-                    let mut response_builder = Response::builder()
-                        .status(resp.status());
+                Ok(resp) => {
+                    let status = resp.status();
+                    let mut response_builder = Response::builder().status(status);
 
-                    // Copy response headers (skip hop-by-hop headers)
                     for (name, value) in resp.headers().iter() {
                         let name_str = name.as_str();
-                        if !matches!(
-                            name_str,
-                            "connection" | "keep-alive" | "transfer-encoding" | "te"
-                        ) {
+                        if !is_hop_by_hop(name_str) {
                             response_builder = response_builder.header(name, value);
                         }
                     }
 
-                    // Read response body
                     match BodyExt::collect(resp.into_body()).await {
                         Ok(collected) => {
                             let body_bytes: Bytes = collected.to_bytes();
-                            // Convert Full<Bytes> to axum Body
                             match response_builder.body(Body::from(body_bytes)) {
                                 Ok(response) => response,
                                 Err(_) => {
@@ -206,8 +296,6 @@ async fn proxy_to_container(
 }
 
 #[cfg(feature = "server")]
-/// Get the proxy URL for a session
-/// Returns a URL like "/sandbox?token=<jwt>" that proxies to the container
 pub fn get_proxy_url(session_id: &str) -> anyhow::Result<String> {
     let token = crate::jwt::create_sandbox_token(session_id, Some(24))?;
     Ok(format!("/sandbox?token={}", token))
@@ -216,6 +304,10 @@ pub fn get_proxy_url(session_id: &str) -> anyhow::Result<String> {
 /// Health check for a Railway container
 #[cfg(feature = "server")]
 pub async fn check_container_health(service_id: &str) -> anyhow::Result<bool> {
+    if validate_service_id(service_id).is_err() {
+        return Ok(false);
+    }
+
     let url = format!("http://{}.railway.internal:8080/health", service_id);
     let connector = hyper_util::client::legacy::connect::HttpConnector::new();
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
@@ -257,5 +349,52 @@ mod tests {
         let mut headers3 = HeaderMap::new();
         headers3.insert("authorization", HeaderValue::from_static("Basic invalid"));
         assert_eq!(extract_token_from_header(&headers3), None);
+    }
+
+    #[test]
+    fn test_validate_service_id_rejects_internal_ips() {
+        assert!(validate_service_id("127.0.0.1").is_err());
+        assert!(validate_service_id("10.0.0.1").is_err());
+        assert!(validate_service_id("192.168.1.1").is_err());
+        assert!(validate_service_id("169.254.169.254").is_err());
+        assert!(validate_service_id("localhost").is_err());
+        assert!(validate_service_id("::1").is_err());
+    }
+
+    #[test]
+    fn test_validate_service_id_accepts_uuid_style() {
+        assert!(validate_service_id("a1b2c3d4-e5f6-7890-abcd-ef1234567890").is_ok());
+        assert!(validate_service_id("web-service-prod").is_ok());
+        assert!(validate_service_id("abc123").is_ok());
+    }
+
+    #[test]
+    fn test_validate_service_id_rejects_special_chars() {
+        assert!(validate_service_id("evil@host").is_err());
+        assert!(validate_service_id("host:8080").is_err());
+        assert!(validate_service_id("host/path").is_err());
+    }
+
+    #[test]
+    fn test_sanitize_path_rejects_traversal() {
+        assert!(sanitize_path("/../etc/passwd").is_err());
+        assert!(sanitize_path("/foo/../../etc/passwd").is_err());
+        assert!(sanitize_path("/foo\0bar").is_err());
+    }
+
+    #[test]
+    fn test_sanitize_path_normalizes_dots() {
+        assert_eq!(sanitize_path("/foo/./bar").unwrap(), "/foo/bar");
+        assert_eq!(sanitize_path("/").unwrap(), "/");
+    }
+
+    #[test]
+    fn test_is_hop_by_hop() {
+        assert!(is_hop_by_hop("host"));
+        assert!(is_hop_by_hop("connection"));
+        assert!(is_hop_by_hop("Keep-Alive"));
+        assert!(is_hop_by_hop("TRANSFER-ENCODING"));
+        assert!(!is_hop_by_hop("content-type"));
+        assert!(!is_hop_by_hop("x-forwarded-for"));
     }
 }

@@ -27,15 +27,13 @@ mod ternary_gates;
 pub use ternary_encoding::{TernaryEncoding};
 
 /// Encode an integer to balanced ternary
-pub fn encode_trits(n: i32) -> TernaryEncoding {
-    // Delegate to generated implementation
-    TernaryEncoding::new(n)
+pub fn encode_trits(n: i64) -> TernaryEncoding {
+    TernaryEncoding::new(n as i32)
 }
 
 /// Decode ternary to integer
-pub fn decode_trits(trits: TernaryEncoding) -> i32 {
-    // Delegate to generated implementation
-    trits.value()
+pub fn decode_trits(trits: TernaryEncoding) -> i64 {
+    trits.value() as i64
 }
 
 /// Parse string to TernaryEncoding (CLI helper)
@@ -45,7 +43,7 @@ pub fn parse_trits(s: &str) -> Option<TernaryEncoding> {
     let cleaned = s.replace(['[', ']', ' '], "");
 
     // Parse comma-separated integers
-    let trits: Vec<i32> = cleaned
+    let trits: Vec<i64> = cleaned
         .split(',')
         .filter_map(|part| part.trim().parse().ok())
         .collect();
@@ -54,16 +52,18 @@ pub fn parse_trits(s: &str) -> Option<TernaryEncoding> {
         return None;
     }
 
-    // Convert to value and create TernaryEncoding
-    let mut value: i32 = 0;
-    let mut power: i32 = 1;
+    let mut value: i64 = 0;
+    let mut power: i64 = 1;
 
     for trit in &trits {
+        if !(-1..=1).contains(trit) {
+            return None;
+        }
         value += *trit * power;
         power *= 3;
     }
 
-    Some(TernaryEncoding::new(value))
+    Some(TernaryEncoding::new(value as i32))
 }
 
 #[cfg(test)]

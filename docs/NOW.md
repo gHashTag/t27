@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## seal-rebaseline -- 0/496 to 496/496, and the path function was not injective
+
+- **WHERE**: `bootstrap/src/main.rs` (`seal_file_path` rewritten + collision
+  guard + 7 tests), `.trinity/seals/` (re-baselined, 1205 orphans removed),
+  `.github/workflows/seal-coverage.yml` (now enforcing), `COMPETITORS.md`,
+  `CLARA_TRACEABILITY.md`, `README.md`, `conformance/clara_spec_coverage.json`.
+- **A mechanical re-baseline surfaced a real defect.** First pass gave
+  **495 verify, 1 stale**. A single outlier after a uniform operation is a
+  signal, not noise.
+- **Root cause**: `seal_file_path` was **not injective**. It derived
+  `<parent-dir>_<module-name>.json` from the spec's `module` *declaration*.
+  `specs/ml/transformer/feed_forward.t27` (436 lines) and
+  `feed_forward_network.t27` (41 lines) are genuinely different specs that both
+  declare `module FeedForward;` — both mapped to `transformer_FeedForward.json`,
+  and the loser was **silently overwritten** and left permanently unverifiable.
+- A second scheme (`<parent-dir>_<file-stem>`) still collided:
+  `specs/math/constants.t27` vs `specs/tri/math/constants.t27`.
+- **Now** derived from the full spec path (`specs/` stripped, `/` -> `_`).
+  Verified injective over the corpus: **496 distinct paths for 496 specs**.
+  Also now a *pure path function* — no parse, no compile — so the pre-commit
+  hook can resolve a seal path without a build.
+- **Collision guard added**: `seal --save` refuses to overwrite a seal whose
+  recorded `spec_path` differs. It fired correctly mid-migration, catching a
+  leftover from the intermediate scheme. Future scheme changes now fail loudly.
+- **Result**: `730 files / 0 verify / 496 stale` -> `496 files / 496 verify /
+  0 stale`. 1205 orphaned seals from superseded schemes removed, including one
+  named `"[]const u8".json` -- an artefact of the corrupted
+  `module "[]const u8";` declaration the uncommitted worktree fixes.
+- `seal-coverage.yml` is **enforcing** (`--strict`, `continue-on-error` gone).
+  It was non-blocking while the rate was 0/496; that is no longer honest.
+- Suite **1157 -> 1164 passed, 0 failed**. Claim 5 in `COMPETITORS.md` restored
+  (withdrawal and restoration both recorded); CLARA pipeline row back to GREEN.
+
 ## ci-honesty -- three CI jobs were echo statements; the seal gate checked the wrong file
 
 - **WHERE**: `.github/workflows/{schema-validation,seal-coverage,check-now-freshness}.yml`

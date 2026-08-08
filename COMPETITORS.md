@@ -231,13 +231,17 @@ alone**. Counts are from a measured run on 2026-08-09 (see Section 5).
    (see [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md)).
    *Not claimed:* refinement between `.t27` and emitted RTL — that is what
    Kami provides and we do not.
-   *Withdrawn 2026-08-09:* **seal-based integrity.** `.trinity/seals/` holds
-   730 seal files, but **0 of 496 verify** — they were last written in April
-   2026 and never re-baselined, so they record output no current build
-   produces. The pre-commit gate checks that a seal *file exists*, never that
-   its hashes match, so the drift was invisible. Presence is not integrity;
-   until the corpus is re-baselined this repo claims only the former.
-   Measure it: `t27c seal-audit`.
+   *Withdrawn, then restored on the same day (2026-08-09):* **seal integrity.**
+   It was withdrawn on discovering that `.trinity/seals/` held 730 files of
+   which **0 of 496 verified** — last written April 2026, never re-baselined,
+   recording output no current build produced. Root cause was worse than
+   staleness: `seal_file_path` was **not injective**, so two distinct specs
+   could map to one seal file and the loser was silently overwritten.
+   Now re-baselined and the path function made injective (derived from the
+   spec path, not its `module` declaration): **496 specs, 496 seal files,
+   496 verify, 0 stale.** Seal *presence* and seal *integrity* now coincide,
+   and `seal-coverage` CI is enforcing rather than reporting.
+   Verify in one command: `t27c seal-audit --strict`.
 
 Claims 1-5, with the exclusions attached, define the positioning. The phrase
 "open high-assurance ternary AI silicon substrate" is retained only with

@@ -8,10 +8,10 @@
   "version": "1.0.0",
   "description": "32 conformance vectors for GoldenFloat8 (GF8) 8-bit phi-structured floating point format",
   "verdict": "CLEAN",
-  "seal": "sha256:PENDING_COMPUTE_ON_COMMIT",
+  "seal": "sha256:dd1363dd0006596885691fdfc8a4cab1a8fd87215775b5cf58517c9ccc074885",
   "phi_distance": 0.132,
   "sacred_ok": true,
-  "is_primary": true,
+  "is_primary": false,
   "format_spec": {
     "sign_bits": 1,
     "exp_bits": 3,

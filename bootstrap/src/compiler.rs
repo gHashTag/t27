@@ -193,6 +193,15 @@ pub enum TokenKind {
     ShiftLeft,
     ShiftRight,
     PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    PercentEquals,
+    AmpEquals,
+    PipeEquals,
+    CaretEquals,
+    LtLtEquals,
+    GtGtEquals,
     PlusPercent,
 
     // Special
@@ -448,6 +457,18 @@ impl Lexer {
         }
 
         // Multi-char operators
+        if self.pos + 2 < self.source.len() {
+            let three = [self.source[self.pos], self.source[self.pos + 1], self.source[self.pos + 2]];
+            if three == [b'<', b'<', b'='] {
+                self.advance(); self.advance(); self.advance();
+                return Token { kind: TokenKind::LtLtEquals, lexeme: String::from("<<="), line: start_line, col: start_col };
+            }
+            if three == [b'>', b'>', b'='] {
+                self.advance(); self.advance(); self.advance();
+                return Token { kind: TokenKind::GtGtEquals, lexeme: String::from(">>="), line: start_line, col: start_col };
+            }
+        }
+
         if self.pos + 1 < self.source.len() {
             let two = [self.source[self.pos], self.source[self.pos + 1]];
 
@@ -572,6 +593,83 @@ impl Lexer {
                 };
             }
 
+            if two == [b'-', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusEquals,
+                    lexeme: String::from("-="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'*', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarEquals,
+                    lexeme: String::from("*="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'/', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::SlashEquals,
+                    lexeme: String::from("/="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'%', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PercentEquals,
+                    lexeme: String::from("%="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'&', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::AmpEquals,
+                    lexeme: String::from("&="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'|', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PipeEquals,
+                    lexeme: String::from("|="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'^', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::CaretEquals,
+                    lexeme: String::from("^="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
             if two == [b'+', b'%'] {
                 self.advance();
                 self.advance();
@@ -642,6 +740,29 @@ impl Lexer {
                     number.push(c as char);
                     self.advance();
                 } else if is_hex && ((b'a'..=b'f').contains(&c) || (b'A'..=b'F').contains(&c)) {
+                    let may_be_suffix = (c == b'e' || c == b'f' || c == b'E' || c == b'F')
+                        && self.pos + 2 < self.source.len()
+                        && self.source[self.pos + 1].is_ascii_digit();
+                    if may_be_suffix {
+                        let rest = &self.source[self.pos..];
+                        let type_suffixes: &[&[u8]] = &[
+                            b"f16", b"f32", b"f64",
+                        ];
+                        let mut found_suffix = false;
+                        for suffix in type_suffixes.iter() {
+                            if rest.len() >= suffix.len()
+                                && &rest[..suffix.len()] == *suffix
+                                && (rest.len() == suffix.len()
+                                    || !rest[suffix.len()].is_ascii_alphanumeric())
+                            {
+                                found_suffix = true;
+                                break;
+                            }
+                        }
+                        if found_suffix {
+                            break;
+                        }
+                    }
                     number.push(c as char);
                     self.advance();
                 } else {
@@ -695,7 +816,7 @@ impl Lexer {
             self.advance();
             self.advance();
             return Token {
-                kind: TokenKind::Amp,
+                kind: TokenKind::KwAnd,
                 lexeme: "&&".to_string(),
                 line: start_line,
                 col: start_col,
@@ -705,7 +826,7 @@ impl Lexer {
             self.advance();
             self.advance();
             return Token {
-                kind: TokenKind::Pipe,
+                kind: TokenKind::KwOr,
                 lexeme: "||".to_string(),
                 line: start_line,
                 col: start_col,
@@ -1524,12 +1645,12 @@ impl Parser {
 
         // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
         if self.current.kind == TokenKind::Ident {
-            decl.extra_return_type = self.current.lexeme.clone();
+            let mut rt = self.current.lexeme.clone();
             self.advance();
-            // Handle generic return types like Option<Foo>
             if self.current.kind == TokenKind::Lt {
+                rt.push('<');
                 let mut gt_depth = 1;
-                self.advance(); // consume <
+                self.advance();
                 while gt_depth > 0 && self.current.kind != TokenKind::Eof {
                     if self.current.kind == TokenKind::Lt {
                         gt_depth += 1;
@@ -1539,12 +1660,15 @@ impl Parser {
                             break;
                         }
                     }
+                    rt.push_str(&self.current.lexeme);
                     self.advance();
                 }
                 if self.current.kind == TokenKind::Gt {
-                    self.advance(); // consume >
+                    rt.push('>');
+                    self.advance();
                 }
             }
+            decl.extra_return_type = rt;
         } else if self.current.kind == TokenKind::LBracket {
             // Handle one or more bracket levels: []Type, [][]const u8, [N]Type, [[f64; 8]; 8]
             let mut rt = String::new();
@@ -1725,6 +1849,114 @@ impl Parser {
             let mut assign = Node::new(NodeKind::StmtAssign);
             assign.line = self.current.line as u32;
             assign.extra_op = "+=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::MinusEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "-=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::StarEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "*=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::SlashEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "/=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::PercentEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "%=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::AmpEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "&=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::PipeEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "|=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::CaretEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "^=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::LtLtEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = "<<=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        if self.current.kind == TokenKind::GtGtEquals {
+            self.advance();
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon { self.advance(); }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.extra_op = ">>=".to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
             return Ok(assign);
@@ -1981,7 +2213,7 @@ impl Parser {
 
     /// Parse comparison expressions (==, !=, <, >, <=, >=)
     fn parse_expr_comparison(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_expr_bitor()?;
+        let mut left = self.parse_expr_range()?;
         while matches!(
             self.current.kind,
             TokenKind::Eq
@@ -1990,8 +2222,24 @@ impl Parser {
                 | TokenKind::Gt
                 | TokenKind::Lte
                 | TokenKind::Gte
-                | TokenKind::DotDot
         ) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_range()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse range expressions (..) — lower precedence than comparison
+    fn parse_expr_range(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_bitor()?;
+        while self.current.kind == TokenKind::DotDot {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_bitor()?;
@@ -3087,8 +3335,8 @@ impl Codegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" += ");
+                    if !node.extra_op.is_empty() {
+                        self.write(&format!(" {} ", node.extra_op));
                     } else {
                         self.write(" = ");
                     }
@@ -3794,7 +4042,7 @@ impl VerilogCodegen {
                 }
                 self.write_indent();
                 self.write_line(&format!(
-                    "$display(\"[BENCH] {} : %%0d cycles\", {});",
+                    "$display(\"[BENCH] {} : %0d cycles\", {});",
                     b.name, counter
                 ));
                 self.write_indent();
@@ -4265,6 +4513,42 @@ impl VerilogCodegen {
                         self.write(" = ");
                         self.gen_verilog_expr(&node.children[0]);
                         self.write(" + ");
+                    } else if node.extra_op == "-=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" - ");
+                    } else if node.extra_op == "*=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" * ");
+                    } else if node.extra_op == "/=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" / ");
+                    } else if node.extra_op == "%=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" % ");
+                    } else if node.extra_op == "&=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" & ");
+                    } else if node.extra_op == "|=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" | ");
+                    } else if node.extra_op == "^=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" ^ ");
+                    } else if node.extra_op == "<<=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" << ");
+                    } else if node.extra_op == ">>=" {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" >> ");
                     } else {
                         self.write(" = ");
                     }
@@ -4521,8 +4805,8 @@ impl VerilogCodegen {
                     } else {
                         // Map operators
                         let op = match node.extra_op.as_str() {
-                            "&&" | "and" => "&&",
-                            "||" | "or" => "||",
+                            "&&" | "and" => "&",
+                            "||" | "or" => "|",
                             "==" => "==",
                             "!=" => "!=",
                             ">=" => ">=",
@@ -4605,59 +4889,70 @@ impl VerilogCodegen {
                 // emit a synthesizable scalar `0` plus an explanatory
                 // TODO comment, so the surrounding expression remains
                 // parseable Verilog.
-                self.write(&format!(
-                    "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
-                    node.extra_size, node.extra_type
-                ));
+                self.write("0 /* TODO: array literal initializer not yet lowered to Verilog */");
             }
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
-                self.write(&format!("0 /* {} {{...}} */", node.name));
+                self.write("0 /* TODO: struct literal initializer not yet lowered to Verilog */");
             }
             NodeKind::ExprSwitch => {
-                // Emit as nested ternary: (expr == val1) ? res1 : (expr == val2) ? res2 : default
                 let cases = &node.children[1..];
                 if cases.is_empty() {
                     self.write("0 /* empty switch */");
                 } else {
-                    let last_idx = cases.len() - 1;
+                    let mut else_idx: Option<usize> = None;
+                    let mut non_else: Vec<(usize, &Node)> = Vec::new();
                     for (i, case) in cases.iter().enumerate() {
                         if case.kind == NodeKind::ConstDecl {
                             let is_else = case.name.is_empty() || case.name == "else";
-                            let is_last = i == last_idx;
-
                             if is_else {
-                                if !case.children.is_empty() {
-                                    self.gen_verilog_expr(&case.children[0]);
-                                } else {
-                                    self.write("0");
-                                }
+                                else_idx = Some(i);
                             } else {
-                                self.write("(");
-                                self.gen_verilog_expr(&node.children[0]);
-                                self.write(" == ");
-                                let is_numeric =
-                                    case.name.starts_with(|c: char| c.is_ascii_digit())
-                                        || (case.name.starts_with('-') && case.name.len() > 1);
-                                if is_numeric {
-                                    self.write(&case.name);
-                                } else {
-                                    self.write(&case.name);
-                                }
-                                self.write(") ? (");
-                                if !case.children.is_empty() {
-                                    self.gen_verilog_expr(&case.children[0]);
+                                non_else.push((i, case));
+                            }
+                        }
+                    }
+                    if non_else.is_empty() {
+                        if let Some(ei) = else_idx {
+                            let case = &cases[ei];
+                            if !case.children.is_empty() {
+                                self.gen_verilog_expr(&case.children[0]);
+                            } else {
+                                self.write("0");
+                            }
+                        } else {
+                            self.write("0");
+                        }
+                    } else {
+                        for (j, (_, case)) in non_else.iter().enumerate() {
+                            self.write("(");
+                            self.gen_verilog_expr(&node.children[0]);
+                            self.write(" == ");
+                            self.write(&case.name);
+                            self.write(") ? (");
+                            if !case.children.is_empty() {
+                                self.gen_verilog_expr(&case.children[0]);
+                            } else {
+                                self.write("0");
+                            }
+                            self.write(") : (");
+                            if j == non_else.len() - 1 {
+                                if let Some(ei) = else_idx {
+                                    let ecase = &cases[ei];
+                                    if !ecase.children.is_empty() {
+                                        self.gen_verilog_expr(&ecase.children[0]);
+                                    } else {
+                                        self.write("0");
+                                    }
                                 } else {
                                     self.write("0");
                                 }
                                 self.write(")");
-
-                                if !is_last {
-                                    self.write(" : ");
-                                } else {
-                                    self.write(" : 0");
-                                }
                             }
+                        }
+                        let close = non_else.len().saturating_sub(1);
+                        for _ in 0..close {
+                            self.write(")");
                         }
                     }
                 }
@@ -5229,8 +5524,8 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[1]);
                     } else {
                         self.gen_c_expr(&node.children[0]);
-                        if node.extra_op == "+=" {
-                            self.write(" += ");
+                        if !node.extra_op.is_empty() {
+                            self.write(&format!(" {} ", node.extra_op));
                         } else {
                             self.write(" = ");
                         }
@@ -6232,7 +6527,7 @@ fn expr_key(node: &Node) -> Option<String> {
     if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
         let lk = child_key(&node.children[0]);
         let rk = child_key(&node.children[1]);
-        Some(format!("{} {} {}", lk, node.extra_op, rk))
+        Some(format!("{}|{}|{}", lk, node.extra_op, rk))
     } else {
         None
     }
@@ -6332,7 +6627,7 @@ fn apply_cse_replacements(node: &mut Node, seen: &std::collections::HashMap<Stri
 }
 
 fn make_cse_local(var_name: &str, key: &str) -> Node {
-    let parts: Vec<&str> = key.splitn(3, ' ').collect();
+    let parts: Vec<&str> = key.splitn(3, '|').collect();
     let (op_str, left_str, right_str) = if parts.len() == 3 {
         (parts[1], parts[0], parts[2])
     } else {
@@ -6390,6 +6685,21 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             NodeKind::StmtExpr if !stmt.children.is_empty() => {
                 collect_reads(&stmt.children[0], &mut reads);
             }
+            NodeKind::StmtIf => {
+                for child in &stmt.children {
+                    collect_reads(child, &mut reads);
+                }
+            }
+            NodeKind::StmtWhile => {
+                for child in &stmt.children {
+                    collect_reads(child, &mut reads);
+                }
+            }
+            NodeKind::StmtFor => {
+                for child in &stmt.children {
+                    collect_reads(child, &mut reads);
+                }
+            }
             _ => {}
         }
     }
@@ -6417,7 +6727,8 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
 fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut insertions: Vec<(usize, Vec<Node>)> = Vec::new();
     for (i, stmt) in stmts.iter_mut().enumerate() {
-        if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 3 {
+        if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 2 {
+            let body_idx = stmt.children.len() - 1;
             let iter_expr = &stmt.children[0];
             if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".."
                 && iter_expr.children.len() >= 2 {
@@ -6426,9 +6737,9 @@ fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
                     if let (Some(s), Some(e)) = (start, end) {
                         let count = e - s;
                         if count > 0 && count <= 4 {
-                            let body = &stmt.children[2];
-                            let iter_var = if stmt.children.len() > 1 {
-                                stmt.children[1].name.clone()
+                            let body = &stmt.children[body_idx];
+                            let iter_var = if !stmt.params.is_empty() {
+                                stmt.params[0].0.clone()
                             } else {
                                 "_i".to_string()
                             };
@@ -6784,7 +7095,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     let mut used_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
     fn collect_enum_values(node: &Node, used: &mut std::collections::HashSet<String>) {
         if node.kind == NodeKind::ExprEnumValue {
-            used.insert(format!("{}::{}", node.name, node.extra_field));
+            used.insert(node.name.clone());
         }
         for child in &node.children {
             collect_enum_values(child, used);
@@ -6795,7 +7106,10 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     for (enum_name, variants) in &enum_variants {
         let unused: Vec<&String> = variants
             .iter()
-            .filter(|v| !used_variants.contains(*v))
+            .filter(|v| {
+                let variant_name = v.split("::").last().unwrap_or(v.as_str());
+                !used_variants.contains(variant_name)
+            })
             .collect();
         if !unused.is_empty() && unused.len() < variants.len() {
             for v in &unused {
@@ -6889,9 +7203,25 @@ fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
             }
         }
         NodeKind::Module => {
-            let syms = symbols.to_vec();
+            let mut syms = symbols.to_vec();
             for child in &node.children {
                 check_stmt(child, &syms, fns, result);
+                if child.kind == NodeKind::StmtLocal {
+                    let t = if child.extra_type.is_empty() {
+                        if child.children.is_empty() {
+                            TypeInfo::Unknown
+                        } else {
+                            infer_expr(&child.children[0], &syms, fns)
+                        }
+                    } else {
+                        resolve_type_str(&child.extra_type)
+                    };
+                    syms.push(SymbolEntry {
+                        name: child.name.clone(),
+                        type_info: t,
+                        is_mutable: child.extra_mutable,
+                    });
+                }
             }
         }
         NodeKind::ExprReturn => {
@@ -7611,12 +7941,64 @@ impl RustCodegen {
                 }
             }
             NodeKind::ExprCall => {
-                let args: Vec<String> = node
-                    .children
-                    .iter()
-                    .map(Self::expr_to_rust)
-                    .collect();
-                format!("{}({})", node.name, args.join(", "))
+                let fname = &node.name;
+                if fname == "@as" {
+                    if node.children.len() >= 2 {
+                        let val = Self::expr_to_rust(&node.children[1]);
+                        format!("({})", val)
+                    } else if !node.children.is_empty() {
+                        Self::expr_to_rust(&node.children[0])
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@intCast" || fname == "@truncate" {
+                    if !node.children.is_empty() {
+                        Self::expr_to_rust(&node.children[0])
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@bitCast" {
+                    if !node.children.is_empty() {
+                        format!("unsafe {{ std::mem::transmute({}) }}", Self::expr_to_rust(&node.children[0]))
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@floatFromInt" {
+                    if !node.children.is_empty() {
+                        format!("({} as f64)", Self::expr_to_rust(&node.children[0]))
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@floatToInt" {
+                    if !node.children.is_empty() {
+                        Self::expr_to_rust(&node.children[0])
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@exp2" {
+                    if !node.children.is_empty() {
+                        format!("2.0_f64.powf({})", Self::expr_to_rust(&node.children[0]))
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "@enumFromInt" {
+                    if !node.children.is_empty() {
+                        format!("unsafe {{ std::mem::transmute({}) }}", Self::expr_to_rust(&node.children[0]))
+                    } else {
+                        "()".to_string()
+                    }
+                } else if fname == "std.math.inf" {
+                    "f32::INFINITY".to_string()
+                } else if fname == "std.math.nan" {
+                    "f32::NAN".to_string()
+                } else {
+                    let args: Vec<String> = node
+                        .children
+                        .iter()
+                        .map(Self::expr_to_rust)
+                        .collect();
+                    format!("{}({})", node.name, args.join(", "))
+                }
             }
             NodeKind::ExprArrayLiteral => {
                 let elems: Vec<String> = node
@@ -7641,7 +8023,7 @@ impl RustCodegen {
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
             }
-            NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
+            NodeKind::ExprEnumValue => format!(".{}", node.name),
             NodeKind::ExprUnary => {
                 if !node.children.is_empty() {
                     format!(
@@ -9786,8 +10168,8 @@ impl HirTestbench {
         self.probe_signals.push(signal.to_string());
     }
 
-    pub fn total_sim_ns(&self) -> u32 {
-        self.clock.period_ns.saturating_mul(self.config.max_cycles)
+    pub fn total_sim_ns(&self) -> u64 {
+        (self.clock.period_ns as u64) * (self.config.max_cycles as u64)
     }
 
     pub fn emit_verilog(&self) -> String {
@@ -9971,12 +10353,12 @@ impl VcdVar {
 pub struct VcdChange {
     pub timestamp_ps: u64,
     pub ident: String,
-    pub value: u32,
+    pub value: u64,
     pub bit_width: u32,
 }
 
 impl VcdChange {
-    pub fn new(ts: u64, ident: &str, value: u32, width: u32) -> Self {
+    pub fn new(ts: u64, ident: &str, value: u64, width: u32) -> Self {
         VcdChange {
             timestamp_ps: ts,
             ident: ident.to_string(),
@@ -9988,6 +10370,13 @@ impl VcdChange {
     pub fn format_binary(&self) -> String {
         if self.bit_width == 1 {
             format!("{}{}", self.value & 1, self.ident)
+        } else if self.bit_width <= 64 {
+            format!(
+                "b{:0width$b} {}",
+                self.value,
+                self.ident,
+                width = self.bit_width as usize
+            )
         } else {
             format!(
                 "b{:0width$b} {}",
@@ -10066,7 +10455,7 @@ impl HirVcdTrace {
         self.add_var(VcdVarKind::Reg, size, name);
     }
 
-    pub fn record(&mut self, timestamp_ps: u64, var_name: &str, value: u32) {
+    pub fn record(&mut self, timestamp_ps: u64, var_name: &str, value: u64) {
         if let Some(var) = self.variables.iter().find(|v| v.name == var_name) {
             let ident = var.ident.clone();
             let width = var.size;
@@ -10317,7 +10706,6 @@ impl LinkerConfig {
 
     pub fn heap_start(&self) -> u32 {
         self.data_base
-            .saturating_add(self.data_base)
             .saturating_add(self.stack_size)
     }
 
@@ -13407,6 +13795,144 @@ impl HirVerilogEmitter {
         }
     }
 
+    fn collect_bus_port_decls(hir: &HirModule) -> Vec<String> {
+        let mut ports = Vec::new();
+        for bus in &hir.bus_ports {
+            let n = &bus.name;
+            let aw = bus.addr_width;
+            let dw = bus.data_width;
+            let sw = bus.strb_width();
+            let is_lite = bus.kind == HwBusKind::Axi4Lite;
+            let has_id = bus.id_width > 0;
+            let is_slave = bus.role == HwBusRole::Slave;
+            let (aw_dir, ar_dir, w_dir, r_dir, b_dir) = if is_slave {
+                ("input ", "input ", "input ", "output", "output")
+            } else {
+                ("output", "output", "output", "input ", "input ")
+            };
+            let aw_ready_dir = if is_slave { "output" } else { "input " };
+            let w_ready_dir = if is_slave { "output" } else { "input " };
+            let ar_ready_dir = if is_slave { "output" } else { "input " };
+            let b_ready_dir = if is_slave { "input " } else { "output" };
+            let r_ready_dir = if is_slave { "input " } else { "output" };
+
+            ports.push(format!("{} wire        {}_awvalid", aw_dir, n));
+            ports.push(format!("{} wire        {}_awready", aw_ready_dir, n));
+            ports.push(format!("{} wire [{}:0] {}_awaddr", aw_dir, aw - 1, n));
+            if has_id {
+                ports.push(format!("{} wire [{}:0] {}_awid", aw_dir, bus.id_width - 1, n));
+            }
+            if !is_lite {
+                ports.push(format!("{} wire [7:0] {}_awlen", aw_dir, n));
+                ports.push(format!("{} wire [2:0] {}_awsize", aw_dir, n));
+                ports.push(format!("{} wire [1:0] {}_awburst", aw_dir, n));
+                ports.push(format!("{} wire [3:0] {}_awcache", aw_dir, n));
+                ports.push(format!("{} wire [2:0] {}_awprot", aw_dir, n));
+                ports.push(format!("{} wire [3:0] {}_awqos", aw_dir, n));
+                ports.push(format!("{} wire [3:0] {}_awregion", aw_dir, n));
+                ports.push(format!("{} wire        {}_awlock", aw_dir, n));
+            } else {
+                ports.push(format!("{} wire [2:0] {}_awprot", aw_dir, n));
+            }
+            ports.push(format!("{} wire [{}:0] {}_wdata", w_dir, dw - 1, n));
+            ports.push(format!("{} wire [{}:0] {}_wstrb", w_dir, sw - 1, n));
+            ports.push(format!("{} wire        {}_wvalid", w_dir, n));
+            ports.push(format!("{} wire        {}_wready", w_ready_dir, n));
+            if !is_lite {
+                ports.push(format!("{} wire        {}_wlast", w_dir, n));
+            }
+            ports.push(format!("{} wire [1:0] {}_bresp", b_dir, n));
+            ports.push(format!("{} wire        {}_bvalid", b_dir, n));
+            ports.push(format!("{} wire        {}_bready", b_ready_dir, n));
+            if has_id {
+                ports.push(format!("{} wire [{}:0] {}_bid", b_dir, bus.id_width - 1, n));
+            }
+            ports.push(format!("{} wire        {}_arvalid", ar_dir, n));
+            ports.push(format!("{} wire        {}_arready", ar_ready_dir, n));
+            ports.push(format!("{} wire [{}:0] {}_araddr", ar_dir, aw - 1, n));
+            if has_id {
+                ports.push(format!("{} wire [{}:0] {}_arid", ar_dir, bus.id_width - 1, n));
+            }
+            if !is_lite {
+                ports.push(format!("{} wire [7:0] {}_arlen", ar_dir, n));
+                ports.push(format!("{} wire [2:0] {}_arsize", ar_dir, n));
+                ports.push(format!("{} wire [1:0] {}_arburst", ar_dir, n));
+                ports.push(format!("{} wire [3:0] {}_arcache", ar_dir, n));
+                ports.push(format!("{} wire [2:0] {}_arprot", ar_dir, n));
+                ports.push(format!("{} wire [3:0] {}_arqos", ar_dir, n));
+                ports.push(format!("{} wire [3:0] {}_arregion", ar_dir, n));
+                ports.push(format!("{} wire        {}_arlock", ar_dir, n));
+            } else {
+                ports.push(format!("{} wire [2:0] {}_arprot", ar_dir, n));
+            }
+            ports.push(format!("{} wire [{}:0] {}_rdata", r_dir, dw - 1, n));
+            ports.push(format!("{} wire [1:0] {}_rresp", r_dir, n));
+            ports.push(format!("{} wire        {}_rvalid", r_dir, n));
+            ports.push(format!("{} wire        {}_rready", r_ready_dir, n));
+            if !is_lite {
+                ports.push(format!("{} wire        {}_rlast", r_dir, n));
+            }
+            if has_id {
+                ports.push(format!("{} wire [{}:0] {}_rid", r_dir, bus.id_width - 1, n));
+            }
+        }
+        for apb in &hir.apb_bridges {
+            let n = &apb.name;
+            let aw = apb.addr_width;
+            let dw = apb.data_width;
+            ports.push(format!("input  wire        {}_psel", n));
+            ports.push(format!("input  wire        {}_penable", n));
+            ports.push(format!("input  wire        {}_pwrite", n));
+            ports.push(format!("input  wire [{}:0] {}_paddr", aw - 1, n));
+            ports.push(format!("input  wire [{}:0] {}_pwdata", dw - 1, n));
+            ports.push(format!("input  wire [{}:0] {}_pstrb", apb.strb_width() - 1, n));
+            ports.push(format!("output wire [{}:0] {}_prdata", dw - 1, n));
+            ports.push(format!("output wire        {}_pready", n));
+            if apb.has_pslverr {
+                ports.push(format!("output wire        {}_pslverr", n));
+            }
+            if apb.has_pprot {
+                ports.push(format!("input  wire [2:0] {}_pprot", n));
+            }
+            let mut i = 0u32;
+            while i < apb.num_peripherals {
+                ports.push(format!("output wire        {}_periph{}_sel", n, i));
+                ports.push(format!("output wire [{}:0] {}_periph{}_addr", aw - 1, n, i));
+                ports.push(format!("output wire [{}:0] {}_periph{}_wdata", dw - 1, n, i));
+                ports.push(format!("output wire        {}_periph{}_wen", n, i));
+                ports.push(format!("input  wire [{}:0] {}_periph{}_rdata", dw - 1, n, i));
+                i += 1;
+            }
+        }
+        for gf16 in &hir.gf16_accels {
+            let n = &gf16.name;
+            let vw = gf16.vector_width;
+            ports.push(format!("input  wire        {}_start", n));
+            ports.push(format!("input  wire [3:0]  {}_opcode", n));
+            ports.push(format!("output wire        {}_done", n));
+            ports.push(format!("output wire        {}_busy", n));
+            ports.push(format!("output wire        {}_result_valid", n));
+            ports.push(format!("input  wire [{}:0] {}_a_data", vw * 4 - 1, n));
+            ports.push(format!("input  wire [{}:0] {}_b_data", vw * 4 - 1, n));
+            ports.push(format!("input  wire        {}_data_valid", n));
+            ports.push(format!("output wire [{}:0] {}_result_data", vw * 4 - 1, n));
+        }
+        for tc in &hir.ternary_cores {
+            let n = &tc.name;
+            let dw = tc.data_width;
+            let aw = tc.addr_width;
+            ports.push(format!("input  wire [{}:0] {}_instr", 31, n));
+            ports.push(format!("output wire        {}_instr_ready", n));
+            ports.push(format!("output wire [{}:0] {}_instr_addr", aw - 1, n));
+            ports.push(format!("input  wire [{}:0] {}_mem_rdata", dw - 1, n));
+            ports.push(format!("output wire [{}:0] {}_mem_wdata", dw - 1, n));
+            ports.push(format!("output wire [{}:0] {}_mem_addr", aw - 1, n));
+            ports.push(format!("output wire        {}_mem_we", n));
+            ports.push(format!("output wire        {}_mem_re", n));
+        }
+        ports
+    }
+
     pub fn emit(&mut self, hir: &HirModule) {
         self.write_line(&format!("// Generated from HIR: {}", hir.name));
         self.write_line("// DO NOT EDIT - generated by t27c (HIR path)");
@@ -13415,11 +13941,14 @@ impl HirVerilogEmitter {
         self.write_line("`default_nettype none");
         self.write_line("");
 
+        let bus_port_decls = Self::collect_bus_port_decls(hir);
+
         self.write_line(&format!("module {} (", hir.name));
         self.indent();
 
         let has_clk = hir.ports.iter().any(|p| p.ty.is_clock_like());
         let has_rst = hir.ports.iter().any(|p| p.ty.is_reset_like());
+        let has_bus_ports = !bus_port_decls.is_empty();
 
         if !has_clk {
             self.write_line("input  wire        clk,");
@@ -13428,6 +13957,7 @@ impl HirVerilogEmitter {
             self.write_line("input  wire        rst_n,");
         }
 
+        let port_count = hir.ports.len();
         for (i, port) in hir.ports.iter().enumerate() {
             let dir_str = match port.dir {
                 HwPortDir::Input => "input ",
@@ -13436,7 +13966,8 @@ impl HirVerilogEmitter {
             };
             let range = port.ty.verilog_range();
             let signed = if port.ty.is_signed() { "signed " } else { "" };
-            let comma = if i < hir.ports.len() - 1 { "," } else { "" };
+            let is_last_regular = i == port_count - 1 && !has_bus_ports;
+            let comma = if is_last_regular { "" } else { "," };
             if range.is_empty() {
                 self.write_line(&format!(
                     "{} wire {} {}{}{}",
@@ -13447,6 +13978,15 @@ impl HirVerilogEmitter {
                     "{} wire {}{} {}{}",
                     dir_str, signed, range, port.name, comma
                 ));
+            }
+        }
+
+        for (i, decl) in bus_port_decls.iter().enumerate() {
+            let is_last = i == bus_port_decls.len() - 1;
+            if is_last {
+                self.write_line(&format!("{}", decl));
+            } else {
+                self.write_line(&format!("{},", decl));
             }
         }
 
@@ -13563,7 +14103,13 @@ impl HirVerilogEmitter {
         self.indent();
 
         let has_reset = !blk.reset_name.is_empty();
-        if has_reset {
+        let reset_nb_targets: Vec<String> = if has_reset {
+            let targets: Vec<String> = blk
+                .body
+                .iter()
+                .filter(|s| s.kind == HirAlwaysStmtKind::NonBlockingAssign && !s.target.is_empty())
+                .map(|s| s.target.clone())
+                .collect();
             self.write_line(&format!("if (!{}) begin", blk.reset_name));
             self.indent();
             for stmt in &blk.body {
@@ -13574,9 +14120,17 @@ impl HirVerilogEmitter {
             self.dedent();
             self.write_line("end else begin");
             self.indent();
-        }
+            targets
+        } else {
+            Vec::new()
+        };
 
         for stmt in &blk.body {
+            if stmt.kind == HirAlwaysStmtKind::NonBlockingAssign
+                && reset_nb_targets.contains(&stmt.target)
+            {
+                continue;
+            }
             self.emit_always_stmt(stmt);
         }
 
@@ -13657,12 +14211,13 @@ impl HirVerilogEmitter {
         self.write_line(&format!("wire [{}:0] {}_din;", dw - 1, fifo.name));
         self.write_line(&format!("wire {}_wen;", fifo.name));
         self.write_line(&format!(
-            "always @(posedge clk) begin if ({}_wen && !{}_full) begin {}_mem[{}_tail] <= {}_din; {}_tail <= {}_tail + 1; {}_count <= {}_count + 1; end end",
-            fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name
+            "always @(posedge clk) begin if ({}_wen && !{}_full) begin {}_mem[{}_tail] <= {}_din; {}_tail <= ({}_tail + 1) % {}; {}_count <= {}_count + 1; end end",
+            fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.name, fifo.depth, fifo.name, fifo.name
         ));
         self.write_line(&format!(
-            "always @(posedge clk) begin if ({n}_ren && !{n}_empty) begin {n}_dout <= {n}_mem[{n}_head]; {n}_head <= {n}_head + 1; end end",
-            n = fifo.name
+            "always @(posedge clk) begin if ({n}_ren && !{n}_empty) begin {n}_dout <= {n}_mem[{n}_head]; {n}_head <= ({n}_head + 1) % {depth}; end end",
+            n = fifo.name,
+            depth = fifo.depth
         ));
         if fifo.has_almost_empty {
             self.write_line(&format!(
@@ -13796,130 +14351,6 @@ impl HirVerilogEmitter {
             bus.data_width,
             bus.port_count()
         ));
-
-        let n = &bus.name;
-        let aw = bus.addr_width;
-        let dw = bus.data_width;
-        let sw = bus.strb_width();
-        let is_lite = bus.kind == HwBusKind::Axi4Lite;
-        let has_id = bus.id_width > 0;
-        let is_slave = bus.role == HwBusRole::Slave;
-
-        let (aw_dir, ar_dir, w_dir, r_dir, b_dir) = if is_slave {
-            ("input ", "input ", "input ", "output", "output")
-        } else {
-            ("output", "output", "output", "input ", "input ")
-        };
-
-        // AW channel
-        self.write_line(&format!("{} wire {}_awvalid,", aw_dir, n));
-        self.write_line(&format!(
-            "{} wire        {}_awready,",
-            if is_slave { "output" } else { "input " },
-            n
-        ));
-        self.write_line(&format!("{} wire [{}:0] {}_awaddr,", aw_dir, aw - 1, n));
-        if has_id {
-            self.write_line(&format!(
-                "{} wire [{}:0] {}_awid,",
-                aw_dir,
-                bus.id_width - 1,
-                n
-            ));
-        }
-        if !is_lite {
-            self.write_line(&format!("{} wire [7:0] {}_awlen,", aw_dir, n));
-            self.write_line(&format!("{} wire [2:0] {}_awsize,", aw_dir, n));
-            self.write_line(&format!("{} wire [1:0] {}_awburst,", aw_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_awcache,", aw_dir, n));
-            self.write_line(&format!("{} wire [2:0] {}_awprot,", aw_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_awqos,", aw_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_awregion,", aw_dir, n));
-            self.write_line(&format!("{} wire        {}_awlock,", aw_dir, n));
-        } else {
-            self.write_line(&format!("{} wire [2:0] {}_awprot,", aw_dir, n));
-        }
-
-        // W channel
-        self.write_line(&format!("{} wire [{}:0] {}_wdata,", w_dir, dw - 1, n));
-        self.write_line(&format!("{} wire [{}:0] {}_wstrb,", w_dir, sw - 1, n));
-        self.write_line(&format!("{} wire        {}_wvalid,", w_dir, n));
-        self.write_line(&format!(
-            "{} wire        {}_wready,",
-            if is_slave { "output" } else { "input " },
-            n
-        ));
-        if !is_lite {
-            self.write_line(&format!("{} wire        {}_wlast,", w_dir, n));
-        }
-
-        // B channel
-        self.write_line(&format!("{} wire [1:0] {}_bresp,", b_dir, n));
-        self.write_line(&format!("{} wire        {}_bvalid,", b_dir, n));
-        self.write_line(&format!(
-            "{} wire        {}_bready,",
-            if is_slave { "input " } else { "output" },
-            n
-        ));
-        if has_id {
-            self.write_line(&format!(
-                "{} wire [{}:0] {}_bid,",
-                b_dir,
-                bus.id_width - 1,
-                n
-            ));
-        }
-
-        // AR channel
-        self.write_line(&format!("{} wire        {}_arvalid,", ar_dir, n));
-        self.write_line(&format!(
-            "{} wire        {}_arready,",
-            if is_slave { "output" } else { "input " },
-            n
-        ));
-        self.write_line(&format!("{} wire [{}:0] {}_araddr,", ar_dir, aw - 1, n));
-        if has_id {
-            self.write_line(&format!(
-                "{} wire [{}:0] {}_arid,",
-                ar_dir,
-                bus.id_width - 1,
-                n
-            ));
-        }
-        if !is_lite {
-            self.write_line(&format!("{} wire [7:0] {}_arlen,", ar_dir, n));
-            self.write_line(&format!("{} wire [2:0] {}_arsize,", ar_dir, n));
-            self.write_line(&format!("{} wire [1:0] {}_arburst,", ar_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_arcache,", ar_dir, n));
-            self.write_line(&format!("{} wire [2:0] {}_arprot,", ar_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_arqos,", ar_dir, n));
-            self.write_line(&format!("{} wire [3:0] {}_arregion,", ar_dir, n));
-            self.write_line(&format!("{} wire        {}_arlock,", ar_dir, n));
-        } else {
-            self.write_line(&format!("{} wire [2:0] {}_arprot,", ar_dir, n));
-        }
-
-        // R channel
-        self.write_line(&format!("{} wire [{}:0] {}_rdata,", r_dir, dw - 1, n));
-        self.write_line(&format!("{} wire [1:0] {}_rresp,", r_dir, n));
-        self.write_line(&format!("{} wire        {}_rvalid,", r_dir, n));
-        self.write_line(&format!(
-            "{} wire        {}_rready,",
-            if is_slave { "input " } else { "output" },
-            n
-        ));
-        if !is_lite {
-            self.write_line(&format!("{} wire        {}_rlast,", r_dir, n));
-        }
-        if has_id {
-            self.write_line(&format!(
-                "{} wire [{}:0] {}_rid,",
-                r_dir,
-                bus.id_width - 1,
-                n
-            ));
-        }
-
         self.write_line("");
     }
 
@@ -13933,52 +14364,6 @@ impl HirVerilogEmitter {
         let aw = apb.addr_width;
         let dw = apb.data_width;
 
-        // APB slave signals (input to bridge)
-        self.write_line(&format!("input  wire        {}_psel,", n));
-        self.write_line(&format!("input  wire        {}_penable,", n));
-        self.write_line(&format!("input  wire        {}_pwrite,", n));
-        self.write_line(&format!("input  wire [{}:0] {}_paddr,", aw - 1, n));
-        self.write_line(&format!("input  wire [{}:0] {}_pwdata,", dw - 1, n));
-        self.write_line(&format!(
-            "input  wire [{}:0] {}_pstrb,",
-            apb.strb_width() - 1,
-            n
-        ));
-        self.write_line(&format!("output wire [{}:0] {}_prdata,", dw - 1, n));
-        self.write_line(&format!("output wire        {}_pready,", n));
-        if apb.has_pslverr {
-            self.write_line(&format!("output wire        {}_pslverr,", n));
-        }
-        if apb.has_pprot {
-            self.write_line(&format!("input  wire [2:0] {}_pprot,", n));
-        }
-
-        // Peripheral select outputs
-        let mut i = 0u32;
-        while i < apb.num_peripherals {
-            self.write_line(&format!("output wire        {}_periph{}_sel,", n, i));
-            self.write_line(&format!(
-                "output wire [{}:0] {}_periph{}_addr,",
-                aw - 1,
-                n,
-                i
-            ));
-            self.write_line(&format!(
-                "output wire [{}:0] {}_periph{}_wdata,",
-                dw - 1,
-                n,
-                i
-            ));
-            self.write_line(&format!("output wire        {}_periph{}_wen,", n, i));
-            self.write_line(&format!(
-                "input  wire [{}:0] {}_periph{}_rdata,",
-                dw - 1,
-                n,
-                i
-            ));
-            i += 1;
-        }
-
         // Address decode logic
         self.write_line(&format!("reg  [{}:0] {}_prdata_r;", dw - 1, n));
         self.write_line(&format!("reg         {}_pready_r;", n));
@@ -13989,7 +14374,7 @@ impl HirVerilogEmitter {
         self.indent();
         self.write_line(&format!("{}_prdata_r = {}d0;", n, dw));
         self.write_line(&format!("{}_pready_r = 1'b1;", n));
-        i = 0;
+        let mut i = 0u32;
         while i < apb.num_peripherals {
             self.write_line(&format!("{}_periph{}_sel = 1'b0;", n, i));
             i += 1;
@@ -14038,26 +14423,6 @@ impl HirVerilogEmitter {
 
         let n = &gf16.name;
         let nm = gf16.num_multipliers;
-        let vw = gf16.vector_width;
-
-        // Control interface
-        self.write_line(&format!("input  wire        {}_start,", n));
-        self.write_line(&format!("input  wire [3:0]  {}_opcode,", n));
-        self.write_line(&format!("output wire        {}_done,", n));
-        self.write_line(&format!("output wire        {}_busy,", n));
-        self.write_line(&format!("output wire        {}_result_valid,", n));
-
-        // Data input
-        self.write_line(&format!("input  wire [{}:0] {}_a_data,", vw * 4 - 1, n));
-        self.write_line(&format!("input  wire [{}:0] {}_b_data,", vw * 4 - 1, n));
-        self.write_line(&format!("input  wire        {}_data_valid,", n));
-
-        // Data output
-        self.write_line(&format!(
-            "output wire [{}:0] {}_result_data,",
-            vw * 4 - 1,
-            n
-        ));
 
         // GF16 multiplier array
         self.write_line(&format!(
@@ -14231,37 +14596,7 @@ impl HirVerilogEmitter {
         self.write_line("// phi^2 + 1/phi^2 = 3 | TRINITY");
 
         let n = &tc.name;
-        let dw = tc.data_width;
         let aw = tc.addr_width;
-
-        // Instruction interface
-        self.write_line(&format!(
-            "input  wire [{}:0] {}_instr,
-    output wire        {}_instr_ready,
-    output wire [{}:0] {}_instr_addr,",
-            31,
-            n,
-            n,
-            aw - 1,
-            n
-        ));
-
-        // Data interface
-        self.write_line(&format!(
-            "input  wire [{}:0] {}_mem_rdata,
-    output wire [{}:0] {}_mem_wdata,
-    output wire [{}:0] {}_mem_addr,
-    output wire        {}_mem_we,
-    output wire        {}_mem_re,",
-            dw - 1,
-            n,
-            dw - 1,
-            n,
-            aw - 1,
-            n,
-            n,
-            n
-        ));
 
         // Register file interface
         if let Some(ref rf) = tc.reg_file {
@@ -17478,7 +17813,7 @@ mod tests_hir_vcd_trace {
             trace.record(ts, "clk", 0);
             trace.record(ts + 2500, "clk", 1);
             if i > 2 {
-                trace.record(ts + 2500, "counter", i * 4);
+                trace.record(ts + 2500, "counter", (i * 4) as u64);
             }
         }
         assert_eq!(trace.variables.len(), 4);
@@ -18026,7 +18361,7 @@ mod tests_e2e_demo {
             let ts = (i as u64) * 50_000;
             trace.record(ts, "clk", 0);
             trace.record(ts + 25_000, "clk", 1);
-            trace.record(ts + 25_000, "pc", i * 4);
+            trace.record(ts + 25_000, "pc", (i * 4) as u64);
         }
         assert!(trace.duration_ps() > 0);
         assert!(result.passed());

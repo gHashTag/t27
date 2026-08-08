@@ -174,6 +174,8 @@ fn tt_conform_ok_on_canonical_gf180() {
         .args(["tt-conform", "--profile", prof.to_str().unwrap(), "--manifest", mani.to_str().unwrap()])
         .output().unwrap();
     assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("conform=true"));
     std::fs::remove_file(&prof).ok();
     std::fs::remove_file(&mani).ok();
 }

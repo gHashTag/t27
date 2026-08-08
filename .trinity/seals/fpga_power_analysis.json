@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1768eba763ff83a6e51107803a8f9376a6a882f63454058affc14b5570c8b5b6",
+  "gen_hash_rust": "sha256:d561bf608695d47bf60ab90972f1aa1aaa3a6fe73aeb19e6a3c48ec24546b527",
+  "gen_hash_verilog": "sha256:51b5afb6cefe194c5f89750e201f86e60d207d377fe383e95b7d47b53538390d",
+  "gen_hash_zig": "sha256:fb896665ca1b04ea15c6575dace18d62f77168155b271c5950c18543c99c394e",
+  "module": "PowerAnalysis",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:60f9bd3929b53410b8ecc6f586991f33731ba60aa9fb1a2228b062e3ef550a16",
+  "spec_path": "specs/fpga/power_analysis.t27"
+}

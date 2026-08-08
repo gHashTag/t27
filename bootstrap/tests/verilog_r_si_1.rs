@@ -72,7 +72,7 @@ fn strip_comments(src: &str) -> String {
 fn compile_spec() -> Option<String> {
     let bin = env!("CARGO_BIN_EXE_t27c");
     let tmp_dir = std::env::temp_dir();
-    let spec_path = tmp_dir.join("wave27_r_si_1_probe.t27");
+    let spec_path = tmp_dir.join(format!("wave27_r_si_1_probe_{}.t27", std::process::id()));
     {
         let mut f = std::fs::File::create(&spec_path).ok()?;
         f.write_all(SPEC.as_bytes()).ok()?;
@@ -95,8 +95,7 @@ fn compile_spec() -> Option<String> {
 #[test]
 fn r_si_1_emitter_produces_no_bare_star_operator() {
     let Some(verilog) = compile_spec() else {
-        eprintln!("compile_spec returned None — test inconclusive");
-        return;
+        panic!("t27c failed on probe spec -- front-end regression masked");
     };
 
     let code_only = strip_comments(&verilog);
@@ -111,8 +110,7 @@ fn r_si_1_emitter_produces_no_bare_star_operator() {
 #[test]
 fn r_si_1_emitter_injects_mul_noop_helper() {
     let Some(verilog) = compile_spec() else {
-        eprintln!("compile_spec returned None — test inconclusive");
-        return;
+        panic!("t27c failed on probe spec -- front-end regression masked");
     };
 
     assert!(

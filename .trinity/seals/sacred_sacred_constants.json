@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d8e08d69297de13b4ee9dcee5520e287eb9db7125ac55a1bf08ccda44a0ba049",
+  "gen_hash_rust": "sha256:3658af36899e9e8f4ab1653016b1d6e63ffe839460ad132b68c899ac2d358432",
+  "gen_hash_verilog": "sha256:3f180e1835b24102fdef547a469eb4f0e422e34392f40249cb69528de80ff4aa",
+  "gen_hash_zig": "sha256:e1f543cbada2b5893b02d5b5f6d93efade4ed1387351cb52d0f8e5fb23cdbd46",
+  "module": "SacredConstants",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:e0ab6ae28efce977b3c0416f8caa634906afe0d7458b8d14354fd6612a900082",
+  "spec_path": "specs/sacred/sacred_constants.t27"
+}

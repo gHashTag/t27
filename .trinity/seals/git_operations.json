@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b5a3bd9e2d02b1c9404d62d5be09282e9912313b7e00906df2c4c73007e68c05",
+  "gen_hash_rust": "sha256:09f96f3582cee70c0e00011427341249b97cbcd2a00223598ba6c2c95d7d17c9",
+  "gen_hash_verilog": "sha256:3dbd6ebe61837a20d17af25f94d219711bc07cc2ef0da50470105e805f416f06",
+  "gen_hash_zig": "sha256:7ecae798d629cfb66ee0a462c77e54c6f5d2aafd0645931387c069c85ed56eee",
+  "module": "GitOperations",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:e0602a7ea441dbee1218830eb5d11e96b1f2b68fccf0d07c1d9e66f39196c78b",
+  "spec_path": "specs/git/operations.t27"
+}

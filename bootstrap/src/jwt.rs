@@ -20,9 +20,13 @@ struct SandboxClaims {
 
 /// Get the JWT secret from environment or use default
 fn get_jwt_secret() -> Vec<u8> {
-    env::var("SANDBOX_JWT_SECRET")
-        .map(|s| s.into_bytes())
-        .unwrap_or_else(|_| DEFAULT_JWT_SECRET.to_vec())
+    match env::var("SANDBOX_JWT_SECRET") {
+        Ok(s) => s.into_bytes(),
+        Err(_) => {
+            eprintln!("WARNING: SANDBOX_JWT_SECRET not set. Using insecure default. Set this env var in production!");
+            DEFAULT_JWT_SECRET.to_vec()
+        }
+    }
 }
 
 /// Create a JWT token for sandbox access

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d6fc19d196345c4d85725f63fbc8d27567e12bba7650aaf2a1436a8b2ccd61f2",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:25d14b8d58e536538e59847d3ef2349281921661d4955eb57a6d2108de759d2a",
+  "gen_hash_zig": "sha256:806ddb5daabe40acfc9ebcb529664dedf5bf8fb0de4d25bc7ba3e087bcd8e590",
+  "module": "sandbox.modules",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:b8982faa07203a5a52fb224911126586345f2b8043116070602ec84ae459b40e",
+  "spec_path": "specs/sandbox/modules.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ad0b032ace089346a22232ccb508667252f174387aa3bea6790541e150f72a37",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:df6afa2d6c3a5453a161d526d1058bacf662565e02476a4e1a9a3e7798a8c027",
+  "gen_hash_zig": "sha256:3da24cb01ce106ffb066b64baf8ed000ebe447763181100989c2b432b769fac5",
+  "module": "TriQuantum",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:b29f2489715e54b82b6b5a2089b82e5c87fbcdd014cf0e3f43101aaffaa5abfb",
+  "spec_path": "specs/sacred/quantum.t27"
+}

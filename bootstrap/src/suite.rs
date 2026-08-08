@@ -706,10 +706,11 @@ pub fn clara_coverage(repo_root: &Path, output: Option<PathBuf>) -> anyhow::Resu
                  Supersedes schema_version 1, which covered 36 of the then-current \
                  specs and recorded a passing result for 'bash scripts/clara/demo.sh' \
                  -- a path absent from this repository, so that row was not \
-                 reproducible by anyone. A FAIL here is a real measurement, not a \
-                 defect claim: see the seal column, where every spec fails because \
-                 .trinity/seals/ was last written in April 2026 and has not been \
-                 re-baselined since. Run 't27c seal-audit' for that figure alone.",
+                 reproducible by anyone. A FAIL here would be a real measurement, \
+                 not a defect claim. The seal column read 0/496 when this command \
+                 was introduced; the corpus was re-baselined on 2026-08-09 after \
+                 seal_file_path was made injective, and now reads 496/496. \
+                 Run 't27c seal-audit --strict' for that figure alone.",
         "specs": rows,
         "summary": {
             "parse":       {"pass": p_ok, "fail": n - p_ok},

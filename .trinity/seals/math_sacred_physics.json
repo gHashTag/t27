@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9d6bed3d21e36058e77d620981684bde36d14eb7defccc3e8c8c7a21458d2469",
+  "gen_hash_rust": "sha256:c31ed01731a3bf9da7fe824ace5a09acfb0dbd7bad097c05a761b57f67f8fea7",
+  "gen_hash_verilog": "sha256:f0a7165911f890c3ef9f109ef00b41a2cd62bf7f06b13d6a206a7897cd1dc65d",
+  "gen_hash_zig": "sha256:ab75d5058b3bd81dae13f49ecb296c2680d88db885ba50147d1384f813ab349c",
+  "module": "SacredPhysics",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:1381cfeb64ab2e0cbf70ca43b02d2baa5e0b14051b9e9cf5eafcfed62f1157e5",
+  "spec_path": "specs/math/sacred_physics.t27"
+}

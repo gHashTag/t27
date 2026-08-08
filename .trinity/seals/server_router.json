@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3f44884c827089ccb431c4ef120cf7534ecf6d7a353c5f9dacfd15cb356fc6ea",
+  "gen_hash_rust": "sha256:0672f058a448e0ae9f4f352125cd434a1cb5829cbdd0707cc92ff3d4e7039012",
+  "gen_hash_verilog": "sha256:f6bc65375f71098ed34756c067338237c07917ebfa7382bffcacb58314970ae2",
+  "gen_hash_zig": "sha256:233f0e050b2e906dcfbabab39656d05d17c0a875d27bc4784c82b5e3071b7048",
+  "module": "server-router",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:f573875f99459616a5401e26a0c901796df43b8e1f00b9cf21d1cdcbcecee2f1",
+  "spec_path": "specs/server/router.t27"
+}

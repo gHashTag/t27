@@ -1,16 +1,18 @@
 {
-  "schema_version": "2.0",
+  "schema_version": 2,
+  "format_family": "GoldenFloat",
+  "vector_name": "Jones Polynomial Conformance Vectors",
   "spec_file": "specs/vsa/jones_polynomial.t27",
   "spec_hash": "sha256:e090064bae5391a6135c39e8fa87c16074437b0e2628d0f3a5675ca1a382011e",
   "generated_at": "2026-04-07T01:00:00+07:00",
   "generator": "t27c",
   "generator_version": "0.1.0",
-  "seal": "VERIFIED",
-  "verdict": "PASS",
-  "vectors": [
+  "seal": "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "verdict": "CLEAN",
+  "test_vectors": [
     {
       "name": "jones_trefoil_at_phi_approx",
-      "description": "V(trefoil, φ) ≈ φ² + 1 (Jones polynomial identity)",
+      "description": "V(trefoil, phi) approx phi^2 + 1 (Jones polynomial identity)",
       "input": {
         "knot": "trefoil",
         "t": "phi"
@@ -57,7 +59,7 @@
     },
     {
       "name": "bracket_parameter_phi",
-      "description": "A = φ^(-1/4) at t = φ",
+      "description": "A = phi^(-1/4) at t = phi",
       "input": {
         "t": 1.6180339887498948
       },

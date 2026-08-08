@@ -8,7 +8,7 @@
   "version": "1.0.0",
   "description": "Conformance vectors for radix economy theorem: E(3)/E(e) >= 99.5%, E(3) > E(2) by 5.4%",
   "verdict": "CLEAN",
-  "seal": "sha256:PENDING_COMPUTE_ON_COMMIT",
+  "seal": "sha256:b7de837d3bdf1ecda88fabf70232617bed0d49bf30c27ae168fad1044133a916",
   "phi_distance": null,
   "sacred_ok": null,
   "is_primary": true,

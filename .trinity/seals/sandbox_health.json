@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:24aa1f38f8ba02f12fdf71ab029dcc216699c29d61b71860d2a12a7955913f6a",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:e0d9df880c9711e836c165e7cc739c47a587f2905275719e8cdec1b8fd40db34",
+  "gen_hash_zig": "sha256:a013db2af410da690444a2398d5b25f40246aba2d092e6c8e8ddb53850a4a4fe",
+  "module": "sandbox.health",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:7a96cffe0aaed3d11bd517bb7d234578912f19fb38788fbfdbe0ff428fa69de4",
+  "spec_path": "specs/sandbox/health.t27"
+}

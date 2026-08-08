@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e71ba861b09aca0b96c4fb6ba5e4cb6022e28be31cb4b773ae6d39643ba8d7dd",
+  "gen_hash_rust": "sha256:34ab4074c34a9a36874924aa0d0a6381720d8d0e9467c860825d203067b9d1e2",
+  "gen_hash_verilog": "sha256:aa8d6574ff8cf4302840b90e35a5621b35050825d9b06be89d43027c28889417",
+  "gen_hash_zig": "sha256:59a5b4e5d0c64b8d097e265a0f48b8441ed26fdfe491d12cfd231bd32f9625f2",
+  "module": "AuthConfig",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:396ec0861264155b89f3dc1fa39a521ec8ec5fba6816554e43ad280ec27d0d48",
+  "spec_path": "specs/auth/config.t27"
+}

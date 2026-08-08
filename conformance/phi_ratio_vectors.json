@@ -1,64 +1,93 @@
 {
   "schema_version": 2,
-  "format_family": "PhiRatio",
+  "format_family": "GoldenFloat",
   "vector_name": "Phi Ratio Conformance Vectors",
-  "version": "2.0",
-  "description": "Phi ratio split optimizations and invariants for GoldenFloat formats",
+  "version": "2.1",
+  "description": "Phi ratio split optimizations and invariants for GoldenFloat formats. Aligned with FORMAT-SPEC-001.json SSOT.",
   "verdict": "CLEAN",
   "seal": "sha256:0d5a7f65f0e0d14024bcee0fd125927fd4f50bfe8621b92664d019b614b6c091",
   "test_vectors": [
     {
       "name": "phi_split_gf4",
-      "description": "GF4 phi-split: 3 available bits -> exp=1, mant=2",
+      "description": "GF4 phi-split: 3 available bits -> exp=1, mant=2 (FORMAT-SPEC-001 SSOT)",
       "verdict": "CLEAN",
       "input": { "bits": 4 },
       "expected": {
         "exp_bits": 1,
         "mant_bits": 2,
-        "phi_dist_less_than": 0.01
+        "phi_dist": 0.1180339887498949,
+        "phi_dist_less_than": 0.12
       }
     },
     {
       "name": "phi_split_gf8",
-      "description": "GF8 phi-split: 7 available bits -> exp=2, mant=5",
+      "description": "GF8 phi-split: 7 available bits -> exp=3, mant=4 (FORMAT-SPEC-001 SSOT)",
       "verdict": "CLEAN",
       "input": { "bits": 8 },
       "expected": {
-        "exp_bits": 2,
-        "mant_bits": 5,
-        "phi_dist_less_than": 0.25
+        "exp_bits": 3,
+        "mant_bits": 4,
+        "phi_dist": 0.1319660112501051,
+        "phi_dist_less_than": 0.14
       }
     },
     {
       "name": "phi_split_gf12",
-      "description": "GF12 phi-split: 11 available bits -> exp=3, mant=8",
+      "description": "GF12 phi-split: 11 available bits -> exp=4, mant=7 (FORMAT-SPEC-001 SSOT)",
       "verdict": "CLEAN",
       "input": { "bits": 12 },
       "expected": {
-        "exp_bits": 3,
-        "mant_bits": 8,
-        "phi_dist_less_than": 0.25
-      }
-    },
-    {
-      "name": "phi_split_gf16",
-      "description": "GF16 phi-split: 15 available bits -> exp=4, mant=11",
-      "verdict": "CLEAN",
-      "input": { "bits": 16 },
-      "expected": {
         "exp_bits": 4,
-        "mant_bits": 11,
+        "mant_bits": 7,
+        "phi_dist": 0.0466054173213234,
         "phi_dist_less_than": 0.05
       }
     },
     {
+      "name": "phi_split_gf16",
+      "description": "GF16 phi-split: 15 available bits -> exp=6, mant=9 (FORMAT-SPEC-001 SSOT, primary format)",
+      "verdict": "CLEAN",
+      "input": { "bits": 16 },
+      "expected": {
+        "exp_bits": 6,
+        "mant_bits": 9,
+        "phi_dist": 0.0486326779167718,
+        "phi_dist_less_than": 0.05
+      }
+    },
+    {
+      "name": "phi_split_gf20",
+      "description": "GF20 phi-split: 19 available bits -> exp=7, mant=12 (FORMAT-SPEC-001 SSOT)",
+      "verdict": "CLEAN",
+      "input": { "bits": 20 },
+      "expected": {
+        "exp_bits": 7,
+        "mant_bits": 12,
+        "phi_dist": 0.0347006554165614,
+        "phi_dist_less_than": 0.04
+      }
+    },
+    {
+      "name": "phi_split_gf24",
+      "description": "GF24 phi-split: 23 available bits -> exp=9, mant=14 (FORMAT-SPEC-001 SSOT)",
+      "verdict": "CLEAN",
+      "input": { "bits": 24 },
+      "expected": {
+        "exp_bits": 9,
+        "mant_bits": 14,
+        "phi_dist": 0.0248231541072481,
+        "phi_dist_less_than": 0.03
+      }
+    },
+    {
       "name": "phi_split_gf32",
-      "description": "GF32 phi-split: 31 available bits -> exp=8, mant=23",
+      "description": "GF32 phi-split: 31 available bits -> exp=12, mant=19 (FORMAT-SPEC-001 SSOT)",
       "verdict": "CLEAN",
       "input": { "bits": 32 },
       "expected": {
-        "exp_bits": 8,
-        "mant_bits": 23,
+        "exp_bits": 12,
+        "mant_bits": 19,
+        "phi_dist": 0.0135449586185262,
         "phi_dist_less_than": 0.02
       }
     },
@@ -73,18 +102,19 @@
     },
     {
       "name": "phi_distance_gf16_actual",
-      "description": "GF16 actual format (6/9) has phi distance > 0.04",
+      "description": "GF16 actual format (6/9) has phi distance approximately 0.049",
       "verdict": "CLEAN",
       "input": { "exp": 6, "mant": 9 },
       "expected": {
-        "phi_dist_greater_than": 0.04
+        "phi_dist_greater_than": 0.04,
+        "phi_dist_less_than": 0.05
       }
     },
     {
       "name": "is_phi_optimal_gf16_split",
-      "description": "GF16 phi-split (4/11) is phi-optimal within 0.05",
+      "description": "GF16 phi-split (6/9 from SSOT) is phi-optimal within 0.05",
       "verdict": "CLEAN",
-      "input": { "exp": 4, "mant": 11, "tolerance": 0.05 },
+      "input": { "exp": 6, "mant": 9, "tolerance": 0.05 },
       "expected": {
         "is_optimal": true
       }
@@ -137,10 +167,10 @@
       "expected": { "value": true }
     },
     {
-      "name": "inv_gf4_format_is_phi_optimal",
-      "description": "Invariant: phi_split(4).phi_dist < 0.01",
+      "name": "inv_gf4_format_phi_distance",
+      "description": "Invariant: GF4 (1/2) phi_dist = 0.118 (only possible 3-bit split)",
       "verdict": "CLEAN",
-      "input": { "assertion": "phi_split(4).phi_dist < 0.01" },
+      "input": { "assertion": "phi_split(4).phi_dist < 0.12" },
       "expected": { "value": true }
     },
     {
@@ -170,9 +200,30 @@
       "verdict": "CLEAN",
       "input": { "assertion": "floor(x1) <= floor(x2) when x1 <= x2" },
       "expected": { "value": true }
+    },
+    {
+      "name": "phi_identity_ssot_check",
+      "description": "phi^2 = phi + 1 (L5 IDENTITY, exact in f64, Ring 45 proven)",
+      "verdict": "CLEAN",
+      "input": { "phi_f64_hex": "0x1.9E3779B97F4A8p+0" },
+      "expected": {
+        "phi_sq_equals_phi_plus_one": true,
+        "residual_f64": 0.0,
+        "tolerance": 1e-15
+      }
+    },
+    {
+      "name": "trinity_identity_ssot_check",
+      "description": "phi^2 + phi^(-2) = 3 (TRINITY, L5 IDENTITY)",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {
+        "value": 3.0,
+        "tolerance": 0.0
+      }
     }
   ],
   "created_at": "2026-04-06T00:00:00Z",
-  "updated_at": "2026-04-06T00:00:00Z",
-  "validated_at": "2026-04-06T00:00:00Z"
+  "updated_at": "2026-06-09T00:00:00Z",
+  "validated_at": "2026-06-09T00:00:00Z"
 }

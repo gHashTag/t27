@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:51de26dfeeb7b1b4e0e639c938af842e15fbe4f605febd16a2f93961dd584800",
+  "gen_hash_rust": "sha256:96048828120d3bdc8ab4830d99307cfea495749681af1cc39d4f4a98f25fa299",
+  "gen_hash_verilog": "sha256:a5863972274aceb8c24c97980db8edada6595a18ad1dde93be44915ab8ca6085",
+  "gen_hash_zig": "sha256:15235090932b181ed692b99905163ee4cf05ea60a6f21dc1317d745478fb55ca",
+  "module": "TernaryHashTable",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:e1f019d331a24657f7d0d560011f931c93b4f067f7203e27850c7d26b36d098e",
+  "spec_path": "specs/isa/ternary_hash.t27"
+}

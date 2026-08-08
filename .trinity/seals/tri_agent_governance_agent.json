@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ef967ccab580dac6002fc0c8a55d49c7f08338b8cefc4c91bc9275b888ceae0f",
+  "gen_hash_rust": "sha256:5fb54e4d1dd119312051302df03b0a5a0d75255cdcd4c8afe93d87752d7910a7",
+  "gen_hash_verilog": "sha256:1bcb458354fe597877be4483997c547ba32d60143472aaa4abdbc43ffe1f699a",
+  "gen_hash_zig": "sha256:c34dba0ca2e6eb2c125b611a313748086b9b96459de3ea568559e05d2db2fdf2",
+  "module": "GovernanceAgent",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:48Z",
+  "spec_hash": "sha256:d4e489ceb17e9296e7a6597a9c96e7a31be03bb7e7aee9dec282d87122c8bd61",
+  "spec_path": "specs/tri/agent/governance_agent.t27"
+}

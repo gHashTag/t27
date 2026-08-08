@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e73a201e42b66e4dbd62a49b4efdc87d2fe023ee00bee52ecd4a7e921bce5685",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:dd8b51638d19a1b5f1a94a3504ec3fa9ce97d021f167b76cc826a668004749d5",
+  "gen_hash_zig": "sha256:5de68e08614a68acbf9c7975608ed6839a2356618dd50ad0ebdb44e5e62ee869",
+  "module": "TriMeasurement",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:48Z",
+  "spec_hash": "sha256:fc282db3e37df05cc48ed354ff1514c1f4be6ba78659a0d0d53fa384d79e763d",
+  "spec_path": "specs/tri/math/measurement.t27"
+}

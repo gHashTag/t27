@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:73b151d0d2ad574264355abcec888aeccb29a949ecfa3966440c80896f7eb571",
+  "gen_hash_rust": "sha256:2d5c356f053ce58983a03306edf5e2a1c29615ad054e3d984b2559eac6f5416f",
+  "gen_hash_verilog": "sha256:2d43bbe3ce6de006255da01cf31627aa018271d2b3d7cf6209b9c5bde47c5a80",
+  "gen_hash_zig": "sha256:350e0bfc23adb453c279dcd834600ac24a3497313f59c3d21acf7394dd0d5adf",
+  "module": "TriText",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:48Z",
+  "spec_hash": "sha256:06b46cd587689d5c28c0b3546cac9ec68aebee940d55610087634c759ef2401c",
+  "spec_path": "specs/tri/utils/text.t27"
+}

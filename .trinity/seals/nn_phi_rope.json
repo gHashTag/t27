@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:69fba9fd3a52fcf91d84bdf1b0a60a845d5de17a257b99adad114aaf06a9cd52",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:ea667b837ddcf1d6029a758d104b338ba0562d6e7eb969a86580197fcebddd3c",
+  "gen_hash_zig": "sha256:3beea185b8ea9030cbb020ff7034c787a8ab07d4d3d285aa418d855fa763550d",
+  "module": "phi_rope",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:20f2cd6b26d6afa9b859903f32e87729ea9da7555b83d423e06b8dd57864e6dd",
+  "spec_path": "specs/nn/phi_rope.t27"
+}

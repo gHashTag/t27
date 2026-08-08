@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ace213f50e424b3470644807c0399b0d477f55fd93e95ea0c3d75cbedb568c0e",
+  "gen_hash_rust": "sha256:a462b54eadae4ae854c3a897f66c063d06535ba2c701b8f05dc03e2615f03e46",
+  "gen_hash_verilog": "sha256:23be5473344fe34488287633188d1fdaafd2513da11f20aeb867f15ba2d3e1ad",
+  "gen_hash_zig": "sha256:e16e76079e71440fe8c37c3921ebe96a37e1014b9f6ffd8024485b2591e9c2ea",
+  "module": "StorageMigrate",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:46Z",
+  "spec_hash": "sha256:0c9df6b8d11987d2a35866be3131c1144bedbbdb25b3d2f04921005907ddb3d4",
+  "spec_path": "specs/storage/migrate.t27"
+}

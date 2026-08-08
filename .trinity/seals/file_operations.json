@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:151d95dc6e6a01e4f23be5e3fdc1c4ea6390cd859b4c0fa392df22429642123a",
+  "gen_hash_rust": "sha256:a0d24acb0966c0ec51bfe584856ff4d17b9d1b8958f557894971924cad3e144b",
+  "gen_hash_verilog": "sha256:f9d11fade6696393d08d27780b2c965b387bcb9d4203e55073ec3e23f33b3674",
+  "gen_hash_zig": "sha256:968f6807bb0ae0234be7a0d17e863de81f4ed67639c823a2bf835fe3e10922d7",
+  "module": "FileOperations",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:7ceef650197877982ac7a2b4758bd9bba2b735ea33f2df74bea0448367785a56",
+  "spec_path": "specs/file/operations.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8fbacf44db1d73d70e37e06767b45ec51310a4ed8645e9e2e5ac24ceea59c7b7",
+  "gen_hash_rust": "sha256:6d13d4342a2a755113bc61979fa62443fa9d496dcc5fa5e5ff90138e00ceea80",
+  "gen_hash_verilog": "sha256:9127770db938548f1420bae57b18dcdb1d0e4261c41b6ecfa11d7fdb72e60200",
+  "gen_hash_zig": "sha256:e85c93f19be3278ab305e69a35fce678350eb854bf81e6b88546f82b4e1d13d4",
+  "module": "PinsIR",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:8f46ba7ad0a214121f9f767a1d34411f435bf8fa19f3368b3182021b738bd4de",
+  "spec_path": "specs/pins/ir.t27"
+}

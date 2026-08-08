@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:a6a2deb3d71da6dc050500e3b74cf402f02a06a1ea9e611547676c552dbd803e",
+  "gen_hash_rust": "sha256:3f3d078a2a74b864eca7bd88c34ba25b742c9fb7921b86107f3996316c10c48b",
+  "gen_hash_verilog": "sha256:6a11fcaf2b8018a1ce18598def3aff48bf88c593a81906fd09b33c256bec1178",
+  "gen_hash_zig": "sha256:e0c27b754b52c0769481cd0cdf0647683504d5c85ef10cfdebf4dd6d74fcf743",
+  "module": "File",
+  "ring": 12,
+  "sealed_at": "2026-08-08T18:23:45Z",
+  "spec_hash": "sha256:03552e91d86a0f144f4cf6f8e95f76944322e25d9f013308c9a7fc0e5a126afe",
+  "spec_path": "specs/file/schema.t27"
+}
