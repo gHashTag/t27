@@ -2,7 +2,7 @@
 // t27/specs/
 // Structured logging | φ² + 1/φ² = 3 | TRINITY
 
-module "[]const u8";
+module TriLogger;
     use base::types;
     use math::constants;
 
