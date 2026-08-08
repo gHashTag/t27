@@ -6591,13 +6591,18 @@ impl VerilogCodegen {
                     .iter()
                     .enumerate()
                     .filter(|(_, (_, ptype))| {
-                        // Primitive-scalar [T; N] params are packed-vector
+                        // Rust-style primitive [T; N] params are packed-vector
                         // VALUES (declared at packed_width, indexed by
-                        // part-select via #1745) -- only struct-element
-                        // arrays still go through the module-array binding.
-                        Self::parse_array_type(ptype).map_or(false, |(_, elem)| {
-                            !Self::is_primitive_scalar_type(&elem)
-                        })
+                        // part-select via #1745). The legacy [N]T spelling
+                        // keeps the W458 module-array binding contract (ROM
+                        // tables bound by name at the call site).
+                        let rust_style_primitive = ptype.trim().starts_with('[')
+                            && ptype.contains(';')
+                            && Self::parse_array_type(ptype)
+                                .map_or(false, |(_, elem)| {
+                                    Self::is_primitive_scalar_type(&elem)
+                                });
+                        Self::parse_array_type(ptype).is_some() && !rust_style_primitive
                     })
                     .map(|(i, _)| i)
                     .collect();
@@ -30479,7 +30484,7 @@ mod tests_w458 {
         // instead emitted `f = 0; end` immediately followed by an unconditional
         // `f = (65536 | r);`, so the else wrapper is the discriminator.
         assert!(
-            flat.contains("f = 0; end else begin"),
+            flat.contains("f = 0; __t27_ret = 1'b1; end else begin"),
             "nested return did not lower as an early-exit if/else:\n{}",
             v
         );
