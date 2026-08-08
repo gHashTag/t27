@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## fix(gen-zig): mutable-local var-inference, `_` destructure elements, branch-safe var silencer (Refs #1910)
+
+- Zig gen now infers `var` vs `const` for locals via collect_mutable_names (same discipline as the Rust backend) -- mutated locals previously emitted as `const` and could not compile
+- A discarded destructure element emits bare `_` (never `const _`); every inferred `var` gets the canonical `_ = &name;` silencer (the same name may be declared in several branches and mutated in only one)
+- With tri-net's five-spec legalization: zig ast-check validity 9/68 -> 3/68 invalid; the rest are the deferred long-tails (array-literal parse path x2, CSE decl-before-use ordering) in #1910
+- Unit suite 1537/1537; gen-rust byte-identical; FROZEN_HASH resealed
+
 ## fix(gen-zig): array types, tuple test-bindings, void returns, dead-local post-pass (Refs #1910)
 
 - `[T;N]` array types now lower to Zig `[N]T` in params/locals/returns; tuple test-block bindings lower to `const a, const b = f(...);`; fns without a declared return emit `void` (a bare `) {` never parsed)

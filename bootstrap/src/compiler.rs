@@ -3220,6 +3220,11 @@ impl Parser {
 pub struct Codegen {
     output: String,
     indent: u32,
+    /// Locals reassigned somewhere in the current fn/test/bench body: Zig needs
+    /// them declared `var`, and it ERRORS both on a mutated `const` and on a
+    /// never-mutated `var` -- so the choice must be inferred, exactly like the
+    /// Rust backend's collect_mutable_names.
+    mut_names: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -3227,6 +3232,7 @@ impl Codegen {
         Self {
             output: String::new(),
             indent: 0,
+            mut_names: std::collections::HashSet::new(),
         }
     }
 
@@ -3513,6 +3519,9 @@ impl Codegen {
 
         self.indent();
 
+        self.mut_names.clear();
+        collect_mutable_names(&node.children, &mut self.mut_names);
+
         // Zig errors on unused function parameters; a spec is free to keep one
         // for interface symmetry (e.g. a lane the body ignores). Discard any
         // parameter the body never reads so the generated Zig compiles.
@@ -3555,6 +3564,9 @@ impl Codegen {
 
         self.indent();
 
+        self.mut_names.clear();
+        collect_mutable_names(&node.children, &mut self.mut_names);
+
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
         // Zig (the same defect the Verilog testbench had, gHashTag/t27#1894).
@@ -3588,7 +3600,11 @@ impl Codegen {
                     .iter()
                     .map(|e| {
                         bound.insert(e.name.clone());
-                        format!("const {}", e.name)
+                        if e.name == "_" {
+                            "_".to_string()
+                        } else {
+                            format!("const {}", e.name)
+                        }
                     })
                     .collect();
                 self.write_indent();
@@ -3673,7 +3689,11 @@ impl Codegen {
                     .iter()
                     .map(|e| {
                         bound.insert(e.name.clone());
-                        format!("const {}", e.name)
+                        if e.name == "_" {
+                            "_".to_string()
+                        } else {
+                            format!("const {}", e.name)
+                        }
                     })
                     .collect();
                 self.write_indent();
@@ -3717,7 +3737,15 @@ impl Codegen {
                         .split(',')
                         .map(|s| s.trim())
                         .filter(|s| !s.is_empty())
-                        .map(|s| format!("{} {}", kw, s))
+                        .map(|s| {
+                            if s == "_" {
+                                // Zig: a discarded destructure element is a bare `_`,
+                                // never `const _`.
+                                "_".to_string()
+                            } else {
+                                format!("{} {}", kw, s)
+                            }
+                        })
                         .collect();
                     self.write(&binds.join(", "));
                     if !node.children.is_empty() {
@@ -3726,7 +3754,8 @@ impl Codegen {
                     }
                     self.write_line(";");
                 } else {
-                    if node.extra_mutable {
+                    let as_var = node.extra_mutable || self.mut_names.contains(&node.name);
+                    if as_var {
                         self.write("var ");
                     } else {
                         self.write("const ");
@@ -3740,6 +3769,15 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write_line(";");
+                    if as_var {
+                        // Mutability is inferred fn-wide, but the same name may be
+                        // declared in several branches and mutated in only one;
+                        // Zig then errors "local variable is never mutated" on the
+                        // others. `_ = &name;` is the canonical silencer and is a
+                        // harmless extra use on genuinely mutated paths.
+                        self.write_indent();
+                        self.write_line(&format!("_ = &{};", node.name));
+                    }
                 }
             }
             NodeKind::StmtAssign => {
