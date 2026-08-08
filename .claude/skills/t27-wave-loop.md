@@ -3956,6 +3956,15 @@ These cost a wave each. Follow them before step 1.
     A test asserting `2 == 999` passes. Write the smallest spec that MUST fail
     and check that it does.
 
+20. **When every remaining track is blocked on one human decision, say so and
+    stop manufacturing work.** By Wave 557 the BDD parser fix, the datapath
+    root cause, the syntax gaps and the `.tri` migration all needed
+    `compiler.rs`, which `build.rs` refuses to rebuild until six LANG-EN
+    documents are resolved. The right output then is: make the findings
+    permanent (a reporting phase in the suite), correct documentation that
+    misleads, name the decision, and hand it over. Padding a wave with busywork
+    to look productive is the same failure mode as a vacuous test.
+
 ### How to update this tracker
 
 After closing a wave:

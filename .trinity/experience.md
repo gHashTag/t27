@@ -20099,3 +20099,54 @@ that.
 - When documentation promises a construct, write the smallest spec that MUST
   fail and check that it does. SOUL.md, the language RFC and TDD-CONTRACT.md all
   specify given/when/then; nothing executes it.
+
+## Wave Loops 556-557 — IGLA CODER audited; findings made permanent (2026-08-09)
+
+### W556: the IGLA CODER dataset
+
+dataset/igla-coder/v0.1: 8 pairs, **0 with a generated-code half** (every
+gen_path_in_t27 is null), held_out_eval_defined false, 2 of 8 source specs
+missing from the repo. The manifest says so plainly -- honest labelling of an
+incomplete artifact, unlike the six findings before it.
+
+**The good news is real:** the dataset specs are the best-written in the repo.
+All 8 use brace-form tests with real multi-assertion bodies; L4 claim
+(>=3 invariants, >=8 tests, >=2 bench) holds exactly. They are markedly better
+than the main IGLA .t27 corpus.
+
+**But they are .tri.** My first conclusion -- ".tri is a documented format with
+no implementation" -- was WRONG and one query refuted it: gHashTag/trinity has
+744 .tri files and src/tri/parser.zig. .tri is trinity's language; t27's 17 .tri
+files are imports (headers literally say "Source repo: gHashTag/trinity").
+
+**Third blind spot in my own tooling:** validate-vacuity scanned only .t27, so
+17 specs were outside every census -- the corpus is 1,080, not the 1,063 I had
+been quoting. (W554: exit-status-as-success. W555: brace-form only. W556: .t27
+only.) Now reported as NOT ANALYSED rather than skipped silently.
+
+**Migration is gated too:** converting dna.tri mechanically moved the failure
+from line 1 to line 13, on `pub type Bytes32 = [32]u8`. t27 REJECTS pub type
+(pub const/struct/enum/fn are all fine), and .tri uses it 64 times. Adding it
+means compiler.rs -> LANG-EN gate.
+
+### W557: both documented test formats are broken
+
+- SOUL.md 2.3 shows `test name { given ... then ... }` -- **does not parse**.
+- TDD-CONTRACT.md shows the braceless form -- parses, body discarded.
+
+SOUL.md is the canonical law and its test example is a hard parse error. Both
+docs now carry implementation-status notes (specifications unchanged -- which
+way to close the gap is the maintainer's call).
+
+Suite Phase 6 added: prints vacuity, BDD, seal and .tri numbers every run,
+REPORTING ONLY (excluded from TOTAL FAILURES -- making them hard gates is a
+maintainer decision). suite.rs is outside build.rs's watch list, so it landed
+despite the gate.
+
+### The standing lesson
+
+Every substantive track now routes through one approval (LANG-EN). Eight waves
+of measurement produced a queue of evidence-backed fixes that cannot be applied.
+When a loop reaches this state, the useful output is: make the findings
+permanent (Phase 6), correct the documentation that misleads, and say plainly
+what decision is needed -- not manufacture busywork.
