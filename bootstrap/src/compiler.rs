@@ -2631,6 +2631,15 @@ impl Parser {
                     deref.name = "*".to_string();
                     deref.children.push(expr);
                     expr = deref;
+                } else if self.current.kind == TokenKind::Number {
+                    // Tuple index access: expr.0 / expr.1 -- previously the dot
+                    // was consumed and the index token silently DROPPED, so
+                    // `two().0` parsed as `two()` (wrong value, no diagnostic).
+                    let mut fa = Node::new(NodeKind::ExprFieldAccess);
+                    fa.name = self.current.lexeme.clone();
+                    self.advance();
+                    fa.children.push(expr);
+                    expr = fa;
                 } else if self.current.kind == TokenKind::Ident {
                     let field = self.current.lexeme.clone();
                     self.advance();
@@ -4089,7 +4098,13 @@ impl Codegen {
                     self.gen_expr(&node.children[0]);
                 }
                 self.write(".");
-                self.write(&node.name);
+                if node.name.chars().all(|c| c.is_ascii_digit()) {
+                    // Tuple index: Zig tuple fields are named "0"/"1"/...,
+                    // reachable only through the @"" identifier syntax.
+                    self.write(&format!("@\"{}\"", node.name));
+                } else {
+                    self.write(&node.name);
+                }
             }
             NodeKind::ExprIndex => {
                 // children[0] = base, children[1] = index
@@ -9443,6 +9458,7 @@ pub struct CCodegen {
     /// t27 tuple return type of the function currently being emitted, so an
     /// `ExprTuple` in a `return` can be cast to the right C compound-literal type.
     current_ret_tuple_type: Option<String>,
+    local_tuple_counter: u32,
 }
 
 impl CCodegen {
@@ -9453,6 +9469,7 @@ impl CCodegen {
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
+            local_tuple_counter: 0,
         }
     }
 
@@ -9993,6 +10010,9 @@ impl CCodegen {
                 self.write(";");
                 self.write_line("");
                 for (fi, e) in stmt.children[0].children.iter().enumerate() {
+                    if e.name == "_" {
+                        continue; // discarded element: never bind (a second `_` would redefine)
+                    }
                     bound.insert(e.name.clone());
                     self.write_indent();
                     self.write(&format!("__auto_type {} = {}.f{};", e.name, tmp, fi));
@@ -10116,20 +10136,110 @@ impl CCodegen {
                         }
                     }
                     _ => {
-                        // Fallback: keep the (invalid) original shape rather than
-                        // silently dropping the statement.
-                        self.write_indent();
-                        self.write(&format!("/* tuple destructure ({}) */ ", node.extra_field));
-                        if let Some(init) = node.children.first() {
-                            self.gen_c_expr(init);
+                        let names: Vec<String> = node
+                            .extra_field
+                            .split(',')
+                            .map(|n| n.trim().to_string())
+                            .filter(|n| !n.is_empty())
+                            .collect();
+                        let init_is_tuple = node
+                            .children
+                            .first()
+                            .is_some_and(|i| i.kind == NodeKind::ExprTuple);
+                        if init_is_tuple {
+                            // `let (a, b, c) = (x, y, z);` -- bind element-wise;
+                            // discarded `_` elements are skipped.
+                            let init = node.children.first().unwrap();
+                            for (nm, val) in names.iter().zip(init.children.iter()) {
+                                if nm == "_" {
+                                    continue;
+                                }
+                                self.write_indent();
+                                self.write(&format!("__auto_type {} = ", nm));
+                                self.gen_c_expr(val);
+                                self.write_line(";");
+                                self.write_indent();
+                                self.write_line(&format!("(void){};", nm));
+                            }
+                        } else {
+                            // Unresolvable callee type: bind once via GNU
+                            // __auto_type and peel .f0/.f1.
+                            self.local_tuple_counter += 1;
+                            let tmp = format!("__t27_lt{}", self.local_tuple_counter);
+                            self.write_indent();
+                            self.write(&format!("__auto_type {} = ", tmp));
+                            if let Some(init) = node.children.first() {
+                                self.gen_c_expr(init);
+                            }
+                            self.write_line(";");
+                            for (fi, nm) in names.iter().enumerate() {
+                                if nm == "_" {
+                                    continue;
+                                }
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "__auto_type {} = {}.f{}; (void){};",
+                                    nm, tmp, fi, nm
+                                ));
+                            }
                         }
-                        self.write_line(";");
                     }
                 }
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
+                // Tuple destructure: `let (a, b) = init;` -- C has no
+                // destructuring, so bind the tuple struct once via GNU
+                // __auto_type and peel .f0/.f1 (discarded `_` elements skipped).
+                if node.name.is_empty() && !node.extra_field.is_empty() {
+                    self.local_tuple_counter += 1;
+                    let tmp = format!("__t27_lt{}", self.local_tuple_counter);
+                    self.write(&format!("__auto_type {} = ", tmp));
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
+                    for (fi, ename) in node
+                        .extra_field
+                        .split(',')
+                        .map(|e| e.trim())
+                        .filter(|e| !e.is_empty())
+                        .enumerate()
+                    {
+                        if ename == "_" {
+                            continue;
+                        }
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "__auto_type {} = {}.f{}; (void){};",
+                            ename, tmp, fi, ename
+                        ));
+                    }
+                    return;
+                }
                 let raw_type = &node.extra_type;
+                // Rust-style array local: [T; N] name  ->  T name[N]
+                if raw_type.starts_with('[') && raw_type.contains(';') {
+                    if let Some(bracket_end) = raw_type.rfind(']') {
+                        let inner = &raw_type[1..bracket_end];
+                        if let Some(semi) = inner.find(';') {
+                            let elem = inner[..semi].trim();
+                            let size = inner[semi + 1..].trim();
+                            let c_elem = if Self::is_primitive(elem) {
+                                Self::type_to_c(elem).to_string()
+                            } else {
+                                elem.to_string()
+                            };
+                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                            if !node.children.is_empty() {
+                                self.write(" = ");
+                                self.gen_c_expr(&node.children[0]);
+                            }
+                            self.write_line(";");
+                            return;
+                        }
+                    }
+                }
                 // Handle array local vars: [SIZE]TYPE name
                 if raw_type.starts_with('[') {
                     if let Some(bracket_end) = raw_type.find(']') {
@@ -10574,7 +10684,12 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                 }
                 self.write(".");
-                self.write(&node.name);
+                if node.name.chars().all(|c| c.is_ascii_digit()) {
+                    // Tuple index: the C tuple structs name their fields f0/f1/...
+                    self.write(&format!("f{}", node.name));
+                } else {
+                    self.write(&node.name);
+                }
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
@@ -10612,19 +10727,45 @@ impl CCodegen {
                 self.write(")");
             }
             NodeKind::ExprArrayLiteral => {
-                let typ = if node.extra_type.is_empty() {
-                    "int"
-                } else {
-                    &node.extra_type
-                };
-                self.write(&format!("({}[]){{ ", typ));
-                for (i, elem) in node.children.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
+                // The parser stores the literal's ELEMENT TEXT in extra_size
+                // ("1,2,3" for a list, "0;4" for a repeat) with no children.
+                // Emit a brace initializer; the repeat form uses a GNU
+                // designated range (gcc and clang).
+                let txt = node.extra_size.trim().to_string();
+                if let Some((val, count)) = txt.rsplit_once(';') {
+                    self.write(&format!(
+                        "{{ [0 ... ({}) - 1] = {} }}",
+                        count.trim(),
+                        val.trim()
+                    ));
+                } else if !txt.is_empty() {
+                    let mut elems: Vec<String> = Vec::new();
+                    let mut depth = 0i32;
+                    let mut cur = String::new();
+                    for ch in txt.chars() {
+                        match ch {
+                            '(' | '[' => {
+                                depth += 1;
+                                cur.push(ch);
+                            }
+                            ')' | ']' => {
+                                depth -= 1;
+                                cur.push(ch);
+                            }
+                            ',' if depth == 0 => {
+                                elems.push(cur.trim().to_string());
+                                cur.clear();
+                            }
+                            _ => cur.push(ch),
+                        }
                     }
-                    self.gen_c_expr(elem);
+                    if !cur.trim().is_empty() {
+                        elems.push(cur.trim().to_string());
+                    }
+                    self.write(&format!("{{ {} }}", elems.join(", ")));
+                } else {
+                    self.write("{ 0 }");
                 }
-                self.write(" }");
             }
             NodeKind::ExprStructLit => {
                 // C99 compound literal
