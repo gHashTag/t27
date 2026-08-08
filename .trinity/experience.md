@@ -19871,3 +19871,41 @@ TDD-CONTRACT.md. They parse only because the parser tolerates the shape
 incidentally. Nobody has established what it actually does with those blocks --
 recognised as tests, silently skipped, or mis-parsed. Every "N tests in spec X"
 claim depends on the answer.
+
+## Wave Loop 551 — the seal mechanism certifies files the compiler rejects (2026-08-09)
+
+### Headline
+
+`t27c seal --save` succeeds on a spec that cannot parse. It writes
+gen_hash_* = "none" for every backend, and `seal --verify` then reports
+"all hashes MATCH" -- because none matches none. A green seal that certifies
+nothing.
+
+Demonstrated on specs/api/c_api_contract.t27, which is a MARKDOWN document with
+a .t27 extension. Sealing it destroyed four real gen hashes from 2026-08-06.
+
+**Self-inflicted at scale:** auditing my own W549/W550 reseals showed I had done
+this 30 times. Those seals previously FAILED verification with
+`gen_hash_zig: MISMATCH (saved=sha256:..., current=none)` -- exactly the signal
+that a spec stopped generating. After my reseal they PASSED. I converted 30
+mismatch-flagging seals into vacuous passing ones. All restored to 079ed21ab.
+
+### Corpus composition (measured)
+
+- 221 of the 326 unparseable specs carry a seal file.
+- 15 .t27 files are MARKDOWN documents (`# Heading`, prose). All 15 fail to
+  parse; all 15 have seals; they are referenced 104 times across the repo, so
+  renaming them to .md is not a unilateral change.
+- 11 files use foreign dialects the compiler does not implement:
+  `spec X { struct Y { field: string } }` (8) and `algorithm X { }` (3).
+  All 11 fail.
+- 7 files declare `module ;` -- an EMPTY module name -- and all 7 PARSE FINE.
+  The parser accepts an anonymous module.
+
+### Anti-patterns to avoid
+
+- Never reseal without gating on `t27c parse` first (skill rule 13).
+- Do not infer dialect diversity from a regex census without checking the
+  regex: my first pass reported "325 files in neither dialect" when 316 of
+  them simply had namespaced module names (`module depin.prove;`,
+  `module github::issues {`) that the pattern did not allow.

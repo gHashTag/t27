@@ -3900,6 +3900,16 @@ These cost a wave each. Follow them before step 1.
     flipped quote parity from even to odd. Half-repairing is worse than not
     touching; revert those and leave them for a pass that handles their shape.
 
+13. **Never `t27c seal --save` a spec without first checking it parses.** The
+    command does not check. On an unparseable spec it writes
+    `gen_hash_* = "none"` for every backend, and `seal --verify` then reports
+    *"all hashes MATCH"* — because none matches none. The failure mode is
+    silent, destructive, and turns a red gate green: a seal that previously
+    failed with `MISMATCH (saved=sha256:..., current=none)` — the exact signal
+    that a spec stopped generating — starts passing instead. Wave 551 found
+    this the hard way, having done it to 30 seals while resealing repaired
+    specs. Gate every reseal on `t27c parse` succeeding first.
+
 ### How to update this tracker
 
 After closing a wave:
