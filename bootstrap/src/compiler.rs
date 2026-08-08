@@ -4791,6 +4791,11 @@ impl VerilogCodegen {
             "program", "property", "protected", "pure", "rand", "randc", "ref", "return",
             "sequence", "shortint", "shortreal", "static", "string", "struct", "super",
             "this", "type", "typedef", "union", "unique", "var", "virtual", "void",
+            "context", "constraint", "covergroup", "coverpoint", "cross", "dist",
+            "expect", "foreach", "forkjoin", "iff", "inside", "join_any",
+            "join_none", "local", "matches", "modport", "new", "null", "solve",
+            "tagged", "throughout", "timeprecision", "timeunit", "wait_order",
+            "wildcard", "with",
         ]
     }
 
@@ -4798,6 +4803,31 @@ impl VerilogCodegen {
     /// escaped form \\name<space> when the name is a keyword, otherwise the
     /// original name. The trailing space is part of the escaped identifier
     /// syntax and must be preserved wherever the identifier is emitted.
+    /// Normalize Rust/t27 integer literals embedded in element TEXT (the
+    /// array-literal concat path works on raw source text, not AST nodes) to
+    /// plain Verilog decimal: `0x20`/`0b1010` and `_` separators are illegal
+    /// Verilog (t27#1948). Non-literal text (calls, idents) passes through.
+    fn verilog_normalize_literal_text(txt: &str) -> String {
+        let t = txt.trim();
+        let clean: String = t.chars().filter(|&c| c != '_').collect();
+        if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+            if !hex.is_empty() && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                if let Ok(n) = u128::from_str_radix(hex, 16) {
+                    return n.to_string();
+                }
+            }
+        } else if let Some(bin) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+            if !bin.is_empty() && bin.chars().all(|c| c == '0' || c == '1') {
+                if let Ok(n) = u128::from_str_radix(bin, 2) {
+                    return n.to_string();
+                }
+            }
+        } else if !clean.is_empty() && clean.chars().all(|c| c.is_ascii_digit()) {
+            return clean;
+        }
+        t.to_string()
+    }
+
     fn verilog_safe_identifier(name: &str) -> String {
         if Self::verilog_keywords().contains(&name) {
             format!("\\{} ", name)
@@ -6163,7 +6193,7 @@ impl VerilogCodegen {
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     if let Ok(n) = count.trim().parse::<usize>() {
                         for _ in 0..n.min(current_dim) {
-                            parts.push(format!("{}'({})", elem_w, val.trim()));
+                            parts.push(format!("{}'({})", elem_w, Self::verilog_normalize_literal_text(val)));
                         }
                     }
                 } else {
@@ -6191,7 +6221,7 @@ impl VerilogCodegen {
                         elems_txt.push(cur.trim().to_string());
                     }
                     for e in elems_txt.iter().take(current_dim) {
-                        parts.push(format!("{}'({})", elem_w, e));
+                        parts.push(format!("{}'({})", elem_w, Self::verilog_normalize_literal_text(e)));
                     }
                 }
             }
