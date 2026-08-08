@@ -587,6 +587,62 @@ in this campaign, now six of six, had a passing unit test holding it in place.
 
 ---
 
+### Proposition 14 — the first multi-module proof, and a property that did not bite
+
+`PROVED`. Every property in Props. 7–13 is **module-scoped**, because until the
+datapath was wired there was no system behaviour to state a property about
+(`BITNET_V2_POSITION.md` §2.3). `bitnet_engine_top` now instantiates the MAC and
+both BRAMs, so integration properties became possible — and writing them
+surfaced a failure mode the earlier waves had not met.
+
+**14a. The hazard.** `weight_bram` reads with **one cycle of latency**
+(`rd_data <= mem[rd_addr]`). Feeding the MAC straight from `layer_sequencer`
+would pair chunk *N*'s control with chunk *N−1*'s weights. Every module-level
+property would still pass — the sequencer is correct, the BRAM is correct, the
+MAC is correct. Only the composition is wrong. The top now delays
+`valid`/`first`/`last` by one cycle to meet the weight word.
+
+**14b. A true property that constrained nothing.** The first attempt asserted
+
+```verilog
+a_mac_control_aligned: assert (mac_valid_q == $past(layer_valid));
+```
+
+That is true of the skew *registers* regardless of what the MAC is connected
+to. Rewiring `valid_in` straight to `layer_valid` — reintroducing the exact
+hazard — left it **PROVING**.
+
+**A property about a signal is not a property about the wire it feeds.** The
+repair states it on the MAC's own output, which pins down which control it
+actually consumed:
+
+```verilog
+a_mac_consumed_skewed_control:
+    assert (mac_valid_out == ($past(mac_valid_q) && $past(mac_last_q)));
+```
+
+| Build | Old property | New property |
+|---|---|---|
+| skew present (correct) | PROVED | **PROVED** |
+| skew removed (the hazard) | **PROVED** ← useless | **REFUTED** |
+
+This was caught only by the standing rule from Prop. 7 — *validate a regression
+harness against the broken version*. Without that step the wave would have
+shipped eight green integration properties, one of which certified nothing.
+
+**14c. Two mechanical notes.** `sat` cannot model `$mem_v2`, so the proof runs
+with `chparam -set DEPTH 4 weight_bram` and `memory_map`; the properties do not
+read memory contents, so shrinking the array is sound. The properties live
+inside the module under `` `ifdef FORMAL `` because the alignment they check is
+internal and `sat` requires one flattened module, which mangles the names a
+wrapper would need.
+
+**14d. `threshold` is now connected.** It was declared and never referenced
+(`BITNET_V2_POSITION.md` §2.3); it now gates `neuron_out`, and
+`a_threshold_gates` holds it to that.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -154,6 +154,31 @@ jobs:
                     prep -top wp_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 14 -set-init-zero -set-assumes"
 
+      # First multi-module proof in this repo. Everything above is
+      # module-scoped; these properties range across the sequencer, the BRAMs
+      # and the MAC, which only became possible once the datapath was wired
+      # (docs/BITNET_V2_POSITION.md). -DFORMAL enables the `ifdef FORMAL block
+      # inside bitnet_engine_top; the properties live there because the
+      # alignment they check is internal and `sat` needs one flattened module.
+      # DEPTH is reduced because `sat` cannot model $mem_v2 and the properties
+      # do not read memory contents.
+      - name: Prove bitnet_engine_top integration properties
+        run: |
+          set -euo pipefail
+          ./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
+          yosys -p "read_verilog -sv -formal -DFORMAL \
+                      build/rtl/bitnet_engine_top.sv \
+                      build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv \
+                      build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv \
+                      build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
       # Vacuity gate, part two. The $check-cell count proves properties EXIST;
       # this proves they BITE. Each witness asserts the negation of a case its
       # property exists to cover, so a counterexample is the proof that the case

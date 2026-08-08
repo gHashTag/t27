@@ -2,6 +2,41 @@
 
 Last updated: 2026-08-09
 
+## engine-top-wired -- the first multi-module proof, and a property that did not bite
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs` (datapath + `ifdef FORMAL` block),
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 14),
+  `docs/BITNET_V2_POSITION.md`, `README.md`.
+- **Variant A from #1979, step 1 of that document's recommendation.**
+  `bitnet_engine_top` now instantiates `pipeline_stage2_compute`, a weight
+  `weight_bram` and an activation `weight_bram`. **3 of 9 -> 5 of 9** modules
+  wired; `threshold` now gates `neuron_out` where it was declared and never
+  referenced. Top-level cell count goes from control-only to 15 cells including
+  `$add`, `$ge`, `$adff`.
+- **The integration hazard**: `weight_bram` reads with **one cycle of latency**,
+  so feeding the MAC straight from `layer_sequencer` pairs chunk N's control
+  with chunk N-1's weights. Every module-level property still passes -- the
+  sequencer, the BRAM and the MAC are each correct; only the composition is
+  wrong. The top delays `valid`/`first`/`last` by one cycle.
+- **A true property that constrained nothing.** The first attempt asserted
+  `mac_valid_q == $past(layer_valid)` -- true of the skew *registers* no matter
+  what the MAC is connected to. Rewiring `valid_in` straight to `layer_valid`,
+  reintroducing the exact hazard, left it **PROVING**. **A property about a
+  signal is not a property about the wire it feeds.**
+- **Repair**: state it on the MAC's own output, which pins down which control it
+  consumed -- `mac_valid_out == ($past(mac_valid_q) && $past(mac_last_q))`.
+  Correct build PROVED, unskewed build **REFUTED**.
+- **Caught only by the standing rule** from Prop 7: validate a regression
+  harness against the broken version. Without that step this wave would have
+  shipped eight green integration properties, one certifying nothing.
+- Mechanics: `sat` cannot model `$mem_v2`, so the proof uses
+  `chparam -set DEPTH 4 weight_bram` + `memory_map`; the properties do not read
+  memory contents. They live inside the module under `ifdef FORMAL` because the
+  alignment is internal and `sat` needs one flattened module.
+- 8 integration properties, all guards reachable (`layer_start`,
+  `neuron_out_valid`, `neuron_out`, `mac_valid_q` all probed reachable).
+- Suite **1195 passed, 0 failed**. Seals 496/496.
+
 ## bitnet-v2-position -- the design question was posed wrongly; integration is the gap
 
 - **WHERE**: **NEW** `docs/BITNET_V2_POSITION.md`, `README.md`. No RTL, spec or

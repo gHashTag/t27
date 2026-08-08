@@ -83,7 +83,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **28 properties proved** across 5 modules, **all 26 guards reachable, 0 vacuous**; gates check assumption-liveness, `$check` counts, and 8 non-vacuity witnesses |
+| CI | Formal (Yosys) | GREEN | **36 properties proved** across 5 modules + **8 multi-module integration properties** on `bitnet_engine_top`; gates check assumption-liveness, `$check` counts, and 8 non-vacuity witnesses |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -91,7 +91,7 @@ inspectable artefacts at every step.
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
 | BitNet HLS | RTL blocks **emitted** | GREEN | 9/9 modules emit (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
-| BitNet HLS | RTL blocks **integrated** | RED | `bitnet_engine_top` instantiates **3 of 9**; the MAC, weight BRAM, prefetch, DMA, AXI slave and IRQ block are not wired. Data plane tied off. [`docs/BITNET_V2_POSITION.md`](docs/BITNET_V2_POSITION.md) §2.3 |
+| BitNet HLS | RTL blocks **integrated** | YELLOW | `bitnet_engine_top` now wires the datapath — MAC + weight BRAM + activation BRAM, `threshold` connected. **5 of 9** modules instantiated; DMA, AXI slave, IRQ and prefetch still standalone. [`docs/BITNET_V2_POSITION.md`](docs/BITNET_V2_POSITION.md) §2.3 |
 | Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
 | R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
 | Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |

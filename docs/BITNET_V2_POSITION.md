@@ -119,6 +119,17 @@ sed -n '/^module bitnet_engine_top/,/^endmodule/p' build/rtl/bitnet_engine_top.s
 **The nine modules are nine independently emitted blocks, not an assembled
 engine.** The top level wires the control plane and ties the data plane off.
 
+> **Updated 2026-08-09 (same day).** Step 1 of §4 is done: `bitnet_engine_top`
+> now instantiates `pipeline_stage2_compute`, a weight `weight_bram` and an
+> activation `weight_bram`, with a one-cycle control skew matching the BRAM read
+> latency, and `threshold` connected to gate `neuron_out`. **5 of 9** modules are
+> now wired; `dma_controller`, `axi_lite_slave`, `interrupt_controller` and
+> `weight_prefetch_ctrl` remain standalone. The first multi-module properties are
+> proved in CI — see [`FORMAL_FOUNDATIONS.md`](FORMAL_FOUNDATIONS.md) Prop. 14.
+> §3d's bound is correspondingly narrowed: `formal-yosys` now certifies
+> module-level properties **and** the sequencer→BRAM→MAC composition, but still
+> not the memory or host-interface path.
+
 ---
 
 ## 3. Consequences
