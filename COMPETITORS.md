@@ -243,11 +243,27 @@ arithmetic as Verilog `function` definitions that nothing instantiates -- so
 synthesis optimises all of it away. Measured on `specs/igla/race`: **7 specs
 synthesise, 0 produce logic.**
 
-The consequence for this section is worth stating plainly: **the ternary MAC
-that works, that theorems T1-T3 prove, and that is inside the bitstream, is
-hand-written Verilog** (`fpga/verilog/ternary_mac_synth.v`, 59 LUT / 32 FF).
-The `.t27` spec of the same name generates no hardware. For the IGLA RACE line
-specifically, the spec-to-RTL claim in section 3 is not yet demonstrated.
+This is not a defect peculiar to IGLA. Measured across a sample of 40
+generating specs from the whole tree, plus the `specs/fpga/` family
+specifically (`uart`, `gf16_accel`, `memory`), **none** synthesises to a
+non-zero logic-cell count. The emitted Verilog for `specs/fpga/uart.t27`
+contains **0 `always` blocks, 1 `assign`, 6 `function` definitions and 39
+`$display` statements**.
+
+**The fair reading is that the Verilog backend targets simulation, not
+synthesis.** It emits the spec's functions as Verilog `function` definitions
+inside a harness Icarus can execute -- and the repository's own validation
+chain says exactly that: `README.md` lists the gates a spec must pass as
+`parse`, `icarus-lowerable`, `icarus-simulate`, `icarus-cocotb` and
+`seal --save`. **Synthesis is not among them, and never was.**
+
+So claim 1 in section 3 -- "a `.t27` spec compiles to Verilog" -- is true, and
+should be read as *simulation-shaped Verilog*. What is **not** demonstrated is
+the step a reader will assume follows from it: that those specs become
+synthesisable RTL. Concretely, **the ternary MAC that works, that theorems
+T1-T3 prove, and that is inside the bitstream, is hand-written Verilog**
+(`fpga/verilog/ternary_mac_synth.v`, 59 LUT / 32 FF), not the output of
+`specs/igla/race/ternary_mac.t27`.
 
 ### 4.3 What we do not claim (IGLA)
 
