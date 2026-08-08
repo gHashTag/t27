@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7c88e08e20a280609b9e93e5d81a562cd701ef45b17f743a3e3f4d5f1c4d486a",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:e2282edf8165345d201d03c01a5e1bcf600f8ccc080fc2aa7381c6c28d4fe7a3",
-  "gen_hash_zig": "sha256:f885ccf68ce4a6288b0ea0b2d526438903c120ba3309e91457a0bfe4f6c0d2fc",
+  "gen_hash_c": "sha256:b35b4b7ef21385ee8b43ddc616e80d008d102b8f6486a9b661ecf1d7db4b8315",
+  "gen_hash_rust": "sha256:0d665145294710902f2f5310e3fd041445fa1c5c024385e89c04a12b9f809362",
+  "gen_hash_verilog": "sha256:c51b7c3160d753811345c5d8c248829cb293f6a883f906532a0fc68bfc31710a",
+  "gen_hash_zig": "sha256:39b4d7214b9cc9a58c16fc34a14b449eeca2e6a0f2b91baba8749ee0e24a40c7",
   "module": "TriTopological",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:618fcd45d00e8ffa4efbd5d1be35ae3a641b317f50f6344407e918064fa7f7bc",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:3bfd60b0a6b6dbdddebdb5a5a5d0750b8058892126e151fa05f4a6125ea0dd79",
   "spec_path": "specs/tri/graph/topological_sort.t27"
 }

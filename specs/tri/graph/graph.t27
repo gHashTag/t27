@@ -16,7 +16,7 @@ module TriGraph;
     };
 
     pub const GraphPath = struct {
-        nodes : [[]T",
+        nodes : []T,
         cost : "f64",
     };
 

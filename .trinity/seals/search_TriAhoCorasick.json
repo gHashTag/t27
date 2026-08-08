@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9b31c29c3a05364458362aaf32c038eb9c23c4e42643dcc8757d6755f17b3feb",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:f64a0500b14c5dd2628993bfd1b2dfc51fdab4594a7b7eaa8145092c1bf78fa2",
-  "gen_hash_zig": "sha256:888d48564faa7201a69c7295a97a2ea23a652a5de2d5401bd38b7105c06ebb15",
+  "gen_hash_c": "sha256:2354082ccd8ab67e7763a2a4355d182ae86cc366eddb18760e4ae3adc44fee08",
+  "gen_hash_rust": "sha256:2a848abb17b79d4ad6856da0f2ad4b1fa8c38db04458fb4125732051b9bd0342",
+  "gen_hash_verilog": "sha256:41ffc7cb443d44079c2e4005d3085d49673ea363ef73b0f486b6cfaff4062424",
+  "gen_hash_zig": "sha256:a751683664d4181803e5f6d3551091ee9c07bfa085236ce8a12f43fba4265e9a",
   "module": "TriAhoCorasick",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
-  "spec_hash": "sha256:366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:9b18717b90959707d13b3e704f6526ae464ea0c14eac011e3b6df501ef6fb530",
   "spec_path": "specs/tri/search/aho_corasick.t27"
 }

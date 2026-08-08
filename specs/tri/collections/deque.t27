@@ -11,7 +11,7 @@ module TriDeque;
     // ═══════════════════════════════════════════════════════════
 
     pub const Deque = struct {
-        data : [[]I64",
+        data : []i64,
         front : "usize",
         back : "usize",
         size : "usize",

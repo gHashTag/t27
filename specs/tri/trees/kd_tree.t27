@@ -11,7 +11,7 @@ module TriKdTree;
     // ═══════════════════════════════════════════════════════════
 
     pub const KDNode = struct {
-        point : [[]F64",
+        point : []f64,
         axis : "usize",
         left : "?KDNode",
         right : "?KDNode",

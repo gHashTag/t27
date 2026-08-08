@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ce909aa4099b933db37e75f3d831d0a3d9b9f08b5117b4c364de1279712a6b7d",
-  "gen_hash_rust": "sha256:2fcaa938ab4a4c9eb3033f603c4553b6b869fcbc6ff827e2602e067926ce93bd",
-  "gen_hash_verilog": "sha256:437c5d6b3354353ee533ae013bb54219f0196b60a2678021b045d75e95b2cfd5",
-  "gen_hash_zig": "sha256:9b29314ce60f0c0c0b946106d1f1ad53facaa83a141c895c5d5cd1b7139ce628",
+  "gen_hash_c": "sha256:e85605f2347b8b507ea887949cb081679d7d29711da3202259de7eb216bbba9c",
+  "gen_hash_rust": "sha256:d6560c25675f13f7379976cc5b74fc9aab3f8edb7c10cc647160b0f2c7116663",
+  "gen_hash_verilog": "sha256:8ceccc7defc919028a2b8c1fae4e9994548ad964bbd2020a559835236e883cfb",
+  "gen_hash_zig": "sha256:16abb5e04c984b5a80d5dbf1b50aeb304f86002f1a5e2b13f3f566ab543e0a50",
   "module": "SacActor",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:e04f5539e6d433e5cd5eaa417f97213e6a4e278989c19a310762537911ac98d4",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:8bf789ec0849acf8c11d339deddeaace0fb2c99e444c72f11b32bb922af544cf",
   "spec_path": "specs/ml/rl/sac_actor.t27"
 }

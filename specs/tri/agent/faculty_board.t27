@@ -21,7 +21,7 @@ module FacultyBoard;
         dirty_files : u32,
         build_broken : bool,
         timestamp : i64,
-        agents : [[]AgentStatus",
+        agents : []AgentStatus,
     };
 
     pub const AgentStatus = struct {

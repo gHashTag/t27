@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:087b7604d9ec0136ffecbebdbb04ba32bcf513d6fa5837222063dfe45a24a164",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:7feda3747ffc9f4d505f682962ac6b2efc1b8b71ea3173e3b7003aac96943976",
-  "gen_hash_zig": "sha256:f1ac90b58867e5d31b9476f2fda5b1dc2a986b24c311f6a9b402a2f74e99900e",
+  "gen_hash_c": "sha256:45888f6f90257443e0c3fa064eecc8a57e85fba4e0e4bef29915a7abe4193644",
+  "gen_hash_rust": "sha256:95b1bd8351568dbdfe2139fa7e2eb5b75cb0f7264a96959d96f98cb840ff417a",
+  "gen_hash_verilog": "sha256:7075f7856712146143b564843931b5040c103947603ec917e42c1eb06a5e9b75",
+  "gen_hash_zig": "sha256:eeb344362d2f07172816186ded032a809006612257fd0a8afd2c40ded9549519",
   "module": "TriCompress",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:9b0ebfbac8cbf32eb4c63fa1d8744577ec72d6f46fbfb0cd9dd369f4e44a1fd9",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:5774a55f23a1cedb8feb1044739647e4084ac88b73c5c3ffffc115248824e438",
   "spec_path": "specs/tri/io/compress.t27"
 }

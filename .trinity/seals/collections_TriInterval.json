@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3455faeb6aaa23d29500849478fff5a0c1f664e3a358111275850ba5d47bd3ca",
-  "gen_hash_rust": "sha256:f912c65b7ac902b1bfdee3aba4ff1d66bdba50e1315d5596133a86cee1483605",
-  "gen_hash_verilog": "sha256:ac37fc398040de4c1c3b69424e0aa966e50e53c6c685299d5bd20cb88af39025",
-  "gen_hash_zig": "sha256:7f16ea81fd836d49b3f6a860c272e76cc531f650b488c5f7b4ab91f31156f820",
+  "gen_hash_c": "sha256:bdf8a0f76f53033ed9230f616353806fdd15ba764192272aedd5e5637b0ae14d",
+  "gen_hash_rust": "sha256:3a776025f7d4bdf873f9ce7a87c88686188211d770badd9ece271f36ea5ecbb8",
+  "gen_hash_verilog": "sha256:fab0ebe00451ecc29f0f59064ec8e624475f0fb9e191d023946bf3881c3593c9",
+  "gen_hash_zig": "sha256:4bbb3cc2b846fba57954805eeff224fd705f06d8e4e0e5ab85aac1c76084f813",
   "module": "TriInterval",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
-  "spec_hash": "sha256:b259aff814f1812bbee828b05567a71fdd57c7be838d4a85bd092b7b7c5a9e40",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:c8115f6da7558dca37c56c947e233412f3a5aa54ef92ad407d953e0fe975b470",
   "spec_path": "specs/tri/collections/interval.t27"
 }

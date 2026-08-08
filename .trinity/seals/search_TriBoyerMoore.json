@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3c1026cb0f193f84685590b397a2b9efd6cd8f3c1c6a5a40bc639f35b0748d94",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:02b6d50384fb8e72be55be38d3b7ac13ec50ec7feda976da7fcf916221bd8463",
-  "gen_hash_zig": "sha256:04b21c3478b2199cf1450f6b48efc17b0141715bbde8c0e945aefdfc4bbbcb61",
+  "gen_hash_c": "sha256:f795fa4d9ba8aa66b04b7d88e60e087e602dfbf71f2a4010fcf6ab9d02c7733b",
+  "gen_hash_rust": "sha256:2a82503261dd5fe91d8e4ab76c6114c5b0919f421551a9992a25b2577d18fd02",
+  "gen_hash_verilog": "sha256:4ce5f0072e7391ae3ef59c2cd38d2356fadbefa6ea9afc7f53a32a4087754473",
+  "gen_hash_zig": "sha256:b0f062cae49790e82790929c0ff857348009190729c761b8a4a07cd93b8aa465",
   "module": "TriBoyerMoore",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
-  "spec_hash": "sha256:baf22f7136a669ca3528ffa121bfb755ce02221a4ede00c7811e49500542dfbb",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:949befe08d74fbddd4b1f79be2e36be09900c171edf1361e97ebf4973c682edb",
   "spec_path": "specs/tri/search/boyer_moore.t27"
 }

@@ -11,8 +11,8 @@ module TriCrypto;
     // ═══════════════════════════════════════════════════════════
 
     pub const KeyPair = struct {
-        public_key : [[]U8",
-        private_key : [[]U8",
+        public_key : []u8,
+        private_key : []u8,
     };
 
     // ═══════════════════════════════════════════════════════════

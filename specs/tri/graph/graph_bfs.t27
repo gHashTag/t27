@@ -16,8 +16,8 @@ module TriGraphBfs;
     };
 
     pub const BFSResult = struct {
-        order : [[]Usize",
-        distance : [[]Usize",
+        order : []usize,
+        distance : []usize,
         allocator : "std.mem.Allocator",
     };
 

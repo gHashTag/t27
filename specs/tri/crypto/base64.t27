@@ -11,7 +11,7 @@ module TriBase64;
     // ═══════════════════════════════════════════════════════════
 
     pub const Base64 = struct {
-        alphabet : [[]Const u8",
+        alphabet : []const u8,
         padding : bool,
     };
 

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f019f0af39db4be13b209e3f1e7dc3fbf2ec4271898f2a256e94c82a163e6f8e",
-  "gen_hash_rust": "sha256:f7622375f9fd99eda972e554a8cd332028bdea32ef9f1bba6685d4f27e397421",
-  "gen_hash_verilog": "sha256:522d067ff88be9e23184c61920f7cf1694f7ccfbfa389d6d906665d96839369c",
-  "gen_hash_zig": "sha256:29f958b32a2c36e8a2153c88c20e56fe800fe23fbc210eb335a2321181f933d7",
+  "gen_hash_c": "sha256:2c60eb93b17c6530877b12125a2966b55ae532255e1b76a93b94de92b2be8cd7",
+  "gen_hash_rust": "sha256:cc287779f5b23bbf1a4aefa7e0e229c74a79c9b9df035e3b5d5a71cfd0f953cc",
+  "gen_hash_verilog": "sha256:b2143ff28d6766de1b27589167ac9a8c2cfb744d7fa2d7e674902aa166593dc8",
+  "gen_hash_zig": "sha256:bf9ed2a83e2e6d10962873a266cf63c54c501afc7e77a47be9b6c0f0c2cb00a6",
   "module": "TriUtf8",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:f478a091aadf9aa5cb78ce6aef9f4b1847c734db395a74151cab5f69b864b4b1",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:5e3cef83fe71fa8bdec4c2ef91200565a5461f4de0225a11d9544c366afdc65d",
   "spec_path": "specs/tri/utils/utf8.t27"
 }

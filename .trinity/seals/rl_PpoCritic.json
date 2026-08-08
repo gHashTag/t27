@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3ef25ea35cd1a6c8cdbbd45a5a1372dbc9d7d78d2d259d9de2437adbdc623860",
-  "gen_hash_rust": "sha256:746cf10e16bf84a12764889392dcf1ac2f7a719e39c57b44c1809e18540ff38b",
-  "gen_hash_verilog": "sha256:e53fedf57c9e4d8a259bd17ebb21dfe8a166557bfde088ca400830efdaa89a6c",
-  "gen_hash_zig": "sha256:e1487ee57f8f75cb263e7542147ab3fa13e71e12250e53df39e47ef67016a65c",
+  "gen_hash_c": "sha256:b5c047d59952c0599e843396c6ebbc868c28223f59a72b0c42ad136d8d37b122",
+  "gen_hash_rust": "sha256:27f364a7beb3ad7f91b8a87ea498db034398d041e0fda6a2d813a9349fdd5e95",
+  "gen_hash_verilog": "sha256:590bf16836d0a556868e68e58f73b8bd1250858c00f9a641a29253de10e81b9c",
+  "gen_hash_zig": "sha256:680bde9d604673a7d4c41ee2a929e7bd22d24509a88ee805b1d56bac70a3496d",
   "module": "PpoCritic",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:e49c5c3d9e7ee0cf9e77f56a51c366857c4d7fc78c43923049ce3621222a8f30",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:3f170da0db86ecb829c46e88c0a8fad260f37ad3de7a61d87b514c68c8d8c720",
   "spec_path": "specs/ml/rl/ppo_critic.t27"
 }

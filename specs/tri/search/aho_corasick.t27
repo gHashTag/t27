@@ -11,7 +11,7 @@ module TriAhoCorasick;
     // ═══════════════════════════════════════════════════════════
 
     pub const ACTrieNode = struct {
-        children : [[256]?*ACTrieNode",
+        children : [256]?*ACTrieNode,
         fail : "*ACTrieNode",
         output : [[][,
         char : "u8",

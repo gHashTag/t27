@@ -11,7 +11,7 @@ module TriBuilder;
     // ═══════════════════════════════════════════════════════════
 
     pub const Builder(T) = struct {
-        items : [[]T",
+        items : []T,
         capacity : usize,
         len : usize,
     };

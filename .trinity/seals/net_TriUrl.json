@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:cdc6d31309de9bafc4c191527289b2a76b5d41d83de4683c34b9792b9b2bc27d",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:5d1a8784ec8b29381fa758cf5ed2903a99887517b917bc9d2a8af07112cc8ff9",
-  "gen_hash_zig": "sha256:b98a9702a6cba9b4030903c0712c57d1544274d25c9b412324f87798e98e08f7",
+  "gen_hash_c": "sha256:bab621cb2dbfc377bc0cee7a2f46d1ccbb90421896f3bcf6d7ddd23f0072fe6a",
+  "gen_hash_rust": "sha256:57b8136a3803dc13edd32a85cf84ce84f66b02b9a54070a7e45ced89b3f0dbc0",
+  "gen_hash_verilog": "sha256:675a7473da76a00dc9372793aa1aabd7811cff4b92691c9630b4b48162b7afb4",
+  "gen_hash_zig": "sha256:b985e46b4e155fc30eccb50203f7228ae49dbca2a09ec438fc914045b968e123",
   "module": "TriUrl",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+  "sealed_at": "2026-08-08T21:10:56Z",
+  "spec_hash": "sha256:7b2395a369c1777ca0333086c29266630d5335628190e6e46c253b9390af9f33",
   "spec_path": "specs/tri/net/url.t27"
 }
