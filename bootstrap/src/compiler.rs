@@ -8397,25 +8397,47 @@ impl VerilogCodegen {
                             ));
                         }
                         // Tuple-destructure binding `(a, b) = call()`: every
-                        // element identifier needs a reg too (t27#1948).
+                        // element identifier needs a reg at its ELEMENT width.
+                        // A 64-bit default made `{d,c,b,a} = call()` slice the
+                        // 32-bit packed return wrongly (t27#1948).
                         if target.kind == NodeKind::ExprTuple {
-                            let elems: Vec<String> = target
+                            // Element types from the callee's tuple return type.
+                            let elem_types: Vec<String> = stmt
                                 .children
-                                .iter()
-                                .filter(|e| {
-                                    e.kind == NodeKind::ExprIdentifier
-                                        && !e.name.is_empty()
-                                        && e.name != "_"
+                                .get(1)
+                                .filter(|c| c.kind == NodeKind::ExprCall)
+                                .and_then(|c| self.fn_return_types.get(&c.name))
+                                .map(|rt| {
+                                    let t = rt.trim();
+                                    if t.starts_with('(') && t.ends_with(')') {
+                                        t[1..t.len() - 1]
+                                            .split(',')
+                                            .map(|e| e.trim().to_string())
+                                            .collect()
+                                    } else {
+                                        Vec::new()
+                                    }
                                 })
-                                .map(|e| e.name.clone())
-                                .collect();
-                            for name in elems {
-                                if declared.insert(name.clone()) {
+                                .unwrap_or_default();
+                            for (idx, e) in target.children.iter().enumerate() {
+                                if e.kind != NodeKind::ExprIdentifier
+                                    || e.name.is_empty()
+                                    || e.name == "_"
+                                {
+                                    continue;
+                                }
+                                if declared.insert(e.name.clone()) {
+                                    let (w, signed) = elem_types
+                                        .get(idx)
+                                        .map(|t| {
+                                            (self.packed_width(t).max(1), self.packed_signed(t))
+                                        })
+                                        .unwrap_or((64, false));
                                     self.write_indent();
                                     self.write_line(&format!(
                                         "{} {}; // t27#1948 tuple binding",
-                                        reg_decl(64, false),
-                                        Self::verilog_safe_identifier(&name)
+                                        reg_decl(w, signed),
+                                        Self::verilog_safe_identifier(&e.name)
                                     ));
                                 }
                             }
@@ -9836,14 +9858,42 @@ impl VerilogCodegen {
             NodeKind::ExprTuple => {
                 // Tuple literal -> packed concatenation with element 0 in the
                 // LSB: `(e0, e1)` -> `{e1, e0}`. Matches the packed_width sum and
-                // the destructuring slice order.
+                // the destructuring slice order. Each element is WIDTH-CAST to
+                // its declared type: a bare literal (`return (1, true)`) is
+                // unsized in Verilog and iverilog rejects it in a concatenation
+                // ("operand has indefinite width", t27#1948).
+                let elem_types: Option<Vec<String>> = {
+                    let t = self.current_fn_return_type.trim();
+                    if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+                        Some(
+                            t[1..t.len() - 1]
+                                .split(',')
+                                .map(|e| e.trim().to_string())
+                                .collect(),
+                        )
+                    } else {
+                        None
+                    }
+                };
                 self.write("{");
                 let last = node.children.len().saturating_sub(1);
                 for (i, child) in node.children.iter().enumerate().rev() {
                     if i != last {
                         self.write(", ");
                     }
-                    self.gen_verilog_expr(child);
+                    let cast = elem_types
+                        .as_ref()
+                        .filter(|ts| ts.len() == node.children.len())
+                        .map(|ts| {
+                            let ty = ts[i].trim();
+                            (self.packed_width(ty).max(1), self.packed_signed(ty))
+                        });
+                    if let Some((w, signed)) = cast {
+                        let v = self.emit_packed_scalar_value(child, w, signed);
+                        self.write(&v);
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                 }
                 self.write("}");
             }
