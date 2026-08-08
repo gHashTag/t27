@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: tuple-destructure temp declared in test blocks (Refs #1948)
+
+- A test-block `let (a, b) = call()` slices a packed temp `__tup_l{line}`, but that temp (and the element regs) are declared only in emit_local's Decl phase, which the TB Init-only path skips -- the temp was referenced undeclared ("Could not find variable __tup_l242")
+- The top-of-block declaration pass now emits the tuple-destructure decls (emit_local Decl) for empty-name/extra_field locals
+- tri-net corpus: icarus 96 -> 97 (cross_layer_optimizer)
+- FROZEN_HASH resealed
+
 ## gen-verilog: `_` discard in tuple destructure gets a throwaway reg (Refs #1948)
 
 - `(link1, _) = create_2node_mesh(50)` emitted `{_, link1} = call()` -- Verilog has no `_` wildcard, so iverilog could not find the variable
