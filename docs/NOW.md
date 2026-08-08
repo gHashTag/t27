@@ -1,6 +1,13 @@
 # NOW — gen-zig: executable-level fixes (2026-08-08)
 
-Last updated: 2026-08-08
+Last updated: 2026-08-09
+
+## gen-verilog: test-block call temps re-materialized after a rebinding (Refs #1948)
+
+- A call-return temp is CSE'd by call TEXT, but a test block mutates its bindings between statements (`st = on_ack(st);` repeated). Caching the temp across a reassignment reused a STALE value, so the modelled state never advanced -- every step re-tested the pre-mutation snapshot. Verilog-path-only (Rust/Zig/C evaluate the calls directly)
+- After any statement that rebinds a variable (StmtAssign, or a named StmtLocal), the materialized set is invalidated so the next use re-assigns the temp from current values. Nested-call temps in a single non-mutating statement still materialize once, in dependency order
+- tri-net corpus: 6 runtime-divergence specs flip to passing (congestion_control, flow_control, network_simulator, production_scenarios, quarantine_manager, traffic_animator); full 99-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
 
 ## gen-verilog: tuple-LITERAL destructure lowered -- last icarus compile-error class (Refs #1948)
 
