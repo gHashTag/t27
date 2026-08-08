@@ -5034,6 +5034,12 @@ struct VacuityCounts {
     tests_vacuous: usize,
     inv_total: usize,
     inv_vacuous: usize,
+    /// Braceless `test name` followed by given/when/then. The parser creates a
+    /// TestBlock for these -- so they are COUNTED as tests -- but the backends
+    /// emit an empty body, so the assertion is discarded and the test always
+    /// passes. Verified in W555: a spec asserting `x == 999` where x is 2
+    /// generates `test "..." {}` and zig reports "All tests passed".
+    tests_bdd: usize,
 }
 
 /// Strip a `//` line comment, honouring nothing else -- `.t27` has no string
@@ -5064,6 +5070,22 @@ fn scan_vacuity(src: &str) -> VacuityCounts {
 
         let is_block = (trimmed.starts_with("test ") || trimmed.starts_with("bench "))
             && line.contains('{');
+
+        // Braceless `test <name>` with a given/when/then body: counted by the
+        // parser, discarded by every backend.
+        if !is_block && trimmed.starts_with("test ") && !line.contains('{') {
+            let looks_bdd = lines
+                .iter()
+                .skip(i + 1)
+                .take(4)
+                .any(|l| {
+                    let t = l.trim_start();
+                    t.starts_with("given ") || t.starts_with("when ") || t.starts_with("then ")
+                });
+            if looks_bdd {
+                c.tests_bdd += 1;
+            }
+        }
 
         if is_block {
             c.tests_total += 1;
@@ -5230,8 +5252,9 @@ fn run_validate_vacuity(
         total.tests_vacuous += c.tests_vacuous;
         total.inv_total += c.inv_total;
         total.inv_vacuous += c.inv_vacuous;
+        total.tests_bdd += c.tests_bdd;
 
-        if c.tests_total > 0 || c.inv_total > 0 {
+        if c.tests_total > 0 || c.inv_total > 0 || c.tests_bdd > 0 {
             let rel = p.strip_prefix(repo_root).unwrap_or(p).display().to_string();
             rows.push((rel, c));
         }
@@ -5280,10 +5303,28 @@ fn run_validate_vacuity(
         inv_pct
     );
 
-    // A vacuous check accepts every implementation, so it discriminates nothing.
+    let dead = total.tests_vacuous + total.tests_bdd;
+    let all_blocks = total.tests_total + total.tests_bdd;
     println!(
-        "\nA `test` whose body is only `assert true` passes for EVERY implementation,\n\
-         so it contributes zero discriminating power while still satisfying L4 by letter."
+        "  BDD-form tests (given/when/then, assertions DISCARDED): {}",
+        total.tests_bdd
+    );
+    if all_blocks > 0 {
+        println!(
+            "\n  tests that assert nothing: {} of {} ({:.1}%)",
+            dead,
+            all_blocks,
+            100.0 * dead as f64 / all_blocks as f64
+        );
+    }
+
+    println!(
+        "\nTwo ways a test can assert nothing:\n\
+         - body is only `assert true`: passes for EVERY implementation;\n\
+         - braceless `test name` + given/when/then: the parser counts it, but every\n\
+         \x20 backend emits an EMPTY body, so the assertion is discarded. Verified:\n\
+         \x20 a spec asserting `x == 999` where x is 2 generates `test \"...\" {{}}`\n\
+         \x20 and zig reports \"All tests passed\"."
     );
 
     if let Some(limit) = max_ratio {
