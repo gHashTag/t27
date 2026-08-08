@@ -291,13 +291,17 @@ Extending §2, and specific to the model tracks:
     coverage by roughly a factor of two. This is a defect in our own
     reporting, not in any competitor's.
 
-    Two things this does **not** say. The remaining 42 % are real: the IGLA
-    specs contain genuine `forall`-quantified invariants over typed inputs,
-    which is more than most of the projects in §4.1 publish. And the vacuous
-    blocks are not sloppiness by a human author — they are the mechanical
-    output of the wave-loop appender, which has added the same two `assert
-    true` tests and one tautological invariant to every IGLA spec on every
-    iteration. The defect is in the loop, not in the engineering it buried.
+    **Corrected in W555, and the correction goes the wrong way.** This entry
+    previously argued that the remaining 42 % were real, citing the IGLA specs'
+    `forall`-quantified invariants. Those invariants are well-written as
+    statements of intent, but they use the keyword form, and the parser
+    **skips keyword-form bodies** (`parse_invariant_block` →
+    `skip_to_next_top_level()`), emitting `// invariant: X verified (no
+    statements)`. They are not verified. Repo-wide, **5,163 of 5,988
+    invariants (86.2 %) are keyword-form**, and **9,788 of 14,996 test blocks
+    (65.3 %) assert nothing** once braceless `given`/`when`/`then` tests are
+    counted — those generate an empty body, so a test asserting `2 == 999`
+    passes. See `docs/reports/WAVE_LOOP_555_REPORT.md`.
 
 ---
 
