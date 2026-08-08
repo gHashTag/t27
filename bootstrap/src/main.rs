@@ -1344,6 +1344,13 @@ enum Commands {
         top: usize,
     },
 
+    /// Print the FROZEN_HASH operational line for the compiler core (freeze ceremony M5)
+    #[command(name = "frozen-digest")]
+    FrozenDigest {
+        /// File to digest (default: bootstrap/src/compiler.rs)
+        path: Option<String>,
+    },
+
     /// Build an openXC7/nextpnr chipdb for a Xilinx 7-series part
     #[command(name = "fpga-chipdb")]
     FpgaChipdb {
@@ -5445,6 +5452,25 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
 ///   * `bbaexport.py` prints NOTHING when the OOM killer takes it -- exit 137.
 ///   * the prjxray database is not at /prjxray/database (that holds only
 ///     settings.sh); it ships under nextpnr-xilinx/xilinx/external.
+/// Freeze ceremony (M5). `CANON.md` says: "Do not silently edit FROZEN_HASH --
+/// update only via freeze ceremony per FROZEN.md section 5 (use
+/// `cargo run --release -- frozen-digest` to print a fresh line)."
+///
+/// That command was referenced in FROZEN.md, CANON.md and build.rs's own panic
+/// message, but did not exist -- the same documented-but-missing class as
+/// `fpga-flash` before Wave 549. It exists now, so the ceremony can actually be
+/// performed instead of hand-editing the seal.
+///
+/// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
+/// `bootstrap/stage0/FROZEN_HASH` expects.
+fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
+    use sha2::{Digest, Sha256};
+    let rel = path.unwrap_or("bootstrap/src/compiler.rs");
+    let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
+    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    Ok(())
+}
+
 fn run_fpga_chipdb(
     repo_root: &Path,
     device: &str,
@@ -9576,6 +9602,9 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
          }
+         Commands::FrozenDigest { path } => {
+             run_frozen_digest(path.as_deref())?;
+         }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
@@ -9879,6 +9908,9 @@ fn main() -> anyhow::Result<()> {
          Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
              let repo_root = std::env::current_dir()?;
              run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
+         }
+         Commands::FrozenDigest { path } => {
+             run_frozen_digest(path.as_deref())?;
          }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;

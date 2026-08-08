@@ -2623,8 +2623,14 @@ impl Parser {
             ));
         }
         let base = self.current.lexeme.clone();
+        // f32/f64 are first-class elsewhere in the compiler -- TypeInfo::F32
+        // exists, they are accepted as parameter and return types, and the
+        // Zig/Rust/C emitters handle them -- but they were missing from this
+        // cast whitelist, so `x as f32` was a parse error while `fn f(x: f32)`
+        // was fine. That inconsistency blocked three IGLA specs at the parser.
         const VALID_CAST_TYPES: &[&str] = &[
             "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
+            "f32", "f64",
         ];
         if !VALID_CAST_TYPES.contains(&base.as_str()) {
             return Err(format!(
