@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## parser: .N tuple index reaches the AST; gen-c long-tail batch (Refs #1919)
+
+- The parser consumed the dot of `expr.0` and silently DROPPED the numeric index -- `two().0` parsed as `two()` (wrong value, no diagnostic). Number-after-Dot now builds ExprFieldAccess; Rust emits `.0`, Zig `.@"0"`, C `.fN` (Verilog TB emission of .N remains a documented long-tail alongside its unsized-concat defect)
+- gen-c batch: `_` tuple elements skipped (no redefinition); StmtLocal Rust-style `[T; N]` arrays lower to `T name[N]`; StmtLocal tuple destructure binds via __auto_type (tuple-LITERAL inits bind element-wise); ExprArrayLiteral interprets its extra_size element text (`{ e1, e2 }` / GNU `{ [0 ... N-1] = v }`) -- the old emitter produced an EMPTY `(int[]){ }` that compiled silently wrong
+- tri-net C validity: 6 tails -> 2 (auto_config array-returning fn, olsr_routing u256-scale table -- both spec redesigns); exactly one committed gen drifts (mesh_protocol_stack, regenerated tri-net-side)
+- Unit suite 1537/1537; FROZEN_HASH resealed
+
 ## typecheck: W456 immutable-array-element error scoped to const ROM (Closes #1925)
 
 - W456 keyed on is_mutable alone, so fn-local let-arrays (inferred-mutability convention, like scalars) raised a hard error on element assignment
