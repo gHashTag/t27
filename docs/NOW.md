@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: SystemVerilog keywords escaped; safe names in decls and part-selects (Refs #1948)
+
+- Spec identifiers named bit/byte/priority/sequence/table hit Icarus as keywords: the reserved list only covered Verilog-2001, the TB declaration passes wrote raw names (`reg [63:0] bit;`), and packed part-selects wrote the raw base
+- SV keyword block added to the reserved list; the #1894/#1948 declaration passes and both part-select emissions now go through verilog_safe_identifier
+- tri-net corpus: icarus 69 -> 77 passing (bandwidth_allocator, byte_utils, crc16, fault_detection, pattern_predictor, power_monitoring, production_deployment, resource_scheduler join); no gate regression
+- FROZEN_HASH resealed
+
 ## gen-verilog TB: real assignments; packed literals read element text (Refs #1948)
 
 - Test-block StmtAssign/StmtLocal statements were emitted COMMENTED OUT: every binding built from a call (`array = create(...)`) stayed X in the testbench and array-driven asserts could never pass. They emit for real now (regs come from #1894 + the #1948 declaration pass)
