@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: W458 keeps the legacy [N]T binding; unit contracts updated (Refs #1948)
+
+- The W458 array-param exclusion narrows to rust-style [T; N] primitives only; legacy [N]T keeps its module-array ROM binding contract
+- nested_return discriminator includes the #1950 guard assignment
+- Landed as a follow-up: auto-merge raced past the amended heads of #1952/#1957 (merged pre-force-push versions); unit suite back to the single pre-existing red
+- FROZEN_HASH resealed
+
 ## gen-verilog: SystemVerilog keywords escaped; safe names in decls and part-selects (Refs #1948)
 
 - Spec identifiers named bit/byte/priority/sequence/table hit Icarus as keywords: the reserved list only covered Verilog-2001, the TB declaration passes wrote raw names (`reg [63:0] bit;`), and packed part-selects wrote the raw base
