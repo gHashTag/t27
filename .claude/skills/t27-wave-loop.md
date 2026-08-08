@@ -3858,6 +3858,34 @@ These cost a wave each. Follow them before step 1.
    was marked "Done" in `TASK.md` and given to operators in the smoke-test doc
    for months without existing. Grep the docs for commands, then run them.
 
+7. **Run the backend over the specs before believing anything about them.**
+   Wave 549 discovered that **all 27 IGLA specs — ~69,000 lines — had never
+   compiled**, because no gate ever invoked `gen-verilog` on them. A static
+   scan (`synth-readiness`) reported them healthy. Use `t27c synth-gate`, which
+   actually runs yosys, and treat "parses" as unrelated to "synthesizes"
+   (Fu et al., arXiv:2603.11287).
+
+8. **Write the falsification list before the conclusions, then actually run
+   it.** Wave 549's research report claimed `if`-expressions and floats were
+   unimplemented. The falsification pass showed `parse_if_expr` exists at
+   `compiler.rs:3056` and `TypeInfo::F32` exists — the real gap was two
+   *spellings* (a block-expression, and two entries in a cast whitelist). The
+   finding shrank from "rewrite 69k lines" to "add two productions", and the
+   recommended variant changed with it. A falsification section that never
+   overturns anything is decoration.
+
+9. **Cross-check any headline number with a second implementation.** The
+   invariant-vacuity figure was published at 99.3 % from a Python scan, then
+   corrected to 57.8 % when the Rust `validate-vacuity` used a fuller
+   denominator (the Python regex missed multi-line `forall` invariants). The
+   test figure agreed across both and was safe to publish.
+
+10. **`bootstrap/build.rs` watches `compiler.rs` but not `main.rs`.** Edits to
+    `main.rs` will not re-run the LANG-EN/purity scan; the first `compiler.rs`
+    edit will, and as of Wave 549 that scan **panics** on six committed docs.
+    Expect it, and do not self-approve additions to
+    `docs/.legacy-non-english-docs` — it is Architect-only.
+
 ### How to update this tracker
 
 After closing a wave:

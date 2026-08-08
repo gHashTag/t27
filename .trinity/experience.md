@@ -19776,3 +19776,48 @@ was.
   `specs/igla/race/ternary_inference.t27` (80/140 vacuous, 0 real benches).
 - W550 Variant C: score IGLA CODER on VerilogEval; merge the two colliding
   wave-loop counters.
+
+### Wave 549 science track — addendum (2026-08-09)
+
+**The largest finding was invisible to every existing gate.** All 27 IGLA
+CODER + RACE specs (~69,000 lines) had never compiled. No gate ran the backend
+over them: `synth-readiness` scans statically and reported them healthy. The
+new `t27c synth-gate` (which actually invokes yosys) returned 0/17 on first
+run.
+
+Cause, two layers:
+1. Wave Loop 339 appended a `test` block with NO closing brace to all 27 specs.
+   One brace per file: gen-verilog 0/27 -> 8/27.
+2. The rest fail on two SPELLINGS, not missing features: a brace-delimited
+   block-expression (`if (c) { a } else { b }` -- `parse_if_expr` exists at
+   compiler.rs:3056 but takes bare-expression arms) and `as f32`/`as f64`
+   casts (`TypeInfo::F32` exists; only the cast whitelist omits them).
+
+**Method lesson that paid for itself:** the research report's falsification
+section overturned its own §4.2. The first draft said "the specs target a
+language that does not exist"; checking it showed both features exist and the
+gap is two productions. The recommended next-wave variant changed as a result.
+Write the falsification list first, then run it.
+
+**Second method lesson:** cross-check headline numbers with a second
+implementation. Invariant vacuity was published at 99.3% from a Python scan and
+corrected to 57.8% by the Rust validator, whose denominator included multi-line
+`forall` invariants. The test figure (57.0%) agreed across both.
+
+**Three theorems now machine-checked with yosys alone** (no Coq/Lean/sby):
+T1 ternary_mac_top == real-`*` golden model for all inputs (miter+SAT);
+T2 same function at 0 DSP48 vs 1 DSP48E1; T3 demo accumulator confined to
+{0,+1}, proved UNBOUNDED via temporal induction at length 10. See
+fpga/formal/README.md. T2 is the quantified ternary argument in one line.
+
+**Blocker for the next wave:** bootstrap/build.rs watches compiler.rs but not
+main.rs, and it PANICS on six committed docs violating L3/LANG-EN that are not
+allowlisted. The build has been latently broken since 2026-06-28 for anyone
+touching the compiler. docs/.legacy-non-english-docs is Architect-approval-only
+-- do not self-approve.
+
+**Also:** the locally installed .git/hooks/pre-commit (not the repo's tracked
+.githooks/pre-commit, which has no seal check) demands
+.trinity/seals/<basename>.json while every repo tool writes
+.trinity/seals/<parentdir>_<module>.json. The gate is unsatisfiable, not
+unsatisfied.
