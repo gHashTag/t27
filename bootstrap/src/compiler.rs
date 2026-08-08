@@ -3558,12 +3558,30 @@ impl Codegen {
         // Check if this is a method (first param is "self")
         let is_method = node.params.iter().any(|(name, _)| name == "self");
 
+        // Zig parameters are immutable; a spec body that assigns to a
+        // parameter needs a mutable shadow. The parameter is renamed to
+        // `<name>_arg` and `var <name> = <name>_arg;` opens the body, so
+        // every body reference keeps its spec name.
+        let mut body_muts: std::collections::HashSet<String> = std::collections::HashSet::new();
+        collect_mutable_names(&node.children, &mut body_muts);
+        let shadowed: Vec<String> = node
+            .params
+            .iter()
+            .filter(|(pname, _)| pname != "self" && body_muts.contains(pname))
+            .map(|(pname, _)| pname.clone())
+            .collect();
+
         self.write(&format!("fn {}(", node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, Self::t27_array_type_to_zig(ptype)));
+            let arg_name = if shadowed.contains(pname) {
+                format!("{}_arg", pname)
+            } else {
+                pname.clone()
+            };
+            self.write(&format!("{}: {}", arg_name, Self::t27_array_type_to_zig(ptype)));
         }
         self.write(")");
 
@@ -3579,16 +3597,36 @@ impl Codegen {
         self.mut_names.clear();
         collect_mutable_names(&node.children, &mut self.mut_names);
 
+        for pname in &shadowed {
+            self.write_indent();
+            self.write_line(&format!("var {} = {}_arg;", pname, pname));
+        }
+
         // Zig errors on unused function parameters; a spec is free to keep one
         // for interface symmetry (e.g. a lane the body ignores). Discard any
         // parameter the body never reads so the generated Zig compiles.
         fn param_referenced(nodes: &[Node], name: &str) -> bool {
+            // Array literals carry their element text in extra_size with no
+            // child nodes, so an identifier used only inside `[a, b, c]`
+            // must be found textually (word-boundary match).
+            fn text_has_ident(text: &str, name: &str) -> bool {
+                let bytes = text.as_bytes();
+                let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
+                text.match_indices(name).any(|(i, _)| {
+                    let before_ok = i == 0 || !is_ident(bytes[i - 1]);
+                    let end = i + name.len();
+                    let after_ok = end >= bytes.len() || !is_ident(bytes[end]);
+                    before_ok && after_ok
+                })
+            }
             nodes.iter().any(|n| {
                 (n.name == name
                     && !matches!(
                         n.kind,
                         NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
                     ))
+                    || (n.kind == NodeKind::ExprArrayLiteral
+                        && text_has_ident(&n.extra_size, name))
                     || param_referenced(&n.children, name)
             })
         }
@@ -3637,7 +3675,12 @@ impl Codegen {
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
         // Zig (the same defect the Verilog testbench had, gHashTag/t27#1894).
         // Emit the FIRST assignment to each plain identifier as a `const`
-        // binding; later statements go through the normal path.
+        // binding -- or `var` when the test reassigns the name later (a
+        // `const` shadow made every reassignment "cannot assign to constant").
+        // Later statements go through the normal path.
+        let mut assign_counts: std::collections::HashMap<String, u32> =
+            std::collections::HashMap::new();
+        count_ident_assigns(&node.children, &mut assign_counts);
         let mut bound: std::collections::HashSet<String> = std::collections::HashSet::new();
         for stmt in &node.children {
             let fresh_binding = stmt.kind == NodeKind::StmtAssign
@@ -3653,8 +3696,14 @@ impl Codegen {
                     .iter()
                     .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
+                let name = &stmt.children[0].name;
+                let kw = if assign_counts.get(name).copied().unwrap_or(0) >= 2 {
+                    "var"
+                } else {
+                    "const"
+                };
                 self.write_indent();
-                self.write(&format!("const {} = ", stmt.children[0].name));
+                self.write(&format!("{} {} = ", kw, name));
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else if tuple_binding {
@@ -11951,6 +12000,21 @@ fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<Stri
             out.insert(n.name.clone(), RustCodegen::t27_type_to_rust(&n.extra_type));
         }
         collect_typed_locals(&n.children, out);
+    }
+}
+
+// Recursive count of plain-identifier assignment targets, used by the Zig
+// test-block emitter to decide const vs var for the first binding of a name.
+fn count_ident_assigns(nodes: &[Node], counts: &mut std::collections::HashMap<String, u32>) {
+    for n in nodes {
+        if n.kind == NodeKind::StmtAssign
+            && !n.children.is_empty()
+            && n.children[0].kind == NodeKind::ExprIdentifier
+            && !n.children[0].name.is_empty()
+        {
+            *counts.entry(n.children[0].name.clone()).or_insert(0) += 1;
+        }
+        count_ident_assigns(&n.children, counts);
     }
 }
 
