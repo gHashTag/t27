@@ -1,0 +1,262 @@
+{
+ "schema": "t27-conformance/v0.1",
+ "format": "GF-T16",
+ "ssot": "specs/numeric/gft16.t27",
+ "anchor_identity": "phi^2 + 1/phi^2 = 3",
+ "anchor_check": {
+  "value": 3.0,
+  "expected": 3.0,
+  "ieee754_exact": true
+ },
+ "exp_trits": 4,
+ "mant_bits": 9,
+ "exp_offset": 40,
+ "offset_max": 80,
+ "width_rule": "1 + 4 + 9 = 14",
+ "note": "probes are exactly representable in both the rung and f64 (powers of two and 1.5*2^e within range), so every abs_error is exactly zero by construction",
+ "n_vectors": 22,
+ "vectors": [
+  {
+   "name": "pos_zero",
+   "input_f64": 0.0,
+   "input_f64_hex": "0x0000000000000000",
+   "gft16_bits_int": 0,
+   "gft16_bits_hex": "0x0",
+   "decoded_f64": 0.0,
+   "decoded_f64_hex": "0x0000000000000000",
+   "abs_error": 0.0,
+   "category": "zero"
+  },
+  {
+   "name": "pow2_-39",
+   "input_f64": 1.8189894035458565e-12,
+   "input_f64_hex": "0x3d80000000000000",
+   "gft16_bits_int": 512,
+   "gft16_bits_hex": "0x200",
+   "decoded_f64": 1.8189894035458565e-12,
+   "decoded_f64_hex": "0x3d80000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_-39",
+   "input_f64": -1.8189894035458565e-12,
+   "input_f64_hex": "0xbd80000000000000",
+   "gft16_bits_int": 66048,
+   "gft16_bits_hex": "0x10200",
+   "decoded_f64": -1.8189894035458565e-12,
+   "decoded_f64_hex": "0xbd80000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e-39",
+   "input_f64": 2.7284841053187847e-12,
+   "input_f64_hex": "0x3d88000000000000",
+   "gft16_bits_int": 768,
+   "gft16_bits_hex": "0x300",
+   "decoded_f64": 2.7284841053187847e-12,
+   "decoded_f64_hex": "0x3d88000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_-19",
+   "input_f64": 1.9073486328125e-06,
+   "input_f64_hex": "0x3ec0000000000000",
+   "gft16_bits_int": 10752,
+   "gft16_bits_hex": "0x2a00",
+   "decoded_f64": 1.9073486328125e-06,
+   "decoded_f64_hex": "0x3ec0000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_-19",
+   "input_f64": -1.9073486328125e-06,
+   "input_f64_hex": "0xbec0000000000000",
+   "gft16_bits_int": 76288,
+   "gft16_bits_hex": "0x12a00",
+   "decoded_f64": -1.9073486328125e-06,
+   "decoded_f64_hex": "0xbec0000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e-19",
+   "input_f64": 2.86102294921875e-06,
+   "input_f64_hex": "0x3ec8000000000000",
+   "gft16_bits_int": 11008,
+   "gft16_bits_hex": "0x2b00",
+   "decoded_f64": 2.86102294921875e-06,
+   "decoded_f64_hex": "0x3ec8000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_-1",
+   "input_f64": 0.5,
+   "input_f64_hex": "0x3fe0000000000000",
+   "gft16_bits_int": 19968,
+   "gft16_bits_hex": "0x4e00",
+   "decoded_f64": 0.5,
+   "decoded_f64_hex": "0x3fe0000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_-1",
+   "input_f64": -0.5,
+   "input_f64_hex": "0xbfe0000000000000",
+   "gft16_bits_int": 85504,
+   "gft16_bits_hex": "0x14e00",
+   "decoded_f64": -0.5,
+   "decoded_f64_hex": "0xbfe0000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e-1",
+   "input_f64": 0.75,
+   "input_f64_hex": "0x3fe8000000000000",
+   "gft16_bits_int": 20224,
+   "gft16_bits_hex": "0x4f00",
+   "decoded_f64": 0.75,
+   "decoded_f64_hex": "0x3fe8000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_0",
+   "input_f64": 1.0,
+   "input_f64_hex": "0x3ff0000000000000",
+   "gft16_bits_int": 20480,
+   "gft16_bits_hex": "0x5000",
+   "decoded_f64": 1.0,
+   "decoded_f64_hex": "0x3ff0000000000000",
+   "abs_error": 0.0,
+   "category": "unity"
+  },
+  {
+   "name": "neg_pow2_0",
+   "input_f64": -1.0,
+   "input_f64_hex": "0xbff0000000000000",
+   "gft16_bits_int": 86016,
+   "gft16_bits_hex": "0x15000",
+   "decoded_f64": -1.0,
+   "decoded_f64_hex": "0xbff0000000000000",
+   "abs_error": 0.0,
+   "category": "unity"
+  },
+  {
+   "name": "onehalf_2e0",
+   "input_f64": 1.5,
+   "input_f64_hex": "0x3ff8000000000000",
+   "gft16_bits_int": 20736,
+   "gft16_bits_hex": "0x5100",
+   "decoded_f64": 1.5,
+   "decoded_f64_hex": "0x3ff8000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_1",
+   "input_f64": 2.0,
+   "input_f64_hex": "0x4000000000000000",
+   "gft16_bits_int": 20992,
+   "gft16_bits_hex": "0x5200",
+   "decoded_f64": 2.0,
+   "decoded_f64_hex": "0x4000000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_1",
+   "input_f64": -2.0,
+   "input_f64_hex": "0xc000000000000000",
+   "gft16_bits_int": 86528,
+   "gft16_bits_hex": "0x15200",
+   "decoded_f64": -2.0,
+   "decoded_f64_hex": "0xc000000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e1",
+   "input_f64": 3.0,
+   "input_f64_hex": "0x4008000000000000",
+   "gft16_bits_int": 21248,
+   "gft16_bits_hex": "0x5300",
+   "decoded_f64": 3.0,
+   "decoded_f64_hex": "0x4008000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_19",
+   "input_f64": 524288.0,
+   "input_f64_hex": "0x4120000000000000",
+   "gft16_bits_int": 30208,
+   "gft16_bits_hex": "0x7600",
+   "decoded_f64": 524288.0,
+   "decoded_f64_hex": "0x4120000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_19",
+   "input_f64": -524288.0,
+   "input_f64_hex": "0xc120000000000000",
+   "gft16_bits_int": 95744,
+   "gft16_bits_hex": "0x17600",
+   "decoded_f64": -524288.0,
+   "decoded_f64_hex": "0xc120000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e19",
+   "input_f64": 786432.0,
+   "input_f64_hex": "0x4128000000000000",
+   "gft16_bits_int": 30464,
+   "gft16_bits_hex": "0x7700",
+   "decoded_f64": 786432.0,
+   "decoded_f64_hex": "0x4128000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "pow2_39",
+   "input_f64": 549755813888.0,
+   "input_f64_hex": "0x4260000000000000",
+   "gft16_bits_int": 40448,
+   "gft16_bits_hex": "0x9e00",
+   "decoded_f64": 549755813888.0,
+   "decoded_f64_hex": "0x4260000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "neg_pow2_39",
+   "input_f64": -549755813888.0,
+   "input_f64_hex": "0xc260000000000000",
+   "gft16_bits_int": 105984,
+   "gft16_bits_hex": "0x19e00",
+   "decoded_f64": -549755813888.0,
+   "decoded_f64_hex": "0xc260000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  },
+  {
+   "name": "onehalf_2e39",
+   "input_f64": 824633720832.0,
+   "input_f64_hex": "0x4268000000000000",
+   "gft16_bits_int": 40704,
+   "gft16_bits_hex": "0x9f00",
+   "decoded_f64": 824633720832.0,
+   "decoded_f64_hex": "0x4268000000000000",
+   "abs_error": 0.0,
+   "category": "normal"
+  }
+ ]
+}
