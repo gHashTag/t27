@@ -3910,6 +3910,21 @@ These cost a wave each. Follow them before step 1.
     this the hard way, having done it to 30 seals while resealing repaired
     specs. Gate every reseal on `t27c parse` succeeding first.
 
+14. **Re-test an environmental blocker before carrying it forward.** Waves
+    549-552 each restated "G1 blocked: bbaexport is OOM-killed" without asking
+    *which* environment imposed the limit. It was **Docker's** 3.83 GiB
+    allocation, not the machine — `bbaexport` peaks at **7.06 GB** and the host
+    had 8 GB all along. Running the one memory-hungry step natively and leaving
+    the rest in the container produced the bitstream in a single wave. When a
+    blocker is environmental (memory, sandbox, missing tool), name the specific
+    environment and check whether another one is available.
+
+15. **A tool that dies silently is lying about its failure mode.** `bbaexport.py`
+    prints nothing when the OOM killer takes it; piping through `tail` hides the
+    exit code too. That produced two confident wrong diagnoses across two waves.
+    **Always capture `$?` for a step that can be killed** — 137 is SIGKILL/OOM,
+    139 is SIGSEGV.
+
 ### How to update this tracker
 
 After closing a wave:
