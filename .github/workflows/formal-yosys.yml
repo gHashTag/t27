@@ -57,6 +57,19 @@ jobs:
       - name: Build t27c
         run: cargo build --release --manifest-path bootstrap/Cargo.toml
 
+      # Verify the verifier before trusting any result below. Yosys's `sat`
+      # ignores $assume cells unless -set-assumes is passed, silently: a
+      # harness still runs and still reports PROVED/REFUTED with every
+      # assumption inert. This module assumes something unsatisfiable and
+      # asserts something false, so it PROVES only when assumptions are live.
+      # If this step ever fails, every "given a compliant environment" result
+      # in this job is meaningless.
+      - name: Assumptions are active in the proof flow
+        run: |
+          yosys -p "read_verilog -sv -formal formal/assume_liveness_check.sv; \
+                    prep -top assume_liveness_check; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 4 -set-init-zero -set-assumes"
+
       - name: Emit the BitNet RTL bundle
         run: |
           set -euo pipefail
@@ -87,7 +100,7 @@ jobs:
           yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
                     formal/interrupt_controller_props.sv; \
                     prep -top irq_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 6 -tempinduct"
+                    sat -verify -prove-asserts -seq 6 -tempinduct -set-assumes"
 
       - name: Prove axi_lite_slave properties
         run: |
@@ -108,7 +121,7 @@ jobs:
           yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
                     formal/axi_lite_slave_props.sv; \
                     prep -top axi_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 10 -set-init-zero"
+                    sat -verify -prove-asserts -seq 10 -set-init-zero -set-assumes"
 
       - name: Prove dma_controller properties
         run: |
@@ -125,7 +138,7 @@ jobs:
           yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
                     formal/dma_controller_props.sv; \
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 12 -set-init-zero"
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
       - name: Behavior-DSL subset still emits and parses
         run: |

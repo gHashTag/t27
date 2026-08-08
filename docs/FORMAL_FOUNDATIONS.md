@@ -429,6 +429,66 @@ yosys -p "read_verilog -sv -formal <bundle>/dma_controller.sv \
 
 ---
 
+### Proposition 11 — the anomaly was the harness, and the cause was an opt-in flag
+
+`PROVED`. Prop. 10 closed with `arlen == 0` refuting at the address handshake
+while a hand-trace said it must hold, recorded as an unexplained anomaly.
+It is now explained, and the explanation generalises past this repository.
+
+**11a. Yosys's `sat` ignores `$assume` cells unless `-set-assumes` is passed.**
+It is opt-in and silent. A harness without the flag still runs, still prints
+`PROVED` or `REFUTED`, and every `assume` in it is inert — so a property meant
+to hold *given a compliant environment* is being checked against an arbitrary
+one. Demonstrated with a two-line module: `assume (1'b0)` alongside
+`assert (a == !a)`.
+
+```
+without -set-assumes -> REFUTED   (the false assertion is reachable)
+with    -set-assumes -> PROVED    (vacuously, as an unsatisfiable assumption requires)
+```
+
+**11b. That fully accounts for the anomaly.** With the flag, a readable
+counterexample became available (single module, no `-flatten`, so signal names
+survive). The trace shows the environment driving `m_axi_rvalid` **without ever
+asserting `rlast`**: `bytes_remaining` walks 8 → 0 → −8 → −24, `beats_owed`
+becomes enormous, and `burst_len` saturates to `8'hFF`. The 256-beat request
+was real, and it required a **non-compliant slave**.
+
+**11c. Under a compliant slave the property holds.** Re-run with the AXI4
+contract active — no unsolicited beats, `rlast` exactly on the last beat of the
+burst:
+
+```
+a_arlen_zero      PROVED
+a_no_underflow    PROVED
+```
+
+So: **not a defect.** The design is correct against the protocol contract, and
+the earlier refutation was a harness that had never applied its own constraints.
+
+**11d. Audit of everything that came before.** All three checked-in harnesses
+were re-run with and without the flag. All prove **both ways**, so the four RTL
+defects of Props. 7–9 are unaffected — those properties never depended on an
+assumption. Only the inconclusive Prop. 10 investigation was affected, and it
+is now resolved.
+
+**11e. A defensive clamp was written, then reverted.** Forcing
+`beats_burst >= 1` would stop the `beats_owed == 0` wrap. But 11c *proves*
+that state unreachable under contract, and the non-compliant case underflows to
+a **large** `bytes_remaining`, where `arlen = 255` is arithmetically correct
+rather than a wrap — so the clamp fixed nothing reachable while adding a branch.
+Full immunity to a lawless slave is not available anyway: the only way to stop
+consuming early is to abandon the burst, which is itself the violation fixed in
+Prop. 9a. **Proving code unreachable is a reason to delete it, not to add it.**
+
+**11f. The flow now verifies itself.** `formal/assume_liveness_check.sv` is
+proved first in CI; it passes only when assumptions are live. This is the
+tautology instrument of Prop. 7 turned on the tool instead of the design — the
+recurring shape being that a checker which cannot fail, and a checker whose
+constraints do nothing, are the same defect wearing different clothes.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

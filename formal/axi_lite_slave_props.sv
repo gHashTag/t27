@@ -9,7 +9,7 @@
 //   yosys -p "read_verilog -sv -formal axi_lite_slave.sv \
 //             formal/axi_lite_slave_props.sv; \
 //             prep -top axi_props -flatten; async2sync; chformal -lower; \
-//             sat -verify -prove-asserts -seq 10 -set-init-zero"
+//             sat -verify -prove-asserts -seq 10 -set-init-zero -set-assumes"
 //
 // -set-init-zero matters: under -tempinduct with an unconstrained initial
 // state, `bresp == 2'b00` is refutable even though bresp is only ever assigned

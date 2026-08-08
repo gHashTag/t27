@@ -9,7 +9,7 @@
 //   yosys -p "read_verilog -sv -formal dma_controller.sv \
 //             formal/dma_controller_props.sv; \
 //             prep -top dma_props -flatten; async2sync; chformal -lower; \
-//             sat -verify -prove-asserts -seq 12 -set-init-zero"
+//             sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 //
 // -set-init-zero rather than -tempinduct: induction from an unconstrained
 // initial state refutes properties that hold on every reachable state.

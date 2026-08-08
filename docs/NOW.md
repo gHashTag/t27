@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-09
 
+## assumes-were-inert -- the anomaly was an opt-in flag, and the flow now self-checks
+
+- **WHERE**: **NEW** `formal/assume_liveness_check.sv`, all four `formal/*.sv`
+  headers, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 11), `README.md`.
+- **Variant A from #1972 resolved the open anomaly.** Yosys's `sat` **ignores
+  `$assume` cells unless `-set-assumes` is passed** -- opt-in and silent. A
+  harness without it still runs and still prints PROVED/REFUTED with every
+  assumption inert, so a property meant to hold *given a compliant
+  environment* is checked against an arbitrary one.
+- Demonstrated in two lines: `assume (1'b0)` + `assert (a == !a)` ->
+  **REFUTED** without the flag, **PROVED** (vacuously) with it.
+- **That fully accounts for the anomaly.** With a single-module harness (no
+  `-flatten`, so names survive) the counterexample is readable: the
+  environment drives `rvalid` **without ever asserting `rlast`**,
+  `bytes_remaining` walks 8 -> 0 -> -8 -> -24, and `burst_len` saturates to
+  `8'hFF`. It required a **non-compliant slave**.
+- **Under a compliant slave the property proves** (`a_arlen_zero`,
+  `a_no_underflow`). **Not a defect.**
+- **Audit**: all three checked-in harnesses re-run with and without the flag --
+  all prove **both ways**. The four RTL defects of the previous waves never
+  depended on an assumption and are unaffected.
+- **A defensive clamp was written and then reverted.** The `beats_owed == 0`
+  wrap it guarded is *proved unreachable* under contract, and the
+  non-compliant case underflows to a large value where `arlen = 255` is
+  arithmetically correct. Proving code unreachable is a reason to delete it,
+  not to add it.
+- **The flow now verifies itself**: CI proves `assume_liveness_check.sv`
+  first, and it passes only when assumptions are live. A checker that cannot
+  fail and a checker whose constraints do nothing are the same defect.
+- Suite **1195 passed, 0 failed**. Seals 496/496.
+
 ## axi4-slave-model -- built, precondition proves, one anomaly left open
 
 - **WHERE**: **NEW** `formal/axi4_read_slave_model.sv`,

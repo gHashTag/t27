@@ -21,6 +21,11 @@
 // assuming it would let the model hide exactly the kind of defect it exists to
 // expose.
 //
+// REQUIRES `-set-assumes` on the `sat` command. Yosys ignores $assume cells
+// without it, silently, so every constraint in this file would be inert and
+// the properties would be checked against an arbitrary environment. CI proves
+// formal/assume_liveness_check.sv first to confirm the flag is in effect.
+//
 // phi^2 + 1/phi^2 = 3 | TRINITY
 // ============================================================================
 

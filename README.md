@@ -191,9 +191,12 @@ the contract. Eight such tests have now been rewritten to assert behaviour.
 
 `formal/axi4_read_slave_model.sv` is a reusable AXI4 read-slave model for
 master-side properties; its single-burst precondition is **asserted, not
-assumed**, so it cannot silently hide the defects it exists to find. One
-anomaly it surfaced (`arlen` at the address handshake) is recorded as **open**
-rather than resolved — see Prop. 10.
+assumed**, so it cannot silently hide the defects it exists to find. The
+`arlen`-at-handshake anomaly it surfaced is **resolved** (Prop. 11): Yosys's
+`sat` ignores `$assume` cells unless `-set-assumes` is passed — silently — so
+the harness had never applied its own constraints. Under a compliant slave the
+property proves. CI now proves `formal/assume_liveness_check.sv` first, which
+passes only when assumptions are actually live.
 
 ### Host stack (W39 R-HS-1, W40 R-HS-2)
 
