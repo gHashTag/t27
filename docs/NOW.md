@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## sv2v-evaluated + yosys-checkable-subset -- a green run over zero properties
+
+- **WHERE**: `bootstrap/src/behavior_sva_v2.rs` (+ emitter, +9 tests),
+  `bootstrap/src/main.rs` (`gen-behavior-sva-yosys`), **NEW**
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Props 5, 6), `README.md`.
+- **Variant A from #1963 answered: sv2v is not a workaround -- it deletes the
+  properties.** Its own README says assertions "are simply dropped during
+  conversion"; confirmed on 0.0.13, a module with a `property` block and an
+  `assert property` in, **zero assertions out**, `exit 0`, no warning.
+  A `sv2v -> yosys -> sby` pipeline would run green over an empty property
+  set. That is strictly worse than failing loudly at parse, and it is the
+  CI-theater failure of #1956 wearing a real tool's name. sv2v also lacks
+  `bind`, the mechanism the module-wrapped SVA of #1962 relies on.
+- **Constructive route instead**: `t27c gen-behavior-sva-yosys` emits the
+  immediate-assertion subset Yosys *does* accept. `a |-> b` becomes
+  `assert(!(a) || (b))`; `a |-> ##N b` becomes `assert(!($past(a,N)) || (b))`;
+  `s_eventually` is liveness, has no immediate form, and is **reported** on
+  stderr and in a `NOT TRANSLATED` comment in the file rather than dropped.
+- **Verified end-to-end on Yosys 0.63**: frontend exits 0 (the `property` form
+  does not), `stat` shows **2 `$check` cells** so the properties survive into
+  the netlist, and the prover **actively refutes** over free inputs.
+- **Guard correctness**: the delayed form guards on `rst_n && $past(rst_n)`.
+  Guarding on the current cycle alone lets an assertion fire one cycle after
+  reset when the antecedent's history predates the reset -- the prover produced
+  that counterexample during development and was right.
+- **NEW `formal-yosys.yml` with a vacuity gate.** It counts `$check` cells and
+  fails when there are none, because a formal job that only runs a prover
+  cannot distinguish "all properties hold" from "there are no properties".
+  Validated both ways locally: our output 2 cells (passes), sv2v output 0 cells
+  (**correctly fails**). If anyone wires sv2v in, the gate catches it.
+- Suite **1184 -> 1193 passed, 0 failed**.
+
 ## hooks-in-rust -- the gates now reach a fresh clone
 
 - **WHERE**: **NEW** `bootstrap/src/hooks.rs` (+10 tests), `bootstrap/src/main.rs`

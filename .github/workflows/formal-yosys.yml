@@ -1,0 +1,81 @@
+# Proves the behavior-DSL property set with Yosys, and checks that there is
+# something left to prove.
+#
+# Background (docs/FORMAL_FOUNDATIONS.md Props 2, 5, 6): Yosys's Verilog
+# frontend accepts neither `property ... endproperty` nor inline
+# `assert property (@(posedge clk) ...)`, so the `--with-sva` output has never
+# been checkable by the open-source flow. sv2v is not a fix -- it drops
+# assertions silently and exits 0, which would give a green formal run over an
+# empty property set. `t27c gen-behavior-sva-yosys` emits the immediate-
+# assertion subset Yosys does accept.
+#
+# The vacuity check below is the load-bearing step. A formal job that only runs
+# a prover cannot distinguish "all properties hold" from "there are no
+# properties", and this repository has already shipped three CI jobs that were
+# a bare `echo`. Counting $check cells makes the difference observable.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
+name: Formal (Yosys)
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-yosys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prove:
+    name: immediate-assertion subset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-formal-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      - name: Emit the Yosys-checkable subset
+        run: |
+          set -euo pipefail
+          cat > behaviors.json <<'JSON'
+          [
+            {"name":"engine_busy_safety","given":"running","when":"posedge clk","then":"set full"},
+            {"name":"irq_clear_on_reset","given":"reset inactive","when":"posedge clk","then":"after 1 cycles set full"}
+          ]
+          JSON
+          ./target/release/t27c gen-behavior-sva-yosys behaviors.json --output formal.sv
+
+      # Vacuity gate: if the property set is empty, the prover would pass and
+      # mean nothing. Fail loudly instead.
+      - name: Assert the property set is non-empty
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal formal.sv; prep -top behavior_yosys; stat" \
+                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          echo "check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 1 ]; then
+            echo "::error::No \$check cells in the netlist — the formal run would be vacuous."
+            exit 1
+          fi
+
+      - name: Frontend accepts the emitted subset
+        run: yosys -p "read_verilog -sv -formal formal.sv; prep -top behavior_yosys"

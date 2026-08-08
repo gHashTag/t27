@@ -759,6 +759,15 @@ enum Commands {
         repo_root: PathBuf,
     },
 
+    /// Emit Yosys-checkable immediate assertions from behavior JSON
+    GenBehaviorSvaYosys {
+        /// Path to behavior JSON (same shape as gen-behavior-sva-v2)
+        input: PathBuf,
+        /// Output path ("-" for stdout)
+        #[arg(long, default_value = "-")]
+        output: String,
+    },
+
     /// Run the pre-commit gates (used by .githooks/pre-commit)
     HookPreCommit {
         #[arg(long, default_value = ".")]
@@ -8235,6 +8244,9 @@ async fn main() -> anyhow::Result<()> {
             behaviors_json,
             output,
         } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
+        Commands::GenBehaviorSvaYosys { input, output } => {
+            run_gen_behavior_sva_yosys(&input.to_string_lossy(), &output)?
+        }
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,
@@ -8476,6 +8488,42 @@ fn run_gen_behavior_sva_v2(
     write_verilog_to_output(&verilog, output, "behavior SVA v2")
 }
 
+fn run_gen_behavior_sva_yosys(behaviors_json: &str, output: &str) -> anyhow::Result<()> {
+    let json_str = fs::read_to_string(behaviors_json)
+        .with_context(|| format!("failed to read behaviors JSON from {}", behaviors_json))?;
+    let parsed: Vec<BehaviorJson> =
+        serde_json::from_str(&json_str).with_context(|| "failed to parse behaviors JSON")?;
+    let behaviors: Vec<behavior_sva::Behavior<'_>> = parsed
+        .iter()
+        .map(|b| behavior_sva::Behavior {
+            name: &b.name,
+            given: &b.given,
+            when: &b.when,
+            then: &b.then,
+        })
+        .collect();
+    let (verilog, skipped) = behavior_sva_v2::build_behavior_yosys_file(&behaviors);
+
+    // Report untranslatable behaviors on stderr. Silently emitting a smaller
+    // property set would let a formal run go green over a domain nobody was
+    // told had shrunk -- the exact failure this repo keeps finding in its gates.
+    for (name, why) in &skipped {
+        match why {
+            behavior_sva_v2::YosysSkip::Liveness => eprintln!(
+                "skip: {name} uses s_eventually (liveness); an immediate assertion cannot express it"
+            ),
+        }
+    }
+    eprintln!(
+        "translated {} of {} behaviors",
+        behaviors.len() - skipped.len(),
+        behaviors.len()
+    );
+
+    let out = if output == "-" { None } else { Some(output) };
+    write_verilog_to_output(&verilog, out, "behavior SVA (yosys subset)")
+}
+
 #[cfg(not(feature = "server"))]
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -8501,6 +8549,9 @@ fn main() -> anyhow::Result<()> {
             behaviors_json,
             output,
         } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
+        Commands::GenBehaviorSvaYosys { input, output } => {
+            run_gen_behavior_sva_yosys(&input.to_string_lossy(), &output)?
+        }
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,

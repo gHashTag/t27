@@ -73,8 +73,9 @@ The `--with-sva` bundle advertises formal-friendliness. Measured support:
 **Consequence 2a.** Since SymbiYosys uses Yosys as its frontend, the emitted
 SVA could never have been checked by the open-source formal flow — with or
 without the file-scope bug fixed in this campaign. A `.sby` harness over these
-files would have failed at parse. Consuming this SVA requires `sv2v`
-preprocessing or a Verific-enabled Yosys, neither of which is in this repo.
+files would have failed at parse. Consuming this SVA would require a Verific-enabled Yosys; **`sv2v` does not
+work for this — see Prop 5, it deletes assertions.** The constructive route is
+Prop 6: emit the subset Yosys accepts.
 
 **Consequence 2b.** The file-scope defect was real and independent: SystemVerilog
 forbids `property` outside a module/interface/checker, and the emitter wrote it
@@ -121,6 +122,75 @@ measured reports, **8** are schema definitions, **0** are empty. The prior
 validator reported "43 valid, 58 empty" because it resolved payloads with
 `.as_array()` only, while the corpus stores vectors both as arrays and as
 objects. **A count is a claim about a predicate, and the predicate was wrong.**
+
+---
+
+### Proposition 5 — `sv2v` cannot rescue the SVA: it deletes it
+
+`MEASURED` on sv2v 0.0.13.
+
+The obvious repair for Prop 2 is to preprocess SystemVerilog into Verilog-2005
+with [sv2v](https://github.com/zachjs/sv2v) before handing it to Yosys. It does
+not work, and the failure mode is the dangerous kind.
+
+sv2v's own README states: *"Assertions are also supported, but are simply
+dropped during conversion."* Confirmed directly — input a module containing a
+`property` block and an `assert property`, and the output contains **zero**
+assertions:
+
+```
+$ sv2v sva_in.sv > sva_out.v ; echo $?
+0
+$ grep -c assert sva_out.v
+0
+```
+
+**5a. The exit code is 0 and there is no warning.** A pipeline
+`sv2v → yosys → sby` would therefore run to completion, report success, and
+prove **nothing** — there would be no properties left to violate. This is
+strictly worse than the current state, where the flow fails loudly at parse.
+
+**5b.** sv2v also does not support the `bind` keyword, which is the mechanism
+the module-wrapped SVA of Prop 2b relies on.
+
+**Conclusion.** sv2v is not a path to a checkable SVA flow here. A green formal
+run over an empty property set is the CI-theater failure of Conclusion 1
+wearing a real tool's name.
+
+---
+
+### Proposition 6 — the property set *is* checkable, in the immediate-assertion subset
+
+`MEASURED`. Rather than translate the emitted form, emit the form Yosys accepts.
+`t27c gen-behavior-sva-yosys` produces immediate assertions:
+
+| Behavior form | Immediate translation | Status |
+|---|---|---|
+| `a \|-> b` | `assert (!(a) \|\| (b))` | translated |
+| `a \|-> ##N b` | `assert (!($past(a, N)) \|\| (b))` | translated |
+| `a \|-> s_eventually b` | — | **not expressible**; reported, not dropped |
+
+**6a. Yosys reads it and the assertions survive into the netlist.**
+`read_verilog -sv -formal` exits 0 (the `property` form does not), and
+`stat` reports **2 `$check` cells** for a two-assertion module — the contrast
+with Prop 5 that matters: the properties are still there to be violated.
+
+**6b. The prover actively refutes.** Run over free inputs, the pipeline of
+Prop 3 returns `Called with -verify and proof did fail!`, because
+`running && !full` is reachable. An engine that reports success on an
+unconstrained module would be evidence of nothing.
+
+**6c. The liveness gap is reported, not hidden.** `s_eventually` has no
+immediate form — an immediate assertion evaluates in a single cycle. Those
+behaviors are listed on stderr and in a `NOT TRANSLATED` comment inside the
+generated file, so the artefact states its own coverage. Emitting a silently
+smaller property set would repeat Conclusion 1: a gate going green over a
+domain nobody was told had shrunk.
+
+**6d. Guard correctness.** The delayed form guards on `rst_n && $past(rst_n)`,
+not `rst_n` alone. Guarding on the current cycle only lets the assertion fire
+one cycle after reset, when the antecedent's history predates the reset. The
+prover produced that counterexample during development and was right.
 
 ---
 

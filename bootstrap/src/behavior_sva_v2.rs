@@ -391,6 +391,13 @@ const SVA_RESERVED: &[&str] = &[
     "none",
     "ns",
     "ps",
+    // Procedural keywords: the Yosys-subset emitter wraps assertions in
+    // `always @(...) begin if (...) ... end`, so these appear in the body.
+    "always",
+    "begin",
+    "end",
+    "if",
+    "wire",
 ];
 
 /// Collect the design signals a generated SVA body references, so they can be
@@ -441,9 +448,16 @@ pub fn collect_sva_signals(body: &str) -> Vec<String> {
                 dollar_prefixed = false;
                 continue;
             }
+            // Assertion labels: `p_<name>`, `assert_<i>_<name>`,
+            // `cover_<i>_<name>`, and the Yosys-subset form `a_<i>_<name>`.
+            // `a_` alone is too broad to blanket-exclude (it could be a real
+            // signal), so require a digit after it.
             let is_label = tok.starts_with("p_")
                 || tok.starts_with("assert_")
-                || tok.starts_with("cover_");
+                || tok.starts_with("cover_")
+                || (tok.strip_prefix("a_").is_some_and(|r| {
+                    r.chars().next().is_some_and(|c| c.is_ascii_digit())
+                }));
             let is_number = tok.chars().next().is_some_and(|c| c.is_ascii_digit());
             if is_label
                 || is_number
@@ -1043,5 +1057,233 @@ mod sva_module_wrapper_tests {
         let ports = collect_sva_signals(body);
         assert!(!ports.iter().any(|p| p == "1"));
         assert!(ports.iter().any(|p| p == "full"));
+    }
+}
+
+/// Why a behavior could not be expressed as an immediate assertion.
+#[derive(Debug, Clone, PartialEq)]
+pub enum YosysSkip {
+    /// `s_eventually` is a liveness property: it asserts that something happens
+    /// at some unbounded future time. An immediate assertion evaluates in one
+    /// cycle and cannot express it. This is a real expressiveness limit, not a
+    /// gap in the translation.
+    Liveness,
+}
+
+/// Translate one behavior into a Yosys-checkable immediate assertion.
+///
+/// Yosys's `read_verilog -sv -formal` accepts **neither** named `property`
+/// blocks **nor** inline `assert property (@(posedge clk) ...)`. It accepts
+/// immediate assertions inside `always`. This emitter targets that subset, so
+/// the properties this project already writes can actually be proved by the
+/// open-source flow rather than merely emitted for one that cannot read them.
+///
+/// Translation rules, all measured against Yosys 0.63:
+/// - `a |-> b`        becomes `assert (!a || b)`
+/// - `a |-> ##N b`    becomes `assert (!$past(a, N) || b)`
+/// - `a |-> s_eventually b` has **no** immediate form; reported as a skip.
+///
+/// The reset guard is `rst_n && $past(rst_n)` for delayed forms: guarding only
+/// on the current cycle lets an assertion fire on the first cycle after reset,
+/// when the antecedent's history predates the reset. That produced a genuine
+/// counterexample while developing this, and the prover was right.
+pub fn build_behavior_immediate_assert(
+    behavior: &Behavior<'_>,
+    index: usize,
+) -> Result<String, YosysSkip> {
+    let timing = parse_when_clause(behavior.when);
+    let antecedent = parse_given_clause_v2(behavior.given);
+    let consequent = parse_then_clause_v2(behavior.then);
+
+    let (guard, ante, cons) = match &consequent {
+        ConsequentV2::Eventually(_) => return Err(YosysSkip::Liveness),
+        ConsequentV2::Plain(expr) => ("rst_n".to_string(), antecedent, expr.clone()),
+        ConsequentV2::Delayed { cycles, expr } if *cycles == 0 => {
+            ("rst_n".to_string(), antecedent, expr.clone())
+        }
+        ConsequentV2::Delayed { cycles, expr } => (
+            "rst_n && $past(rst_n)".to_string(),
+            format!("$past({}, {})", antecedent, cycles),
+            expr.clone(),
+        ),
+    };
+
+    let mut out = String::with_capacity(480);
+    out.push_str("// ----------------------------------------------------------------------------\n");
+    out.push_str(&format!("// Behavior: {}\n", behavior.name));
+    out.push_str(&format!("// Given:    {}\n", behavior.given));
+    out.push_str(&format!("// When:     {}\n", behavior.when));
+    out.push_str(&format!("// Then:     {}\n", behavior.then));
+    out.push_str("// ----------------------------------------------------------------------------\n");
+    out.push_str(&format!("always @({}) begin\n", timing));
+    out.push_str(&format!("    if ({}) begin\n", guard));
+    out.push_str(&format!(
+        "        a_{}_{}: assert (!({}) || ({}));\n",
+        index, behavior.name, ante, cons
+    ));
+    out.push_str("    end\nend\n");
+    Ok(out)
+}
+
+/// Emit a complete Yosys-checkable module for a behavior set.
+///
+/// Returns the file text plus the behaviors that could not be translated, so a
+/// caller can report them rather than let them vanish. Silently dropping the
+/// untranslatable cases would reproduce exactly the failure this project keeps
+/// finding: a gate that reports success over a reduced domain without saying
+/// the domain shrank.
+pub fn build_behavior_yosys_file(behaviors: &[Behavior<'_>]) -> (String, Vec<(String, YosysSkip)>) {
+    let mut body = String::new();
+    let mut skipped: Vec<(String, YosysSkip)> = Vec::new();
+    for (i, b) in behaviors.iter().enumerate() {
+        match build_behavior_immediate_assert(b, i) {
+            Ok(block) => {
+                if !body.is_empty() {
+                    body.push('\n');
+                }
+                body.push_str(&block);
+            }
+            Err(skip) => skipped.push((b.name.to_string(), skip)),
+        }
+    }
+
+    let ports = collect_sva_signals(&body);
+    let mut out = String::with_capacity(1024 + body.len());
+    out.push_str("// ============================================================================\n");
+    out.push_str("// Behavior-DSL immediate assertions -- Yosys-checkable subset\n");
+    out.push_str("// Generated by t27c gen-behavior-sva-yosys\n");
+    out.push_str("//\n");
+    out.push_str("// Yosys read_verilog -sv -formal accepts neither `property ... endproperty`\n");
+    out.push_str("// nor inline `assert property (@(posedge clk) ...)`. It accepts immediate\n");
+    out.push_str("// assertions inside `always`, which is what this file emits, so these\n");
+    out.push_str("// properties can actually be proved:\n");
+    out.push_str("//\n");
+    out.push_str("//   yosys -p 'read_verilog -sv -formal <this>; prep -top behavior_yosys; \\\n");
+    out.push_str("//             async2sync; chformal -lower; \\\n");
+    out.push_str("//             sat -verify -prove-asserts -seq 8 -tempinduct'\n");
+    if !skipped.is_empty() {
+        out.push_str("//\n");
+        out.push_str("// NOT TRANSLATED (liveness has no immediate form):\n");
+        for (name, _) in &skipped {
+            out.push_str(&format!("//   - {} (s_eventually)\n", name));
+        }
+    }
+    out.push_str("// phi^2 + 1/phi^2 = 3 | TRINITY\n");
+    out.push_str("// ============================================================================\n\n");
+    out.push_str("`default_nettype none\n\n");
+    out.push_str("module behavior_yosys (\n");
+    if ports.is_empty() {
+        out.push_str("    // no signals referenced\n");
+    } else {
+        for (i, p) in ports.iter().enumerate() {
+            let comma = if i + 1 == ports.len() { "" } else { "," };
+            out.push_str(&format!("    input wire {}{}\n", p, comma));
+        }
+    }
+    out.push_str(");\n\n");
+    out.push_str(&body);
+    out.push_str("\nendmodule\n\n`default_nettype wire\n");
+    (out, skipped)
+}
+
+#[cfg(test)]
+mod yosys_subset_tests {
+    use super::*;
+
+    fn beh<'a>(name: &'a str, given: &'a str, then: &'a str) -> Behavior<'a> {
+        Behavior { name, given, when: "posedge clk", then }
+    }
+
+    // Yosys accepts immediate assertions inside `always`, and nothing else.
+    #[test]
+    fn overlapping_implication_becomes_a_disjunction() {
+        let b = beh("busy_safety", "running", "set full");
+        let out = build_behavior_immediate_assert(&b, 0).expect("translatable");
+        assert!(out.contains("always @(posedge clk)"), "{out}");
+        assert!(out.contains("assert (!(running) || (full));"), "{out}");
+        assert!(!out.contains("property"), "must not emit a property block");
+        assert!(!out.contains("|->"), "must not emit the SVA implication operator");
+    }
+
+    #[test]
+    fn delayed_implication_uses_past_with_depth() {
+        let b = beh("after_three", "running", "after 3 cycles set full");
+        let out = build_behavior_immediate_assert(&b, 1).expect("translatable");
+        assert!(out.contains("$past(running, 3)"), "{out}");
+    }
+
+    // Guarding only on the current rst_n lets a delayed assertion fire on the
+    // first post-reset cycle, when the antecedent's history predates reset.
+    // That produced a genuine counterexample from the prover during
+    // development; the prover was right and the guard was wrong.
+    #[test]
+    fn delayed_form_guards_on_past_reset_too() {
+        let b = beh("after_one", "running", "after 1 cycles set full");
+        let out = build_behavior_immediate_assert(&b, 0).expect("translatable");
+        assert!(out.contains("rst_n && $past(rst_n)"), "{out}");
+    }
+
+    #[test]
+    fn zero_cycle_delay_does_not_use_past() {
+        let b = beh("immediate", "running", "after 0 cycles set full");
+        let out = build_behavior_immediate_assert(&b, 0).expect("translatable");
+        assert!(!out.contains("$past"), "{out}");
+    }
+
+    // Liveness is a real expressiveness limit, not a translation gap: an
+    // immediate assertion evaluates in one cycle.
+    #[test]
+    fn liveness_is_reported_not_silently_dropped() {
+        let b = beh("eventually_done", "valid", "eventually set full");
+        assert_eq!(
+            build_behavior_immediate_assert(&b, 0),
+            Err(YosysSkip::Liveness)
+        );
+    }
+
+    #[test]
+    fn skipped_behaviors_are_returned_to_the_caller() {
+        let bs = [
+            beh("ok_one", "running", "set full"),
+            beh("live_one", "valid", "eventually set full"),
+        ];
+        let (file, skipped) = build_behavior_yosys_file(&bs);
+        assert_eq!(skipped.len(), 1);
+        assert_eq!(skipped[0].0, "live_one");
+        // and the file says so in a comment, so the artefact is self-describing
+        assert!(file.contains("NOT TRANSLATED"), "{file}");
+        assert!(file.contains("live_one"), "{file}");
+    }
+
+    // Regression: the port collector was written for the property form and
+    // leaked `always`, `begin`, `if`, `end` and the `a_<i>_` labels as ports.
+    #[test]
+    fn procedural_keywords_and_labels_are_not_ports() {
+        let bs = [beh("busy_safety", "running", "set full")];
+        let (file, _) = build_behavior_yosys_file(&bs);
+        let header = &file[file.find("module behavior_yosys").unwrap()
+            ..file.find(");").unwrap()];
+        for bad in ["always", "begin", "end", "if", "a_0_busy_safety"] {
+            assert!(!header.contains(&format!("input wire {bad}")), "leaked {bad}: {header}");
+        }
+        for want in ["clk", "rst_n", "running", "full"] {
+            assert!(header.contains(&format!("input wire {want}")), "missing {want}: {header}");
+        }
+    }
+
+    #[test]
+    fn emitted_module_is_default_nettype_safe() {
+        let (file, _) = build_behavior_yosys_file(&[beh("x", "running", "set full")]);
+        assert!(file.contains("`default_nettype none"));
+        assert!(file.trim_end().ends_with("`default_nettype wire"));
+    }
+
+    #[test]
+    fn an_all_liveness_set_yields_no_assertions_but_still_says_why() {
+        let bs = [beh("l1", "valid", "eventually set full")];
+        let (file, skipped) = build_behavior_yosys_file(&bs);
+        assert_eq!(skipped.len(), 1);
+        assert!(!file.contains("assert ("), "no assertions expected");
+        assert!(file.contains("NOT TRANSLATED"));
     }
 }
