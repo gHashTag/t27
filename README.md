@@ -23,6 +23,11 @@ The canonical source of truth for Trinity S3AI.
 product of t27 is the path `.t27 → Verilog RTL → Tiny Tapeout` with sealed,
 inspectable artefacts at every step.
 
+- **Enable the gates (one command per clone):**
+  `cd bootstrap && cargo build --release && cd .. && ./target/release/t27c install-hooks`
+  — points `core.hooksPath` at the tracked `.githooks/`. Gate logic lives in
+  `bootstrap/src/hooks.rs` (Rust, unit-tested), not in shell. Without this a
+  fresh clone runs **no** hooks; git does not enable them automatically.
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
   → **1174 / 1174 passed** (full Quick Start below).
   Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and

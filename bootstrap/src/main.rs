@@ -14,6 +14,7 @@ mod bridge;
 mod compiler;
 mod enrichment;
 mod suite;
+mod hooks;
 mod railway;
 mod jwt;
 mod proxy;
@@ -754,6 +755,26 @@ enum Commands {
 
     /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
     ValidateGenHeaders {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Run the pre-commit gates (used by .githooks/pre-commit)
+    HookPreCommit {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Run the commit-msg L1 TRACEABILITY check (used by .githooks/commit-msg)
+    HookCommitMsg {
+        /// Path to the commit message file git passes to the hook
+        msg_file: PathBuf,
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Point core.hooksPath at the tracked .githooks/ directory
+    InstallHooks {
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
     },
@@ -8298,6 +8319,14 @@ async fn main() -> anyhow::Result<()> {
         Commands::ClaraCoverage { repo_root, output } => {
             suite::clara_coverage(&repo_root, output)?
         }
+        Commands::HookPreCommit { repo_root } => {
+            let exe = std::env::current_exe()?;
+            hooks::pre_commit(&repo_root, &exe)?
+        }
+        Commands::HookCommitMsg { msg_file, repo_root } => {
+            hooks::commit_msg(&repo_root, &msg_file)?
+        }
+        Commands::InstallHooks { repo_root } => hooks::install(&repo_root)?,
         Commands::SealPath { input } => {
             // Pure path function: no parse, no compile needed.
             println!("{}", seal_file_path(&input).display());
@@ -8555,6 +8584,14 @@ fn main() -> anyhow::Result<()> {
         Commands::ClaraCoverage { repo_root, output } => {
             suite::clara_coverage(&repo_root, output)?
         }
+        Commands::HookPreCommit { repo_root } => {
+            let exe = std::env::current_exe()?;
+            hooks::pre_commit(&repo_root, &exe)?
+        }
+        Commands::HookCommitMsg { msg_file, repo_root } => {
+            hooks::commit_msg(&repo_root, &msg_file)?
+        }
+        Commands::InstallHooks { repo_root } => hooks::install(&repo_root)?,
         Commands::SealPath { input } => {
             // Pure path function: no parse, no compile needed.
             println!("{}", seal_file_path(&input).display());

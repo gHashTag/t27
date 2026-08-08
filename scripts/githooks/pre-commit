@@ -1,3 +1,12 @@
 #!/bin/sh
-set -e
-cd "$(git rev-parse --show-toplevel)/bootstrap" && cargo build -q
+# Superseded. The real gates live in bootstrap/src/hooks.rs and are exposed as
+# `t27c hook-pre-commit`; the tracked shims are in .githooks/.
+#
+# This file was a three-line stub that only ran `cargo build`, while the actual
+# four-gate hook existed solely in an untracked .git/hooks/pre-commit on one
+# machine. A fresh clone therefore got no gates at all.
+#
+# Enable the real hooks with:
+#     cd bootstrap && cargo build --release && cd ..
+#     ./target/release/t27c install-hooks
+exec "$(git rev-parse --show-toplevel)/.githooks/pre-commit" "$@"

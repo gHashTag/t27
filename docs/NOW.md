@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## hooks-in-rust -- the gates now reach a fresh clone
+
+- **WHERE**: **NEW** `bootstrap/src/hooks.rs` (+10 tests), `bootstrap/src/main.rs`
+  (3 subcommands), **NEW** `.githooks/{pre-commit,commit-msg}` shims,
+  `scripts/githooks/pre-commit` (redirected), `README.md`.
+- **Three implementations of "the pre-commit gates" existed and disagreed.**
+  `.git/hooks/pre-commit` (untracked, one machine) delegated NOW-freshness to
+  `t27c check-now` (**local** time); `scripts/pre-commit` (tracked) used an
+  inline `date -u` (**UTC**); `scripts/githooks/pre-commit` (tracked) was a
+  3-line `cargo build` stub with no gates. The tracked hook and the compiler
+  disagreed about what "today" means near midnight, and **a fresh clone got no
+  gates at all**.
+- **Now one implementation, in Rust.** `t27c hook-pre-commit`,
+  `t27c hook-commit-msg <file>`, `t27c install-hooks`. Gate 1 delegates to the
+  same `check_now_sync` the CLI uses, so hook and compiler cannot diverge;
+  Gate 2 resolves seals via `seal-path`; Gate 3 is L7; Gate 4 runs `cargo check`
+  only when Rust changed. `.githooks/` holds five-line shims.
+- **10 unit tests on the L1 matcher** -- pure logic that was previously an
+  un-testable `grep -qE`. They pin the acceptance set on purpose: a bare `#123`
+  is **rejected** (the constitution wants the relationship stated, not an issue
+  mentioned in passing), and the scan continues past a non-matching verb so
+  prose like "Closes the loop on the design" followed by a real `Resolves #77`
+  trailer still passes.
+- Git will not run hooks from a clone automatically, so this is still one
+  command per clone -- but one command, not a shell script, and the hooks it
+  enables are versioned and reviewable.
+- Suite **1174 -> 1184 passed, 0 failed**.
+
 ## sva-module-wrap + formal-foundations -- the SVA was never parseable
 
 - **WHERE**: `bootstrap/src/behavior_sva_v2.rs` (module wrapper + signal

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Thin shim; logic in bootstrap/src/hooks.rs. Enable with: t27c install-hooks
+root=$(git rev-parse --show-toplevel)
+t27c="$root/target/release/t27c"
+[ -x "$t27c" ] || { echo "commit-msg: t27c not built; skipping L1 check"; exit 0; }
+exec "$t27c" hook-commit-msg "$1" --repo-root "$root"
