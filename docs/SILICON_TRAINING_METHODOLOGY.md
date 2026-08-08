@@ -200,6 +200,10 @@ does not re-run them:
     on openXC7, not functional** — the clock-skew hypothesis cannot be tested here, and the
     open-toolchain structural options are fully exhausted. Only commercial P&R (Vivado) can
     close timing directly or provide a working MMCM. Build in `scratchpad/board/bpmmcm/`.
+    A ready-to-run **Vivado closure kit** for this is in `docs/vivado_closure/`: a
+    `set_multicycle_path` on the shared-core `rf→rf` path — the exact constraint the open
+    flow cannot express — plus a batch build script, which closes the deep path
+    deterministically (no seed-search) and is the prerequisite for training nets > XOR.
 
 Conclusion of the root-cause arc: **every local register-based fix has failed** — the
 combinational datapath at the endpoints (7), mid-cloud (10), and the write/control path
