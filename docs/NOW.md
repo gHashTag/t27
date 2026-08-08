@@ -1,6 +1,12 @@
-# NOW — fix(gen-zig): unused params + test bindings (2026-08-08)
+# NOW — deeper net gated (2,5,3,1) + a without-Vivado open-flow refinement (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test+docs: CI now gates a deeper [2,5,3,1] net learns; met-timing is a partial without-Vivado refinement (Refs #1764)
+
+- V2 (stack): added a deeper [2,5,3,1] (3-layer, 158-step) learning assertion to the generator self-test / CI learning gate -- held-out 59/60 (98%), deterministic. Extends the proven "the method scales beyond XOR" claim to a deeper+wider net
+- Answered "can we do it without Vivado?": measured a partial open-flow refinement -- constrain the INTERNAL clk net to a met period (create_clock -period 50 [get_nets clk], ~20 MHz < fmax 21) and build WITHOUT --timing-allow-fail so P&R closes timing deterministically. Result: several seeds come up bit-exact at ep0 (vs glitching from the start), and seed-search still finds a fully-stable build (a met-timing seed trained XOR 4/4 all 60 epochs, saved as ax7203_MET_seed8_STABLE.bit). It does NOT kill the lottery (some seeds diverge over epochs) and more settle stays non-monotonic -- so met-timing + seed-search is the best OPEN recipe; deterministic no-seed-search still needs commercial P&R
+- Free Vivado (ML Standard) supports xc7a200t but is x86 Linux/Windows only (not this macOS arm64 host). Board on generated capstone (XOR 4/4). Refs #1764
 
 ## fix(gen-zig): discard unused params + declare test/bench bindings (Closes #1910)
 
