@@ -1213,6 +1213,47 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Fixed Point: {} divergences", fp_diff);
     push_phase("fixed-point", 0, fp_diff, 0);
 
+    // --- Phase 6: Integrity metrics (reporting only) --------------------
+    //
+    // Seven waves of auditing established that several of this project's
+    // integrity claims are satisfiable by content that means nothing: tests
+    // whose body is `assert true`, braceless given/when/then tests whose
+    // assertions the parser discards, seals whose every gen_hash is "none",
+    // and specs that synthesise to zero logic cells. Each was invisible until
+    // measured. Surfacing the numbers on every suite run is what stops them
+    // becoming invisible again.
+    //
+    // These are REPORTING metrics, deliberately excluded from total_fail: the
+    // current values are large, and turning them into hard failures is a
+    // maintainer's decision, not the suite's.
+    println!("--- Phase 6: Integrity metrics (reporting only) ---");
+    {
+        let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+        for (label, args) in [
+            ("vacuity", vec!["validate-vacuity", "--specs-dir", "specs", "--top", "0"]),
+            ("seals", vec!["seal-audit"]),
+        ] {
+            match std::process::Command::new(&exe).args(&args).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout);
+                    for line in text.lines() {
+                        let t = line.trim();
+                        if t.starts_with("tests that assert nothing")
+                            || t.starts_with("BDD-form tests")
+                            || t.starts_with("NOT ANALYSED")
+                            || t.starts_with("VACUOUS (all 'none')")
+                            || t.starts_with("spec file missing")
+                        {
+                            println!("  {}", t);
+                        }
+                    }
+                }
+                Err(e) => println!("  [{}] could not run: {}", label, e),
+            }
+        }
+        println!("  (reporting only -- not counted in TOTAL FAILURES)");
+    }
+
     println!();
     println!("=== SUMMARY ===");
     let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff;
