@@ -4176,11 +4176,16 @@ impl Codegen {
 
     fn gen_for_range_stmt(&mut self, node: &Node) {
         self.write_indent();
-        self.write(&format!("for ({}..", node.name));
+        // children[0] is the range START expression; the old emitter wrote
+        // the LOOP VARIABLE there (`for (i..10) |i|`) -- an undeclared
+        // identifier in Zig for any range not starting at the variable name.
+        self.write("for (");
         if node.children.len() >= 2 {
+            self.gen_expr(&node.children[0]);
+            self.write("..");
             self.gen_expr(&node.children[1]);
             self.write(") |");
-            self.write(&node.name);
+            self.write(&Self::zig_ident(&node.name));
             self.write("|");
         }
         self.write_line(" {");
