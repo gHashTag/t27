@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog TB: regs for untyped/nested let bindings and tuple elements (Refs #1948)
+
+- The testbench declared regs for StmtAssign bindings (#1894) and top-level TYPED locals only; untyped `let score = f(...)`, nested locals and tuple-destructure elements were unbound ("Unable to bind wire/reg") -- the biggest icarus compile class
+- One declaration pass now walks the whole block: assign targets, tuple elements (64-bit), and any StmtLocal not covered by the typed top-level loop (width from its init expression)
+- tri-net corpus: icarus compile errors 31 -> 21; the 10 unblocked specs surface RUNTIME divergences (early-return fn lowering suspected) -- next tail
+- FROZEN_HASH resealed
+
 ## gen-c: [T; N] lowers to a by-value struct; untyped literal locals pinned (Closes #1944)
 
 - C cannot return arrays: [T; N] now lowers uniformly to `typedef struct { T v[N]; } t27_arr_T_N;` -- params (were T*), returns (were invalid C), literals (`(T){ .v = { ... } }`), locals and indexing (`.v[i]`) move together
