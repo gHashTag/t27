@@ -53,6 +53,12 @@ inspectable artefacts at every step.
   conformance gate** (`tt-manifest` → `tt-profile` → `tt-conform`).
   Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
 - **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+- **Where the BitNet premise holds and where it does not:**
+  [`docs/BITNET_V2_POSITION.md`](docs/BITNET_V2_POSITION.md) — ternary *weights*
+  are validated by BitNet v2, not superseded by it; but this datapath also makes
+  *activations* ternary, which is more aggressive than any published BitNet
+  variant on the axis the field finds hardest, and there is no requantization
+  stage at the layer boundary.
 - **Formal foundations:** [`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md)
   — numbered propositions with an explicit evidence class (`PROVED` /
   `MEASURED` / `CONJECTURE`), including the seal-path injectivity result *and
@@ -84,7 +90,8 @@ inspectable artefacts at every step.
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
-| BitNet HLS | RTL pipeline | GREEN | 9/9 modules (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
+| BitNet HLS | RTL blocks **emitted** | GREEN | 9/9 modules emit (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
+| BitNet HLS | RTL blocks **integrated** | RED | `bitnet_engine_top` instantiates **3 of 9**; the MAC, weight BRAM, prefetch, DMA, AXI slave and IRQ block are not wired. Data plane tied off. [`docs/BITNET_V2_POSITION.md`](docs/BITNET_V2_POSITION.md) §2.3 |
 | Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
 | R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
 | Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |

@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-09
 
+## bitnet-v2-position -- the design question was posed wrongly; integration is the gap
+
+- **WHERE**: **NEW** `docs/BITNET_V2_POSITION.md`, `README.md`. No RTL, spec or
+  test changes -- this wave is analysis.
+- **Variant B from #1977**, open nine waves: *"BitNet v2 moves the binding
+  constraint from weight width to activation width -- is a ternary-weight
+  datapath still the right target?"*
+- **The premise was wrong.** Abstracts fetched (not recalled): BitNet v2 keeps
+  **1-bit weights**; its contribution is `H-BitLinear`, an online Hadamard
+  transform enabling **native 4-bit activations** by smoothing outliers.
+  **Ternary weights are validated by BitNet v2, not superseded.** No change
+  warranted there.
+- **What the RTL actually commits to**: `trit27_dot_product` takes *both*
+  operands as `[53:0]` -- 27 packed trits, "sign-only multiplies". So this
+  datapath is **ternary x ternary**. BitNet b1.58 uses higher-precision
+  activations; v2 reaches 4-bit and needed a Hadamard transform to get there.
+  **This design assumes ~1.58-bit activations, more aggressive than any
+  published BitNet variant, on the axis the field finds hardest.** Not claimed
+  wrong -- claimed **unvalidated**, and the RTL encodes it regardless.
+- **There is no requantization stage.** Compute emits `signed [15:0]`; the next
+  layer consumes `[53:0]` trits; nothing converts between them. Grepping for
+  `quant`/`hadamard`/`scale` finds no module. That gap is exactly where
+  `H-BitLinear` would live.
+- **The top level does not instantiate the datapath.** `bitnet_engine_top`
+  wires **3 of 9** modules -- all control plane. `pipeline_stage2_compute` (the
+  MAC), `weight_bram`, `weight_prefetch_ctrl`, `dma_controller`,
+  `axi_lite_slave` and `interrupt_controller` are **never instantiated**;
+  `prefetch_done` is tied to 1, `mem_addr`/`mem_rd_en` to 0, and `threshold` is
+  declared and never referenced.
+- **So the design question cannot be decided yet, and that is the answer.**
+  Activation width is a datapath decision and there is no assembled datapath.
+- **The claim needing correction is an integration claim, not a numerics one.**
+  README carried "BitNet HLS · RTL pipeline · GREEN · 9/9 modules". Nine modules
+  *are* emitted, so it is true -- and it reads as *a nine-module pipeline
+  exists*, which it does not. Same failure shape this campaign keeps meeting: a
+  metric accurate about what it counts and misleading about what a reader
+  infers. Split into **emitted** (GREEN) and **integrated** (RED).
+- **Bounds what formal-yosys certifies**: module-level properties, not system
+  behaviour. No end-to-end property can exist until integration does.
+- Recommendation: wire MAC + weight BRAM into the top, add the layer-boundary
+  requantizer, and only then decide ternary vs 4-bit activations.
+
 ## zero-count-nonterminations -- two more defects, in a family where two siblings guard
 
 - **WHERE**: `bootstrap/src/bitnet_pipeline.rs`, `bootstrap/src/bitnet_buffers.rs`
