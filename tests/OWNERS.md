@@ -12,10 +12,10 @@
 ## Commands (from repo root)
 
 ```bash
-./bootstrap/target/release/t27c suite --repo-root .
-./bootstrap/target/release/t27c validate-conformance --repo-root .
-./bootstrap/target/release/t27c validate-gen-headers --repo-root .
-./bootstrap/target/release/t27c check-now --repo-root .
+./target/release/t27c suite --repo-root .
+./target/release/t27c validate-conformance --repo-root .
+./target/release/t27c validate-gen-headers --repo-root .
+./target/release/t27c check-now --repo-root .
 # or
 ./scripts/tri test
 ./scripts/tri validate-conformance

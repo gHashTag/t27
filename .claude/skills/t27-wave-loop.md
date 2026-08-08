@@ -3816,6 +3816,48 @@ variants are queued."
 - Cleanup sprint for 626 release warnings / 780 clippy warnings.
 - Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
 
+### Hard-won rules (added Wave 549, 2026-08-09)
+
+These cost a wave each. Follow them before step 1.
+
+1. **Re-measure the previous wave's premise before adopting its variant.**
+   W548 recommended "populate the 58 empty conformance files"; commit
+   `e5b171e7` had already established the corpus was never hollow — the
+   validator was blind. A wave spent on that would have produced nothing.
+   *Read the commits landed since the last cooperation doc was written, not
+   just the doc.*
+
+2. **Use absolute paths in audit commands, and check `pwd` first.** A `cd` that
+   persists between tool calls will make files look deleted and produce
+   confident, wrong findings ("the compiler source is gone from master").
+   When a file appears to be missing, confirm with a second, independent
+   mechanism (`git ls-tree`, `cargo metadata`, a direct file read) before
+   reporting it.
+
+3. **Verify the build before auditing anything else.** If
+   `cargo build --release -p t27c` fails, every downstream measurement is
+   guesswork. Wave 549 found a dead `rusqlite` dependency pulling
+   `libsqlite3-sys 0.38.1`, whose build script needs nightly `cfg_select!` —
+   the repo did not build on stable at all, and no prior wave had noticed.
+
+4. **Never append `assert true` tests or `invariant …: true` to close a wave.**
+   The loop has been doing this to every IGLA spec for hundreds of iterations:
+   as of Wave 549, **2,160 of 3,788 (57 %)** test/bench blocks under
+   `specs/igla/**` are vacuous and **1,917 of 1,931 (99.3 %)** invariants are
+   tautologies. L4 TESTABILITY is satisfied in letter and void in spirit. A
+   wave with nothing real to assert should add nothing.
+
+5. **A hardware demo must have a pass criterion an observer can check.**
+   Wave 549 found the ternary MAC demo drove LEDs at ~10⁸ Hz from a ring
+   oscillator, with the accumulate path and the minus/zero weight decode tied
+   off — so a successful flash and a dead datapath looked identical. Before
+   claiming a design is "ready to flash", ask: *what exactly would I see, and
+   what would I see if it were broken?*
+
+6. **Documented commands are claims and must be tested.** `t27c fpga-flash`
+   was marked "Done" in `TASK.md` and given to operators in the smoke-test doc
+   for months without existing. Grep the docs for commands, then run them.
+
 ### How to update this tracker
 
 After closing a wave:

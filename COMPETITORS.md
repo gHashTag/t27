@@ -130,4 +130,114 @@ silicon substrate" positioning.
 
 ---
 
+## 4. IGLA CODER and IGLA RACE -- the fields we had not named
+
+Sections 1-3 position the **silicon and numeric-format** line. They say
+nothing about the two active **model** tracks, and so, until Wave 549, this
+document named zero competitors for either. That omission flattered us:
+both tracks sit in crowded, well-benchmarked fields where published numbers
+already exist and ours do not.
+
+Star counts below were read from the GitHub API on 2026-08-09 and are given
+only to indicate that these are live, mainstream projects rather than
+curiosities.
+
+### 4.1 IGLA CODER -- LLMs that emit hardware
+
+`specs/igla/coder/` and `dataset/igla-coder/` describe a model trained on
+`(spec, gen)` pairs -- a `.t27`/`.tri` specification and the code generated
+from it. That is the LLM-for-RTL field, and it has an established benchmark
+culture:
+
+- **[VerilogEval](https://github.com/NVlabs/verilog-eval)** (NVIDIA, 458*) --
+  the de facto benchmark for LLM Verilog generation. **This is the measuring
+  stick, not a rival.** IGLA CODER currently reports no VerilogEval score.
+- **[RTL-Coder](https://github.com/hkust-zhiyao/RTL-Coder)** (317*) --
+  self-describes as "a new LLM solution for RTL code generation, achieving
+  state-of-the-art performance in non-commercial solutions and outperforming
+  GPT-3.5". An open model with published benchmark results.
+- **VeriGen**, **ChipNeMo**, **BetterV**, **CodeV**, **OriGen** -- the wider
+  academic cohort, all of which report against VerilogEval or RTLLM.
+
+**What IGLA CODER is not:** a model with a published benchmark score. There is
+no VerilogEval or RTLLM number for it, so no comparison to any project above
+is currently possible in either direction.
+
+**Where the differentiator would have to live:** every project above generates
+**Verilog from natural language**. IGLA CODER generates **from a typed,
+sealed specification** whose conformance vectors and generated backends
+(Zig / Rust / C / Verilog) can be checked mechanically. The interesting claim
+is not "better Verilog" but "generated code that a validator can reject" --
+and that claim is only worth making once the vacuity problem in §4.3 is fixed,
+because today the validator mostly checks `assert true`.
+
+### 4.2 IGLA RACE -- ternary inference and the training speedrun
+
+`trios-trainer-igla` is a char-level LM trainer scored in bits-per-byte
+(champion BPB = 2.2111, Gate-2 target 1.85). `specs/igla/race/` is the
+ternary-inference hardware track. These face two different fields:
+
+**Training-efficiency racing:**
+
+- **[modded-nanogpt](https://github.com/KellerJordan/modded-nanogpt)**
+  (5,648*) -- "NanoGPT (124M) in 90 seconds". A public, reproducible speedrun
+  ladder with a rigorously defined record.
+- **[nanoGPT](https://github.com/karpathy/nanoGPT)** (61,983*) -- the
+  reference baseline everyone measures against.
+
+IGLA RACE's BPB is measured on `tiny_shakespeare`, which is not the dataset
+either project races on, so the numbers are **not comparable in either
+direction**. Claiming otherwise would be a category error.
+
+**Low-bit and FPGA inference:**
+
+- **[BitNet](https://github.com/microsoft/BitNet)** (39,838*) -- the official
+  1-bit LLM inference framework. Already cited in §1.6 as motivation; it is
+  also the thing IGLA RACE's LUT-NPU work is a hardware port *of*.
+- **[T-MAC](https://github.com/microsoft/T-MAC)** (981*) -- "low-bit LLM
+  inference on CPU/NPU with lookup table". The closest published analogue to
+  our LUT-based ternary MAC, **with numbers we do not have**.
+- **[FINN](https://github.com/Xilinx/finn)** (1,038*) -- "dataflow compiler
+  for QNN inference on FPGAs", with **[Brevitas](https://github.com/Xilinx/brevitas)**
+  (1,562*) for quantization-aware training. This is the direct incumbent for
+  "quantized neural network on a Xilinx FPGA" and has been production-adjacent
+  for years.
+- **[hls4ml](https://github.com/fastmachinelearning/hls4ml)** (2,092*) --
+  "machine learning on FPGAs using HLS", the physics-community standard.
+
+**The honest comparison:** FINN and hls4ml take a trained network and produce
+a working FPGA accelerator today. IGLA RACE has one hand-written ternary MAC
+cell that, as of Wave 549, has **never been observed running on a board** --
+see [`docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md`](docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md).
+Any framing of IGLA RACE as an alternative to FINN is unsupportable until
+gate G3 in that plan is passed.
+
+### 4.3 What we do not claim (IGLA)
+
+Extending §2, and specific to the model tracks:
+
+6. **No benchmark score for IGLA CODER.** No VerilogEval, RTLLM, or
+   HumanEval-style number exists. Until one does, no comparison with
+   RTL-Coder or any commercial code model is meaningful.
+7. **No comparability for the IGLA RACE BPB figure.** BPB = 2.21 on
+   `tiny_shakespeare` cannot be compared to modded-nanogpt records, which use
+   a different corpus, tokenizer, and budget.
+8. **No measured TOPS/W.** Every TOPS/W figure attached to LUT-NPU, AVS-48, or
+   sub-V_T (270, 297, 350) is a **projection from the Coq/Lean models**, not a
+   measurement. None has been observed on silicon or on FPGA.
+9. **No hardware-verified ternary GEMM.** One MAC cell is simulated and
+   synthesizable. `systolic_ternary` and `ternary_gemm` have never been
+   synthesized.
+10. **The IGLA spec test counts do not mean what they appear to mean.**
+    Measured on 2026-08-09 across `specs/igla/**`: **2,160 of 3,788 (57.0 %)**
+    `test`/`bench` blocks contain nothing but `assert true`, and **1,917 of
+    1,931 (99.3 %)** invariants are the literal tautology `true`. IGLA
+    accounts for 2,160 of the 2,164 vacuous tests in the whole `specs/` tree.
+    A headline like "340 tests in `ternary_mac.t27`" therefore overstates
+    real coverage by roughly a factor of two, and the invariant count is
+    almost entirely noise. This is a defect in our own reporting, not in any
+    competitor's.
+
+---
+
 **phi^2 + 1/phi^2 = 3  |  TRINITY**

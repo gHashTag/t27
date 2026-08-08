@@ -19718,3 +19718,58 @@ Sources:
 - Do not run the full `./scripts/tri test --fast` suite as the only check when
   adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
   dedicated `icarus_lowerable` test instead.
+---
+
+## Wave Loop 549 — IGLA CODER / IGLA RACE + real-FPGA route (2026-08-09)
+
+### Core insight
+
+Five of the six blockers on the road to running IGLA on real silicon were not
+hardware problems and not research problems. They were **untested claims**: a
+build command that failed on stable Rust, a binary path that did not exist, a
+CLI subcommand marked "Done" that was never written, a smoke-test doc naming
+the wrong board, and a demo design whose success was indistinguishable from
+its failure. The hardware was never the bottleneck; the absence of checking
+was.
+
+### Measured facts (this host, 2026-08-09)
+
+- `cargo build --release -p t27c` failed on stable rustc 1.94.1: dead
+  `rusqlite 0.40` dep -> `libsqlite3-sys 0.38.1` -> nightly-only `cfg_select!`
+  (`E0658`). Zero references to `rusqlite` in `bootstrap/src` or
+  `bootstrap/tests`. Removing it made the build green in 1m58s.
+- `./bootstrap/target/release/t27c` does not exist — `bootstrap/` is a
+  workspace member, artifacts land in the workspace-root `target/`. 67
+  occurrences repo-wide including SOUL.md, CANON.md, T27-CONSTITUTION.md.
+- IGLA spec vacuity: 2160/3788 (57.0%) test+bench blocks are `assert true`;
+  1917/1931 (99.3%) invariants are the literal `true`. Uniform per file
+  (80 and 71) — a mechanical appender, not engineering. IGLA is 2160 of the
+  2164 vacuous tests across all 1063 specs.
+- `openFPGALoader --scan-usb` -> "No USB devices found". No board attached.
+- `ternary_mac_demo_top_v2`: 12/12 iverilog self-checks pass; yosys
+  `synth_xilinx -abc9 -nocarry -arch xc7` clean at 113 LUT / 60 FF / 1
+  STARTUPE2 / 190 cells.
+
+### Anti-patterns to avoid
+
+- Do not adopt the previous wave's recommended variant without re-measuring
+  its premise; W548's Variant A was already invalidated by commit `e5b171e7`.
+- Do not conclude a file is missing from a relative-path shell command; a
+  persisted `cd` produced a confident, wrong "the compiler source is gone from
+  master". Confirm with `git ls-tree` / `cargo metadata` / a direct read.
+- Do not close a wave by appending `assert true` tests or `invariant: true`.
+- Do not call a hardware design "ready to flash" until its pass criterion is
+  stated in observable terms, together with what failure would look like.
+- Do not trust a documented command; run it. `t27c fpga-flash` was documented
+  in two places and implemented in none.
+
+### Carried forward
+
+- W550 Variant A (recommended): build the v2 bitstream (needs
+  `nextpnr-xilinx` or the openXC7 Docker image), fix the `fpga-build --device`
+  default (Arty package on a Wukong flow), then gates G2/G3 once a board is
+  attached.
+- W550 Variant B: `t27c validate-vacuity` as a reporting gate, then retrofit
+  `specs/igla/race/ternary_inference.t27` (80/140 vacuous, 0 real benches).
+- W550 Variant C: score IGLA CODER on VerilogEval; merge the two colliding
+  wave-loop counters.

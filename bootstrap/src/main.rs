@@ -1286,6 +1286,34 @@ enum Commands {
         output: String,
     },
 
+    /// Flash a bitstream to a connected FPGA board via openFPGALoader
+    #[command(name = "fpga-flash")]
+    FpgaFlash {
+        /// Bitstream (.bit) to load. Defaults to the board profile's canonical demo bitstream.
+        #[arg(long)]
+        bitstream: Option<String>,
+
+        /// Board profile: wukong-a200t (default) | wukong-a100t | arty-a7
+        #[arg(long, default_value = "wukong-a200t")]
+        board: String,
+
+        /// openFPGALoader cable profile (default: from board profile)
+        #[arg(long)]
+        cable: Option<String>,
+
+        /// Target: sram (volatile, default) | flash (persistent SPI boot)
+        #[arg(long, default_value = "sram")]
+        mode: String,
+
+        /// Print the exact command and pre-flight verdict without touching hardware
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Path to the openFPGALoader binary
+        #[arg(long, default_value = "openFPGALoader")]
+        loader: String,
+    },
+
     /// FormulaOS: evaluate and search Trinity formulas
     Formula {
         #[command(subcommand)]
@@ -4691,6 +4719,162 @@ fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
     } else {
         anyhow::bail!("L5 PHI-IDENTITY CHECK FAILED: phi^2 + phi^-2 = {:.15} (expected 3.0, delta = {:.2e})", identity, (identity - 3.0).abs())
     }
+}
+
+/// Board bring-up profile. Values are the SSOT from `fpga/HARDWARE_SSOT.md`;
+/// when that file and this table disagree, the file wins -- fix this table.
+struct BoardProfile {
+    name: &'static str,
+    part: &'static str,
+    /// JTAG IDCODE as reported by `openFPGALoader --detect`.
+    idcode: &'static str,
+    /// openFPGALoader `--cable` profile for the programmer wired to this board.
+    cable: &'static str,
+    /// Canonical demo bitstream, relative to the repo root.
+    default_bitstream: &'static str,
+}
+
+fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
+    match name {
+        // The physically connected board: QMTech Wukong V1 carrying an XC7A200T.
+        "wukong-a200t" => Ok(BoardProfile {
+            name: "QMTech Wukong V1 (XC7A200T-FGG676)",
+            part: "xc7a200tfgg676-1",
+            idcode: "0x03636093",
+            cable: "digilent_hs2",
+            default_bitstream: "fpga/verilog/ternary_mac_demo_top_200t.bit",
+        }),
+        // Legacy 100T build kept for the pre-2026-07-03 assumption.
+        "wukong-a100t" => Ok(BoardProfile {
+            name: "QMTech Wukong V1 (XC7A100T-FGG676, legacy)",
+            part: "xc7a100tfgg676-1",
+            idcode: "0x13631093",
+            cable: "digilent_hs2",
+            default_bitstream: "fpga/verilog/ternary_mac_demo_top.bit",
+        }),
+        // A different board entirely -- never mix its csg324 package into Wukong flows.
+        "arty-a7" => Ok(BoardProfile {
+            name: "Digilent Arty A7-100T (XC7A100T-CSG324)",
+            part: "xc7a100tcsg324-1",
+            idcode: "0x13631093",
+            cable: "digilent",
+            default_bitstream: "fpga/openxc7-synth/blink_j26.bit",
+        }),
+        other => anyhow::bail!(
+            "unknown board '{}' (known: wukong-a200t, wukong-a100t, arty-a7)",
+            other
+        ),
+    }
+}
+
+fn run_fpga_flash(
+    repo_root: &Path,
+    bitstream: Option<&str>,
+    board: &str,
+    cable: Option<&str>,
+    mode: &str,
+    dry_run: bool,
+    loader: &str,
+) -> anyhow::Result<()> {
+    let profile = board_profile(board)?;
+    let cable = cable.unwrap_or(profile.cable);
+
+    let write_flash = match mode {
+        "sram" => false,
+        "flash" => true,
+        other => anyhow::bail!("unknown --mode '{}' (expected 'sram' or 'flash')", other),
+    };
+
+    let bit_rel = bitstream.unwrap_or(profile.default_bitstream);
+    let bit_path = if Path::new(bit_rel).is_absolute() {
+        PathBuf::from(bit_rel)
+    } else {
+        repo_root.join(bit_rel)
+    };
+
+    println!("=== FPGA Flash ===");
+    println!("  board      : {} [{}]", profile.name, board);
+    println!("  part       : {}", profile.part);
+    println!("  expect id  : {}", profile.idcode);
+    println!("  cable      : {}", cable);
+    println!("  mode       : {}", if write_flash { "flash (persistent SPI boot)" } else { "sram (volatile)" });
+    println!("  bitstream  : {}", bit_path.display());
+
+    // Pre-flight 1: the bitstream must exist and be non-empty.
+    let meta = fs::metadata(&bit_path)
+        .with_context(|| format!("bitstream not found: {}", bit_path.display()))?;
+    if meta.len() == 0 {
+        anyhow::bail!("bitstream is empty: {}", bit_path.display());
+    }
+    println!("  size       : {} bytes  [OK]", meta.len());
+
+    // Pre-flight 2: the loader must be on PATH.
+    let scan = std::process::Command::new(loader).arg("--scan-usb").output();
+    let scan = match scan {
+        Ok(out) => out,
+        Err(e) => anyhow::bail!(
+            "cannot run '{}': {}. Install it (brew install openfpgaloader) or pass --loader <path>.",
+            loader, e
+        ),
+    };
+    let scan_txt = format!(
+        "{}{}",
+        String::from_utf8_lossy(&scan.stdout),
+        String::from_utf8_lossy(&scan.stderr)
+    );
+
+    // Pre-flight 3: a programmer must actually be attached.
+    let cable_present = !scan_txt.contains("No USB devices found");
+
+    let argv = {
+        let mut v = vec![format!("--cable {}", cable)];
+        if write_flash {
+            v.push("--write-flash".to_string());
+        }
+        v.push(bit_path.display().to_string());
+        v.join(" ")
+    };
+
+    if dry_run {
+        println!("  cable link : {}", if cable_present { "PRESENT" } else { "ABSENT" });
+        println!("\n  would run  : {} {}", loader, argv);
+        println!(
+            "\n  verdict    : {}",
+            if cable_present {
+                "READY -- rerun without --dry-run to program the board"
+            } else {
+                "BLOCKED -- no programmer on USB; connect the cable, then rerun"
+            }
+        );
+        return Ok(());
+    }
+
+    if !cable_present {
+        anyhow::bail!(
+            "no USB programmer detected -- '{} --scan-usb' reports no devices.\n\
+             Connect the {} cable to the board and the host, then retry.\n\
+             Use --dry-run to validate the bitstream and command without hardware.",
+            loader, cable
+        );
+    }
+
+    println!("\n  running    : {} {}", loader, argv);
+    let mut cmd = std::process::Command::new(loader);
+    cmd.arg("--cable").arg(cable);
+    if write_flash {
+        cmd.arg("--write-flash");
+    }
+    cmd.arg(&bit_path);
+    let status = cmd
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .with_context(|| format!("{} invocation failed", loader))?;
+    if !status.success() {
+        anyhow::bail!("{} exited with {}", loader, status);
+    }
+    println!("\n=== Flash OK ({}) ===", if write_flash { "flash" } else { "sram" });
+    Ok(())
 }
 
 fn run_fpga_build(
@@ -8574,6 +8758,10 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
+         Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
+         }
          Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
          Commands::TriStatus => {
              println!("TRI PHI LOOP: status pending implementation");
@@ -8857,6 +9045,10 @@ fn main() -> anyhow::Result<()> {
          Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+         }
+         Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
