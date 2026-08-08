@@ -9,6 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 FAIL=0
 
 # Gate 1: NOW freshness — docs/NOW.md must contain today's date (UTC)
@@ -35,11 +37,28 @@ check_seal_coverage() {
         echo -e "${GREEN}PASS: no staged .t27 specs to check${NC}"
         return
     fi
+    # Seal filenames are "<parent-dir>_<module-name>.json", where module-name
+    # comes from the spec's `module` declaration -- not from the filename.
+    # This gate used to guess `basename "$spec" .t27`, which agrees with the
+    # real scheme only by accident. specs/base/types.t27 is correctly sealed at
+    # base_tritype-base.json, but the guess looked for types.json and reported
+    # it missing; specs/numeric/gf16.t27 "passed" only because an unrelated
+    # GF16.json matched case-insensitively on macOS and would not have on
+    # Linux. Ask t27c for the path so there is one derivation, not two.
+    local t27c="$REPO_ROOT/target/release/t27c"
+    if [ ! -x "$t27c" ]; then
+        echo -e "${YELLOW}SKIP: t27c not built; cannot resolve seal paths${NC}"
+        return
+    fi
     local missing=0
     for spec in $staged_specs; do
-        local basename=$(basename "$spec" .t27)
-        if [ ! -f ".trinity/seals/${basename}.json" ]; then
-            echo -e "${YELLOW}WARN: no seal for $spec (.trinity/seals/${basename}.json)${NC}"
+        local seal_path
+        seal_path=$("$t27c" seal-path "$spec" 2>/dev/null || true)
+        if [ -z "$seal_path" ]; then
+            echo -e "${YELLOW}WARN: could not resolve seal path for $spec${NC}"
+            missing=$((missing + 1))
+        elif [ ! -f "$REPO_ROOT/$seal_path" ]; then
+            echo -e "${YELLOW}WARN: no seal for $spec ($seal_path)${NC}"
             missing=$((missing + 1))
         fi
     done

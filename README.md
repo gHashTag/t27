@@ -68,10 +68,10 @@ inspectable artefacts at every step.
 | FPGA | `--profile` flag | GREEN | `--profile minimal|full` in fpga-build |
 | Pins | Pins IR | GREEN | `specs/pins/ir.t27` — conflict detection invariants |
 | Pins | XDC emitter | GREEN | `specs/pins/emitter_xdc.t27` — QMTECH + Arty presets |
-| CI | Issue gate | GREEN | L1 TRACEABILITY enforced |
-| CI | Seal **presence** | GREEN | 730 seal files; every spec has one |
-| CI | Seal **integrity** | RED | **0 / 496 seals verify** — `.trinity/seals/` last written April 2026, never re-baselined. `t27c seal-audit` |
-| CI | Schema validation | GREEN | 101 conformance files: **88 with vectors**, 5 report, 8 definition, 0 empty |
+| CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
+| CI | Seal **presence** | GREEN | 730 seal files in `.trinity/seals/` |
+| CI | Seal **integrity** | RED | **0 / 496 seals verify** — last written April 2026, never re-baselined. `t27c seal-audit`; CI job reports it non-blocking |
+| CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |

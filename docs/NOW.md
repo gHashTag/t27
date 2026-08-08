@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-09
 
+## ci-honesty -- three CI jobs were echo statements; the seal gate checked the wrong file
+
+- **WHERE**: `.github/workflows/{schema-validation,seal-coverage,check-now-freshness}.yml`
+  (rewritten), `scripts/pre-commit` (Gate 2 fixed), `bootstrap/src/main.rs`
+  (new `t27c seal-path`), `README.md`.
+- **Three workflows tested nothing and reported green on every PR:**
+
+  | Workflow | Entire job body |
+  |---|---|
+  | `seal-coverage.yml` | `echo "Running SEAL coverage analysis..."` |
+  | `schema-validation.yml` | `echo "Validating JSON schemas..."` |
+  | `check-now-freshness.yml` | `# Add freshness check logic here in future` + echo |
+
+  The README cited *Schema validation: GREEN — conformance vectors validated*.
+  That row was backed by an echo statement. `seal-coverage.yml` is the CI twin
+  of the Gate 2/4 finding, and worse: the local gate at least stat'd a file.
+- **Now real**: `schema-validation` runs `validate-conformance` +
+  `validate-gen-headers` (blocking). `check-now-freshness` runs
+  `t27c check-now`, the same predicate as the local hook. `seal-coverage` runs
+  `seal-audit --strict` **non-blocking**, following the `rings-rust`
+  honesty-gate precedent, and publishes the number to the job summary — a
+  blocking version would wall off every PR until a re-baseline nobody has
+  reviewed. Flip it to enforcing after the re-seal lands.
+- **Gate 2/4 was checking a file that has nothing to do with the spec.** Seal
+  filenames are `<parent-dir>_<module-name>.json`, where module-name comes from
+  the spec's `module` declaration. The gate guessed `basename "$spec" .t27`.
+  Demonstrated both failure directions:
+  - `specs/base/types.t27` is **correctly sealed** at `base_tritype-base.json`;
+    the gate looked for `types.json` and reported it missing.
+  - `specs/numeric/gf16.t27` "passed" only because an unrelated `GF16.json`
+    matched **case-insensitively on macOS**. On Linux CI it would not have.
+  New `t27c seal-path <spec>` prints the canonical path; the gate now asks the
+  compiler instead of re-deriving. One derivation, not two.
+- **Also found**: the 4-gate pre-commit hook is **local-only**. The tracked
+  `scripts/githooks/pre-commit` is a 3-line stub that just runs `cargo build`;
+  the real gates live in `scripts/pre-commit` and reach `.git/hooks/` only via
+  `scripts/install-git-hooks.sh`. A contributor who does not run the installer
+  gets no gates at all.
+
 ## clara-coverage + seal-audit -- the seals never verified, and no gate could tell
 
 - **WHERE**: `bootstrap/src/suite.rs` (2 new commands + 2 tests),

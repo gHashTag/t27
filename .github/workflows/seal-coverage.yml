@@ -1,3 +1,18 @@
+# Reports how many saved seals still verify against current output.
+#
+# This job previously consisted of `echo "Running SEAL coverage analysis..."`
+# and reported green on every PR while checking nothing at all. Meanwhile
+# .trinity/seals/ holds 730 seal files of which 0 verify: they were last
+# written in April 2026 and were never re-baselined after subsequent spec and
+# codegen changes. Neither this job nor pre-commit Gate 2/4 (which tests only
+# that a seal *file exists*) could have surfaced that.
+#
+# Deliberately non-blocking, following the rings-rust precedent: this is an
+# honesty gate that publishes the real number rather than a gate that forces
+# a re-baseline nobody has reviewed. Flip `--strict` on once the corpus has
+# been re-sealed, and the job becomes enforcing.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
 name: SEAL Coverage
 
 on:
@@ -6,12 +21,54 @@ on:
   push:
     branches: [master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: seal-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   coverage:
+    name: seal verify rate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run coverage
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-seal-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      - name: Seal audit (reporting, non-blocking)
+        id: audit
+        continue-on-error: true
         run: |
-          echo "Running SEAL coverage analysis..."
+          set -o pipefail
+          ./target/release/t27c seal-audit --repo-root . --strict \
+            | tee "$RUNNER_TEMP/seal-audit.txt"
+
+      - name: Publish result to the job summary
+        if: always()
+        run: |
+          {
+            echo "### SEAL coverage"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/seal-audit.txt" 2>/dev/null || echo "audit produced no output"
+            echo '```'
+            if [ "${{ steps.audit.outcome }}" != "success" ]; then
+              echo
+              echo "Seals are stale. This job is non-blocking by design;"
+              echo "re-baseline with \`t27c seal --save\` per spec, then"
+              echo "make this job enforcing."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

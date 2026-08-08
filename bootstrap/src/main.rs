@@ -758,6 +758,12 @@ enum Commands {
         repo_root: PathBuf,
     },
 
+    /// Print the canonical .trinity/seals/ path for a spec (one source of truth)
+    SealPath {
+        /// Input .t27 spec file path
+        input: String,
+    },
+
     /// Report how many saved seals still verify against current output
     SealAudit {
         #[arg(long, default_value = ".")]
@@ -8244,6 +8250,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::ClaraCoverage { repo_root, output } => {
             suite::clara_coverage(&repo_root, output)?
         }
+        Commands::SealPath { input } => {
+            let h = compute_seal_hashes(&input)?;
+            println!("{}", seal_file_path(&h.module, &h.spec_path).display());
+        }
         Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
         Commands::Optimize { input, opt_level } => run_optimize(&input, opt_level)?,
@@ -8496,6 +8506,10 @@ fn main() -> anyhow::Result<()> {
         Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
         Commands::ClaraCoverage { repo_root, output } => {
             suite::clara_coverage(&repo_root, output)?
+        }
+        Commands::SealPath { input } => {
+            let h = compute_seal_hashes(&input)?;
+            println!("{}", seal_file_path(&h.module, &h.spec_path).display());
         }
         Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,

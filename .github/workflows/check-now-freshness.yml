@@ -1,16 +1,51 @@
+# Checks that docs/NOW.md carries today's date, using the same t27c command
+# the pre-commit hook uses, so local and CI agree on one implementation.
+#
+# This job previously read `# Add freshness check logic here in future` plus an
+# echo, and reported green on every PR while checking nothing.
+#
+# Note the overlap: `now-sync-gate.yml` already performs a real freshness check
+# with its own inline date logic and a UTC today-or-yesterday window. That one
+# is authoritative for the merge decision. This job exists to keep CI honest
+# about the *same* predicate the local hook enforces (`t27c check-now`, which
+# requires today in local time), so a contributor whose commit was blocked
+# locally sees the matching signal here instead of a passing echo. If the
+# duplication is unwanted, delete this workflow rather than hollowing it out
+# again -- an empty gate is worse than a missing one, because it reports green.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
 name: Check Now Freshness
 
 on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: check-now-freshness-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
+    name: docs/NOW.md freshness
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check freshness
-        run: |
-          # Add freshness check logic here in future
-          echo "Checking repository freshness..."
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-checknow-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      - name: Check docs/NOW.md is current
+        run: ./target/release/t27c check-now --repo-root .

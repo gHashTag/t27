@@ -1,15 +1,50 @@
+# Validates conformance/*.json and gen/** headers with the real validators.
+#
+# This job previously consisted of `echo "Validating JSON schemas..."` and
+# reported green on every PR while checking nothing. The README cited it as
+# evidence that conformance vectors were validated. It now runs the actual
+# t27c validators and fails the build when they fail.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
 name: Validate JSON Schemas
 
 on:
   pull_request:
     branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schema-validation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
+    name: conformance + gen headers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate schemas
-        run: |
-          echo "Validating JSON schemas..."
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-schema-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      # The binary lands in the workspace target dir, not bootstrap/target/.
+      # Using the wrong path yields exit 127 and reads as a total failure.
+      - name: Validate conformance corpus
+        run: ./target/release/t27c validate-conformance --repo-root .
+
+      - name: Validate generated-file headers
+        run: ./target/release/t27c validate-gen-headers --repo-root .
