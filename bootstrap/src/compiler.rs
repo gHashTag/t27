@@ -5478,6 +5478,22 @@ impl VerilogCodegen {
     /// non-array types.
     fn parse_array_type(ty: &str) -> Option<(Vec<usize>, String)> {
         let trimmed = ty.trim();
+        // Rust-style `[T; N]`: the whole packed-array machinery (widths,
+        // literals, indexing) keys off this parser, and it only understood
+        // the legacy `[N]T` spelling -- every `[u32; 4]` fn param lowered as
+        // a single 32-bit input (t27#1948 tail).
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let inner = &trimmed[1..trimmed.len() - 1];
+            if let Some(semi) = inner.rfind(';') {
+                let elem = inner[..semi].trim();
+                let size_txt = inner[semi + 1..].trim();
+                if let Ok(size) = size_txt.parse::<usize>() {
+                    if !elem.is_empty() && !elem.contains(';') {
+                        return Some((vec![size], elem.to_string()));
+                    }
+                }
+            }
+        }
         let mut rest = trimmed;
         let mut dims = Vec::new();
         while rest.starts_with('[') {
@@ -6513,7 +6529,15 @@ impl VerilogCodegen {
                     .params
                     .iter()
                     .enumerate()
-                    .filter(|(_, (_, ptype))| Self::parse_array_type(ptype).is_some())
+                    .filter(|(_, (_, ptype))| {
+                        // Primitive-scalar [T; N] params are packed-vector
+                        // VALUES (declared at packed_width, indexed by
+                        // part-select via #1745) -- only struct-element
+                        // arrays still go through the module-array binding.
+                        Self::parse_array_type(ptype).map_or(false, |(_, elem)| {
+                            !Self::is_primitive_scalar_type(&elem)
+                        })
+                    })
                     .map(|(i, _)| i)
                     .collect();
                 if array_param_indices.is_empty() {

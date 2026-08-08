@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: rust-style [T; N] reaches the packed-array machinery (Refs #1948)
+
+- parse_array_type only understood the legacy `[N]T` spelling: every `[u32; 4]` fn param lowered as a SINGLE 32-BIT input and `arr[i]` was a bit-select; returns declared 32-bit for a 128-bit value
+- `[T; N]` now parses -- packed widths, part-select indexing (#1745 path) and literal packing all light up; primitive-scalar [T; N] params are excluded from the W458 module-array binding (they are packed VALUES)
+- tri-net corpus: 60-spec icarus gate green, no regression; fn-side emission now correct (input [127:0], `array[(i*32) +: 32]`) -- remaining blockers are TB-side (test-block assignments are commented out; fn-internal array literals of params render as zeros), the next tail
+- FROZEN_HASH resealed
+
 ## gen-verilog: honest early-return lowering via a guard register (Refs #1948)
 
 - `return X;` lowered to a PLAIN assignment with no exit: execution fell through and later statements overwrote the result -- a fn ending in `return 0;` returned 0 on EVERY path (the runtime-divergence class behind Verilog-vs-Zig/C test failures)
