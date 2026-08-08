@@ -139,6 +139,21 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    reg [7:0]  burst_count;\n");
     s.push_str("\n");
 
+    s.push_str("    // Burst sizing. One beat is 8 bytes, so the beats still owed are\n");
+    s.push_str("    // ceil(bytes_remaining/8); AXI4 caps a burst at 256 beats and encodes\n");
+    s.push_str("    // the length as beats-1. arlen/awlen were previously hardwired to\n");
+    s.push_str("    // 8'hFF (256 beats) for every transfer, while the FSM stopped once\n");
+    s.push_str("    // bytes_remaining fell to a beat -- so a short transfer requested 256\n");
+    s.push_str("    // beats and then abandoned the burst, which an AXI master may not do.\n");
+    s.push_str("    // Yosys refuted `rready held until rlast` from a reachable state; see\n");
+    s.push_str("    // formal/dma_controller_props.sv and FORMAL_FOUNDATIONS Prop. 9.\n");
+    s.push_str("    wire [31:0] beats_owed   = (bytes_remaining + 32'd7) >> 3;\n");
+    s.push_str("    wire [8:0]  beats_burst  = (beats_owed > 32'd256) ? 9'd256 : beats_owed[8:0];\n");
+    s.push_str("    wire [7:0]  burst_len    = beats_burst[7:0] - 8'd1;\n");
+    s.push_str("    // Bytes covered by the burst just issued, for address advance.\n");
+    s.push_str("    wire [63:0] burst_bytes_r = ({56'd0, m_axi_arlen} + 64'd1) << 3;\n");
+    s.push_str("    wire [63:0] burst_bytes_w = ({56'd0, m_axi_awlen} + 64'd1) << 3;\n");
+    s.push_str("\n");
     s.push_str("    assign m_axi_rready = (state == READ_DATA);\n");
     s.push_str("    assign m_axi_bready = 1'b1;\n");
     s.push_str("\n");
@@ -163,52 +178,71 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
     s.push_str("        end else case (state)\n");
-    s.push_str("            IDLE: if (start) begin\n");
+    s.push_str("            // A zero-length request moves no data and completes immediately.\n");
+    s.push_str("            IDLE: if (start && (length != 32'd0)) begin\n");
     s.push_str("                busy            <= 1'b1;\n");
     s.push_str("                done            <= 1'b0;\n");
     s.push_str("                bytes_remaining <= length;\n");
     s.push_str("                local_addr      <= 12'd0;\n");
     s.push_str("                state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
-    s.push_str("                if (!direction) begin\n");
-    s.push_str("                    m_axi_araddr <= src_addr;\n");
-    s.push_str("                    m_axi_arlen  <= 8'hFF;\n");
-    s.push_str("                end else begin\n");
-    s.push_str("                    m_axi_awaddr <= dst_addr;\n");
-    s.push_str("                    m_axi_awlen  <= 8'hFF;\n");
-    s.push_str("                end\n");
+    s.push_str("                if (!direction) m_axi_araddr <= src_addr;\n");
+    s.push_str("                else            m_axi_awaddr <= dst_addr;\n");
     s.push_str("            end\n");
     s.push_str("            READ_ADDR: begin\n");
+    s.push_str("                m_axi_arlen   <= burst_len;\n");
     s.push_str("                m_axi_arvalid <= 1'b1;\n");
-    s.push_str("                if (m_axi_arready) begin\n");
+    s.push_str("                // Both sides, not just ready: with `if (m_axi_arready)` alone\n");
+    s.push_str("                // a ready-without-valid advanced the FSM into READ_DATA having\n");
+    s.push_str("                // issued no address, leaving it waiting for a burst nobody owed.\n");
+    s.push_str("                if (m_axi_arvalid && m_axi_arready) begin\n");
     s.push_str("                    m_axi_arvalid <= 1'b0;\n");
     s.push_str("                    state         <= READ_DATA;\n");
     s.push_str("                end\n");
     s.push_str("            end\n");
+    s.push_str("            // Stay until rlast: the burst we asked for must be consumed in\n");
+    s.push_str("            // full. If bytes are still owed afterwards, issue the next burst\n");
+    s.push_str("            // from the advanced address rather than dropping rready.\n");
     s.push_str("            READ_DATA: if (m_axi_rvalid) begin\n");
     s.push_str("                local_wdata     <= m_axi_rdata;\n");
     s.push_str("                local_we        <= 1'b1;\n");
     s.push_str("                local_addr      <= local_addr + 12'd1;\n");
     s.push_str("                bytes_remaining <= bytes_remaining - 32'd8;\n");
-    s.push_str("                if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;\n");
+    s.push_str("                if (m_axi_rlast) begin\n");
+    s.push_str("                    if (bytes_remaining <= 32'd8) state <= DONE_ST;\n");
+    s.push_str("                    else begin\n");
+    s.push_str("                        m_axi_araddr <= m_axi_araddr + burst_bytes_r;\n");
+    s.push_str("                        state        <= READ_ADDR;\n");
+    s.push_str("                    end\n");
+    s.push_str("                end\n");
     s.push_str("            end else local_we <= 1'b0;\n");
     s.push_str("            WRITE_ADDR: begin\n");
+    s.push_str("                m_axi_awlen   <= burst_len;\n");
     s.push_str("                m_axi_awvalid <= 1'b1;\n");
-    s.push_str("                if (m_axi_awready) begin\n");
+    s.push_str("                if (m_axi_awvalid && m_axi_awready) begin\n");
     s.push_str("                    m_axi_awvalid <= 1'b0;\n");
     s.push_str("                    state         <= WRITE_DATA;\n");
     s.push_str("                    burst_count   <= 8'd0;\n");
     s.push_str("                end\n");
     s.push_str("            end\n");
+    s.push_str("            // Emit exactly awlen+1 beats, with wlast on the final one. The\n");
+    s.push_str("            // previous form raised wlast when the *transfer* ended, which for\n");
+    s.push_str("            // a short transfer is earlier than the burst it announced.\n");
     s.push_str("            WRITE_DATA: begin\n");
     s.push_str("                m_axi_wdata  <= local_rdata;\n");
     s.push_str("                m_axi_wvalid <= 1'b1;\n");
-    s.push_str("                m_axi_wlast  <= (bytes_remaining <= 32'd8);\n");
+    s.push_str("                m_axi_wlast  <= (burst_count == m_axi_awlen);\n");
     s.push_str("                if (m_axi_wready) begin\n");
     s.push_str("                    local_addr      <= local_addr + 12'd1;\n");
     s.push_str("                    bytes_remaining <= bytes_remaining - 32'd8;\n");
-    s.push_str("                    if (bytes_remaining <= 32'd8) begin\n");
+    s.push_str("                    burst_count     <= burst_count + 8'd1;\n");
+    s.push_str("                    if (burst_count == m_axi_awlen) begin\n");
     s.push_str("                        m_axi_wvalid <= 1'b0;\n");
-    s.push_str("                        state        <= DONE_ST;\n");
+    s.push_str("                        m_axi_wlast  <= 1'b0;\n");
+    s.push_str("                        if (bytes_remaining <= 32'd8) state <= DONE_ST;\n");
+    s.push_str("                        else begin\n");
+    s.push_str("                            m_axi_awaddr <= m_axi_awaddr + burst_bytes_w;\n");
+    s.push_str("                            state        <= WRITE_ADDR;\n");
+    s.push_str("                        end\n");
     s.push_str("                    end\n");
     s.push_str("                end\n");
     s.push_str("            end\n");
@@ -333,10 +367,18 @@ mod tests {
     fn idle_branches_on_direction() {
         let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
         assert!(v.contains("state           <= direction ? WRITE_ADDR : READ_ADDR;"));
-        assert!(v.contains("m_axi_araddr <= src_addr;"));
-        assert!(v.contains("m_axi_awaddr <= dst_addr;"));
-        assert!(v.contains("m_axi_arlen  <= 8'hFF;"));
-        assert!(v.contains("m_axi_awlen  <= 8'hFF;"));
+        assert!(v.contains("if (!direction) m_axi_araddr <= src_addr;"));
+        assert!(v.contains("else            m_axi_awaddr <= dst_addr;"));
+        // Burst length is no longer hardwired to 256 beats. It is computed in
+        // READ_ADDR/WRITE_ADDR from the bytes still owed -- pinning 8'hFF here
+        // is what let a short transfer request 256 beats and then abandon the
+        // burst. See formal/dma_controller_props.sv (a_read_burst_not_abandoned).
+        // Narrow to the assignment forms: the explanatory comment in the
+        // emitted RTL legitimately mentions the old 8'hFF value.
+        assert!(!v.contains("m_axi_arlen  <= 8'hFF;"), "burst length must not be hardwired");
+        assert!(!v.contains("m_axi_awlen  <= 8'hFF;"), "burst length must not be hardwired");
+        assert!(v.contains("m_axi_arlen   <= burst_len;"));
+        assert!(v.contains("m_axi_awlen   <= burst_len;"));
     }
 
     #[test]
@@ -348,9 +390,12 @@ mod tests {
     }
 
     #[test]
+    // wlast marks the last beat of the *burst*, not of the transfer. The old
+    // form raised it when bytes_remaining fell to one beat, which for a short
+    // transfer is earlier than the burst the master had announced.
     fn write_last_set_on_final_beat() {
         let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
-        assert!(v.contains("m_axi_wlast  <= (bytes_remaining <= 32'd8);"));
+        assert!(v.contains("m_axi_wlast  <= (burst_count == m_axi_awlen);"));
     }
 
     #[test]

@@ -318,6 +318,56 @@ the `-flatten` trap from Prop 7 surfaces exactly that way.
 
 ---
 
+### Proposition 9 — two AXI4 master defects in `dma_controller`
+
+`PROVED` (machine-checked). Third module checked, two more real defects, and
+the fourth and fifth passing unit tests found holding a bug in place.
+
+**9a. Burst abandonment.** `m_axi_arlen` and `m_axi_awlen` were hardwired to
+`8'hFF` — 256 beats — for *every* transfer, while the FSM left `READ_DATA`
+once `bytes_remaining` fell to one beat. A short transfer therefore requested
+256 beats and then dropped `rready` mid-burst. **An AXI4 master may not abandon
+a burst it requested.**
+
+```
+a_read_burst_not_abandoned      old: REFUTED      fixed: PROVED
+```
+
+Fixed by deriving the burst length from the bytes still owed
+(`ceil(bytes/8)`, capped at 256, encoded as beats-1) and leaving `READ_DATA`
+only on `rlast`, chaining another burst from an advanced address when bytes
+remain. The write path had the mirror defect: `wlast` was raised when the
+*transfer* ended rather than when the announced *burst* did.
+
+**9b. Ready without valid.** `READ_ADDR` advanced on `if (m_axi_arready)`
+alone. A `ready` asserted while `arvalid` was still low moved the FSM into
+`READ_DATA` **having issued no address** — the master then sat ready for a
+burst nobody owed it. `WRITE_ADDR` had the same shape.
+
+```
+a_rready_implies_burst          old: REFUTED      fixed: PROVED
+```
+
+Note that AXI VALID-stability (`a_arvalid_stable` and friends) **proved on the
+broken design**. The defect is not a malformed handshake; it is a *missing*
+one. Those properties are kept in the harness to bound what the bug was not.
+
+**9c. Two candidate findings were rejected**, and rejecting them mattered as
+much as the fixes:
+
+| Candidate | Verdict |
+|---|---|
+| `zero_length_moves_nothing` | **Not a bug.** Proved on the pre-fix RTL from a reachable state. The guard added alongside the real fixes is hardening, not a repair, and is recorded as such. |
+| `beats_taken <= ceil(length/8)` | **Inconclusive, not claimed.** With `rvalid` a free input, a misbehaving slave is indistinguishable from a master defect. It refuted even after the fixes, and a faithful enough slave model to settle it was not built. Recorded as an open question rather than a finding. |
+
+**9d. Environment assumptions are part of the claim.** The `a_rready_implies_burst`
+property is meaningful only with a minimal slave model (`assume (!rvalid ||
+burst_active)`). Stating a master-side property without constraining the slave
+proves nothing about the master. Every `assume` in a harness narrows what the
+`assert` means, and the narrowing belongs in the write-up.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

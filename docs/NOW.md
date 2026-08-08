@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## dma-burst-defects -- two more AXI4 violations, and two candidates rejected
+
+- **WHERE**: `bootstrap/src/bitnet_dma.rs` (fixes + 3 tests rewritten),
+  `bootstrap/tests/bitnet_dma.rs` (3 rewritten), **NEW**
+  `formal/dma_controller_props.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 9), `README.md`.
+- **Burst abandonment.** `m_axi_arlen`/`awlen` were hardwired to `8'hFF` (256
+  beats) for *every* transfer while the FSM left `READ_DATA` once
+  `bytes_remaining` fell to one beat -- a short transfer requested 256 beats
+  then dropped `rready` mid-burst. An AXI4 master may not do that.
+  `a_read_burst_not_abandoned`: **REFUTED -> PROVED**. Fixed by deriving burst
+  length from bytes owed (capped at 256) and leaving READ_DATA only on `rlast`,
+  chaining another burst from an advanced address. Write path had the mirror
+  defect via `wlast`.
+- **Ready without valid.** `READ_ADDR` advanced on `if (m_axi_arready)` alone,
+  so a ready while `arvalid` was low moved the FSM into READ_DATA **with no
+  address issued**. `WRITE_ADDR` identical. `a_rready_implies_burst`:
+  **REFUTED -> PROVED**. Note AXI VALID-stability **proved on the broken
+  design** -- the defect is a *missing* handshake, not a malformed one.
+- **Two candidates rejected, which mattered as much as the fixes.**
+  `zero_length_moves_nothing` proved on the *pre-fix* RTL from a reachable
+  state -- **not a bug**; the guard added alongside is hardening and is
+  recorded as such. `beats_taken <= ceil(length/8)` refuted even after the
+  fixes, but with `rvalid` free a misbehaving slave is indistinguishable from a
+  master defect; **inconclusive, not claimed**, logged as an open question.
+- **Environment assumptions are part of the claim**: `a_rready_implies_burst`
+  means something only with a minimal slave model (`assume (!rvalid ||
+  burst_active)`). Every `assume` narrows what the `assert` says.
+- **Three more text-pinning tests**, including `dma_burst_length_is_max`, whose
+  *name* encoded the defect as the contract. Eight such tests rewritten across
+  the campaign; all four RTL defects had one holding them in place.
+- Suite **1195 passed, 0 failed**. CI proves **21 properties** across 3 modules.
+
 ## axi-lost-responses -- a second real defect, and a false one caught in time
 
 - **WHERE**: `bootstrap/src/bitnet_axi.rs` (fix + test rewritten),

@@ -110,6 +110,23 @@ jobs:
                     prep -top axi_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 10 -set-init-zero"
 
+      - name: Prove dma_controller properties
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
+                        formal/dma_controller_props.sv; \
+                        prep -top dma_props -flatten; stat" \
+                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          echo "dma check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 8 ]; then
+            echo "::error::Expected >=8 \$check cells for dma_props, found ${n:-0}."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
+                    formal/dma_controller_props.sv; \
+                    prep -top dma_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero"
+
       - name: Behavior-DSL subset still emits and parses
         run: |
           set -euo pipefail

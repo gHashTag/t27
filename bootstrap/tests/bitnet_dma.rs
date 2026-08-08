@@ -169,11 +169,19 @@ fn dma_continuous_assigns() {
 }
 
 #[test]
-fn dma_burst_length_is_max() {
+// Renamed from `dma_burst_length_is_max`, which asserted the defect as if it
+// were the contract: arlen/awlen were hardwired to 256 beats for every
+// transfer while the FSM stopped after the bytes ran out, so a short transfer
+// requested 256 beats and abandoned the burst. Yosys refuted
+// `rready held until rlast` from a reachable state. Burst length is now
+// derived from the bytes still owed.
+fn dma_burst_length_is_derived_from_bytes_owed() {
     let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
     assert!(ok);
-    assert!(stdout.contains("m_axi_arlen  <= 8'hFF;"));
-    assert!(stdout.contains("m_axi_awlen  <= 8'hFF;"));
+    assert!(!stdout.contains("m_axi_arlen  <= 8'hFF;"));
+    assert!(!stdout.contains("m_axi_awlen  <= 8'hFF;"));
+    assert!(stdout.contains("m_axi_arlen   <= burst_len;"));
+    assert!(stdout.contains("m_axi_awlen   <= burst_len;"));
 }
 
 #[test]
@@ -189,18 +197,23 @@ fn dma_beat_decrement_by_eight_bytes() {
 }
 
 #[test]
+// wlast marks the last beat of the burst, not of the transfer.
 fn dma_wlast_on_final_beat() {
     let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
     assert!(ok);
-    assert!(stdout.contains("m_axi_wlast  <= (bytes_remaining <= 32'd8);"));
+    assert!(stdout.contains("m_axi_wlast  <= (burst_count == m_axi_awlen);"));
 }
 
 #[test]
-fn dma_rlast_or_count_terminates_read() {
+// The `||` in the old condition WAS the bug: leaving READ_DATA on a byte
+// count rather than on rlast is exactly what abandoned the burst. The read
+// path now leaves only on rlast, and chains another burst if bytes remain.
+fn dma_read_terminates_only_on_rlast() {
     let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
     assert!(ok);
-    assert!(stdout
-        .contains("if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;"));
+    assert!(!stdout.contains("if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;"));
+    assert!(stdout.contains("if (m_axi_rlast) begin"));
+    assert!(stdout.contains("m_axi_araddr <= m_axi_araddr + burst_bytes_r;"));
 }
 
 #[test]
