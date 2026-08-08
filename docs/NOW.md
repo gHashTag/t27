@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## vacuity-audit -- 21 properties checked for teeth; 0 vacuous
+
+- **WHERE**: **NEW** `formal/witnesses.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 12), `README.md`.
+- **Variant A from #1974.** Prop 11 found constraints that did nothing; vacuity
+  is its mirror -- a property that passes because the interesting case never
+  happens. Neither shows as a failure; both make a green run worthless.
+- **Guard reachability**: for each `G |-> P`, the assertion body was replaced
+  with `assert (1'b0)` under the same guard, which **proves iff G is
+  unreachable**. A precise oracle needing no `cover` support. Other assertions
+  neutralised to `assert (1'b1)` so each result speaks about one guard.
+  **19 checked, 19 reachable, 0 vacuous.** (19 not 21: two `a_sanity`
+  tautologies are unconditional by design.)
+- **Interesting-case reachability**: guard reachability is necessary, not
+  sufficient -- `assert (!A || B)` is trivially true when A is false. Six cases
+  probed by asserting their negation; **all six REACHABLE**. The one that
+  matters most is `rvalid && rready && !rlast`: without a multi-beat burst,
+  `a_read_burst_not_abandoned` (the regression witness for the burst-abandonment
+  defect) would be vacuous.
+- **Made permanent**: `formal/witnesses.sv` + a CI step that runs each
+  **expecting refutation**. A witness that starts proving means the case became
+  unreachable and its property is now free.
+- The gate pair now reads: `$check` counts prove properties **exist**, witnesses
+  prove they **bite**, and the liveness check proves assumptions **apply**.
+  Three distinct ways of passing while testing nothing -- the same defect this
+  campaign started from, found first in a shell gate, then a CI `echo`, and now
+  twice inside the prover.
+- Suite **1195 passed, 0 failed**. Seals 496/496.
+
 ## assumes-were-inert -- the anomaly was an opt-in flag, and the flow now self-checks
 
 - **WHERE**: **NEW** `formal/assume_liveness_check.sv`, all four `formal/*.sv`

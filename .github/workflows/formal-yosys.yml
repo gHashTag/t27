@@ -140,6 +140,35 @@ jobs:
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
+      # Vacuity gate, part two. The $check-cell count proves properties EXIST;
+      # this proves they BITE. Each witness asserts the negation of a case its
+      # property exists to cover, so a counterexample is the proof that the case
+      # is reachable. A witness that starts PROVING means that case became
+      # unreachable and the property guarding it is now free.
+      - name: Properties are non-vacuous (witnesses must refute)
+        run: |
+          set -euo pipefail
+          fail=0
+          run_witness() {
+            top="$1"; mod="$2"; seq="$3"
+            out=$(yosys -p "read_verilog -sv -formal build/rtl/${mod}.sv formal/witnesses.sv; \
+                            prep -top ${top} -flatten; async2sync; chformal -lower; \
+                            sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" 2>&1 || true)
+            if echo "$out" | grep -q "proof did fail"; then
+              echo "ok       ${top} (case reachable)"
+            else
+              echo "::error::${top} did not refute -- the case it witnesses is unreachable, so the property it guards is vacuous."
+              fail=1
+            fi
+          }
+          run_witness w_irq_mask_case        interrupt_controller  6
+          run_witness w_irq_concurrent_read  interrupt_controller  6
+          run_witness w_axi_outstanding_one  axi_lite_slave       10
+          run_witness w_axi_resp_pending     axi_lite_slave       10
+          run_witness w_dma_multibeat_burst  dma_controller       12
+          run_witness w_dma_burst_active     dma_controller       12
+          exit $fail
+
       - name: Behavior-DSL subset still emits and parses
         run: |
           set -euo pipefail

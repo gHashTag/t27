@@ -489,6 +489,58 @@ constraints do nothing, are the same defect wearing different clothes.
 
 ---
 
+### Proposition 12 — the 21 properties are non-vacuous, and the check is now permanent
+
+`MEASURED`. Prop. 11 found constraints that did nothing. Vacuity is its mirror:
+a property that **passes because the interesting case never happens**. Neither
+appears as a failure; both make a green run worthless.
+
+Two levels were checked.
+
+**12a. Guard reachability.** For each `G |-> P`, the assertion body was replaced
+with `assert (1'b0)` under the same guard. That run **proves iff `G` is
+unreachable** — a precise vacuity oracle needing no `cover` support. All other
+assertions in the file were neutralised to `assert (1'b1)` so each result speaks
+about one guard only.
+
+```
+19 properties checked      reachable 19      vacuous 0
+```
+
+*(19 rather than 21: two `a_sanity` tautologies are deliberately unconditional
+and have no guard to reach.)*
+
+**12b. Interesting-case reachability.** Guard reachability is necessary, not
+sufficient: `assert (!A || B)` is trivially satisfied whenever `A` is false, so
+a property can be evaluated constantly and still test nothing. Six cases that
+the properties exist to cover were probed by asserting their negation — a
+**refutation is the witness** that the case occurs:
+
+| Case | Property it gives teeth to | Result |
+|---|---|---|
+| `irq_enable == 0 && irq_status != 0` | `a_mask_suppresses` | REACHABLE |
+| `inference_done && status_read` | `a_event_never_lost` | REACHABLE |
+| `outstanding_w == 1` | `a_one_outstanding_write` | REACHABLE |
+| `bvalid && !bready` | `a_no_write_accept_while_pending` | REACHABLE |
+| `rvalid && rready && !rlast` (multi-beat burst) | `a_read_burst_not_abandoned` | REACHABLE |
+| a burst active at all | `a_rready_implies_burst` | REACHABLE |
+
+The fifth matters most: `a_read_burst_not_abandoned` is the regression witness
+for Prop. 9a, and on single-beat bursts alone it would be vacuous. It is not.
+
+**12c. Made permanent.** `formal/witnesses.sv` carries these as standalone
+harnesses; CI runs each **expecting refutation**. A witness that starts proving
+means the case became unreachable and the property guarding it is now free.
+
+The pair of gates now reads: `$check`-cell counts prove the properties **exist**
+(Prop. 6), witnesses prove they **bite**. Together with Prop. 11's
+assumption-liveness check, the flow now verifies three distinct ways of passing
+while testing nothing — **which is the same defect the whole campaign began with,
+found once in a shell gate, once in a CI `echo`, and now twice inside the prover
+itself.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

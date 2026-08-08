@@ -77,7 +77,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **21 properties proved** across `interrupt_controller` (6), `axi_lite_slave` (7), `dma_controller` (8); vacuity gates count `$check` cells |
+| CI | Formal (Yosys) | GREEN | **21 properties proved** across 3 modules, **all 19 guards reachable, 0 vacuous**; gates check assumption-liveness, `$check` counts, and 6 non-vacuity witnesses |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
