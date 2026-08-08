@@ -57,6 +57,9 @@ jobs:
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
         run: python3 tools/verify_trainer_c.py
 
+      - name: Prove the trainer LEARNS (XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer)
+        run: python3 tools/gft_backprop_microcode.py
+
       - name: Differential-fuzz the trainer (random topologies, edge inputs)
         run: python3 tools/fuzz_trainer.py 40
 
