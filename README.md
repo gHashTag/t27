@@ -24,7 +24,7 @@ product of t27 is the path `.t27 → Verilog RTL → Tiny Tapeout` with sealed,
 inspectable artefacts at every step.
 
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
-  → **1164 / 1164 passed** (full Quick Start below).
+  → **1174 / 1174 passed** (full Quick Start below).
   Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and
   `seal-audit --strict` — all green as of the 2026-08-09 seal re-baseline.
 - **Primary numeric path:** GoldenFloat **GF16** (default), with the family
@@ -48,6 +48,11 @@ inspectable artefacts at every step.
   conformance gate** (`tt-manifest` → `tt-profile` → `tt-conform`).
   Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
 - **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+- **Formal foundations:** [`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md)
+  — numbered propositions with an explicit evidence class (`PROVED` /
+  `MEASURED` / `CONJECTURE`), including the seal-path injectivity result *and
+  its counterexample*, the measured boundary of Yosys's SVA support, and a
+  verified Yosys-only proof pipeline.
 
 ---
 
@@ -84,7 +89,7 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1164 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1174 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
@@ -129,7 +134,15 @@ t27c gen-bitnet-bundle --output bundle.sv [--with-sva]
 ```
 
 The `--with-sva` flag (R-BV-2, Dmitrii) wraps every emit with SystemVerilog
-Assertions so the entire bundle is formal-friendly.
+Assertions. **Scope note (measured 2026-08-09):** the emitted properties are
+now inside a `bind`-able `module behavior_sva_v2` — previously they were
+written at file scope, which is invalid SystemVerilog and which no tool
+accepted. Even so, Yosys's `read_verilog` frontend supports **neither** named
+`property` blocks **nor** inline `assert property (@(posedge clk) ...)`, only
+immediate assertions inside `always`. So this output cannot be checked by a
+SymbiYosys flow without `sv2v` or Verific. See
+[`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md) Prop. 2, and Prop. 3
+for a Yosys-only pipeline that does prove and refute.
 
 ### Host stack (W39 R-HS-1, W40 R-HS-2)
 
@@ -200,7 +213,7 @@ git submodule update --init --recursive
 - BitNet HLS suites: 9 modules x dedicated integration suite each
 - Host stack: `host_driver` (25), `host_irq` (25)
 - R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
-- Regression: **22 integration suites green**, total **1164 / 1164 passed,
+- Regression: **22 integration suites green**, total **1174 / 1174 passed,
   0 failed** (`cargo test --release`, measured 2026-08-09 at `1be60604`).
   The long-standing fail in
   `verilog_const_array::r_ca_1_emitter_on_real_mac_spec` is **fixed** as of

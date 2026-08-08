@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-09
 
+## sva-module-wrap + formal-foundations -- the SVA was never parseable
+
+- **WHERE**: `bootstrap/src/behavior_sva_v2.rs` (module wrapper + signal
+  collector + 9 tests), `bootstrap/src/main.rs` (non-injectivity test + honest
+  doc), **NEW** `docs/FORMAL_FOUNDATIONS.md`, `README.md`.
+- **Variant C from #1956 ("wire --with-sva into SymbiYosys") answered: you
+  cannot, as-is.** Measured on Yosys 0.63:
+  - named `property ... endproperty` -> `syntax error, unexpected TOK_PROPERTY`
+  - inline `assert property (@(posedge clk) ...)` -> `syntax error, unexpected '@'`
+  - immediate `always @(posedge clk) assert (...)` -> **accepted**
+  SymbiYosys uses Yosys as its frontend, so a `.sby` harness over this bundle
+  would have failed at parse. Shipping one would have been another artefact
+  citing a command nobody can run.
+- **Independent real defect, fixed**: the emitter wrote `property` blocks at
+  **file scope**, which SystemVerilog forbids (they must be in a module,
+  interface, or checker). Properties are now inside a `bind`-able
+  `module behavior_sva_v2` whose ports are the signals they reference,
+  collected by scanning the emitted body -- so the port list follows the DSL
+  vocabulary instead of drifting from it. `$error(...)` and string-literal
+  contents are excluded; 9 tests pin that.
+- **Also measured**: the bundle contains exactly **one** assertion in
+  synthesised RTL. "Formal-friendly" was the emitter's intent, not a checked
+  property.
+- **Verified Yosys-only proof pipeline** (no sby): `read_verilog -sv -formal`
+  -> `prep` -> `async2sync` -> `chformal -lower` ->
+  `sat -verify -prove-asserts -tempinduct`. Validated in **both** directions:
+  true property exits 0, false property exits 1. A pipeline that only ever
+  reports success is indistinguishable from one that checks nothing.
+- **Correction to the previous entry.** It said the new seal path was
+  "injective by construction". **That was wrong.** Flattening `/` to `_` cannot
+  be injective, since `_` is legal inside a component:
+  `specs/a_b/c.t27` and `specs/a/b_c.t27` both give `a_b_c.json`. It is
+  injective **on this corpus** (496 distinct images, measured), and the
+  save-time collision guard is what makes the residual risk safe. A test now
+  asserts the collision *holds*, so changing the encoding forces a revisit.
+- **NEW `docs/FORMAL_FOUNDATIONS.md`**: numbered propositions each tagged
+  `PROVED` / `MEASURED` / `CONJECTURE`, related work with titles fetched from
+  source metadata rather than memory, six conclusions, and four open questions
+  -- including whether a ternary-weight datapath is still the right target
+  given BitNet v2 moving the binding constraint to activation width.
+- Suite **1164 -> 1174 passed, 0 failed**. Seals still 496/496.
+
 ## seal-rebaseline -- 0/496 to 496/496, and the path function was not injective
 
 - **WHERE**: `bootstrap/src/main.rs` (`seal_file_path` rewritten + collision

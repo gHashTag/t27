@@ -3711,20 +3711,34 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     })
 }
 
-/// Canonical `.trinity/seals/` path for a spec.
+/// Canonical `.trinity/seals/` path for a spec: strip `specs/`, drop `.t27`,
+/// replace `/` with `_`.
 ///
-/// Derived from the spec's **path** (`<parent-dir>_<file-stem>.json`), not from
-/// its `module` declaration. The previous scheme used `<parent-dir>_<module>`
-/// and was **not injective**: `specs/ml/transformer/feed_forward.t27` and
-/// `specs/ml/transformer/feed_forward_network.t27` are different specs (436 and
-/// 41 lines) that both declare `module FeedForward;`, so both mapped onto
-/// `transformer_FeedForward.json`. Whichever was sealed last silently
-/// overwrote the other, leaving one spec permanently unverifiable -- the single
-/// stale entry left after a full 496-spec re-baseline.
+/// Derived from the spec's **path**, not its `module` declaration. The old
+/// `<parent-dir>_<module>` scheme was not injective:
+/// `specs/ml/transformer/feed_forward.t27` and `feed_forward_network.t27` are
+/// different specs (436 and 41 lines) that both declare `module FeedForward;`,
+/// so both mapped onto `transformer_FeedForward.json`. Whichever was sealed
+/// last silently overwrote the other, leaving one spec permanently
+/// unverifiable -- the single stale entry after a full 496-spec re-baseline.
+/// A second attempt, `<parent-dir>_<file-stem>`, still collided on
+/// `specs/math/constants.t27` vs `specs/tri/math/constants.t27`.
 ///
-/// File stems are unique within a directory by filesystem guarantee, so this
-/// mapping is injective by construction. It is also a *pure path function*:
-/// resolving a seal path no longer requires parsing or compiling the spec.
+/// **This function is injective on the current corpus, not in general.**
+/// Verified: 496 specs produce 496 distinct paths. But flattening `/` to `_`
+/// cannot be injective over all path sets, because `_` is legal inside a path
+/// component -- `specs/a_b/c.t27` and `specs/a/b_c.t27` both yield
+/// `a_b_c.json`. Directory names in this repo contain no `_` adjacent to a
+/// component boundary in a way that collides, which is a property of the
+/// corpus and could be broken by adding a directory.
+///
+/// That residual risk is handled where it matters rather than by a cleverer
+/// encoding: `seal --save` refuses to overwrite a seal whose recorded
+/// `spec_path` differs, so a future collision is a loud error at write time,
+/// not silent data loss. See `seal_path_tests::flattening_is_not_injective_in_general`.
+///
+/// It is also a *pure path function*: resolving a seal path requires no parse
+/// and no compile.
 fn seal_file_path(input_path: &str) -> std::path::PathBuf {
     let norm = input_path.replace('\\', "/");
     let rel = norm.strip_prefix("specs/").unwrap_or(&norm);
@@ -8725,6 +8739,21 @@ mod seal_path_tests {
         let a = seal_file_path("tests/comprehensive_suite.t27");
         let b = seal_file_path("specs/comprehensive_suite.t27");
         assert_ne!(a, b);
+    }
+
+    // Honest bound on the claim: flattening `/` to `_` cannot be injective over
+    // all path sets, because `_` is legal inside a path component. The corpus
+    // happens to avoid this; a new directory could reintroduce it. The
+    // save-time collision guard is what makes the residual risk safe, so this
+    // test pins the limitation rather than pretending it away.
+    #[test]
+    fn flattening_is_not_injective_in_general() {
+        assert_eq!(
+            seal_file_path("specs/a_b/c.t27"),
+            seal_file_path("specs/a/b_c.t27"),
+            "if this ever differs, the encoding changed and the doc comment \
+             plus the collision guard rationale need revisiting"
+        );
     }
 
     // Injectivity over a representative slice of the real corpus, including

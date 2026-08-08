@@ -368,15 +368,142 @@ pub fn build_behavior_sva_v2_block(behavior: &Behavior<'_>, index: usize) -> Str
 }
 
 /// Build a complete SVA file containing one or more behavior blocks (v2).
+/// SystemVerilog tokens that appear in an emitted property block but are not
+/// design signals.
+const SVA_RESERVED: &[&str] = &[
+    "property",
+    "endproperty",
+    "posedge",
+    "negedge",
+    "disable",
+    "iff",
+    "assert",
+    "cover",
+    "else",
+    "s_eventually",
+    "module",
+    "endmodule",
+    "input",
+    "wire",
+    "logic",
+    "timescale",
+    "default_nettype",
+    "none",
+    "ns",
+    "ps",
+];
+
+/// Collect the design signals a generated SVA body references, so they can be
+/// declared as module ports.
+///
+/// Scanning the emitted text rather than re-deriving names from the behavior
+/// DSL keeps one source of truth: as the DSL vocabulary grows, the port list
+/// follows the emitter automatically instead of drifting from it.
+pub fn collect_sva_signals(body: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for raw_line in body.lines() {
+        // Drop comments and string literals before tokenising -- `$error("...")`
+        // messages contain behavior names that are not signals.
+        let line = match raw_line.find("//") {
+            Some(i) => &raw_line[..i],
+            None => raw_line,
+        };
+        let mut cleaned = String::with_capacity(line.len());
+        let mut in_string = false;
+        for c in line.chars() {
+            match c {
+                '"' => in_string = !in_string,
+                _ if !in_string => cleaned.push(c),
+                _ => {}
+            }
+        }
+
+        let mut cur = String::new();
+        // `$error(...)` and friends tokenise to a bare `error` once `$` is
+        // treated as a separator, which would declare a system task as a port.
+        let mut dollar_prefixed = false;
+        let mut prev = ' ';
+        for c in cleaned.chars().chain(std::iter::once(' ')) {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                if cur.is_empty() {
+                    dollar_prefixed = prev == '$';
+                }
+                cur.push(c);
+                prev = c;
+                continue;
+            }
+            prev = c;
+            if cur.is_empty() {
+                continue;
+            }
+            let tok = std::mem::take(&mut cur);
+            if dollar_prefixed {
+                dollar_prefixed = false;
+                continue;
+            }
+            let is_label = tok.starts_with("p_")
+                || tok.starts_with("assert_")
+                || tok.starts_with("cover_");
+            let is_number = tok.chars().next().is_some_and(|c| c.is_ascii_digit());
+            if is_label
+                || is_number
+                || SVA_RESERVED.contains(&tok.as_str())
+                || found.contains(&tok)
+            {
+                continue;
+            }
+            found.push(tok);
+        }
+    }
+
+    // clk and rst_n lead the port list; the rest keep first-appearance order so
+    // the emitted module is byte-stable across runs.
+    let mut ports: Vec<String> = Vec::with_capacity(found.len());
+    for lead in ["clk", "rst_n"] {
+        if found.iter().any(|s| s == lead) {
+            ports.push(lead.to_string());
+        }
+    }
+    for s in found {
+        if s != "clk" && s != "rst_n" {
+            ports.push(s);
+        }
+    }
+    ports
+}
+
 pub fn build_behavior_sva_v2_file(behaviors: &[Behavior<'_>]) -> String {
-    let mut out = String::with_capacity(1024 + behaviors.len() * 640);
-    out.push_str(HEADER_V2);
+    let mut body = String::with_capacity(behaviors.len() * 640);
     for (i, b) in behaviors.iter().enumerate() {
         if i > 0 {
-            out.push('\n');
+            body.push('\n');
         }
-        out.push_str(&build_behavior_sva_v2_block(b, i));
+        body.push_str(&build_behavior_sva_v2_block(b, i));
     }
+
+    // SystemVerilog forbids `property` at file scope: it must live in a module,
+    // interface, or checker. Emitting it bare produced a file that no formal
+    // tool could read -- yosys rejects it with
+    // "syntax error, unexpected TOK_PROPERTY", and since SymbiYosys uses yosys
+    // as its frontend, this bundle could never have been formally checked. The
+    // properties now sit in a module whose ports are the signals they
+    // reference, which is `bind`-able onto the DUT.
+    let ports = collect_sva_signals(&body);
+
+    let mut out = String::with_capacity(1024 + body.len() + ports.len() * 24);
+    out.push_str(HEADER_V2);
+    out.push_str("module behavior_sva_v2 (\n");
+    if ports.is_empty() {
+        out.push_str("    // no signals referenced\n");
+    } else {
+        for (i, p) in ports.iter().enumerate() {
+            let comma = if i + 1 == ports.len() { "" } else { "," };
+            out.push_str(&format!("    input wire {}{}\n", p, comma));
+        }
+    }
+    out.push_str(");\n\n");
+    out.push_str(&body);
+    out.push_str("\nendmodule\n");
     out.push_str(FOOTER_V2);
     out
 }
@@ -825,5 +952,96 @@ mod tests {
         let result = build_behavior_sva_bind_block("my_fancy_module", &[b]);
         assert!(result.contains("module my_fancy_module_sva"));
         assert!(result.contains("bind my_fancy_module my_fancy_module_sva sva_inst"));
+    }
+}
+
+#[cfg(test)]
+mod sva_module_wrapper_tests {
+    use super::*;
+
+    // SystemVerilog forbids `property` at file scope. The emitter produced it
+    // bare for months; yosys rejects that with "unexpected TOK_PROPERTY", and
+    // since SymbiYosys uses yosys as its frontend, the bundle could never have
+    // been formally checked by the open-source flow.
+    #[test]
+    fn properties_are_wrapped_in_a_module() {
+        let b = Behavior {
+            name: "engine_busy_safety",
+            given: "running",
+            when: "posedge clk",
+            then: "set full",
+        };
+        let file = build_behavior_sva_v2_file(&[b]);
+        let m = file.find("module behavior_sva_v2").expect("module header");
+        let p = file.find("property p_").expect("property decl");
+        let e = file.find("endmodule").expect("endmodule");
+        assert!(m < p, "property must come after the module header");
+        assert!(p < e, "property must come before endmodule");
+    }
+
+    #[test]
+    fn referenced_signals_become_ports() {
+        let body = "property p_x;\n    @(posedge clk) disable iff (!rst_n)\n    running |-> full;\nendproperty\n";
+        let ports = collect_sva_signals(body);
+        for want in ["clk", "rst_n", "running", "full"] {
+            assert!(ports.iter().any(|p| p == want), "missing port {want}");
+        }
+    }
+
+    // `$error("...")` tokenises to a bare `error` once `$` is a separator, which
+    // would declare a system task as a module port.
+    #[test]
+    fn system_tasks_are_not_ports() {
+        let body = "assert_0_x: assert property (p_x)\n    else $error(\"Assertion failed: x\");\n";
+        let ports = collect_sva_signals(body);
+        assert!(!ports.iter().any(|p| p == "error"), "$error leaked: {ports:?}");
+    }
+
+    // The message text inside $error(...) names the behavior, not a signal.
+    #[test]
+    fn string_literal_contents_are_not_ports() {
+        let body = "else $error(\"Assertion failed: engine_busy_safety\");\n";
+        let ports = collect_sva_signals(body);
+        assert!(ports.is_empty(), "string contents leaked: {ports:?}");
+    }
+
+    #[test]
+    fn comments_are_not_ports() {
+        let body = "// Behavior: irq_clear_on_reset\n// Given: reset inactive\nrst_n |-> full;\n";
+        let ports = collect_sva_signals(body);
+        assert!(!ports.iter().any(|p| p == "Behavior" || p == "Given"));
+        assert!(ports.iter().any(|p| p == "rst_n"));
+    }
+
+    #[test]
+    fn sva_keywords_and_labels_are_not_ports() {
+        let body = "property p_a;\n@(posedge clk) disable iff (!rst_n)\na |-> s_eventually b;\nendproperty\ncover_0_a: cover property (p_a);\n";
+        let ports = collect_sva_signals(body);
+        for bad in ["property", "endproperty", "posedge", "disable", "iff", "s_eventually", "cover"] {
+            assert!(!ports.iter().any(|p| p == bad), "keyword {bad} leaked");
+        }
+        assert!(!ports.iter().any(|p| p.starts_with("p_") || p.starts_with("cover_")));
+    }
+
+    #[test]
+    fn clk_and_rst_n_lead_the_port_list() {
+        let body = "zzz_signal |-> @(posedge clk) disable iff (!rst_n) aaa_signal;\n";
+        let ports = collect_sva_signals(body);
+        assert_eq!(ports[0], "clk");
+        assert_eq!(ports[1], "rst_n");
+    }
+
+    #[test]
+    fn port_order_is_stable_across_runs() {
+        let body = "a |-> @(posedge clk) disable iff (!rst_n) b;\n";
+        assert_eq!(collect_sva_signals(body), collect_sva_signals(body));
+    }
+
+    #[test]
+    fn numeric_literals_are_not_ports() {
+        let body = "rst_n |-> ##1 full;\n";
+        let ports = collect_sva_signals(body);
+        assert!(!ports.iter().any(|p| p == "1"));
+        assert!(ports.iter().any(|p| p == "full"));
     }
 }
