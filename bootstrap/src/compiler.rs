@@ -834,6 +834,9 @@ pub struct Parser {
     current: Token,
     peek: Token,
     pending_pragma: String,
+    /// Inside a paren-less if/while condition a `{` opens the BODY, never a
+    /// struct literal (the Rust rule); parse_primary consults this.
+    no_struct_literal: bool,
 }
 
 #[derive(Clone)]
@@ -853,6 +856,7 @@ impl Parser {
             current: first,
             peek: second,
             pending_pragma: String::new(),
+            no_struct_literal: false,
         }
     }
 
@@ -1590,6 +1594,12 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
+        // Reference types are transparent at the spec level: `&str` / `&T`
+        // parse as their referent (t27#1960).
+        if self.current.kind == TokenKind::Amp {
+            self.advance(); // consume &
+        }
+
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
         // named tuples like (a: T, b: T) do not hang the parser and are stored
         // as-is for backends that do not need to unpack them.
@@ -1770,6 +1780,13 @@ impl Parser {
         let has_error_union = self.current.kind == TokenKind::Bang;
         if has_error_union {
             self.advance(); // consume !
+        }
+
+        // Reference types are transparent at the spec level: `&str` / `&T`
+        // parse as their referent (t27#1960 fallout -- the old recovery
+        // silently dropped whole fns over the `&`).
+        if self.current.kind == TokenKind::Amp {
+            self.advance(); // consume &
         }
 
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
@@ -2161,10 +2178,21 @@ impl Parser {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: `if (cond) { ... }` or the paren-less Rust-style
+        // `if cond { ... }` -- both appear across the spec corpus, and the
+        // paren-less form was silently DROPPED by the old statement recovery
+        // (t27#1960 fallout of the #1941 hardening).
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal = true;
+            let c = self.parse_expr();
+            self.no_struct_literal = false;
+            c?
+        };
         if_node.children.push(cond);
 
         // Then branch: { ... }
@@ -2233,10 +2261,18 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: parenthesized or paren-less (see parse_if_stmt).
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal = true;
+            let c = self.parse_expr();
+            self.no_struct_literal = false;
+            c?
+        };
         while_node.children.push(cond);
 
         // Body: { ... }
@@ -2836,8 +2872,9 @@ impl Parser {
                     }
                 }
 
-                // Check for struct literal: Name{ .field = expr, ... }
-                if self.current.kind == TokenKind::LBrace {
+                // Check for struct literal: Name{ .field = expr, ... }. In a
+                // paren-less condition the `{` opens the statement body.
+                if self.current.kind == TokenKind::LBrace && !self.no_struct_literal {
                     return self.parse_struct_literal(name);
                 }
 
@@ -3061,8 +3098,18 @@ impl Parser {
         let cond = self.parse_expr()?;
         self.expect(TokenKind::RParen)?;
 
-        // Then expression
-        let then_expr = self.parse_expr()?;
+        // Then expression. Braced arms (`if (c) { 2 } else { 0 }`) are the
+        // common spec spelling; the bare-expression form stays supported.
+        // Before #1941 the brace was silently swallowed by statement
+        // recovery -- now it must parse (t27#1960, mac.t27 pack_trit).
+        let then_expr = if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            let e = self.parse_expr()?;
+            self.expect(TokenKind::RBrace)?;
+            e
+        } else {
+            self.parse_expr()?
+        };
 
         // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
@@ -3071,7 +3118,14 @@ impl Parser {
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = self.parse_expr()?;
+            let else_expr = if self.current.kind == TokenKind::LBrace {
+                self.advance(); // consume {
+                let e = self.parse_expr()?;
+                self.expect(TokenKind::RBrace)?;
+                e
+            } else {
+                self.parse_expr()?
+            };
             if_node.children.push(else_expr);
         }
 

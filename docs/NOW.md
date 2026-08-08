@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-08
 
+## parser: braced if-expr arms, paren-less conditions, &-transparent types; fpga specs repaired (Refs #1960)
+
+- If-EXPRESSIONS accept braced arms (`if (c) { 2 } else { 0 }`); if/while STATEMENTS accept paren-less Rust-style conditions with the struct-literal-in-condition rule (a `{` after the cond opens the body)
+- Reference types are transparent (`&str`/`&T` parse as the referent)
+- mac.t27 pack_trit (braced if-expr), spi.t27 (three `match` constructs -- FSM tick, prescaler, SCK -- silently dropped for ever), fifo.t27 (four literal missing-paren typos) repaired
+- fpga-build --smoke: 2 -> 21 of 35 modules generate; remaining tails are the given/then BDD fn form (linker) onward
+- tri-net 77-spec icarus gate green, unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
 ## gen-verilog: W458 keeps the legacy [N]T binding; unit contracts updated (Refs #1948)
 
 - The W458 array-param exclusion narrows to rust-style [T; N] primitives only; legacy [N]T keeps its module-array ROM binding contract
