@@ -13,8 +13,8 @@ about the IGLA spec corpus.
 
 **The IGLA CODER and IGLA RACE specifications — roughly 69,000 lines across 27
 files — have never compiled.** Before this wave, **0 of 27** emitted Verilog.
-After repairing one mechanical defect, **8 of 27** do; of those, **7 survive
-real synthesis**.
+After repairing one mechanical defect, **8 of 27** do; of those, 7 pass yosys —
+but **0 produce any logic** (W554 correction, §3).
 
 Investigating that led to the larger result: **363 of the repository's 1063
 specs (34.1 %) do not parse at all**, IGLA being 19 of them (§4.3b).

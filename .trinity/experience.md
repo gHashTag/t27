@@ -20001,3 +20001,46 @@ Seal store: 1714 seals for 1063 specs. 548 spec_paths carry MORE THAN ONE seal
 (585 redundant files) because the filename convention changed from `<Module>`
 to `<parentdir>_<Module>` without cleanup. 91 orphans: 89 whose spec was
 deleted (real hashes, left behind), 2 whose spec never existed in history.
+
+## Wave Loop 554 — my own metric was overstating (2026-08-09)
+
+### Delivered
+
+- `t27c fpga-chipdb`: the W553 chipdb recipe as a command. Extracts inputs from
+  the image, runs bbaexport NATIVELY (the ~7 GB step), bbasm in Docker,
+  idempotent, and reports exit 137 as "KILLED by the OOM killer" because the
+  tool prints nothing when that happens.
+- `t27c synth-gate` now parses yosys's "Estimated number of LCs" and flags
+  HOLLOW designs.
+
+### The finding: 0 of 7 "synthesising" IGLA RACE specs produce hardware
+
+specs/igla/race/ternary_gemm.t27 synthesises cleanly to:
+
+    463 cells = 459 $print + 3 IBUF + 1 OBUF
+    Estimated number of LCs: 0
+
+The generated module has a FIXED clk/rst_n/en/ready interface, drives only
+`assign ready = 1'b1;`, and emits the spec's arithmetic as Verilog `function`
+definitions that NOTHING INSTANTIATES -- so synthesis optimises it all away.
+
+Measured across specs/igla/race: 8 generate, 7 synthesise, **0 produce logic**.
+
+**The consequence for IGLA RACE:** the ternary MAC that works, that T1-T3
+prove, and that is inside the W553 bitstream, is HAND-WRITTEN Verilog
+(fpga/verilog/ternary_mac_synth.v, 59 LUT / 32 FF). The .t27 spec of the same
+name generates no hardware. For this line the spec-to-RTL claim is not
+demonstrated.
+
+### The lesson
+
+This is the FIFTH integrity claim in this chain found satisfiable by content
+that means nothing -- after vacuous tests (57% assert true), static readiness
+(never invoked a synthesiser), vacuous seals (none matches none) and inflated
+invariant counts. **This one was mine**: W549 introduced synth-gate precisely
+to stop metrics overstating readiness, and it overstated readiness.
+
+Generalise: when you add a metric to catch overstatement, ask immediately what
+its own hollow-success case looks like. "The tool exited 0" is never the
+measurement; find the quantity that would be zero if nothing happened, and
+report THAT. For synthesis it is logic cells, not exit status.
