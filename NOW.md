@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: const-name array sizes resolved; packed array-literal locals; keyword-safe local names (Refs #1948)
+
+- `[u32; HISTORY_SIZE]` (const-name size) silently fell back to a 32-bit scalar input while `[u32; 16]` (literal) packed to 512 bits -- packed callers desynced from packed locals. All type strings now resolve const array sizes to numerics up front
+- primitive [T; N] test-block locals initialized from an array LITERAL now emit as a packed vector (was an unpacked memory, which cannot be passed whole to a packed fn param -- "Array needs an array index")
+- fn-local reg declarations and assignments escape reserved words (a local named `config` emitted `reg [511:0] config;`)
+- tri-net corpus: icarus 77 -> 85 (load_predictor, anomaly_detector, auto_config, cache_management, health_dashboard, local_processing, network_orchestrator, integration_framework); no gate regression
+- FROZEN_HASH resealed
+
 ## parser: BDD-style fns skipped; fpga-smoke fully green (Closes #1960)
 
 - `fn name() given ... then ...` (a keyword-style test spelled as a fn, linker.t27) is now recognized BEFORE return-type parsing -- otherwise `given` was consumed as an identifier return type and the body brace check failed

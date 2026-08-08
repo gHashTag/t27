@@ -6554,7 +6554,69 @@ impl VerilogCodegen {
         }
     }
 
-    pub fn gen_verilog(&mut self, ast: &Node) {
+    /// Rewrite const-name array sizes to numeric literals in every type
+    /// string so the (literal-only) array-type parser lowers `[u32; N]`
+    /// consistently for params, returns, locals and fields. Verilog packing
+    /// keys off parse_array_type; an unresolved const name (`[u32; HISTORY_SIZE]`)
+    /// silently fell back to a 32-bit scalar, desyncing packed callers from
+    /// packed locals (t27#1948).
+    fn resolve_array_size_consts(
+        ty: &str,
+        consts: &std::collections::HashMap<String, String>,
+    ) -> String {
+        let t = ty.trim();
+        if let Some(semi) = t.rfind(';') {
+            if t.starts_with('[') && t.ends_with(']') {
+                let size = t[semi + 1..t.len() - 1].trim();
+                if size.parse::<usize>().is_err() {
+                    if let Some(v) = consts.get(size) {
+                        if v.parse::<usize>().is_ok() {
+                            return format!("{}; {}]", &t[..semi], v);
+                        }
+                    }
+                }
+            }
+        }
+        ty.to_string()
+    }
+
+    fn rewrite_type_consts(
+        node: &mut Node,
+        consts: &std::collections::HashMap<String, String>,
+    ) {
+        if !node.extra_type.is_empty() {
+            node.extra_type = Self::resolve_array_size_consts(&node.extra_type, consts);
+        }
+        if !node.extra_return_type.is_empty() {
+            node.extra_return_type =
+                Self::resolve_array_size_consts(&node.extra_return_type, consts);
+        }
+        for p in node.params.iter_mut() {
+            p.1 = Self::resolve_array_size_consts(&p.1, consts);
+        }
+        for child in node.children.iter_mut() {
+            Self::rewrite_type_consts(child, consts);
+        }
+    }
+
+    pub fn gen_verilog(&mut self, ast_in: &Node) {
+        // Resolve const-name array sizes up front, then work off the rewritten
+        // clone so array packing is uniform (t27#1948).
+        let mut size_consts: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for decl in &ast_in.children {
+            if decl.kind == NodeKind::ConstDecl {
+                if let Some(v) = decl.children.first() {
+                    if v.kind == NodeKind::ExprLiteral && v.value.parse::<usize>().is_ok() {
+                        size_consts.insert(decl.name.clone(), v.value.clone());
+                    }
+                }
+            }
+        }
+        let mut ast_owned = ast_in.clone();
+        Self::rewrite_type_consts(&mut ast_owned, &size_consts);
+        let ast = &ast_owned;
+
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
         } else {
@@ -7191,7 +7253,7 @@ impl VerilogCodegen {
             if !range.is_empty() {
                 self.write(&format!("{} ", range));
             }
-            self.write(&format!("{} = ", node.name));
+            self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
             if !node.children.is_empty() {
                 self.gen_verilog_expr(&node.children[0]);
             } else {
@@ -7225,7 +7287,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 return;
@@ -7252,7 +7314,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 let init_node = if !node.children.is_empty() {
                     match node.children[0].kind {
                         NodeKind::ExprArrayLiteral => Some(node.children[0].clone()),
@@ -7299,7 +7361,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.module_packed_primitive_arrays.insert(
@@ -7508,7 +7570,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -7542,7 +7604,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -7611,7 +7673,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -8872,14 +8934,14 @@ impl VerilogCodegen {
             let width = self.element_width(&base);
             if phase != LocalEmitPhase::Init {
                 self.write_indent();
-                self.write_line(&format!("reg [{}:0] {};", width - 1, node.name));
+                self.write_line(&format!("reg [{}:0] {};", width - 1, Self::verilog_safe_identifier(&node.name)));
             }
             if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                 if phase == LocalEmitPhase::Full {
                     self.write_line("");
                 }
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
             } else if phase == LocalEmitPhase::Full {
@@ -8897,12 +8959,12 @@ impl VerilogCodegen {
                 let total_width = dims[0] * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
                     self.write_indent();
-                    self.write(&format!("{} = ", node.name));
+                    self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                     if child.kind == NodeKind::ExprArrayLiteral {
                         self.emit_packed_array_literal_concat(child, &node.extra_type);
                     } else {
@@ -8925,7 +8987,7 @@ impl VerilogCodegen {
                 let total_width: usize = dims.iter().product::<usize>() * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
@@ -8934,7 +8996,7 @@ impl VerilogCodegen {
                     // wholesale because the layout matches the packed-vector register.
                     if child.kind != NodeKind::ExprArrayLiteral {
                         self.write_indent();
-                        self.write(&format!("{} = ", node.name));
+                        self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                         self.gen_verilog_expr(child);
                         self.write_line(";");
                     } else {
@@ -8966,9 +9028,13 @@ impl VerilogCodegen {
             let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
             ).unwrap_or((Vec::new(), "u32".to_string()));
             let child = node.children.first();
-            let is_packed_init = child.map_or(false, |c| {
-                c.kind != NodeKind::ExprArrayLiteral
-            });
+            // A primitive [T; N] local passed WHOLE to a function must be a
+            // packed vector -- fn params lower packed since t27#1952, so an
+            // unpacked memory init (the array-literal path) desynced and
+            // iverilog reported "Array needs an array index" (t27#1948 tail).
+            // Pack the literal init too: the concat text path (t27#1953) and
+            // part-select indexing (#1745) both already support it.
+            let is_packed_init = child.is_some();
             if is_packed_init {
                 let width = self.packed_width(&node.extra_type) as usize;
                 let signed = self.packed_signed(&node.extra_type);
@@ -8983,13 +9049,18 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.write_line(&format!(
                         "reg {}{}{};",
-                        signed_str, range_str, node.name
+                        signed_str, range_str, Self::verilog_safe_identifier(&node.name)
                     ));
                 }
                 if phase != LocalEmitPhase::Decl && child.is_some() {
+                    let c = child.unwrap();
                     self.write_indent();
-                    self.write(&format!("{} = ", node.name));
-                    self.gen_verilog_expr(child.unwrap());
+                    self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
+                    if c.kind == NodeKind::ExprArrayLiteral {
+                        self.emit_packed_array_literal_concat(c, &node.extra_type);
+                    } else {
+                        self.gen_verilog_expr(c);
+                    }
                     self.write_line(";");
                 } else if phase == LocalEmitPhase::Full {
                     self.write_line("");
