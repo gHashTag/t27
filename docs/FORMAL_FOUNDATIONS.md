@@ -783,6 +783,63 @@ this campaign, and every RTL defect found had one.**
 
 ---
 
+### Proposition 18 — the open anomaly of Prop. 17, closed: a stale flag and a missing handshake
+
+`PROVED`. Prop. 17 recorded a reproduced but uncharacterised refutation:
+prefetch could write the weight BRAM while the MAC was reading it, despite
+`multilayer_sequencer` keeping `PREFETCH` and `LAYER_RUN` in separate states.
+**Two independent defects, in two different modules.**
+
+**18a. Getting a legible trace was the whole problem.** Top-level signal names
+survive `-flatten`, so `sat ... -show pf_bram_we -show mac_valid_q ...` prints a
+readable cycle table where a VCD gave only mangled internals. The table made
+both causes visible in one reading, after two waves of not being able to see
+them.
+
+**18b. Defect one — a stale completion flag.** `weight_prefetch_ctrl` sets
+`prefetch_done` in `DONE_ST` and clears it **only** at reset or inside the
+`start_prefetch && num_words != 0` guard. After a completed prefetch it stays
+high, so the next requester sees the *previous* transaction's completion.
+
+Fixed by clearing on **request** rather than on successful start, with a
+zero-word request routed straight to `DONE_ST` so clearing the flag cannot
+strand the requester:
+
+```verilog
+IDLE: if (start_prefetch) begin
+    prefetch_done <= 1'b0;
+    if (num_words != 16'd0) begin ... end else state <= DONE_ST;
+end
+```
+
+**18c. Defect two — a missing request/acknowledge.** That alone did not fix it.
+The second trace showed `layer_start` one cycle after `start_prefetch`:
+`multilayer_sequencer` tests `prefetch_done` in the **first** cycle of
+`PREFETCH`, before the controller has had a cycle to clear it. A level-triggered
+handshake cannot distinguish "done already" from "done still".
+
+Fixed with an explicit acknowledgement — the requester waits to observe the flag
+*low* before accepting it high:
+
+```verilog
+if (!prefetch_done) pf_ack <= 1'b1;
+if (pf_ack && prefetch_done) begin ... end
+```
+
+**18d. Why one fix was not enough, and why that matters.** After 18b the
+property still refuted, and the temptation at that point is to conclude the
+first diagnosis was wrong. It was not — it was **incomplete**. Two modules each
+contributed a defect that the other's correctness would have masked. **A
+refutation that survives a correct fix means another cause, not a wrong
+diagnosis; re-read the trace rather than reverting.**
+
+**18e. The recorded gap paid off.** Prop. 17 chose to document rather than
+weaken. Had the property been softened to pass, both defects would have shipped
+under a green check, and the trace that identified them would never have been
+taken.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -184,11 +184,31 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            // controller writes BRAM indefinitely. Yosys refuted\n");
     s.push_str("            // `writes <= num_words` from a reachable state; with num_words > 0\n");
     s.push_str("            // assumed it proves. See FORMAL_FOUNDATIONS Prop. 13.\n");
-    s.push_str("            IDLE: if (start_prefetch && (num_words != 16'd0)) begin\n");
-    s.push_str("                state <= FETCH; prefetch_active <= 1'b1; prefetch_done <= 1'b0;\n");
-    s.push_str("                axi_araddr <= src_addr;\n");
-    s.push_str("                words_remaining <= num_words;\n");
-    s.push_str("                bram_addr <= 12'd0;\n");
+    s.push_str("            //\n");
+    s.push_str("            // prefetch_done must be cleared the moment a prefetch is\n");
+    s.push_str("            // REQUESTED, not when one successfully starts. It used to be\n");
+    s.push_str("            // cleared only inside the num_words guard, so after a completed\n");
+    s.push_str("            // prefetch it stayed high and the next requester saw the\n");
+    s.push_str("            // PREVIOUS transaction's completion -- multilayer_sequencer left\n");
+    s.push_str("            // PREFETCH one cycle after entering it, restarting compute while\n");
+    s.push_str("            // this controller was still streaming into the shared weight\n");
+    s.push_str("            // BRAM. Yosys refuted !(bram_we && mac_valid_q) at the top level\n");
+    s.push_str("            // from a reachable state; the trace showed layer_start one cycle\n");
+    s.push_str("            // after start_prefetch. See FORMAL_FOUNDATIONS Prop. 18.\n");
+    s.push_str("            //\n");
+    s.push_str("            // A zero-word request completes immediately rather than hanging:\n");
+    s.push_str("            // clearing done without a path back to DONE_ST would stall the\n");
+    s.push_str("            // sequencer forever.\n");
+    s.push_str("            IDLE: if (start_prefetch) begin\n");
+    s.push_str("                prefetch_done <= 1'b0;\n");
+    s.push_str("                if (num_words != 16'd0) begin\n");
+    s.push_str("                    state <= FETCH; prefetch_active <= 1'b1;\n");
+    s.push_str("                    axi_araddr <= src_addr;\n");
+    s.push_str("                    words_remaining <= num_words;\n");
+    s.push_str("                    bram_addr <= 12'd0;\n");
+    s.push_str("                end else begin\n");
+    s.push_str("                    state <= DONE_ST;\n");
+    s.push_str("                end\n");
     s.push_str("            end\n");
     s.push_str("            FETCH: begin\n");
     s.push_str("                axi_arvalid <= 1'b1;\n");
@@ -373,7 +393,11 @@ mod tests {
         assert!(v.contains("localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;"));
         // Was pinning the unguarded form, which is what let a zero-word
         // prefetch underflow and write BRAM forever.
-        assert!(v.contains("IDLE: if (start_prefetch && (num_words != 16'd0)) begin"));
+        // done is cleared on REQUEST, not on successful start -- clearing it
+        // only inside the num_words guard left it stale between transactions.
+        assert!(v.contains("IDLE: if (start_prefetch) begin"));
+        assert!(v.contains("prefetch_done <= 1'b0;"));
+        assert!(v.contains("if (num_words != 16'd0) begin"));
         assert!(v.contains("FETCH: begin"));
         assert!(v.contains("DONE_ST: begin"));
     }

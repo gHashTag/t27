@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## weight-bram-overlap-closed -- a stale flag and a missing handshake
+
+- **WHERE**: `bootstrap/src/bitnet_buffers.rs`, `bootstrap/src/bitnet_pipeline.rs`,
+  `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_buffers.rs`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 18), `README.md`.
+- **Variant A from #1984**: characterise the overlap recorded as open. **Two
+  independent defects, in two different modules.**
+- **Getting a legible trace was the whole problem.** Top-level signal names
+  survive `-flatten`, so `sat ... -show pf_bram_we -show mac_valid_q ...` prints
+  a readable cycle table where a VCD gave only mangled internals. Both causes
+  were visible in one reading after two waves of not seeing them.
+- **Defect one -- stale completion flag.** `prefetch_done` is set in DONE_ST and
+  cleared only at reset or inside the `start_prefetch && num_words != 0` guard,
+  so after a completed prefetch it stays high and the next requester reads the
+  *previous* transaction's completion. Fixed by clearing on **request**, with a
+  zero-word request routed straight to DONE_ST so clearing cannot strand the
+  requester.
+- **Defect two -- missing request/acknowledge.** That alone did not fix it. The
+  second trace showed `layer_start` one cycle after `start_prefetch`:
+  `multilayer_sequencer` tests `prefetch_done` in the **first** PREFETCH cycle,
+  before the controller can clear it. Fixed with `pf_ack` -- wait to observe the
+  flag low before accepting it high.
+- **A refutation that survives a correct fix means another cause, not a wrong
+  diagnosis.** The pull after 18b was to conclude the first diagnosis was wrong;
+  it was incomplete, and each module's defect would have been masked by the
+  other's correctness.
+- **The recorded gap paid off.** Prop 17 documented rather than weakened. A
+  softened property would have shipped both defects under a green check.
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## host-path-wired -- no tie-offs left; one property recorded, not asserted
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
