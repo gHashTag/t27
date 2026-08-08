@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: test-block for-loops emitted; loop-variant calls not CSE-hoisted; tail expressions (Refs #1948)
+
+- `for i in ..` / `while` in a test block was dropped as `// (stmt: StmtForRange)`, silently voiding loop bodies that accumulate assertions. Loops emit now (loop var declared `integer`)
+- The call-CSE pass hoisted a call from inside a loop into ONE temp evaluated before the loop with an uninitialized index -- the loop then tested a constant. predeclare no longer recurses into loop bodies, so loop-variant calls are emitted inline per iteration
+- A Rust-style tail expression (a fn body ending in a bare expression) lowers to an implicit return assignment `<fn> = <expr>;` instead of a bare `expr;` (an unknown-task enable)
+- tri-net corpus: icarus 97 -> 98 (m3_multihop); cross_layer_optimizer already joined
+- FROZEN_HASH resealed
+
 ## gen-verilog: tuple-destructure temp declared in test blocks (Refs #1948)
 
 - A test-block `let (a, b) = call()` slices a packed temp `__tup_l{line}`, but that temp (and the element regs) are declared only in emit_local's Decl phase, which the TB Init-only path skips -- the temp was referenced undeclared ("Could not find variable __tup_l242")

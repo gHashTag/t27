@@ -5201,6 +5201,15 @@ impl VerilogCodegen {
                 }
             }
         }
+        // Do NOT recurse into loop bodies: a call there runs per iteration and
+        // may depend on the loop variable, so it must be emitted inline each
+        // pass, never hoisted into one loop-invariant temporary (t27#1948).
+        if matches!(
+            node.kind,
+            NodeKind::StmtForRange | NodeKind::StmtWhile | NodeKind::StmtFor
+        ) {
+            return;
+        }
         for child in &node.children {
             self.predeclare_call_array_tmps(child, block_name);
         }
@@ -8283,6 +8292,25 @@ impl VerilogCodegen {
                 self.write_line("end");
                 return;
             }
+            // A final bare expression is a Rust-style tail expression --
+            // the function's implicit return value. Verilog has no tail
+            // expressions, so it emitted `expr;` (a bare statement iverilog
+            // reads as a task-enable). Lower the LAST StmtExpr to an implicit
+            // return assignment `<fn> = <expr>;` (t27#1948).
+            let is_tail_expr = idx + 1 == stmts.len()
+                && stmt.kind == NodeKind::StmtExpr
+                && !stmt.children.is_empty()
+                && !self.current_fn_name.is_empty()
+                && self.current_fn_return_type != "void";
+            if is_tail_expr {
+                self.write_indent();
+                let asn = if self.clocked_nonblocking { " <= " } else { " = " };
+                self.write(&self.current_fn_name.clone());
+                self.write(asn);
+                self.gen_verilog_expr(&stmt.children[0]);
+                self.write_line(";");
+                continue;
+            }
             // #1741: top-level locals had their `reg` declaration hoisted, so
             // emit only the assignment here.
             if self.hoist_fn_locals && stmt.kind == NodeKind::StmtLocal {
@@ -8446,6 +8474,19 @@ impl VerilogCodegen {
                                 }
                             }
                         }
+                    }
+                    // A `for i in ..` loop variable needs an `integer`
+                    // declaration at the block top (t27#1948, TB for-loop
+                    // support). The body statements are walked via `stack`.
+                    if stmt.kind == NodeKind::StmtForRange
+                        && !stmt.name.is_empty()
+                        && declared.insert(stmt.name.clone())
+                    {
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "integer {}; // t27#1948 loop variable",
+                            Self::verilog_safe_identifier(&stmt.name)
+                        ));
                     }
                     // Untyped (or nested) `let` locals never reached a reg
                     // declaration either -- iverilog cannot bind them
@@ -8807,6 +8848,12 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.gen_verilog_stmt(node);
                 }
+                NodeKind::StmtForRange
+                | NodeKind::StmtWhile
+                | NodeKind::StmtFor => {
+                    self.materialize_call_array_tmps_in_expr(node);
+                    self.gen_verilog_stmt(node);
+                }
                 _ => {
                     self.write_indent();
                     self.write_line(&format!("// (stmt: {:?})", node.kind));
@@ -8891,6 +8938,14 @@ impl VerilogCodegen {
                     // t27#1894 declared the target regs; the assignment itself
                     // was still emitted COMMENTED OUT, so every binding built
                     // from a call (`array = create(...)`) stayed X in the TB.
+                    self.gen_verilog_stmt(node);
+                }
+                NodeKind::StmtForRange
+                | NodeKind::StmtWhile
+                | NodeKind::StmtFor => {
+                    // Control flow in a test block: a `for`/`while`/`if` was
+                    // dropped as `// (stmt: StmtForRange)`, silently voiding
+                    // loop bodies that accumulate assertions (t27#1948).
                     self.gen_verilog_stmt(node);
                 }
                 _ => {
