@@ -95,13 +95,13 @@ no Docker, native macOS arm64.
   and always "passes", so `--timing-allow-fail` was effectively a no-op — the path was
   never actually being closed, just loosely met. Constraining the internal net tighter
   reports the true fmax (~21 MHz) but does not change the silicon hazard.
-- **Therefore the one viable structural fix is to PIPELINE the shared core** — register
-  the intermediate stages of `GftSmul`/`GftSadd` (a spec-level `on_clock` pipelined
-  multiply/add) so every microcode step reads a clean, registered value and the deep
-  combinational hazard is broken, letting nextpnr close each short stage at the real
-  200 MHz. This is a code/spec change, not a clock or constraint change. It is the
-  prerequisite for training nets larger than XOR on this open flow (where seed-search
-  runs out — a 62-step net does not stabilise in any seed).
+- **Pipelining the shared core was the leading hypothesis — and it was DISPROVEN on
+  silicon (see Ruled-out #10).** The intuition was that registering the intermediate
+  stages of `GftSmul`/`GftSadd` would break the deep combinational hazard. We built it
+  (bit-exact, mid-cloud registers) and it did **not** fix the lottery — nor did endpoint
+  registration (#7) or write/control hardening (#11). This is what pointed the fault at a
+  global effect, not the datapath. Kept here only to mark the hypothesis as tested; the
+  authoritative current state is the **Ruled-out fixes** list and its conclusion below.
 - **Where the depth actually is (measured, so we pipeline the right place).** `GftSmul`
   is purely combinational (`assign result = smul(a,b)`; the `clk`/`en`/`ready` ports are
   unused, so there is no read-before-ready bug). Yosys `ltp` (longest topological path)
