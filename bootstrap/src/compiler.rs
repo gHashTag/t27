@@ -3546,11 +3546,20 @@ impl Codegen {
             self.write_indent();
             self.write_line("@compileError(\"not yet implemented\");");
         } else {
+            // The CSE pass can leave its `_cse*` temp declarations AFTER their
+            // first use in this backend's statement order (the Rust path hoists
+            // them). They are pure expressions over consts/params, so emitting
+            // them first is always safe -- and required: Zig resolves locals
+            // lexically.
             for stmt in node.children.iter() {
-                self.gen_stmt(stmt);
-                // Zig also errors on unused LOCALS: a spec body may bind a value
-                // it never reads (dead trailing lets). Discard right after the
-                // declaration -- a discard after a `return` would be unreachable.
+                if stmt.kind == NodeKind::StmtLocal && stmt.name.starts_with("_cse") {
+                    self.gen_stmt(stmt);
+                }
+            }
+            for stmt in node.children.iter() {
+                if !(stmt.kind == NodeKind::StmtLocal && stmt.name.starts_with("_cse")) {
+                    self.gen_stmt(stmt);
+                }
             }
         }
 
@@ -3767,6 +3776,9 @@ impl Codegen {
                     if !node.children.is_empty() {
                         self.write(" = ");
                         self.gen_expr(&node.children[0]);
+                    } else {
+                        // Zig has no uninitialized declarations.
+                        self.write(" = undefined");
                     }
                     self.write_line(";");
                     if as_var {
@@ -4140,25 +4152,41 @@ impl Codegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                let size = if node.extra_size.is_empty() {
-                    "_".to_string()
+                // The parser stores the literal's ELEMENT TEXT in extra_size
+                // ("1,2,3" for a list, "0;4" for a repeat) with no children.
+                // Emit Zig anonymous-list forms, which coerce to the typed
+                // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
+                let txt = node.extra_size.trim().to_string();
+                if let Some((val, count)) = txt.rsplit_once(';') {
+                    self.write(&format!(".{{ {} }} ** {}", val.trim(), count.trim()));
                 } else {
-                    node.extra_size.clone()
-                };
-                let typ = if node.extra_type.is_empty() {
-                    ""
-                } else {
-                    &node.extra_type
-                };
-                self.write(&format!("[{}]{}", size, typ));
-                self.write("{");
-                for (i, elem) in node.children.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
+                    // Split on TOP-LEVEL commas only -- elements may be calls
+                    // with their own commas.
+                    let mut elems: Vec<String> = Vec::new();
+                    let mut depth = 0i32;
+                    let mut cur = String::new();
+                    for ch in txt.chars() {
+                        match ch {
+                            '(' | '[' => {
+                                depth += 1;
+                                cur.push(ch);
+                            }
+                            ')' | ']' => {
+                                depth -= 1;
+                                cur.push(ch);
+                            }
+                            ',' if depth == 0 => {
+                                elems.push(cur.trim().to_string());
+                                cur.clear();
+                            }
+                            _ => cur.push(ch),
+                        }
                     }
-                    self.gen_expr(elem);
+                    if !cur.trim().is_empty() {
+                        elems.push(cur.trim().to_string());
+                    }
+                    self.write(&format!(".{{ {} }}", elems.join(", ")));
                 }
-                self.write("}");
             }
             NodeKind::ExprStructLit => {
                 self.write(&node.name);
@@ -10793,9 +10821,31 @@ impl Compiler {
                 })
                 .filter(|n| !n.is_empty())
                 .collect();
-            let block_rest = lines[i + 1..block_end[i]].join("\n");
             let indent: String = line.chars().take_while(|c| *c == ' ').collect();
             for name in names {
+                // Scan only until the NAME is redeclared (shadowed) -- a later
+                // `const name = ...` line is a new binding, not a use.
+                let mut scan_end = block_end[i];
+                for (j, later) in lines[i + 1..block_end[i]].iter().enumerate() {
+                    let lt = later.trim_start();
+                    if lt.strip_prefix("const ").map_or(false, |r| {
+                        r.starts_with(&name)
+                            && !r[name.len()..]
+                                .chars()
+                                .next()
+                                .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                    }) || lt.strip_prefix("var ").map_or(false, |r| {
+                        r.starts_with(&name)
+                            && !r[name.len()..]
+                                .chars()
+                                .next()
+                                .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                    }) {
+                        scan_end = i + 1 + j;
+                        break;
+                    }
+                }
+                let block_rest = lines[i + 1..scan_end].join("\n");
                 if ident_count(&block_rest, &name) == 0 {
                     out.push(format!("{}_ = {}; // dead after const-inlining", indent, name));
                 }

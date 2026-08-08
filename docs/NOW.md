@@ -1,6 +1,14 @@
-# NOW — fix(gen-zig): var-inference + destructure discard + var silencer (2026-08-08)
+# NOW — fix(gen-zig): campaign complete, 68/68 valid (2026-08-08)
 
 Last updated: 2026-08-08
+
+## fix(gen-zig): array-literal text lowering, CSE hoist, undefined init, shadow-aware dead-local scan (Closes #1910)
+
+- ExprArrayLiteral carries its ELEMENT TEXT in extra_size with no children; Zig now emits `.{ e1, e2 }` / `.{ v } ** n` (paren-aware top-level comma split), which coerce to the typed array target
+- `_cse*` temp declarations are hoisted to the top of Zig fn bodies (the CSE pass can leave them after their first use in this backend's order; the Rust path already hoists)
+- Uninitialized locals emit `= undefined`; the dead-local post-pass stops counting at a REDECLARATION of the same name (a later `const name = ...` is a new binding, not a use)
+- tri-net zig ast-check: 3/68 -> **0/68 invalid** -- the campaign that started at 66/68 invalid is complete; tri-net can now commit gen/zig and restore its Zig drift leg
+- Unit suite 1537/1537; gen-rust byte-identical; FROZEN_HASH resealed
 
 ## fix(gen-zig): mutable-local var-inference, `_` destructure elements, branch-safe var silencer (Refs #1910)
 
