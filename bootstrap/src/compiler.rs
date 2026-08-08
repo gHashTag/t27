@@ -8976,15 +8976,34 @@ impl VerilogCodegen {
     /// `let (a, b) = expr`. The tuple type comes from an explicit annotation
     /// when present, otherwise from the return type of the initializing call.
     fn tuple_local_elem_types(&self, node: &Node) -> Option<Vec<String>> {
-        let ty = if !node.extra_type.trim().is_empty() {
-            node.extra_type.trim().to_string()
-        } else {
-            let init = node.children.first()?;
-            if init.kind != NodeKind::ExprCall {
-                return None;
+        if !node.extra_type.trim().is_empty() {
+            let t = node.extra_type.trim();
+            if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+                let inner = &t[1..t.len() - 1];
+                return Some(inner.split(',').map(|e| e.trim().to_string()).collect());
             }
-            self.fn_return_types.get(&init.name)?.clone()
-        };
+            return None;
+        }
+        let init = node.children.first()?;
+        // Tuple LITERAL init `let (a, b) = (4, 3)`: infer each element's type
+        // from the count of bindings (all default u32). Previously only
+        // call-returning inits were handled, so a literal-tuple destructure
+        // emitted a nameless `reg [31:0] ;` (t27#1948).
+        if init.kind == NodeKind::ExprTuple {
+            let n = node
+                .extra_field
+                .split(',')
+                .filter(|s| !s.trim().is_empty())
+                .count();
+            if n > 0 && n == init.children.len() {
+                return Some(vec!["u32".to_string(); n]);
+            }
+            return None;
+        }
+        if init.kind != NodeKind::ExprCall {
+            return None;
+        }
+        let ty = self.fn_return_types.get(&init.name)?.clone();
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
@@ -9028,7 +9047,25 @@ impl VerilogCodegen {
                     if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                         self.write_indent();
                         self.write(&format!("{} = ", tmp));
-                        self.gen_verilog_expr(&node.children[0]);
+                        // A tuple LITERAL RHS `(4, 3, 1)` emits bare unsized
+                        // literals in the concatenation ("indefinite width").
+                        // Width-cast each element to its binding width; other
+                        // RHS forms (calls) keep the plain emission.
+                        let init = &node.children[0];
+                        if init.kind == NodeKind::ExprTuple
+                            && init.children.len() == widths.len()
+                        {
+                            let parts: Vec<String> = init
+                                .children
+                                .iter()
+                                .zip(widths.iter())
+                                .rev()
+                                .map(|(c, w)| self.emit_packed_scalar_value(c, *w, false))
+                                .collect();
+                            self.write(&format!("{{{}}}", parts.join(", ")));
+                        } else {
+                            self.gen_verilog_expr(init);
+                        }
                         self.write_line(";");
                         let mut off = 0u32;
                         for (nm, w) in names.iter().zip(widths.iter()) {
