@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## gen-zig: mutable param shadows; var test bindings on reassignment; array-literal arg scan (Closes #1934)
+
+- A body assigning to a parameter emitted an assignment to the immutable Zig param; mutated params are renamed `<name>_arg` and the body opens with `var <name> = <name>_arg;`
+- Test-block bindings emitted `const` unconditionally; the first binding is now `var` when the name is assigned >= 2 times in the block
+- The unused-param scan missed identifiers living only in array-literal element text (extra_size); word-boundary text match added
+- tri-net corpus: "cannot assign to constant" class gone -- bandwidth_allocator, production_scenarios, tri_compute_challenge pass end-to-end
+- FROZEN_HASH resealed
+
 ## gen-zig: runtime shift amounts get @intCast; literal shift LHS pinned (Closes #1932)
 
 - `x << k` with a runtime amount emitted a raw u32/usize RHS (Zig wants u5 for u32) and `1 << family` left a comptime_int LHS; runtime amounts now emit `@intCast(rhs)` and a bare-literal LHS pins `@as(u32, lit)` (u64 above u32 range)
