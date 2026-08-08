@@ -2,6 +2,11 @@
 
 Last updated: 2026-08-08
 
+## gen-rust: array literals emit elements, not empty vec![] (Closes #1938)
+
+- ExprArrayLiteral keeps element text in extra_size with no children; the Rust emitter mapped children only, so every spec array literal compiled to an empty Vec-typed vec![] (E0308 against a [T; N] return). Emits `[a, b, c]` / `[v; n]` from the text now, mirroring the Zig/C fixes
+- FROZEN_HASH resealed
+
 ## opt+gen-zig: typed aliases stay materialized; @"primitive" idents; unused tuple elements (Closes #1936)
 
 - copy_propagate ignored the declared type: `let lo: u16 = byte_param;` propagated the bare u8 identifier into every use, silently narrowing the arithmetic (u8 shift/add where the spec wrote u16 math) -- typed aliases are the widening idiom and are no longer propagated (all backends)

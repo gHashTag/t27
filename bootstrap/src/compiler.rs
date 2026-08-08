@@ -14156,12 +14156,26 @@ impl RustCodegen {
                 format!("{}({})", node.name, args.join(", "))
             }
             NodeKind::ExprArrayLiteral => {
-                let elems: Vec<String> = node
-                    .children
-                    .iter()
-                    .map(|c| self.expr_to_rust(c))
-                    .collect();
-                format!("vec![{}]", elems.join(", "))
+                if node.children.is_empty() && !node.extra_size.trim().is_empty() {
+                    // The parser stores the literal's ELEMENT TEXT in
+                    // extra_size ("a,b,c" for a list, "v;n" for a repeat)
+                    // with no children; emitting from children alone
+                    // produced an empty (and Vec-typed) literal for a
+                    // [T; N] return. Element text is valid Rust as-is.
+                    let txt = node.extra_size.trim();
+                    if let Some((val, count)) = txt.rsplit_once(';') {
+                        format!("[{}; {}]", val.trim(), count.trim())
+                    } else {
+                        format!("[{}]", txt)
+                    }
+                } else {
+                    let elems: Vec<String> = node
+                        .children
+                        .iter()
+                        .map(|c| self.expr_to_rust(c))
+                        .collect();
+                    format!("[{}]", elems.join(", "))
+                }
             }
             NodeKind::ExprTuple => {
                 let elems: Vec<String> = node
