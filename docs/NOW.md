@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## opt+gen-zig: typed aliases stay materialized; @"primitive" idents; unused tuple elements (Closes #1936)
+
+- copy_propagate ignored the declared type: `let lo: u16 = byte_param;` propagated the bare u8 identifier into every use, silently narrowing the arithmetic (u8 shift/add where the spec wrote u16 math) -- typed aliases are the widening idiom and are no longer propagated (all backends)
+- Identifiers shadowing Zig primitive names (sha-round f16/f32/f64) emit @"name" at every value-identifier site; the dead-local text pass recognizes the @"name" form
+- Tuple-destructure elements never read in a test block bind as `_` (were "unused local constant")
+- tri-net corpus: tri_sha256 and hello pass zig test end-to-end
+- FROZEN_HASH resealed
+
 ## gen-zig: mutable param shadows; var test bindings on reassignment; array-literal arg scan (Closes #1934)
 
 - A body assigning to a parameter emitted an assignment to the immutable Zig param; mutated params are renamed `<name>_arg` and the body opens with `var <name> = <name>_arg;`

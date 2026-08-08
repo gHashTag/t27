@@ -3487,6 +3487,33 @@ impl Codegen {
     // mutable local (Zig rejects `var x = <comptime_int>`). u32 is the t27
     // default width; u64 only when the literal does not fit u32. Non-integer
     // literals (bool, string) already carry a concrete Zig type.
+    // A spec identifier that collides with a Zig primitive type name (sha
+    // round locals like f16/f32/f64) must be emitted as @"name" -- Zig
+    // rejects the bare name with "name shadows primitive". Applied at every
+    // value-identifier emission site so declarations and uses stay consistent.
+    fn zig_ident(name: &str) -> String {
+        let is_primitive = matches!(
+            name,
+            "bool"
+                | "void"
+                | "type"
+                | "anyerror"
+                | "anyframe"
+                | "noreturn"
+                | "usize"
+                | "isize"
+                | "comptime_int"
+                | "comptime_float"
+        ) || (name.len() >= 2
+            && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
+            && name[1..].chars().all(|c| c.is_ascii_digit()));
+        if is_primitive {
+            format!("@\"{}\"", name)
+        } else {
+            name.to_string()
+        }
+    }
+
     fn zig_int_literal_default_type(init: &Node) -> Option<&'static str> {
         if !matches!(init.kind, NodeKind::ExprLiteral) {
             return None;
@@ -3599,7 +3626,7 @@ impl Codegen {
 
         for pname in &shadowed {
             self.write_indent();
-            self.write_line(&format!("var {} = {}_arg;", pname, pname));
+            self.write_line(&format!("var {} = {}_arg;", Self::zig_ident(pname), pname));
         }
 
         // Zig errors on unused function parameters; a spec is free to keep one
@@ -3633,7 +3660,7 @@ impl Codegen {
         for (pname, _) in &node.params {
             if pname != "self" && !param_referenced(&node.children, pname) {
                 self.write_indent();
-                self.write_line(&format!("_ = {}; // unused by the spec body", pname));
+                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(pname)));
             }
         }
 
@@ -3703,7 +3730,7 @@ impl Codegen {
                     "const"
                 };
                 self.write_indent();
-                self.write(&format!("{} {} = ", kw, name));
+                self.write(&format!("{} {} = ", kw, Self::zig_ident(name)));
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else if tuple_binding {
@@ -3717,8 +3744,12 @@ impl Codegen {
                         bound.insert(e.name.clone());
                         if e.name == "_" {
                             "_".to_string()
+                        } else if count_ident_refs(&node.children, &e.name) <= 1 {
+                            // Bound but never read in this block: a named
+                            // binding would be an "unused local constant".
+                            "_".to_string()
                         } else {
-                            format!("const {}", e.name)
+                            format!("const {}", Self::zig_ident(&e.name))
                         }
                     })
                     .collect();
@@ -3792,7 +3823,7 @@ impl Codegen {
                     .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
                 self.write_indent();
-                self.write(&format!("const {} = ", stmt.children[0].name));
+                self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else if tuple_binding {
@@ -3807,7 +3838,7 @@ impl Codegen {
                         if e.name == "_" {
                             "_".to_string()
                         } else {
-                            format!("const {}", e.name)
+                            format!("const {}", Self::zig_ident(&e.name))
                         }
                     })
                     .collect();
@@ -3858,7 +3889,7 @@ impl Codegen {
                                 // never `const _`.
                                 "_".to_string()
                             } else {
-                                format!("{} {}", kw, s)
+                                format!("{} {}", kw, Self::zig_ident(s))
                             }
                         })
                         .collect();
@@ -3875,7 +3906,7 @@ impl Codegen {
                     } else {
                         self.write("const ");
                     }
-                    self.write(&node.name);
+                    self.write(&Self::zig_ident(&node.name));
                     if !node.extra_type.is_empty() {
                         self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
                     } else if as_var {
@@ -3906,7 +3937,7 @@ impl Codegen {
                         // others. `_ = &name;` is the canonical silencer and is a
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
-                        self.write_line(&format!("_ = &{};", node.name));
+                        self.write_line(&format!("_ = &{};", Self::zig_ident(&node.name)));
                     }
                 }
             }
@@ -4133,7 +4164,7 @@ impl Codegen {
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => self.write(&node.value),
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => self.write(&Self::zig_ident(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
                 self.write(&node.name);
@@ -11178,9 +11209,20 @@ impl Compiler {
                 .split("const ")
                 .skip(1)
                 .map(|seg| {
-                    seg.chars()
-                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-                        .collect::<String>()
+                    // Plain `name` or the primitive-shadow form `@"name"` --
+                    // keep the wrapper so use-counting matches emitted text.
+                    if let Some(rest) = seg.strip_prefix("@\"") {
+                        let inner: String = rest.chars().take_while(|c| *c != '"').collect();
+                        if inner.is_empty() {
+                            String::new()
+                        } else {
+                            format!("@\"{}\"", inner)
+                        }
+                    } else {
+                        seg.chars()
+                            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                            .collect::<String>()
+                    }
                 })
                 .filter(|n| !n.is_empty())
                 .collect();
@@ -12005,6 +12047,23 @@ fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<Stri
 
 // Recursive count of plain-identifier assignment targets, used by the Zig
 // test-block emitter to decide const vs var for the first binding of a name.
+// Recursive occurrence count of a value identifier (ExprIdentifier nodes plus
+// array-literal element text). A tuple-destructure element whose count is 1
+// appears only as its own binding -- i.e. it is never read afterwards.
+fn count_ident_refs(nodes: &[Node], name: &str) -> u32 {
+    let mut c = 0u32;
+    for n in nodes {
+        if n.kind == NodeKind::ExprIdentifier && n.name == name {
+            c += 1;
+        }
+        if n.kind == NodeKind::ExprArrayLiteral && n.extra_size.contains(name) {
+            c += 1;
+        }
+        c += count_ident_refs(&n.children, name);
+    }
+    c
+}
+
 fn count_ident_assigns(nodes: &[Node], counts: &mut std::collections::HashMap<String, u32>) {
     for n in nodes {
         if n.kind == NodeKind::StmtAssign
@@ -12077,6 +12136,12 @@ fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
             && !reassigned_set.contains(&stmt.name)
+            // A local with an explicit type annotation is the t27 widening
+            // idiom (`let lo: u16 = byte_param;`). Propagating the bare
+            // source identifier into its uses silently narrows the
+            // arithmetic back to the source's type (u8 + (u8 << 8) instead
+            // of u16 math) -- so typed aliases must stay materialized.
+            && stmt.extra_type.is_empty()
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
