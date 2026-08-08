@@ -16,6 +16,9 @@ files — have never compiled.** Before this wave, **0 of 27** emitted Verilog.
 After repairing one mechanical defect, **8 of 27** do; of those, **7 survive
 real synthesis**.
 
+Investigating that led to the larger result: **363 of the repository's 1063
+specs (34.1 %) do not parse at all**, IGLA being 19 of them (§4.3b).
+
 The cause is smaller than the symptom. Two narrow syntax gaps separate the
 specs from the compiler — a brace-delimited block-expression
 (`if (c) { a } else { b }`) and `as f32` / `as f64` casts. Both underlying
@@ -234,6 +237,62 @@ than the first draft implied:
 
 Route 1 is now clearly correct: it is smaller *and* it preserves the work.
 
+### 4.3b The corpus problem is repo-wide, and IGLA is 5 % of it
+
+The IGLA investigation prompted a clean per-spec census across the whole tree,
+run with the current binary on the settled tree (≈50 min, one `t27c parse` per
+spec):
+
+```
+total = 1063   parse OK = 700   parse FAIL = 363   (34.1 %)
+IGLA share of failures: 19 of 363
+```
+
+**A third of the entire t27 specification corpus does not parse.** IGLA is
+5.2 % of the problem, not the problem. Worst directories:
+
+| Directory | Failing |
+|-----------|---------|
+| `scratch` | 58 |
+| `fpga/testbench` | 29 |
+| `tri/collections` | 24 |
+| `fpga` | 20 |
+| `numeric` | 15 |
+| `isa` | 12 |
+| `physics`, `math`, `igla/coder` | 10 each |
+| `tri/trees`, `server`, `igla/race` | 9 each |
+
+Note `fpga` + `fpga/testbench` = **49 failing specs**, directly on the path of
+the hardware work this wave set out to do.
+
+Error classes across all 363 (first error per spec, normalized):
+
+| Count | Class | Interpretation |
+|------:|-------|----------------|
+| 48 | `unexpected token after expression statement: Ident` | mixed |
+| 43 | `Expected LParen, got Ident` | mixed |
+| **40** | `Unexpected token in expression: LBrace` | **block-expression gap (§4.2)** |
+| **38** | `Expected RBrace, got Eof` | **unterminated block — same class as the W339 bug** |
+| 30 | `Unexpected token in expression: Semicolon` | mixed |
+| **28** | `Unexpected token in expression: KwStruct` | **struct literal in expression position** |
+| **16** | `unknown cast target type` | **the float-cast whitelist (§4.2)** |
+| ~160 | long tail | ≤9 each |
+
+**This changes the economics of the W550 fix decisively.** The two gaps
+identified from IGLA are not IGLA-specific:
+
+- block-expressions would unblock **~40** specs, not 12
+- the one-line cast whitelist would unblock **~16**, not 3
+- struct-literals-as-expressions is a third gap of similar size (**28**)
+
+Three syntax productions plausibly address ~84 of 363 failures. And the
+38 `Expected RBrace, got Eof` specs are the *same* unterminated-block defect
+repaired in IGLA this wave — a mechanical fix with a known shape.
+
+**Conclusion.** The W339 brace bug and the IGLA syntax gaps were not local
+accidents. They are instances of repo-wide patterns, and the corpus has been
+one third unparseable while every wave loop reported progress.
+
 ### 4.4 A latent build blocker, found by trying to fix §4.2
 
 Applying the one-line float-cast patch re-runs `bootstrap/build.rs`, which
@@ -293,12 +352,14 @@ the loop without giving it anything true to say.
 
 ## 5. Conclusions
 
-1. **The headline claim of the IGLA line was unsupported.** 69k lines of spec
-   that never compiled cannot have validated anything. Every test count,
-   invariant count, and readiness percentage previously quoted for IGLA
-   described a corpus the compiler had never accepted. The encouraging part is
-   §4.2: the distance to a compiling corpus is two syntax productions, not a
-   rewrite.
+1. **The corpus problem is repo-wide, and larger than the IGLA line.** A clean
+   census (§4.3b) puts **363 of 1063 specs — 34.1 % — at parse failure**, with
+   IGLA only 19 of them. Every test count, invariant count and readiness
+   percentage the project has quoted describes a corpus the compiler never
+   accepted. The encouraging part is that three syntax productions
+   (block-expression, struct literal in expression position, float casts)
+   plausibly address ~84 of those failures, and 38 more are the same
+   unterminated-block defect already repaired here mechanically.
 
 2. **The ternary arithmetic itself is sound, and now provably so.** T1 and T2
    are the first machine-checked statements about IGLA RACE's actual RTL: the
