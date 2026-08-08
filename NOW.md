@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## fix(gen-zig): array types, tuple test-bindings, void returns, dead-local post-pass (Refs #1910)
+
+- `[T;N]` array types now lower to Zig `[N]T` in params/locals/returns; tuple test-block bindings lower to `const a, const b = f(...);`; fns without a declared return emit `void` (a bare `) {` never parsed)
+- Dead locals are discarded by an exact POST-PASS over the emitted Zig (per top-level block identifier counting): the optimizer const-inlines uses while leaving declarations, so AST-side prediction cannot match zig's used/unused verdict (and zig also errors on pointless discards of USED locals)
+- tri-net legacy-spec zig validity: 38/68 -> 9/68 invalid (from 66/68 two waves ago); the 9 remaining are distinct long-tail one-offs (undeclared wrapping_sub/_cse1 helpers, param shadowing, `_` as identifier, 2D arrays, struct-literal syntax) -- listed in #1910
+- Unit suite 1537/1537; gen-rust untouched; FROZEN_HASH resealed
+
 ## fix(gen-zig): discard unused params + declare test/bench bindings (Closes #1910)
 
 - Zig gen emitted unused fn parameters (zig errors on them) and test-block bindings without declarations (the Zig twin of #1894) -- 66/68 of tri-net's legacy spec gens failed zig ast-check

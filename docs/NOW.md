@@ -8,6 +8,13 @@ Last updated: 2026-08-08
 - V1 (Vivado path): added `docs/vivado_closure/CLOUD_RUNBOOK.md` -- concrete steps to run the Vivado closure kit on free Vivado ML Standard on an x86-64 Linux box or cloud instance (AWS t3.xlarge / GCP e2-standard-4, build-only, no FPGA on the cloud host; copy the .bit back and flash on the Mac). Free Vivado supports xc7a200t; it just doesn't run on macOS
 - Context: the open flow ALREADY trains XOR on silicon (met-timing + seed-search); Vivado is only for deterministic no-seed-search closure + nets > XOR. Board on generated capstone (XOR 4/4). Refs #1764
 
+## fix(gen-zig): array types, tuple test-bindings, void returns, dead-local post-pass (Refs #1910)
+
+- `[T;N]` array types now lower to Zig `[N]T` in params/locals/returns; tuple test-block bindings lower to `const a, const b = f(...);`; fns without a declared return emit `void` (a bare `) {` never parsed)
+- Dead locals are discarded by an exact POST-PASS over the emitted Zig (per top-level block identifier counting): the optimizer const-inlines uses while leaving declarations, so AST-side prediction cannot match zig's used/unused verdict (and zig also errors on pointless discards of USED locals)
+- tri-net legacy-spec zig validity: 38/68 -> 9/68 invalid (from 66/68 two waves ago); the 9 remaining are distinct long-tail one-offs (undeclared wrapping_sub/_cse1 helpers, param shadowing, `_` as identifier, 2D arrays, struct-literal syntax) -- listed in #1910
+- Unit suite 1537/1537; gen-rust untouched; FROZEN_HASH resealed
+
 ## test+docs: CI now gates a deeper [2,5,3,1] net learns; met-timing is a partial without-Vivado refinement (Refs #1764)
 
 - V2 (stack): added a deeper [2,5,3,1] (3-layer, 158-step) learning assertion to the generator self-test / CI learning gate -- held-out 59/60 (98%), deterministic. Extends the proven "the method scales beyond XOR" claim to a deeper+wider net
