@@ -19,10 +19,13 @@ real synthesis**.
 Investigating that led to the larger result: **363 of the repository's 1063
 specs (34.1 %) do not parse at all**, IGLA being 19 of them (§4.3b).
 
-The cause is smaller than the symptom. Two narrow syntax gaps separate the
-specs from the compiler — a brace-delimited block-expression
-(`if (c) { a } else { b }`) and `as f32` / `as f64` casts. Both underlying
-features already exist in `bootstrap/`; only these two spellings are rejected.
+The cause is smaller than the symptom. A handful of narrow syntax gaps
+separate the specs from the compiler — a brace-delimited block-expression
+(`if (c) { a } else { b }`, ~40 specs), a struct literal in expression
+position (~28), and `as f32` / `as f64` casts (~16). The underlying features
+already exist in `bootstrap/`; only these spellings are rejected. A further
+~38 specs are simply unterminated blocks — the same mechanical defect repaired
+in IGLA this wave.
 
 This was invisible because nothing ever ran the backend over these specs. It
 was *maskable* because, until commit `#1940` hardened the parser, malformed
