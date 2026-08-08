@@ -22,7 +22,7 @@
 | `openFPGALoader` | present | programming works — **once a cable exists** |
 | `openocd` | present | alternate programming path |
 | `docker` | present, no containers running | openXC7 P&R path available |
-| `nextpnr-xilinx` | **absent** | no local place-and-route |
+| `nextpnr-xilinx` | **absent** locally; present in the `regymm/openxc7` image | P&R only via Docker — and see G1 for the memory ceiling |
 | `vivado` | **absent** | no local Vivado flow |
 
 ### 1.2 Hardware
@@ -116,11 +116,12 @@ constraints file. It fixes all three defects:
 Reproduce:
 
 ```bash
-cd fpga/verilog && iverilog -g2005 -o /tmp/tb_v2.vvp tb_ternary_mac_demo_v2.v ternary_mac_demo_top_v2.v ternary_mac_synth.v && vvp /tmp/tb_v2.vvp
+cd fpga/verilog && iverilog -g2005 -o /tmp/tb_v2.vvp tb_ternary_mac_demo_v2.v ternary_mac_demo_core.v ternary_mac_synth.v && vvp /tmp/tb_v2.vvp
 ```
 
-**Not yet done:** v2 has no bitstream. Place-and-route needs `nextpnr-xilinx`,
-which is absent locally — see gate **G1**.
+**Not yet done:** v2 has no bitstream. Synthesis is verified both locally and
+inside the openXC7 container; place-and-route is blocked on the chipdb, which
+cannot be generated within this host's Docker memory ceiling — see gate **G1**.
 
 ---
 
@@ -137,9 +138,7 @@ command ran; it is done when the pass criterion is observed.
 - **Why it matters:** the on-board signature in G3 is only meaningful because
   simulation already fixed what the correct signature *is*.
 
-### G1 — Bitstream for v2 *(status: BLOCKED on toolchain, not hardware)*
-
-`nextpnr-xilinx` is not installed. Two paths:
+### G1 — Bitstream for v2 *(status: BLOCKED on host memory)*
 
 The `regymm/openxc7` image (11.3 GB) has been pulled and **verified to
 synthesize this design**: 188 cells, 115 LUT, 60 FF, 1 STARTUPE2, under
