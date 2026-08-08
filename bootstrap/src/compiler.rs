@@ -12794,7 +12794,15 @@ fn infer_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry]) -> TypeInfo
                 return TypeInfo::Str;
             }
             if node.value.parse::<i64>().is_ok() {
-                return TypeInfo::I32;
+                // A bare NON-NEGATIVE integer literal is context-polymorphic:
+                // t27 specs are u32-dominant, and pinning literals to I32 made
+                // every `let x = 0; ... x = u32_expr;` a false type error
+                // (27 tri-net specs failed typecheck on exactly this). Only an
+                // explicitly negative literal commits to a signed type.
+                if node.value.trim_start().starts_with('-') {
+                    return TypeInfo::I32;
+                }
+                return TypeInfo::Unknown;
             }
             if node.value.parse::<f64>().is_ok() {
                 return TypeInfo::F64;
@@ -12851,8 +12859,13 @@ fn promote_types(a: &TypeInfo, b: &TypeInfo) -> TypeInfo {
     if a == b {
         return a.clone();
     }
-    if *a == TypeInfo::Unknown || *b == TypeInfo::Unknown {
-        return TypeInfo::Unknown;
+    // The KNOWN operand determines the type: `100 - value` where value: u32
+    // is a u32 expression, not an unknown one.
+    if *a == TypeInfo::Unknown {
+        return b.clone();
+    }
+    if *b == TypeInfo::Unknown {
+        return a.clone();
     }
     let a_rank = type_rank(a);
     let b_rank = type_rank(b);
