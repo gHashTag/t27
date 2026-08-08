@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: hex/bin literals in array-literal text normalized; more SV keywords (Refs #1948)
+
+- The array-literal concat path works on raw source TEXT (not AST), so `0x38`/`0b..` element literals reached Verilog verbatim -- illegal (`8'(0x38)`). A text-level normalizer converts them to decimal
+- SystemVerilog keyword list extended (context, local, new, null, inside, foreach, ...) -- a spec param named `context` emitted `input [31:0] context;`
+- tri-net corpus: icarus 85 -> 88 (api_documenter, multipath_router, olsr_routing); link_quality_monitor advances from compile-error to a signed-i8 runtime divergence
+- FROZEN_HASH resealed
+
 ## gen-verilog: const-name array sizes resolved; packed array-literal locals; keyword-safe local names (Refs #1948)
 
 - `[u32; HISTORY_SIZE]` (const-name size) silently fell back to a 32-bit scalar input while `[u32; 16]` (literal) packed to 512 bits -- packed callers desynced from packed locals. All type strings now resolve const array sizes to numerics up front
