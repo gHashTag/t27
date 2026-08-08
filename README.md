@@ -36,8 +36,15 @@ inspectable artefacts at every step.
   (8×4 γ-surface 32-PE ternary mesh). Tape-out target:
   [Tiny Tapeout](https://tinytapeout.com/chips/). See [`LINEUP.md`](LINEUP.md).
 - **Positioning:** [`COMPETITORS.md`](COMPETITORS.md) — we do not race
-  commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
-  and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
+  commercial NPUs on TOPS or SDK breadth. We also do **not** claim to own the
+  formal corner outright: [Vericert](https://github.com/ymherklotz/vericert),
+  [Kami](https://github.com/mit-plv/kami), and
+  [Amaranth](https://amaranth-lang.org/docs/amaranth/latest/) are ahead of us
+  on verified compilation and built-in formal flow
+  ([`COMPETITORS.md` §2](COMPETITORS.md#2-adjacent-toolchains----the-corner-we-actually-compete-in)).
+  Our narrowest defensible claim is the **machine-checkable tape-out
+  conformance gate** (`tt-manifest` → `tt-profile` → `tt-conform`).
+  Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
 - **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
 
 ---
@@ -46,9 +53,9 @@ inspectable artefacts at every step.
 
 | Domain | Component | Status | Details |
 |--------|-----------|--------|---------|
-| Compiler | `t27c parse` | GREEN | 170+ specs parse |
+| Compiler | `t27c parse` | GREEN | **496 / 496** specs parse (measured 2026-08-09) |
 | Compiler | `t27c gen-verilog` | GREEN | 5/5 FPGA modules synthesize |
-| Compiler | `t27c seal` | GREEN | 170+ seals in `.trinity/seals/` |
+| Compiler | `t27c seal` | GREEN | **730** seals in `.trinity/seals/` |
 | FPGA | Yosys synthesis | GREEN | 5/5 modules pass synth_xilinx |
 | FPGA | E2E bitstream | GREEN | Yosys→nextpnr→prjxray→.bit (zero Vivado) |
 | FPGA | Board profiles | GREEN | QMTECH XC7A100T (minimal+full), Arty A7 |
@@ -67,6 +74,27 @@ inspectable artefacts at every step.
 | Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
 | R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
 | Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |
+
+### Reproducing this table
+
+Every number above is measured, not asserted. To re-derive them:
+
+```bash
+cd bootstrap && cargo build --release && cd ..
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1143 passed, 0 failed
+find specs -name '*.t27' | wc -l                     # 496
+for f in $(find specs -name '*.t27'); do \
+  ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
+ls .trinity/seals/ | wc -l                           # 730
+grep -rh --include='*.v' 'Qed\.' coq trios-coq | wc -l  # 546 across 41 files
+```
+
+> **Gotcha:** the built binary lands in the **workspace** target directory,
+> `./target/release/t27c` — *not* `bootstrap/target/release/t27c`. Running the
+> loop above against the wrong path yields exit 127 on every spec and looks
+> exactly like a total parser failure. It is not.
+
+Last measured: **2026-08-09**, commit `1be60604`.
 
 ---
 
@@ -168,9 +196,11 @@ git submodule update --init --recursive
 - BitNet HLS suites: 9 modules x dedicated integration suite each
 - Host stack: `host_driver` (25), `host_irq` (25)
 - R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
-- Regression: **20 integration suites green**, total **365 / 366** with one
-  pre-existing fail in `verilog_const_array::r_ca_1_emitter_on_real_mac_spec`
-  (predates W37).
+- Regression: **22 integration suites green**, total **1143 / 1143 passed,
+  0 failed** (`cargo test --release`, measured 2026-08-09 at `1be60604`).
+  The long-standing fail in
+  `verilog_const_array::r_ca_1_emitter_on_real_mac_spec` is **fixed** as of
+  the R12-R14 audit rounds; the suite is now fully green.
 
 Live wave-by-wave log: [`docs/NOW.md`](docs/NOW.md).
 

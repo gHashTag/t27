@@ -12,4 +12,9 @@ if [[ ! -x "$T27C" ]]; then
   echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
   exit 1
 fi
-exec "$T27C" --repo-root "$REPO_ROOT" "$@"
+# `--repo-root` is a per-subcommand option in the clap CLI, not a global one.
+# Passing it before the subcommand made every `tri` invocation fail with
+# "unexpected argument '--repo-root' found". Each subcommand already defaults
+# --repo-root to ".", so running from the repo root is equivalent and correct.
+cd "$REPO_ROOT"
+exec "$T27C" "$@"

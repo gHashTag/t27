@@ -1,6 +1,36 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-28
+Last updated: 2026-08-09
+
+## positioning-audit -- COMPETITORS.md names its real competitors; scripts/tri unbroken
+
+- **WHERE**: `COMPETITORS.md` (+139), `README.md` (+44), `scripts/tri` (1-line
+  fix), this file. No code, kernel, spec, RTL, or test edits.
+- **Why (COMPETITORS.md)**: the document listed five commercial NPUs, honestly
+  declined to race them, and then claimed we "own the inspectable open silicon
+  and formal / assurance corner" — while naming **zero** projects that occupy
+  that corner. New §2 names them with their own self-descriptions: Vericert
+  (formally verified HLS in Coq — strictly stronger than us, since
+  `bootstrap/` is unverified Rust), Kami, Silveroak/Cava, Chisel/CIRCT,
+  Amaranth (ships formal via SymbiYosys), SpinalHDL, Veryl, Spade,
+  SymbiYosys, OpenLane 2, OCP Microscaling (MX), Posit, BitNet, T-MAC.
+  Three new "we do not claim" entries follow from it; the claim list is
+  narrowed so that `tt-manifest`/`tt-profile`/`tt-conform` is stated as the
+  load-bearing novel piece.
+- **Why (README)**: figures were stale *and* undercounted. Measured this run:
+  **496/496** specs parse (README said "170+"), **730** seals (said "170+"),
+  **1143/1143** tests across **22** suites (said "365/366 with one
+  pre-existing fail" — fixed by R12-R14, never propagated). Added a
+  reproduce-this-table block.
+- **`scripts/tri` was broken for every subcommand.** Line 15 passed
+  `--repo-root` *before* the subcommand, but it is a per-subcommand clap
+  option, so every invocation died with "unexpected argument '--repo-root'
+  found" — including the README's own documented verification command
+  (`./scripts/tri test`) and pre-commit Gate 1/4. Fixed by `cd "$REPO_ROOT"`
+  and dropping the flag (each subcommand already defaults it to `.`).
+  Post-fix: `validate-conformance` → 101 files, 43 valid, 0 invalid;
+  `validate-gen-headers` → 124/124 valid.
+- **Open, not fixed**: 58 of 101 conformance files are empty/skipped.
 
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
