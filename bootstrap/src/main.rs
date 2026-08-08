@@ -1241,8 +1241,11 @@ enum Commands {
         #[arg(long)]
         minimal: bool,
 
-        /// FPGA device identifier (default: xc7a100tcsg324-1)
-        #[arg(long, default_value = "xc7a100tcsg324-1")]
+        /// FPGA device identifier. Defaults to the board named in
+        /// `fpga/HARDWARE_SSOT.md` (QMTech Wukong V1, XC7A200T-FGG676).
+        /// The Arty A7 is a *different* board -- pass `xc7a100tcsg324-1`
+        /// explicitly for it; the SSOT forbids mixing csg324 into Wukong flows.
+        #[arg(long, default_value = "xc7a200tfgg676-1")]
         device: String,
 
         /// Top-level module name (default: zerodsp_top)
@@ -1284,6 +1287,43 @@ enum Commands {
         /// Output directory (default: build/fpga)
         #[arg(short, long, default_value = "build/fpga")]
         output: String,
+    },
+
+    /// Synthesis-in-the-loop gate: actually run yosys on generated Verilog
+    #[command(name = "synth-gate")]
+    SynthGate {
+        /// Directory of .t27 specs to gate (default: specs/igla/race)
+        #[arg(long, default_value = "specs/igla/race")]
+        specs_dir: String,
+
+        /// Target architecture passed to synth_xilinx (default: xc7)
+        #[arg(long, default_value = "xc7")]
+        arch: String,
+
+        /// Fail with exit 1 if the synthesis pass rate is below this fraction
+        #[arg(long)]
+        min_pass_rate: Option<f64>,
+
+        /// Path to the yosys binary
+        #[arg(long, default_value = "yosys")]
+        yosys: String,
+    },
+
+    /// Report vacuous tests (`assert true`) and tautological invariants in .t27 specs
+    #[command(name = "validate-vacuity")]
+    ValidateVacuity {
+        /// Directory to scan (default: specs)
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+
+        /// Fail with exit 1 if any spec's vacuous-test ratio exceeds this
+        /// fraction (0.0-1.0). Omit to report without failing.
+        #[arg(long)]
+        max_ratio: Option<f64>,
+
+        /// How many of the worst specs to list (default: 20)
+        #[arg(long, default_value = "20")]
+        top: usize,
     },
 
     /// Flash a bitstream to a connected FPGA board via openFPGALoader
@@ -4719,6 +4759,348 @@ fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
     } else {
         anyhow::bail!("L5 PHI-IDENTITY CHECK FAILED: phi^2 + phi^-2 = {:.15} (expected 3.0, delta = {:.2e})", identity, (identity - 3.0).abs())
     }
+}
+
+/// Synthesis-in-the-loop gate.
+///
+/// `synth-readiness` scans specs statically (parse / typecheck / gen succeeded).
+/// That is exactly the measurement the literature warns is optimistic: Fu et al.,
+/// "Synthesis-in-the-Loop Evaluation of LLMs for RTL Generation" (arXiv:2603.11287),
+/// report that simulation-level pass rates materially overstate true hardware
+/// readiness, because code can simulate and still fail to synthesize.
+///
+/// This gate closes that gap for t27's own backend: it emits Verilog for each
+/// spec and then actually invokes yosys `synth_xilinx`, reporting the fraction
+/// that survives to a gate-level netlist along with the cell count.
+fn run_synth_gate(
+    repo_root: &Path,
+    specs_dir: &str,
+    arch: &str,
+    min_pass_rate: Option<f64>,
+    yosys: &str,
+) -> anyhow::Result<()> {
+    let dir = repo_root.join(specs_dir);
+    if !dir.is_dir() {
+        anyhow::bail!("not a directory: {}", dir.display());
+    }
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+
+    let mut specs: Vec<PathBuf> = walkdir::WalkDir::new(&dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |x| x == "t27"))
+        .filter(|e| !e.path().to_string_lossy().contains("testbench"))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    specs.sort();
+
+    let work = repo_root.join("build/synth-gate");
+    fs::create_dir_all(&work).context("create build/synth-gate")?;
+
+    println!("=== Synthesis-in-the-loop gate: {} ===", dir.display());
+    println!("Emitting Verilog, then running `{} synth_xilinx -arch {}` on each.\n", yosys, arch);
+    println!("{:<48} {:>10} {:>10}", "spec", "gen", "synth");
+
+    let (mut gen_ok, mut synth_ok, mut total) = (0usize, 0usize, 0usize);
+    let mut failures: Vec<(String, String)> = Vec::new();
+
+    for spec in &specs {
+        total += 1;
+        let stem = spec.file_stem().and_then(|s| s.to_str()).unwrap_or("spec");
+        let vpath = work.join(format!("{}.v", stem));
+        let rel = spec.strip_prefix(repo_root).unwrap_or(spec).display().to_string();
+        let short = if rel.len() > 46 { rel[rel.len() - 46..].to_string() } else { rel.clone() };
+
+        // Stage 1 -- emit Verilog.
+        let vfile = match fs::File::create(&vpath) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("{:<48} {:>10} {:>10}", short, "IO-ERR", "-");
+                failures.push((rel, format!("create output: {}", e)));
+                continue;
+            }
+        };
+        let gen = std::process::Command::new(&t27c)
+            .arg("gen-verilog")
+            .arg(spec)
+            .stdout(vfile)
+            .stderr(std::process::Stdio::null())
+            .status();
+        let gen_good = matches!(gen, Ok(s) if s.success())
+            && fs::metadata(&vpath).map(|m| m.len() > 0).unwrap_or(false);
+        if !gen_good {
+            println!("{:<48} {:>10} {:>10}", short, "FAIL", "-");
+            failures.push((rel, "gen-verilog failed or produced no output".to_string()));
+            continue;
+        }
+        gen_ok += 1;
+
+        // Stage 2 -- real synthesis.
+        let script = format!(
+            "read_verilog -sv {}; synth_xilinx -abc9 -nocarry -arch {}; stat",
+            vpath.display(),
+            arch
+        );
+        let out = std::process::Command::new(yosys)
+            .arg("-q")
+            .arg("-p")
+            .arg(&script)
+            .output();
+        match out {
+            Ok(o) if o.status.success() => {
+                synth_ok += 1;
+                println!("{:<48} {:>10} {:>10}", short, "ok", "ok");
+            }
+            Ok(o) => {
+                let err = String::from_utf8_lossy(&o.stderr);
+                let first = err
+                    .lines()
+                    .find(|l| l.contains("ERROR"))
+                    .unwrap_or("synthesis failed")
+                    .trim()
+                    .to_string();
+                println!("{:<48} {:>10} {:>10}", short, "ok", "FAIL");
+                failures.push((rel, first));
+            }
+            Err(e) => {
+                println!("{:<48} {:>10} {:>10}", short, "ok", "NO-YOSYS");
+                failures.push((rel, format!("cannot run {}: {}", yosys, e)));
+            }
+        }
+    }
+
+    let rate = if total > 0 { synth_ok as f64 / total as f64 } else { 0.0 };
+    println!(
+        "\nTOTAL {} specs: gen-verilog ok {} ({:.1}%), synthesized {} ({:.1}%)",
+        total,
+        gen_ok,
+        if total > 0 { 100.0 * gen_ok as f64 / total as f64 } else { 0.0 },
+        synth_ok,
+        100.0 * rate
+    );
+
+    if !failures.is_empty() {
+        println!("\nFailures ({}):", failures.len());
+        for (path, why) in failures.iter().take(20) {
+            println!("  {} -- {}", path, why);
+        }
+        if failures.len() > 20 {
+            println!("  ... and {} more", failures.len() - 20);
+        }
+    }
+
+    println!(
+        "\nA spec that parses and generates is not a spec that synthesizes.\n\
+         Static readiness (`synth-readiness`) overstates hardware readiness --\n\
+         see Fu et al., arXiv:2603.11287."
+    );
+
+    if let Some(limit) = min_pass_rate {
+        if rate < limit {
+            anyhow::bail!(
+                "synthesis pass rate {:.1}% is below the required {:.1}%",
+                100.0 * rate,
+                100.0 * limit
+            );
+        }
+        println!("\nPASS: {:.1}% >= required {:.1}%", 100.0 * rate, 100.0 * limit);
+    }
+    Ok(())
+}
+
+/// Per-spec vacuity counts. A block is *vacuous* when every statement in it is
+/// `assert true`; an invariant is vacuous when its expression is the literal
+/// `true`. Such a check accepts every possible implementation, so it carries
+/// zero information about correctness while still satisfying L4 TESTABILITY by
+/// letter.
+#[derive(Default, Clone)]
+struct VacuityCounts {
+    tests_total: usize,
+    tests_vacuous: usize,
+    inv_total: usize,
+    inv_vacuous: usize,
+}
+
+/// Strip a `//` line comment, honouring nothing else -- `.t27` has no string
+/// literals containing `//` in test bodies, and a false strip would only make
+/// the scan more conservative (fewer blocks judged vacuous).
+fn strip_line_comment(line: &str) -> &str {
+    match line.find("//") {
+        Some(i) => &line[..i],
+        None => line,
+    }
+}
+
+/// True when the statement is exactly `assert true`, with optional semicolon.
+fn is_vacuous_stmt(stmt: &str) -> bool {
+    let s = stmt.trim().trim_end_matches(';').trim();
+    s == "assert true"
+}
+
+fn scan_vacuity(src: &str) -> VacuityCounts {
+    let lines: Vec<&str> = src.lines().collect();
+    let mut c = VacuityCounts::default();
+    let mut i = 0usize;
+
+    while i < lines.len() {
+        let raw = lines[i];
+        let line = strip_line_comment(raw);
+        let trimmed = line.trim_start();
+
+        let is_block = (trimmed.starts_with("test ") || trimmed.starts_with("bench "))
+            && line.contains('{');
+
+        if is_block {
+            c.tests_total += 1;
+            // Walk to the matching close brace, collecting the body.
+            let mut depth: i32 =
+                line.matches('{').count() as i32 - line.matches('}').count() as i32;
+            let mut body: Vec<String> = Vec::new();
+            let mut j = i;
+            while depth > 0 && j + 1 < lines.len() {
+                j += 1;
+                let b = strip_line_comment(lines[j]);
+                depth += b.matches('{').count() as i32 - b.matches('}').count() as i32;
+                body.push(b.to_string());
+            }
+            // Drop blanks and the trailing brace line, then decide.
+            let stmts: Vec<String> = body
+                .iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty() && s != "}")
+                .collect();
+            if !stmts.is_empty() && stmts.iter().all(|s| is_vacuous_stmt(s)) {
+                c.tests_vacuous += 1;
+            }
+            i = j;
+        } else if trimmed.starts_with("invariant ") {
+            if let Some(colon) = line.find(':') {
+                c.inv_total += 1;
+                let expr = line[colon + 1..].trim().trim_end_matches(';').trim();
+                if expr == "true" || expr == "1 == 1" {
+                    c.inv_vacuous += 1;
+                }
+            }
+        }
+        i += 1;
+    }
+    c
+}
+
+fn run_validate_vacuity(
+    repo_root: &Path,
+    specs_dir: &str,
+    max_ratio: Option<f64>,
+    top: usize,
+) -> anyhow::Result<()> {
+    let root = repo_root.join(specs_dir);
+    if !root.exists() {
+        anyhow::bail!("specs directory not found: {}", root.display());
+    }
+
+    let mut rows: Vec<(String, VacuityCounts)> = Vec::new();
+    let mut total = VacuityCounts::default();
+
+    for entry in walkdir::WalkDir::new(&root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let p = entry.path();
+        if p.extension().and_then(|s| s.to_str()) != Some("t27") {
+            continue;
+        }
+        let src = match fs::read_to_string(p) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let c = scan_vacuity(&src);
+        total.tests_total += c.tests_total;
+        total.tests_vacuous += c.tests_vacuous;
+        total.inv_total += c.inv_total;
+        total.inv_vacuous += c.inv_vacuous;
+
+        if c.tests_total > 0 || c.inv_total > 0 {
+            let rel = p.strip_prefix(repo_root).unwrap_or(p).display().to_string();
+            rows.push((rel, c));
+        }
+    }
+
+    rows.sort_by(|a, b| b.1.tests_vacuous.cmp(&a.1.tests_vacuous));
+
+    println!("=== Vacuity report: {} ===", root.display());
+    println!(
+        "{:<58} {:>6} {:>8} {:>7} {:>6} {:>6}",
+        "spec", "tests", "vacuous", "%", "inv", "vac"
+    );
+    for (path, c) in rows.iter().take(top) {
+        let pct = if c.tests_total > 0 {
+            100.0 * c.tests_vacuous as f64 / c.tests_total as f64
+        } else {
+            0.0
+        };
+        println!(
+            "{:<58} {:>6} {:>8} {:>6.1}% {:>6} {:>6}",
+            path, c.tests_total, c.tests_vacuous, pct, c.inv_total, c.inv_vacuous
+        );
+    }
+    if rows.len() > top {
+        println!("... and {} more specs", rows.len() - top);
+    }
+
+    let test_pct = if total.tests_total > 0 {
+        100.0 * total.tests_vacuous as f64 / total.tests_total as f64
+    } else {
+        0.0
+    };
+    let inv_pct = if total.inv_total > 0 {
+        100.0 * total.inv_vacuous as f64 / total.inv_total as f64
+    } else {
+        0.0
+    };
+    println!(
+        "\nTOTAL over {} specs: tests={} vacuous={} ({:.1}%)  invariants={} vacuous={} ({:.1}%)",
+        rows.len(),
+        total.tests_total,
+        total.tests_vacuous,
+        test_pct,
+        total.inv_total,
+        total.inv_vacuous,
+        inv_pct
+    );
+
+    // A vacuous check accepts every implementation, so it discriminates nothing.
+    println!(
+        "\nA `test` whose body is only `assert true` passes for EVERY implementation,\n\
+         so it contributes zero discriminating power while still satisfying L4 by letter."
+    );
+
+    if let Some(limit) = max_ratio {
+        let offenders: Vec<&(String, VacuityCounts)> = rows
+            .iter()
+            .filter(|(_, c)| {
+                c.tests_total > 0
+                    && (c.tests_vacuous as f64 / c.tests_total as f64) > limit
+            })
+            .collect();
+        if !offenders.is_empty() {
+            eprintln!(
+                "\nFAIL: {} spec(s) exceed the vacuity limit of {:.1}%:",
+                offenders.len(),
+                limit * 100.0
+            );
+            for (path, c) in offenders.iter().take(top) {
+                eprintln!(
+                    "  {} -- {}/{} vacuous",
+                    path, c.tests_vacuous, c.tests_total
+                );
+            }
+            anyhow::bail!("vacuity gate failed");
+        }
+        println!("\nPASS: no spec exceeds the vacuity limit of {:.1}%", limit * 100.0);
+    }
+
+    Ok(())
 }
 
 /// Board bring-up profile. Values are the SSOT from `fpga/HARDWARE_SSOT.md`;
@@ -8758,6 +9140,14 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
+         Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
+             let repo_root = std::env::current_dir()?;
+             run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
+             let repo_root = std::env::current_dir()?;
+             run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
+         }
          Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
@@ -9045,6 +9435,14 @@ fn main() -> anyhow::Result<()> {
          Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+         }
+         Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
+             let repo_root = std::env::current_dir()?;
+             run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
+             let repo_root = std::env::current_dir()?;
+             run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
          }
          Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
              let repo_root = std::env::current_dir()?;

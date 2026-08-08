@@ -1,0 +1,26 @@
+# Machine-checked equivalence proof for the IGLA RACE ternary MAC.
+#
+# Theorem T1: for ALL 8-bit signed activations a, ALL 2-bit weight codes
+# w_code, and ALL 32-bit signed accumulator inputs acc_in, the shipped
+# multiplier-free RTL (ternary_mac_top) produces exactly the same acc_out as
+# a golden model that uses a real `*` operator (ternary_mac_golden).
+#
+# Method: build a sequential miter over the two designs and ask the SAT solver
+# to find ANY input assignment, over one clocked transition, where the outputs
+# differ.  "SAT proof finished - no model found" == no such assignment exists.
+#
+# Run: yosys -s prove_ternary_mac.ys
+
+read_verilog ../verilog/ternary_mac_synth.v
+read_verilog ternary_mac_golden.v
+
+prep
+
+miter -equiv -flatten -make_assert ternary_mac_top ternary_mac_golden miter_mac
+hierarchy -top miter_mac
+prep -top miter_mac
+async2sync
+
+# -seq 2 unrolls two transitions so the reset behaviour and the enabled
+# accumulate step are both covered.
+sat -verify -prove-asserts -seq 2 -set-init-zero -show-inputs -show-outputs miter_mac

@@ -1810,6 +1810,7 @@ test ternary_mac_w339_batch_depth_invariant_1 {
 test ternary_mac_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
+}
 
 // Wave Loop 340 — Pool A depth +1 (82→83)
 test ternary_mac_w340_batch_depth_invariant_1 { /* verify baseline */ }

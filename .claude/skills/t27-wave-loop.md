@@ -3843,8 +3843,8 @@ These cost a wave each. Follow them before step 1.
 4. **Never append `assert true` tests or `invariant …: true` to close a wave.**
    The loop has been doing this to every IGLA spec for hundreds of iterations:
    as of Wave 549, **2,160 of 3,788 (57 %)** test/bench blocks under
-   `specs/igla/**` are vacuous and **1,917 of 1,931 (99.3 %)** invariants are
-   tautologies. L4 TESTABILITY is satisfied in letter and void in spirit. A
+   `specs/igla/**` are vacuous and **1,917 of 3,314 (57.8 %)** invariants are
+   tautologies. Measure with `t27c validate-vacuity`. L4 TESTABILITY is satisfied in letter and void in spirit. A
    wave with nothing real to assert should add nothing.
 
 5. **A hardware demo must have a pass criterion an observer can check.**

@@ -1130,6 +1130,7 @@ test ternary_inference_w339_batch_depth_invariant_1 {
 test ternary_inference_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
+}
 
 // Wave Loop 340 — Integration depth +1 (82→83)
 test ternary_inference_w340_batch_depth_invariant_1 { /* verify baseline */ }

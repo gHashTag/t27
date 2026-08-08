@@ -3631,6 +3631,7 @@ test eval_w339_batch_depth_invariant_1 {
 test eval_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
+}
 
 // Wave Loop 340 — CODER depth +1 (74→75)
 test eval_w340_batch_depth_invariant_1 { /* verify baseline */ }

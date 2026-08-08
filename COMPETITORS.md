@@ -229,14 +229,22 @@ Extending §2, and specific to the model tracks:
    synthesizable. `systolic_ternary` and `ternary_gemm` have never been
    synthesized.
 10. **The IGLA spec test counts do not mean what they appear to mean.**
-    Measured on 2026-08-09 across `specs/igla/**`: **2,160 of 3,788 (57.0 %)**
-    `test`/`bench` blocks contain nothing but `assert true`, and **1,917 of
-    1,931 (99.3 %)** invariants are the literal tautology `true`. IGLA
-    accounts for 2,160 of the 2,164 vacuous tests in the whole `specs/` tree.
-    A headline like "340 tests in `ternary_mac.t27`" therefore overstates
-    real coverage by roughly a factor of two, and the invariant count is
-    almost entirely noise. This is a defect in our own reporting, not in any
-    competitor's.
+    Measured on 2026-08-09 with `t27c validate-vacuity` across `specs/igla/**`:
+    **2,160 of 3,788 (57.0 %)** `test`/`bench` blocks contain nothing but
+    `assert true`, and **1,917 of 3,314 (57.8 %)** invariants are the literal
+    tautology `true`. IGLA accounts for 2,160 of the 2,165 vacuous tests and
+    1,917 of the 1,918 vacuous invariants in the whole `specs/` tree.
+    A headline like "340 tests in `ternary_mac.t27`" therefore overstates real
+    coverage by roughly a factor of two. This is a defect in our own
+    reporting, not in any competitor's.
+
+    Two things this does **not** say. The remaining 42 % are real: the IGLA
+    specs contain genuine `forall`-quantified invariants over typed inputs,
+    which is more than most of the projects in §4.1 publish. And the vacuous
+    blocks are not sloppiness by a human author — they are the mechanical
+    output of the wave-loop appender, which has added the same two `assert
+    true` tests and one tautological invariant to every IGLA spec on every
+    iteration. The defect is in the loop, not in the engineering it buried.
 
 ---
 

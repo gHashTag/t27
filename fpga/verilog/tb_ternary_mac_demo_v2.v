@@ -11,38 +11,8 @@
 //
 // Run with:
 //   iverilog -g2005 -o tb_ternary_mac_demo_v2.vvp \
-//       tb_ternary_mac_demo_v2.v ternary_mac_demo_top_v2.v ternary_mac_synth.v
+//       tb_ternary_mac_demo_v2.v ternary_mac_demo_core.v ternary_mac_synth.v
 //   vvp tb_ternary_mac_demo_v2.vvp
-
-// ---------------------------------------------------------------------------
-// STARTUPE2 behavioural stub: Icarus has no Xilinx primitive library, so the
-// configuration oscillator is modelled as a free-running clock.  Only CFGMCLK
-// is used by the design under test.
-// ---------------------------------------------------------------------------
-module STARTUPE2 #(
-    parameter PROG_USR = "FALSE",
-    parameter real SIM_CCLK_FREQ = 0.0
-) (
-    output wire CFGCLK,
-    output reg  CFGMCLK,
-    output wire EOS,
-    output wire PREQ,
-    input  wire CLK,
-    input  wire GSR,
-    input  wire GTS,
-    input  wire KEYCLEARB,
-    input  wire PACK,
-    input  wire USRCCLKO,
-    input  wire USRCCLKTS,
-    input  wire USRDONEO,
-    input  wire USRDONETS
-);
-    initial CFGMCLK = 1'b0;
-    always #5 CFGMCLK = ~CFGMCLK;   // 100 MHz model clock
-    assign CFGCLK = 1'b0;
-    assign EOS    = 1'b1;
-    assign PREQ   = 1'b0;
-endmodule
 
 module tb_ternary_mac_demo_v2;
 
@@ -53,9 +23,15 @@ module tb_ternary_mac_demo_v2;
     wire led_r23;
     wire led_t23;
 
-    ternary_mac_demo_top_v2 #(
+    // The board wrapper adds only STARTUPE2; the core carries all behaviour,
+    // so the testbench drives the clock itself and needs no primitive stub.
+    reg clk = 1'b0;
+    always #5 clk = ~clk;
+
+    ternary_mac_demo_core #(
         .PRESCALE_BITS(TB_PRESCALE_BITS)
     ) dut (
+        .clk(clk),
         .led_r23(led_r23),
         .led_t23(led_t23)
     );
@@ -95,7 +71,7 @@ module tb_ternary_mac_demo_v2;
 
     // Track which weight encodings were actually applied to the MAC.
     reg saw_plus = 0, saw_minus = 0, saw_zero_a = 0, saw_zero_b = 0;
-    always @(posedge dut.cfgmclk) begin
+    always @(posedge clk) begin
         if (dut.rst_n && dut.step) begin
             case (dut.w_code)
                 2'b01: saw_plus   <= 1;
@@ -110,7 +86,7 @@ module tb_ternary_mac_demo_v2;
     integer led_r23_edges = 0;
     reg led_r23_prev;
     initial led_r23_prev = 1'bx;
-    always @(posedge dut.cfgmclk) begin
+    always @(posedge clk) begin
         if (led_r23 !== led_r23_prev) begin
             if (led_r23_prev !== 1'bx)
                 led_r23_edges = led_r23_edges + 1;
@@ -125,7 +101,7 @@ module tb_ternary_mac_demo_v2;
         begin
             for (k = 0; k < n; k = k + 1) begin
                 @(posedge dut.step);
-                @(posedge dut.cfgmclk);
+                @(posedge clk);
                 #1;
             end
         end

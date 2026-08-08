@@ -31,7 +31,7 @@ flashed.
    that is observable and self-checking.
 5. **57 % of IGLA's tests assert nothing.** Measured: 2,160 of 3,788
    `test`/`bench` blocks under `specs/igla/**` contain only `assert true`, and
-   1,917 of 1,931 invariants are the literal tautology `true`.
+   1,917 of 3,314 invariants are the literal tautology `true`.
 
 ---
 
@@ -46,7 +46,7 @@ given there for each. Summary of disposition:
 | W2 | `rusqlite` dead dependency, 0 references in `bootstrap/` | **fixed** |
 | W3 | `./bootstrap/target/release/t27c` does not exist (67 refs) | **fixed** in normative docs |
 | W4 | `CANON.md` §8 pointed at nonexistent `tests/run_all.sh` | **fixed** |
-| W5 | IGLA spec vacuity: 57.0 % of tests, 99.3 % of invariants | **measured and published**; gate deferred to W550-B |
+| W5 | IGLA spec vacuity: 57.0 % of tests, 57.8 % of invariants | **measured and published**; gate deferred to W550-B |
 | W6 | `t27c fpga-flash` documented but absent | **fixed** (implemented) |
 | W7 | Ternary MAC demo proves nothing on silicon | **fixed** (v2 written, simulated, synthesized) |
 | W8 | No competitors named for IGLA CODER / IGLA RACE | **fixed** (`COMPETITORS.md` §4) |
@@ -58,7 +58,8 @@ Every wave loop has been appending the same two `assert true` tests and one
 `invariant …: true` to every IGLA spec. The counts are uniform to the file —
 exactly 80 vacuous tests and 71 vacuous invariants each — which is the
 signature of a mechanical appender, not of engineering. IGLA accounts for
-**2,160 of the 2,164** vacuous tests in the whole 1,063-spec tree.
+**2,160 of the 2,165** vacuous tests and **1,917 of the 1,918** vacuous
+invariants in the whole tree.
 
 The consequence is that a headline like "340 tests in `ternary_mac.t27`"
 overstates real coverage by roughly a factor of two, and the invariant count
@@ -110,10 +111,15 @@ except programming — so the whole command is exercisable with no hardware.
   24-bit prescaler (≈3.9 steps/s), weight sequence `{+1, 0, −1, 0}` covering
   both zero encodings, and `acc_out → acc_in` feedback so the accumulator
   genuinely accumulates.
-- `fpga/verilog/tb_ternary_mac_demo_v2.v` — self-checking, with a `STARTUPE2`
-  behavioural stub for Icarus. Asserts the accumulator walk, that every weight
-  encoding is actually applied, that the sign LED stays dark, and that the
-  activity LED is not stuck.
+- `fpga/verilog/ternary_mac_demo_core.v` — the behaviour, with an ordinary
+  `clk` port. Split out of the wrapper so the sequencer is reachable by yosys
+  model checking (a STARTUPE2 blackbox is opaque to it) and simulatable with no
+  primitive stub. The wrapper now adds STARTUPE2 and nothing else, so what is
+  verified is what is synthesized.
+- `fpga/verilog/tb_ternary_mac_demo_v2.v` — self-checking; drives the core
+  directly. Asserts the accumulator walk, that every weight encoding is
+  actually applied, that the sign LED stays dark, and that the activity LED is
+  not stuck. **12/12 pass.**
 - `fpga/verilog/ternary_mac_demo_top_v2.xdc` — a real clock constraint on a
   real clock net; none of v1's `ALLOW_COMBINATORIAL_LOOPS` /
   `CLOCK_DEDICATED_ROUTE FALSE` escapes are needed.
@@ -181,6 +187,82 @@ wave are additive — one new `clap` subcommand and one new handler function,
 with no edits to `compiler.rs` or any code path the suite exercises — so a
 regression would be surprising; but "surprising" is not "verified", and the
 next wave should confirm the baseline before building on it.
+
+---
+
+## 5b. Second half of the wave — the corpus finding
+
+After the report above was first written, the wave continued into a scientific
+track. Full detail in [`WAVE_LOOP_549_RESEARCH.md`](WAVE_LOOP_549_RESEARCH.md);
+the load-bearing results:
+
+### The IGLA corpus has never compiled
+
+Running the new `t27c synth-gate` over `specs/igla/race` returned **0 of 17**.
+Investigating that produced the largest finding of the wave: **all 27 IGLA
+CODER + RACE specs — ~69,000 lines — fail to compile.**
+
+Cause, in two layers:
+
+1. **Wave Loop 339 appended a `test` block with no closing brace** to every one
+   of the 27 specs, swallowing everything after it. Repaired this wave (one
+   brace per file). **0/27 → 8/27 compiling.**
+2. The remaining 19 fail on two narrow syntax gaps — a brace-delimited
+   block-expression (`if (c) { a } else { b }`, 12 specs) and `as f32`/`as f64`
+   casts (3 specs). **Both underlying features already exist in the compiler**;
+   only these spellings are rejected. An earlier draft of the research report
+   claimed the features were unimplemented; the falsification pass refuted that
+   and the section was rewritten.
+
+This survived hundreds of waves because, before commit `#1940`, the parser
+silently dropped malformed input instead of rejecting it — the compiler
+produced plausible output for specs it had not understood. The vacuity finding
+(W5) is a *symptom* of this: you can only append trivially-true tests to a spec
+you cannot compile.
+
+### Three machine-checked theorems
+
+Checked with yosys alone; each exits non-zero on failure
+([`fpga/formal/README.md`](../../fpga/formal/README.md)):
+
+| | Statement | Result |
+|---|---|---|
+| **T1** | The multiplier-free MAC equals a real-`*` model for all `a`, `w_code`, `acc_in` | SAT, 6,635 vars / 18,490 clauses — **no counterexample** |
+| **T2** | Same function, **0 DSP48** vs **1 DSP48E1** for the golden model | measured: 59 LUT / 32 FF, zero multiplier cells |
+| **T3** | The demo accumulator stays in `{0,+1}`, so the sign LED never lights | BMC 64 cycles **plus temporal induction at length 10** — *unbounded* |
+
+T2 is the quantified ternary argument in one line: the same arithmetic, one
+hard multiplier block cheaper. T3 is what makes the board pass criterion a
+*prediction reality can contradict*.
+
+### Two new measurement commands
+
+- **`t27c synth-gate`** — emits Verilog and actually runs `yosys synth_xilinx`.
+  Grounded in Fu et al. ([arXiv:2603.11287](https://arxiv.org/abs/2603.11287)),
+  which shows simulation-level pass rates overstate hardware readiness. On
+  `specs/igla/race`: **8/17 generate (47.1 %), 7/17 synthesize (41.2 %)** — and
+  the gap is real: `ternary_inference.t27` generates Verilog that yosys *and*
+  `iverilog -g2012` both reject, because the emitter escapes the reserved word
+  `input` in declarations but emits it bare at use sites.
+- **`t27c validate-vacuity`** — the vacuity measurement as a reproducible
+  command. It also **corrected** this report: the invariant figure is
+  57.8 %, not the 99.3 % first published, because the earlier scan's
+  denominator missed the multi-line `forall` form.
+
+### A latent build blocker
+
+Applying the one-line float-cast fix re-runs `bootstrap/build.rs`, which
+**panics** on six committed documents that violate L3 / LANG-EN and are not in
+`docs/.legacy-non-english-docs`. `build.rs` watches `compiler.rs` but not
+`main.rs`, which is why every change this wave made to `main.rs` built cleanly
+and the first `compiler.rs` edit did not. **The build has been latently broken
+since 2026-06-28 for anyone touching the compiler proper.**
+
+The float-cast fix is written up as a ready patch
+([`docs/patches/W550-f32-cast-whitelist.md`](../patches/W550-f32-cast-whitelist.md))
+and **deliberately not applied**: the allowlist is marked "Architect approval
+only", and translating six historical reports is not a unilateral call. This is
+the first item of W550.
 
 ---
 

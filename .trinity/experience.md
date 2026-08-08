@@ -19742,9 +19742,12 @@ was.
   workspace member, artifacts land in the workspace-root `target/`. 67
   occurrences repo-wide including SOUL.md, CANON.md, T27-CONSTITUTION.md.
 - IGLA spec vacuity: 2160/3788 (57.0%) test+bench blocks are `assert true`;
-  1917/1931 (99.3%) invariants are the literal `true`. Uniform per file
+  1917/3314 (57.8%) invariants are the literal `true`. Uniform per file
   (80 and 71) — a mechanical appender, not engineering. IGLA is 2160 of the
-  2164 vacuous tests across all 1063 specs.
+  2165 vacuous tests and 1917 of the 1918 vacuous invariants tree-wide.
+  CORRECTION: an earlier scan reported 99.3% of invariants vacuous; its
+  denominator counted only single-line `invariant x: expr` and missed the
+  multi-line `forall`-quantified form, which is the genuinely good half.
 - `openFPGALoader --scan-usb` -> "No USB devices found". No board attached.
 - `ternary_mac_demo_top_v2`: 12/12 iverilog self-checks pass; yosys
   `synth_xilinx -abc9 -nocarry -arch xc7` clean at 113 LUT / 60 FF / 1
