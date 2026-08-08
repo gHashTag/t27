@@ -643,6 +643,59 @@ wrapper would need.
 
 ---
 
+### Proposition 15 — the layer boundary exists, and `2'b11` is now unreachable
+
+`PROVED`. Step 2 of `BITNET_V2_POSITION.md` §4. The bundle had **no module at
+the layer boundary at all**: `pipeline_stage2_compute` emitted `signed [15:0]`,
+the next layer consumed `[53:0]` packed trits, and nothing converted between
+them. `t27c gen-activation-requant` fills that gap.
+
+**15a. The reserved code.** The trit stdlib defines `2'b00 = -1`, `2'b01 = 0`,
+`2'b10 = +1`, and **`2'b11` as reserved/invalid** — a mux fall-through, with no
+error path anywhere. A requantizer that could emit it would corrupt every
+downstream `trit27_*` primitive silently. `a_trit_never_invalid` forbids it, and
+the emitter test forbids *assigning* it in the generated text.
+
+**15b. A negative threshold makes the branches overlap.** `acc >= threshold` and
+`acc <= -threshold` are both true when `threshold < 0`. Written as parallel
+comparisons that is a don't-care; written as a **priority chain** the positive
+branch wins and the output stays legal for every input, without trusting the
+host to program a sane value. **Prefer a total function over a documented
+precondition when the cost is one ternary operator.**
+
+**15c. Validated against two deliberate breaks**, per the standing rule:
+
+| Variant | Result |
+|---|---|
+| correct | PROVED |
+| dead-zone emits `2'b11` | **REFUTED** (`a_trit_never_invalid`) |
+| priority order reversed | **REFUTED** (`a_positive_branch`) |
+
+**15d. The design fork now has an address.** `BITNET_V2_POSITION.md` recorded
+that this line quantises activations to ternary — more aggressive than any
+published BitNet variant — and that the choice was *implicit in the absence of a
+requantizer*. It is now explicit in one output port. A 4-bit variant changes
+`trit [1:0]` to `act [3:0]` and swaps the dead-zone for a scale-and-round;
+nothing else in the datapath moves. **An unmade decision with no interface is
+untrackable; the same decision with an interface is a diff.**
+
+**15e. Two tests of mine were too broad and failed on their own subject.**
+`never_emits_the_reserved_code` asserted `!contains("2'b11")` over the whole
+emitted text — which fails on the comment explaining why `2'b11` is forbidden,
+and on the assertion that forbids it. Narrowed to assignment contexts. This is
+the third instance of the same slip in this campaign (`8'hFF` in Prop. 9,
+`FORMAT-SPEC` in Prop. 4): **a substring ban catches the documentation that
+justifies the ban.**
+
+**15f. Count-named tests were renamed to invariant-named ones.** Adding one file
+broke `bundle_order_has_twelve_entries`, `build_sv_entries_returns_eleven_files`
+and two positional lookups (`entries[9]`, `entries[10]`). They now assert
+`BUNDLE_ORDER.len() == BUNDLE_FILE_COUNT` and look up by filename. **A test
+whose name contains a number has to be renamed every time the system grows,
+which is a strong hint it is asserting the wrong thing.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -154,6 +154,12 @@ jobs:
                     prep -top wp_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 14 -set-init-zero -set-assumes"
 
+      - name: Prove activation_requant properties
+        run: |
+          yosys -p "read_verilog -sv -formal -DFORMAL build/rtl/activation_requant.sv; \
+                    prep -top activation_requant; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
+
       # First multi-module proof in this repo. Everything above is
       # module-scoped; these properties range across the sequencer, the BRAMs
       # and the MAC, which only became possible once the datapath was wired
@@ -177,7 +183,7 @@ jobs:
                     chparam -set DEPTH 4 weight_bram; \
                     prep -top bitnet_engine_top -flatten; memory_map; \
                     async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+                    sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
       # Vacuity gate, part two. The $check-cell count proves properties EXIST;
       # this proves they BITE. Each witness asserts the negation of a case its

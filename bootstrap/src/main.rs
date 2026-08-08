@@ -31,6 +31,7 @@ mod behavior_sva_v2;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
+mod bitnet_requant;
 mod bitnet_buffers;
 mod bitnet_axi;
 mod bitnet_dma;
@@ -757,6 +758,16 @@ enum Commands {
     ValidateGenHeaders {
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
+    },
+
+    /// Emit the layer-boundary activation requantizer (accumulator -> packed trits)
+    GenActivationRequant {
+        /// Module identifier
+        #[arg(long, default_value = "activation_requant")]
+        name: String,
+        /// Output path ("-" for stdout)
+        #[arg(long, default_value = "-")]
+        output: String,
     },
 
     /// Emit Yosys-checkable immediate assertions from behavior JSON
@@ -8244,6 +8255,11 @@ async fn main() -> anyhow::Result<()> {
             behaviors_json,
             output,
         } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
+        Commands::GenActivationRequant { name, output } => {
+            let v = bitnet_requant::build_activation_requant(&name);
+            let out = if output == "-" { None } else { Some(output.as_str()) };
+            write_verilog_to_output(&v, out, "activation requantizer")?
+        }
         Commands::GenBehaviorSvaYosys { input, output } => {
             run_gen_behavior_sva_yosys(&input.to_string_lossy(), &output)?
         }
@@ -8549,6 +8565,11 @@ fn main() -> anyhow::Result<()> {
             behaviors_json,
             output,
         } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
+        Commands::GenActivationRequant { name, output } => {
+            let v = bitnet_requant::build_activation_requant(&name);
+            let out = if output == "-" { None } else { Some(output.as_str()) };
+            write_verilog_to_output(&v, out, "activation requantizer")?
+        }
         Commands::GenBehaviorSvaYosys { input, output } => {
             run_gen_behavior_sva_yosys(&input.to_string_lossy(), &output)?
         }

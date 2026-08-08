@@ -86,6 +86,16 @@ That gap is exactly where `H-BitLinear` lives. Whatever the eventual activation
 width, a layer boundary needs *something* there, and today it is absent rather
 than simplified.
 
+> **Closed 2026-08-09.** `t27c gen-activation-requant` emits
+> `activation_requant`, wired into `bitnet_engine_top`: `signed [15:0]` →
+> symmetric dead-zone on the `threshold` CSR → packed trits, 27 per word.
+> **The activation-width fork now lives in one output port** rather than in the
+> absence of a module. A 4-bit variant changes `trit [1:0]` to `act [3:0]` and
+> swaps the dead-zone for a scale-and-round; nothing else in the datapath moves.
+> Properties in [`FORMAL_FOUNDATIONS.md`](FORMAL_FOUNDATIONS.md) Prop. 15,
+> including `a_trit_never_invalid` — the reserved `2'b11` code is proved
+> unreachable.
+
 ### 2.3 The top level does not instantiate the datapath — `MEASURED`
 
 `bitnet_engine_top` instantiates **three** of the nine emitted modules:

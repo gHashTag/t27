@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-09
 
+## activation-requantizer -- the layer boundary exists; the fork has an address
+
+- **WHERE**: **NEW** `bootstrap/src/bitnet_requant.rs` (+9 tests),
+  `bootstrap/src/bitnet_bundle.rs`, `bootstrap/src/bitnet_top.rs`,
+  `bootstrap/src/main.rs`, `bootstrap/tests/bitnet_bundle.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 15),
+  `docs/BITNET_V2_POSITION.md`, `README.md`.
+- **Variant A from #1980**, step 2 of that document's recommendation. The bundle
+  had **no module at the layer boundary at all**: the MAC emitted
+  `signed [15:0]`, the next layer consumed `[53:0]` packed trits, nothing
+  converted. `t27c gen-activation-requant` fills the gap and is wired into
+  `bitnet_engine_top` (**6 of 10** modules now instantiated).
+- **The reserved code.** The trit stdlib reserves `2'b11` as invalid with no
+  error path; a requantizer that could emit it would corrupt every downstream
+  `trit27_*` primitive silently. `a_trit_never_invalid` proves it unreachable.
+- **A negative threshold makes both comparisons true.** Written as a **priority
+  chain** rather than parallel comparisons, so the output stays legal for every
+  input instead of relying on the host. **Prefer a total function over a
+  documented precondition when the cost is one ternary operator.**
+- **Validated against two deliberate breaks**: dead-zone emitting `2'b11` ->
+  REFUTED; priority order reversed -> REFUTED. Correct build proves.
+- **The design fork now has an address.** The ternary-activation choice was
+  implicit in the *absence* of a requantizer; it is now explicit in one output
+  port. A 4-bit variant changes `trit [1:0]` to `act [3:0]` and nothing else in
+  the datapath moves. **An unmade decision with no interface is untrackable;
+  the same decision with an interface is a diff.**
+- **Two of my own tests were too broad and failed on their own subject.**
+  `never_emits_the_reserved_code` banned the substring `2'b11` across the whole
+  emitted text -- failing on the comment that explains the ban and the assertion
+  that enforces it. Third instance of this slip in the campaign (`8'hFF`,
+  `FORMAT-SPEC`): **a substring ban catches the documentation that justifies
+  it.**
+- **Count-named tests renamed to invariant-named.** Adding one file broke
+  `bundle_order_has_twelve_entries`, `build_sv_entries_returns_eleven_files` and
+  two positional lookups. Now assert `BUNDLE_ORDER.len() == BUNDLE_FILE_COUNT`
+  and look up by filename. **A test whose name contains a number gets renamed
+  every time the system grows -- a hint it asserts the wrong thing.**
+- Suite **1195 -> 1204 passed, 0 failed**. Seals 496/496.
+
 ## engine-top-wired -- the first multi-module proof, and a property that did not bite
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs` (datapath + `ifdef FORMAL` block),

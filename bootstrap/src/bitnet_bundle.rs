@@ -25,6 +25,7 @@ use crate::bitnet_buffers::{build_double_buffer_ctrl, build_weight_prefetch_ctrl
 use crate::bitnet_dma::build_dma_controller;
 use crate::bitnet_irq::build_interrupt_controller;
 use crate::bitnet_pipeline::{build_layer_sequencer, build_multilayer_sequencer, build_pipeline_stage2};
+use crate::bitnet_requant::build_activation_requant;
 use crate::bitnet_top::build_bitnet_engine_top;
 use crate::weight_bram::build_default_weight_bram;
 
@@ -93,13 +94,14 @@ pub const BUNDLE_ORDER: &[&str] = &[
     "axi_lite_slave.sv",
     "dma_controller.sv",
     "interrupt_controller.sv",
+    "activation_requant.sv",
     "bitnet_engine_top.sv",
     "behavior_sva_v2.sv",
     "manifest.txt",
 ];
 
 /// Total expected file count in a bundle (11 SV files + 1 manifest).
-pub const BUNDLE_FILE_COUNT: usize = 12;
+pub const BUNDLE_FILE_COUNT: usize = 13;
 
 /// Canonical BitNet HLS behavior set (4 properties, v2-emittable).
 ///
@@ -225,6 +227,10 @@ pub fn build_sv_entries(config: &BundleConfig<'_>) -> Vec<BundleEntry> {
             content: build_interrupt_controller("interrupt_controller"),
         },
         BundleEntry {
+            filename: "activation_requant.sv".to_string(),
+            content: build_activation_requant("activation_requant"),
+        },
+        BundleEntry {
             filename: "bitnet_engine_top.sv".to_string(),
             content: build_bitnet_engine_top(config.top_name),
         },
@@ -283,14 +289,16 @@ mod tests {
     }
 
     #[test]
-    fn bundle_order_has_twelve_entries() {
-        assert_eq!(BUNDLE_ORDER.len(), 12);
-        assert_eq!(BUNDLE_FILE_COUNT, 12);
+    // Named for the invariant rather than the count: the count moved from 12
+    // to 13 when the layer-boundary requantizer was added, and a test whose
+    // *name* carries a number has to be renamed every time the bundle grows.
+    fn bundle_order_length_matches_the_declared_count() {
+        assert_eq!(BUNDLE_ORDER.len(), BUNDLE_FILE_COUNT);
     }
 
     #[test]
     fn bundle_order_ends_with_manifest() {
-        assert_eq!(BUNDLE_ORDER[11], "manifest.txt");
+        assert_eq!(*BUNDLE_ORDER.last().unwrap(), "manifest.txt");
     }
 
     #[test]
@@ -313,10 +321,10 @@ mod tests {
     }
 
     #[test]
-    fn build_sv_entries_returns_eleven_files() {
+    fn build_sv_entries_covers_every_non_manifest_file() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        assert_eq!(entries.len(), 11);
+        assert_eq!(entries.len(), BUNDLE_ORDER.len() - 1);
     }
 
     #[test]
@@ -345,21 +353,21 @@ mod tests {
     }
 
     #[test]
-    fn build_bundle_entries_returns_twelve() {
+    fn build_bundle_entries_covers_the_whole_order() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries.len(), 12);
+        assert_eq!(entries.len(), BUNDLE_ORDER.len());
     }
 
     #[test]
     fn build_bundle_entries_last_is_manifest() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries[11].filename, "manifest.txt");
+        assert_eq!(entries.last().unwrap().filename, "manifest.txt");
     }
 
     #[test]
-    fn manifest_lists_all_ten_files() {
+    fn manifest_lists_every_emitted_file() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
         let manifest = build_manifest(&cfg, &entries);
@@ -403,7 +411,9 @@ mod tests {
             ..BundleConfig::default()
         };
         let entries = build_sv_entries(&cfg);
-        let top = &entries[9].content;
+        // By filename, not index: inserting activation_requant ahead of the top
+        // shifted every positional lookup in this file.
+        let top = &entries.iter().find(|e| e.filename == "bitnet_engine_top.sv").unwrap().content;
         assert!(top.contains("my_engine"));
     }
 
@@ -437,7 +447,7 @@ mod tests {
     fn behavior_sva_block_present_in_bundle() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[10].content;
+        let sva = &entries.iter().find(|e| e.filename == "behavior_sva_v2.sv").unwrap().content;
         assert!(sva.contains("property "));
         assert!(sva.contains("assert property"));
     }
@@ -446,7 +456,7 @@ mod tests {
     fn behavior_sva_block_includes_s_eventually() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[10].content;
+        let sva = &entries.iter().find(|e| e.filename == "behavior_sva_v2.sv").unwrap().content;
         // start_eventually_done uses the v2 s_eventually consequent.
         assert!(sva.contains("s_eventually"));
     }
