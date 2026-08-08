@@ -89,6 +89,27 @@ jobs:
                     prep -top irq_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 6 -tempinduct"
 
+      - name: Prove axi_lite_slave properties
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
+                        formal/axi_lite_slave_props.sv; \
+                        prep -top axi_props -flatten; stat" \
+                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          echo "axi check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 7 ]; then
+            echo "::error::Expected >=7 \$check cells for axi_props, found ${n:-0}."
+            exit 1
+          fi
+          # -set-init-zero, not -tempinduct: induction from an unconstrained
+          # initial state refutes properties that hold on every reachable
+          # state (bresp == 2'b00 is one). That was an artifact; starting from
+          # a reachable state is what separated it from the real defects.
+          yosys -p "read_verilog -sv -formal build/rtl/axi_lite_slave.sv \
+                    formal/axi_lite_slave_props.sv; \
+                    prep -top axi_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 10 -set-init-zero"
+
       - name: Behavior-DSL subset still emits and parses
         run: |
           set -euo pipefail

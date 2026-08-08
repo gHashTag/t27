@@ -169,8 +169,20 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("            reg_output_addr <= 64'd0;\n");
     s.push_str("            s_axi_rdata <= {DATA_WIDTH{1'b0}};\n");
     s.push_str("        end else begin\n");
-    s.push_str("            // ---- B-channel handshake clear (must precede write-accept so accept wins) ---\n");
-    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
+    s.push_str("            // ---- B-channel handshake clear ---------------------------------\n");
+    s.push_str("            // Releasing awready/wready here (and only here) is what bounds the\n");
+    s.push_str("            // slave to one outstanding write. This module has a single\n");
+    s.push_str("            // bvalid/bresp register, but awready and wready were previously set\n");
+    s.push_str("            // at reset and never cleared, so a second write could be accepted\n");
+    s.push_str("            // while the first response was still unacknowledged -- two accepted\n");
+    s.push_str("            // writes sharing one B beat, leaving an AXI master waiting forever.\n");
+    s.push_str("            // Yosys refuted `outstanding <= 1` from a reachable state; see\n");
+    s.push_str("            // formal/axi_lite_slave_props.sv and FORMAL_FOUNDATIONS Prop. 8.\n");
+    s.push_str("            if (s_axi_bvalid && s_axi_bready) begin\n");
+    s.push_str("                s_axi_bvalid  <= 1'b0;\n");
+    s.push_str("                s_axi_awready <= 1'b1;\n");
+    s.push_str("                s_axi_wready  <= 1'b1;\n");
+    s.push_str("            end\n");
     s.push_str("            // ---- Write channel --------------------------------------------\n");
     s.push_str("            if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin\n");
     s.push_str("                case (s_axi_awaddr[5:2])\n");
@@ -189,10 +201,16 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                    default: ; // no-op for RO / unmapped writes\n");
     s.push_str("                endcase\n");
     s.push_str("                s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;\n");
+    s.push_str("                // Stop accepting writes until this response is taken.\n");
+    s.push_str("                s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;\n");
     s.push_str("            end\n");
     s.push_str("            // Read channel\n");
-    s.push_str("            // R-channel handshake clear (must precede read-accept so accept wins)\n");
-    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
+    s.push_str("            // R-channel handshake clear. Same bound as the write side: one\n");
+    s.push_str("            // rvalid/rdata register means at most one outstanding read.\n");
+    s.push_str("            if (s_axi_rvalid && s_axi_rready) begin\n");
+    s.push_str("                s_axi_rvalid  <= 1'b0;\n");
+    s.push_str("                s_axi_arready <= 1'b1;\n");
+    s.push_str("            end\n");
     s.push_str("            if (s_axi_arvalid && s_axi_arready) begin\n");
     s.push_str("                case (s_axi_araddr[5:2])\n");
     s.push_str("                    4'h0: s_axi_rdata <= reg_ctrl;\n");
@@ -214,6 +232,8 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                    default: s_axi_rdata <= 32'hDEADBEEF;\n");
     s.push_str("                endcase\n");
     s.push_str("                s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;\n");
+    s.push_str("                // Stop accepting reads until this data beat is taken.\n");
+    s.push_str("                s_axi_arready <= 1'b0;\n");
     s.push_str("            end\n");
     s.push_str("        end\n");
     s.push_str("    end\n");
@@ -383,10 +403,22 @@ mod tests {
     }
 
     #[test]
+    // This test used to pin the literal single-line handshake clears, which is
+    // exactly the form that left awready/wready asserted while a response was
+    // outstanding. It passed throughout the lifetime of that defect. A test
+    // that asserts the shape of an implementation cannot notice the
+    // implementation is wrong -- it now asserts the backpressure rule, with
+    // formal/axi_lite_slave_props.sv carrying the proof.
     fn axi_handshake_dropbacks_present() {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
-        assert!(v.contains("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;"));
-        assert!(v.contains("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;"));
+        // VALID still clears on its handshake.
+        assert!(v.contains("s_axi_bvalid  <= 1'b0;"));
+        assert!(v.contains("s_axi_rvalid  <= 1'b0;"));
+        // ...and READY is released only there, having been dropped on accept.
+        assert!(v.contains("s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;"));
+        assert!(v.contains("s_axi_arready <= 1'b0;"));
+        assert!(v.contains("s_axi_awready <= 1'b1;"));
+        assert!(v.contains("s_axi_arready <= 1'b1;"));
     }
 
     #[test]

@@ -77,7 +77,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **6 properties of `interrupt_controller` proved**; vacuity gate counts `$check` cells |
+| CI | Formal (Yosys) | GREEN | **13 properties proved** across `interrupt_controller` (6) + `axi_lite_slave` (7); vacuity gates count `$check` cells |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -169,6 +169,16 @@ interrupt **provably destroyed that event** — always, on every reachable state
 not occasionally. Fixed by clear-then-set; the harness is a regression witness
 that refutes against the old RTL. See
 [`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md) Prop. 7.
+
+**And a second one.** `axi_lite_slave` asserted `awready`/`wready`/`arready` at
+reset and never deasserted them, while holding a single response register per
+channel — so a second transaction was accepted while the first response was
+unacknowledged, merging two transactions into one response beat and hanging the
+master. Formalised as a transaction balance (`outstanding <= 1`), refuted on
+both channels, fixed by releasing `ready` only on the response handshake.
+Prop. 8.
+
+Both defects had a **passing unit test pinning the buggy text in place**.
 
 ### Host stack (W39 R-HS-1, W40 R-HS-2)
 

@@ -258,6 +258,66 @@ behaviour, with the formal harness carrying the real proof.
 
 ---
 
+### Proposition 8 — `axi_lite_slave` accepted more transactions than it could answer
+
+`PROVED` (machine-checked). Second real defect found by pointing the prover at
+generated RTL, and the second one a passing unit test had been holding in place.
+
+`s_axi_awready`, `s_axi_wready` and `s_axi_arready` were asserted at reset and
+**never deasserted**. The module has a single `bvalid`/`bresp` register and a
+single `rvalid`/`rdata` register, so it can owe at most one response per
+channel. Accepting a second transaction while the first response is
+unacknowledged merges two transactions into one response beat, and an AXI
+master waits forever for the beat that never comes.
+
+**8a. Formalised as a transaction balance**, which is stronger than a
+handshake-shape check:
+
+```verilog
+outstanding_w <= outstanding_w + (awvalid && wvalid && awready && wready)
+                                - (bvalid && bready);
+assert (outstanding_w <= 1);
+```
+
+| Property | Old RTL | Fixed RTL |
+|---|---|---|
+| `a_one_outstanding_write` | **REFUTED** | PROVED |
+| `a_one_outstanding_read` | **REFUTED** | PROVED |
+| `a_no_write_accept_while_pending` | **REFUTED** | PROVED |
+| `a_bvalid_stable` / `a_rvalid_stable` | PROVED | PROVED |
+| `a_sanity` (tautology) | PROVED | PROVED |
+
+Both channels had the identical defect. AXI VALID-stability was never violated —
+the bug is not that responses are malformed, it is that there are **too few of
+them**.
+
+**8b. The fix** releases `ready` only on the response handshake and drops it on
+accept, bounding each channel to one outstanding transaction. It costs one cycle
+of throughput per transaction and is what the single-register design implies.
+
+**8c. One refutation was an artifact, and separating it mattered.**
+`bresp == 2'b00` came back REFUTED under `-tempinduct`, even though `bresp` is
+only ever assigned `2'b00`. Temporal induction may begin in an **unreachable**
+state where `bresp` holds garbage. Re-run from a reachable start
+(`-set-init-zero`) it **PROVES**.
+
+```
+tempinduct (unconstrained init) -> REFUTED     # artifact
+BMC from zero-init state        -> PROVED      # truth
+```
+
+The two genuine defects were refuted under **both** settings. **A refutation is
+only evidence of a bug if the counterexample state is reachable** — otherwise it
+is evidence about the proof method. Cross-checking every refutation against a
+reachable start is the cheap discriminator, and it is what kept a false bug
+report out of this document.
+
+**8d. `a_sanity` is a deliberate tautology** carried in the harness. A property
+that cannot fail, failing, means the run is not evaluating what it appears to —
+the `-flatten` trap from Prop 7 surfaces exactly that way.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

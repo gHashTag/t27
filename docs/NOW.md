@@ -2,6 +2,41 @@
 
 Last updated: 2026-08-09
 
+## axi-lost-responses -- a second real defect, and a false one caught in time
+
+- **WHERE**: `bootstrap/src/bitnet_axi.rs` (fix + test rewritten),
+  `bootstrap/tests/bitnet_axi.rs` (test rewritten), **NEW**
+  `formal/axi_lite_slave_props.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 8), `README.md`.
+- **Variant A from #1967 -- extend the harness -- found a second defect.**
+  `s_axi_awready`, `s_axi_wready` and `s_axi_arready` were asserted at reset and
+  **never deasserted**, while the module holds one `bvalid`/`bresp` and one
+  `rvalid`/`rdata` register. A second transaction was accepted while the first
+  response was unacknowledged: two transactions, one response beat, master
+  waits forever.
+- **Formalised as a transaction balance**, stronger than a handshake-shape
+  check: `outstanding <= 1` on each channel. **REFUTED on both**, from a
+  reachable state. AXI VALID-stability was never violated -- the responses are
+  not malformed, there are simply **too few of them**.
+- **Fix**: release `ready` only on the response handshake, drop it on accept.
+  Costs one cycle of throughput per transaction, which is what a
+  single-response-register design implies. All 7 properties now prove.
+- **A third refutation was an artifact and separating it mattered.**
+  `bresp == 2'b00` came back REFUTED under `-tempinduct` although `bresp` is
+  only ever assigned `2'b00`: induction can start in an **unreachable** state.
+  Re-run from a reachable start (`-set-init-zero`) it **PROVES**. The two real
+  defects refuted under *both* settings. **A refutation is only evidence of a
+  bug if the counterexample state is reachable.** Cross-checking kept a false
+  bug report out of the docs.
+- **A deliberate tautology (`a_sanity`) rides in the harness**, so a run that is
+  not evaluating what it appears to (the `-flatten` trap from #1967) announces
+  itself.
+- **A third text-pinning test found and rewritten.**
+  `axi_handshake_dropbacks_present` asserted the literal single-line handshake
+  clears -- the exact form that left `ready` asserted. Both defects this
+  campaign had a passing unit test holding the bug in place.
+- Suite **1195 passed, 0 failed**. Seals 496/496.
+
 ## formal-finds-real-bug -- a lost-interrupt race, proved and fixed
 
 - **WHERE**: `bootstrap/src/bitnet_irq.rs` (fix + 2 new tests, 2 rewritten),

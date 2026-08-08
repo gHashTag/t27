@@ -222,12 +222,18 @@ fn axi_responses_are_okay() {
     assert!(stdout.contains("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;"));
 }
 
+// Pinned the literal single-line handshake clears, which is the form that left
+// awready/wready asserted while a response was outstanding -- two accepted
+// writes, one B beat. It passed for the whole life of that defect. Now asserts
+// the backpressure rule; formal/axi_lite_slave_props.sv carries the proof.
 #[test]
 fn axi_handshake_dropbacks_present() {
     let (stdout, _stderr, ok) = run(&["gen-axi-lite-slave"]);
     assert!(ok);
-    assert!(stdout.contains("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;"));
-    assert!(stdout.contains("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;"));
+    assert!(stdout.contains("s_axi_bvalid  <= 1'b0;"));
+    assert!(stdout.contains("s_axi_rvalid  <= 1'b0;"));
+    assert!(stdout.contains("s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;"));
+    assert!(stdout.contains("s_axi_arready <= 1'b0;"));
 }
 
 #[test]
