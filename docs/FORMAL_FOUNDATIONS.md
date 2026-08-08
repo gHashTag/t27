@@ -696,6 +696,52 @@ which is a strong hint it is asserting the wrong thing.**
 
 ---
 
+### Proposition 16 — the loop closes, and a controller whose decision nobody read
+
+`PROVED`. Step 3: the requantizer's packed word now feeds back as the next
+layer's activations, so the engine can actually iterate.
+
+**16a. `use_buffer_a` was dead.** `double_buffer_ctrl` computes the ping-pong
+decision and `bitnet_engine_top` connected it to a wire — and **never consumed
+it**. The single activation BRAM had `wr_en` tied to `1'b0`. So the controller
+was correct, its output was wired, and nothing acted on it: the engine could
+run one layer and had no path from a layer's output to the next layer's input.
+
+Grep count of `use_buffer_a` in the top before this wave: **2** — the
+declaration and the port connection. **A signal that appears exactly twice is
+connected but unused, and that is invisible to any per-module check.**
+
+**16b. The invariant.** Reading and writing the same buffer in one layer lets a
+neuron consume activations that same layer just produced. Both BRAMs are
+correct, the controller is correct, and the composition would be wrong:
+
+```verilog
+a_no_read_write_same:
+    assert (!(use_buffer_a && wr_en_a) && !(!use_buffer_a && wr_en_b));
+```
+
+Validated by inverting the ping-pong — writing the buffer being read:
+
+| Variant | Result |
+|---|---|
+| correct | PROVED |
+| ping-pong inverted | **REFUTED** |
+
+**16c. The write address is a word counter, not a neuron counter.** The
+requantizer emits one packed word per 27 neurons, so `buf_write_addr` — which
+counts neurons — is the wrong address by a factor of 27. A dedicated
+`act_wr_word` counter, reset at `layer_start`, is the right one. **A signal
+named for what it addresses is not necessarily the address you need; check the
+rate.**
+
+**16d. This is the third integration defect class in three waves**, none of
+which any module-level property could reach: a latency skew (Prop. 14), an
+absent stage (Prop. 15), and a dead control signal (here). All three were found
+by wiring things together and asserting across the seam — which is only
+possible once there is a seam.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

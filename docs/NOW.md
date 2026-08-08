@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-09
 
+## activation-loop-closed -- a controller whose decision nobody read
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `README.md`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 16).
+- **Variant A from #1981.** The requantizer's packed word now feeds back as the
+  next layer's activations; the engine can iterate. 8 instances in the top.
+- **`use_buffer_a` was dead.** `double_buffer_ctrl` computes the ping-pong
+  decision, the top connected it to a wire, and **nothing consumed it**; the
+  single activation BRAM had `wr_en` tied to `1'b0`. Controller correct, output
+  wired, nobody acting on it. Grep count in the top was **2** -- declaration and
+  port connection. **A signal appearing exactly twice is connected but unused,
+  and no per-module check can see that.**
+- **The invariant**: reading and writing the same buffer in one layer lets a
+  neuron consume activations that layer just produced. `a_no_read_write_same`
+  forbids it. Validated by inverting the ping-pong: correct build PROVED,
+  inverted build **REFUTED**.
+- **The write address is a word counter, not a neuron counter.** The requantizer
+  emits one packed word per 27 neurons, so `buf_write_addr` is wrong by 27x. A
+  dedicated `act_wr_word`, reset at `layer_start`. **A signal named for what it
+  addresses is not necessarily the address you need -- check the rate.**
+- **Third integration defect class in three waves**, none reachable by
+  module-level properties: latency skew (Prop 14), absent stage (Prop 15), dead
+  control signal (here).
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## activation-requantizer -- the layer boundary exists; the fork has an address
 
 - **WHERE**: **NEW** `bootstrap/src/bitnet_requant.rs` (+9 tests),
