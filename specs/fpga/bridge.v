@@ -126,12 +126,12 @@ module FPGA_Bridge (
             reg __t27_ret;
             __t27_ret = 1'b0;
             if ((tail == size)) begin
-                buffer_read = {0, 0};
+                buffer_read = {32'd0, 8'd0};
                 __t27_ret = 1'b1;
             end else begin
                 data = \buf [tail];
                 new_tail = ((tail + 1) % size);
-                buffer_read = {new_tail, data};
+                buffer_read = {32'(new_tail), 8'(data)};
                 __t27_ret = 1'b1;
             end
         end

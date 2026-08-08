@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: tuple literal elements and destructure regs width-cast (Refs #1948)
+
+- A tuple return `(1, true)` packed each element via gen_verilog_expr -- a bare literal is unsized and iverilog rejected it in the concatenation ("operand has indefinite width"). Elements are width-cast to their declared tuple-element type now
+- Tuple-DESTRUCTURE binding regs (`(a,b,c,d) = call()`) were declared 64-bit each, so `{d,c,b,a} = <32-bit>` sliced the packed return wrongly. Each element reg is declared at its element width from the callee's return tuple type
+- tri-net corpus: icarus 88 -> 94 (fpga_synthesis_report, hello, integration_tests, lite_crypto, mesh_routing, packet_loss_injection)
+- FROZEN_HASH resealed
+
 ## gen-verilog: hex/bin literals in array-literal text normalized; more SV keywords (Refs #1948)
 
 - The array-literal concat path works on raw source TEXT (not AST), so `0x38`/`0b..` element literals reached Verilog verbatim -- illegal (`8'(0x38)`). A text-level normalizer converts them to decimal
