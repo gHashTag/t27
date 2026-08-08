@@ -1,6 +1,13 @@
-# NOW — fix(gen-c): params, test bindings, assert macro (2026-08-08)
+# NOW — typecheck: arity mismatch is a hard error (2026-08-08)
 
 Last updated: 2026-08-08
+
+## typecheck: promote call-arity mismatch from warning to hard error (Closes #1921)
+
+- The arity check existed but only warned, and nothing reads warnings (tri-net's hook greps 'Typecheck OK'; gen paths skip typecheck) -- two tri-net specs shipped wrong-arity calls for months (tri-net#323)
+- Now: error_count += 1, ok = false -- the specs-typecheck gate actually blocks the class
+- Sweep: zero arity violations remain across tri-net's 100+ specs post-#323, so the promotion breaks nothing (27 specs have PRE-EXISTING unrelated typecheck errors, identical under stock t27c)
+- Unit suite 1537/1537; FROZEN_HASH resealed
 
 ## fix(gen-c): [T;N] params, test-block bindings, t27_assert macro (Refs #1919)
 
