@@ -368,6 +368,67 @@ proves nothing about the master. Every `assume` in a harness narrows what the
 
 ---
 
+### Proposition 10 — a reusable AXI4 slave model, and one anomaly left open
+
+`MEASURED` for 10a. **10b is deliberately left unresolved**, and saying so is
+the point of this entry.
+
+**10a. The model, and why its precondition is asserted not assumed.**
+`formal/axi4_read_slave_model.sv` constrains a read slave to what AXI4 actually
+requires: no unsolicited beats, `rlast` exactly on the (`arlen`+1)-th beat, and
+slave-side VALID stability. It does **not** constrain `arready`, which a slave
+may stall freely.
+
+The model tracks one burst at a time, which is faithful only if the master
+issues one at a time. That is checked by `a_model_precondition_single_burst`
+rather than assumed. **Assuming it would let the model hide exactly the class
+of defect it exists to expose**, and the distinction was not academic: the
+precondition initially **refuted**. Port-only properties
+(`!(arvalid && rready)`, no back-to-back AR handshakes) both **proved** on the
+same RTL, which located the fault in the *model* — it cleared `burst_active`
+from its own beat counter instead of from the master-visible `rlast`, so a
+single disagreement latched it high forever. Keyed off `rlast`, the
+precondition proves.
+
+The sequence is the reusable part: **when a model's precondition fails, check
+the same claim with properties that use only the ports of the unit under test.
+If those hold, the model is wrong.**
+
+**10b. Open anomaly — `arlen` at the address handshake.** With `length`
+constrained to 8 (a single-beat transfer, so `arlen` must be 0):
+
+```
+assert (!(arvalid && arready) || arlen == 8'd0)     REFUTED
+```
+
+Hand-tracing the RTL says this should hold: `m_axi_arlen <= burst_len` and
+`m_axi_arvalid <= 1'b1` are assigned on the same cycle in `READ_ADDR`, from a
+`bytes_remaining` that the IDLE branch commits in the same non-blocking group
+as the state change.
+
+**The refutation and the hand-trace disagree, and this entry does not claim
+which is right.** It is recorded as an anomaly, not a defect and not an
+artifact. Consequently the over-read property
+(`beats_taken <= ceil(length/8)`) also remains **open** — it refutes, but a
+harness that produces one unexplained result cannot be trusted to settle a
+second.
+
+The alternative was to pick the reading that made a tidier story. Two waves ago
+an unreachable-state refutation was nearly filed as a bug (Prop. 8c); the cost
+of a false finding is that someone acts on it. **An anomaly with a name and a
+reproduction is more useful than a confident answer that might be wrong.**
+
+Reproduce:
+
+```bash
+yosys -p "read_verilog -sv -formal <bundle>/dma_controller.sv \
+          formal/axi4_read_slave_model.sv <harness>; \
+          prep -top chk -flatten; async2sync; chformal -lower; \
+          sat -verify -prove-asserts -seq 16 -set-init-zero"
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

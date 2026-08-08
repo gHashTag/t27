@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## axi4-slave-model -- built, precondition proves, one anomaly left open
+
+- **WHERE**: **NEW** `formal/axi4_read_slave_model.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 10), `README.md`.
+- **Variant A from #1970**: build a reusable AXI4 slave model to settle the
+  over-read question left open last wave.
+- **The model is built and its precondition proves.** It assumes only what AXI4
+  requires of a read slave (no unsolicited beats, `rlast` on the last beat of
+  the burst, slave-side VALID stability) and leaves `arready` free.
+- **Its precondition is asserted, not assumed** -- the model tracks one burst
+  at a time, and assuming that would let it hide the class of defect it exists
+  to expose. That mattered: the precondition initially **refuted**. Port-only
+  properties on the same RTL (`!(arvalid && rready)`, no back-to-back AR
+  handshakes) both **proved**, locating the fault in the model, which cleared
+  `burst_active` from its own counter rather than from the master-visible
+  `rlast`. Keyed off `rlast`, it proves.
+- **Reusable technique**: when a model's precondition fails, re-check the same
+  claim using only ports of the unit under test. If those hold, the model is
+  wrong.
+- **OPEN, and not resolved**: with `length` fixed at 8 (one beat, so `arlen`
+  must be 0), `assert (!(arvalid && arready) || arlen == 8'd0)` **refutes**,
+  while hand-tracing the RTL says it should hold. **This entry does not claim
+  which is right.** The over-read property therefore also stays open -- a
+  harness with one unexplained result cannot settle a second.
+- Deliberately not dressed up as a finding. Prop 8c nearly saw an
+  unreachable-state refutation filed as a bug; a false finding costs more than
+  a missing one because it gets acted on.
+- All three existing harnesses still prove; suite **1195 passed, 0 failed**.
+
 ## dma-burst-defects -- two more AXI4 violations, and two candidates rejected
 
 - **WHERE**: `bootstrap/src/bitnet_dma.rs` (fixes + 3 tests rewritten),

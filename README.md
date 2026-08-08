@@ -189,6 +189,12 @@ All four defects had a **passing unit test pinning the buggy text in place** —
 one of them named `dma_burst_length_is_max`, asserting the defect as if it were
 the contract. Eight such tests have now been rewritten to assert behaviour.
 
+`formal/axi4_read_slave_model.sv` is a reusable AXI4 read-slave model for
+master-side properties; its single-burst precondition is **asserted, not
+assumed**, so it cannot silently hide the defects it exists to find. One
+anomaly it surfaced (`arlen` at the address handshake) is recorded as **open**
+rather than resolved — see Prop. 10.
+
 ### Host stack (W39 R-HS-1, W40 R-HS-2)
 
 A pure-Rust host driver against a MockMmio matching the W36d AXI-Lite slave
