@@ -1,6 +1,12 @@
-# NOW — deeper net gated (2,5,3,1) + a without-Vivado open-flow refinement (2026-08-08)
+# NOW — CI gates 3-input scaling + a free-Vivado cloud runbook (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test+docs: gate 3-input scaling learns + a cloud runbook for free Vivado closure (Refs #1764)
+
+- V2 (stack): the learning gate covered only 2-input tasks (XOR-like). Added a 3-INPUT (3,5,1) net learning a noisy 3-feature majority task, held-out 55/60 (92%), deterministic -- so CI now proves the generator scales along the INPUT dimension, not just depth/width. (3-way parity was too hard for a small net at 72%; majority is the clean, reliable demonstrator.)
+- V1 (Vivado path): added `docs/vivado_closure/CLOUD_RUNBOOK.md` -- concrete steps to run the Vivado closure kit on free Vivado ML Standard on an x86-64 Linux box or cloud instance (AWS t3.xlarge / GCP e2-standard-4, build-only, no FPGA on the cloud host; copy the .bit back and flash on the Mac). Free Vivado supports xc7a200t; it just doesn't run on macOS
+- Context: the open flow ALREADY trains XOR on silicon (met-timing + seed-search); Vivado is only for deterministic no-seed-search closure + nets > XOR. Board on generated capstone (XOR 4/4). Refs #1764
 
 ## test+docs: CI now gates a deeper [2,5,3,1] net learns; met-timing is a partial without-Vivado refinement (Refs #1764)
 

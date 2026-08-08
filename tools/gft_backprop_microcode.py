@@ -459,6 +459,34 @@ if __name__ == "__main__":
     te = sum(1 for a, b, t in tew if _predw(a, b) == t)
     assert te >= int(0.9 * len(tew)), f"deep [2,5,3,1] held-out too low: {te}/{len(tew)}"
     print(f"self-test: deep [2,5,3,1] (158 steps) learns nonlinear task, held-out {te}/{len(tew)} (>=90%) -- OK")
+    # input-dimension scaling: a 3-INPUT net (3,5,1) learns a noisy 3-feature task (majority
+    # of signs), proving the generator scales along inputs, not only depth/width.
+    reg, steps = gen(3, 5, 1); rf = [0] * len(reg)
+    random.seed(3)
+    for j in range(5):
+        for k in range(3): rf[reg[f"W{j}_{k}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+        rf[reg[f"b{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    for j in range(5): rf[reg[f"v0_{j}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+    def _maj(a, b, c): return int((int(a > 0) + int(b > 0) + int(c > 0)) >= 2)
+    def _ds3(n, seed):
+        random.seed(seed); d = []
+        while len(d) < n:
+            a, b, c = random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)
+            if min(abs(a), abs(b), abs(c)) < 0.15: continue
+            d.append((a, b, c, _maj(a, b, c)))
+        return d
+    tr3, te3 = _ds3(200, 7), _ds3(60, 99)
+    def _pred3(a, b, c):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["x2"]] = enc(c); rf[reg["t0"]] = 0
+        run(steps, rf); y = dec(rf[reg["y0"]])
+        for i in range(len(rf)): rf[i] = sav[i]
+        return int(y > 0.5)
+    for _ in range(80):
+        for a, b, c, t in tr3:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["x2"]] = enc(c); rf[reg["t0"]] = enc(float(t)); run(steps, rf)
+    te = sum(1 for a, b, c, t in te3 if _pred3(a, b, c) == t)
+    assert te >= int(0.9 * len(te3)), f"3-input (3,5,1) held-out too low: {te}/{len(te3)}"
+    print(f"self-test: 3-input (3,5,1) learns a noisy 3-feature task, held-out {te}/{len(te3)} (>=90%) -- OK")
     vd = emit_verilog_deep([2, 4, 3, 1], "deep431")
     assert "module deep431" in vd and "for(gi=0;gi<" in vd
     print("emit_verilog_deep: [2,4,3,1] module generated -- OK")
