@@ -19942,3 +19942,62 @@ vacuous check, and the W549 suite had already counted 1035 such failures. The
 backends evolved since those seals were recorded. Pre-existing, not mine.
 Always read the mismatch detail before claiming a regression -- and always
 check whether a prior run already recorded the same failure.
+
+## Wave Loop 553 — GATE G1 DONE: the ternary MAC has a bitstream (2026-08-09)
+
+### The result
+
+fpga/verilog/ternary_mac_demo_top_v2_200t.bit, 9,730,764 bytes, part
+xc7a200tfbg676-1. Place-and-route 0 errors.
+
+    Max frequency 'cfgmclk' : 150.63 MHz  (PASS at 80.00 MHz) -- 1.88x margin
+    SLICE_LUTX              : 120 / 269200  (0%)
+    SLICE_FFX               :  60 / 269200  (0%)
+
+Until now EVERY frequency figure attached to IGLA RACE was a projection from a
+model. This one is from place-and-route.
+
+### The lesson: re-test a blocker when the constraint is environmental
+
+W549-W552 recorded G1 as blocked and moved to other tracks. The blocker was
+real but it was DOCKER'S memory ceiling, not the machine's. Running the
+memory-heavy step natively:
+
+    bbaexport peak memory : 7,064,369,664 B  (7.06 GB)
+    Docker allocation     :         3.83 GiB
+    host RAM              :         8 GB
+
+7.06 GB against 3.83 GiB -- no Docker tuning short of ~7.5 GiB could have
+fixed it, and the host had the RAM all along. Split the pipeline: heavy step
+native, tool steps in Docker.
+
+**Generalize:** when a blocker is environmental (memory, sandbox, tool
+absence), ask which specific environment imposes it and whether another one is
+available. Do not carry "blocked" forward across waves without re-testing the
+premise.
+
+### Two gotchas worth remembering
+
+- bbaexport.py prints NOTHING when the OOM killer takes it. Check $? -- 137
+  means OOM. Piping through `tail` hides the exit code, which is what caused
+  W549's two misdiagnoses (first "missing prjxray database", then "unset
+  XRAY_DATABASE_DIR"; both wrong).
+- nextpnr-xilinx's XDC reader supports ONLY get_ports and get_nets. A
+  Vivado-legal `create_clock ... [get_pins startup/CFGMCLK]` errors with
+  "targets other than 'get_ports' or 'get_nets' are not supported". Use
+  [get_nets <net>]; Vivado accepts that form too.
+
+### Also this wave
+
+13 corrupted module declarations repaired (`module "[]const u8";`,
+`module Str = "",;`, `module ;`). All PARSED FINE -- the parser accepts a
+string literal, a type annotation, an assignment expression and an empty name
+as a module name. The only visible symptom was pathological seal filenames
+(`"[]const u8".json`, `Str = "",.json`). Intended names recovered from the seal
+store, which recorded them before the corruption. No spec `use`s any of them,
+so renaming was safe.
+
+Seal store: 1714 seals for 1063 specs. 548 spec_paths carry MORE THAN ONE seal
+(585 redundant files) because the filename convention changed from `<Module>`
+to `<parentdir>_<Module>` without cleanup. 91 orphans: 89 whose spec was
+deleted (real hashes, left behind), 2 whose spec never existed in history.
