@@ -2,6 +2,16 @@
 
 Last updated: 2026-08-08
 
+## parser: silent statement drop is DEAD -- malformed input hard-errors (Closes #1940)
+
+- Statement-level and module-level "recovery" silently DROPPED malformed statements/declarations (fn bodies became unimplemented stubs, whole fns vanished); every drop site now returns a hard parse error with fn name + line
+- Array-literal element capture depth-counts nested brackets (`[value, array[1], ...]` no longer truncates at the inner `]`)
+- The negative-test contract (tests_compiler_rejects + parity test) flipped: malformed input must FAIL to compile, not "drop and keep going"
+- bridge.t27's packet dispatch was a `match` STATEMENT the parser never supported -- the WHOLE dispatch was silently missing from the generated Verilog; rewritten as an if-chain and bridge.v regenerated
+- SVA fixture spec rewritten in legal t27 (tail expr + bare assert)
+- tri-net corpus: hardening surfaced 4 more latent-drop specs (fixed tri-net-side)
+- FROZEN_HASH resealed
+
 ## gen-rust: array literals emit elements, not empty vec![] (Closes #1938)
 
 - ExprArrayLiteral keeps element text in extra_size with no children; the Rust emitter mapped children only, so every spec array literal compiled to an empty Vec-typed vec![] (E0308 against a [T; N] return). Emits `[a, b, c]` / `[v; n]` from the text now, mirroring the Zig/C fixes

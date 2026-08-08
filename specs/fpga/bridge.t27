@@ -178,18 +178,24 @@ module FPGA_Bridge;
             return false;
         }
 
-        match bridge.packet_type {
-            PKT_UART_DATA => bridge_handle_uart_data(),
-            PKT_SPI_XFER => bridge_handle_spi_xfer(),
-            PKT_MAC_OP => bridge_handle_mac_op(),
-            PKT_STATUS => bridge_handle_status(),
-            PKT_CONFIG => bridge_handle_config(),
-            _ => {
-                // Unknown packet type
-                bridge.state = BRIDGE_IDLE;
-                bridge.rx_tail = bridge.rx_head;
-                return false;
-            }
+        // Dispatch by packet type. Was a `match` STATEMENT, which the parser
+        // has never supported -- the whole dispatch was silently DROPPED from
+        // the generated Verilog (t27#1940 hardening surfaced it).
+        if (bridge.packet_type == PKT_UART_DATA) {
+            bridge_handle_uart_data();
+        } else if (bridge.packet_type == PKT_SPI_XFER) {
+            bridge_handle_spi_xfer();
+        } else if (bridge.packet_type == PKT_MAC_OP) {
+            bridge_handle_mac_op();
+        } else if (bridge.packet_type == PKT_STATUS) {
+            bridge_handle_status();
+        } else if (bridge.packet_type == PKT_CONFIG) {
+            bridge_handle_config();
+        } else {
+            // Unknown packet type
+            bridge.state = BRIDGE_IDLE;
+            bridge.rx_tail = bridge.rx_head;
+            return false;
         }
 
         bridge.state = BRIDGE_IDLE;

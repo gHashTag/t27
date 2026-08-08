@@ -18,25 +18,74 @@ module FPGA_Bridge (
     // Parameters (from const declarations)
     // -------------------------------------------------------
     localparam [31:0] RX_BUFFER_SIZE = 256;
-    localparam [31:0] bridge = 0 /* Bridge_Unit {...} */;
-    localparam [31:0] rx_buffer = /* array [0;RX_BUFFER_SIZE]{} */;
-    localparam [31:0] tx_buffer = /* array [0;TX_BUFFER_SIZE]{} */;
-    localparam [7:0] PKT_UART_DATA = 8'h00;
+    localparam [31:0] TX_BUFFER_SIZE = 256;
+    localparam [31:0] SPI_BUFFER_SIZE = 64;
+    localparam [31:0] MAX_PACKET_SIZE = 128;
+    localparam [31:0] PACKET_TIMEOUT = 10000;
+    localparam [7:0] OP_MAC_MUL = 0;
+    localparam [7:0] OP_MAC_MAC = 1;
+    localparam [7:0] OP_MAC_MACC = 2;
+    localparam [7:0] OP_MAC_DOT = 3;
+    localparam [31:0] NUM_MAC_UNITS = 8;
+    localparam [7:0] BRIDGE_IDLE = 0;
+    localparam [7:0] BRIDGE_RX = 1;
+    localparam [7:0] BRIDGE_PARSE = 2;
+    localparam [7:0] BRIDGE_TX = 3;
+    localparam [7:0] BRIDGE_SPI = 4;
+    localparam [7:0] BRIDGE_MAC = 5;
+    reg [31:0] bridge;
+    initial begin
+        bridge = 0 /* Bridge_Unit {...} */;
+    end
+
+    reg [31:0] rx_buffer;
+    initial begin
+        rx_buffer = 0 /* TODO: array literal [0;RX_BUFFER_SIZE] not yet lowered to Verilog */;
+    end
+
+    reg [31:0] tx_buffer;
+    initial begin
+        tx_buffer = 0 /* TODO: array literal [0;TX_BUFFER_SIZE] not yet lowered to Verilog */;
+    end
+
+    localparam [7:0] PKT_UART_DATA = 0;
+    localparam [7:0] PKT_SPI_XFER = 16;
+    localparam [7:0] PKT_MAC_OP = 32;
+    localparam [7:0] PKT_STATUS = 48;
+    localparam [7:0] PKT_CONFIG = 64;
+
+    // -------------------------------------------------------
+    // R-SI-1: multiplication helper (no `*` operator)
+    // -------------------------------------------------------
+    function [63:0] __mul_noop; // t27#1886: 64-bit, u64 products no longer truncate
+        input [63:0] a;
+        input [63:0] b;
+        integer i;
+        reg [127:0] acc;
+        begin
+            acc = 128'd0;
+            for (i = 0; i < 64; i = i + 1) begin
+                if (b[i]) acc = acc + ({64'd0, a} << i);
+            end
+            __mul_noop = acc[63:0];
+        end
+    endfunction
 
     // -------------------------------------------------------
     // Registers (from struct declarations)
     // -------------------------------------------------------
     // struct Bridge_Unit
-    reg [7:0] bridge_unit_state; // Bridge_Unit.state
-    reg [31:0] bridge_unit_rx_head; // Bridge_Unit.rx_head
-    reg [31:0] bridge_unit_rx_tail; // Bridge_Unit.rx_tail
-    reg [31:0] bridge_unit_tx_head; // Bridge_Unit.tx_head
-    reg [31:0] bridge_unit_tx_tail; // Bridge_Unit.tx_tail
-    reg [7:0] bridge_unit_packet_len; // Bridge_Unit.packet_len
-    reg [7:0] bridge_unit_packet_type; // Bridge_Unit.packet_type
-    reg [31:0] bridge_unit_timeout_cnt; // Bridge_Unit.timeout_cnt
-    reg bridge_unit_spi_enabled; // Bridge_Unit.spi_enabled
-    reg bridge_unit_mac_enabled; // Bridge_Unit.mac_enabled
+    // UNSUPPORTED_ICARUS: struct Bridge_Unit contains non-lowerable fields
+    reg [7:0] bridge_state; // Bridge_Unit.state
+    reg [31:0] bridge_rx_head; // Bridge_Unit.rx_head
+    reg [31:0] bridge_rx_tail; // Bridge_Unit.rx_tail
+    reg [31:0] bridge_tx_head; // Bridge_Unit.tx_head
+    reg [31:0] bridge_tx_tail; // Bridge_Unit.tx_tail
+    reg [7:0] bridge_packet_len; // Bridge_Unit.packet_len
+    reg [7:0] bridge_packet_type; // Bridge_Unit.packet_type
+    reg [31:0] bridge_timeout_cnt; // Bridge_Unit.timeout_cnt
+    reg bridge_spi_enabled; // Bridge_Unit.spi_enabled
+    reg bridge_mac_enabled; // Bridge_Unit.mac_enabled
 
     assign ready = 1'b1;
 
@@ -50,11 +99,33 @@ module FPGA_Bridge (
         input [31:0] size;
         input [31:0] head;
         input [7:0] data;
-        begin
+        begin : buffer_write_body
+            reg [31:0] new_head;
+            new_head = ((head + 1) % size);
             if (((new_head == 0) && (head == (size - 1)))) begin
                 buffer_write = 1'b0;
+            end else begin
+                buf_in[head] = data;
+                buffer_write = 1'b1;
             end
-            buffer_write = 1'b1;
+        end
+    endfunction
+
+    // function: buffer_read
+    function [39:0] buffer_read; // -> (u8, usize)
+        input [31:0] \buf ;
+        input [31:0] size;
+        input [31:0] tail;
+        begin : buffer_read_body
+            reg [31:0] data;
+            reg [31:0] new_tail;
+            if ((tail == size)) begin
+                buffer_read = {0, 0};
+            end else begin
+                data = \buf [tail];
+                new_tail = ((tail + 1) % size);
+                buffer_read = {new_tail, data};
+            end
         end
     endfunction
 
@@ -63,7 +134,7 @@ module FPGA_Bridge (
         input [31:0] head;
         input [31:0] tail;
         input [31:0] size;
-        begin
+        begin : buffer_count_body
             if ((head >= tail)) begin
                 buffer_count = (head - tail);
             end else begin
@@ -74,109 +145,187 @@ module FPGA_Bridge (
 
     // function: bridge_rx_available
     function [31:0] bridge_rx_available; // -> usize
-        begin
+        input _unused;
+        begin : bridge_rx_available_body
             bridge_rx_available = buffer_count(bridge_rx_head, bridge_rx_tail, RX_BUFFER_SIZE);
         end
     endfunction
 
     // function: bridge_tx_space
     function [31:0] bridge_tx_space; // -> usize
-        begin
+        input _unused;
+        begin : bridge_tx_space_body
             bridge_tx_space = (TX_BUFFER_SIZE - buffer_count(bridge_tx_head, bridge_tx_tail, TX_BUFFER_SIZE));
         end
     endfunction
 
     // function: bridge_parse_header
     function bridge_parse_header; // -> bool
-        begin
-            if ((bridge_rx_available() < 2)) begin
+        input _unused;
+        begin : bridge_parse_header_body
+            reg [31:0] ptype;
+            reg [31:0] plen;
+            if ((bridge_rx_available(1'b0) < 2)) begin
                 bridge_parse_header = 1'b0;
+            end else begin
+                ptype = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                plen = buffer_read(rx_buffer, RX_BUFFER_SIZE, ptype);
+                bridge_rx_tail = plen;
+                bridge_packet_type = ptype;
+                bridge_packet_len = plen;
+                if ((plen > MAX_PACKET_SIZE)) begin
+                    bridge_parse_header = 1'b0;
+                end else begin
+                    bridge_state = BRIDGE_PARSE;
+                    bridge_timeout_cnt = 0;
+                    bridge_parse_header = 1'b1;
+                end
             end
-            reg [31:0] ptype = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] plen = buffer_read(rx_buffer, RX_BUFFER_SIZE, ptype);
-            if ((plen > MAX_PACKET_SIZE)) begin
-                bridge_parse_header = 1'b0;
-            end
-            bridge_parse_header = 1'b1;
         end
     endfunction
 
     // function: bridge_process_payload
     function bridge_process_payload; // -> bool
-        begin
-            bridge_process_payload = 1'b1;
+        input _unused;
+        begin : bridge_process_payload_body
+            if ((bridge_rx_available(1'b0) < (bridge_packet_len & {32{1'b1}}))) begin
+                bridge_timeout_cnt = (bridge_timeout_cnt + 1);
+                if ((bridge_timeout_cnt > PACKET_TIMEOUT)) begin
+                    bridge_state = BRIDGE_IDLE;
+                    bridge_rx_tail = bridge_rx_head;
+                end
+                bridge_process_payload = 1'b0;
+            end else begin
+                if ((bridge_packet_type == PKT_UART_DATA)) begin
+                    bridge_handle_uart_data(1'b0);
+                end else if ((bridge_packet_type == PKT_SPI_XFER)) begin
+                    bridge_handle_spi_xfer(1'b0);
+                end else if ((bridge_packet_type == PKT_MAC_OP)) begin
+                    bridge_handle_mac_op(1'b0);
+                end else if ((bridge_packet_type == PKT_STATUS)) begin
+                    bridge_handle_status(1'b0);
+                end else if ((bridge_packet_type == PKT_CONFIG)) begin
+                    bridge_handle_config(1'b0);
+                end else begin
+                    bridge_state = BRIDGE_IDLE;
+                    bridge_rx_tail = bridge_rx_head;
+                    bridge_process_payload = 1'b0;
+                end
+                bridge_state = BRIDGE_IDLE;
+                bridge_process_payload = 1'b1;
+            end
         end
     endfunction
 
     // function: bridge_handle_uart_data
     task bridge_handle_uart_data;
-        // TODO: implement
+        begin : bridge_handle_uart_data_body
+            reg [31:0] i;
+            reg [31:0] result_read;
+            reg [31:0] data;
+            reg [31:0] ok;
+            reg [31:0] new_head;
+            i = 0;
+            while ((i < (bridge_packet_len & {32{1'b1}}))) begin
+                result_read = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                data = result_read;
+                bridge_rx_tail = result_read;
+                if ((bridge_tx_space(1'b0) > 0)) begin
+                    ok = 1'b1;
+                    new_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                    tx_buffer[bridge_tx_head] = data;
+                    bridge_tx_head = new_head;
+                end
+                i = (i + 1);
+            end
+        end
     endtask
 
     // function: bridge_handle_spi_xfer
     task bridge_handle_spi_xfer;
-        begin
-            if ((!bridge_spi_enabled || spi_is_busy())) begin
-                            end
-            reg [31:0] cs_sel = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] data_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, cs_sel);
-            reg [31:0] data_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, data_l);
-            if (spi_transfer(data)) begin
+        begin : bridge_handle_spi_xfer_body
+            reg [31:0] cs_sel;
+            reg [31:0] data_l;
+            reg [31:0] data_h;
+            reg [31:0] data;
+            if ((!bridge_spi_enabled || spi_is_busy(1'b0))) begin
+                            end else begin
+                cs_sel = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                data_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, cs_sel);
+                data_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, data_l);
+                bridge_rx_tail = data_h;
+                data = (((data_h & {32{1'b1}}) << 8) | (data_l & {32{1'b1}}));
+                if (spi_transfer(data)) begin
+                end
             end
         end
     endtask
 
     // function: bridge_handle_mac_op
     task bridge_handle_mac_op;
-        begin
+        begin : bridge_handle_mac_op_body
+            reg [31:0] op_byte;
+            reg [31:0] unit_byte;
+            reg [31:0] a_l;
+            reg [31:0] a_h;
+            reg [31:0] b_l;
+            reg [31:0] b_h;
+            reg [31:0] operand_a;
+            reg [31:0] operand_b;
+            reg [31:0] acc;
             if (!bridge_mac_enabled) begin
-                            end
-            if ((bridge_rx_available() < 6)) begin
-                            end
-            reg [31:0] op_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] unit_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] a_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] a_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] b_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] b_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            if ((unit_byte >= NUM_MAC_UNITS)) begin
-                            end
-            if ((op_byte == OP_MAC_MUL)) begin
-                mac_multiply(operand_a, operand_b, unit_byte);
-            end else if ((op_byte == OP_MAC_MAC)) begin
-                mac_cycle(operand_a, operand_b, unit_byte, mac_get_accumulator(unit_byte));
-            end else if ((op_byte == OP_MAC_DOT)) begin
-                mac_dot_product(/* array [operand_a]{} */, /* array [operand_b]{} */, 1, unit_byte);
-            end
-            if ((bridge_tx_space() >= 4)) begin
-                reg [31:0] acc = mac_get_accumulator(unit_byte);
-                as;
-                u32;
-                tx_buffer[bridge_tx_head] = (acc && 8'hFF);
-                as;
-                u8;
-                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
-                tx_buffer[bridge_tx_head] = ((acc >> 8) && 8'hFF);
-                as;
-                u8;
-                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
-                tx_buffer[bridge_tx_head] = ((acc >> 16) && 8'hFF);
-                as;
-                u8;
-                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
-                tx_buffer[bridge_tx_head] = ((acc >> 24) && 8'hFF);
-                as;
-                u8;
-                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                            end else begin
+                if ((bridge_rx_available(1'b0) < 6)) begin
+                                    end else begin
+                    op_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = op_byte;
+                    unit_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = unit_byte;
+                    a_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = a_l;
+                    a_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = a_h;
+                    b_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = b_l;
+                    b_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+                    bridge_rx_tail = b_h;
+                    if ((unit_byte >= NUM_MAC_UNITS)) begin
+                                            end else begin
+                        operand_a = (((a_h & {16{1'b1}}) << 8) | (a_l & {16{1'b1}}));
+                        operand_b = (((b_h & {16{1'b1}}) << 8) | (b_l & {16{1'b1}}));
+                        if ((op_byte == OP_MAC_MUL)) begin
+                            mac_multiply(operand_a, operand_b, unit_byte);
+                        end else if ((op_byte == OP_MAC_MAC)) begin
+                            mac_cycle(operand_a, operand_b, unit_byte, mac_get_accumulator(unit_byte));
+                        end else if ((op_byte == OP_MAC_DOT)) begin
+                            mac_dot_product(0 /* TODO: array literal [operand_a] not yet lowered to Verilog */, 0 /* TODO: array literal [operand_b] not yet lowered to Verilog */, 1, unit_byte);
+                        end
+                        if ((bridge_tx_space(1'b0) >= 4)) begin
+                            acc = (mac_get_accumulator(unit_byte) & {32{1'b1}});
+                            tx_buffer[bridge_tx_head] = ((acc & 255) & {8{1'b1}});
+                            bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                            tx_buffer[bridge_tx_head] = (((acc >> 8) & 255) & {8{1'b1}});
+                            bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                            tx_buffer[bridge_tx_head] = (((acc >> 16) & 255) & {8{1'b1}});
+                            bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                            tx_buffer[bridge_tx_head] = (((acc >> 24) & 255) & {8{1'b1}});
+                            bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                        end
+                    end
+                end
             end
         end
     endtask
 
     // function: bridge_handle_status
     task bridge_handle_status;
-        begin
+        begin : bridge_handle_status_body
+            reg [31:0] status;
+            reg [31:0] i;
+            status = 0 /* TODO: array literal [if(bridge.spi_enabled){1}else{0},if(bridge.mac_enabled){1}else{0},0,0,] not yet lowered to Verilog */;
+            i = 0;
             while ((i < 4)) begin
-                if ((bridge_tx_space() > 0)) begin
+                if ((bridge_tx_space(1'b0) > 0)) begin
                     tx_buffer[bridge_tx_head] = status[i];
                     bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
                 end
@@ -187,14 +336,18 @@ module FPGA_Bridge (
 
     // function: bridge_handle_config
     task bridge_handle_config;
-        begin
-            reg [31:0] cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+        begin : bridge_handle_config_body
+            reg [31:0] cfg_byte;
+            cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            bridge_rx_tail = cfg_byte;
+            bridge_spi_enabled = ((cfg_byte & 1) != 0);
+            bridge_mac_enabled = ((cfg_byte & 2) != 0);
         end
     endtask
     // -------------------------------------------------------
     // Test assertions (from test blocks)
     // -------------------------------------------------------
-    // synthesis translate_off
+    `ifndef SIMULATION
     // test: bridge_initially_idle
     initial begin : bridge_initially_idle_test
         $display("[TEST] bridge_initially_idle : starting");
@@ -300,7 +453,7 @@ module FPGA_Bridge (
         $display("[TEST] bridge_mac_handler_rejects_invalid_unit : starting");
         $display("[TEST] bridge_mac_handler_rejects_invalid_unit : PASSED");
     end
-    // synthesis translate_on
+    `endif
 
     // -------------------------------------------------------
     // Invariant checks (compile-time assertions)
@@ -319,30 +472,44 @@ module FPGA_Bridge (
     // -------------------------------------------------------
     // Benchmark blocks (simulation only)
     // -------------------------------------------------------
-    initial begin : bridge_rx_write_latency_bench // synthesis translate_off
+    `ifndef SIMULATION
+    integer _bench_bridge_rx_write_latency_cycles = 0;
+    integer _bench_bridge_tx_read_latency_cycles = 0;
+    integer _bench_bridge_parse_header_latency_cycles = 0;
+    integer _bench_bridge_packet_processing_latency_cycles = 0;
+    `endif
+    `ifndef SIMULATION
+    initial begin : bridge_rx_write_latency_bench
         $display("[BENCH] bridge_rx_write_latency : starting");
-        integer _bench_cycles = 0;
-        $display("[BENCH] bridge_rx_write_latency : %%0d cycles", _bench_cycles);
-        $display("[BENCH] bridge_rx_write_latency : DONE");
-    end // synthesis translate_on
-    initial begin : bridge_tx_read_latency_bench // synthesis translate_off
+        _bench_bridge_rx_write_latency_cycles = 0;
+        $display("[BENCH] bridge_rx_write_latency : %%0d cycles", _bench_bridge_rx_write_latency_cycles);
+        $display("[BENCH] bridge_rx_write_latency : PASSED");
+    end
+    `endif
+    `ifndef SIMULATION
+    initial begin : bridge_tx_read_latency_bench
         $display("[BENCH] bridge_tx_read_latency : starting");
-        integer _bench_cycles = 0;
-        $display("[BENCH] bridge_tx_read_latency : %%0d cycles", _bench_cycles);
-        $display("[BENCH] bridge_tx_read_latency : DONE");
-    end // synthesis translate_on
-    initial begin : bridge_parse_header_latency_bench // synthesis translate_off
+        _bench_bridge_tx_read_latency_cycles = 0;
+        $display("[BENCH] bridge_tx_read_latency : %%0d cycles", _bench_bridge_tx_read_latency_cycles);
+        $display("[BENCH] bridge_tx_read_latency : PASSED");
+    end
+    `endif
+    `ifndef SIMULATION
+    initial begin : bridge_parse_header_latency_bench
         $display("[BENCH] bridge_parse_header_latency : starting");
-        integer _bench_cycles = 0;
-        $display("[BENCH] bridge_parse_header_latency : %%0d cycles", _bench_cycles);
-        $display("[BENCH] bridge_parse_header_latency : DONE");
-    end // synthesis translate_on
-    initial begin : bridge_packet_processing_latency_bench // synthesis translate_off
+        _bench_bridge_parse_header_latency_cycles = 0;
+        $display("[BENCH] bridge_parse_header_latency : %%0d cycles", _bench_bridge_parse_header_latency_cycles);
+        $display("[BENCH] bridge_parse_header_latency : PASSED");
+    end
+    `endif
+    `ifndef SIMULATION
+    initial begin : bridge_packet_processing_latency_bench
         $display("[BENCH] bridge_packet_processing_latency : starting");
-        integer _bench_cycles = 0;
-        $display("[BENCH] bridge_packet_processing_latency : %%0d cycles", _bench_cycles);
-        $display("[BENCH] bridge_packet_processing_latency : DONE");
-    end // synthesis translate_on
+        _bench_bridge_packet_processing_latency_cycles = 0;
+        $display("[BENCH] bridge_packet_processing_latency : %%0d cycles", _bench_bridge_packet_processing_latency_cycles);
+        $display("[BENCH] bridge_packet_processing_latency : PASSED");
+    end
+    `endif
 
 endmodule
 

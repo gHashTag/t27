@@ -980,6 +980,7 @@ impl Parser {
 
     // Skip tokens until we reach a top-level keyword (for keyword-style test/invariant/bench)
     // Handles nested braces, brackets, and parens so we don't stop inside nested groups
+    #[allow(dead_code)]
     fn skip_to_next_top_level(&mut self) {
         let mut paren_depth: i32 = 0;
         let mut bracket_depth: i32 = 0;
@@ -1185,27 +1186,29 @@ impl Parser {
                     Ok(decl) => {
                         module.children.push(decl);
                     }
-                    Err(_) => {
-                        // On parse error, skip to next top-level declaration and continue
-                        self.skip_to_next_top_level();
+                    Err(e) => {
+                        // A malformed declaration is a HARD error: the old
+                        // skip-to-next-decl recovery silently DROPPED whole
+                        // fns/tests from the module (t27#1940).
+                        return Err(e);
                     }
                 }
             } else if self.is_top_level_start() {
                 // Stray top-level keyword (e.g. `module` inside a module, or an
-                // unhandled `use`). Run it through the top-level parser so we
-                // error out and advance at least one token; otherwise
-                // skip_to_next_top_level can stop immediately on the same token
-                // and loop forever.
-                if self.parse_top_level_decl().is_err() {
-                    self.skip_to_next_top_level();
+                // unhandled `use`): the top-level parser produces the error.
+                if let Err(e) = self.parse_top_level_decl() {
+                    return Err(e);
                 }
             } else {
                 match self.parse_body_stmt() {
                     Ok(stmt) => {
                         module.children.push(stmt);
                     }
-                    Err(_) => {
-                        self.skip_to_next_top_level();
+                    Err(e) => {
+                        return Err(format!(
+                            "parse error at module level near line {}: {}",
+                            self.current.line, e
+                        ));
                     }
                 }
             }
@@ -1888,9 +1891,15 @@ impl Parser {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
             match self.parse_body_stmt() {
                 Ok(stmt) => decl.children.push(stmt),
-                Err(_) => {
-                    // On parse error, skip to next statement boundary and continue
-                    self.recover_to_stmt_boundary();
+                Err(e) => {
+                    // A malformed statement is a HARD error. The old
+                    // statement-level recovery silently DROPPED it and left
+                    // the body unimplemented -- three tri-net specs shipped
+                    // wrong generated code with no diagnostic (t27#1940).
+                    return Err(format!(
+                        "parse error in fn '{}' near line {}: {}",
+                        decl.name, self.current.line, e
+                    ));
                 }
             }
         }
@@ -1898,6 +1907,7 @@ impl Parser {
     }
 
     /// Skip tokens to recover to next statement boundary (semicolon or closing brace)
+    #[allow(dead_code)]
     fn recover_to_stmt_boundary(&mut self) {
         let mut brace_depth: i32 = 0;
         loop {
@@ -2165,7 +2175,12 @@ impl Parser {
             while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
                 match self.parse_body_stmt() {
                     Ok(s) => then_block.children.push(s),
-                    Err(_) => self.recover_to_stmt_boundary(),
+                    Err(e) => {
+                        return Err(format!(
+                            "parse error near line {}: {}",
+                            self.current.line, e
+                        ))
+                    }
                 }
             }
             self.expect(TokenKind::RBrace)?;
@@ -2197,7 +2212,12 @@ impl Parser {
                 {
                     match self.parse_body_stmt() {
                         Ok(s) => else_block.children.push(s),
-                        Err(_) => self.recover_to_stmt_boundary(),
+                        Err(e) => {
+                            return Err(format!(
+                                "parse error near line {}: {}",
+                                self.current.line, e
+                            ))
+                        }
                     }
                 }
                 self.expect(TokenKind::RBrace)?;
@@ -2226,7 +2246,12 @@ impl Parser {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
             match self.parse_body_stmt() {
                 Ok(s) => body_block.children.push(s),
-                Err(_) => self.recover_to_stmt_boundary(),
+                Err(e) => {
+                    return Err(format!(
+                        "parse error near line {}: {}",
+                        self.current.line, e
+                    ))
+                }
             }
         }
         self.expect(TokenKind::RBrace)?;
@@ -2292,7 +2317,12 @@ impl Parser {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
             match self.parse_body_stmt() {
                 Ok(s) => body_block.children.push(s),
-                Err(_) => self.recover_to_stmt_boundary(),
+                Err(e) => {
+                    return Err(format!(
+                        "parse error near line {}: {}",
+                        self.current.line, e
+                    ))
+                }
             }
         }
         self.expect(TokenKind::RBrace)?;
@@ -2320,7 +2350,12 @@ impl Parser {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
             match self.parse_body_stmt() {
                 Ok(s) => body_block.children.push(s),
-                Err(_) => self.recover_to_stmt_boundary(),
+                Err(e) => {
+                    return Err(format!(
+                        "parse error near line {}: {}",
+                        self.current.line, e
+                    ))
+                }
             }
         }
         self.expect(TokenKind::RBrace)?;
@@ -2956,9 +2991,18 @@ impl Parser {
                 self.advance();
             } else {
                 let mut bracket_content = String::new();
-                while self.current.kind != TokenKind::RBracket
+                // Depth-count nested brackets: an element like `array[1]`
+                // used to cut the capture at ITS closing bracket, truncating
+                // the literal's element text (t27#1940).
+                let mut depth: i32 = 0;
+                while !(self.current.kind == TokenKind::RBracket && depth == 0)
                     && self.current.kind != TokenKind::Eof
                 {
+                    match self.current.kind {
+                        TokenKind::LBracket => depth += 1,
+                        TokenKind::RBracket => depth -= 1,
+                        _ => {}
+                    }
                     bracket_content.push_str(&self.current.lexeme);
                     self.advance();
                 }
@@ -25883,35 +25927,14 @@ mod tests_hir_pipeline_parity {
 
     #[test]
     fn test_parser_rejects_unknown_cast_type() {
-        // Variant E: `parse_cast_target_type` validates the base type so a typo
-        // like `x as widget` cannot silently lower to a 32-bit default cast.
-        // The function-body parser uses statement-level error recovery
-        // (`recover_to_stmt_boundary`), so the offending `return` is dropped
-        // rather than aborting the whole compile. The observable guarantee is
-        // therefore: the bogus type never reaches codegen -- no `widget` token
-        // and no cast assignment leak into the emitted Verilog; the body is left
-        // unimplemented instead.
+        // Hardened contract (t27#1940): the bogus cast type is now a
+        // hard compile error, not a silently-dropped statement.
         let src = r#"module BadCast {
     pub fn f(x: u8) -> u8 {
         return x as widget
     }
 }"#;
-        let v = Compiler::compile_verilog(src).unwrap();
-        assert!(
-            !v.contains("widget"),
-            "unknown cast type `widget` must never reach codegen, got:\n{}",
-            v
-        );
-        assert!(
-            !v.contains("f = "),
-            "the rejected cast statement must be dropped, not lowered, got:\n{}",
-            v
-        );
-        assert!(
-            v.contains("// TODO: implement"),
-            "the recovered body should be left unimplemented, got:\n{}",
-            v
-        );
+        assert!(Compiler::compile_verilog(src).is_err(), "bogus cast must fail to compile");
     }
 
     #[test]
@@ -26008,52 +26031,48 @@ mod tests_compiler_rejects {
     // VALID_CAST_TYPES, so the statement is dropped; `widget` never emitted.
     #[test]
     fn rejects_unknown_cast_type() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejUnknownCast {
     pub fn f(x: u8) -> u8 {
         return x as widget
     }
 }"#,
         );
-        assert_dropped(&v, "f", &["widget"]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // Case 2: `as` with no type at all. `x as` (followed by `}`) -> the cast
     // parser hits a non-identifier and errors; statement dropped.
     #[test]
     fn rejects_cast_with_no_type() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejNoType {
     pub fn g(x: u8) -> u8 {
         return x as
     }
 }"#,
         );
-        // Body must be left unimplemented; the operand assignment must not leak.
-        assert!(
-            v.contains("// TODO: implement"),
-            "missing-type cast should drop the body, got:\n{}",
-            v
-        );
-        assert!(
-            !v.contains("g = x"),
-            "a typeless cast must not lower to a bare assignment, got:\n{}",
-            v
-        );
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // Case 3: invalid width. `u3` is not a real integer width and is not in
     // VALID_CAST_TYPES -> rejected; `u3` never reaches codegen.
     #[test]
     fn rejects_invalid_width_u3() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejBadWidth {
     pub fn h(x: u8) -> u8 {
         return x as u3
     }
 }"#,
         );
-        assert_dropped(&v, "h", &["u3"]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // Case 4: nested cast where the inner target is invalid. `(x as widget) as
@@ -26061,14 +26080,16 @@ mod tests_compiler_rejects {
     // neither `widget` nor a lowered assignment may appear.
     #[test]
     fn rejects_nested_cast_with_inner_error() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejNestedCast {
     pub fn k(x: u8) -> u8 {
         return (x as widget) as u8
     }
 }"#,
         );
-        assert_dropped(&v, "k", &["widget"]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // Case 5 (contrast / guard against over-rejection): a VALID cast still
@@ -26122,27 +26143,31 @@ mod tests_compiler_rejects {
     // (a) Unclosed parenthesis in a return expression -> drop-to-TODO.
     #[test]
     fn rejects_unclosed_paren() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejUnclosedParen {
     pub fn f(x: u8) -> u8 {
         return (x + 1
     }
 }"#,
         );
-        assert_dropped(&v, "f", &[]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // (a) Malformed binary expression (`x + * 2`) -> drop-to-TODO.
     #[test]
     fn rejects_malformed_binop() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module RejBadBinop {
     pub fn g(x: u8) -> u8 {
         return x + * 2
     }
 }"#,
         );
-        assert_dropped(&v, "g", &[]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // (b) Unterminated module (missing closing brace) -> HARD compile error.
@@ -26182,7 +26207,9 @@ mod tests_compiler_rejects {
     // closed it is now a rejection assertion (renamed accordingly).
     #[test]
     fn rejects_stray_ident() {
-        let v = emit(
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
             r#"module GapStrayIdent {
     pub fn k(x: u8) -> u8 {
         frobnicate x
@@ -26190,8 +26217,7 @@ mod tests_compiler_rejects {
     }
 }"#,
         );
-        // The malformed statement is dropped; the bogus ident never leaks.
-        assert_dropped(&v, "k", &["frobnicate"]);
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
     // -----------------------------------------------------------------------
     // Variant Q: extend the negative-test contract from the statement level
@@ -26246,8 +26272,12 @@ mod tests_compiler_rejects {
     // module still compiles. Neither bogus identifier reaches codegen.
     #[test]
     fn rejects_unknown_top_level_token() {
-        let v = emit(r#"module QUnknownDecl { gibberish foo }"#);
-        assert_decl_dropped(&v, "QUnknownDecl", &["gibberish", "foo"]);
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
+            r#"module QUnknownDecl { gibberish foo }"#,
+        );
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // (a) DROP-RECOVERY that RESYNCS: a bogus leading token is dropped, then a
@@ -26256,13 +26286,12 @@ mod tests_compiler_rejects {
     // or truncates the rest of the module.
     #[test]
     fn recovers_to_next_decl_after_unknown_token() {
-        let v = emit(r#"module QResync { zzzbogus pub const KEEP : u32 = 99 }"#);
-        assert_decl_dropped(&v, "QResync", &["zzzbogus"]);
-        assert!(
-            v.contains("KEEP = 99"),
-            "the valid const after the dropped token must still lower, got:\n{}",
-            v
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
+            r#"module QResync { zzzbogus pub const KEEP : u32 = 99 }"#,
         );
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // (a) A `fn` declaration with no body (`pub fn f(x: u8) -> u8` with no
@@ -26270,8 +26299,12 @@ mod tests_compiler_rejects {
     // reaches codegen and the module skeleton still emits.
     #[test]
     fn rejects_fn_declaration_without_body() {
-        let v = emit(r#"module QNoBody { pub fn weirdfn(x: u8) -> u8 }"#);
-        assert_decl_dropped(&v, "QNoBody", &["weirdfn"]);
+        // Hardened contract (t27#1940): a malformed statement/declaration
+        // is a COMPILE ERROR, not a silent drop.
+        let r = try_emit(
+            r#"module QNoBody { pub fn weirdfn(x: u8) -> u8 }"#,
+        );
+        assert!(r.is_err(), "malformed input must fail to compile, got Ok");
     }
 
     // (b) A stray token that does not lex as a skippable declaration start

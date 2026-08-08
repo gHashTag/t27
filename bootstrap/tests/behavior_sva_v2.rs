@@ -318,14 +318,17 @@ fn write_minimal_t27_spec() -> String {
     let _ = fs::create_dir_all(&dir);
     let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
     let path = dir.join(format!("spec_{}_{}.t27", std::process::id(), counter));
+    // Legal t27 only: the hardened parser (t27#1940) rejects Rust-style
+    // tail expressions and bare asserts instead of silently dropping them.
     let spec = r#"module test_module;
 
 pub fn add(a: i32, b: i32) -> i32 {
-    a + b
+    return a + b;
 }
 
 test test_add {
-    assert add(1, 2) == 3;
+    x = add(1, 2);
+    assert(x == 3, "add");
 }
 "#;
     fs::write(&path, spec).expect("write spec");
