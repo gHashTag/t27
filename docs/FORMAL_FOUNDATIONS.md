@@ -541,6 +541,52 @@ itself.**
 
 ---
 
+### Proposition 13 — two zero-count non-terminations, in a family where two siblings guard
+
+`PROVED`. Fourth and fifth modules checked, fifth and sixth real defects. Both
+are the same shape, and the shape is now a pattern worth naming.
+
+**13a. `layer_sequencer` with `num_neurons == 0`.** The terminator is
+`neuron_id == num_neurons - 1`, which compares against `16'hFFFF` when the count
+is zero. It never matches, so the sequencer emits `valid` for neuron indices
+0, 1, 2, … indefinitely.
+
+**13b. `weight_prefetch_ctrl` with `num_words == 0`.** `words_remaining`
+underflows to `16'hFFFF` on the first beat and `words_remaining == 1` never
+matches, so the controller writes BRAM indefinitely — past the 4096-entry
+buffer and past anything the caller asked for.
+
+**13c. Stated as bounds, not as liveness.** Non-termination is a liveness
+property and an immediate assertion cannot express it (Prop. 6). Both were
+instead written as safety bounds that the runaway violates:
+
+```
+valid   |-> neuron_id < num_neurons        REFUTED -> PROVED
+writes  <= num_words   (while active)      REFUTED -> PROVED
+```
+
+**A runaway loop usually has a safety shadow** — some counter or index that
+leaves its legitimate range — and the shadow is checkable where the liveness
+property is not.
+
+**13d. The discriminating evidence was already in the module.**
+`a_chunk_in_range` **proved on the same RTL that refuted `a_neuron_in_range`**:
+`layer_sequencer` already contained `if (num_chunks == 0) state <= DONE_ST` and
+had simply not done the same for neurons. `multilayer_sequencer` guards
+`num_layers > 0`. `dma_controller` gained its `length != 0` guard in Prop. 9.
+**Two siblings in the family guard the zero case and two did not** — which
+settles the reading as oversight rather than a deliberate contract, without
+needing to ask anyone.
+
+**13e. Isolation.** Assuming the count non-zero, both properties prove. The
+refutations are precisely the zero case and nothing else.
+
+**13f. A ninth text-pinning test.** `prefetch_fsm_states_present` asserted
+`IDLE: if (start_prefetch) begin` — the unguarded form. Every RTL defect found
+in this campaign, now six of six, had a passing unit test holding it in place.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

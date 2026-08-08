@@ -208,4 +208,61 @@ module w_dma_burst_active (
     always @(posedge clk) if (rst_n) w: assert (!ba);
 endmodule
 
+module w_ls_multi_neuron (
+    input wire        clk,
+    input wire        rst_n,
+    input wire        start,
+    input wire [15:0] num_neurons,
+    input wire [7:0]  num_chunks
+);
+    wire [15:0] neuron_id;
+    wire [7:0]  chunk_id;
+    wire        first_chunk, last_chunk, valid, done;
+
+    layer_sequencer dut (
+        .clk(clk), .rst_n(rst_n), .start(start),
+        .num_neurons(num_neurons), .num_chunks(num_chunks),
+        .neuron_id(neuron_id), .chunk_id(chunk_id),
+        .first_chunk(first_chunk), .last_chunk(last_chunk),
+        .valid(valid), .done(done)
+    );
+
+    // The descriptor is held stable for the duration, as the CSR block drives it.
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_neurons == $past(num_neurons));
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_chunks  == $past(num_chunks));
+
+    // a_neuron_in_range only bites if more than neuron 0 is ever reached.
+    always @(posedge clk) if (rst_n) w: assert (!(valid && neuron_id != 16'd0));
+endmodule
+
+module w_wp_writes_happen (
+    input wire        clk,
+    input wire        rst_n,
+    input wire        start_prefetch,
+    input wire [31:0] src_addr,
+    input wire [15:0] num_words,
+    input wire        arready,
+    input wire [63:0] rdata,
+    input wire        rvalid
+);
+    wire        prefetch_active, prefetch_done, arvalid, rready, bram_we;
+    wire [31:0] araddr;
+    wire [11:0] bram_addr;
+    wire [53:0] bram_data;
+
+    weight_prefetch_ctrl dut (
+        .clk(clk), .rst_n(rst_n), .start_prefetch(start_prefetch),
+        .src_addr(src_addr), .num_words(num_words),
+        .prefetch_active(prefetch_active), .prefetch_done(prefetch_done),
+        .axi_araddr(araddr), .axi_arvalid(arvalid), .axi_arready(arready),
+        .axi_rdata(rdata), .axi_rvalid(rvalid), .axi_rready(rready),
+        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we)
+    );
+
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_words == $past(num_words));
+
+    // a_no_overwrite only bites if writes actually occur.
+    always @(posedge clk) if (rst_n) w: assert (!(prefetch_active && bram_we));
+endmodule
+
 `default_nettype wire

@@ -77,7 +77,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **21 properties proved** across 3 modules, **all 19 guards reachable, 0 vacuous**; gates check assumption-liveness, `$check` counts, and 6 non-vacuity witnesses |
+| CI | Formal (Yosys) | GREEN | **28 properties proved** across 5 modules, **all 26 guards reachable, 0 vacuous**; gates check assumption-liveness, `$check` counts, and 8 non-vacuity witnesses |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -185,9 +185,18 @@ an AXI4 master may not do. Separately, `READ_ADDR` advanced on `arready` alone,
 so a ready-without-valid moved the FSM into `READ_DATA` **having issued no
 address**. Prop. 9.
 
-All four defects had a **passing unit test pinning the buggy text in place** —
-one of them named `dma_burst_length_is_max`, asserting the defect as if it were
-the contract. Eight such tests have now been rewritten to assert behaviour.
+**And two zero-count non-terminations.** `layer_sequencer` with
+`num_neurons == 0` compares its terminator against `16'hFFFF` and emits work for
+neuron 0, 1, 2, … forever; `weight_prefetch_ctrl` with `num_words == 0`
+underflows and writes BRAM past the end of the buffer. Both were stated as
+safety **bounds** rather than liveness, since a runaway loop usually has a
+safety shadow. Telling detail: `layer_sequencer` already guarded
+`num_chunks == 0`, and `multilayer_sequencer` guards `num_layers > 0` — two
+siblings in the family guard the zero case and two did not. Prop. 13.
+
+All six defects had a **passing unit test pinning the buggy text in place** —
+one named `dma_burst_length_is_max`, asserting the defect as if it were the
+contract. Nine such tests have now been rewritten to assert behaviour.
 
 `formal/axi4_read_slave_model.sv` is a reusable AXI4 read-slave model for
 master-side properties; its single-burst precondition is **asserted, not

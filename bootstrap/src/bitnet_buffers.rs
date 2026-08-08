@@ -178,7 +178,13 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            axi_araddr <= 32'd0; bram_addr <= 12'd0; bram_data <= 54'd0;\n");
     s.push_str("            words_remaining <= 16'd0;\n");
     s.push_str("        end else case (state)\n");
-    s.push_str("            IDLE: if (start_prefetch) begin\n");
+    s.push_str("            // A zero-word prefetch moves nothing. Without this guard\n");
+    s.push_str("            // words_remaining underflows to 16'hFFFF on the first beat, the\n");
+    s.push_str("            // `words_remaining == 1` terminator never matches, and the\n");
+    s.push_str("            // controller writes BRAM indefinitely. Yosys refuted\n");
+    s.push_str("            // `writes <= num_words` from a reachable state; with num_words > 0\n");
+    s.push_str("            // assumed it proves. See FORMAL_FOUNDATIONS Prop. 13.\n");
+    s.push_str("            IDLE: if (start_prefetch && (num_words != 16'd0)) begin\n");
     s.push_str("                state <= FETCH; prefetch_active <= 1'b1; prefetch_done <= 1'b0;\n");
     s.push_str("                axi_araddr <= src_addr;\n");
     s.push_str("                words_remaining <= num_words;\n");
@@ -365,7 +371,9 @@ mod tests {
     fn prefetch_fsm_states_present() {
         let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
         assert!(v.contains("localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;"));
-        assert!(v.contains("IDLE: if (start_prefetch) begin"));
+        // Was pinning the unguarded form, which is what let a zero-word
+        // prefetch underflow and write BRAM forever.
+        assert!(v.contains("IDLE: if (start_prefetch && (num_words != 16'd0)) begin"));
         assert!(v.contains("FETCH: begin"));
         assert!(v.contains("DONE_ST: begin"));
     }

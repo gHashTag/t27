@@ -140,6 +140,20 @@ jobs:
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
+      - name: Prove layer_sequencer properties
+        run: |
+          yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
+                    formal/layer_sequencer_props.sv; \
+                    prep -top ls_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
+      - name: Prove weight_prefetch_ctrl properties
+        run: |
+          yosys -p "read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv \
+                    formal/weight_prefetch_props.sv; \
+                    prep -top wp_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 14 -set-init-zero -set-assumes"
+
       # Vacuity gate, part two. The $check-cell count proves properties EXIST;
       # this proves they BITE. Each witness asserts the negation of a case its
       # property exists to cover, so a counterexample is the proof that the case
@@ -167,6 +181,8 @@ jobs:
           run_witness w_axi_resp_pending     axi_lite_slave       10
           run_witness w_dma_multibeat_burst  dma_controller       12
           run_witness w_dma_burst_active     dma_controller       12
+          run_witness w_ls_multi_neuron      layer_sequencer      12
+          run_witness w_wp_writes_happen     weight_prefetch_ctrl 14
           exit $fail
 
       - name: Behavior-DSL subset still emits and parses

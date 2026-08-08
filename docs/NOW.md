@@ -2,6 +2,41 @@
 
 Last updated: 2026-08-09
 
+## zero-count-nonterminations -- two more defects, in a family where two siblings guard
+
+- **WHERE**: `bootstrap/src/bitnet_pipeline.rs`, `bootstrap/src/bitnet_buffers.rs`
+  (fixes + test rewritten), `bootstrap/tests/bitnet_buffers.rs`, **NEW**
+  `formal/layer_sequencer_props.sv`, **NEW** `formal/weight_prefetch_props.sv`,
+  `formal/witnesses.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 13), `README.md`.
+- **Variant A from #1976**: extend the harness to the unproven modules. Fourth
+  and fifth modules checked, **fifth and sixth real defects**.
+- **`layer_sequencer` with `num_neurons == 0`**: the terminator
+  `neuron_id == num_neurons - 1` compares against `16'hFFFF`, never matches, and
+  the sequencer emits `valid` for neuron 0, 1, 2, ... indefinitely.
+- **`weight_prefetch_ctrl` with `num_words == 0`**: `words_remaining` underflows
+  to `16'hFFFF`, the `== 1` terminator never matches, and the controller writes
+  BRAM past the 4096-entry buffer.
+- **Stated as bounds, not liveness.** An immediate assertion cannot express
+  non-termination, so both were written as safety bounds the runaway violates:
+  `valid |-> neuron_id < num_neurons` and `writes <= num_words`. **A runaway
+  loop usually has a safety shadow**, and the shadow is checkable where the
+  liveness property is not.
+- **The discriminating evidence was already in the module**: `a_chunk_in_range`
+  **proved on the same RTL** that refuted `a_neuron_in_range`, because
+  `layer_sequencer` already had `if (num_chunks == 0) state <= DONE_ST`.
+  `multilayer_sequencer` guards `num_layers > 0`; `dma_controller` gained its
+  guard in Prop 9. **Two siblings guard the zero case and two did not** --
+  which settles it as oversight without needing to ask.
+- **Isolation**: assuming the count non-zero, both prove. The refutations are
+  exactly the zero case.
+- **A ninth text-pinning test**: `prefetch_fsm_states_present` pinned
+  `IDLE: if (start_prefetch) begin`. **Six of six** RTL defects this campaign
+  had one holding them in place.
+- 7 new properties, **all guards reachable, 0 vacuous**; 2 new witnesses refute.
+  CI now proves **28 properties across 5 modules**.
+- Suite **1195 passed, 0 failed**. Seals 496/496.
+
 ## vacuity-audit -- 21 properties checked for teeth; 0 vacuous
 
 - **WHERE**: **NEW** `formal/witnesses.sv`, `.github/workflows/formal-yosys.yml`,

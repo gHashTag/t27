@@ -155,7 +155,15 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("        end else case(state)\n");
     out.push_str("            IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end\n");
     out.push_str("            RUN: begin\n");
-    out.push_str("                if(num_chunks==0) begin state<=DONE_ST; end\n");
+    out.push_str("                // Both counts, not just chunks. `neuron_id==num_neurons-1`\n");
+    out.push_str("                // compares against 16'hFFFF when num_neurons is zero, so the\n");
+    out.push_str("                // terminator never matches and the sequencer emits valid work\n");
+    out.push_str("                // for neuron indices 0,1,2,... indefinitely. The zero case was\n");
+    out.push_str("                // already handled for chunks and missed for neurons; Yosys\n");
+    out.push_str("                // refuted `valid |-> neuron_id < num_neurons` from a reachable\n");
+    out.push_str("                // state while the chunk twin proved. See FORMAL_FOUNDATIONS\n");
+    out.push_str("                // Prop. 13.\n");
+    out.push_str("                if(num_chunks==0 || num_neurons==0) begin state<=DONE_ST; end\n");
     out.push_str("                else begin\n");
     out.push_str("                    valid<=1; first_chunk<=(chunk_id==0); last_chunk<=(chunk_id==num_chunks-1);\n");
     out.push_str("                    if(chunk_id==num_chunks-1) begin chunk_id<=0;\n");

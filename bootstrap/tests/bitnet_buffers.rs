@@ -182,7 +182,10 @@ fn prefetch_fsm_states_present() {
     let (stdout, _stderr, ok) = run(&["gen-weight-prefetch-ctrl"]);
     assert!(ok);
     assert!(stdout.contains("localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;"));
-    assert!(stdout.contains("IDLE: if (start_prefetch) begin"));
+    // Was pinning the unguarded form. With num_words == 0, words_remaining
+    // underflowed to 16'hFFFF and the controller wrote BRAM forever; the
+    // regression witness is formal/weight_prefetch_props.sv (a_no_overwrite).
+    assert!(stdout.contains("IDLE: if (start_prefetch && (num_words != 16'd0)) begin"));
     assert!(stdout.contains("FETCH: begin"));
     assert!(stdout.contains("DONE_ST: begin"));
 }
