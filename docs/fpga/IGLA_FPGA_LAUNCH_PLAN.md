@@ -141,22 +141,56 @@ command ran; it is done when the pass criterion is observed.
 
 `nextpnr-xilinx` is not installed. Two paths:
 
-```bash
-# Path A -- Docker openXC7 (no local toolchain build, no vendor licence)
-docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
-  yosys -p "read_verilog fpga/verilog/ternary_mac_demo_top_v2.v fpga/verilog/ternary_mac_synth.v; \
-            synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_demo_top_v2; \
-            write_json v2.json"
-  nextpnr-xilinx --chipdb /chipdb-xc7a200tfbg676.bin --json v2.json \
-            --xdc fpga/verilog/ternary_mac_demo_top_v2.xdc --write v2_routed.json --fasm v2.fasm
-  fasm2frames v2.fasm > v2.frames
-  xc7frames2bit --frm_file v2.frames --bit_file fpga/verilog/ternary_mac_demo_top_v2_200t.bit
-'
-```
+The `regymm/openxc7` image (11.3 GB) has been pulled and **verified to
+synthesize this design**: 188 cells, 115 LUT, 60 FF, 1 STARTUPE2, under
+yosys 0.62 inside the container.
+
+Two facts that cost this wave an hour and are recorded so they cost the next
+one nothing:
+
+- **The prjxray database is not at `/prjxray/database/`.** That directory
+  holds only `settings.sh`. The real database is at
+  `/nextpnr-xilinx/xilinx/external/prjxray-db/`, and `bbaexport.py` fails
+  silently — no message, no output file — when `XRAY_DATABASE_DIR` is unset.
+- **`xc7a200tfbg676-1` is present** in that database, which is the part
+  `HARDWARE_SSOT.md` establishes as pinout-correct for the FGG676 board.
+- The image is `linux/amd64`; on Apple Silicon every step runs under
+  emulation, so the "~12 min" chipdb figure from
+  `OPENXC7_FGG676_STATUS.md` (measured natively) does not apply.
 
 ```bash
-# Path B -- native openXC7, per docs/fpga/OPENXC7_FGG676_STATUS.md
-# (chipdb build is ~12 min and ~3.5 GiB peak; one-time)
+# Step 1 -- chipdb (one-time, slow; the emulation-tax step)
+mkdir -p build/fpga/chipdb
+docker run --rm -v "$PWD/build/fpga/chipdb:/out" regymm/openxc7 bash -c '
+  source /prjxray/env/bin/activate
+  export PYTHONPATH=/prjxray
+  export XRAY_DATABASE_DIR=/nextpnr-xilinx/xilinx/external/prjxray-db
+  export XRAY_DATABASE=artix7
+  cd /nextpnr-xilinx
+  python3 xilinx/python/bbaexport.py --device xc7a200tfbg676-1 --bba /out/xc7a200tfbg676.bba
+  bbasm --le /out/xc7a200tfbg676.bba /out/xc7a200tfbg676.bin
+'
+
+# Step 2 -- synthesis (verified working this wave)
+docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
+  /yosys/yosys -p "read_verilog fpga/verilog/ternary_mac_demo_top_v2.v \
+            fpga/verilog/ternary_mac_demo_core.v fpga/verilog/ternary_mac_synth.v; \
+            synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_demo_top_v2; \
+            write_json build/synth-gate/v2_openxc7.json"
+'
+
+# Step 3 -- place, route, bitstream
+docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
+  source /prjxray/env/bin/activate
+  export XRAY_DATABASE_DIR=/nextpnr-xilinx/xilinx/external/prjxray-db
+  /nextpnr-xilinx/nextpnr-xilinx --chipdb build/fpga/chipdb/xc7a200tfbg676.bin \
+            --json build/synth-gate/v2_openxc7.json \
+            --xdc fpga/verilog/ternary_mac_demo_top_v2.xdc \
+            --write build/fpga/v2_routed.json --fasm build/fpga/v2.fasm
+  fasm2frames --part xc7a200tfbg676-1 build/fpga/v2.fasm > build/fpga/v2.frames
+  xc7frames2bit --part_name xc7a200tfbg676-1 --frm_file build/fpga/v2.frames \
+            --bit_file fpga/verilog/ternary_mac_demo_top_v2_200t.bit
+'
 ```
 
 - **Pass:** `ternary_mac_demo_top_v2_200t.bit` exists, non-zero, and
