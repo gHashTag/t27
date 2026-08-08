@@ -3447,6 +3447,22 @@ impl Codegen {
 
     /// Map a t27 tuple type `(T, U, ...)` to a Zig anonymous tuple-struct type
     /// `struct { T, U, ... }`. Returns None for non-tuple types.
+    /// Convert a t27/Rust-style array type `[T; N]` (N a literal or const name)
+    /// to Zig's `[N]T`. Nested arrays convert recursively; other types pass
+    /// through unchanged.
+    fn t27_array_type_to_zig(ty: &str) -> String {
+        let t = ty.trim();
+        if t.starts_with('[') && t.ends_with(']') && t.contains(';') {
+            let inner = &t[1..t.len() - 1];
+            if let Some(semi) = inner.rfind(';') {
+                let elem = Self::t27_array_type_to_zig(&inner[..semi]);
+                let len = inner[semi + 1..].trim();
+                return format!("[{}]{}", len, elem);
+            }
+        }
+        t.to_string()
+    }
+
     fn t27_tuple_type_to_zig(ty: &str) -> Option<String> {
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
@@ -3473,7 +3489,7 @@ impl Codegen {
             // A tuple return type `(T, U)` lowers to a Zig anonymous tuple
             // struct; scalar/other types pass through unchanged.
             Self::t27_tuple_type_to_zig(&node.extra_return_type)
-                .unwrap_or_else(|| node.extra_return_type.clone())
+                .unwrap_or_else(|| Self::t27_array_type_to_zig(&node.extra_return_type))
         };
 
         // Check if this is a method (first param is "self")
@@ -3484,17 +3500,14 @@ impl Codegen {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, ptype));
+            self.write(&format!("{}: {}", pname, Self::t27_array_type_to_zig(ptype)));
         }
         self.write(")");
 
-        // T27 methods: return type after ) without arrow
-        if is_method {
-            self.write(&format!(" {}", return_type));
-        } else if !node.extra_return_type.is_empty() {
-            // Zig uses space for return type, not : or ->
-            self.write(&format!(" {}", return_type));
-        }
+        // T27 methods: return type after ) without arrow. Zig REQUIRES a
+        // return type on every fn -- a bare `) {` does not parse -- so a
+        // spec fn with no declared return emits `void`.
+        self.write(&format!(" {}", return_type));
 
         self.write_line(" {");
 
@@ -3524,8 +3537,11 @@ impl Codegen {
             self.write_indent();
             self.write_line("@compileError(\"not yet implemented\");");
         } else {
-            for stmt in &node.children {
+            for stmt in node.children.iter() {
                 self.gen_stmt(stmt);
+                // Zig also errors on unused LOCALS: a spec body may bind a value
+                // it never reads (dead trailing lets). Discard right after the
+                // declaration -- a discard after a `return` would be unreachable.
             }
         }
 
@@ -3551,9 +3567,33 @@ impl Codegen {
                 && stmt.children[0].kind == NodeKind::ExprIdentifier
                 && !stmt.children[0].name.is_empty()
                 && bound.insert(stmt.children[0].name.clone());
+            let tuple_binding = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprTuple
+                && stmt.children[0]
+                    .children
+                    .iter()
+                    .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
                 self.write_indent();
                 self.write(&format!("const {} = ", stmt.children[0].name));
+                self.gen_expr(&stmt.children[1]);
+                self.write_line(";");
+            } else if tuple_binding {
+                // Zig destructuring needs a binding keyword per element:
+                // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
+                // is an invalid assignment target.
+                let binds: Vec<String> = stmt.children[0]
+                    .children
+                    .iter()
+                    .map(|e| {
+                        bound.insert(e.name.clone());
+                        format!("const {}", e.name)
+                    })
+                    .collect();
+                self.write_indent();
+                self.write(&binds.join(", "));
+                self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else {
@@ -3612,9 +3652,33 @@ impl Codegen {
                 && stmt.children[0].kind == NodeKind::ExprIdentifier
                 && !stmt.children[0].name.is_empty()
                 && bound.insert(stmt.children[0].name.clone());
+            let tuple_binding = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprTuple
+                && stmt.children[0]
+                    .children
+                    .iter()
+                    .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
                 self.write_indent();
                 self.write(&format!("const {} = ", stmt.children[0].name));
+                self.gen_expr(&stmt.children[1]);
+                self.write_line(";");
+            } else if tuple_binding {
+                // Zig destructuring needs a binding keyword per element:
+                // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
+                // is an invalid assignment target.
+                let binds: Vec<String> = stmt.children[0]
+                    .children
+                    .iter()
+                    .map(|e| {
+                        bound.insert(e.name.clone());
+                        format!("const {}", e.name)
+                    })
+                    .collect();
+                self.write_indent();
+                self.write(&binds.join(", "));
+                self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else {
@@ -3669,7 +3733,7 @@ impl Codegen {
                     }
                     self.write(&node.name);
                     if !node.extra_type.is_empty() {
-                        self.write(&format!(": {}", node.extra_type));
+                        self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
                     }
                     if !node.children.is_empty() {
                         self.write(" = ");
@@ -10629,7 +10693,81 @@ impl Compiler {
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = Codegen::new();
         codegen.gen_zig(&ast);
-        Ok(codegen.into_string())
+        Ok(Self::zig_discard_dead_locals(codegen.into_string()))
+    }
+
+    /// Zig errors on unused locals AND on pointless discards of used ones, and
+    /// whether a binding is used can only be decided on the EMITTED text (the
+    /// optimizer const-inlines uses while leaving the declarations behind). So:
+    /// post-pass over the generated Zig, per top-level block (fn/test), count
+    /// identifier occurrences; a `const NAME = ...;` whose name never occurs
+    /// again in its block gets `_ = NAME;` inserted right after it.
+    fn zig_discard_dead_locals(src: String) -> String {
+        fn ident_count(hay: &str, needle: &str) -> usize {
+            let bytes = hay.as_bytes();
+            let mut count = 0;
+            let mut start = 0;
+            while let Some(pos) = hay[start..].find(needle) {
+                let at = start + pos;
+                let before_ok = at == 0
+                    || !(bytes[at - 1].is_ascii_alphanumeric() || bytes[at - 1] == b'_');
+                let end = at + needle.len();
+                let after_ok = end >= bytes.len()
+                    || !(bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_');
+                if before_ok && after_ok {
+                    count += 1;
+                }
+                start = at + needle.len().max(1);
+            }
+            count
+        }
+        let lines: Vec<&str> = src.lines().collect();
+        // Top-level blocks start at column 0 and end at the next column-0 line.
+        let mut block_end = vec![lines.len(); lines.len()];
+        let mut next_top = lines.len();
+        for i in (0..lines.len()).rev() {
+            block_end[i] = next_top;
+            let l = lines[i];
+            if !l.is_empty() && !l.starts_with(' ') && !l.starts_with('}') {
+                next_top = i;
+            }
+        }
+        let mut out: Vec<String> = Vec::with_capacity(lines.len() + 16);
+        for (i, line) in lines.iter().enumerate() {
+            out.push((*line).to_string());
+            let t = line.trim_start();
+            let Some(rest) = t.strip_prefix("const ") else {
+                continue;
+            };
+            if !t.contains('=') || !line.starts_with(' ') {
+                continue; // module-level consts (column 0) are exempt in Zig
+            }
+            // One or more bindings on the line: `const a = ...` or the
+            // destructuring form `const a, const b = ...`.
+            let decl_part = t.split('=').next().unwrap_or("");
+            let names: Vec<String> = decl_part
+                .split("const ")
+                .skip(1)
+                .map(|seg| {
+                    seg.chars()
+                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                        .collect::<String>()
+                })
+                .filter(|n| !n.is_empty())
+                .collect();
+            let block_rest = lines[i + 1..block_end[i]].join("\n");
+            let indent: String = line.chars().take_while(|c| *c == ' ').collect();
+            for name in names {
+                if ident_count(&block_rest, &name) == 0 {
+                    out.push(format!("{}_ = {}; // dead after const-inlining", indent, name));
+                }
+            }
+        }
+        let mut joined = out.join("\n");
+        if src.ends_with('\n') {
+            joined.push('\n');
+        }
+        joined
     }
 
     /// W526/W527: reject multi-dimensional arrays of aggregate types that the
