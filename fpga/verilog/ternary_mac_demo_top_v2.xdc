@@ -13,7 +13,11 @@ set_property -dict { PACKAGE_PIN T23 IOSTANDARD LVCMOS33 } [get_ports led_t23]
 # constraint is deliberately pessimistic. The datapath runs one step per 2^24
 # clocks and has no timing-critical path, but constraining the clock keeps the
 # design honest and lets the tools report a real slack number.
-create_clock -period 12.500 -name cfgmclk [get_pins startup/CFGMCLK]
+#
+# Addressed to the NET, not the pin: nextpnr-xilinx's XDC reader supports only
+# `get_ports` and `get_nets` and errors on `get_pins` ("targets other than
+# 'get_ports' or 'get_nets' are not supported"). Vivado accepts either form.
+create_clock -period 12.500 -name cfgmclk [get_nets cfgmclk]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.UNUSEDPIN PULLDOWN [current_design]

@@ -5282,7 +5282,11 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
             part: "xc7a200tfgg676-1",
             idcode: "0x03636093",
             cable: "digilent_hs2",
-            default_bitstream: "fpga/verilog/ternary_mac_demo_top_200t.bit",
+            // v2 supersedes v1: v1's LEDs are driven at ~10^8 Hz from a ring
+            // oscillator and its accumulate path is tied off, so a successful
+            // flash is indistinguishable from a dead datapath (see
+            // docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md section 2).
+            default_bitstream: "fpga/verilog/ternary_mac_demo_top_v2_200t.bit",
         }),
         // Legacy 100T build kept for the pre-2026-07-03 assumption.
         "wukong-a100t" => Ok(BoardProfile {
