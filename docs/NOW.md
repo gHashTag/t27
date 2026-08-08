@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-08
 
+## gen-c: [T; N] lowers to a by-value struct; untyped literal locals pinned (Closes #1944)
+
+- C cannot return arrays: [T; N] now lowers uniformly to `typedef struct { T v[N]; } t27_arr_T_N;` -- params (were T*), returns (were invalid C), literals (`(T){ .v = { ... } }`), locals and indexing (`.v[i]`) move together
+- Sizes canonicalize through module consts ([u32; MAX_METRICS] == [u32; 16]: C typing is nominal)
+- Test bindings and untyped locals infer the struct type from the called fn's return type
+- Untyped integer-literal locals pin uint32_t/uint64_t (were C's signed int: 0xFFFFFFFF as int is -1 and unsigned comparisons inverted -- the C twin of the Zig comptime_int fix)
+- tri-net corpus: C execution 54 -> 69/69 (full corpus; one genuine spec type-mismatch surfaced in api_documenter, fixed tri-net-side)
+- FROZEN_HASH resealed
+
 ## gen-c: guarded test runner -- the C backend gets an execution level (Closes #1945)
 
 - gen-c emitted `void test_*(void)` fns with t27_assert but nothing CALLED them; a failed assert could never fire

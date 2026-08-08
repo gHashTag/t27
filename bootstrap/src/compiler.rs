@@ -9679,6 +9679,16 @@ pub struct CCodegen {
     /// t27 tuple return type of the function currently being emitted, so an
     /// `ExprTuple` in a `return` can be cast to the right C compound-literal type.
     current_ret_tuple_type: Option<String>,
+    /// C struct typedef name of the current function's [T; N] return type,
+    /// so a returned array literal can be cast to the right compound literal.
+    current_ret_array_type: Option<String>,
+    /// Identifiers (params + locals) of [T; N] struct type in the item being
+    /// emitted: indexing them must go through the .v member.
+    array_typed_names: std::collections::HashSet<String>,
+    /// Module const name -> literal value text, used to canonicalize [T; N]
+    /// sizes ([u32; MAX_METRICS] and [u32; 16] must be the SAME struct type;
+    /// C typing is nominal).
+    const_defs: std::collections::HashMap<String, String>,
     local_tuple_counter: u32,
 }
 
@@ -9690,7 +9700,69 @@ impl CCodegen {
             module_name: String::new(),
             fn_return_types: std::collections::HashMap::new(),
             current_ret_tuple_type: None,
+            current_ret_array_type: None,
+            array_typed_names: std::collections::HashSet::new(),
+            const_defs: std::collections::HashMap::new(),
             local_tuple_counter: 0,
+        }
+    }
+
+    /// Map a t27 array type `[T; N]` to (typedef name, element C type, size
+    /// text). C cannot return arrays by value, so [T; N] lowers uniformly to
+    /// a by-value struct `typedef struct { T v[N]; } t27_arr_T_N;` -- params,
+    /// returns, locals, literals and indexing all move together (t27#1944).
+    fn c_array_info(ty: &str) -> Option<(String, String, String)> {
+        let t = ty.trim();
+        if !t.starts_with('[') || !t.contains(';') {
+            return None;
+        }
+        let bracket_end = t.rfind(']')?;
+        if bracket_end <= 1 {
+            return None;
+        }
+        let inner = &t[1..bracket_end];
+        let semi = inner.find(';')?;
+        let elem = inner[..semi].trim();
+        let size = inner[semi + 1..].trim();
+        if elem.is_empty() || size.is_empty() {
+            return None;
+        }
+        let c_elem = if Self::is_primitive(elem) {
+            Self::type_to_c(elem).to_string()
+        } else {
+            elem.to_string()
+        };
+        let sane = |x: &str| x.replace(|c: char| !c.is_alphanumeric(), "_");
+        let name = format!("t27_arr_{}_{}", sane(&c_elem), sane(size));
+        Some((name, c_elem, size.to_string()))
+    }
+
+    /// Const-resolving wrapper: canonicalizes the size (a const name resolves
+    /// to its numeric value) so nominally-equal array types share one struct.
+    fn c_array_info_r(&self, ty: &str) -> Option<(String, String, String)> {
+        let (_, elem, size) = Self::c_array_info(ty)?;
+        let resolved = self
+            .const_defs
+            .get(size.trim())
+            .cloned()
+            .unwrap_or_else(|| size.clone());
+        let sane = |x: &str| x.replace(|c: char| !c.is_alphanumeric(), "_");
+        let name = format!("t27_arr_{}_{}", sane(&elem), sane(resolved.trim()));
+        Some((name, elem, resolved))
+    }
+
+    fn param_type_to_c_r(&self, ty: &str) -> String {
+        if let Some((name, _, _)) = self.c_array_info_r(ty) {
+            return name;
+        }
+        Self::param_type_to_c(ty)
+    }
+
+    fn c_return_type_r(&self, ty: &str) -> String {
+        if let Some((name, _)) = Self::c_tuple_info(ty) {
+            name
+        } else {
+            self.param_type_to_c_r(ty)
         }
     }
 
@@ -9907,6 +9979,66 @@ impl CCodegen {
                 self.gen_c_const(c);
             }
             self.write_line("");
+        }
+
+        // Canonical [T; N] sizes: record numeric const values so a size
+        // spelled as a const name and its literal value share one struct type.
+        self.const_defs.clear();
+        for c in &consts {
+            if let Some(v) = c.children.first() {
+                if v.kind == NodeKind::ExprLiteral {
+                    self.const_defs.insert(c.name.clone(), v.value.clone());
+                }
+            }
+        }
+
+        // Section: [T; N] value structs. Emitted AFTER constants because a
+        // size can be a const name (v[MAX_METRICS] needs the #define first).
+        {
+            let mut tys: Vec<String> = Vec::new();
+            fn walk(nodes: &[Node], tys: &mut Vec<String>) {
+                for n in nodes {
+                    if n.kind == NodeKind::StmtLocal && !n.extra_type.is_empty() {
+                        tys.push(n.extra_type.clone());
+                    }
+                    walk(&n.children, tys);
+                }
+            }
+            for f in &functions {
+                tys.push(f.extra_return_type.clone());
+                for (_, ptype) in &f.params {
+                    tys.push(ptype.clone());
+                }
+                walk(&f.children, &mut tys);
+            }
+            for t in &tests {
+                walk(&t.children, &mut tys);
+            }
+            for b in &benches {
+                walk(&b.children, &mut tys);
+            }
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut defs: Vec<(String, String, String)> = Vec::new();
+            for ty in &tys {
+                if let Some(info) = self.c_array_info_r(ty) {
+                    if seen.insert(info.0.clone()) {
+                        defs.push(info);
+                    }
+                }
+            }
+            if !defs.is_empty() {
+                self.write_line("/* -------------------------------------------------------");
+                self.write_line("   Array value types ([T; N] lowers to a by-value struct)");
+                self.write_line("   ------------------------------------------------------- */");
+                self.write_line("");
+                for (name, elem, size) in &defs {
+                    self.write_line(&format!(
+                        "typedef struct {{ {} v[{}]; }} {};",
+                        elem, size, name
+                    ));
+                }
+                self.write_line("");
+            }
         }
 
         // Section: Enums
@@ -10154,7 +10286,7 @@ impl CCodegen {
     }
 
     fn gen_c_fn_prototype(&mut self, node: &Node) {
-        let ret_type = Self::c_return_type(&node.extra_return_type);
+        let ret_type = self.c_return_type_r(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
@@ -10166,7 +10298,7 @@ impl CCodegen {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = Self::param_type_to_c(ptype);
+            let c_type = self.param_type_to_c_r(ptype);
             self.write(&format!("{} {}", c_type, pname));
         }
         if node.params.is_empty() {
@@ -10176,7 +10308,7 @@ impl CCodegen {
     }
 
     fn gen_c_fn(&mut self, node: &Node) {
-        let ret_type = Self::c_return_type(&node.extra_return_type);
+        let ret_type = self.c_return_type_r(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
@@ -10186,13 +10318,23 @@ impl CCodegen {
         // emitted as the matching C compound literal.
         self.current_ret_tuple_type =
             Self::c_tuple_info(&node.extra_return_type).map(|_| node.extra_return_type.clone());
+        // Track the [T; N] return struct and every array-struct-typed name
+        // (params now; locals join as their declarations are emitted).
+        self.current_ret_array_type =
+            self.c_array_info_r(&node.extra_return_type).map(|(n, _, _)| n);
+        self.array_typed_names.clear();
+        for (pname, ptype) in &node.params {
+            if Self::c_array_info(ptype).is_some() {
+                self.array_typed_names.insert(pname.clone());
+            }
+        }
 
         self.write(&format!("{} {}(", ret_type, node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
                 self.write(", ");
             }
-            let c_type = Self::param_type_to_c(ptype);
+            let c_type = self.param_type_to_c_r(ptype);
             self.write(&format!("{} {}", c_type, pname));
         }
         if node.params.is_empty() {
@@ -10220,6 +10362,8 @@ impl CCodegen {
         // Convert test name to valid C identifier
         let fn_name = node.name.replace(|c: char| !c.is_alphanumeric(), "_");
         let fn_name = format!("test_{}", fn_name);
+        self.current_ret_array_type = None;
+        self.array_typed_names.clear();
 
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
@@ -10246,7 +10390,23 @@ impl CCodegen {
                     .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh {
                 self.write_indent();
-                self.write(&format!("uint64_t {} = ", stmt.children[0].name));
+                // A binding whose RHS calls a [T; N]-returning fn is a struct
+                // value, not a uint64_t.
+                let arr_ty = if stmt.children[1].kind == NodeKind::ExprCall {
+                    self.fn_return_types
+                        .get(&stmt.children[1].name)
+                        .cloned()
+                        .and_then(|rt| self.c_array_info_r(&rt))
+                        .map(|(n, _, _)| n)
+                } else {
+                    None
+                };
+                if let Some(n) = arr_ty {
+                    self.array_typed_names.insert(stmt.children[0].name.clone());
+                    self.write(&format!("{} {} = ", n, stmt.children[0].name));
+                } else {
+                    self.write(&format!("uint64_t {} = ", stmt.children[0].name));
+                }
                 self.gen_c_expr(&stmt.children[1]);
                 self.write(";");
                 self.write_line("");
@@ -10349,6 +10509,14 @@ impl CCodegen {
                 self.write_indent();
                 self.write("return ");
                 if !node.children.is_empty() {
+                    // A returned array literal needs the compound-literal cast
+                    // to the fn's [T; N] struct; bare braces are not a C
+                    // expression.
+                    if node.children[0].kind == NodeKind::ExprArrayLiteral {
+                        if let Some(name) = self.current_ret_array_type.clone() {
+                            self.write(&format!("({})", name));
+                        }
+                    }
                     self.gen_c_expr(&node.children[0]);
                 }
                 self.write_line(";");
@@ -10470,27 +10638,16 @@ impl CCodegen {
                     return;
                 }
                 let raw_type = &node.extra_type;
-                // Rust-style array local: [T; N] name  ->  T name[N]
-                if raw_type.starts_with('[') && raw_type.contains(';') {
-                    if let Some(bracket_end) = raw_type.rfind(']') {
-                        let inner = &raw_type[1..bracket_end];
-                        if let Some(semi) = inner.find(';') {
-                            let elem = inner[..semi].trim();
-                            let size = inner[semi + 1..].trim();
-                            let c_elem = if Self::is_primitive(elem) {
-                                Self::type_to_c(elem).to_string()
-                            } else {
-                                elem.to_string()
-                            };
-                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
-                            if !node.children.is_empty() {
-                                self.write(" = ");
-                                self.gen_c_expr(&node.children[0]);
-                            }
-                            self.write_line(";");
-                            return;
-                        }
+                // Rust-style array local: [T; N] name -> by-value struct local.
+                if let Some((sname, _, _)) = self.c_array_info_r(raw_type) {
+                    self.array_typed_names.insert(node.name.clone());
+                    self.write(&format!("{} {}", sname, node.name));
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_c_expr(&node.children[0]);
                     }
+                    self.write_line(";");
+                    return;
                 }
                 // Handle array local vars: [SIZE]TYPE name
                 if raw_type.starts_with('[') {
@@ -10507,8 +10664,31 @@ impl CCodegen {
                         self.write(&format!("int {}", node.name));
                     }
                 } else {
-                    let c_type = if !raw_type.is_empty() {
-                        Self::param_type_to_c(raw_type)
+                    let inferred_arr = if raw_type.is_empty() {
+                        node.children
+                            .first()
+                            .filter(|c| c.kind == NodeKind::ExprCall)
+                            .and_then(|c| self.fn_return_types.get(&c.name).cloned())
+                            .and_then(|rt| self.c_array_info_r(&rt))
+                            .map(|(n, _, _)| n)
+                    } else {
+                        None
+                    };
+                    let c_type = if let Some(n) = inferred_arr {
+                        self.array_typed_names.insert(node.name.clone());
+                        n
+                    } else if !raw_type.is_empty() {
+                        self.param_type_to_c_r(raw_type)
+                    } else if let Some(w) = node
+                        .children
+                        .first()
+                        .and_then(Codegen::zig_int_literal_default_type)
+                    {
+                        // Untyped integer-literal locals must not default to
+                        // C's signed int: 0xFFFFFFFF as int is -1 and every
+                        // unsigned comparison against it inverts (the same
+                        // class the Zig backend fixed as comptime_int).
+                        if w == "u64" { "uint64_t".to_string() } else { "uint32_t".to_string() }
                     } else {
                         "int".to_string()
                     };
@@ -10724,20 +10904,11 @@ impl CCodegen {
             };
             return format!("{}*", c_inner);
         }
-        // Rust-style array types: [T; N] → T* (pointer in param position).
-        if ty.starts_with('[') && ty.contains(';') {
-            if let Some(bracket_end) = ty.rfind(']') {
-                let inner = &ty[1..bracket_end];
-                if let Some(semi) = inner.find(';') {
-                    let elem = inner[..semi].trim();
-                    let c_elem = if Self::is_primitive(elem) {
-                        Self::type_to_c(elem).to_string()
-                    } else {
-                        elem.to_string()
-                    };
-                    return format!("{}*", c_elem);
-                }
-            }
+        // Rust-style array types: [T; N] → by-value struct (t27#1944). The
+        // old T* lowering could not survive a return position and split the
+        // type system in two.
+        if let Some((name, _, _)) = Self::c_array_info(ty) {
+            return name;
         }
         // Array types: [SIZE]Type → Type* (pointer in param position)
         if ty.starts_with('[') {
@@ -10946,6 +11117,12 @@ impl CCodegen {
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
                     self.gen_c_expr(&node.children[0]);
+                    // [T; N] values are by-value structs: index the .v member.
+                    if node.children[0].kind == NodeKind::ExprIdentifier
+                        && self.array_typed_names.contains(&node.children[0].name)
+                    {
+                        self.write(".v");
+                    }
                     self.write("[");
                     self.gen_c_expr(&node.children[1]);
                     self.write("]");
@@ -10986,7 +11163,7 @@ impl CCodegen {
                 let txt = node.extra_size.trim().to_string();
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     self.write(&format!(
-                        "{{ [0 ... ({}) - 1] = {} }}",
+                        "{{ .v = {{ [0 ... ({}) - 1] = {} }} }}",
                         count.trim(),
                         val.trim()
                     ));
@@ -11014,9 +11191,9 @@ impl CCodegen {
                     if !cur.trim().is_empty() {
                         elems.push(cur.trim().to_string());
                     }
-                    self.write(&format!("{{ {} }}", elems.join(", ")));
+                    self.write(&format!("{{ .v = {{ {} }} }}", elems.join(", ")));
                 } else {
-                    self.write("{ 0 }");
+                    self.write("{ .v = { 0 } }");
                 }
             }
             NodeKind::ExprStructLit => {
@@ -11036,6 +11213,14 @@ impl CCodegen {
             NodeKind::ExprReturn => {
                 self.write("return ");
                 if !node.children.is_empty() {
+                    // A returned array literal needs the compound-literal cast
+                    // to the fn's [T; N] struct type; bare braces are not an
+                    // expression in C.
+                    if node.children[0].kind == NodeKind::ExprArrayLiteral {
+                        if let Some(name) = self.current_ret_array_type.clone() {
+                            self.write(&format!("({})", name));
+                        }
+                    }
                     self.gen_c_expr(&node.children[0]);
                 }
             }
