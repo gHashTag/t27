@@ -12713,7 +12713,12 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                     .filter(|c| c.kind != NodeKind::Module)
                     .collect();
                 if call_args.len() != fn_entry.params.len() {
-                    result.warnings += 1;
+                    // Arity mismatch is a HARD error: two tri-net specs shipped
+                    // mismatched calls for months because this only warned and
+                    // nothing reads warnings (tri-net#323). Wrong-arity calls
+                    // mangle in every backend.
+                    result.error_count += 1;
+                    result.ok = false;
                     result.errors.push(format!(
                         "function '{}' expects {} args, got {} at line {}",
                         node.name,
