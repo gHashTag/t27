@@ -93,15 +93,23 @@ pub fn build_interrupt_controller(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
 
-    s.push_str("    // Capture interrupt events\n");
+    s.push_str("    // Capture interrupt events.\n");
+    s.push_str("    //\n");
+    s.push_str("    // Clear-then-set, not set-then-clear. The previous form was a chain of\n");
+    s.push_str("    // independent non-blocking assignments ending in\n");
+    s.push_str("    //     if (status_read) irq_status <= 3'b000;\n");
+    s.push_str("    // so the last write won and a status_read concurrent with an event\n");
+    s.push_str("    // silently destroyed that event. Yosys proved it outright:\n");
+    s.push_str("    //     $past(inference_done) && $past(status_read) |-> irq_status[0] == 0\n");
+    s.push_str("    // held for every reachable state -- a lost-interrupt race, always, not\n");
+    s.push_str("    // occasionally. Applying the clear to the *old* value and OR-ing this\n");
+    s.push_str("    // cycle's sources on top preserves clear-on-read while keeping a\n");
+    s.push_str("    // simultaneous event. See docs/FORMAL_FOUNDATIONS.md Prop. 7.\n");
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) irq_status <= 3'b000;\n");
-    s.push_str("        else begin\n");
-    s.push_str("            if (inference_done) irq_status[0] <= 1'b1;\n");
-    s.push_str("            if (dma_done)       irq_status[1] <= 1'b1;\n");
-    s.push_str("            if (error)          irq_status[2] <= 1'b1;\n");
-    s.push_str("            if (status_read)    irq_status     <= 3'b000;  // Clear on read\n");
-    s.push_str("        end\n");
+    s.push_str("        else\n");
+    s.push_str("            irq_status <= (status_read ? 3'b000 : irq_status)\n");
+    s.push_str("                        | {error, dma_done, inference_done};\n");
     s.push_str("    end\n");
     s.push_str("\n");
 
@@ -161,18 +169,30 @@ mod tests {
         assert!(v.contains("output reg  [2:0]  irq_status,"));
     }
 
+    // These two tests previously pinned the *literal text* of the buggy
+    // set-then-clear chain -- `if (inference_done) irq_status[0] <= 1'b1;` and
+    // `if (status_read) irq_status <= 3'b000;`. They passed for as long as the
+    // lost-interrupt race existed and would have failed the moment it was
+    // fixed, which is the wrong way round. A test that asserts the shape of an
+    // implementation cannot notice that the implementation is wrong. They now
+    // assert the reachable behaviour instead, which the formal harness in
+    // formal/interrupt_controller_props.sv proves for real.
     #[test]
     fn each_source_latches_its_bit() {
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-        assert!(v.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-        assert!(v.contains("if (error)          irq_status[2] <= 1'b1;"));
+        // Bit order is fixed by the concatenation: [2]=error, [1]=dma, [0]=inference.
+        assert!(
+            v.contains("| {error, dma_done, inference_done}"),
+            "every source must contribute its bit unconditionally"
+        );
     }
 
     #[test]
     fn status_read_clears_latch() {
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
-        assert!(v.contains("if (status_read)    irq_status     <= 3'b000;"));
+        // Clear-on-read survives, but it applies to the previous value only --
+        // it must not be able to discard this cycle's sources.
+        assert!(v.contains("(status_read ? 3'b000 : irq_status)"));
     }
 
     #[test]
@@ -197,5 +217,38 @@ mod tests {
     fn emitted_text_is_pure_ascii() {
         let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
         assert!(v.is_ascii(), "emitted Verilog must be ASCII");
+    }
+
+    // Regression: a lost-interrupt race. The emitter previously wrote the three
+    // sources and the clear-on-read as independent non-blocking assignments,
+    // ending in `if (status_read) irq_status <= 3'b000;`. Last write wins, so a
+    // status_read concurrent with an event destroyed that event. Yosys proved
+    // it outright -- $past(inference_done) && $past(status_read) |->
+    // irq_status[0] == 0 held on every reachable state, i.e. always, not
+    // sometimes. formal/interrupt_controller_props.sv carries the witness
+    // (a_event_never_lost); this test guards the shape so a revert fails fast
+    // without needing a prover in the loop.
+    #[test]
+    fn clear_on_read_does_not_destroy_a_concurrent_event() {
+        let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
+        assert!(
+            !v.contains("if (status_read)    irq_status     <= 3'b000;"),
+            "set-then-clear ordering reintroduces the lost-interrupt race"
+        );
+        assert!(
+            v.contains("(status_read ? 3'b000 : irq_status)"),
+            "clear must apply to the previous value, not override this cycle's sources"
+        );
+        assert!(
+            v.contains("| {error, dma_done, inference_done}"),
+            "this cycle's sources must be OR-ed on top of the (possibly cleared) value"
+        );
+    }
+
+    #[test]
+    fn every_source_still_has_a_bit() {
+        let v = build_interrupt_controller(DEFAULT_INTERRUPT_CONTROLLER_NAME);
+        // Concatenation order fixes the bit mapping: [2]=error, [1]=dma, [0]=inference.
+        assert!(v.contains("{error, dma_done, inference_done}"));
     }
 }

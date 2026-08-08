@@ -1,5 +1,9 @@
-# Proves the behavior-DSL property set with Yosys, and checks that there is
-# something left to prove.
+# Proves properties of the generated BitNet RTL with Yosys, and checks that
+# there is something left to prove.
+#
+# a_event_never_lost in formal/interrupt_controller_props.sv is a regression
+# witness for a real lost-interrupt race: before 2026-08-09 a status_read
+# concurrent with an interrupt event provably destroyed that event.
 #
 # Background (docs/FORMAL_FOUNDATIONS.md Props 2, 5, 6): Yosys's Verilog
 # frontend accepts neither `property ... endproperty` nor inline
@@ -53,7 +57,39 @@ jobs:
       - name: Build t27c
         run: cargo build --release --manifest-path bootstrap/Cargo.toml
 
-      - name: Emit the Yosys-checkable subset
+      - name: Emit the BitNet RTL bundle
+        run: |
+          set -euo pipefail
+          mkdir -p build/rtl
+          ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+
+      # Vacuity gate. A formal job that only runs a prover cannot distinguish
+      # "all properties hold" from "there are no properties", and this repo has
+      # already shipped three CI jobs that were a bare `echo`. Counting $check
+      # cells makes the difference observable. sv2v output would score 0 here.
+      - name: Assert the property set is non-empty
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
+                        formal/interrupt_controller_props.sv; \
+                        prep -top irq_props -flatten; stat" \
+                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          echo "check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 6 ]; then
+            echo "::error::Expected >=6 \$check cells, found ${n:-0} — the run would be vacuous or properties were dropped."
+            exit 1
+          fi
+
+      # -flatten is required: `sat` refuses to run with more than one module
+      # selected, and the resulting error reads exactly like a refutation.
+      - name: Prove interrupt_controller properties
+        run: |
+          yosys -p "read_verilog -sv -formal build/rtl/interrupt_controller.sv \
+                    formal/interrupt_controller_props.sv; \
+                    prep -top irq_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 6 -tempinduct"
+
+      - name: Behavior-DSL subset still emits and parses
         run: |
           set -euo pipefail
           cat > behaviors.json <<'JSON'
@@ -62,20 +98,5 @@ jobs:
             {"name":"irq_clear_on_reset","given":"reset inactive","when":"posedge clk","then":"after 1 cycles set full"}
           ]
           JSON
-          ./target/release/t27c gen-behavior-sva-yosys behaviors.json --output formal.sv
-
-      # Vacuity gate: if the property set is empty, the prover would pass and
-      # mean nothing. Fail loudly instead.
-      - name: Assert the property set is non-empty
-        run: |
-          set -euo pipefail
-          n=$(yosys -p "read_verilog -sv -formal formal.sv; prep -top behavior_yosys; stat" \
-                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
-          echo "check cells: ${n:-0}"
-          if [ "${n:-0}" -lt 1 ]; then
-            echo "::error::No \$check cells in the netlist — the formal run would be vacuous."
-            exit 1
-          fi
-
-      - name: Frontend accepts the emitted subset
-        run: yosys -p "read_verilog -sv -formal formal.sv; prep -top behavior_yosys"
+          ./target/release/t27c gen-behavior-sva-yosys behaviors.json --output formal_dsl.sv
+          yosys -p "read_verilog -sv -formal formal_dsl.sv; prep -top behavior_yosys"

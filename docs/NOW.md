@@ -2,6 +2,42 @@
 
 Last updated: 2026-08-09
 
+## formal-finds-real-bug -- a lost-interrupt race, proved and fixed
+
+- **WHERE**: `bootstrap/src/bitnet_irq.rs` (fix + 2 new tests, 2 rewritten),
+  `bootstrap/tests/bitnet_irq.rs` (2 rewritten), **NEW**
+  `formal/interrupt_controller_props.sv`, `.github/workflows/formal-yosys.yml`
+  (now proves real RTL), `docs/FORMAL_FOUNDATIONS.md` (Prop 7), `README.md`.
+- **Variant A from #1965 -- point the formal job at real RTL -- immediately
+  found a defect.** `interrupt_controller` latched three sources and cleared on
+  read as four independent non-blocking assignments ending in
+  `if (status_read) irq_status <= 3'b000;`. Last-write-wins: a `status_read`
+  concurrent with an event **discards that event**.
+- **Discriminating refutation**: two properties differing only by
+  `!$past(status_read)` -- the guarded one PROVED, the unguarded one REFUTED.
+- **Then confirmed positively**, which is stronger than a counterexample:
+  `$past(inference_done) && $past(status_read) |-> irq_status[0] == 0` **PROVED**
+  on every reachable state. Not "can be lost" -- **always** lost. A host
+  servicing an IRQ would silently drop any event arriving in the same cycle as
+  its status read.
+- **Fix**: clear the previous value, then OR this cycle's sources on top --
+  `irq_status <= (status_read ? 3'b000 : irq_status) | {error, dma_done, inference_done};`
+  All 6 properties now prove, **including clear-on-read**, so the fix does not
+  trade one behaviour for another.
+- **Two unit tests had pinned the bug in place.** `each_source_latches_its_bit`
+  and `status_read_clears_latch` asserted the *literal text* of the buggy chain;
+  they passed for exactly as long as the race existed and failed the moment it
+  was fixed. A test that asserts the shape of an implementation cannot notice
+  the implementation is wrong. Both now assert reachable behaviour.
+- **Harness validated both ways**: proves against fixed RTL, **refutes against
+  the old RTL**, so it is a regression witness. CI vacuity gate raised to
+  require >=6 `$check` cells.
+- **Harness trap recorded**: `sat` refuses to run with more than one module
+  selected and errors with text that reads exactly like a refutation. Three
+  properties "failed" until `-flatten` was added. The tell was that one of them
+  was a tautology.
+- Suite **1193 -> 1195 passed, 0 failed**. Seals 496/496.
+
 ## sv2v-evaluated + yosys-checkable-subset -- a green run over zero properties
 
 - **WHERE**: `bootstrap/src/behavior_sva_v2.rs` (+ emitter, +9 tests),

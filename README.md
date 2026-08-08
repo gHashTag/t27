@@ -29,7 +29,7 @@ inspectable artefacts at every step.
   `bootstrap/src/hooks.rs` (Rust, unit-tested), not in shell. Without this a
   fresh clone runs **no** hooks; git does not enable them automatically.
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
-  → **1193 / 1193 passed** (full Quick Start below).
+  → **1195 / 1195 passed** (full Quick Start below).
   Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and
   `seal-audit --strict` — all green as of the 2026-08-09 seal re-baseline.
 - **Primary numeric path:** GoldenFloat **GF16** (default), with the family
@@ -77,7 +77,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | `gen-behavior-sva-yosys` subset proved; vacuity gate counts `$check` cells |
+| CI | Formal (Yosys) | GREEN | **6 properties of `interrupt_controller` proved**; vacuity gate counts `$check` cells |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -95,7 +95,7 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1193 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1195 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
@@ -159,6 +159,16 @@ which emits the immediate-assertion subset Yosys accepts (`a |-> b` and
 dropped). The `formal-yosys` CI job proves it and includes a **vacuity gate**
 that counts `$check` cells, so an empty property set fails instead of passing.
 See [`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md) Props. 2, 3, 5, 6.
+
+**This found a real bug.** `formal/interrupt_controller_props.sv` proves six
+properties of the generated `interrupt_controller`. One of them,
+`a_event_never_lost`, was **refutable** until 2026-08-09: the RTL cleared
+`irq_status` on `status_read` as the last of four independent non-blocking
+assignments, so last-write-wins meant a status read concurrent with an
+interrupt **provably destroyed that event** — always, on every reachable state,
+not occasionally. Fixed by clear-then-set; the harness is a regression witness
+that refutes against the old RTL. See
+[`docs/FORMAL_FOUNDATIONS.md`](docs/FORMAL_FOUNDATIONS.md) Prop. 7.
 
 ### Host stack (W39 R-HS-1, W40 R-HS-2)
 
@@ -229,7 +239,7 @@ git submodule update --init --recursive
 - BitNet HLS suites: 9 modules x dedicated integration suite each
 - Host stack: `host_driver` (25), `host_irq` (25)
 - R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
-- Regression: **22 integration suites green**, total **1193 / 1193 passed,
+- Regression: **22 integration suites green**, total **1195 / 1195 passed,
   0 failed** (`cargo test --release`, measured 2026-08-09 at `1be60604`).
   The long-standing fail in
   `verilog_const_array::r_ca_1_emitter_on_real_mac_spec` is **fixed** as of

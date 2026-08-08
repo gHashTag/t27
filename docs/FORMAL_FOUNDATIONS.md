@@ -194,6 +194,70 @@ prover produced that counterexample during development and was right.
 
 ---
 
+### Proposition 7 — a lost-interrupt race in `interrupt_controller`, found and fixed by proof
+
+`PROVED` (machine-checked, Yosys 0.63). **This is the first real hardware defect
+this campaign's formal work has found, and it was found by the prover, not by
+reading.**
+
+The emitted RTL latched three interrupt sources and cleared on read as four
+independent non-blocking assignments:
+
+```verilog
+if (inference_done) irq_status[0] <= 1'b1;
+if (dma_done)       irq_status[1] <= 1'b1;
+if (error)          irq_status[2] <= 1'b1;
+if (status_read)    irq_status     <= 3'b000;  // Clear on read
+```
+
+Non-blocking assignments in one `always` block resolve last-write-wins, so a
+`status_read` concurrent with an event **discards that event**.
+
+**7a. The refutation is discriminating.** Two properties differing only by the
+guard `!$past(status_read)`:
+
+| Property | Before fix |
+|---|---|
+| `$past(inference_done) && !$past(status_read) \|-> irq_status[0]` | **PROVED** |
+| `$past(inference_done) \|-> irq_status[0]` | **REFUTED** |
+
+The difference isolates the cause to the concurrent read exactly.
+
+**7b. The mechanism was then confirmed positively**, which is stronger than a
+counterexample. This holds on every reachable state:
+
+```
+$past(inference_done) && $past(status_read) |-> irq_status[0] == 0     PROVED
+```
+
+Not "the event can be lost" — the event **is always** lost. A host servicing an
+interrupt would silently drop any event arriving in the same cycle as its status
+read, the classic read-clear race, in a completion-signalling path.
+
+**7c. The fix**: apply the clear to the *previous* value and OR this cycle's
+sources on top, so clear-on-read survives without being able to discard a
+simultaneous event.
+
+```verilog
+irq_status <= (status_read ? 3'b000 : irq_status)
+            | {error, dma_done, inference_done};
+```
+
+**7d. All six properties now prove**, including clear-on-read
+(`a_read_clears`) — the fix does not trade one behaviour for another. The
+harness is checked in at `formal/interrupt_controller_props.sv` and validated
+in both directions: it proves against the fixed RTL and **refutes against the
+old RTL**, so it is a regression witness rather than a decoration.
+
+**7e. Two unit tests had pinned the bug in place.** `each_source_latches_its_bit`
+and `status_read_clears_latch` asserted the *literal text* of the buggy chain.
+They passed for exactly as long as the race existed and would have failed the
+moment it was fixed. **A test that asserts the shape of an implementation
+cannot notice that the implementation is wrong.** Both now assert reachable
+behaviour, with the formal harness carrying the real proof.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

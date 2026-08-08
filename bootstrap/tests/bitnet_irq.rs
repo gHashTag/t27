@@ -92,20 +92,30 @@ fn irq_status_read_input_present() {
 // Latch / clear / mask semantics
 // ============================================================================
 
+// Both tests below used to pin the literal text of the set-then-clear chain.
+// They passed for exactly as long as the lost-interrupt race existed, and would
+// have failed the moment it was fixed -- a test that asserts the shape of an
+// implementation cannot notice that the implementation is wrong. Yosys proved
+// the race outright: $past(inference_done) && $past(status_read) |->
+// irq_status[0] == 0 held on every reachable state. See
+// formal/interrupt_controller_props.sv (a_event_never_lost).
+
 #[test]
 fn irq_each_source_latches_its_bit() {
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (inference_done) irq_status[0] <= 1'b1;"));
-    assert!(stdout.contains("if (dma_done)       irq_status[1] <= 1'b1;"));
-    assert!(stdout.contains("if (error)          irq_status[2] <= 1'b1;"));
+    // [2]=error, [1]=dma_done, [0]=inference_done, contributed unconditionally.
+    assert!(stdout.contains("| {error, dma_done, inference_done}"));
 }
 
 #[test]
 fn irq_status_read_clears_latch() {
     let (stdout, _stderr, ok) = run(&["gen-interrupt-controller"]);
     assert!(ok);
-    assert!(stdout.contains("if (status_read)    irq_status     <= 3'b000;"));
+    // Clear-on-read survives, but applies only to the previous value, so it
+    // cannot discard a source asserted in the same cycle.
+    assert!(stdout.contains("(status_read ? 3'b000 : irq_status)"));
+    assert!(!stdout.contains("if (status_read)    irq_status     <= 3'b000;"));
 }
 
 #[test]
