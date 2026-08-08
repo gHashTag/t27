@@ -173,13 +173,26 @@ chain.
 3. Amend `SOUL.md:25` to say `.tri` is trinity's format, parsed there — so a
    reader does not expect t27 to handle it.
 
-**Unblocked:** entirely. Source migration plus documentation; no `compiler.rs`
-change.
+**Falsification run during this wave — and it fired.** I converted
+`specs/organism/dna.tri` mechanically (`spec X` → `module X;`, `--` → `//`,
+`const NAME u32` → `const NAME: u32`). It got from failing at line 1 to failing
+at **line 13**, on:
 
-**What would falsify it.** If the `.tri` → `.t27` mapping turns out not to be
-close — e.g. `.tri` has constructs t27 has no equivalent for — then migration
-is a language-design task, not a transcription, and the estimate is wrong.
-Convert one spec first and measure.
+```
+pub type Bytes32 = [32]u8
+```
+
+**t27 rejects `pub type`.** Checked against a minimal spec: `pub const`,
+`pub struct`, `pub enum` and `fn` are all accepted at module level; `pub type`
+is not. And `.tri` uses `pub type` **64 times** across the 17 specs — the
+second-most-common construct after `let` and `test`.
+
+**So this variant is NOT unblocked.** The mechanical parts convert cleanly, but
+the migration needs a type-alias construct t27 does not have, and adding it
+means `compiler.rs` — behind the LANG-EN gate like everything else.
+
+**The honest consequence:** with this variant gated, *every* remaining
+substantive track in the project now routes through the same approval. See §7.
 
 ### Variant B — Clear the LANG-EN gate
 
@@ -199,12 +212,36 @@ Small, unblocked, and it removes a stale claim.
 
 ---
 
+---
+
+## 7. The loop has exhausted its unblocked work
+
+Stated plainly, because it is the most useful thing this report can say:
+
+| Track | Needs | Status |
+|---|---|---|
+| BDD parser fix (7,623 tests + 5,163 invariants) | `compiler.rs` | **gated** |
+| Datapath / hollow-synthesis root cause | `compiler.rs` | **gated** |
+| Syntax gaps (~84 specs) | `compiler.rs` | **gated** |
+| `.tri` migration (needs `pub type`) | `compiler.rs` | **gated** |
+| G2/G3 flash | a physical board | **blocked** |
+
+`bootstrap/build.rs` panics on any `compiler.rs` edit until six documents are
+translated or added to `docs/.legacy-non-english-docs`, which is marked
+Architect-approval-only. **One decision unblocks four tracks.**
+
+What remains available without it is real but secondary: wiring the measurement
+gates into CI so nothing regresses, correcting documentation that promises
+unimplemented constructs, and small hygiene items.
+
+---
+
 ## Recommendation
 
-**Variant A.** It is unblocked, it resolves a documented-but-unimplemented
-format that has quietly corrupted every spec count in this chain including
-mine, and its step 3 is the only path that makes the best specs in the
-repository actually run.
+**Variant B — clear the LANG-EN gate.** Seven waves of measurement have
+produced a queue of well-scoped, evidence-backed fixes, and all four of them
+are behind one approval. Variant A was the last candidate that looked
+unblocked, and checking it showed it is not.
 
 ---
 
