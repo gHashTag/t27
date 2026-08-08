@@ -156,35 +156,29 @@ Docker.** The measurement settles the diagnosis:
 7.06 GB against a 3.83 GiB ceiling — the OOM was not a misconfiguration, and no
 Docker tuning short of ~7.5 GiB would have fixed it. Natively it completes.
 
-**The flow that works** (artifacts land in `build/fpga/openxc7/`, gitignored):
+**The flow that works.** Steps 0-2 are now a single command (added W554), so
+the recipe cannot rot:
 
 ```bash
-# 0. one-time: extract prjxray-db + nextpnr metadata + python from the image
-cid=$(docker create regymm/openxc7)
-docker cp "$cid:/nextpnr-xilinx/xilinx/python"                              build/fpga/openxc7/
-docker cp "$cid:/nextpnr-xilinx/xilinx/constids.inc"                        build/fpga/openxc7/
-docker cp "$cid:/nextpnr-xilinx/xilinx/external/prjxray-db/artix7"          build/fpga/openxc7/prjxray-db/
-docker cp "$cid:/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/artix7" build/fpga/openxc7/meta/
-docker rm "$cid"
+t27c fpga-chipdb --device xc7a200tfbg676-1
+```
 
-# 1. chipdb -- NATIVELY, this is the step that needs 7 GB
-cd build/fpga/openxc7
-python3 python/bbaexport.py --xray prjxray-db/artix7 --metadata meta/artix7 \
-        --constids constids.inc --device xc7a200tfbg676-1 --bba xc7a200tfbg676.bba
-# 981 MB .bba
+It extracts prjxray-db + metadata from the image, runs `bbaexport` **natively**
+(the ~7 GB step), then `bbasm` in Docker, and is idempotent — an existing
+chipdb is reported and kept unless `--force` is passed. If `bbaexport` is
+OOM-killed it says so explicitly, because the tool itself prints nothing when
+that happens.
 
-# 2. assemble -- Docker is fine, this step is small
-docker run --rm -v "$PWD:/out" regymm/openxc7 \
-  bbasm --le /out/xc7a200tfbg676.bba /out/xc7a200tfbg676.bin      # 332 MB
+Then place, route and generate the bitstream:
 
-# 3. synth + P&R + bitstream -- Docker
-docker run --rm -v "$REPO:/work" -w /work regymm/openxc7 bash -c '
+```bash
+docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
   source /prjxray/env/bin/activate
   /yosys/yosys -q -p "read_verilog fpga/verilog/ternary_mac_demo_top_v2.v \
         fpga/verilog/ternary_mac_demo_core.v fpga/verilog/ternary_mac_synth.v; \
         synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_demo_top_v2; \
         write_json build/synth-gate/v2_openxc7.json"
-  /nextpnr-xilinx/nextpnr-xilinx --chipdb build/fpga/openxc7/xc7a200tfbg676.bin \
+  /nextpnr-xilinx/nextpnr-xilinx --chipdb build/fpga/openxc7/xc7a200tfbg676-1.bin \
         --json build/synth-gate/v2_openxc7.json \
         --xdc fpga/verilog/ternary_mac_demo_top_v2.xdc \
         --write build/fpga/v2_routed.json --fasm build/fpga/v2.fasm
@@ -196,6 +190,9 @@ docker run --rm -v "$REPO:/work" -w /work regymm/openxc7 bash -c '
         --frm_file build/fpga/v2.frames \
         --output_file fpga/verilog/ternary_mac_demo_top_v2_200t.bit'
 ```
+
+Chipdb artifacts are named `<device>.bba` / `<device>.bin`, so the 200T chipdb
+is `xc7a200tfbg676-1.bin` (332 MB).
 
 **Result — measured, Wave 553:**
 

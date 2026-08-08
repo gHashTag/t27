@@ -1344,6 +1344,26 @@ enum Commands {
         top: usize,
     },
 
+    /// Build an openXC7/nextpnr chipdb for a Xilinx 7-series part
+    #[command(name = "fpga-chipdb")]
+    FpgaChipdb {
+        /// Part to build the chipdb for (must exist in the bundled prjxray-db)
+        #[arg(long, default_value = "xc7a200tfbg676-1")]
+        device: String,
+
+        /// Docker image carrying the openXC7 toolchain and prjxray database
+        #[arg(long, default_value = "regymm/openxc7")]
+        image: String,
+
+        /// Working directory for extracted inputs and generated chipdb
+        #[arg(long, default_value = "build/fpga/openxc7")]
+        work: String,
+
+        /// Rebuild even if the chipdb already exists
+        #[arg(long)]
+        force: bool,
+    },
+
     /// Flash a bitstream to a connected FPGA board via openFPGALoader
     #[command(name = "fpga-flash")]
     FpgaFlash {
@@ -5309,6 +5329,146 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
             other
         ),
     }
+}
+
+/// Build a nextpnr-xilinx chipdb.
+///
+/// This encodes the flow Wave 553 established after Waves 549-552 recorded the
+/// step as permanently blocked. The blocker was never the machine: `bbaexport`
+/// peaks at ~7.06 GB, Docker Desktop was allocated 3.83 GiB, and the host had
+/// 8 GB. So the memory-hungry step runs NATIVELY and only the small assembly
+/// step goes back into the container.
+///
+/// Two failure modes are handled explicitly because they cost two waves:
+///   * `bbaexport.py` prints NOTHING when the OOM killer takes it -- exit 137.
+///   * the prjxray database is not at /prjxray/database (that holds only
+///     settings.sh); it ships under nextpnr-xilinx/xilinx/external.
+fn run_fpga_chipdb(
+    repo_root: &Path,
+    device: &str,
+    image: &str,
+    work: &str,
+    force: bool,
+) -> anyhow::Result<()> {
+    let workdir = repo_root.join(work);
+    let bba = workdir.join(format!("{}.bba", device));
+    let bin = workdir.join(format!("{}.bin", device));
+
+    println!("=== FPGA chipdb: {} ===", device);
+    println!("  work dir : {}", workdir.display());
+
+    if bin.exists() && !force {
+        let sz = fs::metadata(&bin).map(|m| m.len()).unwrap_or(0);
+        println!("  chipdb   : already present ({} bytes) -- pass --force to rebuild", sz);
+        return Ok(());
+    }
+    fs::create_dir_all(&workdir).context("create chipdb work dir")?;
+
+    // ---- Stage 1: extract the toolchain inputs from the image (once) -------
+    let py = workdir.join("python/bbaexport.py");
+    if !py.exists() {
+        println!("\n  [1/3] extracting prjxray-db + metadata from {} ...", image);
+        let create = std::process::Command::new("docker")
+            .args(["create", image])
+            .output()
+            .context("docker create -- is Docker running?")?;
+        if !create.status.success() {
+            anyhow::bail!(
+                "docker create failed: {}",
+                String::from_utf8_lossy(&create.stderr).trim()
+            );
+        }
+        let cid = String::from_utf8_lossy(&create.stdout).trim().to_string();
+
+        let copies: [(&str, PathBuf); 4] = [
+            ("/nextpnr-xilinx/xilinx/python", workdir.clone()),
+            ("/nextpnr-xilinx/xilinx/constids.inc", workdir.clone()),
+            (
+                "/nextpnr-xilinx/xilinx/external/prjxray-db/artix7",
+                workdir.join("prjxray-db"),
+            ),
+            (
+                "/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/artix7",
+                workdir.join("meta"),
+            ),
+        ];
+        for (src, dst) in &copies {
+            fs::create_dir_all(dst).ok();
+            let st = std::process::Command::new("docker")
+                .arg("cp")
+                .arg(format!("{}:{}", cid, src))
+                .arg(dst)
+                .status();
+            match st {
+                Ok(s) if s.success() => println!("        got {}", src),
+                _ => {
+                    let _ = std::process::Command::new("docker").args(["rm", &cid]).output();
+                    anyhow::bail!("docker cp failed for {}", src);
+                }
+            }
+        }
+        let _ = std::process::Command::new("docker").args(["rm", &cid]).output();
+    } else {
+        println!("\n  [1/3] inputs already extracted");
+    }
+
+    // ---- Stage 2: bbaexport, NATIVELY (this is the ~7 GB step) ------------
+    if !bba.exists() || force {
+        println!("  [2/3] bbaexport (native -- needs ~7 GB RAM, several minutes) ...");
+        let status = std::process::Command::new("python3")
+            .arg(workdir.join("python/bbaexport.py"))
+            .arg("--xray").arg(workdir.join("prjxray-db/artix7"))
+            .arg("--metadata").arg(workdir.join("meta/artix7"))
+            .arg("--constids").arg(workdir.join("constids.inc"))
+            .arg("--device").arg(device)
+            .arg("--bba").arg(&bba)
+            .status()
+            .context("running python3 bbaexport.py")?;
+
+        if !status.success() {
+            let code = status.code().unwrap_or(-1);
+            if code == 137 || code == -9 {
+                anyhow::bail!(
+                    "bbaexport was KILLED (exit {}), which means the OOM killer took it.\n\
+                     It peaks around 7 GB for a 200T part. This step must run natively --\n\
+                     inside Docker it dies against the Desktop memory allocation.\n\
+                     Free memory or use a larger host; note the tool prints nothing when killed.",
+                    code
+                );
+            }
+            anyhow::bail!("bbaexport failed with exit {}", code);
+        }
+        let sz = fs::metadata(&bba).map(|m| m.len()).unwrap_or(0);
+        if sz == 0 {
+            anyhow::bail!("bbaexport exited 0 but produced an empty .bba -- treat as failure");
+        }
+        println!("        .bba {} bytes", sz);
+    } else {
+        println!("  [2/3] .bba already present");
+    }
+
+    // ---- Stage 3: bbasm, in Docker (small) --------------------------------
+    println!("  [3/3] bbasm (Docker) ...");
+    let status = std::process::Command::new("docker")
+        .arg("run").arg("--rm")
+        .arg("-v").arg(format!("{}:/out", workdir.display()))
+        .arg(image)
+        .arg("bbasm").arg("--le")
+        .arg(format!("/out/{}.bba", device))
+        .arg(format!("/out/{}.bin", device))
+        .status()
+        .context("running bbasm in Docker")?;
+    if !status.success() {
+        anyhow::bail!("bbasm failed with exit {}", status.code().unwrap_or(-1));
+    }
+
+    let sz = fs::metadata(&bin).map(|m| m.len()).unwrap_or(0);
+    if sz == 0 {
+        anyhow::bail!("bbasm exited 0 but produced an empty chipdb");
+    }
+    println!("\n=== chipdb ready: {} ({} bytes) ===", bin.display(), sz);
+    println!("Feed it to nextpnr-xilinx with --chipdb {}", bin.display());
+    Ok(())
 }
 
 fn run_fpga_flash(
@@ -9314,6 +9474,10 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
          }
+         Commands::FpgaChipdb { device, image, work, force } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
+         }
          Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
@@ -9613,6 +9777,10 @@ fn main() -> anyhow::Result<()> {
          Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
              let repo_root = std::env::current_dir()?;
              run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
+         }
+         Commands::FpgaChipdb { device, image, work, force } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
          }
          Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
              let repo_root = std::env::current_dir()?;
