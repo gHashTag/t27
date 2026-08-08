@@ -161,6 +161,12 @@ the audit campaign has hit repeatedly: a metric that is accurate about the thing
 it counts and misleading about the thing a reader infers. Corrected in this
 commit to distinguish **emitted** from **integrated**.
 
+> **Closed 2026-08-09.** All ten emitted blocks are now instantiated in
+> `bitnet_engine_top` (12 instances). The emitted-vs-integrated distinction this
+> section introduced no longer describes a gap in *reachability* — what remains
+> is one open interlock property, recorded in
+> [`FORMAL_FOUNDATIONS.md`](FORMAL_FOUNDATIONS.md) Prop. 20.
+
 **3d. Six verified RTL defects sit in blocks that are not yet wired together.**
 That does not devalue them — the blocks are the deliverable, and defects found
 pre-integration are the cheapest kind. But it does bound what

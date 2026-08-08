@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## dma-wired -- every emitted block is reachable from the top
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 20), `docs/BITNET_V2_POSITION.md`, `README.md`.
+- **Variant A from #1987.** `dma_controller` was the last standalone module.
+  **10 of 10 modules, 12 instances** -- the emitted-vs-integrated gap opened in
+  BITNET_V2_POSITION section 3c is closed on reachability.
+- **It closed a functional gap too.** The activation buffers were written *only*
+  by the requantizer -- i.e. only from the previous layer -- so **layer 0 read
+  uninitialised memory and there was no path for input data into the engine at
+  all**. The DMA fills the buffer the first layer will read.
+- **A second writer invalidated an existing invariant's scope.**
+  `a_no_read_write_same` forbids writing the buffer being read, which was right
+  when the requantizer was the only writer. The DMA's intent is the opposite --
+  it deliberately fills the buffer about to be read. Left unscoped it made a
+  correct DMA look like a violation; now scoped to the requantizer path.
+  **An invariant written against one producer encodes an assumption about how
+  many producers there are.**
+- **OPEN, recorded not asserted**: `!(dma_local_we && mac_valid_q)` REFUTES.
+  `reg_ctrl` is host-writable at any time, so `ctrl = 3` requests an inference
+  and a DMA together. An interlock (`ctrl[1] && !ctrl[0] && !busy`) narrows
+  without closing it -- `busy` is `(current_layer != 0) || layer_start`, false
+  during the first layer. Kept out of CI rather than weakened; the likely fix is
+  a real `inference_active` signal instead of a decode of `current_layer`.
+  **`busy` is a derived proxy, and the proxy lesson applies to design signals as
+  much as to gates.**
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## axi-aperture-wired -- config is CSRs now, not a port bundle
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,

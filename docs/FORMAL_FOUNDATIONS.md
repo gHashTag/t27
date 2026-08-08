@@ -880,6 +880,53 @@ because the interesting claim moved.
 
 ---
 
+### Proposition 20 — every emitted block is wired; one interlock is open
+
+`MEASURED`. `dma_controller` was the last standalone module. With it
+instantiated the count reaches **10 of 10, 12 instances** — every emitted block
+is reachable from the top, closing the emitted-vs-integrated gap that
+`BITNET_V2_POSITION.md` §3c opened.
+
+**20a. It closed a functional gap, not just an integration one.** The activation
+buffers were written *only* by the requantizer — that is, only from the
+**previous** layer. Layer 0 therefore read uninitialised memory, and there was
+no path for input data to enter the engine at all. The DMA fills the buffer the
+first layer will read.
+
+**20b. Adding a second writer invalidated an existing invariant's scope.**
+`a_no_read_write_same` (Prop. 16) forbids writing the buffer being read. That
+was correct when the requantizer was the only writer. The DMA's intent is the
+**opposite** — it deliberately fills the buffer about to be read, because that
+is where layer 0's input belongs. Left unscoped, the invariant made a correct
+DMA look like a violation.
+
+Now scoped to the requantizer path (`if (rst_n && !dma_local_we)`).
+**An invariant written against one producer usually encodes an assumption about
+how many producers there are, and adding a second is the moment to re-read it —
+not to weaken it, but to state the domain it was always about.**
+
+**20c. Open, recorded not asserted.**
+
+```
+assert (!(dma_local_we && mac_valid_q))     REFUTED
+```
+
+`reg_ctrl` is host-writable at any time, so a host writing `ctrl = 3` requests
+an inference and a DMA in the same cycle, and the DMA loads into the buffer the
+MAC is reading. An interlock was added — `.start(reg_ctrl[1] && !reg_ctrl[0] &&
+!busy)` — and it **narrows without closing**: `busy` is
+`(current_layer != 0) || layer_start`, false during the very first layer, so a
+residual window remains.
+
+Recorded rather than weakened, per Prop. 17. The interlock is kept because it is
+a genuine improvement, and the property is kept out of CI because asserting it
+would certify an interlock that does not hold. The likely fix is a real
+`inference_active` signal held from start to done, rather than a decode of
+`current_layer` — **`busy` is a derived proxy, and Prop. 12's lesson about
+proxies applies to design signals as much as to gates.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
