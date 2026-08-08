@@ -120,6 +120,21 @@ invariant invariant_name
     assert logical_expression
 ```
 
+> **Implementation status (verified 2026-08-09, Wave Loop 557).** The
+> `given`/`when`/`then` form above **parses but does not execute.**
+> `parse_test_block` calls `skip_to_next_top_level()` for the keyword form, so
+> the clauses never reach the AST and codegen emits an empty test body. A spec
+> asserting `2 == 999` compiles to `test "..." {}` and `zig test` reports it as
+> passing. The same applies to keyword-form invariants via
+> `parse_invariant_block`, which emit `// invariant: X verified (no statements)`.
+>
+> Repo-wide: **7,623 test blocks** and **5,163 invariants** are affected.
+>
+> The brace variant documented in [`SOUL.md`](../../SOUL.md) §2.3 does not parse
+> at all. Until this is resolved, use brace-form tests with ordinary `assert`
+> statements. See
+> [`docs/reports/WAVE_LOOP_555_REPORT.md`](../reports/WAVE_LOOP_555_REPORT.md).
+
 ---
 
 ## Conformance JSON Generation

@@ -112,6 +112,26 @@ spec vsa_ops {
 }
 ```
 
+> **Implementation status (verified 2026-08-09, Wave Loop 557).** The example
+> above — `test name { given ... when ... then ... }` — **does not parse**.
+> `t27c parse` rejects it with *"unexpected token after expression statement"*
+> at the first `given`. The brace body is parsed as a function body, and
+> `given`/`when`/`then` are not statements there.
+>
+> The *braceless* variant shown in
+> [`docs/nona-03-manifest/TDD-CONTRACT.md`](TDD-CONTRACT.md) does parse, but its
+> body is discarded: `parse_test_block` calls `skip_to_next_top_level()` for the
+> keyword form, so codegen emits an empty test. A spec asserting `2 == 999`
+> compiles to `test "..." {}` and passes. Repo-wide this affects **7,623 test
+> blocks** and, via the same path in `parse_invariant_block`, **5,163
+> invariants** (which emit `// invariant: X verified (no statements)`).
+>
+> Neither form currently executes. See
+> [`docs/reports/WAVE_LOOP_555_REPORT.md`](../reports/WAVE_LOOP_555_REPORT.md).
+> Until this is resolved, use brace-form tests with ordinary `assert`
+> statements — the form the backends do emit.
+
+
 ---
 
 ## Article III: No Prototype Mode
