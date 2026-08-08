@@ -438,6 +438,27 @@ if __name__ == "__main__":
     te = sum(1 for a, b, t in ted if _predd(a, b) == t)
     assert te >= int(0.9 * len(ted)), f"deep [2,4,3,1] held-out too low: {te}/{len(ted)}"
     print(f"self-test: deep [2,4,3,1] (3-layer, 2 hidden) learns nonlinear task, held-out {te}/{len(ted)} (>=90%) -- OK")
+    # deeper+wider: [2,5,3,1] (3-layer) generalises too -- the method scales, only the open
+    # silicon flow's placement marginality does not (fixed by the Vivado closure kit).
+    SZ = [2, 5, 3, 1]
+    reg, steps = gen_deep(SZ); rf = [0] * len(reg)
+    random.seed(3)
+    for l in range(1, len(SZ)):
+        for j in range(SZ[l]):
+            for k in range(SZ[l - 1]): rf[reg[f"W{l}_{j}_{k}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+            rf[reg[f"b{l}_{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    random.seed(7); trw, tew = _ds(160), _ds(60)
+    def _predw(a, b):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = 0
+        run(steps, rf); y = dec(rf[reg["y0"]])
+        for i in range(len(rf)): rf[i] = sav[i]
+        return int(y > 0.5)
+    for _ in range(60):
+        for a, b, t in trw:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = enc(float(t)); run(steps, rf)
+    te = sum(1 for a, b, t in tew if _predw(a, b) == t)
+    assert te >= int(0.9 * len(tew)), f"deep [2,5,3,1] held-out too low: {te}/{len(tew)}"
+    print(f"self-test: deep [2,5,3,1] (158 steps) learns nonlinear task, held-out {te}/{len(tew)} (>=90%) -- OK")
     vd = emit_verilog_deep([2, 4, 3, 1], "deep431")
     assert "module deep431" in vd and "for(gi=0;gi<" in vd
     print("emit_verilog_deep: [2,4,3,1] module generated -- OK")
