@@ -118,7 +118,10 @@ fn top_wires_for_sequencer_and_buffer() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
     assert!(stdout.contains("wire [5:0] current_layer;"));
-    assert!(stdout.contains("wire layer_start, start_prefetch, prefetch_done;"));
+    // prefetch_done is now driven by weight_prefetch_ctrl, so it is declared
+    // separately from the two control-plane wires.
+    assert!(stdout.contains("wire layer_start, start_prefetch;"));
+    assert!(stdout.contains("wire prefetch_done;"));
     assert!(stdout.contains("wire use_buffer_a;"));
     assert!(stdout.contains("wire [11:0] buf_read_addr, buf_write_addr;"));
 }
@@ -146,11 +149,13 @@ fn top_busy_from_current_layer_or_layer_start() {
 }
 
 #[test]
-fn top_mem_outputs_tied_off() {
+fn top_mem_outputs_driven_by_prefetch() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    assert!(stdout.contains("assign mem_addr  = 32'd0;"));
-    assert!(stdout.contains("assign mem_rd_en = 1'b0;"));
+    // Was asserting the tie-off as the contract. The external memory port is
+    // now driven by the weight prefetch controller.
+    assert!(stdout.contains("assign mem_addr  = pf_araddr;"));
+    assert!(stdout.contains("assign mem_rd_en = pf_arvalid;"));
 }
 
 #[test]

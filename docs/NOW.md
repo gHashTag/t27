@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## host-path-wired -- no tie-offs left; one property recorded, not asserted
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 17),
+  `README.md`.
+- **Variant A from #1983.** `weight_prefetch_ctrl` and `interrupt_controller`
+  wired: **10 instances, 8 of 10 modules**. The tie-offs `mem_addr = 32'd0`,
+  `mem_rd_en = 1'b0` and `prefetch_done = 1'b1` are gone.
+- **Weights were never loaded either.** `wmem`'s write port was also tied to
+  `1'b0`, so together with the dead `use_buffer_a` of the previous wave,
+  **neither memory in the datapath was ever written**. The prefetcher now
+  streams from the external port into the weight BRAM.
+- **OPEN, reproduced, deliberately not asserted.** A single weight BRAM is safe
+  only if prefetch never writes an address the MAC is reading, and
+  `multilayer_sequencer` separates PREFETCH from LAYER_RUN, which should make
+  that impossible. Both `!(pf_bram_we && mac_valid_q)` and the narrower
+  same-address form **REFUTE**, and still refute with a memory model
+  constraining `mem_rd_valid` to follow `mem_rd_en` -- so not an
+  unconstrained-environment artefact.
+- Three options existed: ship the failing assertion, weaken it until it passes,
+  or record the gap. The first breaks CI for everyone; the second is deliberate
+  vacuity. **A property you cannot yet prove is a finding, not a defect in the
+  property -- and its honest home is documentation, not a weakened assert.**
+- **A tenth text-pinning test**: `external_memory_outputs_tied_off` asserted
+  `assign mem_addr = 32'd0;` -- the tie-off *as the contract*, exactly like
+  `dma_burst_length_is_max`. Renamed. **Ten across the campaign; every RTL
+  defect found had one.**
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## activation-loop-closed -- a controller whose decision nobody read
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `README.md`,

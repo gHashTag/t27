@@ -742,6 +742,47 @@ possible once there is a seam.
 
 ---
 
+### Proposition 17 — the host path is wired, and one property is left open on purpose
+
+`MEASURED`. `weight_prefetch_ctrl` and `interrupt_controller` are now
+instantiated: **10 instances, 8 of 10 modules**, and the tie-offs
+`mem_addr = 32'd0`, `mem_rd_en = 1'b0`, `prefetch_done = 1'b1` are gone.
+
+**17a. Weights were never loaded.** `wmem`'s write port was also tied off
+(`wr_en(1'b0)`) — so alongside the dead `use_buffer_a` of Prop. 16, **neither
+memory in the datapath was ever written**. The prefetch controller now streams
+from the external port into the weight BRAM, and the external port is driven by
+its AXI read channel.
+
+**17b. An open, reproduced anomaly — deliberately not asserted.** A single
+weight BRAM is only safe if prefetch never writes an address the MAC is
+reading, and `multilayer_sequencer` keeps `PREFETCH` and `LAYER_RUN` in
+separate states, which should make that impossible. It does not hold:
+
+| Property | Result |
+|---|---|
+| `!(pf_bram_we && mac_valid_q)` | **REFUTED** |
+| `!(pf_bram_we && mac_valid_q && pf_bram_addr == chunk_addr)` | **REFUTED** |
+
+Both still refute with a memory model constraining `mem_rd_valid` to follow
+`mem_rd_en`, so this is **not** an unconstrained-environment artefact
+(cf. Prop. 11).
+
+It is recorded in the RTL as a comment and in this document, and **not
+asserted**. Three options were available: ship the failing assertion, weaken it
+until it passes, or record the gap. The first breaks CI for everyone; the
+second is the vacuity failure of Prop. 12 committed on purpose. **A property
+you cannot yet prove is a finding, not a defect in the property — and the
+honest place for it is documentation, not a weakened assert.**
+
+**17c. A tenth text-pinning test, and its name was the giveaway again.**
+`external_memory_outputs_tied_off` asserted `assign mem_addr = 32'd0;` — the
+tie-off *as the contract*, exactly like `dma_burst_length_is_max` in Prop. 9.
+Renamed to `external_memory_port_is_driven_by_prefetch`. **Ten such tests across
+this campaign, and every RTL defect found had one.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

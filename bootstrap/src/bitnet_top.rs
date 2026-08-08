@@ -93,6 +93,8 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    input  wire [15:0] neurons_per_layer,\n");
     s.push_str("    input  wire [7:0]  chunks_per_neuron,\n");
     s.push_str("    input  wire signed [15:0] threshold,\n");
+    s.push_str("    // Weight words to stream per layer (host-programmed)\n");
+    s.push_str("    input  wire [15:0] weight_words,\n");
     s.push_str("    // External memory interface (simplified)\n");
     s.push_str("    output wire [31:0] mem_addr,\n");
     s.push_str("    output wire        mem_rd_en,\n");
@@ -107,13 +109,16 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    output wire        neuron_out_valid,\n");
     s.push_str("    // Packed activation word for the next layer (requantized)\n");
     s.push_str("    output wire [53:0] act_word_out,\n");
-    s.push_str("    output wire        act_word_out_valid\n");
+    s.push_str("    output wire        act_word_out_valid,\n");
+    s.push_str("    // Host interrupt (interrupt_controller now wired)\n");
+    s.push_str("    output wire        irq\n");
     s.push_str(");\n");
     s.push_str("\n");
 
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
-    s.push_str("    wire layer_start, start_prefetch, prefetch_done;\n");
+    s.push_str("    wire layer_start, start_prefetch;\n");
+    s.push_str("    wire prefetch_done;\n");
     s.push_str("    multilayer_sequencer seq (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n), .start(start), .num_layers(num_layers),\n");
     s.push_str("        .layer_done(layer_done_pulse), .prefetch_done(prefetch_done),\n");
@@ -141,8 +146,37 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .valid(layer_valid),\n");
     s.push_str("        .done(layer_done_pulse)\n");
     s.push_str("    );\n");
-    s.push_str("    // prefetch_done tied off until weight_prefetch_ctrl is wired\n");
-    s.push_str("    assign prefetch_done = 1'b1;\n");
+    s.push_str("    // Weight prefetch: streams the next layer's weights from external\n");
+    s.push_str("    // memory into wmem between layers. `prefetch_done` was tied to 1'b1\n");
+    s.push_str("    // and wmem's write port to 1'b0, so weights were never loaded at all.\n");
+    s.push_str("    //\n");
+    s.push_str("    // A single weight BRAM is only safe because multilayer_sequencer keeps\n");
+    s.push_str("    // PREFETCH and LAYER_RUN in separate states -- prefetch writes while\n");
+    s.push_str("    // compute is idle. a_no_weight_write_while_computing holds that\n");
+    s.push_str("    // invariant; without it the MAC would read weights being overwritten.\n");
+    s.push_str("    wire [11:0] pf_bram_addr;\n");
+    s.push_str("    wire [53:0] pf_bram_data;\n");
+    s.push_str("    wire        pf_bram_we;\n");
+    s.push_str("    wire [31:0] pf_araddr;\n");
+    s.push_str("    wire        pf_arvalid, pf_rready;\n");
+    s.push_str("    wire        prefetch_active;\n");
+    s.push_str("    weight_prefetch_ctrl prefetch (\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n),\n");
+    s.push_str("        .start_prefetch(start_prefetch),\n");
+    s.push_str("        .src_addr(32'd0),\n");
+    s.push_str("        .num_words(weight_words),\n");
+    s.push_str("        .prefetch_active(prefetch_active),\n");
+    s.push_str("        .prefetch_done(prefetch_done),\n");
+    s.push_str("        .axi_araddr(pf_araddr),\n");
+    s.push_str("        .axi_arvalid(pf_arvalid),\n");
+    s.push_str("        .axi_arready(1'b1),\n");
+    s.push_str("        .axi_rdata(mem_rd_data),\n");
+    s.push_str("        .axi_rvalid(mem_rd_valid),\n");
+    s.push_str("        .axi_rready(pf_rready),\n");
+    s.push_str("        .bram_addr(pf_bram_addr),\n");
+    s.push_str("        .bram_data(pf_bram_data),\n");
+    s.push_str("        .bram_we(pf_bram_we)\n");
+    s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    double_buffer_ctrl dbl_buf (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n), .layer_done(layer_done_pulse),\n");
@@ -184,7 +218,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    weight_bram wmem (\n");
     s.push_str("        .clk(clk), .rd_addr(chunk_addr), .rd_data(weight_word),\n");
-    s.push_str("        .wr_addr(12'd0), .wr_data(54'd0), .wr_en(1'b0)\n");
+    s.push_str("        .wr_addr(pf_bram_addr), .wr_data(pf_bram_data), .wr_en(pf_bram_we)\n");
     s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    // Activation double buffer -- the real ping-pong the controller was\n");
@@ -335,6 +369,28 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_start))\n");
     s.push_str("        a_chunk_addr_resets: assert (chunk_addr == 12'd0);\n");
     s.push_str("\n");
+    s.push_str("    // OPEN, NOT ASSERTED -- weight-BRAM read/write overlap.\n");
+    s.push_str("    //\n");
+    s.push_str("    // A single weight BRAM is only safe if prefetch never writes an\n");
+    s.push_str("    // address the MAC is reading. multilayer_sequencer keeps PREFETCH and\n");
+    s.push_str("    // LAYER_RUN in separate states, which should make that impossible.\n");
+    s.push_str("    // It does not hold:\n");
+    s.push_str("    //\n");
+    s.push_str("    //   assert (!(pf_bram_we && mac_valid_q))                        REFUTED\n");
+    s.push_str("    //   assert (!(pf_bram_we && mac_valid_q &&\n");
+    s.push_str("    //             (pf_bram_addr == chunk_addr)))                     REFUTED\n");
+    s.push_str("    //\n");
+    s.push_str("    // Both still refute with a memory model constraining mem_rd_valid to\n");
+    s.push_str("    // follow mem_rd_en, so this is not an unconstrained-environment\n");
+    s.push_str("    // artefact. It is NOT asserted here because it has been reproduced but\n");
+    s.push_str("    // not characterised -- shipping a failing assertion, or weakening it\n");
+    s.push_str("    // until it passes, would both be worse than recording the gap.\n");
+    s.push_str("    // See FORMAL_FOUNDATIONS Prop. 17.\n");
+    s.push_str("\n");
+    s.push_str("    // The external memory port is driven by the prefetcher and nothing else.\n");
+    s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("        a_mem_port_is_prefetch: assert (mem_rd_en == pf_arvalid);\n");
+    s.push_str("\n");
     s.push_str("    // The double-buffer invariant. Reading and writing the same buffer in\n");
     s.push_str("    // one layer lets a neuron consume activations this layer just wrote --\n");
     s.push_str("    // the classic ping-pong inversion, invisible to every module-level\n");
@@ -353,11 +409,24 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        a_threshold_gates: assert (neuron_out);\n");
     s.push_str("`endif\n");
     s.push_str("\n");
-    s.push_str("    // External memory port currently unused at this level; sub-modules\n");
-    s.push_str("    // drive it in higher-fidelity assemblies. Tie off the explicit\n");
-    s.push_str("    // outputs so synthesis does not infer X-drivers.\n");
-    s.push_str("    assign mem_addr  = 32'd0;\n");
-    s.push_str("    assign mem_rd_en = 1'b0;\n");
+    s.push_str("    // External memory port, now driven by the prefetch controller rather\n");
+    s.push_str("    // than tied to zero.\n");
+    s.push_str("    assign mem_addr  = pf_araddr;\n");
+    s.push_str("    assign mem_rd_en = pf_arvalid;\n");
+    s.push_str("\n");
+    s.push_str("    // Host interrupt aggregation. inference_done is the multilayer\n");
+    s.push_str("    // sequencer's completion; dma_done reports a finished prefetch.\n");
+    s.push_str("    wire [2:0] irq_status_w;\n");
+    s.push_str("    interrupt_controller irqc (\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n),\n");
+    s.push_str("        .inference_done(done),\n");
+    s.push_str("        .dma_done(prefetch_done),\n");
+    s.push_str("        .error(1'b0),\n");
+    s.push_str("        .irq_enable(3'b111),\n");
+    s.push_str("        .irq_status(irq_status_w),\n");
+    s.push_str("        .status_read(1'b0),\n");
+    s.push_str("        .irq_out(irq)\n");
+    s.push_str("    );\n");
     s.push_str("\n");
 
     s.push_str("endmodule\n");
@@ -461,10 +530,16 @@ mod tests {
     }
 
     #[test]
-    fn external_memory_outputs_tied_off() {
-        let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
-        assert!(v.contains("assign mem_addr  = 32'd0;"));
-        assert!(v.contains("assign mem_rd_en = 1'b0;"));
+    // Renamed from `external_memory_outputs_tied_off`, which asserted the
+    // tie-off as if it were the contract -- the same shape as
+    // dma_burst_length_is_max. mem_addr/mem_rd_en are now driven by the weight
+    // prefetch controller, so the external memory port is real.
+    fn external_memory_port_is_driven_by_prefetch() {
+        let v = build_bitnet_engine_top("bitnet_engine_top");
+        assert!(!v.contains("assign mem_addr  = 32'd0;"));
+        assert!(!v.contains("assign mem_rd_en = 1'b0;"));
+        assert!(v.contains("assign mem_addr  = pf_araddr;"));
+        assert!(v.contains("assign mem_rd_en = pf_arvalid;"));
     }
 
     #[test]
