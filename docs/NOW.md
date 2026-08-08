@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-08
 
+## gen-zig: for-range start expression, not the loop variable (Closes #1942)
+
+- `for i in 0..10` emitted `for (i..10) |i|` -- gen_for_range_stmt wrote the loop VARIABLE where the range start belongs; now emits children[0]
+- Surfaced by the tri-net testbench transcription (first real for-range uses in the zig corpus)
+- FROZEN_HASH resealed
+
 ## parser: silent statement drop is DEAD -- malformed input hard-errors (Closes #1940)
 
 - Statement-level and module-level "recovery" silently DROPPED malformed statements/declarations (fn bodies became unimplemented stubs, whole fns vanished); every drop site now returns a hard parse error with fn name + line
