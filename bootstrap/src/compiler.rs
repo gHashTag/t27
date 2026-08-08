@@ -9992,6 +9992,37 @@ impl CCodegen {
             self.write_line("");
         }
 
+        // Section: guarded test runner. The test fns above are emitted but
+        // nothing CALLS them -- without a runner the C backend has no
+        // execution level (a failed t27_assert can never fire in CI).
+        // Guarded behind T27_TEST_MAIN so the header stays includable.
+        if !tests.is_empty() {
+            self.write_line("/* -------------------------------------------------------");
+            self.write_line("   Test runner (compile with -DT27_TEST_MAIN to execute)");
+            self.write_line("   ------------------------------------------------------- */");
+            self.write_line("");
+            self.write_line("#ifdef T27_TEST_MAIN");
+            self.write_line("#include <stdio.h>");
+            self.write_line("int main(void) {");
+            self.indent();
+            for t in &tests {
+                let fn_name = t.name.replace(|c: char| !c.is_alphanumeric(), "_");
+                self.write_indent();
+                self.write_line(&format!("test_{}();", fn_name));
+            }
+            self.write_indent();
+            self.write_line(&format!(
+                "printf(\"All %d tests passed.\\n\", {});",
+                tests.len()
+            ));
+            self.write_indent();
+            self.write_line("return 0;");
+            self.dedent();
+            self.write_line("}");
+            self.write_line("#endif /* T27_TEST_MAIN */");
+            self.write_line("");
+        }
+
         // Close guard
         self.write_line(&format!("#endif /* {}_H */", guard));
     }

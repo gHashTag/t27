@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-c: guarded test runner -- the C backend gets an execution level (Closes #1945)
+
+- gen-c emitted `void test_*(void)` fns with t27_assert but nothing CALLED them; a failed assert could never fire
+- Emits an `#ifdef T27_TEST_MAIN` runner (main + per-test calls + summary printf); headers stay includable
+- tri-net corpus: 54 specs compile AND run their C tests clean immediately; the 15 [T; N]-return specs are invalid C (#1944, struct lowering) and stay out of the gate
+- FROZEN_HASH resealed
+
 ## gen-zig: for-range start expression, not the loop variable (Closes #1942)
 
 - `for i in 0..10` emitted `for (i..10) |i|` -- gen_for_range_stmt wrote the loop VARIABLE where the range start belongs; now emits children[0]
