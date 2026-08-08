@@ -1,6 +1,13 @@
-# NOW — typecheck: context-polymorphic integer literals (2026-08-08)
+# NOW — typecheck: W456 scoped to const ROM arrays (2026-08-08)
 
 Last updated: 2026-08-08
+
+## typecheck: W456 immutable-array-element error scoped to const ROM (Closes #1925)
+
+- W456 keyed on is_mutable alone, so fn-local let-arrays (inferred-mutability convention, like scalars) raised a hard error on element assignment
+- SymbolEntry now carries is_const (module-level const only): const arrays keep the ROM error (unit test preserved), local let-arrays get the scalar-style warning
+- tri-net full-spec typecheck sweep: 2 failing -> 0 -- the whole corpus is typecheck-clean for the first time
+- Unit suite 1537/1537; FROZEN_HASH resealed
 
 ## typecheck: bare non-negative literals are context-polymorphic (Closes #1923)
 
