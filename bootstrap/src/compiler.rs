@@ -4151,9 +4151,31 @@ impl Codegen {
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
-                    self.gen_expr_maybe_paren(&node.children[0]);
-                    self.write(&format!(" {} ", node.extra_op));
-                    self.gen_expr_maybe_paren(&node.children[1]);
+                    let op = node.extra_op.as_str();
+                    // Zig shift RHS must be Log2(LHS-width)-typed (u5 for u32);
+                    // a runtime u32/usize amount needs @intCast, and a bare
+                    // integer-literal LHS (comptime_int) needs a pinned width
+                    // once the amount is not comptime-known. Literal amounts
+                    // are left untouched so existing gens stay byte-identical.
+                    let shift_runtime_rhs = matches!(op, "<<" | ">>")
+                        && !matches!(node.children[1].kind, NodeKind::ExprLiteral);
+                    if shift_runtime_rhs {
+                        if let Some(ty) = Self::zig_int_literal_default_type(&node.children[0]) {
+                            self.write(&format!("@as({}, ", ty));
+                            self.gen_expr_maybe_paren(&node.children[0]);
+                            self.write(")");
+                        } else {
+                            self.gen_expr_maybe_paren(&node.children[0]);
+                        }
+                        self.write(&format!(" {} ", op));
+                        self.write("@intCast(");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                    } else {
+                        self.gen_expr_maybe_paren(&node.children[0]);
+                        self.write(&format!(" {} ", op));
+                        self.gen_expr_maybe_paren(&node.children[1]);
+                    }
                 }
             }
             NodeKind::ExprUnary => {

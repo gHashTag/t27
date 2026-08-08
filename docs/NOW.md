@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-zig: runtime shift amounts get @intCast; literal shift LHS pinned (Closes #1932)
+
+- `x << k` with a runtime amount emitted a raw u32/usize RHS (Zig wants u5 for u32) and `1 << family` left a comptime_int LHS; runtime amounts now emit `@intCast(rhs)` and a bare-literal LHS pins `@as(u32, lit)` (u64 above u32 range)
+- Literal amounts untouched -- existing gens byte-identical
+- tri-net corpus: both shift error classes gone (13 specs); 6 newly pass zig test end-to-end, 7 advance to their runtime layer (checked-add overflow in hash mixing, the spec-side +% idiom)
+- FROZEN_HASH resealed
+
 ## gen-zig: invariant marker is a comment; untyped literal-init mutables pinned to u32 (Closes #1930)
 
 - Empty invariant blocks emitted `@compileLog(...)` -- a hard error under `zig test` ("found compile log statement"), so every spec with an empty invariant failed before one test ran; the marker is now a comment
