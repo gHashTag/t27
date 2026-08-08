@@ -97,7 +97,7 @@ inspectable artefacts at every step.
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
 | BitNet HLS | RTL blocks **emitted** | GREEN | 9/9 modules emit (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
-| BitNet HLS | RTL blocks **integrated** | YELLOW | **10 of 10** modules, 12 instances — every emitted block is now reachable from the top: AXI-Lite CSRs → sequencers → weight prefetch → MAC → requantizer → activation double buffer, with an input DMA and IRQ. One DMA/compute overlap property is **open, recorded not asserted** ([Prop. 20](docs/FORMAL_FOUNDATIONS.md)) |
+| BitNet HLS | RTL blocks **integrated** | YELLOW | **10 of 10** modules, 12 instances — every emitted block is now reachable from the top: AXI-Lite CSRs → sequencers → weight prefetch → MAC → requantizer → activation double buffer, with an input DMA and IRQ. One DMA/compute overlap property is **open, recorded not asserted**; narrowed twice ([Props. 20–21](docs/FORMAL_FOUNDATIONS.md)) |
 | Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
 | R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
 | Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |

@@ -927,6 +927,52 @@ proxies applies to design signals as much as to gates.**
 
 ---
 
+### Proposition 21 — `busy` becomes a state; the interlock is narrowed twice and still open
+
+`MEASURED`. Two real fixes landed against the open property of Prop. 20, and
+**neither was sufficient** — which is the finding.
+
+**21a. `busy` was a decode, not a state.** It was
+`(current_layer != 0) || layer_start` — **false throughout the entire first
+layer**, so any interlock keyed off it had a hole exactly where the first
+inference happens. It is now a register set at `start` and cleared at `done`.
+
+This is the proxy failure of Prop. 12 arriving in RTL rather than in CI. **A
+counter comparison that is usually equivalent to "running" is not the same
+object as a flag someone maintains**, and the difference appears precisely at
+the boundaries where interlocks matter. Before keying safety logic off an
+existing signal, read its definition rather than its name.
+
+**21b. The interlock guarded one direction of a mutual exclusion.**
+`.start(reg_ctrl[1] && !reg_ctrl[0] && !busy)` blocked a DMA during inference,
+but nothing blocked an inference during a DMA: a host writing `ctrl = 2` then
+`ctrl = 3` had compute running against a buffer the DMA was still filling.
+Now symmetric — `start = reg_ctrl[0] && !dma_busy` as well. **An interlock that
+names only one of two mutually exclusive activities is half an interlock.**
+
+**21c. A property of mine encoded the pre-interlock semantics.**
+`a_start_is_ctrl_bit0` (Prop. 19) asserted `start == reg_ctrl[0]` — which the
+interlock deliberately breaks. Rather than delete it, it was **split**: the
+general form now says `start == (reg_ctrl[0] && !dma_busy)`, and the original
+is kept under `if (!dma_busy)`, so the interlock remains the *only* thing that
+may suppress a start. **When a change invalidates a property, ask whether it
+becomes two properties — the new behaviour, and the guarantee that nothing else
+changed.**
+
+**21d. Still open, and isolated.** `!(dma_local_we && mac_valid_q)` refutes.
+Neutralising it alone makes every other property in the module pass, so it is
+the sole remaining failure. The residual window is a timing relationship
+between `dma_busy` and `local_we` rather than a missing guard. Recorded, not
+weakened, for the third time (Props. 17, 20) — and the two waves where that
+discipline paid off (Prop. 18) are why.
+
+**21e. An eleventh text-pinning test.**
+`top_busy_from_current_layer_or_layer_start` — the *name* encoded the decode as
+the contract, exactly like `dma_burst_length_is_max` and
+`external_memory_outputs_tied_off`.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

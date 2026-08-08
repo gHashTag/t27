@@ -181,7 +181,12 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .reg_output_addr(reg_output_addr), .reg_cycles({32'd0, cycles})\n");
     s.push_str("    );\n");
     s.push_str("\n");
-    s.push_str("    wire        start             = reg_ctrl[0];\n");
+    s.push_str("    // Symmetric interlock. Gating only the DMA left the other direction\n");
+    s.push_str("    // open: a host that starts a DMA (ctrl = 2) and then requests an\n");
+    s.push_str("    // inference (ctrl = 3) had compute running against a buffer the DMA\n");
+    s.push_str("    // was still filling. An interlock that names only one of two mutually\n");
+    s.push_str("    // exclusive activities is half an interlock.\n");
+    s.push_str("    wire        start             = reg_ctrl[0] && !dma_busy;\n");
     s.push_str("    wire [5:0]  num_layers        = reg_num_layers[5:0];\n");
     s.push_str("    wire [15:0] neurons_per_layer = reg_neurons[15:0];\n");
     s.push_str("    wire [7:0]  chunks_per_neuron = reg_chunks[7:0];\n");
@@ -189,6 +194,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire signed [15:0] threshold  = reg_threshold[15:0];\n");
     s.push_str("\n");
     s.push_str("    wire [2:0]  irq_status_w;\n");
+    s.push_str("    wire        dma_busy;\n");
     s.push_str("    reg  [31:0] cycles;\n");
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
@@ -316,7 +322,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    // Input DMA: loads layer 0's activations from DDR into the buffer the\n");
     s.push_str("    // first layer will READ, while the requantizer writes the other one.\n");
-    s.push_str("    wire        dma_busy, dma_done, dma_local_we;\n");
+    s.push_str("    wire        dma_done, dma_local_we;\n");
     s.push_str("    wire [11:0] dma_local_addr;\n");
     s.push_str("    wire [63:0] dma_local_wdata;\n");
     s.push_str("    wire [63:0] dma_awaddr_nc, dma_wdata_nc;\n");
@@ -428,7 +434,19 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        else if (start) cycles <= 32'd0;\n");
     s.push_str("        else if (busy) cycles <= cycles + 32'd1;\n");
     s.push_str("    assign cycle_count = cycles;\n");
-    s.push_str("    assign busy = (current_layer != 6'd0) || layer_start;\n");
+    s.push_str("    // busy is a real state register, not a decode. It used to be\n");
+    s.push_str("    // (current_layer != 0) || layer_start -- false during the entire first\n");
+    s.push_str("    // layer, so any interlock keyed off it had a hole exactly where the\n");
+    s.push_str("    // first inference happens. A counter comparison that is usually\n");
+    s.push_str("    // equivalent to \"running\" is not the same object as a flag set at\n");
+    s.push_str("    // start and cleared at done, and the difference shows at the\n");
+    s.push_str("    // boundaries where interlocks matter. See FORMAL_FOUNDATIONS Prop. 21.\n");
+    s.push_str("    reg inference_active;\n");
+    s.push_str("    always @(posedge clk or negedge rst_n)\n");
+    s.push_str("        if (!rst_n)                        inference_active <= 1'b0;\n");
+    s.push_str("        else if (start && !inference_active) inference_active <= 1'b1;\n");
+    s.push_str("        else if (done)                      inference_active <= 1'b0;\n");
+    s.push_str("    assign busy = inference_active;\n");
     s.push_str("\n");
 
     s.push_str("`ifdef FORMAL\n");
@@ -494,6 +512,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // would hold vacuously if the slave were instantiated but ignored --\n");
     s.push_str("    // which is precisely how use_buffer_a was dead for four waves.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("        a_start_follows_ctrl_unless_interlocked:\n");
+    s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy));\n");
+    s.push_str("    // ...and the interlock is the ONLY thing that may suppress a start.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && !dma_busy)\n");
     s.push_str("        a_start_is_ctrl_bit0: assert (start == reg_ctrl[0]);\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_status_reflects_engine: assert (reg_status[0] == busy && reg_status[1] == done);\n");
@@ -535,21 +557,22 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // stated separately below.\n");
     s.push_str("    always @(posedge clk) if (rst_n && !dma_local_we)\n");
     s.push_str("        a_no_read_write_same: assert (!(use_buffer_a && wr_en_a) && !(!use_buffer_a && wr_en_b));\n");
-    s.push_str("    // OPEN, NOT ASSERTED -- DMA/compute overlap on the activation buffer.\n");
+    s.push_str("    // STILL OPEN -- DMA/compute overlap. Narrowed twice, not closed.\n");
     s.push_str("    //\n");
     s.push_str("    //   assert (!(dma_local_we && mac_valid_q))   REFUTED\n");
     s.push_str("    //\n");
-    s.push_str("    // reg_ctrl is host-writable at any time, so a host writing ctrl = 3\n");
-    s.push_str("    // requests an inference and a DMA in the same cycle and the DMA loads\n");
-    s.push_str("    // into the buffer the MAC is reading. The `.start` gate above (ctrl[1]\n");
-    s.push_str("    // && !ctrl[0] && !busy) narrows it and does not close it: `busy` is\n");
-    s.push_str("    // (current_layer != 0) || layer_start, which is false during the very\n");
-    s.push_str("    // first layer, so a residual window remains.\n");
+    s.push_str("    // Two real improvements landed against it and neither was sufficient:\n");
+    s.push_str("    //   * busy is now a state register set at start and cleared at done,\n");
+    s.push_str("    //     instead of the decode (current_layer != 0) || layer_start which\n");
+    s.push_str("    //     was false throughout the first layer;\n");
+    s.push_str("    //   * the interlock is symmetric -- neither engine may start while the\n");
+    s.push_str("    //     other is running -- where it previously guarded one direction.\n");
     s.push_str("    //\n");
-    s.push_str("    // Recorded rather than weakened, per Prop. 17 -- softening this to pass\n");
-    s.push_str("    // would certify an interlock that does not hold. The likely fix is a\n");
-    s.push_str("    // real busy signal (inference_active, asserted from start through\n");
-    s.push_str("    // done) rather than a decode of current_layer. See Prop. 20.\n");
+    s.push_str("    // Every other property in this module proves; this is the sole\n");
+    s.push_str("    // remaining failure, confirmed by neutralising it alone. The residual\n");
+    s.push_str("    // window is a timing relationship between dma_busy and local_we rather\n");
+    s.push_str("    // than a missing guard, and characterising it needs another trace.\n");
+    s.push_str("    // Recorded rather than weakened, per Prop. 17. See Prop. 21.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_at_most_one_buffer_written: assert (!(wr_en_a && wr_en_b));\n");
     s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_start))\n");
@@ -640,7 +663,7 @@ mod tests {
             assert!(v.contains(port), "missing AXI-Lite port `{port}`");
         }
         // ...and the CSRs actually drive the engine.
-        assert!(v.contains("wire        start             = reg_ctrl[0];"));
+        assert!(v.contains("wire        start             = reg_ctrl[0] && !dma_busy;"));
         assert!(v.contains("wire [5:0]  num_layers        = reg_num_layers[5:0];"));
     }
 
@@ -690,7 +713,9 @@ mod tests {
     #[test]
     fn busy_derived_from_current_layer_or_layer_start() {
         let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
-        assert!(v.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+        // busy is a registered state now, not a decode of current_layer.
+        assert!(v.contains("assign busy = inference_active;"));
+        assert!(v.contains("else if (start && !inference_active) inference_active <= 1'b1;"));
     }
 
     #[test]

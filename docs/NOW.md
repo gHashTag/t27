@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## busy-is-a-state -- interlock narrowed twice, still open
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 21), `README.md`.
+- **Variant A from #1989.** Two real fixes landed against the open property and
+  **neither was sufficient** -- which is the finding.
+- **`busy` was a decode, not a state**: `(current_layer != 0) || layer_start`,
+  **false throughout the entire first layer**, so any interlock keyed off it had
+  a hole exactly where the first inference happens. Now a register set at
+  `start`, cleared at `done`. This is the proxy failure of Prop 12 arriving in
+  RTL rather than CI.
+- **The interlock guarded one direction of a mutual exclusion.** A DMA was
+  blocked during inference, but an inference was not blocked during a DMA --
+  `ctrl = 2` then `ctrl = 3` ran compute against a buffer the DMA was filling.
+  Now symmetric. **An interlock naming only one of two mutually exclusive
+  activities is half an interlock.**
+- **A property of mine encoded the pre-interlock semantics.**
+  `a_start_is_ctrl_bit0` asserted `start == reg_ctrl[0]`, which the interlock
+  deliberately breaks. **Split** rather than deleted: the general form allows
+  the interlock, and the original is kept under `if (!dma_busy)` so the
+  interlock stays the *only* thing that may suppress a start.
+- **Still open and isolated**: neutralising `!(dma_local_we && mac_valid_q)`
+  alone makes every other property pass, so it is the sole failure. Residual
+  window is a timing relationship between `dma_busy` and `local_we`, not a
+  missing guard. Recorded not weakened for the third time.
+- **An eleventh text-pinning test**:
+  `top_busy_from_current_layer_or_layer_start` -- the name encoded the decode as
+  the contract.
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## dma-wired -- every emitted block is reachable from the top
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`

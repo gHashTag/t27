@@ -75,7 +75,7 @@ fn top_host_aperture_replaces_config_ports() {
     ] {
         assert!(stdout.contains(port), "missing AXI-Lite port `{port}`");
     }
-    assert!(stdout.contains("wire        start             = reg_ctrl[0];"));
+    assert!(stdout.contains("wire        start             = reg_ctrl[0] && !dma_busy;"));
 }
 
 #[test]
@@ -148,10 +148,17 @@ fn top_cycle_counter_resets_on_start_and_increments_when_busy() {
 }
 
 #[test]
-fn top_busy_from_current_layer_or_layer_start() {
+// Renamed from top_busy_from_current_layer_or_layer_start, whose name encoded
+// the decode as the contract. busy was (current_layer != 0) || layer_start --
+// false throughout the first layer, so any interlock keyed off it had a hole
+// exactly where the first inference happens. It is a state register now.
+fn top_busy_is_a_state_register_not_a_decode() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    assert!(stdout.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+    assert!(!stdout.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+    assert!(stdout.contains("assign busy = inference_active;"));
+    assert!(stdout.contains("else if (start && !inference_active) inference_active <= 1'b1;"));
+    assert!(stdout.contains("else if (done)                      inference_active <= 1'b0;"));
 }
 
 #[test]
