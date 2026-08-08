@@ -88,13 +88,29 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str(&format!("module {} (\n", name));
     s.push_str("    input  wire        clk,\n");
     s.push_str("    input  wire        rst_n,\n");
-    s.push_str("    input  wire        start,\n");
-    s.push_str("    input  wire [5:0]  num_layers,\n");
-    s.push_str("    input  wire [15:0] neurons_per_layer,\n");
-    s.push_str("    input  wire [7:0]  chunks_per_neuron,\n");
-    s.push_str("    input  wire signed [15:0] threshold,\n");
-    s.push_str("    // Weight words to stream per layer (host-programmed)\n");
-    s.push_str("    input  wire [15:0] weight_words,\n");
+    s.push_str("    // AXI4-Lite control aperture. The configuration that used to arrive\n");
+    s.push_str("    // as top-level input ports (start, num_layers, neurons_per_layer,\n");
+    s.push_str("    // chunks_per_neuron, threshold, weight_words) is now written by a host\n");
+    s.push_str("    // through this bus into axi_lite_slave's CSRs -- which is what makes\n");
+    s.push_str("    // this an engine a host can drive rather than a block with a wide\n");
+    s.push_str("    // config bundle its instantiator has to synthesise.\n");
+    s.push_str("    input  wire [7:0]  s_axi_awaddr,\n");
+    s.push_str("    input  wire        s_axi_awvalid,\n");
+    s.push_str("    output wire        s_axi_awready,\n");
+    s.push_str("    input  wire [31:0] s_axi_wdata,\n");
+    s.push_str("    input  wire [3:0]  s_axi_wstrb,\n");
+    s.push_str("    input  wire        s_axi_wvalid,\n");
+    s.push_str("    output wire        s_axi_wready,\n");
+    s.push_str("    output wire [1:0]  s_axi_bresp,\n");
+    s.push_str("    output wire        s_axi_bvalid,\n");
+    s.push_str("    input  wire        s_axi_bready,\n");
+    s.push_str("    input  wire [7:0]  s_axi_araddr,\n");
+    s.push_str("    input  wire        s_axi_arvalid,\n");
+    s.push_str("    output wire        s_axi_arready,\n");
+    s.push_str("    output wire [31:0] s_axi_rdata,\n");
+    s.push_str("    output wire [1:0]  s_axi_rresp,\n");
+    s.push_str("    output wire        s_axi_rvalid,\n");
+    s.push_str("    input  wire        s_axi_rready,\n");
     s.push_str("    // External memory interface (simplified)\n");
     s.push_str("    output wire [31:0] mem_addr,\n");
     s.push_str("    output wire        mem_rd_en,\n");
@@ -115,6 +131,53 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
 
+    s.push_str("    // ------------------------------------------------------------------\n");
+    s.push_str("    // Host control aperture. axi_lite_slave was the last emitted module\n");
+    s.push_str("    // not instantiated anywhere -- verified in isolation (its lost-write\n");
+    s.push_str("    // response defect was fixed in FORMAL_FOUNDATIONS Prop. 8) and\n");
+    s.push_str("    // unreachable from the top.\n");
+    s.push_str("    //\n");
+    s.push_str("    // Register map (word index = addr[5:2]):\n");
+    s.push_str("    //   0 ctrl      bit 0 = start\n");
+    s.push_str("    //   1 status    bit 0 = busy, bit 1 = done   (read-only)\n");
+    s.push_str("    //   4 num_layers        5 neurons\n");
+    s.push_str("    //   6 chunks    [7:0] chunks per neuron, [31:16] weight words per\n");
+    s.push_str("    //               layer -- packed because the aperture has no spare word\n");
+    s.push_str("    //   7 threshold (signed)\n");
+    s.push_str("    // ------------------------------------------------------------------\n");
+    s.push_str("    wire [31:0] reg_ctrl, reg_irq_en, reg_num_layers, reg_neurons;\n");
+    s.push_str("    wire [31:0] reg_chunks, reg_threshold;\n");
+    s.push_str("    wire [63:0] reg_weight_addr, reg_input_addr, reg_output_addr;\n");
+    s.push_str("    wire [31:0] reg_status = {30'd0, done, busy};\n");
+    s.push_str("    axi_lite_slave csr (\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n),\n");
+    s.push_str("        .s_axi_awaddr(s_axi_awaddr), .s_axi_awvalid(s_axi_awvalid),\n");
+    s.push_str("        .s_axi_awready(s_axi_awready),\n");
+    s.push_str("        .s_axi_wdata(s_axi_wdata), .s_axi_wstrb(s_axi_wstrb),\n");
+    s.push_str("        .s_axi_wvalid(s_axi_wvalid), .s_axi_wready(s_axi_wready),\n");
+    s.push_str("        .s_axi_bresp(s_axi_bresp), .s_axi_bvalid(s_axi_bvalid),\n");
+    s.push_str("        .s_axi_bready(s_axi_bready),\n");
+    s.push_str("        .s_axi_araddr(s_axi_araddr), .s_axi_arvalid(s_axi_arvalid),\n");
+    s.push_str("        .s_axi_arready(s_axi_arready),\n");
+    s.push_str("        .s_axi_rdata(s_axi_rdata), .s_axi_rresp(s_axi_rresp),\n");
+    s.push_str("        .s_axi_rvalid(s_axi_rvalid), .s_axi_rready(s_axi_rready),\n");
+    s.push_str("        .reg_ctrl(reg_ctrl), .reg_status(reg_status),\n");
+    s.push_str("        .reg_irq_en(reg_irq_en), .reg_irq_stat({29'd0, irq_status_w}),\n");
+    s.push_str("        .reg_num_layers(reg_num_layers), .reg_neurons(reg_neurons),\n");
+    s.push_str("        .reg_chunks(reg_chunks), .reg_threshold(reg_threshold),\n");
+    s.push_str("        .reg_weight_addr(reg_weight_addr), .reg_input_addr(reg_input_addr),\n");
+    s.push_str("        .reg_output_addr(reg_output_addr), .reg_cycles({32'd0, cycles})\n");
+    s.push_str("    );\n");
+    s.push_str("\n");
+    s.push_str("    wire        start             = reg_ctrl[0];\n");
+    s.push_str("    wire [5:0]  num_layers        = reg_num_layers[5:0];\n");
+    s.push_str("    wire [15:0] neurons_per_layer = reg_neurons[15:0];\n");
+    s.push_str("    wire [7:0]  chunks_per_neuron = reg_chunks[7:0];\n");
+    s.push_str("    wire [15:0] weight_words      = reg_chunks[31:16];\n");
+    s.push_str("    wire signed [15:0] threshold  = reg_threshold[15:0];\n");
+    s.push_str("\n");
+    s.push_str("    wire [2:0]  irq_status_w;\n");
+    s.push_str("    reg  [31:0] cycles;\n");
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
     s.push_str("    wire layer_start, start_prefetch;\n");
@@ -302,7 +365,6 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    assign act_word_out_valid = act_word_valid;\n");
     s.push_str("\n");
     s.push_str("    // Cycle counter\n");
-    s.push_str("    reg [31:0] cycles;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
     s.push_str("        if (!rst_n) cycles <= 32'd0;\n");
     s.push_str("        else if (start) cycles <= 32'd0;\n");
@@ -369,6 +431,15 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_start))\n");
     s.push_str("        a_chunk_addr_resets: assert (chunk_addr == 12'd0);\n");
     s.push_str("\n");
+    s.push_str("    // The host aperture actually drives the engine: start is a CSR bit,\n");
+    s.push_str("    // and status reflects the engine rather than being a constant. Both\n");
+    s.push_str("    // would hold vacuously if the slave were instantiated but ignored --\n");
+    s.push_str("    // which is precisely how use_buffer_a was dead for four waves.\n");
+    s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("        a_start_is_ctrl_bit0: assert (start == reg_ctrl[0]);\n");
+    s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("        a_status_reflects_engine: assert (reg_status[0] == busy && reg_status[1] == done);\n");
+    s.push_str("\n");
     s.push_str("    // Minimal external-memory model: read data only ever follows a\n");
     s.push_str("    // request. Without it mem_rd_valid is a free input, and a memory\n");
     s.push_str("    // answering a question nobody asked is indistinguishable from a\n");
@@ -412,7 +483,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    // Host interrupt aggregation. inference_done is the multilayer\n");
     s.push_str("    // sequencer's completion; dma_done reports a finished prefetch.\n");
-    s.push_str("    wire [2:0] irq_status_w;\n");
+
     s.push_str("    interrupt_controller irqc (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n),\n");
     s.push_str("        .inference_done(done),\n");
@@ -463,17 +534,28 @@ mod tests {
     }
 
     #[test]
-    fn control_ports_present() {
-        let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
-        for port in [
+    // Renamed from control_ports_present, which listed start/num_layers/
+    // chunks_per_neuron/threshold as top-level inputs. Those are now CSRs
+    // written over AXI-Lite -- the point of wiring axi_lite_slave.
+    fn host_aperture_replaces_config_ports() {
+        let v = build_bitnet_engine_top("bitnet_engine_top");
+        for gone in [
             "input  wire        start,",
             "input  wire [5:0]  num_layers,",
-            "input  wire [15:0] neurons_per_layer,",
-            "input  wire [7:0]  chunks_per_neuron,",
             "input  wire signed [15:0] threshold,",
         ] {
-            assert!(v.contains(port), "missing control port `{}`", port);
+            assert!(!v.contains(gone), "config port should be a CSR now: {gone}");
         }
+        for port in [
+            "input  wire [7:0]  s_axi_awaddr,",
+            "input  wire [31:0] s_axi_wdata,",
+            "output wire [31:0] s_axi_rdata,",
+        ] {
+            assert!(v.contains(port), "missing AXI-Lite port `{port}`");
+        }
+        // ...and the CSRs actually drive the engine.
+        assert!(v.contains("wire        start             = reg_ctrl[0];"));
+        assert!(v.contains("wire [5:0]  num_layers        = reg_num_layers[5:0];"));
     }
 
     #[test]
@@ -512,7 +594,7 @@ mod tests {
     #[test]
     fn cycle_counter_logic() {
         let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
-        assert!(v.contains("reg [31:0] cycles;"));
+        assert!(v.contains("reg  [31:0] cycles;"));
         assert!(v.contains("if (!rst_n) cycles <= 32'd0;"));
         assert!(v.contains("else if (start) cycles <= 32'd0;"));
         assert!(v.contains("else if (busy) cycles <= cycles + 32'd1;"));

@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-09
 
+## axi-aperture-wired -- config is CSRs now, not a port bundle
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 19), `README.md`.
+- **Variant A from #1985.** `axi_lite_slave` was the **last emitted module never
+  instantiated** -- verified in isolation (its lost-write-response defect was
+  fixed in Prop 8) and unreachable from the top. Now the control aperture:
+  **9 of 10 modules, 11 instances**.
+- **Config stopped being a port bundle.** `start`, `num_layers`,
+  `neurons_per_layer`, `chunks_per_neuron`, `threshold`, `weight_words` were
+  top-level inputs, so every instantiator had to synthesise its own config bus.
+  They are CSRs now. `weight_words` is packed into `reg_chunks[31:16]` because
+  the aperture has no spare word -- recorded in the emitted header.
+- **Two properties guard against a decorative instantiation**:
+  `start == reg_ctrl[0]` and `reg_status` reflecting busy/done. Both would hold
+  vacuously if the slave were instantiated and ignored -- exactly how
+  `use_buffer_a` sat dead for four waves. **Wiring a module is not using it, and
+  the property has to name the connection.**
+- **What remains, stated precisely**: `dma_controller` alone is still
+  standalone. Four of its defects were fixed and none of that is reachable from
+  the top. **9 of 10, not 10 of 10.**
+- **Three tests named for the old interface** broke on a *correct* change and
+  were renamed plus inverted -- they now assert the absence of the old ports as
+  well as the presence of the new ones.
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## weight-bram-overlap-closed -- a stale flag and a missing handshake
 
 - **WHERE**: `bootstrap/src/bitnet_buffers.rs`, `bootstrap/src/bitnet_pipeline.rs`,

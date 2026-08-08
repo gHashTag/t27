@@ -58,18 +58,24 @@ fn top_invalid_module_name_falls_back() {
 // ============================================================================
 
 #[test]
-fn top_control_ports_present() {
+fn top_host_aperture_replaces_config_ports() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    for port in [
+    // Config arrives over AXI-Lite now, not as a wide input bundle.
+    for gone in [
         "input  wire        start,",
         "input  wire [5:0]  num_layers,",
-        "input  wire [15:0] neurons_per_layer,",
-        "input  wire [7:0]  chunks_per_neuron,",
         "input  wire signed [15:0] threshold,",
     ] {
-        assert!(stdout.contains(port), "missing control port `{}`", port);
+        assert!(!stdout.contains(gone), "config port should be a CSR: {gone}");
     }
+    for port in [
+        "input  wire [7:0]  s_axi_awaddr,",
+        "output wire [31:0] s_axi_rdata,",
+    ] {
+        assert!(stdout.contains(port), "missing AXI-Lite port `{port}`");
+    }
+    assert!(stdout.contains("wire        start             = reg_ctrl[0];"));
 }
 
 #[test]
@@ -134,7 +140,7 @@ fn top_wires_for_sequencer_and_buffer() {
 fn top_cycle_counter_resets_on_start_and_increments_when_busy() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    assert!(stdout.contains("reg [31:0] cycles;"));
+    assert!(stdout.contains("reg  [31:0] cycles;"));
     assert!(stdout.contains("if (!rst_n) cycles <= 32'd0;"));
     assert!(stdout.contains("else if (start) cycles <= 32'd0;"));
     assert!(stdout.contains("else if (busy) cycles <= cycles + 32'd1;"));

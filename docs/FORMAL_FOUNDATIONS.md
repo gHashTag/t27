@@ -840,6 +840,46 @@ taken.
 
 ---
 
+### Proposition 19 — the host aperture is wired; config is CSRs, not ports
+
+`PROVED`. `axi_lite_slave` was the **last emitted module never instantiated**:
+verified in isolation — its lost-write-response defect was found and fixed in
+Prop. 8 — and unreachable from the top. It is now the engine's control
+aperture: **9 of 10 modules, 11 instances**.
+
+**19a. Config stopped being a port bundle.** `start`, `num_layers`,
+`neurons_per_layer`, `chunks_per_neuron`, `threshold` and `weight_words` were
+top-level inputs, which meant every instantiator had to synthesise a
+configuration bus of its own. They are now CSRs a host writes over AXI-Lite.
+`weight_words` is packed into `reg_chunks[31:16]` because the 16-word aperture
+has no spare register — recorded in the emitted header rather than left for a
+reader to discover.
+
+**19b. Two properties guard against a decorative instantiation.**
+
+```verilog
+a_start_is_ctrl_bit0:     assert (start == reg_ctrl[0]);
+a_status_reflects_engine: assert (reg_status[0] == busy && reg_status[1] == done);
+```
+
+Both would hold *vacuously* if the slave were instantiated and ignored — which
+is exactly how `use_buffer_a` sat dead for four waves (Prop. 16). **Wiring a
+module is not the same as using it, and the property has to name the
+connection.**
+
+**19c. What remains, stated precisely.** `dma_controller` is the one module
+still standalone. Four of its defects were fixed in Props. 8–9 and none of that
+is reachable from the top. The honest count is **9 of 10**, not 10 of 10.
+
+**19d. Three tests named for the old interface.** `control_ports_present`,
+`top_control_ports_present` and two `reg [31:0] cycles;` string matches broke on
+a *correct* interface change. Renamed to
+`host_aperture_replaces_config_ports`, and they now assert the *absence* of the
+old ports as well as the presence of the new ones — a rename plus an inversion,
+because the interesting claim moved.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
