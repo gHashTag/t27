@@ -8084,6 +8084,24 @@ impl VerilogCodegen {
             {
                 let mut declared: std::collections::HashSet<String> =
                     block_locals.iter().cloned().collect();
+                // Top-level TYPED locals are declared by the emit_local(Decl)
+                // loop below; keep them out of this pass.
+                for child in &node.children {
+                    if child.kind == NodeKind::StmtLocal
+                        && !child.name.is_empty()
+                        && !child.extra_type.is_empty()
+                    {
+                        declared.insert(child.name.clone());
+                    }
+                }
+                fn reg_decl(width: u32, signed: bool) -> String {
+                    let signed_kw = if signed { " signed" } else { "" };
+                    if width == 1 {
+                        format!("reg{}", signed_kw)
+                    } else {
+                        format!("reg{} [{}:0]", signed_kw, width - 1)
+                    }
+                }
                 let mut stack: Vec<&Node> = node.children.iter().collect();
                 while let Some(stmt) = stack.pop() {
                     if stmt.kind == NodeKind::StmtAssign && stmt.children.len() >= 2 {
@@ -8095,18 +8113,58 @@ impl VerilogCodegen {
                             let (width, signed) = self
                                 .expr_width_signed(&stmt.children[1])
                                 .unwrap_or((64, false));
-                            let signed_kw = if signed { " signed" } else { "" };
-                            let decl = if width == 1 {
-                                format!("reg{}", signed_kw)
-                            } else {
-                                format!("reg{} [{}:0]", signed_kw, width - 1)
-                            };
+                            let name = target.name.clone();
                             self.write_indent();
                             self.write_line(&format!(
                                 "{} {}; // t27#1894 test-block binding",
-                                decl, target.name
+                                reg_decl(width, signed),
+                                name
                             ));
                         }
+                        // Tuple-destructure binding `(a, b) = call()`: every
+                        // element identifier needs a reg too (t27#1948).
+                        if target.kind == NodeKind::ExprTuple {
+                            let elems: Vec<String> = target
+                                .children
+                                .iter()
+                                .filter(|e| {
+                                    e.kind == NodeKind::ExprIdentifier
+                                        && !e.name.is_empty()
+                                        && e.name != "_"
+                                })
+                                .map(|e| e.name.clone())
+                                .collect();
+                            for name in elems {
+                                if declared.insert(name.clone()) {
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "{} {}; // t27#1948 tuple binding",
+                                        reg_decl(64, false),
+                                        name
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    // Untyped (or nested) `let` locals never reached a reg
+                    // declaration either -- iverilog cannot bind them
+                    // (t27#1948, the biggest testbench compile class).
+                    if stmt.kind == NodeKind::StmtLocal
+                        && !stmt.name.is_empty()
+                        && declared.insert(stmt.name.clone())
+                    {
+                        let (width, signed) = stmt
+                            .children
+                            .first()
+                            .and_then(|i| self.expr_width_signed(i))
+                            .unwrap_or((64, false));
+                        let name = stmt.name.clone();
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{} {}; // t27#1948 let binding",
+                            reg_decl(width, signed),
+                            name
+                        ));
                     }
                     stack.extend(stmt.children.iter());
                 }
