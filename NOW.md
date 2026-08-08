@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: honest early-return lowering via a guard register (Refs #1948)
+
+- `return X;` lowered to a PLAIN assignment with no exit: execution fell through and later statements overwrote the result -- a fn ending in `return 0;` returned 0 on EVERY path (the runtime-divergence class behind Verilog-vs-Zig/C test failures)
+- Every function body now carries `reg __t27_ret`: a return sets it and each remaining statement region is wrapped in `if (!__t27_ret)`; a `disable`-based attempt was rejected -- it corrupts recursive static functions (vvp hang in adaptive_retry)
+- The existing pretty if/else rewrite (guarded return without else) is kept; the guard covers the shapes it cannot (if/else-if chains, loops)
+- tri-net corpus: adaptive_routing 8 failed asserts -> 3 (the rest are the [T; N] fn-param packing class); access_control newly passes; 60-spec gate green
+- FROZEN_HASH resealed
+
 ## gen-verilog TB: regs for untyped/nested let bindings and tuple elements (Refs #1948)
 
 - The testbench declared regs for StmtAssign bindings (#1894) and top-level TYPED locals only; untyped `let score = f(...)`, nested locals and tuple-destructure elements were unbound ("Unable to bind wire/reg") -- the biggest icarus compile class

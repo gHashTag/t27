@@ -7879,6 +7879,12 @@ impl VerilogCodegen {
             for d in decls {
                 self.emit_local(d, LocalEmitPhase::Decl);
             }
+            // Early-return guard (t27#1948): a `return` sets it and every
+            // remaining statement region is wrapped in `if (!__t27_ret)`.
+            self.write_indent();
+            self.write_line("reg __t27_ret;");
+            self.write_indent();
+            self.write_line("__t27_ret = 1'b0;");
             self.hoist_fn_locals = true;
             self.gen_verilog_fn_body(&node.children);
             self.hoist_fn_locals = false;
@@ -8040,7 +8046,32 @@ impl VerilogCodegen {
             } else {
                 self.gen_verilog_stmt(stmt);
             }
+            // General early-return barrier: if this statement's subtree can
+            // return (if/else-if chains, loops with returns -- shapes the
+            // pretty if/else rewrite above does not cover), the remaining
+            // statements must not run after a taken return.
+            if idx + 1 < stmts.len()
+                && !self.clocked_nonblocking
+                && !self.current_fn_name.is_empty()
+                && Self::subtree_has_return(stmt)
+            {
+                self.write_indent();
+                self.write_line("if (!__t27_ret) begin");
+                self.indent();
+                self.gen_verilog_fn_body(&stmts[idx + 1..]);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                return;
+            }
         }
+    }
+
+    fn subtree_has_return(node: &Node) -> bool {
+        if node.kind == NodeKind::ExprReturn {
+            return true;
+        }
+        node.children.iter().any(Self::subtree_has_return)
     }
 
     // W551: hoist probe registers and block-local variable declarations for
@@ -8885,6 +8916,12 @@ impl VerilogCodegen {
         match node.kind {
             NodeKind::ExprReturn => {
                 self.write_indent();
+                if node.children.is_empty() {
+                    // Bare `return;` in a function: set the early-return guard.
+                    if !self.current_fn_name.is_empty() && !self.clocked_nonblocking {
+                        self.write_line("__t27_ret = 1'b1;");
+                    }
+                }
                 if !node.children.is_empty() {
                     // In Verilog functions, return is done by assigning to function name
                     let fn_name = if self.current_fn_name.is_empty() {
@@ -8916,6 +8953,15 @@ impl VerilogCodegen {
                         self.gen_verilog_expr(&node.children[0]);
                     }
                     self.write_line(";");
+                    // EARLY RETURN: without this, execution falls through and
+                    // later statements OVERWRITE the result -- a fn ending in
+                    // `return 0;` returned 0 on every path (t27#1948 runtime
+                    // divergence class). A guard register is used instead of
+                    // `disable`, which corrupts recursive static functions.
+                    if !self.current_fn_name.is_empty() && !self.clocked_nonblocking {
+                        self.write_indent();
+                        self.write_line("__t27_ret = 1'b1;");
+                    }
                 }
             }
             NodeKind::StmtLocal => {

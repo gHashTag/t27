@@ -101,12 +101,16 @@ module FPGA_Bridge (
         input [7:0] data;
         begin : buffer_write_body
             reg [31:0] new_head;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             new_head = ((head + 1) % size);
             if (((new_head == 0) && (head == (size - 1)))) begin
                 buffer_write = 1'b0;
+                __t27_ret = 1'b1;
             end else begin
                 buf_in[head] = data;
                 buffer_write = 1'b1;
+                __t27_ret = 1'b1;
             end
         end
     endfunction
@@ -119,12 +123,16 @@ module FPGA_Bridge (
         begin : buffer_read_body
             reg [31:0] data;
             reg [31:0] new_tail;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if ((tail == size)) begin
                 buffer_read = {0, 0};
+                __t27_ret = 1'b1;
             end else begin
                 data = \buf [tail];
                 new_tail = ((tail + 1) % size);
                 buffer_read = {new_tail, data};
+                __t27_ret = 1'b1;
             end
         end
     endfunction
@@ -135,10 +143,14 @@ module FPGA_Bridge (
         input [31:0] tail;
         input [31:0] size;
         begin : buffer_count_body
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if ((head >= tail)) begin
                 buffer_count = (head - tail);
+                __t27_ret = 1'b1;
             end else begin
                 buffer_count = ((head + size) - tail);
+                __t27_ret = 1'b1;
             end
         end
     endfunction
@@ -147,7 +159,10 @@ module FPGA_Bridge (
     function [31:0] bridge_rx_available; // -> usize
         input _unused;
         begin : bridge_rx_available_body
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             bridge_rx_available = buffer_count(bridge_rx_head, bridge_rx_tail, RX_BUFFER_SIZE);
+            __t27_ret = 1'b1;
         end
     endfunction
 
@@ -155,7 +170,10 @@ module FPGA_Bridge (
     function [31:0] bridge_tx_space; // -> usize
         input _unused;
         begin : bridge_tx_space_body
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             bridge_tx_space = (TX_BUFFER_SIZE - buffer_count(bridge_tx_head, bridge_tx_tail, TX_BUFFER_SIZE));
+            __t27_ret = 1'b1;
         end
     endfunction
 
@@ -165,8 +183,11 @@ module FPGA_Bridge (
         begin : bridge_parse_header_body
             reg [31:0] ptype;
             reg [31:0] plen;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if ((bridge_rx_available(1'b0) < 2)) begin
                 bridge_parse_header = 1'b0;
+                __t27_ret = 1'b1;
             end else begin
                 ptype = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
                 plen = buffer_read(rx_buffer, RX_BUFFER_SIZE, ptype);
@@ -175,10 +196,12 @@ module FPGA_Bridge (
                 bridge_packet_len = plen;
                 if ((plen > MAX_PACKET_SIZE)) begin
                     bridge_parse_header = 1'b0;
+                    __t27_ret = 1'b1;
                 end else begin
                     bridge_state = BRIDGE_PARSE;
                     bridge_timeout_cnt = 0;
                     bridge_parse_header = 1'b1;
+                    __t27_ret = 1'b1;
                 end
             end
         end
@@ -188,6 +211,8 @@ module FPGA_Bridge (
     function bridge_process_payload; // -> bool
         input _unused;
         begin : bridge_process_payload_body
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if ((bridge_rx_available(1'b0) < (bridge_packet_len & {32{1'b1}}))) begin
                 bridge_timeout_cnt = (bridge_timeout_cnt + 1);
                 if ((bridge_timeout_cnt > PACKET_TIMEOUT)) begin
@@ -195,6 +220,7 @@ module FPGA_Bridge (
                     bridge_rx_tail = bridge_rx_head;
                 end
                 bridge_process_payload = 1'b0;
+                __t27_ret = 1'b1;
             end else begin
                 if ((bridge_packet_type == PKT_UART_DATA)) begin
                     bridge_handle_uart_data(1'b0);
@@ -210,9 +236,13 @@ module FPGA_Bridge (
                     bridge_state = BRIDGE_IDLE;
                     bridge_rx_tail = bridge_rx_head;
                     bridge_process_payload = 1'b0;
+                    __t27_ret = 1'b1;
                 end
-                bridge_state = BRIDGE_IDLE;
-                bridge_process_payload = 1'b1;
+                if (!__t27_ret) begin
+                    bridge_state = BRIDGE_IDLE;
+                    bridge_process_payload = 1'b1;
+                    __t27_ret = 1'b1;
+                end
             end
         end
     endfunction
@@ -225,6 +255,8 @@ module FPGA_Bridge (
             reg [31:0] data;
             reg [31:0] ok;
             reg [31:0] new_head;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             i = 0;
             while ((i < (bridge_packet_len & {32{1'b1}}))) begin
                 result_read = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
@@ -248,8 +280,11 @@ module FPGA_Bridge (
             reg [31:0] data_l;
             reg [31:0] data_h;
             reg [31:0] data;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if ((!bridge_spi_enabled || spi_is_busy(1'b0))) begin
-                            end else begin
+                __t27_ret = 1'b1;
+            end else begin
                 cs_sel = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
                 data_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, cs_sel);
                 data_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, data_l);
@@ -273,10 +308,14 @@ module FPGA_Bridge (
             reg [31:0] operand_a;
             reg [31:0] operand_b;
             reg [31:0] acc;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             if (!bridge_mac_enabled) begin
-                            end else begin
+                __t27_ret = 1'b1;
+            end else begin
                 if ((bridge_rx_available(1'b0) < 6)) begin
-                                    end else begin
+                    __t27_ret = 1'b1;
+                end else begin
                     op_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
                     bridge_rx_tail = op_byte;
                     unit_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
@@ -290,7 +329,8 @@ module FPGA_Bridge (
                     b_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
                     bridge_rx_tail = b_h;
                     if ((unit_byte >= NUM_MAC_UNITS)) begin
-                                            end else begin
+                        __t27_ret = 1'b1;
+                    end else begin
                         operand_a = (((a_h & {16{1'b1}}) << 8) | (a_l & {16{1'b1}}));
                         operand_b = (((b_h & {16{1'b1}}) << 8) | (b_l & {16{1'b1}}));
                         if ((op_byte == OP_MAC_MUL)) begin
@@ -322,6 +362,8 @@ module FPGA_Bridge (
         begin : bridge_handle_status_body
             reg [31:0] status;
             reg [31:0] i;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             status = 0 /* TODO: array literal [if(bridge.spi_enabled){1}else{0},if(bridge.mac_enabled){1}else{0},0,0,] not yet lowered to Verilog */;
             i = 0;
             while ((i < 4)) begin
@@ -338,6 +380,8 @@ module FPGA_Bridge (
     task bridge_handle_config;
         begin : bridge_handle_config_body
             reg [31:0] cfg_byte;
+            reg __t27_ret;
+            __t27_ret = 1'b0;
             cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
             bridge_rx_tail = cfg_byte;
             bridge_spi_enabled = ((cfg_byte & 1) != 0);
