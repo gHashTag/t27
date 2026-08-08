@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## fix(gen-zig): discard unused params + declare test/bench bindings (Closes #1910)
+
+- Zig gen emitted unused fn parameters (zig errors on them) and test-block bindings without declarations (the Zig twin of #1894) -- 66/68 of tri-net's legacy spec gens failed zig ast-check
+- Now: `_ = param;` discards for parameters the body never reads; the FIRST assignment to a plain identifier in a test/bench block lowers to `const name = expr;`
+- 38/68 remain invalid in three mechanical classes (tuple destructuring LHS, un-translated `[T;N]` array types, unused local consts) -- tracked in #1910 for full zig-leg restoration
+- Unit suite 1537/1537; gen-rust output byte-identical (Zig-only change); FROZEN_HASH resealed
+
 ## fix(gen-verilog-sim) -- test-block reg decls + 64-bit __mul_noop (this PR, Closes #1894, Closes #1886)
 
 - StmtAssign test-block bindings ('h = f(...);') now get hoisted reg declarations (width-inferred, 64-bit fallback) -- iverilog could not bind them before; unlocks 11 tri-net ring specs

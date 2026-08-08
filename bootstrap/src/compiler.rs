@@ -3500,6 +3500,26 @@ impl Codegen {
 
         self.indent();
 
+        // Zig errors on unused function parameters; a spec is free to keep one
+        // for interface symmetry (e.g. a lane the body ignores). Discard any
+        // parameter the body never reads so the generated Zig compiles.
+        fn param_referenced(nodes: &[Node], name: &str) -> bool {
+            nodes.iter().any(|n| {
+                (n.name == name
+                    && !matches!(
+                        n.kind,
+                        NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
+                    ))
+                    || param_referenced(&n.children, name)
+            })
+        }
+        for (pname, _) in &node.params {
+            if pname != "self" && !param_referenced(&node.children, pname) {
+                self.write_indent();
+                self.write_line(&format!("_ = {}; // unused by the spec body", pname));
+            }
+        }
+
         if node.children.is_empty() {
             self.write_indent();
             self.write_line("@compileError(\"not yet implemented\");");
@@ -3519,8 +3539,26 @@ impl Codegen {
 
         self.indent();
 
+        // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
+        // StmtLocal, so a verbatim assignment referenced an undeclared name in
+        // Zig (the same defect the Verilog testbench had, gHashTag/t27#1894).
+        // Emit the FIRST assignment to each plain identifier as a `const`
+        // binding; later statements go through the normal path.
+        let mut bound: std::collections::HashSet<String> = std::collections::HashSet::new();
         for stmt in &node.children {
-            self.gen_stmt(stmt);
+            let fresh_binding = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprIdentifier
+                && !stmt.children[0].name.is_empty()
+                && bound.insert(stmt.children[0].name.clone());
+            if fresh_binding {
+                self.write_indent();
+                self.write(&format!("const {} = ", stmt.children[0].name));
+                self.gen_expr(&stmt.children[1]);
+                self.write_line(";");
+            } else {
+                self.gen_stmt(stmt);
+            }
         }
 
         self.dedent();
@@ -3565,8 +3603,23 @@ impl Codegen {
         self.write_indent();
         self.write_line(&format!("// bench: {}", node.name));
 
+        // Same first-assignment-as-const lowering as gen_test_block: bench
+        // bindings parse as StmtAssign and would reference undeclared names.
+        let mut bound: std::collections::HashSet<String> = std::collections::HashSet::new();
         for stmt in &node.children {
-            self.gen_stmt(stmt);
+            let fresh_binding = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprIdentifier
+                && !stmt.children[0].name.is_empty()
+                && bound.insert(stmt.children[0].name.clone());
+            if fresh_binding {
+                self.write_indent();
+                self.write(&format!("const {} = ", stmt.children[0].name));
+                self.gen_expr(&stmt.children[1]);
+                self.write_line(";");
+            } else {
+                self.gen_stmt(stmt);
+            }
         }
 
         if node.children.is_empty() {
