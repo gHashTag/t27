@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-08
 
+## parser: BDD-style fns skipped; fpga-smoke fully green (Closes #1960)
+
+- `fn name() given ... then ...` (a keyword-style test spelled as a fn, linker.t27) is now recognized BEFORE return-type parsing -- otherwise `given` was consumed as an identifier return type and the body brace check failed
+- partition.t27: a parameter named `module` (a keyword) renamed to mod_name
+- fpga-build --smoke: 31 modules + wrapper generate -- GREEN again (was red since the #1941 hardening surfaced the silently-dropped constructs)
+- tri-net 77-spec icarus gate green; unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
 ## parser: braced if-expr arms, paren-less conditions, &-transparent types; fpga specs repaired (Refs #1960)
 
 - If-EXPRESSIONS accept braced arms (`if (c) { 2 } else { 0 }`); if/while STATEMENTS accept paren-less Rust-style conditions with the struct-literal-in-condition rule (a `{` after the cond opens the body)

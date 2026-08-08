@@ -1771,6 +1771,14 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
 
+        // BDD-style fn: `fn name() given ... then ...` -- a keyword-style test
+        // spelled as a fn (linker.t27). Detect BEFORE return-type parsing,
+        // which would otherwise consume `given` as an identifier return type.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "given" {
+            self.skip_to_next_top_level();
+            return Ok(decl);
+        }
+
         // Optional arrow for return type: -> Type
         if self.current.kind == TokenKind::Arrow {
             self.advance(); // consume ->
