@@ -3925,6 +3925,21 @@ These cost a wave each. Follow them before step 1.
     **Always capture `$?` for a step that can be killed** — 137 is SIGKILL/OOM,
     139 is SIGSEGV.
 
+16. **When you add a metric to catch overstatement, ask what its own
+    hollow-success looks like.** Wave 549 built `synth-gate` specifically to
+    stop static readiness metrics overstating hardware readiness — then counted
+    "yosys exited 0" as success and reported 7/17 synthesising. The real figure
+    was **0/17**: every one produced a netlist with zero logic cells. *"The tool
+    exited 0" is never the measurement.* Find the quantity that would be zero if
+    nothing happened and report that — for synthesis it is logic cells, for
+    tests it is non-vacuous assertions, for seals it is non-`none` gen hashes.
+
+17. **Check where the code lives before promising a fix is unblocked.**
+    `build.rs` watches `compiler.rs` but not `main.rs`, so which file holds the
+    fix decides whether it can be built at all while the LANG-EN gate stands.
+    Wave 554 nearly recommended a variant as "unblocked" before grepping for
+    the emitter and finding it at `compiler.rs:6887`.
+
 ### How to update this tracker
 
 After closing a wave:

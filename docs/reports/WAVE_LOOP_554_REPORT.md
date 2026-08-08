@@ -167,9 +167,9 @@ no datapath is ever instantiated. If that is the mechanism, it is a single
 backend gap, and it is the difference between t27 being a spec language for
 hardware and being a spec language that *describes* hardware.
 
-**Why first.** It is the root cause of the wave's finding, it is unblocked (the
-emitter lives in `compiler.rs`… — see the caveat below), and every hardware
-claim for the IGLA line depends on it.
+**Why it matters most.** It is the root cause of this wave's finding, and every
+hardware claim for the IGLA line depends on it. It is *not* unblocked — see
+below.
 
 **Resolved during this wave:** the emitter *is* in
 `bootstrap/src/compiler.rs` (the `assign ready = 1'b1;` line is at
