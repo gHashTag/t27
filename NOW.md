@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: `_` discard in tuple destructure gets a throwaway reg (Refs #1948)
+
+- `(link1, _) = create_2node_mesh(50)` emitted `{_, link1} = call()` -- Verilog has no `_` wildcard, so iverilog could not find the variable
+- Each `_` position now declares a throwaway reg keyed by (line, index) at its element width; the LHS concat references it
+- tri-net corpus: icarus 94 -> 95 (mesh_node_sim)
+- FROZEN_HASH resealed
+
 ## test(gen-verilog): tuple contract expects width-cast operands (Refs #1948)
 
 - Follow-up to the tuple width-cast (#1973): the phase40 contract test's exact-string expectation updated to `{32'((a-b)), 32'((a+b))}`
