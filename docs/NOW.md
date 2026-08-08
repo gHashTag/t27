@@ -2,6 +2,37 @@
 
 Last updated: 2026-08-09
 
+## conformance-classify -- the corpus was never hollow; the validator was blind
+
+- **WHERE**: `bootstrap/src/suite.rs` (`validate_conformance` + 2 helpers + 12
+  unit tests). No spec, RTL, or conformance-data edits — **not one JSON file
+  was touched**, which is the point.
+- **Retraction first.** The previous entry recorded "58 of 101 conformance
+  files are empty/skipped" and proposed populating them. That was **wrong**,
+  and it was wrong because I repeated the validator's own summary line instead
+  of opening the files. **Zero files were empty.**
+- **The actual defect**: `validate_conformance` resolved payloads with
+  `.as_array()` only. The corpus stores vectors both ways —
+  `{"vectors": [...]}` *and* `{"vectors": {"case_a": {...}}}`. Every
+  object-shaped file counted as zero. Of the 58 warnings: **45** were
+  fully-populated files with object-shaped `vectors` (`ar_restraint.json`
+  alone has 20), **8** were schema/definition files that carry no vectors by
+  construction, **5** were benchmark/coverage reports keyed on
+  `results`/`specs`. The remaining 0 were real.
+- **`FORMAT-SPEC-001.json` was among the false positives.** The numeric SSOT
+  that `COMPETITORS.md` claim 2 rests on was being reported as an empty
+  conformance file by our own validator.
+- **Why it mattered**: a gate emitting 58 false positives cannot surface a
+  true one. It had stopped carrying information.
+- **Now**: `101 total, 88 with vectors, 5 report, 8 definition, 0 invalid,
+  0 empty`. Every file classified; suite 1143 → **1155 passed, 0 failed**.
+- **Open, and genuinely so**: `conformance/clara_spec_coverage.json` is dated
+  **2026-04-05** and reports `total_specs: 36` against a corpus that now holds
+  **496**. The CLARA traceability claim rests on a coverage run covering ~7%
+  of current specs. It also invokes `bash scripts/clara/demo.sh`, which the
+  repo's own L7 gate forbids. Not fixed this wave — it needs a decision about
+  whether CLARA coverage is regenerated or the claim is narrowed.
+
 ## positioning-audit -- COMPETITORS.md names its real competitors; scripts/tri unbroken
 
 - **WHERE**: `COMPETITORS.md` (+139), `README.md` (+44), `scripts/tri` (1-line
@@ -30,7 +61,9 @@ Last updated: 2026-08-09
   and dropping the flag (each subcommand already defaults it to `.`).
   Post-fix: `validate-conformance` → 101 files, 43 valid, 0 invalid;
   `validate-gen-headers` → 124/124 valid.
-- **Open, not fixed**: 58 of 101 conformance files are empty/skipped.
+- ~~**Open, not fixed**: 58 of 101 conformance files are empty/skipped.~~
+  **Retracted — this was wrong.** See the `conformance-classify` entry above:
+  zero files were empty. The validator could not see object-shaped payloads.
 
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 

@@ -1,9 +1,13 @@
 # COMPETITORS.md -- Honest Positioning
 
 > **One-line positioning:** Commercial NPUs own the production TOPS / SDK /
-> compliance corner. TRI-NET / t27 own the **inspectable open silicon and
-> formal / assurance workflow** corner. These are different products; this
-> document is written to keep us out of races we are not running.
+> compliance corner (Section 1). Mature open toolchains own the verified-
+> compilation and formal-flow corner (Section 2) — Vericert, Kami, and
+> Amaranth are **ahead of t27** there, and this document says so rather than
+> claiming that ground. What t27 holds is narrower: one sealed artefact chain
+> from numeric format to tape-out manifest, gated by `tt-conform`.
+> This document exists to keep us out of races we are not running, **and** out
+> of claims we cannot defend.
 
 This page describes **adjacent products** in the AI-accelerator space and
 states, as restrained as possible, what TRI-NET / t27 is and is not, relative
@@ -205,9 +209,12 @@ alone**. Counts are from a measured run on 2026-08-09 (see Section 5).
 
 1. **Spec-to-RTL reproducibility.** A `.t27` spec compiles to Verilog under
    `gen/verilog/` (and to Zig / C software backends), with conformance
-   vectors under `conformance/`. **496 / 496 specs parse.** See
-   [`STATUS.md`](STATUS.md) for the levels.
+   vectors under `conformance/`. **496 / 496 specs parse**, and of 101
+   conformance files **88 carry vectors**, 5 are measured reports, 8 are
+   schema definitions, **0 are empty**. See [`STATUS.md`](STATUS.md).
    *Not claimed:* that the compiler performing this translation is verified.
+   *Not claimed:* that carrying vectors means the vectors are **sufficient** —
+   coverage per file is unmeasured.
 2. **A single numeric SSOT** -- `conformance/FORMAT-SPEC-001.json` -- used
    uniformly across the line. See [`FORMAT_REGISTRY.md`](FORMAT_REGISTRY.md).
    *Not claimed:* that it competes with OCP MX for adoption.
@@ -236,11 +243,12 @@ claim 4 as its load-bearing element.
 
 ```
 cd bootstrap && cargo build --release          # -> target/release/t27c
-cargo test --release                            # 1143 passed / 0 failed, 22 suites
+cargo test --release                            # 1155 passed / 0 failed, 22 suites
 find specs -name '*.t27' | wc -l                # 496
 for f in $(find specs -name '*.t27'); do target/release/t27c parse "$f" >/dev/null || echo "FAIL $f"; done
 grep -rh --include='*.v' 'Qed\.' coq trios-coq | wc -l   # 546
 ls .trinity/seals/ | wc -l                      # 730
+./scripts/tri validate-conformance | tail -2    # 88 vectors / 5 report / 8 definition / 0 empty
 ```
 
 Note the binary lands in the **workspace** target dir

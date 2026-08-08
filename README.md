@@ -64,7 +64,7 @@ inspectable artefacts at every step.
 | Pins | XDC emitter | GREEN | `specs/pins/emitter_xdc.t27` — QMTECH + Arty presets |
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced |
 | CI | Seal coverage | GREEN | All specs sealed |
-| CI | Schema validation | GREEN | Conformance vectors validated |
+| CI | Schema validation | GREEN | 101 conformance files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
@@ -81,7 +81,7 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1143 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1155 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
@@ -196,7 +196,7 @@ git submodule update --init --recursive
 - BitNet HLS suites: 9 modules x dedicated integration suite each
 - Host stack: `host_driver` (25), `host_irq` (25)
 - R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
-- Regression: **22 integration suites green**, total **1143 / 1143 passed,
+- Regression: **22 integration suites green**, total **1155 / 1155 passed,
   0 failed** (`cargo test --release`, measured 2026-08-09 at `1be60604`).
   The long-standing fail in
   `verilog_const_array::r_ca_1_emitter_on_real_mac_spec` is **fixed** as of

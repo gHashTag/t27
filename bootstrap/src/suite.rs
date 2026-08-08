@@ -253,7 +253,56 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     }
 }
 
-/// Validate `conformance/*.json` files (structure + non-empty vectors when present).
+/// Keys whose payload counts as conformance vectors.
+const VECTOR_KEYS: &[&str] = &["vectors", "test_vectors", "constants"];
+
+/// Keys whose payload marks a measured-report file (benchmark results, coverage
+/// runs) rather than a vector file. These are legitimate corpus members with
+/// nothing to compare against a golden.
+const REPORT_KEYS: &[&str] = &[
+    "results",
+    "benchmarks",
+    "metrics",
+    "entries",
+    "comparison",
+    "specs",
+];
+
+/// Length of the first present, non-empty payload under `keys`.
+///
+/// Accepts both arrays and objects. The corpus stores vectors both ways --
+/// `{"vectors": [...]}` and `{"vectors": {"case_a": {...}}}` -- and an
+/// array-only check silently reports every object-shaped file as empty.
+fn payload_len(json: &serde_json::Value, keys: &[&str]) -> usize {
+    for k in keys {
+        let n = match json.get(*k) {
+            Some(serde_json::Value::Array(a)) => a.len(),
+            Some(serde_json::Value::Object(o)) => o.len(),
+            _ => 0,
+        };
+        if n > 0 {
+            return n;
+        }
+    }
+    0
+}
+
+/// A schema / format-definition file: it defines a shape, so it carries no
+/// vectors by construction. `FORMAT-SPEC-001.json` is the numeric SSOT and
+/// belongs here.
+fn is_definition_file(name: &str, json: &serde_json::Value) -> bool {
+    let upper = name.to_ascii_uppercase();
+    upper.contains("SCHEMA")
+        || upper.contains("FORMAT-SPEC")
+        || json.get("$schema").is_some()
+        || json.get("formats").is_some()
+}
+
+/// Validate `conformance/*.json` files.
+///
+/// Reports four outcomes rather than two: files carrying vectors, measured-report
+/// result files, schema/definition files, and files with no payload at all.
+/// Only the last is a defect.
 pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)?;
     let dir = repo.join("conformance");
@@ -263,6 +312,8 @@ pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
     let mut pass = 0usize;
     let mut fail = 0usize;
     let mut skip = 0usize;
+    let mut definition = 0usize;
+    let mut report = 0usize;
     let mut entries: Vec<PathBuf> = fs::read_dir(&dir)
         .with_context(|| format!("read_dir {}", dir.display()))?
         .filter_map(|e| e.ok())
@@ -281,38 +332,48 @@ pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
                 continue;
             }
         };
-        let vec_len = json
-            .get("vectors")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len())
-            .or_else(|| {
-                json.get("test_vectors")
-                    .and_then(|v| v.as_array())
-                    .map(|a| a.len())
-            })
-            .or_else(|| {
-                json.get("constants")
-                    .and_then(|v| v.as_array())
-                    .map(|a| a.len())
-            })
-            .unwrap_or(0);
-        if vec_len == 0 {
-            let module = json
-                .get("module")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            println!("WARN: {} has no vectors (module={})", p.display(), module);
-            skip += 1;
-        } else {
+        let vec_len = payload_len(&json, VECTOR_KEYS);
+        if vec_len > 0 {
             pass += 1;
+            continue;
         }
+
+        // No vector payload. Before calling it empty, decide what kind of file
+        // this is -- the corpus holds three legitimate shapes that carry no
+        // `vectors` key by design, and reporting them as "empty" buries any
+        // genuinely hollow file in false positives.
+        let name = p
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_string();
+
+        if is_definition_file(&name, &json) {
+            definition += 1;
+            continue;
+        }
+
+        let report_len = payload_len(&json, REPORT_KEYS);
+        if report_len > 0 {
+            report += 1;
+            continue;
+        }
+
+        let module = json
+            .get("module")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        println!("WARN: {} has no payload (module={})", p.display(), module);
+        skip += 1;
     }
 
     println!();
     println!(
-        "Conformance files: {} total, {} valid, {} invalid, {} empty/skipped",
-        pass + fail + skip,
+        "Conformance files: {} total, {} with vectors, {} report, {} definition, {} invalid, {} empty",
+        pass + fail + skip + definition + report,
         pass,
+        report,
+        definition,
         fail,
         skip
     );
@@ -517,4 +578,97 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         println!("✅ NOW.md synced ({}) — build authorized", today);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod conformance_classify_tests {
+    use super::*;
+    use serde_json::json;
+
+    // The corpus stores vectors both as arrays and as objects. An array-only
+    // check reported 45 fully-populated files as empty, which buried the one
+    // file that actually needed attention under 58 false positives.
+    #[test]
+    fn payload_len_counts_object_shaped_vectors() {
+        let v = json!({"vectors": {"case_a": {}, "case_b": {}, "case_c": {}}});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 3);
+    }
+
+    #[test]
+    fn payload_len_counts_array_shaped_vectors() {
+        let v = json!({"vectors": [1, 2]});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 2);
+    }
+
+    #[test]
+    fn payload_len_falls_through_to_later_keys() {
+        let v = json!({"constants": {"phi": 1.618}});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 1);
+    }
+
+    #[test]
+    fn payload_len_treats_empty_containers_as_absent() {
+        let v = json!({"vectors": [], "test_vectors": {}, "constants": {"a": 1}});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 1);
+    }
+
+    #[test]
+    fn payload_len_is_zero_when_no_key_matches() {
+        let v = json!({"unrelated": [1, 2, 3]});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 0);
+    }
+
+    #[test]
+    fn payload_len_ignores_non_container_values() {
+        let v = json!({"vectors": 7});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 0);
+    }
+
+    // FORMAT-SPEC-001.json is the numeric SSOT that COMPETITORS.md rests on.
+    // It defines formats and carries no vectors by construction; reporting it
+    // as an empty conformance file was a category error.
+    #[test]
+    fn format_spec_is_a_definition_file() {
+        let v = json!({"format_family": "GoldenFloat", "formats": {"gf16": {}}});
+        assert!(is_definition_file("FORMAT-SPEC-001.json", &v));
+    }
+
+    #[test]
+    fn schema_files_are_definition_files() {
+        let empty = json!({});
+        for n in [
+            "SCHEMA_V2.json",
+            "VERDICT_SCHEMA.json",
+            "BRAIN_SEAL_SCHEMA.json",
+        ] {
+            assert!(is_definition_file(n, &empty), "{n} should be a definition");
+        }
+    }
+
+    #[test]
+    fn dollar_schema_marks_a_definition_file() {
+        let v = json!({"$schema": "http://json-schema.org/draft-07/schema#"});
+        assert!(is_definition_file("anything.json", &v));
+    }
+
+    #[test]
+    fn a_plain_vector_file_is_not_a_definition() {
+        let v = json!({"module": "AspSolver", "vectors": {"a": {}}});
+        assert!(!is_definition_file("ar_asp_solver.json", &v));
+    }
+
+    // clara_spec_coverage.json keys its rows on `specs`, not `results`.
+    #[test]
+    fn coverage_reports_are_recognised_via_specs_key() {
+        let v = json!({"specs": [{"path": "a.t27"}], "total_specs": 1});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 0);
+        assert_eq!(payload_len(&v, REPORT_KEYS), 1);
+    }
+
+    #[test]
+    fn benchmark_results_are_recognised() {
+        let v = json!({"results": [1, 2, 3], "comparison": {"a": 1}});
+        assert_eq!(payload_len(&v, VECTOR_KEYS), 0);
+        assert_eq!(payload_len(&v, REPORT_KEYS), 3);
+    }
 }
