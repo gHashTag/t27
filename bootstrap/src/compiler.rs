@@ -12320,6 +12320,9 @@ struct SymbolEntry {
     name: String,
     type_info: TypeInfo,
     is_mutable: bool,
+    /// True only for module-level `const` declarations (ROM); fn-local lets
+    /// follow t27's inferred-mutability convention.
+    is_const: bool,
 }
 
 struct FnEntry {
@@ -12346,6 +12349,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     name: child.name.clone(),
                     type_info: t,
                     is_mutable: false,
+                    is_const: true,
                 });
             }
             NodeKind::StructDecl | NodeKind::EnumDecl => {
@@ -12353,6 +12357,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     name: child.name.clone(),
                     type_info: TypeInfo::Custom(child.name.clone()),
                     is_mutable: false,
+                    is_const: false,
                 });
             }
             NodeKind::FnDecl => {
@@ -12442,6 +12447,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     name: pname.clone(),
                     type_info: resolve_type_str(ptype),
                     is_mutable: true,
+                    is_const: false,
                 });
             }
             // #920 bug 2: thread an accumulating scope so a StmtLocal declared in
@@ -12597,7 +12603,8 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                 name: node.name.clone(),
                 type_info: t,
                 is_mutable: node.extra_mutable,
-            });
+                is_const: false,
+                });
         }
         NodeKind::StmtAssign => {
             if !node.children.is_empty() {
@@ -12634,11 +12641,24 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                             } else {
                                 String::new()
                             };
-                            result.error_count += 1;
-                            result.errors.push(format!(
-                                "error: cannot assign to immutable array element '{}[...]'{}",
-                                base_name, line
-                            ));
+                            if sym.is_const {
+                                // W456: a module-level const array is ROM.
+                                result.error_count += 1;
+                                result.errors.push(format!(
+                                    "error: cannot assign to immutable array element '{}[...]'{}",
+                                    base_name, line
+                                ));
+                            } else {
+                                // A fn-local let-array follows the same
+                                // inferred-mutability convention as scalars:
+                                // the backends promote it to var/mut, so this
+                                // is a style warning, not an error.
+                                result.warnings += 1;
+                                result.errors.push(format!(
+                                    "warning: element assignment promotes '{}' to mutable{}",
+                                    base_name, line
+                                ));
+                            }
                         }
                     }
                 }
