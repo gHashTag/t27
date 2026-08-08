@@ -3483,6 +3483,36 @@ impl Codegen {
     /// Convert a t27/Rust-style array type `[T; N]` (N a literal or const name)
     /// to Zig's `[N]T`. Nested arrays convert recursively; other types pass
     /// through unchanged.
+    // Default integer type for a bare integer literal initializing an untyped
+    // mutable local (Zig rejects `var x = <comptime_int>`). u32 is the t27
+    // default width; u64 only when the literal does not fit u32. Non-integer
+    // literals (bool, string) already carry a concrete Zig type.
+    fn zig_int_literal_default_type(init: &Node) -> Option<&'static str> {
+        if !matches!(init.kind, NodeKind::ExprLiteral) {
+            return None;
+        }
+        if init.extra_kind == "string" {
+            return None;
+        }
+        let v = init.value.as_str();
+        if v == "true" || v == "false" {
+            return None;
+        }
+        let digits = v.replace('_', "");
+        let parsed = if let Some(hex) = digits.strip_prefix("0x").or(digits.strip_prefix("0X")) {
+            u64::from_str_radix(hex, 16)
+        } else if let Some(bin) = digits.strip_prefix("0b").or(digits.strip_prefix("0B")) {
+            u64::from_str_radix(bin, 2)
+        } else {
+            digits.parse::<u64>()
+        };
+        match parsed {
+            Ok(n) if n <= u32::MAX as u64 => Some("u32"),
+            Ok(_) => Some("u64"),
+            Err(_) => None,
+        }
+    }
+
     fn t27_array_type_to_zig(ty: &str) -> String {
         let t = ty.trim();
         if t.starts_with('[') && t.ends_with(']') && t.contains(';') {
@@ -3670,10 +3700,10 @@ impl Codegen {
 
         if node.children.is_empty() {
             self.write_indent();
-            self.write_line(&format!(
-                "@compileLog(\"invariant: {} verified\");",
-                node.name
-            ));
+            // A comment, not @compileLog: @compileLog is a hard compile error
+            // under `zig test` ("found compile log statement"), so the marker
+            // must stay out of the compiled program.
+            self.write_line(&format!("// invariant: {} verified (no statements)", node.name));
         }
 
         self.dedent();
@@ -3799,6 +3829,18 @@ impl Codegen {
                     self.write(&node.name);
                     if !node.extra_type.is_empty() {
                         self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
+                    } else if as_var {
+                        // An untyped mutable initialized with a bare integer
+                        // literal would be comptime_int, which Zig rejects for
+                        // `var`. Pin the default integer width (u64 only when
+                        // the literal does not fit u32).
+                        if let Some(lit_ty) = node
+                            .children
+                            .first()
+                            .and_then(Self::zig_int_literal_default_type)
+                        {
+                            self.write(&format!(": {}", lit_ty));
+                        }
                     }
                     if !node.children.is_empty() {
                         self.write(" = ");

@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-zig: invariant marker is a comment; untyped literal-init mutables pinned to u32 (Closes #1930)
+
+- Empty invariant blocks emitted `@compileLog(...)` -- a hard error under `zig test` ("found compile log statement"), so every spec with an empty invariant failed before one test ran; the marker is now a comment
+- Untyped mutable locals initialized with a bare integer literal emitted `var x = 0xFF;` (comptime_int, rejected for `var`); the declaration now pins the default width (`: u32`, `: u64` when the literal exceeds u32)
+- tri-net corpus: both error classes gone (8 + 13 specs); 7 specs pass zig test end-to-end immediately, 14 advance to their runtime layer
+- FROZEN_HASH resealed
+
 ## gen-zig: skip dead base-types import; asserts panic, not compileError (Refs #1928)
 
 - `use base::types` emitted an @import of a never-shipped types.zig even with zero references -- every generated file failed `zig test` with FileNotFound before a single test ran; the import is now emitted only when the module body references it
