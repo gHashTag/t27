@@ -217,6 +217,18 @@ buildable on this flow (item: MMCM places), or **commercial P&R** timing closure
 prototypes: cores in `scratchpad/retime/`, pipelined trainer in `scratchpad/board/bppipe/`,
 write/control-hardened in `scratchpad/board/bpctrl/`.
 
+**Without Vivado — a partial open-flow refinement (measured).** Constraining the *internal*
+clock net to a period nextpnr actually *meets* (`create_clock -period 50 [get_nets clk]`,
+~20 MHz < the ~21 MHz fmax) and building **without** `--timing-allow-fail` makes P&R close
+timing deterministically. This measurably improves the forward pass — several seeds come up
+**bit-exact at ep0** (0/0.551/0.936/0.234) rather than glitching from the start — and
+seed-search still finds a **fully-stable** build (a met-timing seed trained XOR 4/4 through
+all 60 epochs; `scratchpad/board/bpmet/`). It does **not** eliminate the lottery (some seeds
+still diverge over epochs) and more `settle` on top stays non-monotonic (item 2 holds even
+here). So on the open flow, **met-timing + seed-search** is the best recipe;
+deterministic no-seed-search closure still needs commercial P&R. *Free* Vivado (ML Standard,
+ex-WebPACK) supports the xc7a200t but is x86 Linux/Windows only — not the macOS arm64 host.
+
 ## Reproducibility
 
 The verification runs in CI on every pull request. The silicon build is one script
