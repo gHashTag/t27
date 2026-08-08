@@ -29399,8 +29399,8 @@ mod tests_phase40_coverage {
         );
         // Element 0 (a + b) sits in the LSB of the concatenation.
         assert!(
-            out.contains("dm = {(a - b), (a + b)};"),
-            "tuple literal not lowered to LSB-first concat: {}",
+            out.contains("dm = {32'((a - b)), 32'((a + b))};"),
+            "tuple literal not lowered to width-cast LSB-first concat: {}",
             out
         );
         // Destructuring: packed temp, then LSB/MSB slices into the bindings.
