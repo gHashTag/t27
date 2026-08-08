@@ -1,6 +1,12 @@
-# NOW — Vivado closure kit: the multicycle constraint that kills the seed-lottery (2026-08-08)
+# NOW — CI now gates that the trainer LEARNS, not just that it is bit-exact (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test(ci): gate that the generated trainer LEARNS -- XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer (Refs #1764)
+
+- The bit-exact gates prove the generated RTL == model, but nothing CI-enforced that the algorithm actually LEARNS non-trivial tasks. The generator's self-tests already do (XOR 4/4; (2,4,1) noisy nonlinear held-out 58/60; (2,4,2) multi-output argmax 56/60; deep [2,4,3,1] 3-layer 59/60 -- all >=90%), but they only ran when the file was executed by hand
+- Added `python3 tools/gft_backprop_microcode.py` as a CI step in emit-bitexact-gate.yml, so the learning + generalization claims are enforced per pull request
+- Strengthens the whole story's thesis: the METHOD learns and scales beyond XOR (multi-layer, held-out generalization) in the model -- the only limit is the open silicon flow's placement marginality (now met with the Vivado closure kit), not the algorithm. CI-config + no code change. Refs #1764
 
 ## feat(docs): Vivado closure kit -- the set_multicycle_path constraint the open flow cannot express (Refs #1764)
 
