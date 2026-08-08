@@ -8479,6 +8479,17 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.emit_local(child, LocalEmitPhase::Decl);
                 }
+                // Tuple-destructure local `let (a, b) = call()`: the packed temp
+                // (__tup_l{line}) and the element regs are declared only in the
+                // Decl phase, which the TB Init-only path skips -- so the temp
+                // was referenced undeclared ("Could not find variable
+                // __tup_l242"). Declare them at the top of the block here.
+                if child.kind == NodeKind::StmtLocal
+                    && child.name.is_empty()
+                    && !child.extra_field.is_empty()
+                {
+                    self.emit_local(child, LocalEmitPhase::Decl);
+                }
                 // Pre-declare a probe for every assert_eq in the block.
                 let stmt = if child.kind == NodeKind::StmtExpr {
                     child.children.first()
