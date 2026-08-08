@@ -190,6 +190,17 @@ does not re-run them:
     still glitched (explode to ~1e16 or collapse to zero), same as the baseline. So the
     write-address / write-data path is not the culprit either.
 
+12. **MMCM real clock tree — places but does NOT function on silicon (open flow).** The
+    one remaining structural lever: regenerate the 200 MHz clock through the MMCM/CMT tree
+    (low-skew) instead of the fabric `IBUFDS` net, to test the global clock-skew hypothesis.
+    `MMCME2_BASE` places in nextpnr and the fasm builds, but the flashed bitstream is dead
+    on the AX7203 — no UART response on any of four seeds, with or without a `BUFG` on the
+    MMCM output. The open flow (prjxray fasm2frames) does not emit the MMCM configuration
+    bits, so the MMCM never locks / drives no clock. So the MMCM lever is **placement-only
+    on openXC7, not functional** — the clock-skew hypothesis cannot be tested here, and the
+    open-toolchain structural options are fully exhausted. Only commercial P&R (Vivado) can
+    close timing directly or provide a working MMCM. Build in `scratchpad/board/bpmmcm/`.
+
 Conclusion of the root-cause arc: **every local register-based fix has failed** — the
 combinational datapath at the endpoints (7), mid-cloud (10), and the write/control path
 (11) were each resynchronised with flip-flops and none changed the lottery. A fault that
