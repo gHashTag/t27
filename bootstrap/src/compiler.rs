@@ -4722,6 +4722,13 @@ impl VerilogCodegen {
             "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
             "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
             "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+            // SystemVerilog keywords Icarus also rejects as plain identifiers
+            // (t27#1948: spec params named bit/byte/priority/sequence).
+            "bit", "byte", "chandle", "class", "do", "enum", "export", "extends", "final",
+            "import", "int", "interface", "logic", "longint", "packed", "priority",
+            "program", "property", "protected", "pure", "rand", "randc", "ref", "return",
+            "sequence", "shortint", "shortreal", "static", "string", "struct", "super",
+            "this", "type", "typedef", "union", "unique", "var", "virtual", "void",
         ]
     }
 
@@ -6376,13 +6383,21 @@ impl VerilogCodegen {
                 let i: usize = flat_idx.parse().unwrap_or(0);
                 let hi = (i + 1) * elem_w - 1;
                 let lo = i * elem_w;
-                self.write(&format!("{}[{}:{}]", base_name, hi, lo));
+                self.write(&format!(
+                    "{}[{}:{}]",
+                    Self::verilog_safe_identifier(&base_name),
+                    hi,
+                    lo
+                ));
             } else {
                 // W548: scale the flat element index by elem_w to get the bit
                 // offset for the variable part-select.
                 self.write(&format!(
                     "{}[(({}) * {}) +: {}]",
-                    base_name, flat_idx, elem_w, elem_w
+                    Self::verilog_safe_identifier(&base_name),
+                    flat_idx,
+                    elem_w,
+                    elem_w
                 ));
             }
             if elem_signed {
@@ -6576,13 +6591,18 @@ impl VerilogCodegen {
                     .iter()
                     .enumerate()
                     .filter(|(_, (_, ptype))| {
-                        // Primitive-scalar [T; N] params are packed-vector
+                        // Rust-style primitive [T; N] params are packed-vector
                         // VALUES (declared at packed_width, indexed by
-                        // part-select via #1745) -- only struct-element
-                        // arrays still go through the module-array binding.
-                        Self::parse_array_type(ptype).map_or(false, |(_, elem)| {
-                            !Self::is_primitive_scalar_type(&elem)
-                        })
+                        // part-select via #1745). The legacy [N]T spelling
+                        // keeps the W458 module-array binding contract (ROM
+                        // tables bound by name at the call site).
+                        let rust_style_primitive = ptype.trim().starts_with('[')
+                            && ptype.contains(';')
+                            && Self::parse_array_type(ptype)
+                                .map_or(false, |(_, elem)| {
+                                    Self::is_primitive_scalar_type(&elem)
+                                });
+                        Self::parse_array_type(ptype).is_some() && !rust_style_primitive
                     })
                     .map(|(i, _)| i)
                     .collect();
@@ -8214,7 +8234,7 @@ impl VerilogCodegen {
                             let (width, signed) = self
                                 .expr_width_signed(&stmt.children[1])
                                 .unwrap_or((64, false));
-                            let name = target.name.clone();
+                            let name = Self::verilog_safe_identifier(&target.name);
                             self.write_indent();
                             self.write_line(&format!(
                                 "{} {}; // t27#1894 test-block binding",
@@ -8241,7 +8261,7 @@ impl VerilogCodegen {
                                     self.write_line(&format!(
                                         "{} {}; // t27#1948 tuple binding",
                                         reg_decl(64, false),
-                                        name
+                                        Self::verilog_safe_identifier(&name)
                                     ));
                                 }
                             }
@@ -8259,7 +8279,7 @@ impl VerilogCodegen {
                             .first()
                             .and_then(|i| self.expr_width_signed(i))
                             .unwrap_or((64, false));
-                        let name = stmt.name.clone();
+                        let name = Self::verilog_safe_identifier(&stmt.name);
                         self.write_indent();
                         self.write_line(&format!(
                             "{} {}; // t27#1948 let binding",
@@ -30464,7 +30484,7 @@ mod tests_w458 {
         // instead emitted `f = 0; end` immediately followed by an unconditional
         // `f = (65536 | r);`, so the else wrapper is the discriminator.
         assert!(
-            flat.contains("f = 0; end else begin"),
+            flat.contains("f = 0; __t27_ret = 1'b1; end else begin"),
             "nested return did not lower as an early-exit if/else:\n{}",
             v
         );
