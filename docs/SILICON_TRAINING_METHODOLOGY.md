@@ -95,13 +95,13 @@ no Docker, native macOS arm64.
   and always "passes", so `--timing-allow-fail` was effectively a no-op — the path was
   never actually being closed, just loosely met. Constraining the internal net tighter
   reports the true fmax (~21 MHz) but does not change the silicon hazard.
-- **Therefore the one viable structural fix is to PIPELINE the shared core** — register
-  the intermediate stages of `GftSmul`/`GftSadd` (a spec-level `on_clock` pipelined
-  multiply/add) so every microcode step reads a clean, registered value and the deep
-  combinational hazard is broken, letting nextpnr close each short stage at the real
-  200 MHz. This is a code/spec change, not a clock or constraint change. It is the
-  prerequisite for training nets larger than XOR on this open flow (where seed-search
-  runs out — a 62-step net does not stabilise in any seed).
+- **Pipelining the shared core was the leading hypothesis — and it was DISPROVEN on
+  silicon (see Ruled-out #10).** The intuition was that registering the intermediate
+  stages of `GftSmul`/`GftSadd` would break the deep combinational hazard. We built it
+  (bit-exact, mid-cloud registers) and it did **not** fix the lottery — nor did endpoint
+  registration (#7) or write/control hardening (#11). This is what pointed the fault at a
+  global effect, not the datapath. Kept here only to mark the hypothesis as tested; the
+  authoritative current state is the **Ruled-out fixes** list and its conclusion below.
 - **Where the depth actually is (measured, so we pipeline the right place).** `GftSmul`
   is purely combinational (`assign result = smul(a,b)`; the `clk`/`en`/`ready` ports are
   unused, so there is no read-before-ready bug). Yosys `ltp` (longest topological path)
@@ -189,6 +189,17 @@ does not re-run them:
     On the AX7203 across eight seeds: several dead-routed, and every seed that responded
     still glitched (explode to ~1e16 or collapse to zero), same as the baseline. So the
     write-address / write-data path is not the culprit either.
+
+12. **MMCM real clock tree — places but does NOT function on silicon (open flow).** The
+    one remaining structural lever: regenerate the 200 MHz clock through the MMCM/CMT tree
+    (low-skew) instead of the fabric `IBUFDS` net, to test the global clock-skew hypothesis.
+    `MMCME2_BASE` places in nextpnr and the fasm builds, but the flashed bitstream is dead
+    on the AX7203 — no UART response on any of four seeds, with or without a `BUFG` on the
+    MMCM output. The open flow (prjxray fasm2frames) does not emit the MMCM configuration
+    bits, so the MMCM never locks / drives no clock. So the MMCM lever is **placement-only
+    on openXC7, not functional** — the clock-skew hypothesis cannot be tested here, and the
+    open-toolchain structural options are fully exhausted. Only commercial P&R (Vivado) can
+    close timing directly or provide a working MMCM. Build in `scratchpad/board/bpmmcm/`.
 
 Conclusion of the root-cause arc: **every local register-based fix has failed** — the
 combinational datapath at the endpoints (7), mid-cloud (10), and the write/control path

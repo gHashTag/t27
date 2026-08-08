@@ -1,6 +1,12 @@
-# NOW — write/control hardening also fails; the seed-lottery is a GLOBAL effect (2026-08-08)
+# NOW — MMCM places but is dead on silicon; open-flow structural options exhausted (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: MMCM real clock tree places but does NOT function on silicon -> open-toolchain options exhausted, seed-search is final (Refs #1764)
+
+- Tested the last structural lever ("все три", Variant 1): regenerate the 200 MHz clock through the MMCM/CMT tree (low-skew) instead of the fabric IBUFDS net, to probe the global clock-skew hypothesis. MMCME2_BASE places in nextpnr and the fasm builds, but the flashed bitstream is DEAD on the AX7203 -- no UART response on any of 4 seeds, with or without a BUFG on the MMCM output
+- Cause: the open flow (prjxray fasm2frames) does not emit the MMCM configuration bits, so the MMCM never locks / drives no clock. So MMCM is PLACEMENT-ONLY on openXC7, not functional -- the clock-skew hypothesis cannot be tested here
+- CONCLUSION: the open-toolchain structural options are fully exhausted (11 local fixes ruled out + MMCM dead). Only commercial P&R (Vivado) can close timing directly or provide a working MMCM. Seed-search is the final practical answer on the open flow. Added ruled-out #12. Board restored (generated capstone XOR 4/4). Docs only. Refs #1764
 
 ## docs: write/control hardening does NOT fix the lottery either -> by elimination it is a GLOBAL clock/placement effect (Refs #1764)
 
