@@ -275,11 +275,37 @@ Error classes across all 363 (first error per spec, normalized):
 | 48 | `unexpected token after expression statement: Ident` | mixed |
 | 43 | `Expected LParen, got Ident` | mixed |
 | **40** | `Unexpected token in expression: LBrace` | **block-expression gap (§4.2)** |
-| **38** | `Expected RBrace, got Eof` | **unterminated block — same class as the W339 bug** |
+| **38** | `Expected RBrace, got Eof` | **corrupted type annotation — see the correction below; FIXED in W550** |
 | 30 | `Unexpected token in expression: Semicolon` | mixed |
 | **28** | `Unexpected token in expression: KwStruct` | **struct literal in expression position** |
 | **16** | `unknown cast target type` | **the float-cast whitelist (§4.2)** |
 | ~160 | long tail | ≤9 each |
+
+> **Correction (W550).** This table originally described the 38
+> `Expected RBrace, got Eof` specs as "unterminated block — same class as the
+> W339 bug". Both halves were wrong.
+>
+> Brace depth in all 38 is **zero**; nothing is unterminated block-wise. A
+> second hypothesis — that these use an unimplemented `given`/`when`/`then` BDD
+> dialect — also failed: 158 *other* specs use that form and parse fine, and a
+> `when` clause appears in 76 % of the failures against 77 % of the passes, so
+> it discriminates nothing.
+>
+> The real defect is a **corrupted type annotation carrying a stray double
+> quote**, which opens a string literal that swallows the rest of the file. The
+> parser reports the symptom (a missing `}` at EOF) rather than the cause. All
+> 38 had exactly one unterminated string, in two shapes:
+>
+> ```
+> bits     : [[]Usize",           ->  bits     : []usize,
+> log_file : [?[]Const u8",       ->  log_file : ?[]const u8,
+> opad     : [[64]U8",            ->  opad     : [64]u8,
+> children : [[256]?*ACTrieNode", ->  children : [256]?*ACTrieNode,
+> ```
+>
+> Repaired in W550: **700 → 737 of 1063 specs parse (65.9 % → 69.3 %)**, 0
+> regressions. The lesson is the same one §6 records: an error message names
+> where the parser gave up, not where the file went wrong.
 
 **This changes the economics of the W550 fix decisively.** The two gaps
 identified from IGLA are not IGLA-specific:

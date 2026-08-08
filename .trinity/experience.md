@@ -19821,3 +19821,53 @@ touching the compiler. docs/.legacy-non-english-docs is Architect-approval-only
 .trinity/seals/<basename>.json while every repo tool writes
 .trinity/seals/<parentdir>_<module>.json. The gate is unsatisfiable, not
 unsatisfied.
+
+## Wave Loop 550 — corpus repair (2026-08-09)
+
+**Result:** 700 -> 737 of 1063 specs parse (65.9% -> 69.3%), 37 previously
+failing specs repaired, 0 regressions.
+
+### The lesson: the error message names where the parser gave up, not where
+### the file went wrong
+
+W549 labelled 38 specs failing `Expected RBrace, got Eof` as "unterminated
+blocks, same class as the W339 brace bug". Wrong twice over:
+
+1. Brace depth in all 38 is ZERO (verified with a lexer-faithful counter that
+   ignores comments and string literals).
+2. A second hypothesis -- an unimplemented given/when/then BDD dialect, used by
+   35 of the 38 and documented in SOUL.md and the language RFC -- also failed:
+   158 OTHER specs use the same form and parse fine, and a `when` clause
+   appears in 76% of failures vs 77% of passes. It discriminates nothing.
+
+The real defect was a CORRUPTED TYPE ANNOTATION with a stray double quote,
+opening a string literal that swallowed the rest of the file:
+
+    bits     : [[]Usize",           ->  bits     : []usize,
+    log_file : [?[]Const u8",       ->  log_file : ?[]const u8,
+    opad     : [[64]U8",            ->  opad     : [64]u8,
+    children : [[256]?*ACTrieNode", ->  children : [256]?*ACTrieNode,
+
+Three hypotheses, two refuted by cheap measurement BEFORE any code changed.
+
+### Anti-patterns to avoid
+
+- Do not trust a parse error's category. Verify brace/quote parity yourself and
+  compare against specs that PASS with the same shape.
+- Do not apply a repo-wide regex without re-parsing every previously-passing
+  file it touched. The first pass here REGRESSED two files (html/xml.t27) that
+  had a fourth corruption shape; repairing three of their four bad lines
+  flipped quote parity from even to odd. Reverted and left untouched rather
+  than half-repaired.
+- Watch for normalization bugs in the fix itself: the generalized pattern glued
+  `[]` to the type token, so `Const` never lowercased and 15 specs got
+  `[]Const u8` instead of `[]const u8`.
+
+### Open question carried to W551
+
+327 specs (a third of the corpus) use given/when/then, which has NO parser
+production but IS specified in SOUL.md, docs/rfc/tri-language-core.md and
+TDD-CONTRACT.md. They parse only because the parser tolerates the shape
+incidentally. Nobody has established what it actually does with those blocks --
+recognised as tests, silently skipped, or mis-parsed. Every "N tests in spec X"
+claim depends on the answer.

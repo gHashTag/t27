@@ -3886,6 +3886,20 @@ These cost a wave each. Follow them before step 1.
     Expect it, and do not self-approve additions to
     `docs/.legacy-non-english-docs` — it is Architect-only.
 
+11. **A parse error names where the parser gave up, not where the file went
+    wrong.** Wave 550 spent two hypotheses on an error that said
+    `Expected RBrace, got Eof`: the braces were balanced (depth 0 in all 38
+    files) and the suspected BDD dialect discriminated nothing (158 specs use
+    it and pass). The cause was a stray `"` in a type annotation opening a
+    string literal that swallowed the file. Check brace AND quote parity
+    yourself, and always compare against specs that PASS with the same shape.
+
+12. **After any repo-wide rewrite, re-parse every previously-passing file you
+    touched.** Wave 550's first pass regressed two specs that had a corruption
+    shape the pattern did not match — repairing three of their four bad lines
+    flipped quote parity from even to odd. Half-repairing is worse than not
+    touching; revert those and leave them for a pass that handles their shape.
+
 ### How to update this tracker
 
 After closing a wave:
