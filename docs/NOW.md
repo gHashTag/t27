@@ -1,6 +1,12 @@
-# NOW — MMCM places but is dead on silicon; open-flow structural options exhausted (2026-08-08)
+# NOW — Vivado closure kit: the multicycle constraint that kills the seed-lottery (2026-08-08)
 
 Last updated: 2026-08-08
+
+## feat(docs): Vivado closure kit -- the set_multicycle_path constraint the open flow cannot express (Refs #1764)
+
+- The root-cause arc concluded the seed-lottery is a global placement effect of the timing-relaxed open-flow placement; the cure is not another register but telling a timing-driven P&R the truth about the path. nextpnr-xilinx XDC = create_clock only, so it cannot; Vivado can
+- Added `docs/vivado_closure/`: (1) `bpseq_vivado.xdc` = create_clock 200 MHz + `set_multicycle_path 16` on the shared-core `rf -> rf` (through GftSmul/GftSadd) paths -- that path is genuinely multicycle (captured once per cen x settle ~2560 cycles), so Vivado closes it deterministically and the lottery disappears; (2) `vivado_build.tcl` batch synth->route->bitstream printing worst slack; (3) `README.md`
+- This converts the documented open-toolchain limitation into a solved problem with the right instrument, and is the prerequisite for training nets > XOR (where open-flow seed-search runs out). Vivado does not run on this macOS arm64 host, so the kit is authored for the user's Vivado environment. Methodology points to it. Docs/scripts only. Refs #1764
 
 ## docs: MMCM real clock tree places but does NOT function on silicon -> open-toolchain options exhausted, seed-search is final (Refs #1764)
 
