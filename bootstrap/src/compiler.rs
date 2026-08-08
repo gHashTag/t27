@@ -8420,24 +8420,28 @@ impl VerilogCodegen {
                                 })
                                 .unwrap_or_default();
                             for (idx, e) in target.children.iter().enumerate() {
-                                if e.kind != NodeKind::ExprIdentifier
-                                    || e.name.is_empty()
-                                    || e.name == "_"
-                                {
+                                if e.kind != NodeKind::ExprIdentifier || e.name.is_empty() {
                                     continue;
                                 }
-                                if declared.insert(e.name.clone()) {
-                                    let (w, signed) = elem_types
-                                        .get(idx)
-                                        .map(|t| {
-                                            (self.packed_width(t).max(1), self.packed_signed(t))
-                                        })
-                                        .unwrap_or((64, false));
+                                let (w, signed) = elem_types
+                                    .get(idx)
+                                    .map(|t| (self.packed_width(t).max(1), self.packed_signed(t)))
+                                    .unwrap_or((64, false));
+                                // A `_` element is a discard: Verilog has no
+                                // wildcard, so give the position a throwaway reg
+                                // keyed by (line, index) so it is stable across
+                                // the decl pass and the assignment (t27#1948).
+                                let decl_name = if e.name == "_" {
+                                    format!("__t27_disc_{}_{}", target.line, idx)
+                                } else {
+                                    e.name.clone()
+                                };
+                                if declared.insert(decl_name.clone()) {
                                     self.write_indent();
                                     self.write_line(&format!(
                                         "{} {}; // t27#1948 tuple binding",
                                         reg_decl(w, signed),
-                                        Self::verilog_safe_identifier(&e.name)
+                                        Self::verilog_safe_identifier(&decl_name)
                                     ));
                                 }
                             }
@@ -9880,6 +9884,15 @@ impl VerilogCodegen {
                 for (i, child) in node.children.iter().enumerate().rev() {
                     if i != last {
                         self.write(", ");
+                    }
+                    // LHS `_` discard: reference the throwaway reg declared for
+                    // this (line, index) position (t27#1948).
+                    if self.in_lvalue
+                        && child.kind == NodeKind::ExprIdentifier
+                        && child.name == "_"
+                    {
+                        self.write(&format!("__t27_disc_{}_{}", node.line, i));
+                        continue;
                     }
                     let cast = elem_types
                         .as_ref()
