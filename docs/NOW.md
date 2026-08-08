@@ -1,6 +1,13 @@
-# NOW — CI now gates that the trainer LEARNS, not just that it is bit-exact (2026-08-08)
+# NOW — fix(gen-zig): unused params + test bindings (2026-08-08)
 
 Last updated: 2026-08-08
+
+## fix(gen-zig): discard unused params + declare test/bench bindings (Closes #1910)
+
+- Zig gen emitted unused fn parameters (zig errors on them) and test-block bindings without declarations (the Zig twin of #1894) -- 66/68 of tri-net's legacy spec gens failed zig ast-check
+- Now: `_ = param;` discards for parameters the body never reads; the FIRST assignment to a plain identifier in a test/bench block lowers to `const name = expr;`
+- 38/68 remain invalid in three mechanical classes (tuple destructuring LHS, un-translated `[T;N]` array types, unused local consts) -- tracked in #1910 for full zig-leg restoration
+- Unit suite 1537/1537; gen-rust output byte-identical (Zig-only change); FROZEN_HASH resealed
 
 ## test(ci): gate that the generated trainer LEARNS -- XOR 4/4 + nonlinear held-out >=90%, incl. deep 3-layer (Refs #1764)
 
