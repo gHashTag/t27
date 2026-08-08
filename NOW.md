@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog TB: real assignments; packed literals read element text (Refs #1948)
+
+- Test-block StmtAssign/StmtLocal statements were emitted COMMENTED OUT: every binding built from a call (`array = create(...)`) stayed X in the testbench and array-driven asserts could never pass. They emit for real now (regs come from #1894 + the #1948 declaration pass)
+- Packed array-literal concatenation only read child nodes, but the parser stores list-form element text in extra_size with NO children -- literals built from parameters or calls rendered as ZEROS. The text path now splits top-level commas and width-casts each element
+- tri-net corpus: icarus 60 -> 69 passing (adaptive_routing, energy_aware_routing, failure_predictor, health_monitoring, key_management, multipath_routing, network_coding, redundancy_management, trust_manager join); no gate regression
+- FROZEN_HASH resealed
+
 ## gen-verilog: rust-style [T; N] reaches the packed-array machinery (Refs #1948)
 
 - parse_array_type only understood the legacy `[N]T` spelling: every `[u32; 4]` fn param lowered as a SINGLE 32-BIT input and `arr[i]` was a bit-select; returns declared 32-bit for a 128-bit value

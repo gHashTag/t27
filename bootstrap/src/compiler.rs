@@ -6080,6 +6080,52 @@ impl VerilogCodegen {
             for elem in inner.iter().take(current_dim) {
                 parts.push(self.emit_packed_array_element_value(elem, elem_type));
             }
+            // The parser stores list-form element text in extra_size with NO
+            // children ("m0, m1, m2, m3"): the children-only path rendered a
+            // literal of ZEROS for every element built from parameters or
+            // calls (t27#1948 tail). Split top-level commas and give each
+            // element the width-cast the packed concatenation needs.
+            if inner.is_empty()
+                && node.kind == NodeKind::ExprArrayLiteral
+                && !node.extra_size.trim().is_empty()
+                && !node.extra_size.contains("][")
+            {
+                let txt = node.extra_size.trim();
+                if let Some((val, count)) = txt.rsplit_once(';') {
+                    if let Ok(n) = count.trim().parse::<usize>() {
+                        for _ in 0..n.min(current_dim) {
+                            parts.push(format!("{}'({})", elem_w, val.trim()));
+                        }
+                    }
+                } else {
+                    let mut depth_c = 0i32;
+                    let mut cur = String::new();
+                    let mut elems_txt: Vec<String> = Vec::new();
+                    for ch in txt.chars() {
+                        match ch {
+                            '(' | '[' => {
+                                depth_c += 1;
+                                cur.push(ch);
+                            }
+                            ')' | ']' => {
+                                depth_c -= 1;
+                                cur.push(ch);
+                            }
+                            ',' if depth_c == 0 => {
+                                elems_txt.push(cur.trim().to_string());
+                                cur.clear();
+                            }
+                            _ => cur.push(ch),
+                        }
+                    }
+                    if !cur.trim().is_empty() {
+                        elems_txt.push(cur.trim().to_string());
+                    }
+                    for e in elems_txt.iter().take(current_dim) {
+                        parts.push(format!("{}'({})", elem_w, e));
+                    }
+                }
+            }
         } else {
             // Outer dimensions: each child is a sub-array literal.
             let outer = if node.kind == NodeKind::ExprArrayLiteral {
@@ -8624,13 +8670,16 @@ impl VerilogCodegen {
                     }
                 }
                 NodeKind::StmtLocal => {
-                    self.write_indent();
-                    self.write("// ");
-                    self.gen_verilog_stmt(node);
+                    // Regs are declared up front (typed: emit_local(Decl);
+                    // untyped: the t27#1948 pass); emit only the assignment.
+                    if !node.children.is_empty() {
+                        self.emit_local(node, LocalEmitPhase::Init);
+                    }
                 }
                 NodeKind::StmtAssign => {
-                    self.write_indent();
-                    self.write("// ");
+                    // t27#1894 declared the target regs; the assignment itself
+                    // was still emitted COMMENTED OUT, so every binding built
+                    // from a call (`array = create(...)`) stayed X in the TB.
                     self.gen_verilog_stmt(node);
                 }
                 _ => {
