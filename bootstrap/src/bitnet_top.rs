@@ -272,7 +272,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .axi_rready(pf_rready),\n");
     s.push_str("        .bram_addr(pf_bram_addr),\n");
     s.push_str("        .bram_data(pf_bram_data),\n");
-    s.push_str("        .bram_we(pf_bram_we)\n");
+    s.push_str("        .bram_we(pf_bram_we), .overflow(pf_overflow)\n");
     s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    double_buffer_ctrl dbl_buf (\n");
@@ -339,6 +339,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // Input DMA: loads layer 0's activations from DDR into the buffer the\n");
     s.push_str("    // first layer will READ, while the requantizer writes the other one.\n");
     s.push_str("    wire        dma_done, dma_local_we;\n");
+    s.push_str("    wire        pf_overflow, dma_overflow;\n");
     s.push_str("    wire [11:0] dma_local_addr;\n");
     s.push_str("    wire [63:0] dma_local_wdata;\n");
     s.push_str("    wire [63:0] dma_awaddr_nc, dma_wdata_nc;\n");
@@ -385,7 +386,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .m_axi_wvalid(dma_wvalid_nc), .m_axi_wready(1'b1),\n");
     s.push_str("        .m_axi_bvalid(1'b1), .m_axi_bready(dma_bready_nc),\n");
     s.push_str("        .local_addr(dma_local_addr), .local_wdata(dma_local_wdata),\n");
-    s.push_str("        .local_we(dma_local_we), .local_rdata(64'd0)\n");
+    s.push_str("        .local_we(dma_local_we), .local_rdata(64'd0), .overflow(dma_overflow)\n");
     s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    // Two writers, one port each. The DMA fills the buffer being read;\n");
@@ -642,7 +643,11 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .clk(clk), .rst_n(rst_n),\n");
     s.push_str("        .inference_done(done),\n");
     s.push_str("        .dma_done(prefetch_done),\n");
-    s.push_str("        .error(1'b0),\n");
+    s.push_str("        // The error source was tied off while nothing could report one. Both\n");
+    s.push_str("        // transfer engines now raise overflow when a request exceeds the local\n");
+    s.push_str("        // address space, which is exactly what this sticky, maskable,\n");
+    s.push_str("        // read-to-clear bit exists for. See FORMAL_FOUNDATIONS Prop. 29.\n");
+    s.push_str("        .error(pf_overflow || dma_overflow),\n");
     s.push_str("        .irq_enable(3'b111),\n");
     s.push_str("        .irq_status(irq_status_w),\n");
     s.push_str("        .status_read(1'b0),\n");

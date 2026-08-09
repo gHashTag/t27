@@ -217,15 +217,36 @@ fn dma_read_terminates_only_on_rlast() {
 }
 
 #[test]
-fn dma_local_addr_autoincrement_both_paths() {
+// This previously required `local_addr <= local_addr + 1` on BOTH paths, which
+// pinned the defect rather than the behaviour: on the read path the address,
+// the data and the write-enable all register together, so incrementing there
+// made word N land at address N+1 -- slot 0 was never written and the last word
+// wrapped over it. The read path now writes at the word's own index. On the
+// write path local_addr is the READ pointer and still advances. Prop. 29.
+fn dma_local_addr_walks_both_paths() {
     let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
     assert!(ok);
-    let bumps = stdout.matches("local_addr      <= local_addr + 12'd1;").count();
     assert!(
-        bumps >= 2,
-        "expected local_addr++ on both read and write beats, got {}",
-        bumps
+        stdout.contains("local_addr      <= word_index;"),
+        "read path must write at the word's own index"
     );
+    assert!(stdout.contains("word_index      <= word_index + 12'd1;"));
+    assert!(
+        stdout.contains("local_addr      <= local_addr + 12'd1;"),
+        "write path advances the read pointer"
+    );
+}
+
+#[test]
+// A 32-bit length over a 12-bit local address wrapped and overwrote data
+// already transferred, then reported success. Clamp to the address space and
+// raise overflow, which the top routes to the previously tied-off error IRQ.
+fn dma_clamps_oversized_length_and_reports_overflow() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("output reg         overflow,"));
+    assert!(stdout.contains("bytes_remaining <= (length > 32'd32768) ? 32'd32768 : length;"));
+    assert!(stdout.contains("overflow        <= (length > 32'd32768);"));
 }
 
 // ============================================================================

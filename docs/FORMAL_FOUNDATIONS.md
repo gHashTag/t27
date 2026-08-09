@@ -1514,6 +1514,93 @@ print('harness extracted to /tmp/h.py -- run it from the repo root')
 
 ---
 
+### Prop. 29 — the other end of every count: two defects the bound could not see — `PROVED` / open
+
+**Gate:** `formal-yosys.yml` → *Oversized requests do not wrap the local address*
+
+Wave 575 swept the zero end of every count and found two real defects. This is
+the maximum end, which had never been examined. The shape looked for: **a count
+wider than the thing it indexes.**
+
+| module | count | address it drives | ratio |
+|---|---|---|---|
+| `weight_prefetch_ctrl` | `num_words` 16 bits | `bram_addr` 12 bits | 16× |
+| `dma_controller` | `length` 32 bits (8 bytes/word) | `local_addr` 12 bits | 128× |
+
+**29a. The first verdict was a bound artifact, and looked like good news.** The
+monotonicity property proved at `-seq 24` on both modules. It is a true
+statement and a worthless one: reaching address 4096 takes 4096 writes, so the
+counterexample is **unreachable by construction** at any tractable bound. The
+proof establishes "no wrap within 24 cycles", which nobody doubted.
+
+> A bounded proof says nothing about a property whose counterexample lies beyond
+> the bound. **Before believing a bounded proof, ask how many cycles a violation
+> would need.** If the answer exceeds the bound, the verdict is structural, not
+> empirical.
+
+The fix is the technique this repository already uses for memories
+(`chparam -set DEPTH 4 weight_bram`): scale the model until the counterexample
+fits. Narrowing the address to 3 bits (8 entries) brought the wrap inside the
+bound, and **both modules refuted immediately.**
+
+**29b. Defect one — the address wraps and overwrites.** Past 4096 entries the
+counter wraps to zero and the transfer keeps writing over data it already
+fetched, then reports success. Silent corruption, invisible to every existing
+property. Both modules now **clamp** to the address space and raise a new
+`overflow` output.
+
+**29c. The error IRQ existed and was tied off.** `bitnet_engine_top` instantiated
+the interrupt controller with `.error(1'b0)` — a sticky, maskable,
+read-to-clear status bit that nothing could ever set. An oversized request is
+exactly what it is for, so both `overflow` outputs now drive it. Following
+Prop. 26c: the request completes, nothing is corrupted, **and the host is told.**
+
+**29d. Defect two — every word was written one slot too high.** Found only
+because 29b's fix did not make the property pass. In both engines the data, the
+write-enable and the address increment are non-blocking assignments in the same
+cycle:
+
+```verilog
+bram_data <= axi_rdata[53:0];
+bram_we   <= 1'b1;
+bram_addr <= bram_addr + 12'd1;   // the BRAM sees the POST-increment address
+```
+
+All three reach the memory from the same stage, so the word fetched at index N
+is written at address **N+1**: address 0 is never written, and the final word
+wraps over it. Both now carry a separate `word_index` and write at the word's
+own index.
+
+This defect had nothing to do with sizing. It was found because a property that
+should have passed after a correct fix did not, and the gap was investigated
+rather than papered over.
+
+**29e. `weight_prefetch_ctrl` is proved; `dma_controller` is open.** After both
+fixes the scaled prefetch model **proves**, and removing the clamp makes it
+refute again — discriminating in both directions. The DMA, with the same two
+fixes applied by identical construction, **still refutes** under the same scaled
+model and a single-beat AXI environment, and the cause is not identified. Two
+patches were tried; neither closed it. Per the standing discipline, that is a
+finding rather than a third guess: it is gated as an **expected refutation**, so
+closing it turns the build red and asks for promotion.
+
+**29f. Two environment faults were diagnosed on the way, both mine.** The
+property first refuted because it compared a write address from a *new* transfer
+against the last address of the *previous* one, and again because an
+unconstrained `m_axi_rlast` let the solver play a slave that never ends a burst.
+Neither was a design defect. **An unconstrained input is an adversary**, and a
+refutation is a claim about the environment until the environment is pinned
+down.
+
+Reproduce:
+
+```bash
+./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+python3 /tmp/ms.py 2>/dev/null || echo "extract the harness from formal-yosys.yml: 'Oversized requests do not wrap'"
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

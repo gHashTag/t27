@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## max-size sweep -- two defects the bound could not see
+
+- **WHERE**: `formal/max_size_props.sv` (new), `bootstrap/src/bitnet_buffers.rs`,
+  `bootstrap/src/bitnet_dma.rs`, `bootstrap/src/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 29).
+- **The first verdict was a bound artifact that looked like good news.** The
+  property proved at seq 24 on both modules -- true and worthless, because
+  reaching address 4096 takes 4096 writes, so the counterexample is unreachable
+  by construction. **Before believing a bounded proof, ask how many cycles a
+  violation would need.** Scaling the address to 3 bits (the same trick as
+  `chparam DEPTH 4`) made both refute immediately.
+- **Defect 1 -- the address wraps and overwrites.** `num_words` is 16 bits over a
+  12-bit `bram_addr`; `length` is 32 bits over a 12-bit `local_addr`. Past 4096
+  entries the counter wraps and the transfer overwrites data it already fetched,
+  then reports success. Both now clamp and raise a new `overflow` output.
+- **The error IRQ existed and was tied off** -- `.error(1'b0)`. A sticky,
+  maskable, read-to-clear bit nothing could set. Both `overflow` outputs now
+  drive it: the request completes, nothing is corrupted, and the host is told.
+- **Defect 2 -- every word was written one slot too high.** Data, write-enable
+  and address increment are non-blocking in the same cycle, so the BRAM sees the
+  POST-increment address: word N landed at N+1, address 0 was never written, and
+  the last word wrapped over it. Found only because defect 1's fix did not make
+  the property pass, and the gap was investigated instead of papered over.
+- **Prefetch proved, DMA open.** The scaled prefetch proves and refutes again
+  with the clamp removed -- discriminating both ways. The DMA, with identical
+  fixes, still refutes and the cause is not identified. Two patches tried,
+  neither closed it; gated as an expected refutation rather than guessed at a
+  third time.
+- **Two environment faults were mine**: comparing addresses across two different
+  transfers, and leaving `m_axi_rlast` free so the solver played a slave that
+  never ends a burst. **An unconstrained input is an adversary.**
+- Suite **1211 passed, 0 failed**. Seals 496/496.
+
 ## gate adequacy -- the gates bite, 13 of 13
 
 - **WHERE**: `.github/workflows/formal-mutation.yml` (new),

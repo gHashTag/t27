@@ -100,6 +100,9 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    input  wire        direction,  // 0=read, 1=write\n");
     s.push_str("    output reg         busy,\n");
     s.push_str("    output reg         done,\n");
+    s.push_str("    // Asserted for one transfer when the request exceeded the local\n");
+    s.push_str("    // address space and was clamped. Routed to the error IRQ.\n");
+    s.push_str("    output reg         overflow,\n");
     s.push_str("    // AXI4 Master Read\n");
     s.push_str("    output reg  [63:0] m_axi_araddr,\n");
     s.push_str("    output reg  [7:0]  m_axi_arlen,\n");
@@ -136,6 +139,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    localparam DONE_ST    = 3'd5;\n");
     s.push_str("    reg [2:0]  state;\n");
     s.push_str("    reg [31:0] bytes_remaining;\n");
+    s.push_str("    reg [11:0] word_index;\n");
     s.push_str("    reg [7:0]  burst_count;\n");
     s.push_str("\n");
 
@@ -174,8 +178,10 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            m_axi_wdata    <= 64'd0;\n");
     s.push_str("            local_we       <= 1'b0;\n");
     s.push_str("            local_addr     <= 12'd0;\n");
+    s.push_str("            word_index     <= 12'd0;\n");
     s.push_str("            local_wdata    <= 64'd0;\n");
     s.push_str("            bytes_remaining <= 32'd0;\n");
+    s.push_str("            overflow       <= 1'b0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
     s.push_str("        end else case (state)\n");
     s.push_str("            // A zero-length request moves no data and completes immediately.\n");
@@ -191,8 +197,16 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("                done <= 1'b0;\n");
     s.push_str("                if (length != 32'd0) begin\n");
     s.push_str("                    busy            <= 1'b1;\n");
-    s.push_str("                    bytes_remaining <= length;\n");
+    s.push_str("                    // length is 32 bits; local_addr is 12, one address per 8\n");
+    s.push_str("                    // bytes, so the local side holds 4096*8 = 32768 bytes. A\n");
+    s.push_str("                    // longer request used to wrap the address and overwrite\n");
+    s.push_str("                    // data already transferred, then report done. Clamping also\n");
+    s.push_str("                    // removes the (bytes_remaining + 7) overflow near 2^32.\n");
+    s.push_str("                    // See FORMAL_FOUNDATIONS Prop. 29.\n");
+    s.push_str("                    bytes_remaining <= (length > 32'd32768) ? 32'd32768 : length;\n");
+    s.push_str("                    overflow        <= (length > 32'd32768);\n");
     s.push_str("                    local_addr      <= 12'd0;\n");
+    s.push_str("                    word_index      <= 12'd0;\n");
     s.push_str("                    state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
     s.push_str("                    if (!direction) m_axi_araddr <= src_addr;\n");
     s.push_str("                    else            m_axi_awaddr <= dst_addr;\n");
@@ -217,7 +231,12 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            READ_DATA: if (m_axi_rvalid) begin\n");
     s.push_str("                local_wdata     <= m_axi_rdata;\n");
     s.push_str("                local_we        <= 1'b1;\n");
-    s.push_str("                local_addr      <= local_addr + 12'd1;\n");
+    s.push_str("                // Write at the word's OWN index -- local_wdata, local_we and\n");
+    s.push_str("                // the address register together, so incrementing here made\n");
+    s.push_str("                // word N land at address N+1, never writing slot 0 and\n");
+    s.push_str("                // wrapping the last word over it. Prop. 29.\n");
+    s.push_str("                local_addr      <= word_index;\n");
+    s.push_str("                word_index      <= word_index + 12'd1;\n");
     s.push_str("                bytes_remaining <= bytes_remaining - 32'd8;\n");
     s.push_str("                if (m_axi_rlast) begin\n");
     s.push_str("                    if (bytes_remaining <= 32'd8) state <= DONE_ST;\n");

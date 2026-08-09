@@ -265,3 +265,29 @@ fn help_lists_both_new_subcommands() {
     assert!(stdout.contains("gen-double-buffer-ctrl"));
     assert!(stdout.contains("gen-weight-prefetch-ctrl"));
 }
+
+
+#[test]
+// A 16-bit num_words over a 12-bit bram_addr wrapped and overwrote weights
+// already fetched, then reported success. Reaching 4096 writes is far outside
+// any bounded check, so every existing property missed it; a scaled model made
+// it visible. Clamp, and raise overflow to the error IRQ. Prop. 29.
+fn prefetch_clamps_oversized_count_and_reports_overflow() {
+    let (stdout, _stderr, ok) = run(&["gen-weight-prefetch-ctrl"]);
+    assert!(ok);
+    assert!(stdout.contains("output reg         overflow"));
+    assert!(stdout.contains("words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;"));
+    assert!(stdout.contains("overflow        <= (num_words > 16'd4096);"));
+}
+
+#[test]
+// The write address must be the word's own index: bram_data, bram_we and the
+// address all register together, so incrementing the address at the write made
+// word N land at N+1, never writing slot 0 and wrapping the last word over it.
+fn prefetch_writes_at_the_words_own_index() {
+    let (stdout, _stderr, ok) = run(&["gen-weight-prefetch-ctrl"]);
+    assert!(ok);
+    assert!(stdout.contains("bram_addr <= word_index;"));
+    assert!(stdout.contains("word_index <= word_index + 12'd1;"));
+    assert!(!stdout.contains("bram_addr <= bram_addr + 12'd1;"));
+}

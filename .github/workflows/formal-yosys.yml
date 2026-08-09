@@ -281,6 +281,74 @@ jobs:
           print("ok       every proposition gated, every bash block runnable")
           PY
 
+      # Maximum-sized requests (Prop. 29). Counts are much wider than the
+      # addresses they drive -- num_words is 16 bits over a 12-bit bram_addr,
+      # length is 32 bits over a 12-bit local_addr -- so an oversized request
+      # wrapped the address and overwrote data already transferred, then
+      # reported success. Reaching 4096 writes is far outside any bounded check,
+      # which is why every property missed it; the address is scaled to 3 bits
+      # so the wrap lands inside the bound, exactly as `chparam DEPTH 4` scales
+      # the memory elsewhere in this file.
+      - name: Oversized requests do not wrap the local address
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys, os
+
+          def scale(dut, sig, n, src=None, dest="build/scaled"):
+              s = src if src else open(f"build/rtl/{dut}.sv").read()
+              s = s.replace(f"[11:0] {sig}", f"[{n-1}:0] {sig}")
+              s = s.replace("[11:0] word_index", f"[{n-1}:0] word_index")
+              s = re.sub(r"\b12'd(\d+)", lambda m: f"{n}'d{m.group(1)}", s)
+              s = s.replace("16'd4096", "16'd8").replace("32'd32768", "32'd64")
+              os.makedirs(dest, exist_ok=True)
+              open(f"{dest}/{dut}.sv", "w").write(s)
+
+          def run(dut, wrap, d):
+              return subprocess.run(["yosys", "-q", "-p",
+                  f"read_verilog -sv -formal {d}/{dut}.sv formal/max_size_props.sv; "
+                  f"prep -top {wrap} -flatten; async2sync; chformal -lower; "
+                  "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes"],
+                  capture_output=True, text=True).returncode == 0
+
+          CASES = [
+              ("weight_prefetch_ctrl", "ms_prefetch", "bram_addr", "proves",
+               "words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
+               "words_remaining <= num_words;"),
+              # OPEN: the same two fixes are applied, but this still refutes and
+              # the cause is not identified. Gated as an expected refutation so
+              # closing it turns the build red and asks for promotion, exactly
+              # as Prop. 25 is gated.
+              ("dma_controller", "ms_dma", "local_addr", "refutes",
+               "bytes_remaining <= (length > 32'd32768) ? 32'd32768 : length;",
+               "bytes_remaining <= length;"),
+          ]
+
+          fail = []
+          for dut, wrap, sig, want, clamp, unclamp in CASES:
+              scale(dut, sig, 3)
+              got = "proves" if run(dut, wrap, "build/scaled") else "refutes"
+              if got != want:
+                  fail.append(f"{dut}: expected {want}, got {got}")
+              else:
+                  print(f"ok       {dut} ({got})")
+              # the property must still be able to see the defect
+              raw = open(f"build/rtl/{dut}.sv").read()
+              if raw.count(clamp) != 1:
+                  fail.append(f"{dut}: clamp text not found -- the check below is blind")
+                  continue
+              scale(dut, sig, 3, src=raw.replace(clamp, unclamp, 1), dest="build/noclamp")
+              if run(dut, wrap, "build/noclamp"):
+                  fail.append(f"{dut}: property proves with the clamp REMOVED -- it is not testing the wrap")
+              else:
+                  print(f"ok       {dut} property still detects an unclamped wrap")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          PY
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27
