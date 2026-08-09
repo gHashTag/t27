@@ -3229,10 +3229,136 @@ impl Parser {
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style test: test name given ... when ... then ...
-            // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
-            self.skip_to_next_top_level();
+            self.parse_bdd_clauses(&mut block);
         }
         Ok(block)
+    }
+
+    /// Lower a braceless clause body into ordinary statements so the backends
+    /// emit it like any brace-form test.
+    ///
+    ///   given|when|and  x = expr   ->  StmtLocal x = expr
+    ///   then|assert        expr    ->  StmtExpr( assert(expr) )
+    ///
+    /// Before this, the body was discarded by `skip_to_next_top_level()`: a spec
+    /// asserting `2 == 999` generated `test "..." {}` and passed. That affected
+    /// 7,623 test blocks across 318 specs.
+    ///
+    /// Safety contract: this may only ADD assertions, never break a file. Any
+    /// shape it does not fully understand restores the entry checkpoint and
+    /// falls back to the original skip, so a spec that parsed before still
+    /// parses.
+    fn parse_bdd_clauses(&mut self, block: &mut Node) {
+        let entry = self.save_state();
+        let start_children = block.children.len();
+        let mut lowered = 0usize;
+
+        loop {
+            // A non-identifier here is normally the end of the block, because
+            // the next construct (`test`, `fn`, `invariant`, ...) lexes as a
+            // keyword. But it can also mean we stopped mid-clause -- e.g. on the
+            // comma of `given clk = true, rst_n = false`. Only a real boundary
+            // ends the block; anything else falls back.
+            if self.current.kind != TokenKind::Ident {
+                if Self::is_block_boundary(self.current.kind) {
+                    break;
+                }
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+            let clause = self.current.lexeme.clone();
+            let is_binding = clause == "given" || clause == "when" || clause == "and";
+            let is_assertion = clause == "then" || clause == "assert";
+
+            if !is_binding && !is_assertion {
+                // An identifier that is not a clause means this body has a shape
+                // we do not model. Falling through with the parser positioned
+                // mid-block is what broke 19 specs on the first attempt.
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+
+            let ok = if is_assertion {
+                self.advance();
+                match self.parse_expr() {
+                    Ok(expr) => {
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.children.push(expr);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.children.push(call);
+                        block.children.push(stmt);
+                        true
+                    }
+                    Err(_) => false,
+                }
+            } else {
+                self.advance();
+                if self.current.kind != TokenKind::Ident {
+                    false
+                } else {
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    if self.current.kind != TokenKind::Equals {
+                        false
+                    } else {
+                        self.advance();
+                        match self.parse_expr() {
+                            Ok(expr) => {
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.name = name;
+                                decl.children.push(expr);
+                                block.children.push(decl);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    }
+                }
+            };
+
+            // `parse_expr` is greedy across newlines, so a binding value can
+            // swallow the next clause's name (`FPGA_PART_35T and p100`) and
+            // leave us on its `=`. That is over-consumption, not a body.
+            if !ok || self.current.kind == TokenKind::Equals {
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+            lowered += 1;
+        }
+
+        if lowered == 0 {
+            self.restore_bdd_fallback(block, start_children, entry);
+        }
+    }
+
+    /// Tokens that can legitimately follow a braceless clause body. Anything
+    /// else means the loop stopped mid-clause, not at the end of the block.
+    fn is_block_boundary(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Eof
+                | TokenKind::RBrace
+                | TokenKind::KwTest
+                | TokenKind::KwFn
+                | TokenKind::KwInvariant
+                | TokenKind::KwBench
+                | TokenKind::KwPub
+                | TokenKind::KwConst
+                | TokenKind::KwUse
+                | TokenKind::KwModule
+        )
+    }
+
+    fn restore_bdd_fallback(
+        &mut self,
+        block: &mut Node,
+        start_children: usize,
+        entry: ParserCheckpoint,
+    ) {
+        block.children.truncate(start_children);
+        self.restore_state(entry);
+        self.skip_to_next_top_level();
     }
 
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
