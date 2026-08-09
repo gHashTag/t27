@@ -288,7 +288,9 @@ jobs:
 
           # 2. Strict fence pairing, then: no bash block may cite a bare `t27c`
           #    (not on PATH), and a block with no command belongs in ```text.
-          CMD = re.compile(r"^\s*(yosys|t27c|\./target|cargo|for |python3|sed|grep|find|n=\$)")
+          # `git` was missing and flagged a runnable `git status` block as empty --
+          # a gate's own pattern list is a place false positives hide (Wave 600).
+          CMD = re.compile(r"^\s*(yosys|t27c|\./target|cargo|for |python3|sed|grep|find|git|n=\$)")
           inb = False
           for n, l in enumerate(lines):
               if not l.startswith("```"):

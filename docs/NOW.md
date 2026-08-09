@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## the census, and an assumption that silently disabled two gates
+
+- **WHERE**: `formal/weight_prefetch_props.sv`, `formal/witnesses.sv`,
+  `formal/layer_sequencer_props.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 50), `README.md`.
+- Prop 48c said independent state drifts and derived state cannot. **The census
+  turns that into a target list**: three pairs of independent counters
+  (`weight_prefetch_ctrl`, `dma_controller`, `bitnet_engine_top`); everything
+  else is a derived copy that cannot drift.
+- **One new property, proved**: `a_addr_ahead_of_data` -- the prefetch's address
+  channel never trails its data channel, constraining exactly the flagged pair.
+- **One conservation property attempted twice and withdrawn**: refuted against
+  the live input, refuted again against a latched copy on a timing mismatch not
+  established. Recorded in the props file rather than patched a third time.
+- **The near-miss is the real result.** The obvious fix was to strengthen the
+  environment -- drop the `$past(rst_n)` guard so the input is stable from cycle
+  zero. It made the property **prove**, and it made **two vacuity witnesses stop
+  refuting**: without an `rst_n` guard, `$past` at cycle 0 pins the input to zero
+  forever. The suite still proved and every property still passed while two of
+  the checks that exist to catch exactly this had gone quiet.
+- **Strengthening an assumption to fix a property can silently disable the
+  checks that would have caught the over-constraint.** An assumption is not a
+  local edit -- it removes behaviours from every property in the file, including
+  the ones asserting that behaviours are reachable. Caught only because the
+  vacuity gate runs witnesses that must **refute**; a suite of properties that
+  must pass would have reported success.
+- Also fixed a false positive in the documentation gate's own pattern list --
+  `git` was missing, so a runnable `git status` block was flagged as empty.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the datapath refactor is not worth doing, measured
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 49, Prop 38a corrected),

@@ -2927,6 +2927,68 @@ git status --porcelain formal/ bootstrap/ && echo "clean tree = local runs match
 
 ---
 
+### Prop. 50 — the census, and an assumption that silently disabled two gates — `PROVED` / recorded
+
+**Gate:** `formal-yosys.yml` → *Prove weight_prefetch_ctrl properties*, *Properties are non-vacuous (witnesses must refute)*
+
+Prop. 48c explained this campaign's defect distribution: **independent state
+drifts, derived state cannot**, and every defect found was two registers tracking
+one quantity and disagreeing. This turns that observation into a target list.
+
+**50a. The census.** Every counter and every derived copy in the emitted bundle,
+by module. Three pairs of *independent* counters tracking one quantity fell out:
+
+| module | counters | tracked by different routes |
+|---|---|---|
+| `weight_prefetch_ctrl` | `axi_araddr`, `word_index`, `words_remaining` | address channel, data channel, countdown |
+| `dma_controller` | `word_index`, `burst_count`, `bytes_remaining` | data beats, burst position, countdown |
+| `bitnet_engine_top` | `chunk_addr`, `act_wr_word` | weight read index, activation write index |
+
+Everything else is a **derived copy** — `bram_addr <= word_index`,
+`mac_valid_q <= layer_valid`, `local_addr <= word_index` — and cannot drift.
+
+**50b. One new property, proved.** `a_addr_ahead_of_data`: the prefetch's address
+channel never trails its data channel. **PROVED**, and it constrains exactly the
+pair the census flagged.
+
+**50c. A conservation property, attempted twice and withdrawn.**
+`word_index + words_remaining == the clamped request` refuted against the live
+input (the file's stability assumption is guarded by `$past(rst_n)` and does not
+cover the cycle the DUT loads it) and refuted again against a latched copy, on a
+timing mismatch between the capture point and the DUT's own load that is **not
+established**. Recorded in the props file rather than patched a third time.
+
+**50d. The near-miss, which is the real result.** The obvious fix for the first
+refutation was to strengthen the environment: drop the `$past(rst_n)` guard so
+the input is stable from cycle zero. It made the property **prove**.
+
+It also made two vacuity witnesses stop refuting. Without an `rst_n` guard,
+`$past` at cycle 0 pins the input to its initial value — zero — **forever**. The
+suite still proved, every property still passed, and two of the checks that
+exist to detect exactly this had gone quiet.
+
+> **Strengthening an assumption to fix a property can silently disable the
+> checks that would have caught the over-constraint.** An assumption is not a
+> local edit: it removes behaviours from every property in the file, including
+> the ones asserting that behaviours are reachable.
+
+Caught only because the vacuity gate (Prop. 12a, gated since Wave 577) runs
+witnesses that must **refute**. A suite of properties that must pass would have
+reported success.
+
+**50e. What the census is worth.** It produced one proved property and one honest
+non-result, which is a modest yield — but it converts "where might defects be"
+into a list of three pairs, and it shows the rest of the design is derived state
+that *cannot* hold the defect class this campaign kept finding.
+
+Reproduce:
+
+```bash
+grep -c "always @(posedge clk) if (rst_n && \$past(rst_n)) assume" formal/*.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

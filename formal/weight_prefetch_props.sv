@@ -81,6 +81,30 @@ module wp_props (
     always @(posedge clk) if (rst_n)
         a_rready_implies_active: assert (!rready || prefetch_active);
 
+
+    // A CONSERVATION property was attempted here and did not land (Wave 600):
+    //   word_index + words_remaining == the clamped request
+    // Two counters tracking one quantity by different routes -- the shape behind
+    // every defect in this campaign (Prop. 48c), so worth asserting.
+    //
+    // It refuted in two formulations. Against the live `num_words` it refuted
+    // because this file's stability assumption is guarded by `$past(rst_n)` and
+    // does not cover the cycle where the DUT loads it. Against a latched copy it
+    // still refuted, on a timing mismatch between the capture point
+    // (`start_prefetch && !prefetch_active`) and the DUT's own load (which also
+    // requires `state == IDLE`) that is NOT established.
+    //
+    // Strengthening the environment was tried and reverted: without an `rst_n`
+    // guard, `$past` at cycle 0 pins the input to zero forever and two vacuity
+    // witnesses stopped refuting -- an over-constraint that would have silently
+    // weakened the vacuity gate. Recorded rather than patched a third time.
+    // See Prop. 50.
+
+    // The address channel runs ahead of the data channel, never behind it:
+    // an address is issued before its beat returns.
+    always @(posedge clk)
+        if (rst_n && prefetch_active)
+            a_addr_ahead_of_data: assert (dut.word_index <= {4'd0, bram_addr} + 12'd1);
 endmodule
 
 `default_nettype wire
