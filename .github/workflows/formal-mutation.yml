@@ -1,0 +1,203 @@
+# Gate adequacy by mutation (Wave 577, docs/FORMAL_FOUNDATIONS.md Prop. 28).
+#
+# formal-yosys.yml proves that the properties hold. This workflow proves the
+# GATES BITE: for each proposition, a mutation that should violate its claim is
+# applied to the generated RTL, and the gate guarding that proposition must go
+# red. A gate that stays green for a mutation it exists to catch is not a gate.
+#
+# Prop. 27 established that every claim HAS a check. It deliberately did not
+# claim any check was SUFFICIENT. This is that missing half.
+#
+# Three phases, and the first two matter as much as the third:
+#   BASELINE  -- unmutated build, every gate must pass. Without it, "the gate
+#                went red" is not evidence the mutation caused it. This is the
+#                lesson of Prop. 25d, applied to the harness itself.
+#   CONTROL   -- a semantically neutral edit (a dead wire), every gate must
+#                still pass. Catches a gate that fires on any change at all.
+#   MUTATION  -- each gate must go red for its own mutation.
+#
+# Expensive (~30 yosys invocations), so weekly rather than per-push.
+
+name: formal-mutation
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate-adequacy:
+    name: gates bite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      - name: Emit the BitNet RTL bundle
+        run: |
+          mkdir -p build/rtl
+          ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+          ./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
+
+      - name: Baseline, control, and mutation
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, shutil, subprocess, sys
+
+          REST = ["multilayer_sequencer", "layer_sequencer", "double_buffer_ctrl",
+                  "weight_bram", "pipeline_stage2_compute", "activation_requant",
+                  "weight_prefetch_ctrl", "interrupt_controller", "axi_lite_slave",
+                  "dma_controller", "trit_stdlib"]
+
+          def fresh():
+              shutil.rmtree("build/mut", ignore_errors=True)
+              shutil.copytree("build/rtl", "build/mut")
+
+          def yos(script):
+              return subprocess.run(["yosys", "-q", "-p", script],
+                                    capture_output=True, text=True).returncode == 0
+
+          def gm(dut, props, top, seq):
+              return yos(f"read_verilog -sv -formal build/mut/{dut}.sv {props}; "
+                         f"prep -top {top} -flatten; async2sync; chformal -lower; "
+                         f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")
+
+          def gi():
+              rest = " ".join(f"build/mut/{m}.sv" for m in REST)
+              return yos(f"read_verilog -sv -formal -DFORMAL build/mut/bitnet_engine_top.sv {rest}; "
+                         "chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; "
+                         "memory_map; async2sync; chformal -lower; "
+                         "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes")
+
+          def gl():
+              rest = " ".join(f"build/mut/{m}.sv" for m in REST)
+              src = open("build/mut/bitnet_engine_top.sv").read()
+              i = src.rindex("endmodule")
+              for expr, want in [("!mac_valid_q", "refutes"), ("!dma_busy", "refutes"),
+                                 ("!(dma_busy && mac_valid_q)", "proves")]:
+                  open("build/mprobe.sv", "w").write(
+                      src[:i] + f"    always @(posedge clk) if (rst_n) w: assert ({expr});\n" + src[i:])
+                  got = "proves" if yos(
+                      f"read_verilog -sv -formal build/mprobe.sv {rest}; "
+                      "chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; "
+                      "memory_map; async2sync; chformal -lower; "
+                      "sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes") else "refutes"
+                  if got != want:
+                      return False
+              return True
+
+          def gz(dut, wrap, keep, want):
+              src = open("formal/zero_size_props.sv").read()
+              for lab in re.findall(r"(a_zero_\w+): assert", src):
+                  if lab != keep:
+                      src = re.sub(re.escape(lab) + r": assert \([^;]*\);",
+                                   lab + ": assert (1'b1);", src)
+              open("build/mzs.sv", "w").write(src)
+              got = "proves" if yos(
+                  f"read_verilog -sv -formal build/mut/{dut}.sv build/mzs.sv; "
+                  f"prep -top {wrap} -flatten; async2sync; chformal -lower; "
+                  "sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes") else "refutes"
+              return got == want
+
+          GATES = [
+              ("Prop 7  interrupt_controller",
+               lambda: gm("interrupt_controller", "formal/interrupt_controller_props.sv", "irq_props", 12)),
+              ("Prop 8  axi_lite_slave",
+               lambda: gm("axi_lite_slave", "formal/axi_lite_slave_props.sv", "axi_props", 20)),
+              ("Prop 9  dma_controller",
+               lambda: gm("dma_controller", "formal/dma_controller_props.sv", "dma_props", 20)),
+              ("Prop 13 layer_sequencer",
+               lambda: gm("layer_sequencer", "formal/layer_sequencer_props.sv", "ls_props", 12)),
+              ("Prop 25 integration", gi),
+              ("Prop 24 liveness", gl),
+              ("Prop 26 dma zero-size",
+               lambda: gz("dma_controller", "zs_dma", "a_zero_length_never_completes", "refutes")),
+              ("Prop 26 multilayer zero",
+               lambda: gz("multilayer_sequencer", "zs_multilayer", "a_zero_layers_never_completes", "refutes")),
+          ]
+
+          # module, (old, new), index into GATES
+          MUTATIONS = [
+              ("irq: revert to set-then-clear", "interrupt_controller",
+               ("irq_status <= (status_read ? 3'b000 : irq_status)\n"
+                "                        | {error, dma_done, inference_done};",
+                "irq_status <= status_read ? 3'b000 : (irq_status | {error, dma_done, inference_done});"), 0),
+              ("ready stays high while response pending", "axi_lite_slave",
+               ("s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;",
+                "s_axi_awready <= 1'b1; s_axi_wready <= 1'b1;"), 1),
+              ("advance burst without handshake", "dma_controller",
+               ("if (m_axi_arvalid && m_axi_arready)", "if (m_axi_arvalid)"), 2),
+              ("drop the zero-neuron guard", "layer_sequencer",
+               ("if(num_chunks==0 || num_neurons==0)", "if(num_chunks==0)"), 3),
+              ("double buffer stops alternating", "double_buffer_ctrl",
+               ("else if (layer_done) use_buffer_a <= ~use_buffer_a;",
+                "else if (layer_done) use_buffer_a <= use_buffer_a;"), 4),
+              ("tie inference start off (engine stalls)", "bitnet_engine_top",
+               ("wire        start             = reg_ctrl[0] && !dma_busy;",
+                "wire        start             = 1'b0;"), 5),
+              ("zero-length request dropped again", "dma_controller",
+               ("end else begin\n                    state           <= DONE_ST;\n                end",
+                "end else begin\n                    state           <= IDLE;\n                end"), 6),
+              ("zero-layer inference dropped again", "multilayer_sequencer",
+               ("if (start && num_layers == 6'd0) state <= DONE_ST;",
+                "if (start && num_layers == 6'd0) state <= IDLE;"), 7),
+          ]
+
+          bad = []
+
+          print("== BASELINE: unmutated, every gate must pass ==")
+          fresh()
+          for name, gate in GATES:
+              ok = gate()
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}")
+              if not ok:
+                  bad.append(f"BASELINE {name} does not pass -- every verdict below is noise")
+
+          print("== CONTROL: neutral edit, every gate must still pass ==")
+          fresh()
+          for m in {mod for _, mod, _, _ in MUTATIONS}:
+              f = f"build/mut/{m}.sv"
+              s = open(f).read().replace("endmodule", "    wire fv_neutral_unused = 1'b0;\nendmodule", 1)
+              open(f, "w").write(s)
+          for name, gate in GATES:
+              ok = gate()
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}")
+              if not ok:
+                  bad.append(f"CONTROL {name} fires on a no-op edit -- gate is noisy")
+
+          print("== MUTATION: each gate must go red for its own mutation ==")
+          for desc, mod, (old, new), gi_ in MUTATIONS:
+              fresh()
+              f = f"build/mut/{mod}.sv"
+              s = open(f).read()
+              if s.count(old) != 1:
+                  bad.append(f"MUTATION '{desc}': target appears {s.count(old)} times, expected 1")
+                  print(f"   FAIL {desc} -- target not unique")
+                  continue
+              open(f, "w").write(s.replace(old, new, 1))
+              name, gate = GATES[gi_]
+              still_green = gate()
+              print(f"   {'FAIL' if still_green else 'ok  '} {name:28s} {desc}")
+              if still_green:
+                  bad.append(f"{name} stayed green for: {desc}")
+
+          if bad:
+              for b in bad:
+                  print(f"::error::{b}")
+              sys.exit(1)
+          print(f"\nall {len(MUTATIONS)} gates bite; baseline and control clean")
+          PY

@@ -1435,6 +1435,85 @@ print(len(props), 'propositions,', len(gates), 'gate lines')
 
 ---
 
+### Prop. 28 — the gates bite: 13 of 13 detected a mutation aimed at the claim they guard — `PROVED`
+
+**Gate:** `formal-mutation.yml` → *Baseline, control, and mutation* (weekly)
+
+Prop. 27 established that every claim **has** a check, and said explicitly that it
+did not establish any check was **sufficient**. This is the missing half. It is
+the vacuity oracle of Prop. 12a redirected at the gate map: a gate that cannot
+fail is not a gate, exactly as a property whose guard is unreachable is not a
+property.
+
+**28a. Method.** For each gate, apply one mutation that should violate the claim
+it guards, then run that gate alone. The gate must go **red**. Mutations are
+applied to the *generated* RTL rather than to the emitters, so a run costs one
+`yosys` invocation instead of a rebuild, and each mutation string is asserted to
+occur exactly once before use.
+
+**28b. The two phases that make the third mean anything.**
+
+| phase | requirement | why |
+|---|---|---|
+| **baseline** | unmutated build, every gate passes | without it, "the gate went red" is not evidence the *mutation* did it — Prop. 25d, applied to this harness |
+| **control** | a dead wire added to every module, every gate still passes | catches a gate that fires on any edit at all, which would score 8/8 while detecting nothing |
+| **mutation** | each gate goes red for its own mutation | the actual claim |
+
+Both control phases came back clean, which is what licenses reading the third.
+
+**28c. Result — 13 of 13.**
+
+| gate | mutation | verdict |
+|---|---|---|
+| Prop. 7 `interrupt_controller` | revert clear-then-set → set-then-clear | red |
+| Prop. 8 `axi_lite_slave` | ready stays high while a response is pending | red |
+| Prop. 9 `dma_controller` | advance the burst without a handshake | red |
+| Prop. 13 `layer_sequencer` | drop the zero-neuron guard | red |
+| Prop. 25 integration | double buffer stops alternating | red |
+| Prop. 24 liveness | tie inference `start` off, stalling the engine | red |
+| Prop. 26 DMA | zero-length request dropped again | red |
+| Prop. 26 multilayer | zero-layer inference dropped again | red |
+| Prop. 11 assumptions | drop `-set-assumes` from the flow | red |
+| Prop. 27 doc gate | remove one `**Gate:**` line | red |
+| Prop. 27 doc gate | make a block cite bare `t27c` | red |
+| Prop. 27 doc gate | leave a ```` ```bash ```` block with no command | red |
+| Prop. 1 seals | edit a spec, leave its seal stale | red |
+
+The Prop. 24 mutation is worth separating out. Stalling the engine leaves every
+*safety* property true — an engine that does nothing violates nothing — and the
+liveness witnesses are the only reason it goes red. That gate exists precisely
+for a mutation no safety property can see, and it caught it.
+
+**28d. A clean sweep is a reason to check the harness, not to celebrate.** 8/8
+on the first RTL batch was the point at which the previous three waves would
+have found a harness defect. So the baseline and control phases were added
+before the result was written down, not after — and the workflow runs all three
+phases in that order every time, so the result cannot silently degrade into
+"everything passes because nothing runs".
+
+**28e. What this still does not establish.** Each gate detects *the* mutation
+chosen for it. That is one point per claim, not a proof of adequacy over all
+possible violations — mutation testing bounds from below and never from above.
+Prop. 4's gate remains a counted-files check with no vector-sufficiency
+measurement, and no mutation here changes that.
+
+Reproduce:
+
+```bash
+python3 -c "
+import yaml
+w = yaml.safe_load(open('.github/workflows/formal-mutation.yml'))
+s = [x for x in w['jobs']['gate-adequacy']['steps'] if 'Baseline' in x.get('name','')][0]
+b = s['run'].split(chr(10))
+i = [n for n,l in enumerate(b) if chr(60)*2+chr(39)+'PY'+chr(39) in l][0]
+j = [n for n,l in enumerate(b) if l.strip()=='PY' and n>i][0]
+open('/tmp/h.py','w').write(chr(10).join(b[i+1:j]))
+print('harness extracted to /tmp/h.py -- run it from the repo root')
+"
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

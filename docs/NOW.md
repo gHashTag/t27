@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## gate adequacy -- the gates bite, 13 of 13
+
+- **WHERE**: `.github/workflows/formal-mutation.yml` (new),
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 28), `README.md`.
+- Prop 27 proved every claim **has** a check and said plainly it did not prove
+  any check was **sufficient**. This is that missing half -- the vacuity oracle
+  of Prop 12a redirected at the gate map. **A gate that cannot fail is not a
+  gate.**
+- **13 of 13 gates went red** for a mutation aimed at the claim they guard:
+  revert the interrupt race, un-gate AXI ready, advance a burst without a
+  handshake, drop the zero-neuron guard, stop the buffer alternating, stall the
+  engine, re-drop both zero-sized requests, remove `-set-assumes`, break the doc
+  gate three ways, and leave a seal stale.
+- **The liveness mutation is the one to note.** Stalling the engine leaves every
+  *safety* property true -- an engine that does nothing violates nothing -- so
+  the liveness witnesses are the only reason it goes red. That gate exists for a
+  mutation no safety property can see, and it caught it.
+- **A clean sweep is a reason to check the harness, not to celebrate.** 8/8 on
+  the first batch is exactly where the last three waves found harness defects.
+  So baseline (unmutated: all green) and control (dead wire: still all green)
+  were added *before* the result was written down. Both clean; that is what
+  licenses reading the third phase.
+- **Still not established**: each gate detects *the* mutation chosen for it --
+  one point per claim, not adequacy over all violations. Mutation testing bounds
+  from below, never from above.
+- Ran the harness by extracting it from the workflow YAML and executing it, so
+  what was verified is what CI will run.
+- Suite **1208 passed, 0 failed**. Seals 496/496.
+
 ## doc audit -- the file recording the proofs was itself unchecked
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md`, `.github/workflows/formal-yosys.yml`
