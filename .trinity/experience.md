@@ -20524,3 +20524,35 @@ Two reverts in this chain (W558, W566) both produced a cheaper next attempt
 because the failing evidence AND the prerequisite were written down. A revert
 that records "what must be true first" is worth more than a merge that breaks
 one file.
+
+## Wave Loop 567 — the last inert population, landed (2026-08-09)
+
+    harness : ALL_PASS 16, COMPILE_FAIL 183, tests 209   -- 0 regressions
+    census  : PARSE OK=746 FAIL=317 (baseline 317)       -- 0 regressions
+    65 invariants now emit a real compile-time check (16 specs)
+
+### The pattern that made this cheap
+
+W566 implemented the lowering, hit ONE regression, reverted, and WROTE DOWN THE
+PREREQUISITE (a guarded builtin mapping). W567 did the prerequisite first and
+re-applied the diff unchanged. Both gates green on the first attempt.
+
+That is the second time in this chain (W558->W559, W566->W567) that a
+disciplined revert produced a one-wave landing next time. The rule is not
+"revert when it breaks" -- it is "revert, keep the evidence, and name what must
+be true first".
+
+### The prerequisite itself
+
+839 bare calls to abs/sqrt/floor/round/min/max. Codegen now collects the spec's
+OWN fn names into declared_fns at the top of gen_zig and maps to @abs/@sqrt/...
+only when absent from that set. Verified both directions -- a spec's own
+`fn max` still wins. Mapping unconditionally would have silently shadowed user
+functions, which is the defect class this whole chain has been removing.
+
+### Invariant semantics worth remembering
+
+Invariants lower into `comptime` blocks, so a FALSE invariant is a COMPILE
+ERROR, not a test failure. That is the correct semantics for an invariant, and
+it means the lowering is self-policing: if any of the 65 were false, the spec
+would not build. None was.
