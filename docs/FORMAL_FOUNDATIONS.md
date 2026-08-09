@@ -2294,10 +2294,8 @@ a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_
                                             : ($past(buf_read_addr) <= fv_maxwr_b));
 ```
 
-Whether the fault is the engine or the tracking registers is **not established**
-— the counterexample has not been read, and two earlier attempts at
-counter/address relations in this campaign were wrong in the property rather
-than the design. Gated as an expected refutation so closing it turns the build
+~~Whether the fault is the engine or the tracking registers is not established.~~
+**Attributed in Prop. 43: the fault is the engine.** Gated as an expected refutation so closing it turns the build
 red, the mechanism that closed Prop. 25 after eight waves.
 
 Reproduce:
@@ -2492,6 +2490,73 @@ Reproduce:
 
 ```bash
 python3 formal/identity_scan.py
+```
+
+---
+
+### Prop. 43 — attributed: the engine reads a slot it never wrote — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+
+Prop. 39e refutes, and two waves failed to say why. Wave 589's trace read was
+inconclusive; Wave 590's discriminator was a self-comparison, which cannot fail
+(Prop. 40a). This attributes it.
+
+**43a. Two independent formulations, same verdict.** The original property bounds
+the read address by the **highest address ever written** — an approximation that
+permits reading a hole below the maximum. The discriminator tracks **each slot
+individually**, as a 4-bit bitmap over the proof-sized memory (`chparam DEPTH 4`):
+
+```verilog
+reg [3:0] fv_bm_a, fv_bm_b;
+always @(posedge clk)
+    if (wr_en_a) fv_bm_a[act_wr_addr[1:0]] <= 1'b1;
+...
+a_read_slot_written: assert (use_buffer_a ? fv_bm_a[fv_prev_rd[1:0]]
+                                          : fv_bm_b[fv_prev_rd[1:0]]);
+```
+
+| formulation | verdict |
+|---|---|
+| `a_read_within_written` — bound, approximate | REFUTED |
+| `a_read_slot_written` — exact, per slot | REFUTED |
+
+**They agree.** The bound was not the fault, so the approximation is exonerated
+and the engine is not.
+
+**43b. The instrument was validated before it was believed.** Two waves were lost
+to discriminators that could not fail, so this one was checked first:
+
+| check | required | got |
+|---|---|---|
+| the bitmap is ever non-zero | must REFUTE | refutes |
+| the bitmap can reach all-ones | must REFUTE | refutes |
+
+The tracker is live and settable — not stuck at zero, which would have made the
+property refute for a reason that has nothing to do with the design.
+
+**43c. What the defect is.** Prop. 25 closed *the buffer was never written at
+all*, with per-buffer `wrote_a`/`wrote_b` flags gating the layer start.
+**Buffer-written is not slot-written.** Nothing relates the number of slots a
+layer will *read* to the number the previous stage *wrote*, so a layer whose
+chunk count exceeds the words loaded consumes slots that were never filled — the
+same shape as Prop. 25, one level finer.
+
+**43d. Why `$past(x)[1:0]` cost a round.** Part-selecting a system function call
+is not legal Verilog, and yosys reports it as a generic error. Under a harness
+that reads any nonzero exit as a verdict this would have surfaced as *REFUTED* —
+it surfaced as `TOOL ERROR` only because Prop. 39d's separation was already in
+place. The fix is a registered copy of the previous address.
+
+**43e. Not fixed here.** The interlock is a real design change — relating a
+layer's read extent to the writes that preceded it — and belongs in a wave that
+starts with it rather than one that ends by discovering it. The property stays
+gated as an expected refutation, now with its cause recorded.
+
+Reproduce:
+
+```bash
+grep -n "a_read_slot_written" build/rtl/bitnet_engine_top.sv
 ```
 
 ---

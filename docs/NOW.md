@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## attributed: the engine reads a slot it never wrote
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 43), `README.md`.
+- Prop 39e refutes and two waves failed to say why -- an inconclusive trace read,
+  then a self-comparison that cannot fail. **This attributes it.**
+- **Two independent formulations, same verdict.** The original bounds the read
+  address by the highest address ever written, which permits reading a hole
+  below the maximum. The discriminator tracks **each slot individually** as a
+  4-bit bitmap over the proof-sized memory. Both REFUTE. **They agree**, so the
+  approximation is exonerated and the engine is not.
+- **The instrument was validated before it was believed** -- two waves were lost
+  to discriminators that could not fail. The bitmap is ever non-zero: refutes.
+  It can reach all-ones: refutes. Live and settable, not stuck at zero.
+- **The defect**: Prop 25 closed "the buffer was never written at all".
+  **Buffer-written is not slot-written.** Nothing relates the number of slots a
+  layer will *read* to the number the previous stage *wrote*, so a layer whose
+  chunk count exceeds the words loaded consumes slots never filled -- the same
+  shape as Prop 25, one level finer.
+- **`$past(x)[1:0]` cost a round**: part-selecting a system function call is not
+  legal Verilog and yosys reports it generically. Under a harness that reads any
+  nonzero exit as a verdict this would have surfaced as REFUTED; it surfaced as
+  TOOL ERROR only because Prop 39d's separation was already in place.
+- **Not fixed here.** The interlock relates a layer's read extent to the writes
+  that preceded it -- a design change that belongs in a wave that starts with
+  it, not one that ends by discovering it.
+- Suite **1213 passed, 0 failed**. Seals 496/496.
+
 ## the free-property gate, and a semantic layer that did not land
 
 - **WHERE**: `formal/identity_scan.py` (new),
