@@ -17,6 +17,7 @@ mod check_calls;
 mod cc_gate;
 mod impl_status;
 mod test_report;
+mod catalog_gate;
 mod lex_conform;
 mod parse_conform;
 mod enrichment;
@@ -89,6 +90,19 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Verify specs/numeric/formats_catalog.t27, whose 83 records live in
+    /// structured comments the compiler cannot see
+    CatalogGate {
+        /// Path to the catalog spec
+        #[arg(long, default_value = "specs/numeric/formats_catalog.t27")]
+        catalog: String,
+        /// Root of the spec tree, for resolving `source=`
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every record with its shape classification
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
@@ -3159,6 +3173,39 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_catalog_gate(catalog: &str, specs_dir: &str, verbose: bool) -> anyhow::Result<()> {
+    let r = catalog_gate::run(Path::new(catalog), Path::new(specs_dir))?;
+    println!("--- catalog gate: {} ---", catalog);
+    if verbose {
+        for (k, v) in &r.by_cluster {
+            println!("  {:<20} {}", k, v);
+        }
+        println!();
+    }
+    println!("  records            {}", r.records);
+    println!("  fn getters         {}", r.getters);
+    println!();
+    println!("  shape classification (the exceptions ARE the work):");
+    for (k, v) in &r.by_shape {
+        println!("    {:<14} {}", k, v);
+    }
+    println!();
+    println!("  checks run:");
+    for (k, v) in &r.checked {
+        println!("    {:<20} {}", k, v);
+    }
+    println!();
+    if r.findings.is_empty() {
+        println!("  FINDINGS  none");
+    } else {
+        println!("  FINDINGS  {}", r.findings.len());
+        for f in &r.findings {
+            println!("    [{}] {}: {}", f.check, f.id, f.detail);
+        }
+    }
+    Ok(())
+}
+
 fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
     let root = Path::new(specs_dir);
     if !root.is_dir() {
@@ -3177,7 +3224,11 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
             ),
             None if r.total == 0 => {
                 if verbose {
-                    println!("  NO TESTS  {}", r.spec)
+                    println!(
+                        "  {}  {}",
+                        if r.stub { "STUB     " } else { "NO TESTS " },
+                        r.spec
+                    )
                 }
             }
             None => println!(
@@ -3195,6 +3246,7 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     println!("    of those, 100%          {}", t.perfect);
     println!("  specs INVARIANTS ONLY    {}   (comptime -- compiling IS the check)", t.invariants_only);
     println!("  specs with NO TESTS      {}   <- L4 TESTABILITY", t.no_tests);
+    println!("  specs that are STUBS     {}   (declare nothing -- UNWRITTEN, not untested)", t.stubs);
     println!("  specs BLOCKED            {}", t.blocked);
     println!();
     println!("  tests run                {}", t.tests);
@@ -3208,11 +3260,13 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
         );
     }
     println!();
-    println!("  Four populations, deliberately not merged. A BLOCKED spec never");
-    println!("  produced a binary. An INVARIANTS ONLY spec has no test functions");
-    println!("  but its invariants are comptime -- it COMPILED, so they held. A");
-    println!("  spec with NO TESTS asserts nothing at all: an L4 violation, not a");
-    println!("  0% pass rate. Only MEASURED specs have a rate.");
+    println!("  Five populations, deliberately not merged. BLOCKED never produced");
+    println!("  a binary. INVARIANTS ONLY has no test functions but its invariants");
+    println!("  are comptime -- it COMPILED, so they held. A STUB declares nothing");
+    println!("  at all: it is UNWRITTEN (W586's category), and calling it an L4");
+    println!("  violation overstates the debt. NO TESTS has declarations and");
+    println!("  checks none of them -- that is the L4 violation. Only MEASURED");
+    println!("  specs have a rate.");
     Ok(())
 }
 
@@ -9875,6 +9929,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::CatalogGate { catalog, specs_dir, verbose } => {
+            run_catalog_gate(&catalog, &specs_dir, verbose)?
+        }
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -10202,6 +10259,9 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::CatalogGate { catalog, specs_dir, verbose } => {
+            run_catalog_gate(&catalog, &specs_dir, verbose)?
+        }
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?

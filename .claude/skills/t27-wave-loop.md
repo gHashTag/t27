@@ -4581,6 +4581,33 @@ These cost a wave each. Follow them before step 1.
      confirm the spec stops compiling AT THE INVARIANT'S OWN LINE, restore it.
      Six lines of work; without it you have decoration you believe is a check.
 
+104. **A gate's exceptions ARE the gate.** `s+e+m == bits` over the format
+     catalog reports 13 violations and twelve are not violations -- 8 tapered
+     formats (posit/takum have no fixed mantissa width) and 4 parametric
+     families (bits=0). A gate that emits thirteen false alarms is switched off
+     within a wave. Classifying the shapes was the whole deliverable; the check
+     itself was four lines.
+
+105. **Skipping a case is worse than a false alarm, because the bad data stays.**
+     The first catalog-gate simply exempted the non-fixed shapes and reported
+     zero findings. Turning "exempt" into "must not CLAIM a layout it does not
+     have" found five records asserting field widths that sum wrong -- including
+     one marked status=Verified. **State what the exempt case must satisfy
+     instead; never just `continue`.**
+
+106. **Check the property, not the procedure that usually produces it.** The GF
+     ladder's rule `e = round((N-1)/phi^2)` solves `e/m = 1/phi` exactly and then
+     rounds -- but the ratio is nonlinear, so rounding is not minimising. It
+     fails on 3 of 3997 widths (N = 5, 73, 1293). No published rung is one of
+     them, so the ladder is clean; but the gate now searches for the minimiser
+     rather than re-running the formula, and would catch a future rung the
+     formula gets wrong.
+
+107. **Bound the novelty claim in both directions.** GF puts phi in the FIELD
+     SPLIT; Bergman's base-phi and Zeckendorf put phi in the RADIX. Saying so
+     makes GF less novel (every GF value is an ordinary binary float) and more
+     usable (any binary FPU datapath applies). Both halves belong in the write-up.
+
 ### How to update this tracker
 
 After closing a wave:

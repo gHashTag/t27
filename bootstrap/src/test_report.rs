@@ -29,7 +29,7 @@
 //! `parse-conform`, `cc-gate`, `check-calls`, `impl-status`, `parse-complete`.
 //! This was the last one still done by hand.
 
-use crate::compiler::{Compiler, NodeKind};
+use crate::compiler::{Compiler, Node, NodeKind};
 use std::path::Path;
 use std::process::Command;
 
@@ -50,6 +50,12 @@ pub struct Report {
     /// compiles, every one of its invariants held.** Counting them separately
     /// is what keeps the corpus table honest.
     pub invariants: usize,
+    /// W602: the spec declares NOTHING -- no fn, no const, no struct. It is a
+    /// module header and a comment banner, typically ~327 bytes. Calling these
+    /// L4 TESTABILITY violations overstates the debt by nearly double: they are
+    /// **unwritten**, which is W586's category, and the remedy is to write the
+    /// spec, not to add a test to a file with nothing in it.
+    pub stub: bool,
     /// Set when the spec never got as far as a runnable binary.
     pub blocked: Option<String>,
 }
@@ -63,6 +69,7 @@ impl Report {
             failed: 0,
             outcomes: Vec::new(),
             invariants: 0,
+            stub: false,
             blocked: Some(why.into()),
         }
     }
@@ -125,8 +132,9 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
     };
     let _ = specs_root;
     // Counted from the AST, because they never reach `builtin.test_functions`.
-    let invariants = Compiler::parse_ast(&resolved)
-        .or_else(|_| Compiler::parse_ast(&raw))
+    let ast = Compiler::parse_ast(&resolved).or_else(|_| Compiler::parse_ast(&raw));
+    let invariants = ast
+        .as_ref()
         .map(|a| {
             a.children
                 .iter()
@@ -134,6 +142,15 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
                 .count()
         })
         .unwrap_or(0);
+    let declares = |a: &Node| {
+        a.children.iter().any(|c| {
+            matches!(
+                c.kind,
+                NodeKind::FnDecl | NodeKind::ConstDecl | NodeKind::StructDecl
+            )
+        })
+    };
+    let stub = ast.as_ref().map(|a| !declares(a)).unwrap_or(false);
 
     let dir = std::env::temp_dir().join(format!(
         "t27c-test-report-{}",
@@ -221,6 +238,7 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         failed: total - passed,
         outcomes,
         invariants,
+        stub,
         blocked: None,
     }
 }
@@ -235,7 +253,10 @@ pub struct TreeReport {
     pub reports: Vec<Report>,
     /// Compiled AND declares at least one test. Only these have a rate.
     pub measured: usize,
-    /// Compiled, but declares nothing to check AT ALL -- no tests and no
+    /// Compiled but declares NOTHING AT ALL -- no fn, no const, no struct.
+    /// Unwritten, not untested (W602).
+    pub stubs: usize,
+    /// Compiled, has declarations, but nothing to check AT ALL -- no tests and no
     /// invariants. **This is an L4 TESTABILITY violation**, not a spec with a
     /// 0% pass rate; the first run of this command reported 68 "measured" of
     /// which 38 were this, and averaging them in as zeroes is the same collapse
@@ -283,6 +304,7 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
     let mut t = TreeReport {
         reports: Vec::new(),
         measured: 0,
+        stubs: 0,
         no_tests: 0,
         invariants_only: 0,
         invariants: 0,
@@ -300,6 +322,8 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
             t.invariants += r.invariants;
             if r.invariants > 0 {
                 t.invariants_only += 1;
+            } else if r.stub {
+                t.stubs += 1;
             } else {
                 t.no_tests += 1;
             }
@@ -329,6 +353,7 @@ mod tests {
         let t = TreeReport {
             reports: vec![Report::blocked("x.t27", "no binary")],
             measured: 0,
+            stubs: 0,
             no_tests: 0,
             invariants_only: 0,
             invariants: 0,

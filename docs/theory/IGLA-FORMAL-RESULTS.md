@@ -221,6 +221,108 @@ unreduced rotation returns a correct sine.
 
 ---
 
+### T7 (W602) — The GoldenFloat rule is exact before rounding, and optimal on every published rung, but is *not* a minimiser in general
+
+**Setup.** The GF family fixes a word width *N*, one sign bit, and splits the
+remaining *N−1* bits into an exponent field *e* and a mantissa field *m* so that
+the ratio `e/m` approximates **1/φ**. The catalog derives *e* by
+
+```
+e = round((N-1) / phi^2),      m = N - 1 - e
+```
+
+**Part 1 — the rule is the exact solution before rounding.** Setting the target
+exactly and solving:
+
+```
+e/m = 1/phi   with   m = N-1-e
+  =>  phi*e = N-1-e
+  =>  e*(phi + 1) = N-1
+  =>  e = (N-1)/(phi+1) = (N-1)/phi^2        [since phi^2 = phi + 1, L5]
+```
+
+So `(N−1)/φ²` is not an approximation of the design goal — **it is the goal**,
+and the only approximation is rounding to an integer. ∎
+
+**Part 2 — rounding the root is not the same as minimising the error.** The
+quantity actually being minimised is `|e/m − 1/φ| = |e/(N−1−e) − 1/φ|`, which is
+**nonlinear in e**. The nearest integer to the root of a nonlinear function need
+not minimise that function's error. Exhaustive search over every integer *e* for
+every `N ∈ [4, 4000]`:
+
+| | |
+|---|---:|
+| widths tested | 3 997 |
+| widths where the rule is **not** the minimiser | **3** |
+| the exceptions | **N = 5, 73, 1293** |
+
+```
+N=5     rule e=2  |e/m - 1/phi| = 0.38196601    best e=1  -> 0.28470066
+N=73    rule e=28                 0.01832965    best e=27 -> 0.01803399
+N=1293  rule e=494                0.00101363    best e=493-> 0.00101271
+```
+
+**Part 3 — the published ladder is clean.** The catalog's rungs are
+`N ∈ {4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 48, 64, 96, 128, 256, 512, 1024}`.
+**None is in the exceptional set**, so all 21 fixed-layout GoldenFloat records
+are ratio-optimal, not merely rule-conformant. ∎
+
+**Part 4 — what the exceptions are, and are not.** All three have `(N−1)/φ²`
+close to a half-integer, with fractional part **above** ½ — the rule rounds up
+and the convexity of `e ↦ e/(N−1−e)` makes the upward step cost more than the
+downward one. But that condition is **necessary, not sufficient**: `N = 3877`
+has fractional part 0.500260 — nearer to ½ than `N = 73`'s 0.501553 — and is
+*not* an exception. **There is no simple predicate here; the ratio decides.**
+
+**Consequence, and it is actionable.** `e = round((N−1)/φ²)` is a **heuristic**.
+The property the ladder actually wants is *ratio-optimality*, and the two differ
+on 3 of 3 997 widths. `t27c catalog-gate` therefore checks **the property, not
+the procedure** — it searches every integer *e* and reports if the recorded one
+is beaten. A rung added at N = 73 or N = 1293 by applying the published formula
+would be suboptimal by the ladder's own criterion, and nothing before this wave
+would have noticed.
+
+*Falsification condition:* a width in [4, 4000] outside {5, 73, 1293} where the
+rule is beaten, or a published rung that the gate flags.
+
+---
+
+### T8 (W602) — Why 1/φ, and what φ² + φ⁻² = 3 has to do with the field split
+
+The project anchor is `φ² + φ⁻² = 3`. Its role in the format family is
+structural, not decorative.
+
+**Claim.** For the split `e + m = N−1` with `e/m = 1/φ`, the two fields stand in
+the unique ratio for which *the whole is to the larger part as the larger part
+is to the smaller* — and the same φ that makes `φ² = φ + 1` (L5) is what makes
+`(N−1)/φ²` the exponent width.
+
+**Proof.** `e/m = 1/φ` means `m = φe`, so `e + m = e(1 + φ) = eφ²`, giving
+`e = (N−1)/φ²` and `m = (N−1)/φ`. Then
+
+```
+(e + m)/m = eφ²/(eφ) = φ  =  m/e
+```
+
+which is the defining proportion of the golden section. ∎
+
+**And the anchor.** `φ² + φ⁻² = 3` is the same identity in additive form: with
+`e + m = N−1` normalised to 1, the two field fractions are `φ⁻²` and `φ⁻¹`, and
+
+```
+phi^-2 + phi^-1 = phi^-2 + phi^-2 * phi = phi^-2 (1 + phi) = phi^-2 * phi^2 = 1
+```
+
+so the split is exact by construction, while `φ² + φ⁻² = 3` records that the
+*reciprocal* pair sums to an integer — the property that makes the ladder's
+arithmetic representable without a transcendental constant. ∎
+
+*Falsification condition:* any GF record whose `phi_distance` is not
+`|e/m − 1/φ|` to the recorded precision. **Checked: 21 of 21 agree** within
+0.0015 (`gf-phi-distance`).
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
@@ -703,6 +805,59 @@ or an invariant-only spec that compiles while an invariant is false.
 
 ---
 
+### P17 (W602) — The catalog's payload is invisible to the compiler, and five records assert a layout they do not have
+
+`specs/numeric/formats_catalog.t27` declares itself *"Single source of truth for
+every numeric format"* and feeds six codegen targets. **All 83 of its functions
+are `fn binary16() -> str { return "binary16"; }`** — the payload is entirely in
+structured `// CATALOG:` comments. The file's own header says why: struct
+literals were not parseable when it was written, so records live as getters "that
+the codegen reads from the AST".
+
+**Consequence: nothing the compiler does can check any of it.** 83 records, 0
+checks, until this wave. `t27c catalog-gate`:
+
+| Check | Population | Findings |
+|---|---:|---:|
+| `mandatory-field` | 83 | 0 |
+| `widths-partition` (`s+e+m == bits`) | 65 | 0 |
+| `gf-closed-form` | 21 | 0 |
+| `gf-ratio-optimal` (**T7**) | 21 | 0 |
+| `gf-phi-distance` | 21 | 0 |
+| `source-agrees` (catalog vs spec constants) | 10 | 0 |
+| `no-spurious-layout` | 10 | **5** |
+
+**The exceptions are the work.** A naive `s+e+m == bits` reports **13**
+violations, of which twelve are not violations: 8 tapered formats
+(`posit*`/`takum*`, variable-length regime — there is no fixed *m*), 4 parametric
+families (`bits=0`). A gate emitting thirteen false alarms is a gate switched off
+within a wave, so the classification — FixedLayout / Tapered / Parametric /
+Alphabet — **is** the deliverable.
+
+**The five real findings.** The first version of the gate *skipped* the
+non-fixed shapes, which turned a false alarm into a silent exemption — strictly
+worse, since the data is still there and still wrong. A shape without an s/e/m
+layout must not *claim* one:
+
+```
+gfternary   Alphabet    bits=2  but s=1 e=0 m=2  (sum 3)
+q_format    Parametric  bits=0  but s=1          (sum 1)
+minifloat   Parametric  bits=0  but s=1          (sum 1)
+unum_i      Parametric  bits=0  but s=1          (sum 1)
+tapered_fp  Parametric  bits=0  but s=1          (sum 1)
+```
+
+`gfternary` is `status=Verified` and describes the 3-value set {−φ, 0, +φ}; a
+3-value alphabet has no exponent/mantissa decomposition, so `s=1 m=2` is data no
+reader can act on. **What these records *should* say is a specification
+decision** — they are reported, not silently changed.
+
+*Falsification condition:* a record the gate passes whose fields contradict its
+`source=` spec, or a shape classification that exempts a format the rule does
+apply to.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
@@ -747,6 +902,69 @@ structure modern accelerators use. W571 refused to write `systolic_ternary_array
 because the spec's own tests contradict each other on whether the output length
 follows the input size — a question the literature does not settle, because it is
 about *this* spec's intent.
+
+### Numeric format design, and where GoldenFloat actually sits (W602)
+
+The catalog enumerates 83 formats across 13 clusters, so it is worth being
+precise about which established line each belongs to and — more importantly —
+what the GF family is **not**.
+
+**Fixed-layout floating point.** IEEE 754 fixes `s + e + m = N` with *e* chosen
+by committee per width (5/10 for binary16, 8/23 for binary32, 11/52 for
+binary64). The ML low-precision formats — **bfloat16** (Google Brain; binary32's
+exponent range with a truncated mantissa) and the **FP8 E4M3 / E5M2 pair**
+standardised in the 2022 industry FP8 proposal (NVIDIA / Arm / Intel) — are the
+same structure with the split re-chosen for gradient dynamic range. **The GF
+family is this class**: fixed layout, one sign bit, and the split chosen by a
+*rule* rather than by committee.
+
+**Tapered precision.** Posits (**Gustafson & Yonemoto, 2017**, developing the
+unum line of *The End of Error*, 2015) replace the fixed exponent field with a
+variable-length **regime**, so precision peaks near 1.0 and tapers at the
+extremes. **takum** (2024) is a more recent tapered format in the same family.
+This is why `catalog-gate` classifies `posit*` and `takum*` as `Tapered` and
+exempts them from `s+e+m == bits`: for these formats **there is no fixed *m***,
+and a gate that did not know this would emit eight false alarms.
+
+**Block and logarithmic.** The **OCP Microscaling (MX)** formats (2023) attach a
+shared exponent to a block of low-precision elements — a different axis
+entirely, trading per-element exponent bits for a block scale. **Logarithmic
+Number Systems** (Swartzlander & Alexopoulos, 1975 and after) replace the
+mantissa with a log-domain value, making multiplication an addition; the
+catalog's `Lns` cluster and `gf_lns_hybrid` sit here.
+
+**Golden-ratio number systems — the near-miss that matters.** There is a real
+and old literature on φ as a *radix*: **Bergman's base-φ system** (1957)
+represents numbers as sums of powers of φ, and **Zeckendorf's theorem**
+(Lekkerkerker 1952; Zeckendorf 1972) gives every positive integer a unique
+representation as a sum of non-consecutive Fibonacci numbers — the same golden
+structure, in the digit positions.
+
+**The GF family is not that, and the distinction is the whole point.** Bergman
+and Zeckendorf put φ in the **radix**; GF keeps radix 2 and puts φ in the
+**ratio of field widths**, `e/m → 1/φ`. Concretely:
+
+| | φ appears in | digits | consequence |
+|---|---|---|---|
+| Bergman base-φ / Zeckendorf | the **radix** | non-integer / Fibonacci-indexed | non-standard arithmetic, no direct hardware analogue |
+| **GoldenFloat (this work)** | the **field split** | ordinary binary | **drop-in binary hardware**; only the exponent/mantissa boundary moves |
+
+**This is worth stating plainly because it bounds the novelty claim in both
+directions.** GF is *not* a new number system — every GF value is an ordinary
+binary float and any existing FPU datapath shape applies. What is specific is
+the *selection rule* for the split, and T7 shows even that is a heuristic: it
+solves `e/m = 1/φ` exactly and then rounds, and rounding is not minimising on 3
+of 3 997 widths.
+
+**What the ladder demonstrably has.** Not a performance result — the catalog
+marks 9 of the 22 GF entries `status=Open` and `gf_relation=experimental`, and
+`PHI_BIAS` is explicitly **retracted** as a general law in every rung's own
+comment (*"the published formula PHI_BIAS = EXP_MAX − BIAS reproduces GF64 only
+and is RETRACTED"*). What it has is **internal consistency, now machine-checked
+end to end**: 21 rungs, four independent properties each (partition, closed
+form, ratio-optimality, φ-distance), agreeing across two files that state the
+constants separately (P16, P17). **That is a much weaker claim than "a better
+format", and it is the one the evidence supports.**
 
 ### What is genuinely novel here
 

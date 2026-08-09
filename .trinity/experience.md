@@ -21784,3 +21784,40 @@ e+1/2` -- because comptime has no `round`.
 Also fixed: a W599 regression. The `__t27_assert_fail` helper was gated on
 TestBlock alone, so a spec with invariants and no tests referenced a helper
 never emitted. The gate must match "will this file contain an assertion".
+
+## Wave 602 — all three variants; the catalog's payload was invisible to the compiler
+
+**A — `t27c catalog-gate`.** `formats_catalog.t27` calls itself "Single source of
+truth for every numeric format" and feeds six codegen targets, and **all 83 of
+its functions are `fn binary16() -> str { return "binary16"; }`** -- the payload
+is entirely in `// CATALOG:` comments. Nothing the compiler does could check any
+of it. 83 records, 0 checks, until this wave.
+
+**The exceptions were the deliverable.** A naive `s+e+m == bits` reports 13
+violations and twelve are not: 8 tapered formats (posit/takum have a
+variable-length regime, so there is no fixed m) and 4 parametric families
+(bits=0). A gate that emits thirteen false alarms is switched off within a wave.
+
+**And skipping them was worse than the false alarms.** The first version just
+exempted the non-fixed shapes -> zero findings. Turning "exempt" into "must not
+CLAIM a layout it does not have" found **5 real defects**, including `gfternary`
+(status=Verified, bits=2, but s=1 e=0 m=2 summing to 3).
+
+**T7 -- check the property, not the procedure.** `e = round((N-1)/phi^2)` solves
+`e/m = 1/phi` exactly and then rounds; the ratio is nonlinear, so rounding is not
+minimising. Exhaustive over N in [4,4000]: it fails at **N = 5, 73, 1293**. No
+published rung is one of them. But the gate now searches for the minimiser
+instead of re-running the formula.
+
+**B -- the stub population.** `specs/tri/` reports 17 STUBS, 2 NO TESTS. Calling
+a 327-byte file with no declarations an L4 violation overstates the debt; it is
+UNWRITTEN, W586's category.
+
+**C -- the board.** `dlc10 idcode` -> `DLC10 cable not found (VID=0x03FD)`.
+Verified with the real tool, not assumed. Wrote
+`docs/fpga/IGLA-FPGA-LAUNCH-PLAN.md`: Phase 0 is complete, and the ordered
+Phase 1 exists so the first hardware session is not improvised.
+
+**Literature.** GF puts phi in the FIELD SPLIT; Bergman's base-phi (1957) and
+Zeckendorf put it in the RADIX. Stating that makes GF less novel and more usable
+-- every GF value is an ordinary binary float. Both halves belong in the claim.
