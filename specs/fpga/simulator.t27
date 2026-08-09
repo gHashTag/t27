@@ -137,7 +137,10 @@ module Simulator {
         if (cfg.clock_freq_hz == 0) {
             return 0;
         }
-        return cycles * 1000000000 / cfg.clock_freq_hz;
+        // `cycles * 1000000000` overflows u32 for cycles >= 5: at cycles=100
+        // the product is 100_000_000_000 against a u32 max of 4_294_967_295.
+        // Widen the intermediate to u64 and narrow the (small) result back.
+        return ((cycles as u64) * 1000000000 / (cfg.clock_freq_hz as u64)) as u32;
     }
 
     fn sim_time_us(cfg: SimConfig, cycles: u32) -> u32 {
@@ -152,7 +155,9 @@ module Simulator {
         if (cfg.clock_freq_hz == 0) {
             return 0;
         }
-        return ns * cfg.clock_freq_hz / 1000000000;
+        // Same overflow as sim_time_ns, inverted: at ns=1000 and a 100 MHz
+        // clock the product is 100_000_000_000, far past the u32 max.
+        return ((ns as u64) * (cfg.clock_freq_hz as u64) / 1000000000) as u32;
     }
 
     fn has_errors(r: SimResult) -> bool {
