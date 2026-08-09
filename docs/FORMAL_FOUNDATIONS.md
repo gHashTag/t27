@@ -4045,6 +4045,79 @@ grep -c "SUBSUMED\|DEAD over" formal/max_size_props.sv formal/zero_size_props.sv
 
 ---
 
+### Prop. 66 — the engine's 26, sampled, and a limit that does not lift — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+Props. 64 and 65 gave verdicts to 36 module properties. The engine's 26 were the
+stated gap: one integration proof costs ~125 s, and `bitnet_engine_top` has 212
+mechanical mutants. So this samples — seven, one per subsystem named by the
+defects this campaign actually found — and reports the sample size everywhere.
+
+**66a. The generator was mutating the properties.** The engine carries its 26
+integration properties **inline**, behind `T27_FORMAL` guards, and **68 % of that
+file is comment or formal-only text**. Two of the first eight sampled mutants
+changed `a_mem_port_is_prefetch` and `a_status_reflects_engine` — assertion text,
+not logic. *A property suite that "detects" a mutation of itself measures
+nothing.* This is Wave 610's comment bug in a second costume: the operator has to
+know what it is allowed to touch.
+
+`code_mask` now masks comments, `` `ifdef T27_FORMAL* `` regions (nesting-aware),
+and any labelled `assert`/`assume` line. Across the 13 emitted modules the mutant
+count drops **627 → 481**; the self-test gained a case for it, and the eight
+hand-written mutations in the harness were checked by hand against the same mask
+— all eight land in design code.
+
+**66b. One of seven.** Baseline control first: the unmutated engine PROVES in
+125 s, so the verdicts below are not noise.
+
+| subsystem | mutation | verdict |
+|---|---|---|
+| input readiness | `&& (filled >= neurons_per_layer)` → `\|\|` | **REFUTED** (12 s) |
+| double-buffer ping-pong | `layer_done_pulse && !use_buffer_a` → `\|\|` | proved |
+| config latch | `neurons_q <= 16'd0` → `16'd1` | proved |
+| dma / overflow | `input_loaded <= 1'b1` → `1'b0` | proved |
+| activation / requant | `act_wr_word + 12'd1` → `- 12'd1` | proved |
+| layer sequencing | `chunk_addr + 12'd1` → `- 12'd1` | proved |
+| interrupt / status | `{30'd0, done, busy}` → `{30'd1, …}` | proved |
+
+**66c. And the limit that does not lift: this cannot be turned into "six gaps".**
+Prop. 61c's rule is that *undetected* is not *missed* until equivalent mutants
+are ruled out. At module scale a bounded miter did that. At engine scale it does
+not, and the validation step is what proved it rather than a hunch:
+
+| miter depth | on a mutant the properties **do** detect | cost |
+|---|---|---|
+| `seq 6` | **EQUIVALENT** | 6 s |
+| `seq 12` | **UNDECIDED** | 420 s (cap) |
+
+A miter that calls a known-different mutant equivalent is too shallow to mean
+anything, and one step deeper does not finish. The properties see this mutant at
+`seq 40`; the miter cannot reach `seq 12`. **So the six undetected mutants are
+recorded as undetected, not as gaps** — the equivalence question is open for the
+engine and this method will not close it.
+
+**66d. What the number is worth.** "1 of 7" is a measurement of *these seven
+mutations* against the 26 properties, with the equivalent-mutant fraction
+unknown. It is not a coverage percentage and must not be quoted as one. What it
+does establish is a floor: at least one subsystem mutation is caught, the
+baseline control passes, and six mutations of subsystems this campaign has
+previously found defects in produce no reaction from the integration suite.
+
+**66e. Scope.** Seven of 212 mutants, one per subsystem, chosen by defect
+history rather than at random — so the sample is *representative of where
+defects came from*, not of the mutant population. Single-token mutations only.
+No equivalence classification, per 66c.
+
+Reproduce:
+
+```bash
+python3 formal/mutate.py --self-test
+grep -c "T27_FORMAL" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

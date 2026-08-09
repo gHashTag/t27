@@ -44,11 +44,47 @@ TERNARY = re.compile(r"\?([^?:;]{1,40}):([^?:;]{1,40});")
 
 
 def code_mask(src):
-    """True where the character is code, False inside a comment."""
+    """True where the character is DESIGN code.
+
+    False inside comments, and false inside formal-only regions. Wave 615: the
+    engine carries its 26 integration properties inline behind `T27_FORMAL*`
+    guards, so mutating that file mutated the PROPERTIES -- two of eight sampled
+    mutants changed `a_mem_port_is_prefetch` and `a_status_reflects_engine`
+    rather than any logic. A property suite that "detects" a mutation of itself
+    measures nothing. Same family as the comment bug: the operator has to know
+    what it is allowed to touch.
+    """
     mask = bytearray(b"\x01" * len(src))
-    for m in re.finditer(r"//[^\n]*|/\*.*?\*/", src, re.S):
-        for i in range(m.start(), m.end()):
+
+    def blank(a, b):
+        for i in range(a, min(b, len(src))):
             mask[i] = 0
+
+    for m in re.finditer(r"//[^\n]*|/\*.*?\*/", src, re.S):
+        blank(m.start(), m.end())
+
+    # `ifdef/`ifndef T27_FORMAL... through its matching `endif, nesting-aware.
+    depth, start = 0, None
+    for m in re.finditer(r"`(ifdef|ifndef|elsif|else|endif)(?:\s+(\w+))?", src):
+        kind, name = m.group(1), m.group(2)
+        if kind in ("ifdef", "ifndef"):
+            if start is None and name and name.startswith("T27_FORMAL"):
+                start, depth = m.start(), 1
+            elif start is not None:
+                depth += 1
+        elif kind == "endif" and start is not None:
+            depth -= 1
+            if depth == 0:
+                blank(start, m.end())
+                start = None
+    if start is not None:
+        blank(start, len(src))
+
+    # Belt and braces: a labelled assertion or assumption anywhere is property
+    # text, guarded or not.
+    for m in re.finditer(r"^[^\n]*\b[a-z_][\w]*\s*:\s*(assert|assume)\b[^\n]*$",
+                         src, re.M):
+        blank(m.start(), m.end())
     return mask
 
 
@@ -115,6 +151,9 @@ def self_test():
             line = changed_line(src, text).strip()
             if line.startswith("//") or line.startswith("*"):
                 bad.append(f"{f.name}: {name} changed a comment: {line[:60]}")
+            if re.search(r"\b[a-z_][\w]*\s*:\s*(assert|assume)\b", line):
+                bad.append(f"{f.name}: {name} changed a PROPERTY, not the "
+                           f"design: {line[:60]}")
         # A file of only comments must yield nothing, not a pile of no-ops.
         prose = "\n".join("// " + l for l in src.split("\n"))
         if mutants(prose):

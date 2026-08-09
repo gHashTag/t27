@@ -2,6 +2,37 @@
 
 Last updated: 2026-08-10
 
+## Wave 615 — the engine's 26, sampled, and a limit that does not lift
+
+- **THE GENERATOR WAS MUTATING THE PROPERTIES**: `bitnet_engine_top` carries its
+  26 integration properties **inline** behind `T27_FORMAL` guards, and **68% of
+  that file is comment or formal-only text**. Two of the first eight sampled
+  mutants changed `a_mem_port_is_prefetch` and `a_status_reflects_engine` --
+  assertion text, not logic. *A property suite that "detects" a mutation of
+  itself measures nothing.* Wave 610's comment bug in a second costume.
+- **THE FIX**: `code_mask` now masks comments, `` `ifdef T27_FORMAL* `` regions
+  (nesting-aware) and any labelled assert/assume line. Mutant count across the
+  13 emitted modules: **627 -> 481**. Self-test gained a case; the eight
+  hand-written mutations were checked against the same mask -- all in design code.
+- **ONE OF SEVEN**: baseline control first (unmutated engine PROVES, 125s), then
+  one mutation per subsystem this campaign has found defects in. Only *input
+  readiness* (`&& (filled >= neurons_per_layer)` -> `||`) is caught. Six are not:
+  double-buffer ping-pong, config latch, dma/overflow, activation/requant, layer
+  sequencing, interrupt/status.
+- **AND THE LIMIT THAT DOES NOT LIFT**: Prop. 61c says undetected is not missed
+  until equivalent mutants are ruled out. At module scale a bounded miter did
+  that. At engine scale it cannot, and the **validation step proved it** rather
+  than a hunch -- on a mutant the properties DO detect, the miter says
+  `EQUIVALENT` at seq 6 (6s) and `UNDECIDED` at seq 12 (420s cap). A miter that
+  calls a known-different mutant equivalent is too shallow to mean anything, and
+  one step deeper does not finish.
+- **SO THE SIX ARE RECORDED AS UNDETECTED, NOT AS GAPS.** "1 of 7" is a floor,
+  not a coverage percentage, and the docs say so in those words.
+- **WHERE**: `formal/mutate.py`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 66), README.
+- **STATE**: 66 propositions · 66 gates · 14 witnesses · 42 module properties
+  (36 with a measured verdict) + 26 integration properties sampled · 1213 tests ·
+  496/496 seals · no known defect.
+
 ## Wave 614 — the last twelve properties, an inverted sweep, and one dead
 
 - **THE DISK FREED ITSELF**: last wave ended blocked at 100% full. Space came
