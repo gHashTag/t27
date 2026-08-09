@@ -4352,6 +4352,21 @@ These cost a wave each. Follow them before step 1.
     made both call `impl_status::spec_is_unwritten`. Whenever a second consumer
     of a concept appears, give it the same predicate rather than its own.
 
+71. **Build the machinery, then measure whether the corpus needs it -- and
+    report the answer even when it is "mostly no".** W588 taught the resolver to
+    follow qualified cross-module references, then measured: 59 references name
+    a module the spec imports, **809 name one it does not**. The machinery is
+    right and helps 59 sites; the 809 are a different defect entirely. Without
+    the measurement the wave would have read as a fix for a problem that is 7%
+    of what it looks like.
+
+72. **A resolution rule that would "just work" by ignoring declarations is a
+    rule that deletes the declaration's meaning.** Treating an unimported
+    qualifier as a repository-wide lookup would resolve all 809 -- and would
+    mean `use` declares nothing, every spec seeing every other. W568 measured
+    the cost in one 15-spec closure: 38 colliding top-level names, `PHI` in
+    four. Prefer the error that keeps the declaration meaningful.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -21313,3 +21313,32 @@ The C gate counted 296 failing headers without knowing which were unwritten. Bot
 and the harness now share `impl_status::spec_is_unwritten`. Before this they would
 have reported different totals for the same population -- which is how a project ends
 up with two numbers for one fact.
+
+## Wave Loop 588 -- three classes closed, and 809 references to modules nobody imported (2026-08-10)
+
+All three variants.
+
+    A  `const PHI: gf16::GF16` -- a SCOPED type in a type position. zig_ident has
+       mapped `::` to `.` since W580; the TYPE path never went through it. 6 specs.
+       Duplicate bench blocks -- same defect and same remedy as W568's duplicate
+       test names (__dupN suffix). 2 specs -> 1.
+    B  use_resolve now follows QUALIFIED references (splice the trailing name,
+       rewrite the reference to the bare name, longest-match first).
+    C  the board: BLOCKED -- no programmer on USB.
+
+### The measurement that made Variant B a finding rather than a fix
+
+    qualified `m::name` where m IS imported     :  59
+    qualified `m::name` where m is NOT imported : 809
+
+93% of qualified references name a module the spec never declared a dependency on.
+yosys.t27 calls eval::has_substring while importing only base::types, igla::race::rtl
+and igla::race::formal.
+
+The tempting rule -- treat an unimported qualifier as a repository-wide lookup -- would
+work, and would also mean `use` declares NOTHING. W568 measured what that costs in one
+15-spec closure: 38 colliding top-level names, PHI declared in four of them.
+
+Build the machinery, measure whether the corpus needs it, and report the answer even
+when it is "mostly no". The machinery still helps 59 sites and the 809 are now a named
+defect (P9) instead of an undifferentiated part of the largest class.

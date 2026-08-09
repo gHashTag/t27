@@ -203,6 +203,33 @@ is a spec-authoring decision.
 **Falsified by.** A `.tri` source found outside this repository containing the
 bodies — which would make this one regeneration rather than 571 decisions.
 
+### P9 — 93% of module-qualified references name a module the spec never imports (W588)
+
+**Method.** For every spec, the set of modules it declares with `use`, against
+every `m::name` reference in its text.
+
+| | |
+|---|---:|
+| Qualified references where the module **is** imported | **59** |
+| Qualified references where it is **not** | **809** |
+
+**Interpretation.** W588 taught `use_resolve` to follow qualified references —
+mark the trailing name as needed, splice it, and rewrite the reference to the
+bare name the flat output declares. That machinery is correct and it helps 59
+sites. The other 809 are a different defect: the spec names a module it never
+declared a dependency on. `specs/igla/race/yosys.t27` calls
+`eval::has_substring` while importing only `base::types`, `igla::race::rtl` and
+`igla::race::formal`.
+
+**Consequence.** Cross-module resolution cannot fix a missing import. These 809
+are spec defects — either the `use` line is absent, or the qualifier is
+decorative and the author meant a local name.
+
+**Falsified by.** A resolution rule that treats an unimported qualifier as a
+repository-wide lookup. That would work, and it would also mean `use` declares
+nothing — every spec would see every other spec, and the collision analysis of
+W568 (38 colliding names in a 15-spec closure) says what that costs.
+
 ---
 
 ## 3. Where this sits in the literature
@@ -277,6 +304,7 @@ Eighteen waves of findings share one shape:
 | W585 | — | the `default_input` mask over 571 empty functions |
 | W586 | **every count** | 118 unwritten specs reported as compile failures |
 | W587 | `use_resolve` | an import silently resolving to nothing, because of a trailing comment |
+| W588 | the corpus | 809 qualified references to modules never imported |
 
 **Every one is a component that accepted input, produced a smaller or different
 program, and reported success.** Not one was found by a test failing. Each was

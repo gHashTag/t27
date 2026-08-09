@@ -187,6 +187,43 @@ fn split_decls(source: &str, origin: &str) -> Vec<Decl> {
     out
 }
 
+/// Qualified references to an imported module: `eval::has_substring`,
+/// `constants.PHI`. The generated file is FLAT -- every spliced declaration
+/// lands in one scope -- so such a reference must both (a) mark the trailing
+/// name as needed and (b) be rewritten to that bare name.
+///
+/// W588: the resolver collected only BARE identifiers, so a spec that referred
+/// to an imported function by module name pulled nothing and then failed on the
+/// qualified spelling.
+fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for m in modules {
+        for sep in ["::", "."] {
+            let needle = format!("{}{}", m, sep);
+            let mut from = 0usize;
+            while let Some(i) = text[from..].find(&needle) {
+                let start = from + i;
+                // The module name must stand alone, not end another identifier.
+                let ok_before = start == 0
+                    || !text.as_bytes()[start - 1].is_ascii_alphanumeric()
+                        && text.as_bytes()[start - 1] != b'_';
+                let after = start + needle.len();
+                let name: String = text[after..]
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if ok_before && !name.is_empty() {
+                    out.push((format!("{}{}", needle, name), name));
+                }
+                from = after.max(start + 1);
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// Every identifier-shaped token in the text, with `//` comments removed so a
 /// doc line cannot invent a dependency.
 fn identifiers(text: &str) -> HashSet<String> {
@@ -267,11 +304,21 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
         .map(|d| d.name)
         .collect();
 
+    // Module basenames this spec imports, for the qualified-reference rewrite.
+    let modules: Vec<String> = use_targets(source, &specs_root)
+        .iter()
+        .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+        .collect();
+    let qualified = qualified_refs(source, &modules);
+
     // Fixpoint: pull a needed declaration, then look at what IT references.
     let mut pulled: Vec<Decl> = Vec::new();
     let mut pulled_names: HashSet<String> = HashSet::new();
     let mut ambiguous: Vec<(String, Vec<String>)> = Vec::new();
     let mut frontier = identifiers(source);
+    for (_, name) in &qualified {
+        frontier.insert(name.clone());
+    }
     while !frontier.is_empty() {
         let mut next: HashSet<String> = HashSet::new();
         for name in frontier {
@@ -313,7 +360,17 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     pulled.sort_by(|a, b| (&a.origin, &a.name).cmp(&(&b.origin, &b.name)));
     ambiguous.sort();
 
+    // Rewrite `module::name` / `module.name` to the bare name the splice
+    // declares. Longest first, so `a::bc` is not damaged by rewriting `a::b`.
     let mut out = String::from(source);
+    let mut rewrites: Vec<&(String, String)> = qualified
+        .iter()
+        .filter(|(_, name)| pulled_names.contains(name))
+        .collect();
+    rewrites.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+    for (qual, name) in rewrites {
+        out = out.replace(qual.as_str(), name.as_str());
+    }
     if !out.ends_with('\n') {
         out.push('\n');
     }

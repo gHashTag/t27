@@ -4976,6 +4976,13 @@ impl Codegen {
             "str" | "string" => "[]const u8",
             other => other,
         };
+        // W588: a SCOPED type name in a type position -- `const PHI: gf16::GF16`.
+        // `zig_ident` has mapped `::` to `.` for identifiers since W580, but the
+        // type path never went through it, so Zig received `gf16::GF16` and
+        // reported "expected ';' after declaration" pointing at the second colon.
+        if mapped.contains("::") {
+            return format!("{}{}", prefix, mapped.replace("::", "."));
+        }
         if mapped == core && prefix.is_empty() && !t.starts_with('&') {
             return t.to_string();
         }
@@ -5254,6 +5261,19 @@ impl Codegen {
             fn_name
         } else {
             format!("bench_{}", fn_name)
+        };
+
+        // W588: a bench block declared twice emits two functions with the same
+        // name, and Zig rejects the file with "duplicate struct member name".
+        // Same defect and same remedy as the duplicate TEST names in W568:
+        // suffix repeats deterministically so the duplication stays visible and
+        // every bench still emits.
+        let seen = self.test_name_counts.entry(fn_name.clone()).or_insert(0);
+        *seen += 1;
+        let fn_name = if *seen == 1 {
+            fn_name
+        } else {
+            format!("{}__dup{}", fn_name, *seen)
         };
 
         self.write_line(&format!("fn {}() void {{", fn_name));
