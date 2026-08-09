@@ -141,9 +141,15 @@ fn cordic_gain_inner(i: u32, n: u32, acc: f32) -> f32 {
 // W596: the return type is NAMED, because every test that consumes it accesses
 // `result.sin` / `result.cos`. t27 has had named-tuple syntax since at least
 // W584; the Zig backend learned to lower it this wave.
+// W598: this binding was INVERTED. `cordic_inner` returns `(x, y)` and, seeded
+// with (x=K, y=0, z=angle), the rotation above drives x -> cos(angle) and
+// y -> sin(angle) -- which is why every other caller in this file names the
+// result `(nx, ny)`. Binding it `(s, c)` handed the cosine to `sin` and the
+// sine to `cos`, so `cordic_sin_cos(0, 8)` reported sin=0.999975, cos=0.007032.
+// The mistake was invisible for as long as the spec did not compile.
 fn cordic_sin_cos(angle: f32, iterations: u8) -> (sin: []f32, cos: []f32) {
     let gain = cordic_gain(iterations);
-    let (s, c) = cordic_inner(gain, 0.0, angle, 0, iterations);
+    let (c, s) = cordic_inner(gain, 0.0, angle, 0, iterations);
     return ([s], [c]);
 }
 

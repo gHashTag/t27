@@ -160,6 +160,67 @@ recursion between two functions would escape it.
 
 ---
 
+### T6 (W598, negative) — `cordic_sin(π)` is unsatisfiable: π lies outside the convergence domain
+
+> `specs/igla/race/cordic.t27` asserts `abs_f32(cordic_sin(pi, 12)) < 0.01`.
+> **No number of iterations of the rotation this spec defines can satisfy it**,
+> because the spec performs no argument reduction.
+
+**Statement.** For CORDIC rotation mode with elementary angles `a_i = atan(2^-i)`
+and sigma_i in {-1, +1}, the residual after *n* steps is
+
+```
+z_n  =  z_0  -  SUM_{i=0}^{n-1} sigma_i * a_i
+```
+
+Each sigma_i is +/-1, so the reachable set of that sum is contained in
+`[-A_n, +A_n]` with `A_n = SUM_{i=0}^{n-1} a_i`. Hence
+
+> **z_n -> 0 is attainable if and only if |z_0| <= A_n.**
+
+**The bound is finite and small.** `a_i = atan(2^-i) < 2^-i`, so `A_n < SUM 2^-i = 2`:
+
+| n | A_n (rad) | A_n (deg) |
+|---:|---:|---:|
+| 8 | 1.735474 | 99.435 |
+| 12 | 1.742798 | 99.855 |
+| 16 | 1.743256 | 99.881 |
+| infinity | **1.7432866...** | **99.883** |
+
+**Therefore.** `pi = 3.141593 > 1.7432866`, outside the domain by **1.398306 rad
+(80.1 degrees)** — and no *n* helps, since A_n increases to a limit still well
+below pi. The greedy sigma drives z to the boundary and stops. Measurement agrees:
+
+```
+cordic_sin(pi, 12) = 0.98524404      (true value 0)
+cordic_sin(pi,  8) = 0.98647120      more iterations do not help
+cordic_cos(pi, 12) = -0.17115517     (true value -1)
+```
+
+QED
+
+**Why this theorem earns its place: it separates three kinds of failing test**,
+a distinction this corpus had never drawn.
+
+| | the assertion | the implementation | remedy |
+|---|---|---|---|
+| **false assertion** | wrong | right | fix the test — a spec decision |
+| **real gap** | right | incomplete | fix the code |
+| **defect** | right | wrong | fix the code |
+
+Of `cordic.t27`'s six remaining failures, **five are the first row and exactly one
+— this — is the second. None is the third.** The assertion `|sin pi| < 0.01` is
+mathematically true; the implementation cannot deliver it.
+
+**Remedy, for the record.** Standard argument reduction: map theta into
+[-pi/2, pi/2] via `theta' = theta - k*pi`, negating both outputs when *k* is odd.
+Unlike the other five failures no judgement call is involved — only the work.
+
+**Falsified by.** Any (angle, iterations) with |angle| > 1.7432866 for which the
+unreduced rotation returns a correct sine.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
@@ -425,6 +486,111 @@ has spent twenty-nine waves eliminating, and for this family they are gone.
 specification decision being made first.
 
 ---
+> **CORRECTED IN W598.** The pass rate below (321/336) is right. The *attribution*
+> is wrong: the three families were named from the test **identifiers**, not from
+> the assertions, and the assertions turned out to already carry tolerances. The
+> real cause of the largest family is given in **P14**. Read P13 for the number
+> and P14 for the reason.
+
+### P13 (W597) — A RACE kernel that compiles is 95.5% correct
+
+`cordic.t27`, run test-by-test in isolation (336 invocations, because Zig's
+runner aborts on the first panic):
+
+| | |
+|---|---:|
+| Pass | **321** |
+| Fail | **15** |
+| Rate | **95.5 %** |
+
+The 15 failures partition exactly three ways:
+
+| Family | n | Cause |
+|---|---:|---|
+| exact value at a special angle | 10 | **T4** — CORDIC does not reach exact values |
+| gain | 3 | **T5** — K is a limit, not a per-iteration constant |
+| arctan table entry | 2 | rounding of `atan(2⁻ⁱ)` into Q14 |
+
+**Not one failure is a compiler defect.** After twenty-nine waves of compiler
+work the remaining errors in the kernel that runs are all assertions about a
+converging approximation that a converging approximation cannot satisfy — and
+both governing facts were proved *before* this measurement was taken.
+
+*Falsification condition:* a failure outside these three families, or one
+traceable to codegen rather than to the assertion's content. None found.
+
+**Corollary.** The project's error budget has changed shape. From W560 to W596
+the question was *"does it compile?"*; the answer is now *"yes, and it is
+95.5% right, and the 4.5% is fifteen assertions that were never true."*
+
+---
+
+### P14 (W598) — The largest failure family was an inverted destructuring, not a false assertion
+
+P13 sorted the 15 failures into T4 (10), T5 (3) and rounding (2). **That sort was
+performed on the test names.** Reading the assertions falsifies it at once — they
+already carry tolerances:
+
+```t27
+test cordic_cos_zero      then abs_f32(c[0] - 1.0) < 0.01
+test cordic_sin_cos_zero  then result.cos[0] > 0.99 && result.cos[0] < 1.01
+```
+
+Nothing there asserts an exact value, so T4 cannot be the cause. Executing the
+functions gives the real one:
+
+```
+cordic_sin_cos(0, 8)   ->   sin[0] = 0.999975     cos[0] = 0.007032
+cordic_sin(0.001, 12)  ->   0.99999970                  (that is cos 0.001)
+```
+
+**sin and cos were exchanged.** `cordic_inner` returns `(x, y)`; seeded with
+(x = K, y = 0, z = angle) the rotation drives **x → cos** and **y → sin**, which
+is why every other caller in the file names the pair `(nx, ny)`. One line bound
+it backwards:
+
+```t27
+let (s, c) = cordic_inner(gain, 0.0, angle, 0, iterations);   // s received x = cos
+```
+
+**Method.** Fix that line, regenerate, re-run all 336 in isolation.
+
+| | before | after |
+|---|---:|---:|
+| Pass | 321 | **330** |
+| Fail | 15 | **6** |
+| Rate | 95.5 % | **98.2 %** |
+
+*Falsification condition, checked first.* If the generated Zig disagreed with the
+spec this would be a codegen defect and P12/P13's headline claim would be false.
+It does not — `const c, const s = cordic_inner(...)` is a faithful lowering.
+**P13's claim that no failure is a compiler defect survives; its account of what
+the failures were does not.**
+
+**T4 already contained the disproof, one wave early.** T4 evaluated the
+fixed-point rotation by hand and recorded `sin(0) achieved = 117 = 0.00714`. The
+corrected kernel returns `sin(0) = 0.007032`; the inverted one returned
+`0.999975`. **A number proved by hand in a previous wave agreed with the fix and
+disagreed with the running code, and nothing compared them** — because T4 was
+filed as a *negative* result (an invariant that cannot hold) rather than as a
+*prediction of what the function returns*. A disproof is also a prediction.
+
+**A name-based lint cannot catch this — measured, not assumed.** Before proposing
+one, the corpus was audited: **21** tuple destructurings across 4 callees, and
+**zero** name/position mismatches — including the one just fixed, since `(s, c)`
+and `(x, y)` share no vocabulary. The lint was falsified by the data before it
+was published.
+
+> **A name is not a measurement.** `cordic_sin_exact_pi` contains the word
+> "exact"; the assertion beneath it does not. Fifteen identifiers were read where
+> fifteen assertions should have been. Sixth instance in this chain of an
+> *instrument* — not the code — being the thing that was wrong.
+
+**Falsified by.** A re-run disagreeing with 330/336, or a failure outside the
+three classes tabulated in T6.
+
+
+---
 
 ## 3. Where this sits in the literature
 
@@ -533,36 +699,3 @@ wrong, and the only part with a real consumer.
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
-
-### P13 (W597) — A RACE kernel that compiles is 95.5% correct, and every failure is one theorem
-
-`cordic.t27`, run test-by-test in isolation (336 invocations, because Zig's
-runner aborts on the first panic):
-
-| | |
-|---|---:|
-| Pass | **321** |
-| Fail | **15** |
-| Rate | **95.5 %** |
-
-The 15 failures partition exactly three ways:
-
-| Family | n | Cause |
-|---|---:|---|
-| exact value at a special angle | 10 | **T4** — CORDIC does not reach exact values |
-| gain | 3 | **T5** — K is a limit, not a per-iteration constant |
-| arctan table entry | 2 | rounding of `atan(2⁻ⁱ)` into Q14 |
-
-**Not one failure is a compiler defect.** After twenty-nine waves of compiler
-work the remaining errors in the kernel that runs are all assertions about a
-converging approximation that a converging approximation cannot satisfy — and
-both governing facts were proved *before* this measurement was taken.
-
-*Falsification condition:* a failure outside these three families, or one
-traceable to codegen rather than to the assertion's content. None found.
-
-**Corollary.** The project's error budget has changed shape. From W560 to W596
-the question was *"does it compile?"*; the answer is now *"yes, and it is
-95.5% right, and the 4.5% is fifteen assertions that were never true."*
-
----

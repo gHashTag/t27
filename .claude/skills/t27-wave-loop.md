@@ -4497,6 +4497,25 @@ These cost a wave each. Follow them before step 1.
     `parse-complete` -- is a command, and each became routine the wave it
     became one.
 
+91. **Classify a failure from the assertion, never from the test's name.**
+    W597 sorted fifteen failures into T4/T5/rounding by reading identifiers --
+    `cordic_sin_exact_pi` contains the word "exact" -- and published the sort.
+    Reading the assertions took one command and falsified all of it: they
+    already carried tolerances, so T4 could not apply. The actual cause was an
+    inverted binding that exchanged sin and cos. A name is not a measurement.
+
+92. **A swapped pair is the error class counting cannot see.** Both members
+    typecheck, both compile, both return plausible floats, and the test count
+    reports a number rather than a name. `cordic_sin_cos(0,8)` returning
+    `sin=0.999975, cos=0.007032` is only visible to EXECUTING the function --
+    which is why the fix for it belongs in the same command as the count.
+
+93. **When a plan you already recommended dies on its falsification check,
+    that is the check working, not the plan failing late.** W597's Variant A
+    was published as the recommendation. W598's first act was to test its
+    premise, and the premise was false. Four waves have now been killed this
+    way; each cost one command and saved the work.
+
 ### How to update this tracker
 
 After closing a wave:

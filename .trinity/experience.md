@@ -21634,3 +21634,42 @@ measurement that stops being taken.** Every number this chain trusts —
 `lex-conform`, `parse-conform`, `cc-gate`, `check-calls`, `impl-status`,
 `parse-complete` — became routine the wave it became a command. This one is
 still a loop.
+
+## Wave 598 — sin and cos were exchanged, and W597 was read from the names
+
+W597 published `cordic.t27` at 321/336 and sorted the 15 failures into T4/T5/
+rounding. **The sort was made from the test identifiers.** W598's first act was
+to read the assertions instead, and they already carried tolerances — so T4,
+*"CORDIC does not reach exact values"*, could not be the cause. The
+recommendation died on its own falsification check.
+
+Executing the functions found the real cause in one command:
+
+    cordic_sin_cos(0, 8)  ->  sin[0] = 0.999975   cos[0] = 0.007032
+
+**sin and cos were exchanged.** `cordic_inner` returns `(x, y)` and, seeded with
+(K, 0, angle), drives x -> cos and y -> sin — which is why every other caller in
+the file names the pair `(nx, ny)`. One line bound it backwards. Fixing it took
+330/336 (98.2%), up from 321.
+
+Three things were worth more than the fix:
+
+1. **T4 already contained the disproof.** It had recorded, by hand, one wave
+   earlier: `sin(0) achieved = 117 = 0.00714`. The corrected kernel returns
+   0.007032; the inverted one returned 0.999975. A number proved by hand agreed
+   with the fix and disagreed with the running code, and nothing compared them —
+   because T4 was filed as a negative result rather than as a prediction.
+   **A disproof is also a prediction.**
+2. **The lint I was about to propose was falsified before publishing it.** 21
+   tuple destructurings in the corpus, zero name/position mismatches — including
+   the one just fixed, because `(s, c)` and `(x, y)` share no vocabulary. Run
+   the check before writing the variant.
+3. **T6 separated three kinds of failing test** — false assertion (the test is
+   wrong), real gap (the code is incomplete), defect (the code is wrong). Of the
+   six remaining failures, five are the first and exactly one is the second:
+   `cordic_sin(pi)` cannot work because pi = 3.1416 exceeds CORDIC's convergence
+   domain A_inf = 1.7432866 rad, and the spec performs no argument reduction.
+   None is the third. The three have different owners; until this wave they were
+   one bucket.
+
+Sixth instance in this chain of an *instrument*, not the code, being wrong.
