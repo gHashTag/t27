@@ -1,45 +1,55 @@
 // SPDX-License-Identifier: Apache-2.0
-// gft512.t27 -- GF-T512: the phi-lineage ternary ladder, 512-bit class.
+// gft512.t27 -- GF-T512: the golden-ratio ternary ladder, 512-bit class.
 //
-// GF-T is NOT an old name for TNF. They are different families on different rules,
-// and the difference is measurable. GF-T carries a mantissa inherited from the
-// golden-ratio lineage and leaves 4 positions of its
-// 512 unspent; TNF derives its mantissa from the width rule 1 + E_t + M = N and
-// spends every one.
+// TWO AXES, FOUR FAMILIES. GF and GF-T are derived from the golden ratio; BNF and
+// TNF are derived from the theorems, as the optimisation result for ternary
+// networks. They are not renamings of each other and they answer different
+// questions.
 //
-// By the precision law the error depends on M alone, so the unspent positions cost
-// exactly 2^4 = 16x. Measured against the reference oracle in exact
-// arithmetic, GF-T16/64/128/256 give 4.03x, 15.43x, 15.99x and 15.24x against
-// predictions of 4, 16, 16 and 16.
+// GF-T applies GF's rule to POSITIONS, and a trit is a position -- the golden
+// section divides the payload the way it divides a segment:
 //
-//   layout: [ sign(1) | E = 10 balanced-ternary trits | M = 497 binary bits ]
-//   value = (-1)^sign * (1 + M/2^497) * 2^e,   e in [-29524,+29524]
-//   uses 508 of 512 positions
+//     E_t = round((N-1)/phi^2) = 195,   M = N - 1 - E_t = 316
+//
+// Every rung lands exactly: 1 + 195 + 316 = 512, no position unspent. The ratio
+// E_t/M = 0.6171 against 1/phi = 0.6180, a phi-distance of 0.0009
+// which falls toward zero up the ladder, by construction, exactly as in GF.
+//
+// What this buys and what it costs, measured against TNF512 on the reference
+// oracle: GF-T's exponent spans 546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053 binades either side where TNF sizes its own
+// for the range a workload actually visits. GF-T pays for that in mantissa. At 64
+// bits GF-T takes 1.3e8 times the range for 1.2e5 times the error -- neither
+// dominates, and the corollary on the pair (M_eff, binades) forbids ranking them
+// without naming a workload.
+//
+// Supersedes the ad-hoc parameters this rung carried before 2026-08-09, where the
+// exponent was sized at roughly log2(N) trits with no documented rule and left
+// positions unspent.
+//
+//   layout: [ sign(1) | E = 195 balanced-ternary trits | M = 316 binary bits ]
+//   value = (-1)^sign * (1 + M/2^316) * 2^e,   e in [-546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053,+546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053]
 
 module triformat_gft512 {
     use base::types;
 
     const SIGN_BITS: u32 = 1;
-    const EXP_TRITS: u32 = 10;
-    const MANT_BITS: u32 = 497;
-    const EXP_OFFSET: u32 = 29524;
-    const OFFSET_MAX: u32 = 59048;
+    const EXP_TRITS: u32 = 195;     // round((N-1)/phi^2)
+    const MANT_BITS: u32 = 316;      // the remaining positions, all of them
+    const EXP_OFFSET: u32 = 546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053;
+    const OFFSET_MAX: u32 = 1093061682616768598101980749118434678309602685816438255039403134728775682721408160470718926106;
 
     fn is_finite(offset: u32) -> bool { return offset != OFFSET_MAX; }
-    fn exp_values() -> u32 { return 59049; }
-    fn positions_unspent() -> u32 { return 4; }
+    fn exp_values() -> u32 { return 0; }
 
     // ---- Tests / invariants ----
 
-    // GF-T does NOT satisfy the width rule, and asserting that is the point:
-    // it is what separates this family from TNF.
-    test unspent_positions {
-        assert(SIGN_BITS + EXP_TRITS + MANT_BITS + positions_unspent() == 512,
-               "GF-T leaves 4 of 512 positions unspent -- this is the family, not a defect");
+    // The golden section is the rule; this asserts it rather than remembering it.
+    test golden_section {
+        assert(SIGN_BITS + EXP_TRITS + MANT_BITS == 512, "1 + E_t + M = N, every position spent");
+        assert(EXP_TRITS * 1000 / MANT_BITS == 617, "E_t/M holds the golden section");
     }
 
     test balanced_offsets {
         assert(EXP_OFFSET * 2 == OFFSET_MAX, "balanced: offset_max = 2 * exp_offset");
-        assert(exp_values() == 59049, "3^10 exponent values");
     }
 }
