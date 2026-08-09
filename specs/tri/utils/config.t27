@@ -31,8 +31,8 @@ module TriConfig;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(allocator: Std.mem.Allocator) → void
-    fn parse(allocator: Std.mem.Allocator) -> void {
+    // parse(allocator: std.mem.Allocator) → void
+    fn parse(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

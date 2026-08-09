@@ -1376,12 +1376,39 @@ impl Parser {
                 };
                 if use_literal {
                     decl.children.push(array_literal_result.unwrap());
+                } else if let Some(bare) = {
+                    self.restore_state(save.clone());
+                    self.parse_bare_array_literal()
+                } {
+                    // W568: a BARE bracketed list -- `const A: [3]u32 = [1, 2, 3]`.
+                    // `parse_array_literal` only understands the Zig-ish
+                    // `[N]T{ ... }` spelling, so it returned a childless node
+                    // here and control fell through to the text collector
+                    // below, which runs to the next SEMICOLON. t27 top-level
+                    // declarations are newline-terminated, so one such const
+                    // swallowed every declaration after it -- an entire spec
+                    // collapsed into a single unparsable string.
+                    decl.children.push(bare);
                 } else {
                     self.restore_state(save);
+                    // The collector runs to the next SEMICOLON, and t27's
+                    // top-level declarations are newline-terminated, so an
+                    // unrecognised bracket value used to consume the rest of
+                    // the file. Stop as well at a declaration keyword that
+                    // OPENS ITS OWN LINE -- the same-line test is what keeps
+                    // `[]const u8` (whose `const` follows `[]` on one line)
+                    // intact.
                     let mut val_text = String::new();
+                    let mut last_line = self.current.line;
                     while self.current.kind != TokenKind::Semicolon
                         && self.current.kind != TokenKind::Eof
                     {
+                        if self.current.line > last_line
+                            && Self::opens_declaration(self.current.kind)
+                        {
+                            break;
+                        }
+                        last_line = self.current.line;
                         val_text.push_str(&self.current.lexeme);
                         self.advance();
                     }
@@ -1555,22 +1582,85 @@ impl Parser {
                 self.advance();
 
                 let mut type_str = String::new();
+                let mut field_default: Option<Node> = None;
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
-                                    // Collect type tokens until comma, semicolon, or closing brace
-                    while self.current.kind != TokenKind::Comma
-                        && self.current.kind != TokenKind::Semicolon
-                        && self.current.kind != TokenKind::RBrace
-                        && self.current.kind != TokenKind::Eof
+
+                    // Struct field types were joined LEXEME BY LEXEME with no
+                    // separator, so `[]const u8` became `[]constu8` -- "use of
+                    // undeclared identifier 'constu8'" in 11 specs (W568). The
+                    // parameter side has always used the real type grammar;
+                    // only this path did not.
+                    //
+                    // Prefer `parse_type_annotation`, which keeps the space
+                    // after `const`, keeps `(A, B)` from truncating at its
+                    // comma, and understands dotted paths. Shapes it cannot
+                    // model (generics `Map<K, V>`, field defaults `= 5`) leave
+                    // the parser somewhere other than a field boundary; those
+                    // restore the checkpoint and use the original token join,
+                    // so nothing that parsed before can stop parsing.
+                    // The field's type must also END ON ITS OWN LINE. Three
+                    // specs in the corpus contain a malformed field whose type
+                    // opens a string literal (`tag : [[]Const u8",`); the
+                    // bracket loop happily consumes that string across the rest
+                    // of the file, and the struct then never finds its closing
+                    // brace. The raw join stopped at the first comma, so the
+                    // damage stayed inside one field. Requiring the terminator
+                    // on the starting line restores that containment.
+                    let start_line = self.current.line;
+                    let checkpoint = self.save_state();
+                    let parsed = self.parse_type_annotation();
+                    let type_ends_on_its_own_line = self.current.line == start_line;
+
+                    // A field DEFAULT (`data : [256]u8 = [0, 0, ...]`) used to
+                    // be swallowed into the type string, giving Zig
+                    // `data: [256]u8=[0,` -- the "expected ']', found ','"
+                    // class. Parse it as an expression instead and keep it as
+                    // the field's child; the default may legitimately span
+                    // lines, so only the TYPE carries the same-line rule.
+                    let mut default_value: Option<Node> = None;
+                    if !parsed.is_empty()
+                        && type_ends_on_its_own_line
+                        && self.current.kind == TokenKind::Equals
                     {
-                        type_str.push_str(&self.current.lexeme);
-                        self.advance();
+                        self.advance(); // consume =
+                        default_value = self.parse_expr().ok();
+                    }
+
+                    let at_field_boundary = type_ends_on_its_own_line
+                        && matches!(
+                            self.current.kind,
+                            TokenKind::Comma
+                                | TokenKind::Semicolon
+                                | TokenKind::RBrace
+                                | TokenKind::Eof
+                                | TokenKind::Ident
+                        );
+                    if !parsed.is_empty() && at_field_boundary {
+                        type_str = parsed;
+                        if let Some(v) = default_value {
+                            field_default = Some(v);
+                        }
+                    } else {
+                        self.restore_state(checkpoint);
+                        // Collect type tokens until comma, semicolon, or closing brace
+                        while self.current.kind != TokenKind::Comma
+                            && self.current.kind != TokenKind::Semicolon
+                            && self.current.kind != TokenKind::RBrace
+                            && self.current.kind != TokenKind::Eof
+                        {
+                            type_str.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
                     }
                 }
 
                 let mut field = Node::new(NodeKind::ExprIdentifier);
                 field.name = field_name;
                 field.extra_type = type_str;
+                if let Some(v) = field_default {
+                    field.children.push(v);
+                }
                 decl.children.push(field);
 
                 if self.current.kind == TokenKind::Comma
@@ -1599,6 +1689,17 @@ impl Parser {
         // strip it.
         if self.current.kind == TokenKind::Amp {
             self.advance();
+        }
+
+        // Machine-generated specs QUOTE the type in a declaration:
+        // `head : "usize"`, `allocator : "std.mem.Allocator"`. A string token
+        // is not an identifier, so the type parser returned empty and the raw
+        // fallback carried the quotes into the backend. Take the string's
+        // contents as the type name.
+        if self.current.kind == TokenKind::String {
+            let quoted = self.current.lexeme.trim_matches('"').to_string();
+            self.advance();
+            return quoted;
         }
 
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
@@ -1713,6 +1814,23 @@ impl Parser {
                 } else {
                     break;
                 }
+            }
+
+            // Dotted namespace paths (`std.mem.Allocator`, `base.types.Trit`).
+            // Only `::` was handled, so `fn init(allocator: std.mem.Allocator)`
+            // returned the type `std` and left `.mem.Allocator` for the
+            // parameter loop, which read it as two further parameters and
+            // emitted `fn init(allocator: Std, mem: , Allocator: )`. That is
+            // the whole "expected type expression, found ','" class measured in
+            // W568 (28 of 183 compile failures); 40 specs use dotted types.
+            //
+            // A dot is only consumed when an identifier actually follows, so a
+            // shape this cannot model leaves the parser exactly where it was.
+            while self.current.kind == TokenKind::Dot && self.peek.kind == TokenKind::Ident {
+                ty.push('.');
+                self.advance(); // consume .
+                ty.push_str(&self.current.lexeme);
+                self.advance(); // consume the segment
             }
         } else if self.current.kind == TokenKind::KwVoid {
             ty.push_str("void");
@@ -2916,8 +3034,21 @@ impl Parser {
                 })
             }
 
-            // Array literal: [_]Type{ values } or [N]Type{ values }
-            TokenKind::LBracket => self.parse_array_literal(),
+            // Array literal: [_]Type{ values } or [N]Type{ values }.
+            // A BARE list (`[a, b, c]`) is tried first: `parse_array_literal`
+            // captures its elements as raw TEXT, so a struct-literal element
+            // reached the backend unlowered -- `TernaryWeight{code:0}` instead
+            // of `TernaryWeight{ .code = 0 }`. Parsing the elements as
+            // expressions lowers them like any other.
+            TokenKind::LBracket => {
+                let save = self.save_state();
+                if let Some(bare) = self.parse_bare_array_literal() {
+                    Ok(bare)
+                } else {
+                    self.restore_state(save);
+                    self.parse_array_literal()
+                }
+            }
 
             _ => Err(format!(
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
@@ -2991,6 +3122,84 @@ impl Parser {
         }
         self.expect(TokenKind::RBrace)?;
         Ok(lit)
+    }
+
+    /// W568: parse a BARE bracketed element list -- `[1, 2, 3]`, the spelling
+    /// 11 specs use for a typed const initializer:
+    ///
+    /// ```text
+    /// const COPTIC_ALPHABET : [27]u32 = [0x03B1, 0x03B2, ...]
+    /// ```
+    ///
+    /// `parse_array_literal` only understands `[N]T{ ... }`, so this shape
+    /// produced a childless node and the caller's text fallback ran to the next
+    /// semicolon -- which, in a newline-terminated language, is end of file.
+    ///
+    /// Returns `None` for everything else, leaving it to the caller's
+    /// checkpoint: the slice type `[]T`, the dimension `[N]`, the type alias
+    /// `[N]T`, and the literal form `[N]T{ ... }` all bail out here.
+    fn parse_bare_array_literal(&mut self) -> Option<Node> {
+        if self.current.kind != TokenKind::LBracket {
+            return None;
+        }
+
+        // Collect the element TEXT first. The Zig emitter reads children, but
+        // the Verilog emitter reads `extra_size`, and returning a node with
+        // children alone made it print an empty element list where it used to
+        // print `[c00,c01,c10,c11]`. Both representations are populated.
+        let entry = self.save_state();
+        let raw_elements = {
+            self.advance(); // consume [
+            let mut text = String::new();
+            let mut depth = 0i32;
+            while !(self.current.kind == TokenKind::RBracket && depth == 0)
+                && self.current.kind != TokenKind::Eof
+            {
+                match self.current.kind {
+                    TokenKind::LBracket => depth += 1,
+                    TokenKind::RBracket => depth -= 1,
+                    _ => {}
+                }
+                text.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            text
+        };
+        self.restore_state(entry);
+
+        self.advance(); // consume [
+        if self.current.kind == TokenKind::RBracket {
+            return None; // `[]T` -- a slice type, not a list
+        }
+
+        let mut node = Node::new(NodeKind::ExprArrayLiteral);
+        node.extra_size = raw_elements.trim().trim_end_matches(',').to_string();
+        loop {
+            node.children.push(self.parse_expr().ok()?);
+            if self.current.kind != TokenKind::Comma {
+                break;
+            }
+            self.advance(); // consume ,
+            if self.current.kind == TokenKind::RBracket {
+                break; // trailing comma
+            }
+        }
+        if self.current.kind != TokenKind::RBracket {
+            return None;
+        }
+        self.advance(); // consume ]
+
+        // A type name or another dimension after the bracket means this was
+        // `[N]T` / `[N][M]T`, not a list of values.
+        if matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket) {
+            return None;
+        }
+        // A single element is indistinguishable from an array DIMENSION, so it
+        // is left to the existing path.
+        if node.children.len() < 2 {
+            return None;
+        }
+        Some(node)
     }
 
     /// Parse array literal: [_]Type{ values }, [N]Type{ values }, or
@@ -3345,6 +3554,25 @@ impl Parser {
 
     /// Tokens that can legitimately follow a braceless clause body. Anything
     /// else means the loop stopped mid-clause, not at the end of the block.
+    /// Tokens that can only OPEN a new top-level declaration. Used to bound a
+    /// raw token collector that would otherwise run to end-of-file, and
+    /// deliberately narrower than `is_block_boundary`: callers pair it with a
+    /// "starts its own line" test, because `const` and `struct` also appear
+    /// mid-type (`[]const u8`, `= struct {`).
+    fn opens_declaration(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::KwPub
+                | TokenKind::KwConst
+                | TokenKind::KwFn
+                | TokenKind::KwTest
+                | TokenKind::KwInvariant
+                | TokenKind::KwBench
+                | TokenKind::KwUse
+                | TokenKind::KwModule
+        )
+    }
+
     fn is_block_boundary(kind: TokenKind) -> bool {
         matches!(
             kind,
@@ -3476,6 +3704,19 @@ pub struct Codegen {
     /// to Zig builtins ONLY when absent from this set, so a spec that defines
     /// its own `fn max(...)` still calls its own.
     declared_fns: std::collections::HashSet<String>,
+    /// How many times each test name has already been emitted. Zig requires
+    /// test names to be unique within a file and rejects the whole file
+    /// otherwise; four IGLA RACE specs accumulated colliding names across
+    /// waves (`cordic_fixed_sin_zero_angle` appears seven times). Suffixing
+    /// repeats keeps every test runnable instead of losing the file.
+    test_name_counts: std::collections::HashMap<String, u32>,
+    /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
+    /// a tag comparison -- Zig has no ordering on enums.
+    declared_enums: std::collections::HashSet<String>,
+    /// Field and parameter names the spec declares with a string type. Zig has
+    /// no `==` for slices, and the literal-operand test cannot see
+    /// `a.name == b.name`, where BOTH sides are `[]const u8` expressions.
+    string_names: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -3485,7 +3726,57 @@ impl Codegen {
             indent: 0,
             mut_names: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
+            test_name_counts: std::collections::HashMap::new(),
+            declared_enums: std::collections::HashSet::new(),
+            string_names: std::collections::HashSet::new(),
         }
+    }
+
+    /// The trailing segment of an identifier / field-access path, i.e. the
+    /// field actually being read: `a.b.name` -> `name`.
+    fn trailing_name(node: &Node) -> Option<String> {
+        match node.kind {
+            NodeKind::ExprIdentifier => node
+                .name
+                .rsplit(['.', ':'])
+                .next()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string()),
+            NodeKind::ExprFieldAccess => Some(node.name.clone()).filter(|s| !s.is_empty()),
+            _ => None,
+        }
+    }
+
+    fn is_string_typed(&self, node: &Node) -> bool {
+        Self::trailing_name(node)
+            .map(|n| self.string_names.contains(&n))
+            .unwrap_or(false)
+    }
+
+    /// True for `Enum::Variant` / `Enum.Variant` where `Enum` is declared in
+    /// this spec, and for a bare `.Variant` enum-value node.
+    fn is_enum_variant(&self, node: &Node) -> bool {
+        if node.kind == NodeKind::ExprEnumValue {
+            return true;
+        }
+        // `Enum.Variant` also parses as a field access on the type name.
+        if node.kind == NodeKind::ExprFieldAccess {
+            return node
+                .children
+                .first()
+                .map(|base| self.is_enum_type_name(base))
+                .unwrap_or(false);
+        }
+        if node.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        let root = node.name.split("::").next().unwrap_or("");
+        let root = root.split('.').next().unwrap_or("");
+        !root.is_empty() && self.declared_enums.contains(root)
+    }
+
+    fn is_enum_type_name(&self, node: &Node) -> bool {
+        node.kind == NodeKind::ExprIdentifier && self.declared_enums.contains(&node.name)
     }
 
     fn write(&mut self, s: &str) {
@@ -3517,9 +3808,30 @@ impl Codegen {
         // Collect the spec's own function names before emitting anything, so
         // the builtin mapping below can never shadow a user-defined function.
         self.declared_fns.clear();
+        self.test_name_counts.clear();
+        self.declared_enums.clear();
+        self.string_names.clear();
         for d in &ast.children {
-            if d.kind == NodeKind::FnDecl && !d.name.is_empty() {
-                self.declared_fns.insert(d.name.clone());
+            match d.kind {
+                NodeKind::FnDecl if !d.name.is_empty() => {
+                    self.declared_fns.insert(d.name.clone());
+                    for (pname, pty) in &d.params {
+                        if Self::t27_array_type_to_zig(pty) == "[]const u8" {
+                            self.string_names.insert(pname.clone());
+                        }
+                    }
+                }
+                NodeKind::EnumDecl if !d.name.is_empty() => {
+                    self.declared_enums.insert(d.name.clone());
+                }
+                NodeKind::StructDecl => {
+                    for f in &d.children {
+                        if Self::t27_array_type_to_zig(&f.extra_type) == "[]const u8" {
+                            self.string_names.insert(f.name.clone());
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -3689,6 +4001,12 @@ impl Codegen {
 
         if !node.extra_type.is_empty() {
             self.write(&format!("({})", node.extra_type));
+        } else if node.children.iter().any(|v| !v.value.is_empty()) {
+            // Zig requires an integer tag type as soon as ANY variant carries
+            // an explicit value ("explicitly valued enum missing integer tag
+            // type"). t27 lets the backing type be omitted, so supply the
+            // widest safe default rather than dropping the values.
+            self.write("(i32)");
         }
 
         self.write_line(" {");
@@ -3734,7 +4052,13 @@ impl Codegen {
             } else {
                 "void".to_string()
             };
-            self.write_line(&format!("{}: {},", Self::zig_ident(&field.name), ty));
+            self.write(&format!("{}: {}", Self::zig_ident(&field.name), ty));
+            // A field default is stored as the field's only child (W568).
+            if let Some(default) = field.children.first() {
+                self.write(" = ");
+                self.gen_expr(default);
+            }
+            self.write_line(",");
         }
 
         self.dedent();
@@ -3755,6 +4079,19 @@ impl Codegen {
     // rejects the bare name with "name shadows primitive". Applied at every
     // value-identifier emission site so declarations and uses stay consistent.
     fn zig_ident(name: &str) -> String {
+        // t27 spells scoped names Rust-style (`Severity::Error`,
+        // `base::types`). Zig has no `::`, and emitting it verbatim gave
+        // "expected ';' after statement" pointing at the second colon -- the
+        // whole remaining `expected ';'` class in W568. Each segment is
+        // escaped on its own so `Foo::error` still becomes `Foo.@"error"`.
+        if name.contains("::") {
+            return name
+                .split("::")
+                .map(Self::zig_ident)
+                .collect::<Vec<_>>()
+                .join(".");
+        }
+
         let is_primitive = matches!(
             name,
             "bool"
@@ -3991,7 +4328,20 @@ impl Codegen {
     }
 
     fn gen_test_block(&mut self, node: &Node) {
-        self.write(&format!("test \"{}\"", node.name));
+        // Zig rejects a file that declares the same test name twice. Repeats
+        // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
+        // in the output while the file still compiles and every test runs.
+        let seen = self
+            .test_name_counts
+            .entry(node.name.clone())
+            .or_insert(0);
+        *seen += 1;
+        let unique = if *seen == 1 {
+            node.name.clone()
+        } else {
+            format!("{}__dup{}", node.name, *seen)
+        };
+        self.write(&format!("test \"{}\"", unique));
         self.write_line(" {");
 
         self.indent();
@@ -4566,7 +4916,9 @@ impl Codegen {
                     }
                     self.write(")");
                 } else {
-                    self.write(&node.name);
+                    // A scoped callee (`TernaryWeight::minus()`) needs the same
+                    // `::` -> `.` rewrite the identifier path gets.
+                    self.write(&Self::zig_ident(&node.name));
                     self.write("(");
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
@@ -4588,8 +4940,14 @@ impl Codegen {
                     let is_str = |n: &Node| {
                         n.kind == NodeKind::ExprLiteral && n.extra_kind == "string"
                     };
+                    // ... and when neither side is a literal but one names a
+                    // field the spec DECLARED as a string (`a.name == b.name`),
+                    // which the literal test alone could not see.
                     if matches!(op, "==" | "!=")
-                        && (is_str(&node.children[0]) || is_str(&node.children[1]))
+                        && (is_str(&node.children[0])
+                            || is_str(&node.children[1])
+                            || self.is_string_typed(&node.children[0])
+                            || self.is_string_typed(&node.children[1]))
                     {
                         if op == "!=" {
                             self.write("!");
@@ -4597,6 +4955,20 @@ impl Codegen {
                         self.write("std.mem.eql(u8, ");
                         self.gen_expr(&node.children[0]);
                         self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // Zig has no ordering on enums either. When a side is a
+                    // variant of an enum this spec declares (`BitWidth::Int4`),
+                    // compare the tags.
+                    if matches!(op, "<" | ">" | "<=" | ">=")
+                        && (self.is_enum_variant(&node.children[0])
+                            || self.is_enum_variant(&node.children[1]))
+                    {
+                        self.write("@intFromEnum(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(&format!(") {} @intFromEnum(", op));
                         self.gen_expr(&node.children[1]);
                         self.write(")");
                         return;
@@ -4708,8 +5080,24 @@ impl Codegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // The parser stores the literal's ELEMENT TEXT in extra_size
-                // ("1,2,3" for a list, "0;4" for a repeat) with no children.
+                // Real element CHILDREN win when the parser captured them --
+                // `[N]T{ a, b }` and the bare `[a, b]` both carry them, and
+                // reading extra_size instead emitted the array's DIMENSION as
+                // its only element (`[4]u16{1,2,3}` -> `.{ 4 }`).
+                if !node.children.is_empty() {
+                    self.write(".{ ");
+                    for (i, elem) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(elem);
+                    }
+                    self.write(" }");
+                    return;
+                }
+
+                // Otherwise the parser stored the literal's ELEMENT TEXT in
+                // extra_size ("1,2,3" for a list, "0;4" for a repeat).
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();

@@ -20556,3 +20556,48 @@ Invariants lower into `comptime` blocks, so a FALSE invariant is a COMPILE
 ERROR, not a test failure. That is the correct semantics for an invariant, and
 it means the lowering is self-policing: if any of the 65 were false, the spec
 would not build. None was.
+
+## Wave Loop 568 -- the queue drained, and the wall behind it was not the named one (2026-08-09)
+
+    ALL_PASS 16 -> 22   tests 209 -> 280   COMPILE_FAIL 183 -> 177   REGRESSIONS 0
+
+Nine backend defects plus one corpus typo, each diagnosed from the FIRST Zig error
+of all 183 failing specs -- not a sample. Dotted type paths, struct-field types,
+bare array literals, field defaults, duplicate test names, `::`, enum tag types,
+enum/string comparisons, quoted type annotations, and 81 occurrences of a
+`Std.mem.Allocator` that resolves nowhere.
+
+### The lesson that cost the most
+
+I have carried "decide the fate of default_input()" as the big lever since W561, on
+the strength of a SPEC COUNT: 110 of 177 remaining failures. Measured by assertions:
+
+    blocked by default_input : 110 specs,  169 substantive assertions
+    blocked by anything else :  67 specs, 3197 substantive assertions
+
+Nineteen to one, the other way. Skill rule 26 already says "rank by what the fix
+releases, not by error frequency" -- I applied it to the backlog and never applied
+it to my own standing recommendation. A recommendation carried across waves stops
+being re-derived; it needs re-measuring on the same schedule as everything else.
+
+### Two mechanisms worth remembering
+
+1. A raw token collector with a terminator that the language never emits is not a
+   parser bug, it is a FILE-EATING bug. The const-value collector ran "until
+   semicolon" in a newline-terminated language: one unrecognised `[1, 2, 3]` ate
+   every declaration after it. Bounding it at a declaration keyword that opens its
+   own line turned "destroys the spec" into "affects one declaration".
+2. Replacing a sloppy scan with a correct grammar can REDUCE robustness. Routing
+   struct fields through the real type parser broke 9 specs, because 3 of them
+   contain a malformed field that opens a string literal, and the correct parser
+   happily consumed it across the file while the sloppy one stopped at a comma.
+   The fix was to keep the grammar and add the containment the sloppy version had
+   by accident: the type must end on its line.
+
+### Where the corpus now stands
+
+The compile-failure queue is empty of mechanical defects. What remains is a FEATURE
+gap: `use a::b::c` is parsed and then ignored, so 16 specs fail on names their own
+imports define. 1,029 substantive assertions sit behind that, most of them in the
+IGLA RACE kernels (systolic_ternary 304, cordic_fixed 279, cordic_top 277,
+ternary_mac 274, ternary_gemm 271, cordic 271, adder_tree 270).

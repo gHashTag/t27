@@ -1251,6 +1251,55 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 Err(e) => println!("  [{}] could not run: {}", label, e),
             }
         }
+        // W568: duplicate test names. The Zig backend now suffixes repeats so
+        // the file still compiles, which means the duplication no longer
+        // announces itself as a build error -- exactly the kind of finding that
+        // goes invisible once it stops hurting. Count it here instead.
+        let mut dup_specs = 0usize;
+        let mut dup_names = 0usize;
+        let mut stack = vec![std::path::PathBuf::from("specs")];
+        while let Some(dir) = stack.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().and_then(|e| e.to_str()) != Some("t27") {
+                    continue;
+                }
+                let text = match std::fs::read_to_string(&path) {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                let mut seen: std::collections::HashMap<&str, u32> =
+                    std::collections::HashMap::new();
+                for line in text.lines() {
+                    let t = line.trim_start();
+                    if let Some(rest) = t.strip_prefix("test ") {
+                        let name = rest.trim().trim_matches('"');
+                        let name = name.split_whitespace().next().unwrap_or("");
+                        let name = name.trim_end_matches('{').trim();
+                        if !name.is_empty() {
+                            *seen.entry(name).or_insert(0) += 1;
+                        }
+                    }
+                }
+                let dups = seen.values().filter(|c| **c > 1).count();
+                if dups > 0 {
+                    dup_specs += 1;
+                    dup_names += dups;
+                }
+            }
+        }
+        println!(
+            "  duplicate test names: {} name(s) across {} spec(s) (backend suffixes repeats)",
+            dup_names, dup_specs
+        );
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 

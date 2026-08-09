@@ -20,8 +20,8 @@ module TriText;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // word_wrap(allocator: Std.mem.Allocator) → void
-    fn word_wrap(allocator: Std.mem.Allocator) -> void {
+    // word_wrap(allocator: std.mem.Allocator) → void
+    fn word_wrap(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
@@ -35,8 +35,8 @@ module TriText;
         // TODO: Implement from .tri spec
     }
 
-    // indent(allocator: Std.mem.Allocator) → void
-    fn indent(allocator: Std.mem.Allocator) -> void {
+    // indent(allocator: std.mem.Allocator) → void
+    fn indent(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

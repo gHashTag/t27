@@ -4031,6 +4031,32 @@ These cost a wave each. Follow them before step 1.
     `total_bits` to 21 and silently broken the word-width contract. When you
     defer, name the artefact that would decide it.
 
+29. **Re-measure your own standing recommendation on the same schedule as
+    everything else.** Rule 26 says rank by what a fix releases, not by error
+    frequency. W568 found I had applied that to the backlog and never to the
+    recommendation I had been carrying since W561: `default_input()` was the
+    first error in 110 of 177 failures (62% by SPEC count) and worth 169
+    substantive assertions, against 3,197 behind the other 67 specs. Nineteen
+    to one, the other way. A recommendation repeated across waves stops being
+    re-derived; put it back in the measurement loop.
+
+30. **A raw token collector whose terminator the language never emits is a
+    file-eating bug, not a parser bug.** W568's const-value fallback ran "until
+    semicolon" in a newline-terminated language, so one unrecognised
+    `[1, 2, 3]` swallowed every declaration after it and the whole spec became
+    a single unparsable string. When you write or inherit a scan-until loop,
+    ask what stops it in the WORST input, not the typical one -- and bound it
+    at something the grammar guarantees (here: a declaration keyword that opens
+    its own line).
+
+31. **Replacing a sloppy scan with a correct grammar can reduce robustness.**
+    Routing struct-field types through the real type parser broke 9 specs:
+    three contain a malformed field that opens a string literal, and the
+    correct parser consumed it across the rest of the file while the sloppy
+    lexeme-join stopped at the first comma. The sloppy version had containment
+    by accident. Keep the grammar, then add the containment back deliberately
+    (here: the type must end on the line it started).
+
 ### How to update this tracker
 
 After closing a wave:
