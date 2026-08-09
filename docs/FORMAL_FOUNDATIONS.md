@@ -1663,6 +1663,78 @@ re-diagnosed with a tool that just gave a contradictory answer.
 
 ---
 
+### Prop. 31 — the instrument was broken, and fixing it found the defect — `MEASURED` / open
+
+**Gate:** `formal-yosys.yml` → *Trace reader reads a known counterexample*
+
+Two waves stalled on one open finding, and the blocker had stopped being the
+design. `sat -show`'s text table was parsed with an ad-hoc regex that dropped
+rows, producing a trace in which the guard signal was low throughout — which
+cannot violate a property guarded on that signal. Prop. 30e recorded that and
+correctly refused to reason from it.
+
+**31a. `yosys sat -dump_json` emits invalid JSON.** The structured alternative
+looked like the fix, and its output does not parse:
+
+```text
+{ "name": "$auto$async2sync.cc:107:execute$243", "wave": "0.1..." }
+                                       ^ \e is not a JSON escape
+```
+
+RTLIL names are written verbatim, backslashes and all, so any name containing
+`\e`, `\d` or similar breaks the document. [`formal/trace_reader.py`](../formal/trace_reader.py)
+escapes stray backslashes before parsing. It also expands WaveJSON properly:
+`.` repeats the previous value, `=` consumes the next `data` entry. A reader
+that ignores `.` loses most of the trace — the same failure, one layer down.
+
+**31b. Validated before use.** The reader is pointed at a property whose
+counterexample is **known** — the prefetch with its clamp removed, which must
+show a write at a wrapped address. It parses 91 signals and finds the wrap at
+t=18. That check is a CI step, so the instrument cannot silently rot into the
+thing it replaced.
+
+> **Verify the instrument on a case whose answer you already know, before
+> trusting it on one you don't.** The reader that produced two waves of
+> confusion would have failed this check in one second.
+
+**31c. With the instrument working, the defect was legible immediately.** The
+first query — not eyeballing, but asking *at which timestep does the guard hold
+and the assertion fail* — returned `t=28: local_addr=1, expected 0`. The first
+write of a transfer was landing at address 1.
+
+Two mechanisms, both now fixed:
+
+1. **`local_addr` served two roles.** Write pointer when data comes *from* the
+   bus, read pointer when it goes *to* it. Prop. 29d gave only the first role
+   its own index, so the two fought: a transfer could enter `READ_DATA` with
+   `local_addr` already advanced by the write path. Both paths now share one
+   sequential index.
+2. **The pointer reset sat inside the `length != 0` branch.** A zero-length
+   request takes the DONE path (Prop. 26c) and left the pointers where the
+   previous transfer had put them. Reset now happens on **every** start.
+
+**31d. Still open, and now open for a stated reason.** After both fixes the
+property still refutes. That is the third patch on this item; the rule from
+Prop. 29 — *after two failed attempts, read the counterexample rather than patch
+again* — was followed, produced two real defects, and did not exhaust the cause.
+It remains gated as an expected refutation. What changed is that the next
+investigation starts with a working instrument instead of a broken one.
+
+**31e. Both fixes were kept.** Neither closed the target property, which by
+Prop. 25's standard is grounds for withdrawal. They were kept because each is
+independently correct — one index per transfer, reset on every start — and
+because module suites, the engine baseline, 21 integration properties and the
+full zero-size sweep all still pass. **A fix that does not close its target is
+withdrawn when it costs something; kept when it is right on its own terms.**
+
+Reproduce:
+
+```bash
+python3 formal/trace_reader.py build/known.json bram_we bram_addr fv_next
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

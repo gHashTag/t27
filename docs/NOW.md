@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-09
 
+## trace reader -- the instrument was broken, and fixing it found the defect
+
+- **WHERE**: `formal/trace_reader.py` (new), `bootstrap/src/bitnet_dma.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 31).
+- Two waves stalled on one open finding and the blocker had stopped being the
+  design: `sat -show`'s table was parsed with a regex that dropped every row.
+- **`yosys sat -dump_json` emits invalid JSON.** RTLIL names are written
+  verbatim, so `$auto$async2sync.cc:107:execute$243` contains `\e`, which is not
+  a JSON escape. The reader repairs stray backslashes, and expands WaveJSON
+  properly -- `.` repeats, `=` consumes the next data entry. Ignoring `.` loses
+  most of the trace: the same failure one layer down.
+- **Validated before use, in CI.** Pointed at a property whose counterexample is
+  KNOWN -- the prefetch with its clamp removed -- it parses 91 signals and finds
+  the wrap at t=18. **Verify the instrument on a case whose answer you already
+  know before trusting it on one you don't.**
+- **With it working, the defect was legible immediately.** Querying "at which
+  timestep does the guard hold and the assertion fail" returned
+  `t=28: local_addr=1, expected 0`. Two real mechanisms: `local_addr` served two
+  roles (write pointer from the bus, read pointer to it) and only one got its
+  own index, so they fought; and the pointer reset sat inside the `length != 0`
+  branch, so a zero-length request left the pointers stale for the next
+  transfer. Both fixed.
+- **Still open, for a stated reason.** After both fixes the property refutes.
+  Third patch on this item; the rule was followed -- read the counterexample
+  rather than patch again -- it produced two real defects and did not exhaust
+  the cause. Next investigation starts with a working instrument.
+- **Both fixes kept.** Neither closed the target, which by Prop 25's standard is
+  grounds for withdrawal; kept because each is independently correct and nothing
+  regressed. **A fix that misses its target is withdrawn when it costs
+  something, kept when it is right on its own terms.**
+- Suite **1212 passed, 0 failed**. Seals 496/496.
+
 ## write-pairing audit -- the shape enumerated across every port
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `formal/max_size_props.sv`,

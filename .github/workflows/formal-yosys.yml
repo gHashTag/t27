@@ -352,6 +352,71 @@ jobs:
               sys.exit(1)
           PY
 
+      # The trace reader is validated before it is trusted. Two waves were spent
+      # reasoning about a counterexample that had never actually been parsed:
+      # an ad-hoc regex over `sat -show` dropped every row, and `-dump_json`
+      # emits invalid JSON (RTLIL names contain backslashes, so `execute`
+      # becomes the escape `\e`). This runs the reader against a property whose
+      # counterexample is KNOWN -- the prefetch with its clamp removed, which
+      # must show a write at a wrapped address -- and fails if the reader cannot
+      # see it. Verify the instrument on a case whose answer you already know.
+      - name: Trace reader reads a known counterexample
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+          sys.path.insert(0, "formal")
+          import trace_reader as tr
+
+          raw = open("build/rtl/weight_prefetch_ctrl.sv").read()
+          s = raw.replace("words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
+                          "words_remaining <= num_words;", 1)
+          s = s.replace("[11:0] bram_addr", "[2:0] bram_addr")
+          s = s.replace("[11:0] word_index", "[2:0] word_index")
+          s = re.sub(r"\b12'd(\d+)", lambda m: f"3'd{m.group(1)}", s)
+          s = s.replace("16'd4096", "16'd8")
+          os.makedirs("build/known", exist_ok=True)
+          open("build/known/weight_prefetch_ctrl.sv", "w").write(s)
+
+          props = open("formal/max_size_props.sv").read()
+          for lab in re.findall(r"(a_[a-z_]+): assert", props):
+              if lab != "a_bram_writes_contiguous":
+                  props = re.sub(re.escape(lab) + r": assert \([^;]*\);",
+                                 lab + ": assert (1'b1);", props)
+          open("build/known_props.sv", "w").write(props)
+
+          refuted, trace = tr.run_and_read(
+              "read_verilog -sv -formal build/known/weight_prefetch_ctrl.sv build/known_props.sv; "
+              "prep -top ms_prefetch -flatten; async2sync; chformal -lower; "
+              "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes "
+              "-show-all -dump_json build/known.json", "build/known.json")
+
+          def val(name, t):
+              a = trace.get(name)
+              if not a or t >= len(a) or not isinstance(a[t], str):
+                  return None
+              return int(a[t], 2) if set(a[t]) <= set("01") and a[t] else None
+
+          fail = []
+          if not refuted:
+              fail.append("the known-counterexample property did not refute")
+          if len(trace) < 20:
+              fail.append(f"reader parsed only {len(trace)} signals")
+          depth = max((len(v) for v in trace.values()), default=0)
+          wrapped = [t for t in range(1, depth)
+                     if val("bram_we", t) == 1 and val("bram_addr", t) is not None
+                     and val("bram_addr", t - 1) is not None
+                     and val("bram_addr", t) < val("bram_addr", t - 1)]
+          if not wrapped:
+              fail.append("reader saw no wrapping write in a trace that must contain one")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print(f"ok       reader parsed {len(trace)} signals; wrap visible at t={wrapped[0]}")
+          PY
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27

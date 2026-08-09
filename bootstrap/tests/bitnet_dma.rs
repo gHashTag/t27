@@ -231,9 +231,18 @@ fn dma_local_addr_walks_both_paths() {
         "read path must write at the word's own index"
     );
     assert!(stdout.contains("word_index      <= word_index + 12'd1;"));
+    // Both paths now share one sequential index. local_addr served two roles --
+    // write pointer when data comes FROM the bus, read pointer when it goes TO
+    // it -- and giving only one role its own counter left them fighting, so a
+    // transfer could begin writing at a stale address instead of 0. Prop. 31.
     assert!(
-        stdout.contains("local_addr      <= local_addr + 12'd1;"),
-        "write path advances the read pointer"
+        !stdout.contains("local_addr      <= local_addr + 12'd1;"),
+        "the write path must not advance local_addr independently of word_index"
+    );
+    assert_eq!(
+        stdout.matches("local_addr      <= word_index;").count(),
+        2,
+        "both the read and write paths address local memory by the same index"
     );
 }
 
