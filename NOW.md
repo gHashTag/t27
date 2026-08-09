@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-09
 
+## gen-zig: narrowing unsigned cast lowers to @truncate (Refs #1948)
+
+- t27 `as` truncates a narrowing integer cast (Rust semantics), but gen-zig always emitted checked `@intCast` -> panics in safe builds when the value does not fit (`weighted_total as u32` on a 2^32 multiple)
+- Codegen(Zig) now has a per-fn param/typed-local type map; emits `@truncate` only when the source is a provably-wider UNSIGNED int than the unsigned target. Signed narrowing + widening/unknown stay `@intCast` (unsigned-only avoids Zig rejecting a signed `@truncate` source)
+- 16 gen/zig regenerate, all ast-check + zig test green; icarus/C/Rust untouched; t27 suite 1537/0. FROZEN_HASH resealed
+
 ## gen-verilog: signed-aware ordered comparison (Refs #1948)
 
 - Verilog makes an ordered comparison (`< <= > >=`) UNSIGNED if either operand is unsigned, so a signed i8 (`trend = -16 = 8'hF0`) meeting an unsigned const read as 240 -- `trend > THRESHOLD` diverged from Rust/Zig/C (signed-int promotion)
