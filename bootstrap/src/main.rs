@@ -86,6 +86,13 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Report every character the lexer silently DISCARDS, by character and by
+    /// spec
+    LexDropped {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
     /// Run the parser conformance table: each input against the verdict it
     /// must produce (Full / Truncated / Rejected)
     ParseConform,
@@ -3099,6 +3106,66 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
             }
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_lex_dropped(specs_dir: &str) -> anyhow::Result<()> {
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    let mut stack = vec![std::path::PathBuf::from(specs_dir)];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                if p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("t27") {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    let mut by_char: std::collections::BTreeMap<char, usize> = std::collections::BTreeMap::new();
+    let mut by_file: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for f in &files {
+        let src = match std::fs::read_to_string(f) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let mut lexer = compiler::Lexer::new(&src);
+        loop {
+            let t = lexer.next_token();
+            if t.kind == compiler::TokenKind::Eof {
+                break;
+            }
+        }
+        if !lexer.dropped.is_empty() {
+            *by_file.entry(f.display().to_string()).or_insert(0) += lexer.dropped.len();
+            for (c, _) in &lexer.dropped {
+                *by_char.entry(*c).or_insert(0) += 1;
+            }
+        }
+    }
+    println!("--- characters the lexer silently discards ---");
+    let total: usize = by_char.values().sum();
+    let mut chars: Vec<_> = by_char.into_iter().collect();
+    chars.sort_by(|a, b| b.1.cmp(&a.1));
+    for (c, n) in &chars {
+        println!("  {:>8}  {:?}", n, c);
+    }
+    println!("  {:>8}  TOTAL across {} spec(s)", total, by_file.len());
+    let mut top: Vec<_> = by_file.into_iter().collect();
+    top.sort_by(|a, b| b.1.cmp(&a.1));
+    println!("  most affected specs:");
+    for (f, n) in top.into_iter().take(10) {
+        println!("    {:>6}  {}", n, f);
     }
     Ok(())
 }
@@ -9577,6 +9644,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
         Commands::ParseComplete { specs_dir, include_scratch } => {
             run_parse_complete(&specs_dir, include_scratch)?
@@ -9890,6 +9958,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
         Commands::ParseComplete { specs_dir, include_scratch } => {
             run_parse_complete(&specs_dir, include_scratch)?

@@ -4249,6 +4249,20 @@ These cost a wave each. Follow them before step 1.
     maintainer -- but reporting the number is not, and should happen every time
     the rate is quoted.
 
+57. **When a downstream component handles a case that never occurs, ask who
+    is eating it.** `t27_array_type_to_zig` has stripped and preserved a
+    leading `?` for optionals since W561. It never fired, because the LEXER was
+    deleting `?` as an unrecognised character -- for twenty waves. A mapper
+    with a branch nothing reaches is evidence about an earlier stage, not dead
+    code to delete.
+
+58. **Distinguish losing code from changing its meaning.** Every silent discard
+    this chain found before W581 lost code: a truncated file, a dropped
+    receiver, an empty test body. `?` was different -- `?u64` reached the
+    backend as `u64`, so an optional silently became a non-optional. Same
+    mechanism, strictly worse consequence, and no error anywhere. Rank
+    meaning-changing drops above code-losing ones.
+
 ### How to update this tracker
 
 After closing a wave:

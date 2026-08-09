@@ -1,0 +1,25 @@
+--- characters the lexer silently discards ---
+       583  '`'
+       512  '#'
+        10  '\u{86}'
+         7  'â'
+         5  '$'
+         5  '\u{92}'
+         5  'Ï'
+         4  '\\'
+         1  '\u{80}'
+         1  '\u{89}'
+         1  '\u{94}'
+         1  '¥'
+      1135  TOTAL across 31 spec(s)
+  most affected specs:
+       127  specs/physics/gamma-conflict.t27
+       107  specs/benchmarks/bench_nn.t27
+        94  specs/conformance/e2e_scenarios.t27
+        83  specs/benchmarks/gf16_bfloat16_nmse.t27
+        82  specs/api/sdk_contract.t27
+        81  specs/api/c_api_contract.t27
+        68  specs/benchmarks/bench_main.t27
+        65  specs/api/tri_net_api.t27
+        57  specs/physics/lqg_cs_bridge.t27
+        54  specs/benchmarks/ternary_vs_binary.t27

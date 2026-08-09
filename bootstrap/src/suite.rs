@@ -1345,6 +1345,44 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 println!("    FAIL {}: expected {}, got {}", f.name, f.expected, f.actual);
             }
         }
+        // W581: characters the lexer discards without a diagnostic. `?` was
+        // 287 of them until this wave -- an optional type silently becoming a
+        // non-optional. What remains is Markdown punctuation in mis-named
+        // files and non-ASCII bytes (L3 PURITY violations).
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let mut total = 0usize;
+                let mut files = 0usize;
+                let mut stack = vec![root.to_path_buf()];
+                while let Some(dir) = stack.pop() {
+                    if let Ok(entries) = std::fs::read_dir(&dir) {
+                        for e in entries.flatten() {
+                            let p = e.path();
+                            if p.is_dir() {
+                                if p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                                    continue;
+                                }
+                                stack.push(p);
+                            } else if p.extension().and_then(|x| x.to_str()) == Some("t27") {
+                                if let Ok(src) = std::fs::read_to_string(&p) {
+                                    let mut lx = crate::compiler::Lexer::new(&src);
+                                    while lx.next_token().kind != crate::compiler::TokenKind::Eof {}
+                                    if !lx.dropped.is_empty() {
+                                        total += lx.dropped.len();
+                                        files += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                println!(
+                    "  lexer silently discards: {} character(s) across {} spec(s) (t27c lex-dropped)",
+                    total, files
+                );
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 

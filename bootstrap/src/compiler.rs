@@ -128,6 +128,13 @@ impl Node {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
+    /// `?` -- the optional-type marker (`?u64`) and Rust's error-propagation
+    /// postfix. The lexer DISCARDED it as an unrecognised character, so `?u64`
+    /// reached the backend as `u64`: an optional silently became a
+    /// non-optional. 287 occurrences across the corpus, and
+    /// `t27_array_type_to_zig` has handled a leading `?` since W561 -- the
+    /// character never got there (W581).
+    Question,
     /// A string literal that reached end-of-input without a closing quote.
     /// Distinct from `String` so the parser can reject it instead of treating
     /// the rest of the file as its contents (W577).
@@ -238,6 +245,11 @@ pub struct Lexer {
     pos: usize,
     line: usize,
     col: usize,
+    /// Characters the lexer did not recognise and DISCARDED, with the line each
+    /// was on. Recording them changes nothing about lexing; it makes the silent
+    /// drop measurable, which W581 needs before deciding whether the right
+    /// change is to reject them or to lex them.
+    pub dropped: Vec<(char, usize)>,
 }
 
 impl Lexer {
@@ -247,6 +259,7 @@ impl Lexer {
             pos: 0,
             line: 1,
             col: 1,
+            dropped: Vec::new(),
         }
     }
 
@@ -850,8 +863,11 @@ impl Lexer {
             b'~' => TokenKind::Tilde,
             b'<' => TokenKind::Lt,
             b'>' => TokenKind::Gt,
+            b'?' => TokenKind::Question,
             _ => {
-                // Unknown character — skip and recurse
+                // Unknown character -- skip and recurse. Recorded so the drop
+                // can be counted (W581); the behaviour is unchanged.
+                self.dropped.push((ch as char, self.line));
                 self.advance();
                 return self.next_token();
             }
@@ -1934,6 +1950,18 @@ impl Parser {
             self.advance();
         }
 
+        // Optional type: `?u64`, `?[]const u8`. The mapper downstream expects
+        // the `?` to be part of the type text.
+        if self.current.kind == TokenKind::Question {
+            self.advance();
+            let inner = self.parse_type_annotation();
+            return if inner.is_empty() {
+                String::new()
+            } else {
+                format!("?{}", inner)
+            };
+        }
+
         // Machine-generated specs QUOTE the type in a declaration:
         // `head : "usize"`, `allocator : "std.mem.Allocator"`. A string token
         // is not an identifier, so the type parser returned empty and the raw
@@ -2145,7 +2173,11 @@ impl Parser {
         }
 
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::LParen {
+        // W581: an OPTIONAL return type, `-> ?u32`. The shared type parser
+        // handles the `?`; this header has its own paths and needed telling.
+        if self.current.kind == TokenKind::Question {
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::LParen {
             // Tuple return type: (u32, u32)
             decl.extra_return_type = self.parse_type_annotation();
         } else if self.current.kind == TokenKind::Ident {
@@ -3170,6 +3202,16 @@ impl Parser {
                     deref.name = "*".to_string();
                     deref.children.push(expr);
                     expr = deref;
+                } else if self.current.kind == TokenKind::Question {
+                    // W581: `expr.?` -- Zig's optional unwrap. Now that `?` is
+                    // a real token it reaches here; before W581 the lexer
+                    // dropped it and `x.?` silently became a field access to
+                    // nothing.
+                    self.advance(); // consume ?
+                    let mut unwrap = Node::new(NodeKind::ExprFieldAccess);
+                    unwrap.name = "?".to_string();
+                    unwrap.children.push(expr);
+                    expr = unwrap;
                 } else if self.current.kind == TokenKind::Number {
                     // Tuple index access: expr.0 / expr.1 -- previously the dot
                     // was consumed and the index token silently DROPPED, so
@@ -3222,6 +3264,14 @@ impl Parser {
                 } else {
                     break;
                 }
+            } else if self.current.kind == TokenKind::Question {
+                // Rust's error-propagation postfix, `f()?`. Zig spells the same
+                // thing `try f()`, and the parser already has that node shape.
+                self.advance();
+                let mut t = Node::new(NodeKind::ExprUnary);
+                t.extra_op = "try ".to_string();
+                t.children.push(expr);
+                expr = t;
             } else if self.current.kind == TokenKind::LBracket {
                 self.advance(); // consume [
                 let index = self.parse_expr()?;

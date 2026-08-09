@@ -21055,3 +21055,38 @@ in W557 Variant C as a maintainer decision. With the backlog down to 213, they a
 
 A denominator that includes things that can never pass makes every rate a lie by a
 fixed, unknown amount. Say the number.
+
+## Wave Loop 581 -- the lexer was deleting `?` (2026-08-09)
+
+    specs that parse   395 -> 397  (+56 since W568's 341)
+    lexer discards   1,422 -> 1,135 characters
+    assertions emitted 9,229 -> 9,267
+
+### The falsification condition fired, and it was right to
+
+W580 proposed making the unknown-character arm an error, with the condition: "if the
+dropped characters are overwhelmingly in positions the corpus depends on, the right
+change is to LEX them, not reject them, and the count will say which."
+
+Measured: 583 backticks and 512 `#` -- Markdown punctuation in the 15 mis-named
+documents. Rejecting would have rejected files that already fail, and broken W579's
+attribute skip. But 287 were `?`.
+
+### `?` was corrupting MEANING, not just losing it
+
+    condition : ?[]const u8
+
+`?` marks an optional. The lexer deleted it, so `?u64` reached the backend as `u64` --
+an optional silently became a NON-OPTIONAL. No error anywhere. Every other
+silent-discard this chain found lost code; this one changed what the code SAID.
+
+And `t27_array_type_to_zig` has stripped and preserved a leading `?` since W561. The
+mapper was ready for twenty waves; the character never got there. When a downstream
+component handles a case that never occurs, ask who is eating it.
+
+### The gate found the third construct
+
+Making `?` a token immediately regressed sync/schema.t27, which uses
+`session.end_time_ms.?`. Before this wave the `?` was dropped and `x.?` silently became
+a field access to nothing. Three constructs, one character: `?T` (optional type),
+`x.?` (unwrap), `f()?` (error propagation -> Zig `try`).
