@@ -185,6 +185,50 @@ jobs:
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
+      # Zero-sized-request policy. Three waves found this defect shape one
+      # module at a time; this sweeps every module that takes a count and
+      # reports completion. Polarity is inverted on purpose: a module must
+      # COMPLETE a zero-sized request (so `never_completes` must refute) and
+      # must not pretend to have done it (so `no_work` must prove). Before the
+      # sweep, multilayer_sequencer and dma_controller silently dropped the
+      # request -- no work, no done, no error, host hangs on the IRQ.
+      - name: Zero-sized requests complete without pretending
+        run: |
+          set -euo pipefail
+          fail=0
+          zs() {
+            dut="$1"; wrap="$2"; keep="$3"; want="$4"
+            python3 - "$keep" > build/zs.sv <<'PY'
+          import re, sys
+          src = open("formal/zero_size_props.sv").read()
+          keep = sys.argv[1]
+          for lab in re.findall(r"(a_zero_\w+): assert", src):
+              if lab != keep:
+                  src = re.sub(re.escape(lab) + r": assert \([^;]*\);",
+                               lab + ": assert (1'b1);", src)
+          sys.stdout.write(src)
+          PY
+            if yosys -q -p "read_verilog -sv -formal build/rtl/$dut.sv build/zs.sv; \
+                            prep -top $wrap -flatten; async2sync; chformal -lower; \
+                            sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes" \
+                 >/dev/null 2>&1; then got=proves; else got=refutes; fi
+            if [ "$got" != "$want" ]; then
+              echo "::error::$keep expected to $want but $got"
+              fail=1
+            else
+              echo "ok       $keep ($got)"
+            fi
+          }
+          zs multilayer_sequencer zs_multilayer a_zero_layers_never_completes  refutes
+          zs multilayer_sequencer zs_multilayer a_zero_layers_emits_no_work    proves
+          zs dma_controller       zs_dma        a_zero_length_never_completes  refutes
+          zs dma_controller       zs_dma        a_zero_length_moves_no_data    proves
+          zs weight_prefetch_ctrl zs_prefetch   a_zero_words_never_completes   refutes
+          zs weight_prefetch_ctrl zs_prefetch   a_zero_words_writes_nothing    proves
+          zs layer_sequencer      zs_layer      a_zero_neurons_never_completes refutes
+          zs layer_sequencer      zs_layer      a_zero_neurons_emits_no_work   proves
+          exit $fail
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27

@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## zero-size sweep -- a 2-2 policy split, and a retraction
+
+- **WHERE**: `formal/zero_size_props.sv`, `bootstrap/src/bitnet_dma.rs`,
+  `bootstrap/src/bitnet_pipeline.rs`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 26), `README.md`.
+- **Retraction first.** Prop 25c claimed a zero-length DMA "reaches DONE without
+  writing". False. It never completed at all -- it was silently **dropped**. The
+  claim came from the comment above the line, which was wrong too. *A generated
+  file's comments are not evidence about the generated file.*
+- Rows 1 and 2 of that table failed for the **same** reason, not two: `dma_done`
+  was also read above its declaration, so that interlock was wired to an
+  undriven twin and did nothing. One fault, reported as two.
+- **Swept every module that takes a count.** Measured, not guessed: a **2-2
+  split**. `layer_sequencer` and `weight_prefetch_ctrl` complete a zero job;
+  `multilayer_sequencer` and `dma_controller` **dropped** it -- no work, no done,
+  no error, host hangs on an IRQ that never arrives.
+- **The dropping half is the dangerous half.** A dropped request is the one
+  outcome a host cannot observe. Both changed to complete.
+- **Completing must not mean pretending.** Four no-work properties added, all
+  proving. The CI gate has inverted polarity: `*_never_completes` must REFUTE
+  and `*_no_work` must PROVE. Either half alone permits a module that lies or a
+  module that hangs.
+- **Proactive beats reactive.** Props 9 and 10 were noticed while chasing
+  something else; 25c was a guess and was wrong. The sweep found both real
+  instances in one pass and raised a policy question no single-module
+  investigation had. **When a defect shape appears twice, enumerate the class.**
+- Suite **1208 passed, 0 failed**. Seals 496/496.
+
 ## cross-layer -- one property proves, one refutes and is now gated open
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `.github/workflows/formal-yosys.yml`,

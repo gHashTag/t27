@@ -1159,14 +1159,16 @@ failed for a different and instructive reason:
 
 | Attempt | Result |
 |---|---|
-| `input_loaded` set by `dma_done` | still REFUTED — a **zero-length DMA** reaches DONE without ever asserting `dma_local_we`, satisfying its completion contract while writing nothing |
+| `input_loaded` set by `dma_done` | still REFUTED — ~~a zero-length DMA reaches DONE without writing~~ **RETRACTED, see Prop. 26a.** The real cause was the same implicit-net fault as row 2 |
 | set by `dma_local_we`, declared early | still REFUTED — and it broke an unrelated proved property (below) |
 | same, with a synchronous reset | still REFUTED — **baseline** broke regardless of reset style |
 
-The first row is the interesting one on its own: it is the **third member of a
-family** this campaign keeps finding — zero neurons (Prop. 9), zero words
-(Prop. 10), zero bytes here. **A zero-sized job is vacuously complete, and
-completion is therefore not evidence that work was done.**
+> **Correction (Prop. 26a).** The mechanism given for row 1 was wrong. A
+> zero-length DMA did **not** reach DONE — it was silently dropped and never
+> completed at all. The claim was written from the emitted file's own comment
+> rather than its behaviour, and the comment was wrong too. Rows 1 and 2 failed
+> for the *same* reason: `dma_done` was also read above its declaration, so the
+> interlock was wired to an undriven twin and had no effect whatsoever.
 
 Because no attempt closed 25b and every attempt cost a proved property
 elsewhere, none shipped. 25b is recorded behind its own `` `ifdef FORMAL_OPEN ``
@@ -1210,6 +1212,95 @@ yosys -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN build/rtl/*.sv; \
           chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; \
           memory_map; async2sync; chformal -lower; \
           sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
+```
+
+---
+
+### Prop. 26 — the zero-sized-request sweep: a 2–2 policy split, and a retraction — `MEASURED` / `PROVED`
+
+Three waves found one defect shape one module at a time, reactively: zero
+neurons (Prop. 9), zero words (Prop. 10), and a claimed zero bytes (Prop. 25c).
+Finding the same shape three times is a signal about where the rest of them are.
+This proposition stops finding them by accident.
+
+**26a. The retraction first.** Prop. 25c stated that a zero-length DMA "reaches
+DONE without ever asserting `dma_local_we`, satisfying its completion contract
+while writing nothing". **That is false.** The emitted RTL reads:
+
+```verilog
+IDLE: if (start && (length != 32'd0)) begin   // the old guard
+```
+
+`done` is asserted only in `DONE_ST`, and a zero-length request never leaves
+`IDLE`. So it did not complete vacuously — it was **silently dropped**, which is
+strictly worse. The claim came from the comment sitting directly above that
+line, which read *"A zero-length request moves no data and completes
+immediately"* — true of the intent, false of the code, for several waves.
+
+> **A generated file's comments are not evidence about the generated file.**
+> This campaign's standing rule is *verify the artifact, not the source*; a
+> comment inside the artifact is still source. The behaviour is the artifact.
+
+Rows 1 and 2 of the Prop. 25c table failed for the **same** reason, not two
+different ones: `dma_done` is declared at line 262 and was read at line 125, so
+that interlock was also wired to an undriven twin (Prop. 25e) and had no effect
+at all. One fault, reported as two.
+
+**26b. Every module that takes a count, measured.** Each wrapper in
+[`formal/zero_size_props.sv`](../formal/zero_size_props.sv) holds its count at
+zero and asserts the module *never completes*. A proof means the request is
+dropped; a refutation means it completes.
+
+| module | count | verdict | policy |
+|---|---|---|---|
+| `layer_sequencer` | `num_neurons` | refutes | **completes** |
+| `weight_prefetch_ctrl` | `num_words` | refutes | **completes** |
+| `multilayer_sequencer` | `num_layers` | **PROVES** | **dropped** — host hangs |
+| `dma_controller` | `length` | **PROVES** | **dropped** — host hangs |
+
+A **2–2 split**. Neither policy is wrong in isolation; four modules disagreeing
+is the defect, because a host driving this engine cannot know which to expect.
+
+**26c. The dropping half is the dangerous half.** A dropped request produces no
+work, no completion, and no error. It is the one outcome a host **cannot
+observe**: the CSR write is accepted, nothing happens, and the completion
+interrupt never arrives. A vacuous completion is at least visible. Both
+droppers were changed to complete:
+
+```verilog
+IDLE: if (start) begin
+    done <= 1'b0;
+    if (length != 32'd0) begin ... end
+    else state <= DONE_ST;        // moves no data, and says so
+end
+```
+
+**26d. Completing must not mean pretending.** A completion policy is only safe
+paired with a proof that the zero job did nothing. Four such properties were
+added and **all four prove**: no `valid`, no `layer_start`/`start_prefetch`, no
+`bram_we`/`axi_arvalid`, no `local_we`/`m_axi_arvalid`/`m_axi_awvalid`.
+
+After the fix all eight properties hold with **inverted polarity** — every
+`*_never_completes` refutes, every no-work property proves — and that is the CI
+gate. Both halves are needed: the first alone permits a module that lies, the
+second alone permits a module that hangs.
+
+**26e. Proactive sweeps find what reactive ones cannot.** Props. 9 and 10 were
+each found because something else broke and the zero case was noticed on the
+way. Prop. 25c was found by *guessing* at a mechanism, and the guess was wrong.
+The sweep found both real instances in one pass, and produced a **policy
+question** — which behaviour is correct? — that no single-module investigation
+had raised. **When the same defect shape appears twice, enumerate the whole
+class before it appears a third time.**
+
+Reproduce:
+
+```bash
+t27c gen-bitnet-bundle --output-dir build/rtl
+yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv formal/zero_size_props.sv; \
+          prep -top zs_dma -flatten; async2sync; chformal -lower; \
+          sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
+# a_zero_length_never_completes must REFUTE; a_zero_length_moves_no_data must PROVE
 ```
 
 ---

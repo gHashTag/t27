@@ -236,7 +236,14 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("                layer_start <= 1'b0;\n");
     out.push_str("                start_prefetch <= 1'b0;\n");
     out.push_str("                inference_done <= 1'b0;\n");
-    out.push_str("                if (start && num_layers > 6'd0) begin\n");
+    out.push_str("                // A zero-layer inference completes immediately. It used to be\n");
+    out.push_str("                // dropped -- start ignored, no inference_done, no error -- so a\n");
+    out.push_str("                // host waiting on the IRQ waited forever. Proved by zs_multilayer\n");
+    out.push_str("                // in formal/zero_size_props.sv. layer_sequencer and\n");
+    out.push_str("                // weight_prefetch_ctrl already completed their zero jobs; four\n");
+    out.push_str("                // modules disagreeing on this was the real defect.\n");
+    out.push_str("                if (start && num_layers == 6'd0) state <= DONE_ST;\n");
+    out.push_str("                else if (start) begin\n");
     out.push_str("                    current_layer <= 6'd0;\n");
     out.push_str("                    layer_start <= 1'b1;\n");
     out.push_str("                    state <= LAYER_RUN;\n");
@@ -445,5 +452,20 @@ mod tests {
         assert!(!is_valid_verilog_ident(""));
         assert!(!is_valid_verilog_ident("9foo"));
         assert!(!is_valid_verilog_ident("foo-bar"));
+    }
+
+    // Wave 575. Companion to the DMA guard above: a zero-layer inference used
+    // to be dropped, so the host's IRQ never arrived. layer_sequencer and
+    // weight_prefetch_ctrl already completed their zero jobs -- four modules
+    // disagreeing on this was the defect. Proved by zs_multilayer in
+    // formal/zero_size_props.sv.
+    #[test]
+    fn zero_layer_inference_completes_rather_than_vanishing() {
+        let v = build_multilayer_sequencer("multilayer_sequencer");
+        assert!(v.contains("if (start && num_layers == 6'd0) state <= DONE_ST;"));
+        assert!(
+            !v.contains("if (start && num_layers > 6'd0) begin"),
+            "a start with zero layers must not be silently ignored"
+        );
     }
 }

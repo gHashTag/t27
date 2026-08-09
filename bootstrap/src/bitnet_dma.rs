@@ -179,14 +179,26 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            burst_count    <= 8'd0;\n");
     s.push_str("        end else case (state)\n");
     s.push_str("            // A zero-length request moves no data and completes immediately.\n");
-    s.push_str("            IDLE: if (start && (length != 32'd0)) begin\n");
-    s.push_str("                busy            <= 1'b1;\n");
-    s.push_str("                done            <= 1'b0;\n");
-    s.push_str("                bytes_remaining <= length;\n");
-    s.push_str("                local_addr      <= 12'd0;\n");
-    s.push_str("                state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
-    s.push_str("                if (!direction) m_axi_araddr <= src_addr;\n");
-    s.push_str("                else            m_axi_awaddr <= dst_addr;\n");
+    s.push_str("            //\n");
+    s.push_str("            // The comment above was true of the intent and false of the code for\n");
+    s.push_str("            // several waves: the guard was `start && length != 0`, so a\n");
+    s.push_str("            // zero-length request was silently DROPPED -- no data, no done, no\n");
+    s.push_str("            // error, and a host waiting on the completion IRQ waits forever.\n");
+    s.push_str("            // Proved by zs_dma in formal/zero_size_props.sv. Dropping a request\n");
+    s.push_str("            // is the one outcome a host cannot observe, so the zero case now\n");
+    s.push_str("            // takes the DONE path: it moves no data and it does say so.\n");
+    s.push_str("            IDLE: if (start) begin\n");
+    s.push_str("                done <= 1'b0;\n");
+    s.push_str("                if (length != 32'd0) begin\n");
+    s.push_str("                    busy            <= 1'b1;\n");
+    s.push_str("                    bytes_remaining <= length;\n");
+    s.push_str("                    local_addr      <= 12'd0;\n");
+    s.push_str("                    state           <= direction ? WRITE_ADDR : READ_ADDR;\n");
+    s.push_str("                    if (!direction) m_axi_araddr <= src_addr;\n");
+    s.push_str("                    else            m_axi_awaddr <= dst_addr;\n");
+    s.push_str("                end else begin\n");
+    s.push_str("                    state           <= DONE_ST;\n");
+    s.push_str("                end\n");
     s.push_str("            end\n");
     s.push_str("            READ_ADDR: begin\n");
     s.push_str("                m_axi_arlen   <= burst_len;\n");
@@ -433,5 +445,27 @@ mod tests {
     fn emitted_text_is_pure_ascii() {
         let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
         assert!(v.is_ascii(), "emitted Verilog must be ASCII");
+    }
+
+    // Wave 575. A zero-length request used to be dropped: the IDLE guard was
+    // `start && length != 0`, so no data moved, `done` never asserted, and a
+    // host waiting on the completion IRQ waited forever. Proved by zs_dma in
+    // formal/zero_size_props.sv. Dropping a request is the one outcome a host
+    // cannot observe, so the zero case now takes the DONE path.
+    #[test]
+    fn zero_length_request_completes_rather_than_vanishing() {
+        let v = build_dma_controller(DEFAULT_DMA_CONTROLLER_NAME);
+        assert!(
+            !v.contains("IDLE: if (start && (length != 32'd0))"),
+            "gating the whole IDLE transition on a nonzero length drops the request"
+        );
+        assert!(v.contains("IDLE: if (start) begin"));
+        let idle = v.find("IDLE: if (start) begin").unwrap();
+        let rest = &v[idle..];
+        let zero_branch = rest.find("end else begin").expect("zero-length branch present");
+        assert!(
+            rest[zero_branch..zero_branch + 120].contains("DONE_ST"),
+            "the zero-length branch must complete, not fall through to nothing"
+        );
     }
 }
