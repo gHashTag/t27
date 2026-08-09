@@ -4305,6 +4305,24 @@ These cost a wave each. Follow them before step 1.
     a deferral starts capping what any amount of work can achieve, report that
     explicitly rather than routing around it again.
 
+65. **A stage that cannot fail cannot be trusted.** Every large finding in
+    this chain -- 7,623 discarded test bodies, 16,792 truncated lines, 198
+    dropped receivers, 287 deleted `?`, 409 invalid C declarations -- is a
+    component that accepted input, produced a smaller or different program, and
+    reported success. **Not one was found by a test failing.** Each was found by
+    asking a component to account for its input: did it consume all of it, does
+    it match a written-down table, does a real compiler accept its output. The
+    FPGA track is the counter-example that proves the rule -- it was never wrong
+    because `yosys` and `nextpnr` refuse nonsense.
+
+66. **A missing helper can be a MASK rather than a blocker.** `default_input()`
+    was the top blocker in three measurement systems for twenty-five waves.
+    Resolving it (the binding's type is recoverable from its USE, and the tests
+    constrain the value not at all) revealed 571 functions with empty bodies and
+    571 template tests -- one generated test per unimplemented function. Before
+    spending waves on a blocker, ask what is behind it: the number that matters
+    may be the one it is hiding.
+
 ### How to update this tracker
 
 After closing a wave:

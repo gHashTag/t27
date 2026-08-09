@@ -14,6 +14,7 @@ mod bridge;
 mod compiler;
 mod use_resolve;
 mod check_calls;
+mod cc_gate;
 mod lex_conform;
 mod parse_conform;
 mod enrichment;
@@ -86,6 +87,19 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Compile every generated C header with `cc -fsyntax-only` and report the
+    /// first-error class table
+    CcGate {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+        /// Print every failing spec and its first error, not just the classes
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
     /// Report every character the lexer silently DISCARDS, by character and by
     /// spec
     LexDropped {
@@ -3107,6 +3121,43 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
     }
+    Ok(())
+}
+
+fn run_cc_gate(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let report = match cc_gate::run(root, include_scratch) {
+        Some(r) => r,
+        None => {
+            println!("--- C gate ---");
+            println!("  SKIPPED: no C compiler found (tried cc, clang, gcc)");
+            return Ok(());
+        }
+    };
+    if verbose {
+        for (f, e) in &report.failures {
+            println!("{}: {}", f, e);
+        }
+        println!();
+    }
+    // The CLASS table is the load-bearing metric while the classes are large:
+    // a header must clear every one of them to compile, so fixing a class moves
+    // specs from failing on A to failing on B without moving the header count
+    // at all (W584).
+    println!("--- C gate ({} -fsyntax-only) ---", report.cc);
+    let mut classes: Vec<_> = report.classes.iter().collect();
+    classes.sort_by(|a, b| b.1.cmp(a.1));
+    for (class, n) in &classes {
+        println!("  {:>5}  {}", n, class);
+    }
+    println!();
+    println!("  specs scanned          {}", report.total);
+    println!("  headers that COMPILE   {}", report.compiled);
+    println!("  headers that FAIL      {}", report.failed);
+    println!("  no header generated    {}", report.gen_failed);
     Ok(())
 }
 
@@ -9658,6 +9709,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::CcGate { specs_dir, include_scratch, verbose } => {
+            run_cc_gate(&specs_dir, include_scratch, verbose)?
+        }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
         Commands::ParseComplete { specs_dir, include_scratch } => {
@@ -9972,6 +10026,9 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::CcGate { specs_dir, include_scratch, verbose } => {
+            run_cc_gate(&specs_dir, include_scratch, verbose)?
+        }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
         Commands::ParseComplete { specs_dir, include_scratch } => {

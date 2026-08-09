@@ -21193,3 +21193,53 @@ changes -- I kept reporting a number that had stopped being informative.
 pending since W561. It is now the top blocker in THREE measurement systems (C headers,
 Zig compile failures, check-calls). No amount of backend work moves the header count
 while it stands. That is the cost of a deferred decision becoming visible.
+
+## Wave Loop 585 -- the default_input wall was a mask over 571 empty functions (2026-08-09)
+
+All three variants taken, plus a formal-results document.
+
+    t27c cc-gate          the C measurement is a command now, wired into Phase 6
+    default_input         first-error count 109 -> 0
+    board                 still BLOCKED -- no programmer on USB
+
+### The finding
+
+`default_input()` is not derivable from its own call -- it takes no arguments and
+returns whatever the next line needs. But the next line is `f(input)` and `f`'s
+parameter type is DECLARED, so the binding's type is recoverable from its USE, and the
+tests constrain the value not at all (`result != undefined`).
+
+Removing it revealed:
+
+    169 specs carrying "// TODO: Implement from .tri spec"
+    571 functions with an EMPTY BODY
+    571 template tests
+
+One generated test per unimplemented function. The scaffold generated a test for every
+function it also left unimplemented, and the missing helper stood in front of that fact
+for twenty-five waves. default_input was never a blocker -- it was a MASK.
+
+Third time in this chain that removing a mask made a counter worse and the project
+better (W569 stray brace, W577 truncations, this).
+
+### The instrument caught my own regression, one wave later
+
+`t27c cc-gate` immediately found that W584's named-tuple fix split `gf16::GF16` at the
+first colon and emitted `typedef struct { :GF16 f0; ... }`. Build the instrument; it
+catches you too.
+
+### The conclusion of eighteen waves, written down
+
+Every large finding in this chain has one shape: a component accepted input, produced a
+smaller or different program, and REPORTED SUCCESS. Parser four times, lexer once
+(changing meaning, not losing code), C backend once (409 invalid declarations nobody
+compiled), and the scaffold mask.
+
+NOT ONE was found by a test failing. Each was found by asking a component to account
+for its input.
+
+    A stage that cannot fail cannot be trusted.
+
+The FPGA track is the counter-example: correct since W553 because yosys and nextpnr are
+consumers that refuse nonsense. The only part never wrong, and the only part with a
+real consumer.

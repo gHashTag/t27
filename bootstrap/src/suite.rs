@@ -1383,6 +1383,32 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 );
             }
         }
+        // W585: the C gate, as a command rather than a shell loop. The CLASS
+        // table is what matters while the classes are large -- a header must
+        // clear every one of them, so fixing a class moves specs from failing
+        // on A to failing on B without moving the header count (W584).
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                match crate::cc_gate::run(root, false) {
+                    Some(r) => {
+                        println!(
+                            "  C headers compiling: {} of {} ({} fail, {} not generated)",
+                            r.compiled,
+                            r.compiled + r.failed,
+                            r.failed,
+                            r.gen_failed
+                        );
+                        let mut top: Vec<_> = r.classes.iter().collect();
+                        top.sort_by(|a, b| b.1.cmp(a.1));
+                        for (class, n) in top.into_iter().take(3) {
+                            println!("    {:>5}  {}", n, class);
+                        }
+                    }
+                    None => println!("  C headers: SKIPPED (no C compiler)"),
+                }
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 
