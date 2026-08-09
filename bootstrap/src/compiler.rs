@@ -13782,6 +13782,33 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                 if node.kind == NodeKind::ExprIdentifier {
                     reads.insert(node.name.clone());
                 }
+                // A BARE bracket literal (`[a0, 99]`, no `[N]Type{...}` prefix)
+                // never becomes child nodes: the parser captures the whole
+                // bracket body as element TEXT in extra_size. Reading only
+                // children therefore missed every identifier used that way and
+                // reported it as an unused variable -- a false positive on the
+                // idiomatic "bind the elements to locals, then rebuild the
+                // array" pattern (health_monitoring::update_health_check,
+                // key_management::set_key_slot, and others). Scan the text too.
+                // This can only ADD reads, so it removes false warnings and can
+                // never introduce one.
+                if node.kind == NodeKind::ExprArrayLiteral && !node.extra_size.is_empty() {
+                    let mut ident = String::new();
+                    for ch in node.extra_size.chars() {
+                        if ch.is_alphanumeric() || ch == '_' {
+                            ident.push(ch);
+                        } else {
+                            if !ident.is_empty() && !ident.starts_with(|c: char| c.is_ascii_digit()) {
+                                reads.insert(std::mem::take(&mut ident));
+                            } else {
+                                ident.clear();
+                            }
+                        }
+                    }
+                    if !ident.is_empty() && !ident.starts_with(|c: char| c.is_ascii_digit()) {
+                        reads.insert(ident);
+                    }
+                }
                 for child in &node.children {
                     collect_reads(child, reads);
                 }

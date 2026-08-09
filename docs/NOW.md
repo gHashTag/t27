@@ -58,6 +58,14 @@ Last updated: 2026-08-09
 
 Last updated: 2026-08-09
 
+## typecheck: warnings are PRINTED, and the unused-variable false positive is fixed (Refs #1948)
+
+- `typecheck` built every warning message and then dropped it: the OK branch printed only the total, so a warning was unactionable -- you could watch the number grow and never learn what it was. The messages were already in `result.errors`; they are printed now. Some are real correctness findings downgraded to warnings (a call to an undefined function, an argument type mismatch), so the silence actively hid defects
+- Printing them immediately exposed a detector bug: a BARE bracket literal (`[a0, 99]`, no `[N]Type{...}` prefix) never becomes child nodes -- the parser captures the whole bracket body as element TEXT in `extra_size`. The unused-variable pass read only children, so every identifier used that way was reported unused. That is the idiomatic "bind elements to locals, then rebuild the array" pattern (health_monitoring::update_health_check, key_management::set_key_slot, cross_layer_optimizer/redundancy_management::set_slot4). `collect_reads` now scans the element text too -- it can only ADD reads, so it removes false warnings and can never introduce one
+- tri-net corpus: unused-variable warnings 34 -> 14 (20 were false), total 788 -> 768; all 107 specs still typecheck clean
+- FROZEN_HASH resealed
+
+
 ## numeric: GF-T registered in the catalog SSOT, all nine rungs (Refs #2001)
 
 - `specs/numeric/formats_catalog.t27` had **zero GF-T rows** -- the only `gft` id was `gfternary`, a different object (2-bit {-phi,0,+phi} alphabet, not a float with a balanced-ternary exponent field). Four rungs existed as specs with no row and no pack; five did not exist at all, while `zig-golden-float/specs/gft.tri` named this directory as its own source of truth
