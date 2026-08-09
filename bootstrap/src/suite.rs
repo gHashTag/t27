@@ -1317,6 +1317,21 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 );
             }
         }
+        // W576: the lexer conformance table. Unlike the other Phase 6 metrics
+        // this one SHOULD be zero -- every case is either a form the corpus
+        // depends on or a measured boundary -- so a non-zero count is a real
+        // regression and is reported as such.
+        {
+            let failures = crate::lex_conform::run();
+            println!(
+                "  lexer conformance: {}/{} cases passing",
+                crate::lex_conform::total() - failures.len(),
+                crate::lex_conform::total()
+            );
+            for f in &failures {
+                println!("    FAIL {:?}: expected {}, got {}", f.input, f.expected, f.actual);
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 

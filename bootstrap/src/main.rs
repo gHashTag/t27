@@ -14,6 +14,7 @@ mod bridge;
 mod compiler;
 mod use_resolve;
 mod check_calls;
+mod lex_conform;
 mod enrichment;
 mod suite;
 mod railway;
@@ -81,6 +82,9 @@ enum Commands {
     },
 
     /// Generate Zig code from .t27 file
+    /// Run the lexer conformance table: each input against the exact token
+    /// sequence it must produce
+    LexConform,
     /// Check call sites against the signatures they call (arity and
     /// aggregate-vs-scalar), across a spec tree
     CheckCalls {
@@ -3081,6 +3085,33 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
             }
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_lex_conform() -> anyhow::Result<()> {
+    let failures = lex_conform::run();
+    let total = lex_conform::total();
+    for f in &failures {
+        println!("input    {:?}", f.input);
+        println!("  expected {}", f.expected);
+        println!("  actual   {}", f.actual);
+        println!("  note     {}", f.note);
+        println!();
+    }
+    println!("--- lexer conformance ---");
+    println!("  cases      {}", total);
+    println!("  passing    {}", total - failures.len());
+    println!("  failing    {}", failures.len());
+    if failures.iter().any(|f| f.boundary) {
+        println!(
+            "  ({} of the failures are BOUNDARY cases: behaviour that was measured,",
+            failures.iter().filter(|f| f.boundary).count()
+        );
+        println!("   not designed. A boundary failure means someone changed it silently.)");
+    }
+    if !failures.is_empty() {
+        anyhow::bail!("{} lexer conformance failure(s)", failures.len());
     }
     Ok(())
 }
@@ -9463,6 +9494,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::LexConform => run_lex_conform()?,
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
         }
@@ -9771,6 +9803,7 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::LexConform => run_lex_conform()?,
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
         }

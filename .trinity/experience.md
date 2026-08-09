@@ -20883,3 +20883,40 @@ ternary_mac convention split 91/80 inside its own module.
 
 The right end state for a checker is not zero findings. It is zero findings that a
 machine could have resolved.
+
+## Wave Loop 576 -- writing down what the lexer does found the next bug immediately (2026-08-09)
+
+    t27c lex-conform        26 cases, 26 passing
+    string-literal defects   1 -> 0
+    parse 341 -> 351, 0 regressions | harness ALL_PASS 23, 615 passing
+
+### The table found a bug by being WRITTEN, not by being run
+
+Stating that `"a\nb"` lexes to String(a<newline>b) -- the lexeme is UNESCAPED -- forced
+the question of what the backend does with it. Answer: W562 taught the Zig emitter to
+write string literals back between quotes without re-escaping, so a spec newline
+became a literal newline inside a Zig string literal:
+
+    return "line1
+                 ^ error: string literal contains invalid byte: '\n'
+
+154 escape sequences across 19 specs. It had been sitting in the W568 error taxonomy
+as a single unexplained `string literal contains invalid byte` -- visible, counted,
+and never chased.
+
+Writing down what a component DOES is a different activity from testing that it works,
+and it finds a different class of bug: the mismatch between two components' beliefs
+about the same value.
+
+### Boundary cases are the valuable half
+
+Contract cases (1e6, 0x1e, a +% b, a.b.c) protect what the corpus depends on. BOUNDARY
+cases record what was measured rather than designed:
+
+    1x2     -> Number(1x2)     `x` accepted anywhere in a number
+    0b12    -> Number(0b12)    binary literal with a non-binary digit, not rejected
+    1.2.3   -> Number(1.2.3)   two decimal points, one number
+    "a\nb"  -> String(a\nb)    UNESCAPED  <- this one was a live defect
+
+A boundary failing does not mean the component is wrong. It means someone changed
+behaviour nobody had written down.

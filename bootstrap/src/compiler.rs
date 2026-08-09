@@ -4373,6 +4373,23 @@ impl Codegen {
         Self::is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
     }
 
+    /// Re-escape a string the lexer already unescaped, so it can be written
+    /// back between quotes.
+    fn zig_escape(raw: &str) -> String {
+        let mut out = String::with_capacity(raw.len());
+        for c in raw.chars() {
+            match c {
+                '\\' => out.push_str("\\\\"),
+                '"' => out.push_str("\\\""),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                _ => out.push(c),
+            }
+        }
+        out
+    }
+
     fn zig_ident(name: &str) -> String {
         // t27 spells scoped names Rust-style (`Severity::Error`,
         // `base::types`). Zig has no `::`, and emitting it verbatim gave
@@ -5157,7 +5174,14 @@ impl Codegen {
                 // identifiers. That is a large share of the
                 // `use of undeclared identifier` class measured in W560.
                 if node.extra_kind == "string" {
-                    self.write(&format!("\"{}\"", node.value));
+                    // The lexer UNESCAPES as it reads, so `"a\nb"` in a spec
+                    // arrives here holding a real newline. Writing that back
+                    // between quotes produced "string literal contains invalid
+                    // byte: '\n'" -- a Zig string literal cannot span lines.
+                    // 154 escape sequences across 19 specs. The W576 lexer
+                    // conformance table records the unescaping as a boundary,
+                    // which is how this was found.
+                    self.write(&format!("\"{}\"", Self::zig_escape(&node.value)));
                 } else {
                     self.write(&node.value);
                 }

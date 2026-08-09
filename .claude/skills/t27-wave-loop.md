@@ -4174,6 +4174,22 @@ These cost a wave each. Follow them before step 1.
     split inside its own module. Reporting "32 open, all of them yours" is a
     finished wave, not an unfinished one.
 
+47. **Writing down what a component DOES is a different activity from testing
+    that it works, and finds a different class of bug.** W576's lexer
+    conformance table found its defect while being WRITTEN: stating that
+    `"a\nb"` lexes to an UNESCAPED lexeme forced the question of what the
+    backend does with it, and the answer was a literal newline inside a Zig
+    string literal (154 escape sequences, 19 specs). The class it finds is the
+    mismatch between two components' beliefs about the same value -- which no
+    test of either component alone will catch.
+
+48. **Record BOUNDARY cases, not just contracts.** Half of W576's table is
+    behaviour that was measured rather than designed (`1x2` lexes as one
+    Number; `0b12` is not rejected; `"a\nb"` is unescaped). A boundary case
+    failing does not mean the component is wrong -- it means someone changed
+    behaviour nobody had written down. That is exactly the change that
+    otherwise ships silently.
+
 ### How to update this tracker
 
 After closing a wave:
