@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-10
 
+## Wave 612 — an environment, and the three bars a property has to clear
+
+- **THE BLOCKER, REMOVED**: Prop. 62 deleted `a_addr_ahead_of_data` and named
+  what stopped it being replaced — `rvalid` is a free input, so the solver may
+  return read data for an address the controller never issued. Not a design
+  behaviour being explored; a testbench that cannot exist in silicon. One
+  counter pair and one assume fix it: *a slave returns at most one beat per
+  address it accepted*.
+- **THREE BARS, NOT ONE**: Waves 41, 50d and 62 each shipped something that
+  cleared "it proves" and nothing else. A property now has to clear **TRUE**
+  (holds on the real design), **ALIVE** (the assumption did not buy that by
+  making the design idle — every activity still reachable with the assume
+  active), and **BITING** (detects behaviourally-real mutants from Prop. 61).
+- **`a_writes_within_addresses` CLEARS ALL THREE**: proves alone and with the
+  suite; five reachability probes all still refute; detects **2** mutants the
+  whole suite had missed, both spurious `bram_we`. Control: with the property
+  removed but the environment kept, **0** of the two still refute — the
+  detections belong to the property, not the assumption. Property count back
+  to **42**.
+- **THE ASSUMPTION IS GATED**: an environment safe today can over-constrain
+  after any RTL change. The *Module suites are still alive under their
+  assumptions* step now probes `arvalid && arready` and `rvalid && rready`
+  inside `wp_props` with the assume active — 11 probes, all reachable. Prop.
+  50d's failure is now something CI notices instead of something a future wave
+  rediscovers.
+- **DMA: ENVIRONMENT YES, PROPERTIES NO**: the same environment transfers
+  cleanly (`local_we`, `done`, both handshakes stay reachable), and **neither**
+  candidate property ships. `a_writes_within_request` REFUTED — the port-only
+  shadow of the request is wrong, and it was not patched into passing.
+  `a_beats_within_addresses` PROVED and detected **0 of 64** gaps, because it
+  restates its own assumption.
+- **THE LESSON WORTH THE WAVE**: *a property that restates its own assumption
+  proves, reads as meaningful, and constrains nothing.* It would have passed
+  every gate in this repository before today — non-vacuous guard, non-free
+  body, real signals, proves at depth. Only the BITING bar caught it. That is
+  the argument for keeping the expensive bar.
+- **WHERE**: `formal/weight_prefetch_props.sv`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 63).
+- **STATE**: 63 propositions · 63 gates · 14 witnesses · 42 module properties ·
+  11 assumption-liveness probes · 1213 tests · 496/496 seals · no known defect.
+
 ## Wave 611 — one of the properties had never read the design
 
 - **THE PLAN**: Wave 610 ended with 133 named behaviourally-real gaps and a

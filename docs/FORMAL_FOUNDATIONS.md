@@ -3821,6 +3821,78 @@ python3 formal/phantom_scan.py
 
 ---
 
+### Prop. 63 — an environment, and the three bars a property has to clear — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Module suites are still alive under their assumptions*
+
+Prop. 62 deleted `a_addr_ahead_of_data` and named the blocker: its intent needs
+an environment, because `rvalid` is a free input and the solver may return read
+data for an address the controller never issued. That is not a design behaviour
+being explored — it is a testbench that cannot exist in silicon. This supplies
+the environment and puts back a property that earns its place.
+
+**63a. The environment.** One counter pair and one assumption: a slave returns
+at most one beat per address it accepted.
+
+```verilog
+always @(posedge clk) if (rst_n)
+    assume (!(rvalid && rready) || fv_r_acc < fv_ar_acc);
+```
+
+**63b. Three bars, not one.** Waves 41, 50d and 62 each recorded a property that
+cleared "it proves" and nothing else. A property now has to clear:
+
+| bar | question | how it is checked |
+|---|---|---|
+| **TRUE** | does it hold on the real design? | prove it, alone and with its suite |
+| **ALIVE** | did the assumption buy that by making the design idle? | each activity must still be reachable **with the assumption active** |
+| **BITING** | does it detect anything? | run it against the behaviourally-real gaps from Prop. 61 |
+
+**63c. `a_writes_within_addresses` clears all three.** Every BRAM write is data
+that was asked for: writes never outrun the addresses issued for them — what
+the deleted property was reaching for, stated in ports.
+
+| bar | result |
+|---|---|
+| TRUE | PROVED alone and with the suite |
+| ALIVE | 5 probes — write, address accepted, beat accepted, two writes, prefetch completes — **all still refute** |
+| BITING | detects **2** behaviourally-real mutants the whole suite missed, both spurious `bram_we` |
+
+And the control that matters: with the property removed but the environment
+kept, **0** of those two still refute. The detections belong to the property, not
+to the assumption. Module property count returns to 42.
+
+**63d. The assumption is gated, permanently.** An environment that is safe today
+can over-constrain after any RTL change, silently. The *Module suites are still
+alive* step now probes `arvalid && arready` and `rvalid && rready` **inside**
+`wp_props`, with the assume active — 11 probes, all reachable. Prop. 50d's
+failure is now something CI notices rather than something a future wave
+rediscovers.
+
+**63e. The same technique on `dma_controller`: environment yes, properties no.**
+The environment transfers cleanly — `local_we`, `done` and both handshakes stay
+reachable. Two candidate properties were written and **neither ships**:
+
+| candidate | verdict | why it was rejected |
+|---|---|---|
+| `a_writes_within_request` | REFUTED | the port-only shadow of the request is wrong; not patched into passing |
+| `a_beats_within_addresses` | PROVED, detects **0/64** | it restates the assumption — `fv_r_acc <= fv_ar_acc` given `fv_r_acc < fv_ar_acc` is assumed |
+
+The second is the instructive one. **A property that restates its own
+assumption proves, reads as meaningful, and constrains nothing.** It would have
+passed every gate in this repository before this wave: non-vacuous guard,
+non-free body, real signals, proves at depth. Only the BITING bar caught it —
+which is the argument for keeping that bar even though it is the expensive one.
+
+Reproduce:
+
+```bash
+python3 formal/phantom_scan.py
+grep -c "a_[a-z0-9_]*: assert" formal/weight_prefetch_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

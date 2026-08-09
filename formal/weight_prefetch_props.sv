@@ -116,17 +116,54 @@ module wp_props (
     // `word_index` advance by two instead of one -- still PROVED. Wave 610's
     // detection matrix had already measured it detecting nothing; this is why.
     //
-    // Not replaced. Its intent -- the address channel never trails the data
-    // channel -- is not expressible from the ports of this wrapper: the
-    // controller streams one address per beat, and `arready`/`rvalid` are free
-    // inputs here, so the solver may return data for an address it never
-    // accepted. A port-level form was written and refutes for exactly that
-    // reason. Stating it properly needs an AXI-slave assumption this suite does
-    // not make, and adding one carries the over-constraint risk that Prop. 50d
-    // recorded the hard way. Left as work rather than shipped broken.
+    // It was not replaced in that wave. Its intent -- the address channel never
+    // trails the data channel -- is not expressible from the ports of this
+    // wrapper alone: the controller streams one address per beat, and
+    // `arready`/`rvalid` are free inputs, so the solver may return data for an
+    // address it never accepted. Wave 612 supplied the missing piece, below.
     //
-    // `formal/phantom_scan.py` now fails the build on the two warnings that
-    // were there all along. See Prop. 62.
+    // `formal/phantom_scan.py` fails the build on the two warnings that were
+    // there all along. See Prop. 62.
+
+    // ---- AXI read-slave environment (Wave 612, Prop. 63) ------------------
+    //
+    // `rvalid` is a free input to this wrapper, so without this the solver may
+    // return read data for an address the controller never issued. That is not
+    // a design behaviour being explored, it is a testbench that cannot exist in
+    // silicon. A slave returns at most one beat per address it accepted.
+    //
+    // Every assumption is a chance to prove a property by making the design do
+    // nothing -- Prop. 50d recorded a strengthened environment that made a
+    // property prove and silently killed two vacuity witnesses. This one is
+    // gated: the "Module suites are still alive under their assumptions" step
+    // probes `bram_we`, `prefetch_done`, `arvalid && arready` and
+    // `rvalid && rready` inside this module, with these assumes active. Each
+    // must still be reachable.
+    reg [15:0] fv_ar_acc, fv_r_acc;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            fv_ar_acc <= 16'd0;
+            fv_r_acc  <= 16'd0;
+        end else begin
+            if (arvalid && arready) fv_ar_acc <= fv_ar_acc + 16'd1;
+            if (rvalid  && rready ) fv_r_acc  <= fv_r_acc  + 16'd1;
+        end
+    end
+    always @(posedge clk) if (rst_n)
+        assume (!(rvalid && rready) || fv_r_acc < fv_ar_acc);
+
+    // Every BRAM write is data that was asked for: writes never outrun the
+    // addresses issued for them. This is what a_addr_ahead_of_data was reaching
+    // for, stated in ports and now provable. It detects two behaviourally-real
+    // mutations that the whole suite missed before -- both of them spurious
+    // `bram_we` assertions -- and the control confirms the detections belong to
+    // the property rather than to the assumption above. Prop. 63.
+    reg [15:0] fv_bram_writes;
+    always @(posedge clk)
+        if (!rst_n) fv_bram_writes <= 16'd0;
+        else if (bram_we) fv_bram_writes <= fv_bram_writes + 16'd1;
+    always @(posedge clk) if (rst_n)
+        a_writes_within_addresses: assert (fv_bram_writes <= fv_ar_acc);
 endmodule
 
 `default_nettype wire

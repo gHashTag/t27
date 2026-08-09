@@ -452,7 +452,12 @@ jobs:
               ("axi_lite_slave",       "formal/axi_lite_slave_props.sv",       "axi_props", 10, "-set-init-zero", ["bvalid", "rvalid"]),
               ("dma_controller",       "formal/dma_controller_props.sv",       "dma_props", 20, "-set-init-zero", ["local_we", "done"]),
               ("layer_sequencer",      "formal/layer_sequencer_props.sv",      "ls_props",  20, "-set-init-zero", ["valid", "done"]),
-              ("weight_prefetch_ctrl", "formal/weight_prefetch_props.sv",      "wp_props",  20, "-set-init-zero", ["bram_we", "prefetch_done"]),
+              # The last two probe the AXI read-slave environment added in Wave
+              # 612 (Prop. 63). An assumption that removes a handshake would
+              # make a_writes_within_addresses prove by making the design idle,
+              # which is the failure Prop. 50d recorded. These two make that
+              # impossible to do quietly.
+              ("weight_prefetch_ctrl", "formal/weight_prefetch_props.sv",      "wp_props",  20, "-set-init-zero", ["bram_we", "prefetch_done", "arvalid && arready", "rvalid && rready"]),
           ]
           fail = []
           for dut, props, top, seq, mode, sigs in SUITES:
