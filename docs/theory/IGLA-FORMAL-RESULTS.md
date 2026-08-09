@@ -203,32 +203,47 @@ is a spec-authoring decision.
 **Falsified by.** A `.tri` source found outside this repository containing the
 bodies — which would make this one regeneration rather than 571 decisions.
 
-### P9 — 93% of module-qualified references name a module the spec never imports (W588)
+### P9 — CORRECTED: most `::` in this corpus is enum-variant access, not a module reference
 
-**Method.** For every spec, the set of modules it declares with `use`, against
-every `m::name` reference in its text.
+**W588 published: "809 qualified references name a module the spec never
+imports."** That number is **wrong**, and this supersedes it.
 
-| | |
+**The error.** The measurement matched `([a-z_]\w*)::([A-Za-z_]\w*)` — the
+*first two* segments of a path. So `base::types::Trit` was counted as a reference
+to a module `base` (which is a **directory**, not a spec), and
+`TokenKind::KwFn` as a reference to a module `TokenKind` (which is an **enum**).
+Neither is a cross-module reference at all.
+
+**Re-measured on full paths** (`a::b::c`, module = everything before the last
+segment), W589:
+
+| | Count |
 |---|---:|
-| Qualified references where the module **is** imported | **59** |
-| Qualified references where it is **not** | **809** |
+| Qualified references, total | **908** |
+| Module **is** imported | 11 |
+| Module is a real spec file, not imported | 5 |
+| Root is a **type declared in the same spec** — enum-variant access | **399** |
+| Remaining, dominated by `lexer::TokenKind::…`, `parser::NodeKind::…` — a module *and* a type qualifying a variant | 493 |
 
-**Interpretation.** W588 taught `use_resolve` to follow qualified references —
-mark the trailing name as needed, splice it, and rewrite the reference to the
-bare name the flat output declares. That machinery is correct and it helps 59
-sites. The other 809 are a different defect: the spec names a module it never
-declared a dependency on. `specs/igla/race/yosys.t27` calls
-`eval::has_substring` while importing only `base::types`, `igla::race::rtl` and
-`igla::race::formal`.
+**Conclusion.** `::` in this corpus is overwhelmingly **enum-variant access**, and
+W580's `::` → `.` mapping already handles it correctly:
 
-**Consequence.** Cross-module resolution cannot fix a missing import. These 809
-are spec defects — either the `use` line is absent, or the qualifier is
-decorative and the author meant a local name.
+```t27
+fn f() -> TokenKind { return TokenKind::KwFn; }   ->   return TokenKind.KwFn;
+```
 
-**Falsified by.** A resolution rule that treats an unimported qualifier as a
-repository-wide lookup. That would work, and it would also mean `use` declares
-nothing — every spec would see every other spec, and the collision analysis of
-W568 (38 colliding names in a 15-spec closure) says what that costs.
+Only **16 of 908** are cross-module references in the sense W588 assumed. The
+resolver work in W588 is still correct and still helps those 16; the
+*characterisation* of the other 892 was not.
+
+**What this is an instance of.** The fifth time in this chain that my own
+instrument, not the code, was the thing that needed correcting (W560's classifier
+twice, W561's sample, W559's stale vacuity tool, and this). The pattern is
+consistent: **a regex that matches a prefix of a structured name will silently
+report on a different population than intended.**
+
+**Falsified by.** A count of full-path qualified references that does not
+reproduce 908 / 11 / 5 / 399 / 493.
 
 ---
 
@@ -304,7 +319,7 @@ Eighteen waves of findings share one shape:
 | W585 | — | the `default_input` mask over 571 empty functions |
 | W586 | **every count** | 118 unwritten specs reported as compile failures |
 | W587 | `use_resolve` | an import silently resolving to nothing, because of a trailing comment |
-| W588 | the corpus | 809 qualified references to modules never imported |
+| W588 | **my own measurement** | a regex matched path prefixes, so 892 enum-variant references were counted as missing imports — corrected in W589 |
 
 **Every one is a component that accepted input, produced a smaller or different
 program, and reported success.** Not one was found by a test failing. Each was
@@ -330,7 +345,7 @@ wrong, and the only part with a real consumer.
 
 | Question | Deciding artefact |
 |---|---|
-| `ternary_mac`'s argument order — 91 call sites say `(acc, a, w)`, 80 say `(a, w, acc)`, *inside the module that declares it* | not the RTL (T1 binds by name, W574). A host-side driver or ISA document, neither of which exists |
+| `ternary_mac`'s argument order — 91 call sites say `(acc, a, w)`, 80 say `(a, w, acc)`, *inside the module that declares it*. **Now measured: it blocks 733 substantive assertions in 3 specs** | not the RTL (T1 binds by name, W574). A host-side driver or ISA document, neither of which exists. **Open since W574; this is the largest decidable-by-a-human item in the project** |
 | `systolic_ternary_array`'s output length — an invariant says `len == size`, a test says `len == 0` for size 2 | the systolic RTL in `fpga/verilog/` |
 | `OP_ADD` / `OP_SUB` — asserted to pass `is_sacred_opcode`, but the sacred set is eleven named opcodes | the ISA encoding table under `specs/isa/` |
 | 15 Markdown documents named `*.t27` — 7% of everything failing to parse, no fix possible | a rename-or-exclude decision; changes provenance (`MANIFEST.json`, 104 references) |

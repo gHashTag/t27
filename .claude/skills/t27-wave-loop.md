@@ -4367,6 +4367,21 @@ These cost a wave each. Follow them before step 1.
     the cost in one 15-spec closure: 38 colliding top-level names, `PHI` in
     four. Prefer the error that keeps the declaration meaningful.
 
+73. **A regex that matches a PREFIX of a structured name silently reports on a
+    different population than intended.** W588 measured "809 qualified
+    references to modules never imported" by matching the first two segments of
+    a path -- so `base::types::Trit` counted as a reference to `base` (a
+    directory) and `TokenKind::KwFn` as one to `TokenKind` (an enum).
+    Re-measured on full paths: 16 of 908, not 809. `a::b` is not the head of
+    `a::b::c` in any sense that matters. Fifth time in this chain that the
+    instrument, not the code, was what needed correcting.
+
+74. **When the finding is that a measurement was wrong, the repair is to the
+    record and no code should change.** W589 rewrote the proposition, annotated
+    the superseded report at its head, and posted the correction publicly. A
+    wave that changes nothing and corrects a published number is a complete
+    wave.
+
 ### How to update this tracker
 
 After closing a wave:

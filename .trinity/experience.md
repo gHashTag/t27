@@ -21342,3 +21342,44 @@ work, and would also mean `use` declares NOTHING. W568 measured what that costs 
 Build the machinery, measure whether the corpus needs it, and report the answer even
 when it is "mostly no". The machinery still helps 59 sites and the 809 are now a named
 defect (P9) instead of an undifferentiated part of the largest class.
+
+## Wave Loop 589 -- the falsification check falsified my own measurement (2026-08-10)
+
+W588's Variant A carried the condition "if most of the 809 modules do not exist as
+files, this is a naming convention, not an import to add -- measure first". Measured:
+602 do not exist, and the top entry is `base` (386), which is a DIRECTORY.
+
+Which meant the MEASUREMENT was wrong, not just the plan.
+
+    W588 matched  ([a-z_]\w*)::([A-Za-z_]\w*)  -- the first TWO segments of a path.
+    base::types::Trit  counted as a reference to a module `base`   (a directory)
+    TokenKind::KwFn    counted as a reference to a module `TokenKind` (an ENUM)
+
+Re-measured on full paths:
+
+    908 qualified references
+     11 module IS imported
+      5 module is a real spec file, not imported
+    399 root is a type declared in the SAME spec -- enum-variant access
+    493 remaining, dominated by lexer::TokenKind:: and parser::NodeKind::
+
+`::` in this corpus is overwhelmingly ENUM-VARIANT ACCESS, which W580 already
+handles. 16 of 908 are cross-module in the sense W588 assumed.
+
+### The rule
+
+Fifth time my own instrument, not the code, needed correcting (W559 vacuity tool,
+W560 classifier twice, W561 sample, this).
+
+    A regex that matches a PREFIX of a structured name will silently report on a
+    different population than the one intended. `a::b` is not the head of `a::b::c`
+    in any sense that matters -- it is a different thing.
+
+Every instance was caught the same way: by a falsification condition written into the
+previous wave's report and RUN BEFORE THE WORK. That habit has now saved four waves.
+
+### No code changed
+
+That is the correct outcome when the finding is that a measurement was wrong. The
+repair is to the record: P9 rewritten, the W588 report annotated at its head, the
+issue corrected publicly.

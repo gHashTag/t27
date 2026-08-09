@@ -1,5 +1,15 @@
 # Wave Loop 588 — three classes closed, and 809 references to modules nobody imported
 
+> **CORRECTION (W589).** The "809" in this report's title and §2 is **wrong**.
+> The measurement matched the first two segments of a qualified path, so
+> `base::types::Trit` counted as a reference to a module `base` (a directory)
+> and `TokenKind::KwFn` as one to a module `TokenKind` (an enum). Re-measured on
+> full paths: of **908** qualified references, **16** are cross-module and
+> **892** are enum-variant access, which W580 already handles. See P9 in
+> [`docs/theory/IGLA-FORMAL-RESULTS.md`](../theory/IGLA-FORMAL-RESULTS.md).
+> The resolver work described below is still correct; its characterisation of
+> the corpus was not.
+
 **Date:** 2026-08-10 · **Predecessor:** [`WAVE_LOOP_587_REPORT.md`](WAVE_LOOP_587_REPORT.md) · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
