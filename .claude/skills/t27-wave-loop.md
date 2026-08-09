@@ -4441,6 +4441,20 @@ These cost a wave each. Follow them before step 1.
     whether the assertion is one the corpus already had or one this chain wrote:
     the first is a finding, the second is my defect.
 
+83. **An exact equality over a fixed-point ITERATIVE algorithm is suspect on
+    its face.** `cordic_sin(0) == 0` survived from W397 to W594 because nothing
+    ever evaluated it; the first spec to compile disproved it in one comptime
+    step. CORDIC's sigma = sign(z) is never zero, so from z = 0 it rotates a
+    full 45 degrees and cannot stand still -- sin(0) = 117 in Q14, bounded BELOW
+    by the finest table step. When auditing assertions, sort by "is the function
+    iterative and the assertion exact".
+
+84. **Check provenance before treating a failing assertion as a finding.** W594's
+    first act was `git log -S` on the invariant: introduced in W397, not by this
+    chain. Had it been mine, the same failure would have been my defect and
+    worth no report at all. One command separates a discovery from an
+    embarrassment.
+
 ### How to update this tracker
 
 After closing a wave:

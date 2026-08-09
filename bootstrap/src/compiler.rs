@@ -4689,17 +4689,14 @@ impl Codegen {
                         d.name.clone(),
                         d.params.iter().map(|(_, ty)| ty.clone()).collect(),
                     );
-                    for (pname, pty) in &d.params {
-                        if Self::t27_array_type_to_zig(pty) == "[]const u8" {
-                            self.string_names.insert(pname.clone());
-                        }
-                        if matches!(pty.trim(), "f16" | "f32" | "f64" | "float" | "double") {
-                            self.float_names.insert(pname.clone());
-                        }
-                        if matches!(pty.trim(), "i8" | "i16" | "i32" | "i64" | "isize") {
-                            self.signed_names.insert(pname.clone());
-                        }
-                    }
+                    // W594: parameters are per-FUNCTION facts. Collecting them
+                    // corpus-wide meant a parameter `a: i32` in one function
+                    // made every `a` signed everywhere -- harmless for
+                    // `@divTrunc`, which is valid for unsigned operands too,
+                    // but not a property the next predicate can rely on. They
+                    // are now collected in `gen_fn_decl` and dropped on exit;
+                    // struct FIELDS stay global, because a field name belongs
+                    // to a type that is itself global.
                 }
                 NodeKind::EnumDecl if !d.name.is_empty() => {
                     self.declared_enums.insert(d.name.clone());
@@ -5228,6 +5225,28 @@ impl Codegen {
         for n in &local_signed {
             self.signed_names.insert(n.clone());
         }
+        // W594: this function's own parameters, scoped to it.
+        let mut param_float = Vec::new();
+        let mut param_signed = Vec::new();
+        let mut param_string = Vec::new();
+        for (pname, pty) in &node.params {
+            let t = pty.trim();
+            if Self::t27_array_type_to_zig(pty) == "[]const u8" {
+                if self.string_names.insert(pname.clone()) {
+                    param_string.push(pname.clone());
+                }
+            }
+            if matches!(t, "f16" | "f32" | "f64" | "float" | "double") {
+                if self.float_names.insert(pname.clone()) {
+                    param_float.push(pname.clone());
+                }
+            }
+            if matches!(t, "i8" | "i16" | "i32" | "i64" | "isize") {
+                if self.signed_names.insert(pname.clone()) {
+                    param_signed.push(pname.clone());
+                }
+            }
+        }
 
         for pname in &shadowed {
             self.write_indent();
@@ -5304,6 +5323,15 @@ impl Codegen {
         }
         for n in &local_signed {
             self.signed_names.remove(n);
+        }
+        for n in &param_float {
+            self.float_names.remove(n);
+        }
+        for n in &param_signed {
+            self.signed_names.remove(n);
+        }
+        for n in &param_string {
+            self.string_names.remove(n);
         }
     }
 

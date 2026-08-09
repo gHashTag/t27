@@ -61,6 +61,52 @@ designs used a multiplier.
 traces of unbounded length rather than up to a depth bound.
 **Script.** [`prove_demo_core.ys`](../../fpga/formal/prove_demo_core.ys).
 
+### T4 (negative) — `cordic_sin(0) == 0` is unsatisfiable for this implementation
+
+> `specs/igla/race/cordic_top.t27` asserts, as an invariant,
+> `cordic_sin(0) == 0`. **No implementation of the CORDIC rotation this spec
+> defines can satisfy it.**
+
+**Provenance.** The invariant was introduced in commit `a0828089d` (W397–W401).
+It is the corpus's claim, not one this chain wrote — checked before drawing any
+conclusion from it.
+
+**Method.** The spec's own constants, evaluated by hand: `CORDIC_GAIN_Q14 = 9953`
+and an eight-entry arctangent table in Q14 units where 1.0 = π —
+
+```
+ATAN_0..7 = 4096, 2418, 1274, 647, 325, 163, 81, 41
+```
+
+Rotation mode iterates `x -= σ(y>>i)`, `y += σ(x>>i)`, `z -= σ·ATAN_i` with
+σ = sign(z). Starting from `(x, y, z) = (K, 0, 0)`:
+
+| | |
+|---|---:|
+| `cos(0)` achieved | **16390** = 1.00037 ✓ |
+| `sin(0)` achieved | **117** = 0.00714 |
+| residual angle `z` | −41 |
+
+**Why it cannot be zero.** σ = sign(z) is never zero: the algorithm rotates by
+±atan(2⁻ⁱ) at *every* step and cannot stand still. From z = 0 the first step
+rotates a full 45°, and the remaining seven bring z back only to −41 — one
+ATAN_7, the finest step available. The residual sine is bounded below by that
+last step and is structurally non-zero.
+
+**The bound the algorithm does satisfy.** |sin(0)| ≤ 117 < 128 = 2⁻⁷ in Q14,
+which is the standard CORDIC convergence bound after eight iterations.
+
+**What this means for the spec.** The invariant should be a *bound*, not an
+equality — and that is already the corpus's own convention: the neighbouring
+test asserts `cordic_cos(0)` in `(9900, 10000)` rather than an exact value.
+Choosing the tolerance is a specification decision and is left to the maintainer;
+the arithmetic above determines what any correct choice must accommodate.
+
+**Falsified by.** An evaluation of the same table and gain that yields
+`sin(0) = 0`, or a σ convention (σ = 0 at z = 0) that the spec's
+`cordic_sign` actually implements — worth checking, as that would make the
+invariant satisfiable and the implementation wrong instead.
+
 ### What is deliberately *not* claimed
 
 - No theorem about the **t27 compiler**. Every compiler change in this chain is

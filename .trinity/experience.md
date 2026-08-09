@@ -21506,3 +21506,39 @@ may not be so lucky.
 
 t27 has no type checker and the backends are accumulating a partial one. Better to
 write that down than to rediscover it a fourth time.
+
+## Wave Loop 594 -- T4: `cordic_sin(0) == 0` is unsatisfiable (2026-08-10)
+
+W593 left cordic_top.t27 compiling and failing a comptime assertion, WITH the condition
+"check the provenance before drawing any conclusion -- if it is an invariant I wrote it
+is my defect, not a finding".
+
+Checked: `invariant cordic_top_sin_zero_zero: cordic_sin(0) == 0`, introduced in commit
+a0828089d (W397-W401). The corpus's claim, not mine.
+
+### The disproof, from the spec's own constants
+
+    CORDIC_GAIN_Q14 = 9953
+    ATAN_0..7 = 4096, 2418, 1274, 647, 325, 163, 81, 41   (Q14, 1.0 = PI)
+
+    from (K, 0, 0):  cos(0) = 16390 = 1.00037     sin(0) = 117 = 0.00714     z = -41
+
+By-hand evaluation reproduces the compiler's comptime failure exactly.
+
+WHY it cannot be zero: sigma = sign(z) is never zero -- cordic.t27 spells it
+`if (z >= 0.0) return 1.0; return -1.0;` -- so from z = 0 the algorithm rotates a full
++45 degrees and cannot stand still. Seven more steps bring z back only to -41, one
+ATAN_7, the finest step the table has. The residual sine is bounded BELOW by that step.
+
+Not an implementation defect: a property of fixed-point CORDIC in rotation mode. The
+invariant asserts something the algorithm cannot deliver.
+
+|sin(0)| = 117 < 128 = 2^-7 in Q14 is the standard convergence bound, and the corpus's
+own convention is already bounds -- the neighbouring test asserts cordic_cos(0) in
+(9900, 10000). Choosing the tolerance is the maintainer's.
+
+### The lesson
+
+An exact equality over a FIXED-POINT ITERATIVE algorithm is suspect on its face. This
+one survived since W397 because nothing ever evaluated it. The first spec to compile
+disproved it in one comptime step.
