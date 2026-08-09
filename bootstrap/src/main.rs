@@ -5338,10 +5338,16 @@ fn run_validate_vacuity(
         }
     }
 
-    let dead = total.tests_vacuous + total.tests_bdd;
+    // Until W559 a braceless given/when/then body was discarded by the parser
+    // and the test always passed, so those blocks counted as asserting nothing.
+    // They now lower to real assertions, so only `assert true` bodies remain
+    // vacuous. Shapes the lowering cannot model still fall back to the old
+    // skip; this static scan cannot tell those apart, so the figure below is a
+    // lower bound on what executes.
+    let dead = total.tests_vacuous;
     let all_blocks = total.tests_total + total.tests_bdd;
     println!(
-        "  BDD-form tests (given/when/then, assertions DISCARDED): {}",
+        "  BDD-form tests (given/when/then, lowered to assertions since W559): {}",
         total.tests_bdd
     );
     if all_blocks > 0 {
@@ -5354,12 +5360,12 @@ fn run_validate_vacuity(
     }
 
     println!(
-        "\nTwo ways a test can assert nothing:\n\
-         - body is only `assert true`: passes for EVERY implementation;\n\
-         - braceless `test name` + given/when/then: the parser counts it, but every\n\
-         \x20 backend emits an EMPTY body, so the assertion is discarded. Verified:\n\
-         \x20 a spec asserting `x == 999` where x is 2 generates `test \"...\" {{}}`\n\
-         \x20 and zig reports \"All tests passed\"."
+        "\nA body that is only `assert true` passes for EVERY implementation, so it\n\
+         contributes zero discriminating power while satisfying L4 by letter.\n\
+         Braceless given/when/then bodies were also inert until W559 -- the parser\n\
+         discarded them and the test always passed -- and now lower to real\n\
+         assertions. Shapes the lowering cannot model still fall back to a skip,\n\
+         so the ratio above is a lower bound on what actually executes."
     );
 
     if let Some(limit) = max_ratio {
