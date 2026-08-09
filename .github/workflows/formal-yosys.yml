@@ -138,14 +138,14 @@ jobs:
           yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
                     formal/dma_controller_props.sv; \
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+                    sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
 
       - name: Prove layer_sequencer properties
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
                     formal/layer_sequencer_props.sv; \
                     prep -top ls_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+                    sat -verify -prove-asserts -seq 48 -set-init-zero -set-assumes"
 
       # Proved one property per invocation, not as a batch. `-prove-asserts`
       # solves every assertion in a single SAT instance, and that instance is

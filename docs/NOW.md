@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## two suites were never bounded at all
+
+- **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 36), `README.md`.
+- Mapped every property of every module suite in isolation at 1x, 2x, 4x and 8x
+  its CI bound. **Two of the six suites run `sat -tempinduct`** -- k-induction,
+  which proves for all time rather than to a depth.
+- **Prop 34's ceiling framing does not apply to those two**, and worse, the map
+  measured them with plain BMC and reported "proved at 8x the CI bound", which
+  *understates* them: they have no bound. **Before measuring how far a result
+  extends, check whether it is the kind of result that extends.**
+- **The near-mistake**: acting on "everything proves at 4x cheaply", I raised
+  `axi_lite_slave` from seq 10 to 80 -- but for a tempinduct run `-seq` is the
+  induction depth, so that is pure cost and no strengthening. Reverted. **A
+  number that means one thing in one mode means something else in another, and
+  the parameter has the same name in both.**
+- **The bounded suites have enormous headroom**: every `dma_controller` property
+  proves at >=160 (8x, slowest 8.8s), every `layer_sequencer` property at >=96
+  (8x, slowest 50s). The ">=" is my sweep's cap, not their limit.
+- **Bounds raised where meaningful**: `dma_controller` 12 -> **80** (3.6s),
+  `layer_sequencer` 12 -> **48** (9.8s), both verified. 6.7x and 4x deeper for
+  about thirteen seconds of CI. Inductive suites left alone.
+- **What the map is worth**: verification was six numbers, two meaning something
+  different from the other four and one the minimum over three wildly different
+  members. Now every property has a measured depth. **The aggregate was not
+  wrong; it was uninformative in a way that looked informative.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## batch verdicts hide their members
 
 - **WHERE**: `.github/workflows/formal-yosys.yml`, `formal/weight_prefetch_props.sv`,

@@ -1900,6 +1900,10 @@ memory costs 1.7×**. Memory depth is cheap; unroll depth is not.
 |---|---:|---|---|
 | `interrupt_controller` | 12 → PROVED | PROVED | PROVED |
 | `axi_lite_slave` | 20 → PROVED | PROVED | PROVED |
+
+> **Corrected by Prop. 36a.** The first two rows are measured with plain BMC,
+> but CI proves both by `-tempinduct` — their real proofs are **unbounded**, and
+> a scale table understates rather than describes them.
 | `dma_controller` | 20 → PROVED | PROVED | PROVED |
 | `layer_sequencer` | 12 → PROVED | PROVED | PROVED |
 | `weight_prefetch_ctrl` | 20 → PROVED | **undecided** (>240 s) | **undecided** |
@@ -2014,6 +2018,75 @@ for keep in re.findall(r'(a_[a-z_]+): assert', src):
         'sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes'], capture_output=True)
     print(keep, 'PROVED' if r.returncode == 0 else 'NOT PROVED')
 EOF
+```
+
+---
+
+### Prop. 36 — two suites were never bounded at all, and the map shows the rest have enormous headroom — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → the five *Prove … properties* steps (bounds raised where BMC, unchanged where inductive)
+
+Prop. 35 split one module and found its aggregate verdict was hiding its
+members. This maps the rest: every property of every module suite, isolated, at
+1×, 2×, 4× and 8× the bound it is checked at.
+
+**36a. Not every suite is bounded.** Two of the six run `sat -tempinduct`, which
+proves by **k-induction** and therefore holds for *all* time, not to a depth:
+
+| suite | mode | `-seq` means |
+|---|---|---|
+| `interrupt_controller` | **`-tempinduct`** | induction depth — proof is **unbounded** |
+| `axi_lite_slave` | **`-tempinduct`** | induction depth — proof is **unbounded** |
+| `dma_controller` | bounded BMC | a ceiling |
+| `layer_sequencer` | bounded BMC | a ceiling |
+| `weight_prefetch_ctrl` | bounded BMC | a ceiling |
+| `bitnet_engine_top` | bounded BMC | a ceiling |
+
+**Prop. 34's scale-ceiling framing does not apply to the first two.** Worse, the
+map measured them with plain BMC and reported "proved at 8× the CI bound",
+which *understates* them: they are proved without any bound at all. A ceiling
+was attributed to results that have none.
+
+> **Before measuring how far a result extends, check whether it is the kind of
+> result that extends.** The two are distinguished by one flag, and nothing in
+> the aggregate output says which mode produced the verdict.
+
+**36b. The near-mistake this caused.** Acting on "everything proves at 4× for
+under 8 seconds", the CI bounds were raised — including `axi_lite_slave` from 10
+to 80. For a `-tempinduct` run that is not a strengthening: the proof is already
+unbounded, and `-seq` is the induction depth, so the only effect is cost.
+Reverted. **A number that means one thing in one mode means something else in
+another, and the parameter has the same name in both.**
+
+**36c. The bounded suites have enormous headroom.** Every property of every
+bounded suite, isolated:
+
+| suite | properties | deepest **PROVED** (isolated) | slowest |
+|---|---:|---|---:|
+| `dma_controller` | 7 | ≥160 (8× the CI bound) | 8.8 s |
+| `layer_sequencer` | 4 | ≥96 (8×) | 50.0 s |
+| `weight_prefetch_ctrl` | 3 | 2 at ≥80, 1 at 40 | 87.2 s |
+
+"≥" because 8× was the sweep's own cap, not the properties' limit. Only
+`a_no_overwrite` (Prop. 35) has a measured ceiling below the cap.
+
+**36d. Bounds raised where that is meaningful.** `dma_controller` 12 → **80**
+(3.6 s) and `layer_sequencer` 12 → **48** (9.8 s), both verified. That is 6.7×
+and 4× deeper verification for about thirteen seconds of CI time. The two
+inductive suites were left alone, and `weight_prefetch_ctrl` stays per-property
+at 40 (Prop. 35).
+
+**36e. What the map is worth.** Before it, the design's verification was six
+numbers, two of which meant something different from the other four and one of
+which was the minimum over three wildly different members. After it, every
+property has a measured depth and the one genuinely shallow property in the
+design is named. **The aggregate was not wrong; it was uninformative in a way
+that looked informative.**
+
+Reproduce:
+
+```bash
+grep -c tempinduct .github/workflows/formal-yosys.yml   # which proofs are unbounded
 ```
 
 ---
