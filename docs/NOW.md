@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## the ceiling fell from 80 to 40, and the scaffolding costs 23x the design
+
+- **WHERE**: `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 53, Prop 34 superseded), `README.md`.
+- Prop 34's ceiling was measured before ten defects were fixed and six
+  properties added -- the oldest live claim on the stalest evidence.
+  **Re-measured, three of six configurations no longer complete.**
+- seq 40/DEPTH 4: **129.1s** (was 40.7s). seq 60/DEPTH 4: **undecided >1200s**
+  (was PROVED 246.1s). seq 80/DEPTH 4: **undecided >1800s** (was 396.1s).
+  DEPTH 8 and 16 still prove at seq 40. **The ceiling is now seq 40, not 80**,
+  and the README claim was false.
+- **The mechanism is state, not size**: cells unchanged at 1081, flops
+  **268 -> 312** from the interlocks and formal-only trackers. Bounded checking
+  unrolls state once per step, so registers cost multiplicatively where
+  combinational logic does not.
+- **The scaffolding costs 23x the design**: 5.5s with no properties or trackers
+  against 126.7s with 26 properties and their `fv_*` state. The slowdown is
+  **mostly not the interlocks** -- it is the verification apparatus added
+  alongside them.
+- **The gate is re-baselined, not silenced.** It required (60,4), (80,4) and
+  (60,8) to prove; those now time out, so it would be a **permanent red that
+  everyone learns to ignore**. It now checks the three scales that hold.
+  **Re-baselining is maintenance and must be distinguished from weakening** --
+  here the claim moved because the subject moved.
+- **What did not change**: all 26 integration properties still prove, every
+  module suite still proves, nothing is gated as knowingly broken, and no defect
+  was found or introduced. The design is as verified as it was; the depth at
+  which that can be re-established in one run is lower.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the conservation property is abandoned, and that is the result
 
 - **WHERE**: `formal/weight_prefetch_props.sv`,

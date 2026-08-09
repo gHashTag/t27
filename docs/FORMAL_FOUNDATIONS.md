@@ -1882,6 +1882,10 @@ stops.
 |---:|---:|---|---:|
 | 40 | 4 | **PROVED** | 40.7 s |
 | 60 | 4 | **PROVED** | 246.1 s |
+
+> **Superseded by Prop. 53.** Every row below was measured before ten defects
+> were fixed and six properties added. Re-measured in Wave 603, three of these
+> configurations no longer complete: the ceiling is now `-seq 40`.
 | 80 | 4 | **PROVED** | 396.1 s |
 | 120 | 4 | *undecided* (>1800 s) | — |
 | 40 | 8 | **PROVED** | 70.5 s |
@@ -3098,6 +3102,69 @@ Reproduce:
 
 ```bash
 grep -n "ABANDONED" formal/weight_prefetch_props.sv
+```
+
+---
+
+### Prop. 53 — the ceiling fell from 80 to 40, and the scaffolding costs 23× the design — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling* (re-baselined)
+
+Prop. 34 measured the engine's scale ceiling before ten defects were fixed and
+six properties added. It has been the oldest live claim in the campaign resting
+on the stalest evidence. Re-measured:
+
+| `-seq` | `DEPTH` | **today** | Prop. 34 said |
+|---:|---:|---|---|
+| 40 | 4 | PROVED **129.1 s** | PROVED 40.7 s |
+| 60 | 4 | **undecided >1200 s** | PROVED 246.1 s |
+| 80 | 4 | **undecided >1800 s** | PROVED 396.1 s |
+| 40 | 8 | PROVED **200.5 s** | PROVED 70.5 s |
+| 60 | 8 | **undecided >1200 s** | PROVED 219.7 s |
+| 40 | 16 | PROVED **311.6 s** | PROVED 77.0 s |
+
+**Three of six configurations that proved no longer complete.** The documented
+ceiling was `-seq 80`; it is now `-seq 40`. The README claim was false and is
+corrected.
+
+**53a. The mechanism is state, not size.** Cell count is unchanged at 1081. Flop
+count went **268 → 312**: the per-buffer flags, the configuration latch, the
+fill-extent counters and the formal-only trackers. Bounded checking unrolls
+state once per step, so registers cost multiplicatively where combinational
+logic does not — consistent with Prop. 49b, where 14 cells separated an 11×
+difference.
+
+**53b. The scaffolding costs 23× the design.** At the same scale:
+
+| build | time |
+|---|---:|
+| baseline — no properties, no trackers | **5.5 s** |
+| with 26 properties and their `fv_*` trackers | **126.7 s** |
+
+The slowdown since Prop. 34 is **mostly not the interlocks**. It is the
+verification apparatus added alongside them — properties and the formal-only
+state they need. That is worth knowing before optimising the design for a proof
+budget, which is what Prop. 49 already warned against for a different reason.
+
+**53c. The gate is re-baselined, not silenced.** The weekly *Scale ceiling* step
+required `(60,4)`, `(80,4)` and `(60,8)` to prove. Those now time out, so the
+step would be a **permanent red that everyone learns to ignore** — the worst
+state for a gate. It now checks the three scales that hold, at 900 s.
+
+> A gate pinned to a stale expectation does not protect the claim; it trains
+> people to skip the output. **Re-baselining is maintenance, and it must be
+> distinguished in the commit from weakening.** Here the claim moved because the
+> subject moved, and both the claim and the gate moved with it.
+
+**53d. What did not change.** All 26 integration properties still prove, every
+module suite still proves, no property is gated as an expected refutation, and
+no defect was found or introduced. **The design is as verified as it was; the
+depth at which that can be re-established in one run is lower.**
+
+Reproduce:
+
+```bash
+python3 formal/scale_probe.py 60 4    # undecided today, PROVED when Prop. 34 was written
 ```
 
 ---
