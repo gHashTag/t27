@@ -1022,6 +1022,48 @@ question than the one being asked.**
 
 ---
 
+### Proposition 23 — the interlock closes: export quiescence, then restore the term you dropped
+
+`PROVED`. Prop. 22 diagnosed that no top-level gate could close
+`!(dma_local_we && mac_valid_q)` because quiescence lived inside
+`multilayer_sequencer` and was not observable from `bitnet_engine_top`. Acting
+on that diagnosis closed it — in two steps, and the second is the interesting
+one.
+
+**23a. Export the observable.** `multilayer_sequencer` gains one output,
+`assign idle = (state == IDLE)`. The module that knows whether it has stopped
+now says so. This is what four accumulated top-level conditions had been
+approximating.
+
+**23b. Replacing a guard is where terms get dropped.** Substituting `seq_idle`
+for the old conjunction removed `!reg_ctrl[0]` along with it — and the property
+still refuted. The trace showed `reg_ctrl = 35`: a host setting the inference
+bit and the DMA bit **in the same write**. At that instant the sequencer *is*
+idle, so `seq_idle` permits the DMA, and the inference starts alongside it.
+
+`seq_idle` answered a different question than **one** of the old terms, not all
+of them. Restored:
+
+```verilog
+.start(reg_ctrl[1] && !reg_ctrl[0] && seq_idle
+       && !layer_valid && !mac_valid_q && !act_trit_valid)
+```
+
+**When replacing a compound guard with a better condition, enumerate what each
+old term was for.** A new condition that subsumes three of four leaves a hole
+exactly where the fourth was, and the hole is invisible because the guard now
+looks principled.
+
+**23c. Four waves, and the shape of the ending.** Props. 20–23 spent three waves
+narrowing at the wrong level and one wave diagnosing. The diagnosis was worth
+more than any of the narrowings, and it named a change of five lines. **Time
+spent understanding why a fix does not work is not time lost from fixing it.**
+
+All **17 integration properties** on `bitnet_engine_top` now prove, alongside 42
+module-level ones.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

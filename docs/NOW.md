@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## interlock-closed -- export quiescence, then restore the dropped term
+
+- **WHERE**: `bootstrap/src/bitnet_pipeline.rs` (new `idle` output),
+  `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md` (Prop 23),
+  `README.md`.
+- **Variant A from #1992.** Acting on the previous wave's diagnosis closed the
+  property that had been open for four waves. **All 17 integration properties
+  now prove.**
+- **Export the observable**: `multilayer_sequencer` gains
+  `assign idle = (state == IDLE)`. The module that knows whether it has stopped
+  now says so -- which is what four accumulated top-level conditions had been
+  approximating.
+- **Replacing a guard is where terms get dropped.** Substituting `seq_idle` for
+  the old conjunction removed `!reg_ctrl[0]` with it, and the property still
+  refuted. The trace showed `reg_ctrl = 35` -- a host setting the inference bit
+  and the DMA bit **in the same write**. At that instant the sequencer *is*
+  idle, so `seq_idle` permits the DMA and the inference starts alongside it.
+  `seq_idle` answered a different question than **one** of the old terms, not
+  all of them.
+- **When replacing a compound guard, enumerate what each old term was for.** A
+  new condition subsuming three of four leaves a hole exactly where the fourth
+  was, and the hole is invisible because the guard now looks principled.
+- **Four waves**: three spent narrowing at the wrong level, one diagnosing. The
+  diagnosis was worth more than any narrowing and named a five-line change.
+  **Time spent understanding why a fix does not work is not time lost from
+  fixing it.**
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## dma-interlock-diagnosed -- no top-level gate can close it
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
