@@ -29,7 +29,7 @@
 //! `parse-conform`, `cc-gate`, `check-calls`, `impl-status`, `parse-complete`.
 //! This was the last one still done by hand.
 
-use crate::compiler::Compiler;
+use crate::compiler::{Compiler, NodeKind};
 use std::path::Path;
 use std::process::Command;
 
@@ -44,6 +44,12 @@ pub struct Report {
     pub passed: usize,
     pub failed: usize,
     pub outcomes: Vec<Outcome>,
+    /// W601: `invariant` blocks lower to comptime assertions, not test
+    /// functions -- so a spec that asserts six invariants and no tests shows
+    /// `tests 0` and would be filed under NO TESTS. It is not: **if the spec
+    /// compiles, every one of its invariants held.** Counting them separately
+    /// is what keeps the corpus table honest.
+    pub invariants: usize,
     /// Set when the spec never got as far as a runnable binary.
     pub blocked: Option<String>,
 }
@@ -56,6 +62,7 @@ impl Report {
             passed: 0,
             failed: 0,
             outcomes: Vec::new(),
+            invariants: 0,
             blocked: Some(why.into()),
         }
     }
@@ -117,6 +124,16 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         Err(e) => return Report::blocked(&label, format!("codegen failed: {}", e)),
     };
     let _ = specs_root;
+    // Counted from the AST, because they never reach `builtin.test_functions`.
+    let invariants = Compiler::parse_ast(&resolved)
+        .or_else(|_| Compiler::parse_ast(&raw))
+        .map(|a| {
+            a.children
+                .iter()
+                .filter(|c| c.kind == NodeKind::InvariantBlock)
+                .count()
+        })
+        .unwrap_or(0);
 
     let dir = std::env::temp_dir().join(format!(
         "t27c-test-report-{}",
@@ -203,6 +220,7 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         passed,
         failed: total - passed,
         outcomes,
+        invariants,
         blocked: None,
     }
 }
@@ -217,11 +235,17 @@ pub struct TreeReport {
     pub reports: Vec<Report>,
     /// Compiled AND declares at least one test. Only these have a rate.
     pub measured: usize,
-    /// Compiled, but declares nothing to check. **This is an L4 TESTABILITY
-    /// violation**, not a spec with a 0% pass rate -- the first run of this
-    /// command reported 68 "measured" of which 38 were this, and averaging them
-    /// in as zeroes is the same collapse W586 removed from the harness.
+    /// Compiled, but declares nothing to check AT ALL -- no tests and no
+    /// invariants. **This is an L4 TESTABILITY violation**, not a spec with a
+    /// 0% pass rate; the first run of this command reported 68 "measured" of
+    /// which 38 were this, and averaging them in as zeroes is the same collapse
+    /// W586 removed from the harness.
     pub no_tests: usize,
+    /// Compiled and has invariants but no tests. Its invariants are comptime,
+    /// so **compiling IS the verification** -- these are checked, not unchecked.
+    pub invariants_only: usize,
+    /// Total invariant blocks proved by compilation, across every spec.
+    pub invariants: usize,
     /// Never produced a binary.
     pub blocked: usize,
     pub tests: usize,
@@ -260,6 +284,8 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
         reports: Vec::new(),
         measured: 0,
         no_tests: 0,
+        invariants_only: 0,
+        invariants: 0,
         blocked: 0,
         tests: 0,
         passed: 0,
@@ -271,8 +297,14 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
         if r.blocked.is_some() {
             t.blocked += 1;
         } else if r.total == 0 {
-            t.no_tests += 1;
+            t.invariants += r.invariants;
+            if r.invariants > 0 {
+                t.invariants_only += 1;
+            } else {
+                t.no_tests += 1;
+            }
         } else {
+            t.invariants += r.invariants;
             t.measured += 1;
             t.tests += r.total;
             t.passed += r.passed;
@@ -298,6 +330,8 @@ mod tests {
             reports: vec![Report::blocked("x.t27", "no binary")],
             measured: 0,
             no_tests: 0,
+            invariants_only: 0,
+            invariants: 0,
             blocked: 1,
             tests: 0,
             passed: 0,

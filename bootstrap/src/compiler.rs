@@ -4787,7 +4787,15 @@ impl Codegen {
         self.write_line("");
 
         // Check if file has test blocks — emit std import if so
-        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
+        // W601: an INVARIANT block emits assertions too, and a spec may have
+        // invariants and no tests -- specs/numeric/gf*.t27 are exactly that.
+        // Gating the helper on TestBlock alone left those files referencing an
+        // `__t27_assert_fail` that was never emitted. The condition must match
+        // "will this file contain an assertion", not "does it have tests".
+        let has_tests = ast
+            .children
+            .iter()
+            .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
             // W599: a failing assertion must report the VALUES it saw, not only
@@ -4878,7 +4886,15 @@ impl Codegen {
         self.write_line("");
 
         // Check if file has test blocks — emit std import if so
-        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
+        // W601: an INVARIANT block emits assertions too, and a spec may have
+        // invariants and no tests -- specs/numeric/gf*.t27 are exactly that.
+        // Gating the helper on TestBlock alone left those files referencing an
+        // `__t27_assert_fail` that was never emitted. The condition must match
+        // "will this file contain an assertion", not "does it have tests".
+        let has_tests = ast
+            .children
+            .iter()
+            .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
             // W599: a failing assertion must report the VALUES it saw, not only

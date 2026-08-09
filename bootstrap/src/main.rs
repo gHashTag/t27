@@ -3171,6 +3171,10 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
                 println!("  BLOCKED  {}  ({})", r.spec, why.lines().next().unwrap_or(""))
             }
             Some(_) => {}
+            None if r.total == 0 && r.invariants > 0 => println!(
+                "  {:>4} inv   proved  {}",
+                r.invariants, r.spec
+            ),
             None if r.total == 0 => {
                 if verbose {
                     println!("  NO TESTS  {}", r.spec)
@@ -3189,12 +3193,14 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     println!("--- per-test measurement over the tree ---");
     println!("  specs MEASURED           {}", t.measured);
     println!("    of those, 100%          {}", t.perfect);
+    println!("  specs INVARIANTS ONLY    {}   (comptime -- compiling IS the check)", t.invariants_only);
     println!("  specs with NO TESTS      {}   <- L4 TESTABILITY", t.no_tests);
     println!("  specs BLOCKED            {}", t.blocked);
     println!();
     println!("  tests run                {}", t.tests);
     println!("  pass                     {}", t.passed);
     println!("  FAIL                     {}", t.failed);
+    println!("  invariants proved         {}", t.invariants);
     if t.tests > 0 {
         println!(
             "  rate                     {:.1}%",
@@ -3202,10 +3208,11 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
         );
     }
     println!();
-    println!("  Three populations, deliberately not merged. A BLOCKED spec never");
-    println!("  produced a binary. A spec with NO TESTS compiled and asserts");
-    println!("  nothing -- an L4 violation, not a 0% pass rate. Only MEASURED");
-    println!("  specs have a rate, and the rate above is over those alone.");
+    println!("  Four populations, deliberately not merged. A BLOCKED spec never");
+    println!("  produced a binary. An INVARIANTS ONLY spec has no test functions");
+    println!("  but its invariants are comptime -- it COMPILED, so they held. A");
+    println!("  spec with NO TESTS asserts nothing at all: an L4 violation, not a");
+    println!("  0% pass rate. Only MEASURED specs have a rate.");
     Ok(())
 }
 
@@ -3231,9 +3238,15 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         }
     }
     println!();
-    println!("  tests   {}", r.total);
-    println!("  pass    {}", r.passed);
-    println!("  FAIL    {}", r.failed);
+    println!("  tests       {}", r.total);
+    println!("  pass        {}", r.passed);
+    println!("  FAIL        {}", r.failed);
+    if r.invariants > 0 {
+        println!(
+            "  invariants  {}   proved -- comptime, so compiling IS the check",
+            r.invariants
+        );
+    }
     if r.total > 0 {
         println!(
             "  rate    {:.1}%",
