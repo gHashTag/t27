@@ -215,7 +215,14 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
 /// it is the mistake that took twenty-five waves to notice the first time.
 pub struct TreeReport {
     pub reports: Vec<Report>,
+    /// Compiled AND declares at least one test. Only these have a rate.
     pub measured: usize,
+    /// Compiled, but declares nothing to check. **This is an L4 TESTABILITY
+    /// violation**, not a spec with a 0% pass rate -- the first run of this
+    /// command reported 68 "measured" of which 38 were this, and averaging them
+    /// in as zeroes is the same collapse W586 removed from the harness.
+    pub no_tests: usize,
+    /// Never produced a binary.
     pub blocked: usize,
     pub tests: usize,
     pub passed: usize,
@@ -252,6 +259,7 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
     let mut t = TreeReport {
         reports: Vec::new(),
         measured: 0,
+        no_tests: 0,
         blocked: 0,
         tests: 0,
         passed: 0,
@@ -262,12 +270,14 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
         let r = run(&f, specs_root);
         if r.blocked.is_some() {
             t.blocked += 1;
+        } else if r.total == 0 {
+            t.no_tests += 1;
         } else {
             t.measured += 1;
             t.tests += r.total;
             t.passed += r.passed;
             t.failed += r.failed;
-            if r.failed == 0 && r.total > 0 {
+            if r.failed == 0 {
                 t.perfect += 1;
             }
         }
@@ -287,6 +297,7 @@ mod tests {
         let t = TreeReport {
             reports: vec![Report::blocked("x.t27", "no binary")],
             measured: 0,
+            no_tests: 0,
             blocked: 1,
             tests: 0,
             passed: 0,

@@ -3171,15 +3171,16 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
                 println!("  BLOCKED  {}  ({})", r.spec, why.lines().next().unwrap_or(""))
             }
             Some(_) => {}
+            None if r.total == 0 => {
+                if verbose {
+                    println!("  NO TESTS  {}", r.spec)
+                }
+            }
             None => println!(
                 "  {:>4}/{:<4} {:>5.1}%  {}",
                 r.passed,
                 r.total,
-                if r.total > 0 {
-                    (r.passed as f64) * 100.0 / (r.total as f64)
-                } else {
-                    0.0
-                },
+                (r.passed as f64) * 100.0 / (r.total as f64),
                 r.spec
             ),
         }
@@ -3188,6 +3189,7 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     println!("--- per-test measurement over the tree ---");
     println!("  specs MEASURED           {}", t.measured);
     println!("    of those, 100%          {}", t.perfect);
+    println!("  specs with NO TESTS      {}   <- L4 TESTABILITY", t.no_tests);
     println!("  specs BLOCKED            {}", t.blocked);
     println!();
     println!("  tests run                {}", t.tests);
@@ -3200,8 +3202,10 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
         );
     }
     println!();
-    println!("  A BLOCKED spec never produced a binary; it is not a spec with a");
-    println!("  0% pass rate, and it contributes nothing to these totals.");
+    println!("  Three populations, deliberately not merged. A BLOCKED spec never");
+    println!("  produced a binary. A spec with NO TESTS compiled and asserts");
+    println!("  nothing -- an L4 violation, not a 0% pass rate. Only MEASURED");
+    println!("  specs have a rate, and the rate above is over those alone.");
     Ok(())
 }
 

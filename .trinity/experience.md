@@ -21716,3 +21716,30 @@ index. Same tests, same answer, **5 seconds**.
 **The disk exhaustion was the clue, not the accident.** A measurement whose cost
 scales with the number of tests is one that stops being taken — which is the
 same lesson as rule 90, arriving with a number attached.
+
+## Wave 600 — 1018 of 1024, and every failure in one file
+
+The first per-test measurement over the whole tree:
+
+    MEASURED  30   (29 of them at 100%)
+    NO TESTS  38   <- L4 TESTABILITY violation
+    BLOCKED  540
+    1024 tests / 1018 pass / 6 fail / 99.4%
+
+**Every failing test in the entire corpus is in `cordic.t27`.** The corpus has
+no long tail of subtly-wrong specs: 540 that do not run, 38 that run and check
+nothing, 30 that run and check something — 29 perfect, one with six assertions
+whose arithmetic is already written down.
+
+**I made the exact mistake my own module doc warns against.** The command's
+first version reported "68 measured", of which 38 were `0/0 = 0.0%` — specs
+that compile and declare no tests. Averaging those in as zeroes is the collapse
+W586 removed from the harness, reintroduced in a file whose doc comment says not
+to. Eighth instance of the instrument being wrong, and the first where the
+warning and the violation were written by the same hand in the same file.
+**Writing the rule down does not execute it.**
+
+**The FPGA family is the healthiest part of the corpus.** `specs/fpga/` (14
+specs, 246 tests) and `specs/boards/` (3, 54) are at 300/300. Against the
+standing FPGA goal that is the number that matters: nothing measured stands
+between the specs and the board.

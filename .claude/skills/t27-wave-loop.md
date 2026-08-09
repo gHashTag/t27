@@ -4537,6 +4537,28 @@ These cost a wave each. Follow them before step 1.
     followed by `;`. A `noreturn` helper keeps the site an expression and works
     everywhere the old `@panic` did.
 
+97. **A falsification check tests the case you thought of; the corpus contains
+    the case you didn't.** W599's F1 was "std.debug.print is not comptime-
+    callable". The probe cleared it for a `test` body -- where folded conditions
+    still run at runtime -- and shipped. The corpus ALSO folds assertions at
+    comptime (T4's and T5's disproved invariants are exactly that), where the
+    print is illegal. **Write the probe against a real spec from the corpus, not
+    against a hand-made minimal case**, or the check only proves you understood
+    your own example.
+
+98. **A cost that scales with what you're measuring is a warning.** W597's
+    per-test loop cost 45 minutes and 6.1 GB because `zig test --test-filter`
+    recompiles the whole file per filter -- 336 tests, 336 compilations. It
+    filled the disk, and the disk exhaustion was the CLUE: the shape of the cost
+    said the measurement was structured wrong. Compile once, run N times: 5
+    seconds, one binary, identical answer.
+
+99. **"Does it compile" and "is it right" are different questions, and this
+    project answered only the first for forty waves.** `ALL_PASS` counted specs
+    whose tests ALL passed, so a spec at 99% and a spec at 0% were the same
+    number. A per-test rate is a different instrument, not a refinement of the
+    old one.
+
 ### How to update this tracker
 
 After closing a wave:

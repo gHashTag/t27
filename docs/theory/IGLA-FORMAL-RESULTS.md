@@ -592,6 +592,57 @@ three classes tabulated in T6.
 
 ---
 
+### P15 (W600) — Of the corpus that runs, 99.4% is right, and every failure is in one file
+
+The first per-test measurement over the whole spec tree
+(`t27c test-report --all`, one compilation per spec, ~25 minutes):
+
+| Population | Count |
+|---|---:|
+| **MEASURED** — compiles *and* declares tests | **30** |
+| of those, at 100% | **29** |
+| **NO TESTS** — compiles, asserts nothing (**L4** violation) | **38** |
+| **BLOCKED** — never produced a binary | **540** |
+
+| | |
+|---|---:|
+| Tests run | **1024** |
+| Pass | **1018** |
+| Fail | **6** |
+| Rate | **99.4 %** |
+
+**All six failures are in `specs/igla/race/cordic.t27`.** There is no long tail:
+the corpus is 540 specs that do not run, 38 that run and check nothing, and 30
+that run and check something — of which 29 are perfect and one has six
+assertions whose arithmetic is already written down (three contradicted by K(n)
+decreasing, two by a table index, one by **T6**).
+
+**The three populations are the result.** The command's first version reported
+"68 measured" by counting the 38 no-test specs as measured-at-0%. That is the
+same collapse W586 removed from the harness, reintroduced in a module whose own
+doc comment warns against it — **eighth instance in this chain of the instrument
+being the thing that was wrong**, and the first where the warning against the
+mistake and the mistake were written by the same hand in the same file.
+
+**Where the passing tests are.**
+
+| Family | Specs | Tests | Failures |
+|---|---:|---:|---:|
+| `specs/fpga/` | 14 | 246 | **0** |
+| `specs/igla/` | 6 | 686 | 6 |
+| `specs/boards/` | 3 | 54 | **0** |
+| others | 7 | 38 | 0 |
+
+`specs/fpga/` and `specs/boards/` are **17 specs, 300 tests, zero failures** —
+the hardware-facing half of the corpus is its healthiest part. Taken with T1–T3
+(equivalence, multiplier-freedom, timing), nothing *measured* stands between the
+specs and the board.
+
+*Falsification condition:* a failing test in any spec other than `cordic.t27`, or
+a rate that moves when the measurement is repeated.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
