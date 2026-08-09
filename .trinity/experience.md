@@ -21542,3 +21542,39 @@ own convention is already bounds -- the neighbouring test asserts cordic_cos(0) 
 An exact equality over a FIXED-POINT ITERATIVE algorithm is suspect on its face. This
 one survived since W397 because nothing ever evaluated it. The first spec to compile
 disproved it in one comptime step.
+
+## Wave Loop 595 -- T5: the corpus's assertion discipline is sound, CORDIC is the exception (2026-08-10)
+
+W594's audit condition: "if every other exact equality is over a CLOSED-FORM function,
+T4 is a singleton -- check what fraction are iterative first."
+
+    453  invariants of the form f(args) == literal
+      7  over an ITERATIVE function
+      1  of those over an APPROXIMATION (exp_approx(0.0) == 1.0)
+         ...and it holds exactly: 1.0 + 0 + 0/2 + 0/6 + 0/24
+
+The other six iterative ones are exact COUNTING functions -- count_assigns,
+count_substring, count_passed_at_5 -- where equality is entirely correct.
+
+So of 453 exact equalities the only false ones are the CORDIC coordinates at zero.
+
+### The rule sharpened
+
+The suspect class is not "iterative". It is ITERATIVE AND APPROXIMATING. A counting
+loop is iterative and exact; a Taylor polynomial is closed-form and exact at its
+expansion point; a CORDIC rotation is neither. W594's rule as written would have
+flagged six correct invariants.
+
+### And T4 generalises within CORDIC
+
+cordic_fixed.t27 now compiles (its `given a = 0.5` was the normalized REAL angle
+written where the Q14 INTEGER belongs -- 0.5*PI = 8192, determined by the file's own
+documented convention and by every neighbouring test passing an integer).
+
+It disproves two more:
+
+    cordic_sin(0) == 0                    asserted 0      actual 117
+    cordic_cos(0) == CORDIC_GAIN_Q14      asserted 9953   actual 16390
+
+The second is T4 in the OPPOSITE direction: the seed IS the gain, but eight rotations
+move x just as they move y. The algorithm cannot leave either coordinate untouched.

@@ -699,7 +699,7 @@ test cordic_fixed_cos_zero_angle
     then c > 32760 && c < 32768
 
 test cordic_fixed_cos_half_pi
-    given a = 0.5
+    given a = 8192   // W595: 0.5 PI in Q14 (1.0 = PI); every other test here passes the integer
     when c = cordic_cos(a)
     then c > 0 && c < 500
 

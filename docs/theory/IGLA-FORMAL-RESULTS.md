@@ -107,6 +107,48 @@ the arithmetic above determines what any correct choice must accommodate.
 `cordic_sign` actually implements — worth checking, as that would make the
 invariant satisfiable and the implementation wrong instead.
 
+### T5 — the same defect, generalised, and the audit that bounds it (W595)
+
+**T4 is not a singleton, and it is also not a pattern.** Both halves matter.
+
+**Generalised.** `cordic_sin(0) == 0` appears in `cordic_fixed.t27` as well
+(twice), and that spec carries a second instance of the same error in the
+opposite direction:
+
+```t27
+invariant …:  cordic_cos(0) == CORDIC_GAIN_Q14
+```
+
+Evaluated from that spec's own constants: `cordic_cos(0) = 16390`, while
+`CORDIC_GAIN_Q14 = 9953`. **False for exactly the reason T4 is false** — the seed
+*is* the gain, but eight rotations move x just as they move y. The algorithm
+cannot leave either coordinate untouched.
+
+**Bounded.** The audit W594 called for, over the whole corpus:
+
+| | Count |
+|---|---:|
+| Invariants of the form `f(args) == literal` | **453** |
+| …over a function that is iterative | 7 |
+| …of those, that are **approximations** | **1** (`exp_approx(0.0) == 1.0`) |
+| …and that one is **exact**: `1.0 + 0 + 0/2 + 0/6 + 0/24` | ✓ holds |
+
+The other six iterative ones are exact *counting* functions — `count_assigns`,
+`count_substring`, `count_passed_at_5` — where equality is entirely correct.
+
+**So the corpus's assertion discipline is sound.** Of 453 exact equalities, the
+only false ones are the CORDIC coordinates at zero, and they are false because an
+*approximation* was asserted exactly.
+
+**This sharpens the rule W594 stated.** The suspect class is not "iterative" — it
+is **iterative *and* approximating**. A counting loop is iterative and exact; a
+Taylor polynomial is closed-form and exact at its expansion point; a CORDIC
+rotation is neither.
+
+**Falsified by.** An exact-equality invariant over an approximating function that
+this audit missed — the classifier keys on self-recursion and loops, so a mutual
+recursion between two functions would escape it.
+
 ### What is deliberately *not* claimed
 
 - No theorem about the **t27 compiler**. Every compiler change in this chain is

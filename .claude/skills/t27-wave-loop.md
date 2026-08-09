@@ -4455,6 +4455,20 @@ These cost a wave each. Follow them before step 1.
     worth no report at all. One command separates a discovery from an
     embarrassment.
 
+85. **"Iterative" is the wrong predicate -- the suspect class is ITERATIVE AND
+    APPROXIMATING.** W594 proposed auditing exact equalities over iterative
+    functions; the audit found 7 of 453, and six were exact COUNTING loops where
+    equality is entirely correct. A counting loop is iterative and exact; a
+    Taylor polynomial is closed-form and exact at its expansion point; only a
+    converging approximation is suspect. Sharpen a heuristic against the
+    population before acting on it.
+
+86. **An audit that finds almost nothing is a result worth publishing.** 453
+    exact-equality invariants, one suspect class, and it is the one already
+    known. "The corpus's assertion discipline is sound" is a finding -- it
+    bounds where the defects are, and it stops the next wave re-auditing the
+    same ground.
+
 ### How to update this tracker
 
 After closing a wave:
