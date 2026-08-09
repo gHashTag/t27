@@ -65,7 +65,14 @@ def run(path, seq, depth, timeout):
     try:
         r = subprocess.run(["yosys", "-q", "-p", cmd], capture_output=True,
                            text=True, timeout=timeout)
-        return ("PROVED" if r.returncode == 0 else "REFUTED"), time.time() - t0
+        out = r.stdout + r.stderr
+        if r.returncode == 0:
+            v = "PROVED"
+        elif "proof did fail" in out:
+            v = "REFUTED"
+        else:
+            v = "TOOL ERROR"   # not a verdict -- Props. 39d, 58
+        return v, time.time() - t0
     except subprocess.TimeoutExpired:
         return f"timeout>{timeout}s", time.time() - t0
 

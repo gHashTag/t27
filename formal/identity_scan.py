@@ -26,6 +26,7 @@ import re
 import subprocess
 import sys
 import glob
+import pathlib
 
 
 def bodies(path):
@@ -94,8 +95,18 @@ def free_shape(body):
 
 
 def main(argv):
-    files = argv[1:] or (sorted(glob.glob("formal/*.sv")) +
-                         sorted(glob.glob("build/rtl/*.sv")))
+    # Anchored to this file, not to the caller's cwd. Run from anywhere else the
+    # globs matched nothing, the scan reported "scanned 0 assertion bodies in 0
+    # files; 0 discharged by syntax" and exited 0 -- a green gate that checked
+    # nothing. In CI it happens to run from the repository root, so this was
+    # latent rather than broken. Prop. 58.
+    root = pathlib.Path(__file__).resolve().parent.parent
+    files = argv[1:] or ([str(p) for p in sorted(root.glob("formal/*.sv"))] +
+                         [str(p) for p in sorted(root.glob("build/rtl/*.sv"))])
+    if not files:
+        print(f"::error::identity_scan matched no files under {root} -- "
+              "the file list is wrong, not the properties")
+        return 1
     total, bad = 0, []
     for f in files:
         for name, body in bodies(f):
@@ -108,6 +119,13 @@ def main(argv):
         print(f"          body: {body[:100]}")
     print(f"scanned {total} assertion bodies in {len(files)} files; "
           f"{len(bad)} discharged by syntax")
+    if total == 0:
+        # A scan that scans nothing must not report success. If the labelling
+        # convention changes, this says so instead of going quietly green.
+        print(f"::error::identity_scan found no labelled assertions in "
+              f"{len(files)} files -- the `a_*: assert (` pattern no longer "
+              "matches, so this gate is checking nothing")
+        return 1
     return 1 if bad else 0
 
 

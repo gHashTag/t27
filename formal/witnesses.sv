@@ -401,3 +401,125 @@ module w_wp_back_to_back (
 endmodule
 
 `default_nettype wire
+
+// ---------------------------------------------------------------------------
+// Sequential-repetition witnesses (Wave 607).
+//
+// Prop. 56 closed interleaving reachability for dma_controller and
+// weight_prefetch_ctrl and stated its own remaining scope: the other three
+// modules have witnesses for CONCURRENCY (a read during an event, an
+// outstanding response, more than one neuron) but none for REPETITION. A
+// constraint permitting exactly one service / one transaction / one layer run
+// leaves every existing witness refuting. These three close that.
+//
+// Edge detection is synchronous with an explicit previous-value register --
+// $past inside an async-reset block makes async2sync reject the design
+// outright (Prop. 56c).
+// ---------------------------------------------------------------------------
+
+module w_irq_serviced_twice (
+    input wire       clk,
+    input wire       rst_n,
+    input wire       inference_done,
+    input wire       dma_done,
+    input wire       error,
+    input wire [2:0] irq_enable,
+    input wire       status_read
+);
+    wire [2:0] irq_status;
+    wire       irq_out;
+
+    interrupt_controller dut (
+        .clk(clk), .rst_n(rst_n),
+        .inference_done(inference_done), .dma_done(dma_done), .error(error),
+        .irq_enable(irq_enable), .irq_status(irq_status),
+        .status_read(status_read), .irq_out(irq_out)
+    );
+
+    // A "service" is a read that actually clears a raised status. Two of them
+    // means the latch was re-armed after the first -- the sticky-then-clear
+    // cycle repeating, which is what a driver does every interrupt.
+    reg [1:0] svc;
+    always @(posedge clk)
+        if (!rst_n) svc <= 2'd0;
+        else if (status_read && irq_status != 3'b000 && svc != 2'd3) svc <= svc + 2'd1;
+
+    always @(posedge clk) if (rst_n) w: assert (svc < 2'd2);
+endmodule
+
+module w_axi_two_writes (
+    input wire clk, input wire rst_n,
+    input wire [7:0] awaddr, input wire awvalid,
+    input wire [31:0] wdata, input wire [3:0] wstrb, input wire wvalid,
+    input wire bready,
+    input wire [7:0] araddr, input wire arvalid, input wire rready,
+    input wire [31:0] reg_status, input wire [31:0] reg_irq_stat,
+    input wire [63:0] reg_cycles
+);
+    wire awready, wready, bvalid, arready, rvalid;
+    wire [1:0] bresp, rresp;
+    wire [1:0] s_axi_bresp_probe = bresp;
+    wire [31:0] rdata, reg_ctrl, reg_irq_en, reg_num_layers, reg_neurons, reg_chunks, reg_threshold;
+    wire [63:0] reg_weight_addr, reg_input_addr, reg_output_addr;
+    axi_lite_slave dut (
+        .clk(clk), .rst_n(rst_n),
+        .s_axi_awaddr(awaddr), .s_axi_awvalid(awvalid), .s_axi_awready(awready),
+        .s_axi_wdata(wdata), .s_axi_wstrb(wstrb), .s_axi_wvalid(wvalid), .s_axi_wready(wready),
+        .s_axi_bresp(bresp), .s_axi_bvalid(bvalid), .s_axi_bready(bready),
+        .s_axi_araddr(araddr), .s_axi_arvalid(arvalid), .s_axi_arready(arready),
+        .s_axi_rdata(rdata), .s_axi_rresp(rresp), .s_axi_rvalid(rvalid), .s_axi_rready(rready),
+        .reg_ctrl(reg_ctrl), .reg_status(reg_status), .reg_irq_en(reg_irq_en),
+        .reg_irq_stat(reg_irq_stat), .reg_num_layers(reg_num_layers), .reg_neurons(reg_neurons),
+        .reg_chunks(reg_chunks), .reg_threshold(reg_threshold),
+        .reg_weight_addr(reg_weight_addr), .reg_input_addr(reg_input_addr),
+        .reg_output_addr(reg_output_addr), .reg_cycles(reg_cycles)
+    );
+
+    // Two completed write transactions. a_one_outstanding_write bounds the
+    // channel at one in flight; that bound says nothing about whether the slave
+    // can accept a SECOND write after the first retires. Configuration writes
+    // eleven registers in a row, so one-transaction reachability is not enough.
+    reg [1:0] wr;
+    always @(posedge clk)
+        if (!rst_n) wr <= 2'd0;
+        else if (bvalid && bready && wr != 2'd3) wr <= wr + 2'd1;
+
+    always @(posedge clk) if (rst_n) w: assert (wr < 2'd2);
+endmodule
+
+module w_ls_two_layers (
+    input wire        clk,
+    input wire        rst_n,
+    input wire        start,
+    input wire [15:0] num_neurons,
+    input wire [7:0]  num_chunks
+);
+    wire [15:0] neuron_id;
+    wire [7:0]  chunk_id;
+    wire        first_chunk, last_chunk, valid, done;
+
+    layer_sequencer dut (
+        .clk(clk), .rst_n(rst_n), .start(start),
+        .num_neurons(num_neurons), .num_chunks(num_chunks),
+        .neuron_id(neuron_id), .chunk_id(chunk_id),
+        .first_chunk(first_chunk), .last_chunk(last_chunk),
+        .valid(valid), .done(done)
+    );
+
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_neurons == $past(num_neurons));
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_chunks  == $past(num_chunks));
+
+    // Two completed layer runs. The engine restarts this sequencer once per
+    // layer, so every property about neuron/chunk ordering that only ever sees
+    // the first run leaves layers 2..N unverified.
+    reg [1:0] runs;
+    reg       done_q;
+    always @(posedge clk)
+        if (!rst_n) begin runs <= 2'd0; done_q <= 1'b0; end
+        else begin
+            done_q <= done;
+            if (done && !done_q && runs != 2'd3) runs <= runs + 2'd1;
+        end
+
+    always @(posedge clk) if (rst_n) w: assert (runs < 2'd2);
+endmodule

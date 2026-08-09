@@ -3340,6 +3340,159 @@ grep -c "^module w_" formal/witnesses.sv    # 11 witnesses
 
 ---
 
+### Prop. 57 — the other three modules can repeat, not just overlap — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous (witnesses must refute)*
+
+Prop. 56 closed interleaving reachability for `dma_controller` and
+`weight_prefetch_ctrl` and stated the rest of its own scope: the other three
+modules had witnesses for **concurrency** — a read during an event, an
+outstanding response, more than one neuron — but none for **repetition**. A
+constraint permitting exactly one service, one transaction, or one layer run
+left every one of those witnesses refuting.
+
+**57a. Three repetition witnesses, all reachable.**
+
+| witness | repetition | why it matters |
+|---|---|---|
+| `w_irq_serviced_twice` | two reads that each clear a raised status | the sticky-then-clear cycle is what a driver does on *every* interrupt, not the first |
+| `w_axi_two_writes` | two completed write transactions | `a_one_outstanding_write` bounds the channel at one *in flight*; configuration writes eleven registers in a row |
+| `w_ls_two_layers` | two completed layer runs | the engine restarts this sequencer once per layer, so ordering properties that only see run 1 leave layers 2..N unverified |
+
+Fourteen witnesses now gate, up from eleven. Every module has both shapes.
+
+**57b. Each control removes its own repetition.** Prop. 48b per witness:
+
+| witness | injected constraint | result |
+|---|---|---|
+| `w_irq_serviced_twice` | no service while `svc != 0` | **PROVES** |
+| `w_axi_two_writes` | no completion while `wr != 0` | **PROVES** |
+| `w_ls_two_layers` | no start while `done \|\| runs != 0` | **PROVES** |
+
+**57c. The third control needed the event, not just the counter — and that is a
+property of when the counter updates.** Guarding only on `runs != 0` left the
+witness refuting. `runs` increments on the **`done` edge**, which lands in the
+same cycle the FSM is back in `IDLE` and able to accept the next `start`, so a
+guard reading `runs` still permits exactly one more run. The IRQ and AXI
+controls do not have this problem because there the counter and the guard read
+the *same* event in the *same* cycle. Wave 606's rule — suspect the control
+before the probe — held for the second time in two waves.
+
+Reproduce:
+
+```bash
+grep -c "^module w_" formal/witnesses.sv    # 14 witnesses
+```
+
+---
+
+### Prop. 58 — two verdict classifiers were lying, in opposite directions — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous*; `formal-mutation.yml` → *Baseline, control, and mutation*
+
+Prop. 39d established that **a tool error is not a verdict**. This wave found
+two places that had never adopted it, and one of them was caught only because a
+witness gave the wrong answer out loud.
+
+**58a. `echo` truncated a proof result at a signal name.** Probing
+`w_ls_two_layers` locally reported **PROVES** — "two layer runs are
+unreachable" — which reads as a restart defect in the sequencer, and I went and
+read the RTL looking for one. Yosys had in fact printed `proof did fail`. The
+classifier was the shell:
+
+```bash
+printf '%s\n' 'x \chunk_id' 'ERROR: proof did fail!' > /tmp/t
+out=$(cat /tmp/t)
+echo "$out"          | grep -c "proof did fail"   # zsh 0, bash 1
+printf '%s\n' "$out" | grep -c "proof did fail"   # 1 in both
+```
+
+Note the `%s` in that first line: writing the sample with `printf '...\chunk_id...'`
+instead swallows the rest of the string too. The demonstration is destroyed by
+the escape it demonstrates.
+
+Yosys prints signal names backslash-prefixed. A shell whose `echo` expands
+escapes reads `\c` as **stop output here** — and `layer_sequencer` has
+`chunk_id`. The captured 31 966-byte trace became 4 893 bytes and the verdict
+line was gone. `bash` does not expand these and `zsh` does, so **the same
+command yields different verdicts on CI and on a developer's machine**, in the
+one direction the docs actively invite by printing reproduction commands.
+Fixed by using `printf '%s\n'`, which is unambiguous in both.
+
+**58b. The mutation harness scored a crash as a killed mutant.** `yos()` returned
+`returncode == 0`; every caller read its negation as *refuted*. A mutation that
+makes the RTL unparseable also exits nonzero, so it was counted as **killed** —
+a mutant that was never actually tested, reported as evidence the gate bites.
+Now `yos()` distinguishes the three outcomes and a tool error fails the step
+loudly, naming the mutation that was skipped. `formal/scale_probe.py` had the
+same fold and was fixed with it.
+
+**58c. The fix is validated against the shipped code, not a copy.** The control
+extracts `yos()`/`verdict()` out of the workflow YAML and runs them on three
+inputs whose answers are known:
+
+| input | want | got |
+|---|---|---|
+| proving script | `True` | `True` |
+| refuting script | `False` | `False` |
+| unparseable mutant (`if(num_chunks==0 \|\| )`) | `ToolError` | `ToolError` |
+
+The same unparseable mutant under the old classifier: `returncode=1` → *refuted*
+→ **scored as killed**.
+
+**58e. The documentation gate was not a gate.** Auditing the instruments turned
+up a third case, and the worst kind. README.md has described "a documentation
+gate covering all N propositions" for many waves. Nothing in `.github/` or
+`formal/` implemented it — it existed as a habit, a script pasted into a
+terminal each wave. A claimed gate that CI never runs is the same failure as a
+property that proves vacuously: the claim is about a check that isn't there. It
+now ships as `formal/doc_gate.py` and runs as its own step, and it was
+mutation-tested before being believed:
+
+| mutation | caught |
+|---|---|
+| a `**Gate:**` line removed | yes |
+| a fence whose only verb is `echo` | yes |
+| `t27c` bare instead of `./target/release/t27c` | yes |
+| the `### Prop.` heading convention changed | yes |
+
+The third rule is new and comes from `identity_scan.py`: **a scan that finds
+nothing must not report success.** That scan globbed relative to the caller's
+cwd, so run from anywhere but the repository root it printed *"scanned 0
+assertion bodies in 0 files; 0 discharged by syntax"* and exited **0**. In CI it
+happens to run from the root, so this was latent — but it is the same shape as
+the two classifiers above: silence read as a pass.
+
+**58d. What this says about the campaign.** Nine RTL defects were found by
+these harnesses; this wave found **four defects in the harnesses themselves** —
+two classifiers reading a crash as a verdict, one scan that passed while
+scanning nothing, and one gate that was never wired up at all. None was found by
+inspection. The first surfaced because a witness returned an implausible answer
+that was cheap to check against the RTL; the rest came from auditing every
+instrument once the first one fell. The recurring lesson — verify the instrument
+before the subject — now has a corollary: **an instrument that has been right
+nine times is not thereby verified.** All four share one shape: *an absence
+being read as a pass.* No output, no verdict, no gate — each was silence, and
+silence scored green.
+
+Reproduce:
+
+```bash
+python3 - <<'EOF'
+import yaml
+wf = yaml.safe_load(open('.github/workflows/formal-mutation.yml'))
+step = [s for s in wf['jobs']['gate-adequacy']['steps']
+        if 'mutation' in s.get('name', '').lower()][0]
+print("mutation harness separates tool errors:", 'ToolError' in step['run'])
+vac = yaml.safe_load(open('.github/workflows/formal-yosys.yml'))
+step = [s for s in vac['jobs']['prove']['steps']
+        if 'non-vacuous' in s.get('name', '').lower()][0]
+print("vacuity gate no longer uses echo:  ", 'printf' in step['run'])
+EOF
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

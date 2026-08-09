@@ -123,9 +123,32 @@ jobs:
               shutil.rmtree("build/mut", ignore_errors=True)
               shutil.copytree("build/rtl", "build/mut")
 
+          class ToolError(RuntimeError):
+              pass
+
           def yos(script):
-              return subprocess.run(["yosys", "-q", "-p", script],
-                                    capture_output=True, text=True).returncode == 0
+              # returncode == 0 meant "proved", and its negation meant "refuted"
+              # -- which quietly folded in "yosys could not read the design at
+              # all". A mutation that makes the RTL unparseable exits nonzero
+              # and was therefore scored as a KILLED MUTANT: confidence bought
+              # with a crash. Prop. 39d drew this distinction for the property
+              # gates; the mutation harness never adopted it. Prop. 58.
+              r = subprocess.run(["yosys", "-q", "-p", script],
+                                 capture_output=True, text=True)
+              if r.returncode == 0:
+                  return True
+              out = r.stdout + r.stderr
+              if "proof did fail" in out:
+                  return False
+              raise ToolError(next((l for l in out.splitlines()
+                                    if l.startswith("ERROR")), out[-200:].strip()))
+
+          def verdict(gate):
+              """Run a gate, keeping a tool error distinct from a verdict."""
+              try:
+                  return gate(), None
+              except ToolError as e:
+                  return None, str(e)
 
           def gm(dut, props, top, seq):
               return yos(f"read_verilog -sv -formal build/mut/{dut}.sv {props}; "
@@ -218,9 +241,11 @@ jobs:
           print("== BASELINE: unmutated, every gate must pass ==")
           fresh()
           for name, gate in GATES:
-              ok = gate()
-              print(f"   {'ok  ' if ok else 'FAIL'} {name}")
-              if not ok:
+              ok, err = verdict(gate)
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}{'' if err is None else '  [TOOL ERROR] ' + err}")
+              if err is not None:
+                  bad.append(f"BASELINE {name} did not return a verdict: {err}")
+              elif not ok:
                   bad.append(f"BASELINE {name} does not pass -- every verdict below is noise")
 
           print("== CONTROL: neutral edit, every gate must still pass ==")
@@ -230,9 +255,11 @@ jobs:
               s = open(f).read().replace("endmodule", "    wire fv_neutral_unused = 1'b0;\nendmodule", 1)
               open(f, "w").write(s)
           for name, gate in GATES:
-              ok = gate()
-              print(f"   {'ok  ' if ok else 'FAIL'} {name}")
-              if not ok:
+              ok, err = verdict(gate)
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}{'' if err is None else '  [TOOL ERROR] ' + err}")
+              if err is not None:
+                  bad.append(f"CONTROL {name} did not return a verdict: {err}")
+              elif not ok:
                   bad.append(f"CONTROL {name} fires on a no-op edit -- gate is noisy")
 
           print("== MUTATION: each gate must go red for its own mutation ==")
@@ -246,9 +273,15 @@ jobs:
                   continue
               open(f, "w").write(s.replace(old, new, 1))
               name, gate = GATES[gi_]
-              still_green = gate()
-              print(f"   {'FAIL' if still_green else 'ok  '} {name:28s} {desc}")
-              if still_green:
+              still_green, err = verdict(gate)
+              tag = "TOOL" if err is not None else ("FAIL" if still_green else "ok  ")
+              print(f"   {tag} {name:28s} {desc}{'' if err is None else '  ' + err}")
+              if err is not None:
+                  # The mutant was never actually checked. Scoring this as a
+                  # kill is how a mutation suite reports every mutant killed
+                  # while testing strictly less than it claims.
+                  bad.append(f"MUTATION '{desc}' broke the tool, so it was never tested: {err}")
+              elif still_green:
                   bad.append(f"{name} stayed green for: {desc}")
 
           if bad:

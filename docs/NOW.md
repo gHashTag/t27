@@ -1,6 +1,57 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
+
+## Wave 607 — the classifiers were lying, and a witness said so out loud
+
+- **WHAT (planned)**: Prop. 56 closed interleaving reachability for two modules
+  and stated the rest of its scope: the other three had witnesses for
+  **concurrency** but none for **repetition**. Three new ones close it —
+  `w_irq_serviced_twice` (two interrupts serviced), `w_axi_two_writes` (two
+  completed write transactions), `w_ls_two_layers` (two layer runs). All
+  reachable. **14 witnesses** now gate, up from 11, and every module is probed
+  for all three shapes: happens / overlaps / repeats.
+- **WHAT (found instead)**: `w_ls_two_layers` first reported **PROVES** — "two
+  layer runs are unreachable", which reads as a restart defect, and I went and
+  read the sequencer looking for one. Yosys had actually printed
+  `proof did fail`. **The classifier was the shell.** Yosys prints signal names
+  backslash-prefixed; `layer_sequencer` has `chunk_id`; a shell whose `echo`
+  expands escapes reads `\c` as *stop output here*. The 31 966-byte trace became
+  4 893 bytes and the verdict line was gone. bash does not expand these, zsh
+  does — so the same command gives different verdicts on CI and on a
+  developer's machine, in exactly the direction the docs invite by printing
+  reproduction commands.
+- **THE SECOND ONE**: auditing every classifier after the first turned up the
+  mutation harness. `yos()` returned `returncode == 0` and every caller read its
+  negation as *refuted* — so a mutation that makes the RTL **unparseable** exits
+  nonzero and was scored as a **killed mutant**. A mutant that was never tested,
+  counted as evidence the gate bites. Prop. 39d drew that distinction for the
+  property gates in Wave 5xx; the mutation harness never adopted it.
+  `formal/scale_probe.py` had the same fold.
+- **VALIDATED AGAINST THE SHIPPED CODE**: the control extracts `yos()` out of
+  the workflow YAML rather than retyping it, and runs it on a proving script
+  (`True`), a refuting script (`False`) and an unparseable mutant (`ToolError`).
+  Old classifier on that third input: `returncode=1` → *refuted* → **killed**.
+- **THE CONTROL TRAP, AGAIN**: `w_ls_two_layers`' control (`no start while
+  runs != 0`) did not bite. Not the witness — `runs` increments on the `done`
+  **edge**, which lands in the same cycle the FSM is back in IDLE and can accept
+  the next `start`, so guarding on the counter alone lets exactly one more run
+  through. Needed `done || runs != 0`. Second wave running where the control,
+  not the probe, was the broken thing.
+- **AND ONCE MORE IN THE DOCS**: Prop. 58a's reproduction block was written as
+  `printf 'x \chunk_id\n...'` — which printf also truncates at `\c`. The
+  demonstration destroyed by the escape it demonstrates. Fixed with `%s`; both
+  new blocks now run as written.
+- **WHERE**: `formal/witnesses.sv`, `formal/scale_probe.py`,
+  `.github/workflows/formal-yosys.yml`, `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Props. 57, 58).
+- **THE LESSON**: nine RTL defects were found by these harnesses; this wave
+  found two defects **in the harnesses**. Neither by inspection — one because a
+  witness gave an implausible answer cheap to check against the RTL, the other
+  by auditing every classifier once the first was found. *An instrument that has
+  been right nine times is not thereby verified.*
+- **STATE**: 58 propositions · 58 gates · 14 witnesses · 1213 tests · 496/496
+  seals · no known defect.
 
 ## Wave 606 — the interleavings are reachable too, and the probes bite
 
