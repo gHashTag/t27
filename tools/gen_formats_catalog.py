@@ -5,7 +5,9 @@
 # Bootstrap codegen for the Universal Numeric Format Catalog.
 #
 # SSOT: specs/numeric/formats_catalog.t27
-# Output: gen/numeric/formats_catalog.{md,json,py,rs,h,ts}
+# Output: gen/numeric/formats_catalog.* -- SIXTEEN targets, not the six this
+#         line used to name: md json py rs h ts zig go swift java kt hpp vh hs
+#         ml jl  (corrected W603; the emitted set had outgrown the comment)
 #
 # Until t27c gains struct-literal support, the catalog records live in
 # canonical CATALOG-line comments inside the .t27 SSOT. This Python tool
@@ -853,8 +855,14 @@ def emit_julia(formats: list[Format]) -> str:
 
 # ----------------------------------------------------------------------- Main
 def main(argv: list[str]) -> int:
-    src = Path(argv[1]) if len(argv) > 1 else Path("formats_catalog.t27")
-    out_root = Path(argv[2]) if len(argv) > 2 else Path("gen_catalog")
+    # W603: the defaults were `formats_catalog.t27` and `gen_catalog/` relative
+    # to the CURRENT DIRECTORY, so running this from the repo root -- the only
+    # place anybody runs it from -- failed with FileNotFoundError, and the
+    # output path did not match the `gen/numeric/...` this file's own header
+    # documents. Default to the repo-root-relative paths that header states.
+    repo = Path(__file__).resolve().parent.parent
+    src = Path(argv[1]) if len(argv) > 1 else repo / "specs/numeric/formats_catalog.t27"
+    out_root = Path(argv[2]) if len(argv) > 2 else repo / "gen/numeric"
     text = src.read_text(encoding="utf-8")
     formats = parse_t27(text)
     print(f"parsed {len(formats)} formats from {src}", file=sys.stderr)

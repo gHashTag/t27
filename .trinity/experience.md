@@ -21821,3 +21821,41 @@ Phase 1 exists so the first hardware session is not improvised.
 **Literature.** GF puts phi in the FIELD SPLIT; Bergman's base-phi (1957) and
 Zeckendorf put it in the RADIX. Stating that makes GF less novel and more usable
 -- every GF value is an ordinary binary float. Both halves belong in the claim.
+
+## Wave 603 — the check was wrong, not the catalog
+
+**W603's first act was to refute W602's own headline finding.** W602 reported
+five catalog records asserting "a layout they do not have". Four were correct.
+The catalog uses `s` to record whether a family is SIGNED, independently of
+whether its width is fixed:
+
+    s=1   q_format, minifloat, unum_i, tapered_fp        -- all signed
+    s=0   bcd, block_fp, shared_exp, stochastic_rounding, unum_ii
+
+That split is exactly the signed / not-a-signed-scalar line. And the catalog
+already had a documented "not applicable" sentinel -- `phi_distance=-1.0`, used
+by **46 records** -- which W602 never looked for before calling the data wrong.
+**Tenth instance of the instrument being wrong; second published finding refuted
+by its own data** (W588 was the first, and the failure mode is identical:
+asserting what data means before asking what it means here).
+
+One finding survives: `gfternary`, `bits=2` concrete but `s+e+m = 3`. Reported,
+not changed -- what an alphabet should record for s/e/m is a spec decision.
+
+**Then the real work: does the EMITTED artifact still say what the SSOT says?**
+History says this is the failure that actually happened -- commit `aa01dd4f1`:
+*"untrack stale gen/numeric catalog artifacts (drift 77 vs SSOT 83)"*. The
+emitted files fell six formats behind and **the remedy was to delete them**,
+which removes the symptom and prevents nothing.
+
+Three defects found and fixed:
+1. The generator's defaults were cwd-relative, so it **failed from the repo
+   root** -- the only place anyone runs it -- with FileNotFoundError.
+2. Its own header documented six output languages; it emits **sixteen**.
+3. **My own check under-measured 4x and reported success.** It looked up
+   `s`/`e`/`m`; the emitter renames them `s_bits`/`e_bits`/`m_bits`. It silently
+   compared only `bits` -- 83 fields where 332 were available. Print what you
+   compared, not that you compared.
+
+Verified by breaking it: corrupt one field and drop one record, and the gate
+reports count drift, the corrupted value, and the missing record.

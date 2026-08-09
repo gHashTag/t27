@@ -29,7 +29,7 @@
 //! | Class | n | Why the rule does not apply |
 //! |---|---|---|
 //! | **Tapered** (`posit*`, `takum*`) | 8 | variable-length regime; `e` is the *es* parameter and mantissa width varies per value |
-//! | **Parametric** (`bits=0`) | 4 | `q_format`, `minifloat`, `unum_i`, `tapered_fp` are families, not formats |
+//! | **Parametric** (`bits=0`) | 9 | families, not formats -- their `s` still records whether the family is signed, and that is DATA, not noise (W603) |
 //! | **Alphabet** (`bits < 4`) | 1 | `gfternary` is the 3-value set {−φ, 0, +φ}; it has no s/e/m decomposition |
 //!
 //! A gate that did not know this would emit thirteen false alarms and be turned
@@ -84,6 +84,8 @@ pub struct Report {
     pub by_cluster: BTreeMap<String, usize>,
     pub checked: BTreeMap<&'static str, usize>,
     pub findings: Vec<Finding>,
+    /// State of the generated artifacts: absent, or how much was compared.
+    pub emitted: Option<String>,
 }
 
 fn parse_records(src: &str) -> Vec<Record> {
@@ -159,6 +161,118 @@ fn count_getters(src: &str) -> usize {
         .count()
 }
 
+/// W603: does the EMITTED artifact still say what the SSOT says?
+///
+/// The catalog exists to feed sixteen generated targets. History says this is
+/// the failure that actually happened: commit `aa01dd4f1` reads *"untrack stale
+/// gen/numeric catalog artifacts (drift 77 vs SSOT 83)"* -- the emitted files
+/// fell six formats behind the source, and the remedy was to **delete them**.
+/// Nothing then prevented it from happening again, because nothing compared
+/// them.
+///
+/// This compares. `gen/numeric/` is gitignored by design, so an absent artifact
+/// is reported as absent rather than as a mismatch -- the two are different
+/// states and merging them is the mistake this chain keeps finding.
+fn check_emitted(emitted: &Path, records: &[Record], r: &mut Report) {
+    let json = emitted.join("formats_catalog.json");
+    let text = match std::fs::read_to_string(&json) {
+        Ok(t) => t,
+        Err(_) => {
+            r.emitted = Some(format!("absent: {} not generated", json.display()));
+            return;
+        }
+    };
+    let v: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => {
+            r.emitted = Some(format!("unparsable: {}", e));
+            return;
+        }
+    };
+    let arr = match v.get("formats").and_then(|f| f.as_array()) {
+        Some(a) => a,
+        None => {
+            r.emitted = Some("no `formats` array".into());
+            return;
+        }
+    };
+    if arr.len() != records.len() {
+        r.findings.push(Finding {
+            id: "(emitted)".into(),
+            check: "emitted-agrees",
+            detail: format!(
+                "SSOT has {} records, emitted JSON has {} -- this is exactly the \
+                 drift that untracked the artifacts in aa01dd4f1 (77 vs 83)",
+                records.len(),
+                arr.len()
+            ),
+        });
+    }
+    let mut compared = 0usize;
+    for rec in records {
+        let found = arr.iter().find(|e| e.get("id").and_then(|i| i.as_str()) == Some(&rec.id));
+        let e = match found {
+            Some(e) => e,
+            None => {
+                r.findings.push(Finding {
+                    id: rec.id.clone(),
+                    check: "emitted-agrees",
+                    detail: "in the SSOT but not in the emitted JSON".into(),
+                });
+                continue;
+            }
+        };
+        // The emitter RENAMES the width fields: s -> s_bits, e -> e_bits,
+        // m -> m_bits. The first version of this check looked them up under
+        // the SSOT's names, found nothing, and silently compared only `bits`
+        // -- 83 fields where 332 were available, while reporting success.
+        // A check that under-measures and says nothing is the exact failure
+        // mode this whole chain exists to catch, so the mapping is explicit.
+        for (src_field, emitted_field) in [
+            ("bits", "bits"),
+            ("s", "s_bits"),
+            ("e", "e_bits"),
+            ("m", "m_bits"),
+        ] {
+            let f = src_field;
+            let want = match rec.num(f) {
+                Some(w) => w,
+                None => continue,
+            };
+            let got = e.get(emitted_field).and_then(|g| g.as_i64());
+            if let Some(g) = got {
+                compared += 1;
+                if g != want {
+                    r.findings.push(Finding {
+                        id: rec.id.clone(),
+                        check: "emitted-agrees",
+                        detail: format!(
+                            "SSOT {}={} but emitted {}={}",
+                            f, want, emitted_field, g
+                        ),
+                    });
+                }
+            } else {
+                r.findings.push(Finding {
+                    id: rec.id.clone(),
+                    check: "emitted-agrees",
+                    detail: format!(
+                        "SSOT has {}={} but the emitted record has no `{}` -- a \
+                         field the generator drops is a field nothing checks",
+                        f, want, emitted_field
+                    ),
+                });
+            }
+        }
+    }
+    *r.checked.entry("emitted-agrees").or_insert(0) += compared;
+    r.emitted = Some(format!(
+        "{} records, {} numeric fields compared",
+        arr.len(),
+        compared
+    ));
+}
+
 pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
     let src = std::fs::read_to_string(catalog)?;
     let records = parse_records(&src);
@@ -171,6 +285,7 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
         by_cluster: BTreeMap::new(),
         checked: BTreeMap::new(),
         findings: Vec::new(),
+        emitted: None,
     };
 
     if records.len() != getters {
@@ -210,33 +325,41 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
         }
         *r.checked.entry("mandatory-field").or_insert(0) += 1;
 
-        // -- shapes without an s/e/m layout must not CLAIM one ---------------
+        // -- a CONCRETE width must not be exceeded by its own fields ---------
         //
-        // The first version of this gate simply skipped them, which turned a
-        // false alarm into a silent exemption -- strictly worse, because the
-        // data is still there and still wrong. If the decomposition does not
-        // apply, the fields should be absent or zero; a record that exempts
-        // itself from the rule and then states values under it is asserting
-        // something no reader can act on.
-        if matches!(rec.shape, Shape::Alphabet | Shape::Parametric) {
-            *r.checked.entry("no-spurious-layout").or_insert(0) += 1;
+        // W603 correction. W602's version of this check also applied to
+        // `Parametric` (bits=0) records and flagged four of them for stating
+        // `s=1`. **That was wrong.** The catalog uses `s` to record whether the
+        // family HAS a sign bit, independently of whether its width is fixed:
+        //
+        //   s=1   q_format, minifloat, unum_i, tapered_fp   -- all signed
+        //   s=0   bcd, block_fp, shared_exp, stochastic_rounding, unum_ii
+        //
+        // Every one of those is correct, and the split is exactly the signed /
+        // not-a-signed-scalar-format line. `bits=0` and `s=1` are independent
+        // facts, not a contradiction -- and `phi_distance=-1.0`, used by 46
+        // records, is the convention for "not applicable" that W602 failed to
+        // look for before calling the data wrong.
+        //
+        // What survives is the case where the width is CONCRETE and the fields
+        // overflow it, which cannot be a convention under any reading.
+        if rec.shape == Shape::Alphabet {
+            *r.checked.entry("fields-fit-concrete-width").or_insert(0) += 1;
             let s = rec.num("s").unwrap_or(0);
             let e = rec.num("e").unwrap_or(0);
             let m = rec.num("m").unwrap_or(0);
             let b = rec.num("bits").unwrap_or(0);
-            if s + e + m != 0 && s + e + m != b {
+            if s + e + m > b {
                 r.findings.push(Finding {
                     id: rec.id.clone(),
-                    check: "no-spurious-layout",
+                    check: "fields-fit-concrete-width",
                     detail: format!(
-                        "shape is {:?} -- s/e/m do not apply -- yet the record states \
-                         s={} e={} m={} (sum {}) against bits={}",
-                        rec.shape,
+                        "bits={} is concrete, but s+e+m = {}+{}+{} = {} exceeds it",
+                        b,
                         s,
                         e,
                         m,
-                        s + e + m,
-                        b
+                        s + e + m
                     ),
                 });
             }
@@ -383,6 +506,17 @@ pub fn run(catalog: &Path, specs_root: &Path) -> std::io::Result<Report> {
             }
         }
     }
+    let emitted_dir = catalog
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.join("../gen/numeric"))
+        .unwrap_or_else(|| Path::new("gen/numeric").to_path_buf());
+    let emitted_dir = if emitted_dir.is_dir() {
+        emitted_dir
+    } else {
+        Path::new("gen/numeric").to_path_buf()
+    };
+    check_emitted(&emitted_dir, &records, &mut r);
     Ok(r)
 }
 
@@ -417,6 +551,22 @@ mod tests {
         assert_eq!(recs[1].shape, Shape::Tapered);
         assert_eq!(recs[2].shape, Shape::Parametric);
         assert_eq!(recs[3].shape, Shape::Alphabet);
+    }
+
+    /// W603: the four parametric records W602 flagged are correct, and this
+    /// test is the record of why -- `s` tracks signedness, not layout.
+    #[test]
+    fn parametric_records_may_legitimately_state_a_sign_bit() {
+        let recs = parse_records(
+            "// CATALOG: id=q_format bits=0 s=1 e=0 m=0 cluster=IntegerFixed status=Verified\n\
+             // CATALOG: id=unum_ii bits=0 s=0 e=0 m=0 cluster=Theoretical status=Experimental\n",
+        );
+        assert_eq!(recs[0].shape, Shape::Parametric);
+        assert_eq!(recs[1].shape, Shape::Parametric);
+        // Both are legitimate: Q-format is signed, SORN is not. A gate that
+        // flags either is measuring the wrong thing.
+        assert_eq!(recs[0].fields.get("s").map(String::as_str), Some("1"));
+        assert_eq!(recs[1].fields.get("s").map(String::as_str), Some("0"));
     }
 
     /// T7: the rule is not a proven minimiser. These three widths are where it

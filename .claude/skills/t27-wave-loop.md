@@ -4608,6 +4608,29 @@ These cost a wave each. Follow them before step 1.
      makes GF less novel (every GF value is an ordinary binary float) and more
      usable (any binary FPU datapath applies). Both halves belong in the write-up.
 
+108. **Before calling data wrong, look for the convention.** W602 flagged five
+     catalog records for stating `s=1` with `bits=0`. Four were correct: `s`
+     records whether the FAMILY IS SIGNED, independently of whether its width is
+     fixed -- s=1 for q_format/minifloat/unum_i/tapered_fp (all signed), s=0 for
+     bcd/block_fp/shared_exp/stochastic_rounding/unum_ii (none a signed scalar).
+     The catalog even has a documented N/A sentinel, `phi_distance=-1.0`, used by
+     46 records. **Asserting what data means before asking what it means HERE is
+     the same failure as W588's regex.** Tenth instance.
+
+109. **A check that under-measures and reports success is the failure this chain
+     exists to catch -- including when you write it.** The emitted-artifact check
+     looked up `s`/`e`/`m`, but the generator renames them `s_bits`/`e_bits`/
+     `m_bits`. It found nothing, silently compared only `bits`, and printed "83
+     fields compared" as though thorough. The real number was 332. **Print what
+     you compared, not that you compared.**
+
+110. **When drift is found, the tempting fix is to delete the drifting artifact.**
+     `aa01dd4f1` reads "untrack stale gen/numeric catalog artifacts (drift 77 vs
+     SSOT 83)". Deleting the output removes the symptom and leaves nothing to
+     prevent recurrence. The fix that helps is the comparison -- and the
+     comparison must be verified BY BREAKING IT (corrupt a field, drop a record,
+     confirm both are caught).
+
 ### How to update this tracker
 
 After closing a wave:

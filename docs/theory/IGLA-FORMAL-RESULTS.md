@@ -805,7 +805,16 @@ or an invariant-only spec that compiles while an invariant is false.
 
 ---
 
-### P17 (W602) — The catalog's payload is invisible to the compiler, and five records assert a layout they do not have
+> **CORRECTED IN W603.** The headline count below is wrong: **four of the five
+> are not defects.** The catalog uses `s` to record whether a family is *signed*,
+> independently of whether its width is fixed — `s=1` for q_format, minifloat,
+> unum_i, tapered_fp (all signed) and `s=0` for bcd, block_fp, shared_exp,
+> stochastic_rounding, unum_ii (none a signed scalar format). That is a correct
+> and consistent encoding, and `phi_distance=-1.0` — used by **46** records — is
+> the "not applicable" convention W602 failed to look for before calling the data
+> wrong. **One finding survives: `gfternary`.** See P18.
+
+### P17 (W602) — The catalog's payload is invisible to the compiler
 
 `specs/numeric/formats_catalog.t27` declares itself *"Single source of truth for
 every numeric format"* and feeds six codegen targets. **All 83 of its functions
@@ -855,6 +864,52 @@ decision** — they are reported, not silently changed.
 *Falsification condition:* a record the gate passes whose fields contradict its
 `source=` spec, or a shape classification that exempts a format the rule does
 apply to.
+
+---
+
+### P18 (W603) — The check was wrong, not the catalog: `s` is signedness, not layout
+
+W602 added `no-spurious-layout`, reasoning that a record whose shape has no
+s/e/m decomposition should not state one, and reported **5 findings**. Before
+acting on them, W603 asked what the catalog's own convention is. It answers
+immediately:
+
+| `s` | records | signed in reality? |
+|---:|---|---|
+| **1** | `q_format`, `minifloat`, `unum_i`, `tapered_fp` | **yes** — Qm.n, minifloat, Unum I and Morris tapered FP all carry a sign bit |
+| **0** | `bcd`, `block_fp`, `shared_exp`, `stochastic_rounding`, `unum_ii` | **no** — none is a signed scalar format; `unum_ii` is SORN projective |
+
+**The split is exactly the signed / not-a-signed-scalar-format line.** `bits=0`
+and `s=1` are independent facts — *width is parameterised* and *the family has a
+sign bit* — not a contradiction. And the catalog already has a documented
+sentinel for "not applicable": `phi_distance=-1.0`, used by **46 records**.
+W602 called the data wrong without looking for the convention.
+
+**What survives.** One case cannot be a convention under any reading — a
+**concrete** width exceeded by its own fields:
+
+```
+gfternary   bits=2 is concrete, but s+e+m = 1+0+2 = 3 exceeds it   status=Verified
+```
+
+`gfternary` is the 3-value set {−φ, 0, +φ}. Three values need 2 bits (`storage=u2`,
+one state unused), so `bits=2` is right; `s=1 m=2` appears to record *the alphabet*
+(3 symbols) in fields that mean *field widths*. **That is a specification
+decision** — what should an alphabet record for s/e/m? — and it is reported, not
+changed.
+
+The check is now `fields-fit-concrete-width`, applies to 1 record, and finds 1.
+
+> **Tenth instance in this chain of the instrument being wrong rather than the
+> code — and the second published finding refuted by its own data.** W588 counted
+> module references with a regex that matched path prefixes; W602 called a
+> convention a defect without checking whether a convention existed. **The
+> failure mode is identical: asserting what data means before asking what it
+> means here.**
+
+*Falsification condition:* a parametric record whose `s` disagrees with whether
+that format is signed, or a concrete-width record the gate passes whose fields
+overflow it.
 
 ---
 

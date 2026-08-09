@@ -3192,7 +3192,12 @@ fn run_catalog_gate(catalog: &str, specs_dir: &str, verbose: bool) -> anyhow::Re
     println!();
     println!("  checks run:");
     for (k, v) in &r.checked {
-        println!("    {:<20} {}", k, v);
+        println!("    {:<24} {}", k, v);
+    }
+    println!();
+    match &r.emitted {
+        Some(msg) => println!("  emitted artifacts: {}", msg),
+        None => println!("  emitted artifacts: not checked"),
     }
     println!();
     if r.findings.is_empty() {
