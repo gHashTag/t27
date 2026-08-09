@@ -4624,6 +4624,16 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
         println!("{}", serde_json::to_string_pretty(&resp).unwrap());
     } else if result.ok {
         println!("Typecheck OK (0 errors, {} warnings)", result.warnings);
+        // tri-net#375 pinned every spec's warning count, but the messages were
+        // built and then dropped on the floor: the OK branch printed only the
+        // total, so a warning was unactionable -- you could see the number grow
+        // and not what it was. They are already in result.errors; print them.
+        // Some of these are real correctness findings downgraded to warnings
+        // (a call to an undefined function, an argument type mismatch), so
+        // silence here actively hid defects.
+        for msg in &result.errors {
+            println!("  - {}", msg);
+        }
     } else {
         println!("Typecheck FAILED ({} errors, {} warnings):", result.error_count, result.warnings);
         for err in &result.errors {
