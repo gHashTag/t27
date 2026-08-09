@@ -1475,7 +1475,6 @@ test opcodes_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test opcodes_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant opcodes_w342_depth_086: true
 
-}
 
 invariant opcodes_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

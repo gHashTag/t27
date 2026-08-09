@@ -12,6 +12,7 @@
 
 mod bridge;
 mod compiler;
+mod use_resolve;
 mod enrichment;
 mod suite;
 mod railway;
@@ -3075,12 +3076,24 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
 
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile(&source) {
-        Ok(zig_code) => print!("{}", zig_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W569: `use a::b::c` was parsed and then ignored, so a spec failed on
+    // names declared in exactly the module it imported. Splice in the
+    // declarations this spec actually needs before compiling.
+    //
+    // Safety contract, the same one the W559 lowering carries: this may only
+    // ADD declarations, never break a spec. If the spliced source stops
+    // compiling, the original is used and the spec generates exactly what it
+    // generated before.
+    let resolved = use_resolve::resolve(path, &raw);
+    let zig_code = match compiler::Compiler::compile(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", zig_code);
     Ok(())
 }
 

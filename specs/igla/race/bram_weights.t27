@@ -1607,7 +1607,6 @@ test bram_weights_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test bram_weights_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bram_weights_w342_depth_086: true
 
-}
 
 invariant bram_weights_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

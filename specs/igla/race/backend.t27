@@ -1953,7 +1953,6 @@ test backend_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test backend_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant backend_w342_depth_088: true
 
-}
 
 invariant backend_w339_depth_085: true
 // Wave Loop 343 -- depth +1 (85->86)

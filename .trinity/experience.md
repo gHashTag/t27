@@ -20601,3 +20601,45 @@ gap: `use a::b::c` is parsed and then ignored, so 16 specs fail on names their o
 imports define. 1,029 substantive assertions sit behind that, most of them in the
 IGLA RACE kernels (systolic_ternary 304, cordic_fixed 279, cordic_top 277,
 ternary_mac 274, ternary_gemm 271, cordic 271, adder_tree 270).
+
+## Wave Loop 569 -- every IGLA CODER and IGLA RACE spec was silently truncated (2026-08-09)
+
+    non-scratch parse OK 341 -> 351   (+10, 0 regressions)
+    recovered: 5,661 lines / 918 test blocks / 720 assertion clauses
+    w582 benchmark parse 313s -> 228s (W568 had regressed it past 600s)
+
+### The finding
+
+29 specs carry a stray `}` with no matching `{`, in files that open `module X;` and
+have no module brace at all. The parser stops there and REPORTS SUCCESS: 16,792
+lines and 2,080 assertion clauses were never seen. All nine IGLA CODER specs and all
+seventeen IGLA RACE specs are among them, each losing exactly 629 lines and 80
+assertions -- one templated wave-loop append repeated across a family.
+
+This was invisible for as long as it existed because "the spec parses" was treated as
+"the spec was read". A parser that stops early and returns Ok is indistinguishable
+from one that finished, unless something measures the file.
+
+### Removing the brace made it worse first
+
+All 28 stopped parsing: the brace had been MASKING a real error in the tail. Bare
+`assert <expr>` inside a brace body was a parse error (3,682 occurrences repo-wide),
+even though the clause form has lowered since W559. Adding the statement form brought
+9 of 28 back -- every IGLA RACE kernel.
+
+Lesson: when a truncation marker is removed and the file gets worse, that is not a
+reason to revert. It is the first honest error message the file has ever produced.
+
+### The performance regression, and the cheap thing that caused it
+
+W568's scratch sweep reported three benchmark specs "changing state" -- all three to
+exit 142, SIGALRM. Not a parse change, a timeout.
+
+`Parser::save_state` clones the lexer, and `Lexer::source` was a `Vec<u8>`: a FULL
+COPY OF THE FILE per checkpoint. Rare checkpoints hid it until W568 added one per
+bracketed expression; on a spec nesting array literals fifteen deep, every level
+copied the whole source. `Rc<[u8]>` makes a checkpoint a refcount bump, and w582 went
+313s (base) -> 228s -- faster than what it regressed.
+
+Rule: before adding a checkpoint to a hot path, check what the checkpoint COSTS. A
+save/restore pattern is only cheap if the state it saves is cheap to clone.

@@ -224,7 +224,13 @@ pub struct Token {
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
-    source: Vec<u8>,
+    /// Shared, never mutated after construction. This was a `Vec<u8>`, so every
+    /// `Parser::save_state` -- which clones the lexer -- copied the ENTIRE
+    /// source. Checkpoints were rare enough for that not to show until W568
+    /// added one per bracketed expression, at which point parsing the corpus's
+    /// 23-million-line benchmark specs went quadratic and timed out. Sharing
+    /// the buffer makes a checkpoint a refcount bump.
+    source: std::rc::Rc<[u8]>,
     pos: usize,
     line: usize,
     col: usize,
@@ -233,7 +239,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(source: &str) -> Self {
         Self {
-            source: source.as_bytes().to_vec(),
+            source: source.as_bytes().into(),
             pos: 0,
             line: 1,
             col: 1,
@@ -2113,6 +2119,50 @@ impl Parser {
             return Ok(Node::new(NodeKind::StmtContinue));
         }
 
+        // W569: `assert <expr>` WITHOUT parentheses, as a statement.
+        //
+        // The braceless clause form (`then x == 1` / `assert x == 1`) has
+        // lowered to `assert(expr)` since W559, but inside a brace body the
+        // same spelling was a parse error: `assert` parsed as a bare
+        // identifier expression and the following token was left dangling
+        // ("unexpected token after expression statement: KwTrue").
+        //
+        // It appears **3,682 times** across the corpus, and it is why 28 specs
+        // -- every IGLA CODER and IGLA RACE spec among them -- carried a stray
+        // `}` that truncated them: the brace made the parser stop before
+        // reaching the unparsable tail, so the file "parsed" and 16,792 lines
+        // were silently discarded.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "assert"
+            && self.peek.kind != TokenKind::LParen
+            && self.peek.kind != TokenKind::Semicolon
+            && self.peek.kind != TokenKind::RBrace
+            && self.peek.kind != TokenKind::Eof
+            && self.peek.kind != TokenKind::Equals
+        {
+            let line = self.current.line as u32;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `assert`
+            match self.parse_expr() {
+                Ok(cond) => {
+                    if self.current.kind == TokenKind::Semicolon {
+                        self.advance();
+                    }
+                    let mut call = Node::new(NodeKind::ExprCall);
+                    call.name = "assert".to_string();
+                    call.line = line;
+                    call.children.push(cond);
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.line = line;
+                    stmt.children.push(call);
+                    return Ok(stmt);
+                }
+                // Anything this cannot model falls back to the original path,
+                // so a spec that parsed before still parses.
+                Err(_) => self.restore_state(checkpoint),
+            }
+        }
+
         // Expression or assignment
         let expr = self.parse_expr()?;
 
@@ -3143,8 +3193,20 @@ impl Parser {
             return None;
         }
 
-        // Collect the element TEXT first. The Zig emitter reads children, but
-        // the Verilog emitter reads `extra_size`, and returning a node with
+        // Cheap structural rejection BEFORE any scanning. A bare list needs at
+        // least two elements, so `[` followed by one token and then `]` is a
+        // dimension (`[5]Pt`, `[_]u8`) and cannot be one.
+        //
+        // This guard is what keeps the pass linear. Without it, every level of
+        // `[5][2][2]...Pt{...}` scanned its entire subtree into a String before
+        // rejecting it, and the corpus's 16-deep benchmark specs went from
+        // seconds to minutes.
+        if self.peek.kind == TokenKind::RBracket {
+            return None;
+        }
+
+        // Collect the element TEXT. The Zig emitter reads children, but the
+        // Verilog emitter reads `extra_size`, and returning a node with
         // children alone made it print an empty element list where it used to
         // print `[c00,c01,c10,c11]`. Both representations are populated.
         let entry = self.save_state();

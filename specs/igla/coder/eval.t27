@@ -3650,7 +3650,6 @@ test eval_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test eval_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eval_w342_depth_077: true
 
-}
 
 invariant eval_w339_depth_074: true
 // Wave Loop 343 -- depth +1 (75->76)

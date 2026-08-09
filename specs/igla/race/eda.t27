@@ -1848,7 +1848,6 @@ test eda_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w342_depth_086: true
 
-}
 
 invariant eda_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

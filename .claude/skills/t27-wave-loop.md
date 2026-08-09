@@ -4057,6 +4057,29 @@ These cost a wave each. Follow them before step 1.
     by accident. Keep the grammar, then add the containment back deliberately
     (here: the type must end on the line it started).
 
+32. **A parser that stops early and returns Ok is indistinguishable from one
+    that finished.** W569 found 29 specs carrying a stray `}` with nothing to
+    match it; the parser stopped there and reported success, and 16,792 lines
+    and 2,080 assertion clauses had never been read. Every IGLA CODER and IGLA
+    RACE spec was affected. "The spec parses" is not "the spec was read" --
+    check that the parser CONSUMED the file, not just that it did not error.
+
+33. **When removing a mask makes things worse, that is the first honest error
+    the file has produced.** Deleting the stray brace made all 28 specs stop
+    parsing, because the brace had been hiding a real error in the tail
+    (bare `assert <expr>` as a statement, 3,682 occurrences). Reverting would
+    have restored a green metric and kept the corpus broken. Fix the newly
+    visible error instead.
+
+34. **Before adding a checkpoint to a hot path, check what the checkpoint
+    costs.** `Parser::save_state` clones the lexer, and `Lexer::source` was a
+    `Vec<u8>` -- a full copy of the file per checkpoint. Rare checkpoints hid
+    that until W568 added one per bracketed expression, at which point the
+    corpus's deeply-nested benchmark specs went from seconds to over ten
+    minutes. `Rc<[u8]>` made it a refcount bump and left the file 27% FASTER
+    than the baseline it had regressed. A save/restore pattern is only cheap if
+    the state it saves is cheap to clone.
+
 ### How to update this tracker
 
 After closing a wave:

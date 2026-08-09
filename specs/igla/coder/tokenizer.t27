@@ -1400,7 +1400,6 @@ test tokenizer_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant tokenizer_w342_depth_076: true
 
-}
 
 invariant tokenizer_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

@@ -1661,7 +1661,6 @@ test gemm_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test gemm_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant gemm_w342_depth_086: true
 
-}
 
 invariant gemm_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)
