@@ -13,7 +13,114 @@ Last updated: 2026-08-09
 
 # NOW — gen-zig: executable-level fixes (2026-08-08)
 
-Last updated: 2026-08-08
+Last updated: 2026-08-09
+
+## gen-zig: narrowing unsigned cast lowers to @truncate (Refs #1948)
+
+- t27 `as` truncates on a narrowing integer cast (Rust semantics), but gen-zig always emitted the CHECKED `@intCast`, which panics in safe builds when the value does not fit -- e.g. `weighted_total as u32` on a 2^32 multiple (tri_settle::reward_weighted extracting u32 halves of a u64)
+- Codegen(Zig) now carries a param/typed-local type map (scoped per fn) and emits `@truncate` when the source integer is provably a wider UNSIGNED int than the (unsigned) target; signed narrowing and widening/unknown stay on `@intCast` (unchanged). Restriction to unsigned avoids Zig's `@truncate` rejecting a signed source (`i16 as u8`)
+- tri-net corpus: 16 gen/zig regenerate (narrowing sites flip to @truncate); all pass ast-check + zig test; icarus/C/Rust untouched (gen-zig only). t27 suite 1537/0
+- FROZEN_HASH resealed
+
+## gen-verilog: signed-aware ordered comparison (Refs #1948)
+
+- Verilog makes an ordered comparison (`< <= > >=`) UNSIGNED if either operand is unsigned. A signed `i8` (e.g. `trend = -16 = 8'hF0`) meeting an unsigned const read as 240, so `trend > THRESHOLD` diverged from Rust/Zig/C (which promote both to a signed int)
+- When at least one operand is signed, the comparison is now emitted in the signed domain with C-promotion semantics: the signed operand is wrapped `$signed(x)` (Verilog sign-extends it into the wider signed context) and the unsigned operand is zero-extended one bit `$signed({1'b0, x})` so it stays non-negative. Unsigned/unsigned pairs are untouched
+- tri-net corpus: link_quality_monitor's `degradation_detection` flips to passing (the last *codegen* runtime divergence); full 105-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
+
+## gen-verilog: test-block call temps re-materialized after a rebinding (Refs #1948)
+
+- A call-return temp is CSE'd by call TEXT, but a test block mutates its bindings between statements (`st = on_ack(st);` repeated). Caching the temp across a reassignment reused a STALE value, so the modelled state never advanced -- every step re-tested the pre-mutation snapshot. Verilog-path-only (Rust/Zig/C evaluate the calls directly)
+- After any statement that rebinds a variable (StmtAssign, or a named StmtLocal), the materialized set is invalidated so the next use re-assigns the temp from current values. Nested-call temps in a single non-mutating statement still materialize once, in dependency order
+- tri-net corpus: 6 runtime-divergence specs flip to passing (congestion_control, flow_control, network_simulator, production_scenarios, quarantine_manager, traffic_animator); full 99-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
+
+## gen-verilog: tuple-LITERAL destructure lowered -- last icarus compile-error class (Refs #1948)
+
+- `let (a, b, c) = (4, 3, 1)` (destructure of a tuple LITERAL, not a call) was unhandled: tuple_local_elem_types returned None, so the local emitted a nameless `reg [31:0] ;` and `= {1, 3, 4}`. It infers the element types now (default u32) and width-casts the literal elements into the packed temp
+- tri-net corpus: icarus 98 -> 99 (swarm_coordinator). Every spec in the corpus now COMPILES under Icarus (0 compile-error specs); the remaining 8 out of the gate are runtime divergences only
+- FROZEN_HASH resealed
+
+## gen-verilog: test-block for-loops emitted; loop-variant calls not CSE-hoisted; tail expressions (Refs #1948)
+
+- `for i in ..` / `while` in a test block was dropped as `// (stmt: StmtForRange)`, silently voiding loop bodies that accumulate assertions. Loops emit now (loop var declared `integer`)
+- The call-CSE pass hoisted a call from inside a loop into ONE temp evaluated before the loop with an uninitialized index -- the loop then tested a constant. predeclare no longer recurses into loop bodies, so loop-variant calls are emitted inline per iteration
+- A Rust-style tail expression (a fn body ending in a bare expression) lowers to an implicit return assignment `<fn> = <expr>;` instead of a bare `expr;` (an unknown-task enable)
+- tri-net corpus: icarus 97 -> 98 (m3_multihop); cross_layer_optimizer already joined
+- FROZEN_HASH resealed
+
+## gen-verilog: tuple-destructure temp declared in test blocks (Refs #1948)
+
+- A test-block `let (a, b) = call()` slices a packed temp `__tup_l{line}`, but that temp (and the element regs) are declared only in emit_local's Decl phase, which the TB Init-only path skips -- the temp was referenced undeclared ("Could not find variable __tup_l242")
+- The top-of-block declaration pass now emits the tuple-destructure decls (emit_local Decl) for empty-name/extra_field locals
+- tri-net corpus: icarus 96 -> 97 (cross_layer_optimizer)
+- FROZEN_HASH resealed
+
+## gen-verilog: `_` discard in tuple destructure gets a throwaway reg (Refs #1948)
+
+- `(link1, _) = create_2node_mesh(50)` emitted `{_, link1} = call()` -- Verilog has no `_` wildcard, so iverilog could not find the variable
+- Each `_` position now declares a throwaway reg keyed by (line, index) at its element width; the LHS concat references it
+- tri-net corpus: icarus 94 -> 95 (mesh_node_sim)
+- FROZEN_HASH resealed
+
+## test(gen-verilog): tuple contract expects width-cast operands (Refs #1948)
+
+- Follow-up to the tuple width-cast (#1973): the phase40 contract test's exact-string expectation updated to `{32'((a-b)), 32'((a+b))}`
+- Unit suite back to the single pre-existing red
+
+## gen-verilog: tuple literal elements and destructure regs width-cast (Refs #1948)
+
+- A tuple return `(1, true)` packed each element via gen_verilog_expr -- a bare literal is unsized and iverilog rejected it in the concatenation ("operand has indefinite width"). Elements are width-cast to their declared tuple-element type now
+- Tuple-DESTRUCTURE binding regs (`(a,b,c,d) = call()`) were declared 64-bit each, so `{d,c,b,a} = <32-bit>` sliced the packed return wrongly. Each element reg is declared at its element width from the callee's return tuple type
+- tri-net corpus: icarus 88 -> 94 (fpga_synthesis_report, hello, integration_tests, lite_crypto, mesh_routing, packet_loss_injection)
+- FROZEN_HASH resealed
+
+## gen-verilog: hex/bin literals in array-literal text normalized; more SV keywords (Refs #1948)
+
+- The array-literal concat path works on raw source TEXT (not AST), so `0x38`/`0b..` element literals reached Verilog verbatim -- illegal (`8'(0x38)`). A text-level normalizer converts them to decimal
+- SystemVerilog keyword list extended (context, local, new, null, inside, foreach, ...) -- a spec param named `context` emitted `input [31:0] context;`
+- tri-net corpus: icarus 85 -> 88 (api_documenter, multipath_router, olsr_routing); link_quality_monitor advances from compile-error to a signed-i8 runtime divergence
+- FROZEN_HASH resealed
+
+## gen-verilog: const-name array sizes resolved; packed array-literal locals; keyword-safe local names (Refs #1948)
+
+- `[u32; HISTORY_SIZE]` (const-name size) silently fell back to a 32-bit scalar input while `[u32; 16]` (literal) packed to 512 bits -- packed callers desynced from packed locals. All type strings now resolve const array sizes to numerics up front
+- primitive [T; N] test-block locals initialized from an array LITERAL now emit as a packed vector (was an unpacked memory, which cannot be passed whole to a packed fn param -- "Array needs an array index")
+- fn-local reg declarations and assignments escape reserved words (a local named `config` emitted `reg [511:0] config;`)
+- tri-net corpus: icarus 77 -> 85 (load_predictor, anomaly_detector, auto_config, cache_management, health_dashboard, local_processing, network_orchestrator, integration_framework); no gate regression
+- FROZEN_HASH resealed
+
+## parser: BDD-style fns skipped; fpga-smoke fully green (Closes #1960)
+
+- `fn name() given ... then ...` (a keyword-style test spelled as a fn, linker.t27) is now recognized BEFORE return-type parsing -- otherwise `given` was consumed as an identifier return type and the body brace check failed
+- partition.t27: a parameter named `module` (a keyword) renamed to mod_name
+- fpga-build --smoke: 31 modules + wrapper generate -- GREEN again (was red since the #1941 hardening surfaced the silently-dropped constructs)
+- tri-net 77-spec icarus gate green; unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
+## parser: braced if-expr arms, paren-less conditions, &-transparent types; fpga specs repaired (Refs #1960)
+
+- If-EXPRESSIONS accept braced arms (`if (c) { 2 } else { 0 }`); if/while STATEMENTS accept paren-less Rust-style conditions with the struct-literal-in-condition rule (a `{` after the cond opens the body)
+- Reference types are transparent (`&str`/`&T` parse as the referent)
+- mac.t27 pack_trit (braced if-expr), spi.t27 (three `match` constructs -- FSM tick, prescaler, SCK -- silently dropped for ever), fifo.t27 (four literal missing-paren typos) repaired
+- fpga-build --smoke: 2 -> 21 of 35 modules generate; remaining tails are the given/then BDD fn form (linker) onward
+- tri-net 77-spec icarus gate green, unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
+## gen-verilog: W458 keeps the legacy [N]T binding; unit contracts updated (Refs #1948)
+
+- The W458 array-param exclusion narrows to rust-style [T; N] primitives only; legacy [N]T keeps its module-array ROM binding contract
+- nested_return discriminator includes the #1950 guard assignment
+- Landed as a follow-up: auto-merge raced past the amended heads of #1952/#1957 (merged pre-force-push versions); unit suite back to the single pre-existing red
+- FROZEN_HASH resealed
+
+## gen-verilog: SystemVerilog keywords escaped; safe names in decls and part-selects (Refs #1948)
+
+- Spec identifiers named bit/byte/priority/sequence/table hit Icarus as keywords: the reserved list only covered Verilog-2001, the TB declaration passes wrote raw names (`reg [63:0] bit;`), and packed part-selects wrote the raw base
+- SV keyword block added to the reserved list; the #1894/#1948 declaration passes and both part-select emissions now go through verilog_safe_identifier
+- tri-net corpus: icarus 69 -> 77 passing (bandwidth_allocator, byte_utils, crc16, fault_detection, pattern_predictor, power_monitoring, production_deployment, resource_scheduler join); no gate regression
+- FROZEN_HASH resealed
 
 ## gen-verilog TB: real assignments; packed literals read element text (Refs #1948)
 

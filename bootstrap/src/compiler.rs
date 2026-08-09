@@ -834,6 +834,9 @@ pub struct Parser {
     current: Token,
     peek: Token,
     pending_pragma: String,
+    /// Inside a paren-less if/while condition a `{` opens the BODY, never a
+    /// struct literal (the Rust rule); parse_primary consults this.
+    no_struct_literal: bool,
 }
 
 #[derive(Clone)]
@@ -853,6 +856,7 @@ impl Parser {
             current: first,
             peek: second,
             pending_pragma: String::new(),
+            no_struct_literal: false,
         }
     }
 
@@ -1590,6 +1594,12 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
+        // Reference types are transparent at the spec level: `&str` / `&T`
+        // parse as their referent (t27#1960).
+        if self.current.kind == TokenKind::Amp {
+            self.advance(); // consume &
+        }
+
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
         // named tuples like (a: T, b: T) do not hang the parser and are stored
         // as-is for backends that do not need to unpack them.
@@ -1761,6 +1771,14 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
 
+        // BDD-style fn: `fn name() given ... then ...` -- a keyword-style test
+        // spelled as a fn (linker.t27). Detect BEFORE return-type parsing,
+        // which would otherwise consume `given` as an identifier return type.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "given" {
+            self.skip_to_next_top_level();
+            return Ok(decl);
+        }
+
         // Optional arrow for return type: -> Type
         if self.current.kind == TokenKind::Arrow {
             self.advance(); // consume ->
@@ -1770,6 +1788,13 @@ impl Parser {
         let has_error_union = self.current.kind == TokenKind::Bang;
         if has_error_union {
             self.advance(); // consume !
+        }
+
+        // Reference types are transparent at the spec level: `&str` / `&T`
+        // parse as their referent (t27#1960 fallout -- the old recovery
+        // silently dropped whole fns over the `&`).
+        if self.current.kind == TokenKind::Amp {
+            self.advance(); // consume &
         }
 
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
@@ -2161,10 +2186,21 @@ impl Parser {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: `if (cond) { ... }` or the paren-less Rust-style
+        // `if cond { ... }` -- both appear across the spec corpus, and the
+        // paren-less form was silently DROPPED by the old statement recovery
+        // (t27#1960 fallout of the #1941 hardening).
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal = true;
+            let c = self.parse_expr();
+            self.no_struct_literal = false;
+            c?
+        };
         if_node.children.push(cond);
 
         // Then branch: { ... }
@@ -2233,10 +2269,18 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: parenthesized or paren-less (see parse_if_stmt).
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal = true;
+            let c = self.parse_expr();
+            self.no_struct_literal = false;
+            c?
+        };
         while_node.children.push(cond);
 
         // Body: { ... }
@@ -2836,8 +2880,9 @@ impl Parser {
                     }
                 }
 
-                // Check for struct literal: Name{ .field = expr, ... }
-                if self.current.kind == TokenKind::LBrace {
+                // Check for struct literal: Name{ .field = expr, ... }. In a
+                // paren-less condition the `{` opens the statement body.
+                if self.current.kind == TokenKind::LBrace && !self.no_struct_literal {
                     return self.parse_struct_literal(name);
                 }
 
@@ -3061,8 +3106,18 @@ impl Parser {
         let cond = self.parse_expr()?;
         self.expect(TokenKind::RParen)?;
 
-        // Then expression
-        let then_expr = self.parse_expr()?;
+        // Then expression. Braced arms (`if (c) { 2 } else { 0 }`) are the
+        // common spec spelling; the bare-expression form stays supported.
+        // Before #1941 the brace was silently swallowed by statement
+        // recovery -- now it must parse (t27#1960, mac.t27 pack_trit).
+        let then_expr = if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            let e = self.parse_expr()?;
+            self.expect(TokenKind::RBrace)?;
+            e
+        } else {
+            self.parse_expr()?
+        };
 
         // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
@@ -3071,7 +3126,14 @@ impl Parser {
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = self.parse_expr()?;
+            let else_expr = if self.current.kind == TokenKind::LBrace {
+                self.advance(); // consume {
+                let e = self.parse_expr()?;
+                self.expect(TokenKind::RBrace)?;
+                e
+            } else {
+                self.parse_expr()?
+            };
             if_node.children.push(else_expr);
         }
 
@@ -3278,6 +3340,10 @@ pub struct Codegen {
     /// never-mutated `var` -- so the choice must be inferred, exactly like the
     /// Rust backend's collect_mutable_names.
     mut_names: std::collections::HashSet<String>,
+    /// W566: param/typed-local name -> t27 type, scoped to the current fn body.
+    /// Lets ExprCast tell a narrowing integer cast (needs `@truncate`) from a
+    /// widening one (needs `@intCast`) without a full type checker.
+    zig_var_types: std::collections::HashMap<String, String>,
 }
 
 impl Codegen {
@@ -3286,6 +3352,60 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            zig_var_types: std::collections::HashMap::new(),
+        }
+    }
+
+    /// W566: bit-width of a t27 UNSIGNED integer type, or None otherwise.
+    /// Restricted to unsigned because Zig's `@truncate` only lowers a narrowing
+    /// cast cleanly when both sides are unsigned; signed narrowing stays on the
+    /// checked `@intCast` path (its previous, working behaviour).
+    fn zig_uint_bits(ty: &str) -> Option<u32> {
+        match ty.trim() {
+            "u8" => Some(8),
+            "u16" => Some(16),
+            "u32" => Some(32),
+            "u64" | "usize" => Some(64),
+            _ => None,
+        }
+    }
+
+    /// W566: best-effort bit-width of an expression that is provably an UNSIGNED
+    /// integer, using the param/typed-local map. Returns None when the type is
+    /// signed or unknown, so the cast emission falls back to `@intCast`.
+    fn zig_expr_uint_bits(&self, node: &Node) -> Option<u32> {
+        match node.kind {
+            NodeKind::ExprIdentifier => {
+                let ty = self.zig_var_types.get(&node.name)?;
+                Self::zig_uint_bits(ty)
+            }
+            NodeKind::ExprCast => {
+                let target = node.extra_type.split('[').next().unwrap_or("").trim();
+                Self::zig_uint_bits(target)
+            }
+            NodeKind::ExprLiteral => {
+                let ty = node.extra_type.as_str();
+                if ty.is_empty() {
+                    None
+                } else {
+                    Self::zig_uint_bits(ty)
+                }
+            }
+            NodeKind::ExprBinary => {
+                // Shifts keep the left operand's width; other binary ops take the
+                // wider of the two. Both operands must be provably unsigned.
+                let op = node.extra_op.as_str();
+                let l = node.children.first().and_then(|c| self.zig_expr_uint_bits(c));
+                if matches!(op, "<<" | ">>") {
+                    return l;
+                }
+                let r = node.children.get(1).and_then(|c| self.zig_expr_uint_bits(c));
+                match (l, r) {
+                    (Some(a), Some(b)) => Some(a.max(b)),
+                    _ => None,
+                }
+            }
+            _ => None,
         }
     }
 
@@ -3609,6 +3729,14 @@ impl Codegen {
     }
 
     fn gen_fn_decl(&mut self, node: &Node) {
+        // W566: fresh param/local type scope for this fn body (used by ExprCast
+        // to pick @truncate vs @intCast).
+        self.zig_var_types.clear();
+        for (pname, ptype) in &node.params {
+            if pname != "self" {
+                self.zig_var_types.insert(pname.clone(), ptype.clone());
+            }
+        }
         if node.extra_pub {
             self.write("pub ");
         }
@@ -3952,6 +4080,9 @@ impl Codegen {
                     }
                     self.write(&Self::zig_ident(&node.name));
                     if !node.extra_type.is_empty() {
+                        // W566: record the local's declared type for cast width inference.
+                        self.zig_var_types
+                            .insert(node.name.clone(), node.extra_type.clone());
                         self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
                     } else if as_var {
                         // An untyped mutable initialized with a bare integer
@@ -4447,7 +4578,21 @@ impl Codegen {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    self.write(&format!("@as({}, @intCast(", target));
+                    // W566: t27 `as` truncates on a narrowing integer cast (Rust
+                    // semantics), but Zig's `@intCast` is CHECKED and panics in
+                    // safe builds when the value does not fit (e.g. a u64 whose
+                    // low bits are wanted, `weighted_total as u32` with a 2^32
+                    // multiple). Emit `@truncate` when the source integer is
+                    // provably wider than the target; otherwise keep `@intCast`
+                    // (widening / same-width / unknown -- unchanged behaviour).
+                    let target_bits = Self::zig_uint_bits(&target);
+                    let src_bits = self.zig_expr_uint_bits(&node.children[0]);
+                    let narrowing = match (src_bits, target_bits) {
+                        (Some(s), Some(t)) => s > t,
+                        _ => false,
+                    };
+                    let builtin = if narrowing { "@truncate" } else { "@intCast" };
+                    self.write(&format!("@as({}, {}(", target, builtin));
                     self.gen_expr(&node.children[0]);
                     self.write("))");
                 }
@@ -4722,6 +4867,18 @@ impl VerilogCodegen {
             "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
             "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
             "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+            // SystemVerilog keywords Icarus also rejects as plain identifiers
+            // (t27#1948: spec params named bit/byte/priority/sequence).
+            "bit", "byte", "chandle", "class", "do", "enum", "export", "extends", "final",
+            "import", "int", "interface", "logic", "longint", "packed", "priority",
+            "program", "property", "protected", "pure", "rand", "randc", "ref", "return",
+            "sequence", "shortint", "shortreal", "static", "string", "struct", "super",
+            "this", "type", "typedef", "union", "unique", "var", "virtual", "void",
+            "context", "constraint", "covergroup", "coverpoint", "cross", "dist",
+            "expect", "foreach", "forkjoin", "iff", "inside", "join_any",
+            "join_none", "local", "matches", "modport", "new", "null", "solve",
+            "tagged", "throughout", "timeprecision", "timeunit", "wait_order",
+            "wildcard", "with",
         ]
     }
 
@@ -4729,6 +4886,31 @@ impl VerilogCodegen {
     /// escaped form \\name<space> when the name is a keyword, otherwise the
     /// original name. The trailing space is part of the escaped identifier
     /// syntax and must be preserved wherever the identifier is emitted.
+    /// Normalize Rust/t27 integer literals embedded in element TEXT (the
+    /// array-literal concat path works on raw source text, not AST nodes) to
+    /// plain Verilog decimal: `0x20`/`0b1010` and `_` separators are illegal
+    /// Verilog (t27#1948). Non-literal text (calls, idents) passes through.
+    fn verilog_normalize_literal_text(txt: &str) -> String {
+        let t = txt.trim();
+        let clean: String = t.chars().filter(|&c| c != '_').collect();
+        if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+            if !hex.is_empty() && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                if let Ok(n) = u128::from_str_radix(hex, 16) {
+                    return n.to_string();
+                }
+            }
+        } else if let Some(bin) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+            if !bin.is_empty() && bin.chars().all(|c| c == '0' || c == '1') {
+                if let Ok(n) = u128::from_str_radix(bin, 2) {
+                    return n.to_string();
+                }
+            }
+        } else if !clean.is_empty() && clean.chars().all(|c| c.is_ascii_digit()) {
+            return clean;
+        }
+        t.to_string()
+    }
+
     fn verilog_safe_identifier(name: &str) -> String {
         if Self::verilog_keywords().contains(&name) {
             format!("\\{} ", name)
@@ -5102,6 +5284,15 @@ impl VerilogCodegen {
                 }
             }
         }
+        // Do NOT recurse into loop bodies: a call there runs per iteration and
+        // may depend on the loop variable, so it must be emitted inline each
+        // pass, never hoisted into one loop-invariant temporary (t27#1948).
+        if matches!(
+            node.kind,
+            NodeKind::StmtForRange | NodeKind::StmtWhile | NodeKind::StmtFor
+        ) {
+            return;
+        }
         for child in &node.children {
             self.predeclare_call_array_tmps(child, block_name);
         }
@@ -5179,6 +5370,23 @@ impl VerilogCodegen {
     /// W539: infer the scalar bit width and signedness of an expression in the
     /// Icarus-lowerable subset. Returns None for non-scalar or unresolvable
     /// expressions (structs, arrays, strings, etc.).
+    /// W565: emit one operand of a signed-aware ordered comparison. A signed
+    /// operand is wrapped in `$signed(...)` (Verilog sign-extends it into the
+    /// wider signed comparison context); an unsigned operand is zero-extended by
+    /// one bit and reinterpreted as signed, `$signed({1'b0, ...})`, so its value
+    /// stays non-negative and the comparison follows C integer-promotion rules.
+    fn emit_verilog_signed_rel_operand(&mut self, node: &Node, is_signed: bool) {
+        if is_signed {
+            self.write("$signed(");
+            self.gen_verilog_expr(node);
+            self.write(")");
+        } else {
+            self.write("$signed({1'b0, ");
+            self.gen_verilog_expr(node);
+            self.write("})");
+        }
+    }
+
     fn expr_width_signed(&self, node: &Node) -> Option<(u32, bool)> {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -6094,7 +6302,7 @@ impl VerilogCodegen {
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     if let Ok(n) = count.trim().parse::<usize>() {
                         for _ in 0..n.min(current_dim) {
-                            parts.push(format!("{}'({})", elem_w, val.trim()));
+                            parts.push(format!("{}'({})", elem_w, Self::verilog_normalize_literal_text(val)));
                         }
                     }
                 } else {
@@ -6122,7 +6330,7 @@ impl VerilogCodegen {
                         elems_txt.push(cur.trim().to_string());
                     }
                     for e in elems_txt.iter().take(current_dim) {
-                        parts.push(format!("{}'({})", elem_w, e));
+                        parts.push(format!("{}'({})", elem_w, Self::verilog_normalize_literal_text(e)));
                     }
                 }
             }
@@ -6376,13 +6584,21 @@ impl VerilogCodegen {
                 let i: usize = flat_idx.parse().unwrap_or(0);
                 let hi = (i + 1) * elem_w - 1;
                 let lo = i * elem_w;
-                self.write(&format!("{}[{}:{}]", base_name, hi, lo));
+                self.write(&format!(
+                    "{}[{}:{}]",
+                    Self::verilog_safe_identifier(&base_name),
+                    hi,
+                    lo
+                ));
             } else {
                 // W548: scale the flat element index by elem_w to get the bit
                 // offset for the variable part-select.
                 self.write(&format!(
                     "{}[(({}) * {}) +: {}]",
-                    base_name, flat_idx, elem_w, elem_w
+                    Self::verilog_safe_identifier(&base_name),
+                    flat_idx,
+                    elem_w,
+                    elem_w
                 ));
             }
             if elem_signed {
@@ -6477,7 +6693,69 @@ impl VerilogCodegen {
         }
     }
 
-    pub fn gen_verilog(&mut self, ast: &Node) {
+    /// Rewrite const-name array sizes to numeric literals in every type
+    /// string so the (literal-only) array-type parser lowers `[u32; N]`
+    /// consistently for params, returns, locals and fields. Verilog packing
+    /// keys off parse_array_type; an unresolved const name (`[u32; HISTORY_SIZE]`)
+    /// silently fell back to a 32-bit scalar, desyncing packed callers from
+    /// packed locals (t27#1948).
+    fn resolve_array_size_consts(
+        ty: &str,
+        consts: &std::collections::HashMap<String, String>,
+    ) -> String {
+        let t = ty.trim();
+        if let Some(semi) = t.rfind(';') {
+            if t.starts_with('[') && t.ends_with(']') {
+                let size = t[semi + 1..t.len() - 1].trim();
+                if size.parse::<usize>().is_err() {
+                    if let Some(v) = consts.get(size) {
+                        if v.parse::<usize>().is_ok() {
+                            return format!("{}; {}]", &t[..semi], v);
+                        }
+                    }
+                }
+            }
+        }
+        ty.to_string()
+    }
+
+    fn rewrite_type_consts(
+        node: &mut Node,
+        consts: &std::collections::HashMap<String, String>,
+    ) {
+        if !node.extra_type.is_empty() {
+            node.extra_type = Self::resolve_array_size_consts(&node.extra_type, consts);
+        }
+        if !node.extra_return_type.is_empty() {
+            node.extra_return_type =
+                Self::resolve_array_size_consts(&node.extra_return_type, consts);
+        }
+        for p in node.params.iter_mut() {
+            p.1 = Self::resolve_array_size_consts(&p.1, consts);
+        }
+        for child in node.children.iter_mut() {
+            Self::rewrite_type_consts(child, consts);
+        }
+    }
+
+    pub fn gen_verilog(&mut self, ast_in: &Node) {
+        // Resolve const-name array sizes up front, then work off the rewritten
+        // clone so array packing is uniform (t27#1948).
+        let mut size_consts: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for decl in &ast_in.children {
+            if decl.kind == NodeKind::ConstDecl {
+                if let Some(v) = decl.children.first() {
+                    if v.kind == NodeKind::ExprLiteral && v.value.parse::<usize>().is_ok() {
+                        size_consts.insert(decl.name.clone(), v.value.clone());
+                    }
+                }
+            }
+        }
+        let mut ast_owned = ast_in.clone();
+        Self::rewrite_type_consts(&mut ast_owned, &size_consts);
+        let ast = &ast_owned;
+
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
         } else {
@@ -6576,13 +6854,18 @@ impl VerilogCodegen {
                     .iter()
                     .enumerate()
                     .filter(|(_, (_, ptype))| {
-                        // Primitive-scalar [T; N] params are packed-vector
+                        // Rust-style primitive [T; N] params are packed-vector
                         // VALUES (declared at packed_width, indexed by
-                        // part-select via #1745) -- only struct-element
-                        // arrays still go through the module-array binding.
-                        Self::parse_array_type(ptype).map_or(false, |(_, elem)| {
-                            !Self::is_primitive_scalar_type(&elem)
-                        })
+                        // part-select via #1745). The legacy [N]T spelling
+                        // keeps the W458 module-array binding contract (ROM
+                        // tables bound by name at the call site).
+                        let rust_style_primitive = ptype.trim().starts_with('[')
+                            && ptype.contains(';')
+                            && Self::parse_array_type(ptype)
+                                .map_or(false, |(_, elem)| {
+                                    Self::is_primitive_scalar_type(&elem)
+                                });
+                        Self::parse_array_type(ptype).is_some() && !rust_style_primitive
                     })
                     .map(|(i, _)| i)
                     .collect();
@@ -7109,7 +7392,7 @@ impl VerilogCodegen {
             if !range.is_empty() {
                 self.write(&format!("{} ", range));
             }
-            self.write(&format!("{} = ", node.name));
+            self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
             if !node.children.is_empty() {
                 self.gen_verilog_expr(&node.children[0]);
             } else {
@@ -7143,7 +7426,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 return;
@@ -7170,7 +7453,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 let init_node = if !node.children.is_empty() {
                     match node.children[0].kind {
                         NodeKind::ExprArrayLiteral => Some(node.children[0].clone()),
@@ -7217,7 +7500,7 @@ impl VerilogCodegen {
                 if !range.is_empty() {
                     self.write(&format!("{} ", range));
                 }
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.module_packed_primitive_arrays.insert(
@@ -7426,7 +7709,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -7460,7 +7743,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -7529,7 +7812,7 @@ impl VerilogCodegen {
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -8109,6 +8392,25 @@ impl VerilogCodegen {
                 self.write_line("end");
                 return;
             }
+            // A final bare expression is a Rust-style tail expression --
+            // the function's implicit return value. Verilog has no tail
+            // expressions, so it emitted `expr;` (a bare statement iverilog
+            // reads as a task-enable). Lower the LAST StmtExpr to an implicit
+            // return assignment `<fn> = <expr>;` (t27#1948).
+            let is_tail_expr = idx + 1 == stmts.len()
+                && stmt.kind == NodeKind::StmtExpr
+                && !stmt.children.is_empty()
+                && !self.current_fn_name.is_empty()
+                && self.current_fn_return_type != "void";
+            if is_tail_expr {
+                self.write_indent();
+                let asn = if self.clocked_nonblocking { " <= " } else { " = " };
+                self.write(&self.current_fn_name.clone());
+                self.write(asn);
+                self.gen_verilog_expr(&stmt.children[0]);
+                self.write_line(";");
+                continue;
+            }
             // #1741: top-level locals had their `reg` declaration hoisted, so
             // emit only the assignment here.
             if self.hoist_fn_locals && stmt.kind == NodeKind::StmtLocal {
@@ -8214,7 +8516,7 @@ impl VerilogCodegen {
                             let (width, signed) = self
                                 .expr_width_signed(&stmt.children[1])
                                 .unwrap_or((64, false));
-                            let name = target.name.clone();
+                            let name = Self::verilog_safe_identifier(&target.name);
                             self.write_indent();
                             self.write_line(&format!(
                                 "{} {}; // t27#1894 test-block binding",
@@ -8223,29 +8525,68 @@ impl VerilogCodegen {
                             ));
                         }
                         // Tuple-destructure binding `(a, b) = call()`: every
-                        // element identifier needs a reg too (t27#1948).
+                        // element identifier needs a reg at its ELEMENT width.
+                        // A 64-bit default made `{d,c,b,a} = call()` slice the
+                        // 32-bit packed return wrongly (t27#1948).
                         if target.kind == NodeKind::ExprTuple {
-                            let elems: Vec<String> = target
+                            // Element types from the callee's tuple return type.
+                            let elem_types: Vec<String> = stmt
                                 .children
-                                .iter()
-                                .filter(|e| {
-                                    e.kind == NodeKind::ExprIdentifier
-                                        && !e.name.is_empty()
-                                        && e.name != "_"
+                                .get(1)
+                                .filter(|c| c.kind == NodeKind::ExprCall)
+                                .and_then(|c| self.fn_return_types.get(&c.name))
+                                .map(|rt| {
+                                    let t = rt.trim();
+                                    if t.starts_with('(') && t.ends_with(')') {
+                                        t[1..t.len() - 1]
+                                            .split(',')
+                                            .map(|e| e.trim().to_string())
+                                            .collect()
+                                    } else {
+                                        Vec::new()
+                                    }
                                 })
-                                .map(|e| e.name.clone())
-                                .collect();
-                            for name in elems {
-                                if declared.insert(name.clone()) {
+                                .unwrap_or_default();
+                            for (idx, e) in target.children.iter().enumerate() {
+                                if e.kind != NodeKind::ExprIdentifier || e.name.is_empty() {
+                                    continue;
+                                }
+                                let (w, signed) = elem_types
+                                    .get(idx)
+                                    .map(|t| (self.packed_width(t).max(1), self.packed_signed(t)))
+                                    .unwrap_or((64, false));
+                                // A `_` element is a discard: Verilog has no
+                                // wildcard, so give the position a throwaway reg
+                                // keyed by (line, index) so it is stable across
+                                // the decl pass and the assignment (t27#1948).
+                                let decl_name = if e.name == "_" {
+                                    format!("__t27_disc_{}_{}", target.line, idx)
+                                } else {
+                                    e.name.clone()
+                                };
+                                if declared.insert(decl_name.clone()) {
                                     self.write_indent();
                                     self.write_line(&format!(
                                         "{} {}; // t27#1948 tuple binding",
-                                        reg_decl(64, false),
-                                        name
+                                        reg_decl(w, signed),
+                                        Self::verilog_safe_identifier(&decl_name)
                                     ));
                                 }
                             }
                         }
+                    }
+                    // A `for i in ..` loop variable needs an `integer`
+                    // declaration at the block top (t27#1948, TB for-loop
+                    // support). The body statements are walked via `stack`.
+                    if stmt.kind == NodeKind::StmtForRange
+                        && !stmt.name.is_empty()
+                        && declared.insert(stmt.name.clone())
+                    {
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "integer {}; // t27#1948 loop variable",
+                            Self::verilog_safe_identifier(&stmt.name)
+                        ));
                     }
                     // Untyped (or nested) `let` locals never reached a reg
                     // declaration either -- iverilog cannot bind them
@@ -8259,7 +8600,7 @@ impl VerilogCodegen {
                             .first()
                             .and_then(|i| self.expr_width_signed(i))
                             .unwrap_or((64, false));
-                        let name = stmt.name.clone();
+                        let name = Self::verilog_safe_identifier(&stmt.name);
                         self.write_indent();
                         self.write_line(&format!(
                             "{} {}; // t27#1948 let binding",
@@ -8277,6 +8618,17 @@ impl VerilogCodegen {
                     && !child.extra_type.is_empty()
                 {
                     self.write_indent();
+                    self.emit_local(child, LocalEmitPhase::Decl);
+                }
+                // Tuple-destructure local `let (a, b) = call()`: the packed temp
+                // (__tup_l{line}) and the element regs are declared only in the
+                // Decl phase, which the TB Init-only path skips -- so the temp
+                // was referenced undeclared ("Could not find variable
+                // __tup_l242"). Declare them at the top of the block here.
+                if child.kind == NodeKind::StmtLocal
+                    && child.name.is_empty()
+                    && !child.extra_field.is_empty()
+                {
                     self.emit_local(child, LocalEmitPhase::Decl);
                 }
                 // Pre-declare a probe for every assert_eq in the block.
@@ -8434,6 +8786,20 @@ impl VerilogCodegen {
         self.with_call_array_temps_enabled(|this| {
             for child in &node.children {
                 this.gen_verilog_test_stmt(child, &node.name, "TEST");
+                // W560: a call-return temp is CSE'd by call TEXT, but a test
+                // block mutates its bindings between statements
+                // (`st = on_ack(st);` repeated). Caching the temp across a
+                // reassignment reused a STALE value, so the state never
+                // advanced. After any statement that rebinds a variable,
+                // invalidate the materialized set so the next use re-assigns the
+                // temp from the current values. Nested-call temps inside a
+                // single (non-mutating) statement are unaffected — they still
+                // materialize once, in dependency order.
+                if matches!(child.kind, NodeKind::StmtAssign)
+                    || (child.kind == NodeKind::StmtLocal && !child.name.is_empty())
+                {
+                    this.call_array_tmp_materialized.clear();
+                }
             }
         });
         for name in block_locals {
@@ -8596,6 +8962,12 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.gen_verilog_stmt(node);
                 }
+                NodeKind::StmtForRange
+                | NodeKind::StmtWhile
+                | NodeKind::StmtFor => {
+                    self.materialize_call_array_tmps_in_expr(node);
+                    self.gen_verilog_stmt(node);
+                }
                 _ => {
                     self.write_indent();
                     self.write_line(&format!("// (stmt: {:?})", node.kind));
@@ -8682,6 +9054,14 @@ impl VerilogCodegen {
                     // from a call (`array = create(...)`) stayed X in the TB.
                     self.gen_verilog_stmt(node);
                 }
+                NodeKind::StmtForRange
+                | NodeKind::StmtWhile
+                | NodeKind::StmtFor => {
+                    // Control flow in a test block: a `for`/`while`/`if` was
+                    // dropped as `// (stmt: StmtForRange)`, silently voiding
+                    // loop bodies that accumulate assertions (t27#1948).
+                    self.gen_verilog_stmt(node);
+                }
                 _ => {
                     self.write_indent();
                     self.write_line(&format!("// (stmt: {:?})", node.kind));
@@ -8710,15 +9090,34 @@ impl VerilogCodegen {
     /// `let (a, b) = expr`. The tuple type comes from an explicit annotation
     /// when present, otherwise from the return type of the initializing call.
     fn tuple_local_elem_types(&self, node: &Node) -> Option<Vec<String>> {
-        let ty = if !node.extra_type.trim().is_empty() {
-            node.extra_type.trim().to_string()
-        } else {
-            let init = node.children.first()?;
-            if init.kind != NodeKind::ExprCall {
-                return None;
+        if !node.extra_type.trim().is_empty() {
+            let t = node.extra_type.trim();
+            if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+                let inner = &t[1..t.len() - 1];
+                return Some(inner.split(',').map(|e| e.trim().to_string()).collect());
             }
-            self.fn_return_types.get(&init.name)?.clone()
-        };
+            return None;
+        }
+        let init = node.children.first()?;
+        // Tuple LITERAL init `let (a, b) = (4, 3)`: infer each element's type
+        // from the count of bindings (all default u32). Previously only
+        // call-returning inits were handled, so a literal-tuple destructure
+        // emitted a nameless `reg [31:0] ;` (t27#1948).
+        if init.kind == NodeKind::ExprTuple {
+            let n = node
+                .extra_field
+                .split(',')
+                .filter(|s| !s.trim().is_empty())
+                .count();
+            if n > 0 && n == init.children.len() {
+                return Some(vec!["u32".to_string(); n]);
+            }
+            return None;
+        }
+        if init.kind != NodeKind::ExprCall {
+            return None;
+        }
+        let ty = self.fn_return_types.get(&init.name)?.clone();
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
@@ -8762,7 +9161,25 @@ impl VerilogCodegen {
                     if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                         self.write_indent();
                         self.write(&format!("{} = ", tmp));
-                        self.gen_verilog_expr(&node.children[0]);
+                        // A tuple LITERAL RHS `(4, 3, 1)` emits bare unsized
+                        // literals in the concatenation ("indefinite width").
+                        // Width-cast each element to its binding width; other
+                        // RHS forms (calls) keep the plain emission.
+                        let init = &node.children[0];
+                        if init.kind == NodeKind::ExprTuple
+                            && init.children.len() == widths.len()
+                        {
+                            let parts: Vec<String> = init
+                                .children
+                                .iter()
+                                .zip(widths.iter())
+                                .rev()
+                                .map(|(c, w)| self.emit_packed_scalar_value(c, *w, false))
+                                .collect();
+                            self.write(&format!("{{{}}}", parts.join(", ")));
+                        } else {
+                            self.gen_verilog_expr(init);
+                        }
                         self.write_line(";");
                         let mut off = 0u32;
                         for (nm, w) in names.iter().zip(widths.iter()) {
@@ -8790,14 +9207,14 @@ impl VerilogCodegen {
             let width = self.element_width(&base);
             if phase != LocalEmitPhase::Init {
                 self.write_indent();
-                self.write_line(&format!("reg [{}:0] {};", width - 1, node.name));
+                self.write_line(&format!("reg [{}:0] {};", width - 1, Self::verilog_safe_identifier(&node.name)));
             }
             if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                 if phase == LocalEmitPhase::Full {
                     self.write_line("");
                 }
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
             } else if phase == LocalEmitPhase::Full {
@@ -8815,12 +9232,12 @@ impl VerilogCodegen {
                 let total_width = dims[0] * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
                     self.write_indent();
-                    self.write(&format!("{} = ", node.name));
+                    self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                     if child.kind == NodeKind::ExprArrayLiteral {
                         self.emit_packed_array_literal_concat(child, &node.extra_type);
                     } else {
@@ -8843,7 +9260,7 @@ impl VerilogCodegen {
                 let total_width: usize = dims.iter().product::<usize>() * elem_w;
                 if phase != LocalEmitPhase::Init {
                     self.write_indent();
-                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, Self::verilog_safe_identifier(&node.name)));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
                     let child = &node.children[0];
@@ -8852,7 +9269,7 @@ impl VerilogCodegen {
                     // wholesale because the layout matches the packed-vector register.
                     if child.kind != NodeKind::ExprArrayLiteral {
                         self.write_indent();
-                        self.write(&format!("{} = ", node.name));
+                        self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
                         self.gen_verilog_expr(child);
                         self.write_line(";");
                     } else {
@@ -8884,9 +9301,13 @@ impl VerilogCodegen {
             let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
             ).unwrap_or((Vec::new(), "u32".to_string()));
             let child = node.children.first();
-            let is_packed_init = child.map_or(false, |c| {
-                c.kind != NodeKind::ExprArrayLiteral
-            });
+            // A primitive [T; N] local passed WHOLE to a function must be a
+            // packed vector -- fn params lower packed since t27#1952, so an
+            // unpacked memory init (the array-literal path) desynced and
+            // iverilog reported "Array needs an array index" (t27#1948 tail).
+            // Pack the literal init too: the concat text path (t27#1953) and
+            // part-select indexing (#1745) both already support it.
+            let is_packed_init = child.is_some();
             if is_packed_init {
                 let width = self.packed_width(&node.extra_type) as usize;
                 let signed = self.packed_signed(&node.extra_type);
@@ -8901,13 +9322,18 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.write_line(&format!(
                         "reg {}{}{};",
-                        signed_str, range_str, node.name
+                        signed_str, range_str, Self::verilog_safe_identifier(&node.name)
                     ));
                 }
                 if phase != LocalEmitPhase::Decl && child.is_some() {
+                    let c = child.unwrap();
                     self.write_indent();
-                    self.write(&format!("{} = ", node.name));
-                    self.gen_verilog_expr(child.unwrap());
+                    self.write(&format!("{} = ", Self::verilog_safe_identifier(&node.name)));
+                    if c.kind == NodeKind::ExprArrayLiteral {
+                        self.emit_packed_array_literal_concat(c, &node.extra_type);
+                    } else {
+                        self.gen_verilog_expr(c);
+                    }
                     self.write_line(";");
                 } else if phase == LocalEmitPhase::Full {
                     self.write_line("");
@@ -9437,11 +9863,44 @@ impl VerilogCodegen {
                             ">>" => ">>",
                             other => other,
                         };
-                        self.write("(");
-                        self.gen_verilog_expr(&node.children[0]);
-                        self.write(&format!(" {} ", op));
-                        self.gen_verilog_expr(&node.children[1]);
-                        self.write(")");
+                        // W565: signed-aware ordered comparison. Verilog makes an
+                        // ordered comparison UNSIGNED if either operand is unsigned,
+                        // so a signed i8 (e.g. trend = -16 = 8'hF0) meeting an
+                        // unsigned const reads as 240 and the test diverges from
+                        // Rust/Zig/C (which promote both to a signed int). When at
+                        // least one operand is signed, compare in the signed domain
+                        // with C-promotion semantics: the signed operand is wrapped
+                        // in $signed() (Verilog sign-extends it into the wider signed
+                        // context) and the unsigned operand is zero-extended one bit,
+                        // $signed({1'b0, x}), so it stays non-negative.
+                        let ordered_rel = matches!(op, "<" | "<=" | ">" | ">=");
+                        let rel_signed = ordered_rel
+                            && match (
+                                self.expr_width_signed(&node.children[0]),
+                                self.expr_width_signed(&node.children[1]),
+                            ) {
+                                (Some((_, ls)), Some((_, rs))) => ls || rs,
+                                _ => false,
+                            };
+                        if rel_signed {
+                            let (_, ls) = self
+                                .expr_width_signed(&node.children[0])
+                                .unwrap_or((0, false));
+                            let (_, rs) = self
+                                .expr_width_signed(&node.children[1])
+                                .unwrap_or((0, false));
+                            self.write("(");
+                            self.emit_verilog_signed_rel_operand(&node.children[0], ls);
+                            self.write(&format!(" {} ", op));
+                            self.emit_verilog_signed_rel_operand(&node.children[1], rs);
+                            self.write(")");
+                        } else {
+                            self.write("(");
+                            self.gen_verilog_expr(&node.children[0]);
+                            self.write(&format!(" {} ", op));
+                            self.gen_verilog_expr(&node.children[1]);
+                            self.write(")");
+                        }
                     }
                 }
             }
@@ -9653,14 +10112,51 @@ impl VerilogCodegen {
             NodeKind::ExprTuple => {
                 // Tuple literal -> packed concatenation with element 0 in the
                 // LSB: `(e0, e1)` -> `{e1, e0}`. Matches the packed_width sum and
-                // the destructuring slice order.
+                // the destructuring slice order. Each element is WIDTH-CAST to
+                // its declared type: a bare literal (`return (1, true)`) is
+                // unsized in Verilog and iverilog rejects it in a concatenation
+                // ("operand has indefinite width", t27#1948).
+                let elem_types: Option<Vec<String>> = {
+                    let t = self.current_fn_return_type.trim();
+                    if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+                        Some(
+                            t[1..t.len() - 1]
+                                .split(',')
+                                .map(|e| e.trim().to_string())
+                                .collect(),
+                        )
+                    } else {
+                        None
+                    }
+                };
                 self.write("{");
                 let last = node.children.len().saturating_sub(1);
                 for (i, child) in node.children.iter().enumerate().rev() {
                     if i != last {
                         self.write(", ");
                     }
-                    self.gen_verilog_expr(child);
+                    // LHS `_` discard: reference the throwaway reg declared for
+                    // this (line, index) position (t27#1948).
+                    if self.in_lvalue
+                        && child.kind == NodeKind::ExprIdentifier
+                        && child.name == "_"
+                    {
+                        self.write(&format!("__t27_disc_{}_{}", node.line, i));
+                        continue;
+                    }
+                    let cast = elem_types
+                        .as_ref()
+                        .filter(|ts| ts.len() == node.children.len())
+                        .map(|ts| {
+                            let ty = ts[i].trim();
+                            (self.packed_width(ty).max(1), self.packed_signed(ty))
+                        });
+                    if let Some((w, signed)) = cast {
+                        let v = self.emit_packed_scalar_value(child, w, signed);
+                        self.write(&v);
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                 }
                 self.write("}");
             }
@@ -29166,8 +29662,8 @@ mod tests_phase40_coverage {
         );
         // Element 0 (a + b) sits in the LSB of the concatenation.
         assert!(
-            out.contains("dm = {(a - b), (a + b)};"),
-            "tuple literal not lowered to LSB-first concat: {}",
+            out.contains("dm = {32'((a - b)), 32'((a + b))};"),
+            "tuple literal not lowered to width-cast LSB-first concat: {}",
             out
         );
         // Destructuring: packed temp, then LSB/MSB slices into the bindings.
@@ -30464,7 +30960,7 @@ mod tests_w458 {
         // instead emitted `f = 0; end` immediately followed by an unconditional
         // `f = (65536 | r);`, so the else wrapper is the discriminator.
         assert!(
-            flat.contains("f = 0; end else begin"),
+            flat.contains("f = 0; __t27_ret = 1'b1; end else begin"),
             "nested return did not lower as an early-exit if/else:\n{}",
             v
         );
