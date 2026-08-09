@@ -4118,6 +4118,71 @@ grep -c "T27_FORMAL" build/rtl/bitnet_engine_top.sv
 
 ---
 
+### Prop. 67 — half the gate set, a phase-blind suite, and a bound that lies — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*
+
+Prop. 66 reported **1 of 7** sampled engine mutations detected. That number was
+measured against the 26 **safety** properties. The engine's gate set is safety
+**∪ liveness**, and nobody had run the other half.
+
+**67a. Measured against half the gates.** Re-running the six "undetected"
+mutants through *Engine is still alive under its interlocks*: the **dma /
+overflow** mutation is caught outright — `weight prefetch can write` and `MAC can
+be active` both stop refuting, meaning those activities become impossible. The
+honest figure was **2 of 7**, not 1. Prop. 66's number is corrected here rather
+than quietly amended in place.
+
+**67b. Every liveness probe was phase-blind.** The double-buffer mutation clears
+`filled_b` throughout the phase where B is the read buffer, so `filled` reads 0,
+`input_ready` never asserts, and the engine **stalls in that phase**. A stalled
+phase violates no safety property, and the five existing probes ask only whether
+an activity can happen **at all** — which it still can, in the other phase. One
+phase-conditioned probe closes it:
+
+```verilog
+assert (!(mac_valid_q && !use_buffer_a));   // must REFUTE
+```
+
+| | real engine | double-buffer mutant |
+|---|---|---|
+| `!(mac_valid_q && !use_buffer_a)` @ seq 40 | refutes | **proves** |
+
+That takes the sample to **3 of 7**. Four remain undetected by anything: config
+latch, activation/requant, layer sequencing, interrupt/status.
+
+**67c. And the bound was lying.** The existing step runs every probe at
+`seq 22`. At 22 this same probe **proves** on the real engine — reporting the
+activity *unreachable* when it is merely further away than the bound. **A probe
+run at too shallow a depth does not return "unknown", it returns the wrong
+answer**, and the wrong answer here is the one that reads as a passing build.
+Probes now carry a per-probe depth; this one runs at 40.
+
+Three earlier candidates were rejected by measurement rather than taste, and one
+of them shows why the degenerate case matters: `!(input_ready && !use_buffer_a)`
+refutes on the mutant too, because `filled >= neurons_per_layer` is satisfiable
+with `neurons_per_layer == 0` and the solver simply picks that configuration.
+
+**67d. The `proves`-direction probe was re-checked, and holds.** A bound that is
+too shallow threatens only the *proves* direction — a refutation at depth 22 is a
+real counterexample at any depth. The single probe expecting `proves`,
+`!(dma_busy && mac_valid_q)`, was re-run at 22 / 40 / 60: **proves at all three**,
+in 5 s / 11 s / 20 s. Cheap, and now known rather than assumed.
+
+**67e. What this says about the sample.** Two of the seven were caught only
+because the measurement was redone — once for including the other half of the
+gate set, once for adding a probe. "1 of 7" was not wrong arithmetic; it was a
+complete count of an incomplete question. The scope line on a measurement has to
+name *which gates were run*, not only which mutants.
+
+Reproduce:
+
+```bash
+grep -c "^          probe " .github/workflows/formal-yosys.yml
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

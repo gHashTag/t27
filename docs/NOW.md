@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-10
 
+## Wave 616 — half the gate set, a phase-blind suite, and a bound that lies
+
+- **THE CORRECTION**: Prop. 66 reported **1 of 7** engine mutations detected.
+  That was measured against the 26 **safety** properties only -- the engine's
+  gate set is safety **union liveness**, and nobody had run the other half.
+  Re-running the six "undetected" mutants through the liveness gate catches the
+  **dma/overflow** mutation outright (`weight prefetch can write` and `MAC can
+  be active` both stop refuting). The honest figure was **2 of 7**.
+- **EVERY LIVENESS PROBE WAS PHASE-BLIND**: the double-buffer mutation clears
+  `filled_b` throughout the phase where B is the read buffer, so `input_ready`
+  never asserts and the engine **stalls in that phase**. A stalled phase
+  violates no safety property, and all five existing probes ask only whether an
+  activity happens **at all** -- which it still does, in the other phase.
+  `!(mac_valid_q && !use_buffer_a)` refutes on the real engine and **proves** on
+  the mutant. **3 of 7.**
+- **AND THE BOUND WAS LYING**: the step runs every probe at `seq 22`. At 22 that
+  same probe **proves** on the real engine -- reporting the activity unreachable
+  when it is merely further away than the bound. *A probe run too shallow does
+  not return "unknown", it returns the wrong answer*, and here the wrong answer
+  is the one that reads as a passing build. Probes now carry per-probe depths.
+- **THE `proves`-DIRECTION PROBE RE-CHECKED**: a shallow bound threatens only
+  the proves direction (a refutation at 22 is real at any depth). The one probe
+  expecting proves, `!(dma_busy && mac_valid_q)`, holds at 22/40/60 in
+  5s/11s/20s. Known now rather than assumed.
+- **THREE CANDIDATES REJECTED BY MEASUREMENT**, and one is instructive:
+  `!(input_ready && !use_buffer_a)` refutes on the mutant too, because
+  `filled >= neurons_per_layer` is satisfiable with `neurons_per_layer == 0` and
+  the solver just picks that configuration.
+- **WHAT IT SAYS**: two of the seven were caught only because the measurement
+  was redone -- once for running the other half of the gates, once for adding a
+  probe. "1 of 7" was not bad arithmetic; it was a complete count of an
+  incomplete question. **A measurement's scope line must name which GATES were
+  run, not only which mutants.**
+- **STILL UNDETECTED (4 of 7)**: config latch, activation/requant, layer
+  sequencing, interrupt/status.
+- **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop. 67), README.
+- **STATE**: 67 propositions · 67 gates · 14 witnesses · 7 engine liveness probes
+  · 42 module properties (36 with a measured verdict) · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 615 — the engine's 26, sampled, and a limit that does not lift
 
 - **THE GENERATOR WAS MUTATING THE PROPERTIES**: `bitnet_engine_top` carries its

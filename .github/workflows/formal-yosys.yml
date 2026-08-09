@@ -552,7 +552,7 @@ jobs:
                 build/rtl/axi_lite_slave.sv build/rtl/dma_controller.sv \
                 build/rtl/trit_stdlib.sv"
           probe() {
-            expr="$1"; want="$2"; name="$3"
+            expr="$1"; want="$2"; name="$3"; seq="${4:-22}"
             python3 - "$top" "$expr" > build/probe.sv <<'PY'
           import sys
           src = open(sys.argv[1]).read()
@@ -564,7 +564,7 @@ jobs:
                             chparam -set DEPTH 4 weight_bram; \
                             prep -top bitnet_engine_top -flatten; memory_map; \
                             async2sync; chformal -lower; \
-                            sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes" \
+                            sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" \
                  >/dev/null 2>&1; then got=proves; else got=refutes; fi
             if [ "$got" != "$want" ]; then
               echo "::error::$name expected to $want but $got"
@@ -579,6 +579,17 @@ jobs:
           probe '!mac_valid_q'                   refutes 'MAC can be active'
           probe '!neuron_out_valid'              refutes 'neuron output can fire'
           probe '!(dma_busy && mac_valid_q)'     proves  'DMA and MAC never concurrent'
+          # PHASE-CONDITIONED (Wave 616, Prop. 67). Every probe above asks
+          # whether an activity can happen AT ALL, and a fault that stalls one
+          # ping-pong phase leaves it happening in the other -- so none of them
+          # noticed a mutation that clears filled_b throughout the phase where B
+          # is the read buffer. This one is phase-specific and catches it.
+          #
+          # seq 40, not 22: at 22 this same probe PROVES on the real engine,
+          # i.e. reports the activity unreachable when it is merely further away
+          # than the bound. A probe run at too shallow a depth does not report
+          # "unknown", it reports the wrong answer. Prop. 67c.
+          probe '!(mac_valid_q && !use_buffer_a)' refutes 'MAC can be active while B is the read buffer' 40
           exit $fail
 
       # Vacuity gate, part two. The $check-cell count proves properties EXIST;
