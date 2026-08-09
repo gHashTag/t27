@@ -92,7 +92,8 @@ jobs:
           # and bounded checking unrolls state once per step. Gating on
           # scales that no longer complete would make this step a permanent
           # red that everyone learns to ignore.
-          for seq, depth in [(40, 4), (40, 8), (40, 16)]:
+          # Wave 605 split the set; the core 22 reach -seq 80 again (Prop. 55).
+          for seq, depth in [(80, 4), (40, 8), (40, 16)]:
               v, dt = run(seq, depth, 900)
               print(f"seq={seq:3d} DEPTH={depth:2d}  {v:>8s}  {dt:6.1f}s")
               if v == "REFUTED":
@@ -133,7 +134,7 @@ jobs:
 
           def gi():
               rest = " ".join(f"build/mut/{m}.sv" for m in REST)
-              return yos(f"read_verilog -sv -formal -DT27_FORMAL build/mut/bitnet_engine_top.sv {rest}; "
+              return yos(f"read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_DEEP build/mut/bitnet_engine_top.sv {rest}; "
                          "chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; "
                          "memory_map; async2sync; chformal -lower; "
                          "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes")

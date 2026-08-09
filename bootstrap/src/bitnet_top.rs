@@ -669,6 +669,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // rather than asserting it by inspection. Writes within a layer must\n");
     s.push_str("    // land on 0,1,2,... with no gap and no repeat. The DMA path is excluded:\n");
     s.push_str("    // it drives its own address sequence, covered by max_size_props.\n");
+    s.push_str("`ifdef T27_FORMAL_DEEP\n");
     s.push_str("    reg [11:0] fv_next_act_addr;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
     s.push_str("        if (!rst_n)                        fv_next_act_addr <= 12'd0;\n");
@@ -678,6 +679,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (rst_n && (wr_en_a || wr_en_b) && !dma_local_we)\n");
     s.push_str("            a_act_writes_contiguous: assert (act_wr_addr == fv_next_act_addr);\n");
+    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // ---- zero-count sweep, READ side (Prop. 48) ----\n");
     s.push_str("    //\n");
@@ -723,6 +725,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // highest one ever written to the buffer it is reading. The address is\n");
     s.push_str("    // issued a cycle before the word arrives, so the comparison is against\n");
     s.push_str("    // $past(buf_read_addr). See Prop. 39.\n");
+    s.push_str("`ifdef T27_FORMAL_DEEP\n");
     s.push_str("    reg [11:0] fv_maxwr_a, fv_maxwr_b;\n");
     s.push_str("    reg        fv_any_a, fv_any_b;\n");
     s.push_str("    always @(posedge clk)\n");
@@ -779,8 +782,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        if (rst_n && $past(rst_n) && mac_valid_q)\n");
     s.push_str("            a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_a)\n");
     s.push_str("                                                       : ($past(buf_read_addr) <= fv_maxwr_b));\n");
+    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // ---- cross-layer properties (the first spanning two layers) ----\n");
+    s.push_str("`ifdef T27_FORMAL_DEEP\n");
     s.push_str("    reg fv_wrote_a, fv_wrote_b;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
     s.push_str("        if (!rst_n) begin fv_wrote_a <= 1'b0; fv_wrote_b <= 1'b0; end\n");
@@ -788,6 +793,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("            if (wr_en_a) fv_wrote_a <= 1'b1;\n");
     s.push_str("            if (wr_en_b) fv_wrote_b <= 1'b1;\n");
     s.push_str("        end\n");
+    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // The ping-pong actually alternates across a layer boundary, so the\n");
     s.push_str("    // buffer layer N wrote is the buffer layer N+1 reads.\n");
@@ -803,8 +809,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // question is \"was the buffer this layer reads written\". The\n");
     s.push_str("    // counterexample only became readable once the trace reader existed.\n");
     s.push_str("    // See Prop. 33.\n");
+    s.push_str("`ifdef T27_FORMAL_DEEP\n");
     s.push_str("    always @(posedge clk) if (rst_n && mac_valid_q)\n");
     s.push_str("        a_no_read_before_write: assert (use_buffer_a ? fv_wrote_a : fv_wrote_b);\n");
+    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // The double-buffer invariant. Reading and writing the same buffer in\n");
     s.push_str("    // one layer lets a neuron consume activations this layer just wrote --\n");

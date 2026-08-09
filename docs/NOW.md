@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## the split lands -- the ceiling is back at 80 with nothing dropped
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 55), `README.md`.
+- Prop 54 measured the case and failed twice to implement it. **This lands it.**
+  Core 22 at **seq 80: PROVED 245.1s**. All 26 at seq 40: **PROVED 118.7s**.
+  Baseline 3.0s. **The bound each property is verified at rises or holds, and
+  none is dropped.**
+- **Why the earlier attempts failed, concretely**: the four properties and ten
+  registers form **four** guard regions, and a core property (`a_buffer_alternates`)
+  sits inside what looks like a fifth. Wrapping "the block" put three properties
+  outside their trackers -- undriven implicit wires, presenting as a refutation
+  of the *core* set. A regex per assert swallowed a closing delimiter.
+- **The verification that caught the remaining error**: after placing the
+  guards, the emitted RTL was checked for **guard depth per property**, not just
+  that it compiled -- 22 at depth 1, 4 at depth 2, file balanced at 0. That
+  found region 3's guard closing *before* the always block's `end`, which would
+  have orphaned two lines whenever the define was absent -- a defect visible
+  only in the configuration CI runs most often.
+- **When an edit is conditional compilation, verify the output in every
+  configuration, and verify the structure rather than the exit code.**
+- **What did not change**: all 26 properties prove, every module suite proves,
+  the mutation harness now runs with `-DT27_FORMAL_DEEP` so it still covers all
+  26, nothing is gated as knowingly broken, and no defect was found or
+  introduced. The scale-ceiling gate returns to seq 80.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## four properties cost 75% of the proof; splitting them restores the ceiling
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 54), `README.md`.

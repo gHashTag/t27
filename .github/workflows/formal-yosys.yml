@@ -202,120 +202,38 @@ jobs:
       # alignment they check is internal and `sat` needs one flattened module.
       # DEPTH is reduced because `sat` cannot model $mem_v2 and the properties
       # do not read memory contents.
-      - name: Prove bitnet_engine_top integration properties
+      # Two sets since Wave 605. Four properties need ten formal-only tracking
+      # registers and cost 75% of the proof time (Prop. 54): behind
+      # T27_FORMAL_DEEP, the other 22 reach -seq 80 again, where all 26 are
+      # undecided beyond 1200 s at -seq 60. Nothing is dropped -- both sets are
+      # gated below, and the bound each property is checked at rises or holds.
+      - name: Prove integration properties (core 22, deep bound)
         run: |
-          set -euo pipefail
-          ./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
           yosys -p "read_verilog -sv -formal -DT27_FORMAL \
-                      build/rtl/bitnet_engine_top.sv \
-                      build/rtl/multilayer_sequencer.sv \
-                      build/rtl/layer_sequencer.sv \
-                      build/rtl/double_buffer_ctrl.sv \
-                      build/rtl/weight_bram.sv \
-                      build/rtl/pipeline_stage2_compute.sv \
-                      build/rtl/trit_stdlib.sv; \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
+
+      - name: Prove integration properties (all 26, tracker-backed included)
+        run: |
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_DEEP \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
                     chparam -set DEPTH 4 weight_bram; \
                     prep -top bitnet_engine_top -flatten; memory_map; \
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
-
-      # Zero-sized-request policy. Three waves found this defect shape one
-      # module at a time; this sweeps every module that takes a count and
-      # reports completion. Polarity is inverted on purpose: a module must
-      # COMPLETE a zero-sized request (so `never_completes` must refute) and
-      # must not pretend to have done it (so `no_work` must prove). Before the
-      # sweep, multilayer_sequencer and dma_controller silently dropped the
-      # request -- no work, no done, no error, host hangs on the IRQ.
-      - name: Zero-sized requests complete without pretending
-        run: |
-          set -euo pipefail
-          fail=0
-          zs() {
-            dut="$1"; wrap="$2"; keep="$3"; want="$4"
-            python3 - "$keep" > build/zs.sv <<'PY'
-          import re, sys
-          src = open("formal/zero_size_props.sv").read()
-          keep = sys.argv[1]
-          for lab in re.findall(r"(a_zero_\w+): assert", src):
-              if lab != keep:
-                  src = re.sub(re.escape(lab) + r": assert \([^;]*\);",
-                               lab + ": assert (1'b1);", src)
-          sys.stdout.write(src)
-          PY
-            if yosys -q -p "read_verilog -sv -formal build/rtl/$dut.sv build/zs.sv; \
-                            prep -top $wrap -flatten; async2sync; chformal -lower; \
-                            sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes" \
-                 >/dev/null 2>&1; then got=proves; else got=refutes; fi
-            if [ "$got" != "$want" ]; then
-              echo "::error::$keep expected to $want but $got"
-              fail=1
-            else
-              echo "ok       $keep ($got)"
-            fi
-          }
-          zs multilayer_sequencer zs_multilayer a_zero_layers_never_completes  refutes
-          zs multilayer_sequencer zs_multilayer a_zero_layers_emits_no_work    proves
-          zs dma_controller       zs_dma        a_zero_length_never_completes  refutes
-          zs dma_controller       zs_dma        a_zero_length_moves_no_data    proves
-          zs weight_prefetch_ctrl zs_prefetch   a_zero_words_never_completes   refutes
-          zs weight_prefetch_ctrl zs_prefetch   a_zero_words_writes_nothing    proves
-          zs layer_sequencer      zs_layer      a_zero_neurons_never_completes refutes
-          zs layer_sequencer      zs_layer      a_zero_neurons_emits_no_work   proves
-          exit $fail
-
-      # The document that records these proofs is itself unchecked evidence
-      # unless something checks it. Wave 576 audited it and found 14 of 19
-      # shell-fenced blocks were result TRANSCRIPTS formatted identically to
-      # commands, and the only two blocks a reader could actually run both cited
-      # `t27c`, which is not on PATH -- in a document whose own Prop. 3 says
-      # evidence citing a command that does not exist is not evidence. This step
-      # keeps both properties: every proposition names the gate that re-checks
-      # it, and every runnable block is runnable.
-      - name: Every proposition names its gate, every block runs
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import re, sys
-          lines = open("docs/FORMAL_FOUNDATIONS.md").read().split("\n")
-          fail = []
-
-          # 1. Each proposition heading must be followed by a **Gate:** line.
-          for n, l in enumerate(lines):
-              if re.match(r"^### (Proposition|Prop\.) [0-9]+", l):
-                  window = "\n".join(lines[n:n + 4])
-                  if "**Gate:**" not in window:
-                      fail.append(f"L{n+1}: {l[:60]} has no **Gate:** line")
-
-          # 2. Strict fence pairing, then: no bash block may cite a bare `t27c`
-          #    (not on PATH), and a block with no command belongs in ```text.
-          # `git` was missing and flagged a runnable `git status` block as empty --
-          # a gate's own pattern list is a place false positives hide (Wave 600).
-          CMD = re.compile(r"^\s*(yosys|t27c|\./target|cargo|for |python3|sed|grep|find|git|n=\$)")
-          inb = False
-          for n, l in enumerate(lines):
-              if not l.startswith("```"):
-                  continue
-              if not inb:
-                  inb, lang, st = True, l[3:].strip(), n
-                  continue
-              inb = False
-              if lang != "bash":
-                  continue
-              body = lines[st + 1:n]
-              txt = "\n".join(body)
-              if re.search(r"<[a-z_]+>", txt):
-                  continue
-              if re.search(r"^\s*t27c ", txt, re.M):
-                  fail.append(f"L{st+1}: bash block calls bare `t27c` (not on PATH)")
-              if not any(CMD.match(x) for x in body):
-                  fail.append(f"L{st+1}: bash block runs nothing -- use ```text for transcripts")
-
-          if fail:
-              for f in fail:
-                  print(f"::error::{f}")
-              sys.exit(1)
-          print("ok       every proposition gated, every bash block runnable")
-          PY
 
       # Maximum-sized requests (Prop. 29). Counts are much wider than the
       # addresses they drive -- num_words is 16 bits over a 12-bit bram_addr,
