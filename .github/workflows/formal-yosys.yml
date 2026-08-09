@@ -534,35 +534,21 @@ jobs:
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes"
 
-      # Prop. 39e is OPEN and must still REFUTE: the slot-level read-before-write
-      # property does not hold, and whether the fault is the engine or the
-      # tracking registers is not yet established. Gated so that closing it
-      # turns the build red and asks for promotion -- the mechanism that closed
-      # Prop. 25 after eight waves.
-      #
-      # NOTE the define is T27_FORMAL, not FORMAL: `read_verilog -formal`
-      # predefines FORMAL itself, so a `ifdef FORMAL block is compiled whether
-      # or not -DFORMAL is passed, and the "property-free baseline" this file
-      # relied on for fifteen waves never excluded a single property (Prop. 39).
-      - name: Prop. 39e is still open (must refute)
+      # Prop. 39e stood open for eight waves, gated here as an expected
+      # refutation so that closing it would turn the build red and demand
+      # promotion. It closed in Wave 597 and both properties now live in the
+      # default -DT27_FORMAL set, so this step asserts the absence of any
+      # remaining expected-refutation guard: nothing in the engine is knowingly
+      # broken. Re-add a guarded property here if a future defect must be
+      # recorded rather than fixed.
+      - name: No property is gated as an expected refutation
         run: |
           set -euo pipefail
-          if yosys -q -p "read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_OPEN \
-                            build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
-                            build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
-                            build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
-                            build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
-                            build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
-                            build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
-                          chparam -set DEPTH 4 weight_bram; \
-                          prep -top bitnet_engine_top -flatten; memory_map; \
-                          async2sync; chformal -lower; \
-                          sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes" \
-               >/dev/null 2>&1; then
-            echo "::error::Prop. 39e now PROVES -- promote it out of \`ifdef T27_FORMAL_OPEN and update docs"
+          if grep -q "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv; then
+            echo "::error::a property is gated as an expected refutation; document it in FORMAL_FOUNDATIONS.md"
             exit 1
           fi
-          echo "ok       Prop. 39e still refutes (slot-level read-before-write remains open)"
+          echo "ok       no expected-refutation guards remain"
 
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the

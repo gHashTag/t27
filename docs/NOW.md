@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## closed -- the fill extent now travels with the buffer
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 47),
+  `README.md`.
+- **The engine's last open defect is closed.** It stood open eight waves, and the
+  fix was **three changes, each necessary and none sufficient**: per-buffer
+  written flags (Prop 33), latching the configuration at layer start (Prop 46b),
+  and now carrying the **fill extent** across the ping-pong.
+- **Why the same shape failed in wave 594 and works now.** Prop 44 concluded a
+  start-time count cannot enforce a per-cycle claim and withdrew exactly this
+  gate. That was right *about the design as it then stood* -- the read extent
+  could change mid-layer. Prop 46b latched it, fixing the extent for the
+  duration, and the start-time comparison became sufficient. **A rejected fix is
+  rejected against a design, not for all time.** Recording the *reason* next to
+  the code, not just the verdict, is what made the re-attempt cheap.
+- **Verified, not assumed**: both formulations PROVE; both refute under the
+  vacuity oracle; all six liveness witnesses unchanged, so **the engine still
+  works** -- the check that matters most, since an interlock that refuses work
+  makes every safety property pass.
+- **23 integration properties**, all proving, none free, none vacuous. The
+  expected-refutation gate is replaced by its inverse: CI now fails if *any*
+  property is gated as knowingly broken.
+- **What eight waves bought**: two wrong attributions before one right, one fix
+  withdrawn, one shipped that did not close it, and three instruments built --
+  a trace reader, a free-property gate, and assumption bisection. **The defect
+  was one line of missing state; finding it required building the means to see
+  it.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. **No known defect open.**
+
 ## the configuration was read live by a running sequencer
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`

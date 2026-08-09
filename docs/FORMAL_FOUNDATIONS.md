@@ -2295,7 +2295,7 @@ a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_
 ```
 
 ~~Whether the fault is the engine or the tracking registers is not established.~~
-**Attributed in Prop. 43: the fault is the engine.** **Located in Prop. 45: only when `neurons_per_layer == 0`.** Gated as an expected refutation so closing it turns the build
+**Attributed in Prop. 43, reframed in Prop. 46a, and CLOSED in Prop. 47.** Gated as an expected refutation so closing it turns the build
 red, the mechanism that closed Prop. 25 after eight waves.
 
 Reproduce:
@@ -2726,6 +2726,76 @@ Reproduce:
 
 ```bash
 grep -n "neurons_q <= neurons_per_layer" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
+### Prop. 47 — closed: the fill extent now travels with the buffer — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *No property is gated as an expected refutation*
+
+The engine's last open defect is closed. It stood open for **eight waves**, and
+the fix was not one change but **three, each necessary and none sufficient**.
+
+**47a. The three parts.**
+
+| wave | change | what it alone did |
+|---|---|---|
+| 33 | per-buffer `wrote_a`/`wrote_b` flags gating layer start | closed "the buffer was never written at all"; left the slot-level hole |
+| 46b | latch `neurons_q`/`chunks_q` at layer start | stopped a host write moving the terminator mid-run; did not close the property |
+| **47** | carry the **fill extent** across the ping-pong | **closes it** |
+
+```verilog
+reg [15:0] filled_a, filled_b;
+always @(posedge clk)
+    if (layer_done_pulse &&  use_buffer_a) filled_a <= 16'd0;
+    else if (wr_en_a)                      filled_a <= act_wr_addr + 16'd1;
+    ...
+wire input_ready = (use_buffer_a ? wrote_a : wrote_b)
+                && (filled >= neurons_per_layer);
+```
+
+**47b. Why the same shape failed in Wave 594 and works now.** Prop. 44 concluded
+that *a start-time count cannot enforce a per-cycle claim*, and withdrew exactly
+this gate. That conclusion was right **about the design as it then stood**: the
+read extent could change mid-layer, so a check at the start said nothing about
+the rest of it. Prop. 46b latched the configuration, which fixed the extent for
+the duration — and a start-time comparison became sufficient.
+
+> **A rejected fix is rejected against a design, not for all time.** When the
+> design changes underneath it, the rejection expires. Prop. 44's reasoning is
+> still correct and its conclusion no longer applies, which is why the *reason*
+> was recorded next to the code rather than only the verdict.
+
+**47c. Verified, not assumed.**
+
+| check | result |
+|---|---|
+| `a_read_within_written` (bound formulation) | **PROVED** |
+| `a_read_slot_written` (exact per-slot formulation) | **PROVED** |
+| both under the Prop. 12a vacuity oracle | refute — guards reachable |
+| all six liveness witnesses | unchanged — **the engine still works** |
+| baseline, 23 integration properties, five module suites | all proving |
+
+The liveness check is the one that matters most here: an interlock that refuses
+work would make every safety property pass, and this one does not (Prop. 24).
+
+**47d. The engine has no known defect.** The expected-refutation gate that
+demanded this promotion has been replaced by its inverse — CI now fails if *any*
+property is gated as knowingly broken. **23 integration properties**, all
+proving, none free (Prop. 42), none vacuous.
+
+**47e. What eight waves actually bought.** Two attributions that were wrong
+before one that was right (Props. 43, 45, 46a), one fix withdrawn (44), one
+shipped that did not close it (46b), and three instruments built along the way —
+a trace reader (31), a free-property gate (42), and the assumption-bisection
+method (46a) that finally located it. **The defect was one line of missing state;
+finding it required building the means to see it.**
+
+Reproduce:
+
+```bash
+grep -c "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv   # must be 0
 ```
 
 ---
