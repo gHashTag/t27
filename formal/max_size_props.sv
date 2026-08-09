@@ -72,6 +72,18 @@ module ms_prefetch (
     always @(posedge clk)
         if (rst_n && prefetch_active && bram_we && fv_wrote)
             a_bram_addr_never_wraps: assert (bram_addr > fv_last);
+
+    // Stronger, and the property that would have caught Prop. 29d directly:
+    // writes must land on 0,1,2,... with no gap and no repeat. Monotonicity
+    // alone permits skipping slot 0, which is exactly what the defect did.
+    reg [11:0] fv_next;
+    always @(posedge clk)
+        if (!rst_n || !prefetch_active) fv_next <= 12'd0;
+        else if (bram_we)               fv_next <= fv_next + 12'd1;
+
+    always @(posedge clk)
+        if (rst_n && prefetch_active && bram_we)
+            a_bram_writes_contiguous: assert (bram_addr == fv_next);
 endmodule
 
 // ---------------------------------------------------------------------------
@@ -130,6 +142,15 @@ module ms_dma (
     always @(posedge clk)
         if (rst_n && busy && local_we && fv_wrote)
             a_local_addr_never_wraps: assert (local_addr > fv_last);
+
+    reg [11:0] fv_next;
+    always @(posedge clk)
+        if (!rst_n || !busy) fv_next <= 12'd0;
+        else if (local_we)   fv_next <= fv_next + 12'd1;
+
+    always @(posedge clk)
+        if (rst_n && busy && local_we)
+            a_local_writes_contiguous: assert (local_addr == fv_next);
 endmodule
 
 `default_nettype wire

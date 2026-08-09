@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## write-pairing audit -- the shape enumerated across every port
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `formal/max_size_props.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 30), `README.md`.
+- Prop 29d found a data/enable/address trio with the address advanced, so word N
+  landed at N+1 and slot 0 was never written -- found by accident, in two
+  modules, while chasing something else. **After the second sighting of a shape,
+  enumerate the class.**
+- **The syntactic scan found zero candidates, which was the wrong question.** A
+  regex for the broken form can only find instances nobody has fixed. The useful
+  question is semantic: does every write port present address, data and enable
+  from the same stage?
+- **Three write ports enumerated.** Weight BRAM: contiguous, PROVED. Activation
+  buffers: contiguous, PROVED -- and this port had **never been checked at all**.
+  DMA local: still open.
+- **Contiguity is the right property; monotonicity was not.** Prop 29's property
+  only required the address to increase, which permits skipping slot 0 -- exactly
+  what the defect did. **A property a known defect would have passed is the
+  wrong property**, and the cheapest moment to notice is right after fixing it.
+  All three ports now carry no-gap-no-repeat-from-zero.
+- Guard checked with the Prop 12a oracle: refutes, so it bites. **21 integration
+  properties, all proving.**
+- **The DMA port was not re-diagnosed.** Its wrapper baseline proves with every
+  property neutralised, so the harness is sound and the refutation real; but the
+  counterexample I extracted showed `local_we` low throughout, which cannot
+  violate a property guarded on `local_we`. The extraction is untrustworthy, so
+  it is recorded as-is rather than diagnosed with a tool that just contradicted
+  itself.
+- Suite **1212 passed, 0 failed**. Seals 496/496.
+
 ## max-size sweep -- two defects the bound could not see
 
 - **WHERE**: `formal/max_size_props.sv` (new), `bootstrap/src/bitnet_buffers.rs`,

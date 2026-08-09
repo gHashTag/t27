@@ -312,6 +312,9 @@ jobs:
                   capture_output=True, text=True).returncode == 0
 
           CASES = [
+              # Contiguity is the property that would have caught Prop. 29d
+              # directly: monotonicity alone permits skipping slot 0, which is
+              # exactly what the off-by-one did.
               ("weight_prefetch_ctrl", "ms_prefetch", "bram_addr", "proves",
                "words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
                "words_remaining <= num_words;"),

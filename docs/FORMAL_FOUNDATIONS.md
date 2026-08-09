@@ -1601,6 +1601,68 @@ python3 /tmp/ms.py 2>/dev/null || echo "extract the harness from formal-yosys.ym
 
 ---
 
+### Prop. 30 — the write-pairing shape, enumerated across every port — `PROVED` / open
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties* and *Oversized requests do not wrap the local address*
+
+Prop. 29d found a data/enable/address trio registered together with the address
+advanced, so word *N* landed at address *N+1* and slot 0 was never written. It
+was found by accident, in two modules, while investigating something else. The
+zero-sweep's lesson (Prop. 26e) says that after the second sighting of a shape
+you enumerate the class rather than wait for the third.
+
+**30a. The syntactic scan found nothing, which was the wrong question.** A
+regex over every clocked block looking for a self-incremented output co-assigned
+with an enable returned **zero** candidates — because both instances had already
+been fixed. A scan for the *broken form* of a shape can only find instances
+nobody has repaired. The useful question is semantic: **does every write port
+present address, data and enable from the same stage?**
+
+**30b. Three write ports, enumerated.**
+
+| port | address source | enable | verdict |
+|---|---|---|---|
+| `wmem` weight BRAM | `pf_bram_addr` ← `word_index` | `pf_bram_we` | **PROVED** contiguous |
+| `amem_a`/`amem_b` activation | `act_wr_word` (registered index) | `act_word_valid` | **PROVED** contiguous |
+| DMA local | `local_addr` ← `word_index` | `local_we` | **open** — refutes |
+
+The activation port is the one that had never been checked at all. It pairs a
+*registered* index with a *combinational* valid, which is the correct shape —
+and it is now proved rather than asserted by inspection.
+
+**30c. Contiguity is the right property; monotonicity was not enough.**
+Prop. 29's property required the write address to increase. That permits
+skipping slot 0 — which is exactly what the defect did. The property that would
+have caught 29d directly is stronger:
+
+```verilog
+reg [11:0] fv_next;
+always @(posedge clk)
+    if (!rst_n || !active) fv_next <= 12'd0;
+    else if (we)           fv_next <= fv_next + 12'd1;
+
+always @(posedge clk) if (rst_n && active && we)
+    a_writes_contiguous: assert (addr == fv_next);
+```
+
+**No gap and no repeat, starting at zero.** It now guards all three ports.
+**A property that a known defect would have passed is the wrong property**, and
+the cheapest time to notice is right after fixing that defect.
+
+**30d. Non-vacuous.** The activation property's guard was checked with the
+Prop. 12a oracle — body replaced by `assert (1'b0)` under the same guard — and
+refutes, so the guard is reachable. Integration properties: **21, all proving.**
+
+**30e. The DMA port stays open, and was not re-diagnosed.** Its two properties
+refute. The wrapper's baseline was re-checked with every property neutralised
+and **proves**, so the harness is sound and the refutation is real. An attempt
+to read the counterexample was inconclusive: the trace showed `local_we` low
+throughout, which cannot violate a property guarded on `local_we`, so the
+extraction — not the verdict — is untrustworthy. Recorded as-is rather than
+re-diagnosed with a tool that just gave a contradictory answer.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -572,6 +572,23 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_two_writers_disjoint: assert (!(dma_local_we && act_word_valid));\n");
     s.push_str("\n");
+    s.push_str("    // The third write port, and the one never checked. Prop. 29 found the\n");
+    s.push_str("    // weight and DMA ports each writing word N at address N+1, never writing\n");
+    s.push_str("    // slot 0. The activation port pairs a registered index with a\n");
+    s.push_str("    // combinational valid, which is the correct shape -- this proves it\n");
+    s.push_str("    // rather than asserting it by inspection. Writes within a layer must\n");
+    s.push_str("    // land on 0,1,2,... with no gap and no repeat. The DMA path is excluded:\n");
+    s.push_str("    // it drives its own address sequence, covered by max_size_props.\n");
+    s.push_str("    reg [11:0] fv_next_act_addr;\n");
+    s.push_str("    always @(posedge clk or negedge rst_n)\n");
+    s.push_str("        if (!rst_n)                        fv_next_act_addr <= 12'd0;\n");
+    s.push_str("        else if (layer_start)              fv_next_act_addr <= 12'd0;\n");
+    s.push_str("        else if (wr_en_a || wr_en_b)       fv_next_act_addr <= fv_next_act_addr + 12'd1;\n");
+    s.push_str("\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (rst_n && (wr_en_a || wr_en_b) && !dma_local_we)\n");
+    s.push_str("            a_act_writes_contiguous: assert (act_wr_addr == fv_next_act_addr);\n");
+    s.push_str("\n");
     s.push_str("    // ---- cross-layer properties (the first spanning two layers) ----\n");
     s.push_str("    reg fv_wrote_a, fv_wrote_b;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
@@ -819,5 +836,18 @@ mod tests {
         );
         let alt_at = v.find("a_buffer_alternates:").expect("proved property present");
         assert!(alt_at < guard_at, "the proved property must NOT be behind the open guard");
+    }
+
+    // Wave 579. Prop. 29d found two write ports pairing a data/enable pair with
+    // a post-increment address, so word N landed at N+1 and slot 0 was never
+    // written. The activation port is the third, and was never checked. This
+    // pins that the contiguity property exists; formal-yosys.yml proves it.
+    #[test]
+    fn activation_writes_are_checked_for_contiguity() {
+        let v = build_bitnet_engine_top("bitnet_engine_top");
+        assert!(v.contains("a_act_writes_contiguous: assert (act_wr_addr == fv_next_act_addr);"));
+        assert!(v.contains("else if (layer_start)              fv_next_act_addr <= 12'd0;"));
+        // The DMA drives its own sequence; conflating them would check neither.
+        assert!(v.contains("(wr_en_a || wr_en_b) && !dma_local_we"));
     }
 }

@@ -29,7 +29,7 @@ inspectable artefacts at every step.
   `bootstrap/src/hooks.rs` (Rust, unit-tested), not in shell. Without this a
   fresh clone runs **no** hooks; git does not enable them automatically.
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
-  → **1211 / 1211 passed** (full Quick Start below).
+  → **1212 / 1212 passed** (full Quick Start below).
   Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and
   `seal-audit --strict` — all green as of the 2026-08-09 seal re-baseline.
 - **Primary numeric path:** GoldenFloat **GF16** (default), with the family
@@ -89,7 +89,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **20 integration properties** on `bitnet_engine_top` — including the **first property that spans two layers**. Plus an **8-property zero-sized-request sweep**, a **baseline gate**, 6 liveness witnesses, **0 vacuous guards**, and a **documentation gate**: all **28 propositions** name the CI step that re-checks them. And the gates are themselves checked — **13 of 13 go red** for a mutation aimed at the claim they guard, with a clean baseline and no-op control ([Props. 14–29](docs/FORMAL_FOUNDATIONS.md)) |
+| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **21 integration properties** on `bitnet_engine_top`, all proving — including the first property spanning two layers, and a **write-contiguity property on all three write ports** (no gap, no repeat, starting at zero). Plus an 8-property zero-sized-request sweep, a maximum-sized sweep, a baseline gate, 5 liveness witnesses, **0 vacuous guards**, a documentation gate covering all **30 propositions**, and a weekly **mutation harness proving the gates bite** ([Props. 14–30](docs/FORMAL_FOUNDATIONS.md)) |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -108,7 +108,7 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1211 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1212 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done
