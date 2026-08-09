@@ -57,7 +57,7 @@ def neutralise(src, keep):
 
 def run(path, seq, depth, timeout):
     rest = " ".join(f"build/rtl/{m}.sv" for m in REST)
-    cmd = (f"read_verilog -sv -formal -DFORMAL {path} {rest}; "
+    cmd = (f"read_verilog -sv -formal -DT27_FORMAL {path} {rest}; "
            f"chparam -set DEPTH {depth} weight_bram; "
            "prep -top bitnet_engine_top -flatten; memory_map; async2sync; chformal -lower; "
            f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")

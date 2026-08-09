@@ -1158,7 +1158,7 @@ build rather than quietly greening it.
 
 ### Prop. 25 — the first properties that span two layers — `PROVED` (25b **closed** in Wave 582, see Prop. 33)
 
-**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation* and *Baseline - unprobed design must prove*
+**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)* and *Baseline - unprobed design must prove*
 
 Every property up to Prop. 24 held **inside one module or inside one layer**.
 The double-buffer scheme, though, only means anything across a layer boundary:
@@ -2230,6 +2230,80 @@ Reproduce:
 
 ```bash
 grep -c "53:0\|54'" bootstrap/src/*.rs   # the width, site by site
+```
+
+---
+
+### Prop. 39 — the read side, and the baseline that never existed — `PROVED` / `MEASURED` / open
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *Prop. 39e is still open (must refute)*
+
+Every property through Prop. 38 constrained **writes**. This adds the mirror —
+and in doing so uncovered that the campaign's own baseline check has never done
+what it claimed.
+
+**39a. Two read-side properties, proved and non-vacuous.** The activation BRAMs
+have a one-cycle read latency, so the address is issued one cycle before the
+word arrives, while `activation_word = use_buffer_a ? act_rd_a : act_rd_b`
+selects with the **current** `use_buffer_a`. If the ping-pong flipped in
+between, the mux would return a word from a buffer that was never addressed.
+
+```verilog
+a_act_read_select_stable:         assert (use_buffer_a == $past(use_buffer_a));
+a_weight_addr_not_reset_mid_read: assert (!$past(layer_start));
+```
+
+Both **PROVE**, and both refute under the Prop. 12a oracle, so both bite. The
+read path is sound on the two hazards that mirror Props. 29d and 32.
+
+**39b. `read_verilog -formal` predefines `FORMAL`.** Measured directly on a
+three-line module: `read_verilog -sv -formal` yields the `$check` cell **with or
+without** `-DFORMAL`. The guarded block is compiled either way.
+
+Every run this campaign has called a *baseline* — "the design with no properties
+at all", relied on since Prop. 25d and gated in CI since Wave 577 — compiled the
+entire property set. Confirmed on the engine: without the define it still
+contained **28 `$assert` cells**.
+
+**39c. What that invalidates, and what survives.** The baseline gate did catch
+real unsound builds, repeatedly, so its *results* stand. What was wrong is the
+explanation: it was never "properties off, design only", it was "run the same
+properties again". That is why Wave 574 could not tell a failing probe from a
+failing property across four rounds of diagnosis — **there was no flag that
+would have separated them.** The guard is now `T27_FORMAL`, which yosys does not
+predefine: **0 assertion cells without it, 64 with it**, and the true baseline
+proves in 10.1 s.
+
+> A flag that silently means "and also define this macro" turns every
+> conditional block into unconditional code. **Verify that a guard actually
+> guards** — one three-line module and two runs.
+
+**39d. A missing file was read as a refuted property.** Mid-wave, `build/rtl`
+was regenerated without re-running `gen-trit-stdlib`, and the harness reported
+the absent file as `REFUTED` in 0.1 s. A refutation that fast is not a
+refutation. The harness now separates a nonzero exit carrying `proof did fail`
+from any other nonzero exit, reporting the latter as **TOOL ERROR**. Third
+instance of this shape, after the trace reader and the stub.
+
+**39e. Open: the slot-level read-before-write.** Prop. 25 closed *the buffer was
+never written at all*. The natural extension — the MAC must not consume a slot
+beyond the highest ever written to the buffer it reads — **REFUTES**:
+
+```verilog
+a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_a)
+                                            : ($past(buf_read_addr) <= fv_maxwr_b));
+```
+
+Whether the fault is the engine or the tracking registers is **not established**
+— the counterexample has not been read, and two earlier attempts at
+counter/address relations in this campaign were wrong in the property rather
+than the design. Gated as an expected refutation so closing it turns the build
+red, the mechanism that closed Prop. 25 after eight waves.
+
+Reproduce:
+
+```bash
+grep -c "ifdef T27_FORMAL" bootstrap/src/bitnet_top.rs
 ```
 
 ---

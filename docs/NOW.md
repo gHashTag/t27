@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-09
 
+## the read side, and the baseline that never existed
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `.github/workflows/*.yml`,
+  `formal/scale_probe.py`, `docs/FORMAL_FOUNDATIONS.md` (Prop 39), `README.md`.
+- **Two read-side properties added, both PROVE and both bite.** The activation
+  BRAMs have one-cycle read latency while the buffer mux selects with the
+  *current* `use_buffer_a`; if the ping-pong flipped in between, the mux would
+  return a word from a buffer that was never addressed. It cannot.
+- **`read_verilog -formal` predefines `FORMAL`.** Measured on a three-line
+  module: the guarded `assert` compiles with **or without** `-DFORMAL`. So every
+  run this campaign called a *baseline* -- "the design with no properties",
+  relied on since Prop 25d and gated in CI since wave 577 -- compiled the whole
+  property set. The engine had **28 `$assert` cells** without the define.
+- **What survives**: the gate caught real unsound builds, so its results stand.
+  What was wrong is the explanation -- it was never "properties off", it was
+  "the same properties again". **That is why wave 574 could not separate a
+  failing probe from a failing property across four rounds: no flag would have
+  separated them.**
+- **Fixed**: the guard is now `T27_FORMAL`, which yosys does not predefine. 0
+  assertion cells without it, 64 with it, true baseline proves in 10.1s.
+  **Verify that a guard actually guards** -- one module, two runs.
+- **A missing file was read as a refuted property.** Regenerating the bundle
+  without re-running `gen-trit-stdlib` produced `REFUTED` in 0.1s. A refutation
+  that fast is not a refutation. The harness now reports TOOL ERROR separately.
+  Third instance of this shape.
+- **New open defect (Prop 39e)**: the slot-level read-before-write refutes.
+  Whether the fault is the engine or my tracking registers is **not
+  established** -- the counterexample has not been read, and two earlier
+  counter/address relations in this campaign were wrong in the property. Gated
+  as an expected refutation.
+- Suite **1213 passed, 0 failed**. Seals 496/496.
+
 ## the MAC is 8x of the solve cost, and it is the one thing not scalable
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 38).

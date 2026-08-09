@@ -162,7 +162,7 @@ pub fn build_activation_requant(module_name: &str) -> String {
     s.push_str("    end\n");
     s.push_str("\n");
 
-    s.push_str("`ifdef FORMAL\n");
+    s.push_str("`ifdef T27_FORMAL\n");
     s.push_str("    // Load-bearing: 2'b11 is reserved. Emitting it would corrupt every\n");
     s.push_str("    // downstream trit27_* primitive with no error anywhere.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn formal_block_is_guarded() {
         let v = build_activation_requant(DEFAULT_REQUANT_NAME);
-        assert!(v.contains("`ifdef FORMAL"));
+        assert!(v.contains("`ifdef T27_FORMAL"));
         assert!(v.contains("`endif"));
         assert!(v.contains("a_trit_never_invalid"));
     }

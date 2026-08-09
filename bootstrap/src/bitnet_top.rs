@@ -512,14 +512,14 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    assign busy = inference_active;\n");
     s.push_str("\n");
 
-    s.push_str("`ifdef FORMAL\n");
+    s.push_str("`ifdef T27_FORMAL\n");
     s.push_str("    // ------------------------------------------------------------------\n");
     s.push_str("    // Integration properties. These are the first properties in this repo\n");
     s.push_str("    // that range over more than one module: everything proved before now\n");
     s.push_str("    // was module-scoped, because until the datapath was wired there was no\n");
     s.push_str("    // system behaviour to state a property about.\n");
     s.push_str("    //\n");
-    s.push_str("    // They live inside the module under `ifdef FORMAL rather than in a\n");
+    s.push_str("    // They live inside the module under `ifdef T27_FORMAL rather than in a\n");
     s.push_str("    // wrapper because the alignment they check is internal, and yosys's\n");
     s.push_str("    // `sat` needs a single flattened module -- which mangles the names a\n");
     s.push_str("    // wrapper would have to reference.\n");
@@ -622,6 +622,64 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (rst_n && (wr_en_a || wr_en_b) && !dma_local_we)\n");
     s.push_str("            a_act_writes_contiguous: assert (act_wr_addr == fv_next_act_addr);\n");
+    s.push_str("\n");
+    s.push_str("    // ---- read-side pairing (the mirror of Props. 29d and 32) ----\n");
+    s.push_str("    //\n");
+    s.push_str("    // Every property until now constrained writes. The read path has the\n");
+    s.push_str("    // same hazards reflected: the activation BRAMs have a one-cycle read\n");
+    s.push_str("    // latency, so the address is issued one cycle before the word arrives,\n");
+    s.push_str("    // while `activation_word = use_buffer_a ? act_rd_a : act_rd_b` selects\n");
+    s.push_str("    // with the CURRENT use_buffer_a. If the ping-pong flips in between, the\n");
+    s.push_str("    // mux returns a word from the buffer that was not addressed. See\n");
+    s.push_str("    // Prop. 39.\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (rst_n && $past(rst_n) && mac_valid_q)\n");
+    s.push_str("            a_act_read_select_stable: assert (use_buffer_a == $past(use_buffer_a));\n");
+    s.push_str("\n");
+    s.push_str("    // The weight side of the same seam: the word the MAC consumes was\n");
+    s.push_str("    // addressed by the chunk counter one cycle earlier, so that counter must\n");
+    s.push_str("    // not have been reset in between -- a layer_start between the address\n");
+    s.push_str("    // and the data would pair chunk 0's weights with the previous layer's\n");
+    s.push_str("    // control.\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (rst_n && $past(rst_n) && mac_valid_q)\n");
+    s.push_str("            a_weight_addr_not_reset_mid_read: assert (!$past(layer_start));\n");
+    s.push_str("\n");
+    s.push_str("    // Prop. 25 closed \"the buffer was never written at all\". This is the\n");
+    s.push_str("    // slot-level extension: the MAC must not consume a slot beyond the\n");
+    s.push_str("    // highest one ever written to the buffer it is reading. The address is\n");
+    s.push_str("    // issued a cycle before the word arrives, so the comparison is against\n");
+    s.push_str("    // $past(buf_read_addr). See Prop. 39.\n");
+    s.push_str("    reg [11:0] fv_maxwr_a, fv_maxwr_b;\n");
+    s.push_str("    reg        fv_any_a, fv_any_b;\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (!rst_n) begin\n");
+    s.push_str("            fv_maxwr_a <= 12'd0; fv_maxwr_b <= 12'd0;\n");
+    s.push_str("            fv_any_a   <= 1'b0;  fv_any_b   <= 1'b0;\n");
+    s.push_str("        end else begin\n");
+    s.push_str("            if (wr_en_a) begin\n");
+    s.push_str("                fv_any_a <= 1'b1;\n");
+    s.push_str("                if (!fv_any_a || act_wr_addr > fv_maxwr_a) fv_maxwr_a <= act_wr_addr;\n");
+    s.push_str("            end\n");
+    s.push_str("            if (wr_en_b) begin\n");
+    s.push_str("                fv_any_b <= 1'b1;\n");
+    s.push_str("                if (!fv_any_b || act_wr_addr > fv_maxwr_b) fv_maxwr_b <= act_wr_addr;\n");
+    s.push_str("            end\n");
+    s.push_str("        end\n");
+    s.push_str("\n");
+    s.push_str("`ifdef T27_FORMAL_OPEN\n");
+    s.push_str("    // OPEN: this REFUTES. Prop. 25 closed \"the buffer was never written at\n");
+    s.push_str("    // all\"; this is the slot-level extension and it does not hold. Gated as\n");
+    s.push_str("    // an expected refutation so closing it turns the build red and asks for\n");
+    s.push_str("    // promotion -- the mechanism that closed Prop. 25 after eight waves.\n");
+    s.push_str("    // Whether the fault is the engine or the tracking registers above is\n");
+    s.push_str("    // NOT yet established; the counterexample has not been read. See\n");
+    s.push_str("    // Prop. 39e.\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (rst_n && $past(rst_n) && mac_valid_q)\n");
+    s.push_str("            a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_a)\n");
+    s.push_str("                                                       : ($past(buf_read_addr) <= fv_maxwr_b));\n");
+    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // ---- cross-layer properties (the first spanning two layers) ----\n");
     s.push_str("    reg fv_wrote_a, fv_wrote_b;\n");
@@ -862,10 +920,19 @@ mod tests {
         // Closed in Wave 582 after eight waves open. It must NOT sit behind the
         // open guard any more, and no open guard should remain at all.
         assert!(v.contains("a_no_read_before_write:"));
-        assert!(
-            !v.contains("`ifdef FORMAL_OPEN"),
-            "no property should remain gated as an expected refutation"
-        );
+        // Wave 589 gated a NEW open property (Prop. 39e, slot-level
+        // read-before-write), so an open guard exists again -- deliberately.
+        // What must hold is that the CLOSED property is not behind it.
+        // Position ordering is the wrong test -- the closed property sits after
+        // the new guard BLOCK, not inside it. What matters is containment.
+        let closed_at = v.find("a_no_read_before_write:").expect("closed property present");
+        if let Some(o) = v.find("`ifdef T27_FORMAL_OPEN") {
+            let end = v[o..].find("`endif").expect("open guard is closed") + o;
+            assert!(
+                !(o..end).contains(&closed_at),
+                "a_no_read_before_write closed in Wave 582 and must not sit inside the open guard"
+            );
+        }
     }
 
     // Wave 579. Prop. 29d found two write ports pairing a data/enable pair with
