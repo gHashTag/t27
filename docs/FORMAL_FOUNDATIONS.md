@@ -14,9 +14,11 @@
 
 ### Proposition 1 — the seal path function is injective on this corpus, and not in general
 
+**Gate:** `seal-coverage.yml` → `t27c seal-audit --repo-root . --strict`
+
 Let `Σ` be the map from spec path to seal path implemented by `seal_file_path`:
 
-```
+```text
 Σ(p) = ".trinity/seals/" ++ replace(strip_suffix(strip_prefix(p, "specs/"), ".t27"), '/', '_') ++ ".json"
 ```
 
@@ -32,7 +34,7 @@ for f in $(find specs -name '*.t27'); do ./target/release/t27c seal-path "$f"; d
 Because `_` is a legal character inside a path component, flattening `/` to `_`
 cannot be injective. Witness:
 
-```
+```text
 Σ("specs/a_b/c.t27") = .trinity/seals/a_b_c.json
 Σ("specs/a/b_c.t27") = .trinity/seals/a_b_c.json
 ```
@@ -59,6 +61,8 @@ path (a bash `basename` guess and the compiler's rule) collapsed into one.
 ---
 
 ### Proposition 2 — the open-source Yosys frontend cannot consume concurrent SVA
+
+**Gate:** `formal-yosys.yml` → *Assert the property set is non-empty*
 
 `MEASURED` on Yosys 0.63 (`70a11c6`, macOS arm64).
 
@@ -92,6 +96,8 @@ design.
 
 ### Proposition 3 — a verified formal-proof pipeline using only Yosys
 
+**Gate:** `formal-yosys.yml` — 13 `sat -verify -prove-asserts` invocations
+
 `MEASURED`. No SymbiYosys required. For immediate assertions (Prop 2), this
 sequence both **proves** true properties and **refutes** false ones:
 
@@ -117,6 +123,8 @@ encountered and are recorded here so the next attempt does not rediscover them.
 
 ### Proposition 4 — conformance payload classification
 
+**Gate:** `schema-validation.yml` → `t27c validate-conformance` **(count only — per-file sufficiency remains unmeasured)**
+
 `MEASURED`. Of 101 files in `conformance/`: **88** carry vectors, **5** are
 measured reports, **8** are schema definitions, **0** are empty. The prior
 validator reported "43 valid, 58 empty" because it resolved payloads with
@@ -126,6 +134,8 @@ objects. **A count is a claim about a predicate, and the predicate was wrong.**
 ---
 
 ### Proposition 5 — `sv2v` cannot rescue the SVA: it deletes it
+
+**Gate:** **none.** A one-time measurement of an external tool (`sv2v`) that CI does not install. Cited as history, not as a standing property.
 
 `MEASURED` on sv2v 0.0.13.
 
@@ -138,7 +148,7 @@ dropped during conversion."* Confirmed directly — input a module containing a
 `property` block and an `assert property`, and the output contains **zero**
 assertions:
 
-```
+```text
 $ sv2v sva_in.sv > sva_out.v ; echo $?
 0
 $ grep -c assert sva_out.v
@@ -160,6 +170,8 @@ wearing a real tool's name.
 ---
 
 ### Proposition 6 — the property set *is* checkable, in the immediate-assertion subset
+
+**Gate:** `formal-yosys.yml` → *Behavior-DSL subset still emits and parses*
 
 `MEASURED`. Rather than translate the emitted form, emit the form Yosys accepts.
 `t27c gen-behavior-sva-yosys` produces immediate assertions:
@@ -196,6 +208,8 @@ prover produced that counterexample during development and was right.
 
 ### Proposition 7 — a lost-interrupt race in `interrupt_controller`, found and fixed by proof
 
+**Gate:** `formal-yosys.yml` → *Prove interrupt_controller properties*
+
 `PROVED` (machine-checked, Yosys 0.63). **This is the first real hardware defect
 this campaign's formal work has found, and it was found by the prover, not by
 reading.**
@@ -226,7 +240,7 @@ The difference isolates the cause to the concurrent read exactly.
 **7b. The mechanism was then confirmed positively**, which is stronger than a
 counterexample. This holds on every reachable state:
 
-```
+```text
 $past(inference_done) && $past(status_read) |-> irq_status[0] == 0     PROVED
 ```
 
@@ -259,6 +273,8 @@ behaviour, with the formal harness carrying the real proof.
 ---
 
 ### Proposition 8 — `axi_lite_slave` accepted more transactions than it could answer
+
+**Gate:** `formal-yosys.yml` → *Prove axi_lite_slave properties*
 
 `PROVED` (machine-checked). Second real defect found by pointing the prover at
 generated RTL, and the second one a passing unit test had been holding in place.
@@ -301,7 +317,7 @@ only ever assigned `2'b00`. Temporal induction may begin in an **unreachable**
 state where `bresp` holds garbage. Re-run from a reachable start
 (`-set-init-zero`) it **PROVES**.
 
-```
+```text
 tempinduct (unconstrained init) -> REFUTED     # artifact
 BMC from zero-init state        -> PROVED      # truth
 ```
@@ -320,6 +336,8 @@ the `-flatten` trap from Prop 7 surfaces exactly that way.
 
 ### Proposition 9 — two AXI4 master defects in `dma_controller`
 
+**Gate:** `formal-yosys.yml` → *Prove dma_controller properties*
+
 `PROVED` (machine-checked). Third module checked, two more real defects, and
 the fourth and fifth passing unit tests found holding a bug in place.
 
@@ -329,7 +347,7 @@ once `bytes_remaining` fell to one beat. A short transfer therefore requested
 256 beats and then dropped `rready` mid-burst. **An AXI4 master may not abandon
 a burst it requested.**
 
-```
+```text
 a_read_burst_not_abandoned      old: REFUTED      fixed: PROVED
 ```
 
@@ -344,7 +362,7 @@ alone. A `ready` asserted while `arvalid` was still low moved the FSM into
 `READ_DATA` **having issued no address** — the master then sat ready for a
 burst nobody owed it. `WRITE_ADDR` had the same shape.
 
-```
+```text
 a_rready_implies_burst          old: REFUTED      fixed: PROVED
 ```
 
@@ -369,6 +387,8 @@ proves nothing about the master. Every `assume` in a harness narrows what the
 ---
 
 ### Proposition 10 — a reusable AXI4 slave model, and one anomaly left open
+
+**Gate:** `formal-yosys.yml` → *Prove dma_controller properties* (via `formal/axi4_read_slave_model.sv`)
 
 `MEASURED` for 10a. **10b is deliberately left unresolved**, and saying so is
 the point of this entry.
@@ -397,7 +417,7 @@ If those hold, the model is wrong.**
 **10b. Open anomaly — `arlen` at the address handshake.** With `length`
 constrained to 8 (a single-beat transfer, so `arlen` must be 0):
 
-```
+```text
 assert (!(arvalid && arready) || arlen == 8'd0)     REFUTED
 ```
 
@@ -431,6 +451,8 @@ yosys -p "read_verilog -sv -formal <bundle>/dma_controller.sv \
 
 ### Proposition 11 — the anomaly was the harness, and the cause was an opt-in flag
 
+**Gate:** `formal-yosys.yml` → *Assumptions are active in the proof flow*
+
 `PROVED`. Prop. 10 closed with `arlen == 0` refuting at the address handshake
 while a hand-trace said it must hold, recorded as an unexplained anomaly.
 It is now explained, and the explanation generalises past this repository.
@@ -442,7 +464,7 @@ to hold *given a compliant environment* is being checked against an arbitrary
 one. Demonstrated with a two-line module: `assume (1'b0)` alongside
 `assert (a == !a)`.
 
-```
+```text
 without -set-assumes -> REFUTED   (the false assertion is reachable)
 with    -set-assumes -> PROVED    (vacuously, as an unsatisfiable assumption requires)
 ```
@@ -458,7 +480,7 @@ was real, and it required a **non-compliant slave**.
 contract active — no unsolicited beats, `rlast` exactly on the last beat of the
 burst:
 
-```
+```text
 a_arlen_zero      PROVED
 a_no_underflow    PROVED
 ```
@@ -491,6 +513,8 @@ constraints do nothing, are the same defect wearing different clothes.
 
 ### Proposition 12 — the 21 properties are non-vacuous, and the check is now permanent
 
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous (witnesses must refute)*
+
 `MEASURED`. Prop. 11 found constraints that did nothing. Vacuity is its mirror:
 a property that **passes because the interesting case never happens**. Neither
 appears as a failure; both make a green run worthless.
@@ -503,7 +527,7 @@ unreachable** — a precise vacuity oracle needing no `cover` support. All other
 assertions in the file were neutralised to `assert (1'b1)` so each result speaks
 about one guard only.
 
-```
+```text
 19 properties checked      reachable 19      vacuous 0
 ```
 
@@ -543,6 +567,8 @@ itself.**
 
 ### Proposition 13 — two zero-count non-terminations, in a family where two siblings guard
 
+**Gate:** `formal-yosys.yml` → *Prove layer_sequencer properties* and *Zero-sized requests complete without pretending*
+
 `PROVED`. Fourth and fifth modules checked, fifth and sixth real defects. Both
 are the same shape, and the shape is now a pattern worth naming.
 
@@ -560,7 +586,7 @@ buffer and past anything the caller asked for.
 property and an immediate assertion cannot express it (Prop. 6). Both were
 instead written as safety bounds that the runaway violates:
 
-```
+```text
 valid   |-> neuron_id < num_neurons        REFUTED -> PROVED
 writes  <= num_words   (while active)      REFUTED -> PROVED
 ```
@@ -588,6 +614,8 @@ in this campaign, now six of six, had a passing unit test holding it in place.
 ---
 
 ### Proposition 14 — the first multi-module proof, and a property that did not bite
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
 
 `PROVED`. Every property in Props. 7–13 is **module-scoped**, because until the
 datapath was wired there was no system behaviour to state a property about
@@ -645,6 +673,8 @@ wrapper would need.
 
 ### Proposition 15 — the layer boundary exists, and `2'b11` is now unreachable
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `PROVED`. Step 2 of `BITNET_V2_POSITION.md` §4. The bundle had **no module at
 the layer boundary at all**: `pipeline_stage2_compute` emitted `signed [15:0]`,
 the next layer consumed `[53:0]` packed trits, and nothing converted between
@@ -698,6 +728,8 @@ which is a strong hint it is asserting the wrong thing.**
 
 ### Proposition 16 — the loop closes, and a controller whose decision nobody read
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `PROVED`. Step 3: the requantizer's packed word now feeds back as the next
 layer's activations, so the engine can actually iterate.
 
@@ -744,6 +776,8 @@ possible once there is a seam.
 
 ### Proposition 17 — the host path is wired, and one property is left open on purpose
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `MEASURED`. `weight_prefetch_ctrl` and `interrupt_controller` are now
 instantiated: **10 instances, 8 of 10 modules**, and the tie-offs
 `mem_addr = 32'd0`, `mem_rd_en = 1'b0`, `prefetch_done = 1'b1` are gone.
@@ -784,6 +818,8 @@ this campaign, and every RTL defect found had one.**
 ---
 
 ### Proposition 18 — the open anomaly of Prop. 17, closed: a stale flag and a missing handshake
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
 
 `PROVED`. Prop. 17 recorded a reproduced but uncharacterised refutation:
 prefetch could write the weight BRAM while the MAC was reading it, despite
@@ -842,6 +878,8 @@ taken.
 
 ### Proposition 19 — the host aperture is wired; config is CSRs, not ports
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `PROVED`. `axi_lite_slave` was the **last emitted module never instantiated**:
 verified in isolation — its lost-write-response defect was found and fixed in
 Prop. 8 — and unreachable from the top. It is now the engine's control
@@ -882,6 +920,8 @@ because the interesting claim moved.
 
 ### Proposition 20 — every emitted block is wired; one interlock is open
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `MEASURED`. `dma_controller` was the last standalone module. With it
 instantiated the count reaches **10 of 10, 12 instances** — every emitted block
 is reachable from the top, closing the emitted-vs-integrated gap that
@@ -907,7 +947,7 @@ not to weaken it, but to state the domain it was always about.**
 
 **20c. Open, recorded not asserted.**
 
-```
+```text
 assert (!(dma_local_we && mac_valid_q))     REFUTED
 ```
 
@@ -928,6 +968,8 @@ proxies applies to design signals as much as to gates.**
 ---
 
 ### Proposition 21 — `busy` becomes a state; the interlock is narrowed twice and still open
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
 
 `MEASURED`. Two real fixes landed against the open property of Prop. 20, and
 **neither was sufficient** — which is the finding.
@@ -975,6 +1017,8 @@ the contract, exactly like `dma_burst_length_is_max` and
 
 ### Proposition 22 — why no top-level gate can close this, and where the fix belongs
 
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
 `MEASURED`. Three successive narrowings landed against one property, each real
 and each insufficient. The fourth attempt produced the diagnosis instead:
 
@@ -984,7 +1028,7 @@ and each insufficient. The fourth attempt produced the diagnosis instead:
 
 **22a. The trace.** With `-show` on the top-level signals:
 
-```
+```text
 t   reg_ctrl  start  inference_active  dma_busy  dma_local_we  layer_valid  mac_valid_q
 14        47      1                 1         0             0            0            0
 15         2      0                 0         0             0            0            0
@@ -1023,6 +1067,8 @@ question than the one being asked.**
 ---
 
 ### Proposition 23 — the interlock closes: export quiescence, then restore the term you dropped
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
 
 `PROVED`. Prop. 22 diagnosed that no top-level gate could close
 `!(dma_local_we && mac_valid_q)` because quiescence lived inside
@@ -1065,6 +1111,8 @@ module-level ones.
 ---
 
 ### Proposition 24 — the interlocks did not stall the engine
+
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*
 
 `MEASURED`. Props. 20–23 spent four waves *adding constraints* to the reachable
 state space. That is exactly the condition under which safety properties start
@@ -1109,6 +1157,8 @@ build rather than quietly greening it.
 ---
 
 ### Prop. 25 — the first properties that span two layers: one proves, one refutes and stays open — `PROVED` / `REFUTED`
+
+**Gate:** `formal-yosys.yml` → *Prop. 25 is still open (must refute)* and *Baseline - unprobed design must prove*
 
 Every property up to Prop. 24 held **inside one module or inside one layer**.
 The double-buffer scheme, though, only means anything across a layer boundary:
@@ -1205,9 +1255,9 @@ correctness property**, not a formatting choice: emit a declaration early and an
 Reproduce all of it:
 
 ```bash
-t27c gen-bitnet-bundle --output-dir build/rtl
-t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
-# 25a, in the default set (proves); 25b behind the open guard (refutes)
+./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
+# Expect a NONZERO exit: 25a proves, 25b refutes by design (see the CI gate).
 yosys -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN build/rtl/*.sv; \
           chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; \
           memory_map; async2sync; chformal -lower; \
@@ -1217,6 +1267,8 @@ yosys -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN build/rtl/*.sv; \
 ---
 
 ### Prop. 26 — the zero-sized-request sweep: a 2–2 policy split, and a retraction — `MEASURED` / `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Zero-sized requests complete without pretending*
 
 Three waves found one defect shape one module at a time, reactively: zero
 neurons (Prop. 9), zero words (Prop. 10), and a claimed zero bytes (Prop. 25c).
@@ -1296,11 +1348,89 @@ class before it appears a third time.**
 Reproduce:
 
 ```bash
-t27c gen-bitnet-bundle --output-dir build/rtl
+./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
 yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv formal/zero_size_props.sv; \
           prep -top zs_dma -flatten; async2sync; chformal -lower; \
           sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
-# a_zero_length_never_completes must REFUTE; a_zero_length_moves_no_data must PROVE
+# Expect a NONZERO exit: a_zero_length_never_completes must REFUTE.
+# a_zero_length_moves_no_data must PROVE -- isolate it to see that half.
+```
+
+---
+
+### Prop. 27 — the document recording these proofs was itself unchecked evidence — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Every proposition names its gate, every block runs*
+
+Twenty-six propositions rest on the implicit claim that their reproduction blocks
+work. Prop. 26a found one claim written from a comment rather than a run, which
+made that implicit claim the least-tested thing in the repository — and the one
+everything else stands on. This audits it.
+
+**27a. Fourteen of nineteen shell blocks were transcripts.** Every fenced block
+in this document was classified by whether it contains an executable command:
+
+| class | count | what it is |
+|---|---|---|
+| runnable | 3 | a command a reader can run |
+| template | 2 | contains `<placeholders>` — not meant to run |
+| **transcript** | **14** | **a result, formatted identically to a command** |
+
+A ```` ```bash ```` fence reads as *"run this"*. Fourteen of them were showing
+output. This is the same failure shape the campaign keeps finding — **a form
+that reads as stronger evidence than it is** — and this time the form was the
+campaign's own documentation. All fourteen are now ```` ```text ````.
+
+**27b. Both blocks a reader could actually run were broken.** The three runnable
+blocks were executed. Prop. 1's works. The two added in Waves 574 and 575 —
+*by this campaign, in the document that carries the rule* — both begin:
+
+```text
+t27c gen-bitnet-bundle --output-dir build/rtl        # `t27c` is not on PATH
+```
+
+`which t27c` returns nothing; the binary is at `./target/release/t27c`. Prop. 3's
+own lesson 6 states that **evidence citing a command that does not exist is not
+weak evidence — it is not evidence**. Both blocks were written after that lesson
+was recorded, and neither was ever run. Fixed.
+
+> Writing a rule down does not apply it. The two blocks violating Prop. 3 were
+> added by the same author who wrote Prop. 3, in the same file, in the following
+> two waves. **A rule with no gate is a preference.**
+
+**27c. Every proposition now names the gate that re-checks it.** Each claim was
+traced to a CI step by matching the identifiers it cites — property names, module
+names, commands — against the workflows and `formal/*.sv`. Six propositions
+matched nothing and were checked individually rather than declared ungated,
+which is how the heuristic's four false negatives were caught (Props. 1, 3, 6
+and 24 are gated; the extractor simply could not see prose probe labels like
+`'DMA can start'`).
+
+**One proposition has no gate, and says so:** Prop. 5 measured that `sv2v` drops
+assertions. CI does not install `sv2v` — it appears in this repository only in
+comments. That is correct and now explicit: a one-time historical measurement,
+not a standing property.
+
+**27d. The convention is now enforced.** A CI step fails the build if a
+proposition lacks a `**Gate:**` line, if a ```` ```bash ```` block calls bare
+`t27c`, or if a ```` ```bash ```` block contains no command at all. The three
+defects found here cannot recur silently.
+
+**27e. What this does not establish.** The gate map says each claim *has* a
+check, not that the check is *sufficient* for the claim. Prop. 4's gate counts
+conformance files without measuring vector sufficiency, and says so. Reviewing
+gate adequacy claim-by-claim is a separate, larger audit.
+
+Reproduce:
+
+```bash
+python3 -c "
+import re
+lines = open('docs/FORMAL_FOUNDATIONS.md').read().split(chr(10))
+props = [l for l in lines if re.match(r'^### (Proposition|Prop\.) [0-9]+', l)]
+gates = [l for l in lines if l.startswith('**Gate:**')]
+print(len(props), 'propositions,', len(gates), 'gate lines')
+"
 ```
 
 ---

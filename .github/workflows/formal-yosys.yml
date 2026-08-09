@@ -229,6 +229,58 @@ jobs:
           zs layer_sequencer      zs_layer      a_zero_neurons_emits_no_work   proves
           exit $fail
 
+      # The document that records these proofs is itself unchecked evidence
+      # unless something checks it. Wave 576 audited it and found 14 of 19
+      # shell-fenced blocks were result TRANSCRIPTS formatted identically to
+      # commands, and the only two blocks a reader could actually run both cited
+      # `t27c`, which is not on PATH -- in a document whose own Prop. 3 says
+      # evidence citing a command that does not exist is not evidence. This step
+      # keeps both properties: every proposition names the gate that re-checks
+      # it, and every runnable block is runnable.
+      - name: Every proposition names its gate, every block runs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys
+          lines = open("docs/FORMAL_FOUNDATIONS.md").read().split("\n")
+          fail = []
+
+          # 1. Each proposition heading must be followed by a **Gate:** line.
+          for n, l in enumerate(lines):
+              if re.match(r"^### (Proposition|Prop\.) [0-9]+", l):
+                  window = "\n".join(lines[n:n + 4])
+                  if "**Gate:**" not in window:
+                      fail.append(f"L{n+1}: {l[:60]} has no **Gate:** line")
+
+          # 2. Strict fence pairing, then: no bash block may cite a bare `t27c`
+          #    (not on PATH), and a block with no command belongs in ```text.
+          CMD = re.compile(r"^\s*(yosys|t27c|\./target|cargo|for |python3|sed|grep|find|n=\$)")
+          inb = False
+          for n, l in enumerate(lines):
+              if not l.startswith("```"):
+                  continue
+              if not inb:
+                  inb, lang, st = True, l[3:].strip(), n
+                  continue
+              inb = False
+              if lang != "bash":
+                  continue
+              body = lines[st + 1:n]
+              txt = "\n".join(body)
+              if re.search(r"<[a-z_]+>", txt):
+                  continue
+              if re.search(r"^\s*t27c ", txt, re.M):
+                  fail.append(f"L{st+1}: bash block calls bare `t27c` (not on PATH)")
+              if not any(CMD.match(x) for x in body):
+                  fail.append(f"L{st+1}: bash block runs nothing -- use ```text for transcripts")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("ok       every proposition gated, every bash block runnable")
+          PY
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27

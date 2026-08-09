@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-09
 
+## doc audit -- the file recording the proofs was itself unchecked
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md`, `.github/workflows/formal-yosys.yml`
+  (Prop 27), `README.md`.
+- **14 of 19 shell blocks were transcripts**, formatted identically to commands.
+  A ```bash fence reads as "run this"; fourteen were showing output. Same
+  failure shape the campaign keeps finding -- **a form that reads as stronger
+  evidence than it is** -- this time in our own documentation. All now ```text.
+- **Both blocks a reader could actually run were broken.** The two added in
+  waves 574 and 575 begin `t27c gen-bitnet-bundle`, and `t27c` is not on PATH.
+  Prop 3's own lesson 6 says evidence citing a command that does not exist is
+  not evidence. Both were written *after* that lesson, by the same author, in
+  the same file, and neither was ever run. **A rule with no gate is a
+  preference.**
+- **All 27 propositions now name the CI step that re-checks them.** Mapped
+  mechanically by matching cited identifiers against workflows and `formal/*.sv`
+  -- then the six that matched nothing were checked by hand rather than declared
+  ungated, which caught four false negatives of my own heuristic.
+- **One proposition has no gate and says so.** Prop 5 measured `sv2v` behaviour;
+  CI does not install `sv2v`. Explicitly historical, not a standing property.
+- **Enforced now**: CI fails if a proposition lacks a `**Gate:**` line, if a
+  ```bash block calls bare `t27c`, or if a ```bash block contains no command.
+- **What this does not establish**: that each gate is *sufficient* for its
+  claim. Prop 4's gate counts conformance files without measuring vector
+  sufficiency. Gate adequacy is a separate, larger audit.
+- Suite **1208 passed, 0 failed**. Seals 496/496.
+
 ## zero-size sweep -- a 2-2 policy split, and a retraction
 
 - **WHERE**: `formal/zero_size_props.sv`, `bootstrap/src/bitnet_dma.rs`,
