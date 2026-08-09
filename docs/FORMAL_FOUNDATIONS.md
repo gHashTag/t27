@@ -2444,6 +2444,58 @@ grep -c "a_sanity" formal/*_props.sv bootstrap/src/bitnet_top.rs
 
 ---
 
+### Prop. 42 — the free-property gate, and a semantic layer that did not land — `PROVED` / recorded
+
+**Gate:** `formal-yosys.yml` → *No property is discharged by syntax alone*
+
+Prop. 41 removed five properties whose bodies were `X == X`, found by a manual
+sweep. A lesson only holds if the check outlives the attention that produced it.
+
+**42a. The gate.** [`formal/identity_scan.py`](../formal/identity_scan.py) scans
+every assertion body in `formal/*.sv` and the emitted bundle for shapes the
+optimiser discharges: self-comparisons at any depth (`a && (x == x)` counts),
+`X >= 0` on an unsigned value, and literal true. **67 bodies, 0 free.**
+
+**42b. The gate is mutation-tested, in the same step.** Prop. 28's discipline
+applied to a new gate on the day it is written: each free shape is reinjected
+and must be flagged, and a real property must **not** be:
+
+| injected | flagged? |
+|---|---|
+| `chunk_id == chunk_id` | yes |
+| `valid && (chunk_id == chunk_id)` | yes |
+| `chunk_id >= 0` | yes |
+| `1'b1` | yes |
+| `valid \|\| !done` (real) | **no** — the control |
+
+**42c. A semantic layer was attempted and withdrawn.** The syntactic scan cannot
+see `valid || !valid`. Four approaches were tried against that case:
+
+| approach | outcome |
+|---|---|
+| compare total cell counts, property present vs neutralised | **unsound** — flagged six *real* properties; CSE lets a genuine property add zero net cells |
+| inspect the lowered `$assert` condition for a constant | `chformal -lower` needs `async2sync`, after which the *guard* is folded into `A` |
+| inspect `$check`'s `A` port before lowering | reads `1'1` for real and free properties alike |
+| select the cell by property label | the labels **do** survive as cell names after `async2sync` — the one useful fact recovered |
+
+Withdrawn rather than shipped. **A detector that flags six real properties is
+worse than no detector**, and one that has failed its own control four times has
+not earned a place in the pipeline. The findings are recorded in the module so
+the next attempt starts from them.
+
+**42d. What ships is smaller than what was aimed at, and says so.** The gate
+makes the known-free shapes unable to return. It does not decide "this property
+can never fail" and does not claim to. Prop. 41's five would all be caught; a
+tautology in a shape nobody has written yet would not.
+
+Reproduce:
+
+```bash
+python3 formal/identity_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-09
 
+## the free-property gate, and a semantic layer that did not land
+
+- **WHERE**: `formal/identity_scan.py` (new),
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 42).
+- Prop 41 removed five `X == X` properties found by a manual sweep. **A lesson
+  only holds if the check outlives the attention that produced it.**
+- **The gate**: scans every assertion body in `formal/*.sv` and the emitted
+  bundle for shapes the optimiser discharges -- self-comparisons at any depth
+  (`a && (x == x)` counts), `X >= 0` unsigned, literal true. **67 bodies, 0
+  free.**
+- **Mutation-tested in the same step**, on the day it was written: each free
+  shape reinjected must be flagged, and a real property must NOT be. All five
+  cases behave.
+- **A semantic layer was attempted and withdrawn.** The syntactic scan cannot
+  see `valid || !valid`. Four approaches failed: cell-count comparison is
+  **unsound** (CSE lets a real property add zero net cells -- it flagged six
+  real ones, including properties that caught actual defects); the lowered
+  `$assert` condition folds the guard into `A`; `$check`'s `A` reads `1'1` for
+  real and free alike. **A detector that flags six real properties is worse than
+  no detector.** The findings are recorded in the module so the next attempt
+  starts from them -- including the one useful fact: after `async2sync` the
+  cells are named after their property labels.
+- **What ships is smaller than what was aimed at, and says so**: the known-free
+  shapes cannot return; it does not decide "this property can never fail".
+- Suite **1213 passed, 0 failed**. Seals 496/496. One open defect, CI-gated.
+
 ## five properties proved by syntax alone
 
 - **WHERE**: `formal/*_props.sv`, `bootstrap/src/bitnet_top.rs`,

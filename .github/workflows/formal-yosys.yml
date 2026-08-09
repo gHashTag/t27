@@ -464,6 +464,55 @@ jobs:
           print(f"ok       reader parsed {len(trace)} signals; wrap visible at t={wrapped[0]}")
           PY
 
+      # No property may be discharged by syntax alone (Prop. 41 / 42).
+      #
+      # Vacuity checking in this file asks whether a property's GUARD is
+      # reachable. It never asked whether the BODY survives the optimiser. Five
+      # properties of the form `X == X` proved unconditionally for dozens of
+      # waves, tested nothing, and still emitted $check cells -- padding the
+      # count-based gates above that exist to detect an all-vacuous set.
+      #
+      # The scan is syntactic and says so: it makes the known-free shapes
+      # unable to return, not "no free property can exist". It is itself
+      # mutation-tested -- see the second half of this step.
+      - name: No property is discharged by syntax alone
+        run: |
+          set -euo pipefail
+          python3 formal/identity_scan.py
+
+          # The gate must bite. Reintroduce each free shape and require a flag,
+          # and require a real property NOT to be flagged (Prop. 28's control).
+          mkdir -p build/gatetest
+          python3 - <<'PY'
+          import subprocess, sys
+          base = open("formal/layer_sequencer_props.sv").read()
+          CASES = [
+              ("self-comparison",        "a_probe: assert (chunk_id == chunk_id);",        True),
+              ("nested self-comparison", "a_probe: assert (valid && (chunk_id == chunk_id));", True),
+              ("unsigned >= 0",          "a_probe: assert (chunk_id >= 0);",               True),
+              ("literal true",           "a_probe: assert (1'b1);",                        True),
+              ("a real property",        "a_probe: assert (valid || !done);",              False),
+          ]
+          fail = []
+          for desc, inject, want_flag in CASES:
+              s = base.replace("endmodule",
+                               f"    always @(posedge clk) if (rst_n)\n        {inject}\nendmodule", 1)
+              open("build/gatetest/probe_props.sv", "w").write(s)
+              r = subprocess.run(["python3", "formal/identity_scan.py",
+                                  "build/gatetest/probe_props.sv"],
+                                 capture_output=True, text=True)
+              flagged = r.returncode != 0
+              if flagged != want_flag:
+                  fail.append(f"{desc}: expected {'flagged' if want_flag else 'passed'}, got "
+                              f"{'flagged' if flagged else 'passed'}")
+              else:
+                  print(f"ok       gate {'flags' if flagged else 'passes'} {desc}")
+          if fail:
+              for f in fail:
+                  print(f"::error::identity_scan {f}")
+              sys.exit(1)
+          PY
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27
