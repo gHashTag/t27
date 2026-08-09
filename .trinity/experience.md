@@ -21278,3 +21278,38 @@ W586: 118 unwritten specs, 55% of compile failures, no compiler change can fix t
 Same shape: A DENOMINATOR CONTAINING THINGS THAT CAN NEVER PASS. Every rate quoted
 against it is wrong by a fixed, unknown amount. Split the population before ranking
 the work.
+
+## Wave Loop 587 -- the first clean failure list, and an import that resolved to nothing (2026-08-10)
+
+All three variants.
+
+    A  taxonomy of the 98 genuinely broken   8,072 assertions, ranked
+    B  C gate split                          296 -> 159 unwritten + 137 broken
+    C  the board                             verified, still BLOCKED
+
+### The bug worth remembering
+
+cordic_fixed.t27 still failed on cordic_gain -- a function I connected in W571 by
+adding the import that declares it:
+
+    use igla::race::cordic;   // W571: cordic_gain, tested here and declared there
+
+`use_targets` strips a trailing `;` then splits on `::`. The semicolon is not at the
+end of the line -- THE COMMENT IS -- so the module path became
+`igla::race::cordic;   // W571: ...`, resolved to no file, and the import quietly did
+nothing.
+
+THE COMMENT THAT BROKE THE IMPORT WAS THE ONE I WROTE TO EXPLAIN THE IMPORT.
+
+26 use lines in the corpus carry a trailing comment. Seventh instance of the chain's
+recurring shape, and the first where the input I broke was my own.
+
+Rule: when a line-oriented parser strips a terminator, strip COMMENTS FIRST. The
+terminator is only at the end of the line in the absence of one.
+
+### Two measurement systems, one definition
+
+The C gate counted 296 failing headers without knowing which were unwritten. Both it
+and the harness now share `impl_status::spec_is_unwritten`. Before this they would
+have reported different totals for the same population -- which is how a project ends
+up with two numbers for one fact.

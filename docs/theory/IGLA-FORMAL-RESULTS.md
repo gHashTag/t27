@@ -160,6 +160,49 @@ defect, and no amount of backend work can change it.
 **Falsified by.** A count of `TODO: Implement from` that does not match the count
 of empty function bodies, or a spec in that set whose functions do have bodies.
 
+### P7 — 40% of the specs that parse have no implementation (W586)
+
+**Method.** `t27c impl-status` — a function declaration with no statements is
+exactly what the Zig backend turns into `@compileError("not yet implemented")`.
+
+| | |
+|---|---:|
+| Specs fully implemented | 232 |
+| Specs partly written | 6 |
+| Specs **entirely unwritten** | **159** |
+| Specs that do not parse | 211 |
+| Functions declared | 2,854 |
+| Functions with **no body** | **667** (23%) |
+
+**Consequence for every earlier number.** `COMPILE_FAIL 216` was
+`COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
+W560 to W585 was **more than half composed of specs nobody had written**, and no
+compiler change could ever have moved that half. Nothing measured earlier was
+wrong; several things were reported against a denominator that included specs
+which can never pass.
+
+**Falsified by.** A spec counted unwritten whose functions do have bodies, or a
+`COMPILE_FAIL` whose Zig error is not `not yet implemented` being counted as
+unimplemented.
+
+### P8 — The `.tri` sources named in 169 headers do not exist (W586)
+
+**Method.** Basename match between the 169 specs carrying
+`// TODO: Implement from .tri spec` and every `.tri` file in the repository.
+
+| | |
+|---|---:|
+| `.tri` files in the repository | 26 |
+| Empty-body specs with a same-named `.tri` | **1** — a basename collision with an architecture diagram |
+| Function declarations across all 26 `.tri` files | 94 |
+| …with a body | **5** |
+
+**Consequence.** The 571 empty bodies are not recoverable by regeneration. Each
+is a spec-authoring decision.
+
+**Falsified by.** A `.tri` source found outside this repository containing the
+bodies — which would make this one regeneration rather than 571 decisions.
+
 ---
 
 ## 3. Where this sits in the literature
@@ -232,6 +275,8 @@ Eighteen waves of findings share one shape:
 | W581 | **lexer** | `?`, 287 sites — *changing meaning, not losing code* |
 | W582/583 | **C backend** | 409 invalid declarations nobody compiled |
 | W585 | — | the `default_input` mask over 571 empty functions |
+| W586 | **every count** | 118 unwritten specs reported as compile failures |
+| W587 | `use_resolve` | an import silently resolving to nothing, because of a trailing comment |
 
 **Every one is a component that accepted input, produced a smaller or different
 program, and reported success.** Not one was found by a test failing. Each was
@@ -261,7 +306,7 @@ wrong, and the only part with a real consumer.
 | `systolic_ternary_array`'s output length — an invariant says `len == size`, a test says `len == 0` for size 2 | the systolic RTL in `fpga/verilog/` |
 | `OP_ADD` / `OP_SUB` — asserted to pass `is_sacred_opcode`, but the sacred set is eleven named opcodes | the ISA encoding table under `specs/isa/` |
 | 15 Markdown documents named `*.t27` — 7% of everything failing to parse, no fix possible | a rename-or-exclude decision; changes provenance (`MANIFEST.json`, 104 references) |
-| **571 functions with no implementation** | the `.tri` sources these specs were generated from, if they exist |
+| **571 functions with no implementation** | **settled (W586): the `.tri` sources do not exist.** Each is a spec-authoring decision — see P8 |
 
 ---
 

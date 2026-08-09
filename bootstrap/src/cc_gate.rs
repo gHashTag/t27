@@ -25,6 +25,11 @@ pub struct Report {
     pub total: usize,
     pub compiled: usize,
     pub failed: usize,
+    /// W587: of the failures, those whose spec has NO implementation -- every
+    /// function body empty. They are not broken headers; they are headers for
+    /// specs nobody has written, and counting them with the rest is the same
+    /// mistake W586 removed from the harness.
+    pub unwritten: usize,
     pub gen_failed: usize,
     /// Normalised first-error text -> occurrences.
     pub classes: BTreeMap<String, usize>,
@@ -110,6 +115,7 @@ pub fn run(specs_root: &Path, include_scratch: bool) -> Option<Report> {
         total: files.len(),
         compiled: 0,
         failed: 0,
+        unwritten: 0,
         gen_failed: 0,
         classes: BTreeMap::new(),
         failures: Vec::new(),
@@ -152,6 +158,9 @@ pub fn run(specs_root: &Path, include_scratch: bool) -> Option<Report> {
             continue;
         }
         report.failed += 1;
+        if crate::impl_status::spec_is_unwritten(&resolved) {
+            report.unwritten += 1;
+        }
         let stderr = String::from_utf8_lossy(&out.stderr);
         let first = stderr
             .lines()

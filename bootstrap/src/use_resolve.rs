@@ -63,6 +63,14 @@ fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
             Some(r) => r,
             None => continue,
         };
+        // W587: strip a trailing comment BEFORE the semicolon. A line like
+        // `use igla::race::cordic;   // note` left the whole comment inside the
+        // module path, so the import silently resolved to nothing -- and the
+        // comment in question was one I added in W571 to explain the import.
+        let rest = match rest.find("//") {
+            Some(i) => &rest[..i],
+            None => rest,
+        };
         let path_expr = rest.trim().trim_end_matches(';').trim();
         if path_expr.is_empty() || !path_expr.contains("::") && path_expr.contains(' ') {
             continue;

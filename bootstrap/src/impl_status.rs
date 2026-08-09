@@ -66,6 +66,21 @@ fn is_empty_fn(n: &Node) -> bool {
     n.kind == NodeKind::FnDecl && n.children.is_empty()
 }
 
+/// Whether every function this source declares has an empty body. Shared with
+/// the C gate (W587) so both commands agree on what "unwritten" means.
+pub fn spec_is_unwritten(source: &str) -> bool {
+    let ast = match Compiler::parse_ast(source) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    let fns: Vec<&Node> = ast
+        .children
+        .iter()
+        .filter(|c| c.kind == NodeKind::FnDecl)
+        .collect();
+    !fns.is_empty() && fns.iter().all(|n| is_empty_fn(n))
+}
+
 pub fn run(specs_root: &Path, include_scratch: bool) -> Report {
     let mut r = Report::default();
     for f in spec_files(specs_root, include_scratch) {

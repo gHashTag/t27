@@ -4339,6 +4339,19 @@ These cost a wave each. Follow them before step 1.
     artefact before planning the wave around it -- the falsification condition
     took ten minutes and saved a wave.
 
+69. **When a line-oriented parser strips a terminator, strip COMMENTS
+    first.** `use_targets` removed a trailing `;` and split the rest as a module
+    path -- but on `use igla::race::cordic;   // note` the semicolon is not at
+    the end, the comment is, so the import silently resolved to nothing. 26
+    `use` lines in the corpus carry a trailing comment. The one that broke this
+    import was the comment I had written to explain the import.
+
+70. **Two measurement systems must share one definition, or the project ends up
+    with two numbers for one fact.** W586 taught the harness to separate
+    unwritten from broken; the C gate kept counting them together until W587
+    made both call `impl_status::spec_is_unwritten`. Whenever a second consumer
+    of a concept appears, give it the same predicate rather than its own.
+
 ### How to update this tracker
 
 After closing a wave:

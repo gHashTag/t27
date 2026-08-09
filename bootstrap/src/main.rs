@@ -3197,6 +3197,14 @@ fn run_cc_gate(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow:
     println!("  specs scanned          {}", report.total);
     println!("  headers that COMPILE   {}", report.compiled);
     println!("  headers that FAIL      {}", report.failed);
+    println!(
+        "    of those, UNWRITTEN  {}   (every function body empty -- not a header defect)",
+        report.unwritten
+    );
+    println!(
+        "    genuinely broken     {}",
+        report.failed.saturating_sub(report.unwritten)
+    );
     println!("  no header generated    {}", report.gen_failed);
     Ok(())
 }

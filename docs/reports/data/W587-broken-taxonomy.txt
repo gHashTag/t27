@@ -1,0 +1,20 @@
+  4142    44  use of undeclared identifier X
+   733     3  expected type X, found X
+   706     2  duplicate struct member name X
+   699     6  expected X after declaration
+   311     2  expected expression, found X
+   278     1  value with comptime-only type X depends on runtime control flow
+   275     1  redeclaration of local constant X
+   251     9  expected type expression, found X
+   136     1  type X does not support array initialization syntax
+   109     2  variables must be initialized
+   101    15  expected X, found X
+    72     2  function parameter shadows declaration of X
+    57     1  expected X after field
+    49     1  expected X after initializer
+    48     1  expected field initializer
+    34     1  cannot assign to constant
+    23     1  pointless discard of local constant
+    19     1  unable to load X: FileNotFound
+    17     1  expected enum or tagged union, found X
+    12     3  tuple field has a name
