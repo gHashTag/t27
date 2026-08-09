@@ -1,3 +1,15 @@
+# NOW -- GF-T16 spends its last two positions (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T16 M = 9 -> 11, and four specs recovered (Refs #2001)
+
+- `gft4/8/16/32.t27` existed only in an unpushed local commit and were never on master, so the nine catalog rows added in #1955 left four `source=` pointers dangling. Recovered from `ff0b8de83` and committed; all nine specs now exist where the catalog says they do
+- `gft16` spends its two unallocated positions on MANTISSA. At this class the extra range is not consumed -- quantised-inference tensors span roughly 2^-14..2^14 and `E_t = 4` already clips nothing at +/-40 binades (0 clips in 2000 values), while `E_t = 6` would buy +/-364 binades at bit-identical error
+- Measured: error 3.45e-4 -> 8.63e-5, factor 4.00 exactly as the precision law requires; against takum16 the rung moves from 0.92x/2.88x/5.49x to 3.70x/11.37x/22.28x and stops losing the near bin; silicon 372 -> 443 LUTs (+19%) at 131.73 -> 136.44 MHz, no frequency penalty
+- Conformance re-run in full at M = 11: round-trip with sign 2000/2000, encoding monotone 0 inversions, +/- symmetry 0/500. `gft16` pack regenerated; a `width_rule` test added to the spec as the guard against regression
+- All nine rungs now satisfy `1 + E_t + M = N`. Gates: catalog count 92, WP-18 CLEAN, t27c clean
+
 # NOW — numeric SSOT: the GF-T ladder lands in the catalog (2026-08-09)
 
 Last updated: 2026-08-09
