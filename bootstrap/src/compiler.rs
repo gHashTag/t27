@@ -128,6 +128,10 @@ impl Node {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
+    /// A string literal that reached end-of-input without a closing quote.
+    /// Distinct from `String` so the parser can reject it instead of treating
+    /// the rest of the file as its contents (W577).
+    UnterminatedString,
     // Keywords
     KwPub,
     KwConst,
@@ -441,6 +445,19 @@ impl Lexer {
             }
             if self.pos < self.source.len() {
                 self.advance(); // consume closing "
+            } else {
+                // W577: no closing quote. The lexer used to return a String
+                // token holding the REST OF THE FILE, so the parser saw one
+                // giant literal, reached Eof and reported success -- a
+                // truncation the completeness check cannot even see, because
+                // the input really was consumed. Mark it so the parser can
+                // refuse.
+                return Token {
+                    kind: TokenKind::UnterminatedString,
+                    lexeme: s,
+                    line: start_line,
+                    col: start_col,
+                };
             }
             return Token {
                 kind: TokenKind::String,
@@ -1064,7 +1081,53 @@ impl Parser {
         }
     }
 
+    /// Refuse an unterminated string wherever it appears. The token carries the
+    /// rest of the file as its lexeme, so any construct that accepts it would
+    /// silently absorb everything after the opening quote.
+    fn reject_unterminated_string(&self) -> Result<(), String> {
+        if self.current.kind == TokenKind::UnterminatedString {
+            return Err(format!(
+                "unterminated string literal opened at line {}:{}",
+                self.current.line, self.current.col
+            ));
+        }
+        Ok(())
+    }
+
     pub fn parse(&mut self) -> Result<Node, String> {
+        // W577: an unterminated string literal carries the REST OF THE FILE as
+        // its lexeme. Every construct that accepts a string then absorbs
+        // everything after the opening quote, reaches Eof, and reports success
+        // -- a truncation the completeness check cannot see, because the input
+        // really was consumed. There are too many places a string can be
+        // accepted to guard each one, so the whole token stream is checked once
+        // up front. The lexer shares its source buffer, so this clone is a
+        // refcount bump (W569).
+        for t in [&self.current, &self.peek] {
+            if t.kind == TokenKind::UnterminatedString {
+                return Err(format!(
+                    "unterminated string literal opened at line {}:{}",
+                    t.line, t.col
+                ));
+            }
+        }
+        {
+            let mut scan = self.lexer.clone();
+            loop {
+                let t = scan.next_token();
+                match t.kind {
+                    TokenKind::Eof => break,
+                    TokenKind::UnterminatedString => {
+                        return Err(format!(
+                            "unterminated string literal opened at line {}:{}",
+                            t.line, t.col
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let mut module = Node::new(NodeKind::Module);
 
         // [BUG 4 FIX] Parse optional module declaration
@@ -1095,6 +1158,20 @@ impl Parser {
                 self.advance(); // consume {
                 self.parse_module_body(&mut module)?;
                 self.expect(TokenKind::RBrace)?;
+                // W577: this used to `return` here, so anything AFTER the
+                // closing brace was discarded without a word.
+                // `specs/nn/attention.t27` closes `module SacredAttention {` at
+                // line 639 and opens `module AttentionQKGainAblation;` at 640,
+                // and the parser reported success having read 70 of the file's
+                // declarations and none of the remaining 282 lines. Fall
+                // through instead: the trailing declarations, including any
+                // further module headers, are read by the body loop below.
+                self.parse_module_body(&mut module)?;
+                if self.current.kind == TokenKind::Ident
+                    && self.current.lexeme == "endmodule"
+                {
+                    self.advance();
+                }
                 return Ok(module);
             }
         }
@@ -1107,15 +1184,52 @@ impl Parser {
             self.advance();
         }
 
+        // W577: `parse_module_body` stops at `}`. In a flat module there is no
+        // opening brace for it to close, so reaching one means the file has a
+        // stray `}` -- and the body loop's exit made that look like a clean end
+        // of file. 29 specs were truncated that way for years while reporting
+        // success (W569). Say so instead.
+        if self.current.kind == TokenKind::RBrace {
+            return Err(format!(
+                "stray '}}' at line {}:{} -- this module has no opening brace, so everything after this point would be discarded",
+                self.current.line, self.current.col
+            ));
+        }
+
         Ok(module)
     }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
+        self.reject_unterminated_string()?;
         while self.current.kind != TokenKind::Eof
             && self.current.kind != TokenKind::RBrace
             && !(self.current.kind == TokenKind::Ident
                 && self.current.lexeme == "endmodule")
         {
+            self.reject_unterminated_string()?;
+
+            // W577: a file may declare SEVERAL modules.
+            // `specs/nn/attention.t27` appends
+            // `module AttentionQKGainAblation;` at line 640 of 922 -- the
+            // parser stopped there and discarded 282 lines while reporting
+            // success. Consume the extra header and keep reading; the backends
+            // emit one file per spec regardless, so the declarations merge.
+            if self.current.kind == TokenKind::KwModule {
+                self.advance(); // consume 'module'
+                while matches!(
+                    self.current.kind,
+                    TokenKind::Ident | TokenKind::Minus | TokenKind::Number
+                ) {
+                    self.advance(); // the (possibly hyphenated) name
+                }
+                if self.current.kind == TokenKind::Semicolon
+                    || self.current.kind == TokenKind::LBrace
+                {
+                    self.advance();
+                }
+                continue;
+            }
+
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
@@ -1706,6 +1820,41 @@ impl Parser {
                     || self.current.kind == TokenKind::Semicolon
                 {
                     self.advance();
+                }
+            } else if self.current.kind == TokenKind::KwFn
+                || self.current.kind == TokenKind::KwPub
+            {
+                // W577: a METHOD inside a struct body. The skip below consumed
+                // tokens one at a time without tracking braces, so the method's
+                // closing `}` ended the struct body and the struct's own `}`
+                // then ended the module -- `specs/jit/jit.t27` lost 797 of its
+                // 875 lines that way, and `specs/ternary/bigint.t27` 1,359 of
+                // 1,445, both while reporting success.
+                //
+                // The method is skipped, not lowered: struct methods are not
+                // part of what the backends emit today. What matters is that
+                // the skip is BRACE-BALANCED so the struct still ends where it
+                // should.
+                while self.current.kind != TokenKind::LBrace
+                    && self.current.kind != TokenKind::Eof
+                    && self.current.kind != TokenKind::RBrace
+                {
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::LBrace {
+                    let mut depth = 0i32;
+                    loop {
+                        match self.current.kind {
+                            TokenKind::LBrace => depth += 1,
+                            TokenKind::RBrace => depth -= 1,
+                            TokenKind::Eof => break,
+                            _ => {}
+                        }
+                        self.advance();
+                        if depth == 0 {
+                            break;
+                        }
+                    }
                 }
             } else {
                 // Skip unexpected tokens inside struct
@@ -3029,6 +3178,14 @@ impl Parser {
                     ..Default::default()
                 })
             }
+
+            // W577: an unterminated literal carries the rest of the file as its
+            // lexeme. Accepting it as a value is how `const S = "oops` absorbed
+            // every declaration after it and still reported success.
+            TokenKind::UnterminatedString => Err(format!(
+                "unterminated string literal opened at line {}:{}",
+                self.current.line, self.current.col
+            )),
 
             // Boolean literals
             TokenKind::KwTrue => {
@@ -12989,6 +13146,34 @@ impl Compiler {
         let mut codegen = RustCodegen::new();
         codegen.gen_rust(&ast);
         Ok(codegen.into_string())
+    }
+
+    /// Parse, and REQUIRE that the whole input was consumed.
+    ///
+    /// W577: `parse_ast` returns Ok as soon as the module body loop stops, and
+    /// that loop stops on `}` -- so a stray closing brace in a semicolon-form
+    /// module silently ends the file. That is how 29 specs, every IGLA CODER
+    /// and IGLA RACE spec among them, were truncated for years while reporting
+    /// success (W569). An unterminated string does the same thing and discards
+    /// the file entirely.
+    ///
+    /// A parser that stops early and returns Ok is indistinguishable from one
+    /// that finished. This is the distinguisher.
+    pub fn parse_ast_strict(source: &str) -> Result<Node, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        if parser.current.kind != TokenKind::Eof {
+            return Err(format!(
+                "input not fully consumed: stopped at {:?} ('{}') at line {}:{}, after {} top-level declaration(s)",
+                parser.current.kind,
+                parser.current.lexeme,
+                parser.current.line,
+                parser.current.col,
+                ast.children.len()
+            ));
+        }
+        Ok(ast)
     }
 
     pub fn parse_ast(source: &str) -> Result<Node, String> {

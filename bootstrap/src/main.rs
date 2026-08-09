@@ -15,6 +15,7 @@ mod compiler;
 mod use_resolve;
 mod check_calls;
 mod lex_conform;
+mod parse_conform;
 mod enrichment;
 mod suite;
 mod railway;
@@ -85,6 +86,19 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Run the parser conformance table: each input against the verdict it
+    /// must produce (Full / Truncated / Rejected)
+    ParseConform,
+    /// Report specs the parser accepts WITHOUT consuming the whole file --
+    /// silent truncation
+    ParseComplete {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+    },
     /// Check call sites against the signatures they call (arity and
     /// aggregate-vs-scalar), across a spec tree
     CheckCalls {
@@ -3086,6 +3100,74 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
     }
+    Ok(())
+}
+
+fn run_parse_conform() -> anyhow::Result<()> {
+    let failures = parse_conform::run();
+    let total = parse_conform::total();
+    for f in &failures {
+        println!("case     {}", f.name);
+        println!("  expected {}", f.expected);
+        println!("  actual   {}", f.actual);
+        println!("  note     {}", f.note);
+        println!();
+    }
+    println!("--- parser conformance ---");
+    println!("  cases      {}", total);
+    println!("  passing    {}", total - failures.len());
+    println!("  failing    {}", failures.len());
+    if !failures.is_empty() {
+        anyhow::bail!("{} parser conformance failure(s)", failures.len());
+    }
+    Ok(())
+}
+
+fn run_parse_complete(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()> {
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    let mut stack = vec![std::path::PathBuf::from(specs_dir)];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                if !include_scratch && p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("t27") {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    let (mut ok, mut truncated, mut rejected) = (0usize, 0usize, 0usize);
+    for f in &files {
+        let src = match std::fs::read_to_string(f) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if compiler::Compiler::parse_ast(&src).is_err() {
+            rejected += 1;
+            continue;
+        }
+        match compiler::Compiler::parse_ast_strict(&src) {
+            Ok(_) => ok += 1,
+            Err(e) => {
+                truncated += 1;
+                println!("{}: {}", f.display(), e);
+            }
+        }
+    }
+    println!();
+    println!("--- parse completeness ---");
+    println!("  specs scanned            {}", files.len());
+    println!("  parse and consume all    {}", ok);
+    println!("  parse but TRUNCATE       {}", truncated);
+    println!("  do not parse             {}", rejected);
     Ok(())
 }
 
@@ -9495,6 +9577,10 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::ParseConform => run_parse_conform()?,
+        Commands::ParseComplete { specs_dir, include_scratch } => {
+            run_parse_complete(&specs_dir, include_scratch)?
+        }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
         }
@@ -9804,6 +9890,10 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::ParseConform => run_parse_conform()?,
+        Commands::ParseComplete { specs_dir, include_scratch } => {
+            run_parse_complete(&specs_dir, include_scratch)?
+        }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
         }

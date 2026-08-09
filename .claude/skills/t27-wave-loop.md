@@ -4190,6 +4190,21 @@ These cost a wave each. Follow them before step 1.
     behaviour nobody had written down. That is exactly the change that
     otherwise ships silently.
 
+49. **Ask "did it consume its input?", not "did it match the pattern I know
+    about".** W569 found 29 truncated specs by scanning for a stray `}`. W577
+    added one predicate -- parse, then require the stream reached Eof -- and
+    found three MORE, by two mechanisms the brace scan could not see (a method
+    inside a struct; a second `module` header), together hiding 2,438 lines
+    nobody had ever parsed. A generic completeness check beats a targeted scan
+    for a known shape.
+
+50. **In a conformance table, the "must be REFUSED" cases are the ones nobody
+    has ever asked the component about.** Eleven of W577's thirteen parser
+    cases passed immediately; both failures were reject cases -- a stray `}`
+    that truncated, and an unterminated string that looked COMPLETE because the
+    lexer handed the parser the rest of the file as one literal. Repairing the
+    data (W569 fixed 28 specs) does not repair the reader.
+
 ### How to update this tracker
 
 After closing a wave:

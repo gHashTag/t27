@@ -1332,6 +1332,19 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 println!("    FAIL {:?}: expected {}, got {}", f.input, f.expected, f.actual);
             }
         }
+        // W577: the parser conformance table, and the corpus-wide count of
+        // specs the parser ACCEPTS without consuming. Both should be zero.
+        {
+            let failures = crate::parse_conform::run();
+            println!(
+                "  parser conformance: {}/{} cases passing",
+                crate::parse_conform::total() - failures.len(),
+                crate::parse_conform::total()
+            );
+            for f in &failures {
+                println!("    FAIL {}: expected {}, got {}", f.name, f.expected, f.actual);
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 

@@ -20920,3 +20920,39 @@ cases record what was measured rather than designed:
 
 A boundary failing does not mean the component is wrong. It means someone changed
 behaviour nobody had written down.
+
+## Wave Loop 577 -- silent truncation is now zero (2026-08-09)
+
+    parse-complete   specs that parse but TRUNCATE:  3 -> 0
+    parse-conform    13 cases, 13 passing
+    harness          ALL_PASS 23, 615 passing, 0 regressions
+    parse census     351 -> 348  (three specs now report their REAL error)
+
+### The distinguisher
+
+`parse_ast` returns Ok as soon as the module body loop stops, and that loop stops on
+`}`. `parse_ast_strict` parses and then REQUIRES that the stream reached Eof. That one
+predicate found three specs being read at a fraction of their length while reporting
+success:
+
+    ternary/bigint.t27    86 of 1,445 lines   (1,359 discarded)  struct method
+    jit/jit.t27           78 of   875        (  797 discarded)  struct method
+    nn/attention.t27     640 of   922        (  282 discarded)  a second `module`
+
+2,438 lines nobody had ever parsed. W569 found 29 specs truncated by a stray brace;
+these are two DIFFERENT mechanisms the brace scan could not see. One measurement of
+"did the parser consume its input" beat a targeted scan for a known pattern.
+
+### The reject half of a conformance table is the half that does not exist yet
+
+11 of 13 parser cases passed on the first run. Both failures were `Rejected` cases:
+
+  * a stray `}` was Truncated -- the W569 defect, still live in the parser after the
+    SPECS were repaired. Repairing the data does not repair the reader.
+  * an unterminated string was FULL -- worse than truncation. The lexer returned a
+    String token holding the rest of the file, so the parser consumed one giant
+    literal, reached Eof, and looked complete. Invisible to the completeness check,
+    because the input really was consumed.
+
+Whenever you write a conformance table, the cases that say "this must be REFUSED" are
+the ones the component has never been asked about.
