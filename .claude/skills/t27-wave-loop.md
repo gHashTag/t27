@@ -4143,6 +4143,21 @@ These cost a wave each. Follow them before step 1.
     equivalent (`-a` -> `(0 - a)`) for `ternary_mac`. Do not ASSERT that a
     change is confined to one backend -- regenerate the others and diff.
 
+43. **Run the falsification condition FIRST, before the work it guards.**
+    W573 recommended a 117-call-site rewrite on the authority of the golden
+    RTL's port order, and attached "Verilog ports are named, not positional --
+    check whether the proof binds by name or by position." It binds by name.
+    Five minutes of checking replaced a wave of wrong work, and only because
+    the condition was written down in the report rather than held in mind.
+
+44. **When a finding turns out to be a decision you cannot make, ship the
+    instrument, not a guess.** `ternary_mac`'s calling convention is split
+    91/80 INSIDE THE MODULE THAT DECLARES IT, and the RTL cannot arbitrate. So
+    W574 built `t27c check-calls` -- arity and aggregate-vs-scalar, sound, no
+    inference -- which found 35 unambiguous arity defects nobody had ever
+    looked for, and wired it into suite Phase 6. The decision stays with the
+    maintainer; the class stops being invisible.
+
 ### How to update this tracker
 
 After closing a wave:

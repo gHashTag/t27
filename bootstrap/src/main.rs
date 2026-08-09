@@ -13,6 +13,7 @@
 mod bridge;
 mod compiler;
 mod use_resolve;
+mod check_calls;
 mod enrichment;
 mod suite;
 mod railway;
@@ -80,6 +81,16 @@ enum Commands {
     },
 
     /// Generate Zig code from .t27 file
+    /// Check call sites against the signatures they call (arity and
+    /// aggregate-vs-scalar), across a spec tree
+    CheckCalls {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+    },
     Gen {
         /// Input file path
         input: String,
@@ -3070,6 +3081,37 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
             }
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_check_calls(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let findings = check_calls::check_tree(root, !include_scratch);
+    let mut by_kind: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    let mut by_callee: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for f in &findings {
+        *by_kind.entry(f.kind).or_insert(0) += 1;
+        *by_callee.entry(f.callee.clone()).or_insert(0) += 1;
+        println!("{}:{}: {}: {} -- {}", f.file, f.line, f.kind, f.callee, f.detail);
+    }
+    println!();
+    println!("--- call-site check ---");
+    for (k, n) in &by_kind {
+        println!("  {:<22} {}", k, n);
+    }
+    println!("  {:<22} {}", "TOTAL", findings.len());
+    if !by_callee.is_empty() {
+        println!("  most affected callees:");
+        let mut top: Vec<_> = by_callee.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1));
+        for (name, n) in top.into_iter().take(8) {
+            println!("    {:<28} {}", name, n);
+        }
     }
     Ok(())
 }
@@ -9421,6 +9463,9 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::CheckCalls { specs_dir, include_scratch } => {
+            run_check_calls(&specs_dir, include_scratch)?
+        }
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
@@ -9726,6 +9771,9 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::CheckCalls { specs_dir, include_scratch } => {
+            run_check_calls(&specs_dir, include_scratch)?
+        }
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,

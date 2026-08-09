@@ -3143,9 +3143,13 @@ impl Parser {
 
     /// Parse function/builtin call arguments: name(arg1, arg2, ...)
     fn parse_call_args(&mut self, name: String) -> Result<Node, String> {
+        // W574: call nodes carried no line, so a diagnostic about a call site
+        // could only say which FILE it was in.
+        let line = self.current.line as u32;
         self.advance(); // consume (
         let mut call = Node::new(NodeKind::ExprCall);
         call.name = name;
+        call.line = line;
 
         while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
             let arg = self.parse_expr()?;

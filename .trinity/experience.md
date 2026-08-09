@@ -20807,3 +20807,49 @@ makes the .t27 declaration the outlier.
 Falsification to run FIRST: Verilog ports are named, not positional, so check whether
 prove_ternary_mac.ys binds by name or by position before treating port ORDER as
 normative.
+
+## Wave Loop 574 -- the falsification check fired, so I built the arbiter instead (2026-08-09)
+
+    t27c check-calls   38 findings (35 arity, 3 aggregate-vs-scalar)
+    suite Phase 6      reports them on every run
+    parse 341 -> 351, 0 regressions | T1/T2/T3 re-proved
+
+### The check fired, and that is the wave
+
+W573 recommended unifying ternary_mac's convention on the authority of the golden RTL
+port order, WITH a falsification condition: Verilog ports are named, not positional --
+check whether prove_ternary_mac.ys binds by name or position.
+
+`miter -equiv` binds BY NAME. Port order carries no meaning; reordering either module
+would not change what T1 proves. W573's conclusion is withdrawn.
+
+Writing the falsification condition into the report is what made this a five-minute
+check instead of a wasted wave. Keep doing it, and RUN IT FIRST.
+
+### What the evidence actually says
+
+Re-counted by argument TYPE (a call whose 2nd arg is a weight is (a,w,acc); whose 3rd
+is a weight is (acc,a,w)):
+
+    ternary_mac.t27  -- the OWNING module --   91 declared-order  vs  80 other
+    ternary_gemm.t27                            0                     72
+    systolic_ternary.t27                        1                      0
+
+The module that declares the function is itself split 91/80. Both conventions have
+substantial test bases inside the owning spec. With the RTL out as arbiter, this is a
+specification decision, not a repair.
+
+### Build the thing that would have caught it
+
+This survived because NOTHING in the project ever compared a call to the declaration
+it targets -- before W569 a foreign callee was simply absent from every generated
+file, so a wrong call and a missing one were indistinguishable. Even now a mismatch is
+caught only in the 23 specs that compile through Zig.
+
+`t27c check-calls` reports only what is decidable from the AST: arity (sound) and
+aggregate-vs-scalar (a struct literal where a scalar is declared). No inference, no
+semantic choices. 35 arity findings, every one an unambiguous defect -- 7 arguments to
+a 4-parameter function, `init(input)` against `fn init()`.
+
+When a finding turns out to be a decision you cannot make, the deliverable is the
+instrument that surfaces the whole class -- not a guess that closes the instance.

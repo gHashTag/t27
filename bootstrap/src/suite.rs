@@ -1300,6 +1300,23 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
             "  duplicate test names: {} name(s) across {} spec(s) (backend suffixes repeats)",
             dup_names, dup_specs
         );
+        // W574: call sites checked against the signatures they call. Nothing
+        // in this project compared the two until `use` resolution landed, and
+        // the first comparison found calls passing the wrong NUMBER of
+        // arguments -- unambiguous defects, invisible for as long as they
+        // existed.
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let findings = crate::check_calls::check_tree(root, true);
+                let arity = findings.iter().filter(|f| f.kind == "arity").count();
+                let types = findings.len() - arity;
+                println!(
+                    "  call-site mismatches: {} arity, {} aggregate-vs-scalar (t27c check-calls)",
+                    arity, types
+                );
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 
