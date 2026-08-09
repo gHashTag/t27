@@ -26,27 +26,39 @@ pub const Vec8 = struct {
 // 2. Binary Tree Adder
 // ============================================================================
 
+/// ## Arithmetic: wrapping, deliberately
+///
+/// W573: these adders model FPGA datapath adders, which wrap by width -- there
+/// is no trap in an LUT carry chain. This spec's own tests assert that:
+/// `adder_tree_4(2147483647, 2, 0, 0) == -2147483647`. Plain `+` in t27 keeps
+/// Zig's trapping semantics (see docs/NOW.md, wrapping-operator family), so the
+/// software backends panicked where the hardware wraps.
+///
+/// The Verilog backend collapses `+%` to `+` (hardware wraps by width), so the
+/// generated RTL is byte-identical -- only the software backends change, and
+/// only for inputs that overflow.
+
 /// 8-input binary tree adder.
 /// Stage 1: 4 pairwise adds
 /// Stage 2: 2 adds
 /// Stage 3: final add
 fn adder_tree_8(v: Vec8) -> i32 {
-    let s1_0 = v.v0 + v.v1;
-    let s1_1 = v.v2 + v.v3;
-    let s1_2 = v.v4 + v.v5;
-    let s1_3 = v.v6 + v.v7;
+    let s1_0 = v.v0 +% v.v1;
+    let s1_1 = v.v2 +% v.v3;
+    let s1_2 = v.v4 +% v.v5;
+    let s1_3 = v.v6 +% v.v7;
 
-    let s2_0 = s1_0 + s1_1;
-    let s2_1 = s1_2 + s1_3;
+    let s2_0 = s1_0 +% s1_1;
+    let s2_1 = s1_2 +% s1_3;
 
-    return s2_0 + s2_1;
+    return s2_0 +% s2_1;
 }
 
 /// 4-input binary tree adder (subset for smaller blocks).
 fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
-    let s1_0 = v0 + v1;
-    let s1_1 = v2 + v3;
-    return s1_0 + s1_1;
+    let s1_0 = v0 +% v1;
+    let s1_1 = v2 +% v3;
+    return s1_0 +% s1_1;
 }
 
 /// N-input adder over a slice -- the general form the 2/4/8-input trees are
@@ -74,7 +86,7 @@ fn adder_tree(v: []i32) -> i32 {
 /// `adder_tree_2(3, 4) == 7` and the invariant
 /// `adder_tree_2(a, b) == adder_tree_2(b, a)`.
 fn adder_tree_2(v0: i32, v1: i32) -> i32 {
-    return v0 + v1;
+    return v0 +% v1;
 }
 
 // ============================================================================

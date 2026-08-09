@@ -4128,6 +4128,21 @@ These cost a wave each. Follow them before step 1.
     newly-visible signature mismatches after any linking change, and audit for
     the class rather than patching the instance.
 
+41. **When you name a deciding artefact, name the change log too.** W572 sent
+    W573 to `FORMAT-SPEC-001.json` and `gf16.t27` for integer-overflow
+    semantics; both are silent (gf16 specifies FLOAT overflow). The decision
+    was already made and recorded in `docs/NOW.md`, where the wrapping-operator
+    family landed with "`+/-/*` stay infix -> same overflow-panic semantics as
+    the Zig backend". A language decision often lives where the work landed,
+    not where the specification would put it.
+
+42. **A semantics change is free if you can regenerate and diff the artefact it
+    must not affect.** Switching three hardware-kernel specs from `+` to `+%`
+    could only be justified because the Verilog backend collapses them: the
+    regenerated RTL was byte-identical for `adder_tree`, and provably
+    equivalent (`-a` -> `(0 - a)`) for `ternary_mac`. Do not ASSERT that a
+    change is confined to one backend -- regenerate the others and diff.
+
 ### How to update this tracker
 
 After closing a wave:

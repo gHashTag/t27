@@ -20760,3 +20760,50 @@ match, and it was undetectable before W569 because nothing crossed a module boun
 
 Turning on cross-module resolution turns every call site into a type check. Expect a
 wave of newly-visible signature mismatches, and audit rather than patch.
+
+## Wave Loop 573 -- 335 tests green; the corpus is split on how to call its own MAC (2026-08-09)
+
+    tests executing and passing  280 -> 615   (+335)
+    specs fully passing           22 ->  23
+    TEST_FAIL                      1 ->   0
+    adder_tree.t27: All 335 tests passed  -- first RACE kernel fully green
+
+### The overflow question was already answered, just not where I looked
+
+W572 named FORMAT-SPEC-001.json and gf16.t27 as the deciding artefacts. Both are
+SILENT on integer overflow (gf16 specifies FLOAT overflow -> Inf). By W572's own
+falsification condition that made it a constitutional amendment.
+
+It was not: docs/NOW.md records that the wrapping-operator family (+% -% *%) already
+exists with full backend support, and that "+/-/* stay infix -> same overflow-panic
+semantics as the Zig backend". The language HAD decided. Plain + traps, +% wraps.
+
+Lesson: when naming a deciding artefact, name the CHANGE LOG too. A decision can be
+recorded where the work landed rather than where the spec would put it.
+
+### Why the fix was free
+
+adder_tree/ternary_mac/systolic_ternary model FPGA datapaths, which wrap by width.
+Switching their arithmetic to +% and regenerating the RTL:
+
+    adder_tree.t27       byte-identical (3,641 lines)
+    ternary_mac.t27      one line: -a -> (0 - a), same operation and width
+    systolic_ternary.t27 one temp's line-numbered name, from the added comment
+
+Only the software backends change, and only on overflow. That is the whole safety
+argument, and it is CHECKABLE -- regenerate and diff, do not assert it.
+
+### The finding
+
+ternary_mac.t27 declares (acc, a, w). 126 call sites pass (a, w, acc) and 117 pass
+(acc, a, w) -- the corpus is split down the middle on its own most important function,
+with tests written for both. Undetectable before W569 made `use` real: every generated
+file simply had no ternary_mac in it.
+
+fpga/formal/ternary_mac_golden.v -- the model T1 and T2 are proved against -- declares
+its ports a, w_code, acc_in. The machine-checked hardware says (a, w, acc), which
+makes the .t27 declaration the outlier.
+
+Falsification to run FIRST: Verilog ports are named, not positional, so check whether
+prove_ternary_mac.ys binds by name or by position before treating port ORDER as
+normative.

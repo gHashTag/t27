@@ -29,19 +29,30 @@ fn ternary_decode(w: TernaryWeight) -> i8 {
     return 0;
 }
 
+/// ## Arithmetic: wrapping, deliberately
+///
+/// W573: these functions model an FPGA datapath, which wraps by width -- there
+/// is no trap in an LUT carry chain -- and this spec's own tests assert it
+/// (ternary_mac_i32_max_overflow, ternary_mac_i32_min_underflow_wrap, ternary_mul_i8_min_negate_overflow). Plain `+` keeps Zig's trapping semantics
+/// (docs/NOW.md, wrapping-operator family), so the software backends panicked
+/// where the hardware wraps.
+///
+/// The Verilog backend collapses `+%`/`-%` to `+`/`-`, so the generated RTL is
+/// byte-identical; only the software backends change, and only on overflow.
+
 /// Ternary multiply: a * w where w in {-1, 0, +1}.
 /// Implemented as conditional sign-flip or zero, no '*' operator.
 fn ternary_mul(a: i8, w: TernaryWeight) -> i8 {
     let decoded = ternary_decode(w);
     if (decoded == 0) { return 0; }
     if (decoded == 1) { return a; }
-    return -a;
+    return 0 -% a;
 }
 
 /// Ternary MAC: accumulate a * w into 32-bit accumulator.
 fn ternary_mac(acc: i32, a: i8, w: TernaryWeight) -> i32 {
     let prod = ternary_mul(a, w);
-    return acc + prod;
+    return acc +% prod;
 }
 
 /// Dot product of two slices using ternary weights.
@@ -53,7 +64,7 @@ fn ternary_dot(a: []i8, w: []TernaryWeight, idx: u32, acc: i32) -> i32 {
         return acc;
     }
     let prod = ternary_mul(a[idx], w[idx]);
-    return ternary_dot(a, w, idx + 1, acc + prod);
+    return ternary_dot(a, w, idx + 1, acc +% prod);
 }
 
 // ============================================================================

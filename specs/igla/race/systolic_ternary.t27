@@ -22,13 +22,24 @@ pub const SystolicTernaryPE = struct {
 // 2. Core Functions
 // ============================================================================
 
+/// ## Arithmetic: wrapping, deliberately
+///
+/// W573: these functions model an FPGA datapath, which wraps by width -- there
+/// is no trap in an LUT carry chain -- and this spec's own tests assert it
+/// (systolic_pe_i8_min_neg_weight_wrap, systolic_pe_psum_i16_overflow_boundary). Plain `+` keeps Zig's trapping semantics
+/// (docs/NOW.md, wrapping-operator family), so the software backends panicked
+/// where the hardware wraps.
+///
+/// The Verilog backend collapses `+%`/`-%` to `+`/`-`, so the generated RTL is
+/// byte-identical; only the software backends change, and only on overflow.
+
 /// systolic_ternary_pe(a_in, w, psum_in) -> (i8, i16)
 /// Combinational PE logic: ternary multiply + accumulate.
 /// a_out = a_in (pass-through for horizontal streaming)
 /// psum_out = psum_in + ternary_mul(a_in, w)
 fn systolic_ternary_pe(a_in : i8, w : TernaryWeight, psum_in : i16) -> (i8, i16) {
     let prod = ternary_mul(a_in, w);
-    let psum_out = psum_in + prod;
+    let psum_out = psum_in +% prod;
     return (a_in, psum_out);
 }
 
