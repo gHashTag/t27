@@ -49,9 +49,12 @@ def main():
     if not tef or not gf or tef & gf:
         problems.append(f"COLLAPSED tef={len(tef)} gf={len(gf)} overlap={sorted(tef & gf)}")
 
-    # 4. The former name must stay searchable: renaming is not retraction.
+    # 4. The former name must stay searchable. Not for citation reasons -- the
+    # ladder has never been published under either name -- but because research
+    # notes, prior branches and the author's own profile still use it, and every
+    # measurement against takum/tekum/posit was recorded under the old label.
     if 'former_name="GF-T16"' not in text:
-        problems.append('LOST      former_name="GF-T16" (arXiv cites the old name)')
+        problems.append('LOST      former_name="GF-T16" (internal continuity)')
 
     if problems:
         for p in problems:
