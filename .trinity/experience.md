@@ -20956,3 +20956,38 @@ these are two DIFFERENT mechanisms the brace scan could not see. One measurement
 
 Whenever you write a conformance table, the cases that say "this must be REFUSED" are
 the ones the component has never been asked about.
+
+## Wave Loop 578 -- the largest parse-failure class had been sitting there since W549 (2026-08-09)
+
+    specs that parse      341 -> 373  (+32)
+    specs fully passing    23 ->  28
+    tests passing         615 -> 683
+    assertions emitted  4,389 -> 7,859  (+79%)
+    assertions locked   9,635 -> 6,541
+
+### Ranking the failure list was the whole wave
+
+W577 made the parser fail HONESTLY -- truncation zero, both conformance tables green.
+That made the 260 non-parsing specs rankable for the first time. Weighting each first
+error by the substantive assertions it locks up:
+
+    4,465  29 specs  Unexpected token in expression: LBrace   <- 46% of everything
+    1,002  46        Expected LParen, got Ident
+      899   9        Expected LBrace, got Colon
+
+The top class is `if (c) { a } else { b }` -- braces around an if-expression branch.
+W549 measured it at "~40 specs" and nobody touched it for thirty waves, because until
+now there was no way to say what it was WORTH. A brace holding exactly one expression
+IS that expression; Zig spells it without braces. +25 specs.
+
+The second is the Rust form `if cond { ... }` without parentheses. Making the paren
+optional reopens Rust's own ambiguity -- is `Name { ... }` a struct literal or a
+condition plus a body? -- resolved the same way: suppress struct-literal parsing while
+reading a paren-less condition. +10 specs.
+
+### The lesson
+
+A backlog only becomes a queue when each entry carries what it releases. The same
+taxonomy existed in W549; what changed is that (a) the parser stopped lying, so every
+first error is real, and (b) each class is weighted by assertions rather than by spec
+count -- the correction skill rule 26 and rule 29 have both been about.

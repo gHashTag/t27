@@ -4205,6 +4205,22 @@ These cost a wave each. Follow them before step 1.
     lexer handed the parser the rest of the file as one literal. Repairing the
     data (W569 fixed 28 specs) does not repair the reader.
 
+51. **A failure list is only a queue once each entry carries what fixing it
+    RELEASES.** W549 measured the block-expression class at "~40 specs" and it
+    sat untouched for thirty waves. W578 measured the same class as **4,465
+    assertion clauses, 46% of everything locked behind parse failures**, and it
+    was fixed that hour. Two prerequisites: the parser had to stop lying (W577
+    -- otherwise the first errors are not real), and the ranking had to be by
+    assertions rather than spec count.
+
+52. **Making a delimiter optional reopens whatever ambiguity the delimiter was
+    resolving -- name it and handle it explicitly.** Accepting Rust's
+    `if cond { ... }` means `if Name { ... }` could be a struct literal or a
+    condition plus a body. Rust has the same problem and solves it by
+    suppressing struct-literal parsing inside a condition; W578 did the same,
+    and verified BOTH directions (a paren-less condition parses, and a struct
+    literal elsewhere still parses).
+
 ### How to update this tracker
 
 After closing a wave:

@@ -890,6 +890,10 @@ pub struct Parser {
     current: Token,
     peek: Token,
     pending_pragma: String,
+    /// While parsing a PARENTHESIS-LESS `if`/`while` condition, `Name {` opens
+    /// the branch body, not a struct literal. Rust has the same ambiguity and
+    /// resolves it the same way (W578).
+    no_struct_literal: u32,
 }
 
 #[derive(Clone)]
@@ -909,6 +913,7 @@ impl Parser {
             current: first,
             peek: second,
             pending_pragma: String::new(),
+            no_struct_literal: 0,
         }
     }
 
@@ -2522,10 +2527,21 @@ impl Parser {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition, with or without parentheses. 46 specs write the Rust form
+        // `if cond { ... }` and it was "Expected LParen, got Ident" -- 1,002
+        // assertion clauses (W578). Without parentheses, `Name {` opens the
+        // BODY, so struct-literal parsing is suppressed for the condition.
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance();
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal += 1;
+            let c = self.parse_expr();
+            self.no_struct_literal -= 1;
+            c?
+        };
         if_node.children.push(cond);
 
         // Then branch: { ... }
@@ -3246,7 +3262,7 @@ impl Parser {
                 }
 
                 // Check for struct literal: Name{ .field = expr, ... }
-                if self.current.kind == TokenKind::LBrace {
+                if self.current.kind == TokenKind::LBrace && self.no_struct_literal == 0 {
                     return self.parse_struct_literal(name);
                 }
 
@@ -3596,6 +3612,42 @@ impl Parser {
         Ok(node)
     }
 
+    /// A branch of an `if` used as an EXPRESSION.
+    ///
+    /// W578: the corpus writes the branches braced --
+    /// `let x = if (c) { a } else { b };` -- and `parse_expr` has no rule for a
+    /// `{` in expression position, so this was
+    /// "Unexpected token in expression: LBrace". It is the largest single class
+    /// of parse failure in the corpus: **29 specs, 4,465 assertion clauses**,
+    /// measured in W549 and untouched since.
+    ///
+    /// A brace holding exactly ONE expression is that expression; Zig spells
+    /// the same thing `if (c) a else b`. Anything else -- statements, several
+    /// expressions, an empty block -- restores the checkpoint and falls back to
+    /// the original path, so a shape this cannot model still parses the way it
+    /// did before.
+    fn parse_branch_value(&mut self) -> Result<Node, String> {
+        if self.current.kind != TokenKind::LBrace {
+            return self.parse_expr();
+        }
+        let checkpoint = self.save_state();
+        self.advance(); // consume {
+        if self.current.kind == TokenKind::RBrace {
+            self.restore_state(checkpoint);
+            return self.parse_expr();
+        }
+        match self.parse_expr() {
+            Ok(inner) if self.current.kind == TokenKind::RBrace => {
+                self.advance(); // consume }
+                Ok(inner)
+            }
+            _ => {
+                self.restore_state(checkpoint);
+                self.parse_expr()
+            }
+        }
+    }
+
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
@@ -3605,7 +3657,7 @@ impl Parser {
         self.expect(TokenKind::RParen)?;
 
         // Then expression
-        let then_expr = self.parse_expr()?;
+        let then_expr = self.parse_branch_value()?;
 
         // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
@@ -3614,7 +3666,7 @@ impl Parser {
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = self.parse_expr()?;
+            let else_expr = self.parse_branch_value()?;
             if_node.children.push(else_expr);
         }
 
