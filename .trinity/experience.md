@@ -20414,3 +20414,37 @@ be drained in order, not a ranking of importance (rule 26).
   ALL_PASS not at all; the evidence it worked was the taxonomy (11 -> 0). When
   draining a first-error queue, each fix buys the next diagnosis, not
   necessarily a passing spec. Report the taxonomy shift, not just the headline.
+
+## Wave Loop 564 — the first genuine test failures (2026-08-09)
+
+                     W560   W561   W562   W563   W564
+    ALL_PASS            5      7      9     14     14
+    TEST_FAIL           0      0      0      0      2   <- FIRST real failures
+    tests passing      45     54     64    167    175
+
+### The defect
+
+specs/fpga/ternary_isa.t27 test validate_r_type_format asserts
+validate_instr_format(fmt) == 0 and FAILS. r_type_format() declares
+opcode 6 + rd 5 + rs1 5 + rs2 5 + imm 0 = 21 bits, but total_bits = 32.
+**11 bits unaccounted for in the R-type encoding.** A genuine SPEC defect, not
+a codegen artefact. It could not fail before W559 because the body was
+discarded. specs/fpga/simulator.t27 also aborts; uncharacterised.
+
+Not fixed: whether total_bits or the field widths are wrong is a specification
+decision, not a compiler one.
+
+### What unblocked it
+
+zig_ident escaped primitive TYPE names but not Zig KEYWORDS, and was not
+applied to enum variants or struct fields at all. A variant/field named `error`
+emitted `error = 4,` / `error: bool,`. Small yield in compile terms (184->183)
+but it released the two specs that then RAN.
+
+### Third instrumentation correction in five waves
+
+The harness reported those two as UNKNOWN because it did not recognise
+"terminated with signal ABRT" / "panic: assertion failed" as a failure -- the
+same gap as W560's, in the opposite direction. A classifier that cannot express
+the outcome you are hunting for will report it as noise. Harness + raw results
+now committed under docs/reports/data/ so the measurement is reproducible.
