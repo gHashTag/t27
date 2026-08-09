@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## the MAC is 8x of the solve cost, and it is the one thing not scalable
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 38).
+- Prop 37 showed the engine's cost is **model-dominated**, so the only lever is
+  a cheaper model. This locates the cost.
+- **The datapath is 31% of cells and 87% of the time.** Replacing
+  `pipeline_stage2_compute` with a same-interface stub: 971 -> 667 cells,
+  268 -> 267 flops, and seq-80 solve **369.2s -> 46.0s**. The expense is the
+  combinational 27-lane dot product and its adder tree, not sequential state,
+  which is why unrolling multiplies it so sharply.
+- **The stub is a cost measurement, not a model.** All 20 properties "refuted"
+  under it -- including `a_sanity`, a tautology, which cannot be refuted by
+  changing a multiplier. The baseline check settled it: the stubbed build does
+  not prove with **no properties at all**. Every one of those verdicts was
+  noise. Third time this discipline has paid, and the first time it caught **my
+  own replacement** rather than a design change.
+- **`chparam` cannot reach this.** Memory depth is scalable because it *is* a
+  parameter. The datapath is not: the trit word width is a literal at **26 sites
+  across 6 emitters**, and the lane count appears **37 times** in the stdlib
+  emitter. `trit27_dot_product` and friends take no parameters and their
+  generate loops count to a literal 27. **The width is a repository-wide
+  constant, not a knob.**
+- **What it costs**: the engine proves at seq 80 in 396s and is undecided at
+  120. An 8x cheaper datapath would put seq 120+ in the same budget -- the
+  largest available gain, blocked on a refactor rather than a technique.
+- **Not attempted here.** Threading a LANES/WORD_W parameter through six
+  emitters at the end of a long session, to serve a proof budget, is how correct
+  RTL acquires defects. Measured, scoped, left for a wave that starts with it.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the published ceiling was a property of my timeout
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 34a corrected, Prop 37d-bis),

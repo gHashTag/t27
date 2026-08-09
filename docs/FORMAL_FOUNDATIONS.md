@@ -2168,6 +2168,72 @@ python3 formal/scale_probe.py 80 4 --each   # the per-property view, budget-boun
 
 ---
 
+### Prop. 38 — the MAC is 8× of the solve cost, and it is the one thing that cannot be scaled — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling*
+
+Prop. 37 established that the engine's verification cost is **model-dominated**:
+a tautology costs 276 s where the hardest property costs 299 s. The only lever
+that helps every property at once is making the model cheaper. This locates the
+cost and finds that the standard mitigation does not reach it.
+
+**38a. The datapath is 31% of the cells and 87% of the time.** Replacing
+`pipeline_stage2_compute` with a stub of identical interface and schedule:
+
+| build | cells | flops | `-seq 80` solve |
+|---|---:|---:|---:|
+| full | 971 | 268 | **369.2 s** |
+| MAC replaced | 667 | 267 | **46.0 s** |
+
+**An 8× reduction from removing under a third of the cells**, and essentially no
+change in flop count. The expense is the combinational 27-lane dot product and
+its adder tree, not sequential state — which is why unrolling multiplies it so
+sharply.
+
+**38b. The stub is a cost measurement and not a model.** All 20 properties
+"refuted" under it — including `a_sanity`, `assert (bram_addr == bram_addr)`. A
+tautology cannot be refuted by changing a multiplier. The baseline check
+(Prop. 25d) settled it: the stubbed build **does not prove with no properties at
+all**, so every one of those 20 verdicts was noise.
+
+> Third time this discipline has paid, and the first time it caught **my own
+> replacement** rather than a design change. The timing number survives because
+> it measures how long the solver ran; the verdicts do not, because they measure
+> a build that was never sound.
+
+**38c. `chparam` cannot reach this.** Memory depth is scalable because it *is* a
+parameter — `chparam -set DEPTH 4 weight_bram` is a flag, not an edit. The
+datapath has no such handle:
+
+| quantity | where it lives | sites |
+|---|---|---:|
+| trit-word width (`[53:0]`, `54'`) | 6 emitters | **26** |
+| lane count (`27`) | `trit_stdlib.rs` | **37** |
+
+`trit27_dot_product`, `trit27_parallel_multiply` and `adder_tree_27` take no
+parameters; their generate loops count to a literal 27, and the 54-bit word is
+threaded independently through the buffers, the BRAMs, the requantizer and the
+top. **The width is a repository-wide constant, not a knob.**
+
+**38d. What that costs, stated plainly.** The engine proves at `-seq 80` in
+396 s and is undecided at 120 (Prop. 34a, as corrected). An 8× cheaper datapath
+would put `-seq 120` and beyond within the same budget — the single largest
+available gain in the verification setup, and it is blocked on a refactor rather
+than on a technique.
+
+**38e. Not attempted here.** Threading a `LANES`/`WORD_W` parameter through six
+emitters is a real change to every consumer of the datapath, and doing it at the
+end of a long session to serve a proof budget is how correct RTL acquires
+defects. Measured, scoped, and left for a wave that starts with it.
+
+Reproduce:
+
+```bash
+grep -c "53:0\|54'" bootstrap/src/*.rs   # the width, site by site
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
