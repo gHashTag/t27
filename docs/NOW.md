@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## Wave 606 — the interleavings are reachable too, and the probes bite
+
+- **WHAT**: Prop. 51 probed that each module's core **activity** is reachable
+  and stated its own limit in writing: *a constraint that removes a rare
+  interleaving while leaving the activity reachable passes every one of those
+  twelve probes*. That limit had been the oldest open item for five waves. Three
+  new witnesses close it — `w_dma_back_to_back` (two completed transfers),
+  `w_dma_both_directions` (a read and a write), `w_wp_back_to_back` (two
+  completed prefetches). All three **refute**: every interleaving is reachable.
+  Eleven witnesses now gate, up from eight.
+- **WHY THESE THREE**: not arbitrary combinations — the shapes this campaign's
+  defects actually took. Prop. 31c was state carried across exactly the
+  back-to-back DMA boundary. `direction` is sampled once at start, so pinning it
+  removes half the design. The engine issues one prefetch per layer, so allowing
+  only the first leaves every later layer unverified.
+- **THE CONTROLS**: a sweep that finds nothing must demonstrate it could have
+  (Prop. 48b), applied per witness rather than to the sweep as a whole.
+  `assume (direction == 0)` → `w_dma_both_directions` **PROVES**. Allowing only
+  one prefetch to ever start → `w_wp_back_to_back` **PROVES**. Both caught.
+- **THE MISTAKE**: the first prefetch control was malformed — it did not actually
+  forbid a second completion, and the witness correctly kept refuting. A control
+  that fails to remove the thing it targets tests nothing, and reading that as
+  "the witness is blind" would have been exactly backwards.
+- **THE TOOL WALL**: all three failed first with *"Async reset `rst_n` yields
+  non-constant value"*. Edge detection written as `done && !$past(done)` inside
+  an async-reset block makes `async2sync` refuse the design — a tool error, not
+  a verdict, separable only because that distinction is already wired in
+  (Prop. 39d). Fix: a synchronous block with an explicit previous-value register.
+- **WHERE**: `formal/witnesses.sv`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 56).
+- **STATE**: 56 propositions · 56 gates · 11 witnesses · 1213 tests · 496/496
+  seals · no known defect.
+
 ## the split lands -- the ceiling is back at 80 with nothing dropped
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`,

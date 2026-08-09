@@ -265,4 +265,139 @@ module w_wp_writes_happen (
     always @(posedge clk) if (rst_n) w: assert (!(prefetch_active && bram_we));
 endmodule
 
+// ============================================================================
+// INTERLEAVING witnesses (Wave 606, Prop. 56).
+//
+// Prop. 51 probed that each module's core ACTIVITY is reachable, and stated its
+// limit: a constraint removing a rare INTERLEAVING while leaving the activity
+// reachable passes every one of those probes. These close that gap, and they
+// are chosen to be the shapes this campaign's defects actually took --
+// back-to-back transfers (Props. 31c, 32) and both transfer directions.
+//
+// Expected result for every module here: REFUTED.
+// ============================================================================
+
+module w_dma_back_to_back (
+    input wire clk, input wire rst_n, input wire start,
+    input wire [63:0] src_addr, input wire [63:0] dst_addr,
+    input wire [31:0] length, input wire direction,
+    input wire arready, input wire [63:0] rdata, input wire rlast, input wire rvalid,
+    input wire awready, input wire wready, input wire bvalid,
+    input wire [63:0] local_rdata
+);
+    wire busy, done, arvalid, awvalid, wvalid, wlast, rready, bready, local_we;
+    wire [63:0] araddr, awaddr, wdata, local_wdata;
+    wire [7:0] arlen, awlen;
+    wire [11:0] local_addr;
+    dma_controller dut (
+        .clk(clk), .rst_n(rst_n), .start(start),
+        .src_addr(src_addr), .dst_addr(dst_addr), .length(length), .direction(direction),
+        .busy(busy), .done(done),
+        .m_axi_araddr(araddr), .m_axi_arlen(arlen), .m_axi_arvalid(arvalid),
+        .m_axi_arready(arready), .m_axi_rdata(rdata), .m_axi_rlast(rlast),
+        .m_axi_rvalid(rvalid), .m_axi_rready(rready),
+        .m_axi_awaddr(awaddr), .m_axi_awlen(awlen), .m_axi_awvalid(awvalid),
+        .m_axi_awready(awready), .m_axi_wdata(wdata), .m_axi_wlast(wlast),
+        .m_axi_wvalid(wvalid), .m_axi_wready(wready), .m_axi_bvalid(bvalid),
+        .m_axi_bready(bready),
+        .local_addr(local_addr), .local_wdata(local_wdata), .local_we(local_we),
+        .local_rdata(local_rdata)
+    );
+
+    // Two completed transfers. Prop. 31c was state carried across exactly this
+    // boundary, and nothing checks that the second transfer is reachable.
+    // Synchronous, and the previous value is an explicit register: $past inside
+    // an async-reset block makes async2sync reject the design outright.
+    reg [1:0] n; reg done_q;
+    always @(posedge clk)
+        if (!rst_n) begin n <= 2'd0; done_q <= 1'b0; end
+        else begin
+            done_q <= done;
+            if (done && !done_q && n != 2'd3) n <= n + 2'd1;
+        end
+    always @(posedge clk) if (rst_n) w: assert (n < 2'd2);
+endmodule
+
+module w_dma_both_directions (
+    input wire clk, input wire rst_n, input wire start,
+    input wire [63:0] src_addr, input wire [63:0] dst_addr,
+    input wire [31:0] length, input wire direction,
+    input wire arready, input wire [63:0] rdata, input wire rlast, input wire rvalid,
+    input wire awready, input wire wready, input wire bvalid,
+    input wire [63:0] local_rdata
+);
+    wire busy, done, arvalid, awvalid, wvalid, wlast, rready, bready, local_we;
+    wire [63:0] araddr, awaddr, wdata, local_wdata;
+    wire [7:0] arlen, awlen;
+    wire [11:0] local_addr;
+    dma_controller dut (
+        .clk(clk), .rst_n(rst_n), .start(start),
+        .src_addr(src_addr), .dst_addr(dst_addr), .length(length), .direction(direction),
+        .busy(busy), .done(done),
+        .m_axi_araddr(araddr), .m_axi_arlen(arlen), .m_axi_arvalid(arvalid),
+        .m_axi_arready(arready), .m_axi_rdata(rdata), .m_axi_rlast(rlast),
+        .m_axi_rvalid(rvalid), .m_axi_rready(rready),
+        .m_axi_awaddr(awaddr), .m_axi_awlen(awlen), .m_axi_awvalid(awvalid),
+        .m_axi_awready(awready), .m_axi_wdata(wdata), .m_axi_wlast(wlast),
+        .m_axi_wvalid(wvalid), .m_axi_wready(wready), .m_axi_bvalid(bvalid),
+        .m_axi_bready(bready),
+        .local_addr(local_addr), .local_wdata(local_wdata), .local_we(local_we),
+        .local_rdata(local_rdata)
+    );
+
+    // A read transfer and a write transfer both occur. `direction` is sampled
+    // once at start, so a constraint pinning it would remove half the design
+    // while every activity probe still passed.
+    reg saw_rd, saw_wr, busy_q;
+    always @(posedge clk)
+        if (!rst_n) begin saw_rd <= 1'b0; saw_wr <= 1'b0; busy_q <= 1'b0; end
+        else begin
+            busy_q <= busy;
+            if (busy && !busy_q) begin
+                if (!direction) saw_rd <= 1'b1;
+                else            saw_wr <= 1'b1;
+            end
+        end
+    always @(posedge clk) if (rst_n) w: assert (!(saw_rd && saw_wr));
+endmodule
+
+module w_wp_back_to_back (
+    input wire        clk,
+    input wire        rst_n,
+    input wire        start_prefetch,
+    input wire [31:0] src_addr,
+    input wire [15:0] num_words,
+    input wire        arready,
+    input wire [63:0] rdata,
+    input wire        rvalid
+);
+    wire        prefetch_active, prefetch_done, arvalid, rready, bram_we;
+    wire [31:0] araddr;
+    wire [11:0] bram_addr;
+    wire [53:0] bram_data;
+
+    weight_prefetch_ctrl dut (
+        .clk(clk), .rst_n(rst_n), .start_prefetch(start_prefetch),
+        .src_addr(src_addr), .num_words(num_words),
+        .prefetch_active(prefetch_active), .prefetch_done(prefetch_done),
+        .axi_araddr(araddr), .axi_arvalid(arvalid), .axi_arready(arready),
+        .axi_rdata(rdata), .axi_rvalid(rvalid), .axi_rready(rready),
+        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we)
+    );
+
+    always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_words == $past(num_words));
+
+    // Two completed prefetches. The engine issues one per layer, so a
+    // constraint that allowed only the first would leave every layer after the
+    // first unverified while `w_wp_writes_happen` still refuted.
+    reg [1:0] n; reg pd_q;
+    always @(posedge clk)
+        if (!rst_n) begin n <= 2'd0; pd_q <= 1'b0; end
+        else begin
+            pd_q <= prefetch_done;
+            if (prefetch_done && !pd_q && n != 2'd3) n <= n + 2'd1;
+        end
+    always @(posedge clk) if (rst_n) w: assert (n < 2'd2);
+endmodule
+
 `default_nettype wire

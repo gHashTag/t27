@@ -597,6 +597,15 @@ jobs:
           run_witness w_dma_burst_active     dma_controller       12
           run_witness w_ls_multi_neuron      layer_sequencer      12
           run_witness w_wp_writes_happen     weight_prefetch_ctrl 14
+          # Interleaving witnesses (Wave 606). Prop. 51 probed that each module's
+          # core ACTIVITY is reachable and stated its limit: a constraint that
+          # removes a rare INTERLEAVING while leaving the activity reachable
+          # passes every one of those probes. These three close that gap, and
+          # each was validated by injecting a constraint that removes its
+          # interleaving and confirming it then PROVES.
+          run_witness w_dma_back_to_back     dma_controller       24
+          run_witness w_dma_both_directions  dma_controller       24
+          run_witness w_wp_back_to_back      weight_prefetch_ctrl 30
           exit $fail
 
       - name: Behavior-DSL subset still emits and parses

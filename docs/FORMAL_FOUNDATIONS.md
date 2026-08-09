@@ -3285,6 +3285,61 @@ grep -c "ifdef T27_FORMAL_DEEP" build/rtl/bitnet_engine_top.sv   # 4 guard regio
 
 ---
 
+### Prop. 56 — interleavings are reachable too, and the witnesses bite — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous (witnesses must refute)*
+
+Prop. 51 probed that each module's core **activity** is reachable and stated its
+own limit: a constraint that removes a rare **interleaving** while leaving the
+activity reachable passes every one of those twelve probes. This closes that gap.
+
+**56a. Three interleavings, chosen for what this campaign's defects were.** Not
+arbitrary combinations — the shapes that actually produced defects:
+
+| witness | interleaving | why this one |
+|---|---|---|
+| `w_dma_back_to_back` | two completed transfers | Prop. 31c was state carried across exactly this boundary |
+| `w_dma_both_directions` | a read transfer **and** a write transfer | `direction` is sampled once at start; pinning it removes half the design |
+| `w_wp_back_to_back` | two completed prefetches | the engine issues one per layer, so allowing only the first leaves every later layer unverified |
+
+**All three refute — every interleaving is reachable.** Eleven witnesses now
+gate, up from eight.
+
+**56b. Each was validated by removing its own interleaving.** Prop. 48b's rule
+applied individually rather than to the sweep as a whole:
+
+| witness | injected constraint | result |
+|---|---|---|
+| `w_dma_both_directions` | `assume (direction == 0)` | **PROVES** — caught |
+| `w_wp_back_to_back` | only one prefetch may ever start | **PROVES** — caught |
+
+The first attempt at the second control was malformed — it did not actually
+forbid a second completion, and the witness correctly kept refuting. **A control
+that fails to remove the thing it targets tests nothing**, and reading that as
+"the witness is blind" would have been the wrong conclusion.
+
+**56c. `$past` inside an async-reset block is rejected outright.** All three
+witnesses initially failed with *"Async reset `rst_n` yields non-constant
+value"*. Edge detection written as `done && !$past(done)` inside
+`always @(posedge clk or negedge rst_n)` makes `async2sync` refuse the design —
+a tool error, not a verdict, and separable only because Prop. 39d's distinction
+is in place. The fix is a synchronous block with an explicit previous-value
+register.
+
+**56d. Scope.** Three interleavings across two modules, chosen by defect history.
+`interrupt_controller`, `axi_lite_slave` and `layer_sequencer` have interleaving
+witnesses from earlier waves (concurrent read, outstanding response, multi-neuron)
+but none for *sequential repetition*. That gap is narrower than the one closed
+here and is stated rather than implied.
+
+Reproduce:
+
+```bash
+grep -c "^module w_" formal/witnesses.sv    # 11 witnesses
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
