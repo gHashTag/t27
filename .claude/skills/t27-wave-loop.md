@@ -4005,6 +4005,14 @@ These cost a wave each. Follow them before step 1.
     dominant failure class. Re-measure before publishing, and prefer the full
     population to a sample when the population is only minutes away.
 
+26. **A first-error taxonomy tells you what fails first, not where the value
+    is.** W560 ranked work by which error appeared first in each file and
+    recommended chasing `default_input()` (169 specs). Measuring the POPULATION
+    showed it held only 183 substantive assertions hostage, against 11,099
+    blocked by other causes -- two orders of magnitude off. Rank a backlog by
+    the size of what it unblocks, not by how often it appears at the top of an
+    error log.
+
 ### How to update this tracker
 
 After closing a wave:

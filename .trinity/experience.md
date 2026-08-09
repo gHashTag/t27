@@ -20300,3 +20300,51 @@ Four waves running where my own instrumentation was what needed correcting
 (W554 exit-status, W555 brace-only, W556 .t27-only, W559 stale message, W560
 both of the above). When a measurement surprises you, suspect the measurement
 first.
+
+## Wave Loop 561 — my own recommendation was wrong, and measuring said so (2026-08-09)
+
+### The pivot
+
+W560 recommended defining default_input() because "one missing helper blocks
+169 of 194 compile failures". Its own falsification condition was checked first,
+and the recommendation did not survive:
+
+    assertion clauses across the corpus : 11,853
+      trivial `result != undefined`     :    571  (4.8%)
+      substantive                       : 11,282  (95.2%)
+
+    substantive assertions hostage to default_input : 183
+    substantive assertions blocked by other causes  : 11,099
+
+All 571 template tests are IDENTICAL: `then result != undefined`. Defining the
+helper would produce 571 tests with almost no discriminating power -- a THIRD
+vacuity class after `assert true` and discarded-BDD. The leverage was never
+there; it is in the 11,099.
+
+Also: I nearly reported a test-name/function mismatch in reed_solomon.t27 from
+eyeballing a `grep -A3` window that had spanned two adjacent tests. Measured
+across the population: 0%.
+
+### Landed
+
+gen-zig mapped `str`/`&str` -> []const u8. The Zig emitter passed unknown type
+names through verbatim, so t27's `str` landed in Zig (no such type) and `&str`
+leaked Rust borrow syntax. The RUST emitter has always mapped it
+(compiler.rs:14463); the Zig one never did. 103 specs declare str/&str.
+
+                     before   after
+    ALL_PASS              5       7
+    COMPILE_FAIL        194     192
+    tests executing      45      54
+
+Modest, and that is the expected shape: fixing a spec's FIRST error reveals the
+next. Verified no parse regression is POSSIBLE by call-site inspection --
+t27_array_type_to_zig is reachable only from gen_fn_decl and gen_stmt.
+
+### The standing lesson
+
+A recommendation carried from the previous wave is a hypothesis, not a plan.
+W560's was written from a first-error taxonomy; W561 measured the POPULATION and
+found the leverage was elsewhere by two orders of magnitude. Check the previous
+wave's recommendation against fresh measurement before executing it -- that is
+rule 1 restated, and it has now paid off twice (W548's stale variant, W560's).
