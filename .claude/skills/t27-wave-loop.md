@@ -3965,6 +3965,23 @@ These cost a wave each. Follow them before step 1.
     misleads, name the decision, and hand it over. Padding a wave with busywork
     to look productive is the same failure mode as a vacuous test.
 
+21. **When a build fails, read the PANIC LINE, not the warnings above it.**
+    Waves 549-557 recorded four tracks as blocked by a LANG-EN approval, on the
+    belief that `build.rs` panics on six Cyrillic documents. It does not --
+    Markdown violations are `cargo:warning`, only spec files panic. The real
+    message was `FROZEN HASH violation: compiler.rs has changed without a seal
+    update`, a documented two-step ceremony. Five waves of "blocked" came from
+    seeing a wall of warnings above a failure and assuming they caused it.
+    `cargo build 2>&1 | grep -A3 "panicked at"` before concluding anything.
+
+22. **State the revert condition before starting, then honour it.** W558's BDD
+    lowering was correct in isolation -- a false assertion finally aborted under
+    `zig test` -- but a full census showed 19 specs that parsed before no longer
+    did. The change was reverted, and the diff plus the 19-spec regression set
+    were kept as a fixture for the next attempt. A parser change that breaks 19
+    files is not shippable no matter how good the core idea is; preserving the
+    evidence is what makes the next attempt cheap.
+
 ### How to update this tracker
 
 After closing a wave:

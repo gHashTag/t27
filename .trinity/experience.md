@@ -20150,3 +20150,53 @@ of measurement produced a queue of evidence-backed fixes that cannot be applied.
 When a loop reaches this state, the useful output is: make the findings
 permanent (Phase 6), correct the documentation that misleads, and say plainly
 what decision is needed -- not manufacture busywork.
+
+## Wave Loop 558 — the gate that blocked five waves did not exist (2026-08-09)
+
+### The correction
+
+W549-W557 recorded four tracks as blocked by "the LANG-EN gate". WRONG, for
+five waves. build.rs treats Markdown language violations as cargo:warning; only
+SPEC files panic. The actual panic:
+
+    thread 'main' panicked at bootstrap/build.rs:220:9:
+    t27c FROZEN HASH violation: bootstrap/src/compiler.rs has changed
+    without a seal update.
+
+FROZEN_HASH is a documented two-step ceremony (CANON.md M5), not an approval. I
+saw a wall of LANGUAGE POLICY warnings above the failure in W549 and attributed
+the panic to them without reading the panic line. Everything downstream
+inherited it.
+
+### Landed
+
+- `t27c frozen-digest` -- the ceremony tool referenced in FROZEN.md:108/110/128,
+  CANON.md:37 and build.rs:224 that DID NOT EXIST. Validated by reproducing the
+  existing seal byte-for-byte before any edit.
+- `as f32`/`as f64` casts: 9 of 326 known-failing specs now parse (326 -> 317).
+  A one-line change that sat blocked for five waves on a gate that was not there.
+
+### Attempted, verified, REVERTED
+
+BDD lowering (given/when -> StmtLocal, then -> assert). The lowering is CORRECT:
+the false-assertion spec finally generated
+`if (!(x == 999)) @panic("assertion failed")` and zig test ABORTED.
+
+But the census gave PARSE OK=726 FAIL=337 vs a 317 baseline -- 19 regressions.
+Reverted as promised. Two mechanisms found:
+  1. `and` continuation clauses in a binding list (fixed).
+  2. parse_expr is GREEDY ACROSS NEWLINES: a binding value swallows the next
+     clause's name and stops on its `=`.
+  3. A third remains undiagnosed -- the 19.
+
+Diff + 19-spec fixture set kept in docs/patches/W559-bdd-lowering.md. Next
+attempt should make the clause value LINE-BOUNDED rather than detecting
+over-consumption after the fact.
+
+### The standing lessons
+
+- Read the panic line, not the warnings above it.
+- State the revert condition before starting, then honour it. Preserving the
+  failing fixture set is what makes the next attempt cheap.
+- Nothing in this project is waiting on an approval any more. The only external
+  dependency left is a physical board for G2/G3.
