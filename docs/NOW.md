@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-09
 
+## a start-time count cannot enforce a per-cycle claim
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 44), `README.md`.
+- Prop 43 attributed the last open defect to the engine. **The fix it implied
+  was attempted and withdrawn.**
+- **The read extent**: `double_buffer_ctrl` computes `read_addr = neuron_id`, so
+  a layer reads slots 0..neurons_per_layer-1. The interlock followed: replace
+  Prop 33's booleans with counts and gate `layer_start` on
+  `nwrote >= neurons_per_layer`, error rather than stall.
+- **It failed both tests at once**: it did not close Prop 43 (both formulations
+  still refute) and it broke the 21-property proved set. That is exactly the
+  withdrawal condition from Prop 29e. Reverted; baseline, the 21 properties and
+  the expected refutations all restored.
+- **Why a start-time count cannot work** -- the useful part. The property
+  compares the read address against written slots **at the moment of the read**.
+  A start-time gate says nothing about what happens *within* a layer: the
+  requantizer writes the next buffer while the MAC reads the current one, and
+  nothing in a start-time count constrains their interleaving. **A per-cycle
+  claim needs a per-cycle guarantee.** The mismatch is not the threshold or the
+  counter width, it is the arity in time, and no tuning reaches it.
+- **Two shapes remain**: a check on each read, or a proof that the write stream
+  stays ahead of the read stream.
+- The withdrawn approach and its reason sit as a comment above the boolean
+  interlock, so the next attempt reads them before rewriting the same thing.
+- Suite **1213 passed, 0 failed**. Seals 496/496. One open defect, attributed.
+
 ## attributed: the engine reads a slot it never wrote
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`

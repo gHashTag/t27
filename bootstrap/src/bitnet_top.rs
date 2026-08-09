@@ -415,6 +415,16 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // activation words at all -- legal, since a zero-neuron layer completes\n");
     s.push_str("    // immediately by design (Prop. 26) -- the ping-pong flips, and layer 1\n");
     s.push_str("    // then reads a buffer nothing ever wrote. See Prop. 33.\n");
+    s.push_str("    // Prop. 33's boolean interlock. A COUNT version was attempted in\n");
+    s.push_str("    // Wave 594 and withdrawn: `nwrote >= neurons_per_layer` checked at layer\n");
+    s.push_str("    // start neither closed Prop. 43 nor left the proved set intact.\n");
+    s.push_str("    //\n");
+    s.push_str("    // Why it cannot close it, recorded for the next attempt: the property\n");
+    s.push_str("    // compares the READ ADDRESS against written slots at the moment of the\n");
+    s.push_str("    // read, while a start-time gate says nothing about writes and reads\n");
+    s.push_str("    // interleaving WITHIN a layer. A start-time count is the wrong instrument\n");
+    s.push_str("    // for a per-cycle claim; the fix is either a per-read check or a proof\n");
+    s.push_str("    // that the write stream stays ahead of the read stream.\n");
     s.push_str("    reg wrote_a, wrote_b;\n");
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (!rst_n) begin wrote_a <= 1'b0; wrote_b <= 1'b0; end\n");
@@ -428,6 +438,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // stalled engine satisfies every safety property (Prop. 24). So the\n");
     s.push_str("    // layer is not started, and the host is told through the error IRQ that\n");
     s.push_str("    // Prop. 29c gave a driver.\n");
+    s.push_str("    // Error, not stall (Prop. 33d).\n");
     s.push_str("    wire input_ready   = use_buffer_a ? wrote_a : wrote_b;\n");
     s.push_str("    wire layer_start_g = layer_start && input_ready;\n");
     s.push_str("    wire buffer_unwritten = layer_start && !input_ready;\n");

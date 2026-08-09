@@ -2561,6 +2561,56 @@ grep -n "a_read_slot_written" build/rtl/bitnet_engine_top.sv
 
 ---
 
+### Prop. 44 — a start-time count cannot enforce a per-cycle claim — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+
+Prop. 43 attributed the last open defect to the engine: the MAC consumes an
+activation slot nothing wrote. The fix it implied — count the slots, refuse a
+layer whose read extent exceeds them — was attempted and **withdrawn**.
+
+**44a. What the read extent actually is.** `double_buffer_ctrl` computes
+`assign read_addr = neuron_id`, so a layer reads slots
+`0 .. neurons_per_layer-1`. The interlock followed: replace Prop. 33's per-buffer
+booleans with counts, and gate `layer_start` on
+`nwrote >= neurons_per_layer`, raising the error IRQ rather than stalling.
+
+**44b. It failed both tests at once.**
+
+| | result |
+|---|---|
+| closes Prop. 43 (`a_read_within_written`, `a_read_slot_written`) | **no** — both still refute |
+| leaves the proved set intact | **no** — the 21-property set went REFUTED |
+
+That is exactly the withdrawal condition set in Prop. 29e: *a fix that does not
+fix the target and costs something is withdrawn.* Reverted to the boolean
+interlock; baseline, the 21 properties and the expected refutations all restored.
+
+**44c. Why a count at start cannot work, which is the useful part.** The property
+compares the **read address** against written slots **at the moment of the
+read**. A start-time gate says nothing about what happens *within* the layer: the
+requantizer writes the next buffer while the MAC reads the current one, and
+nothing in a start-time count constrains their interleaving. **A per-cycle claim
+needs a per-cycle guarantee**, and the two available shapes are a check on each
+read, or a proof that the write stream stays ahead of the read stream.
+
+> An interlock evaluated once cannot enforce an invariant that must hold on every
+> cycle. The mismatch is not in the threshold or the counter width — it is in the
+> *arity in time*, and no tuning of a start-time gate reaches it.
+
+**44d. Recorded in the emitter, not just here.** The withdrawn approach and its
+reason sit as a comment above the boolean interlock, so the next attempt reads
+them before rewriting the same thing. Three waves have now been spent on this
+defect: two attributing it (Props. 39–43) and one narrowing the fix.
+
+Reproduce:
+
+```bash
+grep -n "COUNT version was attempted" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
