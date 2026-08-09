@@ -92,6 +92,8 @@ module zs_dma (
     wire [7:0] m_axi_arlen, m_axi_awlen;
     wire [11:0] local_addr;
 
+    wire dut_overflow_dma;
+
     dma_controller dut (
         .clk(clk), .rst_n(rst_n), .start(start), .src_addr(src_addr),
         .dst_addr(dst_addr), .length(length), .direction(direction),
@@ -106,7 +108,7 @@ module zs_dma (
         .m_axi_wvalid(m_axi_wvalid), .m_axi_wready(m_axi_wready),
         .m_axi_bvalid(m_axi_bvalid), .m_axi_bready(m_axi_bready),
         .local_addr(local_addr), .local_wdata(local_wdata),
-        .local_we(local_we), .local_rdata(local_rdata)
+        .local_we(local_we), .local_rdata(local_rdata), .overflow(dut_overflow_dma)
     );
 
     always @(posedge clk) if (rst_n) assume (length == 32'd0);
@@ -133,6 +135,8 @@ module zs_prefetch (
     wire [11:0] bram_addr;
     wire [53:0] bram_data;
 
+    wire dut_overflow_wei;
+
     weight_prefetch_ctrl dut (
         .clk(clk), .rst_n(rst_n), .start_prefetch(start_prefetch),
         .src_addr(src_addr), .num_words(num_words),
@@ -140,7 +144,7 @@ module zs_prefetch (
         .axi_araddr(axi_araddr), .axi_arvalid(axi_arvalid),
         .axi_arready(axi_arready), .axi_rdata(axi_rdata),
         .axi_rvalid(axi_rvalid), .axi_rready(axi_rready),
-        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we)
+        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we), .overflow(dut_overflow_wei)
     );
 
     always @(posedge clk) if (rst_n) assume (num_words == 16'd0);

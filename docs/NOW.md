@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## the datapath refactor is not worth doing, measured
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 49, Prop 38a corrected),
+  `formal/zero_size_props.sv`, `README.md`.
+- Prop 38 measured an **8x** speed-up from stubbing `pipeline_stage2_compute`
+  and concluded the 27-lane MAC dominates. That justified a datapath refactor
+  across 26 sites in six emitters, deferred four times as the largest available
+  gain. **It is wrong.**
+- **Four candidates eliminated**: adder tree stubbed -- 290 cells, 0.2% faster.
+  Multiply stubbed -- **slower**. Accumulator narrowed 16->4 bits -- 7%. Whole
+  stage stubbed -- **11x**.
+- **Cell count is not the cost**: 791 cells -> 110s against 777 cells -> 9.6s.
+  Fourteen cells apart, eleven times different.
+- **What the 8x actually measured**: stubbing the whole stage removes the
+  `trit27_dot_product` *instantiation*, so the 54-bit chunks go unused and yosys
+  deletes the entire datapath behind them -- both BRAM data outputs, the buffer
+  mux, the buses. **A stub measures what the optimiser can delete once the stub
+  is in place, not what the stubbed thing costs.**
+- **The refactor's actual value: 1.5x** (111s -> 73.4s at 3 lanes / 6-bit word),
+  measured end to end. Not worth threading a width parameter through six
+  emitters plus a lane-generic replacement for a hand-built 3^3 adder tree.
+- **Closed, not deferred.** It was deferred four times on a number that measured
+  something else. **A deferred item should be re-costed before it is picked up.**
+- **Also found**: `formal/zero_size_props.sv` had an uncommitted port connection
+  since wave 578 -- every local run for ~20 waves used a file CI does not have.
+  It elaborates either way, so CI was never red, which is why nobody noticed.
+  **`git status` is part of the verification.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the read-side zero sweep finds nothing, and the properties bite
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`

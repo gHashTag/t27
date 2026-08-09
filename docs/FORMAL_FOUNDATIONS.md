@@ -2168,7 +2168,7 @@ python3 formal/scale_probe.py 80 4 --each   # the per-property view, budget-boun
 
 ---
 
-### Prop. 38 — the MAC is 8× of the solve cost, and it is the one thing that cannot be scaled — `MEASURED`
+### Prop. 38 — ~~the MAC is 8× of the solve cost~~ **removing it lets the optimiser delete the datapath behind it** — `MEASURED` (38a corrected in Prop. 49)
 
 **Gate:** `formal-mutation.yml` → *Scale ceiling*
 
@@ -2847,6 +2847,82 @@ Reproduce:
 
 ```bash
 grep -c "a_zero_chunks_no_mac\|a_zero_neurons_no_act_walk" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
+### Prop. 49 — the datapath refactor is not worth doing, measured — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling*
+
+Prop. 38 measured an **8×** speed-up from replacing `pipeline_stage2_compute`
+with a stub and concluded the 27-lane MAC dominates solve cost. That conclusion
+justified a datapath-width refactor across 26 sites in six emitters, deferred
+four times as the largest available gain. It is wrong, and the refactor is not
+worth doing.
+
+**49a. Four candidates, eliminated one at a time.** All at `-seq 40`, `DEPTH 4`:
+
+| build | cells | time |
+|---|---:|---:|
+| full | 1081 | 111.4 s |
+| adder tree stubbed | 791 | 109.9 s |
+| parallel multiply stubbed | 920 | **135.6 s** |
+| accumulator narrowed 16 → 4 bits | 1081 | 102.6 s |
+| **whole compute stage stubbed** | 777 | **9.6 s** |
+
+Neither half of the dot product matters. Removing the adder tree deletes 290
+cells and changes the time by 0.2%; removing the multiply makes it **slower**.
+Narrowing the accumulator buys 7%.
+
+**49b. Cell count is not the cost.** *791 cells → 110 s* against *777 cells →
+9.6 s*. Fourteen cells apart, eleven times different. Whatever the solver finds
+hard, it is not counted by `stat`.
+
+**49c. What the 8× actually measured.** Stubbing the whole stage removes the
+`trit27_dot_product` **instantiation**, which makes `input_chunk` and
+`weight_chunk` unused — and yosys then deletes the entire 54-bit datapath behind
+them: both BRAM data outputs, the buffer mux, the buses. The 8× was real and it
+measured *the datapath the MAC keeps alive*, not the MAC.
+
+> **A stub measures what the optimiser can delete once the stub is in place, not
+> what the stubbed thing costs.** Removing a consumer removes its producers.
+> Attribute to the module only what survives when its neighbours are held fixed.
+
+**49d. The refactor's actual value: 1.5×.** Narrowing the whole datapath — the
+change the refactor would deliver — measured end to end:
+
+| lanes / word | cells | time |
+|---|---:|---:|
+| 27 / 54-bit (shipped) | 1081 | 111 s |
+| 9 / 18-bit | 736 | 85.3 s |
+| 3 / 6-bit | 736 | 73.4 s |
+
+**1.5×, not 8×.** Threading a width parameter through six emitters and 26 sites,
+plus a lane-generic replacement for a hand-built 3³ adder tree, is not worth
+1.5× on a proof that already completes in under two minutes.
+
+**49e. The item is closed, not deferred.** It was deferred four times on the
+strength of a number that measured something else. **A deferred item should be
+re-costed before it is picked up, not just re-prioritised** — the estimate was
+four waves stale and wrong by 5×.
+
+**49f. An uncommitted file had been in every local run since Wave 578.**
+`formal/zero_size_props.sv` gained a port connection when `dma_controller` grew
+its `overflow` output, and the change was never committed. Every local
+verification for roughly twenty waves used a file CI does not have. It happens
+to elaborate either way — an unconnected output port is legal Verilog — so CI was
+not red, which is precisely why nobody noticed.
+
+> **`git status` is part of the verification.** A result produced from the
+> working tree is a result about the working tree, and only a committed tree is
+> the thing CI checks. Found here by accident while checking whether the
+> experiments had touched the repo.
+
+Reproduce:
+
+```bash
+git status --porcelain formal/ bootstrap/ && echo "clean tree = local runs match CI"
 ```
 
 ---
