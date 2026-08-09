@@ -101,16 +101,32 @@ module wp_props (
     //     from that edge
     //
     // Abandoned rather than carried forward a fourth time. The pair it would
-    // constrain is already covered by `a_addr_ahead_of_data` (address channel
-    // never trails data) and `a_no_overwrite` (writes never exceed the request),
-    // so the marginal value is small and the cost has been three waves.
+    // constrain is covered by `a_no_overwrite` (writes never exceed the
+    // request). Wave 611 corrected this note: it used to cite
+    // `a_addr_ahead_of_data` as the other half of that cover, and that property
+    // turned out never to have read the design at all -- see below.
     // See Prop. 52.
 
-    // The address channel runs ahead of the data channel, never behind it:
-    // an address is issued before its beat returns.
-    always @(posedge clk)
-        if (rst_n && prefetch_active)
-            a_addr_ahead_of_data: assert (dut.word_index <= {4'd0, bram_addr} + 12'd1);
+    // REMOVED IN WAVE 611 -- a_addr_ahead_of_data.
+    //
+    // It read `dut.word_index`, an ordinary hierarchical reference that this
+    // flow does not support. Yosys did not error: it implicitly declared a
+    // one-bit wire named `\dut.word_index`, left it undriven, and proved the
+    // property against it for four waves. Confirmed by making the real
+    // `word_index` advance by two instead of one -- still PROVED. Wave 610's
+    // detection matrix had already measured it detecting nothing; this is why.
+    //
+    // Not replaced. Its intent -- the address channel never trails the data
+    // channel -- is not expressible from the ports of this wrapper: the
+    // controller streams one address per beat, and `arready`/`rvalid` are free
+    // inputs here, so the solver may return data for an address it never
+    // accepted. A port-level form was written and refutes for exactly that
+    // reason. Stating it properly needs an AXI-slave assumption this suite does
+    // not make, and adding one carries the over-constraint risk that Prop. 50d
+    // recorded the hard way. Left as work rather than shipped broken.
+    //
+    // `formal/phantom_scan.py` now fails the build on the two warnings that
+    // were there all along. See Prop. 62.
 endmodule
 
 `default_nettype wire

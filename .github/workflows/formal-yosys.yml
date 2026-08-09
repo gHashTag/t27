@@ -513,6 +513,16 @@ jobs:
       - name: No property is gated as an expected refutation
         run: python3 formal/guard_scan.py
 
+      # A property that references a signal which does not exist proves without
+      # reading the design. `a_addr_ahead_of_data` did exactly that for four
+      # waves via `dut.word_index`, which yosys implicitly declared as an
+      # undriven one-bit wire -- warning and all, unread. Prop. 62.
+      - name: No property references a signal that does not exist
+        run: |
+          set -euo pipefail
+          python3 formal/phantom_scan.py --self-test
+          python3 formal/phantom_scan.py
+
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the
       # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined

@@ -2,6 +2,50 @@
 
 Last updated: 2026-08-10
 
+## Wave 611 — one of the properties had never read the design
+
+- **THE PLAN**: Wave 610 ended with 133 named behaviourally-real gaps and a
+  target — write properties against the biggest `dma_controller` clusters. Four
+  candidates written; **all four rejected on the first bar**, "does it hold on
+  the real design?". Reading the counterexample instead of adjusting the
+  property is what turned the wave into something else.
+- **TWO SIGNALS, ONE NAME**: the trace showed `\dut.word_index` **one bit wide**
+  and `\dut.word_index_1` **twelve bits wide** holding the real value. A fresh
+  implicit wire, with the real register renamed around it. Yosys had been saying
+  so all along, in two warnings nobody read: *Identifier `\dut.word_index' is
+  implicitly declared* and *Wire wp_props.\dut.word_index is used but has no
+  driver*.
+- **A SHIPPED PROPERTY WAS FAKE**: `a_addr_ahead_of_data` used exactly that form.
+  It compared an **undriven wire** against `bram_addr + 1`, which is why it
+  proved. Decisive check — make the real `word_index` advance by **two** instead
+  of one, which no correct form of the property could survive: **still PROVED**.
+  Four waves. Counted in the property total, the doc gate, and the
+  non-empty-property gate. Wave 610's matrix had already measured it detecting
+  nothing; this is why.
+- **THE EXISTING GATE COULD NOT CATCH IT**: `identity_scan.py` is a syntactic
+  scan for bodies that fold to constant true (Prop. 41). This body is an
+  ordinary comparison between two ordinary-looking operands. **The signal is
+  fake, not the shape.** Different failure, different instrument.
+- **THE FIX**: `formal/phantom_scan.py` elaborates each property module and
+  fails on those two warnings — cheap (no proof, only elaboration) and it covers
+  the class: hierarchical references, misspelled signals, renamed ports. Ships
+  with a `--self-test` that injects all three.
+- **REMOVED, NOT REPLACED, AND WHY**: the intent — address channel never trails
+  data — is not expressible from this wrapper's ports. The controller streams
+  one address per beat and `arready`/`rvalid` are free inputs, so the solver may
+  return data for an address it never accepted; a port-level form was written
+  and refutes for exactly that reason. Stating it properly needs an AXI-slave
+  assumption this suite does not make, and adding one carries the
+  over-constraint risk Prop. 50d recorded the hard way. Left as work rather than
+  shipped broken. **Property count 42 -> 41**, and README says why.
+- **THE GATE CAUGHT ME MID-WAVE**: my first port-level replacement used
+  `axi_arvalid`, the DUT's port name, where the wrapper's local wire is
+  `arvalid`. Same class of defect, found in seconds instead of four waves.
+- **WHERE**: `formal/phantom_scan.py`, `formal/weight_prefetch_props.sv`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 62).
+- **STATE**: 62 propositions · 62 gates · 14 witnesses · 41 module properties ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 610 — 24 properties constrain a fifth of the design
 
 - **THE RIGHT QUESTION**: "neutralise a property and re-prove the rest" has no

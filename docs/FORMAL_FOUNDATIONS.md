@@ -3749,6 +3749,78 @@ python3 formal/mutate.py --self-test
 
 ---
 
+### Prop. 62 — one of the properties had never read the design — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No property references a signal that does not exist*
+
+Wave 610 ended with a list of 133 behaviourally-real gaps and the plan to write
+properties against the biggest clusters. Four candidates were written for
+`dma_controller`; all four were rejected on the first bar — *does it hold on the
+real design?* Reading the counterexample rather than adjusting the property is
+what turned this wave into something else.
+
+**62a. The counterexample had two signals with the same name.** The trace showed
+`\dut.word_index` **one bit wide** and `\dut.word_index_1` **twelve bits wide**
+holding the real value. That is the signature of a fresh implicit wire with the
+real register renamed around it — the property was reading a wire that did not
+exist. Yosys had been saying so all along:
+
+```bash
+# not-runnable: the two warnings that were printed and never read
+Warning: Identifier `\dut.word_index' is implicitly declared.
+Warning: Wire wp_props.\dut.word_index is used but has no driver.
+```
+
+**62b. A shipped property was fake.** `a_addr_ahead_of_data` in
+`weight_prefetch_props.sv` used the same form. It compared an undriven wire
+against `bram_addr + 1`, which is why it proved — and Wave 610's detection matrix
+had already recorded it detecting nothing. Decisive check: make the real
+`word_index` advance by **two** instead of one, a change no correct form of this
+property could survive.
+
+| | verdict |
+|---|---|
+| `a_addr_ahead_of_data` on the real design | PROVED |
+| the same, with `word_index` advancing by two | **PROVED** |
+| `dut.busy == busy` (comparing a reference against its own port) | REFUTED |
+
+It had proved for four waves without reading the design, and it was counted in
+the property total, in the doc gate, and in the non-empty-property gate.
+
+**62c. `identity_scan.py` cannot catch this, by construction.** That gate is a
+syntactic scan for bodies the optimiser folds to constant true (Prop. 41). This
+body is an ordinary comparison between two ordinary-looking operands. **The
+signal is what is fake, not the shape** — a different failure needing a
+different instrument. `formal/phantom_scan.py` elaborates each property module
+and fails on those two warnings. It is cheap (no proof, only elaboration) and it
+covers the class rather than the instance: hierarchical references, misspelled
+signals, renamed ports. Its `--self-test` ships and checks all three.
+
+**62d. Removed, not replaced, and the reason is not laziness.** The intent —
+*the address channel never trails the data channel* — is not expressible from
+this wrapper's ports. The controller streams one address per beat, and
+`arready`/`rvalid` are free inputs here, so the solver may return data for an
+address it never accepted; a port-level form was written and refutes for exactly
+that reason. Stating it properly needs an AXI-slave assumption this suite does
+not make, and adding one carries the over-constraint risk Prop. 50d recorded the
+hard way — a strengthened environment that made a property prove and silently
+killed two vacuity witnesses. **Left as work rather than shipped broken.** The
+property count drops 42 → 41 and README says why.
+
+**62e. The gate caught me while I was writing the replacement.** The first
+port-level attempt used `axi_arvalid`, the DUT's port name, where the wrapper's
+local wire is `arvalid`. `phantom_scan` reported it immediately — the same class
+of defect, found in seconds instead of four waves.
+
+Reproduce:
+
+```bash
+python3 formal/phantom_scan.py --self-test
+python3 formal/phantom_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
