@@ -2989,6 +2989,67 @@ grep -c "always @(posedge clk) if (rst_n && \$past(rst_n)) assume" formal/*.sv
 
 ---
 
+### Prop. 51 — every assumption audited for what it removes — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Module suites are still alive under their assumptions*
+
+Prop. 50d found an assumption that silently removed behaviour from an entire
+file: every property still passed, and two engine-level witnesses caught it only
+because their coverage happened to overlap. Twelve assumptions exist across five
+suites and none had been checked from that direction.
+
+**51a. The inventory.** Every `assume` in the module suites, by kind:
+
+| kind | count | examples |
+|---|---:|---|
+| deliberate degenerate pinning | 4 | `num_words == 0` in the zero-size sweep |
+| input stability | 3 | `num_neurons == $past(num_neurons)` |
+| protocol / environment | 5 | `!(start && busy)`, `m_axi_rlast == m_axi_rvalid` |
+
+**51b. Twelve activities, all reachable.** Each probe asserts a core activity is
+**impossible** and must refute; a proof means the suite's assumptions removed it.
+
+| suite | activities probed | result |
+|---|---|---|
+| `irq_props` | `irq_out`, `irq_status[0]` | reachable |
+| `axi_props` | `bvalid`, `rvalid` | reachable |
+| `dma_props` | `local_we`, `done`, `busy` | reachable |
+| `ls_props` | `valid`, `done` | reachable |
+| `wp_props` | `bram_we`, `prefetch_done`, `prefetch_active` | reachable |
+
+**No assumption over-constrains its suite.**
+
+**51c. The probes bite, demonstrated.** Prop. 48b's rule — *a sweep that finds
+nothing must show it could have found something* — applied by reinstating
+Wave 50d's exact over-constraint. Both `wp_props/bram_we` and
+`wp_props/prefetch_active` flip to **PROVES**, which is the failure signal. The
+method catches the one real instance this campaign has produced.
+
+**51d. Why this gap existed for twenty-four waves.** Liveness witnesses were
+added to the *engine* in Wave 577 and never to the modules, because the engine
+was where interlocks were being added and stalling was the visible risk. The
+assumption that removed behaviour was in a **module** file, and it was caught by
+an engine witness — coverage overlap, not design.
+
+> **Every place that can constrain behaviour needs a check that behaviour
+> remains.** An assumption file without a reachability probe is a place where
+> over-constraint is invisible by construction, and the symptom is everything
+> getting greener.
+
+**51e. Scope.** Twelve activities across five suites, chosen as the core work
+each module exists to do. It is not a proof that no assumption removes *any*
+behaviour — a constraint that eliminates a rare interleaving while leaving the
+main activity reachable would pass this. The claim is that no suite has been
+constrained into inactivity.
+
+Reproduce:
+
+```bash
+grep -c "assume (" formal/*_props.sv formal/max_size_props.sv formal/zero_size_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

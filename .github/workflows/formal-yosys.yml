@@ -515,6 +515,51 @@ jobs:
               sys.exit(1)
           PY
 
+      # Module-suite liveness (Prop. 51). The engine has had liveness witnesses
+      # since Wave 577; the module suites never did. Wave 600 found an
+      # assumption that silently removed behaviour from a whole file -- every
+      # property still passed, and two engine-level witnesses caught it only by
+      # luck of coverage. These probes close that gap: each asserts an activity
+      # is IMPOSSIBLE and must REFUTE, so a proof means the suite's assumptions
+      # removed it. Validated against Wave 600's exact over-constraint, which
+      # they catch.
+      - name: Module suites are still alive under their assumptions
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, sys
+
+          SUITES = [
+              ("interrupt_controller", "formal/interrupt_controller_props.sv", "irq_props", 6,  "-tempinduct",    ["irq_out"]),
+              ("axi_lite_slave",       "formal/axi_lite_slave_props.sv",       "axi_props", 10, "-set-init-zero", ["bvalid", "rvalid"]),
+              ("dma_controller",       "formal/dma_controller_props.sv",       "dma_props", 20, "-set-init-zero", ["local_we", "done"]),
+              ("layer_sequencer",      "formal/layer_sequencer_props.sv",      "ls_props",  20, "-set-init-zero", ["valid", "done"]),
+              ("weight_prefetch_ctrl", "formal/weight_prefetch_props.sv",      "wp_props",  20, "-set-init-zero", ["bram_we", "prefetch_done"]),
+          ]
+          fail = []
+          for dut, props, top, seq, mode, sigs in SUITES:
+              src = open(props).read()
+              i = src.rindex("endmodule")
+              for sig in sigs:
+                  open("build/live.sv", "w").write(
+                      src[:i] + f"    always @(posedge clk) if (rst_n) w_live: assert (!({sig}));\n" + src[i:])
+                  r = subprocess.run(["yosys", "-q", "-p",
+                      f"read_verilog -sv -formal build/rtl/{dut}.sv build/live.sv; prep -top {top} -flatten; "
+                      f"async2sync; chformal -lower; "
+                      f"sat -verify -prove-asserts -seq {seq} {mode} -set-assumes"],
+                      capture_output=True, text=True)
+                  out = r.stdout + r.stderr
+                  if "ERROR" in out and "proof did fail" not in out:
+                      fail.append(f"{top}/{sig}: tool error, not a verdict")
+                      print(f"::error::{top}/{sig} tool error")
+                  elif r.returncode == 0:
+                      fail.append(f"{top}/{sig} is UNREACHABLE -- an assumption removed it")
+                      print(f"::error::{top}/{sig} unreachable under this suite's assumptions")
+                  else:
+                      print(f"ok       {top}/{sig} reachable")
+          sys.exit(1 if fail else 0)
+          PY
+
       # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
       # refuted", so a probe verdict is only meaningful if the UNPROBED design
       # proves first. This is not hypothetical: an interlock tried in wave 27

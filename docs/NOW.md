@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## every assumption audited for what it removes
+
+- **WHERE**: `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 51), `README.md`.
+- Prop 50d found an assumption that silently removed behaviour from a whole
+  file. **Twelve assumptions exist across five suites and none had been checked
+  from that direction.**
+- **Twelve activities probed, all reachable.** Each probe asserts a core
+  activity is *impossible* and must refute; a proof means the assumptions
+  removed it. `irq_out`, `bvalid`, `rvalid`, `local_we`, `done`, `busy`,
+  `valid`, `bram_we`, `prefetch_done`, `prefetch_active` -- **no assumption
+  over-constrains its suite.**
+- **The probes bite, demonstrated.** Reinstating wave 600's exact
+  over-constraint flips two probes to PROVES, which is the failure signal. A
+  sweep that finds nothing must show it could have found something.
+- **Why the gap existed for 24 waves**: liveness witnesses were added to the
+  *engine* in wave 577 and never to the modules, because the engine was where
+  interlocks were being added and stalling was the visible risk. The assumption
+  that removed behaviour was in a **module** file and was caught by an *engine*
+  witness -- coverage overlap, not design.
+- **Every place that can constrain behaviour needs a check that behaviour
+  remains.** An assumption file without a reachability probe is a place where
+  over-constraint is invisible by construction, and the symptom is everything
+  getting greener.
+- **Scope**: twelve activities chosen as the core work each module exists to do.
+  Not a proof that no assumption removes *any* behaviour -- a constraint that
+  eliminates a rare interleaving while leaving the main activity reachable would
+  pass this.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the census, and an assumption that silently disabled two gates
 
 - **WHERE**: `formal/weight_prefetch_props.sv`, `formal/witnesses.sv`,
