@@ -21413,3 +21413,31 @@ assertions) and was a four-line mapper gap.
 That is why decomposing a class matters. For four waves the label said "missing
 identifier" and every plan said "imports"; the measurement says half is unwritten code,
 a quarter is undeterminable, and inside the rest was a bug nobody would have looked for.
+
+## Wave Loop 591 -- the three "unwritten" numbers are three different facts (2026-08-10)
+
+W590 proposed merging them WITH a condition: "if the populations are disjoint they are
+three facts -- measure the overlap before merging."
+
+    169  specs carrying "// TODO: Implement from .tri spec"
+     26  specs whose first error names something declared nowhere
+      3  OVERLAP
+
+Nearly disjoint. Merging would have collapsed three distinct facts into one misleading
+total. Second wave running that a falsification check killed the variant before the
+work, and both times the check cost ten minutes.
+
+### The 23 non-overlapping specs all have REAL implementations
+
+They average nine written functions and hold 2,306 assertions, and they are themselves
+three things:
+
+    1,680  genuinely absent functions/types in six IGLA RACE kernels
+      330  a MODULE QUALIFIER read as a name (constants, vsa, su2_chern_simons)
+       80  a TYPE THE MAPPER NEVER LEARNED (float, String)
+
+### Second wave running that decomposing a class found a mapper gap
+
+`float` is not a Zig type and reached the backend verbatim -- exactly as f32/f64 did on
+the C side in W583. W590's `[]string` was the first. A missing NAME and a missing
+MAPPING look identical from the error message; only decomposition tells them apart.

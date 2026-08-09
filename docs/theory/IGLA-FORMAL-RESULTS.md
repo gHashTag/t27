@@ -280,6 +280,38 @@ compiler gaps — one of which this wave fixed.
 **Falsified by.** A decomposition of the same 51 specs that does not reproduce
 2,323 / 2,257 / 194 / 37.
 
+### P11 — The three "unwritten" numbers are three different facts (W591)
+
+W590 proposed merging them, with the condition *"if the three populations turn
+out to be disjoint, they are three facts and should stay three numbers — measure
+the overlap before merging."*
+
+| | Specs |
+|---|---:|
+| Carry `// TODO: Implement from .tri spec` | 169 |
+| First error names something **declared nowhere** | 26 |
+| **Overlap** | **3** |
+
+**Nearly disjoint.** 23 of the 26 are missing a name for a reason unrelated to
+the scaffold, and every one of them has a **real implementation** — 2,306
+assertions across specs averaging nine written functions each.
+
+Decomposed further, the 23 are themselves three things:
+
+| Assertions | What the missing name is |
+|---:|---|
+| **1,680** | genuinely absent functions and types in six IGLA RACE kernels — `systolic_ternary_array`, `cordic_sqrt_approx`, `compute_cosine`, `PpaMetrics`, `OP_ADD`, `cordic_cos_fixed` |
+| ~330 | a **module qualifier** read as a name: `constants`, `vsa`, `su2_chern_simons`, `goldenfloat_family` |
+| ~80 | a **type the mapper never learned**: `float` (fixed this wave → `f64`), `String` |
+
+**Conclusion.** Merging would have been wrong. The project has three distinct
+completeness facts: specs with no bodies (169), implemented specs missing a
+helper (23), and names that are really module qualifiers. Only the first is the
+scaffold.
+
+**Falsified by.** An overlap materially larger than 3 under a different
+definition of "unwritten".
+
 ---
 
 ## 3. Where this sits in the literature

@@ -4988,6 +4988,14 @@ impl Codegen {
             // `str` and `string` are both spelled in the corpus; neither is a
             // Zig type. `string` alone appears 952 times as a declared type.
             "str" | "string" => "[]const u8",
+            // W591: `float` is not a Zig type. Same family as the `f32`/`f64`
+            // gap W583 found on the C side -- a scalar the corpus spells and
+            // the mapper never learned, so it passed through the `other` arm
+            // and reached the backend verbatim.
+            "float" => "f64",
+            "double" => "f64",
+            "int" => "i32",
+            "uint" => "u32",
             other => other,
         };
         // W588: a SCOPED type name in a type position -- `const PHI: gf16::GF16`.

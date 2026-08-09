@@ -4397,6 +4397,20 @@ These cost a wave each. Follow them before step 1.
     lookup is ambiguous, count the ambiguity and report it; that is a finding,
     not a blocker.
 
+77. **A missing NAME and a missing MAPPING look identical in the error
+    message.** `use of undeclared identifier 'string'` was `[]string` unmapped
+    (W590); `'float'` was `float` unmapped (W591). Both sat inside a class
+    labelled "missing identifier" for waves, and both were four-line mapper
+    gaps. When a class is dominated by undeclared names, check what fraction are
+    TYPES the mapper never learned before planning any spec-side work.
+
+78. **Measure overlap before merging metrics.** W590 proposed unifying three
+    "unwritten" numbers; the populations overlap by 3 of 26. They are three
+    facts -- specs with no bodies, implemented specs missing a helper, and
+    module qualifiers read as names -- and one total would have hidden all
+    three. The condition that caught it was written into the previous wave's
+    report and cost ten minutes to run.
+
 ### How to update this tracker
 
 After closing a wave:
