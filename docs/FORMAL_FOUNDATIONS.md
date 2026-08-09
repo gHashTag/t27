@@ -2611,7 +2611,7 @@ grep -n "COUNT version was attempted" build/rtl/bitnet_engine_top.sv
 
 ---
 
-### Prop. 45 — the last defect is a zero-neuron read, and the fifth of its family — `MEASURED`
+### Prop. 45 — ~~the last defect is a zero-neuron read~~ **a changing neuron count** — `MEASURED` (45a reframed in Prop. 46a)
 
 **Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
 
@@ -2626,8 +2626,11 @@ Prop. 44 eliminated the start-time-count fix. This locates it exactly.
 | `neurons_per_layer != 0` | **PROVED** |
 | `neurons_per_layer != 0 && chunks_per_neuron != 0` | **PROVED** |
 
-**The defect exists only when the neuron count is zero.** Every non-degenerate
-configuration satisfies the property.
+~~The defect exists only when the neuron count is zero.~~
+
+> **Reframed in Prop. 46a.** Excluding zero also excludes the *change* the solver
+> used. A **stable** count — including a stable zero — proves. The necessary
+> condition is that the count changes, not that it is zero.
 
 **45b. The counterexample, read plainly.** Under `neurons_per_layer == 0`:
 
@@ -2663,6 +2666,66 @@ Reproduce:
 
 ```bash
 python3 -c "print('assume (neurons_per_layer != 0) turns Prop. 39e from REFUTED to PROVED')"
+```
+
+---
+
+### Prop. 46 — the configuration was read live by a running sequencer — `PROVED` / open
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *Prop. 39e is still open (must refute)*
+
+**46a. Prop. 45 asked the wrong question and got a true answer.** It found that
+`assume (neurons_per_layer != 0)` turns the refutation into a proof, and
+concluded the defect was a zero neuron count. One more assumption settles it:
+
+| assumption | verdict |
+|---|---|
+| none | REFUTED |
+| `neurons_per_layer != 0` | PROVED |
+| `neurons_per_layer == $past(neurons_per_layer)` — **stable, may be zero** | **PROVED** |
+
+A stable zero proves. **The necessary condition is the change, not the value** —
+excluding zero merely excluded the particular change the solver had reached for.
+
+> Two assumptions that both restore a proof do not both name the cause. When one
+> assumption fixes a property, look for a *weaker* one that also fixes it; the
+> weakest that works is the diagnosis.
+
+**46b. The defect: live configuration under a running FSM.** `layer_sequencer`
+compares `neuron_id` against `num_neurons` every cycle, and `num_neurons` was
+wired straight to the CSR. A host write mid-run moves the terminator underneath a
+layer already in flight: the sequencer keeps emitting work against a count that
+no longer describes the buffer that was filled, and the MAC reads slots nothing
+wrote.
+
+**Fixed** — `neurons_q` / `chunks_q` latch the configuration at `layer_start_g`
+and feed the sequencer. Baseline, all 21 integration properties, all five module
+suites and every liveness witness still hold.
+
+**46c. What remains, named exactly.** The open property still refutes, and one
+assumption isolates why:
+
+```text
+assume (neurons_q == $past(neurons_q))   // latched count never changes between layers
+-> PROVED
+```
+
+**Consecutive layers may carry different neuron counts.** Layer *N* fills the
+buffer to its own extent; layer *N+1* reads to *its* extent, and nothing relates
+them. This is the same shape as Prop. 43c — *buffer-written is not slot-written*
+— now with the precise mechanism: two independently configured extents either
+side of a ping-pong.
+
+**46d. Why the latch still ships.** It does not close the open property, which by
+Prop. 29e is grounds for withdrawal — but that rule withdraws a fix *that costs
+something*. This one costs nothing measurable and is right on its own terms: a
+sequencer must not have its terminator moved mid-run, regardless of what else is
+wrong. Prop. 31e's refinement applies.
+
+Reproduce:
+
+```bash
+grep -n "neurons_q <= neurons_per_layer" build/rtl/bitnet_engine_top.sv
 ```
 
 ---

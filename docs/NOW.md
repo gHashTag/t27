@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## the configuration was read live by a running sequencer
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 46, Prop 45 reframed), `README.md`.
+- **Prop 45 asked the wrong question and got a true answer.** It found
+  `assume (neurons_per_layer != 0)` restores the proof and concluded the defect
+  was a zero count. One more assumption settles it: a **stable** count --
+  including a stable zero -- also proves. **The necessary condition is the
+  change, not the value.** Excluding zero merely excluded the change the solver
+  reached for.
+- **Two assumptions that both restore a proof do not both name the cause.** When
+  one assumption fixes a property, look for a *weaker* one that also fixes it;
+  the weakest that works is the diagnosis.
+- **The defect**: `layer_sequencer` compares `neuron_id` against `num_neurons`
+  every cycle, wired straight to the CSR. A host write mid-run moves the
+  terminator underneath a layer in flight, so the sequencer emits work against a
+  count that no longer describes the buffer that was filled.
+- **Fixed**: `neurons_q`/`chunks_q` latch the configuration at `layer_start_g`.
+  Baseline, all 21 integration properties, all five module suites and every
+  liveness witness still hold.
+- **What remains, named exactly**: `assume (neurons_q == $past(neurons_q))`
+  proves, so the residue is **consecutive layers carrying different neuron
+  counts** -- layer N fills to its extent, layer N+1 reads to its own, and
+  nothing relates them.
+- **Why the latch ships anyway**: it does not close the open property, which is
+  normally grounds for withdrawal -- but that rule withdraws a fix *that costs
+  something*. This costs nothing measurable and is right on its own terms: a
+  sequencer must not have its terminator moved mid-run.
+- Suite **1213 passed, 0 failed**. Seals 496/496.
+
 ## the last defect is a zero-neuron read, and the fifth of its family
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 45), `README.md`.
