@@ -1,3 +1,15 @@
+# NOW -- the ladder is named TEF, and NVIDIA keeps tf32 (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T -> TEF (Ternary-Exponent Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have: GF sizes its exponent by `e = round((N-1)/phi^2)`, putting `e/m` at `1/phi` by construction, while this ladder sizes its exponent for RANGE and takes `M = N-1-E_t` -- its phi-distance RISES toward `1/phi`. The last tie to GF16, an inherited `M = 9`, was severed when the 16-bit rung went to `M = 11`
+- TEF says exactly what is true and nothing more: the exponent FIELD is balanced ternary, the radix is BINARY. A genuine ternary-radix float (`3^e`, as Ternary27) measures 0.331 positions per number WORSE at equal width, so claiming a ternary radix would claim the thing this format deliberately declines
+- An intermediate pass named the ladder TF; that collided head-on with NVIDIA TensorFloat-32, which holds `id=tf32` and the file `tf32_conformance_v0.json`. TEF removes the collision entirely: **NVIDIA keeps `tf32`, its file and its name, byte-identical** (verified by hash against the pre-rename tree)
+- `specs/numeric/tef*.t27`, catalog ids `tefN`, modules `triformat_tefN`, packs `tef*_conformance_v0.json`
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TEF specs
+
 # NOW -- the ladder is renamed GF-T -> TF (2026-08-09)
 
 Last updated: 2026-08-09

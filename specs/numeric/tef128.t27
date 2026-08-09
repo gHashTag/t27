@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// tf128.t27 -- TF128: ternary-exponent float, 128-bit class.
+// tef128.t27 -- TEF128: Ternary-Exponent Float, 128-bit class.
 //
 // Derived from the ladder's width rule 1 + E_t + M = N, counting one position
 // per trit -- the rule TF4, TF8 and TF32 already satisfy exactly. A
@@ -14,7 +14,7 @@
 // unsigned OFFSET in [0,6560]; balanced exponent e = offset - 3280.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_tf128 {
+module triformat_tef128 {
     use base::types;
 
     const SIGN_BITS: u32 = 1;

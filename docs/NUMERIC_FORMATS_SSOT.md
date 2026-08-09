@@ -163,7 +163,7 @@ quantised over `[1,r)` the mean relative error is `kappa(r) * 2^-M` with
 buys 0.42 of range, a net loss of 0.33 positions per number.
 
 **Width rule:** `1 + E_t + M = N`, counting one position per trit. Eight of the
-nine rungs satisfy it exactly. TF16 does not — it inherits GF16's phi-optimal
+nine rungs satisfy it exactly. TEF16 does not — it inherits GF16's phi-optimal
 `M = 9` and replaces GF16's six-bit exponent with four trits, leaving two
 positions unallocated. Spending them as `M = 11` divides the error by 4.00 at
 unchanged range for 19% more LUTs and no loss of frequency (measured, XC7A200T).
@@ -173,15 +173,15 @@ decision stays explicit.
 
 | Format | S+E+M | Bits | \|e\| max | Decades | E_t bits-equiv | φ-distance | Fits rule | Post-route XC7A200T | Spec |
 |---|---|---|---|---|---|---|---|---|---|
-| TF4 | 1+2t+1 | 4 | 4 | 2 | 3.17 | 2.552 | **yes** | 12 LUT / 161.1 MHz | [`tf4.t27`](../specs/numeric/tf4.t27) |
-| TF8 | 1+3t+4 | 8 | 13 | 8 | 4.75 | 0.571 | **yes** | 50 / 153.2 | [`tf8.t27`](../specs/numeric/tf8.t27) |
-| TF16 | 1+4t+9 | 16 | 40 | 24 | 6.34 | 0.086 | **no (2 unallocated)** | 212 / 131.7 | [`tf16.t27`](../specs/numeric/tf16.t27) |
-| TF32 | 1+6t+25 | 32 | 364 | 219 | 9.51 | 0.238 | **yes** | 1477 / 83.3 | [`tf32.t27`](../specs/numeric/tf32.t27) |
-| TF64 | 1+7t+56 | 64 | 1093 | 658 | 11.09 | 0.420 | **yes** | 7479 / 48.2 | [`tf64.t27`](../specs/numeric/tf64.t27) |
-| TF128 | 1+8t+119 | 128 | 3280 | 1975 | 12.68 | 0.511 | **yes** | — | [`tf128.t27`](../specs/numeric/tf128.t27) |
-| TF256 | 1+9t+246 | 256 | 9841 | 5925 | 14.26 | 0.560 | **yes** | — | [`tf256.t27`](../specs/numeric/tf256.t27) |
-| TF512 | 1+10t+501 | 512 | 29524 | 17775 | 15.85 | 0.586 | **yes** | — | [`tf512.t27`](../specs/numeric/tf512.t27) |
-| TF1024 | 1+11t+1012 | 1024 | 88573 | 53326 | 17.43 | 0.601 | **yes** | — | [`tf1024.t27`](../specs/numeric/tf1024.t27) |
+| TEF4 | 1+2t+1 | 4 | 4 | 2 | 3.17 | 2.552 | **yes** | 12 LUT / 161.1 MHz | [`tef4.t27`](../specs/numeric/tef4.t27) |
+| TEF8 | 1+3t+4 | 8 | 13 | 8 | 4.75 | 0.571 | **yes** | 50 / 153.2 | [`tef8.t27`](../specs/numeric/tef8.t27) |
+| TEF16 | 1+4t+9 | 16 | 40 | 24 | 6.34 | 0.086 | **no (2 unallocated)** | 212 / 131.7 | [`tef16.t27`](../specs/numeric/tef16.t27) |
+| TEF32 | 1+6t+25 | 32 | 364 | 219 | 9.51 | 0.238 | **yes** | 1477 / 83.3 | [`tef32.t27`](../specs/numeric/tef32.t27) |
+| TEF64 | 1+7t+56 | 64 | 1093 | 658 | 11.09 | 0.420 | **yes** | 7479 / 48.2 | [`tef64.t27`](../specs/numeric/tef64.t27) |
+| TEF128 | 1+8t+119 | 128 | 3280 | 1975 | 12.68 | 0.511 | **yes** | — | [`tef128.t27`](../specs/numeric/tef128.t27) |
+| TEF256 | 1+9t+246 | 256 | 9841 | 5925 | 14.26 | 0.560 | **yes** | — | [`tef256.t27`](../specs/numeric/tef256.t27) |
+| TEF512 | 1+10t+501 | 512 | 29524 | 17775 | 15.85 | 0.586 | **yes** | — | [`tef512.t27`](../specs/numeric/tef512.t27) |
+| TEF1024 | 1+11t+1012 | 1024 | 88573 | 53326 | 17.43 | 0.601 | **yes** | — | [`tef1024.t27`](../specs/numeric/tef1024.t27) |
 
 **Reading the φ-distance column.** It is the catalog's own `|E/M - 1/φ|` computed
 on the exponent's bit-equivalent `E_t*log2(3)`, and it **rises toward 1/φ as N
@@ -196,7 +196,7 @@ costs 438 LUTs round trip and a length-prefixed one (takum class) 40, against 0
 here. Converting through the measured area law `A(M) = 141 + 2.4455*M^2`, whose
 derivative `λ = 4.891*M` is the marginal LUT cost of a mantissa bit, the unary
 regime is **9.95 mantissa bits of silicon** at the 16-bit class — more than
-TF16's entire mantissa — and 1.00 at `M = 90`. The length-prefixed regime is
+TEF16's entire mantissa — and 1.00 at `M = 90`. The length-prefixed regime is
 0.91 bits and 0.09. The area argument is therefore decisive against posit and weak
 against takum, and is stated that way rather than averaged.
 

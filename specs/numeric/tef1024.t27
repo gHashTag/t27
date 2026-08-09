@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// tf1024.t27 -- TF1024: ternary-exponent float, 1024-bit class.
+// tef1024.t27 -- TEF1024: Ternary-Exponent Float, 1024-bit class.
 //
 // Derived from the ladder's width rule 1 + E_t + M = N, counting one position
 // per trit -- the rule TF4, TF8 and TF32 already satisfy exactly. A
@@ -14,7 +14,7 @@
 // unsigned OFFSET in [0,177146]; balanced exponent e = offset - 88573.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_tf1024 {
+module triformat_tef1024 {
     use base::types;
 
     const SIGN_BITS: u32 = 1;
