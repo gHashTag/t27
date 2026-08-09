@@ -4183,6 +4183,72 @@ grep -c "^          probe " .github/workflows/formal-yosys.yml
 
 ---
 
+### Prop. 68 — auditing the bounds, and a generalisation that did not hold — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*
+
+Prop. 67c found a probe whose `seq 22` verdict was **wrong**, not unknown. Every
+`PROVED` in this repository carries the same hidden qualifier, and only that
+direction can fail this way — a refutation found at depth N is a real
+counterexample at any depth. This audits them, and separately tests whether
+Prop. 67b's phase-conditioning generalises.
+
+**68a. Four wrappers re-proved at 2× and 4× their CI bound. No verdict flips.**
+
+| wrapper | CI bound | 2× | 4× |
+|---|---|---|---|
+| `irq_props` | 6 → PROVED | 12 → PROVED | 24 → PROVED |
+| `axi_props` | 10 → PROVED | 20 → PROVED | 40 → PROVED |
+| `dma_props` | 80 → PROVED | 160 → PROVED | 320 → PROVED |
+| `ls_props` | 48 → PROVED | 96 → PROVED | 192 → *undecided* |
+
+`ls_props` at 4× exceeds the solver's reach inside the time budget. **Undecided
+is not a flip** — it is the honest outcome, and it is reported rather than
+retried until it produced a number. `dma_controller` surviving to `seq 320` is
+the strongest single result: its bound was raised 12 → 80 in Prop. 35, and this
+says that raise was not merely convenient.
+
+**68b. Scope, and it is partial on purpose.** Four of twelve wrappers audited;
+`wp_props`, `ar_props`, the four zero-size and two maximum-size wrappers are not
+yet done — each 4× run costs more than the wave's remaining budget. Naming which
+were audited is the point of Prop. 67e; a partial audit reported as partial is
+worth more than a complete one reported without its cost.
+
+**68c. Phase-conditioning does not generalise, and that is a real answer.**
+Prop. 67b fixed a phase-blind probe and I expected the blindness to be general —
+the previous wave said so in writing. Five phase-conditioned candidates were
+built and measured against the four mutants nothing currently catches:
+
+| candidate probe | real engine | four undetected mutants |
+|---|---|---|
+| `!(neuron_out_valid && !use_buffer_a)` | refutes | all four refute |
+| `!(neuron_out_valid && use_buffer_a)` | refutes | all four refute |
+| `!(dma_local_we && !use_buffer_a)` | refutes | all four refute |
+| `!(pf_bram_we && !use_buffer_a)` | refutes | all four refute |
+| `!(mac_valid_q && use_buffer_a)` | refutes | all four refute |
+
+**Not one bites.** The double-buffer fault was catchable by phase-conditioning
+because it *stalls one phase*; the remaining four (config latch, activation/
+requant, layer sequencing, interrupt/status) do not stall anything, so no
+reachability probe of any phase will see them. A prediction from the previous
+wave, refuted by measurement rather than carried forward — which is cheaper than
+shipping five probes that pass and prove nothing.
+
+**68d. What the remaining four would actually need.** Not liveness. Each changes
+a *value* while leaving every activity reachable: a config latch reset to 1, an
+accumulator decrementing instead of incrementing, a status word with a stray
+bit. Those are safety claims about data, and the 26 existing safety properties
+are about control. That is the shape of the gap, stated so the next attempt does
+not begin with another probe.
+
+Reproduce:
+
+```bash
+grep -c "^          probe " .github/workflows/formal-yosys.yml
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

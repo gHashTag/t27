@@ -2,6 +2,37 @@
 
 Last updated: 2026-08-10
 
+## Wave 617 — auditing the bounds, and a generalisation that did not hold
+
+- **THE AUDIT**: Prop. 67c found a probe whose `seq 22` verdict was **wrong**,
+  not unknown. Every PROVED in the repository carries the same hidden qualifier,
+  and only that direction can fail this way -- a refutation at depth N is real at
+  any depth. Four wrappers re-proved at 2x and 4x their CI bound: irq 6->24,
+  axi 10->40, dma **80->320**, ls 48->96 (192 undecided). **No verdict flips.**
+- **UNDECIDED IS NOT A FLIP**: `ls_props` at 4x exceeds the solver's reach in
+  budget. Reported as undecided rather than retried until it produced a number.
+- **THE STRONGEST ROW**: `dma_props` surviving to seq 320. Its bound was raised
+  12 -> 80 in Prop. 35; this says that raise was not merely convenient.
+- **SCOPE, PARTIAL ON PURPOSE**: four of twelve wrappers. `wp_props`, `ar_props`,
+  the four zero-size and two maximum-size wrappers are not yet audited -- each 4x
+  run costs more than the wave had left. Naming which were audited is the point
+  of Prop. 67e.
+- **PHASE-CONDITIONING DOES NOT GENERALISE**: last wave predicted in writing that
+  it would catch more. Five phase-conditioned candidates built and measured
+  against the four mutants nothing catches -- **not one bites**. All five refute
+  on the real engine and on all four mutants.
+- **WHY**: the double-buffer fault was catchable that way because it *stalls one
+  phase*. The remaining four stall nothing, so no reachability probe of any phase
+  will see them. A prediction refuted by measurement rather than carried forward.
+- **WHAT THE REMAINING FOUR WOULD NEED**: not liveness. Each changes a **value**
+  while leaving every activity reachable -- a config latch reset to 1, an
+  accumulator decrementing, a status word with a stray bit. Those are safety
+  claims about *data*; the 26 existing safety properties are about *control*.
+  The shape of the gap, stated so the next attempt does not start with a probe.
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop. 68), README.
+- **STATE**: 68 propositions · 68 gates · 14 witnesses · 7 engine liveness probes
+  · 1213 tests · 496/496 seals · no known defect.
+
 ## Wave 616 — half the gate set, a phase-blind suite, and a bound that lies
 
 - **THE CORRECTION**: Prop. 66 reported **1 of 7** engine mutations detected.
