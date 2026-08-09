@@ -2091,6 +2091,66 @@ grep -c tempinduct .github/workflows/formal-yosys.yml   # which proofs are unbou
 
 ---
 
+### Prop. 37 — splitting helps when cost is property-dominated, not when it is model-dominated — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling*
+
+Prop. 35 split one module's suite and gained a 2.9× deeper bound. The obvious
+next step was to split the 20-property engine set the same way. It does not
+work, and *why* it does not work is the useful part.
+
+**37a. The measurement that looked like a per-property map.** Each engine
+property isolated at `-seq 80` with a 240 s budget: **8 of 20 proved**, 12
+undecided. That reads like a depth map — until you notice which properties are
+in which group. `a_sanity` is `assert (bram_addr == bram_addr)`, a tautology,
+and it is in the **undecided** group. A tautology has no depth.
+
+**37b. The cost is the model, not the property.** Re-run with a real budget:
+
+| property | verdict | time |
+|---|---|---:|
+| `a_sanity` (a tautology) | PROVED | 276.2 s |
+| `a_no_read_before_write` (cross-layer, the hardest one) | PROVED | 299.2 s |
+
+**Eight percent apart.** At `-seq 80` the engine costs ~280 s to unroll and
+solve *regardless of what is being asserted*. The 240 s budget cut across that
+plateau, and which properties landed on which side of it was near-arbitrary.
+
+**37c. The dichotomy.** Two suites, opposite answers, same technique:
+
+| | `weight_prefetch_ctrl` | `bitnet_engine_top` |
+|---|---|---|
+| cheapest property | 0.2 s | 276 s |
+| dearest property | 87.2 s | 299 s |
+| ratio | **436×** | **1.08×** |
+| splitting gains | **2.9× deeper bound** | **nothing** |
+
+> **Splitting a verification suite pays exactly when its members differ in cost.**
+> Where one property dominates, isolating it removes the others' contribution to
+> a shared instance and the bound rises. Where every property costs the same
+> because the *model* is the expense, splitting buys attribution and no depth at
+> all.
+
+The diagnostic is one run: **time a tautology.** If a trivially true assertion
+costs what a real one costs, the model is the bottleneck and splitting will not
+help. That check costs one invocation and would have saved this wave's first
+measurement from being over-read.
+
+**37d. What was over-read, precisely.** "8 of 20 proved at `-seq 80`" was
+reported by the sweep and is true. It invites the reading *these 8 properties
+are deeper than those 12*, which is false — all 20 prove at `-seq 80` given
+enough time, and the split was an artifact of where a timeout fell on a
+plateau. **A partition produced by a timeout is a partition of the timeout, not
+of the subject.**
+
+Reproduce:
+
+```bash
+python3 formal/scale_probe.py 80 4 --each   # the per-property view, budget-bound
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

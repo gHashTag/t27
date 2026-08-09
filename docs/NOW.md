@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-09
 
+## splitting pays only when properties differ in cost
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 37), `README.md`.
+- Prop 35 split one module's suite and gained a 2.9x deeper bound. Splitting the
+  20-property engine set the same way **does not work**, and why is the useful
+  part.
+- **The measurement that looked like a depth map**: each engine property
+  isolated at seq 80 with a 240s budget, 8 of 20 proved. Then notice which are
+  in which group -- `a_sanity` is `assert (bram_addr == bram_addr)`, a
+  tautology, and it is in the **undecided** group. A tautology has no depth.
+- **The cost is the model, not the property.** With a real budget: the tautology
+  proves in **276.2s**, the hardest cross-layer property in **299.2s**. Eight
+  percent apart. At seq 80 the engine costs ~280s to unroll and solve regardless
+  of what is asserted.
+- **The dichotomy**: `weight_prefetch_ctrl` cheapest-to-dearest ratio **436x**
+  -> splitting gained 2.9x depth. `bitnet_engine_top` ratio **1.08x** ->
+  splitting gains nothing. **Splitting pays exactly when members differ in
+  cost.**
+- **The diagnostic is one run: time a tautology.** If a trivially true assertion
+  costs what a real one costs, the model is the bottleneck. One invocation,
+  and it would have stopped this wave's first measurement being over-read.
+- **What was over-read**: "8 of 20 proved at seq 80" is true and invites the
+  false reading that those 8 are deeper. All 20 prove given time. **A partition
+  produced by a timeout is a partition of the timeout, not of the subject.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## two suites were never bounded at all
 
 - **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
