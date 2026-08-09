@@ -2865,11 +2865,26 @@ impl Parser {
                     self.advance();
                     // Check if this is a method/field call: expr.field(args)
                     if self.current.kind == TokenKind::LParen {
-                        // Method-style call: expr.field(args)
-                        // Build fully-qualified name from field access chain
-                        let full_name = Self::flatten_field_access_name(&expr, &field);
-                        let call = self.parse_call_args(full_name)?;
-                        expr = call;
+                        // Method-style call: expr.field(args).
+                        //
+                        // The name-flattening path walks a chain of identifiers
+                        // and field accesses. When the receiver is something
+                        // else -- a CALL or an INDEX -- it used to stop and
+                        // SILENTLY DROP it, so
+                        // `ternary_gemm(a, w).len()` parsed as `len()`: no
+                        // receiver, no diagnostic. 198 no-argument method calls
+                        // and ~40 with arguments sit on such receivers in this
+                        // corpus. Keep the receiver as a child instead.
+                        if Self::is_flattenable_receiver(&expr) {
+                            let full_name = Self::flatten_field_access_name(&expr, &field);
+                            let call = self.parse_call_args(full_name)?;
+                            expr = call;
+                        } else {
+                            let mut call = self.parse_call_args(field)?;
+                            call.extra_kind = "method".to_string();
+                            call.children.insert(0, expr);
+                            expr = call;
+                        }
                     } else {
                         let mut fa = Node::new(NodeKind::ExprFieldAccess);
                         fa.name = field;
@@ -2902,6 +2917,25 @@ impl Parser {
     /// Flatten a chain of ExprFieldAccess nodes into a dotted name
     /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
     /// becomes "std.testing.expectEqual"
+    /// Whether a receiver is a pure chain of identifiers and field accesses,
+    /// and can therefore be folded into a dotted callee NAME without losing
+    /// anything. A call or an index in the chain cannot.
+    fn is_flattenable_receiver(expr: &Node) -> bool {
+        let mut current = expr;
+        loop {
+            match current.kind {
+                NodeKind::ExprIdentifier => return true,
+                NodeKind::ExprFieldAccess => {
+                    if current.children.is_empty() {
+                        return true;
+                    }
+                    current = &current.children[0];
+                }
+                _ => return false,
+            }
+        }
+    }
+
     fn flatten_field_access_name(expr: &Node, trailing_field: &str) -> String {
         let mut parts = vec![trailing_field.to_string()];
         let mut current = expr;
@@ -3804,6 +3838,11 @@ pub struct Codegen {
     /// where the callee declares a slice needs `&[_]T{ … }` -- and the element
     /// type is only knowable from the callee's signature.
     declared_fn_params: std::collections::HashMap<String, Vec<String>>,
+    /// Locals bound to an array literal and later passed where a callee
+    /// declares a SLICE, mapped to the element type the callee requires. Such a
+    /// local must be a real `[_]T{ … }` array and be passed by reference; an
+    /// anonymous `.{ … }` cannot coerce to `[]T`.
+    slice_locals: std::collections::HashMap<String, String>,
     /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
     /// a tag comparison -- Zig has no ordering on enums.
     declared_enums: std::collections::HashSet<String>,
@@ -3822,8 +3861,72 @@ impl Codegen {
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
+            slice_locals: std::collections::HashMap::new(),
             declared_enums: std::collections::HashSet::new(),
             string_names: std::collections::HashSet::new(),
+        }
+    }
+
+    /// Find locals bound to an array literal that are later passed where a
+    /// callee declares a slice, and record the element type the callee needs.
+    ///
+    /// `given inputs = [0, 0, 0, 0]` followed by `adder_tree(inputs)` emitted
+    /// `const inputs = .{ 0, 0, 0, 0 };` and then
+    /// "expected type '[]i32', found 'struct { comptime T = 0, ... }'". The
+    /// element type is not in the literal -- only the callee's signature has
+    /// it.
+    fn collect_slice_locals(&mut self, stmts: &[Node]) {
+        let mut array_locals: std::collections::HashSet<String> = std::collections::HashSet::new();
+        Self::collect_array_locals(stmts, &mut array_locals);
+        if array_locals.is_empty() {
+            return;
+        }
+        let params = self.declared_fn_params.clone();
+        let mut found: Vec<(String, String)> = Vec::new();
+        Self::visit_calls(stmts, &mut |call: &Node| {
+            let sig = match params.get(&call.name) {
+                Some(s) => s,
+                None => return,
+            };
+            for (i, arg) in call.children.iter().enumerate() {
+                if arg.kind != NodeKind::ExprIdentifier || !array_locals.contains(&arg.name) {
+                    continue;
+                }
+                if let Some(ty) = sig.get(i) {
+                    let zig = Self::t27_array_type_to_zig(ty);
+                    if let Some(elem) = Self::slice_element_type(&zig) {
+                        found.push((arg.name.clone(), elem));
+                    }
+                }
+            }
+        });
+        for (name, elem) in found {
+            self.slice_locals.insert(name, elem);
+        }
+    }
+
+    fn collect_array_locals(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
+        for stmt in stmts {
+            if matches!(stmt.kind, NodeKind::StmtLocal | NodeKind::StmtAssign)
+                && !stmt.name.is_empty()
+                && stmt
+                    .children
+                    .first()
+                    .map(|c| c.kind == NodeKind::ExprArrayLiteral)
+                    .unwrap_or(false)
+            {
+                out.insert(stmt.name.clone());
+            }
+            Self::collect_array_locals(&stmt.children, out);
+        }
+    }
+
+    fn visit_calls(nodes: &[Node], f: &mut impl FnMut(&Node)) {
+        for n in nodes {
+            if n.kind == NodeKind::ExprCall {
+                f(n);
+            }
+            Self::visit_calls(&n.children, f);
         }
     }
 
@@ -4418,6 +4521,8 @@ impl Codegen {
 
         self.mut_names.clear();
         collect_mutable_names(&node.children, &mut self.mut_names);
+        self.slice_locals.clear();
+        self.collect_slice_locals(&node.children);
 
         for pname in &shadowed {
             self.write_indent();
@@ -4512,6 +4617,8 @@ impl Codegen {
 
         self.mut_names.clear();
         collect_mutable_names(&node.children, &mut self.mut_names);
+        self.slice_locals.clear();
+        self.collect_slice_locals(&node.children);
 
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
@@ -4715,7 +4822,12 @@ impl Codegen {
                     }
                     self.write_line(";");
                 } else {
-                    let as_var = node.extra_mutable || self.mut_names.contains(&node.name);
+                    // A slice-typed local must be `var`: `&const_array` is
+                    // `*const [N]T`, which coerces to `[]const T` but not to
+                    // the mutable `[]T` most signatures declare.
+                    let as_var = node.extra_mutable
+                        || self.mut_names.contains(&node.name)
+                        || self.slice_locals.contains_key(&node.name);
                     if as_var {
                         self.write("var ");
                     } else {
@@ -4739,7 +4851,23 @@ impl Codegen {
                     }
                     if !node.children.is_empty() {
                         self.write(" = ");
-                        self.gen_expr(&node.children[0]);
+                        // W572: a local bound to an array literal and later
+                        // passed where a callee declares `[]T` must be a real
+                        // `[_]T{ … }` array; `.{ … }` does not coerce to a
+                        // slice. The element type comes from the callee.
+                        let slice_elem = if node.children[0].kind == NodeKind::ExprArrayLiteral {
+                            self.slice_locals.get(&node.name).cloned()
+                        } else {
+                            None
+                        };
+                        match slice_elem {
+                            Some(t) => {
+                                self.write(&format!("[_]{}", t));
+                                let lit = node.children[0].clone();
+                                self.gen_array_literal_braces(&lit);
+                            }
+                            None => self.gen_expr(&node.children[0]),
+                        }
                     } else {
                         // Zig has no uninitialized declarations.
                         self.write(" = undefined");
@@ -5003,6 +5131,25 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
+                // W572: a method call whose receiver could not be folded into
+                // the name keeps it as children[0].
+                if node.extra_kind == "method" && !node.children.is_empty() {
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    if node.name == "len" && node.children.len() == 1 {
+                        self.write(".len");
+                        return;
+                    }
+                    self.write(&format!(".{}(", Self::zig_ident(&node.name)));
+                    for (i, arg) in node.children.iter().skip(1).enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
+                    return;
+                }
+
                 // W570: `x.len()` and `len(x)`. Zig exposes a slice length as
                 // the FIELD `.len`, so the call form emitted `a.len()` and
                 // failed. 1,356 method calls and 318 free calls across 51
@@ -5146,10 +5293,32 @@ impl Codegen {
                         } else {
                             None
                         };
+                        // A local materialised as `[_]T{ … }` is passed by
+                        // reference; that is what makes it a slice.
+                        let by_ref = arg.kind == NodeKind::ExprIdentifier
+                            && self.slice_locals.contains_key(&arg.name)
+                            && param_types
+                                .as_ref()
+                                .and_then(|ps| ps.get(i))
+                                .map(|ty| {
+                                    Self::slice_element_type(&Self::t27_array_type_to_zig(ty))
+                                        .is_some()
+                                })
+                                .unwrap_or(false);
                         match elem {
                             Some(t) => {
-                                self.write(&format!("&[_]{}", t));
+                                // `&[_]T{ … }` is `*const [N]T`, which coerces
+                                // to `[]const T` but not to the mutable `[]T`
+                                // most signatures declare. A literal argument
+                                // has no addressable `var` to point at, so the
+                                // const-ness is cast away explicitly.
+                                self.write(&format!("@constCast(&[_]{}", t));
                                 self.gen_array_literal_braces(arg);
+                                self.write(")");
+                            }
+                            None if by_ref => {
+                                self.write("&");
+                                self.gen_expr(arg);
                             }
                             None => self.gen_expr(arg),
                         }

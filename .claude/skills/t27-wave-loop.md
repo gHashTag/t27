@@ -4113,6 +4113,21 @@ These cost a wave each. Follow them before step 1.
     method that resolves it would call the wrong thing on nothing. Second time
     in this chain the compiler was found discarding input without saying so.
 
+39. **A running test that FAILS is worth more than nine that cannot run.**
+    W572's harness went `ALL_PASS 22, TEST_FAIL 1` and that single failure was
+    the wave's result: `adder_tree.t27` runs 335 tests, passes 32, and dies on
+    a test asserting two's-complement wrap while the backend traps. Do not
+    treat a new TEST_FAIL as a regression to be suppressed -- it is the
+    measurement the whole chain existed to obtain.
+
+40. **Turning on cross-module resolution turns every call site into a type
+    check.** W569 made `use` real; W572 immediately found
+    `ternary_gemm.t27` calling `ternary_mac(a, w, acc)` against a signature of
+    `(acc, a, w)`. It was undetectable before, because each spec generated a
+    file in which the callee was simply undeclared. Expect a wave of
+    newly-visible signature mismatches after any linking change, and audit for
+    the class rather than patching the instance.
+
 ### How to update this tracker
 
 After closing a wave:

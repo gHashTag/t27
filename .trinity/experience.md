@@ -20724,3 +20724,39 @@ resolves, it would call the wrong thing on nothing.
 Second time this chain has found the compiler discarding input without saying so (the
 first was W569's truncation). When a parser builds a NAME by concatenation rather than
 a NODE by structure, ask what happens to the parts that are not identifiers.
+
+## Wave Loop 572 -- the first real test failure this project has ever produced (2026-08-09)
+
+    harness  ALL_PASS 22   TEST_FAIL 1   COMPILE_FAIL 178
+    adder_tree.t27: compiles, runs 335 tests, 32 pass, #33 fails
+
+Since W549 this chain has chased ONE number -- how many tests fail once they can run --
+and every wave answered "unknown, they don't compile". The answer for the first RACE
+kernel to get there:
+
+    33/335 adder_tree_4_i32_max_overflow ... panic: integer overflow
+
+The test asserts two's-complement wrap (2147483647 + 2 == -2147483647). The backend
+emits `+`, which traps. 206 specs mention overflow/wrapping; 43 tests are named for it.
+This is a numeric-semantics question for the LANGUAGE, decided by FORMAT-SPEC-001.json
+and gf16.t27 (the L6 SSOT) -- not by whichever choice makes the gate green.
+
+### The silent-wrong-code bug that got it there
+
+    ternary_gemm([...], [...]).len() == 4   ->  emitted  len()
+
+`flatten_field_access_name` folds a receiver into a dotted callee NAME, walking
+identifiers and field accesses; on a call or an index it stopped and dropped the
+receiver with no diagnostic. 198 no-arg method calls and ~40 with args sit on such
+receivers. It failed loudly only because `len` is undeclared -- with a method that
+resolves it would have called the wrong thing on nothing.
+
+### What `use` resolution made visible
+
+ternary_mac.t27 declares `fn ternary_mac(acc: i32, a: i8, w: TernaryWeight)`.
+ternary_gemm.t27 calls `ternary_mac(a[0], w[0], acc)`. The argument ORDER does not
+match, and it was undetectable before W569 because nothing crossed a module boundary
+-- each spec generated a file where the callee was simply undeclared.
+
+Turning on cross-module resolution turns every call site into a type check. Expect a
+wave of newly-visible signature mismatches, and audit rather than patch.
