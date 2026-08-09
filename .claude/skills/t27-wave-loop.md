@@ -4323,6 +4323,22 @@ These cost a wave each. Follow them before step 1.
     spending waves on a blocker, ask what is behind it: the number that matters
     may be the one it is hiding.
 
+67. **Separate "unwritten" from "broken" before ranking any backlog.** W586
+    found 118 of 216 `COMPILE_FAIL` specs had functions with no bodies --
+    `@compileError("not yet implemented")` is indistinguishable from a syntax
+    error in every count this chain kept. 159 of 397 parsing specs (40%) have no
+    implementation at all. Every taxonomy from W560 onward was diluted by a
+    population no compiler change could move. This is the second such finding in
+    three waves (W580's Markdown files were the first): a denominator holding
+    things that can never pass makes every rate wrong by a fixed, unknown amount.
+
+68. **A header comment naming a source is not evidence the source exists.** 169
+    specs say "Implement from .tri spec". One has a same-named `.tri`, and that
+    one is a basename collision with an architecture diagram; across all 26
+    `.tri` files there are 94 function declarations and 5 bodies. Check the
+    artefact before planning the wave around it -- the falsification condition
+    took ten minutes and saved a wave.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -1,0 +1,11 @@
+--- implementation status ---
+  specs fully implemented   232
+  specs PARTLY written      6
+  specs entirely UNWRITTEN  159
+  specs that do not parse   211
+
+  functions declared        2854
+  functions with NO BODY    667
+
+  An unwritten spec is not a broken one. Before W586 both were
+  reported as COMPILE_FAIL and counted together.

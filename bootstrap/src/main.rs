@@ -15,6 +15,7 @@ mod compiler;
 mod use_resolve;
 mod check_calls;
 mod cc_gate;
+mod impl_status;
 mod lex_conform;
 mod parse_conform;
 mod enrichment;
@@ -87,6 +88,19 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Separate specs that are UNWRITTEN (functions with no bodies) from specs
+    /// that are BROKEN (do not parse)
+    ImplStatus {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+        /// List every spec with an empty function body
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
     /// Compile every generated C header with `cc -fsyntax-only` and report the
     /// first-error class table
     CcGate {
@@ -3121,6 +3135,32 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
     }
+    Ok(())
+}
+
+fn run_impl_status(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let r = impl_status::run(root, include_scratch);
+    if verbose {
+        for (f, empty, total) in &r.detail {
+            println!("{}: {} of {} function(s) have no body", f, empty, total);
+        }
+        println!();
+    }
+    println!("--- implementation status ---");
+    println!("  specs fully implemented   {}", r.implemented);
+    println!("  specs PARTLY written      {}", r.partial);
+    println!("  specs entirely UNWRITTEN  {}", r.unwritten);
+    println!("  specs that do not parse   {}", r.unparsable);
+    println!();
+    println!("  functions declared        {}", r.total_fns);
+    println!("  functions with NO BODY    {}", r.empty_fns);
+    println!();
+    println!("  An unwritten spec is not a broken one. Before W586 both were");
+    println!("  reported as COMPILE_FAIL and counted together.");
     Ok(())
 }
 
@@ -9709,6 +9749,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
+            run_impl_status(&specs_dir, include_scratch, verbose)?
+        }
         Commands::CcGate { specs_dir, include_scratch, verbose } => {
             run_cc_gate(&specs_dir, include_scratch, verbose)?
         }
@@ -10026,6 +10069,9 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
+            run_impl_status(&specs_dir, include_scratch, verbose)?
+        }
         Commands::CcGate { specs_dir, include_scratch, verbose } => {
             run_cc_gate(&specs_dir, include_scratch, verbose)?
         }

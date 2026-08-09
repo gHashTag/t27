@@ -21243,3 +21243,38 @@ for its input.
 The FPGA track is the counter-example: correct since W553 because yosys and nextpnr are
 consumers that refuse nonsense. The only part never wrong, and the only part with a
 real consumer.
+
+## Wave Loop 586 -- more than half the "compile failures" are specs nobody has written (2026-08-10)
+
+    harness   COMPILE_FAIL 216  ->  COMPILE_FAIL 98 + UNIMPLEMENTED 118
+    impl-status: 232 implemented, 6 partial, 159 UNWRITTEN, 211 unparsable
+                 667 of 2,854 declared functions have NO BODY (23%)
+
+### The falsification check killed Variant A, which is what it is for
+
+W585 proposed regenerating the 571 empty bodies from the `.tri` sources every spec
+names in its header ("Implement from .tri spec"), with the condition "if the sources
+exist and contain the bodies this is one regeneration -- check first".
+
+    26 .tri files in the repo
+     1 empty-body spec has a same-named .tri  -- and it is a basename collision with
+       an architecture diagram
+    94 fn declarations across all 26 .tri files, 5 with bodies
+
+The sources do not exist. The header comment points at something that is not there.
+
+### The finding
+
+159 of the 397 parsing specs -- 40% -- have NO implementation at all. Every function
+empty. 118 of the 216 "compile failures" were that. The number this chain has been
+driving down since W560 was more than half composed of specs nobody had written, and
+no compiler work could ever have moved that half.
+
+### The pattern, second time in three waves
+
+W580: 15 Markdown documents named *.t27, 7% of parse failures, can never pass.
+W586: 118 unwritten specs, 55% of compile failures, no compiler change can fix them.
+
+Same shape: A DENOMINATOR CONTAINING THINGS THAT CAN NEVER PASS. Every rate quoted
+against it is wrong by a fixed, unknown amount. Split the population before ranking
+the work.

@@ -1409,6 +1409,22 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 }
             }
         }
+        // W586: an UNWRITTEN spec is not a BROKEN one. Both were reported as
+        // COMPILE_FAIL and counted together for twenty-five waves.
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let r = crate::impl_status::run(root, false);
+                println!(
+                    "  implementation: {} implemented, {} partial, {} UNWRITTEN, {} unparsable",
+                    r.implemented, r.partial, r.unwritten, r.unparsable
+                );
+                println!(
+                    "    {} of {} declared functions have NO BODY",
+                    r.empty_fns, r.total_fns
+                );
+            }
+        }
         println!("  (reporting only -- not counted in TOTAL FAILURES)");
     }
 
