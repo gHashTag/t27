@@ -1,3 +1,37 @@
+# NOW -- gfternary restored, and a gate so a glob cannot do that again (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: restore gfternary.t27, alias the former name, gate both (Refs #2001)
+
+- **`specs/numeric/gfternary.t27` was deleted by my own `rm -f specs/numeric/gft*.t27`** during the TEF rename. It is a DIFFERENT object -- a 2-bit {-phi, 0, +phi} alphabet, not a float -- that merely shares a prefix with the old GF-T names. Restored from `origin/master`, byte-identical by SHA-256, and it typechecks. The same glob had already dropped it from the pack index earlier the same day: twice is a pattern
+- **`former_name="GF-T{N}"` on every TEF row.** Renaming the ladder does not retract its measurements: arXiv:2606.05017 and arXiv:2606.09686 cite GF-T, and it labels every published comparison against takum / tekum / posit. The old name stays searchable, and the catalog header says why
+- New gate `tools/check_catalog_integrity.py`: every `source=` resolves, the three prefix-sharing neighbours (`gfternary`, the binary `gf*` ladder, the `tef*` ladder) are each present **on disk** and distinct, and the former name is still there. Verified red on each of those failures individually, not just green on the happy path
+- The catalog row alone was never enough -- `gfternary`'s row survived while its spec file did not, and nothing noticed
+
+# NOW -- the ladder is named TEF, and NVIDIA keeps tf32 (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T -> TEF (Ternary-Exponent Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have: GF sizes its exponent by `e = round((N-1)/phi^2)`, putting `e/m` at `1/phi` by construction, while this ladder sizes its exponent for RANGE and takes `M = N-1-E_t` -- its phi-distance RISES toward `1/phi`. The last tie to GF16, an inherited `M = 9`, was severed when the 16-bit rung went to `M = 11`
+- TEF says exactly what is true and nothing more: the exponent FIELD is balanced ternary, the radix is BINARY. A genuine ternary-radix float (`3^e`, as Ternary27) measures 0.331 positions per number WORSE at equal width, so claiming a ternary radix would claim the thing this format deliberately declines
+- An intermediate pass named the ladder TF; that collided head-on with NVIDIA TensorFloat-32, which holds `id=tf32` and the file `tf32_conformance_v0.json`. TEF removes the collision entirely: **NVIDIA keeps `tf32`, its file and its name, byte-identical** (verified by hash against the pre-rename tree)
+- `specs/numeric/tef*.t27`, catalog ids `tefN`, modules `triformat_tefN`, packs `tef*_conformance_v0.json`
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TEF specs
+
+# NOW -- the ladder is renamed GF-T -> TF (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T becomes TF (Ternary Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have. GF sizes its exponent by `e = round((N-1)/phi^2)`, which puts `e/m` at `1/phi` by construction; this ladder sizes its exponent for RANGE and takes `M = N-1-E_t`, and its phi-distance RISES toward `1/phi` as N grows. The last tie to GF16 -- an inherited `M = 9` -- was severed when gft16 went to `M = 11`
+- Renamed throughout: `specs/numeric/gft*.t27` -> `tf*.t27`, catalog ids `gftN` -> `tfN`, module `triformat_gftN` -> `triformat_tfN`, conformance packs and INDEX entries
+- **NVIDIA TensorFloat-32 held `id=tf32` and the file `tf32_conformance_v0.json`.** Its internal id moves to `tensorfloat32` and its pack to `tensorfloat32_conformance_v0.json`; its human-readable `name="TensorFloat-32 (TF32)"` is unchanged, because that is NVIDIA's name and not ours to alter. I overwrote its pack during the rename and restored it from git -- the WP-18 gate caught it as a sha drift, which is the gate working
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TF specs
+
 # NOW -- GF-T16 spends its last two positions (2026-08-09)
 
 Last updated: 2026-08-09

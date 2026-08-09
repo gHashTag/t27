@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// gft32.t27 -- GF-T32: ternary-native GoldenFloat, 32-bit class.
-// Top practical rung of the GF-T ladder. Balanced-ternary exponent = 6 trits
+// tef32.t27 -- TEF32: Ternary-Exponent Float, 32-bit class.
+// Top practical rung of the TF ladder. Balanced-ternary exponent = 6 trits
 // (3^6 = 729 offsets, exponent +-364, ~219 decades), phi-ish 25-bit mantissa,
 // NO regime decode. The direct ternary rival to tekum-32 / takum32: fixed fields,
 // native balanced-ternary exponent add, uniform high-precision mantissa vs the
@@ -8,7 +8,7 @@
 //   layout: [ sign(1) | E = 6 balanced-ternary trits | M = 25 bits ]
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_gft32 {
+module triformat_tef32 {
     use base::types;
 
     const EXP_TRITS: u32 = 6;
