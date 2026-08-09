@@ -270,6 +270,36 @@ module FormatsCatalog {
 
   // CATALOG: id=gf1024 name="GF1024 (rule-derived)" bits=1024 s=1 e=391 m=632 bias=2^390-1 phi_distance=0.0006 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder" use_case="OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL)" gf_relation=experimental source="specs/numeric/gf1024.t27"
 
+
+  // ---------------------------------------------------------------------
+  // BNF -- Binary Network Float. The CONTROL for TNF.
+  //
+  // BNF and TNF are derived from the same theorem and differ in exactly one
+  // thing: the radix the exponent FIELD is encoded in. Everything else is
+  // identical -- the width rule 1 + E + M = N, the binary radix of the SCALE,
+  // the uniform mantissa. The pair therefore measures what the ternary encoding
+  // is worth instead of asserting it.
+  //
+  // Measured: on a binary fabric the two are identical at every width, exactly
+  // as the no-free-range theorem requires. On a ternary fabric TNF's exponent
+  // costs one position fewer, which goes to the mantissa and is worth exactly 2x
+  // in error by the precision law. Not more, not less, and the same at every rung.
+  //
+  // NOT the golden-ratio family. GF sizes its exponent by e = round((N-1)/phi^2)
+  // and GF-T inherits that mantissa into trits, leaving positions unspent. BNF
+  // and TNF size the exponent for the range the workload needs and then spend
+  // every position that remains. Four formats, two axes: phi vs theorem-derived,
+  // binary vs ternary.
+  // ---------------------------------------------------------------------
+  // CATALOG: id=bnf8 name="BNF8" bits=8 s=1 e=5 m=2 bias=15 phi_distance=1.882 storage=u8 cluster=GoldenFloat status=Open standard="this work; control for TNF8; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf8.t27"
+  // CATALOG: id=bnf16 name="BNF16" bits=16 s=1 e=7 m=8 bias=63 phi_distance=0.257 storage=u16 cluster=GoldenFloat status=Open standard="this work; control for TNF16; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf16.t27"
+  // CATALOG: id=bnf32 name="BNF32" bits=32 s=1 e=10 m=21 bias=511 phi_distance=0.142 storage=u32 cluster=GoldenFloat status=Open standard="this work; control for TNF32; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf32.t27"
+  // CATALOG: id=bnf64 name="BNF64" bits=64 s=1 e=12 m=51 bias=2047 phi_distance=0.383 storage=u64 cluster=GoldenFloat status=Open standard="this work; control for TNF64; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf64.t27"
+  // CATALOG: id=bnf128 name="BNF128" bits=128 s=1 e=13 m=114 bias=4095 phi_distance=0.504 storage=u128 cluster=GoldenFloat status=Open standard="this work; control for TNF128; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf128.t27"
+  // CATALOG: id=bnf256 name="BNF256" bits=256 s=1 e=15 m=240 bias=16383 phi_distance=0.556 storage=u256_software cluster=GoldenFloat status=Open standard="this work; control for TNF256; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf256.t27"
+  // CATALOG: id=bnf512 name="BNF512" bits=512 s=1 e=16 m=495 bias=32767 phi_distance=0.586 storage=u512_software cluster=GoldenFloat status=Open standard="this work; control for TNF512; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf512.t27"
+  // CATALOG: id=bnf1024 name="BNF1024" bits=1024 s=1 e=18 m=1005 bias=131071 phi_distance=0.600 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; control for TNF1024; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf1024.t27"
+
   // ---------------------------------------------------------------------
   // TNF -- Ternary Network Float. Built as a reference for TERNARY NETWORKS,
   // where the weight is in {-1,0,+1} and the multiply disappears. The exponent
