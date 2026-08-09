@@ -80,7 +80,21 @@ jobs:
               try:
                   r = subprocess.run(["yosys", "-q", "-p", cmd], capture_output=True,
                                      text=True, timeout=timeout)
-                  return ("PROVED" if r.returncode == 0 else "REFUTED"), time.time() - t0
+                  # The last instance of the Prop. 58 fold, found in Wave 609 by
+                  # running this step with build/rtl emptied: it printed
+                  # "REFUTED -- a property fails at a larger bound" when nothing
+                  # had been refuted and yosys simply could not read the design.
+                  # The step failed, which is the safe direction, but a false
+                  # diagnosis in CI sends someone hunting a property failure
+                  # that does not exist.
+                  out = r.stdout + r.stderr
+                  if r.returncode == 0:
+                      v = "PROVED"
+                  elif "proof did fail" in out:
+                      v = "REFUTED"
+                  else:
+                      v = "TOOL ERROR"
+                  return v, time.time() - t0
               except subprocess.TimeoutExpired:
                   return "timeout", time.time() - t0
 
@@ -100,6 +114,9 @@ jobs:
                   fail.append(f"seq={seq} DEPTH={depth} REFUTED -- a property fails at a larger bound")
               elif v == "timeout":
                   fail.append(f"seq={seq} DEPTH={depth} timed out -- the documented ceiling moved")
+              elif v == "TOOL ERROR":
+                  fail.append(f"seq={seq} DEPTH={depth} returned no verdict -- yosys could not "
+                              "read the design; nothing was proved or refuted here")
 
           if fail:
               for f in fail:
@@ -112,7 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import re, shutil, subprocess, sys
+          import os, re, shutil, subprocess, sys
 
           REST = ["multilayer_sequencer", "layer_sequencer", "double_buffer_ctrl",
                   "weight_bram", "pipeline_stage2_compute", "activation_requant",
@@ -238,6 +255,18 @@ jobs:
 
           bad = []
 
+          # Say what is missing instead of dying inside copytree with a raw
+          # traceback. Found in Wave 609 by running this step with build/rtl
+          # emptied: it failed, which is correct, but the reason was three
+          # frames deep in a stack trace. Prop. 60.
+          need = [f"build/rtl/{m}.sv" for m in REST + ["bitnet_engine_top"]]
+          missing = [f for f in need if not os.path.exists(f)]
+          if missing:
+              print(f"::error::the RTL bundle is missing {len(missing)} of "
+                    f"{len(need)} modules ({', '.join(missing[:3])}...) -- "
+                    "nothing below would have been tested")
+              sys.exit(1)
+
           print("== BASELINE: unmutated, every gate must pass ==")
           fresh()
           for name, gate in GATES:
@@ -297,4 +326,10 @@ jobs:
       # build/rtl and formal/ and runs every step of formal-yosys.yml verbatim.
       # Last in the job because it moves those directories aside. Prop. 59.
       - name: No gate passes when its subject is absent
-        run: python3 formal/absence_sweep.py
+        run: |
+          set -euo pipefail
+          # Self-exclusion is what lets this run inside the workflow it audits,
+          # and it is also a new way for the sweep to examine zero steps and
+          # report success. The self-test covers exactly that case. Prop. 60.
+          python3 formal/absence_sweep.py --self-test
+          python3 formal/absence_sweep.py

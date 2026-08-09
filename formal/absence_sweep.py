@@ -43,16 +43,51 @@ EXEMPT = {
 }
 
 
+DEFAULT_WORKFLOWS = [".github/workflows/formal-yosys.yml",
+                     ".github/workflows/formal-mutation.yml"]
+
+
+def collect(root, wf_path):
+    """Checking steps of every job in one workflow, minus builders and self.
+
+    Wave 608 swept only formal-yosys.yml and said so (Prop. 59f): this file runs
+    as a step of formal-mutation.yml, so sweeping that workflow would invoke
+    this sweep from inside itself. The exclusion is by CONTENT -- any step whose
+    script invokes absence_sweep.py -- rather than by step name, so renaming the
+    step cannot silently reintroduce the recursion. It is reported, not
+    swallowed, and the sweep's own absence case is covered by the empty-steps
+    check below and by its self-test.
+    """
+    wf = yaml.safe_load(open(wf_path))
+    steps, skipped = [], []
+    for job in wf["jobs"].values():
+        for s in job.get("steps", []):
+            if "run" not in s:
+                continue
+            name = s.get("name", "<unnamed>")
+            if name in BUILDERS:
+                continue
+            if "absence_sweep" in s["run"]:
+                skipped.append(name)
+                continue
+            steps.append((name, s["run"]))
+    return steps, skipped
+
+
 def main(argv):
     root = pathlib.Path(__file__).resolve().parent.parent
-    wf_path = argv[1] if len(argv) > 1 else str(root / ".github/workflows/formal-yosys.yml")
-    wf = yaml.safe_load(open(wf_path))
-    job = wf["jobs"][list(wf["jobs"])[0]]
-    steps = [(s["name"], s["run"]) for s in job["steps"]
-             if "run" in s and s.get("name") not in BUILDERS]
+    paths = argv[1:] or [str(root / w) for w in DEFAULT_WORKFLOWS]
+
+    steps, recursive = [], []
+    for p in paths:
+        s, sk = collect(root, p)
+        steps += s
+        recursive += sk
+        print(f"{pathlib.Path(p).name}: {len(s)} checking steps"
+              f"{f', {len(sk)} recursive (skipped: {sk})' if sk else ''}")
 
     if not steps:
-        print(f"::error::absence_sweep found no checking steps in {wf_path}")
+        print(f"::error::absence_sweep found no checking steps in {paths}")
         return 1
 
     bak = root / "build" / "_absence_bak"
@@ -67,7 +102,7 @@ def main(argv):
             os.makedirs(src, exist_ok=True)
             moved.append((str(dst), str(src)))
 
-    green = []
+    green, applied = [], []
     try:
         print(f"{'step':58s} {'exit':>4s}   verdict")
         print("-" * 92)
@@ -81,6 +116,8 @@ def main(argv):
             except subprocess.TimeoutExpired:
                 rc = -1
             exempt = name in EXEMPT
+            if exempt:
+                applied.append(name)
             bad = rc == 0 and not exempt
             if bad:
                 green.append(name)
@@ -96,10 +133,50 @@ def main(argv):
     for n in green:
         print(f"::error::step '{n}' exits 0 with no RTL and no properties "
               "present -- it is not measuring the design")
-    print(f"\nabsence sweep: {len(steps)} steps, {len(EXEMPT)} exempt, "
+    # `applied`, not `len(EXEMPT)`: report the exemptions that were actually
+    # used, not the size of the list. Reporting the list size says "1 exempt"
+    # on a run where nothing was exempted -- a small lie of exactly the kind
+    # this file exists to find.
+    print(f"\nabsence sweep: {len(steps)} steps across {len(paths)} workflows, "
+          f"{len(applied)} exempt, {len(recursive)} recursive, "
           f"{len(green)} passing on nothing")
     return 1 if green else 0
 
 
+def self_test():
+    """Four synthetic workflows whose right answers are known.
+
+    Self-exclusion (`collect` drops any step invoking this file) is what lets
+    the sweep run inside the workflow it audits -- and it is also a new way for
+    the sweep to check nothing and report success. The fourth case is that one:
+    a workflow whose only step is the sweep must FAIL, not quietly pass having
+    examined zero steps.
+    """
+    import tempfile
+    cases = [
+        ("a step that passes on nothing",
+         [{"name": "Decorative", "run": "echo 'looks fine to me'"}], 1),
+        ("a step that reads the subject",
+         [{"name": "Honest", "run": "test -f build/rtl/dma_controller.sv"}], 0),
+        ("a workflow with no run steps",
+         [{"name": "Checkout", "uses": "actions/checkout@v4"}], 1),
+        ("a workflow whose only step is this sweep",
+         [{"name": "Sweep", "run": "python3 formal/absence_sweep.py"}], 1),
+    ]
+    bad = []
+    for name, steps, want in cases:
+        with tempfile.NamedTemporaryFile("w", suffix=".yml", delete=False) as fh:
+            yaml.safe_dump({"on": "push", "jobs": {"j": {"steps": steps}}}, fh)
+        got = main(["absence_sweep", fh.name])
+        print(f"  {'ok  ' if got == want else 'FAIL'} {name}  (exit {got}, want {want})")
+        if got != want:
+            bad.append(name)
+    for b in bad:
+        print(f"::error::absence_sweep self-test: '{b}' gave the wrong answer")
+    return 1 if bad else 0
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        sys.exit(self_test())
     sys.exit(main(sys.argv))

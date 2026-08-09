@@ -3573,6 +3573,63 @@ python3 formal/guard_scan.py
 
 ---
 
+### Prop. 60 — the sweep now covers the workflow it runs inside — `PROVED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 59f stated the hole it left: `formal-mutation.yml`'s own two steps were
+never swept, because the sweep runs as a step of that workflow and auditing the
+job you are part of needs a fixed point Wave 608 did not attempt. It is
+attempted here. **22 steps across both workflows, 0 passing on nothing.**
+
+**60a. Exclude by content, not by name.** `collect()` drops any step whose
+script invokes `absence_sweep.py`. Excluding by step *name* would mean renaming
+the step silently reintroduces the recursion; excluding by what it *runs* does
+not. The skipped step is reported and counted, never swallowed.
+
+**60b. Self-exclusion is itself a way to check nothing.** A workflow whose only
+step is the sweep collects zero steps — and a sweep that examines zero steps
+and returns 0 is the exact failure of Props. 58–59, reintroduced by the
+mechanism added to fix them. `--self-test` covers it with four synthetic
+workflows whose answers are known:
+
+| synthetic workflow | want |
+|---|---|
+| a step that passes on nothing (`echo`) | fail |
+| a step that reads the subject (`test -f build/rtl/...`) | pass |
+| a workflow with no `run` steps | fail |
+| **a workflow whose only step is this sweep** | **fail** |
+
+**60c. Both unswept steps failed correctly — and one lied about why.** *Scale
+ceiling* printed `REFUTED -- a property fails at a larger bound` when nothing
+had been refuted and yosys simply could not read the design. This is the last
+instance of the Prop. 58 fold: `returncode != 0` treated as a verdict. The step
+failed, which is the safe direction, but **a false diagnosis in CI sends someone
+hunting a property failure that does not exist**. It now reports
+`TOOL ERROR -- returned no verdict`. *Baseline, control and mutation* died three
+frames deep inside `copytree`; it now names the missing modules.
+
+**60d. Report what happened, not what is configured.** The sweep printed
+`1 exempt` on runs where nothing was exempted, because it was printing
+`len(EXEMPT)` — the size of the exemption list rather than the exemptions
+actually applied. A small lie of precisely the kind this file exists to find,
+and worth fixing for that reason rather than for its consequences.
+
+**60e. Scope, honestly.** Every `run:` step of both formal workflows is now
+swept except the sweep itself, which is covered by its self-test. The repository
+has other workflows (docs, notebooks, seals); they are outside this campaign's
+subject and are not swept. That is a boundary, not an oversight — stated here so
+the next reader does not have to discover it.
+
+Reproduce:
+
+```bash
+python3 formal/absence_sweep.py --self-test
+python3 formal/absence_sweep.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

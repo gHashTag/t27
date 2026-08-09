@@ -2,6 +2,40 @@
 
 Last updated: 2026-08-10
 
+## Wave 609 — the sweep now covers the workflow it runs inside
+
+- **WHAT**: Prop. 59f named the hole it left — `formal-mutation.yml`'s own two
+  steps were never swept, because the sweep runs as a step of that workflow.
+  Closed: **22 steps across both formal workflows, 0 passing on nothing.**
+- **EXCLUDE BY CONTENT, NOT BY NAME**: `collect()` drops any step whose script
+  invokes `absence_sweep.py`. Excluding by step *name* would mean a rename
+  silently reintroduces the recursion. The skipped step is reported and counted.
+- **THE NEW BLIND SPOT, AND ITS TEST**: self-exclusion is itself a way to check
+  nothing — a workflow whose only step is the sweep collects zero steps, and a
+  sweep that examines zero steps and returns 0 is the exact failure of Props.
+  58-59 reintroduced by the mechanism added to fix them. `--self-test` covers it
+  with four synthetic workflows, the fourth being precisely that case.
+- **BOTH UNSWEPT STEPS FAILED — AND ONE LIED ABOUT WHY**: *Scale ceiling*
+  printed `REFUTED -- a property fails at a larger bound` when nothing had been
+  refuted and yosys simply could not read the design. The last instance of the
+  Prop. 58 fold, in the one step I had not audited. It failed, which is the safe
+  direction, but **a false diagnosis in CI sends someone hunting a property
+  failure that does not exist**. Now `TOOL ERROR -- returned no verdict`.
+  *Baseline, control and mutation* died three frames deep inside `copytree`; it
+  now names the missing modules.
+- **A SMALL LIE, FIXED FOR ITS OWN SAKE**: the sweep printed `1 exempt` on runs
+  where nothing was exempted — it was printing the size of the exemption list
+  rather than the exemptions applied. No consequences, and precisely the kind of
+  thing this file exists to find, so it is fixed.
+- **BOUNDARY STATED**: every `run:` step of both formal workflows is swept
+  except the sweep itself. Other workflows in the repository — docs, notebooks,
+  seals — are outside this campaign's subject and are not swept. A boundary,
+  not an oversight.
+- **WHERE**: `formal/absence_sweep.py`, `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 60).
+- **STATE**: 60 propositions · 60 gates · 14 witnesses · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 608 — stop looking for the absence, measure it
 
 - **WHAT**: Wave 607 found four defective instruments by looking at whatever sat
