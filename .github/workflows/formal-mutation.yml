@@ -52,6 +52,55 @@ jobs:
           ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
           ./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
 
+      # The scale ceiling (Prop. 34). Every engine property proves at seq 40 with
+      # DEPTH 4, which is a claim about the pair (design, scale) and not about
+      # the design -- Prop. 29a had two modules "proving" an address never wraps
+      # while both wrapped, because the counterexample needed 4096 writes and
+      # the bound was 24. This records where the proof actually stops holding,
+      # so the README's claim carries its ceiling. Weekly, because seq 60 costs
+      # roughly six times seq 40.
+      - name: Scale ceiling
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, sys, time
+
+          REST = ["multilayer_sequencer", "layer_sequencer", "double_buffer_ctrl",
+                  "weight_bram", "pipeline_stage2_compute", "activation_requant",
+                  "weight_prefetch_ctrl", "interrupt_controller", "axi_lite_slave",
+                  "dma_controller", "trit_stdlib"]
+
+          def run(seq, depth, timeout):
+              rest = " ".join(f"build/rtl/{m}.sv" for m in REST)
+              cmd = (f"read_verilog -sv -formal -DFORMAL build/rtl/bitnet_engine_top.sv {rest}; "
+                     f"chparam -set DEPTH {depth} weight_bram; "
+                     "prep -top bitnet_engine_top -flatten; memory_map; async2sync; chformal -lower; "
+                     f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")
+              t0 = time.time()
+              try:
+                  r = subprocess.run(["yosys", "-q", "-p", cmd], capture_output=True,
+                                     text=True, timeout=timeout)
+                  return ("PROVED" if r.returncode == 0 else "REFUTED"), time.time() - t0
+              except subprocess.TimeoutExpired:
+                  return "timeout", time.time() - t0
+
+          fail = []
+          # Must prove: these are the scales the documented claim rests on.
+          for seq, depth in [(40, 4), (60, 4), (40, 8), (60, 8)]:
+              v, dt = run(seq, depth, 900)
+              print(f"seq={seq:3d} DEPTH={depth:2d}  {v:>8s}  {dt:6.1f}s")
+              if v == "REFUTED":
+                  fail.append(f"seq={seq} DEPTH={depth} REFUTED -- a property fails at a larger bound")
+              elif v == "timeout":
+                  fail.append(f"seq={seq} DEPTH={depth} timed out -- the documented ceiling moved")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("ok       the documented scale ceiling still holds")
+          PY
+
       - name: Baseline, control, and mutation
         run: |
           set -euo pipefail

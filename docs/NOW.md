@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## scale ceiling -- "proved" is a claim about (design, scale)
+
+- **WHERE**: `formal/scale_probe.py` (new), `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 34), `README.md`.
+- Every engine property proved at `-seq 40`, `DEPTH 4`, and nothing had ever
+  asked whether that is a result or a reachability artifact. Prop 29a is the
+  warning: two modules "proved" an address never wraps while both wrapped,
+  because the counterexample needed 4096 writes against a 24-cycle bound.
+- **Engine**: PROVED at seq 40 (40.7s) and **seq 60** (246.1s); undecided at
+  seq 80 within 300s. PROVED at DEPTH 8 (70.5s), and at **seq 60 with DEPTH 8
+  together** (219.7s) -- which a single-axis sweep would not have established.
+  The claim holds at **1.5x the bound CI uses**, not on the edge of its own
+  tractability.
+- **Cost asymmetry**: 1.5x the unrolling costs **6x** the time; doubling the
+  memory costs **1.7x**. Memory depth is cheap, unroll depth is not.
+- **Modules at 2x and 4x their CI bounds**: four of five extend to 4x.
+  **`weight_prefetch_ctrl` does not extend at all** -- intractable at twice its
+  bound. Its proof is real at seq 20 and nothing is known beyond it.
+- **Undecided is a third verdict.** A timeout is not a failure and not a pass.
+  Reporting it either way would be dishonest; the table has three columns.
+- **No property refuted at any larger scale that completed.** The eight defects
+  found in waves 573-582 were all reachable within the bounds in use -- evidence
+  the bounds were adequate for the defects that existed, not that no deeper
+  defect exists. The prefetch row is exactly where one could hide.
+- **The claim now carries its ceiling**, re-established weekly. A ceiling that
+  is not checked drifts silently as the design grows.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the last open defect closes -- right idea, wrong shape
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,

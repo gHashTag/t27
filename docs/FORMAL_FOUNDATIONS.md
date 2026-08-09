@@ -1865,6 +1865,76 @@ grep -c "ifdef FORMAL_OPEN" build/rtl/bitnet_engine_top.sv    # must be 0
 
 ---
 
+### Prop. 34 — "proved" is a claim about the pair (design, scale) — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling* (weekly)
+
+Every engine property proves at `-seq 40` with `chparam DEPTH 4`. Prop. 29a
+showed what that can be worth: two modules "proved" an address never wraps while
+both contained a wrap, because reaching it took 4096 writes and the bound was
+24. A bounded proof establishes nothing about a counterexample beyond the bound,
+so **the number must travel with the claim.** This measures where the proof
+stops.
+
+**34a. The engine.** All 23 integration properties, whole set, one run each:
+
+| `-seq` | `DEPTH` | verdict | wall time |
+|---:|---:|---|---:|
+| 40 | 4 | **PROVED** | 40.7 s |
+| 60 | 4 | **PROVED** | 246.1 s |
+| 80 | 4 | *undecided* (>300 s) | — |
+| 40 | 8 | **PROVED** | 70.5 s |
+| 60 | 8 | **PROVED** | 219.7 s |
+
+Three things fall out. The properties hold at **1.5× the bound CI uses**, so the
+documented claim is not sitting on the edge of its own tractability. They hold
+with **both dimensions raised together** — `seq 60` *and* `DEPTH 8` — which a
+single-axis sweep would not have established. And the cost is sharply
+asymmetric: **1.5× the unrolling costs 6× the time**, while **doubling the
+memory costs 1.7×**. Memory depth is cheap; unroll depth is not.
+
+**34b. The modules, at 1×, 2× and 4× their CI bounds.**
+
+| module | CI `-seq` | 2× | 4× |
+|---|---:|---|---|
+| `interrupt_controller` | 12 → PROVED | PROVED | PROVED |
+| `axi_lite_slave` | 20 → PROVED | PROVED | PROVED |
+| `dma_controller` | 20 → PROVED | PROVED | PROVED |
+| `layer_sequencer` | 12 → PROVED | PROVED | PROVED |
+| `weight_prefetch_ctrl` | 20 → PROVED | **undecided** (>240 s) | **undecided** |
+
+Four of five extend to 4×. **`weight_prefetch_ctrl` does not extend at all** —
+it becomes intractable at twice its bound. Its proof is real at `-seq 20` and
+nothing is known beyond it. That is not a defect and not a pass; it is a third
+answer, and it is only visible because the question was asked.
+
+**34c. Undecided is not proved, and not refuted.** A timeout says the solver ran
+out of time, not that the property fails. Reporting these as failures would be
+alarmist and as passes would be false. They are recorded as **undecided at that
+scale**, which is the only honest reading and the reason the table has three
+verdicts rather than two.
+
+**34d. No property refuted at any larger scale that completed.** The eight RTL
+defects found in Waves 573–582 were all reachable within the bounds in use. That
+is evidence the bounds were adequate *for the defects that existed*, and is not
+evidence that no deeper defect exists — the `weight_prefetch_ctrl` row is
+precisely where such a defect could hide unseen.
+
+**34e. The claim now carries its ceiling.** `README.md` and this document say
+*proved at `-seq 40`, `DEPTH 4`*, and the weekly gate re-establishes the three
+scales the claim rests on, failing if any of them starts refuting or stops
+completing. **A ceiling that is not checked drifts silently as the design
+grows.**
+
+Reproduce:
+
+```bash
+python3 formal/scale_probe.py 60 4          # aggregate verdict and timing
+python3 formal/scale_probe.py 40 4 --each   # attribute a failure to one property
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
