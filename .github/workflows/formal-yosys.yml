@@ -110,8 +110,12 @@ jobs:
                         prep -top axi_props -flatten; stat" \
                 | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
           echo "axi check cells: ${n:-0}"
-          if [ "${n:-0}" -lt 7 ]; then
-            echo "::error::Expected >=7 \$check cells for axi_props, found ${n:-0}."
+          # 7 -> 6 in Wave 591: a_sanity was `X == X`, folded to constant true,
+          # and it still emitted a $check cell. This gate exists to catch an
+          # all-vacuous property set, and a syntactically-true property was
+          # inflating exactly the number meant to detect that. See Prop. 41.
+          if [ "${n:-0}" -lt 6 ]; then
+            echo "::error::Expected >=6 \$check cells for axi_props, found ${n:-0}."
             exit 1
           fi
           # -set-init-zero, not -tempinduct: induction from an unconstrained
@@ -131,8 +135,9 @@ jobs:
                         prep -top dma_props -flatten; stat" \
                 | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
           echo "dma check cells: ${n:-0}"
-          if [ "${n:-0}" -lt 8 ]; then
-            echo "::error::Expected >=8 \$check cells for dma_props, found ${n:-0}."
+          # 8 -> 7 in Wave 591, same reason as axi_props above (Prop. 41).
+          if [ "${n:-0}" -lt 7 ]; then
+            echo "::error::Expected >=7 \$check cells for dma_props, found ${n:-0}."
             exit 1
           fi
           yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \

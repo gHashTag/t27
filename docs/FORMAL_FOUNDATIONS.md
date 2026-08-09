@@ -2030,7 +2030,7 @@ EOF
 
 ---
 
-### Prop. 36 — two suites were never bounded at all, and the map shows the rest have enormous headroom — `MEASURED`
+### Prop. 36 — ~~two suites were never bounded at all~~ **one is** — and the map shows the rest have enormous headroom — `MEASURED` (36a corrected in Prop. 41c)
 
 **Gate:** `formal-yosys.yml` → the five *Prove … properties* steps (bounds raised where BMC, unchanged where inductive)
 
@@ -2044,7 +2044,7 @@ proves by **k-induction** and therefore holds for *all* time, not to a depth:
 | suite | mode | `-seq` means |
 |---|---|---|
 | `interrupt_controller` | **`-tempinduct`** | induction depth — proof is **unbounded** |
-| `axi_lite_slave` | **`-tempinduct`** | induction depth — proof is **unbounded** |
+| `axi_lite_slave` | ~~`-tempinduct`~~ **bounded BMC** | **corrected, Prop. 41c** — the word appears only in that step's comment |
 | `dma_controller` | bounded BMC | a ceiling |
 | `layer_sequencer` | bounded BMC | a ceiling |
 | `weight_prefetch_ctrl` | bounded BMC | a ceiling |
@@ -2372,6 +2372,74 @@ Reproduce:
 
 ```bash
 grep -n "T27_FORMAL" .github/workflows/formal-yosys.yml | head -3
+```
+
+---
+
+### Prop. 41 — five properties proved by syntax alone, and they inflated the gate that exists to catch that — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → the `$check`-count gates (thresholds corrected)
+
+Prop. 40a found that `a == a` is folded to constant true before any signal is
+read. One such property was already known. This sweeps all of them.
+
+**41a. Five of seventy-two.** Every assertion body across the props files and
+the emitted engine, scanned for shapes the optimiser discharges structurally:
+
+| file | property | body |
+|---|---|---|
+| `axi_lite_slave_props.sv` | `a_sanity` | `s_axi_bresp_probe == s_axi_bresp_probe` |
+| `dma_controller_props.sv` | `a_sanity` | `arlen == arlen` |
+| `layer_sequencer_props.sv` | `a_sanity` | `chunk_id == chunk_id` |
+| `weight_prefetch_props.sv` | `a_sanity` | `bram_addr == bram_addr` |
+| `bitnet_engine_top` | `a_sanity` | `chunk_addr == chunk_addr` |
+
+Confirmed rather than assumed: a two-property test module shows `x == x` leaves
+a `$check` cell but **no `$eq` cell** — the comparison is gone, the obligation is
+constant true. All five removed.
+
+**41b. They inflated the gate meant to catch them.** Three CI steps count
+`$check` cells and fail below a threshold, on the reasoning from Prop. 5 that a
+green run over an empty property set proves nothing. A folded property still
+emits a `$check` cell, so **a syntactically-true property was padding exactly the
+number designed to detect an all-vacuous set.** Thresholds corrected: axi 7 → 6,
+dma 8 → 7.
+
+> Vacuity checking as practised here asks whether a property's *guard* is
+> reachable (Prop. 12a). It never asked whether the *body* survives the
+> optimiser. Both are ways a property can be free, and only one was gated.
+
+**41c. Correction to Prop. 36a: one suite uses induction, not two.** That
+proposition classified suites by searching each CI step's text for
+`-tempinduct`. `axi_lite_slave`'s step contains the word **only inside a comment
+explaining why induction is not used there**:
+
+```text
+# -set-init-zero, not -tempinduct: induction from an unconstrained
+# initial state refutes properties that hold on every reachable state
+```
+
+The detector matched prose. Only `interrupt_controller` genuinely proves by
+k-induction. Prop. 36a's headline was wrong, and its "near-mistake" narrative —
+that raising axi's bound would have been meaningless — is wrong too: axi is
+bounded, and raising it would have been legitimate.
+
+**41d. Two wrong attributions before the right one.** Removing `a_sanity` made
+`axi_lite_slave` appear to refute. First attribution: my edit broke it — refuted
+by re-running the **unchanged** file, which refuted identically. Second: under
+induction the properties are mutually supporting, so removing one weakens the
+hypothesis — refuted by isolating each property of the *real* induction suite,
+where all four prove alone. The actual cause was that I was running a mode CI
+does not use, and CI's own comment had said so.
+
+**When a change appears to break something, reproduce the failure on the
+unchanged version first.** It costs one run and it separates "I broke it" from
+"it was already so" before any theory is built on the wrong one.
+
+Reproduce:
+
+```bash
+grep -c "a_sanity" formal/*_props.sv bootstrap/src/bitnet_top.rs
 ```
 
 ---

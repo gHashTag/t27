@@ -54,8 +54,11 @@ module axi_props (
     // in this repo because `sat` refuses to run with more than one module
     // selected and its error reads exactly like a refutation -- `-flatten`
     // fixes it, and this assertion is what makes that visible.
-    always @(posedge clk) if (rst_n)
-        a_sanity: assert (s_axi_bresp_probe == s_axi_bresp_probe);
+    // a_sanity was removed in Wave 591. Its body was `X == X`, which the
+    // optimiser folds to constant true before any signal is read: it proved
+    // unconditionally and tested nothing. Worse, it still emitted a $check
+    // cell, so it inflated the non-empty-property gate (Prop. 5) that exists to
+    // catch exactly an all-vacuous set. See Prop. 41.
 
     // AXI rule: VALID must not be deasserted without a handshake.
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(bvalid) && !$past(bready))

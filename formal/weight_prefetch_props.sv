@@ -49,8 +49,11 @@ module wp_props (
 
     always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_words == $past(num_words));
 
-    always @(posedge clk) if (rst_n)
-        a_sanity: assert (bram_addr == bram_addr);
+    // a_sanity was removed in Wave 591. Its body was `X == X`, which the
+    // optimiser folds to constant true before any signal is read: it proved
+    // unconditionally and tested nothing. Worse, it still emitted a $check
+    // cell, so it inflated the non-empty-property gate (Prop. 5) that exists to
+    // catch exactly an all-vacuous set. See Prop. 41.
 
     // REGRESSION WITNESS: never write more words than were requested.
     // A balance, not a shape check -- the per-beat logic was individually

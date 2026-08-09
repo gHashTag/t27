@@ -32,6 +32,7 @@ module dma_props (
     wire [63:0] araddr, awaddr, wdata, local_wdata;
     wire [7:0] arlen, awlen;
     wire [11:0] local_addr;
+    wire dut_overflow_dma;
     dma_controller dut (
         .clk(clk), .rst_n(rst_n), .start(start),
         .src_addr(src_addr), .dst_addr(dst_addr), .length(length), .direction(direction),
@@ -43,13 +44,17 @@ module dma_props (
         .m_axi_awready(awready), .m_axi_wdata(wdata), .m_axi_wlast(wlast),
         .m_axi_wvalid(wvalid), .m_axi_wready(wready), .m_axi_bvalid(bvalid),
         .m_axi_bready(bready),
-        .local_addr(local_addr), .local_wdata(local_wdata), .local_we(local_we),
+        .local_addr(local_addr), .local_wdata(local_wdata), .local_we(local_we), .overflow(dut_overflow_dma),
         .local_rdata(local_rdata)
     );
 
     // Harness sanity: a tautology. If this is refuted the run is not
     // evaluating what it appears to (see the -flatten trap, Prop. 7).
-    always @(posedge clk) if (rst_n) a_sanity: assert (arlen == arlen);
+    // a_sanity was removed in Wave 591. Its body was `X == X`, which the
+    // optimiser folds to constant true before any signal is read: it proved
+    // unconditionally and tested nothing. Worse, it still emitted a $check
+    // cell, so it inflated the non-empty-property gate (Prop. 5) that exists to
+    // catch exactly an all-vacuous set. See Prop. 41.
 
     // AXI: VALID must not drop without a handshake. These held on the
     // pre-fix RTL too and are kept to bound what the defects were *not*.

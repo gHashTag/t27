@@ -47,8 +47,11 @@ module ls_props (
 
     // Harness sanity: a tautology. If this refutes, the run is not evaluating
     // what it appears to (Prop. 7's -flatten trap surfaces exactly this way).
-    always @(posedge clk) if (rst_n)
-        a_sanity: assert (chunk_id == chunk_id);
+    // a_sanity was removed in Wave 591. Its body was `X == X`, which the
+    // optimiser folds to constant true before any signal is read: it proved
+    // unconditionally and tested nothing. Worse, it still emitted a $check
+    // cell, so it inflated the non-empty-property gate (Prop. 5) that exists to
+    // catch exactly an all-vacuous set. See Prop. 41.
 
     // REGRESSION WITNESS: never emit work for a neuron at or beyond the count.
     always @(posedge clk) if (rst_n && valid)

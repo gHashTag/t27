@@ -533,8 +533,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    // Harness sanity: a tautology. If this refutes, the run is not\n");
     s.push_str("    // evaluating what it appears to.\n");
-    s.push_str("    always @(posedge clk) if (rst_n)\n");
-    s.push_str("        a_sanity: assert (chunk_addr == chunk_addr);\n");
+    s.push_str("    // a_sanity was removed in Wave 591: its body was `chunk_addr ==\n");
+    s.push_str("    // chunk_addr`, folded to constant true before any signal is read. It\n");
+    s.push_str("    // proved unconditionally, tested nothing, and still emitted a $check\n");
+    s.push_str("    // cell that inflated the non-empty-property gate. See Prop. 41.\n");
     s.push_str("\n");
     s.push_str("    // THE integration property, stated on the MAC's OUTPUT rather than on\n");
     s.push_str("    // the skew registers. An earlier version asserted only that\n");

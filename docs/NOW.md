@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-09
 
+## five properties proved by syntax alone
+
+- **WHERE**: `formal/*_props.sv`, `bootstrap/src/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 41),
+  `README.md`.
+- **5 of 72 assertion bodies were `X == X`**, one `a_sanity` per suite, folded
+  to constant true before any signal is read. Confirmed rather than assumed: a
+  test module shows `x == x` leaves a `$check` cell but **no `$eq` cell**. All
+  five removed.
+- **They inflated the gate meant to catch them.** Three CI steps count `$check`
+  cells and fail below a threshold, because a green run over an empty property
+  set proves nothing. A folded property still emits a `$check` cell, so **a
+  syntactically-true property was padding exactly the number designed to detect
+  an all-vacuous set.** Thresholds corrected: axi 7->6, dma 8->7.
+- Vacuity checking here asked whether a property's *guard* is reachable. It
+  never asked whether the *body* survives the optimiser. Both are ways a
+  property can be free; only one was gated.
+- **Correction to Prop 36a: one suite uses induction, not two.** That
+  proposition classified suites by searching each CI step's text for
+  `-tempinduct`, and `axi_lite_slave`'s step contains the word only inside a
+  comment explaining why induction is *not* used there. The detector matched
+  prose.
+- **Two wrong attributions before the right one.** Removing a_sanity made axi
+  appear to refute. First theory: my edit broke it -- refuted by re-running the
+  **unchanged** file, which refuted identically. Second: under induction the
+  properties are mutually supporting -- refuted by isolating each property of
+  the *real* induction suite, where all four prove alone. The cause was that I
+  was running a mode CI does not use, and CI's own comment had said so.
+  **When a change appears to break something, reproduce the failure on the
+  unchanged version first.**
+- Full battery green with CI's actual commands. Suite **1213 passed, 0 failed**.
+  Seals 496/496. One open defect, CI-gated.
+
 ## a self-comparison cannot detect an undefined value
 
 - **WHERE**: `.github/workflows/formal-yosys.yml`,
