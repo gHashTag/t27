@@ -21673,3 +21673,46 @@ Three things were worth more than the fix:
    one bucket.
 
 Sixth instance in this chain of an *instrument*, not the code, being wrong.
+
+## Wave 599 — a failing assertion now says what it saw, and the measurement became a command
+
+Two deliverables, the second forced by the first.
+
+**1. Assertions print their operands.** For this project's whole life every
+assertion lowered to `if (!(cond)) @panic("assertion failed")`. That is the
+entire reason W598's swapped sin/cos needed a hand-written probe program, a
+re-export of every function as `pub`, and an hour, to find something one line of
+output makes obvious:
+
+    1/1 test.cordic_sin_exact_pi...
+      assertion failed:
+        @abs(s) = 0.98524404
+
+**The falsification check was insufficient, and re-measuring caught it.** F1 was
+"`std.debug.print` is not comptime-callable". A probe cleared it for assertions
+inside a `test` body — where a constant-folded condition still runs at runtime.
+But this corpus ALSO folds assertions at comptime: T4's and T5's disproved
+invariants are exactly that. The first version turned cordic_top's clear
+`error: encountered @panic at comptime` into an opaque error inside
+std.Io.Threaded. **I tested the case I thought of, not the case the corpus
+contains.** Fixed with `@inComptime()`, which keeps each context's diagnostic.
+Seventh instance of the instrument, not the code, being wrong.
+
+**2. `t27c test-report <spec>`.** W597's per-test figure came from driving
+`zig test --test-filter` in a shell loop, once per test. That cost ~45 minutes
+and 6.1 GB of build cache **and filled the disk**, because `--test-filter`
+recompiles the whole file for every filter — 336 tests meant 336 compilations of
+one 65 KB spec.
+
+The command compiles ONCE with a custom runner that runs one test per process by
+index. Same tests, same answer, **5 seconds**.
+
+| | shell loop | command |
+|---|---:|---:|
+| wall clock | ~45 min | 5 s |
+| compilations | 336 | 1 |
+| cache | 6.1 GB | one binary |
+
+**The disk exhaustion was the clue, not the accident.** A measurement whose cost
+scales with the number of tests is one that stops being taken — which is the
+same lesson as rule 90, arriving with a number attached.
