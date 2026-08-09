@@ -4221,6 +4221,19 @@ These cost a wave each. Follow them before step 1.
     and verified BOTH directions (a paren-less condition parses, and a struct
     literal elsewhere still parses).
 
+53. **When a fix does not take, suspect a SECOND path before suspecting the
+    fix.** W579's scoped-return-type fix landed in one of two return-type
+    branches in the same function header, and the fixture failed unchanged. The
+    tell is a fix that changes nothing at all -- a wrong fix usually changes
+    something. Grep for other assignments to the same field.
+
+54. **Do not add a case to a conformance table in the wave that depends on it.**
+    W579 discovered that the lexer silently drops `#` (an unknown-character arm
+    that advances and recurses) and had to key an attribute skip on the
+    resulting bare bracket group. That behaviour belongs in the W576 table --
+    but adding it while writing code that relies on it turns the table from a
+    check into a restatement. File it as the next wave's work.
+
 ### How to update this tracker
 
 After closing a wave:

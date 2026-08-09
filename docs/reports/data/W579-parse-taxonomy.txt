@@ -1,0 +1,6 @@
+   379    33  parse error at module level : unexpected token after expression statement: Ident
+   378     2  parse error : Unexpected token in expression: PlusPlus (X) 
+   329     7  parse error : Expected RParen, got Dot (X) 
+   307    31  parse error : Unexpected token in expression: KwInvariant (X) 
+   283     9  Expected LBrace, got Semicolon (X) 
+   275     1  parse error at module level : Unexpected token in expression: Equals (X) 

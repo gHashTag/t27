@@ -1213,6 +1213,32 @@ impl Parser {
         {
             self.reject_unterminated_string()?;
 
+            // W579: a Rust-style ATTRIBUTE, `#[test]` / `#[derive(...)]`.
+            // Three specs carry Rust source verbatim; the attribute parsed as
+            // an expression statement and the `fn` after it was then
+            // "unexpected token after expression statement: KwFn" -- 825
+            // assertion clauses. Skipped bracket-balanced, so a multi-line
+            // attribute cannot run away.
+            // The lexer drops `#` as an unknown character, so the attribute
+            // arrives as a bare bracket group -- which is meaningless at module
+            // level and can only be this.
+            if self.current.kind == TokenKind::LBracket {
+                let mut depth = 0i32;
+                loop {
+                    match self.current.kind {
+                        TokenKind::LBracket => depth += 1,
+                        TokenKind::RBracket => depth -= 1,
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    self.advance();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                continue;
+            }
+
             // W577: a file may declare SEVERAL modules.
             // `specs/nn/attention.t27` appends
             // `module AttentionQKGainAblation;` at line 640 of 922 -- the
@@ -2099,8 +2125,34 @@ impl Parser {
             // Tuple return type: (u32, u32)
             decl.extra_return_type = self.parse_type_annotation();
         } else if self.current.kind == TokenKind::Ident {
-            decl.extra_return_type = self.current.lexeme.clone();
+            let mut rt_name = self.current.lexeme.clone();
             self.advance();
+            // W579: a SCOPED return type. This branch read one identifier and
+            // stopped, so `-> gf16::GF16` left the `::` behind and the fn
+            // header failed with "Expected LBrace, got Colon" -- 899 assertion
+            // clauses across 9 specs. The parameter side has handled `::` and
+            // `.` since W568.
+            loop {
+                if self.current.kind == TokenKind::Colon && self.peek.kind == TokenKind::Colon {
+                    rt_name.push_str("::");
+                    self.advance();
+                    self.advance();
+                } else if self.current.kind == TokenKind::Dot
+                    && self.peek.kind == TokenKind::Ident
+                {
+                    rt_name.push('.');
+                    self.advance();
+                } else {
+                    break;
+                }
+                if self.current.kind == TokenKind::Ident {
+                    rt_name.push_str(&self.current.lexeme);
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            decl.extra_return_type = rt_name;
             // Handle generic return types like Option<Foo>
             if self.current.kind == TokenKind::Lt {
                 let mut gt_depth = 1;
@@ -2159,6 +2211,33 @@ impl Parser {
             if self.current.kind == TokenKind::Ident {
                 rt.push_str(&self.current.lexeme);
                 self.advance();
+                // W579: a SCOPED return type. This bespoke tail read one
+                // identifier and stopped, so `-> gf16::GF16` left the `::`
+                // behind and the fn header failed with "Expected LBrace, got
+                // Colon" -- 899 assertion clauses across 9 specs. The parameter
+                // side has handled `::` and `.` since W568.
+                loop {
+                    if self.current.kind == TokenKind::Colon
+                        && self.peek.kind == TokenKind::Colon
+                    {
+                        rt.push_str("::");
+                        self.advance();
+                        self.advance();
+                    } else if self.current.kind == TokenKind::Dot
+                        && self.peek.kind == TokenKind::Ident
+                    {
+                        rt.push('.');
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                    if self.current.kind == TokenKind::Ident {
+                        rt.push_str(&self.current.lexeme);
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
             }
             decl.extra_return_type = rt;
         } else if self.current.kind == TokenKind::KwVoid {
@@ -2610,10 +2689,21 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // W579: the condition may be parenthesised or not, exactly as for `if`
+        // (W578). `while e > 0 {` is the Rust form and 22 specs use it. Without
+        // parentheses a `Name {` opens the BODY, so struct-literal parsing is
+        // suppressed while reading the condition.
+        let cond = if self.current.kind == TokenKind::LParen {
+            self.advance();
+            let c = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            c
+        } else {
+            self.no_struct_literal += 1;
+            let c = self.parse_expr();
+            self.no_struct_literal -= 1;
+            c?
+        };
         while_node.children.push(cond);
 
         // Body: { ... }

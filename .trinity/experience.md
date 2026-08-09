@@ -20991,3 +20991,31 @@ A backlog only becomes a queue when each entry carries what it releases. The sam
 taxonomy existed in W549; what changed is that (a) the parser stopped lying, so every
 first error is real, and (b) each class is weighted by assertions rather than by spec
 count -- the correction skill rule 26 and rule 29 have both been about.
+
+## Wave Loop 579 -- three classes, forty-nine specs, and the taxonomy has no head left (2026-08-09)
+
+    specs that parse       373 -> 390   (+49 since W568's 341)
+    assertions emitted   7,859 -> 8,867
+    assertions locked    6,541 -> 4,946
+    largest class        4,465 (W578 start) -> 379
+
+Three fixes, each named by the ranked taxonomy:
+
+  899 / 9 specs   `-> gf16::GF16`  -- the RETURN type had its own bespoke tail that
+                  read one identifier and stopped, while the parameter side has
+                  understood `::` and `.` since W568. There were TWO return-type paths
+                  in the header; my first fix went into the one not being taken, and
+                  the fixture caught it immediately. Always have the fixture.
+  556 / 22        `while cond { }` -- the five-line repeat of W578's `if`.
+  825 / 3         `#[test]`       -- Rust source carried verbatim.
+
+### The lexer silently drops unknown characters
+
+`#` never reaches the parser: the lexer has a `_ =>` arm that advances and recurses.
+So `#[test]` arrives as a bare bracket group, and the attribute skip had to be keyed on
+that instead. This is the SAME defect shape the last three waves have been removing
+from the parser -- a component discarding input without saying so -- and it is not in
+the W576 conformance table.
+
+Deliberately NOT added to the table in the same wave that depends on it: adding a case
+to a table while fixing the thing it describes is how a table stops being a check.
