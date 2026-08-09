@@ -3593,7 +3593,7 @@ impl Codegen {
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {
-            self.write(&format!(": {}", node.extra_type));
+            self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
         }
 
         if !node.children.is_empty() {
@@ -3642,10 +3642,14 @@ impl Codegen {
 
         for field in &node.children {
             self.write_indent();
+            // Struct field types were emitted RAW, so `str` and `&str` reached
+            // Zig unchanged -- the remaining "expected type expression, found
+            // '&'" class after the W561 parameter-side fix. Route them through
+            // the same mapper.
             let ty = if !field.extra_type.is_empty() {
-                &field.extra_type
+                Self::t27_array_type_to_zig(&field.extra_type)
             } else {
-                "void"
+                "void".to_string()
             };
             self.write_line(&format!("{}: {},", field.name, ty));
         }
@@ -4367,7 +4371,20 @@ impl Codegen {
 
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
-            NodeKind::ExprLiteral => self.write(&node.value),
+            NodeKind::ExprLiteral => {
+                // The lexer strips the surrounding quotes and stores the raw
+                // text, tagging the node `extra_kind == "string"`. Writing the
+                // value back unquoted turned every string literal into a bare
+                // identifier: `const x = "world"` emitted `const x = world;`,
+                // and `name == "Digilent Arty A7-35T"` became a run of
+                // identifiers. That is a large share of the
+                // `use of undeclared identifier` class measured in W560.
+                if node.extra_kind == "string" {
+                    self.write(&format!("\"{}\"", node.value));
+                } else {
+                    self.write(&node.value);
+                }
+            }
             NodeKind::ExprIdentifier => self.write(&Self::zig_ident(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(".");
