@@ -3249,11 +3249,22 @@ impl Parser {
         if self.current.kind != TokenKind::RBracket {
             return None;
         }
+        let close_line = self.current.line;
         self.advance(); // consume ]
 
         // A type name or another dimension after the bracket means this was
-        // `[N]T` / `[N][M]T`, not a list of values.
-        if matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket) {
+        // `[N]T` / `[N][M]T`, not a list of values -- but only when it is on
+        // the SAME LINE as the closing bracket. Without that test, a clause
+        // like
+        //
+        //     given a = [1, 2, 3]
+        //     then a.len() == 3
+        //
+        // saw the `then` on the next line as a type name, rejected the literal,
+        // and the whole test block fell back to being discarded.
+        if self.current.line == close_line
+            && matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket)
+        {
             return None;
         }
         // A single element is indistinguishable from an array DIMENSION, so it
@@ -4140,6 +4151,17 @@ impl Codegen {
     // round locals like f16/f32/f64) must be emitted as @"name" -- Zig
     // rejects the bare name with "name shadows primitive". Applied at every
     // value-identifier emission site so declarations and uses stay consistent.
+    fn is_integer_type_suffix(t: &str) -> bool {
+        matches!(
+            t,
+            "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
+        )
+    }
+
+    fn is_numeric_type_suffix(t: &str) -> bool {
+        Self::is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
+    }
+
     fn zig_ident(name: &str) -> String {
         // t27 spells scoped names Rust-style (`Severity::Error`,
         // `base::types`). Zig has no `::`, and emitting it verbatim gave
@@ -4244,7 +4266,9 @@ impl Codegen {
         };
         let core = core.strip_prefix('&').unwrap_or(core).trim();
         let mapped = match core {
-            "str" => "[]const u8",
+            // `str` and `string` are both spelled in the corpus; neither is a
+            // Zig type. `string` alone appears 952 times as a declared type.
+            "str" | "string" => "[]const u8",
             other => other,
         };
         if mapped == core && prefix.is_empty() && !t.starts_with('&') {
@@ -4346,8 +4370,15 @@ impl Codegen {
                     before_ok && after_ok
                 })
             }
+            // A dotted callee keeps the whole path in `name`, so
+            // `model.weights.len()` never matched the parameter `model` and
+            // the emitter discarded a parameter the body reads -- Zig then
+            // reported "pointless discard of function parameter".
+            let root_is = |n: &Node, name: &str| {
+                n.name.split('.').next().map(|r| r == name).unwrap_or(false)
+            };
             nodes.iter().any(|n| {
-                (n.name == name
+                ((n.name == name || (n.kind == NodeKind::ExprCall && root_is(n, name)))
                     && !matches!(
                         n.kind,
                         NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
@@ -4901,6 +4932,49 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
+                // W570: `x.len()` and `len(x)`. Zig exposes a slice length as
+                // the FIELD `.len`, so the call form emitted `a.len()` and
+                // failed. 1,356 method calls and 318 free calls across 51
+                // specs.
+                if node.children.is_empty() && node.name.ends_with(".len") {
+                    self.write(&Self::zig_ident(&node.name));
+                    return;
+                }
+                if node.name == "len"
+                    && node.children.len() == 1
+                    && !self.declared_fns.contains("len")
+                {
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    self.write(".len");
+                    return;
+                }
+
+                // W570: the TYPED spellings of the math builtins and of an
+                // integer cast. `cast_i8(` alone appears 1,100 times and is
+                // defined nowhere in the corpus; `abs_f32`/`abs_f64`/`abs_i16`
+                // 39 times. Guarded by declared_fns like the bare forms.
+                if !self.declared_fns.contains(&node.name) && node.children.len() == 1 {
+                    if let Some(sized) = node.name.strip_prefix("abs_") {
+                        if Self::is_numeric_type_suffix(sized) {
+                            self.write("@abs(");
+                            self.gen_expr(&node.children[0]);
+                            self.write(")");
+                            return;
+                        }
+                    }
+                    if let Some(target) = node.name.strip_prefix("cast_") {
+                        // Integers only: a float cast needs @floatCast or
+                        // @intFromFloat, and guessing between them would be a
+                        // silent semantic choice.
+                        if Self::is_integer_type_suffix(target) {
+                            self.write(&format!("@as({}, @intCast(", target));
+                            self.gen_expr(&node.children[0]);
+                            self.write("))");
+                            return;
+                        }
+                    }
+                }
+
                 // Zig spells these as builtins. Specs call them bare -- `abs(`
                 // appears 425 times, `sqrt(` 111, `floor(` 99, `round(` 92 --
                 // and emitting the bare name gives

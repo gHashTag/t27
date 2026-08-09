@@ -20643,3 +20643,46 @@ copied the whole source. `Rc<[u8]>` makes a checkpoint a refcount bump, and w582
 
 Rule: before adding a checkpoint to a hot path, check what the checkpoint COSTS. A
 save/restore pattern is only cheap if the state it saves is cheap to clone.
+
+## Wave Loop 570 -- assertions emitted 1,323 -> 4,374 (2026-08-09)
+
+    assertions emitted, 201 BDD specs : 1,323 -> 4,374  (x3.3)
+    non-scratch parse OK              :   341 ->   351  (0 regressions)
+    verilog                           : 17 identical, 1 strictly larger
+
+### Most "missing functions" were missing SPELLINGS
+
+`cast_i8(` appears 1,100 times and is defined nowhere -- because it was never meant
+to be written. Same for `abs_f32`, `x.len()` (Zig exposes slice length as a FIELD),
+and the type `string`. Five lowerings, 3,800+ occurrences, zero new spec code.
+
+Before writing a function a corpus references thousands of times and never defines,
+ask whether it is a spec gap or a BACKEND gap. The frequency is the tell: nobody
+forgets to define something 1,100 times.
+
+### The bug worth remembering
+
+    test t
+        given a = [1, 2, 3]
+        then a.len() == 3      <- generated an EMPTY test body
+
+`parse_bare_array_literal` rejects a literal followed by an identifier, because
+`[5]Pt` is a type. It did not check the identifier was on the SAME LINE, so the
+`then` on the next line read as a type name and the whole clause block was discarded.
+Single largest contributor to the +3,051.
+
+Lookahead rules that mean "this token continues the construct" need a LINE test in a
+newline-significant grammar. Same root cause as the W568 struct-field containment bug
+-- third time this chain that a line boundary was the missing predicate.
+
+### What could not be written, and why that is the finding
+
+`systolic_ternary_array` is tested and undeclared like `adder_tree_2`, but its tests
+CONTRADICT each other: an invariant says `len() == size` while a test asserts
+`len() == 0` for size 2, and the element semantics fit neither elementwise product nor
+running accumulation. `adder_tree_2` was writable because `3+4==7` plus a commutativity
+invariant fully determines it.
+
+The deciding artefact is named: `fpga/verilog/` has a systolic implementation, and
+whichever behaviour it implements is what the spec should assert. Deferring WITH the
+artefact named is worth more than a guess that makes the gate green.

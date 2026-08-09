@@ -4080,6 +4080,22 @@ These cost a wave each. Follow them before step 1.
     than the baseline it had regressed. A save/restore pattern is only cheap if
     the state it saves is cheap to clone.
 
+35. **A name referenced thousands of times and defined nowhere is a backend
+    gap, not a spec gap.** W570 was about to write `cast_i8` as a spec
+    function; it appears 1,100 times and was never meant to exist -- it is a
+    typed spelling the emitter had not learned, like `abs_f32`, `x.len()` and
+    the type `string`. Five lowerings covered 3,800+ occurrences and needed
+    zero new spec code. The frequency is the tell: nobody forgets to define
+    something 1,100 times.
+
+36. **In a newline-significant grammar, a "this token continues the construct"
+    lookahead needs a LINE test.** `given a = [1, 2, 3]` / `then a.len() == 3`
+    discarded its whole test block, because the literal parser rejects a
+    following identifier (a type name means `[5]Pt`, not a list) without
+    checking that the identifier was on the closing bracket's own line. Third
+    time in this chain that a line boundary was the missing predicate -- see
+    also the struct-field containment fix in W568.
+
 ### How to update this tracker
 
 After closing a wave:

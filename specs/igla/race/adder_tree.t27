@@ -49,6 +49,18 @@ fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
     return s1_0 + s1_1;
 }
 
+/// 2-input adder -- the leaf stage of the tree, and the base case the 4- and
+/// 8-input forms are built from.
+///
+/// W570: this spec has tested `adder_tree_2` since it was written and never
+/// declared it, so every test in the file was blocked on an undeclared
+/// identifier. The definition is the one its own tests require:
+/// `adder_tree_2(3, 4) == 7` and the invariant
+/// `adder_tree_2(a, b) == adder_tree_2(b, a)`.
+fn adder_tree_2(v0: i32, v1: i32) -> i32 {
+    return v0 + v1;
+}
+
 // ============================================================================
 // 3. Tests
 // ============================================================================
