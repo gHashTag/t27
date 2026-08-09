@@ -29,7 +29,7 @@ inspectable artefacts at every step.
   `bootstrap/src/hooks.rs` (Rust, unit-tested), not in shell. Without this a
   fresh clone runs **no** hooks; git does not enable them automatically.
 - **How to verify:** `cd bootstrap && cargo build --release && cd .. && cargo test --release`
-  → **1195 / 1195 passed** (full Quick Start below).
+  → **1206 / 1206 passed** (full Quick Start below).
   Validators: `./scripts/tri validate-conformance`, `validate-gen-headers`, and
   `seal-audit --strict` — all green as of the 2026-08-09 seal re-baseline.
 - **Primary numeric path:** GoldenFloat **GF16** (default), with the family
@@ -89,7 +89,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **19 integration properties** on `bitnet_engine_top`, all proving, **all guards reachable, 0 vacuous**, and 6 liveness witnesses confirming the interlocks do not stall the engine ([Props. 14–24](docs/FORMAL_FOUNDATIONS.md)) |
+| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **20 integration properties** on `bitnet_engine_top`, all proving — now including the **first property that spans two layers**, that the activation ping-pong really does alternate at a layer boundary. **All guards reachable, 0 vacuous**, 6 liveness witnesses, and a **baseline gate** so a probe verdict is only read after the unprobed design proves ([Props. 14–25](docs/FORMAL_FOUNDATIONS.md)) |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
@@ -97,7 +97,7 @@ inspectable artefacts at every step.
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
 | BitNet HLS | RTL blocks **emitted** | GREEN | 9/9 modules emit (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
-| BitNet HLS | RTL blocks **integrated** | YELLOW | **10 of 10** modules, 12 instances — every emitted block is now reachable from the top: AXI-Lite CSRs → sequencers → weight prefetch → MAC → requantizer → activation double buffer, with an input DMA and IRQ. Every integration property now proves, including the DMA/compute overlap that stayed open for four waves ([Props. 20–23](docs/FORMAL_FOUNDATIONS.md)) |
+| BitNet HLS | RTL blocks **integrated** | YELLOW | **10 of 10** modules, 12 instances — every emitted block is reachable from the top: AXI-Lite CSRs → sequencers → weight prefetch → MAC → requantizer → activation double buffer, with an input DMA and IRQ. One **open** defect is tracked rather than hidden: with no DMA first, layer 0 reads an activation buffer nothing wrote — CI gates that it *still refutes*, so a fix cannot land unnoticed ([Prop. 25](docs/FORMAL_FOUNDATIONS.md)) |
 | Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
 | R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
 | Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |
@@ -108,7 +108,7 @@ Every number above is measured, not asserted. To re-derive them:
 
 ```bash
 cd bootstrap && cargo build --release && cd ..
-cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1195 passed, 0 failed
+cargo test --release 2>&1 | grep '^test result'      # 22 suites, 1206 passed, 0 failed
 find specs -name '*.t27' | wc -l                     # 496
 for f in $(find specs -name '*.t27'); do \
   ./target/release/t27c parse "$f" >/dev/null || echo "PARSE FAIL $f"; done

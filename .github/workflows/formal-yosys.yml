@@ -185,6 +185,51 @@ jobs:
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
+      # Baseline gate. Every probe below reads a nonzero yosys exit as "the probe
+      # refuted", so a probe verdict is only meaningful if the UNPROBED design
+      # proves first. This is not hypothetical: an interlock tried in wave 27
+      # made yosys' own async2sync obligations fail, and every probe in the
+      # liveness table silently flipped to "refutes" for a reason that had
+      # nothing to do with any probe. Establish the baseline, then trust probes.
+      - name: Baseline - unprobed design must prove
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal \
+                      build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                      build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                      build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                      build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                      build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                      build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                    chparam -set DEPTH 4 weight_bram; \
+                    prep -top bitnet_engine_top -flatten; memory_map; \
+                    async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes"
+
+      # Prop. 25 is OPEN and must still REFUTE. Nothing requires a DMA before
+      # inference, so layer 0 can read an activation buffer nothing ever wrote.
+      # Gating on the refutation means the day someone closes it, this step goes
+      # red and says so -- an open finding that cannot rot into a forgotten one.
+      - name: Prop. 25 is still open (must refute)
+        run: |
+          set -euo pipefail
+          if yosys -q -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN \
+                            build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
+                            build/rtl/layer_sequencer.sv build/rtl/double_buffer_ctrl.sv \
+                            build/rtl/weight_bram.sv build/rtl/pipeline_stage2_compute.sv \
+                            build/rtl/activation_requant.sv build/rtl/weight_prefetch_ctrl.sv \
+                            build/rtl/interrupt_controller.sv build/rtl/axi_lite_slave.sv \
+                            build/rtl/dma_controller.sv build/rtl/trit_stdlib.sv; \
+                          chparam -set DEPTH 4 weight_bram; \
+                          prep -top bitnet_engine_top -flatten; memory_map; \
+                          async2sync; chformal -lower; \
+                          sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes" \
+               >/dev/null 2>&1; then
+            echo "::error::Prop. 25 now PROVES -- promote it out of \`ifdef FORMAL_OPEN and update docs/FORMAL_FOUNDATIONS.md"
+            exit 1
+          fi
+          echo "ok       Prop. 25 still refutes (read-before-write remains open)"
+
       # Liveness witnesses for the assembled engine. Four waves of interlock
       # work constrained the reachable state space; an over-tight guard would
       # make every safety property pass by making the engine do nothing. Each

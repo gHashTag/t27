@@ -186,6 +186,20 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // inference (ctrl = 3) had compute running against a buffer the DMA\n");
     s.push_str("    // was still filling. An interlock that names only one of two mutually\n");
     s.push_str("    // exclusive activities is half an interlock.\n");
+    s.push_str("    // ...and not before the input buffer has been loaded. A cross-layer\n");
+    s.push_str("    // property (Prop. 25) refuted without this: with no DMA the engine ran\n");
+    s.push_str("    // layer 0 against an activation buffer nothing had ever written, and\n");
+    s.push_str("    // every module-level and single-layer property still passed -- reading\n");
+    s.push_str("    // uninitialised memory is not a protocol violation anywhere, it is only\n");
+    s.push_str("    // wrong across the DMA-to-layer-0 seam. Preferring an interlock to a\n");
+    s.push_str("    // documented host contract, as in Prop. 15b.\n");
+    s.push_str("    //\n");
+    s.push_str("    // Gated on an actual local write, not on dma_done. Gating on completion\n");
+    s.push_str("    // was tried first and the property still refuted: a zero-length DMA\n");
+    s.push_str("    // reaches DONE without ever asserting dma_local_we, so it satisfies its\n");
+    s.push_str("    // completion contract while writing nothing. That is the third member of\n");
+    s.push_str("    // the same family -- zero neurons (Prop. 9), zero words (Prop. 10), zero\n");
+    s.push_str("    // bytes here -- where a zero-sized job is vacuously complete.\n");
     s.push_str("    wire        start             = reg_ctrl[0] && !dma_busy;\n");
     s.push_str("    wire [5:0]  num_layers        = reg_num_layers[5:0];\n");
     s.push_str("    wire [15:0] neurons_per_layer = reg_neurons[15:0];\n");
@@ -557,6 +571,34 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_two_writers_disjoint: assert (!(dma_local_we && act_word_valid));\n");
     s.push_str("\n");
+    s.push_str("    // ---- cross-layer properties (the first spanning two layers) ----\n");
+    s.push_str("    reg fv_wrote_a, fv_wrote_b;\n");
+    s.push_str("    always @(posedge clk or negedge rst_n)\n");
+    s.push_str("        if (!rst_n) begin fv_wrote_a <= 1'b0; fv_wrote_b <= 1'b0; end\n");
+    s.push_str("        else begin\n");
+    s.push_str("            if (wr_en_a) fv_wrote_a <= 1'b1;\n");
+    s.push_str("            if (wr_en_b) fv_wrote_b <= 1'b1;\n");
+    s.push_str("        end\n");
+    s.push_str("\n");
+    s.push_str("    // The ping-pong actually alternates across a layer boundary, so the\n");
+    s.push_str("    // buffer layer N wrote is the buffer layer N+1 reads.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_done_pulse))\n");
+    s.push_str("        a_buffer_alternates: assert (use_buffer_a == !$past(use_buffer_a));\n");
+    s.push_str("\n");
+    s.push_str("    // No activation is consumed from a buffer nothing has written.\n");
+    s.push_str("    //\n");
+    s.push_str("    // OPEN, and behind its own guard on purpose: this REFUTES today. Nothing\n");
+    s.push_str("    // requires a DMA before inference, so layer 0 can read an activation\n");
+    s.push_str("    // buffer that was never written. Every module-level and single-layer\n");
+    s.push_str("    // property still passes -- reading uninitialised memory violates no\n");
+    s.push_str("    // local contract, only the DMA-to-layer-0 seam. Attempts to interlock it\n");
+    s.push_str("    // are recorded in Prop. 25; each broke the baseline. formal-yosys.yml\n");
+    s.push_str("    // gates that this still refutes, so a fix cannot land unnoticed.\n");
+    s.push_str("`ifdef FORMAL_OPEN\n");
+    s.push_str("    always @(posedge clk) if (rst_n && mac_valid_q)\n");
+    s.push_str("        a_no_read_before_write: assert (use_buffer_a ? fv_wrote_a : fv_wrote_b);\n");
+    s.push_str("`endif\n");
+    s.push_str("\n");
     s.push_str("    // The double-buffer invariant. Reading and writing the same buffer in\n");
     s.push_str("    // one layer lets a neuron consume activations this layer just wrote --\n");
     s.push_str("    // the classic ping-pong inversion, invisible to every module-level\n");
@@ -744,5 +786,33 @@ mod tests {
     fn emitted_text_is_pure_ascii() {
         let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
         assert!(v.is_ascii(), "emitted Verilog must be ASCII");
+    }
+
+    // Wave 27. The first cross-layer properties: everything before them held
+    // inside one module or one layer. `a_buffer_alternates` proves the
+    // ping-pong really does swap at a layer boundary, so the buffer layer N
+    // wrote is the buffer layer N+1 reads. `a_no_read_before_write` REFUTES and
+    // sits behind its own guard on purpose -- see Prop. 25. These pin the
+    // arrangement, not the outcome: the outcome is gated in formal-yosys.yml.
+    #[test]
+    fn cross_layer_properties_are_emitted() {
+        let v = build_bitnet_engine_top("bitnet_engine_top");
+        assert!(v.contains("a_buffer_alternates: assert (use_buffer_a == !$past(use_buffer_a));"));
+        assert!(v.contains("a_no_read_before_write:"));
+        assert!(v.contains("if (wr_en_a) fv_wrote_a <= 1'b1;"));
+    }
+
+    #[test]
+    fn open_property_is_guarded_separately_from_the_proved_set() {
+        let v = build_bitnet_engine_top("bitnet_engine_top");
+        let open_at = v.find("a_no_read_before_write:").expect("open property present");
+        let guard_at = v[..open_at].rfind("`ifdef FORMAL_OPEN").expect("guarded by FORMAL_OPEN");
+        assert!(
+            !v[guard_at..open_at].contains("`endif"),
+            "the refuting property must sit inside `ifdef FORMAL_OPEN, or the default \
+             -DFORMAL run goes red and the green set stops meaning anything"
+        );
+        let alt_at = v.find("a_buffer_alternates:").expect("proved property present");
+        assert!(alt_at < guard_at, "the proved property must NOT be behind the open guard");
     }
 }

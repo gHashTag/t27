@@ -2,6 +2,37 @@
 
 Last updated: 2026-08-09
 
+## cross-layer -- one property proves, one refutes and is now gated open
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 25), `README.md`.
+- **The first property that spans two layers PROVES.** `a_buffer_alternates`:
+  the activation ping-pong really does swap at a layer boundary, so the buffer
+  layer N wrote is the buffer layer N+1 reads. Everything through Prop 24 held
+  inside one module or one layer. **20 integration properties now prove.**
+- **The second REFUTES, and stays open.** With no DMA first, layer 0 consumes an
+  activation buffer nothing ever wrote. Every module-level and single-layer
+  property still passes while it happens -- reading uninitialised memory breaks
+  no local contract, only the DMA-to-layer-0 seam.
+- **Three interlocks tried, all three withdrawn.** Gating on `dma_done` failed
+  because a **zero-length DMA completes without writing** -- the third member of
+  the family after zero neurons (Prop 9) and zero words (Prop 10). *Completion
+  is not evidence that work was done.* The other two broke the baseline.
+- **Recorded, not weakened.** The refuting property sits behind its own
+  `` `ifdef FORMAL_OPEN `` and CI gates that **it must still refute**. Close it
+  and the build goes red telling you to promote it.
+- **A probe harness must establish its own baseline first.** While one interlock
+  was in the tree the *unprobed* design stopped proving, and every row of the
+  liveness table silently flipped -- reporting on a failure no probe caused.
+  Diagnosis took four rounds because the harness's verdict was untrustworthy and
+  nothing said so. Now a CI step: **unprobed design must prove, then probes.**
+- **A reference above its declaration silently forks the signal.** Reading
+  `dma_local_we` 137 lines before its declaration made Verilog conjure an
+  implicit net with the same name, so the code read an undriven twin and formal
+  refuted an unrelated property. **In a generator, an insertion point is a
+  correctness property.**
+- Suite **1206 passed, 0 failed**. Seals 496/496.
+
 ## liveness-audit -- the interlocks did not stall the engine
 
 - **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`

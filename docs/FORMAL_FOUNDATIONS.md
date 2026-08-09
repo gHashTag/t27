@@ -1108,6 +1108,112 @@ build rather than quietly greening it.
 
 ---
 
+### Prop. 25 — the first properties that span two layers: one proves, one refutes and stays open — `PROVED` / `REFUTED`
+
+Every property up to Prop. 24 held **inside one module or inside one layer**.
+The double-buffer scheme, though, only means anything across a layer boundary:
+layer *N* writes one buffer while layer *N+1* reads the other. Two properties
+were written for that seam, using two formal-only probe registers that record
+whether either activation buffer has ever been written:
+
+```verilog
+reg fv_wrote_a, fv_wrote_b;
+always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin fv_wrote_a <= 1'b0; fv_wrote_b <= 1'b0; end
+    else begin
+        if (wr_en_a) fv_wrote_a <= 1'b1;
+        if (wr_en_b) fv_wrote_b <= 1'b1;
+    end
+```
+
+**25a. The ping-pong genuinely alternates — `PROVED`.**
+
+```verilog
+always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_done_pulse))
+    a_buffer_alternates: assert (use_buffer_a == !$past(use_buffer_a));
+```
+
+Proved at `-seq 40` over the twelve-instance engine. This is the first result in
+the repository that constrains the relationship between **two different layers**
+rather than the internals of one: the buffer layer *N* wrote is the buffer layer
+*N+1* reads. It is now part of the default `-DFORMAL` set, taking it to **20
+integration properties, all proving**.
+
+**25b. Layer 0 can read a buffer nothing ever wrote — `REFUTED`, and open.**
+
+```verilog
+always @(posedge clk) if (rst_n && mac_valid_q)
+    a_no_read_before_write: assert (use_buffer_a ? fv_wrote_a : fv_wrote_b);
+```
+
+This refutes. Nothing in the engine requires a DMA before inference, so the host
+can set `reg_ctrl[0]` on a freshly reset device and the MAC will consume an
+activation buffer that has never been written. **Every module-level and
+single-layer property still passes** while this happens — reading uninitialised
+memory violates no local contract. It is only visible across the DMA-to-layer-0
+seam, which is exactly why twenty-four propositions did not see it.
+
+**25c. Three interlocks were tried. All three were withdrawn.** The obvious fix
+is to gate `start` on evidence that the input buffer was loaded. Each attempt
+failed for a different and instructive reason:
+
+| Attempt | Result |
+|---|---|
+| `input_loaded` set by `dma_done` | still REFUTED — a **zero-length DMA** reaches DONE without ever asserting `dma_local_we`, satisfying its completion contract while writing nothing |
+| set by `dma_local_we`, declared early | still REFUTED — and it broke an unrelated proved property (below) |
+| same, with a synchronous reset | still REFUTED — **baseline** broke regardless of reset style |
+
+The first row is the interesting one on its own: it is the **third member of a
+family** this campaign keeps finding — zero neurons (Prop. 9), zero words
+(Prop. 10), zero bytes here. **A zero-sized job is vacuously complete, and
+completion is therefore not evidence that work was done.**
+
+Because no attempt closed 25b and every attempt cost a proved property
+elsewhere, none shipped. 25b is recorded behind its own `` `ifdef FORMAL_OPEN ``
+guard, and `formal-yosys.yml` gates that **it must still refute** — so the day
+someone closes it, CI goes red and says to promote it. An open finding that
+cannot rot into a forgotten one.
+
+**25d. A probe harness must establish its own baseline first — `MEASURED`.**
+The liveness table in Prop. 24 reads a nonzero `yosys` exit as "the probe
+refuted". While the second interlock was in the tree, the *unprobed* design
+stopped proving — an obligation `async2sync` generates itself began to fail —
+and **every row of the liveness table silently flipped to "refutes"**, including
+the one row whose expected answer is "proves". The probes were reporting on a
+failure that had nothing to do with any probe. Diagnosis took four rounds
+because the harness's own verdict was untrustworthy and nothing said so.
+
+> **A verdict harness that cannot distinguish "your property failed" from
+> "something else failed" is not measuring your property.** Run the design with
+> no probe and no properties first; only then is a probe verdict evidence.
+
+This is now the `Baseline - unprobed design must prove` CI step, ahead of every
+probe.
+
+**25e. A reference above its declaration silently forks the signal.** The second
+interlock read `dma_local_we` at line 125 of the emitted top; the wire is
+declared at line 262. Verilog's implicit-net rule conjures a one-bit wire at
+first use, so the interlock read a **different, undriven signal** with the same
+name — leaving the solver free to fabricate DMA writes and refute a property
+that had nothing to do with the change. No warning, no error, and the emitted
+file looks correct on inspection. **In a code generator, an insertion point is a
+correctness property**, not a formatting choice: emit a declaration early and an
+`assign` after the signals it reads.
+
+Reproduce all of it:
+
+```bash
+t27c gen-bitnet-bundle --output-dir build/rtl
+t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
+# 25a, in the default set (proves); 25b behind the open guard (refutes)
+yosys -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN build/rtl/*.sv; \
+          chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; \
+          memory_map; async2sync; chformal -lower; \
+          sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
@@ -1172,6 +1278,11 @@ from memory.
 - **Compiler correctness is unproved and unclaimed.** `bootstrap/` is
   unverified Rust. Vericert is the mature alternative if that property is
   wanted.
+- **Layer 0 can read an activation buffer nothing wrote** (Prop. 25b). Three
+  interlocks were tried and withdrawn; the property is gated as an expected
+  refutation so a fix cannot land silently. The likely shape of a real fix is a
+  per-buffer written-flag in hardware rather than a single global one, since
+  "some write happened" is not "the buffer being read was written".
 
 ---
 
