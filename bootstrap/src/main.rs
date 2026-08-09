@@ -4163,23 +4163,37 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
 
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile_c(&source) {
-        Ok(c_code) => print!("{}", c_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W584: `use` resolution is a source-to-source pass (W569), so it is
+    // backend-agnostic -- only `gen` was calling it, which is why the C headers
+    // failed on types declared in modules they import. Same safety contract:
+    // if the spliced source stops compiling, the original is used.
+    let resolved = use_resolve::resolve(path, &raw);
+    let c_code = match compiler::Compiler::compile_c(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile_c(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", c_code);
     Ok(())
 }
 
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile_rust(&source) {
-        Ok(rust_code) => print!("{}", rust_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W584: same as gen-c -- `use` resolution is backend-agnostic and only
+    // `gen` was calling it.
+    let resolved = use_resolve::resolve(path, &raw);
+    let rust_code = match compiler::Compiler::compile_rust(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile_rust(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", rust_code);
     Ok(())
 }
 

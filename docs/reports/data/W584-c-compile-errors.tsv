@@ -1,0 +1,296 @@
+specs/depin/prove.t27	unknown type name 'Vec'
+specs/fpga/bridge.t27	unknown type name 'Bridge_Unit'
+specs/fpga/power.t27	expected expression
+specs/fpga/mac.t27	brackets are not allowed here; to declare an array, place the brackets after the identifier
+specs/fpga/uart.t27	expected identifier or '('
+specs/fpga/gf16_accel.t27	expected expression
+specs/fpga/bootrom.t27	expected expression
+specs/fpga/timing.t27	use of undeclared identifier 'clk'
+specs/fpga/memory.t27	expected expression
+specs/fpga/axi4.t27	expected expression
+specs/fpga/testbench.t27	use of undeclared identifier 'tb'
+specs/fpga/ternary_isa.t27	use of undeclared identifier 'R'
+specs/fpga/e2e_demo.t27	use of undeclared identifier 'hello_trinity'
+specs/fpga/simulator.t27	expected expression
+specs/fpga/clock_domain.t27	use of undeclared identifier 'inv'
+specs/fpga/hw_types.t27	initializing 'int' with an expression of incompatible type 'HwType'
+specs/fpga/bpsk.t27	expression is not assignable
+specs/fpga/apb_bridge.t27	expected expression
+specs/fpga/top_level.t27	unknown type name 'SystemState'
+specs/fpga/dft.t27	expected expression
+specs/fpga/hir.t27	unknown type name 'Mem'
+specs/fpga/cts.t27	expected expression
+specs/fpga/router.t27	use of undeclared identifier 'clk'
+specs/fpga/stdlib.t27	use of undeclared identifier 't27'
+specs/fpga/assembler.t27	expected expression
+specs/fpga/placement.t27	expected expression
+specs/fpga/crossopt.t27	use of undeclared identifier 'empty'
+specs/ar/coa_planning.t27	unknown type name 'ProofStep'
+specs/ar/restraint.t27	unknown type name 'Trit'
+specs/boards/xc7a100t_full.t27	unknown type name 'PinAssignment'
+specs/boards/xc7a100t_minimal.t27	unknown type name 'PinAssignment'
+specs/boards/arty_a7.t27	unknown type name 'PinAssignment'
+specs/brain/unified_state.t27	use of undeclared identifier 'REST'
+specs/brain/phi_timing.t27	use of undeclared identifier 'f64'
+specs/brain/cognitive_loop.t27	use of undeclared identifier 'u8'
+specs/brain/bus.t27	use of undeclared identifier 'u32'
+specs/physics/su2_chern_simons.t27	expected identifier or '('
+specs/physics/formula_registry.t27	use of undeclared identifier 'std'
+specs/physics/pellis-formulas.t27	use of undeclared identifier 'constants'
+specs/physics/gamma_conjecture.t27	call to undeclared library function 'pow' with type 'double (double, double)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/physics/gi1_analysis.t27	call to undeclared library function 'pow' with type 'double (double, double)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/physics/zamolodchikov_4d_conjecture.t27	use of undeclared identifier 'E8'
+specs/sync/schema.t27	function cannot return array type 'SyncID' (aka 'unsigned char[64]')
+specs/account/auth.t27	unknown type name 'AccountID'
+specs/compiler/meta_compile.t27	initializing 'int' with an expression of incompatible type 'CompileResult'
+specs/compiler/lexer.t27	unknown type name 'Lexer'
+specs/compiler/pipeline.t27	use of undeclared identifier 'zig'
+specs/compiler/diagnostics.t27	unexpected type name 'Severity': expected expression
+specs/compiler/stdlib.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/demos/jones_topology_filter.t27	use of undeclared identifier 'sig'
+specs/demos/jones_topology_decision_gate.t27	use of undeclared identifier 'jones_topology_filter'
+specs/base/ops.t27	brackets are not allowed here; to declare an array, place the brackets after the identifier
+specs/base/seed.t27	use of undeclared identifier 'NEG'
+specs/git/diff.t27	use of undeclared identifier 'src'
+specs/git/schema.t27	use of undeclared identifier 'str'
+specs/git/status.t27	unexpected type name 'Kind': expected expression
+specs/git/operations.t27	use of undeclared identifier 'str'
+specs/queen/lotus.t27	expected identifier or '('
+specs/queen/brain_summaries.t27	unknown type name 'Evaluation'
+specs/ternary/bitnet_neuron_nchunk.t27	expected expression
+specs/ternary/stream_ternary_mac.t27	expression is not assignable
+specs/ternary/clocked_counter.t27	expression is not assignable
+specs/pins/emitter_xdc.t27	unexpected type name 'XDCLine': expected expression
+specs/pipeline/experience_save.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tools/tri_to_t27_converter.t27	unknown type name 'TriType'
+specs/memory/memory_primitives.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/memory/notebooklm.t27	unknown type name 'Notebook'
+specs/nn/attention.t27	use of undeclared identifier 'constants'
+specs/nn/hslm.t27	expected identifier or '('
+specs/nn/gla.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/isa/ternary_control_flow.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/isa/ternary_tree.t27	member reference base type 'size_t *' (aka 'unsigned long *') is not a structure or union
+specs/isa/ternary_memory.t27	expected identifier or '('
+specs/isa/registers.t27	brackets are not allowed here; to declare an array, place the brackets after the identifier
+specs/file/operations.t27	unknown type name 'Result'
+specs/config/schema.t27	unknown type name 'LanguageServer'
+specs/shell/environment.t27	unknown type name 'Result'
+specs/vsa/sdk.t27	unknown type name 'hybrid_arithmetic'
+specs/vsa/similarity_search.t27	brackets are not allowed here; to declare an array, place the brackets after the identifier
+specs/vsa/ops.t27	field designator cannot initialize a non-struct, non-union type 'Trit[]'
+specs/sacred/sacred_identity.t27	unknown type name 'String'
+specs/sacred/sacred_constants.t27	unknown type name 'Namespacestructallmembersarecomptimeconstantsorpurefunctions'
+specs/sacred/sacred_governance.t27	unknown type name 'SacredRuleType'
+specs/provider/transform.t27	unknown type name 'Message'
+specs/provider/stream.t27	unknown type name 'StreamingChunk'
+specs/bus/schema.t27	use of undeclared identifier 'NORMAL'
+specs/server/http.t27	type name requires a specifier or qualifier
+specs/server/api.t27	unknown type name 'MessageContent'
+specs/server/mdns.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/server/agent-runner.t27	initializing 'int' with an expression of incompatible type 'AgentState'
+specs/lsp/protocol.t27	initializing 'uint8_t *' (aka 'unsigned char *') with an expression of incompatible type 'double'
+specs/lsp/server.t27	unknown type name 'ServerInfo'
+specs/lsp/schema.t27	unknown type name 'Diagnostic'; did you mean 'DiagnosticTag'?
+specs/lsp/client.t27	unknown type name 'TextDocumentSyncCapability'
+specs/math/e8_lie_algebra.t27	brackets are not allowed here; to declare an array, place the brackets after the identifier
+specs/math/zamolodchikov_e8.t27	use of undeclared identifier 'constants'
+specs/math/phi_universal_attractor.t27	use of undeclared identifier 'constants'
+specs/math/phi_split_optimality.t27	use of undeclared identifier 'sacred_physics'
+specs/math/sacred_physics.t27	use of undeclared identifier 'constants'
+specs/storage/migrate.t27	use of undeclared identifier 'MigrationStep'
+specs/storage/lock.t27	unknown type name 'Result'
+specs/storage/schema.t27	use of undeclared identifier 'NOT_FOUND'
+specs/numeric/gf64.t27	use of undeclared identifier 'goldenfloat_family'
+specs/numeric/trinity_numeric_surface.t27	use of undeclared identifier 'u8'
+specs/numeric/gf4.t27	unknown type name 'u4'
+specs/numeric/lucas_accumulator.t27	call to undeclared library function 'pow' with type 'double (double, double)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/numeric/posit_ladder_control.t27	call to undeclared library function 'pow' with type 'double (double, double)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/numeric/gfternary.t27	expected identifier or '('
+specs/fpga/testbench/top_tb.t27	expected identifier or '('
+specs/ml/layers/dense_layer.t27	unknown type name 'ActivationType'
+specs/ml/layers/batchnorm_layer.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/maxpool2d_layer.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/dropout_layer.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/residual_connection.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/flatten_layer.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/embedding_layer.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/conv2d_layer.t27	type name requires a specifier or qualifier
+specs/ml/layers/avgpool2d_layer.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/layers/layernorm_layer.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/adamw.t27	type name requires a specifier or qualifier
+specs/ml/optimizer/race_config.t27	call to undeclared library function 'abs' with type 'int (int)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/sgd.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/lr_scheduler.t27	unknown type name 'gf16'
+specs/ml/optimizer/rmsprop.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/lamb.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/adam.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/adagrad.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/optimizer/sgd_momentum.t27	unknown type name 'gf16'
+specs/ml/loss/contrastive_loss.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/loss/kl_divergence.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/loss/mse_loss.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/loss/binary_crossentropy_loss.t27	unknown type name 'Reduction'
+specs/ml/loss/huber_loss.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/loss/cross_entropy_loss.t27	unknown type name 'ReductionType'
+specs/ml/transformer/feed_forward_network.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/transformer/mha_block.t27	unknown type name 'gf16'
+specs/ml/transformer/encoder_block.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/transformer/multi_head_attention.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/transformer/positional_encoding.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/transformer/norm.t27	unknown type name 'gf16'
+specs/ml/activation/gelu_approx_activation.t27	field has incomplete type 'void'
+specs/ml/activation/gelu_activation.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/softmax.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/elu_activation.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/relu_activation.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/silu_swish_activation.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/leaky_relu_activation.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/activation/tanh_activation.t27	field has incomplete type 'void'
+specs/ml/activation/sigmoid_activation.t27	field has incomplete type 'void'
+specs/ml/recurrent/bilstm.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/attention_mechanism.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/gru_cell.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/seq2seq.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/lstm_cell.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/lstm_single.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/self_attention.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/recurrent/rnn_cell.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/pathway/mlp.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/dqn_target_network.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/ppo_critic.t27	unknown type name 'Activation'
+specs/ml/rl/advantage_estimator.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/sac_critic.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/ppo_actor.t27	unknown type name 'ActionSpace'
+specs/ml/rl/ppo_clip_loss.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/dqn.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/ml/rl/sac_actor.t27	call to undeclared function 'valid_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/igla/integration/publication.t27	unexpected type name 'PublicationTarget': expected expression
+specs/igla/training/pilot_pretraining.t27	unexpected type name 'ModelSize': expected expression
+specs/igla/training/scale_up.t27	expected ')'
+specs/igla/training/low_bit_ternary.t27	unknown type name 'i2'
+specs/igla/training/roadmap.t27	unexpected type name 'Phase': expected expression
+specs/igla/race/ternary_inference.t27	unknown type name 'TernaryWeight'
+specs/igla/race/opcodes.t27	incompatible integer to pointer conversion returning 'int' from a function with result type 'const char *' [-Wint-conversion]
+specs/igla/race/cordic_top.t27	member reference base type 'int16_t *' (aka 'short *') is not a structure or union
+specs/igla/race/formal.t27	unknown type name 'RtlModule'
+specs/igla/race/systolic_array.t27	initializing 'int' with an expression of incompatible type 'SystolicState'
+specs/igla/race/eda.t27	use of undeclared identifier 'openroad'
+specs/igla/race/cordic.t27	initialization of non-aggregate type 'float *' with a designated initializer list
+specs/igla/race/bram_weights.t27	member reference base type 'int16_t *' (aka 'short *') is not a structure or union
+specs/igla/race/yosys.t27	use of undeclared identifier 'yosys'
+specs/igla/race/gemm.t27	initializing 'int' with an expression of incompatible type 'Mat2x2'
+specs/igla/race/cordic_fixed.t27	call to undeclared function 'abs_i16'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/igla/race/ternary_mac.t27	member reference base type 'int8_t *' (aka 'signed char *') is not a structure or union
+specs/igla/race/adder_tree.t27	member reference base type 'int32_t *' (aka 'int *') is not a structure or union
+specs/igla/race/ternary_gemm.t27	passing 'TernaryWeight' to parameter of incompatible type 'int8_t' (aka 'signed char')
+specs/igla/race/systolic_ternary.t27	initializing 'int' with an expression of incompatible type 'SystolicTernaryPE'
+specs/igla/evaluation/multi_lang_harness.t27	unexpected type name 'LangTarget': expected expression
+specs/igla/coder/bench_proxy.t27	expected expression
+specs/igla/coder/dataset.t27	unknown type name 'DataSample'
+specs/igla/coder/training.t27	unexpected type name 'TrainingStage': expected expression
+specs/igla/coder/prm.t27	unknown type name 'BeamCandidate'
+specs/igla/coder/pipeline.t27	type name requires a specifier or qualifier
+specs/igla/coder/benchmark.t27	use of undeclared identifier 'eval'
+specs/tri/pipeline/batch_runner.t27	type name requires a specifier or qualifier
+specs/tri/pipeline/codegen.t27	unknown type name 'String'
+specs/tri/pipeline/spec_writer.t27	use of undeclared identifier 'steps'
+specs/tri/pipeline/workflow.t27	unknown type name 'String'
+specs/tri/pipeline/pipeline_parallel.t27	type name requires a specifier or qualifier
+specs/tri/crypto/hmac.t27	unknown type name 'SHA256'
+specs/tri/crypto/hex.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/crypto/sha256.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/crypto/ecc.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/crypto/base32.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/crypto/crypto.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/crypto/rsa.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/crypto/reed_solomon.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/crypto/base64.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/net/http.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/net/url.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/net/net.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/trees/fenwick_tree.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/trees/octree.t27	type name requires a specifier or qualifier
+specs/tri/trees/red_black_tree.t27	type name requires a specifier or qualifier
+specs/tri/trees/quadtree.t27	type name requires a specifier or qualifier
+specs/tri/trees/kd_tree.t27	unknown type name 'KDNode'
+specs/tri/trees/suffix_array.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/trees/avl_tree.t27	type name requires a specifier or qualifier
+specs/tri/trees/b_tree.t27	type name requires a specifier or qualifier
+specs/tri/trees/rtree.t27	unknown type name 'RTreeNode'
+specs/tri/trees/segment_tree.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/trees/splay_tree.t27	type name requires a specifier or qualifier
+specs/tri/sort/counting_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/merge_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/selection_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/insertion_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/heap_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/shell_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/tim_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/quick_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/radix_sort.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/sort/sort.t27	type name requires a specifier or qualifier
+specs/tri/io/filesystem.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/io/fs.t27	type name requires a specifier or qualifier
+specs/tri/io/compress.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/graph/graph_dfs.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/graph/graph_bfs.t27	type name requires a specifier or qualifier
+specs/tri/graph/bellman_ford.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/graph/dijkstra.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/graph/disjoint_set.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/graph/topological_sort.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/graph/prims_mst.t27	unknown type name 'Edge'
+specs/tri/encoding/bson.t27	type name requires a specifier or qualifier
+specs/tri/encoding/markup.t27	unknown type name 'MarkdownNode'
+specs/tri/encoding/xml.t27	type name requires a specifier or qualifier
+specs/tri/encoding/json.t27	unknown type name 'JsonType'
+specs/tri/encoding/csv.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/encoding/msgpack.t27	type name requires a specifier or qualifier
+specs/tri/encoding/mime.t27	type name requires a specifier or qualifier
+specs/tri/encoding/html.t27	type name requires a specifier or qualifier
+specs/tri/utils/exit_codes.t27	type name requires a specifier or qualifier
+specs/tri/utils/terminal.t27	unknown type name 'TerminalSize'
+specs/tri/utils/config.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/utils/logger.t27	type name requires a specifier or qualifier
+specs/tri/utils/utf8.t27	unknown type name 'u21'
+specs/tri/utils/time.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/utils/template.t27	unknown type name 'TemplatePart'
+specs/tri/utils/text.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/utils/args.t27	expected member name or ';' after declaration specifiers
+specs/tri/utils/logging.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/utils/random.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/utils/version.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/utils/help.t27	unknown type name 'CommandCategory'
+specs/tri/utils/color.t27	type name requires a specifier or qualifier
+specs/tri/utils/bytes.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/agent/eternal_monitor.t27	type name requires a specifier or qualifier
+specs/tri/agent/swarm_agents.t27	type name requires a specifier or qualifier
+specs/tri/agent/autonomous_lifecycle.t27	type name requires a specifier or qualifier
+specs/tri/agent/handoff.t27	unknown type name 'UInt32'
+specs/tri/agent/faculty_board.t27	type name requires a specifier or qualifier
+specs/tri/agent/governance_agent.t27	unknown type name 'StringGOVERNANCEAGENT'
+specs/tri/math/matrix.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/math/probability.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/math/polynomial.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/math/constants.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/math/bezier.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/math/statistics.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/search/pattern.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/search/search.t27	unknown type name 'T'
+specs/tri/search/knuth_morris_pratt.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/search/rabin_karp.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/search/regex.t27	type name requires a specifier or qualifier
+specs/tri/search/boyer_moore.t27	call to undeclared function 'default_input'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+specs/tri/search/bloom_filter.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/search/match.t27	unknown type name 'MatchCapture'
+specs/tri/search/aho_corasick.t27	type name requires a specifier or qualifier
+specs/tri/search/regex_advanced.t27	type name requires a specifier or qualifier
+specs/tri/collections/linked_list.t27	unknown type name 'T'
+specs/tri/collections/priority_queue.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/collections/circular_buffer.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/collections/lockfree_stack.t27	type name requires a specifier or qualifier
+specs/tri/collections/interval.t27	declaration of anonymous union must be a definition
+specs/tri/collections/bitvector.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/collections/bitmap.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/collections/namespace.t27	unknown type name 'Enum'; did you mean 'enum'?
+specs/tri/collections/deque.t27	type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
+specs/tri/collections/lru_cache.t27	type name requires a specifier or qualifier

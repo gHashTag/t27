@@ -11465,7 +11465,24 @@ impl CCodegen {
             return None;
         }
         let inner = &t[1..bracket_end];
-        let semi = inner.find(';')?;
+        // W584: split on the semicolon at bracket depth ZERO. `find(';')` took
+        // the first one, so a NESTED array `[[u8; 16]; 16]` split as
+        // elem=`[u8` / size=`16]; 16` and the typedef came out as
+        // `typedef struct { [u8 v[16];16]; } ...` -- not C. 70 headers.
+        let mut depth = 0i32;
+        let mut semi = None;
+        for (i, ch) in inner.char_indices() {
+            match ch {
+                '[' | '(' => depth += 1,
+                ']' | ')' => depth -= 1,
+                ';' if depth == 0 => {
+                    semi = Some(i);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let semi = semi?;
         let elem = inner[..semi].trim();
         let size = inner[semi + 1..].trim();
         if elem.is_empty() || size.is_empty() {
@@ -11473,8 +11490,12 @@ impl CCodegen {
         }
         let c_elem = if Self::is_primitive(elem) {
             Self::type_to_c(elem).to_string()
+        } else if let Some((inner_name, _, _)) = Self::c_array_info(elem) {
+            // An array OF arrays: the element is the inner array's hoisted
+            // struct, not its t27 spelling.
+            inner_name
         } else {
-            elem.to_string()
+            Self::type_to_c(elem).to_string()
         };
         let sane = |x: &str| x.replace(|c: char| !c.is_alphanumeric(), "_");
         let name = format!("t27_arr_{}_{}", sane(&c_elem), sane(size));
@@ -11516,9 +11537,28 @@ impl CCodegen {
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
+            // W584: a NAMED tuple element -- `(added: u32, deleted: u32)`. The
+            // whole `added: u32` was taken as the type, so C received
+            // `typedef struct { added:u32 f0; ... }`. The name is
+            // documentation; only the type crosses into C.
             let elems: Vec<String> = inner
                 .split(',')
-                .map(|e| Self::param_type_to_c(e.trim()))
+                .map(|e| {
+                    let e = e.trim();
+                    let ty = match e.split_once(':') {
+                        Some((name, rest))
+                            if !name.trim().is_empty()
+                                && name
+                                    .trim()
+                                    .chars()
+                                    .all(|c| c.is_alphanumeric() || c == '_') =>
+                        {
+                            rest.trim()
+                        }
+                        _ => e,
+                    };
+                    Self::param_type_to_c(ty)
+                })
                 .collect();
             let sanitized: String = elems
                 .iter()
@@ -12738,8 +12778,17 @@ impl CCodegen {
         // Array types: [SIZE]Type → Type* (pointer in param position)
         if ty.starts_with('[') {
             if let Some(bracket_end) = ty.find(']') {
-                let elem = &ty[bracket_end + 1..];
-                return format!("{}*", Self::type_to_c(elem));
+                let elem = ty[bracket_end + 1..].trim();
+                if !elem.is_empty() {
+                    return format!("{}*", Self::type_to_c(elem));
+                }
+                // W584: `[T]` -- the element is INSIDE the brackets, a
+                // Rust-style slice spelling. Taking the text after `]` gave an
+                // empty type and C received `* resources;`.
+                let inner = ty[1..bracket_end].trim();
+                if !inner.is_empty() {
+                    return format!("{}*", Self::param_type_to_c(inner));
+                }
             }
         }
         // W583: this used to be gated on `is_primitive`, which lists only the

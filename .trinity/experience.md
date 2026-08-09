@@ -21161,3 +21161,35 @@ handles the unknown case is pure loss.
 W582's regex said 409 -> 3 and W583's compiler said 36 of 397 compile. Both are true;
 they measure different things. When you report a proxy, say it is a proxy AND name the
 real measurement -- W582 did, which is why W583 existed.
+
+## Wave Loop 584 -- four C defects fixed and the header count did not move (2026-08-09)
+
+    headers that compile             101 -> 101  of 397
+    unknown type name                 64 ->  59
+    type name requires a specifier    38 ->  32
+    type specifier missing            32 ->  28
+    use resolution now reaches       gen -> gen, gen-c, gen-rust
+
+Fixed: nested array typedefs (`c_array_info` split on the FIRST semicolon, so
+`[[u8; 16]; 16]` became `typedef struct { [u8 v[16];16]; }`), named tuple elements
+(`(added: u32, ...)` used the whole `added: u32` as the type), `[T]` with the element
+INSIDE the brackets (emitted `* resources;`), and `use` resolution for gen-c/gen-rust
+-- W569's resolver is a source-to-source pass and was always backend-agnostic; only
+`gen` was calling it.
+
+### The finding is the number that did not move
+
+A header must clear EVERY class to compile. With 296 failures over eight classes,
+fixing one moves a spec from failing on A to failing on B -- visible as
+`use of undeclared identifier` going 28 -> 36 while everything else went down.
+
+At this stage the CLASS counts are the honest metric and the header count is not. Say
+which metric is load-bearing at the current stage, and change it when the stage
+changes -- I kept reporting a number that had stopped being informative.
+
+### And the largest class is not a defect
+
+75 of 296 C failures are `default_input`/`valid_input` -- the template scaffold,
+pending since W561. It is now the top blocker in THREE measurement systems (C headers,
+Zig compile failures, check-calls). No amount of backend work moves the header count
+while it stands. That is the cost of a deferred decision becoming visible.

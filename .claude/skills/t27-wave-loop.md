@@ -4291,6 +4291,20 @@ These cost a wave each. Follow them before step 1.
     so `f32` stayed unmapped even after `type_to_c` learned it. Removing the
     guard moved more headers than every new mapping combined.
 
+63. **Say which metric is load-bearing at the current stage, and change it
+    when the stage changes.** W584 fixed four real C defects; every class it
+    touched went down and the headline "headers that compile" stayed at 101,
+    because a header must clear EVERY class and 296 failures were spread over
+    eight. The class counts were the honest metric and the header count was
+    not. A number that has stopped discriminating is worse than no number.
+
+64. **A deferred decision has a cost, and the cost becomes measurable.**
+    `default_input`/`valid_input` is now the largest blocker in three separate
+    measurement systems at once -- 75 of 296 C header failures, 47 of 216 Zig
+    compile failures, 29 of 32 `check-calls` findings. Pending since W561. When
+    a deferral starts capping what any amount of work can achieve, report that
+    explicitly rather than routing around it again.
+
 ### How to update this tracker
 
 After closing a wave:
