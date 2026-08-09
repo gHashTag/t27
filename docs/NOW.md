@@ -1,3 +1,16 @@
+# NOW — numeric SSOT: the GF-T ladder lands in the catalog (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T registered in the catalog SSOT, all nine rungs (Refs #2001)
+
+- `specs/numeric/formats_catalog.t27` had **zero GF-T rows** -- the only `gft` id was `gfternary`, a different object (2-bit {-phi,0,+phi} alphabet, not a float with a balanced-ternary exponent field). Four rungs existed as specs with no row and no pack; five did not exist at all, while `zig-golden-float/specs/gft.tri` named this directory as its own source of truth
+- Nine rows + five new specs (`gft64/128/256/512/1024`) derived from the ladder's own width rule `1 + E_t + M = N`, one position per trit -- the rule `gft4`, `gft8`, `gft32` already satisfy exactly. `gft16` keeps its historical `M = 9` (14 of 16 positions) with the gap recorded in an `open_issue` field rather than silently closed
+- Nine conformance packs from the reference oracle; probes are powers of two and `1.5*2^e` inside each rung's own exponent range, so every `abs_error` is exactly zero by construction and no allowlist entry is needed. An earlier attempt used fixed probes including `100.0`, which GF-T4 cannot represent -- the WP-18 gate caught it as undisclosed nonzero error
+- `docs/NUMERIC_FORMATS_SSOT.md` gains §4a: the third ternary object, the two columns that read wrong without help (`e=` counts trits; phi-distance rises toward 1/phi because GF optimises the phi split and GF-T optimises range), and both what the fixed field buys and what Kraft's inequality forbids it from claiming
+- Erratum amended 83 -> 92. June's divergence was a miscount; this one was a whole family missing
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 conformance integrity CLEAN; `t27c check` clean on all nine specs
+
 # NOW — gen-zig: executable-level fixes (2026-08-08)
 
 Last updated: 2026-08-08
