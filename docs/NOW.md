@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## four properties cost 75% of the proof; splitting them restores the ceiling
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 54), `README.md`.
+- Prop 53b measured the scaffolding at 23x the design's cost and named the
+  formal-only tracking state as the lever. **This locates it exactly.**
+- Four of 26 properties -- `a_act_writes_contiguous`, `a_read_slot_written`,
+  `a_read_within_written`, `a_no_read_before_write` -- need ten `fv_*`
+  registers between them. Removing just those four:
+  **all 26**: seq 40 PROVED 129.1s, seq 60 undecided >1200s, seq 80 undecided.
+  **22 core**: seq 40 **32.0s**, seq 60 **114.5s**, seq 80 **PROVED 237.8s**.
+- **15% of the properties cost 75% of the time**, and their removal restores the
+  ceiling from seq 40 to **seq 80** -- the depth the whole set reached ten waves
+  ago, now at 238s against the original 396s.
+- **Splitting weakens nothing**: both sets gated, core 22 at seq 80 and all 26 at
+  seq 40. Only the bound at which each is checked differs, and each rises or
+  holds. The opposite of Prop 53c's re-baselining, which lowered a claim because
+  the subject had moved.
+- **Implementation attempted twice and reverted**, both failures diagnosed.
+  Wrapping the contiguous block left three of the four properties *outside* the
+  guard while their trackers went inside -- undriven implicit wires, the Prop 25e
+  trap, presenting as a refutation of the core set. Wrapping each assert by
+  regex swallowed the closing `endif` and nested every later property.
+- **The four properties and ten registers are not contiguous** -- they interleave
+  with core properties across ~six sites. The guard must be placed at each by
+  hand with the emitted guard depth checked after. **Two failed attempts at the
+  same edit are a signal about the edit's shape, not about persistence.**
+- Left for a wave that starts with it. Tree restored; all 26 properties prove.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## the ceiling fell from 80 to 40, and the scaffolding costs 23x the design
 
 - **WHERE**: `.github/workflows/formal-mutation.yml`,

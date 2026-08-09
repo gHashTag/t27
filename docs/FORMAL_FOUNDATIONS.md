@@ -3169,6 +3169,63 @@ python3 formal/scale_probe.py 60 4    # undecided today, PROVED when Prop. 34 wa
 
 ---
 
+### Prop. 54 — four properties cost 75% of the proof; splitting them restores the ceiling — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Scale ceiling*
+
+Prop. 53b measured the verification scaffolding at 23× the design's own cost and
+identified the formal-only tracking state as the lever. This locates it exactly.
+
+**54a. Four of twenty-six properties, ten registers, 75% of the time.**
+`a_act_writes_contiguous`, `a_read_slot_written`, `a_read_within_written` and
+`a_no_read_before_write` need ten `fv_*` registers between them. Removing just
+those four:
+
+| set | `-seq 40` | `-seq 60` | `-seq 80` |
+|---|---|---|---|
+| all 26 | PROVED 129.1 s | **undecided >1200 s** | **undecided >1800 s** |
+| **22 core** | PROVED **32.0 s** | PROVED **114.5 s** | PROVED **237.8 s** |
+
+**15% of the properties cost 75% of the proof time**, and their removal restores
+the ceiling from `-seq 40` to `-seq 80` — the depth the whole set reached before
+the campaign's last ten waves, now at 238 s against the original 396 s.
+
+**54b. Splitting them is sound and does not weaken anything.** Both sets would be
+gated: the core 22 at `-seq 80`, all 26 at `-seq 40`. Every property stays
+checked; only the *bound at which each is checked* differs, and each rises or
+holds. This is the opposite of the re-baselining in Prop. 53c, which lowered a
+claim because the subject had moved.
+
+**54c. Implementation attempted twice and reverted, both failures diagnosed.**
+
+| attempt | failure |
+|---|---|
+| wrap the contiguous block containing the trackers | three of the four properties sit **outside** that block; their trackers went inside, leaving them referencing undriven implicit wires — the Prop. 25e trap, and it presented as a refutation of the *core* set |
+| wrap each assert with a regex | the pattern's greedy tail swallowed the closing `endif`, nesting every later property inside the guard |
+
+The four properties and ten registers are **not contiguous** in the emitter:
+they interleave with core properties across roughly six separate sites. The
+guard has to be placed at each, by hand, with the emitted RTL's guard depth
+checked afterwards — which is a careful edit, not a pattern substitution.
+
+**54d. Left for a wave that starts with it.** Prop. 38e's rule: an invasive
+multi-site edit made at the end of a long session to serve a proof budget is how
+correct RTL acquires defects. The measurement is the deliverable; the tree is
+restored and all 26 properties prove.
+
+> Two failed attempts at the *same* edit are a signal about the edit's shape,
+> not about persistence. Both failed the same way — a guard boundary assumed to
+> be contiguous when it is not — and the second failure is what established
+> that.
+
+Reproduce:
+
+```bash
+grep -c "fv_" build/rtl/bitnet_engine_top.sv    # the formal-only tracking state
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
