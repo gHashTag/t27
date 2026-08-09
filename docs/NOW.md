@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-09
 
+## the conservation property is abandoned, and that is the result
+
+- **WHERE**: `formal/weight_prefetch_props.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 52), `README.md`.
+- Three waves pursued one invariant -- `word_index + words_remaining == the
+  clamped request` -- relating two counters that track one quantity by different
+  routes. **It does not land, and this closes it.**
+- **Everything measured**: against the live input, REFUTED (the file's stability
+  assumption does not cover the load cycle). Against a latched copy, REFUTED.
+  Strengthening the environment fixed it *and silently killed two vacuity
+  witnesses* -- reverted. And this wave's contribution: the **load point itself,
+  probed at three offsets** from `prefetch_active` rising, **all three REFUTED**
+  -- so the load is not at a fixed offset from that edge, and every earlier
+  formulation was built on an unestablished fact.
+- **The refutations are consistent with correct RTL.** Probing whether
+  `prefetch_active` tracks the FSM state also refuted, which is expected: a
+  status output cleared in DONE_ST lags the state register by a cycle. The
+  probes were too strict, not the design wrong. **No defect here.**
+- **Why abandoning is right**: the pair is already covered by
+  `a_addr_ahead_of_data` and `a_no_overwrite`. Marginal value small, cost three
+  waves. **An item that has resisted three honest attempts is a decision, not a
+  queue entry** -- the failure mode is a task that stays "nearly done"
+  indefinitely because each attempt looks one insight away.
+- All four measurements are recorded **in the props file**, above the properties
+  that did land, so the next reader finds them before rewriting the same thing.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## every assumption audited for what it removes
 
 - **WHERE**: `.github/workflows/formal-yosys.yml`,

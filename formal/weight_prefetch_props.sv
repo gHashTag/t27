@@ -82,23 +82,29 @@ module wp_props (
         a_rready_implies_active: assert (!rready || prefetch_active);
 
 
-    // A CONSERVATION property was attempted here and did not land (Wave 600):
+    // A CONSERVATION property was attempted here across three waves and is
+    // ABANDONED (Waves 600-602):
     //   word_index + words_remaining == the clamped request
     // Two counters tracking one quantity by different routes -- the shape behind
-    // every defect in this campaign (Prop. 48c), so worth asserting.
+    // every defect in this campaign (Prop. 48c), so it looked worth asserting.
     //
-    // It refuted in two formulations. Against the live `num_words` it refuted
-    // because this file's stability assumption is guarded by `$past(rst_n)` and
-    // does not cover the cycle where the DUT loads it. Against a latched copy it
-    // still refuted, on a timing mismatch between the capture point
-    // (`start_prefetch && !prefetch_active`) and the DUT's own load (which also
-    // requires `state == IDLE`) that is NOT established.
+    // What was measured, so the next reader does not repeat it:
+    //   * against the live `num_words`: REFUTED (this file's stability
+    //     assumption is guarded by `$past(rst_n)` and does not cover the cycle
+    //     the DUT loads it)
+    //   * against a latched copy captured at `start_prefetch && !prefetch_active`:
+    //     REFUTED
+    //   * strengthening the environment to fix the first: made it prove AND
+    //     silently killed two vacuity witnesses (Prop. 50d) -- reverted
+    //   * the load point itself, probed at three offsets from prefetch_active's
+    //     rising edge: all three REFUTED, so the load is not at a fixed offset
+    //     from that edge
     //
-    // Strengthening the environment was tried and reverted: without an `rst_n`
-    // guard, `$past` at cycle 0 pins the input to zero forever and two vacuity
-    // witnesses stopped refuting -- an over-constraint that would have silently
-    // weakened the vacuity gate. Recorded rather than patched a third time.
-    // See Prop. 50.
+    // Abandoned rather than carried forward a fourth time. The pair it would
+    // constrain is already covered by `a_addr_ahead_of_data` (address channel
+    // never trails data) and `a_no_overwrite` (writes never exceed the request),
+    // so the marginal value is small and the cost has been three waves.
+    // See Prop. 52.
 
     // The address channel runs ahead of the data channel, never behind it:
     // an address is issued before its beat returns.

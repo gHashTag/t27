@@ -3050,6 +3050,58 @@ grep -c "assume (" formal/*_props.sv formal/max_size_props.sv formal/zero_size_p
 
 ---
 
+### Prop. 52 — the conservation property is abandoned, and that is the result — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove weight_prefetch_ctrl properties*
+
+Three waves pursued one invariant: `word_index + words_remaining == the clamped
+request`, relating two counters that track one quantity by different routes —
+the shape behind every defect this campaign has found (Prop. 48c). It does not
+land, and this closes it rather than carrying it into a fourth wave.
+
+**52a. Everything that was measured.**
+
+| attempt | result |
+|---|---|
+| against the live `num_words` | REFUTED — the file's stability assumption is guarded by `$past(rst_n)` and does not cover the load cycle |
+| against a latched copy at `start_prefetch && !prefetch_active` | REFUTED |
+| strengthening the environment to fix the first | proved the property **and silently killed two vacuity witnesses** (Prop. 50d) — reverted |
+| the load point itself, at three offsets from `prefetch_active` rising | **all three REFUTED** |
+
+The last row is this wave's contribution and it is the decisive one: the load is
+**not at a fixed offset from that edge**, so every formulation built on "capture
+when the prefetch starts" was building on an unestablished fact.
+
+**52b. The refutations are consistent with correct RTL.** Probing whether
+`prefetch_active` tracks the FSM state refuted too — and that is expected: a
+status output cleared in `DONE_ST` lags the state register by one cycle. The
+probes were too strict, not the design wrong. Nothing here is evidence of a
+defect.
+
+**52c. Why abandoning is the right call.** The pair this would constrain is
+already covered by `a_addr_ahead_of_data` (the address channel never trails the
+data channel, added in Prop. 50b) and `a_no_overwrite` (writes never exceed the
+request, Prop. 13). The marginal value of a third property over the same pair is
+small; the cost has been three waves.
+
+> **An item that has resisted three honest attempts is a decision, not a queue
+> entry.** The failure mode is a task that stays "nearly done" indefinitely
+> because each attempt looks like it is one insight away. Closing it explicitly,
+> with every measurement recorded in the file, costs less than carrying it.
+
+**52d. What is recorded and where.** The four measurements sit as a comment in
+`weight_prefetch_props.sv`, above the properties that *did* land — so the next
+reader finds them before rewriting the same thing, which is the only reason
+three waves of negative results are worth anything.
+
+Reproduce:
+
+```bash
+grep -n "ABANDONED" formal/weight_prefetch_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
