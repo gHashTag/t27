@@ -49,6 +49,22 @@ fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
     return s1_0 + s1_1;
 }
 
+/// N-input adder over a slice -- the general form the 2/4/8-input trees are
+/// fixed-width specialisations of.
+///
+/// W571: its tests determine it exactly -- `adder_tree([0, 0, 0, 0]) == 0` and
+/// `adder_tree([1, 1, 1, 1, 1, 1, 1, 1]) == 8`.
+fn adder_tree_inner(v: []i32, idx: u32, acc: i32) -> i32 {
+    if (idx >= v.len()) {
+        return acc;
+    }
+    return adder_tree_inner(v, idx + 1, adder_tree_2(acc, v[idx]));
+}
+
+fn adder_tree(v: []i32) -> i32 {
+    return adder_tree_inner(v, 0, 0);
+}
+
 /// 2-input adder -- the leaf stage of the tree, and the base case the 4- and
 /// 8-input forms are built from.
 ///

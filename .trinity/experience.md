@@ -20686,3 +20686,41 @@ invariant fully determines it.
 The deciding artefact is named: `fpga/verilog/` has a systolic implementation, and
 whichever behaviour it implements is what the spec should assert. Deferring WITH the
 artefact named is worth more than a guess that makes the gate green.
+
+## Wave Loop 571 -- four functions written from their own tests, two that could not be (2026-08-09)
+
+    assertions emitted 4,374 -> 4,393 | parse 341 -> 351 (0 regressions)
+
+Written, each determined by assertions already in its own file: cordic_sin/cordic_cos
+(the scalar projections of cordic_sin_cos), adder_tree (the N-input form its
+fixed-width trees specialise), ternary_gemm (a length dispatcher over the 2x2/4x4/8x8
+forms already defined and tested), and `use igla::race::cordic;` in cordic_fixed --
+a dependency its tests assumed and it never declared.
+
+### The two that could not be, and why that is the deliverable
+
+systolic_ternary_array: an invariant asserts `len() == size` while a test asserts
+`len() == 0` for size 2, and the element semantics fit neither elementwise product nor
+running accumulation. DECIDING ARTEFACT: the systolic RTL in fpga/verilog/.
+
+OP_ADD / OP_SUB: `validate_opcode_chain([OP_ADD, OP_SUB])` is asserted true, which
+requires both to be SACRED opcodes -- but the sacred set is eleven specific opcodes
+with OPCODE_COUNT = 11, and neither name exists anywhere in the repo. DECIDING
+ARTEFACT: the ISA encoding table in specs/isa/.
+
+Writing either would have made a gate green by inventing semantics. The difference
+from adder_tree_2 (which WAS writable) is not difficulty -- it is that `3+4==7` plus a
+commutativity invariant leaves exactly one function, and these leave a choice.
+
+### The bug worth carrying forward
+
+    ternary_gemm([...], [...]).len() == 4     ->  emits  len()
+
+Postfix `.method()` on a CALL RESULT loses its receiver: the parser builds a dotted
+callee name by concatenating identifiers and silently drops a receiver that is itself
+a call. It fails loudly only because `len` is undeclared; with a method name that
+resolves, it would call the wrong thing on nothing.
+
+Second time this chain has found the compiler discarding input without saying so (the
+first was W569's truncation). When a parser builds a NAME by concatenation rather than
+a NODE by structure, ask what happens to the parts that are not identifiers.

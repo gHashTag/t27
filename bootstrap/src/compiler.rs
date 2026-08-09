@@ -3267,10 +3267,26 @@ impl Parser {
         {
             return None;
         }
-        // A single element is indistinguishable from an array DIMENSION, so it
-        // is left to the existing path.
+        // A single element is normally indistinguishable from an array
+        // DIMENSION (`[SIZE]`, `[4]`), so it is left to the existing path --
+        // unless the element is plainly not one. `[cast_i8(42)]` is a list;
+        // without this, its contents stayed raw TEXT and the calls inside were
+        // never lowered ("use of undeclared identifier 'cast_i8'" from inside
+        // an emitted `.{ cast_i8(42) }`).
         if node.children.len() < 2 {
-            return None;
+            let sole_is_a_dimension = node
+                .children
+                .first()
+                .map(|c| {
+                    matches!(
+                        c.kind,
+                        NodeKind::ExprLiteral | NodeKind::ExprIdentifier
+                    )
+                })
+                .unwrap_or(true);
+            if sole_is_a_dimension {
+                return None;
+            }
         }
         Some(node)
     }
@@ -3783,6 +3799,11 @@ pub struct Codegen {
     /// waves (`cordic_fixed_sin_zero_angle` appears seven times). Suffixing
     /// repeats keeps every test runnable instead of losing the file.
     test_name_counts: std::collections::HashMap<String, u32>,
+    /// Declared parameter types, by function name. An anonymous list `.{ … }`
+    /// coerces to `[N]T` but NOT to `[]T`, so an array-literal argument passed
+    /// where the callee declares a slice needs `&[_]T{ … }` -- and the element
+    /// type is only knowable from the callee's signature.
+    declared_fn_params: std::collections::HashMap<String, Vec<String>>,
     /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
     /// a tag comparison -- Zig has no ordering on enums.
     declared_enums: std::collections::HashSet<String>,
@@ -3800,9 +3821,54 @@ impl Codegen {
             mut_names: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
+            declared_fn_params: std::collections::HashMap::new(),
             declared_enums: std::collections::HashSet::new(),
             string_names: std::collections::HashSet::new(),
         }
+    }
+
+    /// Emit an array literal's elements as `{ e0, e1 }` -- the braces that
+    /// follow an explicit `[_]T` prefix, where `.{ … }` cannot be used.
+    fn gen_array_literal_braces(&mut self, node: &Node) {
+        self.write("{ ");
+        if !node.children.is_empty() {
+            for (i, elem) in node.children.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.gen_expr(elem);
+            }
+        } else {
+            let txt = node.extra_size.trim();
+            let mut depth = 0i32;
+            let mut cur = String::new();
+            let mut parts: Vec<String> = Vec::new();
+            for ch in txt.chars() {
+                match ch {
+                    '(' | '[' | '{' => { depth += 1; cur.push(ch); }
+                    ')' | ']' | '}' => { depth -= 1; cur.push(ch); }
+                    ',' if depth == 0 => { parts.push(cur.trim().to_string()); cur.clear(); }
+                    _ => cur.push(ch),
+                }
+            }
+            if !cur.trim().is_empty() {
+                parts.push(cur.trim().to_string());
+            }
+            self.write(&parts.join(", "));
+        }
+        self.write(" }");
+    }
+
+    /// `[]T` / `[]const T` -> `T`, for an argument that must be a real slice.
+    fn slice_element_type(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        let rest = t.strip_prefix("[]")?;
+        let rest = rest.trim();
+        let rest = rest.strip_prefix("const ").unwrap_or(rest).trim();
+        if rest.is_empty() || rest.contains('[') || rest.contains('(') {
+            return None;
+        }
+        Some(rest.to_string())
     }
 
     /// The trailing segment of an identifier / field-access path, i.e. the
@@ -3883,11 +3949,16 @@ impl Codegen {
         self.declared_fns.clear();
         self.test_name_counts.clear();
         self.declared_enums.clear();
+        self.declared_fn_params.clear();
         self.string_names.clear();
         for d in &ast.children {
             match d.kind {
                 NodeKind::FnDecl if !d.name.is_empty() => {
                     self.declared_fns.insert(d.name.clone());
+                    self.declared_fn_params.insert(
+                        d.name.clone(),
+                        d.params.iter().map(|(_, ty)| ty.clone()).collect(),
+                    );
                     for (pname, pty) in &d.params {
                         if Self::t27_array_type_to_zig(pty) == "[]const u8" {
                             self.string_names.insert(pname.clone());
@@ -5056,11 +5127,32 @@ impl Codegen {
                     // `::` -> `.` rewrite the identifier path gets.
                     self.write(&Self::zig_ident(&node.name));
                     self.write("(");
+                    // W571: an array-literal argument where the callee declares
+                    // a SLICE. `.{ 0, 0, 0, 0 }` coerces to `[4]i32` but not to
+                    // `[]i32` ("expected type '[]i32', found 'struct { comptime
+                    // T = 0, ... }'"), and only the callee's signature says what
+                    // the element type is.
+                    let param_types = self.declared_fn_params.get(&node.name).cloned();
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.gen_expr(arg);
+                        let elem = if arg.kind == NodeKind::ExprArrayLiteral {
+                            param_types
+                                .as_ref()
+                                .and_then(|ps| ps.get(i))
+                                .map(|ty| Self::t27_array_type_to_zig(ty))
+                                .and_then(|ty| Self::slice_element_type(&ty))
+                        } else {
+                            None
+                        };
+                        match elem {
+                            Some(t) => {
+                                self.write(&format!("&[_]{}", t));
+                                self.gen_array_literal_braces(arg);
+                            }
+                            None => self.gen_expr(arg),
+                        }
                     }
                     self.write(")");
                 }

@@ -122,6 +122,25 @@ fn cordic_sin_cos(angle: f32, iterations: u8) -> ([]f32, []f32) {
     return ([s], [c]);
 }
 
+/// Scalar sine -- the first element of the sine vector `cordic_sin_cos`
+/// returns.
+///
+/// W571: tested since this spec was written and never declared, so every test
+/// in the file was blocked on an undeclared identifier. Its own tests
+/// determine it: `cordic_sin(pi, 12)` must satisfy `abs_f32(s) < 0.01` and
+/// `cordic_sin(0.001, 12)` must land in `(0.0, 0.002)` -- both properties of
+/// `cordic_sin_cos(angle, iters).0[0]`.
+fn cordic_sin(angle: f32, iterations: u8) -> f32 {
+    let (s_arr, c_arr) = cordic_sin_cos(angle, iterations);
+    return s_arr[0];
+}
+
+/// Scalar cosine -- the companion of `cordic_sin`.
+fn cordic_cos(angle: f32, iterations: u8) -> f32 {
+    let (s_arr, c_arr) = cordic_sin_cos(angle, iterations);
+    return c_arr[0];
+}
+
 fn cordic_inner(x: f32, y: f32, z: f32, i: u8, n: u8) -> (f32, f32) {
     if (i >= n) {
         return (x, y);

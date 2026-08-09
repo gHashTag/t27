@@ -4096,6 +4096,23 @@ These cost a wave each. Follow them before step 1.
     time in this chain that a line boundary was the missing predicate -- see
     also the struct-field containment fix in W568.
 
+37. **A missing function is writable only if its own tests leave exactly one
+    definition.** W571 wrote `cordic_sin`, `adder_tree` and `ternary_gemm`
+    because their assertions determined them, and refused `systolic_ternary_array`
+    (an invariant says `len() == size`, a test says `len() == 0` for size 2) and
+    `OP_ADD` (asserted to pass `is_sacred_opcode`, but the sacred set is eleven
+    named opcodes). The test is not difficulty -- it is whether the tests leave
+    a CHOICE. When they do, name the deciding artefact (here: the systolic RTL
+    in `fpga/verilog/`, and the ISA table in `specs/isa/`) and stop.
+
+38. **When a parser builds a NAME by concatenation rather than a NODE by
+    structure, ask what happens to the parts that are not identifiers.**
+    `ternary_gemm([...], [...]).len()` emits `len()` -- the dotted-callee path
+    concatenates identifier segments and silently drops a receiver that is
+    itself a call. It fails loudly only because `len` is undeclared; with a
+    method that resolves it would call the wrong thing on nothing. Second time
+    in this chain the compiler was found discarding input without saying so.
+
 ### How to update this tracker
 
 After closing a wave:

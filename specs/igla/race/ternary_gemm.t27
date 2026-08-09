@@ -36,6 +36,23 @@ fn ternary_gemm_2x2(a : []i8, w : []TernaryWeight) -> []i8 {
     return [c00, c01, c10, c11];
 }
 
+/// Square ternary GEMM, dispatched on the flattened activation length.
+///
+/// W571: tested and never declared. Every branch delegates to a fixed-width
+/// form this spec already defines and tests, so the dispatcher adds no new
+/// arithmetic -- only the size selection. Its tests use the 4-element (2x2)
+/// case: identity weights must return the activations unchanged, and zero
+/// weights must return zeros.
+fn ternary_gemm(a : []i8, w : []TernaryWeight) -> []i8 {
+    if (a.len() == 4) {
+        return ternary_gemm_2x2(a, w);
+    }
+    if (a.len() == 16) {
+        return ternary_gemm_4x4(a, w);
+    }
+    return ternary_gemm_8x8(a, w);
+}
+
 // ternary_gemm_2x2_as_struct(a, w) -> TernaryGemmResult
 // Wrapper returning the struct form for typed consumers.
 fn ternary_gemm_2x2_as_struct(a : []i8, w : []TernaryWeight) -> TernaryGemmResult {

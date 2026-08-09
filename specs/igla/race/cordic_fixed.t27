@@ -16,6 +16,7 @@
 
 module igla-race-cordic-fixed;
 use base::types;
+use igla::race::cordic;   // W571: cordic_gain, tested here and declared there
 
 // ============================================================================
 // 1. Constants (Q14 scale = 16384)
