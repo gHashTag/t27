@@ -20348,3 +20348,41 @@ W560's was written from a first-error taxonomy; W561 measured the POPULATION and
 found the leverage was elsewhere by two orders of magnitude. Check the previous
 wave's recommendation against fresh measurement before executing it -- that is
 rule 1 restated, and it has now paid off twice (W548's stale variant, W560's).
+
+## Wave Loop 562 — string literals had no quotes (2026-08-09)
+
+                     W560   W561   W562
+    ALL_PASS            5      7      9
+    COMPILE_FAIL      194    192    190
+    tests executing    45     54     64     (+42% since W560)
+
+### The defect
+
+The lexer strips a string's quotes and stores the raw text with
+extra_kind == "string". The ZIG emitter wrote node.value back UNQUOTED, so
+every string literal became a bare identifier:
+
+    pub const NAME: str = "hello";  ->  pub const NAME = hello;
+    assert(x == "world")            ->  if (!(x == world))
+    name == "Digilent Arty A7-35T"  ->  if (!(name == Digilent Arty A7-35T))
+
+The C and Rust paths already handled extra_kind == "string"
+(compiler.rs:3701, 9470). The Zig path never did. This was a large share of the
+"use of undeclared identifier" class (104 of 194 first errors in W560).
+
+Also fixed: struct field and const-decl types bypassed t27_array_type_to_zig,
+so &str still reached Zig there after W561's parameter-side fix.
+
+### default_input() is NOT mechanically fixable -- settled
+
+Of the 169 specs: 48 have a uniform first-param type (one helper would work),
+96 have MIXED types one helper cannot satisfy, and 25 call functions that do
+not exist in the spec at all. The 571 template tests need rewriting or removal,
+not patching -- and that is a maintainer's decision because it changes intent.
+
+### Method note
+
+Following the taxonomy DOWN rather than sideways paid off: fixing the
+first-error class exposed the next, and the string-literal defect was only
+visible after the type mapping was fixed. A first-error histogram is a queue to
+be drained in order, not a ranking of importance (rule 26).
