@@ -4013,6 +4013,15 @@ These cost a wave each. Follow them before step 1.
     the size of what it unblocks, not by how often it appears at the top of an
     error log.
 
+27. **A fix can create the next error class, and the top-line metric can stay
+    flat while a fix lands.** W562 made string literals emit their quotes, which
+    immediately produced a new `cannot compare strings with ==` class -- and
+    fixing THAT took executing tests from 64 to 167. Separately, the `&T`
+    parameter fix moved `ALL_PASS` not at all; the evidence it worked was the
+    taxonomy (`expected type expression` 11 -> 0). When draining a first-error
+    queue, each fix buys the next diagnosis, not necessarily a passing spec.
+    Report the taxonomy shift alongside the headline number.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -20386,3 +20386,31 @@ Following the taxonomy DOWN rather than sideways paid off: fixing the
 first-error class exposed the next, and the string-literal defect was only
 visible after the type mapping was fixed. A first-error histogram is a queue to
 be drained in order, not a ranking of importance (rule 26).
+
+## Wave Loop 563 — 45 -> 167 executing tests (2026-08-09)
+
+                     W560   W561   W562   W563
+    ALL_PASS            5      7      9     14
+    tests executing    45     54     64    167    (+271% since W560)
+
+### Two fixes
+
+1. `&T` in a parameter type produced TWO parameters. parse_type_annotation
+   never consumed a leading `&`, so it returned an EMPTY type and the param
+   loop read the type name as the next param:
+       fn find_pin_by_port(name: &str) -> fn find_pin_by_port(name: , str: )
+   103 specs use str/&str. Parser change -> full census mandatory:
+   PARSE OK=746 FAIL=317, REGRESSIONS 0. Taxonomy: the class went 11 -> 0.
+
+2. String `==` lowered to std.mem.eql. Zig has no == for slices, and W562's
+   quoting fix CREATED this class (7 cases). **This was the unlock: 64 -> 167.**
+
+### Two lessons
+
+- **A fix can create the next error class.** W562 made string literals correct,
+  which immediately produced "cannot compare strings with ==". That is progress,
+  not regression -- but it must be measured and attributed, not assumed.
+- **The top-line metric can stay flat while a fix lands.** The `&T` fix moved
+  ALL_PASS not at all; the evidence it worked was the taxonomy (11 -> 0). When
+  draining a first-error queue, each fix buys the next diagnosis, not
+  necessarily a passing spec. Report the taxonomy shift, not just the headline.
