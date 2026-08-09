@@ -20200,3 +20200,53 @@ over-consumption after the fact.
   failing fixture set is what makes the next attempt cheap.
 - Nothing in this project is waiting on an approval any more. The only external
   dependency left is a physical board for G2/G3.
+
+## Wave Loop 559 — 7,623 inert tests now execute (2026-08-09)
+
+### Result
+
+    tests that assert nothing: 9788/14996 (65.3%) -> 2165/14996 (14.4%)
+    full census: PARSE OK=746 FAIL=317 (baseline 317), REGRESSIONS 0
+
+The lowering:
+    given|when|and x = expr  ->  StmtLocal x = expr
+    then|assert       expr   ->  StmtExpr( assert(expr) )
+
+Proven: the false-assertion fixture now generates
+`if (!(x == 999)) @panic("assertion failed")` and zig test ABORTS. Before it
+reported "All 2 tests passed".
+
+### Why W558 failed and W559 worked
+
+W558 reverted on 19 regressions AND KEPT THEM AS A FIXTURE. That is the entire
+reason this wave was cheap. Diagnosing the fixture (not guessing) found three
+shapes:
+  1. `and` continuation clauses in a binding list.
+  2. `assert <expr>` as a bare clause -- 525 occurrences; the loop broke on it
+     and stranded the parser. This caused most of the 19.
+  3. Comma-separated bindings: `given clk = true, rst_n = false`.
+
+Root cause of 2 and 3: the loop assumed ANY non-clause token ended the block.
+Fixed with a BOUNDARY PREDICATE -- the block ends only on Eof/RBrace/KwTest/
+KwFn/KwInvariant/KwBench/KwPub/KwConst/KwUse/KwModule. Anything else means we
+stopped mid-clause, so restore the entry checkpoint and fall back to the old
+skip.
+
+Safety contract that made this landable: the change may only ADD assertions,
+never break a file. Every unmodelled shape restores and skips.
+
+### My metric went stale in the OPPOSITE direction
+
+After landing, validate-vacuity still said "assertions DISCARDED" and 65.3% --
+understating the FIX rather than the problem. Corrected to 14.4%, with a note
+that shapes which fall back are indistinguishable to a static scan, so the
+figure is a LOWER BOUND on what executes.
+
+Lesson: when you fix something a tool measures, the tool's message is now a
+claim about the fix. Re-read it.
+
+### The number nobody has yet
+
+7,623 tests that could not fail can now fail. How many DO is the real,
+previously-hidden defect count of this project -- obtainable for the first time,
+and the most valuable measurement available. That is W560.

@@ -3982,6 +3982,19 @@ These cost a wave each. Follow them before step 1.
     files is not shippable no matter how good the core idea is; preserving the
     evidence is what makes the next attempt cheap.
 
+23. **A reverted attempt is only valuable if you keep its failing fixture.**
+    W558's BDD lowering broke 19 specs and was reverted -- but the diff, the
+    19-spec list and the analysis were preserved. W559 diagnosed that fixture
+    instead of guessing, found three distinct shapes (`and` continuations, bare
+    `assert` clauses, comma-separated bindings), and landed the change with zero
+    regressions. Revert the code, never the evidence.
+
+24. **When you fix something a tool measures, re-read the tool's message.**
+    After the BDD lowering landed, `validate-vacuity` still printed "assertions
+    DISCARDED" and 65.3 % -- now understating the fix rather than the problem.
+    A metric's wording is a claim; landing a fix can falsify it just as easily
+    as finding a bug can.
+
 ### How to update this tracker
 
 After closing a wave:
