@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-09
 
+## batch verdicts hide their members
+
+- **WHERE**: `.github/workflows/formal-yosys.yml`, `formal/weight_prefetch_props.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 35), `README.md`.
+- Prop 34b named `weight_prefetch_ctrl` as the one module whose proof does not
+  extend, and therefore the one place a deeper defect could hide. **That was a
+  fact about how it was asked, not about the module.**
+- **Individually decidable, jointly intractable.** At seq 40: `a_sanity` 0.2s,
+  `a_no_overwrite` 87.2s, `a_rready_implies_active` 0.4s -- all PROVED. All
+  three **together**: undecided at >240s. The parts sum to under 90s; the whole
+  exceeds 240.
+- **CI now proves one property per invocation**, which raised this module's
+  verified bound from **14 to 40** for the same wall time. It also attributes a
+  failure: a batch that goes red says "something in here broke".
+- **A suite-level verdict is the minimum over its members.** Reporting one
+  number concealed that two properties hold at seq 80 while the third stops at
+  40. Where members differ by two orders of magnitude in cost, the aggregate
+  describes one of them and none of the others.
+- **A cheaper decomposition was attempted and withdrawn.** Replace the 17-bit
+  counter bound with a local invariant (`writes == bram_addr + 1`) leaning on
+  max_size_props for the address never wrapping. Refuted in 0.5s, twice, on the
+  alignment between a counter registered off `bram_we` and an address assigned
+  from `word_index` on the same edge. Sound idea, alignment not established --
+  recorded rather than guessed a third time.
+- **Narrowed, not closed**: `a_no_overwrite` is proved at seq 40 and undecided
+  at 80. It remains the shallowest-verified property in the design, now stated
+  per property rather than per module.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## scale ceiling -- "proved" is a claim about (design, scale)
 
 - **WHERE**: `formal/scale_probe.py` (new), `.github/workflows/formal-mutation.yml`,

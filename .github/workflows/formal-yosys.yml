@@ -147,12 +147,41 @@ jobs:
                     prep -top ls_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
+      # Proved one property per invocation, not as a batch. `-prove-asserts`
+      # solves every assertion in a single SAT instance, and that instance is
+      # superlinearly harder than its parts: at -seq 40 this module is undecided
+      # in 240 s as a batch while its most expensive property alone proves in
+      # 89 s and the other two in under a second (Prop. 35). Splitting raised
+      # the bound this module is verified at from 14 to 40 for the same wall
+      # time -- and it also attributes a failure to one property instead of
+      # leaving "something in here broke".
       - name: Prove weight_prefetch_ctrl properties
         run: |
-          yosys -p "read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv \
-                    formal/weight_prefetch_props.sv; \
-                    prep -top wp_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 14 -set-init-zero -set-assumes"
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys
+          src = open("formal/weight_prefetch_props.sv").read()
+          labels = re.findall(r"(a_[a-z_]+): assert", src)
+          fail = []
+          for keep in labels:
+              s = src
+              for other in labels:
+                  if other != keep:
+                      s = re.sub(re.escape(other) + r": assert \([^;]*\);",
+                                 other + ": assert (1'b1);", s)
+              open("build/wp_one.sv", "w").write(s)
+              r = subprocess.run(["yosys", "-q", "-p",
+                  "read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv build/wp_one.sv; "
+                  "prep -top wp_props -flatten; async2sync; chformal -lower; "
+                  "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"],
+                  capture_output=True, text=True)
+              if r.returncode != 0:
+                  fail.append(keep)
+                  print(f"::error::{keep} not proved at -seq 40")
+              else:
+                  print(f"ok       {keep}")
+          sys.exit(1 if fail else 0)
+          PY
 
       - name: Prove activation_requant properties
         run: |

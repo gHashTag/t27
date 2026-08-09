@@ -1904,6 +1904,12 @@ memory costs 1.7×**. Memory depth is cheap; unroll depth is not.
 | `layer_sequencer` | 12 → PROVED | PROVED | PROVED |
 | `weight_prefetch_ctrl` | 20 → PROVED | **undecided** (>240 s) | **undecided** |
 
+> **Superseded by Prop. 35.** Every row above is a *batch* measurement — one
+> `sat` invocation proving all of a module's assertions together. Splitting
+> `weight_prefetch_ctrl` one property per invocation proves all three at
+> `-seq 40`, so its "undecided at 2×" was a property of the batching, not of the
+> module.
+
 Four of five extend to 4×. **`weight_prefetch_ctrl` does not extend at all** —
 it becomes intractable at twice its bound. Its proof is real at `-seq 20` and
 nothing is known beyond it. That is not a defect and not a pass; it is a third
@@ -1932,6 +1938,82 @@ Reproduce:
 ```bash
 python3 formal/scale_probe.py 60 4          # aggregate verdict and timing
 python3 formal/scale_probe.py 40 4 --each   # attribute a failure to one property
+```
+
+---
+
+### Prop. 35 — a batch verdict is the minimum of its parts — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove weight_prefetch_ctrl properties* (now one invocation per property, at `-seq 40`)
+
+Prop. 34b named `weight_prefetch_ctrl` as the one module whose proof does not
+extend — intractable at twice its bound, and therefore the one place a deeper
+defect could sit unseen. That turned out to be a fact about **how it was asked**,
+not about the module.
+
+**35a. Individually decidable, jointly intractable.** `-prove-asserts` solves
+every assertion of a module in a single SAT instance. At `-seq 40`:
+
+| property | verdict | time |
+|---|---|---:|
+| `a_sanity` | PROVED | 0.2 s |
+| `a_no_overwrite` | PROVED | **87.2 s** |
+| `a_rready_implies_active` | PROVED | 0.4 s |
+| **all three together** | **undecided** | **>240 s** |
+
+The parts sum to under 90 seconds; the whole exceeds 240. The combined instance
+is superlinearly harder than its pieces.
+
+**35b. Two consequences, and the second is the reporting one.** Splitting raised
+the bound this module is verified at from **14 to 40** for the same wall time —
+CI now proves each property in its own invocation. And a batch verdict is the
+**minimum over its members**: reporting one number for `weight_prefetch_ctrl`
+concealed that two of its properties hold at `-seq 80` while the third stops at
+40.
+
+> **A suite-level verdict tells you about its worst member and nothing about the
+> rest.** Where members differ by two orders of magnitude in cost — here 0.2 s
+> against 87 s — the aggregate is dominated by one of them and describes none of
+> the others.
+
+Splitting also attributes a failure. A batch that goes red says *something in
+here broke*; per-property invocations name it.
+
+**35c. A cheaper decomposition was attempted and withdrawn.** `a_no_overwrite`
+bounds a 17-bit counter against a 16-bit input, which forces the solver to carry
+that counter across the whole unrolling — the reason it is the expensive one.
+The intended replacement was a *local* invariant, `writes == bram_addr + 1`,
+leaning on `max_size_props` for the address never wrapping: a local invariant
+plus an existing property, in place of one global count.
+
+It refuted in 0.5 s, twice, on the alignment between a counter registered off
+`bram_we` and an address assigned from `word_index` on the same edge. The idea
+is sound and the alignment is not established. Withdrawn and recorded rather
+than guessed a third time (Prop. 31's rule).
+
+**35d. The blind spot is narrowed, not closed.** `a_no_overwrite` is proved at
+`-seq 40` and undecided at 80. The module is no longer the outlier it was in
+Prop. 34b, but it remains the shallowest-verified property in the design, and
+that is now stated per property rather than per module.
+
+Reproduce:
+
+```bash
+python3 - <<'EOF'
+import re, subprocess
+src = open('formal/weight_prefetch_props.sv').read()
+for keep in re.findall(r'(a_[a-z_]+): assert', src):
+    s = src
+    for o in re.findall(r'(a_[a-z_]+): assert', src):
+        if o != keep:
+            s = re.sub(re.escape(o) + r': assert \([^;]*\);', o + ": assert (1'b1);", s)
+    open('build/wp_one.sv', 'w').write(s)
+    r = subprocess.run(['yosys', '-q', '-p',
+        'read_verilog -sv -formal build/rtl/weight_prefetch_ctrl.sv build/wp_one.sv; '
+        'prep -top wp_props -flatten; async2sync; chformal -lower; '
+        'sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes'], capture_output=True)
+    print(keep, 'PROVED' if r.returncode == 0 else 'NOT PROVED')
+EOF
 ```
 
 ---

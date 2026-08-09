@@ -36,13 +36,15 @@ module wp_props (
     wire [11:0] bram_addr;
     wire [53:0] bram_data;
 
+    wire dut_overflow_wei;
+
     weight_prefetch_ctrl dut (
         .clk(clk), .rst_n(rst_n), .start_prefetch(start_prefetch),
         .src_addr(src_addr), .num_words(num_words),
         .prefetch_active(prefetch_active), .prefetch_done(prefetch_done),
         .axi_araddr(araddr), .axi_arvalid(arvalid), .axi_arready(arready),
         .axi_rdata(rdata), .axi_rvalid(rvalid), .axi_rready(rready),
-        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we)
+        .bram_addr(bram_addr), .bram_data(bram_data), .bram_we(bram_we), .overflow(dut_overflow_wei)
     );
 
     always @(posedge clk) if (rst_n && $past(rst_n)) assume (num_words == $past(num_words));
@@ -61,6 +63,15 @@ module wp_props (
 
     always @(posedge clk) if (rst_n && prefetch_active)
         a_no_overwrite: assert (writes <= {1'b0, num_words});
+
+    // A cheaper decomposition was attempted and withdrawn: relate `writes` to
+    // `bram_addr` locally, so the solver need not carry a 17-bit counter across
+    // the unrolling, and lean on max_size_props for the address never wrapping.
+    // The idea is sound; the alignment is not established. `writes` is
+    // registered off `bram_we` while `bram_addr` is assigned from `word_index`
+    // on the same edge, and the relation between them at the sampling point was
+    // guessed twice and refuted both times. Recorded rather than guessed a
+    // third time -- see Prop. 35c.
 
     // rready is derived from the FETCH state, so it may only be high while
     // the controller is active.
