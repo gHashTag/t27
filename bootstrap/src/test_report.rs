@@ -207,9 +207,95 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
     }
 }
 
+/// W600: the same measurement over a whole tree.
+///
+/// Reports are returned in path order. A spec that never reaches a binary comes
+/// back `blocked` and contributes nothing to the totals -- the distinction
+/// W586 drew between *unwritten* and *broken* applies here too, and collapsing
+/// it is the mistake that took twenty-five waves to notice the first time.
+pub struct TreeReport {
+    pub reports: Vec<Report>,
+    pub measured: usize,
+    pub blocked: usize,
+    pub tests: usize,
+    pub passed: usize,
+    pub failed: usize,
+    /// Specs measured at 100%.
+    pub perfect: usize,
+}
+
+fn spec_files(root: &Path, include_scratch: bool) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                if !include_scratch && p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("t27") {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
+    let mut t = TreeReport {
+        reports: Vec::new(),
+        measured: 0,
+        blocked: 0,
+        tests: 0,
+        passed: 0,
+        failed: 0,
+        perfect: 0,
+    };
+    for f in spec_files(specs_root, include_scratch) {
+        let r = run(&f, specs_root);
+        if r.blocked.is_some() {
+            t.blocked += 1;
+        } else {
+            t.measured += 1;
+            t.tests += r.total;
+            t.passed += r.passed;
+            t.failed += r.failed;
+            if r.failed == 0 && r.total > 0 {
+                t.perfect += 1;
+            }
+        }
+        t.reports.push(r);
+    }
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_blocked_spec_contributes_nothing_to_the_totals() {
+        // The distinction W586 drew: a spec that never produced a binary is
+        // not a spec with a 0% pass rate.
+        let t = TreeReport {
+            reports: vec![Report::blocked("x.t27", "no binary")],
+            measured: 0,
+            blocked: 1,
+            tests: 0,
+            passed: 0,
+            failed: 0,
+            perfect: 0,
+        };
+        assert_eq!(t.tests, 0);
+        assert_eq!(t.measured, 0);
+    }
 
     #[test]
     fn the_runner_selects_one_test_by_index() {

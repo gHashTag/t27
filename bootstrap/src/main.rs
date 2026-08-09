@@ -93,8 +93,15 @@ enum Commands {
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
     TestReport {
-        /// The .t27 spec to measure
+        /// The .t27 spec to measure. Omit with --all to measure the tree.
+        #[arg(default_value = "")]
         spec: String,
+        /// Measure every spec under --specs-dir instead of one file
+        #[arg(long, default_value_t = false)]
+        all: bool,
+        /// Include specs/scratch when using --all
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
         /// Root of the spec tree, for `use` resolution
         #[arg(long, default_value = "specs")]
         specs_dir: String,
@@ -3149,6 +3156,52 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
     }
+    Ok(())
+}
+
+fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let t = test_report::run_tree(root, include_scratch);
+    for r in &t.reports {
+        match &r.blocked {
+            Some(why) if verbose => {
+                println!("  BLOCKED  {}  ({})", r.spec, why.lines().next().unwrap_or(""))
+            }
+            Some(_) => {}
+            None => println!(
+                "  {:>4}/{:<4} {:>5.1}%  {}",
+                r.passed,
+                r.total,
+                if r.total > 0 {
+                    (r.passed as f64) * 100.0 / (r.total as f64)
+                } else {
+                    0.0
+                },
+                r.spec
+            ),
+        }
+    }
+    println!();
+    println!("--- per-test measurement over the tree ---");
+    println!("  specs MEASURED           {}", t.measured);
+    println!("    of those, 100%          {}", t.perfect);
+    println!("  specs BLOCKED            {}", t.blocked);
+    println!();
+    println!("  tests run                {}", t.tests);
+    println!("  pass                     {}", t.passed);
+    println!("  FAIL                     {}", t.failed);
+    if t.tests > 0 {
+        println!(
+            "  rate                     {:.1}%",
+            (t.passed as f64) * 100.0 / (t.tests as f64)
+        );
+    }
+    println!();
+    println!("  A BLOCKED spec never produced a binary; it is not a spec with a");
+    println!("  0% pass rate, and it contributes nothing to these totals.");
     Ok(())
 }
 
@@ -9805,8 +9858,12 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
-        Commands::TestReport { spec, specs_dir, verbose } => {
-            run_test_report(&spec, &specs_dir, verbose)?
+        Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
+            if all || spec.is_empty() {
+                run_test_report_tree(&specs_dir, include_scratch, verbose)?
+            } else {
+                run_test_report(&spec, &specs_dir, verbose)?
+            }
         }
         Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
             run_impl_status(&specs_dir, include_scratch, verbose)?
@@ -10128,8 +10185,12 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
-        Commands::TestReport { spec, specs_dir, verbose } => {
-            run_test_report(&spec, &specs_dir, verbose)?
+        Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
+            if all || spec.is_empty() {
+                run_test_report_tree(&specs_dir, include_scratch, verbose)?
+            } else {
+                run_test_report(&spec, &specs_dir, verbose)?
+            }
         }
         Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
             run_impl_status(&specs_dir, include_scratch, verbose)?
