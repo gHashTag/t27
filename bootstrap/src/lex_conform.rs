@@ -233,6 +233,29 @@ pub const CASES: &[Case] = &[
         note: "empty string -- distinguishable from a missing token only by kind",
         boundary: false,
     },
+    // ---- silently dropped input ------------------------------------------
+    Case {
+        input: "1 # 2",
+        expect: &[(Number, "1"), (Number, "2")],
+        note: "BOUNDARY: the lexer DISCARDS an unrecognised character with no diagnostic -- `#` vanishes",
+        boundary: true,
+    },
+    Case {
+        input: "#[test]",
+        expect: &[
+            (TokenKind::LBracket, "["),
+            (TokenKind::KwTest, "test"),
+            (TokenKind::RBracket, "]"),
+        ],
+        note: "BOUNDARY: consequence of the above -- a Rust attribute arrives as a bare bracket group, and `test` inside it is the KEYWORD (W579)",
+        boundary: true,
+    },
+    Case {
+        input: "1 $ 2",
+        expect: &[(Number, "1"), (Number, "2")],
+        note: "BOUNDARY: same silent drop for any unrecognised byte, not just `#`",
+        boundary: true,
+    },
     Case {
         input: "\"a\\nb\"",
         expect: &[(TokenKind::String, "a\nb")],

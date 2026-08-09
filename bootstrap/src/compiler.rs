@@ -1239,6 +1239,30 @@ impl Parser {
                 continue;
             }
 
+            // W580: `spec Name { ... }` -- the form SOUL.md documents in
+            // section 2.3 and 8 specs use, worth 245 assertion clauses. It was
+            // never implemented: `spec` lexes as a plain identifier, so the
+            // header parsed as an expression statement and the `{` after it
+            // was "unexpected token after expression statement". Treat it as a
+            // module body, which is what the document describes.
+            if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "spec"
+                && self.peek.kind == TokenKind::Ident
+            {
+                let checkpoint = self.save_state();
+                self.advance(); // consume 'spec'
+                self.advance(); // consume the name
+                if self.current.kind == TokenKind::LBrace {
+                    self.advance(); // consume {
+                    self.parse_module_body(module)?;
+                    if self.current.kind == TokenKind::RBrace {
+                        self.advance();
+                    }
+                    continue;
+                }
+                self.restore_state(checkpoint);
+            }
+
             // W577: a file may declare SEVERAL modules.
             // `specs/nn/attention.t27` appends
             // `module AttentionQKGainAblation;` at line 640 of 922 -- the
@@ -3006,6 +3030,13 @@ impl Parser {
                 | TokenKind::Minus
                 | TokenKind::PlusPercent
                 | TokenKind::MinusPercent
+                // W580: `++` is CONCATENATION here, not increment --
+                // `return "SOP(" ++ truth_table ++ ")";`. It lexed as a token
+                // and had no grammar rule, so the expression died with
+                // "Unexpected token in expression: PlusPlus" (682 assertion
+                // clauses across 5 specs). Zig spells concatenation `++` too,
+                // so it emits unchanged.
+                | TokenKind::PlusPlus
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -3148,7 +3179,16 @@ impl Parser {
                     self.advance();
                     fa.children.push(expr);
                     expr = fa;
-                } else if self.current.kind == TokenKind::Ident {
+                } else if self.current.kind == TokenKind::Ident
+                    || Self::is_identifier_like(&self.current)
+                {
+                    // W580: a KEYWORD used as a field name. `contract.invariant`
+                    // lexes `invariant` as KwInvariant, so the postfix loop saw
+                    // no identifier and the expression died with "Unexpected
+                    // token in expression: KwInvariant" -- 307 assertion
+                    // clauses across 31 specs. After a `.` the token is a field
+                    // name whatever else it might mean; the backends already
+                    // escape a field that collides with a target keyword.
                     let field = self.current.lexeme.clone();
                     self.advance();
                     // Check if this is a method/field call: expr.field(args)
@@ -3205,6 +3245,18 @@ impl Parser {
     /// Flatten a chain of ExprFieldAccess nodes into a dotted name
     /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
     /// becomes "std.testing.expectEqual"
+    /// A token whose lexeme reads as an identifier -- true for every keyword.
+    /// Used where the grammar guarantees a name, such as immediately after `.`.
+    fn is_identifier_like(t: &Token) -> bool {
+        let mut cs = t.lexeme.chars();
+        match cs.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
+            }
+            _ => false,
+        }
+    }
+
     /// Whether a receiver is a pure chain of identifiers and field accesses,
     /// and can therefore be folded into a dotted callee NAME without losing
     /// anything. A call or an index in the chain cannot.

@@ -21019,3 +21019,39 @@ the W576 conformance table.
 
 Deliberately NOT added to the table in the same wave that depends on it: adding a case
 to a table while fixing the thing it describes is how a table stops being a check.
+
+## Wave Loop 580 -- the documented syntax was never implemented (2026-08-09)
+
+    specs that parse    390 -> 395  (+54 since W568's 341)
+    assertions emitted 8,867 -> 9,229 | locked 4,946 -> 4,613
+    lex-conform 26 -> 29 cases, all passing
+
+Four fixes:
+  31 specs  `contract.invariant` -- a KEYWORD used as a field name. After a dot the
+            token is a field name whatever else it means.
+   8 specs  `spec Name { ... }` -- the form SOUL.md section 2.3 documents as THE test
+            format. W557 recorded that it does not parse and left it alone. The
+            specification was right and the compiler was behind it; implementing the
+            canonical law is different from amending it.
+   5 specs  `"SOP(" ++ x ++ ")"` -- concatenation, not increment. Zig spells it `++`
+            too, so it emits unchanged.
+   -        the lexer's silent drop, recorded as three BOUNDARY cases (W579's Variant
+            B, deliberately deferred one wave from the fix that depended on it).
+
+### Writing the boundary case corrected me again
+
+I wrote `#[test]` as LBracket Ident(test) RBracket. It is LBracket KEYWORD(test)
+RBracket -- which is exactly why the W579 attribute skip had to be bracket-keyed and
+not name-keyed. Second time a conformance table has corrected my model of a component
+while I was writing it down.
+
+### The finding that is not a fix
+
+The widest remaining class (33 specs) splits: 15 are MARKDOWN DOCUMENTS with a .t27
+extension, 8 are the `spec` form, 10 unclassified. The 15 are not defective specs --
+they are not specs. They inflate every denominator this chain reports and were raised
+in W557 Variant C as a maintainer decision. With the backlog down to 213, they are now
+7% of everything still failing and they can never be fixed.
+
+A denominator that includes things that can never pass makes every rate a lie by a
+fixed, unknown amount. Say the number.

@@ -4234,6 +4234,21 @@ These cost a wave each. Follow them before step 1.
     but adding it while writing code that relies on it turns the table from a
     check into a restatement. File it as the next wave's work.
 
+55. **Implementing the documented syntax is different from amending the
+    documentation.** W557 found that SOUL.md section 2.3's `spec Name { ... }`
+    test format does not parse and correctly refused to change the canonical
+    law. W580 implemented it instead -- 8 specs, 245 assertions. When the
+    specification and the compiler disagree, check which one is the law before
+    assuming the code is right.
+
+56. **A denominator that includes things which can never pass makes every rate
+    wrong by a fixed, unknown amount.** 15 of the corpus's "specs" are Markdown
+    documents with a `.t27` extension. They are 7% of everything still failing
+    to parse, they inflate the parse rate, the corpus size and the vacuity
+    ratio, and no fix exists. Renaming them is a provenance decision for the
+    maintainer -- but reporting the number is not, and should happen every time
+    the rate is quoted.
+
 ### How to update this tracker
 
 After closing a wave:
