@@ -2295,7 +2295,7 @@ a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_
 ```
 
 ~~Whether the fault is the engine or the tracking registers is not established.~~
-**Attributed in Prop. 43: the fault is the engine.** Gated as an expected refutation so closing it turns the build
+**Attributed in Prop. 43: the fault is the engine.** **Located in Prop. 45: only when `neurons_per_layer == 0`.** Gated as an expected refutation so closing it turns the build
 red, the mechanism that closed Prop. 25 after eight waves.
 
 Reproduce:
@@ -2607,6 +2607,62 @@ Reproduce:
 
 ```bash
 grep -n "COUNT version was attempted" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
+### Prop. 45 — the last defect is a zero-neuron read, and the fifth of its family — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+
+Six waves have circled this defect. Prop. 43 attributed it to the engine;
+Prop. 44 eliminated the start-time-count fix. This locates it exactly.
+
+**45a. One assumption separates refuted from proved.**
+
+| environment | verdict |
+|---|---|
+| unconstrained | REFUTED |
+| `neurons_per_layer != 0` | **PROVED** |
+| `neurons_per_layer != 0 && chunks_per_neuron != 0` | **PROVED** |
+
+**The defect exists only when the neuron count is zero.** Every non-degenerate
+configuration satisfies the property.
+
+**45b. The counterexample, read plainly.** Under `neurons_per_layer == 0`:
+
+```text
+ t  mac_valid_q  use_buffer_a  fv_prev_rd  fv_bm_a  neurons_per_layer
+39            1             1           1     0001                  0
+```
+
+The MAC consumes slot **1** of buffer A while the write bitmap shows only slot
+**0** was ever written — during a layer whose neuron count is zero.
+
+**45c. Why this is a real defect and not a degenerate-input excuse.**
+`a_zero_neurons_emits_no_work` (Prop. 26d) proves that `layer_sequencer` emits
+**no valid work** for a zero-neuron layer, and it proves in isolation. So the
+sequencer is behaving. The engine reads anyway: `buf_read_addr` is
+`neuron_id` straight from `double_buffer_ctrl`, and the MAC's valid comes from
+the one-cycle skew registers, neither of which is gated by the sequencer's
+zero-guard. **A module-level guard does not travel to the paths that bypass it.**
+
+**45d. Fifth of a family.** Zero neurons (Prop. 9), zero words (Prop. 10), zero
+layers and zero bytes (Prop. 26), and now a zero-neuron **read**. Every previous
+member was a write-side or control-side failure; this is the first on the read
+side, which is precisely the surface Props. 39–43 opened.
+
+**45e. Scope of the fix, and why it is not made here.** Gating `layer_start`
+would drop a zero-neuron layer instead of completing it, reintroducing the hang
+Prop. 26c removed. The change has to suppress the *read and MAC-valid* path for a
+zero-work layer while leaving completion intact — a narrow change, but one that
+touches the skew registers every alignment property depends on (Props. 14, 39a).
+Located, scoped, and left for a wave that starts with it.
+
+Reproduce:
+
+```bash
+python3 -c "print('assume (neurons_per_layer != 0) turns Prop. 39e from REFUTED to PROVED')"
 ```
 
 ---

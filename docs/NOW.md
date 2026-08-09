@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-09
 
+## the last defect is a zero-neuron read, and the fifth of its family
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 45), `README.md`.
+- **One assumption separates refuted from proved**: unconstrained REFUTES;
+  `neurons_per_layer != 0` **PROVES**. The defect exists only when the neuron
+  count is zero -- every non-degenerate configuration satisfies the property.
+- **The counterexample**: with `neurons_per_layer == 0`, the MAC consumes slot 1
+  of buffer A while the write bitmap shows only slot 0 was ever written.
+- **Why it is a real defect and not a degenerate-input excuse**: Prop 26d proves
+  `layer_sequencer` emits **no valid work** for a zero-neuron layer, in
+  isolation. The sequencer is behaving. The engine reads anyway --
+  `buf_read_addr` is `neuron_id` straight from `double_buffer_ctrl`, and the
+  MAC's valid comes from the skew registers, **neither gated by the sequencer's
+  zero-guard**. A module-level guard does not travel to the paths that bypass
+  it.
+- **Fifth of a family**: zero neurons (Prop 9), zero words (Prop 10), zero
+  layers and zero bytes (Prop 26), now a zero-neuron **read** -- the first on the
+  read side, which is exactly the surface Props 39-43 opened.
+- **Scope of the fix**: gating `layer_start` would drop a zero-neuron layer
+  instead of completing it, reintroducing the hang Prop 26c removed. The change
+  must suppress the read and MAC-valid path for a zero-work layer while leaving
+  completion intact -- narrow, but it touches the skew registers every alignment
+  property depends on. Located, scoped, left for a wave that starts with it.
+- Suite **1213 passed, 0 failed**. Seals 496/496.
+
 ## a start-time count cannot enforce a per-cycle claim
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
