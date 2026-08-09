@@ -1882,12 +1882,20 @@ stops.
 |---:|---:|---|---:|
 | 40 | 4 | **PROVED** | 40.7 s |
 | 60 | 4 | **PROVED** | 246.1 s |
-| 80 | 4 | *undecided* (>300 s) | — |
+| 80 | 4 | **PROVED** | 396.1 s |
+| 120 | 4 | *undecided* (>1800 s) | — |
 | 40 | 8 | **PROVED** | 70.5 s |
 | 60 | 8 | **PROVED** | 219.7 s |
 | 40 | 16 | **PROVED** | 77.0 s |
 
-Three things fall out. The properties hold at **1.5× the bound CI uses**, so the
+> **Corrected in Wave 587.** The `seq 80` row originally read *undecided
+> (>300 s)*. It proves in **396.1 s** — the 300 s budget was simply too small,
+> and the ceiling recorded here was a property of that budget. This is the exact
+> error Prop. 37 names, committed one wave before naming it. The engine holds at
+> **2× the bound CI uses**, not 1.5×, and the real ceiling lies between 80 and
+> 120.
+
+Three things fall out. The properties hold at **2× the bound CI uses**, so the
 documented claim is not sitting on the edge of its own tractability. They hold
 with **both dimensions raised together** — `seq 60` *and* `DEPTH 8` — which a
 single-axis sweep would not have established. And the cost is sharply
@@ -2135,6 +2143,15 @@ The diagnostic is one run: **time a tautology.** If a trivially true assertion
 costs what a real one costs, the model is the bottleneck and splitting will not
 help. That check costs one invocation and would have saved this wave's first
 measurement from being over-read.
+
+**37d-bis. The same error, found in this campaign's own record.** Wave 583
+published the engine's ceiling as *undecided at `-seq 80`* on a 300 s budget.
+Re-run with 1200 s it **proves in 396.1 s**. The published ceiling was a
+property of the budget, recorded one wave before this proposition named the
+mistake. Corrected in Prop. 34a. The engine's real ceiling is between 80 and
+120, and the batch costs 396 s against ~280 s for any single property — a
+1.4× overhead, not the superlinear blow-up seen at module scale, which is what
+"model-dominated" predicts.
 
 **37d. What was over-read, precisely.** "8 of 20 proved at `-seq 80`" was
 reported by the sweep and is true. It invites the reading *these 8 properties

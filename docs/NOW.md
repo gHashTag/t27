@@ -2,6 +2,24 @@
 
 Last updated: 2026-08-09
 
+## the published ceiling was a property of my timeout
+
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 34a corrected, Prop 37d-bis),
+  `.github/workflows/formal-mutation.yml`, `README.md`.
+- Wave 583 published the engine's ceiling as **undecided at seq 80** on a 300s
+  budget. Re-run with 1200s it **PROVES in 396.1s**. The ceiling was a property
+  of the budget, not of the design -- **recorded one wave before Prop 37 named
+  exactly that mistake.**
+- **The engine holds at 2x the bound CI uses**, not 1.5x. The real ceiling lies
+  between seq 80 and seq 120 (undecided at 120 within 1800s).
+- **Batch overhead is 1.4x, not superlinear**: 396s for all 20 properties
+  against ~280s for any single one. That is what "model-dominated" predicts, and
+  it is the opposite of the module case where the batch was worse than the sum
+  of its parts.
+- The weekly scale-ceiling gate now covers seq 80 with a 1200s budget, so this
+  correction cannot silently regress.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## splitting pays only when properties differ in cost
 
 - **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop 37), `README.md`.

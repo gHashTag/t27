@@ -86,8 +86,8 @@ jobs:
 
           fail = []
           # Must prove: these are the scales the documented claim rests on.
-          for seq, depth in [(40, 4), (60, 4), (40, 8), (60, 8), (40, 16)]:
-              v, dt = run(seq, depth, 900)
+          for seq, depth in [(40, 4), (60, 4), (80, 4), (40, 8), (60, 8), (40, 16)]:
+              v, dt = run(seq, depth, 1200)
               print(f"seq={seq:3d} DEPTH={depth:2d}  {v:>8s}  {dt:6.1f}s")
               if v == "REFUTED":
                   fail.append(f"seq={seq} DEPTH={depth} REFUTED -- a property fails at a larger bound")
