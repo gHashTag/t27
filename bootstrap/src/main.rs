@@ -16,6 +16,7 @@ mod use_resolve;
 mod check_calls;
 mod cc_gate;
 mod impl_status;
+mod test_report;
 mod lex_conform;
 mod parse_conform;
 mod enrichment;
@@ -88,6 +89,19 @@ enum Commands {
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
+    /// Run every test in ONE spec in isolation and report the pass/fail table.
+    /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
+    /// floor rather than a count.
+    TestReport {
+        /// The .t27 spec to measure
+        spec: String,
+        /// Root of the spec tree, for `use` resolution
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every test, not only the failures
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
     /// Separate specs that are UNWRITTEN (functions with no bodies) from specs
     /// that are BROKEN (do not parse)
     ImplStatus {
@@ -3134,6 +3148,40 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
             }
         }
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result<()> {
+    let path = Path::new(spec);
+    if !path.is_file() {
+        anyhow::bail!("not a file: {}", spec);
+    }
+    let r = test_report::run(path, Path::new(specs_dir));
+    println!("--- test report: {} ---", r.spec);
+    if let Some(why) = &r.blocked {
+        println!("  BLOCKED  {}", why);
+        println!();
+        println!("  A blocked spec is not a failing one. It never produced a");
+        println!("  binary, so it has no per-test result to report.");
+        return Ok(());
+    }
+    for o in &r.outcomes {
+        if !o.passed {
+            println!("  FAIL  {}", o.name);
+        } else if verbose {
+            println!("  pass  {}", o.name);
+        }
+    }
+    println!();
+    println!("  tests   {}", r.total);
+    println!("  pass    {}", r.passed);
+    println!("  FAIL    {}", r.failed);
+    if r.total > 0 {
+        println!(
+            "  rate    {:.1}%",
+            (r.passed as f64) * 100.0 / (r.total as f64)
+        );
     }
     Ok(())
 }
@@ -9757,6 +9805,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::TestReport { spec, specs_dir, verbose } => {
+            run_test_report(&spec, &specs_dir, verbose)?
+        }
         Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
             run_impl_status(&specs_dir, include_scratch, verbose)?
         }
@@ -10077,6 +10128,9 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
+        Commands::TestReport { spec, specs_dir, verbose } => {
+            run_test_report(&spec, &specs_dir, verbose)?
+        }
         Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
             run_impl_status(&specs_dir, include_scratch, verbose)?
         }

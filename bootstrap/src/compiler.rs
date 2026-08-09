@@ -4650,6 +4650,50 @@ impl Codegen {
         node.kind == NodeKind::ExprIdentifier && self.declared_enums.contains(&node.name)
     }
 
+    /// W599: render an expression to its generated text WITHOUT emitting it.
+    /// Used to label an assertion's operands with the code the author wrote.
+    fn render_expr(&mut self, node: &Node) -> String {
+        let mark = self.output.len();
+        self.gen_expr(node);
+        let text = self.output[mark..].to_string();
+        self.output.truncate(mark);
+        text
+    }
+
+    /// W599: the comparisons at the leaves of an assertion condition, in source
+    /// order. `a < b && c == d` yields both. A condition with no comparison at
+    /// all yields nothing, and the caller falls back to the bare panic.
+    fn assert_comparisons<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+        if node.kind != NodeKind::ExprBinary || node.children.len() < 2 {
+            return;
+        }
+        match node.extra_op.as_str() {
+            "and" | "or" | "&&" | "||" => {
+                for c in &node.children {
+                    Self::assert_comparisons(c, out);
+                }
+            }
+            "==" | "!=" | "<" | ">" | "<=" | ">=" => out.push(node),
+            _ => {}
+        }
+    }
+
+    /// Escape generated Zig source so it can sit inside a Zig format string.
+    fn escape_for_fmt(s: &str) -> String {
+        let mut out = String::with_capacity(s.len() + 8);
+        for c in s.chars() {
+            match c {
+                '{' => out.push_str("{{"),
+                '}' => out.push_str("}}"),
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' | '\r' | '\t' => out.push(' '),
+                c => out.push(c),
+            }
+        }
+        out
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -4746,6 +4790,26 @@ impl Codegen {
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
+            // W599: a failing assertion must report the VALUES it saw, not only
+            // that it failed. This is a fn rather than an inline block because
+            // the assert site is emitted as an expression and a `{ ... };` is
+            // not a Zig statement; `noreturn` keeps it usable in that position.
+            self.write_line(
+                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
+            );
+            // W599 (second attempt): `std.debug.print` is not callable at
+            // comptime, and this corpus DOES fold assertions there -- T4's and
+            // T5's disproved invariants are exactly that. The first version
+            // turned their clear `encountered @panic at comptime` into an
+            // opaque error inside std.Io.Threaded. @inComptime() keeps each
+            // context's own diagnostic.
+            self.write_line("    if (@inComptime()) {");
+            self.write_line("        @compileError(\"assertion failed\");");
+            self.write_line("    } else {");
+            self.write_line("        std.debug.print(fmt, args);");
+            self.write_line("        @panic(\"assertion failed\");");
+            self.write_line("    }");
+            self.write_line("}");
             self.write_line("");
         }
 
@@ -4817,6 +4881,26 @@ impl Codegen {
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
+            // W599: a failing assertion must report the VALUES it saw, not only
+            // that it failed. This is a fn rather than an inline block because
+            // the assert site is emitted as an expression and a `{ ... };` is
+            // not a Zig statement; `noreturn` keeps it usable in that position.
+            self.write_line(
+                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
+            );
+            // W599 (second attempt): `std.debug.print` is not callable at
+            // comptime, and this corpus DOES fold assertions there -- T4's and
+            // T5's disproved invariants are exactly that. The first version
+            // turned their clear `encountered @panic at comptime` into an
+            // opaque error inside std.Io.Threaded. @inComptime() keeps each
+            // context's own diagnostic.
+            self.write_line("    if (@inComptime()) {");
+            self.write_line("        @compileError(\"assertion failed\");");
+            self.write_line("    } else {");
+            self.write_line("        std.debug.print(fmt, args);");
+            self.write_line("        @panic(\"assertion failed\");");
+            self.write_line("    }");
+            self.write_line("}");
             self.write_line("");
         }
 
@@ -6202,9 +6286,59 @@ impl Codegen {
                             .get(1)
                             .map(|m| m.value.trim_matches('"').replace('\\', "").replace('"', ""))
                             .unwrap_or_else(|| "assertion failed".to_string());
+                        // W599: a failing assertion used to say only "assertion
+                        // failed". Finding W598's swapped sin/cos took a probe
+                        // program written by hand, because the panic reported
+                        // the FACT of failure and never the values -- and a
+                        // swap is invisible in any report that omits them.
+                        // When the condition compares printable operands, print
+                        // them. The operands are re-evaluated inside the failure
+                        // branch: `then` clauses are pure, and the branch only
+                        // runs once, immediately before the process dies.
+                        let mut cmps: Vec<&Node> = Vec::new();
+                        Self::assert_comparisons(&node.children[0], &mut cmps);
+                        // Beyond a handful the output stops being a diagnostic
+                        // and starts being a dump; and the rendered text must
+                        // not itself be enormous.
+                        let cmps: Vec<&Node> = cmps.into_iter().take(4).collect();
+                        let mut fmt = String::new();
+                        let mut args = String::new();
+                        let mut shown: Vec<String> = Vec::new();
+                        for c in &cmps {
+                            for side in 0..2 {
+                                // A literal's text already IS its value, and
+                                // `0.01 = 0.01` is noise; so is the same name
+                                // twice, which `g > lo && g < hi` would give.
+                                if c.children[side].kind == NodeKind::ExprLiteral {
+                                    continue;
+                                }
+                                let t = self.render_expr(&c.children[side]);
+                                if t.len() > 120 || shown.contains(&t) {
+                                    continue;
+                                }
+                                fmt.push_str(&format!(
+                                    "\\n    {} = {{any}}",
+                                    Self::escape_for_fmt(&t)
+                                ));
+                                if !args.is_empty() {
+                                    args.push_str(", ");
+                                }
+                                args.push_str(&t);
+                                shown.push(t);
+                            }
+                        }
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
-                        self.write(&format!(")) @panic(\"{}\")", msg));
+                        if args.is_empty() {
+                            self.write(&format!(")) @panic(\"{}\")", msg));
+                        } else {
+                            self.write(&format!(
+                                ")) __t27_assert_fail(\"\\n  {}:{}\\n\", .{{ {} }})",
+                                Self::escape_for_fmt(&msg),
+                                fmt,
+                                args
+                            ));
+                        }
                     }
                 } else if node.name == "gf16_encode_f32" {
                     self.write("gf16_encode_f32(");

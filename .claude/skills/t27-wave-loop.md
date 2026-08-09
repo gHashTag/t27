@@ -4516,6 +4516,27 @@ These cost a wave each. Follow them before step 1.
     premise, and the premise was false. Four waves have now been killed this
     way; each cost one command and saved the work.
 
+94. **An assertion that reports only THAT it failed forces a probe program.**
+    For the whole life of this project every assertion lowered to
+    `if (!(cond)) @panic("assertion failed")`. Finding W598's swapped sin/cos
+    therefore required hand-writing a Zig program, re-exporting every function
+    as `pub`, and printing values -- to discover something one line of output
+    would have shown. W599 made the lowering print its operands. The general
+    rule: **a diagnostic that omits the observed value converts every failure
+    into an investigation.**
+
+95. **Check the ugly interaction BEFORE touching a frozen file.** The risk in
+    W599 was that `std.debug.print` is not comptime-callable while some of this
+    corpus's assertions fold at comptime -- which would have turned test
+    failures into compile errors. A two-case probe (six lines, thirty seconds)
+    settled it before `compiler.rs` was opened, and therefore before the freeze
+    ceremony, the rebuild, and the corpus-wide regression run.
+
+96. **Emit a helper fn, not an inline block, when the site is an expression.**
+    `if (c) { ...; };` is not a Zig statement, and the assert site is emitted
+    followed by `;`. A `noreturn` helper keeps the site an expression and works
+    everywhere the old `@panic` did.
+
 ### How to update this tracker
 
 After closing a wave:
