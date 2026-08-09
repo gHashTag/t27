@@ -1,0 +1,118 @@
+diff --git a/bootstrap/src/compiler.rs b/bootstrap/src/compiler.rs
+index f858398ef..963b21952 100644
+--- a/bootstrap/src/compiler.rs
++++ b/bootstrap/src/compiler.rs
+@@ -3229,12 +3229,111 @@ impl Parser {
+             self.expect(TokenKind::RBrace)?;
+         } else {
+             // Keyword-style test: test name given ... when ... then ...
+-            // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
+-            self.skip_to_next_top_level();
++            self.parse_bdd_clauses(&mut block);
+         }
+         Ok(block)
+     }
+ 
++    /// Lower a braceless `given` / `when` / `then` body into ordinary
++    /// statements, so the backends emit it like any brace-form test.
++    ///
++    ///   given x = expr   ->  StmtLocal x = expr
++    ///   when  y = expr   ->  StmtLocal y = expr
++    ///   then  expr       ->  StmtExpr( assert(expr) )
++    ///
++    /// Before Wave 558 this body was discarded by `skip_to_next_top_level()`,
++    /// so a spec asserting `2 == 999` generated `test "..." {}` and passed.
++    /// That silently affected 7,623 test blocks across 318 specs.
++    ///
++    /// `given`/`when`/`then` are plain identifiers, not keywords, so the loop
++    /// dispatches on the lexeme and stops at anything else -- which is what
++    /// ends the block, since the next construct is `test`/`fn`/`invariant`/etc.
++    /// Anything it cannot lower is skipped rather than raising, so a spec that
++    /// parsed before still parses.
++    fn parse_bdd_clauses(&mut self, block: &mut Node) {
++        // Whole-block checkpoint. If anything about this body is not exactly the
++        // shape we understand, we restore and fall back to the pre-Wave-558
++        // behaviour (swallow the block, empty body). That guarantees a spec that
++        // parsed before still parses -- the lowering can only add assertions,
++        // never break a file.
++        let entry = self.save_state();
++        let start_children = block.children.len();
++        let mut lowered = 0usize;
++
++        loop {
++            if self.current.kind != TokenKind::Ident {
++                break; // normal end: next token starts a top-level construct
++            }
++            let clause = self.current.lexeme.clone();
++            // `and` continues a given/when binding list:
++            //     given p35  = FPGA_PART_35T
++            //     and   p100 = FPGA_PART_100T
++            // Inside a `then` expression `and` is an operator and is consumed by
++            // parse_expr, so it does not reach this dispatch.
++            let is_binding = clause == "given" || clause == "when" || clause == "and";
++            if !is_binding && clause != "then" {
++                break;
++            }
++
++            let ok = if clause == "then" {
++                self.advance();
++                match self.parse_expr() {
++                    Ok(expr) => {
++                        let mut call = Node::new(NodeKind::ExprCall);
++                        call.name = "assert".to_string();
++                        call.children.push(expr);
++                        let mut stmt = Node::new(NodeKind::StmtExpr);
++                        stmt.children.push(call);
++                        block.children.push(stmt);
++                        true
++                    }
++                    Err(_) => false,
++                }
++            } else {
++                self.advance();
++                if self.current.kind != TokenKind::Ident {
++                    false
++                } else {
++                    let name = self.current.lexeme.clone();
++                    self.advance();
++                    if self.current.kind != TokenKind::Equals {
++                        false
++                    } else {
++                        self.advance();
++                        match self.parse_expr() {
++                            Ok(expr) => {
++                                let mut decl = Node::new(NodeKind::StmtLocal);
++                                decl.name = name;
++                                decl.children.push(expr);
++                                block.children.push(decl);
++                                true
++                            }
++                            Err(_) => false,
++                        }
++                    }
++                }
++            };
++
++            // `parse_expr` is greedy across newlines, so a binding value can
++            // swallow the next clause's name (`FPGA_PART_35T and p100`) and
++            // leave us sitting on its `=`. That is over-consumption, not a
++            // parseable body.
++            if !ok || self.current.kind == TokenKind::Equals {
++                block.children.truncate(start_children);
++                self.restore_state(entry);
++                self.skip_to_next_top_level();
++                return;
++            }
++            lowered += 1;
++        }
++
++        if lowered == 0 {
++            block.children.truncate(start_children);
++            self.restore_state(entry);
++            self.skip_to_next_top_level();
++        }
++    }
++
+     fn parse_invariant_block(&mut self) -> Result<Node, String> {
+         let mut block = Node::new(NodeKind::InvariantBlock);
+ 
