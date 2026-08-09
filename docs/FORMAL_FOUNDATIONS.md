@@ -1064,6 +1064,50 @@ module-level ones.
 
 ---
 
+### Proposition 24 — the interlocks did not stall the engine
+
+`MEASURED`. Props. 20–23 spent four waves *adding constraints* to the reachable
+state space. That is exactly the condition under which safety properties start
+passing for the wrong reason — **an over-tight guard makes every safety property
+hold by making the engine do nothing** — so the new properties were audited
+before anything was built on top of them.
+
+**24a. Guard reachability: 19 of 19, none vacuous.** Each integration property's
+body was replaced with `assert (1'b0)` under its own guard while the rest were
+neutralised to `assert (1'b1)`; that run proves iff the guard is unreachable
+(the oracle from Prop. 12a). Every guard is reachable.
+
+**24b. Liveness witnesses: the engine still runs.** Guard reachability is
+necessary and not sufficient. Six probes assert that an activity is
+*impossible*, so a **refutation** is the evidence it still happens:
+
+| Probe | Expected | Result |
+|---|---|---|
+| DMA can start | refutes | REACHABLE |
+| DMA can write local memory | refutes | REACHABLE |
+| weight prefetch can write | refutes | REACHABLE |
+| MAC can be active | refutes | REACHABLE |
+| neuron output can fire | refutes | REACHABLE |
+| **DMA and MAC concurrently active** | **proves** | **unreachable** |
+
+The last row is the inverse and the point of the exercise: the five activities
+the engine needs are all still reachable, and the one combination four waves of
+interlock work was aimed at is genuinely impossible. **A safety property and a
+liveness witness together say something neither says alone** — "this cannot
+happen" is only interesting once "this can happen" is established for the parts.
+
+**24c. Checked before extending, not after.** The natural next step after
+Prop. 23 was a cross-layer property. Auditing first was the right order: a
+cross-layer result built on a stalled engine would have proved trivially, and
+the audit cost one wave against a claim that would otherwise have compounded.
+**After a run of changes that constrain behaviour, re-establish that the
+behaviour still exists before building on the constraint.**
+
+Both checks are now CI steps, so an over-tight guard added later fails the
+build rather than quietly greening it.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

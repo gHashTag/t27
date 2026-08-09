@@ -89,7 +89,7 @@ inspectable artefacts at every step.
 | CI | Issue gate | GREEN | L1 TRACEABILITY enforced — greps PR title/body for `Closes #N` |
 | CI | Seal **presence** | GREEN | **496** seal files for **496** specs — one each, no orphans |
 | CI | Seal **integrity** | GREEN | **496 / 496 verify** (re-baselined 2026-08-09); `seal-coverage` CI is **enforcing**. `t27c seal-audit --strict` |
-| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **17 integration properties** on `bitnet_engine_top`, all proving ([Props. 14–23](docs/FORMAL_FOUNDATIONS.md)) |
+| CI | Formal (Yosys) | GREEN | **42 properties proved** across 6 modules + **19 integration properties** on `bitnet_engine_top`, all proving, **all guards reachable, 0 vacuous**, and 6 liveness witnesses confirming the interlocks do not stall the engine ([Props. 14–24](docs/FORMAL_FOUNDATIONS.md)) |
 | CI | Schema validation | GREEN | runs `validate-conformance` + `validate-gen-headers`; 101 files: **88 with vectors**, 5 report, 8 definition, 0 empty |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |

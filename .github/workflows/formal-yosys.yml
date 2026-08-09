@@ -185,6 +185,54 @@ jobs:
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes"
 
+      # Liveness witnesses for the assembled engine. Four waves of interlock
+      # work constrained the reachable state space; an over-tight guard would
+      # make every safety property pass by making the engine do nothing. Each
+      # probe below asserts that an activity is IMPOSSIBLE and must therefore
+      # REFUTE -- a counterexample is the proof the engine still functions.
+      # The final probe is the inverse: DMA and MAC concurrently active must be
+      # genuinely unreachable, so it must PROVE.
+      - name: Engine is still alive under its interlocks
+        run: |
+          set -euo pipefail
+          fail=0
+          top=build/rtl/bitnet_engine_top.sv
+          rest="build/rtl/multilayer_sequencer.sv build/rtl/layer_sequencer.sv \
+                build/rtl/double_buffer_ctrl.sv build/rtl/weight_bram.sv \
+                build/rtl/pipeline_stage2_compute.sv build/rtl/activation_requant.sv \
+                build/rtl/weight_prefetch_ctrl.sv build/rtl/interrupt_controller.sv \
+                build/rtl/axi_lite_slave.sv build/rtl/dma_controller.sv \
+                build/rtl/trit_stdlib.sv"
+          probe() {
+            expr="$1"; want="$2"; name="$3"
+            python3 - "$top" "$expr" > build/probe.sv <<'PY'
+          import sys
+          src = open(sys.argv[1]).read()
+          i = src.rindex("endmodule")
+          probe = "    always @(posedge clk) if (rst_n) w: assert (%s);\n" % sys.argv[2]
+          sys.stdout.write(src[:i] + probe + src[i:])
+          PY
+            if yosys -q -p "read_verilog -sv -formal build/probe.sv $rest; \
+                            chparam -set DEPTH 4 weight_bram; \
+                            prep -top bitnet_engine_top -flatten; memory_map; \
+                            async2sync; chformal -lower; \
+                            sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes" \
+                 >/dev/null 2>&1; then got=proves; else got=refutes; fi
+            if [ "$got" != "$want" ]; then
+              echo "::error::$name expected to $want but $got"
+              fail=1
+            else
+              echo "ok       $name ($got)"
+            fi
+          }
+          probe '!dma_busy'                      refutes 'DMA can start'
+          probe '!dma_local_we'                  refutes 'DMA can write local memory'
+          probe '!pf_bram_we'                    refutes 'weight prefetch can write'
+          probe '!mac_valid_q'                   refutes 'MAC can be active'
+          probe '!neuron_out_valid'              refutes 'neuron output can fire'
+          probe '!(dma_busy && mac_valid_q)'     proves  'DMA and MAC never concurrent'
+          exit $fail
+
       # Vacuity gate, part two. The $check-cell count proves properties EXIST;
       # this proves they BITE. Each witness asserts the negation of a case its
       # property exists to cover, so a counterexample is the proof that the case

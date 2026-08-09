@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-09
 
+## liveness-audit -- the interlocks did not stall the engine
+
+- **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 24), `README.md`.
+- **Took Variant C over my own recommendation.** Four waves of interlock work
+  had just *added constraints* to the reachable state space -- exactly when
+  safety properties start passing for the wrong reason. "All 17 prove" is a
+  weaker claim than it sounds until that is checked.
+- **Guard reachability: 19 of 19, none vacuous.** Each property's body replaced
+  with `assert (1'b0)` under its own guard, others neutralised -- the oracle
+  from Prop 12a. Every guard reachable.
+- **Liveness witnesses**: six probes asserting an activity is *impossible*, so a
+  **refutation** proves it still happens. DMA can start, DMA can write, prefetch
+  can write, MAC can be active, neuron output can fire -- **all REACHABLE**. And
+  the inverse: DMA and MAC concurrently active is **genuinely unreachable**.
+- **A safety property and a liveness witness together say something neither says
+  alone.** "This cannot happen" is only interesting once "this can happen" is
+  established for the parts.
+- **Checked before extending, not after.** A cross-layer property built on a
+  stalled engine would have proved trivially. **After a run of changes that
+  constrain behaviour, re-establish that the behaviour still exists before
+  building on the constraint.**
+- Both checks are CI steps now, so an over-tight guard added later fails the
+  build rather than quietly greening it.
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## interlock-closed -- export quiescence, then restore the dropped term
 
 - **WHERE**: `bootstrap/src/bitnet_pipeline.rs` (new `idle` output),
