@@ -69,6 +69,13 @@ module ms_prefetch (
         if (!rst_n || !prefetch_active) begin fv_wrote <= 1'b0; fv_last <= 12'd0; end
         else if (bram_we)                begin fv_wrote <= 1'b1; fv_last <= bram_addr; end
 
+    // SUBSUMED by a_bram_writes_contiguous over 41 mutants (Wave 614,
+    // Prop. 65). Expected: "strictly increasing" is implied by "increases by
+    // exactly one", so the pair is a weaker and a stronger form of the same
+    // claim and only the stronger can detect anything the weaker does not.
+    // Kept: the weaker form is the one that states the ANTI-WRAP property in
+    // the words the defect was described in, and it is the property that would
+    // survive if the contiguity requirement were ever relaxed.
     always @(posedge clk)
         if (rst_n && prefetch_active && bram_we && fv_wrote)
             a_bram_addr_never_wraps: assert (bram_addr > fv_last);
@@ -147,6 +154,9 @@ module ms_dma (
         if (!rst_n || !busy)  begin fv_wrote <= 1'b0; fv_last <= 12'd0; end
         else if (local_we)    begin fv_wrote <= 1'b1; fv_last <= local_addr; end
 
+    // SUBSUMED by a_local_writes_contiguous over 84 mutants (Wave 614,
+    // Prop. 65), for the same reason as its prefetch twin above: strictly
+    // increasing is implied by increases-by-one. Kept for the same reason.
     always @(posedge clk)
         if (rst_n && busy && local_we && fv_wrote)
             a_local_addr_never_wraps: assert (local_addr > fv_last);

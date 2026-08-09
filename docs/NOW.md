@@ -2,6 +2,46 @@
 
 Last updated: 2026-08-10
 
+## Wave 614 — the last twelve properties, an inverted sweep, and one dead
+
+- **THE DISK FREED ITSELF**: last wave ended blocked at 100% full. Space came
+  back on its own (6.4 GiB), and the repo's `target/` is 565 MB -- it was never
+  the consumer. **Nothing was deleted.** The cleanup I had proposed would have
+  been the wrong target, which is the argument for not deleting while unattended.
+- **THE SWEEP DID NOT KNOW ABOUT INVERTED PROPERTIES**: the first run reported
+  *ISOLATION BROKEN* on four `*_never_completes` properties, because it assumed
+  every property proves. Those four **refute by design** and always have: a
+  zero-sized job DOES report done, which is safe only because the sibling
+  `*_emits_no_work` proves it did not pretend to have done anything (Prop. 26).
+- **THE GENERALISATION**: measure each property's **expected** verdict first,
+  then define detection as *the verdict differs from the expected one*. For an
+  inverted property that means a mutant made it prove. A sweep hard-coding
+  "detection = refutation" cannot measure an inverted property at all -- it can
+  only mislabel it.
+- **THE FIRST DEAD VERDICT**: `a_zero_neurons_never_completes`, nothing detected
+  across **12** mutants -- and 12 is a weak denominator (Prop. 61e).
+  `layer_sequencer` is 23 non-comment lines and no single-token edit diverts the
+  path from the zero guard to DONE_ST. **Kept**, because it is an expected
+  refutation whose job is documentary: it pins a completion policy Prop. 26
+  decided deliberately. *A property whose value is the record it leaves does not
+  have to earn its place by detection.*
+- **BOTH MAX-SIZE SUBSUMPTIONS WERE PREDICTABLE, AND THAT IS THE POINT**:
+  strictly-increasing is implied by increases-by-one. A measurement confirming
+  an implication anyone could see on paper is the calibration that makes the
+  *unexpected* verdicts credible.
+- **README MADE PRECISE**: "No property is gated as an expected refutation" read
+  as covering everything, while four module-level properties are deliberate
+  expected refutations. Now scoped to the engine, with the four named.
+- **A PROCESS FAILURE**: I launched the corrected sweep while the first was
+  still running, both writing the same file. The merged output was
+  self-inconsistent and was discarded rather than read. Two runs sharing an
+  output path produce something that looks like data.
+- **WHERE**: `formal/zero_size_props.sv`, `formal/max_size_props.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 65), README.
+- **STATE**: 65 propositions · 65 gates · 14 witnesses · 42 module properties,
+  **36 with a measured verdict** (27 bite, 7 subsumed, 1 innocent, 1 dead) ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 613 — a verdict for every property, and none of them is dead
 
 - **WHAT**: Props. 61 and 63 built the BITING bar; neither had been applied to

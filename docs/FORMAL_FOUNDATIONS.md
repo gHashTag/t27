@@ -3962,6 +3962,89 @@ grep -c "SUBSUMED" formal/axi_lite_slave_props.sv formal/dma_controller_props.sv
 
 ---
 
+### Prop. 65 — the last twelve properties, an inverted sweep, and one dead — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+Prop. 64 gave a verdict to the 24 module-suite properties. The 12 in the
+zero-size and maximum-size suites were left. This finishes them, and doing so
+required fixing the sweep itself.
+
+**65a. Four properties are expected refutations, and the sweep did not know.**
+The first run reported *ISOLATION BROKEN* on `a_zero_layers_never_completes`,
+`a_zero_length_never_completes`, `a_zero_words_never_completes` and
+`a_zero_neurons_never_completes` — because it assumed every property proves on
+the real design. These four **refute by design**, and always have: they record
+that a zero-sized job *does* report done, which is safe only because the sibling
+`*_emits_no_work` proves it did not pretend to have done anything (Prop. 26).
+
+The fix generalises the sweep: measure each property's **expected verdict**
+first, then define detection as *the verdict differs from the expected one*. For
+an inverted property that means a mutant made it **prove** — the mutation removed
+the completion. A sweep that hard-codes "detection = refutation" cannot measure
+an inverted property at all; it can only mislabel it.
+
+**65b. The verdicts.**
+
+| suite | property | verdict |
+|---|---|---|
+| `zs_multilayer` | `a_zero_layers_never_completes` *(inverted)* | BITES 3, 1 uniquely |
+| | `a_zero_layers_emits_no_work` | BITES 6, 4 uniquely |
+| `zs_dma` | `a_zero_length_never_completes` *(inverted)* | BITES 3, 3 uniquely |
+| | `a_zero_length_moves_no_data` | BITES 7, 7 uniquely |
+| `zs_prefetch` | `a_zero_words_never_completes` *(inverted)* | BITES 3, 1 uniquely |
+| | `a_zero_words_writes_nothing` | BITES 6, 4 uniquely |
+| `zs_layer` | `a_zero_neurons_never_completes` *(inverted)* | **DEAD** over 12 mutants |
+| | `a_zero_neurons_emits_no_work` | BITES 2, both uniquely |
+| `ms_prefetch` | `a_bram_addr_never_wraps` | SUBSUMED by `a_bram_writes_contiguous` |
+| | `a_bram_writes_contiguous` | BITES 6, 1 uniquely |
+| `ms_dma` | `a_local_addr_never_wraps` | SUBSUMED by `a_local_writes_contiguous` |
+| | `a_local_writes_contiguous` | BITES 4, 1 uniquely |
+
+**65c. The campaign's first DEAD verdict, reported with its denominator.**
+`a_zero_neurons_never_completes` detects nothing across **12** mutants — and 12
+is a weak denominator, which Prop. 61e is explicit about. `layer_sequencer` is
+23 non-comment lines; no single-token edit diverts the path from the zero guard
+to `DONE_ST`. **It is kept**, and not out of timidity: it is an expected
+refutation whose job is documentary — it pins a completion policy Prop. 26
+decided deliberately, and its sibling is what makes that policy safe. *A property
+whose value is the record it leaves does not have to earn its place by
+detection.* The verdict is written beside it so nobody re-derives this.
+
+**65d. Both max-size subsumptions were predictable, and that is the point.**
+`addr_never_wraps` (strictly increasing) is implied by `writes_contiguous`
+(increases by exactly one). The measurement confirming an implication anyone
+could see on paper is not wasted — it is the calibration that makes the
+*unexpected* verdicts credible, like `a_awvalid_stable` biting uniquely while its
+read-side twin does not (Prop. 64d).
+
+**65e. Where the campaign now stands.** 36 of the 42 module properties carry a
+measured verdict:
+
+| | BITES | INNOCENT | SUBSUMED | DEAD |
+|---|---|---|---|---|
+| Prop. 64 (24 module-suite) | 18 | 1 | 5 | 0 |
+| Prop. 65 (12 size-sweep) | 9 | 0 | 2 | 1 |
+| **total (36)** | **27** | **1** | **7** | **1** |
+
+The 26 integration properties are not covered: one mutant there costs a full
+integration proof, and the sweep above already cost more than the CI budget for
+a week. Stated as scope, not implied.
+
+**65f. A process failure worth recording.** The corrected sweep was launched
+while the first was still running, both writing the same file. The merged output
+was self-inconsistent — a summary line that disagreed with the rows above it —
+and was discarded rather than read. Two runs sharing an output path produce
+something that *looks* like data.
+
+Reproduce:
+
+```bash
+grep -c "SUBSUMED\|DEAD over" formal/max_size_props.sv formal/zero_size_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

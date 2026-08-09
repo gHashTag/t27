@@ -176,10 +176,24 @@ module zs_layer (
 
     always @(posedge clk) if (rst_n) assume (num_neurons == 16'd0);
 
+    // DEAD over 12 mutants (Wave 614, Prop. 65) -- the only DEAD verdict in the
+    // campaign so far, and reported with its denominator because 12 is a weak
+    // one. This is an EXPECTED REFUTATION: it records that a zero-neuron job
+    // does report done. "Detection" for an inverted property means a mutant made
+    // it PROVE, i.e. removed the completion, and no mutation of this 23-line
+    // sequencer does that -- `state <= DONE_ST` is reached from the zero guard
+    // by a path no single-token edit diverts.
+    //
+    // Kept. Its job is documentary: it pins a completion policy that Prop. 26
+    // decided deliberately, and its sibling below is what makes that policy
+    // safe. A property whose value is the record it leaves does not have to
+    // earn its place by detection -- but the verdict is written here so nobody
+    // has to re-derive that.
     always @(posedge clk) if (rst_n)
         a_zero_neurons_never_completes: assert (!done);
 
     // A zero-sized job must never emit work, whichever completion policy wins.
+    // BITES (2, both uniquely) -- this is the half that carries the safety.
     always @(posedge clk) if (rst_n)
         a_zero_neurons_emits_no_work: assert (!valid);
 endmodule
