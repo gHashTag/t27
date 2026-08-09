@@ -3995,6 +3995,16 @@ These cost a wave each. Follow them before step 1.
     A metric's wording is a claim; landing a fix can falsify it just as easily
     as finding a bug can.
 
+25. **When a measurement surprises you, suspect the measurement first.** Five
+    consecutive waves found the instrumentation at fault before the code:
+    exit-status-as-success (W554), brace-form-only counting (W555),
+    `.t27`-only scanning (W556), a message left stale by its own fix (W559),
+    and in W560 both a classifier that matched an echoed source line
+    (`@panic("assertion failed")` inside a compile error, reported as 2 test
+    failures that did not exist) and a 70-spec sample that misidentified the
+    dominant failure class. Re-measure before publishing, and prefer the full
+    population to a sample when the population is only minutes away.
+
 ### How to update this tracker
 
 After closing a wave:

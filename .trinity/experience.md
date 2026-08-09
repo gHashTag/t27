@@ -20250,3 +20250,53 @@ claim about the fix. Re-read it.
 7,623 tests that could not fail can now fail. How many DO is the real,
 previously-hidden defect count of this project -- obtainable for the first time,
 and the most valuable measurement available. That is W560.
+
+## Wave Loop 560 — the tests do not fail; 169 specs test a function nobody wrote (2026-08-09)
+
+### The answer to W559's open question
+
+Ran all 199 parsing BDD specs through gen-zig + `zig test`:
+
+    ALL_PASS        5   (45 tests genuinely executing and passing)
+    COMPILE_FAIL  194
+    TEST_FAIL       0
+
+They do not fail. They do not COMPILE. Dominant cause, resolved precisely:
+
+    104 of 194 first errors = "use of undeclared identifier"
+    44 of a 90-sample       = `default_input`
+    169 SPECS call default_input() WITHOUT DEFINING IT ANYWHERE
+
+The shape is always:
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
+
+A template-generated test scaffold referencing a helper nobody implemented.
+Before W559 the bodies were discarded so they compiled to `test "..." {}` and
+passed. The lowering did not create the defect -- it revealed it.
+
+**45 of 14,996 test blocks actually execute today.** That is the honest figure.
+
+### Also surfaced
+
+- 5 specs have DUPLICATE TEST NAMES (zig rejects them).
+- gen-zig defects, cleanly separated from spec defects: `str` emitted verbatim
+  into Zig (no such type), `&str` in struct fields (Rust syntax), and enum
+  comparison without @intFromEnum.
+
+### TWO corrections to my own instrumentation in ONE wave
+
+1. The first classifier reported 2 TEST_FAIL. Both were misclassified: it
+   grepped for `panic|assertion failed`, which matches the SOURCE LINE
+   `@panic("assertion failed")` that zig echoes inside a compile error. Fixed by
+   requiring a `file:line:col: error:` prefix. True count: 0.
+2. From a 70-spec sample I claimed str/&str was the dominant compile failure.
+   Across all 194 it is 15, against 104 undeclared identifiers. The sample was
+   unrepresentative.
+
+Four waves running where my own instrumentation was what needed correcting
+(W554 exit-status, W555 brace-only, W556 .t27-only, W559 stale message, W560
+both of the above). When a measurement surprises you, suspect the measurement
+first.
