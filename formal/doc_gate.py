@@ -36,6 +36,7 @@ PROP = re.compile(r"^### (Proposition|Prop\.) [0-9]+")
 def check(path):
     lines = open(path).read().split("\n")
     fail = []
+    quoted = []
 
     props = 0
     for n, l in enumerate(lines):
@@ -61,6 +62,14 @@ def check(path):
         joined = "\n".join(body)
         if re.search(r"<[a-z_]+>", joined):      # a template, not a command
             continue
+        # A fence may quote code under discussion -- typically code that was
+        # REMOVED -- rather than offer something to run. That has to be said out
+        # loud on the first line, with a reason, and the count is reported so
+        # these cannot accumulate quietly. Silent exemption is the failure this
+        # whole family of gates exists to catch.
+        if body and re.match(r"\s*# not-runnable: \S", body[0]):
+            quoted.append(f"{path}:{st+1}: {body[0].strip()[16:60]}")
+            continue
         if re.search(r"^\s*t27c ", joined, re.M):
             fail.append(f"{path}:{st+1}: bare `t27c` -- use ./target/release/t27c, "
                         "the wrapper resolves to a different binary")
@@ -78,12 +87,56 @@ def check(path):
 
     for f in fail:
         print(f"::error::{f}")
+    for q in quoted:
+        print(f"  quoted, not runnable: {q}")
     print(f"doc gate: {props} propositions, {gates} gate lines, "
-          f"{len(fail)} problems")
+          f"{len(quoted)} quoted fences, {len(fail)} problems")
     return 1 if fail else 0
+
+
+def self_test(doc):
+    """Break the document five ways; each must be caught.
+
+    Wave 608. Prop. 58e said this gate "was mutation-tested" -- by a script in a
+    scratch directory, run once, by hand. That is the same defect as a gate
+    claimed in the README and never wired up. If the claim is going to be in the
+    document, the test has to ship with it.
+    """
+    import tempfile
+    src = open(doc).read()
+    cases = [
+        ("unmutated", src, 0),
+        ("a Gate line removed", src.replace("**Gate:** `formal-yosys.yml`", "", 1), 1),
+        ("a fence whose only verb is echo",
+         src.replace("## 2. Related work",
+                     "```bash\necho 'all checks pass'\n```\n\n## 2. Related work", 1), 1),
+        ("bare t27c instead of ./target/release/t27c",
+         src.replace("## 2. Related work",
+                     "```bash\nt27c seal-audit --strict\n```\n\n## 2. Related work", 1), 1),
+        ("the heading convention changed",
+         re.sub(r"^### Prop\. ", "### P ", src, flags=re.M), 1),
+        # The exemption added this wave is itself a way to smuggle a dead fence
+        # in, so it must require a stated reason rather than just the marker.
+        ("an exemption marker with no reason given",
+         src.replace("## 2. Related work",
+                     "```bash\n# not-runnable:\necho nothing\n```\n\n## 2. Related work", 1), 1),
+    ]
+    bad = []
+    for name, text, want in cases:
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+            fh.write(text)
+        got = check(fh.name)
+        print(f"  {'ok  ' if got == want else 'FAIL'} {name}  (exit {got}, want {want})")
+        if got != want:
+            bad.append(name)
+    for b in bad:
+        print(f"::error::doc_gate self-test: '{b}' was not caught")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
     root = pathlib.Path(__file__).resolve().parent.parent
-    sys.exit(check(sys.argv[1] if len(sys.argv) > 1
-                   else str(root / "docs" / "FORMAL_FOUNDATIONS.md")))
+    doc = str(root / "docs" / "FORMAL_FOUNDATIONS.md")
+    if "--self-test" in sys.argv:
+        sys.exit(self_test(doc))
+    sys.exit(check(sys.argv[1] if len(sys.argv) > 1 else doc))

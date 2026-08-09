@@ -506,14 +506,12 @@ jobs:
       # remaining expected-refutation guard: nothing in the engine is knowingly
       # broken. Re-add a guarded property here if a future defect must be
       # recorded rather than fixed.
+      # Was an inline `grep -q ... bitnet_engine_top.sv` that printed "ok" and
+      # returned 0 when the file did not exist -- grep's nonzero exit sits in an
+      # `if` condition, where `set -e` does not reach -- and that read one file
+      # out of the twenty-three which can carry the guard. Prop. 59.
       - name: No property is gated as an expected refutation
-        run: |
-          set -euo pipefail
-          if grep -q "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv; then
-            echo "::error::a property is gated as an expected refutation; document it in FORMAL_FOUNDATIONS.md"
-            exit 1
-          fi
-          echo "ok       no expected-refutation guards remain"
+        run: python3 formal/guard_scan.py
 
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the
@@ -628,7 +626,14 @@ jobs:
       # the check existed as a habit, run by hand. A claimed gate that CI never
       # runs is the same failure as a property that proves vacuously. Prop. 58e.
       - name: Every proposition carries the gate that keeps it true
-        run: python3 formal/doc_gate.py
+        run: |
+          set -euo pipefail
+          python3 formal/doc_gate.py
+          # ...and the gate is checked against six ways of breaking the
+          # document. Prop. 58e claimed this gate "was mutation-tested" when the
+          # test was a scratch script run once by hand -- the same defect as a
+          # gate claimed in the README and never wired up. Prop. 59.
+          python3 formal/doc_gate.py --self-test
 
       - name: Behavior-DSL subset still emits and parses
         run: |
@@ -641,3 +646,14 @@ jobs:
           JSON
           ./target/release/t27c gen-behavior-sva-yosys behaviors.json --output formal_dsl.sv
           yosys -p "read_verilog -sv -formal formal_dsl.sv; prep -top behavior_yosys"
+          # ...and that it emitted anything at all. Parsing was the whole check
+          # until Wave 608: stripping every assertion out of the emission left
+          # this step exiting 0, so an emitter that regressed to a module with
+          # no properties in it would have stayed green. One assertion per input
+          # behaviour, and the input is written directly above. Prop. 59.
+          n=$(grep -c 'assert *(' formal_dsl.sv || true)
+          echo "emitted assertions: ${n:-0} (2 behaviours in)"
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::the behaviour DSL parsed but emitted ${n:-0} assertions for 2 behaviours"
+            exit 1
+          fi

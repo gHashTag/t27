@@ -290,3 +290,11 @@ jobs:
               sys.exit(1)
           print(f"\nall {len(MUTATIONS)} gates bite; baseline and control clean")
           PY
+
+      # Mutation asks "does each gate notice a broken design?". This asks the
+      # complementary question that six harness defects in three waves all
+      # answered wrongly: "does each gate notice NO design?" It empties
+      # build/rtl and formal/ and runs every step of formal-yosys.yml verbatim.
+      # Last in the job because it moves those directories aside. Prop. 59.
+      - name: No gate passes when its subject is absent
+        run: python3 formal/absence_sweep.py

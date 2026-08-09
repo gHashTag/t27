@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-10
 
+## Wave 608 — stop looking for the absence, measure it
+
+- **WHAT**: Wave 607 found four defective instruments by looking at whatever sat
+  near the first one that fell over. Looking does not scale and does not finish.
+  This wave asks the question mechanically: **empty `build/rtl/` and `formal/`,
+  then run every step of `formal-yosys.yml` verbatim.** A step that reports
+  success with no design and no properties present is measuring something other
+  than the design. Twenty steps, eighteen correct, **two passing on nothing**.
+- **DEFECT 5 — `grep` in an `if` escapes `set -e`.** The expected-refutation
+  gate ran `if grep -q "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv`.
+  grep exits nonzero when the file is missing, that nonzero lands in an `if`
+  condition where `set -euo pipefail` does not reach, the branch is not taken,
+  and the step prints **ok** and returns **0**. It also read **one file out of
+  twenty-three** that can carry the guard. Now `formal/guard_scan.py`.
+- **DEFECT 6 — parsing is not emitting.** The behaviour-DSL step generated its
+  own input and checked yosys could read the result. Strip every assertion from
+  the emission and it still exits **0** — an emitter regressed to a module with
+  no properties in it would have stayed green. Now counts assertions against the
+  behaviours fed in.
+- **THE SWEEP SHIPS**: `formal/absence_sweep.py`, weekly, in the gate-adequacy
+  job. Mutation asks *does each gate notice a broken design?*; this asks the
+  complementary question all six harness defects answered wrongly — *does each
+  gate notice NO design?* Its one exemption is argued in line, because an
+  exemption added without argument is exactly how this sweep would come to pass
+  while checking less than it claims.
+- **CAUGHT MYSELF WITH MY OWN GATE, TWICE**: the doc gate rejected Prop. 59b,
+  which quotes the *removed* code — a category the rule never anticipated.
+  Fixed with an exemption that must state a reason (`# not-runnable: <why>`) and
+  is counted in the output. And Prop. 58e claimed the doc gate "was
+  mutation-tested" when that test was a scratch script run once by hand — the
+  same defect as a gate claimed in the README and never wired up. It now ships
+  as `doc_gate.py --self-test`, six cases, including one that tries to abuse the
+  new exemption.
+- **WHERE**: `formal/guard_scan.py`, `formal/absence_sweep.py`,
+  `formal/doc_gate.py`, `.github/workflows/formal-yosys.yml`,
+  `.github/workflows/formal-mutation.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop. 59, and a correction to 58e).
+- **RUNNING TOTAL**: nine defects in the RTL, **six in the instruments**. The
+  instruments are now audited by something that does not rely on my noticing.
+- **STATE**: 59 propositions · 59 gates · 14 witnesses · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 607 — the classifiers were lying, and a witness said so out loud
 
 - **WHAT (planned)**: Prop. 56 closed interleaving reachability for two modules

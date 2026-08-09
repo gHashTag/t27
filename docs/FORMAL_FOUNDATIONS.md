@@ -3455,6 +3455,11 @@ mutation-tested before being believed:
 | a fence whose only verb is `echo` | yes |
 | `t27c` bare instead of `./target/release/t27c` | yes |
 | the `### Prop.` heading convention changed | yes |
+| an exemption marker with no reason given | yes |
+
+*Wave 608 correction:* that mutation test was itself a scratch script run once
+by hand — the very defect this proposition is about. It now ships as
+`doc_gate.py --self-test` and runs in the same CI step.
 
 The third rule is new and comes from `identity_scan.py`: **a scan that finds
 nothing must not report success.** That scan globbed relative to the caller's
@@ -3489,6 +3494,81 @@ step = [s for s in vac['jobs']['prove']['steps']
         if 'non-vacuous' in s.get('name', '').lower()][0]
 print("vacuity gate no longer uses echo:  ", 'printf' in step['run'])
 EOF
+```
+
+---
+
+### Prop. 59 — take the subject away and see which gates stay green — `PROVED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 58 found four defective instruments by looking at the ones nearby after
+the first fell over. Looking does not scale and does not finish. This is the
+version that does not depend on it: **empty `build/rtl/` and `formal/`, then run
+every step of `formal-yosys.yml` verbatim.** A step that reports success with no
+design and no properties present is measuring something other than the design.
+
+**59a. Twenty steps, eighteen correct, two not.**
+
+| step | exit with no subject | |
+|---|---|---|
+| 18 checking steps | 1 or 2 | fail, correct |
+| *No property is gated as an expected refutation* | **0** | passes on nothing |
+| *Behavior-DSL subset still emits and parses* | **0** | self-contained — exempt, see 59c |
+
+**59b. `grep` in an `if` condition escapes `set -e`.** The expected-refutation
+gate was:
+
+```bash
+# not-runnable: the step as it stood before this wave, quoted to show the defect
+if grep -q "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv; then
+  echo "::error::..."; exit 1
+fi
+echo "ok       no expected-refutation guards remain"
+```
+
+`grep` exits nonzero when the file is missing, that nonzero lands in an `if`
+condition where `set -euo pipefail` does not reach, the branch is not taken, and
+the step prints **ok** and returns **0**. Verified by moving the file aside and
+running the step as written. It also read **one file out of twenty-three** — the
+ten property sources in `formal/` and thirteen emitted modules in `build/rtl/`
+could all carry the guard unseen. Now `formal/guard_scan.py`: all 23 files,
+anchored to `__file__`, empty file list is an error.
+
+**59c. Parsing is not emitting.** The behaviour-DSL step generated its own input
+and checked that yosys could read the result. Stripping every assertion out of
+the emission left it exiting **0** — an emitter that regressed to a module
+containing no properties would have stayed green. The step now counts
+assertions against the number of behaviours fed in. That is why it is *exempt*
+from the sweep rather than exempted by omission: it does not depend on the two
+directories, and its own absence case is covered inside it.
+
+**59d. The exemption list is the sweep's own weak point, so it is argued in
+line.** `formal/absence_sweep.py` carries one entry, with the reason written
+next to it. An exemption added without argument is how this sweep would come to
+pass while checking less than it claims — the same failure it exists to find.
+
+**59e. Every new gate was mutation-tested before being believed.**
+
+| control | result |
+|---|---|
+| guard present in `build/rtl/` | caught |
+| guard present in `formal/` (the 22 files the old step never read) | caught |
+| no files present at all | fails, does not print ok |
+| assertion-free DSL emission | caught |
+| a decorative `echo` step injected into the workflow | flagged by the sweep |
+
+**59f. Scope.** The sweep covers `formal-yosys.yml`. `formal-mutation.yml`'s own
+two steps are not swept — the sweep runs inside that workflow, and having it
+audit the job it is part of needs a fixed point this does not attempt. Six
+harness defects in three waves came from *not* asking this question, so the
+remaining unswept surface is two steps, stated rather than implied.
+
+Reproduce:
+
+```bash
+python3 formal/absence_sweep.py
+python3 formal/guard_scan.py
 ```
 
 ---
