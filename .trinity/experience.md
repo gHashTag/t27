@@ -21090,3 +21090,41 @@ Making `?` a token immediately regressed sync/schema.t27, which uses
 `session.end_time_ms.?`. Before this wave the `?` was dropped and `x.?` silently became
 a field access to nothing. Three constructs, one character: `?T` (optional type),
 `x.?` (unwrap), `f()?` (error propagation -> Zig `try`).
+
+## Wave Loop 582 -- 409 invalid C field declarations, found while looking for 13 (2026-08-09)
+
+    C struct fields with raw t27 type syntax   409 -> 3
+    Rust struct fields with a raw `?`           13 -> 0
+    specs whose C output changed                      199 of 608
+
+### The falsification condition did NOT fire
+
+W581 asked: "if no spec that declares an optional reaches a non-Zig backend, the audit
+is empty." All 13 optional-declaring specs generate Zig, Rust, C AND Verilog. Not
+empty.
+
+    Zig      ?[]u8            correct
+    Rust     ?[]u8            not Rust
+    C        ?[]u8 field;     not C
+    Verilog  reg [31:0] ...   valid syntax, meaningless semantics
+
+Rust's mapper HAS an optional branch -- testing for a TRAILING `?` (`T?`) while t27
+writes the Zig leading form. Same shape as W581 one level up: a component with a branch
+for a case that never occurred, because an earlier stage spelled it differently.
+
+### The defect the audit exposed
+
+`gen_c_struct` did not use the C type mapper at all. It used `type_to_c`, a small match
+that PASSES ANYTHING IT DOES NOT RECOGNISE THROUGH VERBATIM -- so every slice field had
+been `[]u8 field;` for the whole life of the C backend. The optionals were 13 of 409.
+The other 396 were slices, and nothing had ever looked.
+
+### Why it was invisible, and the general rule
+
+Every gate this chain built measures the ZIG path: the harness runs `zig test`, the
+assertion count reads Zig output, the conformance tables cover lexing and parsing. The
+Rust, C and Verilog backends have ONE gate between them -- does `gen-<backend>` exit
+zero -- and emitting `[]u8 field;` exits zero perfectly well.
+
+A backend with no consumer has no gate. The Zig path is checked because something runs
+it.

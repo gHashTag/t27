@@ -4263,6 +4263,21 @@ These cost a wave each. Follow them before step 1.
     mechanism, strictly worse consequence, and no error anywhere. Rank
     meaning-changing drops above code-losing ones.
 
+59. **A backend with no consumer has no gate.** Every check this chain built
+    measures the Zig path, because something runs it -- `zig test`, the
+    assertion count, the conformance tables. Rust, C and Verilog share one
+    gate: does `gen-<backend>` exit zero. W582 found 409 invalid C struct
+    fields (`[]u8 field;` -- not C) that had been emitted for the backend's
+    entire life, because emitting nonsense exits zero perfectly well. Before
+    trusting a backend, ask what would notice if it were wrong.
+
+60. **A "pass anything through verbatim" default in a type mapper is a silent
+    corruption waiting for input it has not seen.** `type_to_c` is a small
+    `match` with `_ => ty`. Every slice, every optional and every array of
+    slices took that arm and reached C unchanged. The fix was to route struct
+    fields through the mapper that already handled them -- `param_type_to_c` --
+    which had existed the whole time.
+
 ### How to update this tracker
 
 After closing a wave:

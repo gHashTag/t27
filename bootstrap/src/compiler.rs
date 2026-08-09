@@ -12005,7 +12005,12 @@ impl CCodegen {
 
         for field in &node.children {
             self.write_indent();
-            let c_type = Self::type_to_c(&field.extra_type);
+            // W582: struct fields used `type_to_c`, which passes anything it
+            // does not recognise through verbatim -- so a slice was `[]u8` and
+            // an optional `?[]u8`, neither of which is C. `param_type_to_c`
+            // already lowers both.
+            let c_type = Self::param_type_to_c(&field.extra_type);
+            let c_type = c_type.as_str();
             if !field.extra_size.is_empty() {
                 // Array field
                 self.write_line(&format!("{} {}[{}];", c_type, field.name, field.extra_size));
@@ -12639,10 +12644,30 @@ impl CCodegen {
 
     /// Map a t27/Zig type to C for use in parameter/return positions
     fn param_type_to_c(ty: &str) -> String {
-        // Slice types: []Type → Type*
+        // Optional: C has no such type, and NULL is its conventional encoding.
+        // Before W581 the `?` never reached here (the lexer dropped it) and an
+        // optional silently became a plain value; now it arrives, and emitting
+        // it verbatim produced `?[]u8 field;`, which is not C.
+        if let Some(inner) = ty.strip_prefix('?') {
+            let base = Self::param_type_to_c(inner.trim());
+            return if base.ends_with('*') {
+                base
+            } else {
+                format!("{}*", base)
+            };
+        }
+        // Slice types: []Type → Type*, including the `[]const T` spelling --
+        // without stripping `const` the inner type was the literal string
+        // "const u8" and C received `[]const u8* positional;`.
         if let Some(inner) = ty.strip_prefix("[]") {
+            let inner = inner.trim();
+            let inner = inner.strip_prefix("const ").unwrap_or(inner).trim();
             let c_inner = if Self::is_primitive(inner) {
                 Self::type_to_c(inner).to_string()
+            } else if inner.starts_with("[]") || inner.starts_with('?') {
+                // A slice of slices (`[][]const u8`) or of optionals: map the
+                // inner type properly instead of passing t27 syntax through.
+                Self::param_type_to_c(inner)
             } else {
                 inner.to_string()
             };
@@ -15910,8 +15935,13 @@ impl RustCodegen {
 
     fn t27_type_to_rust(t27_type: &str) -> String {
         let t = t27_type.trim();
-        // Handle optional types
-        let (base_type, is_optional) = if t.ends_with('?') {
+        // Handle optional types. t27 writes the Zig spelling -- a LEADING `?`
+        // (`?u64`, `?[]u8`) -- and only the trailing form was recognised, so
+        // W581's newly-visible optionals fell through to the default and Rust
+        // received `?[]u8`, which does not compile.
+        let (base_type, is_optional) = if let Some(rest) = t.strip_prefix('?') {
+            (rest.trim(), true)
+        } else if t.ends_with('?') {
             (&t[..t.len() - 1], true)
         } else {
             (t, false)
