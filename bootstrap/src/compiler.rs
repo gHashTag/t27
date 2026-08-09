@@ -4276,6 +4276,9 @@ pub struct Codegen {
     /// where the callee declares a slice needs `&[_]T{ … }` -- and the element
     /// type is only knowable from the callee's signature.
     declared_fn_params: std::collections::HashMap<String, Vec<String>>,
+    /// Declared return type by function name, so a positional destructure of a
+    /// NAMED-tuple return can be lowered to field accesses (W596).
+    declared_fn_returns: std::collections::HashMap<String, String>,
     /// Locals bound to an array literal and later passed where a callee
     /// declares a SLICE, mapped to the element type the callee requires. Such a
     /// local must be a real `[_]T{ … }` array and be passed by reference; an
@@ -4313,6 +4316,7 @@ impl Codegen {
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
+            declared_fn_returns: std::collections::HashMap::new(),
             slice_locals: std::collections::HashMap::new(),
             scaffold_locals: std::collections::HashMap::new(),
             declared_enums: std::collections::HashSet::new(),
@@ -4678,6 +4682,7 @@ impl Codegen {
         self.test_name_counts.clear();
         self.declared_enums.clear();
         self.declared_fn_params.clear();
+        self.declared_fn_returns.clear();
         self.string_names.clear();
         self.float_names.clear();
         self.signed_names.clear();
@@ -4689,6 +4694,8 @@ impl Codegen {
                         d.name.clone(),
                         d.params.iter().map(|(_, ty)| ty.clone()).collect(),
                     );
+                    self.declared_fn_returns
+                        .insert(d.name.clone(), d.extra_return_type.clone());
                     // W594: parameters are per-FUNCTION facts. Collecting them
                     // corpus-wide meant a parameter `a: i32` in one function
                     // made every `a` signed everywhere -- harmless for
@@ -5141,9 +5148,58 @@ impl Codegen {
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
             let elems: Vec<&str> = inner.split(',').map(|e| e.trim()).collect();
-            Some(format!("struct {{ {} }}", elems.join(", ")))
+            // W596: a NAMED tuple -- `(sin: []f32, cos: []f32)`. t27 has had the
+            // syntax since at least W584, and the backend dropped the names, so
+            // a spec declaring one and accessing `result.sin` failed with "no
+            // field named 'sin' in tuple". Zig spells the named form
+            // `struct { sin: []f32, cos: []f32 }`, which is the same
+            // declaration with its element types mapped.
+            if let Some(fields) = Self::tuple_field_names(t) {
+                let decls: Vec<String> = fields
+                    .iter()
+                    .map(|(n, ty)| {
+                        format!("{}: {}", Self::zig_ident(n), Self::t27_array_type_to_zig(ty))
+                    })
+                    .collect();
+                return Some(format!("struct {{ {} }}", decls.join(", ")));
+            }
+            let mapped: Vec<String> = elems
+                .iter()
+                .map(|e| Self::t27_array_type_to_zig(e))
+                .collect();
+            Some(format!("struct {{ {} }}", mapped.join(", ")))
         } else {
             None
+        }
+    }
+
+    /// `(sin: f32, cos: f32)` -> `[("sin", "f32"), ("cos", "f32")]`.
+    /// `None` unless EVERY element carries a name, so a positional tuple and a
+    /// half-named one both keep their existing lowering.
+    fn tuple_field_names(ty: &str) -> Option<Vec<(String, String)>> {
+        let t = ty.trim();
+        if !(t.starts_with('(') && t.ends_with(')')) {
+            return None;
+        }
+        let inner = &t[1..t.len() - 1];
+        let mut out = Vec::new();
+        for e in inner.split(',') {
+            let e = e.trim();
+            let (name, ty) = e.split_once(':')?;
+            let name = name.trim();
+            if name.is_empty()
+                || ty.trim().is_empty()
+                || !name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                || name.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(true)
+            {
+                return None;
+            }
+            out.push((name.to_string(), ty.trim().to_string()));
+        }
+        if out.is_empty() {
+            None
+        } else {
+            Some(out)
         }
     }
 
@@ -5549,8 +5605,39 @@ impl Codegen {
                     // signature, exactly as it is for a call argument (W571).
                     // A tuple return distributes over its element types.
                     let ret = self.current_return_type.clone();
-                    let elem_types = Self::return_slice_elements(&ret);
                     let v = &node.children[0];
+                    // W596: under a NAMED tuple return type, a positional tuple
+                    // value must be written with its field names.
+                    if let Some(fields) = Self::tuple_field_names(&ret) {
+                        if v.kind == NodeKind::ExprTuple && v.children.len() == fields.len() {
+                            self.write(".{ ");
+                            for (i, (c, (n, ft))) in
+                                v.children.iter().zip(fields.iter()).enumerate()
+                            {
+                                if i > 0 {
+                                    self.write(", ");
+                                }
+                                self.write(&format!(".{} = ", Self::zig_ident(n)));
+                                let elem = if c.kind == NodeKind::ExprArrayLiteral {
+                                    Self::slice_element_type(&Self::t27_array_type_to_zig(ft))
+                                } else {
+                                    None
+                                };
+                                match elem {
+                                    Some(t) => {
+                                        self.write(&format!("@constCast(&[_]{}", t));
+                                        self.gen_array_literal_braces(c);
+                                        self.write(")");
+                                    }
+                                    None => self.gen_expr(c),
+                                }
+                            }
+                            self.write(" }");
+                            self.write_line(";");
+                            return;
+                        }
+                    }
+                    let elem_types = Self::return_slice_elements(&ret);
                     if let Some(elems) = elem_types {
                         if v.kind == NodeKind::ExprTuple
                             && v.children.len() == elems.len()
@@ -5595,6 +5682,45 @@ impl Codegen {
                     // Tuple-destructuring `let (s, d) = init`. Zig destructuring
                     // needs a binding keyword per element:
                     // `const s, const d = init;`.
+                    // W596: destructuring a NAMED-tuple return. Zig cannot
+                    // destructure a named struct, and the spec that made the
+                    // return type named (because its other consumers access
+                    // `.sin` / `.cos`) still destructures it here. The
+                    // positional order IS the field order, so the binding
+                    // lowers to one field access per name.
+                    let named_fields = node
+                        .children
+                        .first()
+                        .filter(|init| init.kind == NodeKind::ExprCall)
+                        .and_then(|init| self.declared_fn_returns.get(&init.name))
+                        .and_then(|ret| Self::tuple_field_names(ret));
+                    if let Some(fields) = named_fields {
+                        let names: Vec<&str> = node
+                            .extra_field
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if names.len() == fields.len() {
+                            let tmp = format!("__t{}", node.line);
+                            self.write(&format!("const {} = ", tmp));
+                            self.gen_expr(&node.children[0]);
+                            self.write_line(";");
+                            for (bind, (fname, _)) in names.iter().zip(fields.iter()) {
+                                if *bind == "_" {
+                                    continue;
+                                }
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "const {} = {}.{};",
+                                    Self::zig_ident(bind),
+                                    tmp,
+                                    Self::zig_ident(fname)
+                                ));
+                            }
+                            return;
+                        }
+                    }
                     let kw = if node.extra_mutable { "var" } else { "const" };
                     let binds: Vec<String> = node
                         .extra_field

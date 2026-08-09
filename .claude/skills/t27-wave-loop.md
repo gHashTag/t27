@@ -4469,6 +4469,19 @@ These cost a wave each. Follow them before step 1.
     bounds where the defects are, and it stops the next wave re-auditing the
     same ground.
 
+87. **When you make a type more precise, check the OTHER consumers first.**
+    Naming `cordic_sin_cos`'s tuple fixed the `result.sin` accesses and broke
+    `let (s_arr, c_arr) = …` in the same file. Both are legitimate readings and
+    the fix had to serve both -- the destructure lowers to one field access per
+    name, since positional order IS field order. A spec that reads a value two
+    ways is not a defect; it is a language feature minus a backend.
+
+88. **A test binary that aborts on the first failure reports one number, not
+    the number you want.** `cordic.t27` runs 336 tests and stops at the fifth.
+    Until the harness reports per-test results, "4 pass" is a floor, not a
+    measurement -- the same distinction W559/W560 drew for the whole corpus and
+    it has to be drawn again per kernel.
+
 ### How to update this tracker
 
 After closing a wave:

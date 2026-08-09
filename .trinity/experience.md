@@ -21578,3 +21578,35 @@ It disproves two more:
 
 The second is T4 in the OPPOSITE direction: the seed IS the gain, but eight rotations
 move x just as they move y. The algorithm cannot leave either coordinate untouched.
+
+## Wave Loop 596 -- all three cordic kernels compile, and the third one RUNS (2026-08-10)
+
+    COMPILE_FAIL 98 -> 97 · TEST_FAIL 0 -> 1
+    cordic.t27: 336 tests, 4 pass, then cordic_cos_zero fails
+
+### Named tuple return types, three changes that had to serve both consumers
+
+cordic.t27 declared `-> ([]f32, []f32)` while every consumer accessed
+`result.sin`/`result.cos`. t27 has had the named-tuple SYNTAX since at least W584; the
+Zig backend dropped the names.
+
+  * the TYPE   `(sin: []f32, cos: []f32)` -> `struct { sin: []f32, cos: []f32 }`,
+               only when EVERY element is named
+  * the VALUE  a positional tuple returned under a named type is written with its
+               field names, including W593's slice coercion
+  * the DESTRUCTURE  Zig cannot destructure a named struct, and the same spec still
+               writes `let (s_arr, c_arr) = f()`. The positional order IS the field
+               order, so it lowers to one field access per name.
+
+That last one is the lesson: MAKING THE TYPE NAMED BROKE THE OTHER CONSUMPTION STYLE,
+and the fix had to serve both. A spec that reads a value two ways is not a defect --
+it is a language that supports both, minus a backend that does.
+
+### The verdicts so far
+
+    cordic_top.t27    compiles; disproves cordic_sin(0) == 0 at comptime         (T4)
+    cordic_fixed.t27  compiles; disproves that AND cordic_cos(0) == GAIN          (T5)
+    cordic.t27        compiles and RUNS 336 tests -- 4 pass, cordic_cos_zero fails
+
+All from commit a0828089d. Same family, three specs, one mathematical fact: fixed-point
+CORDIC at angle zero does not give exact coordinates.

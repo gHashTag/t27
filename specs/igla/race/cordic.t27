@@ -138,7 +138,10 @@ fn cordic_gain_inner(i: u32, n: u32, acc: f32) -> f32 {
 //   x[i+1] = x[i] - sign(z) * (y[i] * pow2_neg[i])
 //   y[i+1] = y[i] + sign(z) * (x[i] * pow2_neg[i])
 //   z[i+1] = z[i] - sign(z) * arctan(2^-i)
-fn cordic_sin_cos(angle: f32, iterations: u8) -> ([]f32, []f32) {
+// W596: the return type is NAMED, because every test that consumes it accesses
+// `result.sin` / `result.cos`. t27 has had named-tuple syntax since at least
+// W584; the Zig backend learned to lower it this wave.
+fn cordic_sin_cos(angle: f32, iterations: u8) -> (sin: []f32, cos: []f32) {
     let gain = cordic_gain(iterations);
     let (s, c) = cordic_inner(gain, 0.0, angle, 0, iterations);
     return ([s], [c]);
