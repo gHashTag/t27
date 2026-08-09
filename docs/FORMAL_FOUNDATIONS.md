@@ -1885,6 +1885,7 @@ stops.
 | 80 | 4 | *undecided* (>300 s) | — |
 | 40 | 8 | **PROVED** | 70.5 s |
 | 60 | 8 | **PROVED** | 219.7 s |
+| 40 | 16 | **PROVED** | 77.0 s |
 
 Three things fall out. The properties hold at **1.5× the bound CI uses**, so the
 documented claim is not sitting on the edge of its own tractability. They hold

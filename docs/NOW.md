@@ -15,8 +15,10 @@ Last updated: 2026-08-09
   together** (219.7s) -- which a single-axis sweep would not have established.
   The claim holds at **1.5x the bound CI uses**, not on the edge of its own
   tractability.
-- **Cost asymmetry**: 1.5x the unrolling costs **6x** the time; doubling the
-  memory costs **1.7x**. Memory depth is cheap, unroll depth is not.
+- **Cost asymmetry**: 1.5x the unrolling costs **6x** the time; **quadrupling**
+  the memory costs **1.9x** (DEPTH 4->16, 40.7s->77.0s). Memory depth is nearly
+  free, unroll depth is not -- so the memory can be scaled toward its real 4096
+  entries long before the bound can be pushed past 60.
 - **Modules at 2x and 4x their CI bounds**: four of five extend to 4x.
   **`weight_prefetch_ctrl` does not extend at all** -- intractable at twice its
   bound. Its proof is real at seq 20 and nothing is known beyond it.
