@@ -56,7 +56,11 @@ def load_json(path):
     does not already begin a valid escape, then parse.
     """
     raw = open(path).read()
-    fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
+    # A backslash is legal only before " \\ / b f n r t, or before u followed by
+    # exactly four hex digits. Yosys writes names like `$paramod\\weight_bram\\...`
+    # and `...\\up_cnt`, so `\\u` appears without hex behind it -- allowing bare
+    # `u` through was a second round of the same bug.
+    fixed = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', raw)
     return json.loads(fixed)
 
 

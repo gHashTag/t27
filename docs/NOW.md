@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-09
 
+## the last open defect closes -- right idea, wrong shape
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 33).
+- **Prop 25b stood open for eight waves. It is closed.** With nothing requiring
+  a DMA first, the MAC could consume an activation buffer nothing had written.
+- **Wave 574's blocker had already dissolved.** All three interlocks tried then
+  broke the *baseline*, which was never explained. Re-applying the same
+  interlock today: the baseline **proves**. Nothing was done to fix it directly
+  -- it went away with the three DMA defects closed in waves 578-581. **A blocker
+  recorded rather than forced can dissolve on its own.**
+- **The interlock was necessary and insufficient.** One query against the trace
+  reader showed why: layer 0 completed having emitted **no activation words at
+  all** -- legal, since a zero-neuron layer completes immediately by design --
+  the ping-pong flipped, and layer 1 read a buffer nothing ever wrote.
+- **A global flag cannot answer a per-buffer question.** `input_loaded` asks
+  "did anything get written"; the property asks "was the buffer this layer reads
+  written". Two real registers `wrote_a`/`wrote_b` answer it -- the shape
+  predicted in wave 574 and not attempted until the counterexample made it
+  obvious.
+- **Error, not stall.** Refusing to start would hang the engine on a
+  legitimately empty layer, and a stalled engine satisfies every safety
+  property. So `buffer_unwritten` drives the error IRQ instead. All liveness
+  witnesses still refute: the engine works.
+- **The gate did its job.** Gated as an expected refutation so closing it would
+  turn the build red and demand promotion -- which is exactly what happened. Now
+  **23 integration properties**, all proving, and the gate is replaced by one
+  asserting **no expected-refutation guard remains**.
+- Suite **1213 passed, 0 failed**. Seals 496/496. **No known defect open.**
+
 ## the DMA closes -- a write strobe was a level, not a pulse
 
 - **WHERE**: `bootstrap/src/bitnet_dma.rs`, `bootstrap/tests/bitnet_dma.rs`,

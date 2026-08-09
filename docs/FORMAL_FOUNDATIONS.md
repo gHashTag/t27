@@ -1156,9 +1156,9 @@ build rather than quietly greening it.
 
 ---
 
-### Prop. 25 — the first properties that span two layers: one proves, one refutes and stays open — `PROVED` / `REFUTED`
+### Prop. 25 — the first properties that span two layers — `PROVED` (25b **closed** in Wave 582, see Prop. 33)
 
-**Gate:** `formal-yosys.yml` → *Prop. 25 is still open (must refute)* and *Baseline - unprobed design must prove*
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation* and *Baseline - unprobed design must prove*
 
 Every property up to Prop. 24 held **inside one module or inside one layer**.
 The double-buffer scheme, though, only means anything across a layer boundary:
@@ -1797,6 +1797,70 @@ Reproduce:
 
 ```bash
 python3 formal/trace_reader.py build/d4.json local_we local_addr fv_next
+```
+
+---
+
+### Prop. 33 — the last open defect closes: the interlock was the right idea in the wrong shape — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *No property is gated as an expected refutation*
+
+Prop. 25b stood open for eight waves: with nothing requiring a DMA first, the
+MAC could consume an activation buffer nothing had written. Wave 574 tried three
+interlocks and withdrew all three. **Every one of them was the right idea in the
+wrong shape**, and the shape was only visible once the counterexample could be
+read.
+
+**33a. Wave 574's blocker had already dissolved.** All three attempts broke the
+*baseline* — the design stopped proving with no property of ours involved. That
+was never explained. Re-applying the same interlock to today's design: the
+baseline **proves**. Nothing was done to fix it directly; it went away with the
+three DMA defects closed in Waves 578–581.
+
+> A blocker recorded rather than forced can dissolve on its own. Prop. 25's
+> discipline — *record, do not weaken* — cost three withdrawn patches and bought
+> a clean re-attempt eight waves later.
+
+**33b. The interlock was necessary and insufficient.** With `input_loaded`
+gating `start`, the baseline proves and all 22 properties hold — and 25b still
+refutes. The counterexample, one query against the Prop. 31 reader:
+
+```text
+ t  input_loaded  use_buffer_a  fv_wrote_a  fv_wrote_b  act_word_valid  mac_valid_q
+31            1             1           1           0               0            0   <- layer 0 done
+32            1             0           1           0               0            0   <- ping-pong flips
+37            1             0           1           0               0            1   <- MAC reads B
+```
+
+**Layer 0 completed having emitted no activation words at all.** That is legal:
+a zero-neuron layer completes immediately by design (Prop. 26). The ping-pong
+flips, and layer 1 reads a buffer nothing ever wrote.
+
+**33c. A global flag cannot answer a per-buffer question.** `input_loaded` asks
+*did anything get written*; the property asks *was the buffer this layer reads
+written*. No amount of tuning a single bit answers the second question. The fix
+is two real registers, `wrote_a` / `wrote_b`, set by the actual write enables —
+exactly the shape predicted in Wave 574's open-questions note and not attempted
+until the counterexample made it obvious.
+
+**33d. Error, not stall.** Refusing to start a layer whose buffer is unwritten
+would hang the engine on a legitimately empty layer, and **a stalled engine
+satisfies every safety property** (Prop. 24). So the layer is not started *and*
+`buffer_unwritten` drives the error IRQ that Prop. 29c gave a driver. All
+liveness witnesses still refute: the engine works.
+
+**33e. The gate did its job.** Prop. 25b was gated as an *expected refutation*
+so that closing it would turn the build red and demand promotion. It did exactly
+that. The property now lives in the default set (**23 integration properties,
+all proving**), passes the vacuity oracle, and the gate has been replaced by one
+asserting that **no expected-refutation guard remains** — nothing in the engine
+is knowingly broken.
+
+Reproduce:
+
+```bash
+./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+grep -c "ifdef FORMAL_OPEN" build/rtl/bitnet_engine_top.sv    # must be 0
 ```
 
 ---

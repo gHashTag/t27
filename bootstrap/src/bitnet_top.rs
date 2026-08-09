@@ -200,7 +200,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // completion contract while writing nothing. That is the third member of\n");
     s.push_str("    // the same family -- zero neurons (Prop. 9), zero words (Prop. 10), zero\n");
     s.push_str("    // bytes here -- where a zero-sized job is vacuously complete.\n");
-    s.push_str("    wire        start             = reg_ctrl[0] && !dma_busy;\n");
+    s.push_str("    wire        start;\n");
     s.push_str("    wire [5:0]  num_layers        = reg_num_layers[5:0];\n");
     s.push_str("    wire [15:0] neurons_per_layer = reg_neurons[15:0];\n");
     s.push_str("    wire [7:0]  chunks_per_neuron = reg_chunks[7:0];\n");
@@ -233,7 +233,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire first_chunk, last_chunk, layer_valid, layer_done_pulse;\n");
     s.push_str("    layer_sequencer lseq (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n),\n");
-    s.push_str("        .start(layer_start),\n");
+    s.push_str("        .start(layer_start_g),\n");
     s.push_str("        .num_neurons(neurons_per_layer),\n");
     s.push_str("        .num_chunks(chunks_per_neuron),\n");
     s.push_str("        .neuron_id(neuron_id),\n");
@@ -393,10 +393,44 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // the requantizer fills the one being written. a_two_writers_disjoint\n");
     s.push_str("    // holds them apart -- both memories and both writers are individually\n");
     s.push_str("    // correct, so only a property spanning them can see a collision.\n");
+    s.push_str("    // Inference must not consume an activation buffer nothing has written.\n");
+    s.push_str("    // Declared here, after dma_local_we is in scope (Prop. 25e), and driven\n");
+    s.push_str("    // by an actual write rather than by dma_done, because a completed\n");
+    s.push_str("    // transfer is not evidence that work was done (Prop. 26).\n");
+    s.push_str("    reg input_loaded;\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (!rst_n)            input_loaded <= 1'b0;\n");
+    s.push_str("        else if (dma_local_we) input_loaded <= 1'b1;\n");
+    s.push_str("\n");
     s.push_str("    wire wr_en_a = dma_local_we ?  use_buffer_a : (act_word_valid && !use_buffer_a);\n");
     s.push_str("    wire wr_en_b = dma_local_we ? !use_buffer_a : (act_word_valid &&  use_buffer_a);\n");
     s.push_str("    wire [11:0] act_wr_addr = dma_local_we ? dma_local_addr : act_wr_word;\n");
     s.push_str("    wire [53:0] act_wr_data = dma_local_we ? dma_local_wdata[53:0] : act_word;\n");
+    s.push_str("    assign start = reg_ctrl[0] && !dma_busy && input_loaded;\n");
+    s.push_str("\n");
+    s.push_str("    // Per-buffer written flags, in real hardware. A single global\n");
+    s.push_str("    // input_loaded bit is the wrong shape: it answers \"did anything get\n");
+    s.push_str("    // written\" when the question is \"was the buffer this layer reads\n");
+    s.push_str("    // written\". The counterexample: layer 0 completes having emitted no\n");
+    s.push_str("    // activation words at all -- legal, since a zero-neuron layer completes\n");
+    s.push_str("    // immediately by design (Prop. 26) -- the ping-pong flips, and layer 1\n");
+    s.push_str("    // then reads a buffer nothing ever wrote. See Prop. 33.\n");
+    s.push_str("    reg wrote_a, wrote_b;\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (!rst_n) begin wrote_a <= 1'b0; wrote_b <= 1'b0; end\n");
+    s.push_str("        else begin\n");
+    s.push_str("            if (wr_en_a) wrote_a <= 1'b1;\n");
+    s.push_str("            if (wr_en_b) wrote_b <= 1'b1;\n");
+    s.push_str("        end\n");
+    s.push_str("\n");
+    s.push_str("    // Reading an unwritten buffer is an error, not a stall. Refusing to\n");
+    s.push_str("    // start would hang the engine on a legitimately empty layer, and a\n");
+    s.push_str("    // stalled engine satisfies every safety property (Prop. 24). So the\n");
+    s.push_str("    // layer is not started, and the host is told through the error IRQ that\n");
+    s.push_str("    // Prop. 29c gave a driver.\n");
+    s.push_str("    wire input_ready   = use_buffer_a ? wrote_a : wrote_b;\n");
+    s.push_str("    wire layer_start_g = layer_start && input_ready;\n");
+    s.push_str("    wire buffer_unwritten = layer_start && !input_ready;\n");
     s.push_str("    wire [53:0] act_rd_a, act_rd_b;\n");
     s.push_str("\n");
     s.push_str("    weight_bram amem_a (\n");
@@ -542,9 +576,9 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // which is precisely how use_buffer_a was dead for four waves.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_start_follows_ctrl_unless_interlocked:\n");
-    s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy));\n");
+    s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy && input_loaded));\n");
     s.push_str("    // ...and the interlock is the ONLY thing that may suppress a start.\n");
-    s.push_str("    always @(posedge clk) if (rst_n && !dma_busy)\n");
+    s.push_str("    always @(posedge clk) if (rst_n && !dma_busy && input_loaded)\n");
     s.push_str("        a_start_is_ctrl_bit0: assert (start == reg_ctrl[0]);\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_status_reflects_engine: assert (reg_status[0] == busy && reg_status[1] == done);\n");
@@ -605,17 +639,15 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    // No activation is consumed from a buffer nothing has written.\n");
     s.push_str("    //\n");
-    s.push_str("    // OPEN, and behind its own guard on purpose: this REFUTES today. Nothing\n");
-    s.push_str("    // requires a DMA before inference, so layer 0 can read an activation\n");
-    s.push_str("    // buffer that was never written. Every module-level and single-layer\n");
-    s.push_str("    // property still passes -- reading uninitialised memory violates no\n");
-    s.push_str("    // local contract, only the DMA-to-layer-0 seam. Attempts to interlock it\n");
-    s.push_str("    // are recorded in Prop. 25; each broke the baseline. formal-yosys.yml\n");
-    s.push_str("    // gates that this still refutes, so a fix cannot land unnoticed.\n");
-    s.push_str("`ifdef FORMAL_OPEN\n");
+    s.push_str("    // CLOSED in Wave 582 and promoted into the default set. It stood\n");
+    s.push_str("    // open for eight waves. Three interlocks were tried and withdrawn in\n");
+    s.push_str("    // Wave 574; all three were the wrong SHAPE -- a single global\n");
+    s.push_str("    // input_loaded bit answers \"did anything get written\" when the\n");
+    s.push_str("    // question is \"was the buffer this layer reads written\". The\n");
+    s.push_str("    // counterexample only became readable once the trace reader existed.\n");
+    s.push_str("    // See Prop. 33.\n");
     s.push_str("    always @(posedge clk) if (rst_n && mac_valid_q)\n");
     s.push_str("        a_no_read_before_write: assert (use_buffer_a ? fv_wrote_a : fv_wrote_b);\n");
-    s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // The double-buffer invariant. Reading and writing the same buffer in\n");
     s.push_str("    // one layer lets a neuron consume activations this layer just wrote --\n");
@@ -664,7 +696,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        // transfer engines now raise overflow when a request exceeds the local\n");
     s.push_str("        // address space, which is exactly what this sticky, maskable,\n");
     s.push_str("        // read-to-clear bit exists for. See FORMAL_FOUNDATIONS Prop. 29.\n");
-    s.push_str("        .error(pf_overflow || dma_overflow),\n");
+    s.push_str("        .error(pf_overflow || dma_overflow || buffer_unwritten),\n");
     s.push_str("        .irq_enable(3'b111),\n");
     s.push_str("        .irq_status(irq_status_w),\n");
     s.push_str("        .status_read(1'b0),\n");
@@ -730,7 +762,7 @@ mod tests {
             assert!(v.contains(port), "missing AXI-Lite port `{port}`");
         }
         // ...and the CSRs actually drive the engine.
-        assert!(v.contains("wire        start             = reg_ctrl[0] && !dma_busy;"));
+        assert!(v.contains("assign start = reg_ctrl[0] && !dma_busy && input_loaded;"));
         assert!(v.contains("wire [5:0]  num_layers        = reg_num_layers[5:0];"));
     }
 
@@ -825,17 +857,15 @@ mod tests {
     }
 
     #[test]
-    fn open_property_is_guarded_separately_from_the_proved_set() {
+    fn the_formerly_open_property_is_now_in_the_proved_set() {
         let v = build_bitnet_engine_top("bitnet_engine_top");
-        let open_at = v.find("a_no_read_before_write:").expect("open property present");
-        let guard_at = v[..open_at].rfind("`ifdef FORMAL_OPEN").expect("guarded by FORMAL_OPEN");
+        // Closed in Wave 582 after eight waves open. It must NOT sit behind the
+        // open guard any more, and no open guard should remain at all.
+        assert!(v.contains("a_no_read_before_write:"));
         assert!(
-            !v[guard_at..open_at].contains("`endif"),
-            "the refuting property must sit inside `ifdef FORMAL_OPEN, or the default \
-             -DFORMAL run goes red and the green set stops meaning anything"
+            !v.contains("`ifdef FORMAL_OPEN"),
+            "no property should remain gated as an expected refutation"
         );
-        let alt_at = v.find("a_buffer_alternates:").expect("proved property present");
-        assert!(alt_at < guard_at, "the proved property must NOT be behind the open guard");
     }
 
     // Wave 579. Prop. 29d found two write ports pairing a data/enable pair with

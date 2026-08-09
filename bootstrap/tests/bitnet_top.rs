@@ -75,7 +75,11 @@ fn top_host_aperture_replaces_config_ports() {
     ] {
         assert!(stdout.contains(port), "missing AXI-Lite port `{port}`");
     }
-    assert!(stdout.contains("wire        start             = reg_ctrl[0] && !dma_busy;"));
+    // start now also requires input_loaded: inference must not run against an
+    // activation buffer nothing has written. Declared early, driven after
+    // dma_local_we is in scope. Prop. 33.
+    assert!(stdout.contains("wire        start;"));
+    assert!(stdout.contains("assign start = reg_ctrl[0] && !dma_busy && input_loaded;"));
 }
 
 #[test]
