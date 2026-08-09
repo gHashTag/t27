@@ -3340,6 +3340,10 @@ pub struct Codegen {
     /// never-mutated `var` -- so the choice must be inferred, exactly like the
     /// Rust backend's collect_mutable_names.
     mut_names: std::collections::HashSet<String>,
+    /// W566: param/typed-local name -> t27 type, scoped to the current fn body.
+    /// Lets ExprCast tell a narrowing integer cast (needs `@truncate`) from a
+    /// widening one (needs `@intCast`) without a full type checker.
+    zig_var_types: std::collections::HashMap<String, String>,
 }
 
 impl Codegen {
@@ -3348,6 +3352,60 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            zig_var_types: std::collections::HashMap::new(),
+        }
+    }
+
+    /// W566: bit-width of a t27 UNSIGNED integer type, or None otherwise.
+    /// Restricted to unsigned because Zig's `@truncate` only lowers a narrowing
+    /// cast cleanly when both sides are unsigned; signed narrowing stays on the
+    /// checked `@intCast` path (its previous, working behaviour).
+    fn zig_uint_bits(ty: &str) -> Option<u32> {
+        match ty.trim() {
+            "u8" => Some(8),
+            "u16" => Some(16),
+            "u32" => Some(32),
+            "u64" | "usize" => Some(64),
+            _ => None,
+        }
+    }
+
+    /// W566: best-effort bit-width of an expression that is provably an UNSIGNED
+    /// integer, using the param/typed-local map. Returns None when the type is
+    /// signed or unknown, so the cast emission falls back to `@intCast`.
+    fn zig_expr_uint_bits(&self, node: &Node) -> Option<u32> {
+        match node.kind {
+            NodeKind::ExprIdentifier => {
+                let ty = self.zig_var_types.get(&node.name)?;
+                Self::zig_uint_bits(ty)
+            }
+            NodeKind::ExprCast => {
+                let target = node.extra_type.split('[').next().unwrap_or("").trim();
+                Self::zig_uint_bits(target)
+            }
+            NodeKind::ExprLiteral => {
+                let ty = node.extra_type.as_str();
+                if ty.is_empty() {
+                    None
+                } else {
+                    Self::zig_uint_bits(ty)
+                }
+            }
+            NodeKind::ExprBinary => {
+                // Shifts keep the left operand's width; other binary ops take the
+                // wider of the two. Both operands must be provably unsigned.
+                let op = node.extra_op.as_str();
+                let l = node.children.first().and_then(|c| self.zig_expr_uint_bits(c));
+                if matches!(op, "<<" | ">>") {
+                    return l;
+                }
+                let r = node.children.get(1).and_then(|c| self.zig_expr_uint_bits(c));
+                match (l, r) {
+                    (Some(a), Some(b)) => Some(a.max(b)),
+                    _ => None,
+                }
+            }
+            _ => None,
         }
     }
 
@@ -3671,6 +3729,14 @@ impl Codegen {
     }
 
     fn gen_fn_decl(&mut self, node: &Node) {
+        // W566: fresh param/local type scope for this fn body (used by ExprCast
+        // to pick @truncate vs @intCast).
+        self.zig_var_types.clear();
+        for (pname, ptype) in &node.params {
+            if pname != "self" {
+                self.zig_var_types.insert(pname.clone(), ptype.clone());
+            }
+        }
         if node.extra_pub {
             self.write("pub ");
         }
@@ -4014,6 +4080,9 @@ impl Codegen {
                     }
                     self.write(&Self::zig_ident(&node.name));
                     if !node.extra_type.is_empty() {
+                        // W566: record the local's declared type for cast width inference.
+                        self.zig_var_types
+                            .insert(node.name.clone(), node.extra_type.clone());
                         self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
                     } else if as_var {
                         // An untyped mutable initialized with a bare integer
@@ -4509,7 +4578,21 @@ impl Codegen {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    self.write(&format!("@as({}, @intCast(", target));
+                    // W566: t27 `as` truncates on a narrowing integer cast (Rust
+                    // semantics), but Zig's `@intCast` is CHECKED and panics in
+                    // safe builds when the value does not fit (e.g. a u64 whose
+                    // low bits are wanted, `weighted_total as u32` with a 2^32
+                    // multiple). Emit `@truncate` when the source integer is
+                    // provably wider than the target; otherwise keep `@intCast`
+                    // (widening / same-width / unknown -- unchanged behaviour).
+                    let target_bits = Self::zig_uint_bits(&target);
+                    let src_bits = self.zig_expr_uint_bits(&node.children[0]);
+                    let narrowing = match (src_bits, target_bits) {
+                        (Some(s), Some(t)) => s > t,
+                        _ => false,
+                    };
+                    let builtin = if narrowing { "@truncate" } else { "@intCast" };
+                    self.write(&format!("@as({}, {}(", target, builtin));
                     self.gen_expr(&node.children[0]);
                     self.write("))");
                 }
