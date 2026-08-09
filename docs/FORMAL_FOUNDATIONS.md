@@ -1735,6 +1735,72 @@ python3 formal/trace_reader.py build/known.json bram_we bram_addr fv_next
 
 ---
 
+### Prop. 32 — the DMA closes: a write strobe was a level, not a pulse — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Oversized requests do not wrap the local address* (now expected to **prove**)
+
+Four waves carried one open property. It is closed. Three distinct defects sat
+behind it, and each was only visible once the previous one was fixed.
+
+| wave | defect | mechanism |
+|---|---|---|
+| 578 (29d) | word *N* written at address *N+1* | data, enable and address registered together with the address advanced |
+| 580 (31c) | first write of a transfer at a stale address | `local_addr` served two roles, and its reset sat inside the `length != 0` branch |
+| **581 (this)** | **write strobe held across states** | `local_we` cleared only inside `READ_DATA`'s `else` |
+
+**32a. The defect.** `local_we` was assigned in exactly one place outside reset —
+`READ_DATA: if (rvalid) ... else local_we <= 1'b0;`. That `else` only runs while
+the FSM *is in* `READ_DATA`. In `READ_ADDR`, between bursts, `local_we` is not
+assigned at all, so it **holds**, and the DMA keeps writing at whatever address
+`local_addr` last held. The counterexample is unambiguous:
+
+```text
+cycles with local_we = 1   : 24
+cycles with m_axi_rvalid=1 : 18
+local_we high with no beat behind it: 8 of 24
+```
+
+**A write strobe must be a pulse, not a level.** `local_we` now defaults low
+before the `case`, so every state that does not write leaves it deasserted.
+
+**32b. The instrument earned its wave.** Prop. 31 built and validated a
+counterexample reader. Every step here was a *query* against it — "at which
+timestep is the assertion enabled", then "how many enable cycles have no beat
+behind them" — and the second query produced the defect outright. Four waves of
+inspection had not found it; two queries did.
+
+**32c. A scaled model must scale the harness too.** Most of this wave went to a
+false lead. The scaled DUT narrows `local_addr` to 3 bits, but the wrapper still
+declared `wire [11:0] local_addr`, leaving nine undriven bits. Every comparison
+against them is `x`, and `x != fv_next` refutes — **which reads exactly like a
+design defect**. The trace showed the address as `-`; that is `x`, not zero, and
+reading it as "unparsed" cost hours.
+
+> When you scale a model, scale **everything that touches the scaled signal**.
+> A width mismatch at a harness boundary produces `x`, and `x` fails every
+> comparison, so it manifests as a confident refutation of an innocent design.
+
+**32d. What is proved, and at what scale.** `a_local_addr_never_wraps` proves on
+the scaled model and refutes when the clamp is removed — discriminating in both
+directions. `a_local_writes_contiguous` proves, but its clamp-removed variant
+*also* proves at this bound, so **that property is not discriminating here** and
+carries no weight on its own. Recorded rather than quietly counted as a second
+result.
+
+**32e. Score for the sweep that started this.** The maximum-sized-request sweep
+(Prop. 29) has now produced **five** distinct RTL defects across two modules:
+address wrap, off-by-one write pairing, dual-role pointer, misplaced reset, and
+a held strobe. Four of the five had nothing to do with request size. **A sweep's
+value is not only what it was aimed at.**
+
+Reproduce:
+
+```bash
+python3 formal/trace_reader.py build/d4.json local_we local_addr fv_next
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

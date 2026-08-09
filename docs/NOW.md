@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-09
 
+## the DMA closes -- a write strobe was a level, not a pulse
+
+- **WHERE**: `bootstrap/src/bitnet_dma.rs`, `bootstrap/tests/bitnet_dma.rs`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop 32).
+- **Four waves carried one open property. It is closed.** Three distinct defects
+  sat behind it, each visible only after the previous was fixed: word N written
+  at N+1 (wave 578), a dual-role pointer with its reset inside the length!=0
+  branch (wave 580), and now a write strobe that held across states.
+- **The defect**: `local_we` was cleared only inside `READ_DATA`'s else, which
+  runs only while the FSM is IN that state. In `READ_ADDR`, between bursts, it
+  was not assigned at all, so it held and kept writing at a stale address. The
+  trace: 24 enable cycles, 18 bus beats, **8 enables with no beat behind them**.
+  It now defaults low before the case. **A write strobe is a pulse, not a
+  level.**
+- **The instrument earned its wave.** Every step was a query against the reader
+  built in wave 580 -- "when is the assertion enabled", then "how many enables
+  have no beat" -- and the second query produced the defect outright. Four waves
+  of inspection had not found it; two queries did.
+- **A scaled model must scale the harness too.** Most of this wave went to a
+  false lead: the scaled DUT narrows `local_addr` to 3 bits while the wrapper
+  still declared 12, leaving nine undriven bits. Every comparison against them
+  is `x`, and `x` fails everything -- **it reads exactly like a design defect**.
+  The trace showed `-`, which is `x`, not "unparsed".
+- **Honest scoring**: `a_local_addr_never_wraps` is discriminating (proves;
+  refutes with the clamp removed). `a_local_writes_contiguous` proves but its
+  clamp-removed variant also proves at this bound, so it carries no weight on
+  its own and is recorded that way rather than counted as a second result.
+- **The sweep's real yield**: five distinct RTL defects, four of them unrelated
+  to request size. **A sweep's value is not only what it was aimed at.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. One open defect remains
+  (Prop 25, layer 0 reading an unwritten buffer).
+
 ## trace reader -- the instrument was broken, and fixing it found the defect
 
 - **WHERE**: `formal/trace_reader.py` (new), `bootstrap/src/bitnet_dma.rs`,

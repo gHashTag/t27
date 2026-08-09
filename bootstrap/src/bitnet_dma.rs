@@ -183,7 +183,15 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            bytes_remaining <= 32'd0;\n");
     s.push_str("            overflow       <= 1'b0;\n");
     s.push_str("            burst_count    <= 8'd0;\n");
-    s.push_str("        end else case (state)\n");
+    s.push_str("        end else begin\n");
+    s.push_str("        // local_we defaults low every cycle. It used to be cleared only\n");
+    s.push_str("        // inside READ_DATA's else, so in every other state -- READ_ADDR\n");
+    s.push_str("        // between bursts, above all -- it simply held its previous value and\n");
+    s.push_str("        // kept writing at a stale address. A trace showed 24 write-enable\n");
+    s.push_str("        // cycles for 6 distinct addresses, 8 of them with no beat behind\n");
+    s.push_str("        // them. A write strobe must be a pulse, not a level. Prop. 32.\n");
+    s.push_str("        local_we <= 1'b0;\n");
+    s.push_str("        case (state)\n");
     s.push_str("            // A zero-length request moves no data and completes immediately.\n");
     s.push_str("            //\n");
     s.push_str("            // The comment above was true of the intent and false of the code for\n");
@@ -250,7 +258,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("                        state        <= READ_ADDR;\n");
     s.push_str("                    end\n");
     s.push_str("                end\n");
-    s.push_str("            end else local_we <= 1'b0;\n");
+    s.push_str("            end\n");
     s.push_str("            WRITE_ADDR: begin\n");
     s.push_str("                m_axi_awlen   <= burst_len;\n");
     s.push_str("                m_axi_awvalid <= 1'b1;\n");
@@ -298,6 +306,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("            end\n");
     s.push_str("            default: state <= IDLE;\n");
     s.push_str("        endcase\n");
+    s.push_str("        end\n");
     s.push_str("    end\n");
     s.push_str("\n");
 

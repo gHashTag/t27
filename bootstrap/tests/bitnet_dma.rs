@@ -332,3 +332,26 @@ fn dma_help_lists_subcommand() {
     assert!(stdout.contains("--module-name"));
     assert!(stdout.contains("--output"));
 }
+
+
+#[test]
+// A write strobe must be a pulse, not a level. local_we used to be cleared only
+// inside READ_DATA's else, so in every other state -- READ_ADDR between bursts
+// above all -- it held its previous value and kept writing at a stale address.
+// A counterexample showed 24 write-enable cycles for 6 distinct addresses, 8 of
+// them with no bus beat behind them. Prop. 32.
+fn local_we_is_a_pulse_not_a_level() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    let case_at = stdout.find("case (state)").expect("state machine present");
+    let default_at = stdout.find("local_we <= 1'b0;").expect("default clear present");
+    assert!(
+        default_at < case_at,
+        "local_we must default low BEFORE the case, so every state that does not \
+         write leaves it deasserted"
+    );
+    assert!(
+        !stdout.contains("end else local_we <= 1'b0;"),
+        "clearing only in READ_DATA's else leaves the strobe held in other states"
+    );
+}

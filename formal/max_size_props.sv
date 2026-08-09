@@ -133,6 +133,14 @@ module ms_dma (
     // slave model.
     always @(posedge clk) if (rst_n) assume (m_axi_rlast == m_axi_rvalid);
 
+    // Direction is a mode register the host writes before it writes the start
+    // bit; it does not change under a running transfer. Left free, the solver
+    // flips it every cycle, and since local_addr's two roles are selected by
+    // the FSM path taken at start, a mid-transfer flip makes the write and read
+    // pointers interleave on one register. That is an environment fault, not a
+    // design defect -- Prop. 29f.
+    always @(posedge clk) if (rst_n && busy) assume (direction == $past(direction));
+
     reg        fv_wrote;
     reg [11:0] fv_last;
     always @(posedge clk)

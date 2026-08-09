@@ -304,9 +304,21 @@ jobs:
               os.makedirs(dest, exist_ok=True)
               open(f"{dest}/{dut}.sv", "w").write(s)
 
+          def props(sig, n):
+              # The wrapper's own wires must narrow with the DUT port. Left at 12
+              # bits against a 3-bit port, the upper bits are undriven and every
+              # comparison against them is x -- which reads exactly like a design
+              # defect and cost most of Wave 581 to find.
+              t = open("formal/max_size_props.sv").read()
+              t = t.replace(f"wire [11:0] {sig};", f"wire [{n-1}:0] {sig};")
+              t = t.replace("reg [11:0] fv_last;", f"reg [{n-1}:0] fv_last;")
+              t = t.replace("reg [11:0] fv_next;", f"reg [{n-1}:0] fv_next;")
+              t = re.sub(r"\b12'd(\d+)", lambda m: f"{n}'d{m.group(1)}", t)
+              open("build/ms_props.sv", "w").write(t)
+
           def run(dut, wrap, d):
               return subprocess.run(["yosys", "-q", "-p",
-                  f"read_verilog -sv -formal {d}/{dut}.sv formal/max_size_props.sv; "
+                  f"read_verilog -sv -formal {d}/{dut}.sv build/ms_props.sv; "
                   f"prep -top {wrap} -flatten; async2sync; chformal -lower; "
                   "sat -verify -prove-asserts -seq 30 -set-init-zero -set-assumes"],
                   capture_output=True, text=True).returncode == 0
@@ -318,11 +330,11 @@ jobs:
               ("weight_prefetch_ctrl", "ms_prefetch", "bram_addr", "proves",
                "words_remaining <= (num_words > 16'd4096) ? 16'd4096 : num_words;",
                "words_remaining <= num_words;"),
-              # OPEN: the same two fixes are applied, but this still refutes and
-              # the cause is not identified. Gated as an expected refutation so
-              # closing it turns the build red and asks for promotion, exactly
-              # as Prop. 25 is gated.
-              ("dma_controller", "ms_dma", "local_addr", "refutes",
+              # CLOSED in Wave 581 after three defects: the write/address
+              # off-by-one (29d), local_addr serving two roles with a reset
+              # inside the length!=0 branch (31c), and a write strobe held as a
+              # level rather than pulsed per beat (32). Now expected to PROVE.
+              ("dma_controller", "ms_dma", "local_addr", "proves",
                "bytes_remaining <= (length > 32'd32768) ? 32'd32768 : length;",
                "bytes_remaining <= length;"),
           ]
@@ -330,6 +342,7 @@ jobs:
           fail = []
           for dut, wrap, sig, want, clamp, unclamp in CASES:
               scale(dut, sig, 3)
+              props(sig, 3)
               got = "proves" if run(dut, wrap, "build/scaled") else "refutes"
               if got != want:
                   fail.append(f"{dut}: expected {want}, got {got}")
