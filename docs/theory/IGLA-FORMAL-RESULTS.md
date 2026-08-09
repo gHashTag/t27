@@ -400,6 +400,30 @@ scaffold.
 **Falsified by.** An overlap materially larger than 3 under a different
 definition of "unwritten".
 
+### P12 — The IGLA RACE kernels are blocked by decisions, not by the compiler (W597)
+
+After twenty-nine waves, the state of the six kernels this project exists to
+prove:
+
+| Kernel | State | What blocks it |
+|---|---|---|
+| `adder_tree.t27` | **335 / 335 tests pass** | — |
+| `cordic.t27` | compiles, **runs 336 tests** | a false invariant (T4's family) |
+| `cordic_top.t27` | compiles; invariant disproved at comptime | T4 |
+| `cordic_fixed.t27` | compiles; two invariants disproved | T5 |
+| `ternary_mac.t27` | does not compile | **the argument-order decision** (W574, 849 assertions) |
+| `ternary_gemm.t27` | does not compile | the same decision |
+| `systolic_ternary.t27` | does not compile | `systolic_ternary_array` — contradictory tests (W571) |
+| `opcodes.t27` | does not compile | `OP_ADD` — outside a closed opcode set (W571) |
+| `eda.t27` | does not compile | `PpaMetrics` — field mismatch with the function taking it (W592) |
+
+**Every remaining blocker is a specification decision.** Not one is a compiler
+defect, a missing lowering, or a parse gap — those are the categories this chain
+has spent twenty-nine waves eliminating, and for this family they are gone.
+
+**Falsified by.** A compiler change that unblocks any of the five without a
+specification decision being made first.
+
 ---
 
 ## 3. Where this sits in the literature
@@ -509,3 +533,36 @@ wrong, and the only part with a real consumer.
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
+
+### P13 (W597) — A RACE kernel that compiles is 95.5% correct, and every failure is one theorem
+
+`cordic.t27`, run test-by-test in isolation (336 invocations, because Zig's
+runner aborts on the first panic):
+
+| | |
+|---|---:|
+| Pass | **321** |
+| Fail | **15** |
+| Rate | **95.5 %** |
+
+The 15 failures partition exactly three ways:
+
+| Family | n | Cause |
+|---|---:|---|
+| exact value at a special angle | 10 | **T4** — CORDIC does not reach exact values |
+| gain | 3 | **T5** — K is a limit, not a per-iteration constant |
+| arctan table entry | 2 | rounding of `atan(2⁻ⁱ)` into Q14 |
+
+**Not one failure is a compiler defect.** After twenty-nine waves of compiler
+work the remaining errors in the kernel that runs are all assertions about a
+converging approximation that a converging approximation cannot satisfy — and
+both governing facts were proved *before* this measurement was taken.
+
+*Falsification condition:* a failure outside these three families, or one
+traceable to codegen rather than to the assertion's content. None found.
+
+**Corollary.** The project's error budget has changed shape. From W560 to W596
+the question was *"does it compile?"*; the answer is now *"yes, and it is
+95.5% right, and the 4.5% is fifteen assertions that were never true."*
+
+---

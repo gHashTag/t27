@@ -21610,3 +21610,27 @@ it is a language that supports both, minus a backend that does.
 
 All from commit a0828089d. Same family, three specs, one mathematical fact: fixed-point
 CORDIC at angle zero does not give exact coordinates.
+
+## Wave 597 — 321 of 336
+
+The first per-test correctness figure for an IGLA RACE kernel: `cordic.t27`
+passes **321 of 336 (95.5%)**. W596 could only say "4 pass, then it stops",
+because Zig's runner aborts on the first panic — a floor, not a measurement.
+336 isolated invocations turned the floor into a number.
+
+The 15 failures partition into exactly three families, and all three were
+already proved: 10 are assertions of exact values at special angles (**T4**),
+3 are gain assertions (**T5**), 2 are arctan-table roundings. **Not one is a
+compiler defect.**
+
+Paired with Variant B's survey — every remaining blocker across the other five
+kernels is a specification decision, not a defect (P12) — the shape of the work
+has changed. Twenty-nine waves asked "does it compile?". That question is
+answered. What is left is fifteen assertions somebody wrote that were never
+true, and five decisions only a maintainer can make.
+
+The lesson that generalises: **a measurement that requires a shell loop is a
+measurement that stops being taken.** Every number this chain trusts —
+`lex-conform`, `parse-conform`, `cc-gate`, `check-calls`, `impl-status`,
+`parse-complete` — became routine the wave it became a command. This one is
+still a loop.

@@ -4482,6 +4482,21 @@ These cost a wave each. Follow them before step 1.
     measurement -- the same distinction W559/W560 drew for the whole corpus and
     it has to be drawn again per kernel.
 
+89. **When every remaining blocker is a decision, say that as the headline.**
+    W597's survey of the six IGLA RACE kernels found no compiler defect left in
+    any of them -- the argument order, the contradictory tests, the closed
+    opcode set and the field mismatch are all specification questions. Twenty-
+    nine waves of compiler work ends not with "done" but with "the remaining
+    work is not mine", and that is a more useful thing to hand a maintainer than
+    another backlog.
+
+90. **A measurement that takes a shell loop is a measurement that will stop
+    being taken.** The first per-test figure for a RACE kernel cost 336 process
+    invocations driven by hand. Every other number this chain trusts --
+    `lex-conform`, `parse-conform`, `cc-gate`, `check-calls`, `impl-status`,
+    `parse-complete` -- is a command, and each became routine the wave it
+    became one.
+
 ### How to update this tracker
 
 After closing a wave:
