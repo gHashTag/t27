@@ -58,6 +58,20 @@ module dma_props (
 
     // AXI: VALID must not drop without a handshake. These held on the
     // pre-fix RTL too and are kept to bound what the defects were *not*.
+    //
+    // Detection verdicts over 84 mechanical mutants (Wave 613, Prop. 64):
+    //   a_arvalid_stable  SUBSUMED by a_rready_implies_burst -- kept, it states
+    //                     the AXI handshake rule in the specification's own form
+    //   a_awvalid_stable  BITES, and uniquely: one mutant nothing else catches.
+    //                     Its read-side twin is subsumed and its write-side twin
+    //                     is not, which is worth noticing -- symmetric-looking
+    //                     properties need not have symmetric detection power
+    //   a_wvalid_stable   detects nothing, and is INNOCENT rather than weak: its
+    //                     guard is in the always header, so the 4 mutants that
+    //                     could violate it instead make `$past(wvalid) &&
+    //                     !$past(wready)` unreachable and it proves vacuously.
+    //                     Measured, not assumed -- see Prop. 61d for the
+    //                     mechanism and Prop. 64 for the sweep that confirmed it
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(arvalid) && !$past(arready))
         a_arvalid_stable: assert (arvalid);
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(awvalid) && !$past(awready))
@@ -70,6 +84,10 @@ module dma_props (
     // the FSM stopped once bytes_remaining fell to one beat. A short transfer
     // therefore requested 256 beats and then dropped rready mid-burst, which an
     // AXI4 master may not do. Refuted from a reachable state before the fix.
+    // SUBSUMED by a_rready_implies_burst over the same 84 mutants (Wave 613,
+    // Prop. 64) and kept: this is the regression witness for the defect Prop. 9
+    // fixed, and a suite that deletes its regression witnesses because a newer
+    // property happens to cover them loses the record of what went wrong.
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(rready) && $past(rvalid) && !$past(rlast))
         a_read_burst_not_abandoned: assert (rready);
 

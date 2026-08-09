@@ -61,6 +61,17 @@ module axi_props (
     // catch exactly an all-vacuous set. See Prop. 41.
 
     // AXI rule: VALID must not be deasserted without a handshake.
+    //
+    // SUBSUMED FOR DETECTION, KEPT ON PURPOSE (Wave 613, Prop. 64). Measured
+    // over 59 mechanical mutants of this module, every mutant either of these
+    // two catches is also caught by a_one_outstanding_write / _read
+    // respectively -- neither adds detection power. They are retained anyway,
+    // because a property suite is read as well as run: these two state the AXI
+    // handshake rule directly, in the form the specification states it, and
+    // deleting them would leave the rule inferable only from a property about
+    // outstanding-transaction counts. The verdict is recorded here so the next
+    // reader of the detection matrix does not delete them thinking it is
+    // cleanup.
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(bvalid) && !$past(bready))
         a_bvalid_stable: assert (bvalid);
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(rvalid) && !$past(rready))
@@ -94,6 +105,12 @@ module axi_props (
     // The direct backpressure rule the fix implements.
     always @(posedge clk) if (rst_n && bvalid && !bready)
         a_no_write_accept_while_pending: assert (!awready);
+    // Also subsumed by a_one_outstanding_read over the same 59 mutants
+    // (Wave 613, Prop. 64), and kept for the same reason: this is the rule the
+    // fix implements, stated directly. Its write-side twin above is NOT
+    // subsumed -- it catches one mutant nothing else does -- which is a useful
+    // reminder that symmetric-looking properties need not have symmetric
+    // detection power.
     always @(posedge clk) if (rst_n && rvalid && !rready)
         a_no_read_accept_while_pending: assert (!arready);
 

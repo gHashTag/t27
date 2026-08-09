@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-10
 
+## Wave 613 — a verdict for every property, and none of them is dead
+
+- **WHAT**: Props. 61 and 63 built the BITING bar; neither had been applied to
+  the properties already shipped. This applies it to all 24 in the five module
+  suites -- 202 mutants, one property at a time with every sibling neutralised,
+  plus a guard-reachability probe for each zero-detection property.
+- **THE VERDICTS**: **18 BITES, 1 INNOCENT, 5 SUBSUMED, 0 DEAD.** No property is
+  dead weight -- the first evidence the suites are lean rather than merely
+  large, and the answer to a question open since Wave 609.
+- **THE INNOCENT ONE, NOW MEASURED**: Prop. 61d diagnosed `a_wvalid_stable` by
+  hand-probing one mutation. The sweep measures it: **4 of 84 mutants make its
+  guard unreachable**, so it proves vacuously rather than being weak. A
+  detection matrix cannot tell that from weakness; a guard probe can, and it now
+  runs automatically for every zero-detection property.
+- **SUBSUMED IS NOT DELETABLE, AND ALL FIVE WERE KEPT**: each verdict is written
+  next to its property so the next reader of a detection matrix does not mistake
+  it for cleanup. `a_read_burst_not_abandoned` is the **regression witness** for
+  the defect Prop. 9 fixed -- deleting it because a newer property covers it
+  would discard the record of what went wrong.
+- **SYMMETRY DOES NOT PREDICT DETECTION**: `a_awvalid_stable` bites *uniquely*,
+  its read-side twin `a_arvalid_stable` is subsumed, and its write-data sibling
+  `a_wvalid_stable` is innocent. Three properties of identical shape over three
+  channels, three different verdicts.
+- **BLOCKED MID-WAVE**: the machine's disk filled to 100% (shared APFS
+  container, consumer outside this repo). Bash and Write both failed with
+  ENOSPC for a stretch; nothing was deleted, since that is not mine to decide
+  while unattended. Work resumed when space fluctuated back.
+- **WHERE**: `formal/axi_lite_slave_props.sv`, `formal/dma_controller_props.sv`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 64).
+- **STATE**: 64 propositions · 64 gates · 14 witnesses · 42 module properties ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 612 — an environment, and the three bars a property has to clear
 
 - **THE BLOCKER, REMOVED**: Prop. 62 deleted `a_addr_ahead_of_data` and named

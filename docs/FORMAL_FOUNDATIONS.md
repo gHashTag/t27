@@ -3893,6 +3893,75 @@ grep -c "a_[a-z0-9_]*: assert" formal/weight_prefetch_props.sv
 
 ---
 
+### Prop. 64 — a verdict for every property, and none of them is dead — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+Prop. 61 measured detection power. Prop. 63 showed the BITING bar catches a class
+no cheap gate does. Neither had been applied to the properties already shipped.
+This applies it to all 24 in the five module suites, and for every property that
+detects nothing it decides **why** — because "detects nothing" has three quite
+different causes and only one of them is a problem.
+
+**64a. The verdicts.** 202 mutants, one property at a time with every sibling
+neutralised, plus a guard-reachability probe for each zero-detection property.
+
+| verdict | count | meaning |
+|---|---|---|
+| **BITES** | 18 | detects mutants, and is not contained in another property |
+| **INNOCENT** | 1 | detects nothing because mutations that could violate it kill its *guard* |
+| **SUBSUMED** | 5 | every mutant it catches is caught by another property |
+| **DEAD** | **0** | guard reachable, not subsumed, still catches nothing |
+
+**No property is dead weight.** That is the first evidence the suites are lean
+rather than merely large, and it is the answer to a question left open since
+Wave 609.
+
+**64b. The innocent one, confirmed mechanically.** Prop. 61d diagnosed
+`a_wvalid_stable` by hand-probing one mutation. The sweep now measures it: of 84
+mutants, **4 make its guard unreachable**. Its guard sits in the `always` header,
+so a mutation that suppresses `wvalid` does not violate the property — it
+removes the state in which the property has anything to say, and it proves
+vacuously. A detection matrix cannot tell that apart from weakness; a guard
+probe can, and it is now run automatically for every zero-detection property.
+
+**64c. Subsumed is not the same as deletable, and every one was kept.**
+
+| property | subsumed by | why it stays |
+|---|---|---|
+| `a_bvalid_stable` | `a_one_outstanding_write` | states the AXI handshake rule in the specification's own form |
+| `a_rvalid_stable` | `a_one_outstanding_read` | same |
+| `a_no_read_accept_while_pending` | `a_one_outstanding_read` | the rule the fix implements, stated directly |
+| `a_arvalid_stable` | `a_rready_implies_burst` | same |
+| `a_read_burst_not_abandoned` | `a_rready_implies_burst` | it is the **regression witness** for the defect Prop. 9 fixed |
+
+A property suite is read as well as run. Deleting the last row because a newer
+property happens to cover it would discard the record of what went wrong — and
+each verdict is now written next to the property, so the next reader of a
+detection matrix does not mistake it for cleanup.
+
+**64d. Symmetric properties need not have symmetric detection power.**
+`a_awvalid_stable` **bites uniquely** — one mutant nothing else catches — while
+its read-side twin `a_arvalid_stable` is subsumed and its write-data sibling
+`a_wvalid_stable` is innocent. Three properties of identical shape over three
+channels, three different verdicts. Reasoning about a suite by symmetry would
+have got all three wrong.
+
+**64e. Scope, and one thing this sweep does not report.** Five module suites, 24
+properties; the 8 zero-size, 4 maximum-size and 26 integration properties are
+not covered. The classifier flags strict containment only, so four
+`interrupt_controller` properties with *identical* detection sets are reported as
+`BITES (2, 0 uniquely)` rather than as duplicates — over six mutants that
+equality means nothing (Prop. 61e), and the "0 uniquely" is the honest signal.
+
+Reproduce:
+
+```bash
+grep -c "SUBSUMED" formal/axi_lite_slave_props.sv formal/dma_controller_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
