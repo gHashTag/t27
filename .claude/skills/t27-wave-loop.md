@@ -4426,6 +4426,21 @@ These cost a wave each. Follow them before step 1.
     each with its reason -- far more useful to a maintainer than six scattered
     findings across five waves.
 
+81. **When the same shape of workaround appears three times, name the thing
+    you are building.** W582 added `string_names`, W592 `float_names`, W593
+    `signed_names` -- each a set collected from declarations so codegen can pick
+    a spelling that depends on a type the AST does not carry. That is a type
+    checker grown one predicate at a time, with corpus-wide scoping as a known
+    flaw. Say so in the report before the fourth instance, so the next wave
+    inherits the statement rather than the surprise.
+
+82. **`@panic at comptime` is not a failure, it is the first real answer.**
+    `cordic_top.t27` reaching a comptime assertion means it COMPILED and its
+    invariants are being evaluated -- after twenty-five waves of "does not
+    compile". Before drawing any conclusion from a failing assertion, check
+    whether the assertion is one the corpus already had or one this chain wrote:
+    the first is a finding, the second is my defect.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -154,13 +154,24 @@ fn cordic_cos_fixed(angle: i16) -> f32 {
 /// W592: tested and never declared. tan = sin/cos is the definition, and both
 /// are already implemented here in the same units, so the ratio needs no new
 /// arithmetic -- only the division and the cos == 0 guard.
+/// Truncating signed division (W593): Zig requires the rounding mode to be
+/// explicit for signed integers.
+fn div_trunc_i32(a: i32, b: i32) -> i32 {
+    if (b == 0) {
+        return 0;
+    }
+    return a / b;
+}
+
 fn cordic_tan(angle: i16) -> i16 {
     let c = cordic_cos(angle);
     if (c == 0) {
         return 0;
     }
     let s = cordic_sin(angle);
-    return ((s as i32) * 16384 / (c as i32)) as i16;
+    // Signed division is spelled explicitly here because the ratio must
+    // truncate toward zero, matching the Q14 core's rounding.
+    return div_trunc_i32((s as i32) * 16384, c as i32) as i16;
 }
 
 fn cordic_cos(angle: i16) -> i16 {

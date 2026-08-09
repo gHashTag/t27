@@ -4294,6 +4294,14 @@ pub struct Codegen {
     /// Field and parameter names the spec declares with a float type, so a cast
     /// can pick `@floatCast` over `@floatFromInt` (W592).
     float_names: std::collections::HashSet<String>,
+    /// Names the spec declares with a SIGNED integer type. Zig refuses `/` on
+    /// signed integers -- the rounding mode must be explicit -- so a division
+    /// with a known-signed operand is emitted as `@divTrunc` (W593).
+    signed_names: std::collections::HashSet<String>,
+    /// Declared return type of the function currently being emitted, so a
+    /// returned array literal can be given the element type the signature
+    /// requires (W593).
+    current_return_type: String,
 }
 
 impl Codegen {
@@ -4310,6 +4318,8 @@ impl Codegen {
             declared_enums: std::collections::HashSet::new(),
             string_names: std::collections::HashSet::new(),
             float_names: std::collections::HashSet::new(),
+            signed_names: std::collections::HashSet::new(),
+            current_return_type: String::new(),
         }
     }
 
@@ -4480,6 +4490,59 @@ impl Codegen {
         self.write(" }");
     }
 
+    /// Locals a block declares with one of the given explicit types.
+    fn collect_typed_locals(stmts: &[Node], types: &[&str]) -> Vec<String> {
+        let mut out = Vec::new();
+        for stmt in stmts {
+            if stmt.kind == NodeKind::StmtLocal
+                && !stmt.name.is_empty()
+                && types.contains(&stmt.extra_type.trim())
+            {
+                out.push(stmt.name.clone());
+            }
+            out.extend(Self::collect_typed_locals(&stmt.children, types));
+        }
+        out
+    }
+
+    /// Locals a block declares with an explicit float type.
+    fn collect_float_locals(stmts: &[Node]) -> Vec<String> {
+        let mut out = Vec::new();
+        for stmt in stmts {
+            if stmt.kind == NodeKind::StmtLocal
+                && !stmt.name.is_empty()
+                && matches!(
+                    stmt.extra_type.trim(),
+                    "f16" | "f32" | "f64" | "float" | "double"
+                )
+            {
+                out.push(stmt.name.clone());
+            }
+            out.extend(Self::collect_float_locals(&stmt.children));
+        }
+        out
+    }
+
+    /// The slice element types a return type requires, one per tuple position
+    /// (`None` where that position is not a slice). Returns `None` when the
+    /// return type is not a slice or a tuple.
+    fn return_slice_elements(ret: &str) -> Option<Vec<Option<String>>> {
+        let t = ret.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<Option<String>> = inner
+                .split(',')
+                .map(|e| Self::slice_element_type(&Self::t27_array_type_to_zig(e.trim())))
+                .collect();
+            return if elems.iter().any(|e| e.is_some()) {
+                Some(elems)
+            } else {
+                None
+            };
+        }
+        Self::slice_element_type(&Self::t27_array_type_to_zig(t)).map(|e| vec![Some(e)])
+    }
+
     /// `[]T` / `[]const T` -> `T`, for an argument that must be a real slice.
     fn slice_element_type(ty: &str) -> Option<String> {
         let t = ty.trim();
@@ -4525,6 +4588,28 @@ impl Codegen {
                 .children
                 .iter()
                 .any(|c| self.is_float_expr(c)),
+            _ => false,
+        }
+    }
+
+    /// Whether an expression is definitely a signed integer: a name the spec
+    /// declared `i8`..`isize`, or a cast to one. Undecidable cases are treated
+    /// as not-signed, which leaves `/` untouched.
+    fn is_signed_int_expr(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => {
+                Self::trailing_name(node)
+                    .map(|n| self.signed_names.contains(&n))
+                    .unwrap_or(false)
+            }
+            NodeKind::ExprCast => matches!(
+                node.extra_type.trim(),
+                "i8" | "i16" | "i32" | "i64" | "isize"
+            ),
+            NodeKind::ExprBinary => node
+                .children
+                .iter()
+                .any(|c| self.is_signed_int_expr(c)),
             _ => false,
         }
     }
@@ -4595,6 +4680,7 @@ impl Codegen {
         self.declared_fn_params.clear();
         self.string_names.clear();
         self.float_names.clear();
+        self.signed_names.clear();
         for d in &ast.children {
             match d.kind {
                 NodeKind::FnDecl if !d.name.is_empty() => {
@@ -4609,6 +4695,9 @@ impl Codegen {
                         }
                         if matches!(pty.trim(), "f16" | "f32" | "f64" | "float" | "double") {
                             self.float_names.insert(pname.clone());
+                        }
+                        if matches!(pty.trim(), "i8" | "i16" | "i32" | "i64" | "isize") {
+                            self.signed_names.insert(pname.clone());
                         }
                     }
                 }
@@ -4625,6 +4714,9 @@ impl Codegen {
                             "f16" | "f32" | "f64" | "float" | "double"
                         ) {
                             self.float_names.insert(f.name.clone());
+                        }
+                        if matches!(f.extra_type.trim(), "i8" | "i16" | "i32" | "i64" | "isize") {
+                            self.signed_names.insert(f.name.clone());
                         }
                     }
                 }
@@ -5121,6 +5213,21 @@ impl Codegen {
         self.collect_slice_locals(&node.children);
         self.scaffold_locals.clear();
         self.collect_scaffold_locals(&node.children);
+        self.current_return_type = node.extra_return_type.clone();
+        // W593: float-typed LOCALS. `float_names` held only parameters and
+        // struct fields, so a cast of a local declared `let x: f32` took the
+        // `@floatFromInt` branch. Collected per function, and removed again on
+        // exit so one function's locals cannot leak into the next.
+        let local_floats = Self::collect_float_locals(&node.children);
+        for n in &local_floats {
+            self.float_names.insert(n.clone());
+        }
+        let local_signed = Self::collect_typed_locals(&node.children, &[
+            "i8", "i16", "i32", "i64", "isize",
+        ]);
+        for n in &local_signed {
+            self.signed_names.insert(n.clone());
+        }
 
         for pname in &shadowed {
             self.write_indent();
@@ -5192,6 +5299,12 @@ impl Codegen {
 
         self.dedent();
         self.write_line("}");
+        for n in &local_floats {
+            self.float_names.remove(n);
+        }
+        for n in &local_signed {
+            self.signed_names.remove(n);
+        }
     }
 
     fn gen_test_block(&mut self, node: &Node) {
@@ -5402,7 +5515,49 @@ impl Codegen {
                 self.write_indent();
                 self.write("return ");
                 if !node.children.is_empty() {
-                    self.gen_expr(&node.children[0]);
+                    // W593: an array literal in RETURN position. `.{ s }` does
+                    // not initialise a `[]f32` ("type '[]f32' does not support
+                    // array initialization syntax"); the element type is in the
+                    // signature, exactly as it is for a call argument (W571).
+                    // A tuple return distributes over its element types.
+                    let ret = self.current_return_type.clone();
+                    let elem_types = Self::return_slice_elements(&ret);
+                    let v = &node.children[0];
+                    if let Some(elems) = elem_types {
+                        if v.kind == NodeKind::ExprTuple
+                            && v.children.len() == elems.len()
+                        {
+                            self.write(".{ ");
+                            for (i, (c, t)) in
+                                v.children.iter().zip(elems.iter()).enumerate()
+                            {
+                                if i > 0 {
+                                    self.write(", ");
+                                }
+                                match (c.kind == NodeKind::ExprArrayLiteral, t) {
+                                    (true, Some(t)) => {
+                                        self.write(&format!("@constCast(&[_]{}", t));
+                                        self.gen_array_literal_braces(c);
+                                        self.write(")");
+                                    }
+                                    _ => self.gen_expr(c),
+                                }
+                            }
+                            self.write(" }");
+                            self.write_line(";");
+                            return;
+                        }
+                        if v.kind == NodeKind::ExprArrayLiteral && elems.len() == 1 {
+                            if let Some(t) = &elems[0] {
+                                self.write(&format!("@constCast(&[_]{}", t));
+                                self.gen_array_literal_braces(v);
+                                self.write(")");
+                                self.write_line(";");
+                                return;
+                            }
+                        }
+                    }
+                    self.gen_expr(v);
                 }
                 self.write_line(";");
             }
@@ -6025,6 +6180,24 @@ impl Codegen {
                         self.write("@intFromEnum(");
                         self.gen_expr(&node.children[0]);
                         self.write(&format!(") {} @intFromEnum(", op));
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // W593: Zig refuses `/` on SIGNED integers -- the rounding
+                    // mode must be explicit ("signed integers must use
+                    // @divTrunc, @divFloor or @divExact"). 218 division sites
+                    // in the corpus. `@divTrunc` is C's and Rust's semantics,
+                    // which is what the specs assume.
+                    if op == "/"
+                        && (self.is_signed_int_expr(&node.children[0])
+                            || self.is_signed_int_expr(&node.children[1]))
+                        && !self.is_float_expr(&node.children[0])
+                        && !self.is_float_expr(&node.children[1])
+                    {
+                        self.write("@divTrunc(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
                         self.gen_expr(&node.children[1]);
                         self.write(")");
                         return;

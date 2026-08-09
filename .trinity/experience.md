@@ -21471,3 +21471,38 @@ THIRD CONSECUTIVE WAVE where writing or decomposing something exposed a compiler
 that had been mislabelled: W590's []string, W591's float, and now this. The pattern:
 a construct nothing exercises is a construct nothing checks -- and the whitelist that
 permitted `as f32` was added five waves before anything used it.
+
+## Wave Loop 593 -- a cordic spec reached `@panic at comptime`, which means it COMPILED (2026-08-10)
+
+Three general codegen gaps closed:
+
+  * array literal in RETURN position -- `return ([s], [c])` from `-> ([]f32, []f32)`
+    emitted `.{ .{ s }, .{ c } }`. The element type is in the SIGNATURE, exactly as
+    for a call argument (W571). Return type now tracked per function; tuple returns
+    distribute over element types; `&[_]T{...}` needs the same @constCast as W571.
+  * SIGNED INTEGER DIVISION -- Zig refuses `/` on signed ints, the rounding mode must
+    be explicit. 218 sites in the corpus. Now @divTrunc, inferred from declared
+    parameter/field/local types and casts.
+  * float-typed LOCALS -- W592 inferred float-ness from parameters and fields only.
+
+### The result
+
+    cordic_top.t27:  @panic at comptime: assertion failed
+
+It COMPILES. Its invariants are being evaluated at comptime and one is FALSE. After
+twenty-five waves of "does not compile", an IGLA RACE kernel has produced a real
+mathematical verdict about itself.
+
+### The thing to say out loud
+
+Three waves have now added a `*_names` set to the Zig codegen -- strings (W582),
+floats (W592), signed ints (W593) -- each collected from declarations, each used to
+pick a spelling that depends on a type the AST does not carry.
+
+THIS IS A TYPE CHECKER BEING GROWN ONE PREDICATE AT A TIME. Its known flaw is already
+visible: parameter names are collected corpus-wide, so `a: i32` in one function makes
+every `a` signed. Harmless for @divTrunc (valid for unsigned too); the next predicate
+may not be so lucky.
+
+t27 has no type checker and the backends are accumulating a partial one. Better to
+write that down than to rediscover it a fourth time.
