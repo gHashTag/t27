@@ -3384,10 +3384,61 @@ impl Parser {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
-            // Keyword-style invariant: skip until next top-level
-            self.skip_to_next_top_level();
+            self.parse_invariant_clause(&mut block);
         }
         Ok(block)
+    }
+
+    /// Lower a keyword-form invariant into an assertion, mirroring what W559
+    /// did for tests. The body was discarded by `skip_to_next_top_level()`, so
+    /// codegen emitted `// invariant: X verified (no statements)` -- a comment
+    /// claiming verification. 5,163 invariants are in this form.
+    ///
+    /// `forall`-quantified statements (837) are not runtime-checkable and fall
+    /// back to the original skip, as does anything else this cannot model.
+    /// Same contract as the test lowering: may only ADD assertions.
+    fn parse_invariant_clause(&mut self, block: &mut Node) {
+        let entry = self.save_state();
+        let start_children = block.children.len();
+
+        // Two spellings exist. `invariant name: <expr>` carries the predicate
+        // inline; `invariant name` is followed by indented clauses in exactly
+        // the same style as a braceless test:
+        //
+        //     invariant board_name_not_empty
+        //         assert BOARD_NAME != ""
+        //
+        // The clause form is the common one -- 76 of 81 in the currently
+        // compiling specs -- so it goes to the shared clause parser.
+        if self.current.kind != TokenKind::Colon {
+            self.parse_bdd_clauses(block);
+            return;
+        }
+        self.advance(); // consume ':'
+
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+            self.restore_bdd_fallback(block, start_children, entry);
+            return;
+        }
+
+        match self.parse_expr() {
+            Ok(expr) => {
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.name = "assert".to_string();
+                call.children.push(expr);
+                let mut stmt = Node::new(NodeKind::StmtExpr);
+                stmt.children.push(call);
+                block.children.push(stmt);
+            }
+            Err(_) => {
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+        }
+
+        if !Self::is_block_boundary(self.current.kind) {
+            self.restore_bdd_fallback(block, start_children, entry);
+        }
     }
 
     fn parse_bench_block(&mut self) -> Result<Node, String> {
@@ -3421,6 +3472,10 @@ pub struct Codegen {
     /// never-mutated `var` -- so the choice must be inferred, exactly like the
     /// Rust backend's collect_mutable_names.
     mut_names: std::collections::HashSet<String>,
+    /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
+    /// to Zig builtins ONLY when absent from this set, so a spec that defines
+    /// its own `fn max(...)` still calls its own.
+    declared_fns: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -3429,6 +3484,7 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            declared_fns: std::collections::HashSet::new(),
         }
     }
 
@@ -3458,6 +3514,15 @@ impl Codegen {
     }
 
     pub fn gen_zig(&mut self, ast: &Node) {
+        // Collect the spec's own function names before emitting anything, so
+        // the builtin mapping below can never shadow a user-defined function.
+        self.declared_fns.clear();
+        for d in &ast.children {
+            if d.kind == NodeKind::FnDecl && !d.name.is_empty() {
+                self.declared_fns.insert(d.name.clone());
+            }
+        }
+
         // Header with module name
         let module_name = if !ast.name.is_empty() {
             &ast.name
@@ -4424,6 +4489,35 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
+                // Zig spells these as builtins. Specs call them bare -- `abs(`
+                // appears 425 times, `sqrt(` 111, `floor(` 99, `round(` 92 --
+                // and emitting the bare name gives
+                // "use of undeclared identifier 'abs'". Guarded by
+                // declared_fns so a spec's own `fn max(...)` still wins.
+                if !self.declared_fns.contains(&node.name) {
+                    let builtin = match node.name.as_str() {
+                        "abs" => Some("@abs"),
+                        "sqrt" => Some("@sqrt"),
+                        "floor" => Some("@floor"),
+                        "ceil" => Some("@ceil"),
+                        "round" => Some("@round"),
+                        "min" => Some("@min"),
+                        "max" => Some("@max"),
+                        _ => None,
+                    };
+                    if let Some(b) = builtin {
+                        self.write(b);
+                        self.write("(");
+                        for (i, arg) in node.children.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.gen_expr(arg);
+                        }
+                        self.write(")");
+                        return;
+                    }
+                }
                 if node.name == "@compileAssert" || node.name == "assert" {
                     if !node.children.is_empty() {
                         // @compileError fires whenever the branch is ANALYZED,
