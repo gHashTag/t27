@@ -1,3 +1,14 @@
+# NOW -- gfternary restored, and a gate so a glob cannot do that again (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: restore gfternary.t27, alias the former name, gate both (Refs #2001)
+
+- **`specs/numeric/gfternary.t27` was deleted by my own `rm -f specs/numeric/gft*.t27`** during the TEF rename. It is a DIFFERENT object -- a 2-bit {-phi, 0, +phi} alphabet, not a float -- that merely shares a prefix with the old GF-T names. Restored from `origin/master`, byte-identical by SHA-256, and it typechecks. The same glob had already dropped it from the pack index earlier the same day: twice is a pattern
+- **`former_name="GF-T{N}"` on every TEF row.** Renaming the ladder does not retract its measurements: arXiv:2606.05017 and arXiv:2606.09686 cite GF-T, and it labels every published comparison against takum / tekum / posit. The old name stays searchable, and the catalog header says why
+- New gate `tools/check_catalog_integrity.py`: every `source=` resolves, the three prefix-sharing neighbours (`gfternary`, the binary `gf*` ladder, the `tef*` ladder) are each present **on disk** and distinct, and the former name is still there. Verified red on each of those failures individually, not just green on the happy path
+- The catalog row alone was never enough -- `gfternary`'s row survived while its spec file did not, and nothing noticed
+
 # NOW -- the ladder is named TEF, and NVIDIA keeps tf32 (2026-08-09)
 
 Last updated: 2026-08-09
