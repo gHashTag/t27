@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// tef8.t27 -- TEF8: Ternary-Exponent Float, 8-bit class.
+// tnf8.t27 -- TNF8: Ternary Network Float, 8-bit class.
 // Rung of the TF ladder (TF4/8/16/32). Balanced-ternary exponent = 3 trits
 // (3^3 = 27 offsets, exponent +-13, ~8 decades), phi-ish 4-bit mantissa, NO
 // regime decode. Beats tekum-8 by the same structural argument as TF16 beats
@@ -7,7 +7,7 @@
 //   layout: [ sign(1) | E = 3 balanced-ternary trits | M = 4 bits ]
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_tef8 {
+module triformat_tnf8 {
     use base::types;
 
     const EXP_TRITS: u32 = 3;

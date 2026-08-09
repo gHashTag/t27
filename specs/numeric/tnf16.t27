@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// tef16.t27 -- TEF16: Ternary-Exponent Float.
+// tnf16.t27 -- TNF16: Ternary Network Float.
 //
 // A fixed-field GoldenFloat whose EXPONENT is a balanced-ternary number, built to
 // beat tekum16 on a ternary fabric: no regime decode (tekum16's main cost), the
@@ -14,7 +14,7 @@
 // 2026-08-05): beats tekum16 3x at mid range and 5.5x at far range, 0 clipping.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_tef16 {
+module triformat_tnf16 {
     use base::types;
 
     const SIGN_BITS: u32 = 1;

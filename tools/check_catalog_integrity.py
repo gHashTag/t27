@@ -34,7 +34,7 @@ def main():
     for want, spec, why in [
         ("gfternary", "gfternary.t27", "2-bit {-phi, 0, +phi} alphabet"),
         ("gf16", "gf16.t27", "binary GoldenFloat ladder"),
-        ("tef16", "tef16.t27", "ternary-exponent float ladder"),
+        ("tnf16", "tnf16.t27", "ternary network float ladder"),
     ]:
         if want not in ids:
             problems.append(f"MISSING   id={want} from the catalog ({why})")
@@ -44,10 +44,10 @@ def main():
             problems.append(f"MISSING   specs/numeric/{spec} on disk ({why})")
 
     # 3. They must be distinct families, not aliases of one another.
-    tef = {i for i in ids if re.fullmatch(r"tef\d+", i)}
+    tnf = {i for i in ids if re.fullmatch(r"tnf\d+", i)}
     gf = {i for i in ids if re.fullmatch(r"gf\d+", i)}
-    if not tef or not gf or tef & gf:
-        problems.append(f"COLLAPSED tef={len(tef)} gf={len(gf)} overlap={sorted(tef & gf)}")
+    if not tnf or not gf or tnf & gf:
+        problems.append(f"COLLAPSED tnf={len(tnf)} gf={len(gf)} overlap={sorted(tnf & gf)}")
 
     # 4. The former name must stay searchable. Not for citation reasons -- the
     # ladder has never been published under either name -- but because research
@@ -62,7 +62,7 @@ def main():
         print(f"FAIL: {len(problems)} problem(s)")
         return 1
     print(f"OK: {len(rows)} catalog rows, every source= resolves, "
-          f"{len(gf)} GF + {len(tef)} TEF + gfternary all present and distinct")
+          f"{len(gf)} GF + {len(tnf)} TNF + gfternary all present and distinct")
     return 0
 
 
