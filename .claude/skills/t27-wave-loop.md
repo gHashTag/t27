@@ -4382,6 +4382,21 @@ These cost a wave each. Follow them before step 1.
     wave that changes nothing and corrects a published number is a complete
     wave.
 
+75. **Decompose a class before planning against it -- the label is not the
+    content.** `use of undeclared identifier` was the top class for four waves
+    and every plan assumed "missing imports". Decomposed: 48% declared nowhere
+    (specification completeness), 47% not-imported of which half are
+    undeterminable and most of the rest name dependencies that do not parse, and
+    inside the remainder a four-line type-mapper gap (`[]string` unmapped where
+    `string` was) worth 481 assertions. A class name describes the symptom, not
+    the population.
+
+76. **A name declared in several specs is not importable without qualification
+    -- do not pick the first match.** `pow` is declared in 10 specs, `count` in
+    5. W588 made exactly this inference and W589 had to retract it. When a
+    lookup is ambiguous, count the ambiguity and report it; that is a finding,
+    not a blocker.
+
 ### How to update this tracker
 
 After closing a wave:

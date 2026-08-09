@@ -4946,6 +4946,20 @@ impl Codegen {
 
     fn t27_array_type_to_zig(ty: &str) -> String {
         let t = ty.trim();
+        // W590: a slice OF a mapped scalar -- `[]string`, `[]str`. The scalar
+        // mapping below only ever saw the whole type, so `string` was mapped
+        // and `[]string` was not, and Zig received `[]string` -> "use of
+        // undeclared identifier 'string'". Found by decomposing the largest
+        // failure class: it looked like a missing import and was a mapper gap.
+        if let Some(inner) = t.strip_prefix("[]") {
+            let inner = inner.trim();
+            if !inner.is_empty() && !inner.starts_with('[') {
+                let mapped_inner = Self::t27_array_type_to_zig(inner);
+                if mapped_inner != inner {
+                    return format!("[]{}", mapped_inner);
+                }
+            }
+        }
         if t.starts_with('[') && t.ends_with(']') && t.contains(';') {
             let inner = &t[1..t.len() - 1];
             if let Some(semi) = inner.rfind(';') {

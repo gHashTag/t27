@@ -245,6 +245,41 @@ report on a different population than intended.**
 **Falsified by.** A count of full-path qualified references that does not
 reproduce 908 / 11 / 5 / 399 / 493.
 
+### P10 — The largest failure class, decomposed (W590)
+
+`use of undeclared identifier` has been the top class for four waves — 4,811
+assertions across 51 specs — and had never been resolved into its parts. Every
+plan built on it, including W588's, rested on a guess.
+
+| Assertions | Specs | What the name actually is |
+|---:|---:|---|
+| **2,323** | **26** | declared **nowhere** in the corpus |
+| 2,257 | 22 | declared elsewhere, in a module the spec does not import |
+| 194 | 2 | declared in a module the spec **does** import — a resolver gap |
+| 37 | 1 | declared in the **same spec** — a resolver or codegen gap |
+
+**The falsification condition was "if *declared nowhere* dominates, this belongs
+with the 571 empty functions."** It is 48% — the largest bucket, not a dominant
+one. The class genuinely splits in half.
+
+**And the actionable half is smaller than it looks.** Of the 22 "not imported":
+
+- **10 name something declared in several specs** (`pow` in 10, `count` in 5) —
+  the missing import is *not determinable*; picking one is the W588 error again.
+- Of the 9 with a unique declaration, **3 of 4 inspected dependencies do not
+  themselves parse**, and `use_resolve` only splices from dependencies that
+  parse (a W569 rule, kept deliberately). Adding the import would change nothing.
+- **Two were not an import problem at all**: `[]string` reached the backend
+  unmapped, because the scalar mapper only ever saw the whole type. `string` was
+  mapped and `[]string` was not.
+
+So the class that looked like "missing imports" is, measured: half
+specification-completeness, a quarter undeterminable, and a handful of real
+compiler gaps — one of which this wave fixed.
+
+**Falsified by.** A decomposition of the same 51 specs that does not reproduce
+2,323 / 2,257 / 194 / 37.
+
 ---
 
 ## 3. Where this sits in the literature

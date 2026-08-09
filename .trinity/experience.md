@@ -21383,3 +21383,33 @@ previous wave's report and RUN BEFORE THE WORK. That habit has now saved four wa
 That is the correct outcome when the finding is that a measurement was wrong. The
 repair is to the record: P9 rewritten, the W588 report annotated at its head, the
 issue corrected publicly.
+
+## Wave Loop 590 -- the top class decomposed: half of it is not a compiler problem (2026-08-10)
+
+`use of undeclared identifier` -- top class for four waves, 4,811 assertions / 51 specs,
+never resolved into its parts:
+
+    2,323  26 specs  declared NOWHERE in the corpus
+    2,257  22        declared elsewhere, in a module the spec does not import
+      194   2        declared in a module it DOES import -- a resolver gap
+       37   1        declared in the SAME spec -- a resolver/codegen gap
+
+### The actionable half is smaller than it looks
+
+Of the 22 "not imported": 10 name something declared in SEVERAL specs (`pow` in 10,
+`count` in 5) -- not determinable, and picking the first match is the W588 error again.
+Of the 9 with a unique declaration, THREE OF FOUR dependencies do not themselves parse,
+and use_resolve only splices from dependencies that parse (a W569 rule kept
+deliberately) -- so adding the import would change nothing.
+
+### The compiler gap hiding inside the class
+
+    fn expand_family_variants(family: []const u8) -> []string
+
+`string` maps to []const u8. `[]string` did NOT -- the scalar mapping only ever saw the
+whole type. It looked like a missing import for two of the corpus's heaviest specs (481
+assertions) and was a four-line mapper gap.
+
+That is why decomposing a class matters. For four waves the label said "missing
+identifier" and every plan said "imports"; the measurement says half is unwritten code,
+a quarter is undeterminable, and inside the rest was a bug nobody would have looked for.

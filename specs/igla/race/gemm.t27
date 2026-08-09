@@ -6,6 +6,7 @@
 
 module igla-race-gemm;
 use base::types;
+use tri::math::matrix;
 
 // ============================================================================
 // 1. Types
