@@ -300,6 +300,17 @@ jobs:
                   bad.append(f"MUTATION '{desc}': target appears {s.count(old)} times, expected 1")
                   print(f"   FAIL {desc} -- target not unique")
                   continue
+              # A mutation that lands in a comment changes nothing and every
+              # gate stays green, which reads as "the gate did not bite". Wave
+              # 610 generated 76 such mutants before noticing. These eight are
+              # hand-written against real code, so this only has to stay true.
+              at = s.index(old)
+              line_start = s.rfind("\n", 0, at) + 1
+              if s[line_start:at].lstrip().startswith("//"):
+                  bad.append(f"MUTATION '{desc}': target is inside a comment, "
+                             "so the mutant is a no-op and its gate cannot bite")
+                  print(f"   FAIL {desc} -- target in a comment")
+                  continue
               open(f, "w").write(s.replace(old, new, 1))
               name, gate = GATES[gi_]
               still_green, err = verdict(gate)
@@ -325,6 +336,12 @@ jobs:
       # answered wrongly: "does each gate notice NO design?" It empties
       # build/rtl and formal/ and runs every step of formal-yosys.yml verbatim.
       # Last in the job because it moves those directories aside. Prop. 59.
+      # A mutation that lands in a comment is a no-op, and a no-op mutant that
+      # every property "fails to detect" is indistinguishable from a weak
+      # property suite. Wave 610 measured 76 of them before noticing. Prop. 61.
+      - name: Generated mutants land in code, not in comments
+        run: python3 formal/mutate.py --self-test
+
       - name: No gate passes when its subject is absent
         run: |
           set -euo pipefail

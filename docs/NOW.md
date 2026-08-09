@@ -2,6 +2,57 @@
 
 Last updated: 2026-08-10
 
+## Wave 610 — 24 properties constrain a fifth of the design
+
+- **THE RIGHT QUESTION**: "neutralise a property and re-prove the rest" has no
+  content — these are independent assertions about the same design, so removing
+  one never makes another fail. **Detection power** does: for each way the design
+  can break, which properties notice? 1 485 isolation proofs, each property run
+  alone with every sibling neutralised, against 202 mechanical mutants.
+- **THE FIRST RUN MEASURED ASCII ART**: 76 mutants of `interrupt_controller`,
+  zero detected — which reads as a damning verdict on the suite. All 76 had
+  landed in **comments**. Every module opens with a banner made of `=`
+  characters, so an `==` operator produced 75 mutants inside `// =========` and
+  one inside an English sentence. The CI harness kills an interrupt_controller
+  mutation, which is the only reason the zero was implausible enough to check.
+- **OPERATORS ARE A PROPERTY OF THE CODE**: after masking comments, the textbook
+  operator list matched *nothing* — the module is 23 non-comment lines of `?:`,
+  `|`, `{}` and sized literals. Mutation operators have to be chosen from the
+  RTL under test, not from the mutation literature.
+- **THE NUMBER**: 45/202 detected = **22%**. And of the 157 misses, a bounded
+  sequential equivalence miter says **133 genuinely change behaviour** — only 20
+  are equivalent mutants. So 24 safety properties constrain about a fifth of the
+  reachable behaviour changes in these five modules. A measurement, not an
+  indictment: safety properties are not a functional specification. It is the
+  first time the number exists.
+- **RUN TWICE, AGREED**: 90 s and 20 s miter caps give 133 both times. The only
+  movement is two mitres that finished at 90 s and not at 20 s, reported as
+  *undecided* rather than counted equivalent — Prop. 58's discipline paying for
+  itself inside the instrument built to check it.
+- **VACUITY AND MUTATION INTERACT**: `a_wvalid_stable` detected nothing, and it
+  is not weak. Its guard is in the `always` header (`$past(wvalid) &&
+  !$past(wready)`), so a mutation that suppresses `wvalid` makes the guard
+  **unreachable** and the property proves vacuously. Probed directly: the guard
+  REFUTES on the original, PROVES on the mutant. A detection matrix records
+  "killed the property's reachability" and "too weak to see it" identically.
+- **SUBSUMPTION, WITH DENOMINATORS**: five ⊂ relations found. The
+  interrupt_controller four-way tie is reported with its mutant count (6),
+  because identical behaviour over six mutants is what one expects from almost
+  any pair — a subsumption claim is exactly as strong as the mutant set behind
+  it, and nobody should delete a property on six data points.
+- **THE MITER TOOK THREE ATTEMPTS**: hand-written wrapper broke on parameterised
+  port widths; `prep` before `miter` discarded the module being compared. The
+  validation gate — original vs itself must be EQUIVALENT, a caught mutant must
+  be DIFFERENT — refused to classify anything until all five modules passed.
+- **WHAT SHIPS**: the measurement is an analysis (1 642 proofs), not a gate.
+  `formal/mutate.py --self-test` ships: every generated mutant must differ on a
+  non-comment line, and a fully-commented-out module must yield **no** mutants.
+  The eight hand-written mutations are checked the same way.
+- **WHERE**: `formal/mutate.py`, `.github/workflows/formal-mutation.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 61).
+- **STATE**: 61 propositions · 61 gates · 14 witnesses · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 609 — the sweep now covers the workflow it runs inside
 
 - **WHAT**: Prop. 59f named the hole it left — `formal-mutation.yml`'s own two

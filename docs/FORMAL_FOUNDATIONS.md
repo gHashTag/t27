@@ -3630,6 +3630,125 @@ python3 formal/absence_sweep.py
 
 ---
 
+### Prop. 61 — how much of the design do 24 properties actually constrain — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+"Neutralise a property and re-prove the rest" is the wrong experiment: these are
+independent assertions about the same design, so removing one never makes
+another fail. The question with content is **detection power** — for each way
+the design can break, which properties notice? Method: mutate the DUT
+mechanically, keep the mutants that parse, and for each (mutant, property) pair
+run that property **alone** with every sibling neutralised.
+
+**61a. The first run measured ASCII art.** 76 mutants of `interrupt_controller`,
+zero detected — which reads as a damning verdict on the suite. Every one of the
+76 had landed in a **comment**. Each module here opens with a banner made of `=`
+characters, so an `==` operator generated 75 mutants inside `// =========` and
+one inside an English sentence. All parsed, all proved, none touched a line of
+code. The CI mutation harness catches an `interrupt_controller` mutation, which
+is what made the zero implausible enough to check.
+
+Two corrections. Mask comments before matching. And use operators that occur in
+**this** RTL: the textbook list (`+`→`-`, `1'b1`→`1'b0`) matched nothing, because
+the module is 23 non-comment lines of `?:`, `|`, `{}` and sized literals.
+Operators are a property of the code under test, not of the mutation literature.
+
+**61b. The measurement.** 1 485 isolation proofs across five suites:
+
+| module | properties | code mutants | detected | undetected |
+|---|---|---|---|---|
+| `interrupt_controller` | 6 | 6 | 4 | 2 |
+| `layer_sequencer` | 3 | 12 | 10 | 2 |
+| `weight_prefetch_ctrl` | 3 | 41 | 11 | 30 |
+| `axi_lite_slave` | 6 | 59 | 12 | 47 |
+| `dma_controller` | 6 | 84 | 8 | 76 |
+| **total** | **24** | **202** | **45 (22%)** | **157** |
+
+**61c. Most of what they miss is real, and that took a second instrument.**
+Mutation testing's standing confound is the equivalent mutant — an edit the
+design is insensitive to. "157 undetected" would have been a number that sounds
+like a verdict on the suite and is partly a verdict on the operators. A bounded
+sequential equivalence miter separates them:
+
+| of the 157 undetected | 90 s cap | 20 s cap |
+|---|---|---|
+| behaviourally **different** — the suite genuinely does not notice | **133** | **133** |
+| equivalent to the miter depth — nothing to notice | 20 | 18 |
+| tool error | 4 | 4 |
+| undecided within the timeout | 0 | 2 |
+
+Run twice at different timeouts, and the two agree on everything either of them
+decided: **133 both times**. The only movement is two mitres that finished at
+90 s and did not at 20 s, and the cheaper run reported those as *undecided*
+rather than counting them equivalent. That is the Prop. 58 discipline paying
+for itself in the instrument built to check it — an unfinished proof is not a
+verdict, and had it been folded, the cheap run would have silently disagreed
+with the expensive one.
+
+So: **24 properties constrain about a fifth of the mechanically reachable
+behaviour changes in these five modules.** That is a measurement, not an
+indictment — safety properties are not a functional specification, and each of
+these was written to pin one defect class. It is the first time the number
+exists.
+
+**61d. Two properties detect nothing, and only one of them is weak.**
+`a_addr_ahead_of_data` (`weight_prefetch_ctrl`) and `a_wvalid_stable`
+(`dma_controller`) detected zero mutants. For the second, a targeted mutation
+explains why, and the explanation is not "the property is useless":
+
+```bash
+grep -n -A1 "a_wvalid_stable" formal/dma_controller_props.sv
+```
+
+The guard lives in the `always` header — `$past(wvalid) && !$past(wready)` — so a
+mutation that suppresses `wvalid` does not violate the property, it makes the
+guard **unreachable**, and the property proves *vacuously*. Probed directly with
+a witness asserting the guard is impossible: **REFUTES on the original** (guard
+reachable), **PROVES on the mutant** (guard gone).
+
+**Mutation adequacy and vacuity interact, and a naive detection matrix cannot
+tell them apart.** A mutant that kills a property's reachability is recorded
+identically to a property too weak to see it. Any mutation score over guarded
+properties is measuring both effects at once.
+
+**61e. Five subsumption relations, and one that means less than it looks.**
+
+| relation | mutants in that module |
+|---|---|
+| `a_bvalid_stable` ⊂ `a_one_outstanding_write` | 59 |
+| `a_rvalid_stable` ⊂ `a_one_outstanding_read` | 59 |
+| `a_no_read_accept_while_pending` ⊂ `a_one_outstanding_read` | 59 |
+| `a_arvalid_stable` ⊂ `a_rready_implies_burst` | 84 |
+| `a_read_burst_not_abandoned` ⊂ `a_rready_implies_burst` | 84 |
+| four `interrupt_controller` properties with identical detection sets | **6** |
+
+The last row is reported with its denominator because it is nearly meaningless:
+identical behaviour over six mutants is what one expects from almost any pair.
+**A subsumption claim is exactly as strong as the mutant set behind it**, and
+these are stated so nobody deletes a property on six data points.
+
+**61f. What ships.** The measurement is an analysis, not a gate — 1 642 proofs
+is too much for CI. What ships is the guard against the mistake that nearly
+published a false result: `formal/mutate.py --self-test` asserts every generated
+mutant differs from the original on a non-comment line, and that a
+fully-commented-out copy of a module yields **no** mutants at all. The eight
+hand-written mutations in the harness are checked the same way.
+
+**61g. Scope.** Five module suites, 24 of the repository's properties; the 26
+integration properties on `bitnet_engine_top` are not covered — one mutant there
+costs a full integration proof. Single-token mutations only. Equivalence is
+bounded (seq 8–12, per the table above), so "equivalent" means *to that depth*.
+
+Reproduce:
+
+```bash
+python3 formal/mutate.py build/rtl/interrupt_controller.sv
+python3 formal/mutate.py --self-test
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
