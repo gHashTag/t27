@@ -2800,6 +2800,57 @@ grep -c "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv   # must be 0
 
 ---
 
+### Prop. 48 — the read-side zero sweep finds nothing, and the properties bite — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+
+Zero-sized inputs were swept exhaustively on the **write** side in Prop. 26 and
+produced four defects. The **read** side was asked once, in Prop. 45, and
+answered with a fifth. This asks the remaining read pointers.
+
+**48a. Three properties, three proofs.**
+
+| property | claim | verdict |
+|---|---|---|
+| `a_zero_chunks_no_mac` | zero chunks ⇒ the MAC never fires | **PROVED** |
+| `a_zero_chunks_no_weight_walk` | zero chunks ⇒ the weight read pointer stays at 0 | **PROVED** |
+| `a_zero_neurons_no_act_walk` | zero neurons ⇒ the activation read pointer stays at 0 | **PROVED** |
+
+**48b. A negative result is worth publishing only if the properties could have
+found something.** All three pass the Prop. 12a oracle — body replaced by
+`assert (1'b0)` under the same guard, all three **refute**, so every guard is
+reachable and every property bites. Without that check this proposition would say
+"we looked and saw nothing", which is compatible with not having looked.
+
+> The failure mode of a clean sweep is a set of properties whose guards are
+> unreachable: they prove instantly, cost nothing, and report safety. **A sweep
+> that finds no defects must demonstrate that it could have.**
+
+**48c. Why the read side was cleaner than the write side.** Four write-side
+defects against one read-side defect is not an accident of attention. The write
+paths carry their own counters — `word_index`, `act_wr_word`, `local_addr` —
+each an independent piece of state that can disagree with its neighbours
+(Props. 29d, 31c, 32). The read pointers are derived: `chunk_addr` advances only
+on `layer_valid`, and `buf_read_addr` **is** `neuron_id`. Derived state cannot
+drift from the thing it is derived from, and most of this campaign's defects were
+two pieces of state drifting apart.
+
+**48d. Scope, stated.** This asks the read pointers **named here** — weight
+fetch and activation fetch. It is not a proof that no read-side zero-count defect
+exists; the requantizer's input path and the AXI read return path were not
+covered, because neither is indexed by a configurable count.
+
+**48e. The engine now carries 26 integration properties**, all proving, none
+free (Prop. 42), none vacuous, with no expected-refutation guard remaining.
+
+Reproduce:
+
+```bash
+grep -c "a_zero_chunks_no_mac\|a_zero_neurons_no_act_walk" build/rtl/bitnet_engine_top.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

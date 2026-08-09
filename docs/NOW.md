@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-09
 
+## the read-side zero sweep finds nothing, and the properties bite
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 48), `README.md`.
+- Zero-sized inputs were swept exhaustively on the **write** side (Prop 26) and
+  found four defects; the **read** side was asked once (Prop 45) and answered
+  with a fifth. This asks the remaining read pointers. **Three properties, three
+  proofs, no new defects.**
+- **A negative result is worth publishing only if the properties could have
+  found something.** All three pass the vacuity oracle -- body replaced by
+  `assert (1'b0)` under the same guard, all three refute, so every guard is
+  reachable. Without that check this would say "we looked and saw nothing",
+  which is compatible with not having looked.
+- **Why the read side was cleaner.** Four write-side defects against one
+  read-side defect is not an accident of attention. Write paths carry their own
+  counters -- `word_index`, `act_wr_word`, `local_addr` -- each independent state
+  that can disagree with its neighbours. The read pointers are **derived**:
+  `chunk_addr` advances only on `layer_valid`, and `buf_read_addr` *is*
+  `neuron_id`. **Derived state cannot drift from what it is derived from**, and
+  most of this campaign's defects were two pieces of state drifting apart.
+- **Scope, stated**: this asks the read pointers named here -- weight fetch and
+  activation fetch. It is not a proof that no read-side zero-count defect
+  exists; the requantizer input and AXI read return were not covered, neither
+  being indexed by a configurable count.
+- **26 integration properties**, all proving, none free, none vacuous, no
+  expected-refutation guard remaining.
+- Suite **1213 passed, 0 failed**. Seals 496/496. No known defect open.
+
 ## closed -- the fill extent now travels with the buffer
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`,
