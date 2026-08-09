@@ -3631,10 +3631,17 @@ impl Codegen {
 
         for value_node in node.children.iter() {
             self.write_indent();
+            // Enum variant names need the same keyword escaping as any other
+            // identifier: a variant literally called `error` emitted
+            // `error = 4,` and Zig reported "expected '.', found '='".
             if !value_node.value.is_empty() {
-                self.write(&format!("{} = {},", value_node.name, value_node.value));
+                self.write(&format!(
+                    "{} = {},",
+                    Self::zig_ident(&value_node.name),
+                    value_node.value
+                ));
             } else {
-                self.write(&format!("{},", value_node.name));
+                self.write(&format!("{},", Self::zig_ident(&value_node.name)));
             }
             self.write_line("");
         }
@@ -3662,7 +3669,7 @@ impl Codegen {
             } else {
                 "void".to_string()
             };
-            self.write_line(&format!("{}: {},", field.name, ty));
+            self.write_line(&format!("{}: {},", Self::zig_ident(&field.name), ty));
         }
 
         self.dedent();
@@ -3698,7 +3705,22 @@ impl Codegen {
         ) || (name.len() >= 2
             && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
             && name[1..].chars().all(|c| c.is_ascii_digit()));
-        if is_primitive {
+        // Zig KEYWORDS also need escaping, not just primitive type names.
+        // `error` is the one that actually appears in these specs -- as an enum
+        // variant and as a struct field -- and it produced
+        // "expected '.', found '='" / "expected '.', found ':'".
+        let is_keyword = matches!(
+            name,
+            "align" | "allowzero" | "and" | "anyframe" | "anytype" | "asm" | "async"
+                | "await" | "break" | "callconv" | "catch" | "comptime" | "const"
+                | "continue" | "defer" | "else" | "enum" | "errdefer" | "error"
+                | "export" | "extern" | "fn" | "for" | "if" | "inline" | "linksection"
+                | "noalias" | "noinline" | "nosuspend" | "opaque" | "or" | "orelse"
+                | "packed" | "pub" | "resume" | "return" | "struct" | "suspend"
+                | "switch" | "test" | "threadlocal" | "try" | "union"
+                | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
+        );
+        if is_primitive || is_keyword {
             format!("@\"{}\"", name)
         } else {
             name.to_string()
