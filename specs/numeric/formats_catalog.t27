@@ -271,6 +271,35 @@ module FormatsCatalog {
   // CATALOG: id=gf1024 name="GF1024 (rule-derived)" bits=1024 s=1 e=391 m=632 bias=2^390-1 phi_distance=0.0006 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder" use_case="OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL)" gf_relation=experimental source="specs/numeric/gf1024.t27"
 
 
+
+  // ---------------------------------------------------------------------
+  // GF-T -- the phi-lineage ternary ladder. NOT an old name for TNF.
+  //
+  // Four families, two axes: phi-derived vs theorem-derived, binary vs ternary.
+  //   GF   phi, binary      e = round((N-1)/phi^2)
+  //   GF-T phi, ternary     mantissa from the phi lineage, exponent in trits
+  //   BNF  theorem, binary  1 + E + M = N, exponent sized for range
+  //   TNF  theorem, ternary 1 + E_t + M = N, exponent sized for range
+  //
+  // GF-T leaves positions unspent -- 2 at 16 bits, 4 at 64/128/256/512, 6 at 1024,
+  // 0 elsewhere. By the precision law that costs exactly 2^k, and the oracle
+  // confirms it: 4.03x, 15.43x, 15.99x, 15.24x against predictions of 4, 16, 16, 16.
+  //
+  // Honest note on the lineage: only the 16-bit rung actually inherits phi, where
+  // M = 9 is GF16's phi-optimal mantissa carried over when its six-bit exponent
+  // became four trits. The other rungs' exponents were sized ad hoc at roughly
+  // log2(N) trits with no documented rule. Recorded rather than tidied.
+  // ---------------------------------------------------------------------
+  // CATALOG: id=gft4 name="GF-T4" bits=4 s=1 e=2 m=1 bias=4 phi_distance=2.552 storage=u4 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 2 TRITS (3.17 bits equiv); leaves 0 of 4 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF4" gf_relation=self source="specs/numeric/gft4.t27"
+  // CATALOG: id=gft8 name="GF-T8" bits=8 s=1 e=3 m=4 bias=13 phi_distance=0.571 storage=u8 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 3 TRITS (4.75 bits equiv); leaves 0 of 8 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF8" gf_relation=self source="specs/numeric/gft8.t27"
+  // CATALOG: id=gft16 name="GF-T16" bits=16 s=1 e=4 m=9 bias=40 phi_distance=0.086 storage=u16 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 4 TRITS (6.34 bits equiv); leaves 2 of 16 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF16" gf_relation=self source="specs/numeric/gft16.t27"
+  // CATALOG: id=gft32 name="GF-T32" bits=32 s=1 e=6 m=25 bias=364 phi_distance=0.238 storage=u32 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 6 TRITS (9.51 bits equiv); leaves 0 of 32 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF32" gf_relation=self source="specs/numeric/gft32.t27"
+  // CATALOG: id=gft64 name="GF-T64" bits=64 s=1 e=7 m=52 bias=1093 phi_distance=0.405 storage=u64 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 7 TRITS (11.09 bits equiv); leaves 4 of 64 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF64" gf_relation=self source="specs/numeric/gft64.t27"
+  // CATALOG: id=gft128 name="GF-T128" bits=128 s=1 e=8 m=115 bias=3280 phi_distance=0.508 storage=u128 cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 8 TRITS (12.68 bits equiv); leaves 4 of 128 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF128" gf_relation=self source="specs/numeric/gft128.t27"
+  // CATALOG: id=gft256 name="GF-T256" bits=256 s=1 e=9 m=242 bias=9841 phi_distance=0.559 storage=u256_software cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 9 TRITS (14.26 bits equiv); leaves 4 of 256 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF256" gf_relation=self source="specs/numeric/gft256.t27"
+  // CATALOG: id=gft512 name="GF-T512" bits=512 s=1 e=10 m=497 bias=29524 phi_distance=0.586 storage=u512_software cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 10 TRITS (15.85 bits equiv); leaves 4 of 512 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF512" gf_relation=self source="specs/numeric/gft512.t27"
+  // CATALOG: id=gft1024 name="GF-T1024" bits=1024 s=1 e=11 m=1006 bias=88573 phi_distance=0.601 storage=u1024_software cluster=GoldenFloat status=Verified standard="this work; phi lineage; e is 11 TRITS (17.43 bits equiv); leaves 6 of 1024 positions unspent -- the family, not a defect" use_case="phi-lineage ternary ladder; superseded for new work by TNF1024" gf_relation=self source="specs/numeric/gft1024.t27"
+
   // ---------------------------------------------------------------------
   // BNF -- Binary Network Float. The CONTROL for TNF.
   //

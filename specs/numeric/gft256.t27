@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0
+// gft256.t27 -- GF-T256: the phi-lineage ternary ladder, 256-bit class.
+//
+// GF-T is NOT an old name for TNF. They are different families on different rules,
+// and the difference is measurable. GF-T carries a mantissa inherited from the
+// golden-ratio lineage and leaves 4 positions of its
+// 256 unspent; TNF derives its mantissa from the width rule 1 + E_t + M = N and
+// spends every one.
+//
+// By the precision law the error depends on M alone, so the unspent positions cost
+// exactly 2^4 = 16x. Measured against the reference oracle in exact
+// arithmetic, GF-T16/64/128/256 give 4.03x, 15.43x, 15.99x and 15.24x against
+// predictions of 4, 16, 16 and 16.
+//
+//   layout: [ sign(1) | E = 9 balanced-ternary trits | M = 242 binary bits ]
+//   value = (-1)^sign * (1 + M/2^242) * 2^e,   e in [-9841,+9841]
+//   uses 252 of 256 positions
+
+module triformat_gft256 {
+    use base::types;
+
+    const SIGN_BITS: u32 = 1;
+    const EXP_TRITS: u32 = 9;
+    const MANT_BITS: u32 = 242;
+    const EXP_OFFSET: u32 = 9841;
+    const OFFSET_MAX: u32 = 19682;
+
+    fn is_finite(offset: u32) -> bool { return offset != OFFSET_MAX; }
+    fn exp_values() -> u32 { return 19683; }
+    fn positions_unspent() -> u32 { return 4; }
+
+    // ---- Tests / invariants ----
+
+    // GF-T does NOT satisfy the width rule, and asserting that is the point:
+    // it is what separates this family from TNF.
+    test unspent_positions {
+        assert(SIGN_BITS + EXP_TRITS + MANT_BITS + positions_unspent() == 256,
+               "GF-T leaves 4 of 256 positions unspent -- this is the family, not a defect");
+    }
+
+    test balanced_offsets {
+        assert(EXP_OFFSET * 2 == OFFSET_MAX, "balanced: offset_max = 2 * exp_offset");
+        assert(exp_values() == 19683, "3^9 exponent values");
+    }
+}

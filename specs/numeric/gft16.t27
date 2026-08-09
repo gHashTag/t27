@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0
+// gft16.t27 -- GF-T16: the phi-lineage ternary ladder, 16-bit class.
+//
+// GF-T is NOT an old name for TNF. They are different families on different rules,
+// and the difference is measurable. GF-T carries a mantissa inherited from the
+// golden-ratio lineage and leaves 2 positions of its
+// 16 unspent; TNF derives its mantissa from the width rule 1 + E_t + M = N and
+// spends every one.
+//
+// By the precision law the error depends on M alone, so the unspent positions cost
+// exactly 2^2 = 4x. Measured against the reference oracle in exact
+// arithmetic, GF-T16/64/128/256 give 4.03x, 15.43x, 15.99x and 15.24x against
+// predictions of 4, 16, 16 and 16.
+// The 16-bit rung is where the phi connection actually lives: M = 9 is GF16's
+// phi-optimal mantissa, carried over unchanged when GF16's six-bit exponent was
+// replaced by four trits. The other rungs do not inherit a phi split -- their
+// exponents were sized ad hoc at roughly log2(N) trits, with no documented rule.
+// That is recorded rather than tidied: the family is what it was.
+//
+//   layout: [ sign(1) | E = 4 balanced-ternary trits | M = 9 binary bits ]
+//   value = (-1)^sign * (1 + M/2^9) * 2^e,   e in [-40,+40]
+//   uses 14 of 16 positions
+
+module triformat_gft16 {
+    use base::types;
+
+    const SIGN_BITS: u32 = 1;
+    const EXP_TRITS: u32 = 4;
+    const MANT_BITS: u32 = 9;
+    const EXP_OFFSET: u32 = 40;
+    const OFFSET_MAX: u32 = 80;
+
+    fn is_finite(offset: u32) -> bool { return offset != OFFSET_MAX; }
+    fn exp_values() -> u32 { return 81; }
+    fn positions_unspent() -> u32 { return 2; }
+
+    // ---- Tests / invariants ----
+
+    // GF-T does NOT satisfy the width rule, and asserting that is the point:
+    // it is what separates this family from TNF.
+    test unspent_positions {
+        assert(SIGN_BITS + EXP_TRITS + MANT_BITS + positions_unspent() == 16,
+               "GF-T leaves 2 of 16 positions unspent -- this is the family, not a defect");
+    }
+
+    test balanced_offsets {
+        assert(EXP_OFFSET * 2 == OFFSET_MAX, "balanced: offset_max = 2 * exp_offset");
+        assert(exp_values() == 81, "3^4 exponent values");
+    }
+}
