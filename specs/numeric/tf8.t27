@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-// gft8.t27 -- GF-T8: ternary-native GoldenFloat, 8-bit class.
-// Rung of the GF-T ladder (GF-T4/8/16/32). Balanced-ternary exponent = 3 trits
+// tf8.t27 -- TF8: ternary-exponent float, 8-bit class.
+// Rung of the TF ladder (TF4/8/16/32). Balanced-ternary exponent = 3 trits
 // (3^3 = 27 offsets, exponent +-13, ~8 decades), phi-ish 4-bit mantissa, NO
-// regime decode. Beats tekum-8 by the same structural argument as GF-T16 beats
+// regime decode. Beats tekum-8 by the same structural argument as TF16 beats
 // tekum16: fixed fields + native balanced-ternary exponent add, uniform mantissa.
 //   layout: [ sign(1) | E = 3 balanced-ternary trits | M = 4 bits ]
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_gft8 {
+module triformat_tf8 {
     use base::types;
 
     const EXP_TRITS: u32 = 3;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-// gft128.t27 -- GF-T128: ternary-native GoldenFloat, 128-bit class.
+// tf128.t27 -- TF128: ternary-exponent float, 128-bit class.
 //
 // Derived from the ladder's width rule 1 + E_t + M = N, counting one position
-// per trit -- the rule GF-T4, GF-T8 and GF-T32 already satisfy exactly. A
+// per trit -- the rule TF4, TF8 and TF32 already satisfy exactly. A
 // research note (trinity-fpga/research/GF_T_GOLD_STANDARD_LADDER_2026-08-05.md)
 // carries a different mantissa width for this rung; it falls short of the
 // declared width and is superseded by this file.
@@ -14,7 +14,7 @@
 // unsigned OFFSET in [0,6560]; balanced exponent e = offset - 3280.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_gft128 {
+module triformat_tf128 {
     use base::types;
 
     const SIGN_BITS: u32 = 1;

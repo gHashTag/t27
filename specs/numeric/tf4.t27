@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-// gft4.t27 -- GF-T4: ternary-native GoldenFloat, 4-bit class (bottom rung).
+// tf4.t27 -- TF4: ternary-exponent float, 4-bit class (bottom rung).
 // Balanced-ternary exponent = 2 trits (3^2 = 9 offsets, exponent +-4, ~2.4
 // decades), 1-bit mantissa, NO regime decode.
 //   layout: [ sign(1) | E = 2 balanced-ternary trits | M = 1 bit ]
 //
 // Positioning (the 4-bit rung is unique): the format-to-beat here is NOT tekum
 // but **BitNet-1.58 ternary WEIGHTS** {-1,0,+1} -- a weight quantizer, not a real
-// format. GF-T4 is a genuine 4-bit REAL number (magnitude + ~2.4-decade range),
+// format. TF4 is a genuine 4-bit REAL number (magnitude + ~2.4-decade range),
 // so it plays the ACTIVATION/value role next to BitNet's weight role, exactly as
-// tri_compute_bitnet.t27 attests (ternary weights x GF/GF-T activations). Against
+// tri_compute_bitnet.t27 attests (ternary weights x GF/TF activations). Against
 // the binary 4-bit leader MXFP4 it trades block-scale range for a native ternary
 // exponent and no block-decode. phi^2 + 1/phi^2 = 3 | TRINITY
 
-module triformat_gft4 {
+module triformat_tf4 {
     use base::types;
 
     const EXP_TRITS: u32 = 2;

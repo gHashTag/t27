@@ -1,3 +1,14 @@
+# NOW -- the ladder is renamed GF-T -> TF (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T becomes TF (Ternary Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have. GF sizes its exponent by `e = round((N-1)/phi^2)`, which puts `e/m` at `1/phi` by construction; this ladder sizes its exponent for RANGE and takes `M = N-1-E_t`, and its phi-distance RISES toward `1/phi` as N grows. The last tie to GF16 -- an inherited `M = 9` -- was severed when gft16 went to `M = 11`
+- Renamed throughout: `specs/numeric/gft*.t27` -> `tf*.t27`, catalog ids `gftN` -> `tfN`, module `triformat_gftN` -> `triformat_tfN`, conformance packs and INDEX entries
+- **NVIDIA TensorFloat-32 held `id=tf32` and the file `tf32_conformance_v0.json`.** Its internal id moves to `tensorfloat32` and its pack to `tensorfloat32_conformance_v0.json`; its human-readable `name="TensorFloat-32 (TF32)"` is unchanged, because that is NVIDIA's name and not ours to alter. I overwrote its pack during the rename and restored it from git -- the WP-18 gate caught it as a sha drift, which is the gate working
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TF specs
+
 # NOW -- GF-T16 spends its last two positions (2026-08-09)
 
 Last updated: 2026-08-09
