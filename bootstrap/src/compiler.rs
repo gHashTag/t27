@@ -5287,6 +5287,23 @@ impl VerilogCodegen {
     /// W539: infer the scalar bit width and signedness of an expression in the
     /// Icarus-lowerable subset. Returns None for non-scalar or unresolvable
     /// expressions (structs, arrays, strings, etc.).
+    /// W565: emit one operand of a signed-aware ordered comparison. A signed
+    /// operand is wrapped in `$signed(...)` (Verilog sign-extends it into the
+    /// wider signed comparison context); an unsigned operand is zero-extended by
+    /// one bit and reinterpreted as signed, `$signed({1'b0, ...})`, so its value
+    /// stays non-negative and the comparison follows C integer-promotion rules.
+    fn emit_verilog_signed_rel_operand(&mut self, node: &Node, is_signed: bool) {
+        if is_signed {
+            self.write("$signed(");
+            self.gen_verilog_expr(node);
+            self.write(")");
+        } else {
+            self.write("$signed({1'b0, ");
+            self.gen_verilog_expr(node);
+            self.write("})");
+        }
+    }
+
     fn expr_width_signed(&self, node: &Node) -> Option<(u32, bool)> {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -9763,11 +9780,44 @@ impl VerilogCodegen {
                             ">>" => ">>",
                             other => other,
                         };
-                        self.write("(");
-                        self.gen_verilog_expr(&node.children[0]);
-                        self.write(&format!(" {} ", op));
-                        self.gen_verilog_expr(&node.children[1]);
-                        self.write(")");
+                        // W565: signed-aware ordered comparison. Verilog makes an
+                        // ordered comparison UNSIGNED if either operand is unsigned,
+                        // so a signed i8 (e.g. trend = -16 = 8'hF0) meeting an
+                        // unsigned const reads as 240 and the test diverges from
+                        // Rust/Zig/C (which promote both to a signed int). When at
+                        // least one operand is signed, compare in the signed domain
+                        // with C-promotion semantics: the signed operand is wrapped
+                        // in $signed() (Verilog sign-extends it into the wider signed
+                        // context) and the unsigned operand is zero-extended one bit,
+                        // $signed({1'b0, x}), so it stays non-negative.
+                        let ordered_rel = matches!(op, "<" | "<=" | ">" | ">=");
+                        let rel_signed = ordered_rel
+                            && match (
+                                self.expr_width_signed(&node.children[0]),
+                                self.expr_width_signed(&node.children[1]),
+                            ) {
+                                (Some((_, ls)), Some((_, rs))) => ls || rs,
+                                _ => false,
+                            };
+                        if rel_signed {
+                            let (_, ls) = self
+                                .expr_width_signed(&node.children[0])
+                                .unwrap_or((0, false));
+                            let (_, rs) = self
+                                .expr_width_signed(&node.children[1])
+                                .unwrap_or((0, false));
+                            self.write("(");
+                            self.emit_verilog_signed_rel_operand(&node.children[0], ls);
+                            self.write(&format!(" {} ", op));
+                            self.emit_verilog_signed_rel_operand(&node.children[1], rs);
+                            self.write(")");
+                        } else {
+                            self.write("(");
+                            self.gen_verilog_expr(&node.children[0]);
+                            self.write(&format!(" {} ", op));
+                            self.gen_verilog_expr(&node.children[1]);
+                            self.write(")");
+                        }
                     }
                 }
             }

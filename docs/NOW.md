@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-09
 
+## gen-verilog: signed-aware ordered comparison (Refs #1948)
+
+- Verilog makes an ordered comparison (`< <= > >=`) UNSIGNED if either operand is unsigned. A signed `i8` (e.g. `trend = -16 = 8'hF0`) meeting an unsigned const read as 240, so `trend > THRESHOLD` diverged from Rust/Zig/C (which promote both to a signed int)
+- When at least one operand is signed, the comparison is now emitted in the signed domain with C-promotion semantics: the signed operand is wrapped `$signed(x)` (Verilog sign-extends it into the wider signed context) and the unsigned operand is zero-extended one bit `$signed({1'b0, x})` so it stays non-negative. Unsigned/unsigned pairs are untouched
+- tri-net corpus: link_quality_monitor's `degradation_detection` flips to passing (the last *codegen* runtime divergence); full 105-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
+
 ## gen-verilog: test-block call temps re-materialized after a rebinding (Refs #1948)
 
 - A call-return temp is CSE'd by call TEXT, but a test block mutates its bindings between statements (`st = on_ack(st);` repeated). Caching the temp across a reassignment reused a STALE value, so the modelled state never advanced -- every step re-tested the pre-mutation snapshot. Verilog-path-only (Rust/Zig/C evaluate the calls directly)
