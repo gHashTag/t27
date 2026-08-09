@@ -1,0 +1,59 @@
+     5/5    100.0%  specs/base/seed.t27
+    17/17   100.0%  specs/boards/arty_a7.t27
+    14/14   100.0%  specs/boards/xc7a100t_full.t27
+    23/23   100.0%  specs/boards/xc7a100t_minimal.t27
+     4/4    100.0%  specs/compiler/meta_compile.t27
+    13/13   100.0%  specs/compiler/pipeline.t27
+     1/1    100.0%  specs/demos/simple_test.t27
+    19/19   100.0%  specs/fpga/assembler.t27
+    13/13   100.0%  specs/fpga/bpsk.t27
+    12/12   100.0%  specs/fpga/clock_domain.t27
+     6/6    100.0%  specs/fpga/crossopt.t27
+    15/15   100.0%  specs/fpga/cts.t27
+    17/17   100.0%  specs/fpga/dft.t27
+    16/16   100.0%  specs/fpga/e2e_demo.t27
+    27/27   100.0%  specs/fpga/gf16_accel.t27
+    26/26   100.0%  specs/fpga/hir.t27
+    22/22   100.0%  specs/fpga/hw_types.t27
+    14/14   100.0%  specs/fpga/placement.t27
+    13/13   100.0%  specs/fpga/simulator.t27
+    17/17   100.0%  specs/fpga/stdlib.t27
+    29/29   100.0%  specs/fpga/ternary_isa.t27
+     6/6    100.0%  specs/igla/evaluation/multi_lang_harness.t27
+   335/335  100.0%  specs/igla/race/adder_tree.t27
+   330/336   98.2%  specs/igla/race/cordic.t27
+     3/3    100.0%  specs/igla/training/low_bit_ternary.t27
+     3/3    100.0%  specs/igla/training/pilot_pretraining.t27
+     3/3    100.0%  specs/igla/training/scale_up.t27
+     7/7    100.0%  specs/ml/igla_champion_capsule.t27
+     6/6    100.0%  specs/ml/optimizer/race_config.t27
+     6 inv   proved  specs/numeric/gf10.t27
+     4 inv   proved  specs/numeric/gf1024.t27
+     4 inv   proved  specs/numeric/gf128.t27
+     6 inv   proved  specs/numeric/gf14.t27
+     4 inv   proved  specs/numeric/gf256.t27
+     6 inv   proved  specs/numeric/gf48.t27
+     4 inv   proved  specs/numeric/gf512.t27
+     6 inv   proved  specs/numeric/gf6.t27
+     4 inv   proved  specs/numeric/gf96.t27
+     2/2    100.0%  specs/physics/lqg_entropy.t27
+
+--- per-test measurement over the tree ---
+  specs MEASURED           30
+    of those, 100%          29
+  specs INVARIANTS ONLY    9   (comptime -- compiling IS the check)
+  specs with NO TESTS      29   <- L4 TESTABILITY
+  specs BLOCKED            540
+
+  tests run                1024
+  pass                     1018
+  FAIL                     6
+  invariants proved         445
+  rate                     99.4%
+
+  Four populations, deliberately not merged. A BLOCKED spec never
+  produced a binary. An INVARIANTS ONLY spec has no test functions
+  but its invariants are comptime -- it COMPILED, so they held. A
+  spec with NO TESTS asserts nothing at all: an L4 violation, not a
+  0% pass rate. Only MEASURED specs have a rate.
+DONE

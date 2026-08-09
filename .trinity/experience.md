@@ -21743,3 +21743,44 @@ warning and the violation were written by the same hand in the same file.
 specs, 246 tests) and `specs/boards/` (3, 54) are at 300/300. Against the
 standing FPGA goal that is the number that matters: nothing measured stands
 between the specs and the board.
+
+## Wave 601 — nine specs that named their own falsification and never ran it
+
+W600 recommended giving tests to the 38 specs that compile while asserting
+nothing. **Two thirds of that target did not exist.** Measured before writing
+anything: 25 of the 38 are 327-byte stubs -- a module header, two `use` lines,
+and an empty banner reading `TDD: Tests (from .tri behaviors)`. Those are
+UNWRITTEN specs, W586's category, whose `.tri` sources W586 proved do not exist.
+The real remaining work is **4 files, not 38**.
+
+The nine that were real are the GF format tables, and each **ends with its own
+falsification path in a comment**:
+
+    ; Fpath: closed-form rule mis-applied (verify e = round((10-1)/phi^2) = 3, m = 6)
+
+Written down precisely, years before anything ran it. 44 invariants now do,
+including the rounding rule stated as bounds -- `e = round(x) <=> e-1/2 <= x <=
+e+1/2` -- because comptime has no `round`.
+
+**Three things worth keeping:**
+
+1. **Adding the invariants found a defect in the specs they were added to.**
+   `gf1024` declared `EXP_BITS : u8 = 391`; u8 stops at 255. The value is right
+   (round(1023/phi^2) = 391) and every other rung fits, so the annotation was
+   copied without checking. It compiled for as long as nothing consumed the
+   constant. **An invariant is not documentation -- it is what makes the
+   compiler look.**
+
+2. **Verify enforcement by breaking it.** gf10's EXP_BITS 3 -> 4 must stop the
+   build at the invariant's own line, and 4 -> 3 must restore it. Without that
+   check you have decoration you believe is a test.
+
+3. **445 invariants were already being proved and nothing reported it.** They
+   lower to comptime asserts and never reach `builtin.test_functions`, so every
+   invariant-only spec read as "0 tests" and was filed as an L4 violation. If
+   the spec compiled, every invariant held. A fourth population --
+   INVARIANTS ONLY -- now separates *checked by compiling* from *unchecked*.
+
+Also fixed: a W599 regression. The `__t27_assert_fail` helper was gated on
+TestBlock alone, so a spec with invariants and no tests referenced a helper
+never emitted. The gate must match "will this file contain an assertion".

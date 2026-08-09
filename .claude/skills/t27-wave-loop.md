@@ -4559,6 +4559,28 @@ These cost a wave each. Follow them before step 1.
     number. A per-test rate is a different instrument, not a refinement of the
     old one.
 
+100. **Measure the population before planning work on it.** W600 recommended
+     "give tests to the 38 specs that assert nothing". Two thirds turned out to
+     be 327-byte stubs -- a module header and an empty `TDD: Tests` banner --
+     which are UNWRITTEN specs (W586's category), not specs missing tests. The
+     real work was 4 files. The measurement cost one command; the plan built on
+     the unmeasured number would have cost a wave.
+
+101. **A comment that states a falsification path is a test nobody ran.** Each
+     `specs/numeric/gf*.t27` ends with `Fpath: closed-form rule mis-applied
+     (verify e = round((10-1)/phi^2) = 3, m = 6)`. The check was written down,
+     precisely, years before anything executed it. **Grep the corpus for its own
+     stated checks before inventing new ones.**
+
+102. **Adding an invariant makes the compiler look at constants nothing used.**
+     `gf1024` declared `EXP_BITS : u8 = 391`, which u8 cannot represent. It
+     compiled for as long as no expression consumed it. The invariant's value
+     was not documentation -- it was forcing the type to be checked.
+
+103. **Verify an invariant is enforced by breaking it.** Change the constant,
+     confirm the spec stops compiling AT THE INVARIANT'S OWN LINE, restore it.
+     Six lines of work; without it you have decoration you believe is a check.
+
 ### How to update this tracker
 
 After closing a wave:

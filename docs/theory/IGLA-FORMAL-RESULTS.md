@@ -601,7 +601,7 @@ The first per-test measurement over the whole spec tree
 |---|---:|
 | **MEASURED** — compiles *and* declares tests | **30** |
 | of those, at 100% | **29** |
-| **NO TESTS** — compiles, asserts nothing (**L4** violation) | **38** |
+| **NO TESTS** — compiles, asserts nothing (**L4** violation) | **38** — *see P16: only 13 of these are specs; 25 are stubs* |
 | **BLOCKED** — never produced a binary | **540** |
 
 | | |
@@ -640,6 +640,66 @@ specs and the board.
 
 *Falsification condition:* a failing test in any spec other than `cordic.t27`, or
 a rate that moves when the measurement is repeated.
+
+---
+
+### P16 (W601) — The GF ladder is transcription-clean, and the "38 L4 violations" were 13
+
+**Two corrections and a verification.**
+
+**(a) The 38 are not 38.** P15 called all 38 no-test specs L4 violations. Measured:
+
+| | Count | Median size |
+|---|---:|---:|
+| **stubs** — no `fn`, no `const` | **25** | **327 bytes** |
+| specs with declarations | 13 | 3.3 KB |
+
+The 25 (17 `specs/tri/`, 7 `specs/sacred/`, 1 `specs/ml/`) are a module header,
+two `use` lines, and an empty banner reading `TDD: Tests (from .tri behaviors)`.
+They are **unwritten** — W586's category, whose `.tri` sources W586 proved do not
+exist — not specs that forgot their tests. **Ninth instance in this chain of a
+population being reported before it was decomposed.**
+
+**(b) The generating rule holds everywhere it is stated.** The GF ladder states
+its constants twice and independently: as `const` declarations in nine
+`specs/numeric/gf*.t27`, and as structured `// CATALOG:` comments in
+`formats_catalog.t27` that `gen_formats_catalog.py` reads to emit Markdown,
+JSON, Python, Rust, C and TypeScript. Nothing had compared them.
+
+| Check | Population | Mismatches |
+|---|---:|---:|
+| `e = round((N−1)/φ²)`, `m = N−1−e`, `s+e+m = N` | 17 catalog entries, gf4…gf1024 | **0** |
+| catalog vs. spec constants | 9 specs | **0** |
+
+**The ladder is transcription-clean from 4 bits to 1024.** This is not
+tautological: every value is hand-entered, and `gf128`'s own comment records a
+corrected `v1.1 typo e=48`. The check is that no *other* such typo survives.
+
+**(c) One defect, found by the invariants added to check (b).**
+
+```t27
+pub const EXP_BITS   : u8 = 391;      // specs/numeric/gf1024.t27
+```
+
+`u8` cannot represent 391. The value is right — `round(1023/φ²) = 391` — and
+every other rung fits (195, 97, 49, 36, 18), so the annotation was copied
+without checking. **Invisible for as long as nothing used the constant in
+arithmetic**; adding an invariant is what made the compiler look at it.
+
+**(d) 445 invariants were already being proved, and nothing reported it.**
+Counting comptime invariant blocks corpus-wide for the first time:
+
+```
+invariants proved   445     (44 of them added this wave)
+```
+
+They never reach `builtin.test_functions`, so every spec holding only invariants
+read as `tests 0` and was filed under NO TESTS. **If the spec compiled, every one
+of its invariants held.** A fourth population — INVARIANTS ONLY — now separates
+*checked by compiling* from *unchecked*.
+
+*Falsification condition:* any catalog entry or spec constant violating the rule,
+or an invariant-only spec that compiles while an invariant is false.
 
 ---
 
