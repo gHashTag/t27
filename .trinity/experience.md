@@ -20448,3 +20448,34 @@ The harness reported those two as UNKNOWN because it did not recognise
 same gap as W560's, in the opposite direction. A classifier that cannot express
 the outcome you are hunting for will report it as noise. Harness + raw results
 now committed under docs/reports/data/ so the measurement is reproducible.
+
+## Wave Loop 565 — the first defects found AND fixed (2026-08-09)
+
+                     W560   W561   W562   W563   W564   W565
+    ALL_PASS            5      7      9     14     14     16
+    TEST_FAIL           0      0      0      0      2      0
+    tests passing      45     54     64    167    175    209
+
+### Three real defects
+
+1. validate_instr_format required fields to exactly FILL the instruction word.
+   W564 left this as a spec decision rather than guessing. The AUTHORITATIVE
+   ENCODER settled it -- assembler.t27 encode_r_type is
+   (opcode<<26)|(rd<<21)|(rs1<<16)|(rs2<<11) = 21 used bits of a 32-bit word,
+   bits 10..0 reserved; encode_i_type is 6+5+5+16 = 32, matching i_type_format
+   exactly. So total_bits and the field widths are both right and the VALIDATOR
+   was wrong: `!=` -> `>`.
+2/3. sim_time_ns and cycles_for_time_ns both overflow u32 on the intermediate
+   product (100_000_000_000 vs a 4.29e9 max). Widened to u64. The second was
+   only visible after fixing the first.
+
+Result: ternary_isa 29/29 pass, simulator 13/13 pass.
+
+### The lesson that produced this
+
+W564 found the mismatch and REFUSED to guess which number was wrong, deferring
+it as a specification decision. W565 then found the encoder, which decided it
+unambiguously. Deferring a decision is not the same as dropping it -- record
+what evidence WOULD settle it, and the next wave can go find that evidence
+instead of guessing. Guessing at W564 would probably have "fixed" total_bits to
+21 and silently broken the word-width contract.

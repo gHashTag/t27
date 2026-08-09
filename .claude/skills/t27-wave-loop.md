@@ -4022,6 +4022,15 @@ These cost a wave each. Follow them before step 1.
     queue, each fix buys the next diagnosis, not necessarily a passing spec.
     Report the taxonomy shift alongside the headline number.
 
+28. **Deferring a decision is not dropping it -- record what evidence would
+    settle it.** W564 found R-type's field widths summing to 21 against a
+    declared 32 and refused to guess which number was wrong, calling it a
+    specification decision. W565 found the authoritative encoder
+    (`assembler.t27 encode_r_type`), which showed both numbers were right and
+    the VALIDATOR was wrong. Guessing at W564 would likely have "fixed"
+    `total_bits` to 21 and silently broken the word-width contract. When you
+    defer, name the artefact that would decide it.
+
 ### How to update this tracker
 
 After closing a wave:
