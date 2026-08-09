@@ -20479,3 +20479,48 @@ unambiguously. Deferring a decision is not the same as dropping it -- record
 what evidence WOULD settle it, and the next wave can go find that evidence
 instead of guessing. Guessing at W564 would probably have "fixed" total_bits to
 21 and silently broken the word-width contract.
+
+## Wave Loop 566 — invariant lowering works, not shippable yet (2026-08-09)
+
+State unchanged: 16 specs passing, 209 tests, 0 failures.
+
+### Measured BEFORE writing code (rule 26)
+
+Of 5,163 keyword-form invariants: 1,998 tautologies, 1,981 multiline
+expressions, 825 multiline forall, 347 inline expressions, 12 inline forall.
+~2,328 (45%) carry a real executable predicate. Worth doing.
+
+### The discovery
+
+The first implementation required `invariant name: <expr>` and lowered 3 of 81.
+The COMMON spelling has NO COLON:
+
+    invariant board_name_not_empty
+        assert BOARD_NAME != ""
+
+76 of 81 are this clause form -- identical to a braceless test. Handing it to
+the shared W559 clause parser made it fire: arty_a7 went 16 -> 23 assertions.
+
+Invariants lower into `comptime` blocks, so a FALSE invariant becomes a compile
+error, not a test failure. None was found.
+
+### Why reverted
+
+race_config.t27 regressed on `use of undeclared identifier 'abs'` -- NOT a false
+invariant, a missing builtin mapping (Zig spells it @abs). Corpus-wide: abs 425,
+sqrt 111, floor 99, round 92, max 62, min 50.
+
+I implemented the mapping and reverted THAT too: doing it safely needs a set of
+spec-declared function names so a user-written `fn max(...)` still wins, and the
+generator has no such set. Mapping unconditionally would silently shadow user
+functions -- the exact defect class this chain has been removing.
+
+Contract: "may only ADD assertions, never break a file". One regression
+violates it. Reverted with diff + prerequisite preserved.
+
+### The lesson
+
+Two reverts in this chain (W558, W566) both produced a cheaper next attempt
+because the failing evidence AND the prerequisite were written down. A revert
+that records "what must be true first" is worth more than a merge that breaks
+one file.
