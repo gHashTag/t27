@@ -1590,6 +1590,17 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
+        // A leading `&` (Rust-style borrow spelling, used by 103 specs as
+        // `&str`) was not consumed here, so parse_type_annotation returned an
+        // EMPTY type and the parameter loop then read the type name as the next
+        // parameter: `fn g(name: &str)` produced params ["name: ", "str: "] and
+        // emitted `fn g(name: , str: )`. t27 has no reference types, so the
+        // borrow marker is accepted and dropped -- the Zig/Rust mappers already
+        // strip it.
+        if self.current.kind == TokenKind::Amp {
+            self.advance();
+        }
+
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
         // named tuples like (a: T, b: T) do not hang the parser and are stored
         // as-is for backends that do not need to unpack them.
@@ -4453,6 +4464,27 @@ impl Codegen {
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
+                    // Zig has no `==` for slices. Once W562 started emitting
+                    // string literals with their quotes, `name == "clk"` began
+                    // failing with "cannot compare strings with ==". When either
+                    // side is a string literal the comparison is a string
+                    // comparison, so lower it to std.mem.eql.
+                    let is_str = |n: &Node| {
+                        n.kind == NodeKind::ExprLiteral && n.extra_kind == "string"
+                    };
+                    if matches!(op, "==" | "!=")
+                        && (is_str(&node.children[0]) || is_str(&node.children[1]))
+                    {
+                        if op == "!=" {
+                            self.write("!");
+                        }
+                        self.write("std.mem.eql(u8, ");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
                     // Zig shift RHS must be Log2(LHS-width)-typed (u5 for u32);
                     // a runtime u32/usize amount needs @intCast, and a bare
                     // integer-literal LHS (comptime_int) needs a pinned width
