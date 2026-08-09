@@ -3726,7 +3726,30 @@ impl Codegen {
                 return format!("[{}]{}", len, elem);
             }
         }
-        t.to_string()
+
+        // Scalar mapping. Everything else (u8, i32, bool, []T, user types) is
+        // already spelled the same in Zig and passes through unchanged -- but
+        // `str` is not a Zig type, and emitting it verbatim produced
+        // `use of undeclared identifier 'str'`, the single largest gen-zig
+        // defect class measured in Wave 560. The Rust emitter has always mapped
+        // it (`str` -> `String`); the Zig emitter never did.
+        //
+        // `&str` additionally leaked Rust's borrow syntax into Zig output,
+        // giving `expected type expression, found '&'`.
+        let (prefix, core) = if let Some(rest) = t.strip_prefix('?') {
+            ("?", rest.trim())
+        } else {
+            ("", t)
+        };
+        let core = core.strip_prefix('&').unwrap_or(core).trim();
+        let mapped = match core {
+            "str" => "[]const u8",
+            other => other,
+        };
+        if mapped == core && prefix.is_empty() && !t.starts_with('&') {
+            return t.to_string();
+        }
+        format!("{}{}", prefix, mapped)
     }
 
     fn t27_tuple_type_to_zig(ty: &str) -> Option<String> {
