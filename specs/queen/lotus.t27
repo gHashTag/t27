@@ -490,8 +490,8 @@ module QueenLotus {
         const cycle_result = CycleResult{
             .context = observe_state(),
             .evaluation = evaluate_(),
-            .plan = generate_plan(),
-            .action = execute_action(),
+            .plan = generate_plan_(),      // W575: the zero-argument wrapper, like evaluate_() above
+            .action = execute_action_(),   // W575: same -- generate_plan/execute_action each take one argument
             .outcome = OUTCOME_UNKNOWN,
             .total_time_ms = 0,
         };

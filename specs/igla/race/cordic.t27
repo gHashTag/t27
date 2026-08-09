@@ -552,7 +552,7 @@ test cordic_pow2_neg_entry_one
     then val == 0.5
 
 test cordic_gain_value
-    when g = cordic_gain()
+    when g = cordic_gain(16)   // W575: `fn cordic_gain(iterations: u32)`; 16 is this spec's own declared upper bound
     then g > 0.6 && g < 0.61
 
 test cordic_sqrt_approx_nine

@@ -20853,3 +20853,33 @@ a 4-parameter function, `init(input)` against `fn init()`.
 
 When a finding turns out to be a decision you cannot make, the deliverable is the
 instrument that surfaces the whole class -- not a guess that closes the instance.
+
+## Wave Loop 575 -- the new check found a lexer bug on its first run (2026-08-09)
+
+    t27c check-calls   38 -> 32   (every remaining finding is a pending decision)
+    assertions emitted 4,393 -> 4,403 | parse 341 -> 351, 0 regressions
+
+### 1e6 was three tokens
+
+W574's arity check reported "verify_gamma_conjecture -- 7 arguments passed, 4
+declared". The call passes four. The LEXER was splitting scientific notation:
+
+    f(1e6, 2.5e-3)   ->   f(1, e6, 2.5, e - 3)
+
+486 occurrences across 62 specs, wrong for the entire life of the project, never
+reported -- because a mis-lexed VALUE is only visible if something checks it. 19 of
+the 62 specs now generate different code.
+
+An instrument built for one class routinely finds a different, worse one. That is the
+argument for building instruments rather than fixing instances (rule 44), and this is
+the second time it has paid off in two waves.
+
+### Driving a check to zero means driving it to the DECISIONS
+
+32 findings remain and not one is mine: 29 are `f(input)` against `fn f()` from the
+default_input scaffold (a facet of the decision open since W561 -- dropping the
+argument would change nothing, the spec still would not compile), and 3 are the
+ternary_mac convention split 91/80 inside its own module.
+
+The right end state for a checker is not zero findings. It is zero findings that a
+machine could have resolved.

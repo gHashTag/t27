@@ -442,7 +442,7 @@ module SDK {
 
     test "hypervector_set_preserves_dimension"
         given a = hypervector_random(50, 123)
-        when a_set = hypervector_set(a, 1)
+        when a_set = hypervector_set(a, 1, Trit::pos)   // W575: (self, index, value); the test asserts only the dimension
         then a_set.data.get_dimension() == 50
 
     test "hypervector_set_extends_dimension"

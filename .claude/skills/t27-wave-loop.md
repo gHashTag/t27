@@ -4158,6 +4158,22 @@ These cost a wave each. Follow them before step 1.
     looked for, and wired it into suite Phase 6. The decision stays with the
     maintainer; the class stops being invisible.
 
+45. **An instrument built for one defect class routinely finds a different,
+    worse one.** `t27c check-calls` was built to make a calling-convention
+    dispute visible; on its first run it reported "7 arguments passed, 4
+    declared" for a call that passes four -- the LEXER was splitting `1e6` into
+    `1` and `e6`. 486 occurrences, 62 specs, wrong for the project's entire
+    life and never reported, because a mis-lexed VALUE only shows up if
+    something checks it. Build the instrument; the yield is rarely what you
+    aimed at.
+
+46. **The right end state for a checker is not zero findings -- it is zero
+    findings a machine could have resolved.** W575 drove `check-calls` from 38
+    to 32 and stopped: the remaining 29 are the `default_input` scaffold (a
+    facet of a decision open since W561) and 3 are the `ternary_mac` convention
+    split inside its own module. Reporting "32 open, all of them yours" is a
+    finished wave, not an unfinished one.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -702,6 +702,39 @@ impl Lexer {
                 }
             }
 
+            // W575: a decimal EXPONENT. `1e6` lexed as the number `1` followed
+            // by the identifier `e6`, and `2.5e-3` as `2.5`, `e`, `-`, `3` --
+            // so `f(1e6, 2.5e-3)` parsed as a FOUR-argument call. 486
+            // occurrences across 62 specs, found by `t27c check-calls`
+            // reporting an arity mismatch that turned out to be a lexer bug.
+            //
+            // Only consumed when a digit actually follows (after an optional
+            // sign), so `0x1e` stays hex and an identifier like `e6` on its own
+            // is untouched.
+            if !is_hex && self.pos < self.source.len() {
+                let c = self.peek();
+                if c == b'e' || c == b'E' {
+                    let mut ahead = self.pos + 1;
+                    let signed = ahead < self.source.len()
+                        && (self.source[ahead] == b'+' || self.source[ahead] == b'-');
+                    if signed {
+                        ahead += 1;
+                    }
+                    if ahead < self.source.len() && self.source[ahead].is_ascii_digit() {
+                        number.push(c as char);
+                        self.advance();
+                        if signed {
+                            number.push(self.peek() as char);
+                            self.advance();
+                        }
+                        while self.pos < self.source.len() && self.peek().is_ascii_digit() {
+                            number.push(self.peek() as char);
+                            self.advance();
+                        }
+                    }
+                }
+            }
+
             let type_suffixes: &[&[u8]] = &[
                 b"u8",
                 b"u16",
