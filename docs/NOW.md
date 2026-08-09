@@ -1,3 +1,13 @@
+# NOW -- correction: GF-T was never published (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: fix the stated reason for former_name= (Refs #2001)
+
+- I justified `former_name="GF-T{N}"` by claiming arXiv:2606.05017 and arXiv:2606.09686 cite the old name. **They do not.** 2606.05017 is the binary GF family -- its source, `docs/arxiv-submission/trinity-gf16.tex`, contains zero occurrences of "GF-T". 2606.09686 is this catalog, and the only commit introducing an `id=gft` row is from 2026-08-09
+- Consequence: the rename **retracts nothing and breaks no citation**, and was cheaper than I described it. `former_name=` is kept for internal continuity -- research notes, prior branches, and the author's CV and profile carry the old label, and this campaign's measurements against takum/tekum/posit were recorded under it
+- Corrected in the catalog header, in `tools/check_catalog_integrity.py`, and in the prior NOW entry rather than left standing
+
 # NOW -- gfternary restored, and a gate so a glob cannot do that again (2026-08-09)
 
 Last updated: 2026-08-09
@@ -5,7 +15,7 @@ Last updated: 2026-08-09
 ## numeric: restore gfternary.t27, alias the former name, gate both (Refs #2001)
 
 - **`specs/numeric/gfternary.t27` was deleted by my own `rm -f specs/numeric/gft*.t27`** during the TEF rename. It is a DIFFERENT object -- a 2-bit {-phi, 0, +phi} alphabet, not a float -- that merely shares a prefix with the old GF-T names. Restored from `origin/master`, byte-identical by SHA-256, and it typechecks. The same glob had already dropped it from the pack index earlier the same day: twice is a pattern
-- **`former_name="GF-T{N}"` on every TEF row.** Renaming the ladder does not retract its measurements: arXiv:2606.05017 and arXiv:2606.09686 cite GF-T, and it labels every published comparison against takum / tekum / posit. The old name stays searchable, and the catalog header says why
+- **`former_name="GF-T{N}"` on every TEF row -- for internal continuity, NOT for citation compatibility.** Correcting myself: the ladder has never been published under either name. arXiv:2606.05017 is the binary GF family and does not mention GF-T; arXiv:2606.09686 is this catalog, which had zero GF-T rows until 2026-08-09. The rename retracts nothing and breaks no citation. The old label survives in research notes, prior branches and the author's profile, which is reason enough to keep it searchable
 - New gate `tools/check_catalog_integrity.py`: every `source=` resolves, the three prefix-sharing neighbours (`gfternary`, the binary `gf*` ladder, the `tef*` ladder) are each present **on disk** and distinct, and the former name is still there. Verified red on each of those failures individually, not just green on the happy path
 - The catalog row alone was never enough -- `gfternary`'s row survived while its spec file did not, and nothing noticed
 
