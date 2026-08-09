@@ -480,29 +480,58 @@ impl Lexer {
             };
         }
 
-        // Character literal 'c' (including escape sequences like '\n')
+        // Single-quoted literal: a character 'c' / '\n', OR a string 'abc'.
+        //
+        // W604: this used to consume EXACTLY ONE character after the opening
+        // quote and then look for a closing one. Given `'{"model": "x"}'` it
+        // produced CharLiteral("{") and left the rest -- including the closing
+        // brace -- as loose tokens, which ended the enclosing module. That cost
+        // 77% of `specs/igla/coder/weights.t27` (1,622 of 2,109 lines) and the
+        // corpus contains **120 multi-character single-quoted literals** in 10
+        // specs, 85 of them in `dataset.t27` alone. Same class as W575's `1e6`:
+        // a mis-lexed VALUE, no error, no diagnostic.
+        //
+        // Both forms are real -- 69 genuine char literals across 19 specs -- so
+        // the fix is to scan to the closing quote and decide by CONTENT, not to
+        // pick one meaning. An unterminated quote is an ERROR rather than
+        // silent garbage, which is W577's rule applied one layer down.
         if ch == b'\'' {
             self.advance(); // consume opening '
-            let mut ch_val = String::new();
-            if self.pos < self.source.len() {
-                if self.peek() == b'\\' {
-                    ch_val.push('\\');
+            let mut val = String::new();
+            let mut closed = false;
+            while self.pos < self.source.len() {
+                let c = self.peek();
+                if c == b'\n' {
+                    break; // a quote never spans a line; report it unterminated
+                }
+                if c == b'\\' {
+                    val.push('\\');
                     self.advance();
                     if self.pos < self.source.len() {
-                        ch_val.push(self.peek() as char);
+                        val.push(self.peek() as char);
                         self.advance();
                     }
-                } else {
-                    ch_val.push(self.peek() as char);
-                    self.advance();
+                    continue;
                 }
+                if c == b'\'' {
+                    self.advance();
+                    closed = true;
+                    break;
+                }
+                val.push(c as char);
+                self.advance();
             }
-            if self.pos < self.source.len() && self.peek() == b'\'' {
-                self.advance(); // consume closing '
-            }
+            let kind = if !closed {
+                TokenKind::UnterminatedString
+            } else if val.chars().count() == 1 || (val.starts_with('\\') && val.chars().count() == 2)
+            {
+                TokenKind::CharLiteral
+            } else {
+                TokenKind::String
+            };
             return Token {
-                kind: TokenKind::CharLiteral,
-                lexeme: ch_val,
+                kind,
+                lexeme: val,
                 line: start_line,
                 col: start_col,
             };

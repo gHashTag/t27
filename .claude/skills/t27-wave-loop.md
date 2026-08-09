@@ -4631,6 +4631,30 @@ These cost a wave each. Follow them before step 1.
      comparison must be verified BY BREAKING IT (corrupt a field, drop a record,
      confirm both are caught).
 
+111. **Check whether the thing you are about to build already exists.** W603
+     recommended "make the gates a suite". Five of the eight were ALREADY in
+     `t27c suite`. The real gap was different and better: they ran under
+     "Phase 6: Integrity metrics (reporting only)", so a table whose own comment
+     says "a non-zero count is a real regression" printed FAIL lines while the
+     suite said ALL TESTS PASSED. **The fix was a Phase 7 that counts, not a
+     suite that already existed.**
+
+112. **The half of the project you have not measured is where the findings are.**
+     Thirty-six waves on IGLA RACE, zero on IGLA CODER. One command found 10
+     specs, 28,988 lines, ZERO measurable -- and a corpus-wide lexer defect
+     nobody was looking for.
+
+113. **A dependency graph turns six blockers into four.** `dataset` and `prm`
+     both fail on `undeclared identifier 'eval'`; both `use igla::coder::eval`;
+     `eval.t27` does not parse. Read the `use` edges before counting independent
+     problems.
+
+114. **When two readings of a token are both real, scan and decide by content.**
+     `'c'` (69 sites) and `'abc'` (120 sites) are both legitimate. Consuming a
+     fixed number of characters served neither; scanning to the delimiter and
+     branching on length serves both, and makes the unterminated case an ERROR
+     instead of silent garbage.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -1226,6 +1226,12 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     // These are REPORTING metrics, deliberately excluded from total_fail: the
     // current values are large, and turning them into hard failures is a
     // maintainer's decision, not the suite's.
+    // W604: gates that MUST be zero, counted separately from the metrics that
+    // merely report. The distinction is not new -- `lex_conform`'s own comment
+    // has said since W576 that "a non-zero count is a real regression" -- but
+    // nothing acted on it: a broken conformance table printed FAIL lines and
+    // the suite still said ALL TESTS PASSED.
+    let mut gate_fail = 0usize;
     println!("--- Phase 6: Integrity metrics (reporting only) ---");
     {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
@@ -1323,6 +1329,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // regression and is reported as such.
         {
             let failures = crate::lex_conform::run();
+            gate_fail += failures.len();
             println!(
                 "  lexer conformance: {}/{} cases passing",
                 crate::lex_conform::total() - failures.len(),
@@ -1336,6 +1343,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // specs the parser ACCEPTS without consuming. Both should be zero.
         {
             let failures = crate::parse_conform::run();
+            gate_fail += failures.len();
             println!(
                 "  parser conformance: {}/{} cases passing",
                 crate::parse_conform::total() - failures.len(),
@@ -1430,7 +1438,50 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff;
+    // --- Phase 7: gates that must be zero -------------------------------
+    //
+    // W604. Eight instruments exist and five were already run here, but all of
+    // them under "reporting only" -- so a regression in a table designed to be
+    // zero was indistinguishable from a metric designed to be large. These are
+    // the ones whose own documentation says they must be zero.
+    println!("--- Phase 7: Gates (failures count) ---");
+    {
+        // The numeric catalog: 83 records the compiler cannot see. `gfternary`
+        // is a KNOWN OPEN specification decision (P18), so it is allowed by
+        // name -- an allowance that is visible, counted, and will stop applying
+        // the moment somebody settles it.
+        const CATALOG_ALLOWED: &[&str] = &["gfternary"];
+        let cat = std::path::Path::new("specs/numeric/formats_catalog.t27");
+        if cat.is_file() {
+            match crate::catalog_gate::run(cat, std::path::Path::new("specs")) {
+                Ok(r) => {
+                    let unexpected: Vec<_> = r
+                        .findings
+                        .iter()
+                        .filter(|f| !CATALOG_ALLOWED.contains(&f.id.as_str()))
+                        .collect();
+                    gate_fail += unexpected.len();
+                    println!(
+                        "  catalog gate: {} record(s), {} finding(s), {} allowed, {} unexpected",
+                        r.records,
+                        r.findings.len(),
+                        r.findings.len() - unexpected.len(),
+                        unexpected.len()
+                    );
+                    for f in unexpected {
+                        println!("    FAIL [{}] {}: {}", f.check, f.id, f.detail);
+                    }
+                }
+                Err(e) => println!("  catalog gate: could not run ({})", e),
+            }
+        }
+        println!("  gate failures: {}", gate_fail);
+        if gate_fail == 0 {
+            println!("  (lexer/parser conformance and the catalog gate are all clean)");
+        }
+    }
+
+    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
@@ -1444,6 +1495,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
+    println!("GATE FAILURES:     {}", gate_fail);
     println!("TOTAL FAILURES:    {}", total_fail);
     println!("BASELINE FAILURES: {}", summary.baseline_failures);
     println!(

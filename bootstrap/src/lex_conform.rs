@@ -233,6 +233,37 @@ pub const CASES: &[Case] = &[
         note: "empty string -- distinguishable from a missing token only by kind",
         boundary: false,
     },
+    // ---- single quotes: W604 -------------------------------------------
+    Case {
+        input: "'c'",
+        expect: &[(TokenKind::CharLiteral, "c")],
+        note: "a one-character single-quoted literal is a CHAR -- 69 sites in 19 specs",
+        boundary: false,
+    },
+    Case {
+        input: "'\\n'",
+        expect: &[(TokenKind::CharLiteral, "\\n")],
+        note: "an escape is still a char literal",
+        boundary: false,
+    },
+    Case {
+        input: "'abc'",
+        expect: &[(TokenKind::String, "abc")],
+        note: "W604: a MULTI-character single-quoted literal is a STRING -- 120 sites in 10 specs. Before W604 this lexed as CharLiteral(a) followed by loose tokens",
+        boundary: false,
+    },
+    Case {
+        input: "'{\"m\": [2,2]}'",
+        expect: &[(TokenKind::String, "{\"m\": [2,2]}")],
+        note: "W604: the exact shape that cost weights.t27 77% of its lines -- the `}` used to end the enclosing module",
+        boundary: false,
+    },
+    Case {
+        input: "'abc",
+        expect: &[(TokenKind::UnterminatedString, "abc")],
+        note: "W604: an unterminated single quote is an ERROR, not silent garbage (W577's rule, one layer down)",
+        boundary: false,
+    },
     // ---- silently dropped input ------------------------------------------
     Case {
         input: "1 # 2",

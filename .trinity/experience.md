@@ -21859,3 +21859,46 @@ Three defects found and fixed:
 
 Verified by breaking it: corrupt one field and drop one record, and the gate
 reports count drift, the corrupted value, and the missing record.
+
+## Wave 604 — the half of IGLA nobody had measured, and a mis-lexed quote
+
+**W603's recommendation was already half-built.** "Make the gates a suite" --
+five of the eight were ALREADY in `t27c suite`. The real gap was better: they
+ran under **"Phase 6: Integrity metrics (reporting only)"**, so `lex-conform`,
+whose own comment says *"a non-zero count is a real regression"*, printed FAIL
+lines while the suite said ALL TESTS PASSED. Added **Phase 7: Gates (failures
+count)** -- lexer/parser conformance and the catalog gate now contribute to
+`total_fail`, with `gfternary` allowed BY NAME so the allowance is visible and
+expires when somebody settles it.
+
+**Then: thirty-six waves on IGLA RACE, zero on IGLA CODER.** One command:
+
+    10 specs . 28,988 lines . ZERO measurable
+    4 fail at PARSE, 6 at COMPILE
+
+And the six are not six problems. `dataset` and `prm` both fail on `undeclared
+identifier 'eval'`; both `use igla::coder::eval`; `eval.t27` does not parse, so
+`use_resolve`'s compile-or-fall-back splices nothing. **Fixing one parse failure
+unblocks three specs.** Read the `use` edges before counting blockers.
+
+**And a corpus-wide lexer defect nobody was looking for.** `weights.t27`
+reported "stray `}` at 487 -- everything after discarded", 77% of the file. The
+brace is inside a string:
+
+    given header = '{"model": "test", "shape": [2,2]}'
+
+The lexer treated `'` as opening a CHARACTER literal -- consume exactly one
+char, then look for the close. It emitted `CharLiteral("{")` and left the rest,
+including the brace, as loose tokens.
+
+    120 multi-character '...' literals in 10 specs (85 in dataset.t27)
+     69 genuine single-char 'c' / '\n' in 19 specs
+
+**Both are real, so do not pick one meaning: scan to the delimiter and decide by
+content.** One char (or one escape) -> CharLiteral; more -> String; unterminated
+-> ERROR, not silent garbage (W577's rule one layer down). lex-conform 29 -> 34.
+
+Same class as W575's `1e6`, and found the same way: by measuring something for a
+different reason. Effect measured, not assumed -- weights.t27 advances from
+line 487 to line 690; the other nine are unchanged; corpus parse count is
+unchanged at 397/608. **This fixed a value, not a parse.**

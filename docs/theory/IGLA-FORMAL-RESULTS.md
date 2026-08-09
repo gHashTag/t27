@@ -913,6 +913,75 @@ overflow it.
 
 ---
 
+### P19 (W604) — IGLA CODER is 29,000 lines and none of it has ever been measured
+
+This chain has spent thirty-six waves on IGLA **RACE** and never once measured
+IGLA **CODER**. `t27c test-report` over `specs/igla/coder/`:
+
+| | |
+|---|---:|
+| Specs | **10** |
+| Lines | **28,988** |
+| Measurable | **0** |
+
+| Blocker class | n | Specs |
+|---|---:|---|
+| **parse** | 4 | `arch` (2 979 L), `eval` (4 280 L), `tokenizer` (2 030 L), `weights` (2 109 L) |
+| **compile** | 6 | `bench_proxy`, `benchmark`, `dataset`, `pipeline`, `prm`, `training` |
+
+**The compile failures are not six independent problems.** Two of them —
+`dataset` and `prm` — fail on `use of undeclared identifier 'eval'`, and both
+declare `use igla::coder::eval;`. `eval.t27` does not *parse*, so `use_resolve`'s
+compile-or-fall-back contract splices nothing and the name vanishes. **Fixing
+one parse failure unblocks three specs.** The remaining four are distinct:
+`BenchContext` undeclared, a duplicate struct member, `expected expression,
+found ']'`, and `sin_approx` undeclared.
+
+*Falsification condition:* a CODER spec that produces a test binary, or a
+dependency edge that does not follow the `use` graph.
+
+---
+
+### P20 (W604) — A multi-character single-quoted literal was mis-lexed, corpus-wide
+
+`specs/igla/coder/weights.t27` reported *"stray `}` at line 487:53 — this module
+has no opening brace, so everything after it is discarded"*: **1,622 of 2,109
+lines, 77% of the file.** The `}` is inside a string:
+
+```t27
+given header = '{"model": "test", "shape": [2,2]}'
+```
+
+The lexer treated `'` as opening a **character literal**: consume exactly one
+character, then look for a closing quote. It produced `CharLiteral("{")` and left
+`"model": …}'` as loose tokens — including the brace that ended the module.
+
+**Corpus-wide:**
+
+| | |
+|---|---:|
+| multi-character `'…'` literals | **120** in 10 specs |
+| of those, in `dataset.t27` | 85 |
+| in `eval.t27` | 30 |
+| genuine single-char `'c'` / `'\n'` | **69** in 19 specs |
+
+**Both forms are real**, so the fix is not to pick one meaning: scan to the
+closing quote and decide by content. One character (or one escape) → char
+literal; more → string; **unterminated → an error, not silent garbage**, which
+is W577's rule applied one layer down. Five cases added to `lex-conform`
+(now 34/34).
+
+**Same class as W575's `1e6`** — a mis-lexed *value*, no error, no warning, no
+diagnostic — and found the same way: by measuring something for a different
+reason.
+
+*Effect measured, not assumed:* `weights.t27` advances from failing at line 487
+to failing at line 690, on a different and real defect. **Nine of ten CODER
+specs are unchanged**; their blockers were elsewhere. The corpus parse count is
+unchanged at 397/608 — this fixed a value, not a parse.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
