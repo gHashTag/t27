@@ -4278,6 +4278,19 @@ These cost a wave each. Follow them before step 1.
     fields through the mapper that already handled them -- `param_type_to_c` --
     which had existed the whole time.
 
+61. **When you report a proxy, say it is a proxy and name the real
+    measurement.** W582 reported "409 invalid C field declarations -> 3",
+    measured with a regex, and wrote that a regex is a proxy for validity. W583
+    ran `cc -fsyntax-only` and found 36 of 397 headers compiled. Both numbers
+    are true and they measure different things; naming the real measurement is
+    what turned it into the next wave instead of a false sense of done.
+
+62. **A guard that exists to "only map things we recognise", in front of a
+    mapper that already passes the unrecognised through, is pure loss.**
+    `param_type_to_c` gated its lowering behind `is_primitive` (integers only),
+    so `f32` stayed unmapped even after `type_to_c` learned it. Removing the
+    guard moved more headers than every new mapping combined.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -11578,6 +11578,19 @@ impl CCodegen {
             "i64" => "int64_t",
             "usize" => "size_t",
             "void" => "void",
+            // W583: floats and strings were simply absent from this match, so
+            // they took the pass-through arm and reached C as `f32 x;` and
+            // `str name;`. Compiling the generated headers for the first time
+            // reported 46 `unknown type name 'f32'`, 34 `f64`, 29 `str` and 9
+            // `string`.
+            "f32" => "float",
+            "f64" => "double",
+            "str" | "string" => "const char*",
+            "GF16" | "gf16" => "uint16_t",
+            "isize" => "ptrdiff_t",
+            "u128" => "unsigned __int128",
+            "i128" => "__int128",
+            "char" => "char",
             _ => ty, // pass through custom types
         }
     }
@@ -11623,6 +11636,12 @@ impl CCodegen {
             // to a self-contained macro (message kept for readability, unused).
             self.write_line(
                 "#define t27_assert(c, m) do { if (!(c)) { __builtin_trap(); } } while (0)",
+            );
+            // W583: the backend emits calls to `assert_eq` in test bodies (59
+            // headers) and never defined it, so the C output could not compile
+            // even in principle.
+            self.write_line(
+                "#define assert_eq(a, b) do { if ((a) != (b)) { __builtin_trap(); } } while (0)",
             );
         }
         self.write_line("");
@@ -12211,9 +12230,41 @@ impl CCodegen {
                 match stmt.kind {
                     NodeKind::StmtExpr => {
                         if !stmt.children.is_empty() {
-                            self.write("_Static_assert(");
-                            self.gen_c_expr(&stmt.children[0]);
-                            self.write(&format!(", \"invariant: {}\");\n", node.name));
+                            // W583: `_Static_assert` needs a CONSTANT
+                            // expression, and the W567 lowering wraps the
+                            // condition in `assert(...)` -- so this emitted
+                            // `_Static_assert(assert(f(x) == 3), "...")`, which
+                            // is invalid twice over: `assert` is a runtime
+                            // macro, and a function call is not constant.
+                            //
+                            // The condition is unwrapped, and an invariant that
+                            // calls anything becomes a comment rather than
+                            // invalid code. C cannot check it; saying so is
+                            // better than emitting something that does not
+                            // compile.
+                            let cond = match &stmt.children[0] {
+                                c if c.kind == NodeKind::ExprCall
+                                    && c.name == "assert"
+                                    && !c.children.is_empty() =>
+                                {
+                                    &c.children[0]
+                                }
+                                c => c,
+                            };
+                            let mut probe = CCodegen::new();
+                            probe.gen_c_expr(cond);
+                            let text = probe.output.clone();
+                            if text.contains('(') && text.contains(')') {
+                                self.write(&format!(
+                                    "/* invariant {} is not a C constant expression: {} */\n",
+                                    node.name,
+                                    text.replace("/*", "").replace("*/", "")
+                                ));
+                            } else {
+                                self.write("_Static_assert(");
+                                self.write(&text);
+                                self.write(&format!(", \"invariant: {}\");\n", node.name));
+                            }
                         }
                     }
                     _ => {
@@ -12644,6 +12695,13 @@ impl CCodegen {
 
     /// Map a t27/Zig type to C for use in parameter/return positions
     fn param_type_to_c(ty: &str) -> String {
+        // A dotted foreign type (`std.mem.Allocator`) has no C spelling at all.
+        // It reached the header as `std.mem.Allocator x;`, which is not C;
+        // `void*` is the honest lowering and what a hand-written binding uses.
+        if ty.contains('.') && !ty.starts_with('[') {
+            return "void*".to_string();
+        }
+
         // Optional: C has no such type, and NULL is its conventional encoding.
         // Before W581 the `?` never reached here (the lexer dropped it) and an
         // optional silently became a plain value; now it arrives, and emitting
@@ -12662,14 +12720,12 @@ impl CCodegen {
         if let Some(inner) = ty.strip_prefix("[]") {
             let inner = inner.trim();
             let inner = inner.strip_prefix("const ").unwrap_or(inner).trim();
-            let c_inner = if Self::is_primitive(inner) {
-                Self::type_to_c(inner).to_string()
-            } else if inner.starts_with("[]") || inner.starts_with('?') {
+            let c_inner = if inner.starts_with("[]") || inner.starts_with('?') {
                 // A slice of slices (`[][]const u8`) or of optionals: map the
                 // inner type properly instead of passing t27 syntax through.
                 Self::param_type_to_c(inner)
             } else {
-                inner.to_string()
+                Self::type_to_c(inner).to_string()
             };
             return format!("{}*", c_inner);
         }
@@ -12683,19 +12739,15 @@ impl CCodegen {
         if ty.starts_with('[') {
             if let Some(bracket_end) = ty.find(']') {
                 let elem = &ty[bracket_end + 1..];
-                let c_elem = if Self::is_primitive(elem) {
-                    Self::type_to_c(elem).to_string()
-                } else {
-                    elem.to_string()
-                };
-                return format!("{}*", c_elem);
+                return format!("{}*", Self::type_to_c(elem));
             }
         }
-        if Self::is_primitive(ty) {
-            Self::type_to_c(ty).to_string()
-        } else {
-            ty.to_string()
-        }
+        // W583: this used to be gated on `is_primitive`, which lists only the
+        // integer scalars -- so `f32`, `f64`, `str`, `string` and `gf16` took
+        // the pass-through arm and reached C unmapped even after `type_to_c`
+        // learned them. `type_to_c` already passes genuinely custom types
+        // through, so the gate only ever suppressed correct mappings.
+        Self::type_to_c(ty).to_string()
     }
 
     fn gen_c_expr(&mut self, node: &Node) {

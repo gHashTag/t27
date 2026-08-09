@@ -21128,3 +21128,36 @@ zero -- and emitting `[]u8 field;` exits zero perfectly well.
 
 A backend with no consumer has no gate. The Zig path is checked because something runs
 it.
+
+## Wave Loop 583 -- nobody had ever compiled the C backend's output (2026-08-09)
+
+    generated C headers that COMPILE   36 -> 101  of 397
+    `unknown type name` first errors  187 ->  64
+
+W582 measured "409 invalid C field declarations" with a REGEX and said so -- a proxy
+for validity, not validity. W583 ran `cc -fsyntax-only` over every generated header for
+the first time in the project's life. 36 of 397 compiled.
+
+    187  unknown type name        ->  f32 (46), f64 (34), str (29), std (17), string (9)
+     79  call to undeclared fn    ->  assert_eq (59), default_input (47)
+     32  type name requires a specifier or qualifier
+
+`f32` and `f64` were simply ABSENT from `type_to_c`. `assert_eq` is emitted in every C
+test body and was never defined. `_Static_assert(assert(f(x) == 3), ...)` is invalid
+twice over -- `assert` is a runtime macro AND a call is not a constant expression.
+
+### The structural fix that mattered more than the mappings
+
+`param_type_to_c` gated its scalar lowering behind `is_primitive`, which lists only the
+integers -- so even after `type_to_c` learned f32, the GATE suppressed it. `type_to_c`
+already passes genuinely custom types through, so the guard only ever prevented correct
+mappings. Removing it is what moved the number.
+
+A guard that exists to "only map things we know" in front of a mapper that already
+handles the unknown case is pure loss.
+
+### The measurement principle
+
+W582's regex said 409 -> 3 and W583's compiler said 36 of 397 compile. Both are true;
+they measure different things. When you report a proxy, say it is a proxy AND name the
+real measurement -- W582 did, which is why W583 existed.
