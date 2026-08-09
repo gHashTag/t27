@@ -510,7 +510,12 @@ jobs:
           fi
           echo "ok       Prop. 39e still refutes (slot-level read-before-write remains open)"
 
-      # Liveness witnesses for the assembled engine. Four waves of interlock
+      # Liveness witnesses for the assembled engine. These deliberately pass NO
+      # property define, which only became meaningful in Wave 589: until the
+      # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined
+      # FORMAL and every "probe-only" run compiled the whole property set
+      # (Prop. 39b). Re-checked in Wave 590 against a genuinely property-free
+      # build -- all six verdicts unchanged (Prop. 40b). Four waves of interlock
       # work constrained the reachable state space; an over-tight guard would
       # make every safety property pass by making the engine do nothing. Each
       # probe below asserts that an activity is IMPOSSIBLE and must therefore

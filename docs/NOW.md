@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-09
 
+## a self-comparison cannot detect an undefined value
+
+- **WHERE**: `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop 40), `README.md`.
+- **Prop 39e is still open, and my discriminator was invalid.** To decide
+  whether the engine reads past what it wrote or my tracking registers are
+  wrong, I asserted a self-comparison of each operand -- `fv_maxwr_a ==
+  fv_maxwr_a` and friends. All three PROVE and **all three are worthless**:
+  `a == a` is constant-folded to `1'b1` before any value is considered. The test
+  could not have failed for any input.
+- **The general trap**: the optimiser discharges algebraic identities
+  structurally, so `a == a`, `x != x` and `a - a == 0` all prove on a signal
+  that is undefined, unconstrained, or absent. Not an X detector.
+- Two inconclusive diagnostic rounds is the stopping rule, so 39e stays gated
+  with its cause unattributed. What is recorded is one thing it is *not*: the
+  "operands are fine" conclusion rested on a test that cannot fail.
+- **The false baseline hid nothing -- checked, not assumed.** The six liveness
+  witnesses are the results most exposed to Prop 39b, since their whole purpose
+  is to run the design *without* its properties. Re-run against a genuinely
+  property-free build: **all six identical**, verdict for verdict.
+- Stated precisely because it is a measured result, not a reassurance: the
+  properties are all safety assertions over the same reachable states the probes
+  explore, so compiling them in constrained nothing. **Had any been an `assume`,
+  the table would differ -- and the old setup could never have shown it.**
+- Suite **1213 passed, 0 failed**. Seals 496/496. One open defect, CI-gated.
+
 ## the read side, and the baseline that never existed
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `.github/workflows/*.yml`,

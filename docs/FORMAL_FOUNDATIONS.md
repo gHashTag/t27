@@ -2308,6 +2308,74 @@ grep -c "ifdef T27_FORMAL" bootstrap/src/bitnet_top.rs
 
 ---
 
+### Prop. 40 — a self-comparison cannot detect an undefined value, and the false baseline hid nothing — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*, *Prop. 39e is still open (must refute)*
+
+Two follow-ups to Prop. 39: diagnose the open refutation, and re-check what
+fifteen waves of a mis-specified baseline had been hiding.
+
+**40a. The open property is still open, and the discriminator was invalid.**
+Prop. 39e refutes. The question is whether the engine reads past what it wrote
+or the formal-only tracking registers are wrong. A trace read was inconclusive:
+at the single enabled step the operands read `0 <= 0`, which holds, while
+several signals showed empty in the dump — ambiguous between *undefined* and
+*not yet recorded* (Prop. 32c).
+
+The chosen discriminator was to assert a self-comparison of each operand, on the
+theory that an undefined value fails `x == x`:
+
+```verilog
+assert (fv_maxwr_a == fv_maxwr_a);            // PROVED
+assert ($past(buf_read_addr) == $past(buf_read_addr));  // PROVED
+assert (act_wr_addr == act_wr_addr);          // PROVED
+```
+
+All three prove, and **all three are worthless**: `a == a` is constant-folded to
+`1'b1` before any value is considered. The test could not have failed for any
+input.
+
+> **A self-comparison is not an undefined-value detector.** The optimiser
+> discharges it structurally, so it proves on a signal that is undefined,
+> unconstrained, or does not exist. The same trap catches `x != x`, `a - a == 0`
+> and every other algebraic identity used as a probe.
+
+Two inconclusive diagnostic rounds is the campaign's stopping rule (Prop. 31d),
+so 39e stays gated as an expected refutation with its cause still unattributed.
+What is now recorded is one thing it is *not*: the earlier "operands are fine"
+conclusion rested on a test that cannot fail.
+
+**40b. The false baseline hid nothing — checked, not assumed.** Prop. 39b found
+that every "property-free" run since Wave 574 had the full property set
+compiled in. The six liveness witnesses are the results most exposed to that,
+since their entire purpose is to run the design *without* its properties. Re-run
+against a genuinely property-free build:
+
+| witness | expected | genuine baseline | with properties |
+|---|---|---|---|
+| DMA can start | refutes | refutes | refutes |
+| DMA can write local memory | refutes | refutes | refutes |
+| weight prefetch can write | refutes | refutes | refutes |
+| MAC can be active | refutes | refutes | refutes |
+| neuron output can fire | refutes | refutes | refutes |
+| DMA and MAC never concurrent | proves | **proves** | proves |
+
+**All six identical.** The mis-specified baseline changed no verdict.
+
+That is worth stating precisely: it is a *measured* result, not a reassurance.
+The properties are all safety assertions over the same reachable states the
+probes explore, so compiling them in constrained nothing the probes depended on.
+Had any property been an `assume`, this table would have looked different — and
+nothing about the old setup would have revealed it.
+
+Reproduce:
+
+```bash
+grep -n "T27_FORMAL" .github/workflows/formal-yosys.yml | head -3
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
