@@ -4291,6 +4291,9 @@ pub struct Codegen {
     /// no `==` for slices, and the literal-operand test cannot see
     /// `a.name == b.name`, where BOTH sides are `[]const u8` expressions.
     string_names: std::collections::HashSet<String>,
+    /// Field and parameter names the spec declares with a float type, so a cast
+    /// can pick `@floatCast` over `@floatFromInt` (W592).
+    float_names: std::collections::HashSet<String>,
 }
 
 impl Codegen {
@@ -4306,6 +4309,7 @@ impl Codegen {
             scaffold_locals: std::collections::HashMap::new(),
             declared_enums: std::collections::HashSet::new(),
             string_names: std::collections::HashSet::new(),
+            float_names: std::collections::HashSet::new(),
         }
     }
 
@@ -4503,6 +4507,28 @@ impl Codegen {
         }
     }
 
+    /// Whether an expression is definitely floating-point: a literal with a
+    /// decimal point, or a name the spec declared `f32`/`f64`. Used to pick the
+    /// right Zig cast builtin; anything undecidable is treated as integer,
+    /// which is what the corpus overwhelmingly casts FROM.
+    fn is_float_expr(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprLiteral => {
+                node.extra_kind != "string" && node.value.contains('.')
+            }
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => {
+                Self::trailing_name(node)
+                    .map(|n| self.float_names.contains(&n))
+                    .unwrap_or(false)
+            }
+            NodeKind::ExprBinary => node
+                .children
+                .iter()
+                .any(|c| self.is_float_expr(c)),
+            _ => false,
+        }
+    }
+
     fn is_string_typed(&self, node: &Node) -> bool {
         Self::trailing_name(node)
             .map(|n| self.string_names.contains(&n))
@@ -4568,6 +4594,7 @@ impl Codegen {
         self.declared_enums.clear();
         self.declared_fn_params.clear();
         self.string_names.clear();
+        self.float_names.clear();
         for d in &ast.children {
             match d.kind {
                 NodeKind::FnDecl if !d.name.is_empty() => {
@@ -4580,6 +4607,9 @@ impl Codegen {
                         if Self::t27_array_type_to_zig(pty) == "[]const u8" {
                             self.string_names.insert(pname.clone());
                         }
+                        if matches!(pty.trim(), "f16" | "f32" | "f64" | "float" | "double") {
+                            self.float_names.insert(pname.clone());
+                        }
                     }
                 }
                 NodeKind::EnumDecl if !d.name.is_empty() => {
@@ -4589,6 +4619,12 @@ impl Codegen {
                     for f in &d.children {
                         if Self::t27_array_type_to_zig(&f.extra_type) == "[]const u8" {
                             self.string_names.insert(f.name.clone());
+                        }
+                        if matches!(
+                            f.extra_type.trim(),
+                            "f16" | "f32" | "f64" | "float" | "double"
+                        ) {
+                            self.float_names.insert(f.name.clone());
                         }
                     }
                 }
@@ -6175,7 +6211,21 @@ impl Codegen {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    self.write(&format!("@as({}, @intCast(", target));
+                    // W592: Zig has no universal cast. `@intCast` is
+                    // INTEGER-to-integer, so `raw as f32` emitted
+                    // `@as(f32, @intCast(raw))` and failed with "expected
+                    // integer or vector, found 'f32'". Latent since W558 added
+                    // f32/f64 to the cast whitelist; exposed by writing a
+                    // fixed-point-to-real conversion this wave.
+                    let target_is_float = matches!(target.as_str(), "f16" | "f32" | "f64");
+                    let src_is_float = self.is_float_expr(&node.children[0]);
+                    let builtin = match (target_is_float, src_is_float) {
+                        (true, true) => "@floatCast",
+                        (true, false) => "@floatFromInt",
+                        (false, true) => "@intFromFloat",
+                        (false, false) => "@intCast",
+                    };
+                    self.write(&format!("@as({}, {}(", target, builtin));
                     self.gen_expr(&node.children[0]);
                     self.write("))");
                 }

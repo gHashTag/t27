@@ -130,6 +130,42 @@ fn cordic_sin(angle: i16) -> i16 {
     return y8;
 }
 
+/// Cosine of an angle in RADIANS, as a real number.
+///
+/// W592: tested and never declared. Two facts in this spec determine it:
+/// the header states "angle in Q14 normalized units (1.0 = PI)", and
+/// `cordic_cos(0)` is asserted to land in (9900, 10000) -- i.e. it returns
+/// `CORDIC_GAIN_Q14`, uncompensated. So the conversion is
+/// radians -> Q14 by `angle / PI * 16384`, and the result is divided by the
+/// gain. `compute_cosine(0.01)` then lands in (0.99, 1.01) as the test requires.
+/// Sine of an angle in radians -- the companion of `compute_cosine`, identical
+/// conversion and gain compensation (W592).
+fn compute_sine(angle: f32) -> f32 {
+    let q14 = ((angle / 3.14159265358979) * 16384.0) as i16;
+    let raw = cordic_sin(q14);
+    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
+}
+
+fn compute_cosine(angle: f32) -> f32 {
+    let q14 = ((angle / 3.14159265358979) * 16384.0) as i16;
+    let raw = cordic_cos(q14);
+    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
+}
+
+/// Tangent in the same Q14 units: sin / cos, guarded at the pole.
+///
+/// W592: tested and never declared. tan = sin/cos is the definition, and both
+/// are already implemented here in the same units, so the ratio needs no new
+/// arithmetic -- only the division and the cos == 0 guard.
+fn cordic_tan(angle: i16) -> i16 {
+    let c = cordic_cos(angle);
+    if (c == 0) {
+        return 0;
+    }
+    let s = cordic_sin(angle);
+    return ((s as i32) * 16384 / (c as i32)) as i16;
+}
+
 fn cordic_cos(angle: i16) -> i16 {
     let x0 : i16 = CORDIC_GAIN_Q14;
     let y0 : i16 = 0;

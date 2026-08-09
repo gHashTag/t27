@@ -21441,3 +21441,33 @@ three things:
 `float` is not a Zig type and reached the backend verbatim -- exactly as f32/f64 did on
 the C side in W583. W590's `[]string` was the first. A missing NAME and a missing
 MAPPING look identical from the error message; only decomposition tells them apart.
+
+## Wave Loop 592 -- six names, three written, and a cast wrong since W558 (2026-08-10)
+
+The six RACE names this chain has circled since W571, judged by whether their own
+tests determine them:
+
+    WRITTEN   cordic_sqrt_approx   sqrt(9)∈[2.9,3.1], sqrt(16)∈[3.9,4.1]
+              cordic_cos_fixed     cos_fixed(0)==1.0 fixes the scaling exactly
+              compute_cosine       header states Q14 units (1.0 = PI); cos(0) uncompensated
+              + cordic_tan, cordic_sin_fixed, compute_sine (all determined)
+    DECISION  PpaMetrics           the bench's type has different fields from the
+                                   function's; adding the struct would not type-check
+              OP_ADD               the sacred set is eleven named opcodes (W571)
+              systolic_ternary_array  its tests contradict each other (W571)
+
+### The cast bug
+
+Writing a fixed-point-to-real conversion produced
+
+    @as(f32, @intCast(raw))    error: expected integer or vector, found 'f32'
+
+Zig has no universal cast: @intCast is int->int, @floatFromInt is int->float,
+@intFromFloat float->int, @floatCast float->float. The ExprCast arm emitted @intCast
+unconditionally, and f32/f64 were added to the cast whitelist in W558. 293 `as f32`
+casts in the corpus have been wrong ever since.
+
+THIRD CONSECUTIVE WAVE where writing or decomposing something exposed a compiler gap
+that had been mislabelled: W590's []string, W591's float, and now this. The pattern:
+a construct nothing exercises is a construct nothing checks -- and the whitelist that
+permitted `as f32` was added five waves before anything used it.

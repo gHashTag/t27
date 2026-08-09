@@ -82,6 +82,28 @@ fn sqrt_approx_inner(x: f32, guess: f32, iter: u32) -> f32 {
     return sqrt_approx_inner(x, next, iter + 1);
 }
 
+/// Square root with an explicit iteration budget -- the same Newton step as
+/// `sqrt_approx`, bounded by the caller rather than by the fixed 20.
+///
+/// W592: tested since this spec was written and never declared.
+/// `cordic_sqrt_approx(9.0, 8)` must land in [2.9, 3.1] and
+/// `cordic_sqrt_approx(16.0, 8)` in [3.9, 4.1] -- both properties of Newton
+/// iteration from a unit guess, which converges well inside eight steps.
+fn cordic_sqrt_approx_inner(x: f32, guess: f32, iter: u32, n: u32) -> f32 {
+    if (iter >= n) {
+        return guess;
+    }
+    let next = 0.5 * (guess + x / guess);
+    return cordic_sqrt_approx_inner(x, next, iter + 1, n);
+}
+
+fn cordic_sqrt_approx(x: f32, iterations: u32) -> f32 {
+    if (x <= 0.0) {
+        return 0.0;
+    }
+    return cordic_sqrt_approx_inner(x, 1.0, 0, iterations);
+}
+
 fn sqrt_approx(x: f32) -> f32 {
     if (x <= 0.0) {
         return 0.0;

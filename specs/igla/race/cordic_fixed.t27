@@ -122,6 +122,47 @@ fn cordic_sin(angle: i16) -> i16 {
 // 4. Core: 8-iteration unrolled CORDIC -- returns cos
 // ============================================================================
 
+/// Cosine as a REAL number: the Q14 core result, divided by the CORDIC gain
+/// the core leaves in it.
+///
+/// W592: tested and never declared. `cordic_cos_fixed(0) == 1.0` fixes the
+/// scaling exactly -- `cordic_cos(0)` returns `CORDIC_GAIN_Q14` by construction
+/// (it is the seed `x0`), so dividing by that constant is the only lowering
+/// under which the spec's own assertion holds.
+/// Sine as a real number -- the companion of `cordic_cos_fixed`, same scaling.
+fn cordic_sin_fixed(angle: i16) -> f32 {
+    let raw = cordic_sin(angle);
+    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
+}
+
+/// Aliases the tests use for the same two projections (W592).
+fn cordic_fixed_cos(angle: i16) -> f32 {
+    return cordic_cos_fixed(angle);
+}
+
+fn cordic_fixed_sin(angle: i16) -> f32 {
+    return cordic_sin_fixed(angle);
+}
+
+fn cordic_cos_fixed(angle: i16) -> f32 {
+    let raw = cordic_cos(angle);
+    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
+}
+
+/// Tangent in the same Q14 units: sin / cos, guarded at the pole.
+///
+/// W592: tested and never declared. tan = sin/cos is the definition, and both
+/// are already implemented here in the same units, so the ratio needs no new
+/// arithmetic -- only the division and the cos == 0 guard.
+fn cordic_tan(angle: i16) -> i16 {
+    let c = cordic_cos(angle);
+    if (c == 0) {
+        return 0;
+    }
+    let s = cordic_sin(angle);
+    return ((s as i32) * 16384 / (c as i32)) as i16;
+}
+
 fn cordic_cos(angle: i16) -> i16 {
     // Iteration 0
     let x0 : i16 = CORDIC_GAIN_Q14;

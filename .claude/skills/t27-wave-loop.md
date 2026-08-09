@@ -4411,6 +4411,21 @@ These cost a wave each. Follow them before step 1.
     three. The condition that caught it was written into the previous wave's
     report and cost ten minutes to run.
 
+79. **A capability added before anything exercises it is a capability nobody
+    checked.** W558 added `f32`/`f64` to the cast whitelist so specs would
+    parse; the emitter kept using `@intCast` for every cast, which is
+    integer-to-integer. 293 `as f32` casts have been wrong since, and it
+    surfaced only when W592 wrote the first code that ran one. When you widen an
+    accept-list, write one example that goes all the way through the backend.
+
+80. **Judge each missing name by whether its OWN tests determine it, and say so
+    per name.** W592 took six names as one decision set: three were determined
+    (a bound, a scaling fixed by an equality, a documented unit), and three were
+    not (a type whose fields disagree with the function taking it, a constant
+    outside a closed set, a pair of contradictory tests). One list, six verdicts,
+    each with its reason -- far more useful to a maintainer than six scattered
+    findings across five waves.
+
 ### How to update this tracker
 
 After closing a wave:
