@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-10
 
+## Wave 637 — `-set-init-zero` is not the reset state
+
+- **A CLAIM NOBODY CHECKED, SINCE PROP. 8c**: every module suite is proved with
+  `-set-init-zero`, described throughout as "starting from a **reachable**
+  state". It starts from the **zero** state. Those coincide only where every
+  register resets to zero — and **nine here do not**: four FSMs to `IDLE`,
+  `use_buffer_a` to 1, three AXI ready lines high, and `trit` to `TRIT_Z`.
+- **NOT AN UNSOUNDNESS, AND THE DISTINCTION MATTERS**: extra unreachable states
+  yield spurious *refutations*, never false proofs. Nothing verified in this
+  campaign is weakened. The four FSMs are harmless *in fact* only because `IDLE`
+  is encoded 0 in all four — coincidence of the encoding, not construction.
+- **BUT AN INVISIBLE FRAGILITY, VERIFIED**: renumbering so any **decoded** state
+  lands on code 0 — a pure relabelling, all 16 and 9 `state` references being by
+  name — refutes `a_rready_implies_burst` and `a_rready_implies_active`, each
+  alone in its suite. `rready` is a combinational decode of the state, so the
+  zero state has it high with no burst owed. The failure would read as a design
+  defect.
+- **A LOCAL INSTANCE WAS FOUND LONG AGO AND NOT GENERALISED**: `db_props` carries
+  an `fv_started` guard whose comment states this exact cause — fixed for one
+  property, and nobody asked how many other registers reset non-zero. Nine.
+- **A FIX THAT DIDN'T WORK, RECORDED BECAUSE THE REASONING IS THE POINT**:
+  copying `fv_started` to the two properties does **not** help — with `rst_n`
+  never asserted low the design sits in the decoded state *indefinitely*, not
+  just at t=0, so a one-cycle guard changes nothing. Tested and reverted.
+- **THE GATE LISTS RATHER THAN FORBIDS**: an AXI slave coming up not-ready is
+  *worse* than one that does. `formal/init_zero_scan.py` requires each non-zero
+  reset to carry a reason, so the gap is written down instead of rediscovered by
+  a refutation. 9 registers, 9 notes, 4 self-test cases.
+- **PROP. 96** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 636b — the review that found four holes in the wave before it
 
 - **PROP. 92 WAS PUBLISHED, COMMITTED AND PUSHED BEFORE ANYONE REVIEWED IT.** An

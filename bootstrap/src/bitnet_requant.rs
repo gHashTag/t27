@@ -134,6 +134,10 @@ pub fn build_activation_requant(module_name: &str) -> String {
 
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) begin\n");
+    s.push_str("    // INIT-ZERO: trit resets to TRIT_Z = 2'b01, so -set-init-zero starts it at\n");
+    s.push_str("    // 2'b00 -- which decodes as -1, a legal trit but not the reset value. Any\n");
+    s.push_str("    // property reading trit over the zero state reads a minus-one the reset\n");
+    s.push_str("    // never produces. Prop. 96.\n");
     s.push_str("            trit       <= TRIT_Z;\n");
     s.push_str("            trit_valid <= 1'b0;\n");
     s.push_str("            word       <= 54'd0;\n");

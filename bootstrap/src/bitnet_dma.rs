@@ -136,6 +136,13 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
 
+    s.push_str("    // INIT-ZERO: state resets to IDLE, which is encoded 3'd0 -- so the zero\n");
+    s.push_str("    // state and the reset state coincide TODAY, by coincidence of the encoding\n");
+    s.push_str("    // rather than by construction. Renumber so any DECODED state lands on 3'd0\n");
+    s.push_str("    // and the zero state decodes as active: rready is a combinational decode of\n");
+    s.push_str("    // READ_DATA, so a_rready_implies_burst refutes at once, from a state no\n");
+    s.push_str("    // reset produces. Verified in Wave 637. Keep IDLE at 0, or guard that\n");
+    s.push_str("    // property. Prop. 96.\n");
     s.push_str("    localparam IDLE       = 3'd0;\n");
     s.push_str("    localparam READ_ADDR  = 3'd1;\n");
     s.push_str("    localparam READ_DATA  = 3'd2;\n");

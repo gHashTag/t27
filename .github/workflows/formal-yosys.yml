@@ -914,6 +914,19 @@ jobs:
           python3 formal/encoding_gate.py --self-test
           python3 formal/encoding_gate.py
 
+      # Wave 637. Every module suite is proved with -set-init-zero, described
+      # throughout this campaign as "starting from a reachable state". It starts
+      # from the ZERO state, which equals the reset state only where every
+      # register resets to zero -- and nine here do not. Not an unsoundness
+      # (extra states give spurious refutations, never false proofs) but a
+      # fragility: a pure FSM relabelling refutes two properties outright, and
+      # the failure reads as a design defect. Prop. 96.
+      - name: Registers that do not reset to zero are listed
+        run: |
+          set -euo pipefail
+          python3 formal/init_zero_scan.py --self-test
+          python3 formal/init_zero_scan.py
+
       - name: Benchmark harness self-test
         run: |
           set -euo pipefail

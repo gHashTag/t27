@@ -105,6 +105,11 @@ pub fn build_double_buffer_ctrl(module_name: &str) -> String {
     s.push_str("    // Even layers: read A, write B.\n");
     s.push_str("    // Odd layers: read B, write A.\n");
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
+    s.push_str("    // INIT-ZERO: use_buffer_a resets HIGH while -set-init-zero starts it low.\n");
+    s.push_str("    // This is the instance already discovered locally: db_props carries an\n");
+    s.push_str("    // fv_started register precisely so a_reset_reads_a does not assert over the\n");
+    s.push_str("    // zero state. That fix predates the general statement of the problem by many\n");
+    s.push_str("    // waves. Prop. 96.\n");
     s.push_str("        if (!rst_n) use_buffer_a <= 1'b1;\n");
     s.push_str("        else if (layer_done) use_buffer_a <= ~use_buffer_a;\n");
     s.push_str("    end\n");
@@ -186,6 +191,10 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("    // word_index, and raising the clamp by one wraps it. Prop. 84.\n");
     s.push_str("    reg [11:0] word_index;\n");
     s.push_str("    localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;\n");
+    s.push_str("    // INIT-ZERO: state resets to IDLE, encoded 2'd0. Swapping IDLE and FETCH --\n");
+    s.push_str("    // a pure relabelling, since all 9 references are by name -- makes the zero\n");
+    s.push_str("    // state decode as FETCH and refutes a_rready_implies_active at once.\n");
+    s.push_str("    // Verified in Wave 637. Prop. 96.\n");
     s.push_str("    reg [1:0] state;\n");
     s.push_str("\n");
     s.push_str("    assign axi_rready = (state == FETCH);\n");

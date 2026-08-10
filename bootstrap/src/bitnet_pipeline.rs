@@ -167,6 +167,9 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     out.push_str("        if (!rst_n) begin\n");
+    out.push_str("    // INIT-ZERO: state resets to IDLE, encoded 2'd0, so the zero state and the\n");
+    out.push_str("    // reset state coincide by coincidence of the encoding rather than by\n");
+    out.push_str("    // construction. Prop. 96.\n");
     out.push_str("            state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0; first_chunk<=0; last_chunk<=0;\n");
     out.push_str("        end else case(state)\n");
     out.push_str("            IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end\n");
@@ -301,6 +304,8 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("            end\n");
     out.push_str("            DONE_ST: begin\n");
     out.push_str("                inference_done <= 1'b1;\n");
+    out.push_str("    // INIT-ZERO: state resets to IDLE, encoded 2'd0 -- coincidence of the\n");
+    out.push_str("    // encoding, not construction. Prop. 96.\n");
     out.push_str("                state <= IDLE;\n");
     out.push_str("            end\n");
     out.push_str("            default: state <= IDLE;\n");

@@ -159,6 +159,17 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("\n");
     s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     s.push_str("        if (!rst_n) begin\n");
+    s.push_str("    // INIT-ZERO: s_axi_awready resets HIGH, so -set-init-zero starts it low --\n");
+    s.push_str("    // a state the reset never produces. Prop. 96.\n");
+    s.push_str("    // INIT-ZERO: s_axi_wready resets HIGH, so -set-init-zero starts it low --\n");
+    s.push_str("    // a state the reset never produces. Prop. 96.\n");
+    s.push_str("    // INIT-ZERO: s_axi_arready resets HIGH, so -set-init-zero starts it low --\n");
+    s.push_str("    // a state the reset never produces. Prop. 96.\n");
+    s.push_str("    // INIT-ZERO: s_axi_awready, s_axi_wready and s_axi_arready all reset HIGH,\n");
+    s.push_str("    // so -set-init-zero starts them low -- a state the reset never produces.\n");
+    s.push_str("    // Extra unreachable states can only cause spurious refutations, never a\n");
+    s.push_str("    // false proof, so nothing proved about this slave is weakened by it.\n");
+    s.push_str("    // Prop. 96.\n");
     s.push_str("            s_axi_awready <= 1'b1; s_axi_wready <= 1'b1; s_axi_bvalid <= 1'b0;\n");
     s.push_str("            s_axi_arready <= 1'b1; s_axi_rvalid <= 1'b0;\n");
     s.push_str("            s_axi_bresp <= 2'b00;  s_axi_rresp <= 2'b00;\n");

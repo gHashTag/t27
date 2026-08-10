@@ -6052,6 +6052,75 @@ message pointing anywhere near the cause.
 
 ---
 
+### Prop. 96 — `-set-init-zero` is not the reset state — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Registers that do not reset to zero are listed*
+
+Every module suite here is proved with `-set-init-zero`, and this campaign has
+described that choice, since Prop. 8c, as **"starting from a reachable state"** —
+the reason it was preferred over `-tempinduct`, whose unconstrained start refutes
+properties that hold everywhere reachable.
+
+It starts from the **zero state**. That equals the reset state only where every
+register resets to zero, and **nine registers here do not**:
+
+| module | register | resets to |
+|---|---|---|
+| `dma_controller` | `state` | `IDLE` |
+| `layer_sequencer` | `state` | `IDLE` |
+| `multilayer_sequencer` | `state` | `IDLE` |
+| `weight_prefetch_ctrl` | `state` | `IDLE` |
+| `double_buffer_ctrl` | `use_buffer_a` | `1'b1` |
+| `axi_lite_slave` | `s_axi_awready`, `s_axi_wready`, `s_axi_arready` | `1'b1` |
+| `activation_requant` | `trit` | `TRIT_Z` |
+
+**96a. This is not an unsoundness, and the distinction matters.** Starting from a
+superset of the reachable states can only produce spurious **refutations**, never
+spurious proofs: anything that proves under `-set-init-zero` proves for every
+reachable state too. **Nothing verified in this campaign is weakened.** The four
+FSM rows are additionally harmless in fact, because `IDLE` is encoded `0` in all
+four — the zero state and the reset state coincide by *coincidence of the
+encoding*, not by construction.
+
+**96b. It is a fragility, and an invisible one.** Renumber an FSM so that any
+**decoded** state lands on code 0 — a pure relabelling, since every reference to
+`state` in these modules is by name — and the zero state decodes as *active*.
+Verified:
+
+| relabelling | references by name / by literal | result |
+|---|---|---|
+| `dma_controller`: `READ_DATA` → `3'd0`, `IDLE` → `3'd2` | 16 / 0 | `a_rready_implies_burst` **refutes**, alone in its suite |
+| `weight_prefetch_ctrl`: swap `IDLE` and `FETCH` | 9 / 0 | `a_rready_implies_active` **refutes**, alone in its suite |
+
+Both are the same shape: `rready` is a combinational decode of the state, so at
+the zero state it is high with no burst owed. Two properties, two suites, from a
+change that alters nothing in silicon — and the resulting failure would read as
+a design defect rather than as a modelling artifact.
+
+**96c. A local instance of this was found years of waves ago and not
+generalised.** `double_buffer_props` carries an `fv_started` register whose
+comment reads: *"Under `-set-init-zero` every register begins at 0 … the
+property refutes on the REAL design."* That is exactly this problem, for exactly
+this reason, fixed for exactly one property — and nobody asked how many other
+registers reset to something other than zero. The answer was nine.
+
+**96d. A fix that did not work, recorded because the reasoning is the point.**
+The obvious repair is to copy `fv_started` to the two affected properties so
+they do not assert over the zero state. It **does not help**: with
+`-set-init-zero` and `rst_n` never asserted low, the design sits in the decoded
+state *indefinitely*, not merely at time zero, so a one-cycle guard changes
+nothing. The tested repair was reverted. What is needed is either an explicit
+reset assumption or the encoding invariant this gate now records — and the honest
+answer is that the encoding invariant is what the design actually relies on.
+
+**96e. What the gate does.** It does not forbid non-zero resets, which would be
+absurd — an AXI slave that comes up not-ready is worse than one that does. It
+requires each to be **listed** with a reason, so the gap between "the zero state"
+and "the reset state" is written down rather than rediscovered by a refutation
+in some later wave. Nine registers, nine notes, all in the emitters.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
