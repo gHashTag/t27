@@ -38,6 +38,13 @@ import sys
 
 MODULE = re.compile(r"^module\s+(\w+)\s*(.*?)^endmodule", re.M | re.S)
 INCR = re.compile(r"^\s*(?:.*?\b)?(\w+)\s*<=\s*([^;]*?\b\1\b\s*\+[^;]*);", re.M)
+# Countdowns. Wave 633: the mirror of overflow is underflow, and it is the
+# sharper risk here because two of this bundle's tightest bounds are enforced by
+# a separate countdown rather than by any comparison on the thing being bounded.
+# `X <= X - k` wraps to near 2^N the moment X < k, and a wrapped countdown does
+# not stop -- it runs for another 2^N steps. Every drain must state its
+# terminator.
+DECR = re.compile(r"^\s*(?:.*?\b)?(\w+)\s*<=\s*([^;]*?\b\1\b\s*-[^;]*);", re.M)
 PORT = re.compile(r"\b(?:input|output)\s+(?:wire\s+|reg\s+)?(?:signed\s*)?"
                   r"(?:\[[^\]]*\]\s*)?(\w+)")
 NOTE = re.compile(r"//\s*BOUND:\s*(\w+)\s+(.+)")
@@ -64,6 +71,10 @@ def classify(body):
     code = strip_comments(body)
     ports = set(PORT.findall(code))
     out = {}
+    for m in DECR.finditer(code):
+        name = m.group(1)
+        if name not in out:
+            out[name] = ("DRAIN", "counts down; underflow wraps to near 2^N")
     for m in INCR.finditer(code):
         name = m.group(1)
         if name in out:
@@ -114,7 +125,7 @@ def scan(root):
     for _, mod, name, kind, why, note in sorted(rows, key=lambda r: (r[3], r[1])):
         print(f"{mod:26s} {name:20s} {kind:9s} {note or why}")
 
-    bad = [r for r in rows if r[3] in ("CONTRACT", "FREE") and not r[5]]
+    bad = [r for r in rows if r[3] in ("CONTRACT", "FREE", "DRAIN") and not r[5]]
     for f, mod, name, kind, why, _ in bad:
         print(f"::error::{f}: `{mod}.{name}` is {kind} ({why}) and carries no "
               f"`// BOUND: {name} <reason>` note. A register whose limit is not "
@@ -131,10 +142,11 @@ def scan(root):
         return 1
 
     kinds = {k: sum(1 for r in rows if r[3] == k) for k in
-             ("LOCAL", "CONTRACT", "FREE")}
-    print(f"\nbound scan: {len(rows)} growing registers across {len(files)} "
+             ("LOCAL", "CONTRACT", "FREE", "DRAIN")}
+    print(f"\nbound scan: {len(rows)} counting registers across {len(files)} "
           f"files -- {kinds['LOCAL']} local, {kinds['CONTRACT']} by contract, "
-          f"{kinds['FREE']} free, {len(bad)} unannotated")
+          f"{kinds['FREE']} free, {kinds['DRAIN']} draining, {len(bad)} "
+          "unannotated")
     return 1 if bad else 0
 
 
@@ -161,6 +173,19 @@ module m (input wire clk, input wire [7:0] limit);
     always @(posedge clk) if (c == limit) c <= 0; else c <= c + 8'd1;
 endmodule
 """, "CONTRACT", 0),
+        ("a countdown, which must state its terminator", """
+module m (input wire clk, input wire go);
+    reg [15:0] left;
+    always @(posedge clk) if (go) left <= left - 16'd1;
+endmodule
+""", "DRAIN", 1),
+        ("the same countdown, annotated", """
+module m (input wire clk, input wire go);
+    // BOUND: left terminates at exactly 1, so it reaches 0 and never wraps.
+    reg [15:0] left;
+    always @(posedge clk) if (go) left <= left - 16'd1;
+endmodule
+""", "DRAIN", 0),
         ("a register nothing compares -- the Prop. 83 shape", """
 module m (input wire clk, input wire go, input wire signed [5:0] d);
     reg signed [15:0] acc;
@@ -177,7 +202,7 @@ endmodule
             f.write_text(text)
             rows = scan_file(f)
             got_kind = rows[0][3] if rows else "NONE"
-            got_bad = sum(1 for r in rows if r[3] in ("CONTRACT", "FREE")
+            got_bad = sum(1 for r in rows if r[3] in ("CONTRACT", "FREE", "DRAIN")
                           and not r[5])
             ok = got_kind == want_kind and got_bad == want_bad
             print(f"  {'ok  ' if ok else 'FAIL'} {name}: {got_kind}, "

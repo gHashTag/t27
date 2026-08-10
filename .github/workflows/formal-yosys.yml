@@ -804,6 +804,32 @@ jobs:
           python3 formal/bound_scan.py --self-test
           python3 formal/bound_scan.py
 
+      # Wave 633. The countdown that enforces weight_prefetch_ctrl's tightest
+      # bound. A drain that underflows does not stop -- it runs another 2^16
+      # beats past the request. Proved on the module directly, because
+      # words_remaining is internal and a wrapper referencing dut.words_remaining
+      # would silently prove against an undriven phantom wire (Prop. 62).
+      # Induction, so the verdict holds for every request length rather than to
+      # a depth. Prop. 85.
+      - name: The prefetch countdown cannot underflow (unbounded)
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                        build/rtl/weight_prefetch_ctrl.sv; \
+                        prep -top weight_prefetch_ctrl -flatten; stat" \
+              | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::Expected >=2 \$check cells, found ${n:-0} -- the inline"
+            echo "::error::drain properties were not compiled and this step proves nothing."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                    build/rtl/weight_prefetch_ctrl.sv; \
+                    prep -top weight_prefetch_ctrl -flatten; async2sync; \
+                    chformal -lower; \
+                    sat -verify -prove-asserts -seq 8 -tempinduct -set-init-zero -set-assumes"
+          echo "ok       words_remaining reaches 0 only as the FSM leaves FETCH"
+
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the
       # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined

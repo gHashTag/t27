@@ -5274,6 +5274,95 @@ python3 formal/bound_scan.py --self-test && python3 formal/bound_scan.py
 
 ---
 
+### Prop. 85 — the countdowns that enforce the tight bounds — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *The prefetch countdown cannot underflow (unbounded)*
+
+Prop. 84 found two 12-bit word indices sized at *exactly* their 4096-entry
+limit, and noted that neither bound is a comparison on the index: both are
+enforced by a **separate countdown**. That makes the countdowns load-bearing,
+and a countdown has its own failure mode — the mirror of overflow. `X <= X - k`
+wraps to near 2ᴺ the moment `X < k`, and a wrapped countdown does not stop; it
+runs for another 2ᴺ steps. `bound_scan` now classifies these as DRAIN and
+requires the same written argument.
+
+There are exactly three, in two modules.
+
+**85a. `weight_prefetch_ctrl.words_remaining` — proved, unbounded.** The
+terminator fires at exactly 1, so the register reaches 0 and never wraps; the
+`num_words == 0` case is guarded separately. Stated as two **inline** properties
+in the module rather than in `weight_prefetch_props.sv`, because
+`words_remaining` is internal and a wrapper referencing `dut.words_remaining`
+would not error — it would declare an undriven one-bit wire of that name and
+prove against it, which is exactly how a property here spent four waves reading
+nothing (Prop. 62). Proved on the module directly by **k-induction**, so the
+verdict covers every request length rather than a depth.
+
+Three bars, all cleared: it **proves** (`-tempinduct`, exit 0); the run compiles
+**2 `$check` cells**, so the properties are present rather than silently
+excluded by the guard; and it **bites** — changing the terminator from
+`== 16'd1` to `== 16'd0`, the off-by-one that would produce the underflow,
+refutes it.
+
+**85b. `dma_controller.bytes_remaining` — underflows by design, and that is
+fine, conditionally.** It counts down by 8 per beat while the exit test is
+`bytes_remaining <= 8`. For any length that is not a multiple of 8 the final
+beat wraps it: a 12-byte request goes 12 → 4 → `0xFFFFFFFC`. This is harmless for two
+distinct reasons, worth separating. The exit test `bytes_remaining <= 8` is in
+the same always block and so samples the **pre-decrement** value: it sees 4, not
+the wrap, and sends the FSM to `DONE_ST`. `beats_owed = (bytes_remaining + 7)
+>> 3` is a *continuous* assignment and therefore does track the wrapped value —
+it is safe not because it misses the wrap but because it is only read in
+`READ_ADDR`/`WRITE_ADDR`, states the FSM does not re-enter after leaving. The
+next `start` then overwrites the register.
+
+That argument has a condition: it holds while the slave honours the `arlen` the
+controller issued. An extra beat past `rlast` would feed the wrapped value into
+`beats_owed` and request a 2³²-byte burst. Recorded as an AXI-protocol
+dependency rather than proved, because it is a claim about the environment.
+
+**85c. Where the argument had to live.** `words_remaining` could not be
+constrained from the existing wrapper's ports at all. The observable
+consequence — an underflow would write past the request — *is* covered by
+`a_no_overwrite`, but only to that step's depth, and the terminator for a large
+`num_words` sits far beyond it. Moving the property inside the module is what
+made an unbounded verdict possible. Sometimes the right place for a property is
+not the property file.
+
+**85d. Adding two module properties quadrupled an engine step, and that
+decided where they live.** These were first guarded with `T27_FORMAL` — the
+same define the engine's integration steps pass, and those steps read this file.
+Two module-level assertions therefore joined the engine's obligation set without
+anyone intending it, and *"all 28 at `seq 40`"* went from **183 s (Prop. 81a) to
+723 s**: a 4× cost on the engine's cheapest step, from two properties, against a
+ceiling Props. 34 and 81d already flagged as narrowing.
+
+They now sit behind their own `T27_FORMAL_DRAIN`. The engine returns to **31
+`$check` cells**, the module step keeps its 2, and nothing is lost — induction
+already proves them for *every* request length, so re-proving them inside the
+engine to a depth of 40 buys strictly less than what the module step gives.
+
+The general point: an inline property is compiled by whoever passes its guard,
+not by whoever wrote it. Check the `$check` count of every step that reads the
+file, and pick the guard for cost as deliberately as for taxonomy.
+
+**85e. And a comment that claimed more than its property.** The second inline
+assertion was introduced as establishing non-vacuity — "the drain does reach 1,
+where the terminator has to do the work". It asserts `words_remaining <= 4096`,
+which says nothing of the sort. It is a real property (removing the clamp would
+refute it, and the index bound depends on that clamp) but it is not a
+reachability argument, and the comment was rewritten to claim only what the
+assertion checks. Non-vacuity here comes from the `$check` count and the
+mutation, not from this.
+
+Reproduce:
+
+```bash
+python3 formal/bound_scan.py --self-test && python3 formal/bound_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

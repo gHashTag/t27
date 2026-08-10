@@ -2,6 +2,49 @@
 
 Last updated: 2026-08-10
 
+## Wave 633 — the countdowns that enforce the tight bounds
+
+- **WHY THESE**: Prop. 84 found two 12-bit indices sized at *exactly* their
+  4096-entry limit, neither bounded by any comparison on itself — both enforced
+  by a separate **countdown**. That makes the countdowns load-bearing, and a
+  countdown has the mirror failure mode: `X <= X - k` wraps to near 2ᴺ the
+  moment `X < k`, and a wrapped countdown does not stop, it runs another 2ᴺ
+  steps past the request. `bound_scan` now classifies these DRAIN.
+- **THREE COUNTDOWNS IN TWO MODULES**, both now annotated (17 counting
+  registers, 0 unannotated).
+- **`weight_prefetch_ctrl.words_remaining` — PROVED, UNBOUNDED**: the terminator
+  fires at exactly 1, so the register reaches 0 and never wraps. All three bars:
+  proves by k-induction; **2 `$check` cells**, so the properties are compiled
+  rather than silently excluded by the guard; and it **bites** — changing the
+  terminator from `== 1` to `== 0` refutes it.
+- **THE PROPERTY HAD TO GO INLINE IN THE MODULE**: `words_remaining` is
+  internal, and a wrapper referencing `dut.words_remaining` would not error — it
+  would declare an undriven one-bit wire and prove against it, which is exactly
+  how a property here spent four waves reading nothing (Prop. 62). The
+  observable consequence *is* covered by `a_no_overwrite`, but only to that
+  step's depth, and the terminator for a large `num_words` sits far beyond it.
+  Sometimes the right place for a property is not the property file.
+- **`dma_controller.bytes_remaining` UNDERFLOWS BY DESIGN**: it decrements by 8
+  while the exit test is `<= 8`, so any non-multiple-of-8 length wraps on the
+  final beat — 12 → 4 → `0xFFFFFFFC`. Harmless because every consumer (the exit
+  test and `beats_owed = (bytes_remaining + 7) >> 3`) samples the
+  **pre-decrement** value and the FSM leaves on that same beat. Conditional on
+  the slave honouring the issued `arlen`: an extra beat past `rlast` would feed
+  the wrapped value into `beats_owed` and request a 2³²-byte burst. Recorded as
+  an AXI-protocol dependency, not proved — it is a claim about the environment.
+- **TWO PROPERTIES QUADRUPLED AN ENGINE STEP**: first guarded with
+  `T27_FORMAL`, the same define the engine's integration steps pass — so two
+  module assertions silently joined the engine's obligation set and *"all 28 at
+  seq 40"* went **183 s → 723 s**. Now behind their own `T27_FORMAL_DRAIN`:
+  engine back to **31 `$check` cells**, module step keeps its 2, and nothing is
+  lost since induction already covers every request length. An inline property
+  is compiled by whoever passes its guard, not by whoever wrote it.
+- **A COMMENT THAT CLAIMED MORE THAN ITS PROPERTY**: the second assertion was
+  introduced as establishing non-vacuity; it asserts `words_remaining <= 4096`,
+  which says nothing of the sort. Rewritten to claim only what it checks.
+  Non-vacuity comes from the `$check` count and the mutation.
+- **PROP. 85** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 632 — fifteen growing registers, and what each is safe relative to
 
 - **THE CLASS, NOT THE INCIDENT**: Prop. 83's accumulator was one case of "a

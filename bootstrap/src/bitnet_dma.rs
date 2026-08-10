@@ -143,6 +143,15 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    localparam WRITE_DATA = 3'd4;\n");
     s.push_str("    localparam DONE_ST    = 3'd5;\n");
     s.push_str("    reg [2:0]  state;\n");
+    s.push_str("    // BOUND: bytes_remaining counts DOWN by 8 per beat and DOES underflow, by\n");
+    s.push_str("    // design, on the final beat of any request whose length is not a multiple of\n");
+    s.push_str("    // 8 -- a 12-byte request goes 12 -> 4 -> 0xFFFFFFFC. It is harmless only\n");
+    s.push_str("    // because every consumer reads the PRE-decrement value: the exit test\n");
+    s.push_str("    // `bytes_remaining <= 8` and beats_owed both sample it before the wrap, and\n");
+    s.push_str("    // the state leaves for DONE_ST on that same beat. The wrapped value is then\n");
+    s.push_str("    // overwritten at the next start. This holds while the slave honours the arlen\n");
+    s.push_str("    // we issued; an extra beat past rlast would feed the wrapped value into\n");
+    s.push_str("    // beats_owed and request a 2^32-byte burst. Prop. 85.\n");
     s.push_str("    reg [31:0] bytes_remaining;\n");
     s.push_str("    // BOUND: word_index `length` is clamped to 32768 bytes on entry, and one\n");
     s.push_str("    // beat is 8 bytes, so at most 4096 beats are issued -- exactly the 4096\n");
