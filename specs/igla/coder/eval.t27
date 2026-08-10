@@ -1873,8 +1873,10 @@ pub fn compute_xgrpo_variance(groups: [][]f32) -> f32 {
     if (groups.len() == 0) { return 0.0; }
     let total_mean = mean_of_groups(groups, 0, 0.0, 0);
     if (total_mean == 0.0) { return 0.0; }
-    let var = group_variance(groups, 0, 0.0, total_mean);
-    return var;
+    // W605: `var` is a t27 KEYWORD, so it cannot name a binding. Renamed to
+    // `variance`; the two sites were the only ones in the corpus.
+    let variance = group_variance(groups, 0, 0.0, total_mean);
+    return variance;
 }
 
 fn mean_of_groups(groups: [][]f32, idx: u32, acc: f32, count: u32) -> f32 {

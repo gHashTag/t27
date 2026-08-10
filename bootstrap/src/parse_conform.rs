@@ -147,6 +147,20 @@ pub const CASES: &[Case] = &[
         note: "W567: a keyword-form invariant must not swallow what follows",
     },
     Case {
+        name: "slice_expression",
+        input: "module m\n\nfn head(s: []const u8) -> []const u8 {\n    return s[0:5];\n}\n\nfn after() -> u32 { return 1; }\n",
+        verdict: Verdict::Full,
+        decls: Some(2),
+        note: "W605: `x[a:b]` is a slice -- 33 sites in code, every one in IGLA CODER; eval.t27 failed on it at line 1394",
+    },
+    Case {
+        name: "index_still_parses",
+        input: "module m\n\nfn first(s: []const u8) -> u8 {\n    return s[0];\n}\n\nfn after() -> u32 { return 1; }\n",
+        verdict: Verdict::Full,
+        decls: Some(2),
+        note: "W605: adding slices must not break ordinary indexing",
+    },
+    Case {
         name: "unterminated_fn_body",
         input: "module m\n\nfn a() -> u32 { return 1;\n",
         verdict: Verdict::Rejected,

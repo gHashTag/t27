@@ -982,6 +982,66 @@ unchanged at 397/608 — this fixed a value, not a parse.
 
 ---
 
+### P21 (W605) — Slice syntax, a reserved word, and what "unblocks three specs" actually bought
+
+**Two defects, measured before either was fixed.**
+
+**(a) `x[a:b]` was not parsed.** `eval.t27` failed at line 1394 on `stdout[0:5]`.
+The corpus contains:
+
+| | |
+|---|---:|
+| slice expressions **in code** | **33**, in 5 specs — all IGLA CODER |
+| `[7:0]` bit-ranges **inside string literals** | 78 — Verilog, not slices |
+
+**The first count was 321** — it matched inside string literals. Stripping
+strings first gives 33. *A regex over source text measures the text, not the
+language*, which is the same error as W588's path-prefix match and W602's
+convention-blind reading. Third instance of the identical mistake; caught this
+time by checking before publishing.
+
+Zig spells the same half-open range `x[a..b]`, so the lowering is one separator.
+
+**(b) `var` is a t27 keyword** and `eval.t27` used it as a binding name — 2
+sites, the only ones in the corpus. A spec repair, not a language change.
+
+### What it bought — stated precisely, because the leverage claim was mine
+
+P19 predicted that fixing `eval.t27`'s parse would unblock `dataset` and `prm`.
+Measured after:
+
+| Spec | before | after |
+|---|---|---|
+| `eval` | parse error @1394 | **parses**; compile: `SimResult` undeclared |
+| `tokenizer` | parse error @286 | **parses**; compile: invalid escape `'0'` |
+| `prm` | `undeclared identifier 'eval'` | `undeclared identifier 'BeamCandidate'` |
+| `dataset` | `undeclared identifier 'eval'` @1003 | still `'eval'` @1226 |
+
+**The prediction is half-confirmed.** `prm`'s dependency on `eval` *did* resolve
+— it moved to an unrelated blocker. `dataset` did not, and the reason is
+specific: it calls **`eval.has_substring(...)`**, a *module-qualified* reference.
+`use_resolve` splices contents into the namespace; it does not create a module
+object, so a qualified call still has nothing to bind to. **That is the W589
+class** — 16 cross-module qualified references corpus-wide — and it is a
+different gap from the one this wave fixed.
+
+| | |
+|---|---:|
+| `parse-complete` | **397 → 399** of 608 |
+| specs that TRUNCATE | 0 |
+| CODER specs measurable | **still 0** |
+
+**No IGLA CODER spec produces a test binary yet**, and saying so is the result.
+Two specs began parsing, one dependency edge resolved, and the honest summary of
+a corpus-wide parser feature plus a spec repair is *two files moved from one
+failure class to another.*
+
+*Falsification condition:* a slice site the parser still rejects, a `[7:0]`
+string that the parser now misreads as a slice, or a CODER spec whose blocker
+does not match the table above.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

@@ -4655,6 +4655,20 @@ These cost a wave each. Follow them before step 1.
      branching on length serves both, and makes the unterminated case an ERROR
      instead of silent garbage.
 
+115. **A regex over source text measures the TEXT, not the language.** Counting
+     `x[a:b]` naively gave 321 sites; stripping string literals first gave 33.
+     The other 78 were Verilog `[7:0]` bit-ranges inside strings. **Third
+     instance of this identical mistake** (W588 matched path prefixes, W602 read
+     a convention as a defect) -- and the first one caught before publishing.
+     Blank out strings and comments before counting anything syntactic.
+
+116. **State what a fix bought, not what it was predicted to buy.** P19 said
+     fixing eval.t27's parse would unblock three specs. It resolved ONE
+     dependency edge (prm moved to a new blocker), made TWO specs parse, and
+     left dataset blocked on a different mechanism -- module-QUALIFIED calls
+     (`eval.has_substring`), which splicing cannot satisfy. Report the four-row
+     before/after table, not the headline.
+
 ### How to update this tracker
 
 After closing a wave:

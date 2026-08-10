@@ -21902,3 +21902,41 @@ Same class as W575's `1e6`, and found the same way: by measuring something for a
 different reason. Effect measured, not assumed -- weights.t27 advances from
 line 487 to line 690; the other nine are unchanged; corpus parse count is
 unchanged at 397/608. **This fixed a value, not a parse.**
+
+## Wave 605 — slice syntax, a reserved word, and what "unblocks three" actually bought
+
+**Two defects, measured before either was fixed.**
+
+`eval.t27` failed at line 1394 on `stdout[0:5]` -- **`x[a:b]` slice syntax was
+not parsed**. The naive count said **321 sites**. Stripping string literals
+first said **33**; the other 78 were Verilog `[7:0]` bit-ranges inside strings.
+**Third instance of the identical mistake** -- W588 matched path prefixes, W602
+read a convention as a defect -- and the first caught BEFORE publishing. *A
+regex over source text measures the text, not the language.* Blank out strings
+and comments before counting anything syntactic.
+
+Zig spells the same half-open range `x[a..b]`, so the lowering is one separator.
+Two parse-conform cases added (slice parses; ordinary indexing still does).
+
+Second: **`var` is a t27 keyword** and eval.t27 used it as a binding name. Two
+sites, the only ones in the corpus. A spec repair, not a language change.
+
+**What it bought, stated precisely -- because the leverage claim was mine.**
+P19 predicted fixing eval.t27's parse would unblock three specs:
+
+    eval       parse error @1394  ->  PARSES; compile: SimResult undeclared
+    tokenizer  parse error @286   ->  PARSES; compile: invalid escape '0'
+    prm        undeclared 'eval'  ->  undeclared 'BeamCandidate'   (edge resolved)
+    dataset    undeclared 'eval'  ->  still 'eval', at a new line
+
+**Half-confirmed.** prm's dependency did resolve. dataset's did not, for a
+specific reason: it calls `eval.has_substring(...)` -- a module-QUALIFIED
+reference. `use_resolve` splices contents into the namespace; it does not create
+a module object, so a qualified call has nothing to bind to. **That is the W589
+class**, a different gap from the one this wave fixed.
+
+    parse-complete   397 -> 399 of 608     CODER specs measurable: still 0
+
+Two specs began parsing, one dependency edge resolved, and the honest summary of
+a corpus-wide parser feature plus a spec repair is **two files moved from one
+failure class to another.** Report the before/after table, not the headline.

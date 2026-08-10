@@ -3304,6 +3304,26 @@ impl Parser {
             } else if self.current.kind == TokenKind::LBracket {
                 self.advance(); // consume [
                 let index = self.parse_expr()?;
+                // W605: `x[a:b]` -- a slice. 33 sites in code across five
+                // specs, every one of them in IGLA CODER, and it is what
+                // `eval.t27` fails on at line 1394 (`stdout[0:5]`). Zig spells
+                // it `x[a..b]`, so the only difference is the separator.
+                //
+                // The corpus ALSO contains 78 `[7:0]` bit-ranges -- Verilog,
+                // inside string literals -- which are not slices and are not
+                // reached here, because a string literal is one token.
+                if self.current.kind == TokenKind::Colon {
+                    self.advance(); // consume :
+                    let end = self.parse_expr()?;
+                    self.expect(TokenKind::RBracket)?;
+                    let mut slice_node = Node::new(NodeKind::ExprIndex);
+                    slice_node.extra_op = "slice".to_string();
+                    slice_node.children.push(expr);
+                    slice_node.children.push(index);
+                    slice_node.children.push(end);
+                    expr = slice_node;
+                    continue;
+                }
                 self.expect(TokenKind::RBracket)?;
                 let mut idx_node = Node::new(NodeKind::ExprIndex);
                 idx_node.children.push(expr);
@@ -6583,7 +6603,16 @@ impl Codegen {
             }
             NodeKind::ExprIndex => {
                 // children[0] = base, children[1] = index
-                if node.children.len() >= 2 {
+                // W605: a slice carries a third child (the end) and lowers to
+                // Zig's `[a..b]` -- the same half-open range the source means.
+                if node.extra_op == "slice" && node.children.len() >= 3 {
+                    self.gen_expr(&node.children[0]);
+                    self.write("[");
+                    self.gen_expr(&node.children[1]);
+                    self.write("..");
+                    self.gen_expr(&node.children[2]);
+                    self.write("]");
+                } else if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
                     self.write("[");
                     self.gen_expr(&node.children[1]);
