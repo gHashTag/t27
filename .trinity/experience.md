@@ -22495,3 +22495,47 @@ no-field-named 24 -> 21. **IGLA total unchanged at 1072** -- the rename cleared
 its own class and those literals then failed on another. Saying so.
 
 **C -- board**: cable not found. Verified.
+
+## Wave 621 — the decision register was 15-of-16 wrong
+
+W620 dissolved register entry 1 by re-measuring it. W621 applied the same
+procedure to the other sixteen -- one independent agent per entry, each told not
+to trust the recorded claim.
+
+    DISSOLVED      12   never a decision at all
+    NUMBERS_WRONG   2   still a decision, every count wrong
+    ALREADY_FIXED   1   a later wave shipped it
+    SURVIVES        0
+    stalled         1
+
+**NOT ONE ENTRY SURVIVED AS WRITTEN.**
+
+I created that file in W612 and called it, in every wave report since, the
+highest-value artefact in the project -- "what sits at the top of the pile is a
+small number of sentences from someone who owns the spec". **Twelve of those
+sentences did not need to be said.**
+
+**Four mechanisms, each reproducible:**
+
+1. A number copied from the WRONG COLUMN. Entry 2's "30 points, 24 for
+   depth==len" -- there are 54 points, and the 24 is the count of INVARIANT
+   blocks, a population the tally had excluded. True split: 51 vs 3.
+2. A table row with NO EVIDENCE. Entry 2's "length 1 expects {0,1}" -- no
+   assertion in the corpus pairs a non-empty input with 0. Contradictory lengths
+   are TWO, not three.
+3. A premise that MISREAD THE CODE. `is_sacred_opcode` is a byte-range
+   predicate, not membership in eleven names. `PpaMetrics` has ZERO declarations
+   -- no declared fields to mismatch.
+4. A DILEMMA WHOSE SECOND BRANCH IS EMPTY. Entries 7, 8, 10, 17. Entry 10's two
+   options were the same operation. Entry 17's own source report says it "would
+   not go to the decision register" -- I added it anyway.
+
+**The general result: a measurement written once and quoted thereafter becomes
+true by repetition.** This is the same failure catalogued eleven times in the
+CODE -- an instrument reporting success while producing something smaller than
+intended -- now found in the project's own record-keeping. **The register was
+the instrument, and nothing was checking it because I wrote it.**
+
+Corollary: every artefact carrying a number should state when it was last
+re-derived. A count without a date is a claim about the past presented as a
+claim about the present.

@@ -2023,6 +2023,73 @@ Reverted with `git checkout`; gates restored to 34/34 and 15/15.
 
 ---
 
+### P35 (W621) — The decision register was 15-of-16 wrong, and the errors were systematic
+
+W620 dissolved register entry 1 by re-measuring it. W621 applied the same
+procedure to the other sixteen, one independent agent per entry, each told not
+to trust the recorded claim.
+
+| Verdict | n |
+|---|---:|
+| **DISSOLVED** — never a decision at all | **12** |
+| **NUMBERS_WRONG** — still a decision, counts wrong | 2 |
+| **ALREADY_FIXED** — a later wave shipped it | 1 |
+| **SURVIVES as recorded** | **0** |
+| stalled mid-audit | 1 |
+
+**Not one entry survived as written.**
+
+This matters beyond the register. The file was created in W612 and presented —
+by me, in every wave report since — as *the highest-value artefact in the
+project*, on the grounds that "the compiler-side categories are eliminated and
+what remains is a small number of sentences from someone who owns the spec."
+**Twelve of those sentences did not need to be said.**
+
+### The four mechanisms, each reproducible
+
+1. **A number copied from the wrong column.** Entry 2 recorded "30 test points,
+   24 consistent with `depth == len`". There are **54** points, and the "24" is
+   the count of *invariant blocks* — a population the tally had explicitly
+   excluded and then reported as a consistency figure. The true split is
+   **51 vs 3**.
+
+2. **A table row with no evidence behind it.** Entry 2 claims input length 1
+   expects `{0, 1}`. **No assertion anywhere in the corpus pairs a non-empty
+   input with an expected 0.** All four length-1 points expect 1. The
+   contradictory lengths are **two** (2 and 4), not three.
+
+3. **A premise that misread the code.** Entry 5 states that `is_sacred_opcode`
+   tests membership in eleven named opcodes; it is a **byte-range predicate**.
+   Entry 6 describes a field mismatch in `PpaMetrics` — which has **zero
+   declarations in the repository**, hence no declared fields to mismatch.
+
+4. **A dilemma whose second branch is provably empty.** Entries 7, 8, 10 and 17
+   each pose "either X or Y" where Y is refuted by the file's own contents.
+   Entry 10's two options turn out to be **the same operation**. Entry 17's own
+   source report (W617) states that it *"would not go to the decision
+   register"* — and it was added anyway.
+
+### The general result
+
+> **A measurement written once and quoted thereafter becomes true by
+> repetition.** These counts were carried through dozens of wave reports and
+> issue comments without re-derivation. **Re-measuring cost one wave and
+> invalidated 15 of 16 entries.**
+
+This is the same failure this chain has documented eleven times in the *code* —
+an instrument that reports success while producing something smaller or
+different than intended — appearing in the **project's own record-keeping**. The
+register was the instrument, and nothing was checking it.
+
+**Corollary for the method.** Every artefact this chain produces that carries a
+number should state when it was last re-derived. A count without a date is a
+claim about the past presented as a claim about the present.
+
+*Falsification condition:* an entry whose dissolution argument fails on
+re-examination, or a recorded count that reproduces.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

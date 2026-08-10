@@ -4938,6 +4938,27 @@ These cost a wave each. Follow them before step 1.
      co-occur they are distinct fields and only widening works. `DataSample`
      needed widening; `BenchResult`'s `pass`/`passed` needed a rename.
 
+162. **RE-DERIVE EVERY NUMBER YOU QUOTE, OR DATE IT.** W621 re-measured all
+     sixteen decision-register entries: 12 were never decisions, 2 had every
+     count wrong, 1 was already fixed, ZERO survived as written. Those counts
+     had been quoted in dozens of wave reports. **A measurement written once and
+     repeated becomes true by repetition.**
+
+163. **The four ways a recorded count goes wrong** -- all found in one file:
+     (a) a number copied from the WRONG COLUMN (entry 2's "24" was the count of
+     invariants, a population the tally had excluded); (b) a table row with NO
+     evidence behind it (entry 2's "length 1 expects {0,1}" -- no assertion
+     anywhere pairs a non-empty input with 0); (c) a premise that MISREAD THE
+     CODE (`is_sacred_opcode` is a byte-range predicate, not a set of eleven
+     names; `PpaMetrics` has zero declarations); (d) a DILEMMA WHOSE SECOND
+     BRANCH IS EMPTY (entry 10's two options were the same operation).
+
+164. **Audit your own summarising artefacts, not just the code.** The register
+     was an instrument that reported "these need a human" -- exactly the shape
+     of failure this chain has catalogued eleven times in the compiler, now
+     found in the project's own record-keeping. Nothing was checking it because
+     I wrote it.
+
 ### How to update this tracker
 
 After closing a wave:
