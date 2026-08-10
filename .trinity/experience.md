@@ -22343,3 +22343,38 @@ write the functions or withdraw the tests, versus decide the canonical model.**
 generation is worse" would be false.
 
 **A variant that can only confirm you is not worth a wave.**
+
+## Wave 617 — a diagnosis, not a fix, and I say so
+
+W616 flagged `struct 'X' has no member named 'Y'` as the cleanest signal: **40
+occurrences, zero outside the _wNNN generation.** Characterised completely:
+
+    ONE type: TernaryWeight   missing plus (24), minus (9), zero (7)
+    5 specs: ternary_mac, ternary_gemm, ternary_inference, formal, yosys
+
+The source writes TYPE-ASSOCIATED CONSTRUCTORS -- `TernaryWeight::plus()` -- and
+**the encoding is fully determined by the file's own decoder**:
+
+    ternary_decode: code == 1 -> +1, code == 2 -> -1, else 0
+    so plus() = {code:1}, minus() = {code:2}, zero() = {code:0}
+
+**Nothing here needs a decision.** Unlike every other _wNNN finding, this one is
+determined.
+
+**Why it is blocked anyway**, both measured:
+1. A free `fn plus()` does NOT satisfy `W::plus()` -- the call lowers to
+   `W.plus()`, which needs a MEMBER.
+2. **The parser silently discards methods declared inside a struct.**
+   `parse_struct_body` handles only Ident field names; everything else hits
+   `// Skip unexpected tokens inside struct`. **That is the W577 class living
+   inside the struct body** -- and it is why parse-conform's
+   `struct_with_method` case can assert the file PARSES since W577: it parses by
+   throwing the method away.
+
+**THREE ATTEMPTS CLOSED NOTHING** -- emitter branch, parser branch, both --
+producing no change in generated output, so the cause is upstream of both. All
+reverted. **And the hand-revert over-cut by 35 lines and broke
+`struct_with_method`**, caught by the gate and restored with `git checkout`.
+
+Two rules earned: **revert with git checkout, not by hand-cutting what you think
+you added**; and **a wave that only diagnoses is still a wave, if it says so.**

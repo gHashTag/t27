@@ -1655,6 +1655,85 @@ test.
 
 ---
 
+### P32 (W617) — The 40-versus-0 class is one type, three constructors, and a parser that discards struct methods
+
+W616 flagged `struct 'X' has no member named 'Y'` as the cleanest signal on the
+board — **40 occurrences, zero outside the `_wNNN` generation.** Characterised:
+
+| | |
+|---|---:|
+| Distinct types involved | **1** — `TernaryWeight` |
+| missing `plus` | 24 |
+| missing `minus` | 9 |
+| missing `zero` | 7 |
+| Specs affected | 5 (`ternary_mac`, `ternary_gemm`, `ternary_inference`, `formal`, `yosys`) |
+
+### The source, and the encoding
+
+The source writes **type-associated constructors**:
+
+```t27
+given w = TernaryWeight::plus()
+when result = ternary_mac(acc, a, w)
+then result == 15            // acc = 10, a = 5
+```
+
+`TernaryWeight` is declared `struct { code : u8 }`, and **the encoding is fully
+determined by the file's own decoder**:
+
+```t27
+fn ternary_decode(w: TernaryWeight) -> i8 {
+    if (w.code == 1) { return 1; }
+    if (w.code == 2) { return -1; }
+    return 0;
+}
+```
+
+so `plus() = {code: 1}`, `minus() = {code: 2}`, `zero() = {code: 0}`. **Nothing
+here needs a decision** — unlike the other `_wNNN` findings, this one is
+determined.
+
+### Why it is nevertheless blocked
+
+Two facts, each measured:
+
+1. **A free function does not satisfy a type-qualified call.** `fn plus()`
+   generates `fn plus() W`, but `W::plus()` lowers to `W.plus()`, which requires
+   a *member*.
+2. **The parser silently discards methods declared inside a struct.**
+   `parse_struct_body` handles only `Ident` field names; everything else falls
+   to
+
+   ```rust
+   } else {
+       // Skip unexpected tokens inside struct
+       self.advance();
+   }
+   ```
+
+   **This is the W577 class living inside the struct body** — accept the input,
+   emit a smaller program. `parse-conform`'s `struct_with_method` case has
+   asserted since W577 that such a file *parses*; it parses by throwing the
+   method away.
+
+### What this wave did not achieve
+
+Three attempts to close it — an emitter branch in `gen_struct_decl`, a parser
+branch in `parse_struct_body`, and both together — **produced no change in the
+generated output**, so the cause is upstream of both. All were reverted, and the
+revert itself over-cut and broke `struct_with_method` until the file was
+restored from git.
+
+> **A fix you cannot demonstrate is not a fix** (W607's rule, applied to its
+> author). The diagnosis stands on its own: one type, three constructors, a
+> determined encoding, and a precisely located parser gap.
+
+*Falsification condition:* a spec in which a struct method reaches the generated
+Zig, or a `TernaryWeight` constructor whose expected value contradicts
+`ternary_decode`.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

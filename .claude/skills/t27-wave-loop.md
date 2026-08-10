@@ -4865,6 +4865,24 @@ These cost a wave each. Follow them before step 1.
      functions written or tests withdrawn; the second needs a canonical-model
      decision. Reporting them as one number hides that.
 
+149. **A "skip unexpected tokens" branch is the W577 class in miniature.**
+     `parse_struct_body` handles only field names; everything else hits
+     `// Skip unexpected tokens inside struct` and vanishes. That is how
+     `parse-conform`'s `struct_with_method` case can assert the file PARSES
+     since W577 -- it parses by discarding the method. **Grep the parser for
+     silent skips; each one is a place a program gets quietly smaller.**
+
+150. **Revert with `git checkout`, not by hand-cutting the region you think you
+     added.** W617's hand revert removed 35 lines -- more than it added -- and
+     broke a conformance case that had passed for forty waves. The gate caught
+     it, but a one-command restore would have avoided it entirely.
+
+151. **A wave that only diagnoses is still a wave, if it says so.** W617 closed
+     nothing: three attempts at the struct-method gap changed no output. What it
+     produced is a complete characterisation -- one type, three constructors, an
+     encoding determined by the file's own decoder, and the exact parser branch
+     responsible. Report it as a diagnosis, not as progress toward a fix.
+
 ### How to update this tracker
 
 After closing a wave:
