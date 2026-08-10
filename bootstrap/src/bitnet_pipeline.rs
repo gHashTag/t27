@@ -94,6 +94,16 @@ pub fn build_pipeline_stage2(module_name: &str) -> String {
     out.push_str("    trit27_dot_product simd (.input_vec(input_chunk), .weight_vec(weight_chunk), .result(dot_result));\n");
     out.push_str("\n");
     out.push_str("    // Accumulator\n");
+    // BOUND note. Prop. 83: this accumulator has no chunk counter and no
+    // num_chunks input, so nothing here limits how long it sums. Its width is
+    // sufficient only because the caller bounds the chunk run, and that
+    // reasoning belonged in the RTL rather than only in a proof.
+    out.push_str("    // BOUND: accumulator layer_sequencer walks chunk_id over an 8-bit\n");
+    out.push_str("    // port, so at most 255 chunks separate two first_chunk restarts and the\n");
+    out.push_str("    // sum stays within 255*27 = 6885 of zero. This module has no chunk\n");
+    out.push_str("    // counter and no num_chunks input: in isolation it wraps after 1214\n");
+    out.push_str("    // chunks. Proved unbounded by k-induction; widening num_chunks past 8\n");
+    out.push_str("    // bits reintroduces the wrap. See FORMAL_FOUNDATIONS Prop. 83.\n");
     out.push_str("    reg signed [15:0] accumulator;\n");
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
@@ -138,7 +148,13 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("    input  wire        start,\n");
     out.push_str("    input  wire [15:0] num_neurons,\n");
     out.push_str("    input  wire [7:0]  num_chunks,\n");
+    out.push_str("    // BOUND: neuron_id compared against num_neurons-1, a 16-bit input port, so\n");
+    out.push_str("    // the limit is the caller's and fits this register by construction. Prop. 84.\n");
     out.push_str("    output reg  [15:0] neuron_id,\n");
+    out.push_str("    // BOUND: chunk_id compared against num_chunks-1, an 8-bit input port. This is\n");
+    out.push_str("    // the contract the MAC accumulator's width depends on: 8 bits here means at\n");
+    out.push_str("    // most 255 chunks per neuron, which is what keeps that 16-bit sum from\n");
+    out.push_str("    // wrapping. Widening this port is not a local change. Props. 83, 84.\n");
     out.push_str("    output reg  [7:0]  chunk_id,\n");
     out.push_str("    output reg         first_chunk,\n");
     out.push_str("    output reg         last_chunk,\n");
@@ -204,6 +220,8 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("    input  wire [5:0]  num_layers,\n");
     out.push_str("    input  wire        layer_done,\n");
     out.push_str("    input  wire        prefetch_done,\n");
+    out.push_str("    // BOUND: current_layer compared against num_layers-1, a 6-bit input port, so\n");
+    out.push_str("    // the caller cannot request more layers than this counter holds. Prop. 84.\n");
     out.push_str("    output reg  [5:0]  current_layer,\n");
     out.push_str("    output reg         layer_start,\n");
     out.push_str("    output reg         start_prefetch,\n");

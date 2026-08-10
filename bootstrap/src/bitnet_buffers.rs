@@ -153,6 +153,12 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("    output reg         prefetch_active,\n");
     s.push_str("    output reg         prefetch_done,\n");
     s.push_str("    // AXI read interface\n");
+    s.push_str("    // BOUND: axi_araddr advances 8 bytes per word from the caller's src_addr, at\n");
+    s.push_str("    // most 4096 words = 32768 bytes because num_words is clamped. This one is\n");
+    s.push_str("    // **32-bit**, unlike the DMA's 64-bit pair, so the wrap needs only a source\n");
+    s.push_str("    // buffer within 32 KiB of the 4 GiB ceiling -- reachable on a real map. The\n");
+    s.push_str("    // module does not check it; the caller must not place weights there.\n");
+    s.push_str("    // Prop. 84.\n");
     s.push_str("    output reg  [31:0] axi_araddr,\n");
     s.push_str("    output reg         axi_arvalid,\n");
     s.push_str("    input  wire        axi_arready,\n");
@@ -169,6 +175,10 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
     s.push_str("    reg [15:0] words_remaining;\n");
+    s.push_str("    // BOUND: word_index `num_words` is clamped to 4096 on entry and counted down\n");
+    s.push_str("    // in words_remaining, so this index spans exactly the 4096 values 12 bits\n");
+    s.push_str("    // hold. Indirect and tight, like the DMA's: no comparison mentions\n");
+    s.push_str("    // word_index, and raising the clamp by one wraps it. Prop. 84.\n");
     s.push_str("    reg [11:0] word_index;\n");
     s.push_str("    localparam IDLE = 2'd0, FETCH = 2'd1, DONE_ST = 2'd2;\n");
     s.push_str("    reg [1:0] state;\n");

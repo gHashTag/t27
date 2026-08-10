@@ -104,6 +104,10 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    // address space and was clamped. Routed to the error IRQ.\n");
     s.push_str("    output reg         overflow,\n");
     s.push_str("    // AXI4 Master Read\n");
+    s.push_str("    // BOUND: m_axi_araddr advances by one burst per beat from the caller's\n");
+    s.push_str("    // src_addr, at most 32768 bytes in total because `length` is clamped. 64-bit,\n");
+    s.push_str("    // so wrapping needs a source buffer within 32 KiB of 2^64. Recorded rather\n");
+    s.push_str("    // than proved: nothing in this module checks it. Prop. 84.\n");
     s.push_str("    output reg  [63:0] m_axi_araddr,\n");
     s.push_str("    output reg  [7:0]  m_axi_arlen,\n");
     s.push_str("    output reg         m_axi_arvalid,\n");
@@ -113,6 +117,7 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    input  wire        m_axi_rvalid,\n");
     s.push_str("    output wire        m_axi_rready,\n");
     s.push_str("    // AXI4 Master Write\n");
+    s.push_str("    // BOUND: m_axi_awaddr as m_axi_araddr, from the caller's dst_addr. Prop. 84.\n");
     s.push_str("    output reg  [63:0] m_axi_awaddr,\n");
     s.push_str("    output reg  [7:0]  m_axi_awlen,\n");
     s.push_str("    output reg         m_axi_awvalid,\n");
@@ -139,7 +144,15 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    localparam DONE_ST    = 3'd5;\n");
     s.push_str("    reg [2:0]  state;\n");
     s.push_str("    reg [31:0] bytes_remaining;\n");
+    s.push_str("    // BOUND: word_index `length` is clamped to 32768 bytes on entry, and one\n");
+    s.push_str("    // beat is 8 bytes, so at most 4096 beats are issued -- exactly the 4096\n");
+    s.push_str("    // values a 12-bit index holds. The bound is real but INDIRECT: it lives in\n");
+    s.push_str("    // bytes_remaining, not in any comparison on word_index, and it is tight to\n");
+    s.push_str("    // the bit. Raising the clamp by one beat wraps this index. Prop. 84.\n");
     s.push_str("    reg [11:0] word_index;\n");
+    s.push_str("    // BOUND: burst_count compared against m_axi_awlen, which this module drives\n");
+    s.push_str("    // itself from the same clamped length, so the limit is 8-bit by\n");
+    s.push_str("    // construction. Prop. 84.\n");
     s.push_str("    reg [7:0]  burst_count;\n");
     s.push_str("\n");
 

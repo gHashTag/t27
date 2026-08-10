@@ -5204,6 +5204,76 @@ python3 formal/claims_check.py && python3 formal/orphan_scan.py
 
 ---
 
+### Prop. 84 — fifteen growing registers, and what each is safe relative to — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Every growing register says what bounds it*
+
+Prop. 83 was not an incident but a class: a register that grows is safe only
+relative to a bound, and the interesting question is never "is it wide enough"
+but **"wide enough for what, and where is that written"**. `formal/bound_scan.py`
+answers the second question mechanically for every `X <= X + k` in the bundle.
+
+**84a. The map.** 15 growing registers across 13 emitted files:
+
+| class | n | meaning |
+|---|---|---|
+| LOCAL | 4 | compared against a constant in its own module — the bound travels with the logic |
+| CONTRACT | 4 | compared only against an **input port** — the bound is real but lives in the caller |
+| FREE | 7 | nothing in the module compares it at all |
+
+FREE does not mean broken. It means the argument is somewhere else, or nowhere,
+and the RTL cannot tell you which. That indistinguishability is the finding.
+
+**84b. The gate requires the argument, not a proof.** Every CONTRACT and FREE
+register must carry a `// BOUND: <name> <reason>` note. All 15 now do, and
+writing them was the work: each had to be traced to a real limit. This proves
+nothing safe. It makes a *missing argument* visible, which is the step that was
+absent when a 16-bit accumulator went 600 waves without anyone asking what
+limited it.
+
+**84c. Two clamps that are tight to the bit.** `dma_controller.word_index` is
+12 bits; `length` is clamped to 32768 bytes and one beat is 8 bytes, so at most
+**4096** beats issue — exactly the 4096 values 12 bits hold. Likewise
+`weight_prefetch_ctrl.word_index` against a 4096-word clamp. Neither bound is a
+comparison on the index; both live in a separate countdown. Raising either clamp
+by one wraps an index, and nothing in either module would say so.
+
+**84d. One 32-bit address where the others are 64.** `weight_prefetch_ctrl`
+advances `axi_araddr` 8 bytes per word from a caller-supplied `src_addr`, up to
+32768 bytes, in a **32-bit** register — while `dma_controller`'s equivalents are
+64-bit. Wrapping the DMA's needs a buffer within 32 KiB of 2⁶⁴; wrapping the
+prefetcher's needs one within 32 KiB of the 4 GiB ceiling, which is reachable on
+a real memory map. Nothing checks it. Recorded as a caller contract, not
+claimed as a defect — and found only because the sweep forced an argument for
+each register rather than each module.
+
+**84e. I nearly wrote that finding about the wrong module.** The first draft
+said the DMA's address registers were the 32-bit ones, from a `grep` of
+assignment lines that never showed a width. The emitter says
+`output reg [63:0] m_axi_araddr`. Checking the declaration rather than the use
+moved the finding to a different module and changed what it means.
+
+**84f. The scan's first draft misclassified the register it exists because of.**
+It accepted `<=` as a comparison. In Verilog `<=` at statement level is the
+nonblocking **assignment**, so `accumulator <= first_chunk ? ...` read as
+"accumulator is compared against first_chunk", and the Prop. 83 accumulator —
+bounded by nothing — was reported as bounded by a contract. Every LOCAL verdict
+in that draft came from a reset assignment `X <= 0` read as a bound: the whole
+table measured assignments. Dropping `<=` and `>=` loses genuine `if (c <= lim)`
+bounds, which then read as FREE and demand a note — over-reporting, in the
+direction that asks for an argument rather than inventing one.
+
+The acid test for an instrument is a case whose answer you already know. This
+one had exactly one, and failed it.
+
+Reproduce:
+
+```bash
+python3 formal/bound_scan.py --self-test && python3 formal/bound_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -793,6 +793,17 @@ jobs:
           python3 formal/width_scan.py --self-test
           python3 formal/width_scan.py
 
+      # Prop. 83 found a 16-bit accumulator safe only because a different module
+      # walks its chunk counter over an 8-bit port -- a bound that lived in no
+      # comment, no input and no assumption. This maps every growing register to
+      # whatever limits it and fails when that argument is not written down.
+      # It proves nothing safe; it makes a missing argument visible. Prop. 84.
+      - name: Every growing register says what bounds it
+        run: |
+          set -euo pipefail
+          python3 formal/bound_scan.py --self-test
+          python3 formal/bound_scan.py
+
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the
       # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined

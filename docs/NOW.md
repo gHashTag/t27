@@ -2,6 +2,43 @@
 
 Last updated: 2026-08-10
 
+## Wave 632 — fifteen growing registers, and what each is safe relative to
+
+- **THE CLASS, NOT THE INCIDENT**: Prop. 83's accumulator was one case of "a
+  register is safe only relative to a bound, and the question is never *is it
+  wide enough* but *wide enough for what, and where is that written*".
+  `formal/bound_scan.py` answers the second question for every `X <= X + k`.
+- **THE MAP** — 15 growing registers across 13 files: **4 LOCAL** (bounded by a
+  constant in their own module), **4 CONTRACT** (bounded only by an input port —
+  the limit lives in the caller), **7 FREE** (nothing in the module compares
+  them at all). FREE does not mean broken; it means the argument is elsewhere or
+  nowhere, and the RTL cannot tell you which.
+- **THE GATE REQUIRES THE ARGUMENT, NOT A PROOF**: every CONTRACT and FREE
+  register must carry `// BOUND: <name> <reason>`. All 15 now do, written into
+  the **emitters**, not the generated RTL. Tracing each to a real limit was the
+  work.
+- **TWO CLAMPS TIGHT TO THE BIT**: `dma_controller.word_index` is 12 bits and
+  `length` clamps to 32768 bytes at 8 bytes/beat = exactly **4096** beats;
+  `weight_prefetch_ctrl.word_index` the same against a 4096-word clamp. Neither
+  bound is a comparison on the index — both live in a separate countdown.
+  Raising either clamp by one wraps an index silently.
+- **ONE 32-BIT ADDRESS WHERE THE OTHERS ARE 64**: `weight_prefetch_ctrl`
+  advances `axi_araddr` up to 32768 bytes from a caller's `src_addr` in a 32-bit
+  register, while the DMA's equivalents are 64-bit. Wrapping the DMA's needs a
+  buffer within 32 KiB of 2⁶⁴; wrapping this one needs 32 KiB of the 4 GiB
+  ceiling — reachable on a real map. Recorded as a caller contract, not claimed
+  as a defect.
+- **I NEARLY WROTE THAT FINDING ABOUT THE WRONG MODULE**: the first draft said
+  the *DMA's* addresses were 32-bit, from a grep of assignment lines that never
+  showed a width. Checking the declaration moved the finding elsewhere.
+- **THE SCAN MISCLASSIFIED THE REGISTER IT EXISTS BECAUSE OF**: its first draft
+  accepted `<=` as a comparison, but at statement level that is the nonblocking
+  **assignment** — so the Prop. 83 accumulator, bounded by nothing, read as
+  bounded by a contract, and every LOCAL verdict came from a reset `X <= 0`. The
+  acid test for an instrument is a case whose answer you already know; this one
+  had exactly one and failed it.
+- **PROP. 84** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 631 — the accumulator is safe because of a contract written nowhere
 
 - **THE AUDIT**: Wave 630 asked whether other tests pin values that could be

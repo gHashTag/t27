@@ -210,6 +210,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire [2:0]  irq_status_w;\n");
     s.push_str("    wire        dma_busy;\n");
     s.push_str("    wire        seq_idle;\n");
+    s.push_str("    // BOUND: cycles deliberately unbounded. A free-running performance counter,\n");
+    s.push_str("    // reset on start and incremented while busy; it wraps after 2^32 busy cycles\n");
+    s.push_str("    // (~43 s at 100 MHz). Wrapping degrades a reported statistic and cannot\n");
+    s.push_str("    // corrupt data, since nothing in the datapath reads it. Prop. 84.\n");
     s.push_str("    reg  [31:0] cycles;\n");
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
