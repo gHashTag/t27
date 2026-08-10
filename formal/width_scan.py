@@ -71,6 +71,55 @@ def top_level_plus(expr):
     return n
 
 
+LITERAL = re.compile(r"^\d*'s?[dbh]?(\d+)$|^(\d+)$", re.I)
+
+
+def terms(expr):
+    """Split a sum/difference into (sign, token) at bracket depth zero.
+
+    Wave 638. The reduction check previously counted only `+` and required
+    every term to be a known identifier, so two whole expression forms declined
+    SILENTLY and the coverage counter still read full:
+
+      * a constant addend -- `l1[0] + l1[1] + l1[2] + 5'sd9` overflows the
+        declared range and the gate printed "0 carrying less", exit 0
+      * ANY subtraction -- `l1[0] - l1[1] - ... - l1[5]` likewise
+
+    Both are ordinary Verilog. Declining them is defensible; declining them
+    without saying so is the failure this whole campaign is about, and it was
+    hiding inside the gate written to catch arithmetic that does not fit.
+    """
+    out, depth, cur, sign = [], 0, "", +1
+    for c in expr:
+        if c == "[":
+            depth += 1
+        elif c == "]":
+            depth -= 1
+        if depth == 0 and c in "+-" and cur.strip():
+            out.append((sign, cur.strip()))
+            sign = +1 if c == "+" else -1
+            cur = ""
+            continue
+        cur += c
+    if cur.strip():
+        out.append((sign, cur.strip()))
+    return out
+
+
+def term_range(sign, token, rng):
+    """Range contributed by one signed term, or None if not resolvable."""
+    name = re.match(r"^([A-Za-z_]\w*)", token)
+    if name and name.group(1) in rng:
+        lo, hi = rng[name.group(1)]
+    else:
+        m = LITERAL.match(token.replace(" ", ""))
+        if not m:
+            return None
+        v = int(m.group(1) or m.group(2))
+        lo = hi = v
+    return (lo, hi) if sign > 0 else (-hi, -lo)
+
+
 def parse(src):
     """Return (declared, documented) name -> range, for one file."""
     lines = src.split("\n")
@@ -138,22 +187,21 @@ def check_file(path):
         target, expr = m.group(1), m.group(2)
         if target not in declared or "?" in expr:
             continue
-        plus = top_level_plus(expr)
-        if plus < 1:
+        parts = terms(expr)
+        if len(parts) < 2:
             continue
-        ops = OPERAND.findall(expr)
-        known = [o for o in ops if o in rng]
-        if len([o for o in ops if o in declared]) != plus + 1:
-            continue
-        if len(known) != plus + 1:
-            # An operand with no documented range. Not checkable without the
-            # unsound width fallback; counted so the loss is visible.
+        # Every term must resolve, whether it is an operand or a constant, and
+        # subtraction is a term separator like addition. A term that does not
+        # resolve makes the reduction UNCHECKABLE, which is counted and printed
+        # rather than skipped in silence.
+        ranges = [term_range(sg, tk, rng) for sg, tk in parts]
+        if any(r is None for r in ranges):
             skipped += 1
             continue
-        ops = known
         checked += 1
-        lo_req = sum(rng[o][0] for o in ops)
-        hi_req = sum(rng[o][1] for o in ops)
+        lo_req = sum(r[0] for r in ranges)
+        hi_req = sum(r[1] for r in ranges)
+        ops = [tk for _, tk in parts]
         n = src[:m.start()].count("\n") + 1
         lo_can, hi_can = declared[target]
         if (lo_req < lo_can or hi_req > hi_can) and target not in reported:
@@ -197,6 +245,24 @@ def scan(root):
     # written for -- `val[i*3+1]` put a `+` inside an index, the operand count
     # disagreed with the term count, and the check silently declined. It still
     # printed a clean result.
+    # A FLOOR, not a >0 test. Wave 638: the guard below tripped only at exactly
+    # zero, so a defect that removed ONE of the three annotations, or dropped a
+    # declaration out of the parser's view entirely, left a summary line
+    # indistinguishable from a healthy one. Two separate confirmed defects hid
+    # behind that. These are the shipped tree's actual numbers; a drop is a
+    # regression in the gate or an emitter change, and either way it must be
+    # looked at rather than absorbed.
+    FLOOR = {"declarations": 16, "annotated": 3, "reductions": 5}
+    for label, got, want in (("declarations", declared, FLOOR["declarations"]),
+                             ("annotated", annotated, FLOOR["annotated"]),
+                             ("reductions", reduced, FLOOR["reductions"])):
+        if got < want:
+            print(f"::error::width_scan sees {got} {label}, fewer than the "
+                  f"{want} the shipped tree has. Something stopped being "
+                  "visible to the parser -- that is how two confirmed defects "
+                  "hid, since a smaller number reads exactly like a healthy "
+                  "one. Raise the floor deliberately if the emitters changed.")
+            return 1
     if annotated == 0 or declared == 0 or reduced == 0:
         print(f"::error::width_scan parsed {declared} signed declarations, "
               f"{annotated} of them range-annotated, and checked {reduced} "
@@ -311,6 +377,27 @@ def self_test():
             if not ok:
                 bad.append("removing one annotation produced a finding against "
                            "correct RTL via the width fallback")
+
+        # (4) Wave 638 regressions: two expression forms that used to decline
+        # silently while the coverage counter still read full.
+        for label, old_a, new_a in (
+                ("a constant addend",
+                 "    assign l2[0] = l1[0] + l1[1] + l1[2];",
+                 "    assign l2[0] = l1[0] + l1[1] + l1[2] + 5'sd9;"),
+                ("subtraction",
+                 "    assign l2[0] = l1[0] + l1[1] + l1[2];",
+                 "    assign l2[0] = l1[0] - l1[1] - l1[2] - l1[3] - l1[4] - l1[5];")):
+            mut = real.replace(old_a, new_a)
+            if mut == real:
+                bad.append(f"the {label} injection changed nothing")
+                continue
+            f.write_text(mut)
+            got = check_file(f)[0]
+            hit = len(got) > 0
+            print(f"  {'ok  ' if hit else 'FAIL'} {label} that overflows is "
+                  f"caught, not declined: {len(got)} finding(s)")
+            if not hit:
+                bad.append(f"{label} overflowing the declaration was not caught")
 
         (d / "trit_stdlib.sv").write_text("module m; endmodule\n")
         rc = scan(pathlib.Path(td))

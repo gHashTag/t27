@@ -6284,6 +6284,54 @@ Being accidentally right is not a form of being right.
 
 ---
 
+### Prop. 100 — the audit found six; I had fixed four — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No declaration is narrower than the range it carries*
+
+Prop. 98 recorded four confirmed defects and fixed them. The full audit report
+arrived afterwards and contained **six** for `width_scan` alone. The two I had
+not seen were both verified, and both **survived the Wave 637c fixes** — checked
+before assuming otherwise:
+
+| defect | after Prop. 98 |
+|---|---|
+| a constant addend makes the check decline silently | **still missed** |
+| subtraction is never checked at all | **still missed** |
+
+**100a. Two whole expression forms declined in silence.**
+`assign l2[0] = l1[0] + l1[1] + l1[2] + 5'sd9;` overflows the declared
+[−16, +15] and the gate printed *"0 carrying less"*, exit 0 — because a literal
+is not an identifier in `rng`, the operand count mismatched, and the loop
+`continue`d. `top_level_plus` counted only `+`, so **every subtraction** was
+likewise outside the matcher: `l1[0] - l1[1] - … - l1[5]` reaches [−18, +18]
+against the same declaration, silently.
+
+Both are ordinary Verilog. Declining them is defensible; declining them without
+saying so is the failure this campaign is about, hiding inside the gate written
+to catch arithmetic that does not fit. The reduction loop now splits an
+expression into **signed terms** at bracket depth zero, resolves each as an
+operand *or* a sized literal, negates ranges after `-`, and counts anything
+unresolvable as **uncheckable** rather than skipping it.
+
+**100b. And the guard tripped only at exactly zero.** That is why three separate
+defects could hide behind it: losing one of three annotations, or dropping a
+declaration out of the parser's view, left a summary line indistinguishable from
+a healthy one. It is now a **floor** — 16 declarations, 3 annotated, 5
+reductions, the shipped tree's actual numbers — so a drop is loud and must be
+raised deliberately if the emitters change.
+
+**100c. The lesson is about my own reporting, not the gate.** I read four
+findings off a truncated notification, fixed them, wrote a proposition, filed an
+issue and pushed — while two more sat in the untruncated result on disk. The
+diagnostics line said exactly where the full text was. **A summary of an
+adversarial review is not the review**, and the failure mode is precisely the one
+the review exists to prevent: acting on the part that was easy to see.
+
+Sequence, recorded plainly: Prop. 98 claims four defects fixed. That claim was
+true and incomplete. Six were found; six are now fixed.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

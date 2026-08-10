@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-11
 
+## Wave 638 — the audit found six; I had fixed four
+
+- **THE FULL REPORT CONTAINED SIX DEFECTS FOR `width_scan`**, where the
+  notification summary I acted on showed four. Both extras were verified, and
+  both **survived** the Wave 637c fixes — checked rather than assumed.
+- **A CONSTANT ADDEND DECLINED SILENTLY**: `l1[0] + l1[1] + l1[2] + 5'sd9`
+  overflows the declared [−16, +15]; the gate printed *"0 carrying less"*,
+  exit 0, because a literal is not an identifier and the operand count
+  mismatched.
+- **SUBTRACTION WAS NEVER CHECKED AT ALL**: `top_level_plus` counted only `+`,
+  so `l1[0] - l1[1] - … - l1[5]` reaching [−18, +18] was outside the matcher.
+- **FIXED PROPERLY**: the loop now splits into **signed terms** at bracket depth
+  zero, resolves each as an operand *or* a sized literal, negates after `-`, and
+  counts anything unresolvable as **uncheckable** instead of skipping it.
+- **AND THE GUARD TRIPPED ONLY AT EXACTLY ZERO** — which is how three separate
+  defects hid behind it. Now a **floor** (16 declarations, 3 annotated, 5
+  reductions), so a drop is loud.
+- **THE LESSON IS ABOUT MY REPORTING, NOT THE GATE**: I read four findings off a
+  truncated notification, fixed them, wrote a proposition, filed an issue and
+  pushed — while two more sat in the full result on disk, at the path the
+  diagnostics line named. **A summary of an adversarial review is not the
+  review**, and acting on the easy-to-see part is exactly what the review exists
+  to prevent. Prop. 98's claim of four was true and incomplete.
+- **PROP. 100** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 637c — four more gate defects, and a measurement that reversed sign
 
 - **`phantom_scan` MISSED EVERY MULTI-BIT UNDRIVEN WIRE** (Prop. 98a). Yosys
