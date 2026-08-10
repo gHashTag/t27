@@ -140,7 +140,7 @@ def derive(root):
     for name in ("formal-yosys.yml", "formal-mutation.yml"):
         p = root / ".github" / "workflows" / name
         if p.exists():
-            steps, _ = absence_sweep.collect(root, p)
+            steps, _, _ = absence_sweep.collect(root, p)
             swept += sum(1 for n, _ in steps if n not in absence_sweep.EXEMPT)
     found["absence-swept steps"] = swept
 

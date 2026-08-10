@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-11
 
+## Wave 639 — every decline, counted
+
+- **PROP. 100'S MECHANISM IS GENERIC**, so it was swept across all ten gates:
+  every bare `continue` asked whether it means *"not my subject"* or *"my
+  subject, which I could not check"*. The second kind must be counted.
+- **EIGHT WERE CLEAN** — `bound_scan`'s continues are control flow and
+  precedence and its classification is *total*; `phantom_scan` and
+  `init_zero_scan` have none. Recorded so the sweep is not repeated.
+- **`doc_gate` SILENTLY EXEMPTED ANY FENCE CONTAINING `<foo>`**: a reproduce
+  command with angle-bracketed text left the "must run something" check with
+  nothing in the summary. One today (`FORMAL_FOUNDATIONS.md:443`, genuinely a
+  template) — now named, so the count cannot grow quietly.
+- **`absence_sweep` SILENTLY DROPPED 6 BUILDER STEPS**: a checking step named
+  like a builder would have vanished with the summary unchanged. Exactly the lie
+  the file's own comment warns against, one exclusion class over.
+- **A SIGNATURE CHANGE CAUGHT A COUPLING**: `collect()` gaining a third return
+  broke `claims_check`, which imports it to derive a gated README number. That
+  import is deliberate (Prop. 84) and the coupling is invisible from either file
+  alone. Both callers updated.
+- **THE RULE**: a gate's summary must report what it did **not** check as
+  prominently as what it did. "0 problems" over an unstated number of declines
+  is the same sentence as "0 problems" over none — four defects have now lived
+  in that gap.
+- **PROP. 101** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 638 — the audit found six; I had fixed four
 
 - **THE FULL REPORT CONTAINED SIX DEFECTS FOR `width_scan`**, where the

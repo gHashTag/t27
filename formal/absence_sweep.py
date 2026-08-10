@@ -59,32 +59,39 @@ def collect(root, wf_path):
     check below and by its self-test.
     """
     wf = yaml.safe_load(open(wf_path))
-    steps, skipped = [], []
+    steps, skipped, builders = [], [], []
     for job in wf["jobs"].values():
         for s in job.get("steps", []):
             if "run" not in s:
                 continue
             name = s.get("name", "<unnamed>")
             if name in BUILDERS:
+                # Counted. Wave 639: builder exclusions were invisible, so a
+                # CHECKING step that happened to be named like a builder would
+                # have vanished from the sweep with nothing in the summary to
+                # say so -- the same shape as Prop. 100's silent declines.
+                builders.append(name)
                 continue
             if "absence_sweep" in s["run"]:
                 skipped.append(name)
                 continue
             steps.append((name, s["run"]))
-    return steps, skipped
+    return steps, skipped, builders
 
 
 def main(argv):
     root = pathlib.Path(__file__).resolve().parent.parent
     paths = argv[1:] or [str(root / w) for w in DEFAULT_WORKFLOWS]
 
-    steps, recursive = [], []
+    steps, recursive, builders = [], [], []
     for p in paths:
-        s, sk = collect(root, p)
+        s, sk, bl = collect(root, p)
         steps += s
         recursive += sk
+        builders += bl
         print(f"{pathlib.Path(p).name}: {len(s)} checking steps"
-              f"{f', {len(sk)} recursive (skipped: {sk})' if sk else ''}")
+              f"{f', {len(sk)} recursive (skipped: {sk})' if sk else ''}"
+              f"{f', {len(bl)} builders not swept' if bl else ''}")
 
     if not steps:
         print(f"::error::absence_sweep found no checking steps in {paths}")
@@ -138,6 +145,7 @@ def main(argv):
     # on a run where nothing was exempted -- a small lie of exactly the kind
     # this file exists to find.
     print(f"\nabsence sweep: {len(steps)} steps across {len(paths)} workflows, "
+          f"{len(builders)} builders not swept, "
           f"{len(applied)} exempt, {len(recursive)} recursive, "
           f"{len(green)} passing on nothing")
     return 1 if green else 0

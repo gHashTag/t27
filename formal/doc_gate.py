@@ -48,6 +48,7 @@ def check(path):
     # Two-pass fence pairing: a closing ``` must not be read as an opening one,
     # which is how an earlier version nested every later property inside a
     # verilog block and corrupted its own reading of the file.
+    templates = []
     inb, lang, st = False, "", 0
     for n, l in enumerate(lines):
         if not l.startswith("```"):
@@ -61,6 +62,12 @@ def check(path):
         body = lines[st + 1:n]
         joined = "\n".join(body)
         if re.search(r"<[a-z_]+>", joined):      # a template, not a command
+            # Counted, not silently dropped. Wave 639: this decline was
+            # invisible, so a reproduce command that happened to contain
+            # `<something>` escaped the "must run something" check with nothing
+            # in the summary to show it. Prop. 100's pattern -- a matcher
+            # continuing while the coverage figure reads full.
+            templates.append(f"{path}:{st+1}")
             continue
         # A fence may quote code under discussion -- typically code that was
         # REMOVED -- rather than offer something to run. That has to be said out
@@ -89,8 +96,11 @@ def check(path):
         print(f"::error::{f}")
     for q in quoted:
         print(f"  quoted, not runnable: {q}")
+    for t in templates:
+        print(f"  template, not checked: {t}")
     print(f"doc gate: {props} propositions, {gates} gate lines, "
-          f"{len(quoted)} quoted fences, {len(fail)} problems")
+          f"{len(quoted)} quoted fences, {len(templates)} templates skipped, "
+          f"{len(fail)} problems")
     return 1 if fail else 0
 
 

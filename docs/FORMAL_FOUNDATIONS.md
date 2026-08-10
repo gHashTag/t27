@@ -6332,6 +6332,51 @@ true and incomplete. Six were found; six are now fixed.
 
 ---
 
+### Prop. 101 — every decline, counted — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Every proposition carries the gate that keeps it true*
+
+Prop. 100's mechanism is generic: a matcher `continue`s on a form it does not
+handle, while the coverage figure still reads full. Two whole expression classes
+hid in `width_scan` that way. So the pattern was swept across all ten gates —
+every bare `continue`, asked whether it means *"not my subject"* or *"my subject,
+which I could not check"*. The second kind must be counted.
+
+**101a. Eight of the ten were clean.** `bound_scan`'s three continues are
+control flow and precedence, and its classification is *total* — every
+self-incrementing register receives exactly one of LOCAL / CONTRACT / FREE /
+DRAIN. `phantom_scan` and `init_zero_scan` have none. A negative result, recorded
+so the sweep is not repeated.
+
+**101b. `doc_gate` silently skipped any fence containing `<foo>`.** The rule is
+that every ```bash fence must run something, with a template exempted as
+*"not a command"*. That exemption was invisible: a reproduce command which
+happened to contain angle-bracketed lowercase text left the check entirely with
+nothing in the summary to say so. There is **1** today — the `<bundle>` /
+`<harness>` template at `FORMAL_FOUNDATIONS.md:443`, legitimately a template —
+and now it is named, so the count cannot grow quietly.
+
+**101c. `absence_sweep` silently dropped its `BUILDERS` steps.** The sweep
+reports steps, exemptions and its own recursion, but the builder exclusions were
+uncounted: **6** of them. A checking step named like a builder would have
+vanished from the sweep with the summary unchanged. The same lie the file's own
+comment at line 141 warns against — *"reporting the list size says '1 exempt' on
+a run where nothing was exempted"* — committed one exclusion class over.
+
+**101d. Changing the signature caught a coupling.** `collect()` returning a
+third value broke `claims_check`, which imports it to derive a gated README
+number. That import was deliberate (Prop. 84's "derive, never re-count"), and it
+means a change to the sweep's interface propagates into the gate that polices
+prose. Both callers updated; noted because the coupling is invisible from either
+file alone.
+
+**The rule, stated for reuse:** a gate's summary must report what it *did not*
+check as prominently as what it did. "0 problems" over an unstated number of
+declines is the same sentence as "0 problems" over none, and this campaign has
+now found four defects that lived in exactly that gap.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
