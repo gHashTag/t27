@@ -6474,6 +6474,63 @@ were written by the person who wrote the gate.
 
 ---
 
+### Prop. 104 — the orphan check never checked that anything runs — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Every property file is run by some workflow*
+
+`orphan_scan` was written in Wave 618 after an accident revealed eight property
+files that CI never ran (Prop. 69). Its stated purpose is to *"cross-reference
+every property file against every workflow and error if nothing runs it"*. It
+asked a different question: **does this filename appear anywhere in the workflow
+file?**
+
+**104a. Four ways to be "referenced" without being run.** Each verified by
+injection, each diff-confirmed before the run:
+
+| the only mention of the file | old verdict |
+|---|---|
+| a `#` comment: *"TODO: we should someday prove formal/ghost_props.sv"* | referenced |
+| a step carrying `if: false` | referenced |
+| `grep -c assert formal/ghost_props.sv` — runs, reads it, proves nothing | referenced |
+| a workflow triggered `on: [release]`, which no push or PR fires | referenced, and **not even a weekly warning** |
+
+The injected file's property was `assert (1'b0)` — provably false, confirmed
+refuting under yosys — and the gate reported a clean tree in all four cases.
+
+**104b. The hazard was live, on the file the gate exists because of.**
+`formal-yosys.yml` already carries **two retrospective `#` comments naming
+`zero_size_props.sv`** — the very file whose ungated properties Prop. 69 was
+about. Deleting only its two *executable* references leaves the summary
+**byte-identical to a healthy tree**: `15 property files, 26 workflows, 0
+orphaned`, exit 0, no errors, no warnings. The comments narrating Wave 617's
+defect would have concealed its recurrence. One deletion deep, and the gate is
+the thing that hides it.
+
+**104c. The fix asks the intended question.** The searched text is now the
+`run:` bodies of *reachable* steps — `if: false` skipped at job and step level,
+`#` comments stripped from inside the bodies — and a body counts only if it also
+invokes something that could prove or load the file (`yosys`, `read_verilog`, or
+`open(`, since several steps hand a property file to a python harness first).
+All four injections are now caught and kept as self-tests.
+
+**104d. A filename is a name, not a substring.** `f.name in text` credited a
+hypothetical `formal/props.sv` to **eight** unrelated suites, because the
+convention in `formal/` is `<thing>_props.sv` and every one of them contains the
+substring. Now matched with delimiters on both sides.
+
+**104e. The fix failed loudly first, which is the right way round.** The initial
+delimiter excluded `/` — but references are written `formal/<name>.sv`, so every
+reference stopped matching and the gate reported **all 15 files orphaned at
+once**. A gate whose repair is wrong should say so at the top of its voice
+rather than drift by one.
+
+**104f. Prop. 103's third regularity, again.** The comment-counting defect this
+gate also had is the *same defect, on the same regex*, that `claims_check` was
+fixed for one wave earlier (Prop. 95). It was found here only because the audit
+looked. Fixing an instance is still not fixing the pattern.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

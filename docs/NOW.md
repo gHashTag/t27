@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-11
 
+## Wave 640 — the orphan check never checked that anything runs
+
+- **THE GATE WRITTEN BECAUSE EIGHT FILES WERE NEVER RUN** (Prop. 69, Wave 618)
+  had never verified that anything runs. Its stated job: cross-reference every
+  property file against every workflow. Its actual question: *does this filename
+  appear anywhere in the workflow text?*
+- **FOUR WAYS TO BE "REFERENCED" WITHOUT BEING RUN**, each verified by injection
+  with a file whose property is provably false (`assert (1'b0)`, confirmed
+  refuting): a `#` comment · a step with `if: false` · a `grep` that reads it and
+  proves nothing · a workflow triggered `on: [release]`, which no push or PR
+  fires — and that last one did not even raise a weekly warning.
+- **THE HAZARD WAS LIVE, ON THE FILE THE GATE EXISTS BECAUSE OF**:
+  `formal-yosys.yml` already carries **two retrospective comments** naming
+  `zero_size_props.sv`. Deleting only its two *executable* references leaves the
+  summary **byte-identical to a healthy tree**. The comments narrating Wave 617's
+  defect would have concealed its recurrence.
+- **THE FIX ASKS THE INTENDED QUESTION**: only `run:` bodies of *reachable*
+  steps, comments stripped from inside them, and the body must also invoke
+  something that could prove or load the file. All four injections now caught and
+  kept as self-tests.
+- **A FILENAME IS A NAME, NOT A SUBSTRING**: `formal/props.sv` was credited to
+  **eight** unrelated suites, since every one ends `_props.sv`.
+- **THE FIX FAILED LOUDLY FIRST**, which is the right way round: the delimiter
+  excluded `/`, so every `formal/<name>.sv` reference stopped matching and the
+  gate reported **all 15 files orphaned at once**.
+- **PROP. 103'S THIRD REGULARITY, AGAIN**: the comment-counting defect here is
+  the same defect on the same regex that `claims_check` was fixed for one wave
+  earlier. Fixing an instance is still not fixing the pattern.
+- **PROP. 104** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 639b — three defects in code written two days earlier, and the taxonomy
 
 - **THE ROUND-TWO AUDIT RETURNED 25 VERIFIED FINDINGS** across `orphan_scan`

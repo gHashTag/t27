@@ -30,19 +30,70 @@ import sys
 import yaml
 
 
+def runnable_text(doc):
+    """Concatenated `run:` scalars of every step that can actually execute.
+
+    Wave 640. This gate asked "does this filename appear anywhere in the
+    workflow file", and called the answer "referenced by a workflow". Those are
+    different questions, and an adversarial audit demonstrated the gap four
+    ways -- a filename in a `#` COMMENT, in a step carrying `if: false`, in a
+    step that only `grep`s it, and in a workflow triggered `on: [release]` --
+    every one of which the gate credited as run.
+
+    The live hazard was not hypothetical. `formal-yosys.yml` already carries two
+    retrospective comments naming `zero_size_props.sv`, the very file whose
+    ungated properties Prop. 69 was about. Deleting its two EXECUTABLE
+    references left the gate printing a byte-identical healthy summary: the
+    comments narrating Wave 617's defect would have concealed its recurrence.
+
+    So the text searched is now the `run:` bodies of reachable steps only, with
+    `#` comments stripped from them. A step whose `if:` is literally false is
+    skipped, as is a workflow that no push or pull_request can trigger.
+    """
+    out = []
+    for job in (doc.get("jobs") or {}).values():
+        if not isinstance(job, dict):
+            continue
+        if str(job.get("if", "")).strip().lower() in ("false", "${{ false }}"):
+            continue
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            if str(step.get("if", "")).strip().lower() in ("false", "${{ false }}"):
+                continue
+            body = step.get("run")
+            if not isinstance(body, str):
+                continue
+            body = re.sub(r"#[^\n]*", "", body)
+            # A file must be an ARGUMENT TO A PROVER, not merely mentioned in a
+            # runnable step. Wave 640: the first fix here searched every `run:`
+            # body, which still credited a step whose only use of the file was
+            # `grep -c assert formal/ghost_props.sv` -- a step that runs, reads
+            # the file, and proves nothing. So the step's body must also invoke
+            # something that could prove or load it. `open(` is included
+            # because several steps hand a property file to a python harness
+            # that mutates it before calling yosys.
+            if not re.search(r"\byosys\b|read_verilog|\bopen\s*\(", body):
+                continue
+            out.append(body)
+    return "\n".join(out)
+
+
 def workflows(root):
-    """[(name, is_scheduled, whole_text)] for every workflow."""
+    """[(name, is_scheduled, runnable_text)] for every workflow."""
     out = []
     for p in sorted((root / ".github" / "workflows").glob("*.yml")):
         text = p.read_text()
         try:
             doc = yaml.safe_load(text) or {}
         except yaml.YAMLError:
+            # An unparseable workflow contributes NO runnable text. It must not
+            # fall back to the raw file, which is what made a comment count.
             doc = {}
         # `on:` parses as the boolean True in YAML 1.1 -- check both spellings.
         trig = doc.get("on", doc.get(True, {})) or {}
         scheduled = isinstance(trig, dict) and set(trig) <= {"schedule", "workflow_dispatch"}
-        out.append((p.name, scheduled, text))
+        out.append((p.name, scheduled, runnable_text(doc)))
     return out
 
 
@@ -145,7 +196,16 @@ def scan(root):
     print(f"{'property file':34s} {'workflows referencing it':>26s}")
     print("-" * 64)
     for f in files:
-        hits = [(n, sched) for n, sched, text in wfs if f.name in text]
+        # A filename is a NAME, not an arbitrary substring. Wave 640: `f.name
+        # in text` credited a hypothetical `formal/props.sv` to eight unrelated
+        # suites, because every one of them ends in `_props.sv`. The convention
+        # in formal/ is `<thing>_props.sv`, so containment pairs are one new
+        # file away.
+        # The lookbehind must ALLOW `/` -- references are written
+        # `formal/<name>.sv`. A first attempt excluded it and reported all 15
+        # files orphaned at once, which is the right way for a gate to fail.
+        pat = re.compile(r"(?<![\w.-])" + re.escape(f.name) + r"(?![\w.])")
+        hits = [(n, sched) for n, sched, text in wfs if pat.search(text)]
         names = ", ".join(n.replace(".yml", "") for n, _ in hits) or "-- NONE --"
         print(f"{f.name:34s} {names:>26s}")
         if not hits:
@@ -207,6 +267,40 @@ def self_test():
                       "module x_props (input wire clk);\n"
                       "    always @(posedge clk) a_x: assert (1'b1);\n"
                       "endmodule\n"), 1)]
+
+        # Wave 640 regressions. An adversarial audit showed four ways a file
+        # could be credited as "run" while nothing proved it, and one of them
+        # was live: formal-yosys.yml already carries retrospective comments
+        # naming zero_size_props.sv, so deleting its executable references left
+        # the summary byte-identical to a healthy tree.
+        GHOST = ("module ghost_props (input wire clk);\n"
+                 "    always @(posedge clk) a_ghost: assert (1'b0);\n"
+                 "endmodule\n")
+
+        def only(step_yaml):
+            def go():
+                (td / "formal" / "orphaned_props.sv").unlink(missing_ok=True)
+                (td / "formal" / "ghost_props.sv").write_text(GHOST)
+                (td / ".github" / "workflows" / "zz.yml").write_text(
+                    "name: zz\non: [push]\njobs:\n  j:\n"
+                    "    runs-on: ubuntu-latest\n    steps:\n" + step_yaml)
+            return go
+
+        cases += [
+            ("a file named only in a # comment",
+             only("      # someday prove formal/ghost_props.sv\n"
+                  "      - name: unrelated\n        run: echo hi\n"), 1),
+            ("a file named only in a step with if: false",
+             only("      - name: off\n        if: false\n"
+                  "        run: yosys -p 'read_verilog formal/ghost_props.sv'\n"), 1),
+            ("a file only grepped, never proved",
+             only("      - name: greps\n"
+                  "        run: grep -c assert formal/ghost_props.sv\n"), 1),
+            ("a file named only inside a run: block's own comment",
+             only("      - name: commented out\n        run: |\n"
+                  "          # yosys -p 'read_verilog formal/ghost_props.sv'\n"
+                  "          echo hi\n"), 1),
+        ]
         bad = []
         for name, setup, want in cases:
             setup()
