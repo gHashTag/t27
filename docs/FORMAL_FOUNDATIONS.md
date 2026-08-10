@@ -4512,6 +4512,64 @@ python3 formal/mutate.py build/rtl/dma_controller.sv
 
 ---
 
+### Prop. 73 — the campaign's most-quoted number, corrected — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+Prop. 72 corrected `dma_controller`'s gap figure and named the cause: a per-suite
+measurement reported as a per-module one. Two other modules have more than one
+suite. Correcting them corrects the headline.
+
+**73a. The remaining multi-suite modules.**
+
+| module | suites | Prop. 61 gap | caught | true gap |
+|---|---|---|---|---|
+| `weight_prefetch_ctrl` | `wp_props` (2), `zs_prefetch` (5), `ms_prefetch` (5) | 24 | **8** | **16** |
+| `layer_sequencer` | `ls_props` (0), `zs_layer` (0) | 2 | 0 | 2 |
+
+`interrupt_controller`, `axi_lite_slave` and `multilayer_sequencer` have one
+suite each, so their figures needed no correction — stated so an absent row is
+not read as an omission. `layer_sequencer` needed none either: having a second
+suite does not guarantee an overcount, it only makes one possible.
+
+**73b. The headline, recomputed from the recorded data.**
+
+| | mutants | detected | real gaps |
+|---|---|---|---|
+| Prop. 61 as published | 202 | 45 (**22 %**) | 133 |
+| corrected | 202 | **74 (36 %)** | **104** |
+
+Of the 29 newly-counted detections, **15 come from properties added after Prop.
+61 was measured** (13 from Prop. 71, 2 from Prop. 63) and the rest from suites
+that existed the whole time and were never consulted.
+
+**73c. The error ran against the suite, not for it.** A measurement mistake that
+flatters its subject is the one to expect; this one did the opposite, reporting
+the property set as catching 22 % of mutations when it catches 36 %. Worth
+recording because it is evidence about the *process* rather than the result: the
+method was wrong in a direction nobody had an incentive to notice, and it stood
+for twelve waves.
+
+**73d. What made it wrong is a sentence, not a bug.** No harness misbehaved.
+The matrix did exactly what it was told — measure this property set against these
+mutants — and the caption said "gaps in `dma_controller`" where the data said
+"gaps with respect to `dma_props`". Every instrument in this campaign has been
+audited for lying; this was the *label* lying while the instrument told the
+truth.
+
+**73e. Scope.** The equivalent-mutant classification is unchanged: whether a
+mutation alters behaviour does not depend on which properties are watching. Only
+the detected/undetected split moves. The 26 integration properties are still
+sampled rather than swept (Prop. 66), and that figure keeps its own caveat.
+
+Reproduce:
+
+```bash
+python3 formal/mutate.py --self-test
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

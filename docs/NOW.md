@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-10
 
+## Wave 621 — the campaign's most-quoted number, corrected
+
+- **THE OTHER MULTI-SUITE MODULES**: Prop. 72 corrected `dma_controller` and
+  named the cause -- a per-suite measurement reported as a per-module one. Two
+  modules remained.
+
+  | module | suites | Prop. 61 | caught | true gap |
+  |---|---|---|---|---|
+  | `weight_prefetch_ctrl` | wp(2), zs(5), ms(5) | 24 | **8** | **16** |
+  | `layer_sequencer` | ls(0), zs(0) | 2 | 0 | 2 |
+
+  `layer_sequencer` needed no correction: a second suite makes an overcount
+  *possible*, not certain. Three modules have one suite each and were never
+  affected -- stated so an absent row is not read as an omission.
+- **THE HEADLINE, RECOMPUTED FROM THE RECORDED DATA**:
+
+  | | mutants | detected | real gaps |
+  |---|---|---|---|
+  | Prop. 61 as published | 202 | 45 (**22%**) | 133 |
+  | corrected | 202 | **74 (36%)** | **104** |
+
+  Of the 29 newly-counted detections, **15 come from properties added after
+  Prop. 61 was measured** and the rest from suites that existed the whole time
+  and were never consulted.
+- **THE ERROR RAN AGAINST THE SUITE, NOT FOR IT**: a measurement mistake that
+  flatters its subject is the one to expect; this reported 22% where the truth
+  is 36%. That is evidence about the *process*: the method was wrong in a
+  direction nobody had an incentive to notice, and it stood for twelve waves.
+- **AND NOTHING MISBEHAVED**: every instrument here has been audited for lying.
+  This time the instrument told the truth and the **label** lied -- the caption
+  said "gaps in dma_controller" where the data said "gaps with respect to
+  dma_props".
+- **UNCHANGED**: the equivalent-mutant classification. Whether a mutation alters
+  behaviour does not depend on which properties are watching; only the
+  detected/undetected split moves.
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop. 73), README.
+- **STATE**: 73 propositions · 73 gates · 14 witnesses · 43 module properties ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 620 — the gap list was measured one suite at a time
 
 - **THE 13 ARE REAL**: re-measured on an independent run.
