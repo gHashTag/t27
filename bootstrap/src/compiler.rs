@@ -4339,6 +4339,12 @@ pub struct Codegen {
     /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
     /// a tag comparison -- Zig has no ordering on enums.
     declared_enums: std::collections::HashSet<String>,
+    /// W609: `(struct, field) -> declared type`. The Zig backend collected
+    /// struct field NAMES (for `string_names` / `float_names` / `signed_names`)
+    /// but never their types, so a slice-typed field receiving an array literal
+    /// got `.{ a, b }` -- which Zig rejects with "type '[]T' does not support
+    /// array initialization syntax". 589 sites across 20 specs.
+    struct_field_types: std::collections::HashMap<(String, String), String>,
     /// Field and parameter names the spec declares with a string type. Zig has
     /// no `==` for slices, and the literal-operand test cannot see
     /// `a.name == b.name`, where BOTH sides are `[]const u8` expressions.
@@ -4369,6 +4375,7 @@ impl Codegen {
             slice_locals: std::collections::HashMap::new(),
             scaffold_locals: std::collections::HashMap::new(),
             declared_enums: std::collections::HashSet::new(),
+            struct_field_types: std::collections::HashMap::new(),
             string_names: std::collections::HashSet::new(),
             float_names: std::collections::HashSet::new(),
             signed_names: std::collections::HashSet::new(),
@@ -4810,6 +4817,14 @@ impl Codegen {
                 }
                 NodeKind::StructDecl => {
                     for f in &d.children {
+                        // W609: record the field's declared type, keyed by the
+                        // OWNING struct -- unlike the name sets beside it, which
+                        // are global and therefore cannot tell two structs'
+                        // same-named fields apart.
+                        if !d.name.is_empty() && !f.name.is_empty() && !f.extra_type.is_empty() {
+                            self.struct_field_types
+                                .insert((d.name.clone(), f.name.clone()), f.extra_type.clone());
+                        }
                         if Self::t27_array_type_to_zig(&f.extra_type) == "[]const u8" {
                             self.string_names.insert(f.name.clone());
                         }
@@ -6759,7 +6774,49 @@ impl Codegen {
                     }
                     self.write(&format!(".{} = ", field.name));
                     if !field.children.is_empty() {
-                        self.gen_expr(&field.children[0]);
+                        // W609: an array literal assigned to a SLICE-typed field
+                        // needs the same lowering W607 gave slice RETURNS --
+                        // `.{ a, b }` is an anonymous struct and Zig will not
+                        // coerce it to `[]T`. `&[_]T{...}` is `*const [N]T`, so
+                        // the mutable `[]T` that most fields declare needs
+                        // @constCast as well.
+                        let slice_elem = self
+                            .struct_field_types
+                            .get(&(node.name.clone(), field.name.clone()))
+                            .map(|t| Self::t27_array_type_to_zig(t))
+                            .and_then(|t| Self::slice_element_type(&t));
+                        let is_array_lit =
+                            field.children[0].kind == NodeKind::ExprArrayLiteral;
+                        match (slice_elem, is_array_lit) {
+                            (Some(elem), true) => {
+                                // W609: the REPEAT form `[v; n]` is stored as
+                                // element text `v;n` and `gen_array_literal_braces`
+                                // splits on commas only, so it emitted the raw
+                                // `{ 0;21 }`. Zig spells it `[_]T{v} ** n`.
+                                // Caught by the corpus check, not by reasoning.
+                                let lit = &field.children[0];
+                                let repeat = if lit.children.is_empty() {
+                                    lit.extra_size
+                                        .trim()
+                                        .rsplit_once(';')
+                                        .map(|(v, n)| (v.trim().to_string(), n.trim().to_string()))
+                                } else {
+                                    None
+                                };
+                                match repeat {
+                                    Some((v, n)) => self.write(&format!(
+                                        "@constCast(&[_]{}{{ {} }} ** {})",
+                                        elem, v, n
+                                    )),
+                                    None => {
+                                        self.write(&format!("@constCast(&[_]{}", elem));
+                                        self.gen_array_literal_braces(lit);
+                                        self.write(")");
+                                    }
+                                }
+                            }
+                            _ => self.gen_expr(&field.children[0]),
+                        }
                     }
                 }
                 self.write(" }");

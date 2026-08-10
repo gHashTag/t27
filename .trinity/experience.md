@@ -22063,3 +22063,34 @@ concatenation with `+` (needs an allocator -- a language decision), 5
 array-literal-into-slice at STRUCT FIELD position (needs a struct field-type map
 the Zig backend does not have), plus type mismatches and two more missing
 imports.
+
+## Wave 609 — a struct field-type map, and a regression the corpus check caught
+
+**589 sites in 20 specs**, not the 5 in eval.t27 that prompted it. The Zig
+backend collected struct field NAMES (`string_names`, `float_names`,
+`signed_names`) but never their TYPES, so a slice-typed field receiving an array
+literal got `.{ a, b }` -- which Zig rejects with *"type '[]T' does not support
+array initialization syntax"*.
+
+    struct fields declared      3949
+      of those, SLICE-typed      649
+    array literal -> slice field 589 sites, 20 specs
+
+The map is keyed by `(struct, field)`, deliberately unlike the three name sets
+beside it: those are GLOBAL, so they cannot tell two structs' same-named fields
+apart. eval.t27: 30 -> 27 errors.
+
+**AND THE CORPUS CHECK CAUGHT A REGRESSION I INTRODUCED.** `bram_weights.t27`
+started reporting `expected ',' after initializer`:
+
+    data = @constCast(&[_]i16{ 0;21 })
+
+The array-REPEAT form `[v; n]` is stored as element text `v;n`, and
+`gen_array_literal_braces` splits on COMMAS ONLY -- so it emitted the raw
+`{ 0;21 }`. `gen_expr` handles the repeat correctly (`.{v} ** n`); the helper I
+reused does not. Zig spells it `[_]T{v} ** n`. Fixed and verified compiling.
+
+**I would not have found this by reasoning about the change.** The five sites in
+eval.t27 that motivated the work contain no repeat forms; the defect lived in a
+spec I touched only through a corpus-wide sweep. **Run the sweep before
+believing a lowering is right, not after shipping it.**
