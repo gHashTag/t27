@@ -1220,6 +1220,80 @@ it wrongly wraps, or a repeat literal that still emits `;`.
 
 ---
 
+### P25 (W610) — 82% of what blocks IGLA is functions nobody wrote
+
+**W609's recommendation was falsified by its own rule.** W609 proposed the
+`usize`/`u32` cast class as "the largest remaining". Measured first, as W609
+itself insisted: **~7 errors total** — 4 in `eval`, 2 in `prm`, 1 in
+`ternary_inference`, 0 in the four heaviest specs. Not a class.
+
+Aggregating every compile error across `specs/igla/**` instead:
+
+| Error class | n | share |
+|---|---:|---:|
+| **`use of undeclared identifier`** | **886** | **61 %** |
+| `expected type 'X', found 'Y'` | 208 | 14 % |
+| `assertion failed` (comptime) | 87 | 6 % |
+| `no field named 'X'` | 50 | |
+| `struct 'X' has no member 'Y'` | 40 | |
+| others | 187 | |
+| **total** | **1 458** | |
+
+### The 886 decompose into 76 names, and the split is the result
+
+| | errors | names |
+|---|---:|---:|
+| declared somewhere — an **import/resolve** problem | 158 | 13 |
+| **declared NOWHERE — unwritten** | **728** | **63** |
+
+**82% of the dominant class is functions that are called and never written.**
+This is W586's *unwritten* category — established there at spec granularity —
+measured for the first time at **function** granularity, and it is the largest
+single fact about why IGLA does not compile. It is not a compiler defect, not a
+missing lowering, and not an import graph problem.
+
+Heavily concentrated: `booth_mul_i32` 84, `throughput` 60, `is_prefix` 55,
+`param_bounds_saturate` 53, `bram_weights_depth` 50, `smt_check_bool` 43 — the
+top six alone are 345 errors.
+
+### Two written from their tests, and one that could not be
+
+**`is_prefix`** (55 errors) and **`booth_mul_i32`** (84) are fully determined by
+their own tests and were written from them, matching the neighbouring
+`strings_equal` and `booth_mul_i16` in style.
+
+**`throughput` (60 errors) could not be.** Its four tests are
+
+```
+throughput(0, 1000) == 0.0     throughput(10, 1000) == 10.0
+throughput(100, 1000) == 100.0 throughput(1, 1)     == 1.0
+```
+
+and they are satisfied **only** by `f(ops, ns) = ops` — a function that ignores
+its duration argument, which is therefore not a throughput. No scaled form fits
+all four: `ops·1000/ns` gives 1000 for the last, `ops/ns` gives 0.01 for the
+second. **The tests do not determine a throughput; they determine a projection.**
+Reported, not written — the same treatment as `ternary_mac`'s argument order and
+`systolic_ternary_array`'s contradictory tests.
+
+### `gemm.t27`: 90 → 2
+
+Writing `booth_mul_i32` plus three spec repairs — an untyped `sign` that Zig
+reads as `comptime_int` under runtime control flow (2 sites, one of them
+pre-existing in `booth_mul_i16`), an `i32`/`u32` product mismatch, and two
+lowercase `mat2x2` literals against the declared `Mat2x2` — took the spec from
+**90 compile errors to 2**.
+
+The remaining two are genuine design questions: `booth_mul_i16` returns `i32`
+while `Mat2x2`'s fields are `i16`, and one function takes `*Matrix` where a
+`Mat2x2` is passed. **Whether the product matrix should widen is a specification
+decision**, and it is left as one.
+
+*Falsification condition:* a name in the 63 that is declared after all, or a
+`throughput` formula satisfying all four tests while using `ns`.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

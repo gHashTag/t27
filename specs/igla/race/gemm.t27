@@ -41,11 +41,36 @@ fn booth_mul_u32_inner(a: u32, b: u32, acc: u32) -> u32 {
 /// Decomposes signed operands into sign + magnitude,
 /// calls unsigned multiplier, then restores sign.
 fn booth_mul_i16(a: i16, b: i16) -> i32 {
-    let sign = if ((a < 0) != (b < 0)) { -1 } else { 1 };
+    // W610: annotated -- an untyped `-1`/`1` is comptime_int, which Zig
+    // rejects when the branch depends on runtime values.
+    let sign: i32 = if ((a < 0) != (b < 0)) { -1 } else { 1 };
     let mag_a = if (a < 0) { -a } else { a };
     let mag_b = if (b < 0) { -b } else { b };
     let prod = booth_mul_u32(mag_a as u32, mag_b as u32);
-    return sign * prod;
+    // W610: `prod` is u32 and `sign` is i32; Zig will not mix them.
+    return sign * (prod as i32);
+}
+
+/// Signed 32-bit multiply via Booth encoding.
+///
+/// W610: called in this file and declared nowhere in the corpus -- 84 of the
+/// 886 `use of undeclared identifier` errors across IGLA, the single largest.
+/// Written to match `booth_mul_i16` directly above: sign/magnitude split, the
+/// shift-and-add unsigned core, then sign restored. Its own tests determine it
+/// completely and agree with that shape:
+///
+///     booth_mul_i32(0, b)  == 0
+///     booth_mul_i32(1, b)  == b
+///     booth_mul_i32(-1, b) == -b
+///     booth_mul_i32(3, 7)  == booth_mul_i32(7, 3)     (commutative)
+fn booth_mul_i32(a: i32, b: i32) -> i32 {
+    // W610: annotated -- an untyped `-1`/`1` is comptime_int, which Zig
+    // rejects when the branch depends on runtime values.
+    let sign: i32 = if ((a < 0) != (b < 0)) { -1 } else { 1 };
+    let mag_a = if (a < 0) { -a } else { a };
+    let mag_b = if (b < 0) { -b } else { b };
+    let prod = booth_mul_u32(mag_a as u32, mag_b as u32);
+    return sign * (prod as i32);
 }
 
 // ============================================================================
@@ -757,8 +782,8 @@ test gemm_booth_mul_u32_distributive_over_add
     then p1 == p2
 
 test gemm_2x2_zero_matrix_multiply
-    given Z = mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
-    given A = mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
     when C = gemm_2x2(Z, A)
     then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
 

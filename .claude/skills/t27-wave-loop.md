@@ -4740,6 +4740,24 @@ These cost a wave each. Follow them before step 1.
      helper that works at one call site is not thereby correct at another** --
      check which input shapes each site actually sees.
 
+129. **Apply the measure-first rule to your OWN recommendation.** W609 ended by
+     recommending the usize/u32 cast class as "the largest remaining". W610
+     measured it first -- as W609's own rule demanded -- and found ~7 errors.
+     Not a class. **The recommendation you wrote last wave is exactly as
+     unmeasured as any other guess.**
+
+130. **Aggregate error classes across the whole family before picking one.**
+     1458 errors across specs/igla/**, and 886 of them (61%) are a single class:
+     `use of undeclared identifier`. Of those, 728 (82%) come from 63 functions
+     DECLARED NOWHERE. The dominant blocker is not a compiler defect, a lowering
+     gap, or an import graph -- it is code nobody wrote.
+
+131. **Some functions cannot be written from their tests, and that is a
+     finding.** `is_prefix` and `booth_mul_i32` were fully determined. But
+     `throughput`'s four tests are satisfied ONLY by `f(ops, ns) = ops` -- a
+     function ignoring its duration argument, which is not a throughput. Report
+     it; do not write a degenerate implementation to make a number go down.
+
 ### How to update this tracker
 
 After closing a wave:

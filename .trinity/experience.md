@@ -22094,3 +22094,42 @@ reused does not. Zig spells it `[_]T{v} ** n`. Fixed and verified compiling.
 eval.t27 that motivated the work contain no repeat forms; the defect lived in a
 spec I touched only through a corpus-wide sweep. **Run the sweep before
 believing a lowering is right, not after shipping it.**
+
+## Wave 610 — 82% of what blocks IGLA is functions nobody wrote
+
+**W609's recommendation was falsified by W609's own rule.** It proposed the
+usize/u32 cast class as "the largest remaining". Measured first: **~7 errors**
+-- 4 in eval, 2 in prm, 1 in ternary_inference, 0 in the four heaviest specs.
+**The recommendation you wrote last wave is exactly as unmeasured as any other
+guess.**
+
+Aggregating every compile error across specs/igla/** instead:
+
+    1458 errors total
+     886 (61%) use of undeclared identifier   <- the dominant class
+     208 (14%) expected type X, found Y
+      87 (6%)  assertion failed (comptime)
+
+And the 886 decompose into 76 names:
+
+    158 errors from 13 names DECLARED somewhere  -> import/resolve
+    728 errors from 63 names DECLARED NOWHERE    -> UNWRITTEN
+
+**82% of the dominant class is functions called and never written.** That is
+W586's *unwritten* category, established at spec granularity, measured for the
+first time at FUNCTION granularity. Not a compiler defect, not a lowering gap,
+not an import graph.
+
+**Two written from their tests; one that could not be.** `is_prefix` (55) and
+`booth_mul_i32` (84) are fully determined and were written to match their
+neighbours' style. **`throughput` (60) could not be**: its four tests are
+satisfied ONLY by `f(ops, ns) = ops`, ignoring the duration argument -- no
+scaled form fits all four. **The tests determine a projection, not a
+throughput.** Reported, not written. Do not write a degenerate implementation to
+make a number go down.
+
+**gemm.t27: 90 -> 2 errors.** booth_mul_i32 plus three spec repairs: an untyped
+`sign` Zig reads as comptime_int under runtime control flow (2 sites, one
+pre-existing), an i32/u32 product mismatch, and two lowercase `mat2x2` literals
+against the declared `Mat2x2`. The last two errors are design questions --
+booth_mul_i16 returns i32 while Mat2x2 fields are i16 -- and stay decisions.

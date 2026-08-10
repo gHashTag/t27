@@ -37,6 +37,35 @@ fn strings_equal(a: string, b: string) -> bool {
     return strings_equal_inner(a, b, 0);
 }
 
+/// Whether `a` is a prefix of `b`.
+///
+/// W610: called in this file and declared nowhere in the corpus -- 55 of the
+/// 886 `use of undeclared identifier` errors across IGLA. Written from its own
+/// tests, which determine it completely:
+///
+///     is_prefix("hello", "hello world") == true
+///     is_prefix("world", "hello")       == false
+///     is_prefix("",      s)             == true    (for all s)
+///
+/// The empty string is a prefix of everything, and a longer `a` cannot be a
+/// prefix of a shorter `b`; both fall out of the length guard.
+fn is_prefix(a: string, b: string) -> bool {
+    if (a.len() > b.len()) {
+        return false;
+    }
+    return is_prefix_inner(a, b, 0);
+}
+
+fn is_prefix_inner(a: string, b: string, idx: u32) -> bool {
+    if (idx >= a.len()) {
+        return true;
+    }
+    if (a[idx] != b[idx]) {
+        return false;
+    }
+    return is_prefix_inner(a, b, idx + 1);
+}
+
 fn strings_equal_inner(a: string, b: string, idx: u32) -> bool {
     if (idx >= a.len()) {
         return true;
