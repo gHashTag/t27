@@ -6121,6 +6121,64 @@ in some later wave. Nine registers, nine notes, all in the emitters.
 
 ---
 
+### Prop. 97 — a guard whose members had different preconditions — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *The DMA drain is never consumed after it wraps (bounded)*
+
+Prop. 94d named Prop. 85d's **1.58×** the most load-bearing unreproduced number
+in the campaign: it moved code behind a separate guard, it is quoted in the
+README, and its expensive endpoint had never been reproduced. Attempting the
+re-measurement did not produce a number. It produced a defect.
+
+**97a. The `with_drain` arm refutes.** Compiling `-DT27_FORMAL_DRAIN` into the
+engine — the exact configuration Prop. 85d measured — now **fails in 11 s**. The
+harness declined to report a timing for a command that exited nonzero, which is
+the second of its three rules doing precisely its job.
+
+**97b. One property is responsible, and it is the one Prop. 88b predicted.**
+Isolating each of the four drain properties in the engine:
+
+| property | engine verdict |
+|---|---|
+| `a_drain_sane_where_consumed` (DMA) | **REFUTES** |
+| `a_drain_residue_nonzero` (DMA) | proves |
+| `a_drain_never_underflows` (prefetch) | proves |
+| `a_drain_within_request` (prefetch) | proves |
+
+Prop. 88b states it outright: the DMA drain claim is **false in isolation** — an
+extra beat past `rlast` wraps the counter — and true only under the AXI
+read-slave model that supplies `arlen` compliance. The engine has no slave
+model; its `rvalid`/`rlast` are free. The refutation is correct behaviour.
+
+**97c. The guard conflated two kinds of property.** `T27_FORMAL_DRAIN` was
+created in Wave 633 for properties that hold unconditionally, and Wave 634 added
+an **environment-dependent** property to it without anyone noticing the
+categories differed. A define is read as a category by everyone who uses it, and
+this one silently meant "drain properties, one of which is false unless you also
+supply an AXI slave model". The DMA properties now sit behind
+`T27_FORMAL_DRAIN_AXI`, whose name states the precondition. Verified: the DMA
+step still proves at `seq 24`, and the engine under `-DT27_FORMAL_DRAIN` proves
+again.
+
+**97d. And the number is permanently unreproducible.** Prop. 85d compared the
+engine with and without the Wave-633 drain set. That set no longer exists — it
+gained a property in Wave 634 that cannot be compiled into the engine at all.
+The 1.58× therefore joins Prop. 91c's category: not shown to be wrong, but
+**incapable of being checked**, because the configuration it describes is gone.
+The design decision it justified is independently sound — the properties are
+proved unbounded at module level, so re-proving them in the engine to depth 40
+buys strictly less — and that argument never needed the timing.
+
+**97e. The measurement still has not been made.** The post-split re-run showed
+both arms proving, but the harness **refused to print a ratio**: load 8.4 on 8
+cores with a competing prover, because a gate-audit workflow was running
+concurrently. Recorded as unmeasured rather than reported with a caveat. That is
+the third refusal this harness has produced in three waves — a failing command,
+moved inputs, and now a busy machine — and in each case the number it declined
+to print would have been wrong.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

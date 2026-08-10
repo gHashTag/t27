@@ -339,7 +339,18 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    end\n");
     s.push_str("\n");
 
-    s.push_str("`ifdef T27_FORMAL_DRAIN\n");
+    s.push_str("`ifdef T27_FORMAL_DRAIN_AXI\n");
+    s.push_str("    // NOT T27_FORMAL_DRAIN. Wave 637 (Prop. 97): this property is\n");
+    s.push_str("    // ENVIRONMENT-DEPENDENT, and the prefetch drain properties behind the\n");
+    s.push_str("    // plain define are not. Prop. 88b established it is FALSE in isolation\n");
+    s.push_str("    // -- an extra beat past rlast wraps the counter -- and true only under\n");
+    s.push_str("    // the AXI read-slave model that supplies arlen compliance.\n");
+    s.push_str("    //\n");
+    s.push_str("    // Sharing one define with unconditional properties made the two\n");
+    s.push_str("    // indistinguishable: compiling T27_FORMAL_DRAIN into the ENGINE, which\n");
+    s.push_str("    // has no slave model, refutes -- and a_drain_sane_where_consumed is the\n");
+    s.push_str("    // only one of the four that does. A guard whose members have different\n");
+    s.push_str("    // preconditions cannot be reasoned about by its name.\n");
     s.push_str("    // Wave 634. The one hand-argument left in Prop. 85, made checkable.\n");
     s.push_str("    //\n");
     s.push_str("    // bytes_remaining underflows BY DESIGN on the final beat of any request\n");

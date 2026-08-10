@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-10
 
+## Wave 637b — the re-measurement that produced a defect instead of a number
+
+- **PROP. 94d NAMED THE 1.58× the most load-bearing unreproduced number** in the
+  campaign: it moved code behind a guard and is quoted in the README. Attempting
+  the re-measurement returned **no number**.
+- **THE `with_drain` ARM REFUTES IN 11 s.** The harness declined to time a
+  command that exited nonzero — its second rule, doing its job.
+- **ONE PROPERTY, AND PROP. 88b PREDICTED IT**: isolating all four,
+  `a_drain_sane_where_consumed` refutes in the engine and the other three prove.
+  That property is **false in isolation** — an extra beat past `rlast` wraps the
+  counter — and true only under the AXI read-slave model. The engine has none.
+  The refutation is correct behaviour.
+- **THE GUARD CONFLATED TWO KINDS OF PROPERTY**: `T27_FORMAL_DRAIN` was created
+  in Wave 633 for unconditionally-true properties; Wave 634 added an
+  environment-dependent one without noticing the categories differed. A define is
+  read as a category. Now `T27_FORMAL_DRAIN_AXI` states the precondition in its
+  name; DMA step still proves at `seq 24`, engine proves again.
+- **AND THE NUMBER IS PERMANENTLY UNCHECKABLE**: Prop. 85d compared against the
+  Wave-633 drain set, which no longer exists. Not shown wrong — *incapable of
+  being checked*. The decision it justified stands on an argument that never
+  needed the timing (the properties prove **unbounded** at module level).
+- **STILL UNMEASURED, AND SAID SO**: the post-split re-run had both arms proving,
+  but the harness refused a ratio at load 8.4/8 cores with a competing prover.
+  Third refusal in three waves — failing command, moved inputs, busy machine —
+  and each time the number it declined to print would have been wrong.
+- **PROP. 97** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 637 — `-set-init-zero` is not the reset state
 
 - **A CLAIM NOBODY CHECKED, SINCE PROP. 8c**: every module suite is proved with

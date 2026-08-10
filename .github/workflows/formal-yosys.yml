@@ -886,7 +886,7 @@ jobs:
       - name: The DMA drain is never consumed after it wraps (bounded)
         run: |
           set -euo pipefail
-          n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+          n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
                         build/rtl/dma_controller.sv; \
                         prep -top dma_controller -flatten; stat" \
               | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
@@ -895,7 +895,7 @@ jobs:
             echo "::error::found ${n:-0} -- they were not compiled and this proves nothing."
             exit 1
           fi
-          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN_AXI \
                     build/rtl/dma_controller.sv formal/dma_controller_props.sv \
                     formal/axi4_read_slave_model.sv; \
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
