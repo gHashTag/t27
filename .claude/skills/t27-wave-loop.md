@@ -4808,6 +4808,24 @@ These cost a wave each. Follow them before step 1.
      undeclared field, and an unbound variable. Disable with the text preserved;
      deleting destroys the intent an owner needs to restore it.
 
+140. **A round-trip between two UNKNOWNS pins neither.** `encode` has 23 call
+     sites; exactly ONE constrains its output (`encode("") == []`), two
+     constrain only a length, and the other 20 are `decode(encode(x)) == x` --
+     where `decode` is also undeclared. Twenty constraints that look like
+     evidence and are not. **Count how many tests constrain the function ALONE
+     before calling it determined.**
+
+141. **A naming argument is not evidence.** "`encode` must be `tokenize`" fails
+     here: in the same wave block, `tokenize` is called on token ARRAYS with
+     BOS-prepend semantics, contradicting its own declaration
+     `fn tokenize(text: string) -> []u32`. A region whose usage contradicts a
+     declaration cannot establish what another name aliases.
+
+142. **Verify a subagent's contradiction by reading the file yourself.** The
+     agent reported `decode([65,66,67]) == "ABC"` against
+     `decode([66,67,68]) == "ABC"`. Two greps confirmed both lines and ASCII
+     makes the second "BCD". Cheap to check, and the whole finding rests on it.
+
 ### How to update this tracker
 
 After closing a wave:

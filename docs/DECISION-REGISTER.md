@@ -1,6 +1,6 @@
 # Decision register — what only a maintainer can settle
 
-**Date:** 2026-08-10 · **Waves:** W568–W612 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
+**Date:** 2026-08-10 · **Waves:** W568–W614 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
@@ -181,6 +181,52 @@ decision, because none of them is imported *by* eval:
 **Question:** which direction is the real dependency? Either `substring_match`
 moves out of `backend` (so `eval` need not import it), or the four
 `eval::has_substring` calls in `backend` are replaced by something local.
+
+---
+
+## 12. `tokenizer.t27` — `decode` has contradictory tests
+
+Two assertions in the same file, both bare `decode`:
+
+```t27
+L1025:  decode([65, 66, 67]) == "ABC"      // ASCII 65,66,67 = A,B,C   OK
+L1038:  decode([66, 67, 68]) == "ABC"      // ASCII 66,67,68 = B,C,D   NOT "ABC"
+```
+
+**Verified by reading the file, not inferred.** One of the two is wrong.
+
+There is a second, independent contradiction of kind: `decode([1]) == "if"`
+(L791, the keyword table) against `decode([65]) == "A"` (L978, ASCII). The
+function is being asked to be two different decoders. And sites at L812–L824
+pass `encode_keyword(code)` — which is declared and returns a scalar `u32`
+(266 for `"if"`) — so those sites force a **scalar** parameter while the rest
+pass a slice.
+
+**Question:** is `decode` the ASCII decoder, the keyword decoder, or both under
+a discriminated input? And which of the two "ABC" lines is the typo?
+
+---
+
+## 13. `tokenizer.t27` — `encode` is underdetermined
+
+23 call sites. **Exactly one pins a concrete output** — `encode("") == []`. Two
+pin a length only (`encode("a").len() == 1`; the element value is never
+asserted). **The remaining 20 are round-trips through `decode`, which is itself
+undeclared**, so each relates two unknowns and pins neither.
+
+Three mutually non-equivalent functions satisfy every non-round-trip constraint:
+`tokenize(text)`, `tokenize_prompt_hybrid(text)`, and a degenerate
+length-encoder. The degenerate one also closes all 20 round-trips, because the
+seven distinct test inputs have pairwise-distinct lengths.
+
+**The naming argument fails too.** In the same wave block that introduced bare
+`encode`, `tokenize` is called on token *arrays* with BOS-prepend semantics —
+`tokenize([]).len() == 1`, `tokenize([42])` → `[0, 42]` — contradicting its own
+declaration `fn tokenize(text: string) -> []u32`. A region whose `tokenize`
+usage contradicts `tokenize`'s declaration cannot establish that `encode`
+aliases it.
+
+**Question:** what is `encode`? It cannot be settled before `decode` is.
 
 ---
 

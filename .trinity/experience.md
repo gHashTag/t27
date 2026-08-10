@@ -22239,3 +22239,45 @@ contributes NO errors; the moment it parses it contributes 39. Excluding it from
 both sides, **1125 -> 1072, a reduction of 53.** Reporting the headline alone
 would have shown +38 for a wave that removed 53. **Always separate "newly
 counted" from "newly broken".**
+
+## Wave 614 — a round-trip between two unknowns pins neither
+
+**W613's recommendation was falsified by measuring it.** It proposed a resolver
+rule -- *where exactly one imported module declares an ambiguous name, the
+choice is forced*. Measured: for every such name there is **no imported declarer
+at all**. The rule would fire zero times, and the "ambiguous" bucket was
+mis-bucketed by name-based grouping. Third time.
+
+**`encode` -- 23 sites, ONE of which constrains the output.**
+
+    concrete output              1   encode("") == []
+    length only                  2   encode("a").len() == 1
+    round-trip through `decode`  20  NOTHING -- decode is also undeclared
+
+**A round-trip `decode(encode(x)) == x` between two undeclared functions
+constrains the PAIR, not either member.** Twenty constraints that look like
+evidence and are not. Three non-equivalent candidates satisfy everything else,
+including a degenerate length-encoder -- the seven test inputs have pairwise
+distinct lengths, so it closes all 20 round-trips too.
+
+**And the naming argument fails independently**: in the same wave block,
+`tokenize` is called on token ARRAYS with BOS-prepend semantics, contradicting
+its own declaration `fn tokenize(text: string) -> []u32`.
+
+**`decode` -- contradictory, and I verified it myself rather than trusting the
+agent:**
+
+    L1025  decode([65, 66, 67]) == "ABC"    ASCII = A,B,C   consistent
+    L1038  decode([66, 67, 68]) == "ABC"    ASCII = B,C,D   NOT "ABC"
+
+Plus `decode([1]) == "if"` (keyword table) against `decode([65]) == "A"`
+(ASCII), and sites passing the scalar `encode_keyword(code)` where the rest pass
+a slice.
+
+**`eval` was three problems, not one.** 2 self-qualified sites (measured
+corpus-wide: exactly 2, one line, one spec -- so no resolver change is
+warranted) and 24 from four specs calling `eval::` without importing it. Three
+imports added; the fourth (`backend`) is a genuine cycle, because eval imports
+backend -- a consequence of my own W608 change.
+
+IGLA 1111 -> 1093; undeclared 505 -> 484.

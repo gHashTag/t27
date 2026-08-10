@@ -1483,6 +1483,69 @@ than the parse fix or the two imports.
 
 ---
 
+### P29 (W614) — A round-trip between two unknowns pins neither
+
+W613 proposed resolving `encode`/`decode` with a resolver rule: *where exactly
+one imported module declares an ambiguous name, the choice is forced.* Measured:
+for every such name there is **no imported declarer at all**. The rule would
+fire zero times, and the "ambiguous" bucket was mis-bucketed by name-based
+grouping — the third time that has happened.
+
+### `encode` — 23 sites, one of which constrains the output
+
+| Kind | sites | what it pins |
+|---|---:|---|
+| concrete output | **1** | `encode("") == []` |
+| length only | 2 | `encode("a").len() == 1` — the element value is never asserted |
+| **round-trip through `decode`** | **20** | nothing: `decode` is *also* undeclared |
+
+**A round-trip `decode(encode(x)) == x` between two undeclared functions
+constrains the pair, not either member.** Three mutually non-equivalent
+candidates satisfy every non-round-trip constraint — `tokenize`,
+`tokenize_prompt_hybrid`, and a degenerate length-encoder — and the degenerate
+one closes all 20 round-trips too, because the seven distinct test inputs have
+pairwise-distinct lengths.
+
+**The naming argument fails independently.** In the same wave block that
+introduced bare `encode`, `tokenize` is called on token *arrays* with
+BOS-prepend semantics — `tokenize([]).len() == 1`, `tokenize([42])` → `[0, 42]`
+— **contradicting its own declaration** `fn tokenize(text: string) -> []u32`.
+
+### `decode` — contradictory, verified by reading the file
+
+```t27
+L1025:  decode([65, 66, 67]) == "ABC"      ASCII 65,66,67 = A,B,C   consistent
+L1038:  decode([66, 67, 68]) == "ABC"      ASCII 66,67,68 = B,C,D   NOT "ABC"
+```
+
+Plus a second contradiction of kind — `decode([1]) == "if"` (keyword table)
+against `decode([65]) == "A"` (ASCII) — and sites that pass the scalar
+`encode_keyword(code)` where the rest pass a slice.
+
+### And `eval` was three problems, not one
+
+26 errors: **2** are the self-qualified reference W607 found (measured
+corpus-wide: exactly 2 occurrences, on one line, in one spec — so a general
+resolver change is not warranted), and **24** are four other specs calling
+`eval::has_substring(...)` without importing `eval`.
+
+| Consumer | refs | outcome |
+|---|---:|---|
+| `yosys.t27` | 14 | import added |
+| `rtl.t27` | 6 | import added |
+| `eda.t27` | 2 | import added |
+| **`backend.t27`** | **4** | **circular — `eval` imports `backend` (W608)** |
+
+| | before | after |
+|---|---:|---:|
+| IGLA total | 1 111 | **1 093** |
+| `use of undeclared identifier` | 505 | **484** |
+
+*Falsification condition:* a reading of `encode` that all 23 sites pin, or a
+`decode` satisfying both "ABC" lines.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
