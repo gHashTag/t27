@@ -4860,6 +4860,51 @@ is worth stating rather than reporting "0/3" and letting it read as weakness.
 
 ---
 
+### Prop. 79 — the accumulator, checked without trusting the primitive — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove pipeline_stage2_compute properties*
+
+Third INDIRECT module from Prop. 76 and the last non-trivial one — the six that
+remain are combinational primitives inside `trit_stdlib.sv`. This is the MAC
+datapath, and Wave 615's undetected activation/requant mutation lived beside it.
+
+**79a. A shadow instance, not an assumption.** The properties are about the
+**accumulation**, so a second `trit27_dot_product` is driven with the same inputs
+to supply the expected per-chunk contribution. That assumes nothing about whether
+the primitive is correct — it lets each property say exactly what the surrounding
+logic must do with *whatever* the primitive returns. The primitive's own
+correctness remains a separate, unmade claim.
+
+**79b. Four properties, all proving, 4 of 4 mutants caught.**
+
+| property | what it pins |
+|---|---|
+| `a_first_chunk_restarts` | a first chunk **restarts** the sum — drop the test and the accumulator runs across neuron boundaries |
+| `a_accumulates_one_chunk` | every later chunk adds exactly its own contribution |
+| `a_result_held_when_idle` | the result is held while no chunk is accepted |
+| `a_valid_out_follows_last` | `valid_out` is exactly "a last chunk was accepted last cycle" — not sticky, not "any chunk" |
+
+Every mechanical mutant is detected: both `+`→`-` edits and both ternary swaps,
+which are precisely the accumulate-vs-restart confusions the suite is aimed at.
+
+**79c. The coverage map needed fixing before it could record this.** `DIRECT`
+was defined as "a `formal/` suite instantiates it" — and this wrapper
+instantiates `trit27_dot_product` a **second** time as a shadow. That would have
+reported the primitive as directly verified while no property says anything about
+it. Coverage now requires the instance named `dut`, the convention every wrapper
+here follows: **an auxiliary instance is not coverage.**
+
+A wave that adds a property can corrupt the map that measures properties, and
+the corruption reads as progress — one more module apparently covered.
+
+**79d. Coverage: 10 direct → 11, 6 indirect → 5.** The five remaining are all
+combinational primitives (`adder_tree_27`, `trit27_dot_product`,
+`trit27_parallel_multiply`, `trit_full_adder`, `trit_half_adder`), which are
+better served by one exhaustive-over-inputs proof than by five wrappers — stated
+as the next step rather than left as an implied gap.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

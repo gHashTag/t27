@@ -43,6 +43,8 @@ SUITES = [
     ("layer_sequencer_props.sv", "ls_props", ["layer_sequencer"]),
     ("double_buffer_props.sv", "db_props", ["double_buffer_ctrl"]),
     ("weight_bram_props.sv", "wb_props", ["weight_bram"]),
+    ("pipeline_stage2_props.sv", "ps2_props",
+     ["pipeline_stage2_compute", "trit_stdlib"]),
     ("weight_prefetch_props.sv", "wp_props", ["weight_prefetch_ctrl"]),
     ("witnesses.sv", None, ["interrupt_controller", "axi_lite_slave", "dma_controller",
                             "layer_sequencer", "weight_prefetch_ctrl"]),

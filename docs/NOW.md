@@ -2,6 +2,40 @@
 
 Last updated: 2026-08-10
 
+## Wave 627 — the accumulator, checked without trusting the primitive
+
+- **THIRD INDIRECT MODULE CLOSED, AND THE LAST NON-TRIVIAL ONE**: the MAC
+  datapath. The six that remain are combinational primitives inside
+  `trit_stdlib.sv`.
+- **A SHADOW INSTANCE, NOT AN ASSUMPTION**: the properties are about the
+  **accumulation**, so a second `trit27_dot_product` is driven with the same
+  inputs to supply the expected per-chunk contribution. That assumes nothing
+  about whether the primitive is correct -- it lets each property say what the
+  surrounding logic must do with *whatever* the primitive returns. The
+  primitive's own correctness stays a separate, unmade claim.
+- **FOUR PROPERTIES, ALL PROVING, 4 OF 4 MUTANTS CAUGHT**: a first chunk
+  restarts the sum (drop the test and the accumulator runs across neuron
+  boundaries); every later chunk adds exactly its own contribution; the result
+  is held while idle; `valid_out` is exactly "a last chunk was accepted last
+  cycle". Both `+`->`-` edits and both ternary swaps are detected -- precisely
+  the accumulate-vs-restart confusions the suite aims at.
+- **THE COVERAGE MAP NEEDED FIXING BEFORE IT COULD RECORD THIS**: `DIRECT` was
+  "a `formal/` suite instantiates it", and this wrapper instantiates
+  `trit27_dot_product` a **second** time as a shadow. That would have reported
+  the primitive as directly verified while no property says anything about it.
+  Coverage now requires the instance named `dut`. **An auxiliary instance is not
+  coverage** -- and a wave that adds a property can corrupt the map that
+  measures properties, with the corruption reading as progress.
+- **COVERAGE**: 10 direct -> **11**, 6 indirect -> 5. The five remaining are all
+  combinational primitives, better served by one exhaustive-over-inputs proof
+  than by five wrappers -- stated as the next step rather than left implied.
+- **WHERE**: `formal/pipeline_stage2_props.sv`, `formal/orphan_scan.py`,
+  `formal/phantom_scan.py`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 79), README.
+- **STATE**: 79 propositions · 79 gates · 14 witnesses · 52 module properties
+  across 9 modules · 28 integration properties · 1213 tests · 496/496 seals ·
+  no known defect.
+
 ## Wave 626 — the memory axiom, over a symbolic address
 
 - **SECOND INDIRECT MODULE CLOSED**: `weight_bram` is the memory the prefetch

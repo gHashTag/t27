@@ -230,6 +230,18 @@ jobs:
                     chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
+      # Wave 627. Third INDIRECT module from Prop. 76 and the last non-trivial
+      # one: the MAC datapath. The properties are about the ACCUMULATION -- a
+      # second instance of trit27_dot_product supplies the expected per-chunk
+      # contribution, so nothing here assumes the primitive is correct. Prop. 79.
+      - name: Prove pipeline_stage2_compute properties
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                    build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                    prep -top ps2_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
       - name: Prove layer_sequencer properties
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
@@ -608,6 +620,7 @@ jobs:
               # observation address; these probes are what keep them from quietly
               # emptying the state space. Prop. 78.
               ("weight_bram",          "formal/weight_bram_props.sv",          "wb_props",  12, "-set-init-zero", ["wr_en", "fv_written", "fv_written && rd_addr == fv_addr"], "", "chparam -set DEPTH 4 weight_bram; chparam -set DEPTH 4 wb_props; "),
+              ("pipeline_stage2_compute", "formal/pipeline_stage2_props.sv",   "ps2_props", 12, "-set-init-zero", ["valid_in", "valid_out", "valid_in && first_chunk", "valid_in && !first_chunk"], "build/rtl/trit_stdlib.sv", ""),
               # The last two probe the AXI read-slave environment added in Wave
               # 612 (Prop. 63). An assumption that removes a handshake would
               # make a_writes_within_addresses prove by making the design idle,

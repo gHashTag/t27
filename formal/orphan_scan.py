@@ -105,7 +105,14 @@ def modules(root):
         j = text.find("\nendmodule", i)
         body = text[i:j if j > 0 else len(text)]
         inline = len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", body))
-        suites = [n for n, t in formal if instantiates(t, mod)]
+        # A suite counts as covering a module only if it instantiates it as the
+        # module UNDER TEST -- by convention the instance named `dut`. Wave 627
+        # added a wrapper that instantiates `trit27_dot_product` a second time
+        # as a SHADOW, to compute an expected value; without this distinction
+        # that primitive would be reported DIRECT while having no property about
+        # it at all. An auxiliary instance is not coverage.
+        suites = [n for n, t in formal
+                  if re.search(rf"^\s*{mod}\s+dut\s*\(", t, re.M)]
         if mod in MODULE_EXEMPT:
             kind = "EXEMPT"
         elif inline or suites:
