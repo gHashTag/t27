@@ -211,13 +211,33 @@ module trit_full_adder (
     trit_half_adder ha1 (.a(a),    .b(b),   .sum(sum1), .carry(carry1));
     trit_half_adder ha2 (.a(sum1), .b(cin), .sum(sum),  .carry(carry2));
 
-    // carry1 + carry2 ∈ {-2, -1, 0, +1, +2}
+    localparam [1:0] TRIT_N = 2'b00;
+    localparam [1:0] TRIT_Z = 2'b01;
+    localparam [1:0] TRIT_P = 2'b10;
+
+    // carry1 + carry2 in {-2, -1, 0, +1, +2}
     // Balanced-ternary: cout = sign(carry1+carry2), encoded as TRIT_N/TRIT_Z/TRIT_P
     // Intermediate sum remainder absorbed into final sum via half-adder chain.
-    wire signed [2:0] c1 = carry1 == 2'b10 ? 3'sd1 : (carry1 == 2'b01 ? 3'sd0 : -3'sd1);
-    wire signed [2:0] c2 = carry2 == 2'b10 ? 3'sd1 : (carry2 == 2'b01 ? 3'sd0 : -3'sd1);
+    //
+    // Named constants, not literals. Wave 634: this module used to compare
+    // against 2'b10 / 2'b01 and emit 2'b10 / 2'b00 / 2'b01 directly, while
+    // every sibling primitive -- including its own trit_half_adder instances --
+    // went through TRIT_N/TRIT_Z/TRIT_P. Permuting the encoding therefore moved
+    // the siblings and left this module behind, silently. Found by proving the
+    // algebra under a permuted encoding: trit_not, trit_and, trit_or and
+    // trit_multiply all still held, and trit3_add did not. See Prop. 86.
+    //
+    // The default arm also disagreed with the half adder's. This mapped the
+    // reserved 2'b11 to -1 where trit_half_adder maps it to 0. Unreachable --
+    // carry1 and carry2 come from half adders, which only emit legal codes --
+    // but two primitives in one file answering the same question differently is
+    // how a later change picks the wrong answer.
+    wire signed [2:0] c1 = (carry1 == TRIT_P) ? 3'sd1 :
+                           (carry1 == TRIT_N) ? -3'sd1 : 3'sd0;
+    wire signed [2:0] c2 = (carry2 == TRIT_P) ? 3'sd1 :
+                           (carry2 == TRIT_N) ? -3'sd1 : 3'sd0;
     wire signed [3:0] csum = c1 + c2;
-    assign cout = (csum > 0) ? 2'b10 : (csum < 0) ? 2'b00 : 2'b01;
+    assign cout = (csum > 0) ? TRIT_P : (csum < 0) ? TRIT_N : TRIT_Z;
 endmodule
 
 ";

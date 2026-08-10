@@ -5385,6 +5385,179 @@ python3 formal/bound_scan.py --self-test && python3 formal/bound_scan.py
 
 ---
 
+### Prop. 86 — the six unreached primitives are an algebra, and it is now proved — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove the trit algebra (exhaustive)*
+
+Prop. 76 found six ternary primitives instantiated by nothing in the bundle
+while being read into every proof as source. They stayed UNREACHED for five
+waves as an open question — retire them, or wire them in? Neither. They are not
+dead code and not missing plumbing: they are an **algebra**, and an algebra can
+be stated as theorems and proved outright.
+
+Every property is combinational over at most 12 input bits, so `-seq 1`
+quantifies over **every** input combination. No depth caveat, no induction, no
+assumption beyond trit validity.
+
+**86a. The theorems.** Writing T = {−1, 0, +1} with the encoding
+`2'b00 = −1`, `2'b01 = 0`, `2'b10 = +1`:
+
+> **T1 (negation).** `trit_not` computes −a, and is an involution: not(not a) = a.
+>
+> **T2 (De Morgan algebra).** `trit_and` = min and `trit_or` = max under
+> −1 < 0 < +1. Hence (T, and, or, not) is a **De Morgan (Kleene) algebra**:
+> both operations commute, absorption holds, and
+> ¬(a ∧ b) = ¬a ∨ ¬b.
+>
+> **T3 (multiplication).** `trit_multiply` computes a·b. Zero absorbs, and the
+> units {−1,+1} are closed — the group ℤ/2ℤ.
+>
+> **T4 (comparison).** `trit_compare` computes sgn(a − b).
+>
+> **T5 (balanced addition).** `trit3_add` satisfies, over all 4096 input pairs,
+> `val(sum) + 27·val(cout) = val(a) + val(b)` where
+> `val(w) = w₀ + 3w₁ + 9w₂`.
+
+All five hold. `algebra_alive` asserts no valid word exists and **refutes**, so
+the validity assumption is not what makes them true.
+
+**86b. T4 is the one that earns its place, because it is not about the
+mathematics.** T1–T3 and T5 are facts about ternary arithmetic and would survive
+any faithful implementation. T4 is a fact about *this* implementation:
+`trit_compare` compares the raw two-bit encodings with `<`, and that computes
+the right sign only because `2'b00 < 2'b01 < 2'b10` happens to agree with
+−1 < 0 < +1. The encoding's monotonicity is therefore load-bearing, and it is
+written nowhere — the Prop. 83 shape in pure combinational logic. It is now a
+first-class assertion, `a_encoding_is_monotone`, rather than a remark.
+
+**86c. The experiment that tested 86b found a second, unpredicted result.**
+Permuting the encoding consistently — swapping the codes for −1 and 0 in both
+the RTL and the value macro, so the encoding order no longer matches the value
+order — should break exactly `cmp_props` and nothing else.
+
+| theorem | shipped encoding | permuted encoding |
+|---|---|---|
+| T1 not | proves | proves |
+| T2 lattice | proves | proves |
+| T3 multiply | proves | proves |
+| T4 compare | proves | **refutes** — as predicted |
+| T5 add3 | proves | **refutes** — *not* predicted |
+
+**86d. Why T5 broke: `trit_full_adder` had the encoding baked in as
+literals.** Every other primitive — including the `trit_half_adder` instances
+inside this very module — routes through the named `TRIT_N`/`TRIT_Z`/`TRIT_P`
+constants. The full adder compared against `2'b10`/`2'b01` and emitted
+`2'b10`/`2'b00`/`2'b01` directly. Permuting the encoding moved the localparams
+and left this one module behind, silently.
+
+It was also *inconsistent with its own sibling* on the reserved code: the full
+adder's default arm mapped `2'b11` to −1 where `trit_half_adder` maps it to 0.
+Unreachable in practice — its carries come from half adders, which only emit
+legal codes — but two primitives in one file answering the same question
+differently is how a later change picks the wrong answer.
+
+Fixed in the emitter to use named constants. **The fix is verified by re-running
+the experiment that found it**: under the permuted encoding T5 now proves, and
+only T4 refutes — which is correct, since T4 is genuinely encoding-dependent by
+design.
+
+**86e. The coverage map is closed.** 23 emitted modules: **22 DIRECT, 0
+INDIRECT, 0 UNREACHED**, 1 EXEMPT (concurrent SVA this flow cannot parse). The
+question Prop. 76 opened is answered, and answered by proving rather than
+deleting — a module with no callers is not necessarily dead, it may simply be a
+specification nobody had written down yet.
+
+---
+
+### Prop. 87 — timings get the provenance discipline everything else here has — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Benchmark harness self-test*
+
+Prop. 85f corrected a published figure — two properties reported as costing an
+engine proof 4×, really 1.58× — because both measurements were taken while three
+other provers competed for the machine. Nothing malfunctioned. The stopwatch was
+accurate; it described a machine I had not.
+
+Correctness results here are reproducible: a proof discharges or it does not,
+independent of what else runs. **Timings are not.** They are claims about
+contention, core count and thermal state, and this campaign spent twenty waves
+gating whether its tools lie while reading its performance numbers off a wall
+clock with no provenance at all.
+
+**87a. `formal/bench.py`, three rules enforced rather than remembered.**
+*Paired* — both arms run in one invocation, alternating, so they see the same
+machine; comparing today's number against one recorded eight waves ago is not a
+comparison. *Witnessed* — load average and competing-prover count are sampled
+around every run and printed beside the seconds. *Repeated* — each arm runs N
+times and the observed range is reported.
+
+**87b. It refuses rather than caveats.** A caveat is something a reader skips.
+The harness prints no ratio at all when the machine was contended, when either
+arm exited nonzero, or when the two arms' **observed ranges overlap** — because
+if some run of the slower arm beat some run of the faster one, no ordering
+between them is supportable. That last criterion is deliberately conservative:
+it is what would have refused to print Prop. 85f's 4×.
+
+**87c. Its first real use produced an impossible answer, and that was the
+finding.** Re-measuring Prop. 85d's comparison, it reported **0.88× — adding two
+properties made the proof 19 s *faster*** — with disjoint ranges, zero competing
+provers, and every guard satisfied.
+
+The cause was not the machine. It was me: I regenerated the RTL bundle roughly a
+third of the way through the run, so the early and late samples measured
+different inputs. **A benchmark whose inputs move mid-run is exactly as broken as
+one whose machine is contended, and neither is visible in the seconds.**
+
+The harness now fingerprints every file under test before and after the run and
+rejects the comparison if the digest moved (`--watch`). Six self-test cases: a
+clean run reports; a failing command is not timed; identical arms yield no
+ratio; contention blocks the report; an input edited mid-run blocks the report;
+and stable inputs still report.
+
+**87d. The general rule.** An implausible measurement is evidence about the
+instrument, not a surprising fact about the world. 0.88× was not a discovery
+that properties make proofs faster — it was the harness telling me, in the only
+way it could, that it was not measuring what its labels said. The three
+contaminations this campaign has now recorded — a contended machine (85f), a
+tool error read as a verdict (83f), and inputs changing underfoot (87c) — share
+one shape: **the number was fine, the thing it described was not what the
+caption claimed.** That is the same shape as Props. 67a and 73.
+
+---
+
+### Prop. 88 — the DMA drain, proved where it is actually consumed — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *The DMA drain is never consumed after it wraps (bounded)*
+
+Prop. 85b left one hand-argument standing. `bytes_remaining` underflows **by
+design** — a 12-byte request goes 12 → 4 → `0xFFFFFFFC` — and is safe only
+because the wrapped value is never read. That was reasoning in a comment.
+
+**88a. The claim is not "it never wraps".** It cannot be: the wrap is
+intentional. The safety claim is that *wherever the value is consumed, it is
+still a sane residue*. `beats_owed = (bytes_remaining + 7) >> 3` is a continuous
+assignment and does track the wrap; it is safe purely because it is read only in
+`READ_ADDR`/`WRITE_ADDR`, states the FSM does not re-enter after leaving on that
+beat. So the property is stated over exactly those states:
+`bytes_remaining <= 32768`, plus that the surviving residue is non-zero.
+
+**88b. It needs the environment, and the environment already existed.** In
+isolation the claim is **false**: an extra data beat past `rlast` with fewer than
+8 bytes owed wraps the counter while the FSM stays in `READ_DATA`. The AXI
+read-slave model written in Wave 612 already assumes exactly what is needed —
+`rlast` lands on the (arlen+1)-th beat — so the proof runs in the existing
+`dma_props` wrapper against that model. The protocol dependency Prop. 85b
+recorded in prose is now the assumption the proof is stated under.
+
+**88c. Bounded, and the bound is reported honestly.** Proves at **`seq 12` in
+1.4 s** and at **`seq 24` in 285 s**. At `seq 80` — the bound the rest of
+`dma_props` runs at — it **did not complete in 30 minutes**, so it is recorded as
+not completed rather than retried until it produced a number (Prop. 68's rule).
+CI runs it at 24. The steepness is itself worth knowing: 200× the time for 2× the
+depth on the same wrapper.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

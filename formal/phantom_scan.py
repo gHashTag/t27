@@ -46,6 +46,16 @@ SUITES = [
     ("pipeline_stage2_props.sv", "ps2_props",
      ["pipeline_stage2_compute", "trit_stdlib"]),
     ("trit_stdlib_props.sv", "dot_props", ["trit_stdlib"]),
+    # Wave 634: the algebra. Each theorem elaborated so a property referencing a
+    # signal that does not exist fails the build rather than proving against an
+    # undriven phantom wire (Prop. 62).
+    ("trit_algebra_props.sv", "not_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "and_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "or_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "lattice_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "mul_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "cmp_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "add3_props", ["trit_stdlib"]),
     ("weight_prefetch_props.sv", "wp_props", ["weight_prefetch_ctrl"]),
     ("witnesses.sv", None, ["interrupt_controller", "axi_lite_slave", "dma_controller",
                             "layer_sequencer", "weight_prefetch_ctrl"]),

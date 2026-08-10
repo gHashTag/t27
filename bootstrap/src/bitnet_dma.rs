@@ -332,6 +332,31 @@ pub fn build_dma_controller(module_name: &str) -> String {
     s.push_str("    end\n");
     s.push_str("\n");
 
+    s.push_str("`ifdef T27_FORMAL_DRAIN\n");
+    s.push_str("    // Wave 634. The one hand-argument left in Prop. 85, made checkable.\n");
+    s.push_str("    //\n");
+    s.push_str("    // bytes_remaining underflows BY DESIGN on the final beat of any request\n");
+    s.push_str("    // whose length is not a multiple of 8: a 12-byte request goes 12 -> 4 ->\n");
+    s.push_str("    // 0xFFFFFFFC. That is safe only because the wrapped value is never read.\n");
+    s.push_str("    // The exit test samples the pre-decrement value, but beats_owed is a\n");
+    s.push_str("    // CONTINUOUS assignment over bytes_remaining and does see the wrap -- it\n");
+    s.push_str("    // is safe purely because it is consumed in the address states, which the\n");
+    s.push_str("    // FSM does not re-enter after leaving on that beat.\n");
+    s.push_str("    //\n");
+    s.push_str("    // So the safety claim is not `it never wraps`. It is: wherever the value\n");
+    s.push_str("    // is actually consumed, it is still a sane residue. Stated over the\n");
+    s.push_str("    // clamp, which is the largest legitimate value.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && (state == READ_ADDR || state == WRITE_ADDR))\n");
+    s.push_str("        a_drain_sane_where_consumed: assert (bytes_remaining <= 32'd32768);\n");
+    s.push_str("\n");
+    s.push_str("    // And the residue is a whole number of beats behind: the decrement is by\n");
+    s.push_str("    // 8 and the exit test is `<= 8`, so any value surviving into an address\n");
+    s.push_str("    // state is at least one full beat. Without this the property above holds\n");
+    s.push_str("    // for a controller that wrapped to a small number rather than a huge one.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && (state == READ_ADDR || state == WRITE_ADDR))\n");
+    s.push_str("        a_drain_residue_nonzero: assert (bytes_remaining != 32'd0);\n");
+    s.push_str("`endif\n");
+    s.push_str("\n");
     s.push_str("endmodule\n");
 
     s

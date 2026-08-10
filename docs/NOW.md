@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-10
 
+## Wave 634 — the six unreached primitives were an algebra all along
+
+- **THE FIVE-WAVE QUESTION, ANSWERED A THIRD WAY**: Prop. 76's six UNREACHED
+  primitives are neither dead code to retire nor plumbing to wire in. They are
+  an **algebra**, and an algebra can be proved. All exhaustive at `-seq 1` — no
+  depth caveat, no induction, no assumption beyond trit validity.
+  - **T1** `not` is negation and an involution.
+  - **T2** `and` = min, `or` = max, so (T, ∧, ∨, ¬) is a **De Morgan (Kleene)
+    algebra**: ¬(a∧b) = ¬a∨¬b, plus commutativity and absorption.
+  - **T3** `multiply` is the product; 0 absorbs, units closed (ℤ/2ℤ).
+  - **T4** `compare` is sgn(a−b).
+  - **T5** `trit3_add`: val(sum) + 27·val(cout) = val(a) + val(b), all 4096 pairs.
+- **COVERAGE MAP CLOSED**: 23 modules — **22 direct, 0 indirect, 0 unreached**,
+  1 exempt. Answered by proving rather than deleting: a module with no callers
+  is not necessarily dead, it may be a specification nobody had written down.
+- **T4 EARNED ITS PLACE**: `compare` is right *only because* the 2-bit encoding
+  is monotone in trit value — a Prop. 83-shaped dependency in combinational
+  logic. Now a first-class assertion, not a remark.
+- **TESTING THAT FOUND A SECOND, UNPREDICTED DEFECT**: permuting the encoding
+  should break T4 alone. It also broke **T5** — `trit_full_adder` had the
+  encoding baked in as literals where every sibling, including its own
+  half-adder instances, used the named constants, so a renumbering moves them
+  and leaves it behind silently. Its default arm also mapped the reserved
+  `2'b11` to −1 where the half adder maps it to 0. Fixed in the emitter, and
+  **the fix verified by re-running the experiment that found it**.
+- **TIMINGS NOW CARRY PROVENANCE** (`formal/bench.py`): paired arms alternating
+  on one machine, load and competing provers recorded, and it **refuses to print
+  a ratio** on contention, nonzero exit, or overlapping ranges. Six self-test
+  cases.
+- **ITS FIRST REAL USE RETURNED AN IMPOSSIBLE 0.88×** — two properties making a
+  proof *faster*, all guards satisfied. The cause was me: I regenerated the RTL
+  a third of the way through the run. A benchmark whose inputs move mid-run is
+  as broken as one whose machine is contended, and neither shows in the seconds.
+  It now fingerprints the files under test and rejects a moved digest.
+- **PROP. 85'S LAST HAND-ARGUMENT IS NOW A PROOF**: the DMA drain wraps by
+  design, so the claim is not "it never wraps" but "wherever it is consumed it
+  is a sane residue" — false in isolation, true under the AXI read-slave model
+  written eighteen waves earlier. Bounded at `seq 24` (285 s); `seq 80` did not
+  complete in 30 minutes and is recorded as **not completed**.
+- **PROPS. 86, 87, 88** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 633 — the countdowns that enforce the tight bounds
 
 - **WHY THESE**: Prop. 84 found two 12-bit indices sized at *exactly* their

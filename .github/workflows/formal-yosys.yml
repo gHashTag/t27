@@ -306,6 +306,31 @@ jobs:
           fi
           echo "ok       valid inputs exist (refutes)"
 
+      # Wave 634. The six primitives Prop. 76 left UNREACHED for five waves,
+      # answered as an algebra rather than as dead code or missing plumbing.
+      # Combinational over at most 12 bits, so `-seq 1` quantifies over every
+      # input: exhaustive, no depth caveat. Props. 86 (T1-T5).
+      - name: Prove the trit algebra (exhaustive)
+        run: |
+          set -euo pipefail
+          for top in not_props and_props or_props lattice_props mul_props \
+                     cmp_props add3_props; do
+            yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                      formal/trit_algebra_props.sv; \
+                      prep -top ${top} -flatten; async2sync; chformal -lower; \
+                      sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+            echo "ok       ${top} (exhaustive over all inputs)"
+          done
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_algebra_props.sv; \
+                          prep -top algebra_alive -flatten; async2sync; \
+                          chformal -lower; \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::the validity assumption admits no words, so every theorem above is vacuous"
+            exit 1
+          fi
+          echo "ok       valid words exist (refutes)"
+
       - name: Prove layer_sequencer properties
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
@@ -798,6 +823,39 @@ jobs:
       # comment, no input and no assumption. This maps every growing register to
       # whatever limits it and fails when that argument is not written down.
       # It proves nothing safe; it makes a missing argument visible. Prop. 84.
+      # Wave 634. Timings are claims about a machine state; Prop. 85f published
+      # a 4x that was 1.58x because nothing recorded the state. Prop. 87.
+      # Wave 634. The one hand-argument left in Prop. 85: bytes_remaining
+      # underflows by design, and is safe only because the wrapped value is
+      # never consumed. Proved here under the AXI read-slave model, which
+      # supplies the arlen-compliance the argument rests on. BOUNDED at 24 --
+      # the cost curve is steep (1.4 s at seq 12, 285 s at seq 24) and seq 80
+      # did not complete in 30 minutes, recorded as not completed rather than
+      # retried until it produced a number. Prop. 88.
+      - name: The DMA drain is never consumed after it wraps (bounded)
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                        build/rtl/dma_controller.sv; \
+                        prep -top dma_controller -flatten; stat" \
+              | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          if [ "${n:-0}" -lt 2 ]; then
+            echo "::error::Expected >=2 \$check cells for the DMA drain properties,"
+            echo "::error::found ${n:-0} -- they were not compiled and this proves nothing."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal -DT27_FORMAL_DRAIN \
+                    build/rtl/dma_controller.sv formal/dma_controller_props.sv \
+                    formal/axi4_read_slave_model.sv; \
+                    prep -top dma_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
+          echo "ok       bytes_remaining is sane wherever beats_owed reads it"
+
+      - name: Benchmark harness self-test
+        run: |
+          set -euo pipefail
+          python3 formal/bench.py --self-test
+
       - name: Every growing register says what bounds it
         run: |
           set -euo pipefail
