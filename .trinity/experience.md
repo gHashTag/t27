@@ -21987,3 +21987,44 @@ trusting the first error location.
 
 prm moved off `BeamCandidate` -- the arch dependency resolved. **No CODER spec
 produces a test binary yet, and that remains the headline.**
+
+## Wave 607 — 76 calls to a function nobody wrote, and two speculative fixes reverted
+
+**`eval.t27`: 113 compile errors -> 32.** Three things, and one honest failure.
+
+**1. `SimResult` was used and declared nowhere.** Two other specs declare that
+name and they are NOT the same type:
+
+    specs/fpga/simulator.t27   { cycles, state, errors, assertions_fired, coverage_points }
+    specs/igla/coder/prm.t27   { passed, total }
+
+eval constructs `{passed, total}`, so it means prm's -- but prm IMPORTS eval, so
+importing prm is circular, and importing fpga::simulator binds the wrong shape.
+**The type belongs to the lower layer that uses it.** Declared it in eval;
+prm is unaffected because the resolver's fixpoint skips names the importer
+declares locally.
+
+**2. `accuracy` was called 76 times and declared NOWHERE IN THE CORPUS.** Its
+contract is fully determined by its own tests, so it was written from them:
+
+    accuracy([1,2,3],[1,2,3]) == 1.0     accuracy([],[]) == 0.0
+
+**The two invariants beside those tests contradict each other on the empty
+input** -- `preds == refs ==> 1.0` and `len == 0 ==> 0.0` both apply to
+`([],[])`. The explicit TEST says 0.0, so 0/0 is defined as 0.0 and
+`eval_accuracy_perfect_inv` is FALSE for the empty case. Same shape as T4,
+recorded rather than papered over. 76 errors gone.
+
+**3. Array-of-strings never got the slice lowering.** `slice_element_type`
+rejected any element type containing `[` -- a guard for nested arrays that also
+rejects `[]const u8`, which is what a STRING is. So `[]string` returns skipped
+the `@constCast(&[_]T{...})` form that `[]u32` returns get. Fixed.
+
+**AND THE HONEST PART: two speculative fixes reverted.** A single-element array
+of strings still emits `{ a }` instead of `{ "a" }`. I twice theorised a cause
+(a dimension-guard in parse_bare_array_literal; unquoted lexemes in the
+element-text collection), patched, rebuilt, and BOTH LEFT THE OUTPUT UNCHANGED.
+Rather than keep guessing at a frozen file, both were reverted and the defect is
+documented with everything learned. **A fix you cannot demonstrate is not a fix,
+and keeping it because it is "correct in principle" is how a compiler acquires
+changes nobody can explain.**

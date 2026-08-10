@@ -4602,6 +4602,13 @@ impl Codegen {
         let rest = t.strip_prefix("[]")?;
         let rest = rest.trim();
         let rest = rest.strip_prefix("const ").unwrap_or(rest).trim();
+        // W607: a STRING element is itself a slice, so `[][]const u8` has
+        // element type `[]const u8` -- which contains `[` and was rejected by
+        // the nested-array guard below. That made every array-of-strings skip
+        // the `@constCast(&[_]T{...})` lowering that array-of-numbers gets.
+        if rest == "[]const u8" || rest == "[]u8" {
+            return Some(rest.to_string());
+        }
         if rest.is_empty() || rest.contains('[') || rest.contains('(') {
             return None;
         }

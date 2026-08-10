@@ -143,6 +143,27 @@ pub const CompileResult = struct {
     test_pass: bool,
 };
 
+/// Result of running a generated testbench: how many checks passed, of how many.
+///
+/// W607: this file USED `SimResult` and declared it nowhere, importing only
+/// `base::types` and `math::constants`. Two other specs declare a type by that
+/// name and they are NOT the same type:
+///
+///   specs/fpga/simulator.t27   { cycles, state, errors, assertions_fired,
+///                                coverage_points }
+///   specs/igla/coder/prm.t27   { passed, total }
+///
+/// This file constructs `SimResult { passed: …, total: 1 }`, so it means the
+/// second. Importing `prm` would be circular -- `prm` imports `eval` -- and
+/// importing `fpga::simulator` would bind the wrong shape. The type therefore
+/// belongs to the lower layer that uses it, which is this one. `prm` keeps its
+/// own declaration and is unaffected: the resolver's fixpoint skips names the
+/// importer declares locally, so nothing is spliced over it.
+pub const SimResult = struct {
+    passed : u32,
+    total  : u32,
+};
+
 /// Compile and test generated code in a sandboxed environment.
 /// Heuristic: checks balanced braces and presence of function/module keyword.
 fn compile_and_test(code: string, language: string, test_cases: []string) -> CompileResult {
@@ -1858,6 +1879,36 @@ pub fn compute_grpo_loss(logits: []f32, rewards: []f32) -> f32 {
 fn sum_f32(arr: []f32, idx: u32, acc: f32) -> f32 {
     if (idx >= arr.len()) { return acc; }
     return sum_f32(arr, idx + 1, acc + arr[idx]);
+}
+
+/// Fraction of predictions that match their reference, in [0, 1].
+///
+/// W607: called **76 times** in this file and declared nowhere in the corpus.
+/// Its contract is fully determined by its own tests, so it is written from
+/// them rather than invented:
+///
+///     accuracy([1,2,3], [1,2,3]) == 1.0        eval_accuracy_perfect_one
+///     accuracy([],      [])      == 0.0        eval_accuracy_empty_zero
+///
+/// **The two invariants beside those tests contradict each other on the empty
+/// input.** `preds == refs ==> accuracy == 1.0` and
+/// `preds.len() == 0 && refs.len() == 0 ==> accuracy == 0.0` both apply to
+/// `([], [])`, and they disagree. The explicit TEST says 0.0, so 0/0 is defined
+/// as 0.0 here and `eval_accuracy_perfect_inv` is FALSE for the empty case --
+/// the same shape as T4, and recorded rather than papered over.
+///
+/// Mismatched lengths compare only the common prefix, over the longer length,
+/// so extra references count against the score.
+fn accuracy(preds: []u32, refs: []u32) -> f32 {
+    let n = if (preds.len() > refs.len()) { preds.len() } else { refs.len() };
+    if (n == 0) { return 0.0; }
+    return count_matches(preds, refs, 0, 0) as f32 / n as f32;
+}
+
+fn count_matches(preds: []u32, refs: []u32, idx: u32, acc: u32) -> u32 {
+    if (idx >= preds.len() || idx >= refs.len()) { return acc; }
+    let hit = if (preds[idx] == refs[idx]) { 1 } else { 0 };
+    return count_matches(preds, refs, idx + 1, acc + hit);
 }
 
 fn variance_f32(arr: []f32, idx: u32, acc: f32, mean: f32) -> f32 {
