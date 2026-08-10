@@ -6377,6 +6377,103 @@ now found four defects that lived in exactly that gap.
 
 ---
 
+### Prop. 102 — three defects in code written two days earlier — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No declaration is narrower than the range it carries*
+
+The round-two audit — `orphan_scan`, never reviewed, plus the four gates changed
+in Waves 637–638 — returned **25 verified findings**. Three are confirmed here,
+all in code written within the previous 48 hours, and all found by asking the
+gate the question it was built to ask about the design.
+
+**102a. `4'b101` was read as one hundred and one.** `term_range()`'s literal
+pattern captured the digits and evaluated every sized literal as **decimal**,
+ignoring the base that is the entire point of the notation. Five became 101 — a
+20× error, in the direction of a *false finding* — while `8'hff` and `3'o7`
+matched nothing at all. Verified across all four Verilog bases; fixed and kept
+as a self-test row. This is "match a form, not a fact" (Prop. 98e) committed
+inside the gate written to catch arithmetic that does not fit.
+
+**102b. `strip_formal` deleted real design.** Wave 636b added it so `bound_scan`
+would stop crediting assertions as bounds. It removed *regions* rather than
+resolving guards, so two constructs vanished: the body of `` `ifndef
+T27_FORMAL `` — which is precisely the code that compiles when the define is
+absent — and the `` `else `` branch of any `` `ifdef T27_FORMAL ``. Both are
+design. It now resolves each guard as T27_FORMAL-undefined: drop the `ifdef`
+branch, keep the `else`; keep the `ifndef` branch, drop its `else`. Guards on
+other symbols are untouched.
+
+The direction of the error was safe — deleting design can only push a register
+toward FREE, which *demands a note* rather than hiding anything — and the
+shipped tree's 16 verdicts are unchanged. It was still wrong, and it hid
+whatever bound lived in those branches.
+
+**102c. `orphan_scan` counted assertions inside comments.** A comment
+*discussing* an assertion made a module look DIRECT. This is the **identical**
+defect fixed in `claims_check` one wave earlier (Prop. 95), with the identical
+regex, in a sibling file — and nobody checked whether the same pattern elsewhere
+had the same problem. It did.
+
+**102d. One claim did not reproduce, recorded as such.** The audit reported that
+`term_range()` matches a *prefix* identifier and discards the rest of the token.
+It does not: `l1x[0]` against a range table containing `l1` returns `None`
+correctly, because the captured name is `l1x` and no such key exists. Reported
+as verified; not reproducible. Negative results are recorded here so the next
+wave does not re-litigate them.
+
+---
+
+### Prop. 103 — the defect taxonomy, with counts — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Every proposition carries the gate that keeps it true*
+
+Twenty-odd waves of instrument auditing have produced enough instances to state
+the finding as a class rather than a list. Every confirmed defect in this
+campaign's *gates* — not in the design, in the things that check the design —
+falls into one of five shapes. The counts are of confirmed, independently
+reproduced instances.
+
+| # | shape | instances | example |
+|---|---|---|---|
+| 1 | **Matching a form, not a fact** | 9 | a warning's phrasing (1-bit vs n-bit "no driver"); an identifier's *name* where its *value* was meant; a literal's digits without its base |
+| 2 | **A decline that is not counted** | 4 | subtraction and constant addends silently skipped while coverage read full |
+| 3 | **Reading a claim as the design** | 3 | assertions inside `` `ifdef T27_FORMAL `` credited as bounds; assertion labels counted inside comments |
+| 4 | **Targeting by position, not by name** | 2 | a probe injected before the *last* `endmodule`; a range comment bound to the *next* declaration |
+| 5 | **A guard that trips only at zero** | 3 | losing 1 of 3 annotations leaves a summary identical to a healthy one |
+
+**103a. Three structural regularities.** First, **the self-test never catches
+these**, in any instance. A self-test is written by the gate's author from the
+same mental model that produced the defect, so its cases sit at one point on
+whichever axis matters — every `phantom_scan` injection was a one-bit signal,
+every `width_scan` reduction a bare identifier sum.
+
+Second, **defects cluster in the newest code**. Of the 25 findings in the
+round-two audit, the three confirmed were all in code less than 48 hours old.
+The gates that had survived twenty waves were comparatively clean; `bound_scan`
+proved *total* over its subject.
+
+Third, and least comfortable: **the same defect recurs in sibling files**.
+Prop. 95 fixed comment-counting in `claims_check`; the identical regex in
+`orphan_scan` had the identical defect and went another wave undetected because
+fixing an instance was not followed by grepping for the pattern.
+
+**103b. A testable prediction, stated before the next audit.** If shapes 1–5 are
+exhaustive, a further audit should find defects only in these categories, and
+predominantly in gates modified since the last audit. If it finds a *sixth*
+shape, the taxonomy is incomplete and this proposition is the thing to correct.
+That is falsifiable, and it is recorded here so the next wave can check it
+rather than re-derive it.
+
+**103c. The methodological result, which is the transferable part.** A gate that
+checks a property of a codebase is itself a program with no gate above it. This
+campaign's answer — adversarial review by an agent instructed to *refute* rather
+than confirm, with every finding independently reproduced before it is believed
+— found **10 defects in six gates in two days**, after those gates had passed
+their own self-tests for up to twenty waves. The self-tests were not bad. They
+were written by the person who wrote the gate.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

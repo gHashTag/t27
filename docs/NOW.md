@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-11
 
+## Wave 639b — three defects in code written two days earlier, and the taxonomy
+
+- **THE ROUND-TWO AUDIT RETURNED 25 VERIFIED FINDINGS** across `orphan_scan`
+  (never reviewed) and the four gates changed in Waves 637–638. Three confirmed,
+  **all in code less than 48 hours old**.
+- **`4'b101` WAS READ AS ONE HUNDRED AND ONE**: the literal parser captured the
+  digits and evaluated every sized literal as **decimal**, ignoring the base —
+  a 20× error toward a *false finding*, with `8'hff` and `3'o7` matching nothing
+  at all. All four bases now correct, kept as a self-test row.
+- **`strip_formal` DELETED REAL DESIGN**: it removed *regions* instead of
+  resolving guards, so `` `ifndef T27_FORMAL `` bodies and `` `else `` branches
+  of formal guards vanished — both are design. Now resolves each guard as
+  T27_FORMAL-undefined. Direction was safe (deleting design only pushes toward
+  FREE, which demands a note) and the 16 shipped verdicts are unchanged.
+- **`orphan_scan` COUNTED ASSERTIONS INSIDE COMMENTS** — the *identical* defect
+  fixed in sibling `claims_check` one wave earlier, identical regex. Fixing an
+  instance was not followed by grepping for the pattern.
+- **ONE CLAIM DID NOT REPRODUCE** and is recorded as such: `term_range` does not
+  prefix-match; `l1x[0]` against `{l1}` correctly returns `None`.
+- **THE TAXONOMY** (Prop. 103), with counts of confirmed instances: matching a
+  **form** not a fact (9) · a **decline** not counted (4) · reading a **claim**
+  as the design (3) · targeting by **position** not name (2) · a **guard**
+  tripping only at zero (3).
+- **THREE REGULARITIES**: the self-test *never* catches these, because it is
+  written by the gate's author from the model that produced the defect; defects
+  cluster in the newest code; and the same defect recurs in sibling files.
+- **A FALSIFIABLE PREDICTION, STATED BEFORE THE NEXT AUDIT**: a sixth shape
+  would mean the taxonomy is incomplete.
+- **PROPS. 102, 103** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 639 — every decline, counted
 
 - **PROP. 100'S MECHANISM IS GENERIC**, so it was swept across all ten gates:

@@ -104,7 +104,13 @@ def modules(root):
         i = text.index(f"module {mod}")
         j = text.find("\nendmodule", i)
         body = text[i:j if j > 0 else len(text)]
-        inline = len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", body))
+        # Comments stripped first. Wave 639b: this counted `a_x: assert`
+        # inside `//` comments, so a comment DISCUSSING an assertion made a
+        # module look DIRECT. The sibling gate claims_check had the identical
+        # defect and was fixed one wave earlier (Prop. 95); nobody checked
+        # whether the same regex elsewhere had the same problem. It did.
+        inline = len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert",
+                                re.sub(r"//[^\n]*", "", body)))
         # A suite counts as covering a module only if it instantiates it as the
         # module UNDER TEST -- by convention the instance named `dut`. Wave 627
         # added a wrapper that instantiates `trit27_dot_product` a second time

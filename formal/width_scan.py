@@ -71,7 +71,14 @@ def top_level_plus(expr):
     return n
 
 
-LITERAL = re.compile(r"^\d*'s?[dbh]?(\d+)$|^(\d+)$", re.I)
+# Sized literals, WITH their base. Wave 639b: the first version captured the
+# digits and read them all as decimal, so `4'b101` -- five -- was taken as one
+# hundred and one, a 20x error in the direction of a false finding, and `8'hff`
+# and `3'o7` matched nothing at all. Verilog bases are b/o/d/h; the base is the
+# whole point of the notation and dropping it is the "match a form, not a fact"
+# defect this gate exists to catch, committed inside it.
+LITERAL = re.compile(r"^(?:(\d+)?'(s?)([bodh]))?([0-9a-f_]+)$", re.I)
+BASES = {"b": 2, "o": 8, "d": 10, "h": 16}
 
 
 def terms(expr):
@@ -115,7 +122,11 @@ def term_range(sign, token, rng):
         m = LITERAL.match(token.replace(" ", ""))
         if not m:
             return None
-        v = int(m.group(1) or m.group(2))
+        base = BASES[m.group(3).lower()] if m.group(3) else 10
+        try:
+            v = int(m.group(4).replace("_", ""), base)
+        except ValueError:
+            return None
         lo = hi = v
     return (lo, hi) if sign > 0 else (-hi, -lo)
 
@@ -377,6 +388,18 @@ def self_test():
             if not ok:
                 bad.append("removing one annotation produced a finding against "
                            "correct RTL via the width fallback")
+
+        # (5) Wave 639b: sized literals must be read in their own base. The
+        # first version took every literal as decimal, so 4'b101 -- five --
+        # was read as one hundred and one, a 20x error toward a false finding.
+        for tok, truth in (("4'b101", 5), ("3'o7", 7), ("8'hff", 255),
+                           ("5'sd9", 9), ("9", 9)):
+            r = term_range(1, tok, {})
+            ok = r == (truth, truth)
+            print(f"  {'ok  ' if ok else 'FAIL'} literal {tok:8s} reads as "
+                  f"{r[0] if r else None} (want {truth})")
+            if not ok:
+                bad.append(f"literal {tok} read as {r}, want ({truth}, {truth})")
 
         # (4) Wave 638 regressions: two expression forms that used to decline
         # silently while the coverage counter still read full.

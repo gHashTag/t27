@@ -67,40 +67,59 @@ def strip_comments(text):
 
 
 def strip_formal(text):
-    """Remove `ifdef T27_FORMAL* regions, nesting-aware.
+    """Return the design as it ships: T27_FORMAL* branches resolved as UNDEFINED.
 
-    Wave 636b (Prop. 95b). This scan looked for comparisons anywhere in the
-    module text, which meant it credited FORMAL ASSERTIONS as design bounds. An
-    assertion is a claim *about* the design, not a mechanism that constrains it,
-    and reading one as a bound inverts the whole point of the gate.
+    Wave 636b introduced this so the gate stopped crediting formal ASSERTIONS as
+    design bounds. Wave 639b found it deleted real design in two ways, both
+    verified:
 
-    The cost was not hypothetical: three of the four LOCAL verdicts in the
-    entire bundle came from assertion text. `bitnet_engine_top.chunk_addr` was
-    reported "bounded in-module: 12'd0" on the strength of
-    `a_chunk_addr_resets: assert (chunk_addr == 12'd0)` at line 547, inside
-    `ifdef T27_FORMAL. The design only ever ASSIGNS 12'd0 on reset; nothing in
-    it compares chunk_addr to a limit. It free-runs on layer_valid and wraps at
-    4096 -- exactly the Prop. 83 shape this scan exists to surface, hidden by an
-    assertion's spelling.
+      `ifndef T27_FORMAL   -- the body is DESIGN code (it is what compiles when
+                              the define is absent) and was being removed
+      `else                -- the else branch of an `ifdef T27_FORMAL is
+                              likewise design, and was being removed with it
+
+    Deleting design can only push a register toward FREE, which demands a note
+    rather than hiding a defect -- so the direction was safe. It was still
+    wrong, and it hid whatever bound lived in those branches.
+
+    This resolves the guards properly instead of deleting regions: for a
+    T27_FORMAL* guard the `ifdef branch is dropped and the `else branch kept,
+    and for `ifndef the reverse. Guards on any OTHER symbol are left untouched,
+    since this gate has no opinion about them.
     """
-    out, depth, pos = [], 0, 0
-    for m in re.finditer(r"`(ifdef|ifndef|endif)(?:\s+(\w+))?", text):
-        if depth == 0:
+    DIRECTIVE = re.compile(r"`(ifdef|ifndef|elsif|else|endif)(?:\s+(\w+))?")
+    out = []
+    # stack of (is_formal_guard, keeping_now)
+    stack = []
+    pos = 0
+
+    def emitting():
+        return all(k for _, k in stack)
+
+    for m in DIRECTIVE.finditer(text):
+        if emitting():
             out.append(text[pos:m.start()])
-        if m.group(1) in ("ifdef", "ifndef"):
-            if depth > 0:
-                depth += 1
-            elif (m.group(2) or "").startswith("T27_FORMAL"):
-                depth = 1
-        elif m.group(1) == "endif" and depth > 0:
-            depth -= 1
-            if depth == 0:
-                pos = m.end()
-                continue
-        if depth == 0:
-            pos = m.end()
-            out.append(text[m.start():m.end()])
-    if depth == 0:
+        kind, sym = m.group(1), m.group(2) or ""
+        if kind in ("ifdef", "ifndef"):
+            formal = sym.startswith("T27_FORMAL")
+            if formal:
+                # T27_FORMAL is never defined in the shipped design.
+                stack.append((True, kind == "ifndef"))
+            else:
+                stack.append((False, True))
+        elif kind == "elsif":
+            if stack:
+                formal, _ = stack[-1]
+                stack[-1] = (formal, False if formal else True)
+        elif kind == "else":
+            if stack:
+                formal, keep = stack[-1]
+                stack[-1] = (formal, (not keep) if formal else True)
+        elif kind == "endif":
+            if stack:
+                stack.pop()
+        pos = m.end()
+    if emitting():
         out.append(text[pos:])
     return "".join(out)
 
@@ -225,6 +244,29 @@ module m (input wire clk, input wire go);
     always @(posedge clk) if (go) left <= left - 16'd1;
 endmodule
 """, "DRAIN", 0),
+        # Wave 639b: strip_formal must resolve guards, not delete regions. It
+        # used to remove `ifndef T27_FORMAL bodies and `else branches, both of
+        # which are DESIGN code, hiding whatever bound lived there.
+        ("design inside `ifndef T27_FORMAL keeps its bound", """
+module m (input wire clk);
+    localparam LIMIT = 8'd200;
+    reg [7:0] c;
+`ifndef T27_FORMAL
+    always @(posedge clk) if (c == LIMIT) c <= 0; else c <= c + 8'd1;
+`endif
+endmodule
+""", "LOCAL", 0),
+        ("design in the `else branch of a formal guard keeps its bound", """
+module m (input wire clk);
+    localparam LIMIT = 8'd200;
+    reg [7:0] c;
+`ifdef T27_FORMAL
+    always @(posedge clk) c <= c + 8'd1;
+`else
+    always @(posedge clk) if (c == LIMIT) c <= 0; else c <= c + 8'd1;
+`endif
+endmodule
+""", "LOCAL", 0),
         ("a register nothing compares -- the Prop. 83 shape", """
 module m (input wire clk, input wire go, input wire signed [5:0] d);
     reg signed [15:0] acc;
