@@ -77,10 +77,15 @@ def parse(src):
     declared, documented = {}, {}
     pending = None
     for line in lines:
+        # Wave 637c: this used to `continue` here, so a line carrying BOTH a
+        # range comment and a declaration was consumed as a comment only and
+        # the declaration entered neither dict -- invisible to every check
+        # below. Moving an existing comment to TRAIL its declaration, a
+        # formatting change, took a provably broken adder tree from exit 1 to
+        # exit 0. A same-line comment now annotates its own declaration.
         rc = RANGE_COMMENT.search(line) if "//" in line else None
         if rc:
             pending = (int(rc.group(1)), int(rc.group(2)))
-            continue
         d = DECL.match(line)
         if d:
             name = d.group(3)
@@ -96,10 +101,19 @@ def check_file(path):
     """Return (findings, declared_count, annotated_count, reduction_count)."""
     src = path.read_text()
     declared, documented = parse(src)
-    # A declaration's range is what it is documented to carry; only in the
-    # absence of a comment do we fall back to what its bits can hold.
-    rng = dict(declared)
-    rng.update(documented)
+    # A declaration's range is what it is DOCUMENTED to carry, and nothing else.
+    #
+    # Wave 637c: this used to fall back to the declared width for an
+    # unannotated operand, which is precisely the worst-case-by-width rule the
+    # docstring above calls unsound for ternary -- `val` is signed [1:0] but
+    # holds only {-1,0,+1}. Deleting one of the three range comments therefore
+    # made the gate report a FALSE finding against correct RTL: `l1` "reaches
+    # [-6, 3]" using [-2,+1] per operand instead of the true [-1,+1].
+    #
+    # An unannotated operand now makes the reduction UNCHECKABLE rather than
+    # checkable-by-a-wrong-rule. That is a real loss of coverage, so it is
+    # counted and printed rather than absorbed silently.
+    rng = dict(documented)
     bad = []
 
     for name, (lo_req, hi_req) in documented.items():
@@ -112,36 +126,52 @@ def check_file(path):
                        f"range [{lo_req}, {hi_req}] -- the declaration cannot "
                        "hold the range written next to it")
 
-    seen = set()
+    # Wave 637c: `seen` used to hold TARGET NAMES and was consulted before the
+    # check ran, so `assign l2[0]`, `l2[1]`, `l2[2]` collapsed to one -- 2 of
+    # the 5 checkable reductions in the bundle were never examined, both inside
+    # adder_tree_27, the module this gate was written for. Worse, len(seen) was
+    # the coverage figure, so the summary counted distinct names and read as
+    # full coverage. Every reduction is now checked; only the ERROR is deduped,
+    # so one narrow declaration still reports once rather than three times.
+    checked, reported, skipped = 0, set(), 0
     for m in REDUCE.finditer(src):
         target, expr = m.group(1), m.group(2)
-        if target in seen or target not in declared or "?" in expr:
+        if target not in declared or "?" in expr:
             continue
         plus = top_level_plus(expr)
         if plus < 1:
             continue
-        ops = [o for o in OPERAND.findall(expr) if o in rng]
-        if len(ops) != plus + 1:
+        ops = OPERAND.findall(expr)
+        known = [o for o in ops if o in rng]
+        if len([o for o in ops if o in declared]) != plus + 1:
             continue
-        seen.add(target)
+        if len(known) != plus + 1:
+            # An operand with no documented range. Not checkable without the
+            # unsound width fallback; counted so the loss is visible.
+            skipped += 1
+            continue
+        ops = known
+        checked += 1
         lo_req = sum(rng[o][0] for o in ops)
         hi_req = sum(rng[o][1] for o in ops)
         n = src[:m.start()].count("\n") + 1
         lo_can, hi_can = declared[target]
-        if lo_req < lo_can or hi_req > hi_can:
+        if (lo_req < lo_can or hi_req > hi_can) and target not in reported:
+            reported.add(target)
             bad.append(f"{path.name}:{n}: `{target}` is declared to span "
                        f"[{lo_can}, {hi_can}], but is assigned the sum of "
                        f"{len(ops)} operands whose ranges reach "
                        f"[{lo_req}, {hi_req}]")
-        elif target in documented:
+        elif target in documented and target not in reported:
             lo_doc, hi_doc = documented[target]
             if lo_req < lo_doc or hi_req > hi_doc:
+                reported.add(target)
                 bad.append(f"{path.name}:{n}: `{target}` is documented as range "
                            f"[{lo_doc}, {hi_doc}], but is assigned the sum of "
                            f"{len(ops)} operands whose ranges reach "
                            f"[{lo_req}, {hi_req}] -- the comment understates "
                            "what the design puts there")
-    return bad, len(declared), len(documented), len(seen)
+    return bad, len(declared), len(documented), checked, skipped
 
 
 def scan(root):
@@ -150,13 +180,14 @@ def scan(root):
         print(f"::error::width_scan found no RTL under {root}/build/rtl -- "
               "emit the bundle before running this gate")
         return 1
-    bad, declared, annotated, reduced = [], 0, 0, 0
+    bad, declared, annotated, reduced, skipped = [], 0, 0, 0, 0
     for f in files:
-        b, d, a, r = check_file(f)
+        b, d, a, r, k = check_file(f)
         bad += b
         declared += d
         annotated += a
         reduced += r
+        skipped += k
     for b in bad:
         print(f"::error::{b}")
     # A scan that parsed nothing reports zero findings and reads as a pass.
@@ -175,7 +206,8 @@ def scan(root):
         return 1
     print(f"width scan: {len(files)} emitted files, {declared} signed "
           f"declarations ({annotated} range-annotated), {reduced} reductions "
-          f"checked, {len(bad)} carrying less than the design puts in them")
+          f"checked, {skipped} uncheckable for want of an annotated operand, "
+          f"{len(bad)} carrying less than the design puts in them")
     return 1 if bad else 0
 
 
@@ -212,7 +244,7 @@ def self_test():
         for name, text, want in cases:
             f = d / "trit_stdlib.sv"
             f.write_text(text)
-            got, _, _, _ = check_file(f)
+            got = check_file(f)[0]
             ok = len(got) == want
             print(f"  {'ok  ' if ok else 'FAIL'} {name}: {len(got)} finding(s), "
                   f"want {want}")
@@ -225,10 +257,60 @@ def self_test():
         # this ever reasons from declared widths again, level 1 turns into a
         # false positive on a correct design -- assert it does not.
         f.write_text(real)
-        got, _, _, _ = check_file(f)
+        got = check_file(f)[0]
         if any("`l1`" in g for g in got):
             bad.append("level 1 flagged on the shipped tree -- the scan is "
                        "reasoning from declared widths, not documented ranges")
+
+        # Wave 637c regressions. Each of these was a live defect found by an
+        # adversarial audit, and each is kept as a case so it cannot return.
+        f = d / "trit_stdlib.sv"
+
+        # (1) Coverage: all three assignments to l2 must be checked, not one.
+        f.write_text(real)
+        checked = check_file(f)[3]
+        ok = checked == 5
+        print(f"  {'ok  ' if ok else 'FAIL'} every reduction is checked, not "
+              f"one per target name: {checked} (want 5)")
+        if not ok:
+            bad.append(f"reduction coverage is {checked}, want 5 -- the "
+                       "dedup-by-name defect is back")
+
+        # (2) A same-line range comment must still annotate its declaration.
+        same = real.replace(
+            "    // Level 2: 3 groups of 3, range [-9, +9] -> signed [4:0].",
+            "    // Level 2: three groups.").replace(
+            "    wire signed [4:0] l2 [0:2];",
+            "    wire signed [3:0] l2 [0:2]; // range [-9, +9]")
+        if same == real:
+            bad.append("the same-line-comment injection changed nothing")
+        else:
+            f.write_text(same)
+            got = check_file(f)[0]
+            hit = any("comment" in g for g in got)
+            print(f"  {'ok  ' if hit else 'FAIL'} a TRAILING range comment "
+                  f"still annotates its declaration: {len(got)} finding(s)")
+            if not hit:
+                bad.append("a same-line range comment was consumed as a "
+                           "comment only, deleting the declaration from view")
+
+        # (3) A missing annotation must make a reduction UNCHECKABLE, never
+        # produce a finding via the unsound width fallback.
+        drop = real.replace(
+            "    // Decode each trit to signed {-1, 0, +1} (2-bit signed, range [-1, +1]).",
+            "    // Decode each trit to signed {-1, 0, +1}.")
+        if drop == real:
+            bad.append("the annotation-removal injection changed nothing")
+        else:
+            f.write_text(drop)
+            got, _, _, _, skip = check_file(f)
+            ok = len(got) == 0 and skip > 0
+            print(f"  {'ok  ' if ok else 'FAIL'} a missing annotation is "
+                  f"uncheckable, not a false finding: {len(got)} finding(s), "
+                  f"{skip} skipped")
+            if not ok:
+                bad.append("removing one annotation produced a finding against "
+                           "correct RTL via the width fallback")
 
         (d / "trit_stdlib.sv").write_text("module m; endmodule\n")
         rc = scan(pathlib.Path(td))

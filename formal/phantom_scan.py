@@ -67,8 +67,21 @@ SUITES = [
                             "layer_sequencer", "weight_prefetch_ctrl"]),
 ]
 
+# The bit index is optional, and omitting it was a real hole. Wave 637c:
+# yosys words the undriven-wire warning differently by WIDTH --
+#
+#   1-bit    Warning: Wire zz.\fv_ghost is used but has no driver.
+#   n-bit    Warning: Wire zz.\fv_ghost [3] is used but has no driver.
+#
+# The original pattern ran `([\w.\\]+) is used`, and that character class cannot
+# cross the space or the brackets, so EVERY multi-bit undriven wire went
+# unmatched. This gate exists for exactly one defect -- Prop. 62, where a
+# property proved against an undriven wire for four waves -- and it was catching
+# that defect only at width 1. The Prop. 62 case happened to be one bit, because
+# yosys implicitly declares a hierarchical reference as a single bit, which is
+# why the gate looked like it worked.
 PHANTOM = re.compile(r"Identifier `\\([^']+)' is implicitly declared|"
-                     r"Wire ([\w.\\]+) is used but has no driver")
+                     r"Wire ([\w.\\]+)(?:\s*\[\d+\])? is used but has no driver")
 
 
 def scan(root, props, top, duts, extra=()):
@@ -134,6 +147,21 @@ def self_test():
          + src[i:], 1),
         ("a renamed port that no longer exists",
          src[:i] + "    always @(posedge clk) if (rst_n) a_x: assert (m_axi_arvalid == 1'b0);\n"
+         + src[i:], 1),
+        # Wave 637c. Every case above injects a ONE-BIT phantom: yosys declares
+        # an unknown identifier as a single bit, so all four exercised the only
+        # warning form the pattern matched. Multi-bit undriven wires are worded
+        # differently -- `Wire m.\x [3] is used but has no driver` -- and were
+        # missed entirely, at every width above 1, by the gate whose sole
+        # purpose is catching an undriven wire a property proves against. The
+        # self-test could not see the hole because it never opened one.
+        ("an undriven MULTI-BIT wire",
+         src[:i] + "    wire [11:0] fv_ghost_mb;\n"
+                   "    always @(posedge clk) if (rst_n) a_x: assert (fv_ghost_mb == 12'd0);\n"
+         + src[i:], 1),
+        ("an undriven one-bit wire, the width the pattern already handled",
+         src[:i] + "    wire fv_ghost_1b;\n"
+                   "    always @(posedge clk) if (rst_n) a_x: assert (fv_ghost_1b == 1'b0);\n"
          + src[i:], 1),
     ]
     bad = []

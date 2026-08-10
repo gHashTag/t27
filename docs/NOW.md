@@ -1,6 +1,40 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-10
+Last updated: 2026-08-11
+
+## Wave 637c — four more gate defects, and a measurement that reversed sign
+
+- **`phantom_scan` MISSED EVERY MULTI-BIT UNDRIVEN WIRE** (Prop. 98a). Yosys
+  words it `Wire m.\x [3] is used but has no driver` above width 1, and the
+  pattern's character class cannot cross the space or brackets. The gate exists
+  for **exactly one defect** — Prop. 62 — and was catching it only at width 1.
+  Its self-test never opened the hole: all four injections are identifiers yosys
+  declares as a *single bit*. Two width cases are now permanent.
+- **`width_scan` DEDUPED REDUCTIONS BY TARGET NAME** (Prop. 98b): `l2[0..2]` all
+  yield `l2`, and the set was consulted before the check ran — **2 of 5
+  checkable reductions never examined**, both inside `adder_tree_27`, the module
+  the gate was written for. The same set was the coverage counter, so the
+  summary read as full coverage. Now 3 → **5** checked.
+- **A SAME-LINE RANGE COMMENT DELETED ITS OWN DECLARATION** (Prop. 98c): `parse`
+  `continue`d on the comment, so a line with both entered neither dict. Moving a
+  comment to *trail* its declaration took a provably broken adder from exit 1 to
+  exit 0.
+- **AND THE FALLBACK WAS THE UNSOUND RULE THE DOCSTRING FORBIDS** (Prop. 98d):
+  an unannotated operand fell back to declared *width* — the worst-case-by-width
+  reasoning Prop. 82b established is wrong for ternary — producing a **false
+  finding against correct RTL**. Now uncheckable-and-counted instead.
+- **THE MEASUREMENT, FINALLY MADE** (Prop. 99): 3 paired runs, disjoint ranges,
+  stable fingerprint — the drain properties make the engine **0.82×, 26 s
+  FASTER**. An easy assertion acts as a lemma. Not a reproduction of Prop. 85d
+  (that configuration cannot be compiled), so the 1.58× stays *uncheckable*.
+- **IT REMOVES THE STATED REASON FOR THE WAVE-633 SPLIT** while leaving the split
+  correct for the other reason given then. Worth noticing: next time the
+  evaporated justification might have been the only one.
+- **AN UNCOMFORTABLE FOOTNOTE**: Prop. 87c rejected an implausible 0.88×. The
+  clean figure is 0.82× — the rejected number was right. Rejecting it was still
+  correct: a measurement whose inputs moved is unusable *whatever value it lands
+  on*. Being accidentally right is not a form of being right.
+- **PROPS. 98, 99** in `docs/FORMAL_FOUNDATIONS.md`.
 
 ## Wave 637b — the re-measurement that produced a defect instead of a number
 

@@ -6179,6 +6179,111 @@ to print would have been wrong.
 
 ---
 
+### Prop. 98 — four defects in two gates, found by attacking them — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No declaration is narrower than the range it carries*
+
+An adversarial audit of the campaign's remaining gates — one agent per gate,
+every finding then independently reproduced by a second — confirmed **four**
+defects. All four are the same family as Prop. 95: a gate matching text that
+merely *looks like* what it means to check.
+
+**98a. `phantom_scan` missed every multi-bit undriven wire.** The gate exists for
+exactly one defect — Prop. 62, where a property proved against an undriven wire
+for four waves. Yosys words that warning differently by width:
+
+```
+1-bit    Warning: Wire zz.\fv_ghost is used but has no driver.
+n-bit    Warning: Wire zz.\fv_ghost [3] is used but has no driver.
+```
+
+The pattern ran `([\w.\\]+) is used`, and that character class cannot cross the
+space or the brackets. **Every undriven wire wider than one bit went unmatched.**
+
+The self-test could not see the hole because it never opened one: all four of its
+injections — a hierarchical reference, a misspelled name, a renamed port — are
+identifiers yosys implicitly declares as a *single bit*. The gate was tested
+only in the form that worked. Prop. 62's own case was one bit, which is why it
+looked correct. Two width cases are now permanent self-tests.
+
+**98b. `width_scan` deduped reductions by target name, dropping 40% of its
+subject.** `assign l2[0]`, `l2[1]`, `l2[2]` all yield target `l2`, and the
+dedup set was consulted *before* the check ran — so only the first was ever
+examined. **2 of the 5 checkable reductions in the bundle were never looked at,
+both inside `adder_tree_27`, the module the gate was written for.** Worse, that
+same set was the coverage counter, so the summary reported distinct *names* and
+read as full coverage. Every reduction is now checked (3 → **5**); only the
+error message is deduped.
+
+**98c. A same-line range comment deleted its own declaration from the gate's
+view.** `parse()` tested for a range comment first and `continue`d, so a line
+carrying *both* a comment and a declaration was consumed as a comment only. The
+name entered neither dictionary and was invisible to every check. Moving an
+existing comment to **trail** its declaration — a formatting change — took a
+provably broken adder tree from exit 1 to exit 0.
+
+**98d. And the unannotated-operand fallback was the unsound rule the file's own
+docstring forbids.** For an operand with no documented range, the gate fell back
+to its declared *width* — precisely the worst-case-by-width reasoning Prop. 82b
+established is wrong for ternary, since `val` is `signed [1:0]` but holds only
+{−1,0,+1}. Deleting one of three range comments therefore produced a **false
+finding against correct RTL**. An unannotated operand now makes a reduction
+*uncheckable* rather than checkable-by-a-wrong-rule, and the count of such
+skips is printed, because that is a real loss of coverage and absorbing it
+silently is how the first three defects survived.
+
+**98e. What the two gates have in common with Prop. 95's two.** Four gates, four
+instances of matching a *form* rather than a *fact*: a warning's phrasing, an
+identifier's name, a comment's position, a width standing in for a range. Every
+one passed its own self-test, because a self-test written by the author of a
+gate exercises the cases the author had in mind.
+
+---
+
+### Prop. 99 — the drain properties make the engine proof *faster* — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Benchmark harness self-test*
+
+With the guard split of Prop. 97 in place, the question Prop. 85d asked can be
+put again — not as a reproduction, which Prop. 97d showed is impossible, but as
+a fresh measurement of the configuration that exists today.
+
+Three runs per arm, alternating, input fingerprint identical, one prover (the
+command under test):
+
+| arm | median s | observed range |
+|---|---|---|
+| engine without the drain properties | 146.6 | [146.5, 148.7] |
+| engine **with** them | **120.4** | [117.9, 120.8] |
+
+**0.82×, 26 s faster.** Ranges disjoint. Adding two assertions makes the proof
+cheaper — unsurprising once stated: an assertion that is easy to discharge acts
+as a lemma and prunes the solver's search.
+
+**99a. This is not a reproduction of Prop. 85d, and must not be read as one.**
+That comparison included the DMA drain property, which cannot be compiled into
+the engine at all (Prop. 97b). The configurations differ, so the 1.58× remains
+what Prop. 97d called it: uncheckable, not refuted.
+
+**99b. It does remove the stated reason for the guard split.** Wave 633 moved
+these properties behind their own define *because they were measured as costly*.
+On today's configuration they are not costly; they are free, and slightly
+better than free. The split remains correct for the **other** reason given at
+the time — induction proves them for every request length while the engine
+re-proves them only to depth 40, so including them buys strictly less — and that
+argument never depended on a timing. A decision whose stated justification has
+evaporated but which is still right is worth noticing, because next time the
+justification might have been the only one.
+
+**99c. An uncomfortable footnote.** Prop. 87c recorded an *implausible* 0.88×
+and rejected it, correctly, because the RTL had been regenerated mid-run. The
+clean figure is **0.82×** — the rejected number was, in direction and roughly in
+magnitude, right. That does not make rejecting it wrong: a measurement whose
+inputs moved underneath it is unusable as evidence *whatever value it lands on*.
+Being accidentally right is not a form of being right.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
