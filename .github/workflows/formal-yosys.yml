@@ -314,7 +314,8 @@ jobs:
         run: |
           set -euo pipefail
           for top in not_props and_props or_props lattice_props mul_props \
-                     cmp_props half_adder_props full_adder_props add3_props; do
+                     cmp_props half_adder_props full_adder_props add3_props \
+                     add3_abstract; do
             yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                       formal/trit_algebra_props.sv; \
                       prep -top ${top} -flatten; async2sync; chformal -lower; \
@@ -330,6 +331,27 @@ jobs:
             exit 1
           fi
           echo "ok       valid words exist (refutes)"
+          # The composition proof is only worth its name if lemma F is
+          # satisfiable. Were the assumptions inside fv_abstract_fa to
+          # contradict each other for some input, add3_abstract would hold
+          # vacuously and say nothing about any real adder. This asserts the
+          # abstract carry is never positive -- false of any F-satisfying adder
+          # -- so it must REFUTE. Prop. 92.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_algebra_props.sv; \
+                          prep -top abstract_alive -flatten; async2sync; \
+                          chformal -lower; \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::lemma F admits no adder at all, so the composition proof is vacuous"
+            exit 1
+          fi
+          echo "ok       the abstract adder is satisfiable (refutes)"
+          # The composition proof duplicates trit3_add's wiring rather than
+          # sharing it, so a rewiring of the real tree would leave the
+          # abstraction behind and the proof would keep passing about a circuit
+          # that is no longer in the bundle. Prop. 92c.
+          python3 formal/mirror_check.py --self-test
+          python3 formal/mirror_check.py
 
       - name: Prove layer_sequencer properties
         run: |

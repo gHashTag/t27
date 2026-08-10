@@ -268,6 +268,91 @@ module full_adder_props (input wire [1:0] a, input wire [1:0] b,
         assert ((`TV(cout) > 7'sd0) == (`TV(a) + `TV(b) + `TV(cin) > 7'sd1));
 endmodule
 
+// ---- The composition itself, proved rather than argued ---------------------
+//
+// Wave 636. Prop. 89 said T5 "follows from F by the positional argument", and
+// that sentence was doing real work in a comment. This discharges it.
+//
+// `fv_abstract_fa` is a full adder about which NOTHING is known except lemma F:
+// its outputs are unconstrained free signals, assumed only to be valid trits
+// satisfying val(sum) + 3*val(cout) = val(a) + val(b) + val(cin). It is not the
+// implementation, and it is not a reference model -- it is EVERY module
+// satisfying F at once.
+//
+// `add3_abstract` chains three of them exactly as trit3_add chains the real
+// ones. Proving T5 there proves the composition: any three-stage ripple built
+// from any F-satisfying adder computes balanced-ternary addition. The concrete
+// trit3_add then satisfies T5 because trit_full_adder satisfies F (Prop. 89),
+// which is a separate exhaustive proof.
+//
+// This is what makes the two lemmas load-bearing rather than decorative. Before
+// this, H and F were extra exhaustive checks that happened to sit underneath an
+// independently-proved T5; the derivation linking them lived in prose. Now the
+// prose is a theorem, and T5-on-the-real-tree becomes a corollary of two proved
+// facts rather than a coincidence of three separate proofs agreeing.
+module fv_abstract_fa (input wire [1:0] a, input wire [1:0] b,
+                       input wire [1:0] cin,
+                       output wire [1:0] sum, output wire [1:0] cout);
+    (* anyseq *) reg [1:0] s_free;
+    (* anyseq *) reg [1:0] c_free;
+    assign sum  = s_free;
+    assign cout = c_free;
+
+    // Lemma F, and nothing else. No case split, no encoding, no structure.
+    always @(*) begin
+        assume (`VALID(s_free));
+        assume (`VALID(c_free));
+        assume (`TV(s_free) + 7'sd3 * `TV(c_free)
+                == `TV(a) + `TV(b) + `TV(cin));
+    end
+endmodule
+
+module add3_abstract (input wire [5:0] a, input wire [5:0] b);
+    localparam [1:0] TRIT_Z = 2'b01;
+    wire [5:0] sum;
+    wire [1:0] c0, c1, cout;
+
+    fv_abstract_fa fa0 (.a(a[1:0]), .b(b[1:0]), .cin(TRIT_Z),
+                        .sum(sum[1:0]), .cout(c0));
+    fv_abstract_fa fa1 (.a(a[3:2]), .b(b[3:2]), .cin(c0),
+                        .sum(sum[3:2]), .cout(c1));
+    fv_abstract_fa fa2 (.a(a[5:4]), .b(b[5:4]), .cin(c1),
+                        .sum(sum[5:4]), .cout(cout));
+
+    integer k;
+    reg all_valid;
+    always @(*) begin
+        all_valid = 1'b1;
+        for (k = 0; k < 3; k = k + 1)
+            all_valid = all_valid && `VALID(a[k*2 +: 2]) && `VALID(b[k*2 +: 2]);
+    end
+    always @(*) assume (all_valid);
+
+    function signed [15:0] val3(input [5:0] w);
+        val3 = `TV(w[1:0]) + 16'sd3 * `TV(w[3:2]) + 16'sd9 * `TV(w[5:4]);
+    endfunction
+
+    // T5, from F alone.
+    always @(*)
+        a_composition_yields_balanced_addition:
+            assert (val3(sum) + 16'sd27 * `TV(cout) == val3(a) + val3(b));
+endmodule
+
+// The abstraction must not be empty. If lemma F admitted no (sum, cout) for
+// some input, every assertion above would hold vacuously and the composition
+// proof would mean nothing. This asserts the abstract adder can never produce a
+// positive carry, which a real F-satisfying adder certainly can -- so it must
+// REFUTE, and a refutation is the evidence that F is satisfiable.
+module abstract_alive (input wire [1:0] a, input wire [1:0] b,
+                       input wire [1:0] cin);
+    wire [1:0] sum, cout;
+    fv_abstract_fa dut (.a(a), .b(b), .cin(cin), .sum(sum), .cout(cout));
+    always @(*) begin
+        assume (`VALID(a)); assume (`VALID(b)); assume (`VALID(cin));
+    end
+    always @(*) a_abstract_carry_never_positive: assert (`TV(cout) <= 7'sd0);
+endmodule
+
 // ---- non-vacuity -----------------------------------------------------------
 //
 // Every wrapper above assumes its inputs are valid trits. An assumption

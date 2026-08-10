@@ -56,6 +56,12 @@ SUITES = [
     ("trit_algebra_props.sv", "mul_props", ["trit_stdlib"]),
     ("trit_algebra_props.sv", "cmp_props", ["trit_stdlib"]),
     ("trit_algebra_props.sv", "add3_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "half_adder_props", ["trit_stdlib"]),
+    ("trit_algebra_props.sv", "full_adder_props", ["trit_stdlib"]),
+    # Wave 636: the composition proof. Its adder is an abstraction defined in
+    # the property file itself rather than a module from the bundle, so a
+    # mistyped port here would wire nothing and prove nothing.
+    ("trit_algebra_props.sv", "add3_abstract", ["trit_stdlib"]),
     ("weight_prefetch_props.sv", "wp_props", ["weight_prefetch_ctrl"]),
     ("witnesses.sv", None, ["interrupt_controller", "axi_lite_slave", "dma_controller",
                             "layer_sequencer", "weight_prefetch_ctrl"]),

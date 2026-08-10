@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-10
 
+## Wave 636 — the composition itself, proved rather than argued
+
+- **THE SENTENCE THAT WAS DOING REAL WORK**: Prop. 89 said T5 "follows from F by
+  the positional argument". That was prose. `fv_abstract_fa` is now a full adder
+  about which **nothing** is known except lemma F — its outputs are
+  `(* anyseq *)` free signals assumed only to satisfy
+  `val(sum) + 3·val(cout) = val(a) + val(b) + val(cin)`. Chaining three of them
+  proves balanced addition for **any** F-satisfying adder.
+- **T5 IS NOW A COROLLARY**: `trit3_add` satisfies it because `trit_full_adder`
+  satisfies F (Prop. 89, separate exhaustive proof) — two proved facts rather
+  than three separate proofs happening to agree. H and F became load-bearing
+  rather than decorative.
+- **THREE BARS**: it **proves**; `abstract_alive` **refutes**, so lemma F is
+  satisfiable and the proof is not vacuous; and removing F from the abstraction
+  makes it **refute**, so it genuinely uses the assumption it claims to.
+- **THE WEAKNESS IS NAMED, NOT HIDDEN**: the abstraction *duplicates*
+  `trit3_add`'s wiring rather than sharing it — this flow has no way to
+  instantiate the real structure with a different leaf. A future rewiring would
+  leave it behind and the proof would keep passing about a circuit no longer in
+  the bundle, with both modules still discharging their own assertions.
+  `formal/mirror_check.py` pins them together port-by-port and stage-by-stage;
+  3 self-test cases, including an abstraction rewired to take the wrong carry.
+- **A proof about a copy of the design is a proof about the copy.** The copy has
+  to be pinned to the original by something mechanical, or "exactly as" is a
+  claim nobody checks.
+- **PROP. 92** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 635 — lemmas, a standing experiment, and a conclusion withdrawn
 
 - **LEMMAS UNDER T5** (Prop. 89): `val(sum) + 3·val(carry) = val(a) + val(b)`

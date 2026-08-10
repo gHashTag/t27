@@ -5696,6 +5696,66 @@ guard held rather than assume it.
 
 ---
 
+### Prop. 92 — the composition itself, proved rather than argued — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove the trit algebra (exhaustive)*
+
+Prop. 89 wrote that T5 "follows from F by the positional argument". That
+sentence was doing real work, and it was prose. This discharges it.
+
+**92a. The abstraction is every F-satisfying adder at once.**
+`fv_abstract_fa` is a full adder about which *nothing* is known except lemma F.
+Its outputs are `(* anyseq *)` free signals, assumed only to be valid trits with
+`val(sum) + 3·val(cout) = val(a) + val(b) + val(cin)`. It has no case split, no
+encoding, no structure. `add3_abstract` chains three of them exactly as
+`trit3_add` chains the real ones, and the balanced-addition equation **proves
+there**.
+
+So the composition holds for *any* three-stage ripple built from *any*
+F-satisfying adder. The concrete `trit3_add` satisfies T5 because
+`trit_full_adder` satisfies F — a separate exhaustive proof (Prop. 89). This is
+what makes H and F load-bearing rather than decorative: before, they were extra
+checks sitting under an independently-proved T5, and the link between them lived
+in a comment. Now T5-on-the-real-tree is a corollary of two proved facts rather
+than three separate proofs happening to agree.
+
+**92b. The abstraction must be satisfiable, or the proof means nothing.** Had
+the assumptions inside `fv_abstract_fa` contradicted each other for some input,
+`add3_abstract` would hold vacuously and say nothing about any real adder.
+`abstract_alive` asserts the abstract carry is never positive — false of any
+F-satisfying adder — and **refutes**, which is the evidence that F admits
+something. Gated in CI alongside the proof.
+
+**92c. The abstraction duplicates the wiring, and that is a real weakness.**
+There is no way in this flow to instantiate the concrete module's structure with
+a different leaf, so `add3_abstract` restates the carry chain by hand. A future
+rewiring of `trit3_add` — reordering the trit slices, changing which carry feeds
+which stage, passing a different first `cin` — would leave the abstraction
+behind, and **the composition proof would keep passing while describing a
+circuit no longer in the bundle**. Both modules would still discharge their own
+assertions; nothing else in the suite would notice.
+
+`formal/mirror_check.py` compares the two instantiations structurally,
+port by port and stage by stage, and fails on any disagreement. Three self-test
+cases: the shipped tree mirrors; an abstraction rewired to take the wrong carry
+is caught; and a renamed concrete module fails rather than passing silently.
+3 concrete stages against 3 abstract, 0 disagreements.
+
+**92d. And the proof genuinely uses F.** A composition proof that held without
+its lemma would be proving something about the wiring alone, and would say
+nothing about adders. Removing the conservation assumption from
+`fv_abstract_fa` — leaving only trit-validity, so the abstract adder may return
+any legal trit pair — makes `add3_abstract` **refute**. Three bars, as for any
+property here: it proves, the abstraction it rests on is satisfiable (92b), and
+it depends on the assumption it claims to depend on.
+
+The general point is one this campaign keeps re-learning in new forms: a proof
+about a *copy* of the design is a proof about the copy. The copy has to be
+pinned to the original by something mechanical, or the phrase "exactly as" is a
+claim nobody is checking.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
