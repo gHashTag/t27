@@ -9,6 +9,12 @@
 module igla-race-formal;
 use base::types;
 use math::constants;
+// W613: `RtlModule` and `Assignment` are declared in igla/race/rtl.t27 and were
+// used here with no import -- 34 of this file's errors. rtl.t27 did not PARSE
+// until this wave (a bench calling `module(...)`, a keyword), so the splice had
+// nothing to pull from even had the import existed. Not circular: rtl imports
+// base::types, math::constants and igla::race::backend, not formal.
+use igla::race::rtl;
 
 // ============================================================================
 // 1. Proof Obligation Categories

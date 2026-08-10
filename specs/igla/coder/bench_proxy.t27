@@ -7,6 +7,12 @@
 
 module igla-coder-bench-proxy;
 use base::types;
+// W613: `BeamCandidate` is declared in igla/coder/arch.t27 and was used here
+// with no import -- 20 of this file's errors. arch.t27 did not parse until
+// W606 (a function with no closing brace, plus a stray `}` 1,686 lines later),
+// so the splice had nothing to pull from. Not circular: arch does not import
+// bench_proxy.
+use igla::coder::arch;
 
 // ============================================================================
 // 1. Types

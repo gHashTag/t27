@@ -445,7 +445,15 @@ test rtl_bits_to_u64_empty
     when val = rtl_bits_to_u64(bits)
     then val == 0
 
-bench rtl_module_exists: module(name).exists == true
+// W613: DISABLED, not deleted -- this bench cannot be lowered by any backend:
+//     bench rtl_module_exists: module(name).exists == true
+// `module` is a t27 KEYWORD and cannot name a function; no `exists` field or
+// function is declared anywhere in the corpus; and `name` is not bound in this
+// scope. It is the ONLY parse blocker in this 2,109-line file, and the file
+// declares `RtlModule` and `Assignment` -- 53 `undeclared identifier` errors in
+// OTHER specs trace to this one line, because use_resolve only splices from
+// dependencies that parse.
+// Restoring it needs an owner to say what it was meant to assert.
 test rtl_emit_verilog_with_instances
     given mod = RtlModule {
         name: "inst_test",

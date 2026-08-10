@@ -4789,6 +4789,25 @@ These cost a wave each. Follow them before step 1.
      `false`, so `return true;` satisfies the suite. A test set with no negative
      case cannot pin a predicate.
 
+137. **An aggregate error count is NOT monotone under progress.** Making
+     rtl.t27 parse raised the IGLA total from 1125 to 1163, because a spec that
+     does not parse produces no code and therefore contributes NO errors -- the
+     moment it parses it contributes 39. Like-for-like (excluding it from both
+     sides) the wave removed 53. **Always separate "newly counted" from "newly
+     broken" before reporting a total that went up.**
+
+138. **Compare buckets before working the recommended one.** W612 recommended
+     the 45-name unwritten tail: 106 errors, 2.4 per name. The
+     declared-somewhere bucket was 158 errors from 13 names, three of which were
+     types declared in exactly ONE file (73 errors, no ambiguity). Measuring
+     both took one command.
+
+139. **A single unlowerable line can hold a whole file hostage.** rtl.t27 --
+     2,109 lines declaring two types that 53 errors elsewhere depend on -- was
+     blocked by ONE bench calling `module(...)`: a keyword as a function name, an
+     undeclared field, and an unbound variable. Disable with the text preserved;
+     deleting destroys the intent an owner needs to restore it.
+
 ### How to update this tracker
 
 After closing a wave:

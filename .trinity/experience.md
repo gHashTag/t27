@@ -22197,3 +22197,45 @@ rather than a wave later, because a separate agent was told to attack it.**
 a predicate.
 
 IGLA: 1192 -> 1125 errors; undeclared 622 -> 555.
+
+## Wave 613 — one unlowerable line, and a total that rose while the wave removed 53
+
+**The measure-first rule redirected the wave again.** W612 recommended
+classifying the ~45-name unwritten tail. Measured: **106 errors across 45 names
+-- 2.4 each**, against single names worth 84 and 60 earlier. The other bucket
+was better: **158 errors from 13 names**, three of them types declared in
+exactly ONE file -- `RtlModule` (39), `BeamCandidate` (20), `Assignment` (14) --
+73 errors with no ambiguity and no decision. **Comparing buckets took one
+command.**
+
+**The blocker was one line.** `rtl.t27` -- 2,109 lines, declaring both RtlModule
+and Assignment -- did not parse because of:
+
+    bench rtl_module_exists: module(name).exists == true
+
+Three independent reasons no backend can lower it: `module` is a KEYWORD and
+cannot name a function; no `exists` field or function exists in the corpus;
+`name` is unbound. Isolated first (a one-line bench parses fine; `module(...)`
+is what breaks). **Disabled with its text preserved, not deleted** -- restoring
+it needs an owner to say what it meant.
+
+**Then two missing imports, and neither would have worked earlier:**
+
+    formal.t27      + use igla::race::rtl     RtlModule 34 -> 0, total 105 -> 74
+    bench_proxy.t27 + use igla::coder::arch   BeamCandidate 20 -> 0
+
+rtl.t27 did not parse until this wave; arch.t27 did not until W606. Fourth
+instance of the ordering constraint: **use_resolve splices only from
+dependencies that PARSE.**
+
+**THE METRIC IS NOT MONOTONE UNDER PROGRESS.**
+
+    before                          1125
+    after rtl.t27 began parsing     1163   <- ROSE
+    after both imports              1111
+
+The rise was progress: a spec that does not parse produces no code and
+contributes NO errors; the moment it parses it contributes 39. Excluding it from
+both sides, **1125 -> 1072, a reduction of 53.** Reporting the headline alone
+would have shown +38 for a wave that removed 53. **Always separate "newly
+counted" from "newly broken".**

@@ -1411,6 +1411,78 @@ written functions fail, or a reading of `count_admitted` the refutation missed.
 
 ---
 
+### P28 (W613) — One unlowerable line held 2,109 lines hostage; and the error total is not monotone under progress
+
+**The measure-first rule redirected the wave again.** W612 recommended
+classifying the ~45-name unwritten tail. Measured: **106 errors across 45
+names — 2.4 each**, against single names worth 84 and 60 in earlier waves. The
+*other* bucket was better:
+
+| Bucket | errors | names |
+|---|---:|---:|
+| unwritten, unclassified tail | 106 | 45 |
+| **declared somewhere — import/resolve** | **158** | **13** |
+
+and three of those thirteen are types declared in **exactly one file**:
+`RtlModule` (39), `BeamCandidate` (20), `Assignment` (14) — **73 errors, no
+ambiguity, no decision.**
+
+### The blocker was one line
+
+`specs/igla/race/rtl.t27` — 2,109 lines, declaring both `RtlModule` and
+`Assignment` — did not parse, because of:
+
+```t27
+bench rtl_module_exists: module(name).exists == true
+```
+
+**Three independent reasons it cannot be lowered by any backend:** `module` is a
+t27 keyword and cannot name a function; no `exists` field or function is
+declared anywhere in the corpus; and `name` is not bound in that scope. It
+appears exactly once in the corpus. Disabled with its text preserved, not
+deleted — restoring it needs an owner to say what it was meant to assert.
+
+Isolated first: a one-line `bench name: expr` parses fine; `module(...)` is what
+breaks it.
+
+### Then two missing imports, in the right order
+
+| Spec | needed | result |
+|---|---|---|
+| `formal.t27` | `use igla::race::rtl` | `RtlModule` 34 → **0**; total 105 → 74 |
+| `bench_proxy.t27` | `use igla::coder::arch` | `BeamCandidate` 20 → **0** |
+
+**Neither import would have worked earlier.** `rtl.t27` did not parse until this
+wave; `arch.t27` did not parse until W606. `use_resolve` splices only from
+dependencies that parse — the fourth instance of that ordering constraint.
+
+### The metric is not monotone under progress
+
+| | IGLA total |
+|---|---:|
+| before | 1 125 |
+| after `rtl.t27` began parsing | **1 163** ↑ |
+| after both imports | 1 111 |
+
+**The rise was progress.** A spec that does not parse produces no code and
+therefore contributes **no** compile errors; the moment it parses it contributes
+39. Excluding `rtl.t27` from both sides:
+
+```
+1125  ->  1072      like-for-like: -53 errors
+```
+
+which is exactly the 73-error bucket minus what remains in it.
+
+> **An aggregate error count falls when defects are fixed and rises when
+> silence is replaced by measurement.** Reporting the headline alone would have
+> shown +38 for a wave that removed 53.
+
+*Falsification condition:* a spec whose error count changed for a reason other
+than the parse fix or the two imports.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
