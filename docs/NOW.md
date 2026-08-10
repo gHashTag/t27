@@ -2,6 +2,44 @@
 
 Last updated: 2026-08-10
 
+## Wave 618 — count the steps, not the properties
+
+- **THE GATE**: Wave 617 found eight ungated properties **by accident**, from one
+  line of a bound audit I nearly dismissed as my own bug. `formal/orphan_scan.py`
+  is the systematic version: cross-reference every `formal/*.sv` against every
+  workflow, error on **ORPHAN** (no workflow runs it), warn on **WEEKLY-ONLY**
+  (a defect in it is invisible on a pull request). Weekly-only is a legitimate
+  choice for expensive harnesses; **silence is what is not allowed.**
+- **IT FOUND ONE ON ITS FIRST RUN**: `axi4_read_slave_model.sv` -- 88 lines,
+  fully documented, referenced by nothing. It constrains arready/rvalid/rlast to
+  what AXI4 requires of a compliant read slave, and **asserts** its single-burst
+  precondition rather than assuming it.
+- **AND WAVE 612 HAD REBUILT A WEAKER VERSION OF IT**: that wave hit exactly this
+  need on the DMA, could not state a property without an environment, and wrote
+  a thinner inline one for a different module -- not knowing this file existed.
+  *The cost of orphaned work made concrete: not a stale file, a solved problem
+  solved twice, worse the second time.*
+- **WIRED IN, THREE BARS FIRST**: `dma_props` proves at seq 80 with its
+  assumptions active; `local_we`, `done`, both handshakes and `rlast` all remain
+  reachable; and the model's own precondition **PROVES**, so the DMA really does
+  issue one burst at a time and the model is not lying about its subject. Five
+  liveness probes now gate it. Check-cell floor 7 -> 8.
+- **THREE CALL SITES BROKE, ALL THREE CORRECTLY**: the liveness step, the weekly
+  mutation harness and `phantom_scan.py` each read only DUT+props, so a wrapper
+  instantiating something else fails to elaborate. Every one reported an
+  **elaboration error** -- not "unreachable", not "mutant killed", not a clean
+  bill of health. Prop. 39d, Wave 608's ToolError path and Prop. 62's
+  did-not-elaborate branch all earning their keep on a change none anticipated.
+- **THE POINT**: counting properties tells you nothing about whether they run.
+  Twice now this repository shipped properties that held, were counted, and were
+  never executed -- and both times *nothing was broken*, which is exactly why
+  nobody noticed.
+- **WHERE**: `formal/orphan_scan.py`, `formal/phantom_scan.py`,
+  `formal/dma_controller_props.sv`, both workflows,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 70), README.
+- **STATE**: 70 propositions · 70 gates · 14 witnesses · 26 swept CI steps ·
+  14 assumption-liveness probes · 1213 tests · 496/496 seals · no known defect.
+
 ## Wave 617b — eight properties counted as proved, run by no job
 
 - **THE AUDIT'S FAILURE WAS THE FINDING**: Prop. 68 reported six wrappers as

@@ -167,8 +167,12 @@ jobs:
               except ToolError as e:
                   return None, str(e)
 
-          def gm(dut, props, top, seq):
-              return yos(f"read_verilog -sv -formal build/mut/{dut}.sv {props}; "
+          def gm(dut, props, top, seq, extra=""):
+              # `extra` carries sources the wrapper instantiates but the DUT does
+              # not provide -- dma_props holds the AXI4 read-slave model as of
+              # Wave 618 (Prop. 70). Without it this raises ToolError rather than
+              # scoring a mutant, which is the Wave 608 fix doing its job.
+              return yos(f"read_verilog -sv -formal build/mut/{dut}.sv {extra} {props}; "
                          f"prep -top {top} -flatten; async2sync; chformal -lower; "
                          f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")
 
@@ -215,7 +219,8 @@ jobs:
               ("Prop 8  axi_lite_slave",
                lambda: gm("axi_lite_slave", "formal/axi_lite_slave_props.sv", "axi_props", 20)),
               ("Prop 9  dma_controller",
-               lambda: gm("dma_controller", "formal/dma_controller_props.sv", "dma_props", 20)),
+               lambda: gm("dma_controller", "formal/dma_controller_props.sv", "dma_props", 20,
+                          "formal/axi4_read_slave_model.sv")),
               ("Prop 13 layer_sequencer",
                lambda: gm("layer_sequencer", "formal/layer_sequencer_props.sv", "ls_props", 12)),
               ("Prop 25 integration", gi),

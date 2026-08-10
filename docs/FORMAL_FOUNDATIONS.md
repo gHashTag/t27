@@ -4318,6 +4318,77 @@ grep -c "zero_size_props" .github/workflows/formal-yosys.yml
 
 ---
 
+### Prop. 70 — count the steps, not the properties — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Every property file is run by some workflow*
+
+Prop. 69 found eight properties counted as proved that no job ran, and found
+them by accident — one line of a bound audit I nearly dismissed as my own bug.
+This is the systematic version, and it found another on its first run.
+
+**70a. The gate.** `formal/orphan_scan.py` cross-references every `formal/*.sv`
+against every workflow in `.github/`, with two levels of finding:
+
+| level | meaning |
+|---|---|
+| **ORPHAN** | no workflow references the file — an error |
+| **WEEKLY** | referenced only by schedule-triggered workflows, so a defect is invisible on a pull request — reported, not failed |
+
+Weekly-only is a legitimate choice for expensive harnesses; **silence is what is
+not allowed**. The scan ships with a self-test covering an injected orphan, the
+clean tree, and an empty tree (which must fail rather than pass on nothing).
+
+**70b. It found `axi4_read_slave_model.sv` immediately** — 88 lines, fully
+documented, referenced by nothing. It constrains `arready`/`rvalid`/`rlast` to
+what AXI4 requires of a compliant read slave, and **asserts** its single-burst
+precondition rather than assuming it, precisely so it cannot silently
+over-constrain.
+
+Wave 612 had hit exactly this need on the DMA, failed to state a property
+without an environment, and **rebuilt a weaker version inline for a different
+module** — not knowing this file existed. The cost of orphaned work, made
+concrete: not a stale file, a solved problem solved twice, worse the second time.
+
+**70c. Wired in, and validated on three bars first.**
+
+| bar | result |
+|---|---|
+| TRUE | `dma_props` proves at `seq 80` with the model's assumptions active |
+| ALIVE | `local_we`, `done`, both handshakes and `rlast` all still reachable |
+| FAITHFUL | `a_model_precondition_single_burst` **PROVES** — the DMA really does issue one burst at a time, so the model is not lying about its subject |
+
+The five liveness probes are now gated in *Module suites are still alive under
+their assumptions*, so the model cannot come to over-constrain silently later.
+Check-cell floor raised 7 → 8 for the assertion the model contributes.
+
+**70d. Three call sites broke, and all three broke correctly.** The liveness
+step, the weekly mutation harness, and `phantom_scan.py` each read only the DUT
+and its props file, so a wrapper that instantiates something else fails to
+elaborate. Every one reported **an elaboration error** — not "unreachable", not
+"mutant killed", not a clean bill of health. Prop. 39d's distinction, Wave 608's
+`ToolError` path, and Prop. 62's did-not-elaborate branch each earning their keep
+on a change none of them anticipated. All three now take an explicit
+extra-sources field.
+
+That is the real return on those three waves: a change to one property file
+propagated into three unrelated harnesses, and not one of them turned the
+breakage into a passing result.
+
+**70e. What the gate is really for.** Counting properties tells you nothing
+about whether they run. This repository has now twice shipped properties that
+held, were counted, and were never executed — and in both cases *nothing was
+broken*, which is exactly why nobody noticed. The check costs one `grep` per
+file and would have caught both at any point in the preceding twenty waves.
+
+Reproduce:
+
+```bash
+python3 formal/orphan_scan.py --self-test
+python3 formal/orphan_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

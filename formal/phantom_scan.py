@@ -34,7 +34,12 @@ import sys
 SUITES = [
     ("interrupt_controller_props.sv", "irq_props", ["interrupt_controller"]),
     ("axi_lite_slave_props.sv", "axi_props", ["axi_lite_slave"]),
-    ("dma_controller_props.sv", "dma_props", ["dma_controller"]),
+    # The 4th field is extra sources the wrapper instantiates. dma_props holds
+    # the AXI4 read-slave model as of Wave 618 (Prop. 70); this scan was the
+    # third call site to break on that, and the third to break correctly -- it
+    # reported an elaboration failure rather than a clean bill of health.
+    ("dma_controller_props.sv", "dma_props", ["dma_controller"],
+     ["formal/axi4_read_slave_model.sv"]),
     ("layer_sequencer_props.sv", "ls_props", ["layer_sequencer"]),
     ("weight_prefetch_props.sv", "wp_props", ["weight_prefetch_ctrl"]),
     ("witnesses.sv", None, ["interrupt_controller", "axi_lite_slave", "dma_controller",
@@ -45,8 +50,8 @@ PHANTOM = re.compile(r"Identifier `\\([^']+)' is implicitly declared|"
                      r"Wire ([\w.\\]+) is used but has no driver")
 
 
-def scan(root, props, top, duts):
-    srcs = " ".join(f"build/rtl/{d}.sv" for d in duts)
+def scan(root, props, top, duts, extra=()):
+    srcs = " ".join([f"build/rtl/{d}.sv" for d in duts] + list(extra))
     tops = f"prep -top {top} -flatten" if top else "hierarchy -check; proc"
     r = subprocess.run(
         ["yosys", "-p", f"read_verilog -sv -formal {srcs} formal/{props}; {tops}"],
@@ -70,12 +75,13 @@ def main():
               "emit the bundle before running this gate")
         return 1
     bad, n = [], 0
-    for props, top, duts in SUITES:
+    for props, top, duts, *rest in SUITES:
+        extra = rest[0] if rest else ()
         if not (root / "formal" / props).exists():
             print(f"::error::phantom_scan: formal/{props} is missing from the suite list")
             return 1
         n += 1
-        bad += scan(root, props, top, duts)
+        bad += scan(root, props, top, duts, extra)
     for b in bad:
         print(f"::error::{b} -- the property is asserting something about a wire "
               "that does not exist, so it proves without reading the design")
@@ -114,7 +120,8 @@ def self_test():
         for name, text, want in cases:
             open(victim, "w").write(text)
             got = 1 if scan(root, "dma_controller_props.sv", "dma_props",
-                            ["dma_controller"]) else 0
+                            ["dma_controller"],
+                            ["formal/axi4_read_slave_model.sv"]) else 0
             print(f"  {'ok  ' if got == want else 'FAIL'} {name}  "
                   f"(caught={bool(got)}, want={bool(want)})")
             if got != want:

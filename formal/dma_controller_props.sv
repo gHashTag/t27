@@ -115,6 +115,26 @@ module dma_props (
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(start) && $past(length) == 32'd0 && !$past(busy))
         a_zero_length_moves_nothing: assert (!local_we);
 
+    // ---- AXI4 read-slave environment (Wave 618, Prop. 70) ------------------
+    //
+    // `formal/axi4_read_slave_model.sv` was written, documented, and referenced
+    // by NO workflow -- found by the orphan scan added in the same wave. With
+    // `rvalid` left free, a prover can have the slave deliver beats nobody
+    // requested, and a misbehaving environment is indistinguishable from a
+    // defect in the master. Wave 612 rebuilt a weaker version of this inline
+    // for a different module, not knowing this existed.
+    //
+    // Validated on three bars before wiring: the suite still proves, all five
+    // activities (local_we, done, both handshakes, rlast) remain reachable with
+    // its assumptions active, and the model's own single-burst precondition --
+    // which it ASSERTS rather than assumes, so it cannot silently
+    // over-constrain -- proves against this master.
+    axi4_read_slave_model fv_slave (
+        .clk(clk), .rst_n(rst_n),
+        .arvalid(arvalid), .arlen(arlen), .rready(rready),
+        .arready(arready), .rvalid(rvalid), .rlast(rlast)
+    );
+
 endmodule
 
 `default_nettype wire
