@@ -82,7 +82,14 @@ def main():
     depth = int(sys.argv[2]) if len(sys.argv) > 2 else 4
     each = "--each" in sys.argv
     timeout = 600
-    src = open(TOP).read()
+    # Comments stripped before any label is read. Wave 640: this enumerated
+    # `a_x: assert (` over raw source, and the file it reads --
+    # bitnet_engine_top.sv -- carries a comment QUOTING an assertion by name.
+    # A comment naming a label that is not a real assertion would put a phantom
+    # property into the probe list and produce a timing for nothing. Third
+    # instance of the same defect on the same regex (claims_check, orphan_scan),
+    # found by grepping for the shape rather than by another audit. Prop. 105.
+    src = re.sub(r"//[^\n]*", "", open(TOP).read())
 
     if not each:
         v, dt = run(TOP, seq, depth, timeout)

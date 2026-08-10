@@ -135,7 +135,18 @@ def self_test():
     backup = str(victim) + ".selftest.bak"
     shutil.copy(victim, backup)
     src = open(victim).read()
-    i = src.rindex("endmodule")
+    # By NAME, not by position. Wave 640: this used rindex("endmodule"), the
+    # exact shape that broke the liveness probes in Prop. 95a once a wave
+    # appended modules to a property file. dma_controller_props.sv has one
+    # module today, so it worked -- which is how the same defect stayed live in
+    # a sibling file twice already. A self-test that silently starts injecting
+    # into the wrong module stops testing without saying so.
+    _m = re.search(r"^module\s+dma_props\b.*?^endmodule", src, re.M | re.S)
+    if _m is None:
+        print("::error::phantom_scan self-test: module dma_props not found in "
+              f"{victim} -- the injection would land in the wrong module")
+        return 1
+    i = _m.start() + _m.group(0).rindex("endmodule")
 
     cases = [
         ("clean tree", src, 0),

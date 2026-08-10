@@ -6531,6 +6531,52 @@ looked. Fixing an instance is still not fixing the pattern.
 
 ---
 
+### Prop. 105 — grepping for the shape, not waiting for the audit — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No property references a signal that does not exist*
+
+Prop. 103's third regularity says the same defect recurs in sibling files, and it
+had been demonstrated twice by an *audit noticing*. That is the slow way. Each of
+the five shapes has a textual signature, so the tree was swept for them directly.
+
+**105a. A third instance of the comment-counting defect.** `scale_probe.py`
+enumerates assertion labels with `a_[a-z0-9_]+: assert \(` over **raw** source,
+and the file it reads is `build/rtl/bitnet_engine_top.sv` — the exact file
+carrying the Wave-636b comment that *quotes* an assertion by name. A comment
+naming a label with no corresponding assertion puts a phantom property into the
+probe list and produces a timing for nothing.
+
+This is the same defect, on the same regex, that `claims_check` was fixed for in
+Wave 636b and `orphan_scan` in Wave 639b. **Three files, three waves, one
+pattern** — and this one was found in seconds by grep rather than by a
+multi-agent audit.
+
+**105b. A latent instance of the position-targeting defect.**
+`phantom_scan`'s self-test injected before `src.rindex("endmodule")` — precisely
+the construct that redirected four liveness probes into the wrong module in
+Prop. 95a, once a wave appended modules to a property file. Its victim,
+`dma_controller_props.sv`, has one module today, so it worked. That is exactly
+how the same defect stayed live in a sibling twice: *it works until a file grows*.
+A self-test that silently begins injecting into the wrong module stops testing
+without saying so, and no gate stands above a self-test. Now targeted by name,
+with a missing module reported as an error.
+
+**105c. The sweep's yield, honestly.** Six signatures across 15 gate files
+produced 33 candidate hits, of which **two** were real. Most "guard trips only at
+zero" matches are ordinary `if not x:` idioms, and most "tool output matched by
+one phrasing" hits are legitimate single-purpose patterns. A grep for a defect
+shape is a *lead generator*, not a verdict — every candidate still needed reading
+and, for these two, tracing to the file each actually consumes.
+
+**105d. What this suggests about method.** The audits are expensive: two of them
+cost roughly four million subagent tokens and five hours, and produced 33
+findings of which a dozen were confirmed. The grep cost a minute and found two
+the audits had not reached. They are complementary — an audit discovers *new*
+shapes, a grep propagates *known* ones — and the cheap one should run first,
+immediately after any fix, rather than waiting for the next review.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

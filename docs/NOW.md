@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-11
 
+## Wave 640b — grepping for the shape, not waiting for the audit
+
+- **PROP. 103'S THIRD REGULARITY HAD BEEN DEMONSTRATED TWICE BY AN AUDIT
+  NOTICING.** That is the slow way. Each of the five shapes has a textual
+  signature, so the tree was swept for them directly.
+- **A THIRD INSTANCE OF THE COMMENT-COUNTING DEFECT**: `scale_probe.py`
+  enumerates assertion labels over **raw** source, and the file it reads is the
+  exact one carrying the Wave-636b comment that *quotes* an assertion by name.
+  Same defect, same regex, three files, three waves — found in seconds by grep
+  rather than by a multi-agent audit.
+- **A LATENT INSTANCE OF POSITION-TARGETING**: `phantom_scan`'s own self-test
+  injected before `rindex("endmodule")` — the construct that redirected four
+  liveness probes in Prop. 95a. Its victim file has one module *today*, so it
+  worked. That is exactly how the defect stayed live in a sibling twice: **it
+  works until a file grows**. And no gate stands above a self-test.
+- **THE YIELD, HONESTLY**: six signatures over 15 gate files gave **33
+  candidates, of which 2 were real**. Most "guard trips at zero" hits are
+  ordinary `if not x:` idioms. A grep for a defect shape is a *lead generator*,
+  not a verdict.
+- **WHAT IT SUGGESTS ABOUT METHOD**: two audits cost ~4M subagent tokens and five
+  hours for a dozen confirmed findings; the grep cost a minute and reached two
+  they had not. They are complementary — an audit discovers **new** shapes, a
+  grep propagates **known** ones — and the cheap one should run immediately after
+  every fix rather than waiting for the next review.
+- **PROP. 105** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 640 — the orphan check never checked that anything runs
 
 - **THE GATE WRITTEN BECAUSE EIGHT FILES WERE NEVER RUN** (Prop. 69, Wave 618)
