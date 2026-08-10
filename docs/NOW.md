@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-10
 
+## Wave 629 — nothing moved, and that is the finding
+
+- **WHY IT HAD TO BE RUN**: Prop. 80 fixed a real arithmetic defect in
+  `adder_tree_27`, which feeds the dot product, the compute stage, and the
+  engine. Every engine verdict in this campaign (Props. 25, 34, 53, 55, 66, 67)
+  was obtained with that defect present.
+- **ALL SIX ENGINE-LEVEL STEPS PASS ON THE CORRECTED RTL**:
+
+  | step | exit | sec |
+  |---|---|---|
+  | Baseline -- unprobed design must prove | 0 | 4 |
+  | Integration, core 24 at seq 80 | 0 | **422** |
+  | Integration, all 28 at seq 40 | 0 | 183 |
+  | Engine is still alive under its interlocks | 0 | 58 |
+  | Oversized requests do not wrap | 0 | 7 |
+  | `pipeline_stage2_compute` | 0 | 2 |
+
+  Nothing moved. The state space is unchanged -- the fix widened a *wire*, not a
+  register -- so the bounded results stand exactly as measured.
+- **AND THAT IS THE UNCOMFORTABLE PART**: the 28 integration properties proved
+  **both before and after** a genuine arithmetic defect in a module they
+  transitively depend on. A tree returning -14 instead of +2 for ordinary inputs
+  disturbed none of them. Not a failure of those properties -- a precise
+  statement of what they constrain. They are claims about **control**; the
+  defect was in **data**. Prop. 68d predicted exactly this from the other
+  direction.
+- **WHAT ACTUALLY CAUGHT IT**: only the exhaustive combinational proof, and only
+  because a module classified INDIRECT two waves earlier was given properties at
+  all. The chain is: map coverage (Prop. 76) -> notice a module constrained only
+  at one remove -> prove it directly (Prop. 80). No mutation, no witness, no
+  integration property was involved at any point.
+- **A MEASUREMENT FOR THE SCALE CEILING**: Prop. 55 recorded 22 core properties
+  at seq 80 in 238s; the same bound now costs **422s for 24**. The ceiling has
+  not moved but the headroom under it has narrowed.
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop. 81), README.
+- **STATE**: 81 propositions · 81 gates · 14 witnesses · 58 module properties
+  across 14 modules · 28 integration properties re-established · 1213 tests ·
+  496/496 seals · no known defect.
+
 ## Wave 628 — an exhaustive proof, a real defect, and a step that could not run
 
 - **COMBINATIONAL CHANGES WHAT A PROOF MEANS**: the last five INDIRECT modules

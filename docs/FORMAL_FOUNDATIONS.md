@@ -4983,6 +4983,63 @@ bundle is now constrained only at one remove.
 
 ---
 
+### Prop. 81 — nothing moved, and that is the finding — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Prop. 80 fixed a real arithmetic defect in `adder_tree_27`, which feeds
+`trit27_dot_product`, which feeds `pipeline_stage2_compute`, which feeds the
+engine. Every engine verdict in this campaign — Props. 25, 34, 53, 55, 66, 67 —
+was obtained with that defect present in the design. Re-establishing them is not
+optional bookkeeping; a defect was fixed underneath every one of them.
+
+**81a. All six engine-level steps pass on the corrected RTL.**
+
+| step | exit | seconds |
+|---|---|---|
+| Baseline — unprobed design must prove | 0 | 4 |
+| Integration, core 24 at `seq 80` | 0 | **422** |
+| Integration, all 28 at `seq 40` | 0 | 183 |
+| Engine is still alive under its interlocks | 0 | 58 |
+| Oversized requests do not wrap the local address | 0 | 7 |
+| `pipeline_stage2_compute` | 0 | 2 |
+
+Nothing moved. The state space is unchanged — the fix widened a *wire*, not a
+register — so the bounded results stand exactly as measured.
+
+**81b. And that is the uncomfortable part.** The 28 integration properties
+proved **both before and after** a genuine arithmetic defect in a module they
+transitively depend on. A tree that returned −14 instead of +2 for ordinary
+inputs did not disturb a single one of them.
+
+That is not a failure of those properties; it is a precise statement of what
+they constrain. They are claims about **control** — handshakes, buffer phase,
+address contiguity, readiness — and the defect was in **data**. Prop. 68d
+predicted exactly this from the other direction: the engine mutations that
+nothing caught were the ones that "change a *value* while leaving every activity
+reachable". Here is the same boundary, drawn by a real defect rather than a
+mutant.
+
+**81c. What actually caught it.** Only the exhaustive combinational proof, and
+only because a module classified INDIRECT two waves earlier was given properties
+at all. The chain that found this defect is: map coverage (Prop. 76) → notice a
+module constrained only at one remove → prove it directly (Prop. 80). No
+mutation, no witness, and no integration property was involved at any point.
+
+**81d. A measurement for the scale ceiling.** Prop. 55 recorded 22 core
+properties at `seq 80` in 238 s. The same bound now costs **422 s for 24** — the
+two properties added since carry most of that. The ceiling documented in
+Prop. 34 has not moved, but the headroom under it has narrowed, and that is
+worth knowing before the next property is added at that bound.
+
+Reproduce:
+
+```bash
+grep -c "seq 80" .github/workflows/formal-yosys.yml
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
