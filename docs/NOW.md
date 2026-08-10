@@ -2,6 +2,43 @@
 
 Last updated: 2026-08-10
 
+## Wave 619 — the DMA data property, six waves late
+
+- **THE PROPERTY**: `a_writes_within_request` -- the transfer never writes more
+  words than the request covers. This is the defect class Prop. 29 fixed (an
+  oversized request wrapped the local address, overwrote transferred data and
+  reported done) and it has had **no property** since. Wave 610's gap list named
+  it, Wave 612 could not state it, and Prop. 70's environment made it statable.
+- **IT BITES 13 OF 64** behaviourally-real mutations the whole suite missed --
+  **the largest bite of any property in this campaign.**
+- **TWO FALSE STARTS, BOTH SETTLED BY READING A COUNTEREXAMPLE**: Wave 612's
+  shadow armed on `start && !busy`, but the FSM triggers on `IDLE: if (start)`
+  and `start` is high in states where no transfer begins -- the observable that
+  tracks it exactly is the **rising edge of busy**, with `length` latched the
+  cycle before, so `$past(length)`. Then the corrected shadow still refuted, and
+  the trace showed a `length = 12` transfer writing a **second** word with only
+  4 bytes owed. That is correct: twelve bytes occupy two words of a
+  word-addressed memory. **The property was wrong about the design's contract,
+  not the design wrong about the property.** Restated in words, it proves.
+- **IT BROKE THE STEP THAT PROVES IT, AND PROP. 35 ALREADY KNEW WHY**: the batch
+  at seq 80 went from ~10s to **over 11 minutes without terminating**.
+  `-prove-asserts` solves every assertion in one SAT instance, superlinearly
+  harder than its parts. Split one-per-invocation as weight_prefetch already
+  was: six properties PROVED at seq 80 in 4-6s each, the new one PROVED at
+  **seq 20 in 16s** (undecided at 30). Whole step ~48s, and six properties keep
+  bound 80 that the batch would have cost entirely.
+- **A SECOND CANDIDATE MEASURED AND DROPPED**: `a_owed_never_underflows` proved
+  and detected 2 mutants, both already in the 13. Subsumed -- and unlike the
+  subsumptions kept in Prop. 64c it has no documentary value either: its subject
+  is my own shadow register, not the design.
+- **THE CHECK-CELL FLOOR WAS THREE UNDER THE TRUTH**: raised 8 -> **12**, the
+  measured count. A floor set comfortably below the real number lets that many
+  properties vanish before the gate notices.
+- **WHERE**: `formal/dma_controller_props.sv`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 71).
+- **STATE**: 71 propositions · 71 gates · 14 witnesses · 43 module properties ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 618 — count the steps, not the properties
 
 - **THE GATE**: Wave 617 found eight ungated properties **by accident**, from one

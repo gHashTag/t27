@@ -140,15 +140,59 @@ jobs:
           # 7 -> 8 in Wave 618: the AXI4 read-slave model contributes
           # a_model_precondition_single_burst, which it asserts rather than
           # assumes so it cannot silently over-constrain (Prop. 70).
-          if [ "${n:-0}" -lt 8 ]; then
-            echo "::error::Expected >=8 \$check cells for dma_props, found ${n:-0}."
+          # 8 -> 12 in Wave 619: a_writes_within_request plus the cells the
+          # model contributes (Prop. 71). Set to the actual count, not below it
+          # -- a floor three under the truth lets three properties vanish.
+          if [ "${n:-0}" -lt 12 ]; then
+            echo "::error::Expected >=12 \$check cells for dma_props, found ${n:-0}."
             exit 1
           fi
-          yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv \
-                    formal/axi4_read_slave_model.sv \
-                    formal/dma_controller_props.sv; \
-                    prep -top dma_props -flatten; async2sync; chformal -lower; \
-                    sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
+          # One property per invocation, for the reason Prop. 35 recorded for
+          # weight_prefetch: `-prove-asserts` solves every assertion in a single
+          # SAT instance, superlinearly harder than its parts. Adding
+          # a_writes_within_request took the batch at seq 80 from ~10s to over
+          # 11 minutes without terminating. Split, the numbers are:
+          #
+          #   six properties        PROVED at seq 80, 4-6s each
+          #   a_writes_within_req.  PROVED at seq 20 in 16s; UNDECIDED at 30
+          #
+          # So the split keeps six properties at bound 80 that the batch would
+          # have cost the suite entirely, and the whole step runs in ~48s. The
+          # new property's bound is 20 and that is stated rather than averaged
+          # away -- it carries a 13-bit write counter and a 32-bit byte count,
+          # which is what makes it expensive and also what makes it bite.
+          python3 - <<'PY'
+          import re, subprocess, sys
+          MODEL = "formal/axi4_read_slave_model.sv"
+          BOUND = {"a_writes_within_request": 20}
+          src = open("formal/dma_controller_props.sv").read()
+          labels = re.findall(r"(a_[a-z_0-9]+): assert", src)
+          fail = []
+          for keep in labels:
+              s = src
+              for other in labels:
+                  if other != keep:
+                      s = re.sub(re.escape(other) + r": assert \([^;]*\);",
+                                 other + ": assert (1'b1);", s)
+              open("build/dma_one.sv", "w").write(s)
+              seq = BOUND.get(keep, 80)
+              r = subprocess.run(["yosys", "-q", "-p",
+                  f"read_verilog -sv -formal build/rtl/dma_controller.sv {MODEL} "
+                  "build/dma_one.sv; prep -top dma_props -flatten; async2sync; "
+                  f"chformal -lower; sat -verify -prove-asserts -seq {seq} "
+                  "-set-init-zero -set-assumes"], capture_output=True, text=True)
+              out = r.stdout + r.stderr
+              if r.returncode == 0:
+                  print(f"ok       {keep} (seq {seq})")
+              elif "proof did fail" in out:
+                  fail.append(keep)
+                  print(f"::error::{keep} not proved at -seq {seq}")
+              else:
+                  fail.append(keep)
+                  print(f"::error::{keep} returned no verdict at -seq {seq} -- "
+                        "tool error, nothing was proved or refuted")
+          sys.exit(1 if fail else 0)
+          PY
 
       - name: Prove layer_sequencer properties
         run: |

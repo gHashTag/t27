@@ -115,6 +115,47 @@ module dma_props (
     always @(posedge clk) if (rst_n && $past(rst_n) && $past(start) && $past(length) == 32'd0 && !$past(busy))
         a_zero_length_moves_nothing: assert (!local_we);
 
+    // The transfer never writes more words than the request covers.
+    //
+    // Wave 619, Prop. 71. This is the defect class Prop. 29 fixed -- an
+    // oversized request wrapped the local address, overwrote data already
+    // transferred, and reported done -- and it had no property for six waves.
+    // Wave 612 could not state it: with `rvalid` free the solver returns data
+    // nobody asked for, so the environment below had to exist first.
+    //
+    // Two false starts, both settled by reading a counterexample rather than
+    // adjusting the property. The shadow arms on the RISING EDGE OF busy, not
+    // on `start && !busy`: the FSM triggers on `IDLE: if (start)`, and `start`
+    // is also high in states where no transfer begins. And `length` is latched
+    // the cycle before busy rises, so the shadow must read $past(length).
+    //
+    // The claim is about WORDS, not bytes. A 12-byte request occupies two
+    // words, the second partially, and the first attempt asserted that every
+    // write consumed eight owed bytes -- which the trace refuted at the second
+    // write of exactly that transfer. That was the property being wrong about
+    // the design's contract, not the design being wrong.
+    //
+    // Detects 13 of the 64 behaviourally-real mutations that the whole suite
+    // missed (Prop. 61's gap list) -- the largest bite of any property here.
+    reg [31:0] fv_owed;
+    reg [12:0] fv_writes;
+    reg        fv_busy_q;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            fv_owed <= 32'd0; fv_writes <= 13'd0; fv_busy_q <= 1'b0;
+        end else begin
+            fv_busy_q <= busy;
+            if (busy && !fv_busy_q) begin
+                fv_owed   <= ($past(length) > 32'd32768) ? 32'd32768 : $past(length);
+                fv_writes <= 13'd0;
+            end else if (local_we) begin
+                fv_writes <= fv_writes + 13'd1;
+            end
+        end
+    end
+    always @(posedge clk) if (rst_n && fv_busy_q)
+        a_writes_within_request: assert ({19'd0, fv_writes} <= ((fv_owed + 32'd7) >> 3));
+
     // ---- AXI4 read-slave environment (Wave 618, Prop. 70) ------------------
     //
     // `formal/axi4_read_slave_model.sv` was written, documented, and referenced

@@ -4389,6 +4389,74 @@ python3 formal/orphan_scan.py
 
 ---
 
+### Prop. 71 — the DMA data property, six waves late — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove dma_controller properties*
+
+Prop. 29 fixed a defect where an oversized request wrapped the local address,
+overwrote data already transferred, and reported done. It has had **no property**
+since. Wave 610's gap list named it, Wave 612 could not state it, and Prop. 70's
+environment is what finally made it statable.
+
+**71a. `a_writes_within_request`.** The transfer never writes more words than the
+request covers: a shadow latches the clamped length when the transfer starts and
+counts local writes, and the assertion is
+`fv_writes <= (fv_owed + 7) >> 3`.
+
+| bar | result |
+|---|---|
+| TRUE | PROVED, alone and with the suite |
+| BITING | detects **13 of the 64** behaviourally-real mutations the whole suite missed — the largest bite of any property in this campaign |
+
+**71b. Two false starts, both settled by reading a counterexample.** Wave 612's
+shadow armed on `start && !busy`; the FSM triggers on `IDLE: if (start)`, and
+`start` is also high in states where no transfer begins. The observable that
+tracks the FSM exactly is the **rising edge of `busy`** — and `length` is latched
+the cycle before, so the shadow must read `$past(length)`.
+
+Then the corrected shadow still refuted, and the trace showed why: with
+`length = 12` the DMA performs a **second** write while only 4 bytes are owed.
+That is correct — twelve bytes occupy two words of a word-addressed memory, the
+second partially. **The property was wrong about the design's contract, not the
+design wrong about the property.** Restated in words rather than bytes, it
+proves. Two wrong properties, two counterexamples, no guessing.
+
+**71c. It broke the step that proves it, and Prop. 35 already knew why.** Adding
+it took `dma_props` at `seq 80` from ~10 s to **over 11 minutes without
+terminating**. `-prove-asserts` solves every assertion in one SAT instance,
+superlinearly harder than its parts. Split one-per-invocation, as
+`weight_prefetch` already was:
+
+| | bound | time |
+|---|---|---|
+| six existing properties | `seq 80` | 4–6 s each |
+| `a_writes_within_request` | `seq 20` | 16 s (**undecided at 30**) |
+
+The whole step now runs in ~48 s and **six properties keep bound 80** that the
+batch would otherwise have cost the suite entirely. The new property's bound is
+20, and that asymmetry is stated rather than averaged into a single number — it
+carries a 13-bit write counter and a 32-bit byte count, which is both why it is
+expensive and why it bites.
+
+**71d. A second candidate was measured and dropped.**
+`a_owed_never_underflows` proved, and detected **2** mutants — both already in
+the 13. Subsumed, and unlike the subsumptions kept in Prop. 64c it has no
+documentary value either: its subject is my own shadow register, not the design.
+Shipping it would have been shipping a property about the harness.
+
+**71e. The check-cell floor was three under the truth.** Raised 8 → **12**, the
+measured count. A floor set comfortably below the real number lets that many
+properties disappear before the gate notices — which is the failure this gate
+exists to prevent.
+
+Reproduce:
+
+```bash
+grep -c "a_[a-z0-9_]*: assert" formal/dma_controller_props.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
