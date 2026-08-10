@@ -12,10 +12,34 @@ use igla::coder::eval;
 // ============================================================================
 
 /// DataSample: one training example (prompt, RTL, template tag).
+/// W619: WIDENED, not replaced.
+///
+/// T9 proved that a literal carrying a field outside the declared set is
+/// UNSATISFIABLE -- no function body can reconcile it. The remedy is therefore
+/// a change to one of the two artefacts, and the evidence says which:
+///
+///   187 `DataSample { ... }` literals in this file
+///     rtl 147 . template 147 . prompt 86   -- all declared, none unused
+///     quality_score 61 . bits 4 . four singletons  -- used, NOT declared
+///
+/// The three declared fields are heavily used and none is dead, so the
+/// declaration is right and INCOMPLETE. Deleting the field from 61 literals
+/// would discard data the tests assert on; widening the struct keeps both.
+///
+/// EVERY field carries a default, not just the added ones: of the 187 literals,
+/// 101 omit `prompt` and 40 omit `rtl`/`template`, so the original three needed
+/// them too. With every field defaulted, ANY SUBSET of fields is a valid
+/// literal -- which is exactly the forward/backward compatibility rule that
+/// Protocol Buffers and Avro make explicit and this corpus had never stated.
 pub const DataSample = struct {
-    prompt   : string,
-    rtl      : string,
-    template : string,
+    prompt        : string = "",
+    rtl           : string = "",
+    template      : string = "",
+    quality_score : f32 = 0.0,
+    bits          : u32 = 0,
+    syntax_score  : f32 = 0.0,
+    sacred_score  : f32 = 0.0,
+    synth_score   : f32 = 0.0,
 };
 
 // ============================================================================

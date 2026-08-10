@@ -367,6 +367,61 @@ use site, or a language rule in t27 permitting open records.
 
 ---
 
+### T10 (W619) — Widening a field set with defaults is the constructive complement to T9
+
+**T9** shows that a literal carrying a field outside the declared set is
+unsatisfiable *while the declaration is held fixed*. Its proof turns on `F`
+being fixed; it says nothing about changing `F`. **T10 supplies the constructive
+case.**
+
+**Statement.** Let struct `S` be declared with field set `F`, and let `G ⊇ F` be
+a superset in which **every field of `G \ F` carries a default value**. Then:
+
+1. every literal valid under `F` remains valid under `G`; and
+2. every literal whose field names lie in `G` is valid under `G`.
+
+**Proof.** (1) A literal valid under `F` names a subset of `F ⊆ G` and supplies
+a value for each; the fields of `G \ F` are supplied by their defaults, so the
+value is total over `G`. (2) A literal naming fields in `G` supplies those; the
+remainder are defaulted. Both cases produce a total assignment over `G`, which
+is what a struct value requires. ∎
+
+**Corollary — the migration is non-breaking in both directions.** T10(1) is
+*backward* compatibility (old literals still work) and T10(2) is *forward*
+compatibility (new literals work). **This is precisely the rule Protocol Buffers
+and Avro state as policy**, derived here for t27's nominal structs, and it is
+the rule this corpus had never written down.
+
+**A sharper corollary that the instance forced.** Defaulting only the *added*
+fields is not sufficient when existing literals already omit *declared* fields.
+Measured in `specs/igla/coder/dataset.t27`:
+
+| | |
+|---|---:|
+| `DataSample { … }` literals | **187** |
+| omit `prompt` | **101** |
+| omit `rtl` / `template` | 40 |
+
+so `F` itself had to be defaulted. **With every field of `G` defaulted, any
+subset of `G` is a valid literal** — which is the maximally permissive form of
+the same theorem, and the one an unmigrated corpus needs.
+
+### Applied
+
+| | before | after |
+|---|---:|---:|
+| `dataset.t27` errors | 116 | **95** |
+| `no field named …` corpus-wide | 51 | **24** |
+| IGLA total | 1 093 | **1 072** |
+
+**One declaration change, 21 errors, no test edited and no data discarded** —
+where T9 alone would have suggested deleting one of the two artefacts.
+
+*Falsification condition:* a literal valid under `F` that fails under `G`, or a
+t27 field type admitting no default.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
@@ -1803,6 +1858,35 @@ anchor, replaced at its first match), and a stderr redirect was written
 the opposite of the intent.
 
 Reverted with `git checkout`. **No compiler change survives this wave.**
+
+---
+
+### P34 (W619) — The struct-method anomaly, narrowed to a contradiction
+
+Third wave on this. **One build, two probes, and the observations cannot both be
+true of the code as written:**
+
+```
+[loop] KwFn "fn"                     <- loop top sees KwFn
+(no output)                          <- `else if ... == TokenKind::KwFn` never fires
+```
+
+An `if/else if` chain evaluating the same field cannot both fail `== Ident` and
+fail `== KwFn` for a token whose kind prints as `KwFn`. **Therefore the `else if`
+is not in the chain it appears to be in**, or the `if Ident` arm consumes the
+token before the comparison is reached.
+
+A brace-depth calculation suggested the branch sits at function-body level
+rather than inside the `while`. **That measurement is itself unreliable** — it
+counts braces inside string literals and comments, and the probe's own
+`eprintln!("{:?}")` inflates it. Recorded as a caution, not as the answer.
+
+Reverted with `git checkout`; gates restored to 34/34 and 15/15.
+
+> **Three waves of edit-and-observe have narrowed this to a contradiction
+> between two printed facts.** What it needs is a debugger or a minimal
+> standalone reproduction of the chain — not a fourth hypothesis. Recording that
+> as the finding is more useful than another attempt.
 
 ---
 

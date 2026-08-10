@@ -4900,6 +4900,26 @@ These cost a wave each. Follow them before step 1.
      stderr to the CURRENT stdout (the terminal) and then sends stdout to the
      void. To capture a trace, write `>/dev/null 2>file`.
 
+155. **T9 says an unsatisfiable case cannot be closed by writing code. T10 says
+     it CAN be closed by widening the declaration with defaults.** Every literal
+     valid before stays valid (backward), every literal naming the new fields
+     works (forward). That is Protocol Buffers' and Avro's compatibility rule,
+     derived for t27 structs -- and it beat the "drop one of the two artefacts"
+     reading of T9 by 21 errors with no test edited and no data discarded.
+
+156. **Default EVERY field, not only the added ones.** In dataset.t27, 101 of
+     187 literals omit a field that was ALREADY declared. Widening without
+     defaulting the original fields left half the class failing.
+
+157. **Let the corpus vote before choosing a schema.** 187 literals: rtl 147,
+     template 147, prompt 86 (all declared, none dead) versus quality_score 61
+     and five singletons (undeclared). The declaration was RIGHT AND
+     INCOMPLETE -- a count, not a preference, decided it.
+
+158. **A brace-depth count over Rust source is not evidence.** It counts braces
+     inside string literals and comments, and a probe's own `{:?}` inflates it.
+     Useful as a hint; never as the answer.
+
 ### How to update this tracker
 
 After closing a wave:

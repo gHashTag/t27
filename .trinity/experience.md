@@ -22424,3 +22424,41 @@ difference.
 NOT the type system (nominal is right for a language lowering to Verilog, where
 a struct IS a bit layout) -- it is PROCESS: two generations diverged with no
 compatibility rule and no migration step.
+
+## Wave 619 — all three; T10 turns an "unsatisfiable" case into a migration
+
+**A -- DataSample migrated. IGLA 1093 -> 1072; no-field-named 51 -> 24.**
+
+T9 said the case was unsatisfiable and one of the two artefacts must go. **T10
+is the constructive complement**: widen the declared field set with DEFAULTS and
+both survive.
+
+    187 DataSample literals:
+      rtl 147 . template 147 . prompt 86   -- all declared, none dead
+      quality_score 61 . bits 4 . 4 singletons -- used, NOT declared
+
+**The declaration was right and INCOMPLETE** -- a count decided it, not a
+preference. And **defaulting only the ADDED fields was not enough**: 101 of 187
+literals omit `prompt`, which was already declared. With EVERY field defaulted,
+any subset is a valid literal.
+
+That is exactly Protocol Buffers' and Avro's forward/backward compatibility
+rule, derived for t27's nominal structs -- **21 errors, no test edited, no data
+discarded**, where T9 alone suggested deleting something.
+
+**B -- the struct-method anomaly, narrowed to a CONTRADICTION.** One build, two
+probes:
+
+    [loop] KwFn "fn"       <- loop top sees KwFn
+    (nothing)              <- `else if ... == TokenKind::KwFn` never fires
+
+An if/else-if chain over one field cannot fail both `== Ident` and `== KwFn` for
+a token printing as KwFn. So the else-if is not in the chain it appears to be
+in. A brace-depth calc hinted at that -- **but that measurement is unreliable**
+(it counts braces in strings and comments, and my own `{:?}` inflated it), so it
+is recorded as a caution, not an answer. Reverted; gates restored.
+
+**Three waves of edit-and-observe have reduced this to a contradiction between
+two printed facts. It needs a debugger, not a fourth hypothesis.**
+
+**C -- board**: `dlc10 idcode` -> cable not found. Verified.
