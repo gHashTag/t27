@@ -5329,22 +5329,44 @@ consequence — an underflow would write past the request — *is* covered by
 made an unbounded verdict possible. Sometimes the right place for a property is
 not the property file.
 
-**85d. Adding two module properties quadrupled an engine step, and that
-decided where they live.** These were first guarded with `T27_FORMAL` — the
-same define the engine's integration steps pass, and those steps read this file.
-Two module-level assertions therefore joined the engine's obligation set without
-anyone intending it, and *"all 28 at `seq 40`"* went from **183 s (Prop. 81a) to
-723 s**: a 4× cost on the engine's cheapest step, from two properties, against a
-ceiling Props. 34 and 81d already flagged as narrowing.
+**85d. Two module properties cost the engine 58%, and that decided where they
+live.** These were first guarded with `T27_FORMAL` — the same define the
+engine's integration steps pass, and those steps read this file. Two
+module-level assertions therefore joined the engine's obligation set without
+anyone intending it.
 
-They now sit behind their own `T27_FORMAL_DRAIN`. The engine returns to **31
-`$check` cells**, the module step keeps its 2, and nothing is lost — induction
-already proves them for *every* request length, so re-proving them inside the
-engine to a depth of 40 buys strictly less than what the module step gives.
+Measured on an idle machine, same invocation, only the guard differing:
+
+| engine step *"all 28 at `seq 40`"* | `$check` cells | seconds |
+|---|---|---|
+| without the drain properties | 31 | **153** |
+| with them | 33 | **241** |
+
+**1.58×, +88 s from two properties** — against a ceiling Props. 34 and 81d
+already flagged as narrowing. They now sit behind their own `T27_FORMAL_DRAIN`;
+the engine keeps its 31 cells, the module step keeps its 2, and nothing is lost,
+because induction already proves them for *every* request length while the
+engine would re-prove them to a depth of 40.
 
 The general point: an inline property is compiled by whoever passes its guard,
 not by whoever wrote it. Check the `$check` count of every step that reads the
 file, and pick the guard for cost as deliberately as for taxonomy.
+
+**85f. That table is a correction — the first version of this proposition
+reported 4×.** The original figures were 723 s with the properties and 332 s
+without, giving "183 s → 723 s, a 4× cost", and they were published in this
+file, the README, a commit message and issue #2061. Both were measured while
+**three other yosys processes were running**, a condition I did not control for
+and did not record. The clean re-run put the no-properties case at 153 s — 
+*faster* than the 183 s baseline it was supposedly a regression against, which
+is what exposed the contamination.
+
+The direction of the finding survived; its magnitude was wrong by 2.5×, and the
+sentence "a 4× cost from two properties" asserted a causal attribution that the
+measurement could not support. The lesson is narrow and mechanical: a timing
+figure is a claim about a machine state, so record the state or do not publish
+the number. Two of this campaign's most-quoted corrections — Props. 67a and 73 —
+were also caption errors on instruments that worked correctly.
 
 **85e. And a comment that claimed more than its property.** The second inline
 assertion was introduced as establishing non-vacuity — "the drain does reach 1,

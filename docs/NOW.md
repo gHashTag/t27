@@ -32,13 +32,22 @@ Last updated: 2026-08-10
   the slave honouring the issued `arlen`: an extra beat past `rlast` would feed
   the wrapped value into `beats_owed` and request a 2³²-byte burst. Recorded as
   an AXI-protocol dependency, not proved — it is a claim about the environment.
-- **TWO PROPERTIES QUADRUPLED AN ENGINE STEP**: first guarded with
-  `T27_FORMAL`, the same define the engine's integration steps pass — so two
-  module assertions silently joined the engine's obligation set and *"all 28 at
-  seq 40"* went **183 s → 723 s**. Now behind their own `T27_FORMAL_DRAIN`:
-  engine back to **31 `$check` cells**, module step keeps its 2, and nothing is
-  lost since induction already covers every request length. An inline property
-  is compiled by whoever passes its guard, not by whoever wrote it.
+- **TWO PROPERTIES COST THE ENGINE 58%**: first guarded with `T27_FORMAL`, the
+  same define the engine's integration steps pass — so two module assertions
+  silently joined the engine's obligation set. Idle-machine measurement, same
+  invocation, only the guard differing: **153 s at 31 `$check` cells** without
+  them, **241 s at 33** with. Now behind their own `T27_FORMAL_DRAIN`; nothing
+  is lost, since induction already covers every request length while the engine
+  would re-prove to depth 40. An inline property is compiled by whoever passes
+  its guard, not by whoever wrote it.
+- **THAT FIGURE IS A CORRECTION — I FIRST PUBLISHED 4×**: the original 723 s and
+  332 s were both measured with **three other yosys processes running**, a
+  condition I neither controlled nor recorded, and "183 s → 723 s, 4× from two
+  properties" went into this file, the README, a commit message and issue #2061.
+  The clean re-run put the no-properties case at 153 s — *faster* than the 183 s
+  baseline it was supposedly a regression against — which is what exposed it.
+  Direction survived, magnitude wrong by 2.5×. A timing figure is a claim about
+  a machine state: record the state or do not publish the number.
 - **A COMMENT THAT CLAIMED MORE THAN ITS PROPERTY**: the second assertion was
   introduced as establishing non-vacuity; it asserts `words_remaining <= 4096`,
   which says nothing of the sort. Rewritten to claim only what it checks.
