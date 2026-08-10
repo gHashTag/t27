@@ -2,6 +2,43 @@
 
 Last updated: 2026-08-10
 
+## Wave 624 — twenty-three modules, and six that nothing reaches
+
+- **THE FOUR-TIMES-DEFERRED QUESTION, ANSWERED**: Prop. 75c named the limit --
+  a scan over `formal/` cannot see properties that have no file. Closing it
+  required rewriting the scan twice before the answer meant anything.
+- **PER MODULE, NOT PER FILE**: the first version keyed on the filename, and
+  `trit_stdlib.sv` defines **eleven** ternary primitives. A file-stem classifier
+  reports one module that does not exist and misses eleven that do. It also has
+  to follow instantiation **transitively** -- `trit27_dot_product` is reached
+  from the engine only through `pipeline_stage2_compute`.
+- **THE MAP** (23 modules in the emitted bundle):
+
+  | coverage | count |
+  |---|---|
+  | **DIRECT** -- own properties | 8 |
+  | **INDIRECT** -- constrained only through the engine | 8 |
+  | **UNREACHED** -- no properties, instantiated by nothing | **6** |
+  | **EXEMPT** -- concurrent SVA this flow cannot check | 1 |
+
+  The six (`trit_not`, `trit_and`, `trit_or`, `trit_multiply`, `trit_compare`,
+  `trit3_add`) are read into **every** engine proof as source and constrained by
+  none of them. A library, so not a defect -- but "a library nobody
+  instantiates, carried in the bundle" should be visible rather than implied.
+- **THE MOST INTERESTING LINE**: `double_buffer_ctrl` is INDIRECT. The ping-pong
+  took three changes across eight waves to get right (Props. 33, 46b, 47), every
+  one diagnosed and fixed at the *engine* level, and the 33-line module
+  implementing it has **never had a property of its own**.
+- **REPORTED, NOT FAILED**: an unexercised library module is not a build error,
+  and a permanently red gate is one everyone learns to ignore. Errors stay for
+  the unambiguous case; coverage is warnings plus a count. Silence is what is
+  not allowed.
+- **WHERE**: `formal/orphan_scan.py`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 76),
+  README.
+- **STATE**: 76 propositions · 76 gates · 14 witnesses · 43 module properties ·
+  28 integration properties · 23 emitted modules mapped · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 623 — properties live in two places, and one module has no file at all
 
 - **THE UNEXPLAINED NUMBER, EXPLAINED**: Prop. 74 left a mismatch rather than

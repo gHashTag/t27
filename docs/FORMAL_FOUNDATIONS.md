@@ -4693,6 +4693,62 @@ grep -c "a_[a-z0-9_]*: assert" build/rtl/activation_requant.sv
 
 ---
 
+### Prop. 76 — twenty-three modules, and six that nothing reaches — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Every property file is run by some workflow*
+
+Prop. 75c named the limit: a scan over `formal/` cannot see properties that have
+no file. Closing it answers a question deferred four times — *does every emitted
+module have properties at all?* — and the answer needed the scan rewritten twice
+before it meant anything.
+
+**76a. Per module, not per file.** The first version keyed on the filename, and
+`trit_stdlib.sv` defines **eleven** ternary primitives. A file-stem classifier
+reports one module that does not exist and misses eleven that do. It also has to
+follow instantiation **transitively**: `trit27_dot_product` is reached from the
+engine only through `pipeline_stage2_compute`.
+
+**76b. The map.** 23 modules in the emitted bundle:
+
+| coverage | count | meaning |
+|---|---|---|
+| **DIRECT** | 8 | a `formal/` suite instantiates it, or it carries inline assertions |
+| **INDIRECT** | 8 | no properties of its own; reachable from the engine, so its integration properties constrain it at one remove |
+| **UNREACHED** | 6 | no properties **and instantiated by nothing** — `trit_not`, `trit_and`, `trit_or`, `trit_multiply`, `trit_compare`, `trit3_add` |
+| **EXEMPT** | 1 | `behavior_sva_v2` — concurrent SVA this flow cannot check at all (Props. 2/5/6) |
+
+The six unreached primitives are read into **every** engine proof as source and
+constrained by none of them. They are a library, so this is not a defect — but
+"a library nobody instantiates, carried in the bundle" is a fact that should be
+visible rather than implied.
+
+**76c. The module the campaign's longest defect lived in has no properties of its
+own.** `double_buffer_ctrl` is INDIRECT. The ping-pong took three changes across
+eight waves to get right (Props. 33, 46b, 47), every one of them diagnosed and
+fixed at the *engine* level, and the 33-line module implementing it has never had
+a property. That is not an accusation — engine-level was where the defect was
+observable — but it is the single most interesting line in the table.
+
+**76d. Reported, not failed.** An unexercised library module is not a build
+error, and a permanently red gate is one everyone learns to ignore — the
+workflow's own comment on the scale ceiling says exactly that. Errors stay for
+the unambiguous case (a property file no workflow runs); coverage is warnings
+plus a count. **Silence is what is not allowed.**
+
+**76e. The exemption is argued, per Prop. 59d.** `behavior_sva_v2` emits
+concurrent SVA — `##N`, `s_eventually` — which Yosys cannot check *at all*. It is
+the artifact whose uncheckability is the documented reason
+`gen-behavior-sva-yosys` exists, so proving it is not merely undone but
+impossible in this flow.
+
+Reproduce:
+
+```bash
+grep -c "^module " build/rtl/trit_stdlib.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

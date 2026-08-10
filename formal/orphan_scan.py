@@ -46,6 +46,78 @@ def workflows(root):
     return out
 
 
+# Emitted modules that legitimately have no properties, with the reason each is
+# exempt. Prop. 59d's rule: an exemption added without argument is how a sweep
+# comes to pass while checking less than it claims.
+MODULE_EXEMPT = {
+    "behavior_sva_v2":
+        "concurrent SVA (`##N`, `s_eventually`) which this flow cannot check at "
+        "all -- Props. 2/5/6. It is the artifact whose uncheckability is the "
+        "reason gen-behavior-sva-yosys exists, so proving it is not merely "
+        "undone but impossible here.",
+}
+
+
+def modules(root):
+    """Every emitted MODULE, classified by where its properties live.
+
+    Per module, not per file: `trit_stdlib.sv` defines eleven ternary
+    primitives, so a file-stem classifier reports one "module" that does not
+    exist and misses eleven that do. Prop. 76.
+
+      DIRECT     a formal/ suite instantiates it, or it carries inline assertions
+      INDIRECT   no properties of its own, but reachable from bitnet_engine_top
+                 through instantiation, so the integration properties constrain
+                 it at one remove
+      UNREACHED  no properties and instantiated by nothing in the bundle
+      EXEMPT     listed above with a reason
+    """
+    rtl = sorted((root / "build" / "rtl").glob("*.sv"))
+    if not rtl:
+        return None
+    srcs = {p.name: p.read_text() for p in rtl}
+    formal = [(p.name, p.read_text()) for p in sorted((root / "formal").glob("*.sv"))]
+
+    defined = {}                       # module name -> file
+    for name, text in srcs.items():
+        for m in re.findall(r"^module (\w+)", text, re.M):
+            defined[m] = name
+
+    def instantiates(text, mod):
+        return bool(re.search(rf"^\s*{mod}\s+\w+\s*\(", text, re.M))
+
+    # Reachability from the engine, transitively.
+    reach, frontier = set(), ["bitnet_engine_top"]
+    while frontier:
+        cur = frontier.pop()
+        if cur in reach or cur not in defined:
+            continue
+        reach.add(cur)
+        text = srcs[defined[cur]]
+        for cand in defined:
+            if cand != cur and instantiates(text, cand):
+                frontier.append(cand)
+
+    out = []
+    for mod, fname in sorted(defined.items()):
+        text = srcs[fname]
+        i = text.index(f"module {mod}")
+        j = text.find("\nendmodule", i)
+        body = text[i:j if j > 0 else len(text)]
+        inline = len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", body))
+        suites = [n for n, t in formal if instantiates(t, mod)]
+        if mod in MODULE_EXEMPT:
+            kind = "EXEMPT"
+        elif inline or suites:
+            kind = "DIRECT"
+        elif mod in reach:
+            kind = "INDIRECT"
+        else:
+            kind = "UNREACHED"
+        out.append((mod, fname, inline, suites, kind))
+    return out
+
+
 def scan(root):
     wfs = workflows(root)
     files = sorted((root / "formal").glob("*.sv"))
@@ -75,6 +147,33 @@ def scan(root):
     for w in weekly:
         print(f"::warning::formal/{w} is referenced only by schedule-triggered "
               "workflows, so a defect in it is invisible on a pull request")
+    mods = modules(root)
+    if mods is None:
+        print("\n(no emitted RTL -- module coverage not checked)")
+    else:
+        print(f"\n{'emitted module':26s} {'file':26s} {'inline':>7s} {'coverage':>10s}")
+        print("-" * 74)
+        for mod, fname, inline, _s, kind in mods:
+            print(f"{mod:26s} {fname:26s} {inline:7d} {kind:>10s}")
+        kinds = {k: [m for m, _f, _i, _s, kk in mods if kk == k] for k in
+                 ("DIRECT", "INDIRECT", "UNREACHED", "EXEMPT")}
+        # Reported, not failed. An unexercised library module is not a defect,
+        # and a permanently red gate is one everyone learns to ignore -- the
+        # workflow's own comment on the scale ceiling says exactly that. What is
+        # not allowed is silence.
+        for m in kinds["UNREACHED"]:
+            print(f"::warning::module {m} has no properties and is instantiated "
+                  "by nothing in the emitted bundle -- it is read into every "
+                  "proof as source and constrained by none of them")
+        for m in kinds["INDIRECT"]:
+            print(f"::warning::module {m} has no properties of its own; the "
+                  "engine's integration properties constrain it only at one "
+                  "remove, so a defect in it is caught only if it reaches an "
+                  "engine-level observable")
+        print(f"module coverage: {len(mods)} modules -- "
+              f"{len(kinds['DIRECT'])} direct, {len(kinds['INDIRECT'])} indirect, "
+              f"{len(kinds['UNREACHED'])} unreached, {len(kinds['EXEMPT'])} exempt")
+
     print(f"\norphan scan: {len(files)} property files, {len(wfs)} workflows, "
           f"{len(bad)} orphaned, {len(weekly)} weekly-only")
     return 1 if bad else 0
