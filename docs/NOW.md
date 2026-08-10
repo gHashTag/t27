@@ -2,6 +2,38 @@
 
 Last updated: 2026-08-11
 
+## Wave 641 — the taxonomy was falsified, as designed
+
+- **PROP. 103b STAKED A PREDICTION**: a further audit finds only shapes 1–5, and
+  *a sixth means the taxonomy is incomplete*. Five never-reviewed gates were
+  attacked, with agents told a sixth shape was **more valuable** than confirming
+  the five. **They found two.** The prediction is withdrawn — this is the result
+  it was written for.
+- **SHAPE 6 — SAMPLING A TIME-VARYING PROPERTY AT ITS BOUNDARIES**, verified by
+  construction in my own `bench.py`, twice:
+  - competing provers and load sampled **once before** and **once after** each
+    run, so a prover starting *and finishing* inside the run was invisible — the
+    contention guard, the whole reason the harness exists, was a boundary check
+    on a continuous quantity;
+  - the input fingerprint taken once around **all** repeats, so a file changed
+    between repeat 1 and 2 and **reverted** gives identical digests — exactly the
+    contamination Prop. 87c added it for, undetectable whenever it reverts.
+  - Fixed: a 250 ms background sampler reporting the peak, and a fingerprint
+    around **every** run. Both kept as self-tests, including a file that flips
+    and reverts.
+- **SHAPE 7 — OVER-DETECTION**: shapes 1–6 all describe a gate *failing to fire
+  when it should*; a gate failing a **correct** artifact is the mirror image. It
+  already had an instance — Prop. 98d's false finding against correct RTL — and
+  it was **mis-filed under shape 1**, because every box was about silence.
+- **FIVE OTHER CLAIMED NOVELTIES WERE NOT NEW** and are recorded as such. A
+  taxonomy that absorbs every finding predicts nothing.
+- **WHAT THE FALSIFICATION IS WORTH**: a prediction that survives tells you
+  little — the five shapes had been fitted to the data they came from. Stating
+  the boundary *before* looking and having it broken in the first round is the
+  only part that was ever evidence. The corrected table carries the same
+  obligation: an eighth shape means correcting **this** proposition.
+- **PROP. 106** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 640b — grepping for the shape, not waiting for the audit
 
 - **PROP. 103'S THIRD REGULARITY HAD BEEN DEMONSTRATED TWICE BY AN AUDIT

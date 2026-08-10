@@ -87,11 +87,36 @@ def loadavg():
 
 
 def run_once(cmd, cwd):
-    before_p, before_l = provers(), loadavg()
+    """Time one run, sampling the machine THROUGHOUT rather than at its ends.
+
+    Wave 640c. This sampled provers and load once before the subprocess and once
+    after. A competing prover that started and finished inside the run was
+    invisible to both samples, so the contention guard -- the whole reason this
+    harness exists -- was a boundary check on a continuous property. Prop. 106's
+    sixth shape.
+
+    A background thread now polls every 250 ms for the duration and the peak of
+    all samples is reported, so contention has to avoid the entire interval
+    rather than just two instants.
+    """
+    import threading
+    peak = {"p": provers(), "l": loadavg()}
+    stop = threading.Event()
+
+    def poll():
+        while not stop.wait(0.25):
+            peak["p"] = max(peak["p"], provers())
+            peak["l"] = max(peak["l"], loadavg())
+
+    sampler = threading.Thread(target=poll, daemon=True)
+    sampler.start()
     t = time.monotonic()
     r = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
     secs = time.monotonic() - t
-    after_p, after_l = provers(), loadavg()
+    stop.set()
+    sampler.join(timeout=2)
+    before_p = after_p = peak["p"] = max(peak["p"], provers())
+    before_l = after_l = peak["l"] = max(peak["l"], loadavg())
     return {
         "secs": secs,
         "rc": r.returncode,
@@ -107,12 +132,21 @@ def bench(arms, repeat, cwd, quiet_provers=1, quiet_load=None,
     cpus = os.cpu_count() or 1
     if quiet_load is None:
         quiet_load = cpus * 0.75
-    fp_before = fingerprint(watch, cwd) if watch else None
+    # Fingerprinted around EVERY run, not around the whole sequence. Wave 640c:
+    # taking it once before all repeats and once after meant a file that
+    # changed between repeat 1 and repeat 2 and was reverted before the end
+    # produced identical digests -- the exact contamination Prop. 87c added this
+    # guard for, undetectable whenever it reverts. Prop. 106.
+    fps = [fingerprint(watch, cwd)] if watch else []
     runs = {label: [] for label, _ in arms}
     for _ in range(repeat):
         for label, cmd in arms:            # alternate, do not batch by arm
             runs[label].append(run_once(cmd, cwd))
-    fp_after = fingerprint(watch, cwd) if watch else None
+            if watch:
+                fps.append(fingerprint(watch, cwd))
+    fp_before = fps[0] if watch else None
+    fp_after = fps[-1] if watch else None
+    fp_moved = watch and any(f != fps[0] for f in fps)
 
     print(f"{'arm':10s} {'runs':>4s} {'median s':>9s} {'min':>8s} {'max':>8s} "
           f"{'rc':>3s} {'provers':>8s} {'load':>7s}")
@@ -140,7 +174,7 @@ def bench(arms, repeat, cwd, quiet_provers=1, quiet_load=None,
     for label in failed:
         print(f"::error::arm '{label}' exited nonzero -- a timing for a command "
               "that failed is not a measurement of anything")
-    if watch and fp_before != fp_after:
+    if fp_moved:
         print(f"::error::the files under test CHANGED during the run "
               f"({fp_before[0]} -> {fp_after[0]}). Early and late samples "
               "measured different inputs, so no comparison is printed. This "
@@ -229,6 +263,19 @@ def self_test():
               f"report (exit {rc})")
         if rc == 0:
             bad.append("a run whose inputs changed underneath it was reported")
+
+        # Wave 640c regression: a file changed BETWEEN repeats and reverted
+        # before the end. The old fingerprint, taken once at each end of the
+        # whole sequence, saw identical digests and reported a clean run.
+        t.write_text("before")
+        flip = (f"python3 -c \"import pathlib;p=pathlib.Path(r'{t}');"
+                f"p.write_text('X' if p.read_text()=='before' else 'before')\"")
+        rc, _ = bench([("flips", flip)], 2, td, watch=["*.txt"], **QUIET)
+        print(f"  {'ok  ' if rc else 'FAIL'} an input that changes between "
+              f"repeats and reverts is caught (exit {rc})")
+        if rc == 0:
+            bad.append("a file that moved mid-sequence and reverted was "
+                       "reported as a stable run")
 
         t.write_text("stable")
         rc, _ = bench([("stable", "python3 -c 'pass'")], 2, td,
