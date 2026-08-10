@@ -24,6 +24,23 @@ import re
 import sys
 
 
+def nocomment(text):
+    """Strip // comments before counting assertions.
+
+    Wave 636b. This counted `a_<name>: assert` anywhere in a file, comments
+    included. A BOUND note added to the engine emitter quoted an assertion by
+    name -- `a_chunk_addr_resets: assert (chunk_addr == 12'd0)` -- to explain
+    why bound_scan had been misreading it, and that comment invented a
+    twenty-ninth integration property out of nothing.
+
+    The irony is exact: the comment existed to document Prop. 95b, where
+    bound_scan was matching assertion text without asking whether it was design
+    logic or a claim about it. The same mistake, in the counter, surfaced by
+    writing about the first one.
+    """
+    return re.sub(r"//[^\n]*", "", text)
+
+
 def derive(root):
     """Every countable claim, measured from the tree."""
     found = {}
@@ -62,6 +79,7 @@ def derive(root):
                "axi4_read_slave_model.sv"}
 
     def count(text):
+        text = nocomment(text)
         n = 0
         for m in re.finditer(r"^module (\w+)(.*?)^endmodule", text,
                              re.M | re.S):
@@ -87,7 +105,7 @@ def derive(root):
         # answers neither question. Note also that two assertions wrap the
         # label and `assert` onto separate lines, so a per-line count
         # undercounts by two: this reads the text, not the lines.
-        src = eng.read_text()
+        src = nocomment(eng.read_text())
         stack, pos, guard = [], 0, {}
         for m in re.finditer(r"`(ifdef|ifndef|elsif|else|endif)(?:\s+(\w+))?", src):
             for i in range(pos, m.start()):

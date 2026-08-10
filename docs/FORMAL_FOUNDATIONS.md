@@ -3190,6 +3190,15 @@ those four:
 the ceiling from `-seq 40` to `-seq 80` — the depth the whole set reached before
 the campaign's last ten waves, now at 238 s against the original 396 s.
 
+> **Withdrawn by Prop. 94.** The comparison in that last clause is a second
+> instance of the inference Prop. 91c retired, and Prop. 91 did not catch it.
+> The 396.1 s endpoint is Prop. 34a's 23-property figure, which Prop. 53 could
+> not reproduce even as a *verdict*; the 238 s is this table's own 237.8 s for a
+> 22-property configuration that no longer exists. Neither endpoint is
+> re-measurable. The *split* result — 15% of the properties costing 75% of the
+> time — rests on the within-table comparison and stands; only the
+> across-proposition clause is withdrawn.
+
 **54b. Splitting them is sound and does not weaken anything.** Both sets would be
 gated: the core 22 at `-seq 80`, all 26 at `-seq 40`. Every property stays
 checked; only the *bound at which each is checked* differs, and each rises or
@@ -5026,11 +5035,20 @@ at all. The chain that found this defect is: map coverage (Prop. 76) → notice 
 module constrained only at one remove → prove it directly (Prop. 80). No
 mutation, no witness, and no integration property was involved at any point.
 
-**81d. A measurement for the scale ceiling.** Prop. 55 recorded 22 core
+**81d. A measurement for the scale ceiling.** ~~Prop. 55 recorded 22 core
 properties at `seq 80` in 238 s. The same bound now costs **422 s for 24** — the
 two properties added since carry most of that. The ceiling documented in
 Prop. 34 has not moved, but the headroom under it has narrowed, and that is
-worth knowing before the next property is added at that bound.
+worth knowing before the next property is added at that bound.~~
+
+> **WITHDRAWN by Prop. 91c**, annotated here by Prop. 94 because the withdrawal
+> was recorded 650 lines away and this paragraph still read as a live
+> conclusion. The 422 s endpoint re-measures at **309.9 s** (27% low); the
+> 238 s endpoint describes a 22-property configuration that no longer exists.
+>
+> The citation is also wrong, and Prop. 91c repeated it: **Prop. 55a records
+> 245.1 s**, not 238. The 238 is Prop. 54a's **237.8 s**, measured *before* the
+> deep/core split landed — a different configuration again.
 
 Reproduce:
 
@@ -5685,8 +5703,15 @@ actually compare against.
 **91d. What this says about the other timings in this document.** Props. 34, 55
 and 81a all quote seconds recorded the same way. They are left as dated records
 rather than deleted — that is this file's convention — but **no argument should
-rest on them**, and Prop. 81d was the only one that did. Any future performance
-claim goes through `formal/bench.py` or is not made.
+rest on them**, ~~and Prop. 81d was the only one that did~~. Any future
+performance claim goes through `formal/bench.py` or is not made.
+
+> **Corrected by Prop. 94.** "Prop. 81d was the only one" is wrong, and the
+> list of three propositions is far too short. A systematic audit found **at
+> least five further live inferences** built on unprovenanced seconds — Props.
+> 37c, 37d-bis, 38d, 54a and 85d — and unprovenanced timings in Props. 35, 36,
+> 37, 38, 49, 53, 54, 66, 71, 83, 85 and 88. Withdrawing one inference and
+> declaring the rest sound was itself an unaudited claim.
 
 **91e. The instrument reported what it was supposed to.** `inputs: 28 files,
 8d5d7d0c62edf664 → 8d5d7d0c62edf664` — the fingerprint that Prop. 87c added
@@ -5702,6 +5727,11 @@ guard held rather than assume it.
 
 Prop. 89 wrote that T5 "follows from F by the positional argument". That
 sentence was doing real work, and it was prose. This discharges it.
+
+> **Corrected by Prop. 93.** 92a's generality claim is empty — the class of
+> F-satisfying adders is a *singleton* — 92b's vacuity oracle was defeated, and
+> 92c's `mirror_check` claim was false as written. The theorem itself stands.
+> Read 93 alongside this.
 
 **92a. The abstraction is every F-satisfying adder at once.**
 `fv_abstract_fa` is a full adder about which *nothing* is known except lemma F.
@@ -5753,6 +5783,272 @@ The general point is one this campaign keeps re-learning in new forms: a proof
 about a *copy* of the design is a proof about the copy. The copy has to be
 pinned to the original by something mechanical, or the phrase "exactly as" is a
 claim nobody is checking.
+
+---
+
+### Prop. 93 — an adversarial review of Prop. 92, and four holes it found — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Prove the trit algebra (exhaustive)*
+
+Prop. 92 was published, committed and pushed before it was reviewed. An
+independent adversarial audit — instructed to try to refute its value rather
+than confirm it — found the theorem sound and **four of the claims built around
+it false or defeatable**. All four are corrected here; the theorem stands.
+
+**93a. The vacuity oracle was defeated.** `abstract_alive` asserts a single
+*unchained* `fv_abstract_fa` cannot produce a positive carry, and refutes. It
+therefore establishes "lemma F admits *something*, for *some* input, in *one*
+instance". The risk it was supposed to cover is per-input emptiness **inside the
+chain**, which it cannot see.
+
+Adding one clause to lemma F — forbidding `sum = 0 ∧ cout = 0`, which makes F
+unsatisfiable for any stage whose total is zero — collapses the covered input
+space from 4096 pairs to **242 (5.9%)**. Under that injection `add3_abstract`
+still proves, `abstract_alive` still refutes, and the CI step stays green: the
+theorem would cover six percent of its stated domain with every gate passing.
+This campaign's oldest failure shape, an absence read as a pass, reappearing in
+a *guard* rather than in a proof.
+
+The replacement, `abstract_is_inhabited`, asserts that the **real** adder
+satisfies exactly what the abstraction assumes. It has **no free variables** —
+`sum` and `cout` are driven by `trit_full_adder` — and a property with nothing
+free cannot hold vacuously.
+
+The first attempt at it did not work, and the reason is worth recording: it
+hand-copied the constraint, so an injection into the abstraction's assume block
+left the guard's assertion untouched and it kept proving. Lemma F is now written
+**once**, as the macro `FA_LEMMA`, assumed by the abstraction and asserted of the
+concrete adder. With that sharing, the injection is caught — the guard proves on
+the shipped tree and **refutes** under it. Residual risk, stated rather than
+hidden: a clause added to the assume block *outside* the macro is still
+invisible. The macro makes the honest edit safe; it cannot make a deliberately
+split one safe.
+
+**93b. The newest theorem sat outside the gate written to catch its failure
+mode.** `add3_abstract` needs a zero to drive the first stage's `cin` and
+declares its own `localparam TRIT_Z` in the property file. Prop. 90's encoding
+gate substituted over the RTL localparams and the value macro — not over
+localparams declared in property files. So under permutation the abstraction
+kept the old code while the RTL moved, the two genuinely disagreed, and
+`add3_abstract` **refuted**.
+
+It refuted for a real reason, but the reason was an **incomplete perturbation**,
+not a defect in the design. A perturbation that is not semantics-preserving
+cannot distinguish "this theorem depends on the encoding" from "this experiment
+is broken". The substitution now runs over both texts (19 sites, up from 18),
+`add3_abstract` is in the expected table, and it proves. It was also *absent
+from the table entirely* — the gate reported a clean sweep over nine theorems
+while the tenth, the newest one, was never run.
+
+**93c. `mirror_check` compared uses, not declarations.** It compared the
+port-connection *text* of the two instantiations. `TRIT_Z` is declared
+**separately** in each file — `build/rtl/trit_stdlib.sv` for the concrete tree,
+`formal/trit_algebra_props.sv` for the abstraction — so two independent
+declarations sharing a name compare equal as strings whatever they hold. Setting
+the concrete tree's `TRIT_Z` to `2'b10` while the abstraction kept `2'b01` leaves
+the two circuits genuinely different, and the gate reported *0 disagreements*.
+
+Prop. 92c's claim that it catches "passing a different first `cin`" was
+therefore **false as written**. It now resolves localparams to their values
+before comparing, and the case is a permanent self-test. The irony is exact:
+"read the declaration, not the use" is a rule this campaign wrote down in Wave
+632, and the gate written to enforce a mirror broke it.
+
+**93d. The generality claim is empty.** 92a said the abstraction "is every
+module satisfying F at once". The audit proved `fv_abstract_fa`'s outputs are
+bit-identical to `trit_full_adder`'s on all valid inputs — because F plus
+trit-validity **uniquely determines** `(sum, cout)` for every total in [−3, 3].
+The class of F-satisfying adders has exactly **one element**.
+
+The claim is true, and buys nothing. What the composition proof actually
+establishes is narrower and should be stated as such: **T5 does not depend on
+`trit_full_adder`'s internal structure** — the two half adders and the
+sign-combine — only on its input/output function. Correspondingly, "a corollary
+of two proved facts rather than three separate proofs happening to agree"
+overstates independence: once the leaf is proved equal, `add3_abstract` and
+`add3_props` are the same theorem modulo the leaf's implementation, not two
+independent routes to it.
+
+**93e. What the review confirmed.** The wiring does mirror `trit3_add` exactly;
+the abstraction is genuinely free at the netlist level (6 `$anyseq` cells
+survive `prep -flatten`, nothing folded to a constant); the proof is
+mutation-sensitive (rewiring `fa1.cin` refutes, deleting lemma F refutes); and
+running without `-set-assumes` refutes rather than proving, so a dropped flag
+surfaces as a red rather than a false pass. Swapping `fa2`'s operands still
+proves — correctly, since addition commutes — which is a concrete demonstration
+that `mirror_check` does work the prover cannot.
+
+**93f. The lesson about the review itself.** Prop. 92 cleared three bars I
+designed and named — it proves, its oracle refutes, and it depends on its
+assumption. All three were satisfied while four separate claims around it were
+wrong. **Bars you choose yourself test what you thought of.** The audit was
+instructed to attack rather than confirm, and everything it found lay outside
+the checks I had built.
+
+---
+
+### Prop. 94 — every timing in this file, audited — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Benchmark harness self-test*
+
+Prop. 91 re-measured two figures and withdrew one inference, then asserted in
+91d that **"Prop. 81d was the only one"** resting on unprovenanced seconds. That
+sentence was itself an unaudited claim, and it is false. A systematic pass over
+every duration quoted in `FORMAL_FOUNDATIONS.md` and `README.md` found the
+problem to be structural rather than isolated.
+
+**94a. The scale of it.** Roughly **60 quoted durations**. None is guarded —
+`claims_check.py` polices only numbers that are properties of the *tree*, and
+Prop. 74e records why: re-deriving a measurement means re-running the proofs.
+So no gate has ever checked a single timing in this document.
+
+**94b. At least five further live inferences rest on them.** Beyond the
+withdrawn Prop. 81d:
+
+| proposition | the inference | why it does not hold up |
+|---|---|---|
+| 37c | "splitting pays exactly when members differ in cost", from a **436×** spread | the cheap endpoint is `a_sanity`, **deleted in Wave 591**. The property no longer exists anywhere in the tree, so neither ratio has a reproducible endpoint. |
+| 37b/37d-bis | a "~280 s plateau" for any single engine property, and a **1.4× batch overhead** | the plateau interpolates from two samples, one of which is the deleted tautology; the other endpoint is Prop. 34a's 396.1 s, which Prop. 53 could not reproduce even as a *verdict*. |
+| 38d | "an 8× cheaper datapath would put `seq 120` within budget — the single largest available gain" | the 8× was **corrected to 1.5×** by Prop. 49d and the item closed by 49e. Prop. 38's strikethrough is scoped to 38a; 38d still reads as a standing recommendation. |
+| 54a | "now at 238 s against the original 396 s" | the same withdrawn comparison as 81d, missed by Prop. 91. Annotated in place above. |
+| 85d | **"1.58×, +88 s from two properties"**, which drove a shipped design decision and is quoted in the README | see 94d. |
+
+**94c. A citation error, propagated.** Props. 81d and 91c both write "Prop. 55
+recorded 22 core properties at `seq 80` in 238 s". **Prop. 55a records 245.1 s.**
+The 238 is Prop. 54a's 237.8 s — measured *before* the deep/core split, a
+different configuration. The withdrawn inference and the account of its
+withdrawal both cite the wrong proposition for their endpoint, and the two
+candidate values differ by 3%.
+
+**94d. The most load-bearing unreproduced number is Prop. 85d's.** Its cheap
+endpoint is corroborated — Prop. 91a re-measured the same step at 154.5 s
+against 153 s. Its expensive endpoint, **241 s, has never been reproduced**: the
+single attempt (Prop. 87c) returned an impossible 0.88× and was discarded
+because the RTL had been regenerated mid-run. So a causal attribution that moved
+properties behind a separate guard, and is quoted verbatim in the README, rests
+on one corroborated sample and one whose only re-measurement was thrown away.
+
+It also fails Prop. 87a's own three rules — paired, yes; **repeated, no;
+witnessed, no**. The text says "measured on an idle machine" with no load
+figure, no range and no input fingerprint. The harness built in Prop. 87 would
+have refused to print it.
+
+**94e. Two ratios are unsound in kind, not merely unprovenanced.** Prop. 83e's
+**"800× the speed"** divides a completion (1.3 s) by an **abort** (18 minutes),
+so the true figure is a lower bound (≥830×) and cannot be a point value.
+Prop. 35a's "the parts sum to under 90 seconds; the whole exceeds 240" compares
+a sum of completions against a *timeout*. Both commit the completion-versus-budget
+confusion that Prop. 34a's own correction note warns about — the campaign
+identified the error and then made it twice in ratios.
+
+**94f. And one unreconciled contradiction.** Prop. 36d records the DMA step at
+**3.6 s**; Prop. 71c records the same step at **~48 s** after the
+one-property-per-invocation split. Nothing in the file reconciles them, and 36d's
+figure is the entire cost side of "deeper verification for about thirteen
+seconds of CI time".
+
+**94g. What is *not* being claimed.** None of these conclusions is asserted to
+be wrong. Prop. 49's decision not to refactor, Prop. 35's split, Prop. 54's
+deep/core guard — all may be entirely correct, and several were confirmed by
+later verdicts that do not depend on seconds. What is established is narrower
+and worse: **their evidence is not re-derivable**, and in five cases an endpoint
+describes a property or configuration that no longer exists. The honest position
+is the one Prop. 91c took — retire the inference, keep the baseline — applied to
+five more cases than Prop. 91 recognised.
+
+**94h. Why this was invisible.** Every one of these numbers is a *fact about a
+run*, and this document's gates check facts about the *tree*. Prop. 74e chose
+that boundary deliberately and for good reason. The consequence, unstated until
+now, is that the single largest category of claim in the campaign's central
+document has no gate at all — and the one instrument that could check them was
+built four waves ago and has been used on two figures out of sixty.
+
+**94i. The harness's own self-test was ambient-state-dependent.** Running the
+full gate suite on a machine loaded by this wave's proof runs, `bench.py
+--self-test` **failed** — not on its guard cases, but on its two *pass* cases.
+The contention threshold defaults to `0.75 × cores`, and the self-test inherited
+it, so "a clean run reports" became a question about how busy the laptop was
+rather than about the harness's logic.
+
+Every case except the contention one now runs with the thresholds explicitly
+disabled; the contention case sets its own so it still fires. A self-test that
+can fail because of what else is running would have flaked in CI and been
+re-run until green, which is the worst possible outcome for a guard — it teaches
+the reader that red means nothing. Fixing the timing harness's provenance
+problem and then giving its self-test an unprovenanced dependency is a small
+joke at this campaign's expense, and it is recorded rather than quietly patched.
+
+---
+
+### Prop. 95 — two gates that were not checking what they claimed — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Every growing register says what bounds it*
+
+The same adversarial sweep that produced Prop. 93 was pointed at the campaign's
+*existing* gates rather than at its newest theorem. It found two defects, one of
+which had been failing CI since Wave 633.
+
+**95a. The liveness probes for one suite were landing in the wrong module.**
+The step *"Module suites are still alive under their assumptions"* injects a
+reachability probe by writing it before `src.rindex("endmodule")` — that is,
+into whichever module happens to be **last in the file**.
+
+`formal/pipeline_stage2_props.sv` contained exactly one module until Wave 633
+appended `ps2_bound` and `ps2_bound_alive`. Since then, all four `ps2_props`
+probes have been injected into `ps2_bound_alive`; `prep -top ps2_props` prunes
+that module as unused, the probe never enters the cone, and the **unprobed**
+suite proves. The step reads `rc == 0` as *"UNREACHABLE — an assumption removed
+it"*, so it has been **failing, with a message naming the wrong cause**, for
+three waves. Reproduced exactly:
+
+| probe | before the fix | after |
+|---|---|---|
+| `valid_in` | `rc=0` → reported UNREACHABLE | reachable |
+| `valid_out` | `rc=0` → reported UNREACHABLE | reachable |
+| `valid_in && first_chunk` | `rc=0` → reported UNREACHABLE | reachable |
+| `valid_in && !first_chunk` | `rc=0` → reported UNREACHABLE | reachable |
+
+The injection now targets the **named** top module and errors if that name is
+absent. Of the six suites in the table only this one has more than one module,
+and the engine probe's file has one — so the blast radius was one suite, but the
+mechanism was general: **a file gaining a module silently redirected another
+module's probes**, and the defect arrived with a wave that was adding coverage.
+
+**95b. `bound_scan` was crediting assertions as design bounds.** It searched the
+whole module text for a comparison against the register. Assertions inside
+`` `ifdef T27_FORMAL `` are module text. So `bitnet_engine_top.chunk_addr` was
+classified `LOCAL — bounded in-module: 12'd0`, on the strength of
+`a_chunk_addr_resets: assert (chunk_addr == 12'd0)`.
+
+An assertion is a claim *about* the design, not a mechanism that constrains it.
+Reading one as a bound inverts the gate's entire purpose — and it did so on
+**three of the four LOCAL verdicts in the whole bundle**. With formal regions
+excluded, `chunk_addr` and `act_wr_word` become FREE and `fv_next_act_addr`
+disappears from the audit altogether, correctly: it is a formal-only tracker,
+not design logic. **One genuine LOCAL bound remains** in the entire emitted
+design, `activation_requant.trit_count`.
+
+**95c. Which surfaced a real unstated contract.** `chunk_addr` advances once per
+`layer_valid` and resets only on `layer_start`, so between layer starts it
+counts `num_neurons × num_chunks`. It drives `weight_bram.rd_addr`, depth
+**4096** — exactly what its 12 bits hold. `num_neurons` is a 16-bit port and
+`num_chunks` an 8-bit one, so their product can reach 16.7M. Nothing in the
+engine, and nothing in the sequencer, prevents the wrap; the contract lives
+entirely in whoever programs the CSRs, and it was written nowhere. Prop. 83's
+shape again, and it had been **masked by an assertion's spelling** for four
+waves.
+
+`act_wr_word` turned out safe for a different reason worth recording: 65535/27 =
+2427 < 4096, so it is bounded **by port width** rather than by contract — a
+margin narrower than it looks, and one that widening `num_neurons` past 17 bits
+would erase.
+
+**95d. What both defects have in common.** Each gate was reading *text that
+looked like the thing it was checking for*. The probe injector matched the last
+`endmodule` rather than the right one; the bound scanner matched a comparison
+without asking whether it was in the design or in a claim about the design.
+Neither failed loudly, and one of them had been red for three waves without the
+message pointing anywhere near the cause.
 
 ---
 

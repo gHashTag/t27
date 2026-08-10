@@ -66,9 +66,48 @@ def strip_comments(text):
     return re.sub(r"//[^\n]*", "", text)
 
 
+def strip_formal(text):
+    """Remove `ifdef T27_FORMAL* regions, nesting-aware.
+
+    Wave 636b (Prop. 95b). This scan looked for comparisons anywhere in the
+    module text, which meant it credited FORMAL ASSERTIONS as design bounds. An
+    assertion is a claim *about* the design, not a mechanism that constrains it,
+    and reading one as a bound inverts the whole point of the gate.
+
+    The cost was not hypothetical: three of the four LOCAL verdicts in the
+    entire bundle came from assertion text. `bitnet_engine_top.chunk_addr` was
+    reported "bounded in-module: 12'd0" on the strength of
+    `a_chunk_addr_resets: assert (chunk_addr == 12'd0)` at line 547, inside
+    `ifdef T27_FORMAL. The design only ever ASSIGNS 12'd0 on reset; nothing in
+    it compares chunk_addr to a limit. It free-runs on layer_valid and wraps at
+    4096 -- exactly the Prop. 83 shape this scan exists to surface, hidden by an
+    assertion's spelling.
+    """
+    out, depth, pos = [], 0, 0
+    for m in re.finditer(r"`(ifdef|ifndef|endif)(?:\s+(\w+))?", text):
+        if depth == 0:
+            out.append(text[pos:m.start()])
+        if m.group(1) in ("ifdef", "ifndef"):
+            if depth > 0:
+                depth += 1
+            elif (m.group(2) or "").startswith("T27_FORMAL"):
+                depth = 1
+        elif m.group(1) == "endif" and depth > 0:
+            depth -= 1
+            if depth == 0:
+                pos = m.end()
+                continue
+        if depth == 0:
+            pos = m.end()
+            out.append(text[m.start():m.end()])
+    if depth == 0:
+        out.append(text[pos:])
+    return "".join(out)
+
+
 def classify(body):
     """name -> (kind, evidence) for every self-incrementing register."""
-    code = strip_comments(body)
+    code = strip_formal(strip_comments(body))
     ports = set(PORT.findall(code))
     out = {}
     for m in DECR.finditer(code):

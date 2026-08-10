@@ -31,7 +31,14 @@
 //       over all 4096 input pairs.
 //
 // The one that earns its place is T4. The others are true of the mathematics
-// and would survive any faithful implementation. T4 is true of THIS
+// and would survive any faithful implementation -- a claim now CHECKED rather
+// than asserted, by `formal/encoding_gate.py`, which permutes the encoding and
+// requires exactly T4 to break. (Wave 636b: that gate initially did not reach
+// the encoding constant declared in THIS file, so `add3_abstract` refuted under
+// a permutation that was not in fact semantics-preserving. The gate now
+// substitutes over both texts; see Prop. 93b.)
+//
+// T4 is true of THIS
 // implementation because `a < b` is an unsigned comparison of the encoding, and
 // 2'b00 < 2'b01 < 2'b10 happens to agree with -1 < 0 < +1. Renumber the
 // encoding -- an ordinary refactor, and one no other property in this repo
@@ -48,6 +55,23 @@
 
 `define TV(t) (((t) == 2'b00) ? -7'sd1 : ((t) == 2'b10) ? 7'sd1 : 7'sd0)
 `define VALID(t) ((t) != 2'b11)
+
+// Lemma F, written ONCE. Wave 636b.
+//
+// `fv_abstract_fa` ASSUMES this of a free adder; `abstract_is_inhabited`
+// ASSERTS it of the real one. They must be the same constraint or the
+// inhabitation guard is checking a different claim than the one the composition
+// proof rests on -- and a hand-copied pair silently drifts. The first version
+// of that guard did hand-copy it, and an injected clause that shrank the
+// abstraction's domain to 5.9% left the guard proving happily, because the
+// clause was in the assume block and not in the guard's assertion.
+//
+// Residual risk, stated rather than hidden: a clause added to fv_abstract_fa's
+// assume block OUTSIDE this macro is still invisible to the guard. The macro
+// makes the honest edit safe; it cannot make a deliberately split one safe.
+`define FA_LEMMA(A, B, CI, S, CO)                                   \
+    (`VALID(S) && `VALID(CO)                                        \
+     && (`TV(S) + 7'sd3 * `TV(CO) == `TV(A) + `TV(B) + `TV(CI)))
 
 // ---- T1: negation ----------------------------------------------------------
 module not_props (input wire [1:0] a);
@@ -299,11 +323,10 @@ module fv_abstract_fa (input wire [1:0] a, input wire [1:0] b,
     assign cout = c_free;
 
     // Lemma F, and nothing else. No case split, no encoding, no structure.
+    // Shared verbatim with abstract_is_inhabited via the macro, so the guard
+    // and the abstraction cannot drift apart.
     always @(*) begin
-        assume (`VALID(s_free));
-        assume (`VALID(c_free));
-        assume (`TV(s_free) + 7'sd3 * `TV(c_free)
-                == `TV(a) + `TV(b) + `TV(cin));
+        assume (`FA_LEMMA(a, b, cin, s_free, c_free));
     end
 endmodule
 
@@ -338,11 +361,49 @@ module add3_abstract (input wire [5:0] a, input wire [5:0] b);
             assert (val3(sum) + 16'sd27 * `TV(cout) == val3(a) + val3(b));
 endmodule
 
-// The abstraction must not be empty. If lemma F admitted no (sum, cout) for
-// some input, every assertion above would hold vacuously and the composition
-// proof would mean nothing. This asserts the abstract adder can never produce a
-// positive carry, which a real F-satisfying adder certainly can -- so it must
-// REFUTE, and a refutation is the evidence that F is satisfiable.
+// The oracle that actually holds. Wave 636b.
+//
+// `abstract_alive` below is NOT sufficient, and was defeated. Adding one clause
+// to fv_abstract_fa's assume block -- forbidding the case where sum and cout are
+// both zero -- makes lemma F unsatisfiable for every stage whose total is 0.
+// The covered input space collapses from 4096 pairs to 242 (5.9%), and yet
+// add3_abstract still PROVES, abstract_alive still REFUTES, and the CI step
+// stays green. The theorem would then cover six percent of its stated domain
+// with every gate passing.
+//
+// The reason is that abstract_alive asks "does F admit SOMETHING, for at least
+// one input, in one unchained instance". The risk is per-input emptiness inside
+// the CHAIN, which it cannot see. That is this campaign's oldest failure shape
+// -- an absence read as a pass -- reappearing in a guard rather than a proof.
+//
+// This one has NO free variables: sum and cout are driven by a real adder, and
+// a property with nothing free cannot hold vacuously. It asserts that
+// trit_full_adder satisfies EXACTLY the conjunction fv_abstract_fa assumes, so
+// if the abstraction is ever strengthened past what a real adder does, this
+// refutes and names the problem.
+//
+// MAINTENANCE: the assertion below must mirror fv_abstract_fa's assume block
+// term for term. That coupling is the price of the guard, and it is why the two
+// sit in the same file.
+module abstract_is_inhabited (input wire [1:0] a, input wire [1:0] b,
+                              input wire [1:0] cin);
+    wire [1:0] sum, cout;
+    trit_full_adder dut (.a(a), .b(b), .cin(cin), .sum(sum), .cout(cout));
+
+    always @(*) begin
+        assume (`VALID(a)); assume (`VALID(b)); assume (`VALID(cin));
+    end
+
+    always @(*)
+        a_concrete_adder_satisfies_the_abstraction:
+            assert (`FA_LEMMA(a, b, cin, sum, cout));
+endmodule
+
+// Kept as the weaker companion: it shows F admits something at all, fails fast
+// and reads clearly. It is no longer the guard the composition proof rests on,
+// for the reason given above. This asserts the abstract adder can never produce
+// a positive carry, which a real F-satisfying adder certainly can -- so it must
+// REFUTE.
 module abstract_alive (input wire [1:0] a, input wire [1:0] b,
                        input wire [1:0] cin);
     wire [1:0] sum, cout;

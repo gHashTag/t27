@@ -178,16 +178,25 @@ def bench(arms, repeat, cwd, quiet_provers=1, quiet_load=None,
 
 
 def self_test():
-    """The guards must fire on the conditions they exist for."""
+    """The guards must fire on the conditions they exist for.
+
+    Every case except the contention one runs with the contention thresholds
+    disabled. A self-test whose verdict depends on how loaded the machine
+    happens to be is not testing its own logic -- and this one failed exactly
+    that way in Wave 636b, rejecting two clean runs because the campaign's own
+    proof runs had pushed the load average past the default threshold. The
+    contention case sets its own threshold explicitly so it still fires.
+    """
     bad = []
     cwd = str(pathlib.Path(__file__).resolve().parent.parent)
 
-    rc, _ = bench([("quick", "python3 -c 'pass'")], 2, cwd)
+    QUIET = dict(quiet_provers=10**6, quiet_load=10**6)
+    rc, _ = bench([("quick", "python3 -c 'pass'")], 2, cwd, **QUIET)
     print(f"  {'ok  ' if rc == 0 else 'FAIL'} a clean run reports (exit {rc})")
     if rc != 0:
         bad.append("a clean quiet run was rejected")
 
-    rc, _ = bench([("boom", "exit 3")], 2, cwd)
+    rc, _ = bench([("boom", "exit 3")], 2, cwd, **QUIET)
     print(f"  {'ok  ' if rc else 'FAIL'} a failing command is not timed "
           f"(exit {rc})")
     if rc == 0:
@@ -196,7 +205,8 @@ def self_test():
     # Two arms that are really the same command: any ratio found is noise, and
     # the harness must refuse to report it rather than dress it up.
     rc, _ = bench([("a", "python3 -c 'import time;time.sleep(0.05)'"),
-                   ("b", "python3 -c 'import time;time.sleep(0.05)'")], 3, cwd)
+                   ("b", "python3 -c 'import time;time.sleep(0.05)'")], 3, cwd,
+                  **QUIET)
     print(f"  {'ok  ' if rc else 'FAIL'} identical arms yield no ratio "
           f"(exit {rc})")
     if rc == 0:
@@ -214,14 +224,15 @@ def self_test():
         t = pathlib.Path(td) / "subject.txt"
         t.write_text("before")
         rc, _ = bench([("edits", f"python3 -c \"open(r'{t}','w').write('after')\"")],
-                      2, td, watch=["*.txt"])
+                      2, td, watch=["*.txt"], **QUIET)
         print(f"  {'ok  ' if rc else 'FAIL'} an input edited mid-run blocks the "
               f"report (exit {rc})")
         if rc == 0:
             bad.append("a run whose inputs changed underneath it was reported")
 
         t.write_text("stable")
-        rc, _ = bench([("stable", "python3 -c 'pass'")], 2, td, watch=["*.txt"])
+        rc, _ = bench([("stable", "python3 -c 'pass'")], 2, td,
+                      watch=["*.txt"], **QUIET)
         print(f"  {'ok  ' if rc == 0 else 'FAIL'} stable inputs still report "
               f"(exit {rc})")
         if rc != 0:

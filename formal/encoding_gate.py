@@ -50,6 +50,12 @@ EXPECTED = {
     "half_adder_props": False,
     "full_adder_props": False,
     "add3_props": False,
+    # Wave 636b. The composition theorem was missing from this table entirely,
+    # so the newest theorem in the campaign sat outside the gate written to
+    # catch exactly its failure mode. Adding it exposed that the permutation was
+    # not reaching the encoding constant declared inside the property file --
+    # see permute(). With that fixed it is encoding-independent like the rest.
+    "add3_abstract": False,
     # Encoding-dependent BY DESIGN: trit_compare compares raw codes with `<`.
     # Prop. 86b. If this ever stops refuting, this table is what must change.
     "cmp_props": True,
@@ -64,13 +70,32 @@ PERM_TV = (r"`define TV\(t\) \(\(\(t\) == 2'b00\) \? -7'sd1 : \(\(t\) == 2'b10\)
 
 
 def permute(rtl_text, props_text):
-    """Apply the permutation to both sides, and report how much it changed."""
+    """Apply the permutation everywhere the encoding is DECLARED.
+
+    Wave 636b: the first version substituted the localparams in the RTL and the
+    value macro in the property file, and nothing else. But a property file may
+    declare the encoding too -- `add3_abstract` needs a zero to drive the first
+    stage's `cin` and writes its own `localparam TRIT_Z = 2'b01`. That
+    declaration sat outside the permutation, so under the "semantics-preserving"
+    relabelling the abstraction kept the old code while the RTL moved, the two
+    genuinely disagreed, and the theorem refuted. It refuted for a real reason --
+    but the reason was an incomplete perturbation, not a defect in the design.
+
+    An incomplete perturbation is not semantics-preserving, and a perturbation
+    that is not semantics-preserving cannot distinguish "this theorem depends on
+    the encoding" from "this experiment is broken". So the substitution now runs
+    over both texts.
+    """
     r, n_rtl = rtl_text, 0
     for pat, rep in PERM_RTL:
         r, k = re.subn(pat, rep, r)
         n_rtl += k
-    p, n_tv = re.subn(PERM_TV[0], PERM_TV[1], props_text)
-    return r, p, n_rtl, n_tv
+    p, n_props = props_text, 0
+    for pat, rep in PERM_RTL:
+        p, k = re.subn(pat, rep, p)
+        n_props += k
+    p, n_tv = re.subn(PERM_TV[0], PERM_TV[1], p)
+    return r, p, n_rtl + n_props, n_tv
 
 
 def prove(rtl, props, top):

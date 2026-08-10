@@ -346,6 +346,19 @@ jobs:
             exit 1
           fi
           echo "ok       the abstract adder is satisfiable (refutes)"
+          # The guard that actually holds. abstract_alive above only shows F
+          # admits SOMETHING for SOME input in an UNCHAINED instance; an
+          # adversarial review defeated it by strengthening F so that 94% of the
+          # input space became unreachable inside the chain, leaving every gate
+          # green. This asserts the real adder satisfies exactly the shared
+          # `FA_LEMMA` the abstraction assumes -- no free variables, so it
+          # cannot hold vacuously. Prop. 93a.
+          yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                    formal/trit_algebra_props.sv; \
+                    prep -top abstract_is_inhabited -flatten; async2sync; \
+                    chformal -lower; \
+                    sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+          echo "ok       lemma F is inhabited for every input (proves)"
           # The composition proof duplicates trit3_add's wiring rather than
           # sharing it, so a rewiring of the real tree would leave the
           # abstraction behind and the proof would keep passing about a circuit
@@ -707,7 +720,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import subprocess, sys
+          import re, subprocess, sys
 
           # The 7th field is extra sources the wrapper needs. dma_props
           # instantiates the AXI4 read-slave model (Prop. 70), and without it
@@ -742,7 +755,23 @@ jobs:
           fail = []
           for dut, props, top, seq, mode, sigs, extra, prep in SUITES:
               src = open(props).read()
-              i = src.rindex("endmodule")
+              # Insert into the NAMED top module, not the last one in the file.
+              # Wave 636b (Prop. 95): this used `src.rindex("endmodule")`, which
+              # targets whichever module happens to be last. Wave 633 appended
+              # ps2_bound and ps2_bound_alive to pipeline_stage2_props.sv, so
+              # all four ps2_props probes began landing in ps2_bound_alive;
+              # `prep -top ps2_props` then pruned that module, the unprobed
+              # suite proved, and rc==0 is read below as "UNREACHABLE". The step
+              # has been failing ever since, and nothing about the message named
+              # the real cause. A file gaining a module must not silently
+              # redirect another module's probes.
+              m = re.search(r"^module\s+" + top + r"\b.*?^endmodule", src,
+                            re.M | re.S)
+              if m is None:
+                  fail.append(f"{top}: no module by that name in {props}")
+                  print(f"::error::{top} not found in {props}")
+                  continue
+              i = m.start() + m.group(0).rindex("endmodule")
               for sig in sigs:
                   open("build/live.sv", "w").write(
                       src[:i] + f"    always @(posedge clk) if (rst_n) w_live: assert (!({sig}));\n" + src[i:])

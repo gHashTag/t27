@@ -32,6 +32,16 @@ import sys
 
 INST = re.compile(r"^\s*(\w+)\s+(\w+)\s*\((.*?)\);", re.M | re.S)
 CONN = re.compile(r"\.(\w+)\s*\(\s*([^)]*?)\s*\)")
+# Wave 636b: resolve localparams before comparing. The first version of this
+# gate compared connection TEXT, and `TRIT_Z` is declared SEPARATELY in each of
+# the two files -- build/rtl/trit_stdlib.sv for the concrete tree and
+# formal/trit_algebra_props.sv for the abstraction. Two independent declarations
+# sharing a name compare equal as strings no matter what they hold, so setting
+# the concrete tree's TRIT_Z to 2'b10 while the abstraction kept 2'b01 left the
+# two circuits genuinely different and this gate reported "0 disagreements".
+# That is the campaign's own "read the declaration, not the use" rule (Wave 632),
+# violated by the gate written to enforce a mirror.
+PARAM = re.compile(r"^\s*localparam\s*(?:\[[^\]]*\]\s*)?(\w+)\s*=\s*([^;]+);", re.M)
 
 
 def body(text, module):
@@ -39,17 +49,36 @@ def body(text, module):
     return m.group(0) if m else None
 
 
+def params(text, module):
+    """localparam name -> literal, from the module and the enclosing file."""
+    b = body(text, module) or ""
+    out = {}
+    for src in (text, b):                    # module scope wins over file scope
+        for name, val in PARAM.findall(re.sub(r"//[^\n]*", "", src)):
+            out[name] = re.sub(r"\s+", "", val)
+    return out
+
+
 def stages(text, module, leaf):
-    """Ordered list of {port: net} for each `leaf` instance inside `module`."""
+    """Ordered list of {port: net} for each `leaf` instance inside `module`.
+
+    Nets that name a localparam are replaced by its VALUE, so two files that
+    both write `.cin(TRIT_Z)` while defining TRIT_Z differently no longer look
+    identical.
+    """
     b = body(text, module)
     if b is None:
         return None
+    consts = params(text, module)
     b = re.sub(r"//[^\n]*", "", b)
     out = []
     for m in INST.finditer(b):
         if m.group(1) != leaf:
             continue
-        conns = {p: re.sub(r"\s+", "", n) for p, n in CONN.findall(m.group(3))}
+        conns = {}
+        for p, n in CONN.findall(m.group(3)):
+            n = re.sub(r"\s+", "", n)
+            conns[p] = f"{consts[n]}" if n in consts else n
         out.append((m.group(2), conns))
     return out
 
@@ -139,6 +168,24 @@ def self_test():
           f"than passing silently (exit {rc})")
     if rc == 0:
         bad.append("a missing concrete module was reported as mirroring")
+
+    # The case this gate got WRONG on its first version, kept as a permanent
+    # regression test: the same identifier holding different values on the two
+    # sides. Wave 636b.
+    shifted = rtl_src.replace("localparam [1:0] TRIT_Z = 2'b01;",
+                              "localparam [1:0] TRIT_Z = 2'b10;")
+    print(f"  {'ok  ' if shifted != rtl_src else 'FAIL'} the constant-shift "
+          "injection landed")
+    if shifted == rtl_src:
+        bad.append("the constant-shift injection changed nothing")
+    else:
+        rc = run(shifted, props_src)
+        print(f"  {'ok  ' if rc else 'FAIL'} the same name holding a different "
+              f"value on each side is caught (exit {rc})")
+        if rc == 0:
+            bad.append("two circuits differing only in a shared constant's "
+                       "VALUE were reported as mirroring -- the gate is "
+                       "comparing uses, not declarations")
 
     for b in bad:
         print(f"::error::mirror_check self-test: {b}")

@@ -2,6 +2,52 @@
 
 Last updated: 2026-08-10
 
+## Wave 636b — the review that found four holes in the wave before it
+
+- **PROP. 92 WAS PUBLISHED, COMMITTED AND PUSHED BEFORE ANYONE REVIEWED IT.** An
+  adversarial audit — instructed to attack rather than confirm — found the
+  theorem sound and **four of the claims built around it false or defeatable**.
+- **THE VACUITY ORACLE WAS DEFEATED** (Prop. 93a): `abstract_alive` only shows
+  lemma F admits *something*, for *some* input, in *one unchained* instance.
+  Strengthening F to forbid `sum=0 ∧ cout=0` collapses the covered space from
+  4096 pairs to **242 (5.9%)** — and `add3_abstract` still proves,
+  `abstract_alive` still refutes, CI stays green. The theorem would cover 6% of
+  its domain with every gate passing. Replaced by `abstract_is_inhabited`, which
+  has **no free variables** and so cannot hold vacuously.
+  - **My first fix didn't work**: it hand-copied the constraint, so the
+    injection left it untouched. Lemma F is now written **once** as a macro,
+    assumed by the abstraction and asserted of the real adder. Now it catches it.
+- **THE NEWEST THEOREM SAT OUTSIDE THE GATE BUILT FOR ITS FAILURE MODE**
+  (Prop. 93b): `add3_abstract` was absent from `encoding_gate`'s table, *and*
+  the permutation never reached the encoding constant declared in the property
+  file — so it refuted under a relabelling that was not actually
+  semantics-preserving. Fixed: 19 substitution sites, and it proves.
+- **`mirror_check` COMPARED USES, NOT DECLARATIONS** (Prop. 93c): `TRIT_Z` is
+  declared *separately* in each file, so the same name holding different values
+  compared equal and the gate reported 0 disagreements while the circuits
+  genuinely differed. "Read the declaration, not the use" — a rule written down
+  in Wave 632, broken by the gate written to enforce a mirror.
+- **THE GENERALITY CLAIM WAS EMPTY** (Prop. 93d): F plus trit-validity
+  determines the adder **uniquely**, so "every module satisfying F at once"
+  describes a **singleton**. The real content is narrower: T5 does not depend on
+  the adder's *internal structure*, only its I/O function.
+- **BARS YOU CHOOSE YOURSELF TEST WHAT YOU THOUGHT OF.** Prop. 92 cleared all
+  three bars I designed and named. Everything wrong with it lay outside them.
+- **EVERY TIMING IN THE FILE, AUDITED** (Prop. 94): ~60 quoted durations,
+  **none guarded**. Prop. 91's parting claim that one withdrawn inference was
+  "the only one" was itself unaudited and **wrong** — at least **five more** live
+  inferences rest on unreproducible seconds, including a 436× spread whose cheap
+  endpoint is a property deleted in Wave 591, a standing recommendation on a
+  premise its own campaign corrected 8× → 1.5×, and the **1.58× that moved code
+  and is quoted in the README**, whose expensive endpoint has never been
+  reproduced. Two ratios divide a completion by a **timeout**. A citation error
+  (238 vs Prop. 55a's actual 245.1) propagated through two propositions.
+- **AND THE HARNESS'S OWN SELF-TEST WAS AMBIENT-STATE-DEPENDENT** (Prop. 94i):
+  it failed on its two *pass* cases on a machine loaded by this wave's own proof
+  runs. A self-test that can fail because of what else is running teaches the
+  reader that red means nothing.
+- **PROPS. 93, 94** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 636 — the composition itself, proved rather than argued
 
 - **THE SENTENCE THAT WAS DOING REAL WORK**: Prop. 89 said T5 "follows from F by
