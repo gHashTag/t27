@@ -4634,6 +4634,65 @@ python3 formal/claims_check.py
 
 ---
 
+### Prop. 75 — properties live in two places, and one module has no file at all — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Numbers in the documentation match the tree*
+
+Prop. 74 left one number unexplained rather than publishing it: the checker
+derived **39** module properties where README claims **43**. Prop. 74c's rule is
+that a mismatch is not a finding until both sides are established. Establishing
+them found something about the repository's structure, not about the count.
+
+**75a. The two sides.**
+
+| in `formal/*.sv` | | in `build/rtl/*.sv` | |
+|---|---|---|---|
+| `interrupt_controller_props` | 6 | **`activation_requant`** | **6 inline** |
+| `axi_lite_slave_props` | 6 | `bitnet_engine_top` | 28 (counted separately) |
+| `dma_controller_props` | 7 | | |
+| `layer_sequencer_props` | 3 | | |
+| `weight_prefetch_props` | 3 | | |
+| `zero_size_props` | 8 | | |
+| `max_size_props` | 4 | | |
+
+25 + 8 + 4 + 6 = **43.** README was right the whole time. The checker was
+counting `formal/` only, and **`activation_requant` has no file in `formal/` at
+all** — its six properties are emitted inline into the RTL, like the engine's.
+A `formal/`-only count silently omits an entire module.
+
+**75b. Two things in `formal/` are not module properties, and the boundary is
+now written down.** `assume_liveness_check.sv` checks the *prover* — that
+`-set-assumes` is in effect — and `axi4_read_slave_model.sv` asserts a
+precondition on the *environment*, not a property of any module. Excluding them
+is a judgement, so it is recorded next to the code rather than left implicit:
+39 = 37 + those two, 43 = 37 + activation_requant's six.
+
+**75c. The orphan scan has the same blind spot, and it is stated not fixed.**
+`orphan_scan.py` (Prop. 70) asks whether every file in `formal/` is run by some
+workflow. It cannot ask that of `activation_requant`'s properties, because there
+is no file — they are inside the emitted RTL, gated by whatever step proves that
+module. That is a real limit of the scan, discovered here, and widening it to
+emitted RTL is a separate piece of work rather than a line added in passing.
+
+**75d. Five claims now gated, up from three.** `module properties` and
+`engine liveness probes` join the set. README did not state the probe count at
+all, so it now does — a number that exists only in a workflow file and nowhere a
+reader would look is one more place for drift to hide.
+
+**75e. What this cost, and why it was worth not skipping.** One wave to resolve
+a four-count discrepancy that turned out to be *no discrepancy at all*. The
+alternative was to "fix" README from 43 to 39 and gate the wrong number — which
+would have been a correct-looking gate enforcing a false claim, the exact shape
+of Props. 73 and 74.
+
+Reproduce:
+
+```bash
+grep -c "a_[a-z0-9_]*: assert" build/rtl/activation_requant.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

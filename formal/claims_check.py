@@ -36,14 +36,28 @@ def derive(root):
     wit = (root / "formal" / "witnesses.sv").read_text()
     found["witnesses"] = len(re.findall(r"^module w_", wit, re.M))
 
-    # Module properties: labelled assertions in the per-module suites. The
-    # environment model's precondition is counted -- it is asserted, gated and
-    # can fail, which is what makes something a property here.
+    # Module properties. The boundary took a wave to establish (Prop. 75) and is
+    # stated here because a count is worthless without it:
+    #
+    #   IN   the five per-module suites, zero_size, max_size, and properties
+    #        emitted INLINE in build/rtl -- activation_requant carries six and
+    #        has no file in formal/ at all, so a formal/-only count silently
+    #        omits a whole module
+    #   OUT  witnesses.sv        -- reachability probes, which must refute
+    #        assume_liveness_check -- checks the prover, not the design
+    #        axi4_read_slave_model -- constrains the ENVIRONMENT; its assertion
+    #                              is a precondition on the master, not a
+    #                              property of a module
+    #        bitnet_engine_top   -- counted separately as integration properties
+    EXCLUDE = {"witnesses.sv", "assume_liveness_check.sv",
+               "axi4_read_slave_model.sv"}
     n = 0
     for f in sorted((root / "formal").glob("*.sv")):
-        if f.name == "witnesses.sv":
-            continue
-        n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", f.read_text()))
+        if f.name not in EXCLUDE:
+            n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", f.read_text()))
+    for f in sorted((root / "build" / "rtl").glob("*.sv")):
+        if f.name != "bitnet_engine_top.sv":
+            n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", f.read_text()))
     found["module properties"] = n
 
     eng = (root / "build" / "rtl" / "bitnet_engine_top.sv")
@@ -91,6 +105,8 @@ CLAIMS = {
     "propositions": r"documentation gate covering all \*\*(\d+) propositions\*\*",
     "witnesses": r"\*\*(\d+) liveness witnesses\*\*",
     "integration properties": r"\*\*(\d+) integration properties\*\*",
+    "module properties": r"\*\*(\d+) properties proved\*\*",
+    "engine liveness probes": r"\*\*(\d+) engine liveness probes\*\*",
 }
 
 

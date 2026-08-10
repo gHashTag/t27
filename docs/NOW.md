@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-10
 
+## Wave 623 — properties live in two places, and one module has no file at all
+
+- **THE UNEXPLAINED NUMBER, EXPLAINED**: Prop. 74 left a mismatch rather than
+  publishing it -- the checker derived **39** module properties where README
+  claims **43**. Prop. 74c's rule is that a mismatch is not a finding until both
+  sides are established. Establishing them found something structural.
+- **README WAS RIGHT THE WHOLE TIME**: 25 (five suites) + 8 zero-size + 4
+  max-size + **6 emitted INLINE in `activation_requant.sv`** = 43. That module
+  has **no file in `formal/` at all**, so a `formal/`-only count silently omits
+  an entire module's properties.
+- **AND TWO THINGS IN `formal/` ARE NOT MODULE PROPERTIES**:
+  `assume_liveness_check.sv` checks the *prover* (that `-set-assumes` is in
+  effect) and `axi4_read_slave_model.sv` asserts a precondition on the
+  *environment*. Excluding them is a judgement, so it is now written next to the
+  code: 39 = 37 + those two; 43 = 37 + activation_requant's six.
+- **THE ORPHAN SCAN HAS THE SAME BLIND SPOT**: it asks whether every file in
+  `formal/` is run by some workflow, and cannot ask that of properties which
+  have no file. Stated as a limit rather than patched in passing -- widening it
+  to emitted RTL is its own piece of work.
+- **FIVE CLAIMS GATED, UP FROM THREE**: `module properties` and `engine liveness
+  probes` join. README did not state the probe count at all, so it now does -- a
+  number that exists only inside a workflow file is one more place for drift.
+- **WHAT IT COST, AND WHY NOT TO SKIP IT**: one wave to resolve a four-count
+  discrepancy that turned out to be **no discrepancy at all**. The alternative
+  was to "fix" README from 43 to 39 and gate the wrong number -- a correct-
+  looking gate enforcing a false claim, which is exactly the shape of Props. 73
+  and 74.
+- **WHERE**: `formal/claims_check.py`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 75),
+  README.
+- **STATE**: 75 propositions · 75 gates · 14 witnesses · 43 module properties ·
+  28 integration properties · 7 engine liveness probes · 1213 tests · 496/496
+  seals · no known defect.
+
 ## Wave 622 — twenty waves auditing the tools; this one audits the prose
 
 - **THE CLASS PROP. 73 EXPOSED IS INVISIBLE TO EVERY GATE BUILT SO FAR**: all of
