@@ -21940,3 +21940,50 @@ class**, a different gap from the one this wave fixed.
 Two specs began parsing, one dependency edge resolved, and the honest summary of
 a corpus-wide parser feature plus a spec repair is **two files moved from one
 failure class to another.** Report the before/after table, not the headline.
+
+## Wave 606 — one missing disjunct, and a string that appears in no source file
+
+**W605's diagnosis was wrong, and tracing the string is what showed it.** W605
+said dataset.t27 was blocked because "the spec uses a module-qualified call
+`eval.has_substring` that splicing cannot satisfy". **That string appears in NO
+SPEC FILE.** The compiler synthesises it: the source says
+`eval::has_substring(...)`, use_resolve is supposed to rewrite that to the bare
+name, and codegen lowers any surviving `::` to `.`. One grep replaced a wrong
+architectural story with a one-line fix.
+
+**The rewrite had one missing disjunct:**
+
+    .filter(|(_, name)| pulled_names.contains(name))                          // before
+    .filter(|(_, name)| pulled_names.contains(name) || local.contains(name))  // after
+
+dataset.t27 declares its OWN `has_substring` -- its header says "inline copies
+of eval.t27 templates to avoid circular imports" -- and the fixpoint skips local
+names by design, so it never entered `pulled_names`. **Three other qualified
+refs in the same file, whose declarations WERE pulled, rewrote correctly.** When
+a rule works for some sites and not others *in the same file*, the predicate is
+incomplete, not the design.
+
+**The population was counted three times before being believed:**
+
+    1538  mod.fn() anywhere        -- 1381 of them Zig's testing.expect
+      29  mod.fn() where imported  -- missed the `::` spelling entirely
+     616  mod::fn()                -- of which 187 are imported modules
+
+The other 429 are TYPE-qualified (`TernaryWeight::from`, `HybridBigInt::...`)
+and must NOT be rewritten. **Fourth consecutive wave where the first count was
+wrong and the check caught it.**
+
+**Two brace defects in arch.t27, found in sequence:** a missing `}` at 666, and
+then -- only visible once that was fixed -- a STRAY `}` at 2352 where brace
+depth goes negative. Compute the running depth over the whole file rather than
+trusting the first error location.
+
+**IGLA CODER, start of wave -> end:**
+
+    parse failures     4 -> 1   (only weights.t27)
+    compile failures   6 -> 9
+    parse-complete   397 -> 400 of 608
+    MEASURABLE SPECS   0 -> 0
+
+prm moved off `BeamCandidate` -- the arch dependency resolved. **No CODER spec
+produces a test binary yet, and that remains the headline.**

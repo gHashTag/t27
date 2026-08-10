@@ -982,6 +982,12 @@ unchanged at 397/608 — this fixed a value, not a parse.
 
 ---
 
+> **CORRECTED IN W606.** The before/after table below is right. The *diagnosis*
+> of `dataset` is not: the string `eval.has_substring` appears in **no spec
+> file** — the compiler synthesises it from `eval::has_substring`, and
+> `use_resolve`'s rewrite had one missing disjunct. The blocker was narrower and
+> fixable, not the W589 class. See **P22**.
+
 ### P21 (W605) — Slice syntax, a reserved word, and what "unblocks three specs" actually bought
 
 **Two defects, measured before either was fixed.**
@@ -1039,6 +1045,75 @@ failure class to another.*
 *Falsification condition:* a slice site the parser still rejects, a `[7:0]`
 string that the parser now misreads as a slice, or a CODER spec whose blocker
 does not match the table above.
+
+---
+
+### P22 (W606) — One missing disjunct, and the string that appears in no source file
+
+**W605's diagnosis was wrong, and tracing the string is what showed it.**
+
+W605 reported `dataset.t27` blocked because it "uses a module-qualified call
+`eval.has_substring` that splicing cannot satisfy". **That string appears in no
+spec file.** The compiler synthesises it: the source says
+`eval::has_substring(...)`, `use_resolve` is *supposed* to rewrite that to the
+bare name, and codegen lowers any surviving `::` to `.`.
+
+**The rewrite had one missing disjunct:**
+
+```rust
+.filter(|(_, name)| pulled_names.contains(name))          // before
+.filter(|(_, name)| pulled_names.contains(name) || local.contains(name))  // after
+```
+
+`dataset.t27` declares its **own** `has_substring` — its header says *"inline
+copies of eval.t27 templates to avoid circular imports"* — and the fixpoint
+skips local names by design, so the name never entered `pulled_names` and the
+rewrite never fired. **Three other qualified references in the same file, whose
+declarations were pulled, rewrote correctly.** One file, two outcomes, one
+missing disjunct.
+
+Rewriting to the bare name is safe *precisely because* the fixpoint skips
+locals: a local name is never also pulled, so the bare spelling has exactly one
+definition to bind to.
+
+**The population was counted three times before being believed.**
+
+| Count | What it actually measured |
+|---:|---|
+| 1538 | `mod.fn()` anywhere — **1381 of them Zig's `testing.expect`** |
+| 29 | `mod.fn()` where the file imports `mod` — missed the `::` spelling entirely |
+| **616** | `mod::fn()`, of which **187** are imported modules |
+
+The remaining 429 are **type**-qualified (`TernaryWeight::from`,
+`HybridBigInt::…`, `Vec::…`) and must *not* be rewritten. Fourth consecutive
+wave in which the first count was wrong and the check caught it.
+
+### Two brace defects in `arch.t27`, found in sequence
+
+```
+line  666   `rag_retrieve_architecture` has NO CLOSING BRACE
+line 2352   a stray `}` closes nothing -- brace depth goes negative
+```
+
+The second was invisible until the first was fixed. Both are the W569 class,
+and the parser reports them as errors rather than truncating silently **because
+W569 and W577 made it do so** — the same instrument, three years of waves later,
+diagnosing a file it was not built for.
+
+### IGLA CODER, start of wave to end of wave
+
+| | start | end |
+|---|---:|---:|
+| parse failures | 4 | **1** (only `weights.t27`) |
+| compile failures | 6 | 9 |
+| `parse-complete` | 397 | **400** of 608 |
+| **measurable specs** | **0** | **0** |
+
+`prm` moved off `BeamCandidate` — the `arch` dependency resolved. **No CODER
+spec produces a test binary yet**, and that remains the headline.
+
+*Falsification condition:* a qualified reference the rewrite still misses, or a
+type-qualified call it wrongly rewrites.
 
 ---
 

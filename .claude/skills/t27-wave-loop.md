@@ -4669,6 +4669,24 @@ These cost a wave each. Follow them before step 1.
      (`eval.has_substring`), which splicing cannot satisfy. Report the four-row
      before/after table, not the headline.
 
+117. **If a symbol is failing, grep the SOURCE for it before theorising.**
+     W605 explained dataset.t27's blocker as "the spec uses a module-qualified
+     call". The string `eval.has_substring` appears in NO spec file -- the
+     compiler synthesises it from `eval::has_substring`. One grep would have
+     replaced a wrong architectural story with a one-line fix.
+
+118. **A filter with one missing disjunct produces two outcomes in one file.**
+     use_resolve rewrote qualified refs only for PULLED names. dataset.t27
+     declares its own `has_substring` (so the fixpoint skips it as local) and
+     also imports one -- three qualified refs in that file rewrote correctly and
+     two did not. **When a rule works for some sites and not others IN THE SAME
+     FILE, the predicate is incomplete, not the design.**
+
+119. **Fixing one brace defect can reveal a second.** arch.t27 was missing a
+     closing `}` at 666; with that fixed, a STRAY `}` at 2352 surfaced. Compute
+     the running brace depth over the whole file rather than trusting the first
+     error location.
+
 ### How to update this tracker
 
 After closing a wave:
