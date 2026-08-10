@@ -22281,3 +22281,36 @@ imports added; the fourth (`backend`) is a genuine cycle, because eval imports
 backend -- a consequence of my own W608 change.
 
 IGLA 1111 -> 1093; undeclared 505 -> 484.
+
+## Wave 615 — one generation of tests carries 61% of the failures at 18% of the volume
+
+**Re-deriving the distribution redirected the wave a fourth time.** W614
+recommended the unwritten tail. Measured: 484 undeclared errors, but 341 were
+already classified as decisions, leaving **143 across 61 names -- 2.3 each**.
+Meanwhile `expected type X, found Y` had grown to **221 from just 12 distinct
+pairs**, two of which dominate:
+
+    92  expected 'i8', found 'TernaryWeight'   <- the ternary_mac decision (entry 1)
+    84  expected '[]f32', found 'comptime_float'
+
+The second is `sgd_update`, declared `(weights: []f32, grads: []f32, lr: f32)`
+and called with SCALARS in 82 places against 10 vector sites. **Unlike
+bram_weights_depth, the declaration backs the minority.**
+
+**Then the real finding, and the trap I nearly fell into.** Four contradictions
+(`sgd_update`, `bits_to_u64`, `bram_weights_depth`, `param_bounds_saturate`) all
+sat in `_wNNN`-suffixed tests. **But I found them by reading errors, so that
+enrichment is guaranteed by construction and proves nothing.**
+
+The unbiased test: attribute EVERY generated compile error to its enclosing
+generated `test "..."` block, across every IGLA spec.
+
+    _wNNN tests   1610 (18%)   537 errors (61%)   0.334 per test
+    other tests   7488 (82%)   337 errors (39%)   0.045 per test
+    ENRICHMENT                                    7.4x
+
+**These are not four independent defects -- they are ONE EVENT**: a generation
+of tests written against a mental model the declarations do not share. That
+turns several register questions into one: which model is canonical?
+
+Recorded as P30; register entries 14 and 15.

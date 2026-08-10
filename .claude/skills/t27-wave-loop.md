@@ -4826,6 +4826,26 @@ These cost a wave each. Follow them before step 1.
      `decode([66,67,68]) == "ABC"`. Two greps confirmed both lines and ASCII
      makes the second "BCD". Cheap to check, and the whole finding rests on it.
 
+143. **Re-derive the error DISTRIBUTION each wave; do not assume last wave's
+     dominant class still dominates.** After W614, `use of undeclared identifier`
+     was still the largest bucket at 484 -- but 341 of those were already
+     classified as decisions, leaving 143 across 61 names (2.3 each). The
+     `expected type` class had grown to 221 from just 12 distinct pairs. The
+     actionable target had moved.
+
+144. **When you notice a pattern in cases you FOUND BY LOOKING AT FAILURES, the
+     enrichment is guaranteed by construction.** Four contradictions all sat in
+     `_wNNN`-suffixed tests -- but they were found by reading errors, so that
+     proves nothing. Attributing EVERY error in the corpus to its enclosing test
+     gave the unbiased number: 0.334 errors per `_wNNN` test against 0.045
+     otherwise, **7.4x**, with 18% of tests carrying 61% of the failures.
+
+145. **Several register entries can share one root cause.** `sgd_update`,
+     `bits_to_u64`, `bram_weights_depth` and `param_bounds_saturate` are not four
+     independent defects; they are one generation of tests written against a
+     model their declarations do not share. Say so -- it turns four questions
+     into one.
+
 ### How to update this tracker
 
 After closing a wave:

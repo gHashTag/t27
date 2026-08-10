@@ -1,6 +1,6 @@
 # Decision register — what only a maintainer can settle
 
-**Date:** 2026-08-10 · **Waves:** W568–W614 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
+**Date:** 2026-08-10 · **Waves:** W568–W615 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
@@ -227,6 +227,46 @@ usage contradicts `tokenize`'s declaration cannot establish that `encode`
 aliases it.
 
 **Question:** what is `encode`? It cannot be settled before `decode` is.
+
+---
+
+## 14. `sgd_update` — 82 scalar call sites against a vector declaration
+
+| | |
+|---|---:|
+| Declaration | `fn sgd_update(weights: []f32, grads: []f32, lr: f32) -> []f32` |
+| Call sites matching it (**vector**) | **10** |
+| Call sites passing **scalars** | **82** |
+| Compile errors caused | **84** |
+
+```t27
+test sgd_update_math_correct                 test training_zero_lr_no_change_w294
+    given w = [1.0, 2.0, 3.0]                    given w = 1.0
+    given g = [0.5, 1.0, 0.0]                    given grad = 1.0
+    when out = sgd_update(w, g, lr)              when new_w = sgd_update(w, grad, lr)
+```
+
+**Unlike entry 2, the declaration backs the minority.** 90 of the 105 call sites
+sit inside `_wNNN`-suffixed tests — the generation P30 shows is 7.4× more
+error-dense than the rest.
+
+**Question:** is `sgd_update` the vector update (and 82 tests are wrong), or a
+scalar update (and the declaration plus 10 tests are wrong)?
+
+---
+
+## 15. `bits_to_u64` — bool literals against a `[]u1` declaration
+
+`fn bits_to_u64(bits: []u1) -> u64` is called both ways in one file:
+
+```t27
+bits_to_u64([1]) == 1              // matches the declaration
+given bits = [true]                // _w304 family — bools
+```
+
+12 compile errors. Same generation, same shape as entry 14.
+
+**Question:** are the bit vectors `[]u1` or `[]bool`?
 
 ---
 

@@ -1546,6 +1546,53 @@ resolver change is not warranted), and **24** are four other specs calling
 
 ---
 
+### P30 (W615) — One generation of tests carries 61% of the failures at 18% of the volume
+
+**Measured across every IGLA spec, not a selected sample.** Each generated
+compile error was attributed to the enclosing generated `test "..."` block, and
+tests were split by whether their name carries a `_wNNN` wave suffix:
+
+| | tests | errors in them | errors per test |
+|---|---:|---:|---:|
+| `_wNNN`-suffixed | **1 610** (18 %) | **537** (61 %) | **0.334** |
+| every other test | 7 488 (82 %) | 337 (39 %) | **0.045** |
+| | | | **7.4× enrichment** |
+
+The selection-bias trap was explicit and avoided: the four contradictions found
+by hand were *found by looking at errors*, so their enrichment is guaranteed by
+construction. **The table above attributes every error in the corpus**, and the
+ratio survives.
+
+### What the enrichment is made of
+
+The hand-found cases all have the same shape — a later wave block calling a
+function in a way its **own declaration** forbids:
+
+| Function | declaration | the `_wNNN` family calls it | split |
+|---|---|---|---|
+| `sgd_update` | `(weights: []f32, grads: []f32, lr: f32)` | with **scalars** — `w = 1.0` | **82 scalar vs 10 vector** |
+| `bits_to_u64` | `(bits: []u1)` | with **bools** — `[true]` | `[1]` vs `[true]` |
+| `bram_weights_depth` | — | 54 of 54 sites inside `_wNNN` | 24 `len` vs 6 `len/2` |
+| `param_bounds_saturate` | — | 58 of 64 sites inside `_wNNN` | test-name family split |
+
+> **These are not four independent defects. They are one event**: a generation
+> of tests written against a mental model the declarations do not share. That
+> reframes several decision-register entries as instances of a single question —
+> *which model is canonical?*
+
+### Consequence for the register
+
+`sgd_update` alone is **84 compile errors**, and unlike `bram_weights_depth`
+(where 24 of 30 points suggested a reading) the **declaration backs the
+minority** here: 10 vector sites plus the signature against 82 scalar sites.
+Recorded as entry 14.
+
+*Falsification condition:* an attribution error in the line→test mapping, or an
+error class whose enrichment reverses when measured per spec rather than per
+test.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
