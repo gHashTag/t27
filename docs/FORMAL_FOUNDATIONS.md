@@ -4749,6 +4749,61 @@ grep -c "^module " build/rtl/trit_stdlib.sv
 
 ---
 
+### Prop. 77 — the ping-pong finally has properties of its own — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove double_buffer_ctrl properties*
+
+Prop. 76's most interesting row: `double_buffer_ctrl` is 33 lines, implements the
+ping-pong, produced the campaign's longest-running defect — three changes across
+eight waves (Props. 33, 46b, 47) — and had **never had a property of its own**.
+Every one of those fixes was made at the engine level, where the symptom was
+observable, and nobody went back to constrain what produced it.
+
+**77a. Four properties, all proving.**
+
+| property | what it pins |
+|---|---|
+| `a_toggles_on_layer_done` | the buffers alternate, and on the layer boundary |
+| `a_stable_without_layer_done` | *nothing else* moves the phase — the half a fix for the first can break |
+| `a_reset_reads_a` | layer 0 reads A; the engine's selects assume this polarity |
+| `a_addresses_agree` | read and write index the same slot, in different buffers |
+
+**77b. It catches the harness's own mutation at module level.** The weekly
+harness carries *"double buffer stops alternating"* as a hand-written mutant, and
+until now only the **engine** gate caught it. `db_props` refutes it directly —
+which is the difference between "some integration property noticed something" and
+"the ping-pong is wrong".
+
+**77c. `-set-init-zero` makes a reset property refute on the real design.** The
+guard `rst_n && !$past(rst_n)` reads as "the cycle after reset released". Under
+`-set-init-zero` every register starts at 0, so at time zero `$past(rst_n)` is 0
+whether or not a reset ever happened, and the guard fires on an artifact of the
+initialisation convention. The fix is a register that is 0 only at time zero:
+
+```bash
+grep -n "fv_started" formal/double_buffer_props.sv
+```
+
+**77d. And that artifact nearly produced a fabricated result.** With
+`a_reset_reads_a` refuting, the *whole suite* refuted on the unmutated design —
+so every mutant also refuted, and the first bite measurement read **4 of 4
+detected**. The honest figure is **2 of 4**; the two misses are mutations of an
+unused lint-suppression wire, which no property should catch.
+
+**A detection measurement is meaningless unless the suite proves on the real
+design first**, and the harness now refuses to run without that baseline. This is
+Prop. 28's baseline gate, rediscovered from the other side: that one exists so a
+*probe* verdict means something, and this is the same requirement for a *bite*
+verdict.
+
+**77e. Adding a suite is four edits, not one.** The prove step, the
+assumption-liveness probes, `phantom_scan`'s suite list, and the property count
+in README. Miss the third and the new suite is exempt from the gate that catches
+properties referencing signals which do not exist; miss the fourth and
+`claims_check` fails — which it did, immediately.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -194,6 +194,28 @@ jobs:
           sys.exit(1 if fail else 0)
           PY
 
+      # Wave 625. This module had no properties of its own until now (Prop. 76):
+      # 33 lines implementing the ping-pong, the subsystem behind the campaign's
+      # longest-running defect -- three changes across eight waves (Props. 33,
+      # 46b, 47), every one diagnosed and fixed at the ENGINE level because that
+      # is where the symptom showed. Prop. 77.
+      - name: Prove double_buffer_ctrl properties
+        run: |
+          set -euo pipefail
+          n=$(yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
+                        formal/double_buffer_props.sv; \
+                        prep -top db_props -flatten; stat" \
+                | grep -oE '[0-9]+ +\$check' | awk '{print $1}' | tail -1)
+          echo "db check cells: ${n:-0}"
+          if [ "${n:-0}" -lt 4 ]; then
+            echo "::error::Expected >=4 \$check cells for db_props, found ${n:-0}."
+            exit 1
+          fi
+          yosys -p "read_verilog -sv -formal build/rtl/double_buffer_ctrl.sv \
+                    formal/double_buffer_props.sv; \
+                    prep -top db_props -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 20 -set-init-zero -set-assumes"
+
       - name: Prove layer_sequencer properties
         run: |
           yosys -p "read_verilog -sv -formal build/rtl/layer_sequencer.sv \
@@ -565,6 +587,7 @@ jobs:
               # quietly, exactly as the wp_props probes do for its environment.
               ("dma_controller",       "formal/dma_controller_props.sv",       "dma_props", 20, "-set-init-zero", ["local_we", "done", "arvalid && arready", "rvalid && rready", "rlast"], "formal/axi4_read_slave_model.sv"),
               ("layer_sequencer",      "formal/layer_sequencer_props.sv",      "ls_props",  20, "-set-init-zero", ["valid", "done"], ""),
+              ("double_buffer_ctrl",   "formal/double_buffer_props.sv",        "db_props",  20, "-set-init-zero", ["layer_done", "use_buffer_a", "!use_buffer_a"], ""),
               # The last two probe the AXI read-slave environment added in Wave
               # 612 (Prop. 63). An assumption that removes a handshake would
               # make a_writes_within_addresses prove by making the design idle,

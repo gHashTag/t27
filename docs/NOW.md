@@ -2,6 +2,44 @@
 
 Last updated: 2026-08-10
 
+## Wave 625 — the ping-pong finally has properties of its own
+
+- **PROP. 76's MOST INTERESTING ROW, ACTED ON**: `double_buffer_ctrl` is 33
+  lines, implements the ping-pong, produced the campaign's longest-running defect
+  -- three changes across eight waves (Props. 33, 46b, 47) -- and had **never had
+  a property of its own**. Every fix was made at the engine level, where the
+  symptom showed, and nobody went back to constrain what produced it.
+- **FOUR PROPERTIES, ALL PROVING**: the buffers alternate; they alternate *only*
+  on the layer boundary (the half a fix for the first can break); layer 0 reads
+  A; read and write index the same slot.
+- **IT CATCHES THE HARNESS'S OWN MUTATION AT MODULE LEVEL**: the weekly harness
+  carries "double buffer stops alternating", and until now only the **engine**
+  gate caught it. That is the difference between "some integration property
+  noticed something" and "the ping-pong is wrong".
+- **`-set-init-zero` MAKES A RESET PROPERTY REFUTE ON THE REAL DESIGN**: the
+  guard `rst_n && !$past(rst_n)` reads as "the cycle after reset released", but
+  every register starts at 0, so at time zero `$past(rst_n)` is 0 whether or not
+  a reset happened. Fixed with a register that is 0 only at time zero.
+- **AND THAT ARTIFACT NEARLY PRODUCED A FABRICATED RESULT**: with that property
+  refuting, the whole suite refuted on the unmutated design, so **every mutant
+  also refuted** and the first bite measurement read *4 of 4 detected*. The
+  honest figure is **2 of 4** -- the two misses are mutations of an unused
+  lint-suppression wire, which no property should catch. *A detection
+  measurement is meaningless unless the suite proves on the real design first*,
+  and the harness now refuses to run without that baseline. Prop. 28's baseline
+  gate, rediscovered from the other side.
+- **ADDING A SUITE IS FOUR EDITS, NOT ONE**: prove step, assumption-liveness
+  probes, `phantom_scan`'s suite list, and the property count in README. Miss the
+  third and the new suite is exempt from the gate that catches phantom signals;
+  miss the fourth and `claims_check` fails -- which it did, immediately.
+- **COVERAGE MOVES**: 8 direct -> **9 direct**, 8 indirect -> 7.
+- **WHERE**: `formal/double_buffer_props.sv`, `formal/phantom_scan.py`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 77),
+  README.
+- **STATE**: 77 propositions · 77 gates · 14 witnesses · 47 module properties
+  across 7 modules · 28 integration properties · 1213 tests · 496/496 seals ·
+  no known defect.
+
 ## Wave 624 — twenty-three modules, and six that nothing reaches
 
 - **THE FOUR-TIMES-DEFERRED QUESTION, ANSWERED**: Prop. 75c named the limit --
