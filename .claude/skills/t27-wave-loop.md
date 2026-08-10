@@ -4706,6 +4706,24 @@ These cost a wave each. Follow them before step 1.
      Match the CONSTRUCTION SITE's field shape, then check the import direction
      for circularity before adding a `use`.
 
+123. **A missing-import diagnosis is incomplete until you check whether the
+     TARGET PARSES.** `substring_match` was declared in igla::race::backend and
+     called in eval.t27 with no import -- but adding the import alone would have
+     done nothing, because use_resolve only splices from dependencies that
+     parse, and backend.t27 did not. Fix the parse, THEN add the import. Third
+     instance of this shape (arch->prm, eval->prm, backend->eval).
+
+124. **Reserved words used as bindings are a recurring class, not a one-off.**
+     W605 found `var` (2 sites). W608 found `module` (3 sites, 2 files) -- and
+     fixing it made backend.t27 parse for the first time. When a parse error
+     points at an `=` in a `given`/`let`/`when`, check the identifier against
+     the keyword list before reading further.
+
+125. **Do not quote a site count as though it were a win count.** The `_`
+     discard fix touches 31 sites in 5 specs -- and all five fail at PARSE, so
+     it improves nothing measurable today. The fix is correct and will matter
+     later; reporting "31 sites" without that sentence would overstate it.
+
 ### How to update this tracker
 
 After closing a wave:
