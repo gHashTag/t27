@@ -2,6 +2,30 @@
 
 Last updated: 2026-08-11
 
+## Wave 641b — a quarter of the gate citations named steps that did not exist
+
+- **THE RULE THIS FILE IS BUILT ON** is that every proposition names the CI step
+  keeping it true. `doc_gate` enforced it as *"is a `**Gate:**` line present?"* —
+  it **never opened `.github/`**.
+- **33 OF 106 NAMED A STEP NO WORKFLOW DEFINES**, verified independently: 16 cited
+  a step `git log -S` shows was removed two waves earlier; 7 cited a name that
+  had been reworded; 2 more likewise; one cited the pre-split *core 22*.
+- **AND ONE WAS `doc_gate`'S OWN PROPOSITION** — the proposition asserting that
+  every proposition names a real gate named a gate that was not real, and the
+  gate enforcing it could not tell. 25 lines repointed.
+- **THE CHECK NOW RESOLVES** every italicised step name against the `- name:`
+  entries of all workflows, printing *"106/106 named steps exist, 8 in a format
+  this check cannot resolve"* so the remainder is visible rather than absorbed.
+- **ADDING A SHAPE-3 CHECK COMMITTED A SHAPE-7 DEFECT, TWICE**: it read
+  `**prove**` out of a *bold* span, then treated parentheticals and ellipses as
+  step names — both **over-detection**, the shape named one proposition earlier.
+  Writing a check for one failure mode is an excellent way to commit its
+  opposite.
+- **AND A THIRD, IN THE GUARD ON THE GUARD**: the "would pass on nothing" guard
+  resolved workflows relative to the *document*, so the self-test's temp copy
+  found none and correctly failed its own unmutated case.
+- **PROP. 107** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 641 — the taxonomy was falsified, as designed
 
 - **PROP. 103b STAKED A PREDICTION**: a further audit finds only shapes 1–5, and

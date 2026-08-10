@@ -567,7 +567,7 @@ itself.**
 
 ### Proposition 13 — two zero-count non-terminations, in a family where two siblings guard
 
-**Gate:** `formal-yosys.yml` → *Prove layer_sequencer properties* and *Zero-sized requests complete without pretending*
+**Gate:** `formal-yosys.yml` → *Prove layer_sequencer properties* and *Prove zero-size properties*
 
 `PROVED`. Fourth and fifth modules checked, fifth and sixth real defects. Both
 are the same shape, and the shape is now a pattern worth naming.
@@ -615,7 +615,7 @@ in this campaign, now six of six, had a passing unit test holding it in place.
 
 ### Proposition 14 — the first multi-module proof, and a property that did not bite
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. Every property in Props. 7–13 is **module-scoped**, because until the
 datapath was wired there was no system behaviour to state a property about
@@ -673,7 +673,7 @@ wrapper would need.
 
 ### Proposition 15 — the layer boundary exists, and `2'b11` is now unreachable
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. Step 2 of `BITNET_V2_POSITION.md` §4. The bundle had **no module at
 the layer boundary at all**: `pipeline_stage2_compute` emitted `signed [15:0]`,
@@ -728,7 +728,7 @@ which is a strong hint it is asserting the wrong thing.**
 
 ### Proposition 16 — the loop closes, and a controller whose decision nobody read
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. Step 3: the requantizer's packed word now feeds back as the next
 layer's activations, so the engine can actually iterate.
@@ -776,7 +776,7 @@ possible once there is a seam.
 
 ### Proposition 17 — the host path is wired, and one property is left open on purpose
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `MEASURED`. `weight_prefetch_ctrl` and `interrupt_controller` are now
 instantiated: **10 instances, 8 of 10 modules**, and the tie-offs
@@ -819,7 +819,7 @@ this campaign, and every RTL defect found had one.**
 
 ### Proposition 18 — the open anomaly of Prop. 17, closed: a stale flag and a missing handshake
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. Prop. 17 recorded a reproduced but uncharacterised refutation:
 prefetch could write the weight BRAM while the MAC was reading it, despite
@@ -878,7 +878,7 @@ taken.
 
 ### Proposition 19 — the host aperture is wired; config is CSRs, not ports
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. `axi_lite_slave` was the **last emitted module never instantiated**:
 verified in isolation — its lost-write-response defect was found and fixed in
@@ -920,7 +920,7 @@ because the interesting claim moved.
 
 ### Proposition 20 — every emitted block is wired; one interlock is open
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `MEASURED`. `dma_controller` was the last standalone module. With it
 instantiated the count reaches **10 of 10, 12 instances** — every emitted block
@@ -969,7 +969,7 @@ proxies applies to design signals as much as to gates.**
 
 ### Proposition 21 — `busy` becomes a state; the interlock is narrowed twice and still open
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `MEASURED`. Two real fixes landed against the open property of Prop. 20, and
 **neither was sufficient** — which is the finding.
@@ -1017,7 +1017,7 @@ the contract, exactly like `dma_burst_length_is_max` and
 
 ### Proposition 22 — why no top-level gate can close this, and where the fix belongs
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `MEASURED`. Three successive narrowings landed against one property, each real
 and each insufficient. The fourth attempt produced the diagnosis instead:
@@ -1068,7 +1068,7 @@ question than the one being asked.**
 
 ### Proposition 23 — the interlock closes: export quiescence, then restore the term you dropped
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 `PROVED`. Prop. 22 diagnosed that no top-level gate could close
 `!(dma_local_we && mac_valid_q)` because quiescence lived inside
@@ -1158,7 +1158,7 @@ build rather than quietly greening it.
 
 ### Prop. 25 — the first properties that span two layers — `PROVED` (25b **closed** in Wave 582, see Prop. 33)
 
-**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)* and *Baseline - unprobed design must prove*
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation* and *Baseline - unprobed design must prove*
 
 Every property up to Prop. 24 held **inside one module or inside one layer**.
 The double-buffer scheme, though, only means anything across a layer boundary:
@@ -1268,7 +1268,7 @@ yosys -p "read_verilog -sv -formal -DFORMAL -DFORMAL_OPEN build/rtl/*.sv; \
 
 ### Prop. 26 — the zero-sized-request sweep: a 2–2 policy split, and a retraction — `MEASURED` / `PROVED`
 
-**Gate:** `formal-yosys.yml` → *Zero-sized requests complete without pretending*
+**Gate:** `formal-yosys.yml` → *Prove zero-size properties*
 
 Three waves found one defect shape one module at a time, reactively: zero
 neurons (Prop. 9), zero words (Prop. 10), and a claimed zero bytes (Prop. 25c).
@@ -1360,7 +1360,7 @@ yosys -p "read_verilog -sv -formal build/rtl/dma_controller.sv formal/zero_size_
 
 ### Prop. 27 — the document recording these proofs was itself unchecked evidence — `MEASURED`
 
-**Gate:** `formal-yosys.yml` → *Every proposition names its gate, every block runs*
+**Gate:** `formal-yosys.yml` → *Every proposition carries the gate that keeps it true*
 
 Twenty-six propositions rest on the implicit claim that their reproduction blocks
 work. Prop. 26a found one claim written from a comment rather than a run, which
@@ -1603,7 +1603,7 @@ python3 /tmp/ms.py 2>/dev/null || echo "extract the harness from formal-yosys.ym
 
 ### Prop. 30 — the write-pairing shape, enumerated across every port — `PROVED` / open
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties* and *Oversized requests do not wrap the local address*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)* and *Oversized requests do not wrap the local address*
 
 Prop. 29d found a data/enable/address trio registered together with the address
 advanced, so word *N* landed at address *N+1* and slot 0 was never written. It
@@ -1803,7 +1803,7 @@ python3 formal/trace_reader.py build/d4.json local_we local_addr fv_next
 
 ### Prop. 33 — the last open defect closes: the interlock was the right idea in the wrong shape — `PROVED`
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *No property is gated as an expected refutation*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*, *No property is gated as an expected refutation*
 
 Prop. 25b stood open for eight waves: with nothing requiring a DMA first, the
 MAC could consume an activation buffer nothing had written. Wave 574 tried three
@@ -2240,7 +2240,7 @@ grep -c "53:0\|54'" bootstrap/src/*.rs   # the width, site by site
 
 ### Prop. 39 — the read side, and the baseline that never existed — `PROVED` / `MEASURED` / open
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*, *No property is gated as an expected refutation*
 
 Every property through Prop. 38 constrained **writes**. This adds the mirror —
 and in doing so uncovered that the campaign's own baseline check has never done
@@ -2312,7 +2312,7 @@ grep -c "ifdef T27_FORMAL" bootstrap/src/bitnet_top.rs
 
 ### Prop. 40 — a self-comparison cannot detect an undefined value, and the false baseline hid nothing — `MEASURED`
 
-**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*, *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*, *No property is gated as an expected refutation*
 
 Two follow-ups to Prop. 39: diagnose the open refutation, and re-check what
 fifteen waves of a mis-specified baseline had been hiding.
@@ -2500,7 +2500,7 @@ python3 formal/identity_scan.py
 
 ### Prop. 43 — attributed: the engine reads a slot it never wrote — `MEASURED`
 
-**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation*
 
 Prop. 39e refutes, and two waves failed to say why. Wave 589's trace read was
 inconclusive; Wave 590's discriminator was a self-comparison, which cannot fail
@@ -2567,7 +2567,7 @@ grep -n "a_read_slot_written" build/rtl/bitnet_engine_top.sv
 
 ### Prop. 44 — a start-time count cannot enforce a per-cycle claim — `MEASURED`
 
-**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation*
 
 Prop. 43 attributed the last open defect to the engine: the MAC consumes an
 activation slot nothing wrote. The fix it implied — count the slots, refuse a
@@ -2617,7 +2617,7 @@ grep -n "COUNT version was attempted" build/rtl/bitnet_engine_top.sv
 
 ### Prop. 45 — ~~the last defect is a zero-neuron read~~ **a changing neuron count** — `MEASURED` (45a reframed in Prop. 46a)
 
-**Gate:** `formal-yosys.yml` → *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation*
 
 Six waves have circled this defect. Prop. 43 attributed it to the engine;
 Prop. 44 eliminated the start-time-count fix. This locates it exactly.
@@ -2676,7 +2676,7 @@ python3 -c "print('assume (neurons_per_layer != 0) turns Prop. 39e from REFUTED 
 
 ### Prop. 46 — the configuration was read live by a running sequencer — `PROVED` / open
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *Prop. 39e is still open (must refute)*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*, *No property is gated as an expected refutation*
 
 **46a. Prop. 45 asked the wrong question and got a true answer.** It found that
 `assume (neurons_per_layer != 0)` turns the refutation into a proof, and
@@ -2736,7 +2736,7 @@ grep -n "neurons_q <= neurons_per_layer" build/rtl/bitnet_engine_top.sv
 
 ### Prop. 47 — closed: the fill extent now travels with the buffer — `PROVED`
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*, *No property is gated as an expected refutation*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*, *No property is gated as an expected refutation*
 
 The engine's last open defect is closed. It stood open for **eight waves**, and
 the fix was not one change but **three, each necessary and none sufficient**.
@@ -2806,7 +2806,7 @@ grep -c "ifdef T27_FORMAL_OPEN" build/rtl/bitnet_engine_top.sv   # must be 0
 
 ### Prop. 48 — the read-side zero sweep finds nothing, and the properties bite — `PROVED`
 
-**Gate:** `formal-yosys.yml` → *Prove bitnet_engine_top integration properties*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
 
 Zero-sized inputs were swept exhaustively on the **write** side in Prop. 26 and
 produced four defects. The **read** side was asked once, in Prop. 45, and
@@ -3237,7 +3237,7 @@ grep -c "fv_" build/rtl/bitnet_engine_top.sv    # the formal-only tracking state
 
 ### Prop. 55 — the split lands: the ceiling is back at 80 with nothing dropped — `PROVED`
 
-**Gate:** `formal-yosys.yml` → *Prove integration properties (core 22, deep bound)* and *(all 26, tracker-backed included)*
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)* and *(all 26, tracker-backed included)*
 
 Prop. 54 measured the case and failed twice to implement it. This lands it.
 
@@ -3397,7 +3397,7 @@ grep -c "^module w_" formal/witnesses.sv    # 14 witnesses
 
 ### Prop. 58 — two verdict classifiers were lying, in opposite directions — `FIXED`
 
-**Gate:** `formal-yosys.yml` → *Properties are non-vacuous*; `formal-mutation.yml` → *Baseline, control, and mutation*
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous (witnesses must refute)*; `formal-mutation.yml` → *Baseline, control, and mutation*
 
 Prop. 39d established that **a tool error is not a verdict**. This wave found
 two places that had never adopted it, and one of them was caught only because a
@@ -6648,6 +6648,51 @@ Stating the boundary *before* looking, then having it broken in the first round,
 is the only part of this that was ever evidence. The corrected table now carries
 the same obligation: if an eighth shape appears, **this** proposition is what to
 correct.
+
+---
+
+### Prop. 107 — a quarter of the gate citations named steps that did not exist — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Every proposition carries the gate that keeps it true*
+
+The rule this file is built on is that every proposition names the CI step that
+keeps it true. `doc_gate` enforced it as: **is a `**Gate:**` line present?** It
+never opened `.github/`.
+
+**107a. 33 of 106 named a step no workflow defines.** Independently verified by
+extracting every `- name:` from every workflow and resolving each citation
+against it. The clusters:
+
+| count | cited step | reality |
+|---|---|---|
+| 16 | *Prove bitnet_engine_top integration properties* | removed two waves earlier; `git log -S` dates it |
+| 7 | *Prop. 39e is still open (must refute)* | the step is *No property is gated as an expected refutation* |
+| 2 | *Zero-sized requests complete without pretending* | the step is *Prove zero-size properties* |
+| 1 | *Prove integration properties (core 22, deep bound)* | pre-split name; it is core **24** |
+| 1 | *Every proposition names its gate, every block runs* | **doc_gate's own proposition**, citing a step that does not exist |
+
+Twenty-five lines repointed. The last one is the sharpest: the proposition
+asserting that every proposition names a real gate named a gate that was not
+real, and the gate enforcing it could not tell.
+
+**107b. The check now resolves.** Every `**Gate:**` line's italicised step name
+is matched against the set of `- name:` entries across all workflows, and an
+unresolvable name fails the build. The count is printed — *"106/106 named steps
+exist, 8 in a format this check cannot resolve"* — so the unresolvable
+remainder is visible rather than absorbed, per Prop. 101.
+
+**107c. Adding a shape-3 check committed a shape-7 defect, twice.** The first
+version read `**prove**` out of a *bold* span and reported a correct line as
+citing a nonexistent step; the second treated parentheticals, `none.` and
+ellipses as step names. Both are over-detection — failing a correct artifact —
+the shape named one proposition earlier in Prop. 106b. Writing a check for one
+failure mode is an excellent way to commit its opposite.
+
+**107d. And a third, in the guard on the guard.** The "resolution check would
+pass on nothing" guard resolved workflows relative to the *document*, so the
+self-test — which copies the doc to a temp directory — found no workflows and
+correctly failed its own unmutated case. Anchored to the gate file instead. The
+guard was right; its notion of "where the repository is" was not.
 
 ---
 

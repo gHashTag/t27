@@ -86,6 +86,56 @@ def check(path):
         fail.append(f"{path}:{st+1}: unclosed code fence")
 
     gates = sum(1 for l in lines if l.startswith("**Gate:**"))
+
+    # Resolve every Gate: line against a real workflow step. Wave 641b: this
+    # gate checked only that the LINE WAS PRESENT and never opened .github/ --
+    # so the campaign's central discipline, "every proposition carries the gate
+    # that keeps it true", was enforced as "every proposition carries a line".
+    # An audit found 33 of 106 citing steps that do not exist, including 16
+    # naming a step git log shows was removed two waves earlier, and one of them
+    # was THIS proposition's own. 25 were repointed; the rest use a format this
+    # check cannot resolve and are counted rather than failed.
+    steps = set()
+    # Anchored to THIS FILE, not to the document's location. The self-test
+    # copies the doc to a temp dir, and resolving relative to the doc found no
+    # workflows there -- which correctly tripped the "resolution check would
+    # pass on nothing" guard and incorrectly failed the unmutated case.
+    wfdir = pathlib.Path(__file__).resolve().parent.parent / ".github" / "workflows"
+    for wf in sorted(wfdir.glob("*.yml")) if wfdir.is_dir() else []:
+        for m in re.finditer(r"^\s*-\s*name:\s*(.+?)\s*$", wf.read_text(), re.M):
+            steps.add(m.group(1).strip().strip('"').strip("'"))
+    if not steps:
+        fail.append(f"{path}: no workflow step names found under {wfdir} -- "
+                    "the Gate: resolution check would pass on nothing")
+    named = unresolved = unparsed = 0
+    for n, l in enumerate(lines, 1):
+        if not l.startswith("**Gate:**"):
+            continue
+        # Strip BOLD before extracting italics: `**prove**` is not a step
+        # name, and reading its inner text as one made a correct line fail --
+        # shape 7, committed while adding a check for shape 3.
+        body = re.sub(r"\*\*[^*]+\*\*", "", l.replace("**Gate:**", ""))
+        hits = [x.strip() for x in re.findall(r"\*([^*]+)\*", body)
+                if x.strip()]
+        # An italic segment is only a step NAME if it looks like one. A
+        # parenthetical qualifier, an explicit "none.", or an ellipsis standing
+        # for several steps are all legitimate prose, and treating them as
+        # citations would be shape 7 -- failing a correct artifact.
+        hits = [h for h in hits
+                if not h.startswith("(") and h.rstrip(".") != "none"
+                and "…" not in h and "..." not in h]
+        if not hits:
+            unparsed += 1
+            continue
+        named += 1
+        missing = [h for h in hits if h not in steps]
+        if missing:
+            unresolved += 1
+            fail.append(f"{path}:{n}: Gate names *{missing[0][:56]}*, which is "
+                        "not a step in any workflow -- the proposition claims a "
+                        "gate that does not exist")
+    print(f"  gate lines resolved: {named - unresolved}/{named} named steps "
+          f"exist, {unparsed} in a format this check cannot resolve")
     if props == 0:
         fail.append(f"{path}: no propositions found -- the heading convention "
                     "changed and this gate is checking nothing")
