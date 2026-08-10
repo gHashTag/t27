@@ -314,7 +314,7 @@ jobs:
         run: |
           set -euo pipefail
           for top in not_props and_props or_props lattice_props mul_props \
-                     cmp_props add3_props; do
+                     cmp_props half_adder_props full_adder_props add3_props; do
             yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                       formal/trit_algebra_props.sv; \
                       prep -top ${top} -flatten; async2sync; chformal -lower; \
@@ -850,6 +850,18 @@ jobs:
                     prep -top dma_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes"
           echo "ok       bytes_remaining is sane wherever beats_owed reads it"
+
+      # Wave 635. Prop. 86c tested one theorem by breaking it and found a
+      # second defect nobody predicted. That experiment is now a standing gate,
+      # checked in BOTH directions: no theorem may newly break under a permuted
+      # encoding, and the one that is encoding-dependent by design must still
+      # break -- a gate asserting only "nothing broke" passes when its own
+      # perturbation has become a no-op. Prop. 90.
+      - name: Permuting the trit encoding breaks exactly the right theorems
+        run: |
+          set -euo pipefail
+          python3 formal/encoding_gate.py --self-test
+          python3 formal/encoding_gate.py
 
       - name: Benchmark harness self-test
         run: |

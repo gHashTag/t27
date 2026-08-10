@@ -5558,6 +5558,144 @@ depth on the same wrapper.
 
 ---
 
+### Prop. 89 — the lemmas T5 is made of, and a specification that caught itself — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove the trit algebra (exhaustive)*
+
+Prop. 86's T5 proves `trit3_add`'s equation directly over all 4096 input pairs.
+That is a fact about the assembled tree and says nothing about *where* a failure
+would be. Two lemmas now sit under it, both exhaustive:
+
+> **H (half adder).** `val(sum) + 3·val(carry) = val(a) + val(b)`
+>
+> **F (full adder).** `val(sum) + 3·val(cout) = val(a) + val(b) + val(cin)`
+
+T5 follows from F by the positional argument — three full adders chained by
+carry, the k-th weighted 3ᵏ, telescoping to the 27s place. That derivation is
+mathematics rather than something this flow performs, so T5 remains
+independently machine-checked. What the lemmas buy is **localisation**: if T5
+ever refutes while H and F prove, the arithmetic is right and the wiring is
+wrong; if F refutes, the carry rule is wrong. A flat exhaustive proof of the
+tree distinguishes neither case.
+
+**89a. F is the non-obvious one.** Its carry is `sign(carry1 + carry2)` from two
+chained half adders, which is exact only because those two carries can never be
+simultaneously non-zero with the same sign — so their sum never leaves
+{−1,0,+1} and the "sign" is in fact the exact sum. That is a claim about
+reachable states of an internal pair: cheap to get wrong, free to check
+exhaustively.
+
+**89b. The first thing this lemma caught was itself.** F's third assertion was
+first written as a rounding formula, `(x+1 − (x+1) % 3) / 3`, and it **refuted**.
+The adder is correct; the *specification* was not. Verilog's `%` takes the sign
+of its dividend, so for a total of −3 the formula yields 0 where the carry is
+−1. Isolating the assertion confirmed the design proves without it.
+
+It was replaced by two statements that are correct and say something
+conservation does not: the carry is non-zero **exactly** when the total leaves
+{−1,0,+1}, and it takes the total's sign. The discarded version was also
+redundant — conservation plus trit-validity already determines `cout` uniquely —
+so it was both wrong and unnecessary, and only the wrongness surfaced it.
+
+A refuting property is not evidence of a defect until you have checked which of
+the design and the property is wrong. This campaign has now recorded that in
+both directions: Prop. 80 found real RTL defects this way, and here the RTL was
+innocent.
+
+---
+
+### Prop. 90 — the encoding permutation becomes a standing gate — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Permuting the trit encoding breaks exactly the right theorems*
+
+Prop. 86c tested one claim by breaking it and found a defect nobody predicted.
+An experiment with that hit rate should not be run once. `formal/encoding_gate.py`
+permutes the trit encoding — swapping the codes for −1 and 0, in both the RTL
+localparams and the property file's value macro — and checks the resulting split
+against a declared table.
+
+**90a. Two-sided, and the second side is the one that would rot.**
+
+- **No new breaks.** A theorem that survives today must survive the permutation.
+  A new failure means some primitive has acquired a hidden dependency on the
+  literal encoding — the Wave 634 defect recurring.
+- **No lost breaks.** `cmp_props` must *still* refute. It is encoding-dependent
+  by design, and if it stops, either the comparison was rewritten (fine, but the
+  table is stale) or **the permutation stopped permuting** — and a gate that
+  asserts only "nothing broke" passes when its own perturbation has become a
+  no-op. That is this campaign's oldest failure shape (Props. 58–60), and it is
+  the reason the expected-refutation entry exists rather than being exempted.
+
+**90b. Result.** 9 theorems permuted, 18 localparam sites and the value macro
+rewritten, 0 disagreements: the eight encoding-independent theorems prove and
+`cmp_props` refutes. Four self-test cases, including **re-injecting the exact
+Wave 634 defect** — `trit_full_adder` comparing against literals — and confirming
+it is caught.
+
+**90c. Why permute both sides.** Permuting only the RTL would break every
+theorem trivially and prove nothing about any of them; permuting only the macro
+likewise. The perturbation has to be *semantics-preserving* for the result to
+mean anything, which is what makes a surviving theorem evidence of
+encoding-independence rather than of a broken experiment.
+
+---
+
+### Prop. 91 — the scale ceiling, re-measured, and a conclusion withdrawn — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Benchmark harness self-test*
+
+Prop. 87 built a harness because Prop. 85f published a timing that was wrong.
+The obvious next question is what *else* rests on timings taken the same way.
+The answer is the campaign's scale-ceiling argument.
+
+**91a. The provenanced baseline.** Both arms alternating in one invocation,
+2 runs each, **0 competing provers**, load 5.1 on 8 cores, and the input
+fingerprint **identical before and after** the run:
+
+| engine step | median s | observed range |
+|---|---|---|
+| all 28 at `seq 40` | **154.5** | [150.0, 159.0] |
+| core 24 at `seq 80` | **309.9** | [307.5, 312.2] |
+
+Ranges disjoint, ratio 2.01×. This is the first performance figure in this
+document that carries the conditions it was measured under.
+
+**91b. Both published numbers were high.** Prop. 81a recorded **183 s** and
+**422 s** for these same two steps. The clean re-runs are **154.5 s** and
+**309.9 s** — 16% and **27%** lower. Nothing about the design changed to explain
+that; the earlier figures were single samples on an undescribed machine.
+
+**91c. And that withdraws Prop. 81d's conclusion.** It read: *"Prop. 55 recorded
+22 core properties at `seq 80` in 238 s, and the same bound now costs 422 s for
+24. The ceiling has not moved but the headroom under it has narrowed."*
+
+That inference needs both endpoints. The 422 s endpoint is now known to be
+27% high. The 238 s endpoint **cannot be re-measured at all** — it described a
+configuration of 22 properties that no longer exists, and it too was a single
+unprovenanced sample. With the defensible figure, 238 → 310 for two additional
+properties is a far weaker statement than 238 → 422, and it is built on one
+number nobody can reproduce.
+
+**The narrowing claim is therefore withdrawn**, not restated with a smaller
+coefficient. It was an inference from two measurements, one of which was wrong
+and the other unreproducible. What remains is a baseline: 309.9 s at `seq 80`
+for the current 24, measured on a described machine, which a future wave can
+actually compare against.
+
+**91d. What this says about the other timings in this document.** Props. 34, 55
+and 81a all quote seconds recorded the same way. They are left as dated records
+rather than deleted — that is this file's convention — but **no argument should
+rest on them**, and Prop. 81d was the only one that did. Any future performance
+claim goes through `formal/bench.py` or is not made.
+
+**91e. The instrument reported what it was supposed to.** `inputs: 28 files,
+8d5d7d0c62edf664 → 8d5d7d0c62edf664` — the fingerprint that Prop. 87c added
+after a mid-run regeneration silently corrupted the harness's first real
+measurement. It is printed on every run precisely so that a reader can see the
+guard held rather than assume it.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

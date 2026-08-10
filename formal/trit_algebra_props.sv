@@ -197,6 +197,77 @@ module add3_props (input wire [5:0] a, input wire [5:0] b);
                 && `VALID(cout));
 endmodule
 
+// ---- Lemmas H and F: the adders T5 is built from ---------------------------
+//
+// Wave 635. T5 proves trit3_add's equation directly over all 4096 pairs, which
+// is a fact about the assembled tree and says nothing about where a failure
+// would be. These are the two lemmas it is composed of:
+//
+//   H  val(sum) + 3*val(carry) = val(a) + val(b)                 (half adder)
+//   F  val(sum) + 3*val(cout)  = val(a) + val(b) + val(cin)      (full adder)
+//
+// T5 follows from F by the positional argument: three full adders chained with
+// carries, the k-th weighted 3^k, telescopes to the 27s place. That derivation
+// is mathematics, not something this flow performs -- T5 remains independently
+// machine-checked. What the lemmas buy is LOCALISATION. If T5 ever refutes
+// while H and F still prove, the arithmetic is right and the wiring is wrong;
+// if F refutes, the carry rule is wrong. A flat exhaustive proof of the tree
+// distinguishes neither case.
+//
+// F is also the non-obvious one. Its carry is `sign(carry1 + carry2)` from two
+// chained half adders, which is correct only because those two carries can
+// never be simultaneously non-zero with the same sign -- so their sum never
+// leaves {-1,0,+1} and the "sign" is in fact the exact sum. That is an argument
+// about reachable states of an internal pair, and it is the kind of reasoning
+// that is cheap to get wrong and free to check exhaustively.
+module half_adder_props (input wire [1:0] a, input wire [1:0] b);
+    wire [1:0] sum, carry;
+    trit_half_adder dut (.a(a), .b(b), .sum(sum), .carry(carry));
+
+    always @(*) begin assume (`VALID(a)); assume (`VALID(b)); end
+
+    always @(*)
+        a_half_adder_conserves_value:
+            assert (`TV(sum) + 7'sd3 * `TV(carry) == `TV(a) + `TV(b));
+
+    always @(*) a_half_adder_emits_valid:
+        assert (`VALID(sum) && `VALID(carry));
+endmodule
+
+module full_adder_props (input wire [1:0] a, input wire [1:0] b,
+                         input wire [1:0] cin);
+    wire [1:0] sum, cout;
+    trit_full_adder dut (.a(a), .b(b), .cin(cin), .sum(sum), .cout(cout));
+
+    always @(*) begin
+        assume (`VALID(a)); assume (`VALID(b)); assume (`VALID(cin));
+    end
+
+    always @(*)
+        a_full_adder_conserves_value:
+            assert (`TV(sum) + 7'sd3 * `TV(cout)
+                    == `TV(a) + `TV(b) + `TV(cin));
+
+    always @(*) a_full_adder_emits_valid:
+        assert (`VALID(sum) && `VALID(cout));
+
+    // WHEN the carry fires, which conservation alone does not pin down in a
+    // readable way. The carry is non-zero exactly when the total leaves
+    // {-1,0,+1}, and it takes the total's sign. A first draft of this stated
+    // the same idea as a rounding formula, `(x+1 - (x+1) % 3) / 3`, and that
+    // REFUTED -- not because the adder is wrong but because Verilog's `%`
+    // takes the sign of its dividend, so the formula is wrong for negative
+    // totals. The design was fine; the specification was not. It is worth
+    // recording that the first thing this lemma caught was itself.
+    always @(*) a_full_adder_carry_fires_exactly_on_overflow:
+        assert ((`TV(cout) != 7'sd0)
+                == ((`TV(a) + `TV(b) + `TV(cin) > 7'sd1)
+                    || (`TV(a) + `TV(b) + `TV(cin) < -7'sd1)));
+
+    always @(*) a_full_adder_carry_takes_the_sign:
+        assert ((`TV(cout) > 7'sd0) == (`TV(a) + `TV(b) + `TV(cin) > 7'sd1));
+endmodule
+
 // ---- non-vacuity -----------------------------------------------------------
 //
 // Every wrapper above assumes its inputs are valid trits. An assumption

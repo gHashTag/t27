@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-10
 
+## Wave 635 — lemmas, a standing experiment, and a conclusion withdrawn
+
+- **LEMMAS UNDER T5** (Prop. 89): `val(sum) + 3·val(carry) = val(a) + val(b)`
+  for the half adder, and its three-input analogue for the full adder. Both
+  exhaustive. T5 stays independently checked, but a future failure now
+  **localises** — if the tree's equation breaks while both lemmas hold, the
+  arithmetic is right and the wiring is wrong.
+- **THE LEMMA'S FIRST CATCH WAS ITSELF**: the full adder's carry assertion was
+  first written as a rounding formula and **refuted**. Verilog's `%` takes the
+  sign of its dividend, so it gives 0 where the carry is −1. The adder was
+  correct; the specification was not. Isolating the assertion proved the design
+  clean. A refuting property is not evidence of a defect until you know which of
+  the two is wrong — Prop. 80 was the other direction of the same lesson.
+- **THE ENCODING PERMUTATION IS NOW A GATE** (Prop. 90), checked **both ways**:
+  no theorem may newly break, *and* `cmp_props` must still refute. A gate
+  asserting only "nothing broke" passes the moment its own perturbation becomes
+  a no-op — Props. 58–60's shape. 9 theorems, 18 localparam sites, 0
+  disagreements; self-test re-injects the exact Wave 634 defect and catches it.
+- **THE SCALE CEILING, RE-MEASURED WITH PROVENANCE** (Prop. 91): all 28 at
+  `seq 40` = **154.5 s** [150.0, 159.0]; core 24 at `seq 80` = **309.9 s**
+  [307.5, 312.2]. Zero competing provers, load 5.1/8 cores, input fingerprint
+  unchanged across the run, ranges disjoint.
+- **AND A CONCLUSION WITHDRAWN**: Prop. 81a published 183 s and 422 s for those
+  same steps — 16% and **27% high**. Prop. 81d had inferred narrowing headroom
+  from 238 s → 422 s; the 422 endpoint is wrong and the 238 endpoint describes a
+  22-property configuration that no longer exists and cannot be re-measured.
+  **The narrowing claim is retired, not restated with a smaller coefficient.**
+  No argument now rests on an unprovenanced timing.
+- **MY OWN EDIT BROKE A CLAIM PATTERN, AND THE WAVE-631 GUARD CAUGHT IT**: a
+  scripted README update moved the `**` emphasis markers so two claims-check
+  patterns matched nothing. UNMET fired; without it they would have read clean.
+- **PROPS. 89, 90, 91** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 634 — the six unreached primitives were an algebra all along
 
 - **THE FIVE-WAVE QUESTION, ANSWERED A THIRD WAY**: Prop. 76's six UNREACHED
