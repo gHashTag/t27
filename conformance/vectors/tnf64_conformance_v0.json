@@ -1,262 +1,48 @@
 {
- "schema": "t27-conformance/v0.1",
- "format": "TNF64",
- "ssot": "specs/numeric/tnf64.t27",
- "anchor_identity": "phi^2 + 1/phi^2 = 3",
- "anchor_check": {
-  "value": 3.0,
-  "expected": 3.0,
-  "ieee754_exact": true
- },
- "exp_trits": 7,
- "mant_bits": 56,
- "exp_offset": 1093,
- "offset_max": 2186,
- "width_rule": "1 + 7 + 56 = 64",
- "note": "probes are exactly representable in both the rung and f64 (powers of two and 1.5*2^e within range), so every abs_error is exactly zero by construction",
- "n_vectors": 22,
- "vectors": [
-  {
-   "name": "pos_zero",
-   "input_f64": 0.0,
-   "input_f64_hex": "0x0000000000000000",
-   "tnf64_bits_int": 0,
-   "tnf64_bits_hex": "0x0",
-   "decoded_f64": 0.0,
-   "decoded_f64_hex": "0x0000000000000000",
-   "abs_error": 0.0,
-   "category": "zero"
+  "schema": "t27-conformance/v0.1",
+  "format": "TNF64",
+  "format_name": "TNF64",
+  "bitexact": true,
+  "format_notes": "GoldenFloat phi-aligned radix-2 float S1E7M56, bias 1093. IEEE-style specials at top exponent",
+  "catalog": {
+    "id": "tnf64",
+    "bits": 64,
+    "s": 1,
+    "e": 7,
+    "m": 56,
+    "bias": 1093,
+    "storage": "u64",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; e is 7 balanced-ternary TRITS not bits (11.09 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 7479 LUT 48.2 MHz, no DSP, 1 cycle",
+    "use_case": "fixed-field ternary-exponent ladder; no regime codec",
+    "gf_relation": "self",
+    "source": "specs/numeric/tnf64.t27",
+    "phi_distance": 0.42
   },
-  {
-   "name": "pow2_-1000",
-   "input_f64": 9.332636185032189e-302,
-   "input_f64_hex": "0x0170000000000000",
-   "tnf64_bits_int": 6701356245527298048,
-   "tnf64_bits_hex": "0x5d00000000000000",
-   "decoded_f64": 9.332636185032189e-302,
-   "decoded_f64_hex": "0x0170000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "anchor_check": {
+    "value": null,
+    "expected": 3.0,
+    "ieee754_exact": false,
+    "note": "3.0 is not an exact grid point of this format at this width"
   },
-  {
-   "name": "neg_pow2_-1000",
-   "input_f64": -9.332636185032189e-302,
-   "input_f64_hex": "0x8170000000000000",
-   "tnf64_bits_int": 301849261424880123904,
-   "tnf64_bits_hex": "0x105d00000000000000",
-   "decoded_f64": -9.332636185032189e-302,
-   "decoded_f64_hex": "0x8170000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e-1000",
-   "input_f64": 1.3998954277548283e-301,
-   "input_f64_hex": "0x0178000000000000",
-   "tnf64_bits_int": 6737385042546262016,
-   "tnf64_bits_hex": "0x5d80000000000000",
-   "decoded_f64": 1.3998954277548283e-301,
-   "decoded_f64_hex": "0x0178000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_-500",
-   "input_f64": 3.054936363499605e-151,
-   "input_f64_hex": "0x20b0000000000000",
-   "tnf64_bits_int": 42730153264491266048,
-   "tnf64_bits_hex": "0x25100000000000000",
-   "decoded_f64": 3.054936363499605e-151,
-   "decoded_f64_hex": "0x20b0000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "neg_pow2_-500",
-   "input_f64": -3.054936363499605e-151,
-   "input_f64_hex": "0xa0b0000000000000",
-   "tnf64_bits_int": 337878058443844091904,
-   "tnf64_bits_hex": "0x125100000000000000",
-   "decoded_f64": -3.054936363499605e-151,
-   "decoded_f64_hex": "0xa0b0000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e-500",
-   "input_f64": 4.582404545249407e-151,
-   "input_f64_hex": "0x20b8000000000000",
-   "tnf64_bits_int": 42766182061510230016,
-   "tnf64_bits_hex": "0x25180000000000000",
-   "decoded_f64": 4.582404545249407e-151,
-   "decoded_f64_hex": "0x20b8000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_-1",
-   "input_f64": 0.5,
-   "input_f64_hex": "0x3fe0000000000000",
-   "tnf64_bits_int": 78686892689417306112,
-   "tnf64_bits_hex": "0x44400000000000000",
-   "decoded_f64": 0.5,
-   "decoded_f64_hex": "0x3fe0000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "neg_pow2_-1",
-   "input_f64": -0.5,
-   "input_f64_hex": "0xbfe0000000000000",
-   "tnf64_bits_int": 373834797868770131968,
-   "tnf64_bits_hex": "0x144400000000000000",
-   "decoded_f64": -0.5,
-   "decoded_f64_hex": "0xbfe0000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e-1",
-   "input_f64": 0.75,
-   "input_f64_hex": "0x3fe8000000000000",
-   "tnf64_bits_int": 78722921486436270080,
-   "tnf64_bits_hex": "0x44480000000000000",
-   "decoded_f64": 0.75,
-   "decoded_f64_hex": "0x3fe8000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_0",
-   "input_f64": 1.0,
-   "input_f64_hex": "0x3ff0000000000000",
-   "tnf64_bits_int": 78758950283455234048,
-   "tnf64_bits_hex": "0x44500000000000000",
-   "decoded_f64": 1.0,
-   "decoded_f64_hex": "0x3ff0000000000000",
-   "abs_error": 0.0,
-   "category": "unity"
-  },
-  {
-   "name": "neg_pow2_0",
-   "input_f64": -1.0,
-   "input_f64_hex": "0xbff0000000000000",
-   "tnf64_bits_int": 373906855462808059904,
-   "tnf64_bits_hex": "0x144500000000000000",
-   "decoded_f64": -1.0,
-   "decoded_f64_hex": "0xbff0000000000000",
-   "abs_error": 0.0,
-   "category": "unity"
-  },
-  {
-   "name": "onehalf_2e0",
-   "input_f64": 1.5,
-   "input_f64_hex": "0x3ff8000000000000",
-   "tnf64_bits_int": 78794979080474198016,
-   "tnf64_bits_hex": "0x44580000000000000",
-   "decoded_f64": 1.5,
-   "decoded_f64_hex": "0x3ff8000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_1",
-   "input_f64": 2.0,
-   "input_f64_hex": "0x4000000000000000",
-   "tnf64_bits_int": 78831007877493161984,
-   "tnf64_bits_hex": "0x44600000000000000",
-   "decoded_f64": 2.0,
-   "decoded_f64_hex": "0x4000000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "neg_pow2_1",
-   "input_f64": -2.0,
-   "input_f64_hex": "0xc000000000000000",
-   "tnf64_bits_int": 373978913056845987840,
-   "tnf64_bits_hex": "0x144600000000000000",
-   "decoded_f64": -2.0,
-   "decoded_f64_hex": "0xc000000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e1",
-   "input_f64": 3.0,
-   "input_f64_hex": "0x4008000000000000",
-   "tnf64_bits_int": 78867036674512125952,
-   "tnf64_bits_hex": "0x44680000000000000",
-   "decoded_f64": 3.0,
-   "decoded_f64_hex": "0x4008000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_500",
-   "input_f64": 3.273390607896142e+150,
-   "input_f64_hex": "0x5f30000000000000",
-   "tnf64_bits_int": 114787747302419202048,
-   "tnf64_bits_hex": "0x63900000000000000",
-   "decoded_f64": 3.273390607896142e+150,
-   "decoded_f64_hex": "0x5f30000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "neg_pow2_500",
-   "input_f64": -3.273390607896142e+150,
-   "input_f64_hex": "0xdf30000000000000",
-   "tnf64_bits_int": 409935652481772027904,
-   "tnf64_bits_hex": "0x163900000000000000",
-   "decoded_f64": -3.273390607896142e+150,
-   "decoded_f64_hex": "0xdf30000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e500",
-   "input_f64": 4.910085911844213e+150,
-   "input_f64_hex": "0x5f38000000000000",
-   "tnf64_bits_int": 114823776099438166016,
-   "tnf64_bits_hex": "0x63980000000000000",
-   "decoded_f64": 4.910085911844213e+150,
-   "decoded_f64_hex": "0x5f38000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "pow2_1000",
-   "input_f64": 1.0715086071862673e+301,
-   "input_f64_hex": "0x7e70000000000000",
-   "tnf64_bits_int": 150816544321383170048,
-   "tnf64_bits_hex": "0x82d00000000000000",
-   "decoded_f64": 1.0715086071862673e+301,
-   "decoded_f64_hex": "0x7e70000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "neg_pow2_1000",
-   "input_f64": -1.0715086071862673e+301,
-   "input_f64_hex": "0xfe70000000000000",
-   "tnf64_bits_int": 445964449500735995904,
-   "tnf64_bits_hex": "0x182d00000000000000",
-   "decoded_f64": -1.0715086071862673e+301,
-   "decoded_f64_hex": "0xfe70000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  },
-  {
-   "name": "onehalf_2e1000",
-   "input_f64": 1.607262910779401e+301,
-   "input_f64_hex": "0x7e78000000000000",
-   "tnf64_bits_int": 150852573118402134016,
-   "tnf64_bits_hex": "0x82d80000000000000",
-   "decoded_f64": 1.607262910779401e+301,
-   "decoded_f64_hex": "0x7e78000000000000",
-   "abs_error": 0.0,
-   "category": "normal"
-  }
- ]
+  "round_trip_policy": "decode: exact bits->f64 (curated_named). encode (reference): round-nearest-ties-even; overflow per format convention. abs_error 0 for representable values.",
+  "vector_mode": "curated_named",
+  "n_vectors": 1,
+  "vectors": [
+    {
+      "name": "pos_zero",
+      "input_f64": 0.0,
+      "input_f64_hex": "0x0000000000000000",
+      "tnf64_bits_hex": "0x0000000000000000",
+      "tnf64_bits_int": 0,
+      "decoded_f64": 0.0,
+      "decoded_f64_hex": "0x0000000000000000",
+      "abs_error": 0.0,
+      "category": "zero"
+    }
+  ]
 }
