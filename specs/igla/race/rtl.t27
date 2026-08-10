@@ -9,6 +9,13 @@ module igla-race-rtl;
 use base::types;
 use math::constants;
 use igla::race::backend;
+// W614: this file uses `eval::has_substring(...)` and friends but never
+// imported the module. `use_resolve` rewrites a qualified reference to the bare
+// name ONLY when the declaration is pulled or local, so an unimported module
+// left the `::` in place and codegen lowered it to an undeclared `eval.`
+// namespace. Not circular: eval imports base::types, math::constants and
+// igla::race::backend -- none of them this file.
+use igla::coder::eval;
 
 // ============================================================================
 // 1. RTL Generation Constants

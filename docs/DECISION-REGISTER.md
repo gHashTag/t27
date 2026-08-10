@@ -161,6 +161,29 @@ and reporting them as L4 violations overstates the debt by nearly double (W601).
 
 ---
 
+## 11. `backend.t27` ↔ `eval.t27` — a genuine import cycle
+
+`backend.t27` uses `eval::has_substring(...)` **4 times** and does not import
+`eval`. Adding the import would close a cycle: **`eval.t27` imports
+`igla::race::backend`** (added in W608, so that `substring_match` — declared in
+`backend` — would resolve).
+
+The three other consumers of `eval::` were resolved this wave without a
+decision, because none of them is imported *by* eval:
+
+| Consumer | `eval::` refs | resolved |
+|---|---:|---|
+| `yosys.t27` | 14 | ✔ |
+| `rtl.t27` | 6 | ✔ |
+| `eda.t27` | 2 | ✔ |
+| **`backend.t27`** | **4** | **blocked — cycle** |
+
+**Question:** which direction is the real dependency? Either `substring_match`
+moves out of `backend` (so `eval` need not import it), or the four
+`eval::has_substring` calls in `backend` are replaced by something local.
+
+---
+
 ## What is *not* on this list
 
 Every item this chain could settle itself has been settled. The compiler-side
