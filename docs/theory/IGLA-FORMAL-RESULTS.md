@@ -1117,6 +1117,63 @@ type-qualified call it wrongly rewrites.
 
 ---
 
+### P23 (W607) — A function with 76 call sites and no definition, and two invariants that contradict
+
+**`eval.t27`: 113 compile errors → 32.** Three defects, and one failure worth
+recording.
+
+**(a) `SimResult` was used and declared nowhere.** Two other specs declare the
+name and **they are not the same type**:
+
+| Module | Shape |
+|---|---|
+| `specs/fpga/simulator.t27` | `{cycles, state, errors, assertions_fired, coverage_points}` |
+| `specs/igla/coder/prm.t27` | `{passed, total}` |
+
+`eval` constructs `{passed, total}`, so it means the second — but `prm` imports
+`eval`, making that direction circular, and `fpga::simulator` binds the wrong
+shape. **The type belongs to the lower layer that uses it.** Declared in `eval`;
+`prm` is unaffected because the resolver's fixpoint skips locally-declared names.
+
+**(b) `accuracy` had 76 call sites and no definition anywhere in the corpus.**
+Its own tests fully determine it:
+
+```
+accuracy([1,2,3], [1,2,3]) == 1.0      accuracy([], []) == 0.0
+```
+
+**The two invariants beside those tests contradict each other on the empty
+input.** `preds == refs ⟹ accuracy == 1.0` and
+`preds.len() == 0 && refs.len() == 0 ⟹ accuracy == 0.0` **both apply to
+`([], [])`**, and they disagree. The explicit *test* says 0.0, so 0/0 is defined
+as 0.0 and `eval_accuracy_perfect_inv` is **false for the empty case** — the
+same shape as T4, recorded rather than papered over. 76 errors resolved.
+
+**(c) Array-of-strings never received the slice lowering.**
+`slice_element_type` rejects any element type containing `[` — a guard against
+nested arrays that also rejects `[]const u8`, which is exactly what a *string*
+is. So `[]string` returns skipped the `@constCast(&[_]T{…})` form that `[]u32`
+returns get.
+
+### The failure
+
+A **single-element** array of strings still emits `.{ a }` instead of
+`.{ "a" }`; the three-element form in the same function is correct. Two causes
+were theorised — a dimension guard in `parse_bare_array_literal`, then unquoted
+lexemes in the element-text collection — patched, rebuilt, and **both left the
+output unchanged.** Both were reverted.
+
+> **A fix you cannot demonstrate is not a fix.** Keeping an unverified change
+> because it is "correct in principle" is how a compiler acquires edits nobody
+> can explain — and `compiler.rs` carries a FROZEN_HASH ceremony precisely to
+> prevent that.
+
+*Falsification condition:* an `accuracy` call whose expected value disagrees
+with `matches / max(len)`, or a `SimResult` construction site in `eval` using
+the simulator's field set.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

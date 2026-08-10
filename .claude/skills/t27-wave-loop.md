@@ -4687,6 +4687,25 @@ These cost a wave each. Follow them before step 1.
      the running brace depth over the whole file rather than trusting the first
      error location.
 
+120. **A fix you cannot demonstrate is not a fix -- revert it.** W607 twice
+     theorised a cause for a single-element string array emitting `{ a }`
+     instead of `{ "a" }`, patched compiler.rs, rebuilt, and BOTH TIMES the
+     output was unchanged. Both were reverted. Keeping an unverified change
+     because it is "correct in principle" is how a compiler acquires edits
+     nobody can explain -- and this file is FROZEN precisely to prevent that.
+
+121. **When a function is called N times and declared nowhere, its tests are the
+     specification.** `accuracy` had 76 call sites and no definition anywhere in
+     the corpus. Two tests and two invariants fully determine it -- and the two
+     INVARIANTS CONTRADICT on the empty input. Implement the explicit TEST,
+     record the invariant as false for that case (the T4 shape), and say so.
+
+122. **A name declared in two modules is two different types until proved
+     otherwise.** `SimResult` exists in fpga/simulator.t27 as
+     {cycles,state,errors,...} and in igla/coder/prm.t27 as {passed,total}.
+     Match the CONSTRUCTION SITE's field shape, then check the import direction
+     for circularity before adding a `use`.
+
 ### How to update this tracker
 
 After closing a wave:
