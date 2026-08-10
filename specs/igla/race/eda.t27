@@ -30,6 +30,25 @@ pub const BackendRealizabilityScore = struct {
 /// compute_backend_realizability(score) -> f32
 /// Returns fraction of backend steps passing (0.0 to 1.0).
 /// Based on CktFormalizer metric (arXiv:2605.07782v2): 95-100% realizability.
+/// True when a placement area is strictly positive.
+///
+/// W612: called 42 times in this file and declared nowhere in the corpus.
+/// Written from its own tests, which pin it exactly -- 7 distinct (input,
+/// expected) pairs with zero conflicts, plus a universally quantified
+/// invariant that makes the positive half-line exact rather than pointwise:
+///
+///     forall area : f64
+///     area > 0.0 ==> placement_area_positive(area) == true
+///
+/// Candidate elimination over all 42 concrete sites: `area >= 0.0` fails at
+/// 0.0 (3 sites), `area != 0.0` fails at -1.0 and -0.001, a constant `true`
+/// fails 6 sites, and any positive epsilon threshold is killed by the forall.
+/// The tests bracket zero tightly from both sides -- 0.00001 -> true and
+/// -0.001 -> false.
+fn placement_area_positive(area: f64) -> bool {
+    return area > 0.0;
+}
+
 pub fn compute_backend_realizability(score: BackendRealizabilityScore) -> f32 {
     let pass_count = 0;
     if (score.synthesis_ok) { pass_count = pass_count + 1; }

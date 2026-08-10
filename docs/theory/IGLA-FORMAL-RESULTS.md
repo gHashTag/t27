@@ -1353,6 +1353,64 @@ of the three written functions failing a test in its own file.
 
 ---
 
+### P27 (W612) — The yield falls to 2 of 9, and an adversarial pass refutes one of my own verdicts
+
+Nine remaining unwritten functions were classified by **independent agents**,
+one per function, each told that a wrong `DETERMINED` verdict means inventing a
+contract and calling it an implementation. Every `DETERMINED` verdict was then
+handed to a **separate agent instructed to refute it** and to default to refuted
+when uncertain.
+
+| Verdict | n | Functions |
+|---|---:|---|
+| **DETERMINED, survived refutation** | **2** | `placement_area_positive`, `smt_assert_true` |
+| **DETERMINED, REFUTED** | **1** | `count_admitted` |
+| CONTRADICTORY | 2 | `select_top` (29 points), `smt_check` (13) |
+| UNDERDETERMINED | 4 | `shuffle`, `route_wire_length_non_negative`, `batch`, `get_cycles` |
+
+**The yield has fallen from 7 of 9 (W610–W611) to 2 of 9.** The functions whose
+tests determine them were taken first; what remains is progressively less
+determined. That is the expected shape, and it is worth stating rather than
+letting a falling number look like a failure.
+
+### The refutation was correct, and I would have shipped the error
+
+`count_admitted` was classified `DETERMINED` as `status == admitted`. The
+refuting agent found three independent reasons it is not:
+
+1. **The status predicate is unpinned.** No test exercises an obligation with
+   status `disproved`, `in_progress` or `withdrawn`, so `status == admitted` and
+   `status != proved` are **indistinguishable on the data**.
+2. **The file's own code favours the other reading.** All three
+   obligation-producing functions emit `ProofStatus::disproved` and *never*
+   `admitted`.
+3. **`generate_report` defines the quantity arithmetically** as
+   `total - proved`, not by a status test.
+
+> **This is the pattern the whole chain has been cataloguing, caught before it
+> shipped rather than a wave later.** A plausible reading of the tests, a
+> function that would have compiled and passed every test in the file, and a
+> contract that the surrounding code contradicts.
+
+### `route_wire_length_non_negative` — 33 sites, all `true`
+
+Every one of its 33 assertion sites expects `true`; **none expects `false`**.
+The suite is satisfied by `return true;`, so it cannot distinguish
+`len >= 0` from a constant. The `throughput` shape again: consistent, and not
+pinning a function.
+
+### Aggregate
+
+| | before | after |
+|---|---:|---:|
+| IGLA total compile errors | 1 192 | **1 125** |
+| `use of undeclared identifier` | 622 | **555** |
+
+*Falsification condition:* a test in `eda.t27` or `formal.t27` that the two
+written functions fail, or a reading of `count_admitted` the refutation missed.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

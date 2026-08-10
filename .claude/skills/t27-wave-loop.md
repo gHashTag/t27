@@ -4771,6 +4771,24 @@ These cost a wave each. Follow them before step 1.
      and 4 carry both expectations" is a decision brief. The 24-6 split suggests
      which was intended -- **and noting that is not the same as deciding it.**
 
+134. **Have a SEPARATE agent try to refute every "the tests determine this"
+     verdict, and tell it to default to refuted.** W612 classified nine
+     unwritten functions and marked three DETERMINED; the adversarial pass
+     refuted one. `count_admitted` would have compiled, passed every test in its
+     file, and been WRONG -- no test exercises the statuses that distinguish
+     `status == admitted` from `status != proved`, and the file's own
+     `generate_report` defines the quantity as `total - proved`.
+
+135. **A falling yield is the expected shape, not a failure.** W610-W611 wrote 7
+     of 9 examined; W612 wrote 2 of 9. The determined ones get taken first.
+     Report the ratio and say why it fell, rather than letting the number look
+     like regression.
+
+136. **"Every test expects true" is not a specification.** All 33 assertion
+     sites for `route_wire_length_non_negative` expect `true` and none expects
+     `false`, so `return true;` satisfies the suite. A test set with no negative
+     case cannot pin a predicate.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -22162,3 +22162,38 @@ inventing a contract and calling it an implementation.
 **Quantify a contradiction before handing it back.** "The tests disagree" is a
 complaint. "30 points, 24 for identity, 6 for len/2, lengths 1/2/4 carry both"
 is a decision brief.
+
+## Wave 612 — the yield falls to 2 of 9, and an adversarial pass refutes my own verdict
+
+Nine remaining unwritten functions, classified by INDEPENDENT agents (one per
+function), with every DETERMINED verdict then handed to a SEPARATE agent told to
+refute it and to default to refuted when uncertain.
+
+    DETERMINED, survived   2   placement_area_positive, smt_assert_true
+    DETERMINED, REFUTED    1   count_admitted
+    CONTRADICTORY          2   select_top (29 points), smt_check (13)
+    UNDERDETERMINED        4   shuffle, route_wire_length_non_negative,
+                               batch, get_cycles
+
+**Yield fell from 7 of 9 (W610-W611) to 2 of 9.** The determined ones get taken
+first; what remains is progressively less determined. Say that, rather than let
+a falling number read as regression.
+
+**The refutation was correct and I would have shipped the error.**
+`count_admitted` was classified DETERMINED as `status == admitted`. Three
+independent reasons it is not: (1) no test exercises an obligation with status
+disproved/in_progress/withdrawn, so `status == admitted` and `status != proved`
+are INDISTINGUISHABLE on the data; (2) all three obligation-producing functions
+in the file emit `disproved` and never `admitted`; (3) `generate_report` defines
+the quantity arithmetically as `total - proved`, not by a status test.
+
+It would have compiled, passed every test in the file, and been wrong. **This is
+the pattern the chain has catalogued for forty waves -- caught before shipping
+rather than a wave later, because a separate agent was told to attack it.**
+
+**"Every test expects true" is not a specification.** All 33 assertion sites for
+`route_wire_length_non_negative` expect true and none expects false, so
+`return true;` satisfies the suite. A test set with no negative case cannot pin
+a predicate.
+
+IGLA: 1192 -> 1125 errors; undeclared 622 -> 555.

@@ -76,6 +76,24 @@ pub const EquivalenceCheck = struct {
 ///
 /// stated four ways -- two tests and two invariants, including the universally
 /// quantified `!b ==> smt_check_bool(b) == "UNSAT"`.
+/// The SMT-level rendering of a boolean assertion.
+///
+/// W612: called 27 times in this file and declared nowhere in the corpus.
+/// Its tests pin it across 27 sites with no conflict:
+///
+///     smt_assert_true(true)  == "true"
+///     smt_assert_true(false) == "false"
+///
+/// Distinct from `smt_check_bool` (W611), which answers "SAT"/"UNSAT"; this one
+/// renders the literal itself. Tests named `formal_smt_assert_true_*` at L1183
+/// and L1188 are name-only matches -- they call `smt_check`, not this.
+fn smt_assert_true(b: bool) -> string {
+    if (b) {
+        return "true";
+    }
+    return "false";
+}
+
 fn smt_check_bool(b: bool) -> string {
     if (b) {
         return "SAT";
