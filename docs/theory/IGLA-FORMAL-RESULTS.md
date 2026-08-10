@@ -323,6 +323,50 @@ arithmetic representable without a transcendental constant. ∎
 
 ---
 
+### T9 (W618) — A construction outside a struct's declared field set is *unsatisfiable*, not underdetermined
+
+**Statement.** Let a struct `S` be declared with field set `F`, and let a test
+construct `S { g: v, ... }` with `g ∉ F`. Then **no implementation of `S`
+satisfies that test**, and the conflict is not resolvable by any choice of
+function body.
+
+**Proof.** A struct literal in a nominally-typed language denotes a value whose
+field set is exactly `F`. The expression `S { g: … }` is not a value of `S` for
+any `g ∉ F`; it is not merely an unconstrained value, it is ill-typed. No
+function definition changes `F`, because `F` is fixed by the declaration and not
+by any use. Hence the test set is unsatisfiable while both the declaration and
+the test are retained. ∎
+
+**Why this distinction matters.** This chain has now catalogued four states a
+failing test can be in, and they have different owners:
+
+| State | Example | Remedy | Decidable by? |
+|---|---|---|---|
+| **false assertion** | `K(12) > K(8)` (T5) | fix the test | measurement |
+| **real gap** | `cordic_sin(π)` (T6) | write the code | nobody — it is work |
+| **underdetermined** | `throughput` (P25), `encode` (P29) | *choose* a contract | an owner |
+| **unsatisfiable** | `DataSample { quality_score: … }` | **drop one of the two** | an owner |
+
+**Underdetermined and unsatisfiable are not the same.** An underdetermined test
+set admits many implementations; an unsatisfiable one admits **none**. Reporting
+both as "needs a decision" hides that the second cannot be closed by adding
+code — one of the two artefacts must go.
+
+**Instance measured.** `specs/igla/coder/dataset.t27` declares
+
+```t27
+pub const DataSample = struct { prompt : string, rtl : string, template : string };
+```
+
+and its own tests construct `DataSample { rtl: …, quality_score: …, … }`.
+**50 compile errors in that one file**, plus `SystolicState.a1` (11),
+`BenchResult.pass` (3) and five smaller cases — **51 across ~8 structs**.
+
+*Falsification condition:* a struct whose declared field set is extended by a
+use site, or a language rule in t27 permitting open records.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
@@ -1734,6 +1778,34 @@ Zig, or a `TernaryWeight` constructor whose expected value contradicts
 
 ---
 
+### P33 (W618) — Instrumenting the struct-method gap: reached, seen, and still not built
+
+W617 said to instrument before patching. Done, with `t27c parse` as the oracle:
+
+| Question | Answer |
+|---|---|
+| Is `parse_struct_body` reached for `struct W { fn f() … }`? | **yes** — traced |
+| Does the loop see the method's token? | **yes** — exactly one `KwFn "fn"` |
+| Does an `else if KwFn` branch in that chain fire? | **no** — a probe inside it never prints |
+| Does a `FnDecl` child appear? | **no** — the `StructDecl` has zero children |
+| Does the loop iterate again? | **no** — one token, then exit |
+
+**The loop sees `KwFn`, a branch matching `KwFn` does not fire, and the whole
+method is consumed in that single iteration.** That is a precise, reproducible
+anomaly — and it is a better hand-off than W617's "three edits did nothing",
+because it eliminates the two hypotheses W617 could not choose between: the
+parser *is* reached, and the emitter was never the issue.
+
+Two instrumentation errors were made and corrected en route, both worth
+recording: the first trace landed in **`parse_enum_body`** (a non-unique `while`
+anchor, replaced at its first match), and a stderr redirect was written
+`2>&1 >/dev/null`, which sends stderr to the terminal and stdout to the void —
+the opposite of the intent.
+
+Reverted with `git checkout`. **No compiler change survives this wave.**
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
@@ -1841,6 +1913,44 @@ end to end**: 21 rungs, four independent properties each (partition, closed
 form, ratio-optimality, φ-distance), agreeing across two files that state the
 constants separately (P16, P17). **That is a much weaker claim than "a better
 format", and it is the one the evidence supports.**
+
+### Schema divergence, and what the literature calls this (W618)
+
+The corpus's largest remaining blockers are not arithmetic. They are **two
+descriptions of one type that disagree** — and that has a substantial literature
+under several names.
+
+**Nominal versus structural typing.** t27 structs are *nominal*: `DataSample` is
+the type its declaration says, and a literal carrying `quality_score` is
+ill-typed rather than a different-but-compatible record. In a **structurally**
+typed setting (the tradition running through Cardelli's work on record calculi
+and treated systematically in Pierce's *Types and Programming Languages*) the
+same two artefacts could coexist as distinct row types, and the conflict would
+surface at the *use* site rather than the declaration. **T9 depends on
+nominality**: it is a theorem about this language, not about types in general.
+
+**Schema evolution.** Databases have studied exactly this since the 1980s — the
+classic treatment of schema modification in object-oriented databases
+(Banerjee et al., 1987) sets out the invariants a schema change must preserve
+and what happens to instances that no longer conform. The `_wNNN` generation is
+a schema change applied to the *tests* and not to the *declarations*, which is
+precisely the unmigrated-instance case.
+
+**Wire-format compatibility rules.** The industrial answer to the same problem is
+explicit compatibility policy: Protocol Buffers and Apache Avro define
+**forward** and **backward** compatibility so that a reader written against one
+schema can process data written against another — adding an optional field is
+compatible, removing or retyping a required one is not. **The t27 corpus has no
+such policy**, which is why a field added in a test generation simply becomes a
+compile error rather than a versioned change.
+
+**What this project's situation actually is.** Not a type-system deficiency:
+nominal typing is the right choice for a spec language that lowers to Verilog,
+where a struct *is* a bit layout. The gap is **process**: two generations of
+artefacts were allowed to diverge with no compatibility rule and no migration
+step, and the divergence is only visible because the corpus is now compiled
+end-to-end. **T9 says the result is unsatisfiable, and the literature says the
+remedy is a migration, not a patch.**
 
 ### What is genuinely novel here
 
