@@ -1,6 +1,6 @@
 # Decision register — what only a maintainer can settle
 
-**Date:** 2026-08-10 · **Waves:** W568–W615 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
+**Date:** 2026-08-10 · **Waves:** W568–W618 · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
@@ -267,6 +267,56 @@ given bits = [true]                // _w304 family — bools
 12 compile errors. Same generation, same shape as entry 14.
 
 **Question:** are the bit vectors `[]u1` or `[]bool`?
+
+---
+
+## 16. `DataSample` — a declaration and its own tests use different schemas
+
+**T9 proves this is *unsatisfiable*, not underdetermined**: no implementation
+satisfies both artefacts, so one of them must go.
+
+`specs/igla/coder/dataset.t27` declares:
+
+```t27
+pub const DataSample = struct { prompt : string, rtl : string, template : string };
+```
+
+and **its own tests** construct `DataSample { rtl: …, quality_score: …, … }`.
+
+| | |
+|---|---:|
+| Errors in `dataset.t27` alone | **50** |
+| Same class across ~8 structs | **51** |
+| A *second*, unrelated `DataSample` in `training.t27` | `{text, strategy, lang, verified, sacred_tags, weight}` |
+
+**Question:** which field set is canonical for `dataset.t27`'s `DataSample`, and
+should the two same-named types in `dataset.t27` and `training.t27` be
+distinguished by name?
+
+Same class, smaller: `SystolicState.a1` (11), `BenchResult.pass` (3),
+`SystolicTernaryPE.weight` (2), `DataSample.bits` (2),
+`SystolicState.accumulator` (2), plus 4 singletons.
+
+---
+
+## 17. `TernaryWeight::plus()` / `::minus()` / `::zero()` — determined, but unbuildable
+
+**Unusually, this one needs no design decision** — the encoding is pinned by the
+file's own decoder (`code == 1 → +1`, `code == 2 → −1`, else 0), so
+`plus() = {code:1}`, `minus() = {code:2}`, `zero() = {code:0}`.
+
+It is here because the *compiler* cannot express it: **methods declared inside a
+struct are discarded by the parser** (P32, P33), and a free function does not
+satisfy a type-qualified call `W::plus()`.
+
+| | |
+|---|---:|
+| Errors | **40** |
+| Specs | 5 |
+| Appears outside the `_wNNN` generation | **never** |
+
+**Question:** should t27 support struct methods (a compiler change), or should
+these constructors be free functions and the 40 call sites rewritten?
 
 ---
 

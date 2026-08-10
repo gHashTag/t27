@@ -22378,3 +22378,49 @@ reverted. **And the hand-revert over-cut by 35 lines and broke
 
 Two rules earned: **revert with git checkout, not by hand-cutting what you think
 you added**; and **a wave that only diagnoses is still a wave, if it says so.**
+
+## Wave 618 — all three variants; instrumented, and a fourth failing-test state
+
+**A -- instrumented the struct-method gap, as W617 said to.** `t27c parse` is
+the oracle; no code change needed to look.
+
+    parse_struct_body reached?          YES (traced)
+    loop sees the method's token?       YES -- exactly one KwFn "fn"
+    an `else if KwFn` branch fires?     NO  -- a probe inside it never prints
+    a FnDecl child appears?             NO  -- StructDecl has zero children
+    loop iterates again?                NO  -- one token, then exit
+
+**That eliminates the two hypotheses W617 could not choose between**: the parser
+IS reached and the emitter was never the issue. Reverted with `git checkout`;
+no compiler change survives.
+
+Two instrumentation errors worth keeping: the first trace landed in
+**parse_enum_body** (non-unique `while` anchor + first-match replace), and
+`2>&1 >/dev/null` binds stderr to the terminal and stdout to the void -- the
+opposite of the intent. Write `>/dev/null 2>file`.
+
+**B -- `no field named`: 51 errors across ~8 structs**, dominated by
+`DataSample.quality_score` (25). `dataset.t27` declares
+`DataSample { prompt, rtl, template }` and its OWN tests construct it with
+`quality_score`, `bits`... 50 errors in one file. A second, unrelated
+`DataSample` lives in `training.t27`.
+
+**C -- the board**: `dlc10 idcode` -> cable not found. Verified with the tool.
+
+**THE SCIENCE: T9 completes a four-state taxonomy of failing tests.**
+
+    false assertion   K(12) > K(8)               fix the test       measurement
+    real gap          cordic_sin(pi)             write the code     nobody
+    underdetermined   throughput, encode         choose a contract  an owner
+    UNSATISFIABLE     DataSample{quality_score}  DROP ONE OF TWO    an owner
+
+**Underdetermined admits MANY implementations; unsatisfiable admits NONE.** It
+cannot be closed by writing code. Reporting both as "needs a decision" hides the
+difference.
+
+**Literature**: this is schema divergence -- nominal vs structural typing
+(Cardelli; Pierce TAPL), schema evolution in OO databases (Banerjee et al.
+1987), forward/backward compatibility in Protocol Buffers and Avro. The gap is
+NOT the type system (nominal is right for a language lowering to Verilog, where
+a struct IS a bit layout) -- it is PROCESS: two generations diverged with no
+compatibility rule and no migration step.

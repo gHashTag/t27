@@ -4883,6 +4883,23 @@ These cost a wave each. Follow them before step 1.
      encoding determined by the file's own decoder, and the exact parser branch
      responsible. Report it as a diagnosis, not as progress toward a fix.
 
+152. **UNSATISFIABLE and UNDERDETERMINED are different states with different
+     remedies.** An underdetermined test set admits many implementations; an
+     unsatisfiable one admits NONE, so it cannot be closed by writing code --
+     one of the two artefacts must go. `DataSample { quality_score: ... }`
+     against a three-field declaration is unsatisfiable (T9). Reporting both as
+     "needs a decision" hides that.
+
+153. **A non-unique anchor plus a first-match replace lands your edit in the
+     wrong function.** W618's trace was inserted on a `while ... { if
+     current.kind == Ident {` pattern and landed in `parse_enum_body`. Verify
+     placement (`awk` for the enclosing `fn`) BEFORE drawing conclusions from a
+     probe that prints nothing.
+
+154. **`2>&1 >/dev/null` does the opposite of what it looks like.** It binds
+     stderr to the CURRENT stdout (the terminal) and then sends stdout to the
+     void. To capture a trace, write `>/dev/null 2>file`.
+
 ### How to update this tracker
 
 After closing a wave:
