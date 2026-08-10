@@ -4457,6 +4457,61 @@ grep -c "a_[a-z0-9_]*: assert" formal/dma_controller_props.sv
 
 ---
 
+### Prop. 72 — the gap list was measured one suite at a time — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *Generated mutants land in code, not in comments*
+
+Prop. 61 reported 64 behaviourally-real gaps for `dma_controller`. Prop. 71 shut
+13 of them. Re-measuring the rest exposed something about the *first* number.
+
+**72a. The 13 are real, and measured rather than inferred.** The design is
+unchanged, so the six older properties detect exactly what they detected before;
+only `a_writes_within_request` needed re-running. It catches **13 of the 64** —
+matching Wave 619's figure on an independent run — leaving 51.
+
+**72b. Prop. 61 measured each suite in isolation, and three suites constrain
+this module.** `dma_props` was the only one consulted. But `ms_dma`
+(maximum-size) and `zs_dma` (zero-size) are wrappers around the **same DUT**, and
+a mutation "undetected" by one is not therefore undetected.
+
+| | count |
+|---|---|
+| Prop. 61's reported gap | 64 |
+| closed by `a_writes_within_request` (Prop. 71) | −13 |
+| **caught all along by `ms_dma` (3) and `zs_dma` (5)** | **−8** |
+| true remaining gap | **43** |
+
+The eight were never gaps. Prop. 61's number was an overcount by construction —
+a per-suite measurement reported as a per-module one. Every gap figure in Props.
+61 and 66 carries that same caveat, and it is corrected here rather than left to
+be rediscovered.
+
+**72c. The residue is flat, so the method that produced Prop. 71 is spent here.**
+The 51 spread across **42 distinct lines**, 33 of them singletons. The largest
+remaining cluster is 4. Compare Wave 611, where the top clusters (8 mutants on
+two lines of transfer accounting, 9 on burst arithmetic) are exactly what became
+a property. Nothing of that shape is left: the residue is reset values, state
+encodings, and one-off arithmetic, each worth roughly one mutant.
+
+**Cluster-and-write extracted what it could from this module.** Continuing would
+mean one property per mutation, which is not a property suite but a restatement
+of the RTL.
+
+**72d. What this says about gap numbers generally.** A gap count is a claim about
+*a set of properties*, and it must name which set. "64 gaps in `dma_controller`"
+sounds like a fact about the module; it was a fact about one wrapper. The right
+form is "43 mutations of `dma_controller` are detected by none of its three
+suites" — longer, and the only version that survives contact with a second
+wrapper.
+
+Reproduce:
+
+```bash
+python3 formal/mutate.py build/rtl/dma_controller.sv
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

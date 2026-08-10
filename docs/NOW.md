@@ -2,6 +2,43 @@
 
 Last updated: 2026-08-10
 
+## Wave 620 — the gap list was measured one suite at a time
+
+- **THE 13 ARE REAL**: re-measured on an independent run.
+  `a_writes_within_request` catches **13 of Prop. 61's 64** gaps, matching Wave
+  619's figure. The design is unchanged, so only that property needed re-running.
+- **AND PROP. 61's NUMBER WAS AN OVERCOUNT BY CONSTRUCTION**: it consulted
+  `dma_props` only, while **three** wrappers constrain this module. Running the
+  remaining 51 through `ms_dma` and `zs_dma`: they catch **8** (3 and 5). Those
+  eight were never gaps.
+
+  | | count |
+  |---|---|
+  | Prop. 61's reported gap | 64 |
+  | closed by a_writes_within_request | -13 |
+  | caught all along by the sibling suites | **-8** |
+  | true remaining gap | **43** |
+
+- **EVERY GAP FIGURE IN PROPS. 61 AND 66 CARRIES THE SAME CAVEAT**, corrected
+  here rather than left to be rediscovered.
+- **THE RESIDUE IS FLAT, SO THE METHOD IS SPENT HERE**: the 51 spread across
+  **42 distinct lines**, 33 of them singletons, largest cluster 4. Wave 611's
+  top clusters -- 8 mutants on two lines of transfer accounting, 9 on burst
+  arithmetic -- are exactly what became Prop. 71. Nothing of that shape is left:
+  reset values, state encodings, one-off arithmetic, each worth ~1 mutant.
+  **Continuing would mean one property per mutation, which is not a property
+  suite but a restatement of the RTL.**
+- **THE GENERAL POINT**: a gap count is a claim about *a set of properties* and
+  must name which set. "64 gaps in dma_controller" sounds like a fact about the
+  module; it was a fact about one wrapper. The surviving form is "43 mutations
+  are detected by none of its three suites".
+- **NO NEW PROPERTY THIS WAVE** -- the finding is the correction and the
+  exhaustion, and inventing a property to have something to ship would be the
+  opposite of what the last twenty waves have been about.
+- **WHERE**: `docs/FORMAL_FOUNDATIONS.md` (Prop. 72), README.
+- **STATE**: 72 propositions · 72 gates · 14 witnesses · 43 module properties ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 619 — the DMA data property, six waves late
 
 - **THE PROPERTY**: `a_writes_within_request` -- the transfer never writes more
