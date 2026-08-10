@@ -23,9 +23,22 @@ Together they block more than any remaining compiler change.
 
 ---
 
-## 1. `ternary_mac` — argument order
+## 1. `ternary_mac` — argument order  ·  **DISSOLVED IN W620 — NOT A DECISION**
 
-**The largest decidable-by-a-human item in the project.**
+> **T11 removes this entry.** `ternary_mac(acc: i32, a: i8, w: TernaryWeight)`
+> has **pairwise distinct** parameter types, so *every permutation of a
+> correctly-typed argument list denotes the same call.* The three observed
+> spellings are not three intents.
+>
+> **The numbers below were also wrong.** Measured over all 171 three-argument
+> call sites: `(acc, a, w)` **81**, `(a, w, acc)` **53**, `(acc, w, a)` **20** —
+> **three** shapes, not two, and the third is the one the compile errors report.
+>
+> **What this needs is a compiler feature, not an answer**: type-directed
+> argument resolution (overload resolution by argument type, as in Ada and C++)
+> or named arguments (as in Python and Swift). t27 has neither.
+
+### Superseded record (W574–W619)
 
 | | |
 |---|---:|

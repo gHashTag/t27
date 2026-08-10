@@ -422,6 +422,97 @@ t27 field type admitting no default.
 
 ---
 
+### T11 (W620) — When parameter types are pairwise distinct, argument ORDER carries no information
+
+**Statement.** Let `f` have parameters of types `T₁ … Tₙ`, **pairwise distinct**.
+Let a call supply arguments of types `S₁ … Sₙ` with `{S} = {T}` as multisets.
+Then there is **exactly one** assignment of arguments to parameters that
+type-checks.
+
+**Proof.** Since the `Tᵢ` are pairwise distinct, each `Sᵢ` is equal to exactly
+one `Tⱼ`. The induced map `i ↦ j` is therefore total and injective on a finite
+set of equal size, hence a bijection. Any other assignment would map some `Sᵢ`
+to a `Tₖ ≠ Sᵢ`, which does not type-check. ∎
+
+### Corollary — register entry 1 is not a decision
+
+`ternary_mac(acc: i32, a: i8, w: TernaryWeight)` has **pairwise distinct**
+parameter types. By T11, **every permutation of a correctly-typed argument list
+denotes the same call.** Measured across the corpus:
+
+| shape | n |
+|---|---:|
+| `(acc, a, w)` — the declaration | **81** |
+| `(a, w, acc)` | **53** |
+| `(acc, w, a)` | **20** |
+| other / literal-typed | 17 |
+| **total 3-argument call sites** | **171** |
+
+> **This also corrects register entry 1, carried since W574.** It records a
+> two-way split, "91 call sites say `(acc, a, w)`, 80 say `(a, w, acc)`". The
+> measurement finds **three** shapes, at 81 / 53 / 20 — and the third,
+> `(acc, w, a)`, is the one the compile errors actually report.
+
+**Consequence.** There is nothing for a maintainer to decide: the three shapes
+are not three intents, they are three spellings of one call. What entry 1 needs
+is **not an answer but a compiler feature** — type-directed argument
+resolution — and T11 is the proof that such a feature is well-defined here.
+
+**Where this sits in the literature.** Resolving a call by argument *types*
+rather than *positions* is standard in overload resolution (Ada and C++ select
+an overload by argument type), and *type-directed name resolution* has been
+proposed repeatedly for Haskell's record system. The alternative industrial
+solution is **named arguments** (Python, Swift), which make order irrelevant by
+labelling rather than by typing. **t27 has neither**, which is why 171 call
+sites in three spellings became a decision-register entry instead of a
+non-issue.
+
+*Falsification condition:* two parameters of `ternary_mac` sharing a type, or a
+call site whose argument multiset does not match the parameter multiset.
+
+---
+
+### T12 (W620) — The co-occurrence test separates *widening* from *renaming*
+
+T10 says an undeclared field can be absorbed by widening the declaration. That
+is the right remedy only when the field is **genuinely new**; when it is a
+variant spelling of a declared field, widening creates two fields for one
+concept.
+
+**Statement.** Let `g` be an undeclared field name and `f` a declared one. If
+**no literal names both `g` and `f`**, then rewriting every `g:` to `f:` is
+injective on each literal's field set and therefore loses no information present
+in the literals. If some literal names both, they are distinct fields and
+renaming would collide two values into one slot — widening is then the only
+non-destructive remedy.
+
+**Proof.** A literal is a partial map from field names to values. Renaming `g→f`
+is a well-defined operation on such a map iff `g` and `f` are not both in its
+domain; otherwise the result is not a function. ∎
+
+### Applied, and the two cases came out differently
+
+| Struct | undeclared | declared | co-occur? | remedy |
+|---|---|---|---:|---|
+| `DataSample` | `quality_score` (61) | — | n/a — genuinely new | **widen** (T10) |
+| `BenchResult` | `pass` (6) | `passed` (27) | **0 of 33 literals** | **rename** |
+
+**Non-co-occurrence is necessary, not sufficient** — two genuinely distinct
+optional fields could also never co-occur. Here the name similarity and the
+boolean pass/fail semantics make the synonym reading the natural one, and the
+rename is reversible.
+
+| | before | after |
+|---|---:|---:|
+| `no field named …` | 24 | **21** |
+| IGLA total | 1 072 | 1 072 — **unchanged** |
+
+**Stated plainly: the rename cleared its own error class and the affected
+literals then failed on a different one.** Net zero on the total, and reporting
+it otherwise would overstate it.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

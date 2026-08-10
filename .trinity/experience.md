@@ -22462,3 +22462,36 @@ is recorded as a caution, not an answer. Reverted; gates restored.
 two printed facts. It needs a debugger, not a fourth hypothesis.**
 
 **C -- board**: `dlc10 idcode` -> cable not found. Verified.
+
+## Wave 620 — T11 dissolves the register's largest entry
+
+**B -- `ternary_mac`'s argument order was never a decision.**
+
+`ternary_mac(acc: i32, a: i8, w: TernaryWeight)` has PAIRWISE DISTINCT parameter
+types. **T11**: when parameter types are pairwise distinct, each argument type
+equals exactly one parameter type, so the assignment is a bijection -- **every
+permutation of a correctly-typed argument list denotes the same call.**
+
+So the three spellings are not three intents. And the register's numbers were
+wrong too: it recorded "91 vs 80, two shapes"; measured over all 171 call sites
+it is **81 / 53 / 20 across THREE shapes**, and the third -- `(acc, w, a)` -- is
+the one the compile errors actually report.
+
+**Entry 1 -- called "the largest decidable-by-a-human item in the project" for
+forty-six waves -- is dissolved. It needs a COMPILER FEATURE, not an answer**:
+type-directed argument resolution (Ada, C++ overload resolution) or named
+arguments (Python, Swift). t27 has neither.
+
+**A -- T12: widening and renaming are different remedies.** T10 absorbs a
+genuinely new field; but when the undeclared name is a variant SPELLING,
+widening creates two fields for one concept. The discriminator is
+**co-occurrence**: if `g` and `f` never appear in the same literal, renaming
+`g -> f` is well-defined and lossless; if they co-occur they are distinct.
+
+    DataSample   quality_score (61)   genuinely new     -> WIDEN
+    BenchResult  pass (6) vs passed (27)  0 of 33 co-occur -> RENAME
+
+no-field-named 24 -> 21. **IGLA total unchanged at 1072** -- the rename cleared
+its own class and those literals then failed on another. Saying so.
+
+**C -- board**: cable not found. Verified.

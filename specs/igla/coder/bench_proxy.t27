@@ -161,7 +161,7 @@ test evaluate_adder_fails_uart
     then passed == false
 
 test count_passed_empty
-    given results = []BenchResult{}
+    given results = []BenchResult {}
     when n = count_passed(results)
     then n == 0
 
@@ -211,7 +211,7 @@ test average_score_inner_single
     then acc == 0.75
 
 test count_passed_all_fail
-    given results = [BenchResult { pass: false }, BenchResult { pass: false }]
+    given results = [BenchResult { passed: false }, BenchResult { passed: false }]
     when c = count_passed(results)
     then c == 0
 
@@ -222,7 +222,7 @@ test compute_pass_at_1_empty_problems
     then p == 0.0
 
 test count_passed_all_pass
-    given results = [BenchResult { pass: true }, BenchResult { pass: true }]
+    given results = [BenchResult { passed: true }, BenchResult { passed: true }]
     when c = count_passed(results)
     then c == 2
 
@@ -270,7 +270,7 @@ test average_score_single_element
     then avg == 0.75
 
 test count_passed_all_pass
-    given results = [BenchResult { pass: true }, BenchResult { pass: true }]
+    given results = [BenchResult { passed: true }, BenchResult { passed: true }]
     when c = count_passed(results)
     then c == 2
 
@@ -300,7 +300,7 @@ test bench_proxy_evaluate_wrong_kw
     then ok == false
 
 test bench_proxy_count_passed_empty
-    given results = []BenchResult{}
+    given results = []BenchResult {}
     when c = count_passed(results)
     then c == 0
 
@@ -530,7 +530,7 @@ test bench_proxy_verilog_eval_problems_nonempty
     then len(problems) > 0
 
 test bench_proxy_count_passed_inner_empty_results_zero
-    given results = []BenchResult{}
+    given results = []BenchResult {}
     when c = count_passed_inner(results, 0, 0)
     then c == 0
 
@@ -621,7 +621,7 @@ test bench_proxy_score_beam_candidate_positive_penalty_lower
     then result.score < 0.5f32
 
 test bench_proxy_filter_passed_empty
-    given results = []BenchResult{}
+    given results = []BenchResult {}
     when passed = filter_passed(results)
     then passed.len() == 0
 

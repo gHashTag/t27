@@ -4920,6 +4920,24 @@ These cost a wave each. Follow them before step 1.
      inside string literals and comments, and a probe's own `{:?}` inflates it.
      Useful as a hint; never as the answer.
 
+159. **Before treating an argument-order split as a decision, check whether the
+     parameter types are PAIRWISE DISTINCT.** If they are, T11 says every
+     permutation of a correctly-typed argument list denotes the same call --
+     the spellings are not intents. That dissolved register entry 1, the item
+     this chain had called "the largest decidable-by-a-human problem" for
+     forty-six waves.
+
+160. **Re-measure a register entry before acting on it.** Entry 1 recorded
+     "91 vs 80, two shapes". The actual distribution is 81 / 53 / 20 across
+     THREE shapes -- and the third is the one the compiler errors report. A
+     number carried for forty waves is not thereby correct.
+
+161. **Widening and renaming are different remedies, and the CO-OCCURRENCE TEST
+     picks one.** If an undeclared field never appears in the same literal as a
+     declared one, renaming is well-defined and loses nothing (T12); if they
+     co-occur they are distinct fields and only widening works. `DataSample`
+     needed widening; `BenchResult`'s `pass`/`passed` needed a rename.
+
 ### How to update this tracker
 
 After closing a wave:
