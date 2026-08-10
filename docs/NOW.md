@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-10
 
+## Wave 630 — the defect was written down next to itself for 595 waves
+
+- **THE DEFECT WAS NEVER HIDDEN**: `adder_tree_27` carried
+  `// Level 2: ... range [-9, +9] -> signed [3:0].` directly above
+  `wire signed [3:0] l2 [0:2];`. The correct range and the width that cannot
+  hold it sat on adjacent lines from Wave 33 to Wave 628, and a unit test
+  asserted the wrong width verbatim — not merely untested but *protected*.
+- **THE GATE**: `formal/width_scan.py`, three comparisons — a documented range
+  against its declaration; a reduction's operands against what the target is
+  declared to hold; and those operands against what the target's comment
+  claims. The second defeats "fixing" the comment instead of the width; the
+  third catches documentation drift on a design that still fits.
+- **RANGES PROPAGATE FROM COMMENTS, NOT WIDTHS**: the obvious implementation is
+  unsound here. `val` is `signed [1:0]` but holds only {−1, 0, +1} — a trit
+  needs three values, two bits carry four. Worst-case-by-width makes level 1
+  span [−6,+3] against a declared [−4,+3] and fails **correct** RTL. That is
+  wrong wherever an encoding is narrower in value than in bits, which for
+  ternary hardware is everywhere.
+- **THE FIRST DRAFT PASSED BY CHECKING LESS THAN IT CLAIMED**: zero findings on
+  the shipped tree *and* zero on the injected defect. An eight-line comment
+  block outran a three-line lookahead, and `val[i*3+1]` put a `+` inside an
+  index so an operand count saw five terms where three exist — the check
+  silently declined to run on the very tree it was written for, and printed
+  clean. It now reports reductions checked (3), and zero is a failure.
+- **VERIFIED BY INJECTION**: shipped tree 0 findings; Wave 628 defect
+  re-injected 2; the defect with its comment "corrected" away 1; a wide-enough
+  width whose comment understates it 1. Each injection asserts it actually
+  changed the text — an injection that no-ops grades the scan on unmodified
+  source and calls it a pass.
+- **ADDING IT EXPOSED A STALE README CLAIM**: the sweep reported 32 steps while
+  the README said "all **22** checking steps". Drifted across ~20 waves as steps
+  were added. Now the sixth gated claim, derived by *importing*
+  `absence_sweep.collect` rather than re-counting — two independent counters of
+  the same thing drift, which is how it got wrong. True value **31**.
+- **SCOPE, STATED NOT IMPLIED**: 16 signed declarations across 13 emitted files,
+  3 range-annotated, 3 reductions checked. Small, and honest — these are the
+  only conventions the emitters write. Not a general Verilog width checker.
+- **GATES**: doc_gate 82/82, claims_check 6 claims 0 stale, orphan_scan 14 files
+  0 orphaned, phantom_scan 10 modules 0 phantoms, absence_sweep 32 steps 0
+  passing on nothing, width_scan clean, `t27c` 13 test binaries all green.
+- **PROP. 82** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 629 — nothing moved, and that is the finding
 
 - **WHY IT HAD TO BE RUN**: Prop. 80 fixed a real arithmetic defect in

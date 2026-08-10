@@ -5040,6 +5040,78 @@ grep -c "seq 80" .github/workflows/formal-yosys.yml
 
 ---
 
+### Prop. 82 — the defect was written down next to itself for 595 waves — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No declaration is narrower than the range it carries*
+
+The Wave 628 defect was not hidden. `adder_tree_27` carried this, verbatim:
+
+```
+// Level 2: 3 groups of 3, range [-9, +9] -> signed [3:0].
+wire signed [3:0] l2 [0:2];
+```
+
+The correct range and the width that cannot hold it sat on adjacent lines from
+Wave 33 to Wave 628. A unit test asserted the wrong width verbatim, so the
+defect was not merely untested but *protected*. Nothing mechanical ever
+compared the two numbers, and no human read them as numbers either.
+
+**82a. The gate.** `formal/width_scan.py` reads emitted RTL and makes three
+comparisons: a documented range against its declaration's width; a reduction's
+operands against what the target is declared to hold; and those same operands
+against what the target's own comment claims. The second exists because the
+first is defeated by "correcting" the comment; the third catches documentation
+drifting from a design that still happens to fit.
+
+**82b. Ranges must propagate from comments, not from widths.** The obvious
+implementation — worst-case arithmetic over declared widths — is *unsound here*
+and fails a correct design. `val` is `signed [1:0]` but holds only {−1, 0, +1}:
+a trit needs three values and two bits carry four. Reasoning from bits gives
+[−2,+1] per element, makes level 1 span [−6,+3] against a declared [−4,+3], and
+reports a defect in correct RTL. Worst-case-by-width is wrong wherever an
+encoding is narrower in value than in bits, which for ternary hardware is
+everywhere. So a declaration's range is what its comment says, and only falls
+back to its width when unannotated.
+
+**82c. The first draft passed by checking less than it claimed.** It reported
+zero findings on the shipped tree — and zero on the *injected defect* too. Two
+causes: the comment block above `l2` runs eight lines and the lookahead was
+three; and `val[i*3+1]` puts a `+` inside an index, so an operand-count guard
+saw five terms where three exist and silently declined to check level 1. A
+clean result, from a check that never ran. The summary line now reports
+reductions checked (3), and zero of them is a failure.
+
+**82d. What it catches, verified by injection.** Against the shipped tree, 0
+findings; the Wave 628 defect re-injected, 2; the same defect with its comment
+"corrected" away, 1; a wide-enough width whose comment understates it, 1. Each
+injection is asserted to have actually changed the text, because an injection
+that silently no-ops grades the scan on unmodified source and calls it a pass.
+
+**82e. Scope, stated rather than implied.** 16 signed declarations across 13
+emitted files, 3 range-annotated, 3 reductions checked. That is small, and it is
+the honest number: these are the only conventions the emitters currently write.
+This is not a general Verilog width checker. It is the specific check that would
+have caught the specific defect, generalised as far as the emitters' own habits
+allow — and every level of the tree that produced the defect is now covered.
+
+**82f. Adding the gate exposed a stale claim in the README.** Wiring the new
+step in made `absence_sweep` report 32 steps while the README said it runs "all
+**22** checking steps". Nothing broke — the sweep had been walking every step
+all along — but the number in the prose had drifted from the tree across roughly
+twenty waves as steps were added, exactly the failure Prop. 73 described. It is
+now the sixth gated claim in `claims_check.py`, and the count is derived by
+**importing `absence_sweep.collect`** rather than re-counting: two independent
+counters of the same thing drift, which is how this number got to be wrong.
+True value **31** — 32 walked, less one exempt step.
+
+Reproduce:
+
+```bash
+python3 formal/width_scan.py --self-test && python3 formal/claims_check.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

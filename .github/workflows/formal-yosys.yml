@@ -756,6 +756,15 @@ jobs:
           python3 formal/phantom_scan.py --self-test
           python3 formal/phantom_scan.py
 
+      # The Wave 628 defect was legible in a comment sitting directly above the
+      # declaration that contradicted it, and stayed there from Wave 33 to Wave
+      # 628 because nothing ever compared the two numbers. This does. Prop. 82.
+      - name: No declaration is narrower than the range it carries
+        run: |
+          set -euo pipefail
+          python3 formal/width_scan.py --self-test
+          python3 formal/width_scan.py
+
       # Liveness witnesses for the assembled engine. These deliberately pass NO
       # property define, which only became meaningful in Wave 589: until the
       # guard was renamed to T27_FORMAL, `read_verilog -formal` predefined

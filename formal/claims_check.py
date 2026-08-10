@@ -91,6 +91,21 @@ def derive(root):
 
     wf = (root / ".github" / "workflows" / "formal-yosys.yml").read_text()
     found["engine liveness probes"] = len(re.findall(r"^ +probe '", wf, re.M))
+
+    # Swept steps. Derived by importing the sweep's own enumeration rather than
+    # re-implementing it: two independent counters of the same thing drift, and
+    # this claim drifted from 22 to 30 over roughly twenty waves precisely
+    # because nothing recounted it. Exempt steps are excluded because the README
+    # claims what the sweep *checks*, not what it walks past.
+    sys.path.insert(0, str(root / "formal"))
+    import absence_sweep
+    swept = 0
+    for name in ("formal-yosys.yml", "formal-mutation.yml"):
+        p = root / ".github" / "workflows" / name
+        if p.exists():
+            steps, _ = absence_sweep.collect(root, p)
+            swept += sum(1 for n, _ in steps if n not in absence_sweep.EXEMPT)
+    found["absence-swept steps"] = swept
     return found
 
 
@@ -107,6 +122,8 @@ CLAIMS = {
     "integration properties": r"\*\*(\d+) integration properties\*\*",
     "module properties": r"\*\*(\d+) properties proved\*\*",
     "engine liveness probes": r"\*\*(\d+) engine liveness probes\*\*",
+    "absence-swept steps": r"runs \*\*all (\d+) checking steps of both formal "
+                           r"workflows\*\*",
 }
 
 
