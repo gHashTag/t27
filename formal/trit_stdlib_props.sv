@@ -130,6 +130,28 @@ module dot_props (input wire [53:0] a, input wire [53:0] b);
         a_dot_product_correct: assert ($signed({{2{result[5]}}, result}) == expect_dot);
 endmodule
 
+// The dot product's RANGE, asserted with NO validity assumption.
+//
+// Wave 631. `a_dot_product_correct` above needs `all_valid` to state the exact
+// value, because the reserved code 2'b11 has no defined trit. The BOUND needs
+// nothing: the decoder maps every code that is neither TRIT_N nor TRIT_P --
+// 2'b11 included -- to zero, so no input whatsoever can push the sum of 27
+// products past 27 in magnitude.
+//
+// This is stated separately because it is the fact the accumulator argument in
+// `pipeline_stage2_props` rests on, and a fact a proof depends on should be
+// proved rather than left implicit in another property's cone. It is also the
+// unconditional half: were this only available under `all_valid`, the
+// accumulator bound would silently inherit an assumption about BRAM contents
+// that nothing enforces.
+module dot_range_props (input wire [53:0] a, input wire [53:0] b);
+    wire signed [5:0] result;
+    trit27_dot_product dut (.input_vec(a), .weight_vec(b), .result(result));
+
+    always @(*)
+        a_dot_within_27: assert (result >= -6'sd27 && result <= 6'sd27);
+endmodule
+
 // Non-vacuity. Every wrapper above assumes inputs are valid trits, and an
 // assumption that admitted nothing would make all five proofs vacuous. This
 // asserts no valid vector exists, so it must REFUTE. Prop. 12a's oracle, in the

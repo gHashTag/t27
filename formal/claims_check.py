@@ -49,15 +49,34 @@ def derive(root):
     #                              is a precondition on the master, not a
     #                              property of a module
     #        bitnet_engine_top   -- counted separately as integration properties
+    #
+    # Also OUT, corrected in Wave 631: modules named `*_alive`. These are
+    # non-vacuity ORACLES -- they assert something false on purpose so that a
+    # REFUTATION is the evidence an assumption did not empty the state space.
+    # An assertion that must fail is not a proved property, and counting it
+    # inflates the figure by exactly the number of assumptions being audited.
+    # `at27_alive` was inside this count from Wave 628, so the previously
+    # published 58 was 57 properties and one oracle. Corrected here rather than
+    # rewritten backwards, per Prop. 67a.
     EXCLUDE = {"witnesses.sv", "assume_liveness_check.sv",
                "axi4_read_slave_model.sv"}
+
+    def count(text):
+        n = 0
+        for m in re.finditer(r"^module (\w+)(.*?)^endmodule", text,
+                             re.M | re.S):
+            if m.group(1).endswith("_alive"):
+                continue
+            n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", m.group(2)))
+        return n
+
     n = 0
     for f in sorted((root / "formal").glob("*.sv")):
         if f.name not in EXCLUDE:
-            n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", f.read_text()))
+            n += count(f.read_text())
     for f in sorted((root / "build" / "rtl").glob("*.sv")):
         if f.name != "bitnet_engine_top.sv":
-            n += len(re.findall(r"\ba_[a-z0-9_]+\s*:\s*assert", f.read_text()))
+            n += count(f.read_text())
     found["module properties"] = n
 
     eng = (root / "build" / "rtl" / "bitnet_engine_top.sv")
@@ -106,6 +125,16 @@ def derive(root):
             steps, _ = absence_sweep.collect(root, p)
             swept += sum(1 for n, _ in steps if n not in absence_sweep.EXEMPT)
     found["absence-swept steps"] = swept
+
+    # Module coverage. Same lesson as the swept-step count above, found the same
+    # way one wave later: the README still described Prop. 76's Wave 618 split
+    # (8 direct, 8 indirect) after four waves of properties had closed every
+    # INDIRECT module. Derived by importing orphan_scan's own classifier.
+    import orphan_scan
+    mods = orphan_scan.modules(root)
+    if mods:
+        for kind in ("DIRECT", "INDIRECT", "UNREACHED"):
+            found[f"{kind.lower()} modules"] = sum(1 for m in mods if m[4] == kind)
     return found
 
 
@@ -124,6 +153,11 @@ CLAIMS = {
     "engine liveness probes": r"\*\*(\d+) engine liveness probes\*\*",
     "absence-swept steps": r"runs \*\*all (\d+) checking steps of both formal "
                            r"workflows\*\*",
+    "direct modules": r"of \*\*23\*\* in the bundle, (\d+) have properties of "
+                      r"their own",
+    "indirect modules": r"and \*\*(\d+) are constrained only at one remove\*\*",
+    "unreached modules": r"\*\*(\d+) ternary primitives are instantiated by "
+                         r"nothing at all\*\*",
 }
 
 
@@ -139,14 +173,27 @@ def check(root):
     bad = []
     print()
     for claim, pat in CLAIMS.items():
+        hits = 0
         for name, text in docs.items():
             for m in re.finditer(pat, text):
+                hits += 1
                 said, real = int(m.group(1)), found.get(claim)
                 ok = said == real
                 print(f"  {'ok  ' if ok else 'STALE'} {name}: "
                       f"{claim} = {said} (tree says {real})")
                 if not ok:
                     bad.append(f"{name}: claims {said} {claim}, tree has {real}")
+        # A pattern that matches nothing checks nothing, and prints nothing
+        # either -- so the claim silently leaves the gate while the summary
+        # still counts it as covered. Wave 631: two of these patterns pin
+        # surrounding prose ("of **23** in the bundle, ..."), so an edit to the
+        # sentence would retire the check without retiring the claim. That is
+        # this campaign's oldest failure shape, in the instrument built to
+        # detect it.
+        if hits == 0:
+            print(f"  UNMET {claim}: pattern matches nothing in README.md")
+            bad.append(f"README.md: the pattern for '{claim}' matches nothing "
+                       "-- the claim is unchecked, not clean")
     for b in bad:
         print(f"::error::{b} -- a number in the prose has drifted from the tree")
     print(f"\nclaims check: {len(CLAIMS)} checkable claims, {len(bad)} stale")

@@ -250,6 +250,34 @@ jobs:
                     prep -top ps2_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
 
+      # Wave 631. The 16-bit accumulator's sufficiency, which nothing checked:
+      # a_accumulates_one_chunk is a 16-bit equation and so holds modulo 2^16,
+      # satisfied by an accumulator that wraps. The module has no chunk counter
+      # and no num_chunks input, so in isolation it overflows after 1214 chunks
+      # -- it is safe only via a caller contract (layer_sequencer's 8-bit
+      # chunk_id) that appeared nowhere in the tree. INDUCTION, not a bound: the
+      # overflow is 1214 cycles away, so every feasible depth would report
+      # "proves" and mean nothing. Prop. 83.
+      - name: Prove the accumulator cannot overflow (unbounded)
+        run: |
+          set -euo pipefail
+          yosys -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                    build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                    prep -top ps2_bound -flatten; async2sync; chformal -lower; \
+                    sat -verify -prove-asserts -seq 4 -tempinduct -set-init-zero -set-assumes"
+          echo "ok       ps2_bound (k-induction, no depth caveat)"
+          # The contract is the only assumption, and one that emptied the state
+          # space would make both properties hold for the worst reason. This
+          # asserts the accumulator is always zero, so it must REFUTE.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/pipeline_stage2_compute.sv \
+                          build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
+                          prep -top ps2_bound_alive -flatten; async2sync; chformal -lower; \
+                          sat -verify -prove-asserts -seq 6 -set-init-zero -set-assumes"; then
+            echo "::error::the chunk-count contract freezes the accumulator, so the bound proofs are vacuous"
+            exit 1
+          fi
+          echo "ok       accumulator still moves under the contract (refutes)"
+
       # Wave 628. The last five INDIRECT modules from Prop. 76, and the only
       # purely combinational ones. `-seq 1` on stateless logic quantifies over
       # EVERY input combination, so these verdicts carry no depth caveat and no
@@ -259,7 +287,7 @@ jobs:
       - name: Prove trit_stdlib primitives (exhaustive)
         run: |
           set -euo pipefail
-          for top in tha_props tfa_props tpm_props at27_props dot_props; do
+          for top in tha_props tfa_props tpm_props at27_props dot_props dot_range_props; do
             yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
                       formal/trit_stdlib_props.sv; \
                       prep -top ${top} -flatten; async2sync; chformal -lower; \

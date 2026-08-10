@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-10
 
+## Wave 631 — the accumulator is safe because of a contract written nowhere
+
+- **THE AUDIT**: Wave 630 asked whether other tests pin values that could be
+  wrong. 36 distinct width pins across the `t27c` suite, **none stale** — but
+  one, `reg signed [15:0] accumulator`, pointed at a question nothing answered.
+- **THE EXISTING PROPERTY COULD NOT HAVE CAUGHT AN OVERFLOW**:
+  `a_accumulates_one_chunk` asserts `result == $past(result) + $past(dot)`,
+  which is a **16-bit equation** — it holds modulo 2¹⁶ and is satisfied exactly
+  by an accumulator that wraps.
+- **THE MODULE CANNOT ANSWER IT**: `pipeline_stage2_compute` has no chunk
+  counter and no `num_chunks` input. It accumulates while `valid_in` is held
+  with `first_chunk` low, so in isolation it overflows after **1214** chunks.
+  Safe only via a caller contract — `layer_sequencer`'s 8-bit `chunk_id` bounds
+  it at 255, and 255 × 27 = 6885 fits — **written nowhere in the tree**.
+  Widening `num_chunks` for larger layers silently reintroduces the wrap.
+- **INDUCTION, NOT A BOUND**: the overflow is 1214 cycles out, so every feasible
+  depth reports "proves" and means nothing. `ps2_bound` proves by k-induction at
+  length 4 — unbounded, base case and step both discharged, 3 `$check` cells.
+- **THE PER-CHUNK BOUND IS PROVED, NOT ASSUMED**: `dot_range_props` asserts
+  |dot| ≤ 27 unconditionally and exhaustively (0.2 s). The existing exact-value
+  property needs `all_valid`; the bound needs nothing, since the decoder maps
+  the reserved `2'b11` to zero.
+- **800× FROM DELETING ONE INSTANCE**: stating this inside `ps2_props` put two
+  27-input adder trees in an inductive proof — killed at 18 min. A lean wrapper
+  without the shadow proves the same claims in **1.3 s**.
+- **I NEARLY RECORDED A TOOL ERROR AS A VERDICT**: two control runs exited 1 and
+  were nearly written up as "refuted, the assumption is load-bearing". They were
+  `ERROR: File not found` — an earlier `cd` had moved the shell. Prop. 39d, in
+  the wave that cites it. The re-run control does not terminate quickly and is
+  recorded as **not completed**, not as a verdict.
+- **TWO MORE STALE README CLAIMS**: swept steps 31 → 32, and the module split
+  still read "8 direct, 8 indirect" from Wave 618 when the tree says **16 and
+  0** — *every module the engine reaches now has properties of its own*. Both
+  now derived.
+- **THE CLAIMS GATE WAS SILENTLY NOT GATING**: a claim whose regex matched
+  nothing printed nothing and counted as covered. Rewording a sentence retired
+  a check silently; the new UNMET guard caught it on its own first run.
+- **BOUNDARY CORRECTION**: `*_alive` non-vacuity oracles are not proved
+  properties. The published 58 was 57 + 1 oracle; the figure is **60**.
+- **PROP. 83** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 630 — the defect was written down next to itself for 595 waves
 
 - **THE DEFECT WAS NEVER HIDDEN**: `adder_tree_27` carried

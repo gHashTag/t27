@@ -5112,6 +5112,98 @@ python3 formal/width_scan.py --self-test && python3 formal/claims_check.py
 
 ---
 
+### Prop. 83 — the accumulator is safe because of a contract written nowhere — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove the accumulator cannot overflow (unbounded)*
+
+Wave 630 closed by asking whether any *other* test pinned a value that could be
+wrong. Auditing the 36 distinct width pins across the `t27c` suite found none
+stale — but one of them, `reg signed [15:0] accumulator`, pointed at a question
+nothing in the tree answered: **is 16 bits enough?**
+
+**83a. The existing property could not have caught an overflow.**
+`a_accumulates_one_chunk` (Prop. 79) asserts
+`result == $past(result) + $past(fv_dot)`. That is a **16-bit equation**, so it
+holds *modulo 2¹⁶* — an accumulator that wraps satisfies it exactly. Four
+properties constrained this datapath and none of them said anything about width
+sufficiency.
+
+**83b. The module cannot answer the question itself.**
+`pipeline_stage2_compute` has **no chunk counter and no `num_chunks` input**. It
+accumulates for as long as `valid_in` is held with `first_chunk` low. In
+isolation it overflows after **1214** chunks of +27. The width is sufficient
+only because of a **caller contract**: `layer_sequencer` walks `chunk_id` over
+an 8-bit port, so at most 255 chunks separate two `first_chunk` strobes, and
+255 × 27 = 6885 sits well inside [−32768, +32767].
+
+That reasoning appeared **nowhere in the tree** — not in the module, not in a
+comment, not in an assumption. It is safe by accident of an unrelated port
+width. Widening `num_chunks` to 16 bits to support larger layers — an ordinary
+change to a different file — silently reintroduces the wrap.
+
+**83c. Induction, not a bound.** The overflow is 1214 cycles away, so *every
+feasible depth reports "proves" and means nothing*. `ps2_bound` states the
+inductive invariant |acc| ≤ 27·n and the corollary that the accumulator always
+retains headroom for one more chunk. Both prove by **k-induction at length 4** —
+unbounded, no depth caveat. Base case and induction step both discharged, 3
+`$check` cells.
+
+**83d. The per-chunk bound is proved, not assumed.** `a_dot_product_correct`
+(Prop. 80) states the dot product's exact value but only under `all_valid`,
+which excludes the reserved code `2'b11`. The *bound* needs no such assumption —
+the decoder maps every code that is neither `TRIT_N` nor `TRIT_P` to zero — so
+`dot_range_props` asserts |dot| ≤ 27 unconditionally and exhaustively. Stated
+separately because a fact a proof depends on should be proved rather than left
+implicit in another property's cone; had it been available only under
+`all_valid`, the accumulator bound would have silently inherited an assumption
+about BRAM contents that nothing enforces.
+
+**83e. Cost, and why the first structure was abandoned.** Stating these
+properties inside the existing `ps2_props` wrapper — which carries a shadow
+`trit27_dot_product` — put **two** 27-input adder trees inside an inductive
+proof: killed at 18 minutes without finishing. The invariant needs only
+`result` and the chunk counter, so a separate lean wrapper without the shadow
+proves the same claims in **1.3 s**. Same properties, same design, 800× the
+speed, because one of them was in the cone and the other did not need to be.
+
+**83f. Three bars, and I nearly recorded the third from a tool error.** The
+suite proves (83c); `ps2_bound_alive` asserts the accumulator is always zero and
+**refutes**, so the contract does not freeze the datapath. For the third — is
+the contract load-bearing? — a relaxed variant should refute. Two runs reported
+exit 1 and were nearly written down as "refuted, the assumption is
+load-bearing". They were **`ERROR: File not found`**: a `cd` in an earlier
+command had moved the shell, and `returncode != 0` folded a tool error into a
+verdict. This is Prop. 39d exactly, in the wave that cites it. Re-run with
+absolute paths, the relaxed control did **not complete in 40 minutes** — the
+solver must drive the adder tree to ±27 to build the counterexample — so it is
+recorded as not completed, not as a verdict. The contract's necessity therefore
+rests on the arithmetic (27 × 1214 > 32767), which is stated, not on a
+refutation, which is not.
+
+**83g. Two more stale README claims, and a gate that was silently not gating.**
+Adding one CI step moved the swept count 31 → 32. Worse, the README still
+described Prop. 76's Wave 618 module split — "8 have properties of their own, 8
+constrained only at one remove" — when four waves of properties had since made
+it **16 and 0**: *every module the engine reaches now has properties of its
+own.* Both are now derived claims. And `claims_check` itself had the campaign's
+oldest bug: **a claim whose regex matches nothing printed nothing and was
+counted as covered**. Rewording the module-coverage sentence retired that check
+silently — caught only because the new UNMET guard fired on its own first run.
+
+**83h. A boundary correction.** The published "58 module properties" included
+`at27_alive`, a non-vacuity **oracle** that asserts something false so its
+refutation proves an assumption admits inputs. An assertion that must fail is
+not a proved property. `*_alive` modules are now excluded: the previous 58 was
+57 properties and one oracle, and the figure is **60** with this wave's three.
+
+Reproduce:
+
+```bash
+python3 formal/claims_check.py && python3 formal/orphan_scan.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
