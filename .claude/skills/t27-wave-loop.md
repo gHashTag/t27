@@ -4724,6 +4724,22 @@ These cost a wave each. Follow them before step 1.
      it improves nothing measurable today. The fix is correct and will matter
      later; reporting "31 sites" without that sentence would overstate it.
 
+126. **Measure the class before sizing the work.** eval.t27 showed 5 errors of
+     "type []T does not support array initialization syntax". The corpus has
+     **589** across 20 specs. A per-file error count is a sample, not a size.
+
+127. **Global name sets cannot answer per-type questions.** The backend had
+     `string_names`, `float_names`, `signed_names` -- all keyed by field NAME
+     alone, so two structs with a same-named field are indistinguishable. When
+     the question is "what type is THIS struct's field", the key must be
+     `(struct, field)`.
+
+128. **Reusing a helper inherits its blind spots.** `gen_array_literal_braces`
+     splits element text on COMMAS ONLY, so the repeat form `[v; n]` came out as
+     the raw `{ 0;21 }`. `gen_expr` handles repeats; the helper does not. **A
+     helper that works at one call site is not thereby correct at another** --
+     check which input shapes each site actually sees.
+
 ### How to update this tracker
 
 After closing a wave:

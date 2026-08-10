@@ -1174,6 +1174,52 @@ the simulator's field set.
 
 ---
 
+### P24 (W609) — The backend knew struct field *names* and never their *types*
+
+`eval.t27` had 5 errors of the form *"type `[]T` does not support array
+initialization syntax"*. The measurement before the fix found the class is not
+5 but **589**:
+
+| | |
+|---|---:|
+| struct fields declared | **3 949** |
+| of those, slice-typed | **649** |
+| array literal assigned to a slice-typed field | **589** in **20 specs** |
+
+The Zig backend collected three *global* sets of field names —
+`string_names`, `float_names`, `signed_names` — and never a field's **type**.
+So `Struct { data: [1, 2, 3] }` emitted `.{ 1, 2, 3 }`, an anonymous struct Zig
+will not coerce to `[]T`.
+
+The new map is keyed by **`(struct, field)`**, deliberately unlike the three
+sets beside it: those are global, and a global set cannot tell two structs'
+same-named fields apart. The lowering is the `@constCast(&[_]T{…})` W607 added
+for slice *returns* — `&[_]T{…}` is `*const [N]T`, so the mutable `[]T` most
+fields declare needs the cast.
+
+### The regression the corpus check caught
+
+`bram_weights.t27` began reporting `expected ',' after initializer`:
+
+```zig
+data = @constCast(&[_]i16{ 0;21 })
+```
+
+The array-**repeat** form `[v; n]` is stored as element text `v;n`, and
+`gen_array_literal_braces` — the helper reused from the return path — **splits
+on commas only**. `gen_expr` handles the repeat correctly (`.{v} ** n`); that
+helper does not. Zig spells it `[_]T{v} ** n`.
+
+> **This was not findable by reasoning about the change.** The five `eval.t27`
+> sites that motivated the work contain no repeat forms; the defect lived in a
+> spec reached only by the corpus-wide sweep. **Run the sweep before believing a
+> lowering is right, not after shipping it.**
+
+*Falsification condition:* a slice-typed field the map misses, a non-slice field
+it wrongly wraps, or a repeat literal that still emits `;`.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a
