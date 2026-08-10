@@ -31,10 +31,16 @@ def main():
 
     # 2. The three neighbours that share a prefix must all be present.
     ids = set(re.findall(r"id=(\S+)", text))
+    # Four families on two axes -- phi-derived against theorem-derived, binary
+    # against ternary -- plus the 2-bit alphabet that shares their prefix. Each has
+    # been lost at least once to a glob or to being mistaken for a rename of
+    # another, so each is named here explicitly.
     for want, spec, why in [
-        ("gfternary", "gfternary.t27", "2-bit {-phi, 0, +phi} alphabet"),
-        ("gf16", "gf16.t27", "binary GoldenFloat ladder"),
-        ("tef16", "tef16.t27", "ternary-exponent float ladder"),
+        ("gf16", "gf16.t27", "phi axis, binary"),
+        ("gft16", "gft16.t27", "phi axis, ternary"),
+        ("bnf16", "bnf16.t27", "theorem axis, binary -- the control for TNF"),
+        ("tnf16", "tnf16.t27", "theorem axis, ternary"),
+        ("gfternary", "gfternary.t27", "2-bit {-phi, 0, +phi} alphabet, not a float"),
     ]:
         if want not in ids:
             problems.append(f"MISSING   id={want} from the catalog ({why})")
@@ -44,25 +50,36 @@ def main():
             problems.append(f"MISSING   specs/numeric/{spec} on disk ({why})")
 
     # 3. They must be distinct families, not aliases of one another.
-    tef = {i for i in ids if re.fullmatch(r"tef\d+", i)}
-    gf = {i for i in ids if re.fullmatch(r"gf\d+", i)}
-    if not tef or not gf or tef & gf:
-        problems.append(f"COLLAPSED tef={len(tef)} gf={len(gf)} overlap={sorted(tef & gf)}")
+    fam = {name: {i for i in ids if re.fullmatch(pat, i)}
+           for name, pat in [("gf", r"gf\d+"), ("gft", r"gft\d+"),
+                             ("bnf", r"bnf\d+"), ("tnf", r"tnf\d+")]}
+    for name, members in fam.items():
+        if not members:
+            problems.append(f"COLLAPSED  family {name} has no rungs left")
+    # No family may be a subset of another: that is what "these are the same
+    # format under two names" looks like from the outside, and it has happened.
+    for a in fam:
+        for b in fam:
+            if a < b and fam[a] & fam[b]:
+                problems.append(f"OVERLAP    {a} and {b} share ids {sorted(fam[a] & fam[b])}")
 
     # 4. The former name must stay searchable. Not for citation reasons -- the
     # ladder has never been published under either name -- but because research
     # notes, prior branches and the author's own profile still use it, and every
     # measurement against takum/tekum/posit was recorded under the old label.
-    if 'former_name="GF-T16"' not in text:
-        problems.append('LOST      former_name="GF-T16" (internal continuity)')
+    # The phi families must keep their rule visible: it is what distinguishes them
+    # from the theorem-derived pair, and it was ad hoc once already.
+    if "round((N-1)/phi^2)" not in text:
+        problems.append("LOST      the golden-section rule from the GF-T block")
 
     if problems:
         for p in problems:
             print(p)
         print(f"FAIL: {len(problems)} problem(s)")
         return 1
+    fam_sizes = " + ".join(f"{len(v)} {k.upper()}" for k, v in fam.items())
     print(f"OK: {len(rows)} catalog rows, every source= resolves, "
-          f"{len(gf)} GF + {len(tef)} TEF + gfternary all present and distinct")
+          f"{fam_sizes} + gfternary, four families present and distinct")
     return 0
 
 

@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "TNF128",
+  "format_name": "TNF128",
+  "bitexact": false,
+  "format_notes": "TNF128 -- this work; e is 8 balanced-ternary TRITS not bits (12.68 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised",
+  "catalog": {
+    "id": "tnf128",
+    "bits": 128,
+    "s": 1,
+    "e": 8,
+    "m": 119,
+    "bias": 3280,
+    "storage": "u128",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; e is 8 balanced-ternary TRITS not bits (12.68 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised",
+    "use_case": "fixed-field ternary-exponent ladder; no regime codec",
+    "gf_relation": "self",
+    "source": "specs/numeric/tnf128.t27",
+    "phi_distance": 0.511
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

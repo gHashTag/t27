@@ -1,0 +1,48 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GFT16",
+  "format_name": "GF-T16",
+  "bitexact": true,
+  "format_notes": "GoldenFloat phi-aligned radix-2 float S1E6M9, bias 364. IEEE-style specials at top exponent",
+  "catalog": {
+    "id": "gft16",
+    "bits": 16,
+    "s": 1,
+    "e": 6,
+    "m": 9,
+    "bias": 364,
+    "storage": "u16",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6667 against 1/phi = 0.6180",
+    "use_case": "phi-derived ternary ladder; huge range at the cost of mantissa",
+    "gf_relation": "self",
+    "source": "specs/numeric/gft16.t27",
+    "phi_distance": 0.0486
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "anchor_check": {
+    "value": null,
+    "expected": 3.0,
+    "ieee754_exact": false,
+    "note": "3.0 is not an exact grid point of this format at this width"
+  },
+  "round_trip_policy": "decode: exact bits->f64 (curated_named). encode (reference): round-nearest-ties-even; overflow per format convention. abs_error 0 for representable values.",
+  "vector_mode": "curated_named",
+  "n_vectors": 1,
+  "vectors": [
+    {
+      "name": "pos_zero",
+      "input_f64": 0.0,
+      "input_f64_hex": "0x0000000000000000",
+      "gft16_bits_hex": "0x0000",
+      "gft16_bits_int": 0,
+      "decoded_f64": 0.0,
+      "decoded_f64_hex": "0x0000000000000000",
+      "abs_error": 0.0,
+      "category": "zero"
+    }
+  ]
+}

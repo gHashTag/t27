@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "BNF512",
+  "format_name": "BNF512",
+  "bitexact": false,
+  "format_notes": "BNF512 -- this work; control for TNF512; width rule 1+E+M=N; exponent sized for range not phi",
+  "catalog": {
+    "id": "bnf512",
+    "bits": 512,
+    "s": 1,
+    "e": 16,
+    "m": 495,
+    "bias": 32767,
+    "storage": "u512_software",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; control for TNF512; width rule 1+E+M=N; exponent sized for range not phi",
+    "use_case": "control isolating the ternary encoding's contribution",
+    "gf_relation": "self",
+    "source": "specs/numeric/bnf512.t27",
+    "phi_distance": 0.586
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

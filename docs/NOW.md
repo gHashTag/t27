@@ -1,3 +1,28 @@
+# NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: add BNF, and state the four families as two axes (Refs #2001)
+
+- **GF, GF-T, BNF and TNF are four formats, not renamings.** Two axes: phi-derived against theorem-derived, binary against ternary. GF sizes its exponent by `round((N-1)/phi^2)`, which is about the PROPORTION of the fields; BNF and TNF size it for the range the workload visits and then spend every remaining position, which follows from the precision law where the exponent cancels
+- **GF-T leaves positions unspent by construction, and that is what it is rather than a defect.** Converting a binary exponent to trits frees positions and the phi rule does not reclaim them: 1, 2, 4, 8, 18 free at N = 8, 16, 32, 64, 128. TNF takes them, and the precision law makes the gain exactly `2^k` -- 4x at 16 bits, 16x at 32, 256x at 64
+- **BNF is the control.** It differs from TNF in exactly one thing, the radix the exponent field is encoded in, so the pair measures the ternary encoding instead of asserting it. Measured: identical at every width on a binary fabric, exactly as the no-free-range theorem requires, and exactly 2x on a ternary one -- one mantissa bit, the same at every rung, because the packing loss is one position regardless of width
+- Eight BNF rungs added, all typechecking. Catalog 92 -> 100, so the erratum needs a third amendment
+- What may be claimed and what may not is written down in `docs/FOUR_FAMILIES.md`: the 2x is against our own control on a fabric nobody sells, and on a real ternary network TNF measures mid-pack among fixed fields
+
+# NOW -- the ladder is TNF: Ternary Network Float (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: TEF -> TNF, and the lineage stated correctly (Refs #2001)
+
+- **GF and this ladder are not the same lineage, and conflating them was the error behind two earlier names.** GF is built on the golden ratio: it sizes its exponent by `e = round((N-1)/phi^2)`, which puts `e/m` at `1/phi` by construction. This ladder **deliberately left phi** to become a reference for ternary networks, and its phi-distance therefore RISES with N -- measured, and structural rather than a defect
+- Named **TNF, Ternary Network Float**, for what it is built for: networks whose weights are in `{-1, 0, +1}`, where `w*a` is a select and the multiply disappears, so the decoder stops being overhead and becomes the body of the datapath
+- Renamed by explicit rung list, never by glob: `specs/numeric/tnf*.t27`, catalog ids `tnfN`, modules `triformat_tnfN`, packs, the integrity gate's neighbour check, the SSOT document and the erratum
+- Former names carried in `former_name=`: **GF-T** through 2026, then **TEF** for one day on 2026-08-09
+- Neighbours verified present after the rename: `gfternary.t27` and `gf16.t27`. A `gft*` glob has already deleted the first one once
+- Gates: catalog count 92, integrity CLEAN, `t27c` clean on all nine TNF specs
+
 # NOW -- correction: GF-T was never published (2026-08-09)
 
 Last updated: 2026-08-09
