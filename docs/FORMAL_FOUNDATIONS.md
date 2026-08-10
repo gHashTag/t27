@@ -4570,6 +4570,70 @@ python3 formal/mutate.py --self-test
 
 ---
 
+### Prop. 74 — twenty waves auditing the tools; this one audits the prose — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Numbers in the documentation match the tree*
+
+Prop. 73 corrected a figure quoted for twelve waves, and nothing had
+malfunctioned: the instrument measured exactly what it was told to, and the
+caption named a *module* where the data described a *wrapper*. **That class of
+error is invisible to every gate built so far**, because all of them check
+whether the tools lie. This one checks whether the prose does.
+
+**74a. `formal/claims_check.py`.** Re-derives each countable claim from the tree
+and compares it to README.md. It found two numbers already adrift:
+
+| claim | README said | tree has |
+|---|---|---|
+| propositions covered by the doc gate | 58 | **73** |
+| integration properties | 26 | **28** |
+
+And the CI step *names* had drifted with them — *"Prove integration properties
+(core 22)"* and *"(all 26)"* against a tree of 24 and 28. The steps prove
+whatever the file contains, so the numbers were pure label.
+
+**74b. It only polices the current-state document, and that is a decision.**
+Propositions here are dated records: *"22 of the 26 prove at seq 80"* was true
+when measured, and rewriting it would destroy the record rather than fix a
+number. Corrections belong in a later proposition, as Prop. 67a did for Prop. 66.
+README is the one document asserting the present, so it is the one held to the
+tree.
+
+**74c. The checker had the disease it was built to find, twice.** First it
+counted the engine's assertions in total (28) and compared that against a
+documented "26", flagging drift that might have been its own miscount. Then a
+per-line count said 26 and appeared to vindicate the docs — but **two assertions
+wrap the label and `assert` onto separate lines**, so the per-line figure
+undercounts by exactly two. The truth needed a guard-aware count over the text,
+not the lines: **24 core + 4 tracker-backed = 28**. Two properties had been added
+to the core set without any label following them.
+
+I nearly published "the docs are stale by 2" from the first count and "the docs
+are correct" from the second. Neither was established. *A checker that compares
+two numbers must first establish that both range over the same set* — which is
+the same failure as Prop. 73, committed inside the tool built to prevent it.
+
+**74d. It caught its own author within the wave.** Writing this proposition took
+the count from 73 to 74 while README still said 73, and the gate failed on the
+next run. That is the smallest possible demonstration that the check is
+load-bearing rather than decorative: the number it polices drifts *whenever
+anyone documents anything*, which is precisely why it had drifted 15 behind.
+
+**74e. What it cannot check, stated.** "13 of 64 gaps" is a measurement, not a
+property of the tree; re-deriving it means re-running an hour of proofs, so it is
+out of scope. What is in scope is every number that *is* a property of the tree —
+where drift is both most likely and least visible, because nobody re-counts
+propositions by hand.
+
+Reproduce:
+
+```bash
+python3 formal/claims_check.py --self-test
+python3 formal/claims_check.py
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

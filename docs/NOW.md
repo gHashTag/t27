@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-10
 
+## Wave 622 — twenty waves auditing the tools; this one audits the prose
+
+- **THE CLASS PROP. 73 EXPOSED IS INVISIBLE TO EVERY GATE BUILT SO FAR**: all of
+  them check whether the *tools* lie. Prop. 73's error had no malfunction in it
+  -- the instrument measured what it was told, and the caption named the wrong
+  thing. `formal/claims_check.py` re-derives each countable claim from the tree
+  and compares it to README.
+- **IT FOUND TWO NUMBERS ALREADY ADRIFT**:
+
+  | claim | README said | tree has |
+  |---|---|---|
+  | propositions covered by the doc gate | 58 | **73** |
+  | integration properties | 26 | **28** |
+
+  And the **CI step names** had drifted too -- *"core 22"* and *"all 26"*
+  against a tree of 24 and 28. The steps prove whatever the file holds, so those
+  numbers were pure label.
+- **IT POLICES README ONLY, AND THAT IS A DECISION**: propositions here are dated
+  records. *"22 of the 26 prove at seq 80"* was true when measured, and
+  rewriting it would destroy the record rather than fix a number. Corrections
+  belong in a later proposition, as Prop. 67a did for Prop. 66.
+- **THE CHECKER HAD THE DISEASE IT WAS BUILT TO FIND, TWICE**: first it counted
+  the engine's assertions in total (28) against a documented 26 and nearly
+  published "stale by 2"; then a per-line count said 26 and nearly published
+  "the docs are right". **Two assertions wrap the label and `assert` onto
+  separate lines**, so per-line undercounts by exactly two. Guard-aware, over the
+  text: **24 core + 4 tracker-backed = 28**. *A checker comparing two numbers
+  must first establish that both range over the same set* -- the same failure as
+  Prop. 73, committed inside the tool built to prevent it.
+- **IT CAUGHT ITS OWN AUTHOR WITHIN THE WAVE**: writing Prop. 74 took the count
+  73 -> 74 while README said 73, and the gate failed on the next run. The number
+  it polices drifts whenever anyone documents anything, which is exactly why it
+  had fallen 15 behind.
+- **WHERE**: `formal/claims_check.py`, `.github/workflows/formal-yosys.yml`,
+  `docs/FORMAL_FOUNDATIONS.md` (Prop. 74), README.
+- **STATE**: 74 propositions · 74 gates · 14 witnesses · 28 integration
+  properties (24 core + 4 tracker-backed) · 1213 tests · 496/496 seals ·
+  no known defect.
+
 ## Wave 621 — the campaign's most-quoted number, corrected
 
 - **THE OTHER MULTI-SUITE MODULES**: Prop. 72 corrected `dma_controller` and

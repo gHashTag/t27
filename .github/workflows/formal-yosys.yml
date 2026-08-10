@@ -256,7 +256,7 @@ jobs:
       # T27_FORMAL_DEEP, the other 22 reach -seq 80 again, where all 26 are
       # undecided beyond 1200 s at -seq 60. Nothing is dropped -- both sets are
       # gated below, and the bound each property is checked at rises or holds.
-      - name: Prove integration properties (core 22, deep bound)
+      - name: Prove integration properties (core 24, deep bound)
         run: |
           yosys -p "read_verilog -sv -formal -DT27_FORMAL \
                       build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
@@ -270,7 +270,7 @@ jobs:
                     async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 80 -set-init-zero -set-assumes"
 
-      - name: Prove integration properties (all 26, tracker-backed included)
+      - name: Prove integration properties (all 28, tracker-backed included)
         run: |
           yosys -p "read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_DEEP \
                       build/rtl/bitnet_engine_top.sv build/rtl/multilayer_sequencer.sv \
@@ -641,6 +641,16 @@ jobs:
       # property that happens to hold is indistinguishable from a gated one.
       # Counting properties tells you nothing; count the steps that run them.
       # Prop. 70.
+      # Prop. 73 corrected a figure quoted for twelve waves without any harness
+      # having malfunctioned: the instrument measured what it was told to and
+      # the caption named the wrong thing. Twenty waves of gates check whether
+      # the tools lie; this one checks whether the prose does. Prop. 74.
+      - name: Numbers in the documentation match the tree
+        run: |
+          set -euo pipefail
+          python3 formal/claims_check.py --self-test
+          python3 formal/claims_check.py
+
       - name: Every property file is run by some workflow
         run: |
           set -euo pipefail
