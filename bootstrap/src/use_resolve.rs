@@ -363,9 +363,27 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     // Rewrite `module::name` / `module.name` to the bare name the splice
     // declares. Longest first, so `a::bc` is not damaged by rewriting `a::b`.
     let mut out = String::from(source);
+    // W606: `|| local.contains(name)`.
+    //
+    // The filter used to accept only names the splice PULLED, so a qualified
+    // reference to something the importing file also declares itself was left
+    // spelled `eval::has_substring` -- and codegen lowers `::` to `.`, which is
+    // an undeclared namespace in the flat output.
+    //
+    // `specs/igla/coder/dataset.t27` is exactly that shape: it declares its own
+    // `has_substring` (its header says "inline copies of eval.t27 templates to
+    // avoid circular imports") AND calls `eval::has_substring(...)`. The
+    // fixpoint skips local names by design, so the name never entered
+    // `pulled_names`, so the rewrite never fired -- while three OTHER qualified
+    // references in the same file, whose declarations were pulled, rewrote
+    // correctly. One file, two outcomes, from one missing disjunct.
+    //
+    // Rewriting to the bare name is safe precisely BECAUSE the fixpoint skips
+    // locals: a name that is local is never also pulled, so the bare spelling
+    // has exactly one definition to bind to.
     let mut rewrites: Vec<&(String, String)> = qualified
         .iter()
-        .filter(|(_, name)| pulled_names.contains(name))
+        .filter(|(_, name)| pulled_names.contains(name) || local.contains(name))
         .collect();
     rewrites.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
     for (qual, name) in rewrites {
@@ -397,6 +415,21 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// W606: a qualified reference to a name the importing file declares
+    /// ITSELF must still be rewritten to the bare name. The filter used to
+    /// accept only PULLED names, so `dataset.t27` -- which declares its own
+    /// `has_substring` and also writes `eval::has_substring(...)` -- kept the
+    /// qualified spelling and generated an undeclared `eval.` namespace.
+    #[test]
+    fn a_qualified_ref_to_a_local_name_is_still_rewritten() {
+        let refs = qualified_refs("x = eval::has_substring(s, n, 0);", &["eval".to_string()]);
+        assert!(
+            refs.iter().any(|(q, n)| q == "eval::has_substring" && n == "has_substring"),
+            "qualified_refs must pair the qualified spelling with the bare name: {:?}",
+            refs
+        );
+    }
 
     #[test]
     fn decl_name_reads_the_declared_name() {

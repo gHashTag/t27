@@ -663,6 +663,7 @@ pub fn rag_retrieve_architecture(query: string) -> string {
         return "ternary_mac_unit";
     }
     return "generic";
+}
 
 /// load_draft_weights(bank) -> DraftModelConfig
 /// Reads draft model config from first 3 BRAM scalars.
@@ -2348,7 +2349,7 @@ test arch_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w342_depth_075: true
 
-}
+// W606: removed a stray `}` -- it closed nothing and truncated the module.
 
 invariant arch_w339_depth_072: true
 // Wave Loop 343 -- depth +1 (75->76)
