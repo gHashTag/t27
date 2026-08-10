@@ -513,6 +513,48 @@ it otherwise would overstate it.
 
 ---
 
+### T13 (W621) — The T11 guard is syntactic, decidable, and the feature it licenses is necessarily *partial*
+
+T11 says a permuted argument list is unambiguous **when the parameter types are
+pairwise distinct**. A compiler feature built on it must therefore decide, per
+call, whether the licence applies. **That decision is a syntactic check on the
+declaration alone** — no inference, no solving.
+
+**Statement.** Let `applicable(f)` hold iff `f`'s parameter types are pairwise
+distinct. Then `applicable` is decidable in time linear in the arity, and
+type-directed argument resolution is sound exactly on `{f : applicable(f)}`.
+
+**Proof.** Pairwise distinctness of a finite list of type names is decided by one
+pass with a set. Soundness on that domain is T11. Outside it, two parameters
+share a type `T`, so a call supplying two arguments of type `T` admits at least
+two type-correct assignments — the feature must decline rather than choose. ∎
+
+### The measurement that makes the design safe before it is written
+
+| | count | share |
+|---|---:|---:|
+| Functions with ≥ 2 typed parameters | **2 184** | |
+| **pairwise distinct** — T11 applies | **906** | **41 %** |
+| a repeated type — the feature **must decline** | **1 278** | 59 % |
+| fewer than 2 typed parameters — trivially safe | 3 543 | |
+
+Examples that must decline: `tmul(u8, u8)`, `dot27(u64, u64)`,
+`tp(u64, u64, u32)`.
+
+> **A feature that silently guessed on the 59% would be worse than the problem
+> it solves.** The value of T13 is not that it enables the feature but that it
+> **bounds** it — and the bound is computable from declarations, before a line
+> of the feature exists.
+
+**Consequence for entry 1.** `ternary_mac(i32, i8, TernaryWeight)` is in the
+41%, so its 171 call sites in three spellings are unambiguous. The feature would
+fix them and correctly refuse to touch `tmul`.
+
+*Falsification condition:* a function in the 906 whose permuted call is
+ambiguous, or one in the 1 278 whose permutations are all unique.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
