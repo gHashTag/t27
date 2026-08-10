@@ -1546,6 +1546,11 @@ resolver change is not warranted), and **24** are four other specs calling
 
 ---
 
+> **EXPLANATION CORRECTED IN W616.** The statistic below (7.4×) survives
+> enumeration. The *explanation* — "a generation calling functions in ways their
+> declarations forbid" — accounts for only **44%** of those errors. The majority
+> (53%) are calls to functions that **do not exist at all**. See **P31**.
+
 ### P30 (W615) — One generation of tests carries 61% of the failures at 18% of the volume
 
 **Measured across every IGLA spec, not a selected sample.** Each generated
@@ -1589,6 +1594,63 @@ Recorded as entry 14.
 
 *Falsification condition:* an attribution error in the line→test mapping, or an
 error class whose enrichment reverses when measured per spec rather than per
+test.
+
+---
+
+### P31 (W616) — The enrichment is real; my explanation of it was half wrong
+
+W615 recommended this audit **because it carried its own falsification**: if the
+537 errors inside `_wNNN` tests turned out to be ordinary type errors rather
+than declaration conflicts, P30's explanation would be wrong even though its
+statistic held. Enumerated:
+
+| Error class | `_wNNN` | other | per-test ratio |
+|---|---:|---:|---:|
+| `use of undeclared identifier` | **285** | 197 | 6.7× |
+| `expected type 'X', found 'Y'` | **152** | 40 | **17.7×** |
+| `struct 'X' has no member 'Y'` | **40** | **0** | **only `_wNNN`** |
+| `no field named 'X' in struct 'Y'` | 30 | 21 | 6.6× |
+| `type 'X' does not support array init` | **14** | **0** | **only `_wNNN`** |
+| `fractional component prevents coercion` | 12 | 7 | 8.0× |
+| `expected N argument(s), found M` | **0** | 18 | **only other** |
+| `incompatible types` | **0** | 9 | **only other** |
+
+### The verdict
+
+| | `_wNNN` errors | share | enrichment |
+|---|---:|---:|---:|
+| **declaration conflicts** (type / field / member / init) | **236** | 44 % | **18.0×** |
+| **undeclared identifiers** (the function does not exist) | **285** | **53 %** | 6.7 % → **6.7×** |
+
+**P30's explanation covers 44%, not the majority.** The dominant failure in that
+generation is not "called it wrongly" but **"called something that was never
+written"**.
+
+### The corrected account
+
+The `_wNNN` generation was **written ahead of the implementation**. It fails two
+ways at once:
+
+* it calls **functions that do not exist** — 285 errors, and this is the same
+  population P25 measured (82% of the dominant class being unwritten functions),
+  now localised to a specific generation of tests;
+* it calls **existing functions in ways their declarations forbid** — 236
+  errors, enriched **18×**, with two classes appearing *exclusively* there.
+
+Both are "tests written against a model the code does not implement", but they
+are different remedies: the first needs functions written (or the tests
+withdrawn); the second needs the canonical-model decision of register entries 2,
+14 and 15.
+
+### And the enrichment is not uniform
+
+Two classes run the *other* way — `expected N argument(s), found M` (18) and
+`incompatible types` (9) appear **only outside** `_wNNN` tests. A blanket claim
+that this generation is simply "worse" would be false.
+
+*Falsification condition:* an attribution error in the line→test mapping, or a
+class whose direction reverses when errors are counted per spec rather than per
 test.
 
 ---

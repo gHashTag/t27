@@ -22314,3 +22314,32 @@ of tests written against a mental model the declarations do not share. That
 turns several register questions into one: which model is canonical?
 
 Recorded as P30; register entries 14 and 15.
+
+## Wave 616 — the falsification I designed caught my own explanation
+
+W615 recommended this audit **because it carried its own falsification**: if the
+537 errors inside `_wNNN` tests were ordinary type errors rather than
+declaration conflicts, P30's EXPLANATION would be wrong even though its
+STATISTIC held.
+
+Enumerated, and it was:
+
+    declaration conflicts   236   44% of _wNNN errors   18.0x enriched
+    undeclared identifiers  285   53%                    6.7x enriched
+
+**P30 claimed the enrichment was "a generation calling functions in ways their
+declarations forbid". That covers 44%, not the majority.** The dominant failure
+is not "called it wrongly" but **"called something that was never written"**.
+
+The corrected account: the `_wNNN` generation was **written ahead of the
+implementation**, and fails two ways at once -- 285 calls to functions that do
+not exist (the P25 population, now localised to one generation) and 236 calls
+that contradict declarations (register entries 2, 14, 15). **Different remedies:
+write the functions or withdraw the tests, versus decide the canonical model.**
+
+**And the enrichment is NOT uniform.** `struct X has no member Y` (40) and
+`array init` (14) appear ONLY in _wNNN tests -- but `expected N argument(s)`
+(18) and `incompatible types` (9) appear ONLY OUTSIDE them. A blanket "this
+generation is worse" would be false.
+
+**A variant that can only confirm you is not worth a wave.**

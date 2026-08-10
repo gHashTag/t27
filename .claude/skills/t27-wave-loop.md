@@ -4846,6 +4846,25 @@ These cost a wave each. Follow them before step 1.
      model their declarations do not share. Say so -- it turns four questions
      into one.
 
+146. **Recommend the variant that can falsify your own proposition.** W615
+     ended by proposing the `_wNNN` audit specifically because it tested P30's
+     EXPLANATION rather than its statistic. It came back and corrected it: the
+     7.4x enrichment holds, but declaration conflicts are 44% of those errors,
+     not the majority -- 53% are calls to functions that do not exist. **A
+     variant that can only confirm you is not worth a wave.**
+
+147. **Check whether an enrichment is uniform before calling a population
+     "worse".** `_wNNN` tests carry 18x the declaration conflicts and 6.7x the
+     undeclared identifiers -- but `expected N argument(s), found M` (18) and
+     `incompatible types` (9) appear ONLY OUTSIDE them. Two classes run the
+     other way, so a blanket claim would be false.
+
+148. **Two failure modes can share one statistic and need different remedies.**
+     The `_wNNN` generation both calls functions that were never written (285)
+     and calls existing ones against their declarations (236). The first needs
+     functions written or tests withdrawn; the second needs a canonical-model
+     decision. Reporting them as one number hides that.
+
 ### How to update this tracker
 
 After closing a wave:
