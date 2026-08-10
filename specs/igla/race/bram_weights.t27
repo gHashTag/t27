@@ -27,6 +27,25 @@ pub const WeightAddr = struct {
 // ============================================================================
 
 /// Flatten 2D (row, col) into 1D index.
+/// Number of weights held in a BRAM bank -- the data length.
+///
+/// W611: called in this file and declared nowhere in the corpus -- 28 of the
+/// 886 `use of undeclared identifier` errors across IGLA. Its own INVARIANT
+/// states it outright, so nothing is being inferred here:
+///
+///     forall data : []f32
+///     bram_weights_width(data) == data.len() as u32
+///
+/// and the tests agree: len 3 -> 3, len 4 -> 4.
+///
+/// Its sibling `bram_weights_depth` is NOT written, and deliberately: its 30
+/// test points split 24 for `depth == len` against 6 for `depth == len/2`, and
+/// lengths 1, 2 and 4 carry BOTH expectations. That is a specification
+/// decision, the same shape as `ternary_mac`'s argument order.
+fn bram_weights_width(data: []f32) -> u32 {
+    return data.len() as u32;
+}
+
 fn flatten_addr(bank: WeightBank, addr: WeightAddr) -> u32 {
     return addr.row * bank.width + addr.col;
 }

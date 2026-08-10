@@ -1294,6 +1294,65 @@ decision**, and it is left as one.
 
 ---
 
+### P26 (W611) — Three of four written from their tests; the fourth contradicts itself
+
+W610 established the method and predicted the outcome: *"expect roughly one of
+the four to come back as a decision, as `throughput` did."* **Exactly one did.**
+
+| Function | errors | outcome |
+|---|---:|---|
+| `param_bounds_saturate` | 53 | **written** — signed 8-bit saturation |
+| `smt_check_bool` | 43 | **written** — `true → "SAT"`, `false → "UNSAT"` |
+| `bram_weights_width` | 28 | **written** — its own invariant states `== data.len()` |
+| `bram_weights_depth` | 50 | **NOT written — its tests contradict each other** |
+
+### `bram_weights_depth`, quantified
+
+30 test points, and they split:
+
+| | |
+|---|---:|
+| consistent with `depth == len` | **24** |
+| consistent with `depth == len/2` | **6** |
+| consistent with neither | 0 |
+
+| input length | expects |
+|---:|---|
+| 1 | **{0, 1}** |
+| 2 | **{1, 2}** |
+| 4 | **{2, 4}** |
+| 3, 5, 6, 8 | single-valued |
+
+**Three lengths carry both expectations.** No function satisfies the suite. This
+is the `ternary_mac` shape — 91 call sites against 80, inside the module that
+declares it — and the `systolic_ternary_array` shape from W571. The 24–6 split
+suggests identity was intended; **saying so is not the same as deciding it**, and
+it is left as a specification decision.
+
+### Aggregate
+
+| | before W611 | after |
+|---|---:|---:|
+| IGLA total compile errors | 1 458 | **1 192** |
+| `use of undeclared identifier` | 886 | **622** |
+| `prm.t27` | 86 | 33 |
+| `bram_weights.t27` | 86 | 58 |
+| `formal.t27` | 175 | 132 |
+
+**266 errors removed by writing three functions**, none of which required a
+judgement call — each was determined by tests already in the file.
+
+> **The method's value is not that it writes functions; it is that it
+> distinguishes the determined from the under-determined before writing
+> anything.** Two of nine examined across W610–W611 turned out to be decisions
+> (`throughput`, `bram_weights_depth`), and writing either would have meant
+> inventing a contract and calling it an implementation.
+
+*Falsification condition:* a `depth` function satisfying all 30 points, or one
+of the three written functions failing a test in its own file.
+
+---
+
 ## 3. Where this sits in the literature
 
 Stated from general knowledge of the field, without fabricated citations. Where a

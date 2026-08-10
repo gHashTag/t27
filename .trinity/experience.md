@@ -22133,3 +22133,32 @@ make a number go down.
 pre-existing), an i32/u32 product mismatch, and two lowercase `mat2x2` literals
 against the declared `Mat2x2`. The last two errors are design questions --
 booth_mul_i16 returns i32 while Mat2x2 fields are i16 -- and stay decisions.
+
+## Wave 611 — three written from their tests, the fourth contradicts itself
+
+W610 predicted "roughly one of the four comes back as a decision". **Exactly one
+did.**
+
+    param_bounds_saturate  53 -> 0   written (signed 8-bit saturation)
+    smt_check_bool         43 -> 0   written (true -> "SAT", false -> "UNSAT")
+    bram_weights_width     28 -> 0   written (its own invariant states == len)
+    bram_weights_depth     50        NOT WRITTEN -- tests contradict
+
+**bram_weights_depth, quantified:** 30 test points -- 24 consistent with
+`depth == len`, 6 with `depth == len/2`, 0 with neither. Lengths **1, 2 and 4
+carry BOTH expectations**. No function satisfies the suite. Same shape as
+`ternary_mac`'s argument order (91 vs 80) and `systolic_ternary_array`'s
+contradictory tests. The 24-6 split suggests identity was intended, **and noting
+that is not the same as deciding it.**
+
+**Aggregate: IGLA 1458 -> 1192 errors; undeclared 886 -> 622.** 266 removed by
+writing three functions, none requiring a judgement call.
+
+**The method's value is not that it writes functions -- it is that it separates
+the determined from the under-determined BEFORE writing anything.** Nine
+examined across W610-W611, two were decisions. Writing either would have meant
+inventing a contract and calling it an implementation.
+
+**Quantify a contradiction before handing it back.** "The tests disagree" is a
+complaint. "30 points, 24 for identity, 6 for len/2, lengths 1/2/4 carry both"
+is a decision brief.

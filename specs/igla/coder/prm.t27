@@ -64,6 +64,28 @@ pub fn reward_syntax(step: Step, language: string) -> RewardSignal {
 
 /// Detect whether rhs contains a multiplication operator '*'.
 /// Skips comments (//) and avoids matching inside identifiers.
+/// Saturate a value into the signed 8-bit range.
+///
+/// W611: called in this file and declared nowhere in the corpus -- 53 of the
+/// 886 `use of undeclared identifier` errors across IGLA. Written from its own
+/// tests, which determine it completely:
+///
+///     param_bounds_saturate(-200) == -128        (below the range)
+///     param_bounds_saturate( 200) ==  127        (above it)
+///     param_bounds_saturate(   0) ==    0        (inside, identity)
+///     param_bounds_saturate( 127) ==  127        (at the boundary)
+///
+/// with the invariant `val < -128 ==> param_bounds_saturate(val) == -128`.
+fn param_bounds_saturate(val: i32) -> i32 {
+    if (val < -128) {
+        return -128;
+    }
+    if (val > 127) {
+        return 127;
+    }
+    return val;
+}
+
 fn contains_multiply_in_rhs(rhs: string) -> bool {
     return contains_multiply_in_rhs_inner(rhs, 0, false);
 }

@@ -65,6 +65,24 @@ pub const EquivalenceCheck = struct {
 
 /// Primitive bit-width safety check: ensures every assignment LHS signal
 /// has a declared width > 0.
+/// SMT satisfiability verdict for a boolean literal.
+///
+/// W611: called in this file and declared nowhere in the corpus -- 43 of the
+/// 886 `use of undeclared identifier` errors across IGLA. Its own tests and
+/// invariants determine it completely and agree with each other:
+///
+///     smt_check_bool(true)  == "SAT"
+///     smt_check_bool(false) == "UNSAT"
+///
+/// stated four ways -- two tests and two invariants, including the universally
+/// quantified `!b ==> smt_check_bool(b) == "UNSAT"`.
+fn smt_check_bool(b: bool) -> string {
+    if (b) {
+        return "SAT";
+    }
+    return "UNSAT";
+}
+
 fn check_bitwidth_safety(m: RtlModule) -> []ProofObligation {
     return check_bitwidth_safety_inner(m, m.assigns, 0);
 }

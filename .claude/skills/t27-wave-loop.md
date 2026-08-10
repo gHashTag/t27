@@ -4758,6 +4758,19 @@ These cost a wave each. Follow them before step 1.
      function ignoring its duration argument, which is not a throughput. Report
      it; do not write a degenerate implementation to make a number go down.
 
+132. **The method's value is distinguishing determined from under-determined,
+     not writing functions.** Across W610-W611, nine unwritten functions were
+     examined and TWO turned out to be decisions -- `throughput` (satisfied only
+     by a function ignoring its duration argument) and `bram_weights_depth` (30
+     test points, 24 say `len`, 6 say `len/2`, three lengths carry BOTH).
+     Writing either would have meant inventing a contract and calling it an
+     implementation.
+
+133. **Quantify a contradiction before handing it back.** "The tests disagree"
+     is a complaint; "30 points, 24 for identity, 6 for len/2, and lengths 1, 2
+     and 4 carry both expectations" is a decision brief. The 24-6 split suggests
+     which was intended -- **and noting that is not the same as deciding it.**
+
 ### How to update this tracker
 
 After closing a wave:
