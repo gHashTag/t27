@@ -22028,3 +22028,38 @@ Rather than keep guessing at a frozen file, both were reverted and the defect is
 documented with everything learned. **A fix you cannot demonstrate is not a fix,
 and keeping it because it is "correct in principle" is how a compiler acquires
 changes nobody can explain.**
+
+## Wave 608 — the discard, a second reserved word, and an import that needed a parse fix first
+
+**eval.t27: 32 -> 30 errors. parse-complete 400 -> 401.**
+
+**1. `_` is Zig's DISCARD, not a name.** `let _ = f();` lowered to
+`const _ = f();`, which Zig rejects outright. Worse, the const-inliner then
+matched `_` as a variable and emitted **`_ = _;`** -- discarding the discard and
+losing the statement's actual operand. Both fixed. 31 `let _ =` sites across 5
+specs.
+
+**Honest caveat: those five specs all fail at PARSE**, so the fix delivers no
+measurable improvement today. It is correct and it will matter when they parse;
+saying that plainly is better than quoting "31 sites" as though it were 31 wins.
+
+**2. A second reserved word used as a binding.** W605 found `var`; this wave
+found **`module`** -- `given module = RtlModule { ... }` in
+`specs/igla/race/backend.t27` and `specs/igla/race/rtl.t27`, 3 sites. Renaming
+made **backend.t27 parse for the first time** (parse-complete 400 -> 401).
+
+**3. The import chain, in the right order.** `substring_match` was called in
+eval.t27 and declared in `igla::race::backend` with no import. Adding the import
+alone would have done nothing -- **use_resolve only splices from dependencies
+that PARSE**, and backend.t27 did not, because of finding (2). Fix the parse,
+then add the import: `substring_match` resolves.
+
+The general shape, third time this chain has hit it (arch -> prm, eval -> prm,
+backend -> eval): **a missing-import diagnosis is incomplete until you check
+whether the target parses.**
+
+**What remains in eval.t27, measured:** 6 `pointer and pointer` from string
+concatenation with `+` (needs an allocator -- a language decision), 5
+array-literal-into-slice at STRUCT FIELD position (needs a struct field-type map
+the Zig backend does not have), plus type mismatches and two more missing
+imports.

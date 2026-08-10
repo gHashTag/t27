@@ -5711,7 +5711,15 @@ impl Codegen {
                     .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
                 self.write_indent();
-                self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                // W608: `_` is Zig's DISCARD, not a name. `let _ = f();` was
+                // lowered to `const _ = f();`, which Zig rejects outright --
+                // 31 sites across 5 specs plus the bare `_ = x;` form. The
+                // discard spelling is the whole statement.
+                if stmt.children[0].name == "_" {
+                    self.write("_ = ");
+                } else {
+                    self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                }
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else if tuple_binding {
@@ -5903,6 +5911,18 @@ impl Codegen {
                     // A slice-typed local must be `var`: `&const_array` is
                     // `*const [N]T`, which coerces to `[]const T` but not to
                     // the mutable `[]T` most signatures declare.
+                    // W608: `_` is Zig's DISCARD, not a binding name.
+                    // `let _ = f();` lowered to `const _ = f();`, which Zig
+                    // rejects outright -- 31 sites across 5 specs. The discard
+                    // takes no keyword and no type annotation.
+                    if node.name == "_" {
+                        self.write("_ = ");
+                        if let Some(init) = node.children.first() {
+                            self.gen_expr(init);
+                        }
+                        self.write_line(";");
+                        return;
+                    }
                     let as_var = node.extra_mutable
                         || self.mut_names.contains(&node.name)
                         || self.slice_locals.contains_key(&node.name);
@@ -14124,7 +14144,10 @@ impl Compiler {
                             .collect::<String>()
                     }
                 })
-                .filter(|n| !n.is_empty())
+                // W608: `_` is the discard, never a binding to inline. Without
+                // this the pass emitted `_ = _;` -- discarding the discard and
+                // losing the statement's actual operand.
+                .filter(|n| !n.is_empty() && n != "_")
                 .collect();
             let indent: String = line.chars().take_while(|c| *c == ' ').collect();
             for name in names {

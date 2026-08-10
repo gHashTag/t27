@@ -513,8 +513,9 @@ test rtl_emit_verilog_instance_port_map
     invariant rtl_phi_identity:
     1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 bench emit_verilog_1k_assigns
-    given module = mock_module(1000)
-    measure emit_verilog(module)
+    // W608: `module` is a t27 KEYWORD and cannot name a binding.
+    given rtl_module = mock_module(1000)
+    measure emit_verilog(rtl_module)
     target latency_ms < 50.0
 
 test rtl_r_si_1_exactly_one_mul_violation
@@ -603,8 +604,9 @@ test rtl_bits_to_u64_all_zeros
     then val == 0
 
 bench r_si_1_check_1k_assigns
-    given module = mock_module(1000)
-    measure is_r_si_1_compliant(module)
+    // W608: `module` is a t27 KEYWORD and cannot name a binding.
+    given rtl_module = mock_module(1000)
+    measure is_r_si_1_compliant(rtl_module)
     target latency_ms < 10.0
 
 

@@ -534,8 +534,9 @@ bench booth_encode_latency
     target latency_ms < 1.0
 
 bench r_si_1_pass_latency
-    given module = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
-    measure r_si_1_pass(module)
+    // W608: `module` is a t27 KEYWORD and cannot name a binding.
+    given rtl_module = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    measure r_si_1_pass(rtl_module)
     target latency_ms < 1.0
 
 test parse_const_binary

@@ -10,6 +10,12 @@
 module igla-coder-eval;
 use base::types;
 use math::constants;
+// W608: `substring_match` is declared in igla::race::backend and was called
+// here without an import. backend.t27 did not parse until this wave (a
+// reserved word `module` used as a binding), so the splice had nothing to
+// pull from; it parses now. Not circular -- backend imports only base::types
+// and igla::race::rtl.
+use igla::race::backend;
 
 // ============================================================================
 // 1. Benchmark Constants
@@ -2733,7 +2739,8 @@ bench module_identity_latency_6 {
     var input = 1;
     var result = input + 0;
     assert result == 1;
-    _ = result;
+    // W608: removed `_ = result;` -- `result` is used by the assert above, so
+    // the discard is dead, and Zig rejects a pointless discard outright.
 }
 
 test eval_pass_at_k_empty_results
