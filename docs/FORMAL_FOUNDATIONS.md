@@ -4804,6 +4804,62 @@ properties referencing signals which do not exist; miss the fourth and
 
 ---
 
+### Prop. 78 — the memory axiom, over a symbolic address — `PROVED`
+
+**Gate:** `formal-yosys.yml` → *Prove weight_bram properties*
+
+Second of the INDIRECT modules from Prop. 76. `weight_bram` is the memory the
+prefetch fills and the compute stage reads; Prop. 34's `DEPTH` scaling and the
+`memory_map` pass in every engine proof both exist because of it, and nothing
+stated what it is supposed to do.
+
+**78a. One property, and it is the whole memory axiom.**
+`a_read_returns_last_write`: a read of an address returns the last value written
+to it. The address is **symbolic** — a free input held constant by assumption —
+which is what makes one property also cover **non-interference**: if a write to
+any other address disturbed this one, the shadow would disagree. A fixed address
+would have proved something far weaker.
+
+**78b. Collision semantics are load-bearing.** `rd_data <= mem[rd_addr]` and
+`mem[wr_addr] <= wr_data` are both non-blocking, so a read concurrent with a
+write to the same address returns the **old** value. The shadow is therefore
+compared as of the read cycle, before that cycle's write — which is what
+`$past(fv_mem)` expresses. Get this backwards and the property refutes on a
+correct memory.
+
+**78c. It refuted first, and the counterexample named the cause exactly.** At
+cycle 2 the solver wrote to address **2048** of a four-entry array. `DEPTH` is
+scaled to 4 by `chparam` for tractability while `ADDR_WIDTH` stays 12, so most
+representable addresses are out of bounds. The fix is an in-range assumption —
+and its provenance matters: **at the real depth the assumption is vacuous**,
+because `DEPTH` is 4096 and `ADDR_WIDTH` is 12, so every representable address is
+legal. *It constrains nothing about the design and exists solely to keep the
+scaled-down proof faithful.* An assumption that would be vacuous at full scale is
+the only kind that can be added to a scaled proof without weakening it.
+
+**78d. Zero mechanical mutants detected, and that is a fact about the mutants.**
+The module is 28 lines and yields **three** parsing mutants, all of them
+width-expression edits (`ADDR_WIDTH-1` → `+1`, `DEPTH-1` → `+1`) which widen a
+port or an array without producing a memory fault. Per Prop. 48b, a sweep that
+finds nothing must demonstrate it could have — so the property was run against
+faults a memory can actually have:
+
+| targeted fault | verdict |
+|---|---|
+| read the write address | **caught** |
+| ignore the write enable | **caught** |
+| write to the read address | **caught** |
+| read one address early | **caught** |
+
+Four of four. The mechanical operator set is simply blind to this module, which
+is worth stating rather than reporting "0/3" and letting it read as weakness.
+
+**78e. Coverage: 9 direct → 10, 7 indirect → 6.** Four remain INDIRECT
+(`pipeline_stage2_compute`, `adder_tree_27`, `trit27_dot_product`,
+`trit27_parallel_multiply`, `trit_full_adder`, `trit_half_adder`).
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

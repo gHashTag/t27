@@ -2,6 +2,43 @@
 
 Last updated: 2026-08-10
 
+## Wave 626 — the memory axiom, over a symbolic address
+
+- **SECOND INDIRECT MODULE CLOSED**: `weight_bram` is the memory the prefetch
+  fills and the compute stage reads. Prop. 34's DEPTH scaling and the
+  `memory_map` pass in every engine proof exist because of it, and nothing
+  stated what it is supposed to do.
+- **ONE PROPERTY, THE WHOLE AXIOM**: a read returns the last value written to
+  that address -- with the address **symbolic**, a free input held constant by
+  assumption. That is what makes one property also cover **non-interference**:
+  if a write to any other address disturbed this one, the shadow would disagree.
+  A fixed address would have proved something far weaker.
+- **COLLISION SEMANTICS ARE LOAD-BEARING**: both assignments are non-blocking,
+  so a read concurrent with a write to the same address returns the **old**
+  value. The shadow is compared as of the read cycle, before that cycle's write.
+  Get it backwards and the property refutes on a correct memory.
+- **IT REFUTED FIRST, AND THE COUNTEREXAMPLE NAMED THE CAUSE**: at cycle 2 the
+  solver wrote to address **2048** of a four-entry array. DEPTH is scaled to 4
+  by `chparam` while ADDR_WIDTH stays 12, so most addresses are out of bounds.
+  Fixed with an in-range assumption -- and its provenance matters: **at the real
+  depth that assumption is vacuous** (DEPTH 4096, ADDR_WIDTH 12, every
+  representable address legal). *An assumption that would be vacuous at full
+  scale is the only kind that can be added to a scaled proof without weakening
+  it.*
+- **ZERO MECHANICAL MUTANTS DETECTED, AND THAT IS A FACT ABOUT THE MUTANTS**: 28
+  lines yield **three** parsing mutants, all width-expression edits that widen a
+  port or array without producing a memory fault. Per Prop. 48b the sweep had to
+  demonstrate it could have found something, so the property was run against
+  faults a memory can actually have -- read the write address, ignore the write
+  enable, write to the read address, read one address early. **4 of 4 caught.**
+- **COVERAGE**: 9 direct -> **10**, 7 indirect -> 6.
+- **WHERE**: `formal/weight_bram_props.sv`, `formal/phantom_scan.py`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 78),
+  README.
+- **STATE**: 78 propositions · 78 gates · 14 witnesses · 48 module properties
+  across 8 modules · 28 integration properties · 1213 tests · 496/496 seals ·
+  no known defect.
+
 ## Wave 625 — the ping-pong finally has properties of its own
 
 - **PROP. 76's MOST INTERESTING ROW, ACTED ON**: `double_buffer_ctrl` is 33
