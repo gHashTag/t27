@@ -75,6 +75,14 @@ jobs:
           set -euo pipefail
           mkdir -p build/rtl
           ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+          # trit_stdlib.sv is NOT part of the bundle -- BUNDLE_ORDER lists 12
+          # files and this is not one of them -- yet pipeline_stage2_compute
+          # instantiates trit27_dot_product from it, so the engine cannot
+          # elaborate without it. Every engine-level step here lists it as a
+          # source. Verified in Wave 628: a fresh bundle alone gives
+          # `prep -top bitnet_engine_top` exit 1. It worked locally only because
+          # an older gen-trit-stdlib run had left the file behind. Prop. 80.
+          ./target/release/t27c gen-trit-stdlib --output build/rtl/trit_stdlib.sv
 
       # Vacuity gate. A formal job that only runs a prover cannot distinguish
       # "all properties hold" from "there are no properties", and this repo has
@@ -241,6 +249,34 @@ jobs:
                     build/rtl/trit_stdlib.sv formal/pipeline_stage2_props.sv; \
                     prep -top ps2_props -flatten; async2sync; chformal -lower; \
                     sat -verify -prove-asserts -seq 12 -set-init-zero -set-assumes"
+
+      # Wave 628. The last five INDIRECT modules from Prop. 76, and the only
+      # purely combinational ones. `-seq 1` on stateless logic quantifies over
+      # EVERY input combination, so these verdicts carry no depth caveat and no
+      # induction argument -- the first unbounded module results outside the
+      # k-induction suite, and the only ones exempt from the bound audit of
+      # Prop. 68. The proof of adder_tree_27 found a real defect. Prop. 80.
+      - name: Prove trit_stdlib primitives (exhaustive)
+        run: |
+          set -euo pipefail
+          for top in tha_props tfa_props tpm_props at27_props dot_props; do
+            yosys -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                      formal/trit_stdlib_props.sv; \
+                      prep -top ${top} -flatten; async2sync; chformal -lower; \
+                      sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"
+            echo "ok       ${top} (exhaustive over all inputs)"
+          done
+          # The validity assumption must not empty the input space: this asserts
+          # that no valid vector exists, so it must REFUTE. Prop. 12a's oracle,
+          # in the only form that makes sense for stateless logic.
+          if yosys -q -p "read_verilog -sv -formal build/rtl/trit_stdlib.sv \
+                          formal/trit_stdlib_props.sv; \
+                          prep -top at27_alive -flatten; async2sync; chformal -lower; \
+                          sat -verify -prove-asserts -seq 1 -set-init-zero -set-assumes"; then
+            echo "::error::the validity assumption admits no inputs, so every proof above is vacuous"
+            exit 1
+          fi
+          echo "ok       valid inputs exist (refutes)"
 
       - name: Prove layer_sequencer properties
         run: |

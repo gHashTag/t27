@@ -299,9 +299,17 @@ fn adder_tree_27_has_three_reduction_levels() {
         body.contains("wire signed [2:0] l1 [0:8];"),
         "adder_tree_27 must have a 9-entry signed [2:0] level1 array"
     );
+    // FIVE bits, not four. This assertion previously demanded `signed [3:0]`
+    // and so actively pinned a defect: a 4-bit signed value spans [-8, +7] and
+    // cannot hold this level's range of [-9, +9], so any group of nine trits
+    // summing to +8, +9 or -9 wrapped by 16. The first exhaustive proof of the
+    // primitive (Wave 628) found the tree returning -14 for a vector whose
+    // balanced sum is +2. A test that asserts a width without checking the
+    // range it must cover is a test that protects the bug. Prop. 80.
     assert!(
-        body.contains("wire signed [3:0] l2 [0:2];"),
-        "adder_tree_27 must have a 3-entry signed [3:0] level2 array"
+        body.contains("wire signed [4:0] l2 [0:2];"),
+        "adder_tree_27 must have a 3-entry signed [4:0] level2 array -- \
+         four bits cannot hold [-9, +9]"
     );
     // Three explicit level-2 reductions and one final level-3 sum.
     assert!(body.contains("assign l2[0] = l1[0] + l1[1] + l1[2];"));

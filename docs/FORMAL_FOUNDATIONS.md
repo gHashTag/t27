@@ -4905,6 +4905,84 @@ as the next step rather than left as an implied gap.
 
 ---
 
+### Prop. 80 — an exhaustive proof, a real defect, and a step that could not run — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Prove trit_stdlib primitives (exhaustive)*
+
+The last five INDIRECT modules from Prop. 76 are purely combinational, and that
+changes what a proof means: with no state, `sat -seq 1` quantifies over **every
+input combination**. These verdicts carry no depth caveat, no induction argument,
+and are the only module results in this campaign exempt from the bound audit of
+Prop. 68. Proving them found two things neither the mutation harness nor twenty
+waves of gates had.
+
+**80a. `adder_tree_27` was wrong — the campaign's tenth RTL defect.** The tree
+returned **−14** for a vector whose balanced sum is **+2**: a difference of
+exactly 16, the signature of a four-bit wrap. Level 2 sums three level-1 values
+of range [−3,+3], so it spans **[−9,+9]** — and was declared `signed [3:0]`,
+which spans [−8,+7]. Any group of nine trits summing to ±8 or ±9 wrapped.
+
+**The RTL's own comment said `range [-9, +9] -> signed [3:0]`.** The correct
+range was written directly above the declaration that could not hold it, for
+every wave since Wave 33.
+
+**80b. A test was pinning the defect.** `adder_tree_27_has_three_reduction_levels`
+asserted `body.contains("wire signed [3:0] l2 [0:2];")`. The bug was not merely
+untested — it was **protected** by a passing test. *A test that asserts a width
+without checking the range it must cover locks in whatever the emitter first
+produced.* Fixed in the emitter (`bootstrap/src/trit_stdlib.rs`), not the
+generated file, and the test now demands five bits and says why.
+
+This propagated: `trit27_dot_product` uses the tree, `pipeline_stage2_compute`
+uses the dot product, and the engine uses that. Prop. 79a deliberately left the
+dot product's correctness unstated while checking the accumulator around it —
+and the thing it declined to assume was in fact broken.
+
+**80c. And the engine steps could not run in a clean checkout.**
+`build/rtl/trit_stdlib.sv` is **not in the bundle**: `BUNDLE_ORDER` lists twelve
+files and this is not one of them. Every engine-level step lists it as a source.
+With CI's exact source list and a fresh emit:
+
+```bash
+grep -c "gen-trit-stdlib" .github/workflows/formal-yosys.yml
+```
+
+| emit | `prep -top bitnet_engine_top` |
+|---|---|
+| `gen-bitnet-bundle` alone | **exit 1** — `File 'build/rtl/trit_stdlib.sv' not found` |
+| plus `gen-trit-stdlib` | exit 0 |
+
+It worked locally only because an older `gen-trit-stdlib` run had left the file
+behind — a stale artifact standing in for a build step. The emit step now
+generates it.
+
+**80d. I nearly published this wrong, twice.** The first test globbed `*.sv`,
+which includes `behavior_sva_v2.sv` — concurrent SVA that yosys cannot parse at
+all (Props. 2/5/6) — so it failed for a reason having nothing to do with the
+finding. And an earlier check read exit status through a `grep` that missed the
+error line entirely, briefly suggesting the engine elaborated fine. **Both times
+the harness was wrong, not the tree**, and the claim only became sound when the
+test used CI's *exact* source list.
+
+**80e. Five exhaustive results, and the non-vacuity oracle that makes them
+mean something.** All five prove: the half- and full-adder balanced-ternary
+axioms, lane-wise multiplication, the 27-trit tree sum, and the dot product. Each
+assumes inputs are valid trits, so a wrapper asserts that **no** valid vector
+exists and must refute — Prop. 12a's oracle in the only form stateless logic
+admits.
+
+**80f. The reserved encoding is handled inconsistently, and that is recorded
+rather than fixed.** `adder_tree_27` maps `2'b11` to 0 via an else branch;
+`trit27_parallel_multiply` tests `ai == bi` and so treats `2'b11 * 2'b11` as +1.
+Both are defensible readings of "reserved" and they disagree. The proofs assume
+it away; the disagreement is stated so the assumption is not mistaken for its
+absence.
+
+**80g. Coverage: 11 direct → 16, 5 indirect → 0.** No module in the emitted
+bundle is now constrained only at one remove.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

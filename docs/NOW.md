@@ -2,6 +2,49 @@
 
 Last updated: 2026-08-10
 
+## Wave 628 — an exhaustive proof, a real defect, and a step that could not run
+
+- **COMBINATIONAL CHANGES WHAT A PROOF MEANS**: the last five INDIRECT modules
+  are stateless, so `sat -seq 1` quantifies over **every input combination**. No
+  depth caveat, no induction, and the only module results exempt from Prop. 68's
+  bound audit. All five prove.
+- **`adder_tree_27` WAS WRONG -- THE CAMPAIGN'S TENTH RTL DEFECT**: the tree
+  returned **-14** for a vector whose balanced sum is **+2**, a difference of
+  exactly 16 -- a four-bit wrap. Level 2 spans **[-9,+9]** and was declared
+  `signed [3:0]`, which spans [-8,+7]. **The RTL's own comment said
+  `range [-9, +9] -> signed [3:0]`** -- the correct range written directly above
+  the declaration that could not hold it, since Wave 33.
+- **A TEST WAS PINNING THE DEFECT**: `adder_tree_27_has_three_reduction_levels`
+  asserted the buggy width verbatim. The bug was not untested, it was
+  **protected** by a passing test. *A test that asserts a width without checking
+  the range it must cover locks in whatever the emitter first produced.* Fixed
+  in the emitter, not the generated file.
+- **IT PROPAGATED**: the tree feeds `trit27_dot_product`, which feeds
+  `pipeline_stage2_compute`, which feeds the engine. Prop. 79a deliberately left
+  the dot product's correctness unstated while checking the accumulator around
+  it -- and the thing it declined to assume was in fact broken.
+- **AND THE ENGINE STEPS COULD NOT RUN IN A CLEAN CHECKOUT**: `trit_stdlib.sv`
+  is **not in the bundle** (BUNDLE_ORDER lists twelve files; it is not one), yet
+  every engine step lists it as a source. With CI's exact source list, a fresh
+  `gen-bitnet-bundle` gives **exit 1, `File 'build/rtl/trit_stdlib.sv' not
+  found`**; adding `gen-trit-stdlib` gives exit 0. It worked locally only
+  because an older run had left the file behind -- a stale artifact standing in
+  for a build step.
+- **I NEARLY PUBLISHED THIS WRONG, TWICE**: the first test globbed `*.sv`, which
+  includes the concurrent-SVA file yosys cannot parse at all, so it failed for
+  an unrelated reason; and an earlier check read exit status through a grep that
+  missed the error line, briefly suggesting all was well. **Both times the
+  harness was wrong, not the tree.**
+- **COVERAGE**: 11 direct -> **16**, 5 indirect -> **0**. No module in the
+  bundle is now constrained only at one remove.
+- **WHERE**: `formal/trit_stdlib_props.sv`, `bootstrap/src/trit_stdlib.rs`,
+  `bootstrap/tests/trit_stdlib.rs`, `formal/phantom_scan.py`,
+  `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md` (Prop. 80),
+  README.
+- **STATE**: 80 propositions · 80 gates · 14 witnesses · 58 module properties
+  across 14 modules · 1213 tests · 496/496 seals · **one defect found and
+  fixed**.
+
 ## Wave 627 — the accumulator, checked without trusting the primitive
 
 - **THIRD INDIRECT MODULE CLOSED, AND THE LAST NON-TRIVIAL ONE**: the MAC

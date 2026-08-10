@@ -367,8 +367,15 @@ module adder_tree_27 (
         end
     endgenerate
 
-    // Level 2: 3 groups of 3, range [-9, +9] -> signed [3:0].
-    wire signed [3:0] l2 [0:2];
+    // Level 2: 3 groups of 3, range [-9, +9] -> signed [4:0].
+    //
+    // FIVE bits, not four. A 4-bit signed value spans [-8, +7] and cannot hold
+    // this level's own stated range: any group of nine trits summing to +8, +9
+    // or -9 wrapped by 16. Found in Wave 628 by the first exhaustive proof of
+    // this primitive -- the tree returned -14 for a vector whose balanced sum
+    // is +2. The comment above had the correct range in it the whole time while
+    // the declaration below contradicted it. See FORMAL_FOUNDATIONS Prop. 80.
+    wire signed [4:0] l2 [0:2];
     assign l2[0] = l1[0] + l1[1] + l1[2];
     assign l2[1] = l1[3] + l1[4] + l1[5];
     assign l2[2] = l1[6] + l1[7] + l1[8];
