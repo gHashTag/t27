@@ -2,6 +2,39 @@
 
 Last updated: 2026-08-10
 
+## Wave 617b — eight properties counted as proved, run by no job
+
+- **THE AUDIT'S FAILURE WAS THE FINDING**: Prop. 68 reported six wrappers as
+  "not yet audited -- each 4x run costs more than the wave had left". True of
+  two. **Wrong about four**, and the audit tool had already said so in a way I
+  read as its own bug: *no bound found in the workflow*. There was no bound
+  because **there was no step**.
+- **`zero_size_props.sv` appears ONCE in all of `.github/`** -- inside the
+  *weekly* mutation harness, as gate definitions for two of its four wrappers.
+  `zs_prefetch` and `zs_layer` appear **nowhere at all**. README counted all
+  eight among "42 properties proved"; four had never been proved by CI, and the
+  other four only as a side effect of mutation testing.
+- **NOTHING WAS BROKEN** -- all eight hold -- which is exactly why it sat
+  unnoticed. *An ungated property that happens to hold looks exactly like a
+  gated one until someone counts the steps.*
+- **WHY IT WAS NEVER GATED**: four of the eight are **expected refutations** (a
+  zero-sized job does report done, safe only because its sibling proves it
+  emitted no work, Prop. 26). A prove step that expects everything to prove
+  cannot gate this suite. Awkward-to-gate is how something ends up ungated.
+- **NOW GATED**: new *Prove zero-size properties* step, per-property expected
+  verdicts, all 8 correct. The absence sweep picks it up automatically -- 25
+  steps now, still 0 passing on nothing.
+- **CORRECTION TO PROP. 68b**: of the six reported unaudited-for-cost, four had
+  no step to audit and `ms_prefetch` in fact completed (30 -> 60 -> 120, PROVED
+  throughout). The genuine cost-limited cases are `wp_props` and `ms_dma`. And
+  `wp_props` exposed a **method mismatch**: CI proves its three properties one at
+  a time; the audit ran them together, which does not complete at the same
+  bound. An audit must reproduce the gate's METHOD, not merely its bound.
+- **WHERE**: `.github/workflows/formal-yosys.yml`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop. 69), README.
+- **STATE**: 69 propositions · 69 gates · 14 witnesses · 25 swept CI steps ·
+  1213 tests · 496/496 seals · no known defect.
+
 ## Wave 617 — auditing the bounds, and a generalisation that did not hold
 
 - **THE AUDIT**: Prop. 67c found a probe whose `seq 22` verdict was **wrong**,

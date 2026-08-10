@@ -4249,6 +4249,75 @@ grep -c "^          probe " .github/workflows/formal-yosys.yml
 
 ---
 
+### Prop. 69 — eight properties counted as proved, run by no job — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Prove zero-size properties*
+
+Prop. 68 audited four wrapper bounds and reported the rest as "not yet audited —
+each 4× run costs more than the wave had left". That was true of two of them. It
+was **wrong** about the other six, and the audit tool had already said so in a
+way I read as its own bug: *no bound found in the workflow*.
+
+**69a. There was no bound because there was no step.** `zero_size_props.sv`
+appears **once** in the whole of `.github/` — inside the *weekly* mutation
+harness, as gate definitions for two of its four wrappers. `zs_prefetch` and
+`zs_layer` appear **nowhere at all**.
+
+| suite | proved by a CI step? |
+|---|---|
+| `max_size_props` (4 properties) | yes — *Oversized requests do not wrap*, `seq 30` |
+| `zs_dma`, `zs_multilayer` (4) | only as mutation-gate definitions, weekly |
+| `zs_prefetch`, `zs_layer` (4) | **no job in this repository ran them** |
+
+README counted all eight among "42 properties proved". Four of them had never
+been proved by CI at all, and the other four only as a side effect of mutation
+testing.
+
+**69b. Why it was probably never gated.** Four of the eight are **expected
+refutations** — a zero-sized job *does* report done, which is safe only because
+its sibling proves it emitted no work (Prop. 26). A prove step that expects
+everything to prove cannot gate this suite; it needs a per-property expected
+verdict. The same shape that made Prop. 65's sweep report *ISOLATION BROKEN*
+made this suite awkward to gate, and awkward-to-gate is how something ends up
+ungated.
+
+**69c. Now gated, and all eight behave as documented.**
+
+| wrapper | property | expected | got |
+|---|---|---|---|
+| `zs_multilayer` | `a_zero_layers_never_completes` | refutes | refutes |
+| | `a_zero_layers_emits_no_work` | proves | proves |
+| `zs_dma` | `a_zero_length_never_completes` | refutes | refutes |
+| | `a_zero_length_moves_no_data` | proves | proves |
+| `zs_prefetch` | `a_zero_words_never_completes` | refutes | refutes |
+| | `a_zero_words_writes_nothing` | proves | proves |
+| `zs_layer` | `a_zero_neurons_never_completes` | refutes | refutes |
+| | `a_zero_neurons_emits_no_work` | proves | proves |
+
+**Nothing was broken** — which is the good outcome and also the reason this could
+sit unnoticed for as long as it did. An ungated property that happens to hold
+looks exactly like a gated one until someone counts the steps.
+
+**69d. Correction to Prop. 68b.** Of the six wrappers reported there as
+unaudited-for-cost: four had no step to audit, and `ms_prefetch` in fact
+completed — `seq 30 → 60 → 120`, PROVED throughout. The genuine cost-limited
+cases are `wp_props` and `ms_dma`. **`wp_props` also revealed a method mismatch**:
+CI proves its three properties **one at a time**, and the audit ran them
+together, which does not complete at the same bound. An audit has to reproduce
+the gate's method, not merely its bound.
+
+**69e. The lesson is about the instrument again.** The audit's "no bound found"
+was the finding, not the failure. When a measuring tool reports that it cannot
+find something, the first hypothesis should be that the thing is absent.
+
+Reproduce:
+
+```bash
+grep -c "zero_size_props" .github/workflows/formal-yosys.yml
+```
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

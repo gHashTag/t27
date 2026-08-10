@@ -327,6 +327,60 @@ jobs:
       # counterexample is KNOWN -- the prefetch with its clamp removed, which
       # must show a write at a wrapped address -- and fails if the reader cannot
       # see it. Verify the instrument on a case whose answer you already know.
+      # Wave 617: these eight properties were counted as proved and were run by
+      # NO job in this repository. `zero_size_props.sv` appeared once in the
+      # whole of .github/ -- inside the weekly mutation harness, as gate
+      # definitions for two of its four wrappers -- and `zs_prefetch` and
+      # `zs_layer` appeared nowhere at all. Found by a bound audit that could not
+      # locate a bound for them, which read at first like a bug in the audit.
+      #
+      # Four of the eight are EXPECTED REFUTATIONS: a zero-sized job does report
+      # done, which is safe only because its sibling proves it emitted no work
+      # (Prop. 26). A step that expects everything to prove cannot gate this
+      # suite, which is probably why it never had one. Prop. 69.
+      - name: Prove zero-size properties
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys
+          SUITES = [("multilayer_sequencer", "zs_multilayer"),
+                    ("dma_controller",       "zs_dma"),
+                    ("weight_prefetch_ctrl", "zs_prefetch"),
+                    ("layer_sequencer",      "zs_layer")]
+          SEQ = 24
+          src = open("formal/zero_size_props.sv").read()
+          fail = []
+          for dut, top in SUITES:
+              i = src.index(f"module {top} (")
+              body = src[i:src.index("endmodule", i)]
+              for lab in re.findall(r"\b(a_[a-z0-9_]+)\s*:\s*assert", body):
+                  s = src
+                  for other in re.findall(r"\b(a_[a-z0-9_]+)\s*:\s*assert", src):
+                      if other != lab:
+                          s = re.sub(re.escape(other) + r"\s*:\s*assert\s*\(.*?\);",
+                                     other + ": assert (1'b1);", s, count=1, flags=re.S)
+                  open("build/zs_one.sv", "w").write(s)
+                  r = subprocess.run(["yosys", "-q", "-p",
+                      f"read_verilog -sv -formal build/rtl/{dut}.sv build/zs_one.sv; "
+                      f"prep -top {top} -flatten; async2sync; chformal -lower; "
+                      f"sat -verify -prove-asserts -seq {SEQ} -set-init-zero -set-assumes"],
+                      capture_output=True, text=True)
+                  out = r.stdout + r.stderr
+                  if r.returncode == 0:
+                      got = "proves"
+                  elif "proof did fail" in out:
+                      got = "refutes"
+                  else:
+                      got = "TOOL ERROR"
+                  want = "refutes" if lab.endswith("_never_completes") else "proves"
+                  if got != want:
+                      fail.append(f"{top}/{lab} expected to {want} but {got}")
+                      print(f"::error::{top}/{lab} expected to {want} but {got}")
+                  else:
+                      print(f"ok       {top}/{lab} ({got})")
+          sys.exit(1 if fail else 0)
+          PY
+
       - name: Trace reader reads a known counterexample
         run: |
           set -euo pipefail
