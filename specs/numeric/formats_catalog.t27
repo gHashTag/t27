@@ -225,7 +225,7 @@ module FormatsCatalog {
   // CATALOG: id=gf12 name="GF12" bits=12 s=1 e=4 m=7 bias=7 phi_distance=0.047 storage=u16 cluster=GoldenFloat status=Verified standard="this work; L0/F3" use_case="mid-range / audio" gf_relation=self source="BENCH-007 (specs/numeric/gf12.t27)"
   fn gf12() -> str { return "gf12"; }
 
-  // CATALOG: id=gf16 name="GF16" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16 cluster=GoldenFloat status=Verified standard="this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7" use_case="training and inference (production)" gf_relation=self source="specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)"
+  // CATALOG: id=gf16 name="GF16" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16 cluster=GoldenFloat status=Verified standard="this work; PHI_BIAS=60" use_case="training and inference (production)" gf_relation=self source="specs/numeric/gf16.t27"
   fn gf16() -> str { return "gf16"; }
 
   // CATALOG: id=gf20 name="GF20" bits=20 s=1 e=7 m=12 bias=63 phi_distance=0.035 storage=u32 cluster=GoldenFloat status=Experimental standard="this work; 17-squared empirical PHI_BIAS=289" use_case="high-precision edge" gf_relation=self source="specs/numeric/gf20.t27 (spec only)"

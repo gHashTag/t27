@@ -324,8 +324,8 @@ jobs:
         run: |
           if [ ! -f ~/.local/bin/nextpnr-xilinx ]; then
             cd ~
-            git clone https://github.com/YosysHQ/nextpnr.git -b nextpnr-0.8
-            cd nextpnr
+            git clone https://github.com/gatecat/nextpnr-xilinx.git
+            cd nextpnr-xilinx
             mkdir build && cd build
             cmake .. -DARCH=xilinx -DUSE_OPENMP=OFF
             make -j4
