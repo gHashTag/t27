@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-12
 
+## Wave 662 — the value check now fails for a named reason
+
+- **A REFERENCE NO UNINITIALISED VARIABLE CAN PRODUCE**: the old vector made the
+  expected accumulator exactly 0 — wrong under most indexing errors, and *also*
+  what an unwritten counter reads, so it could not tell a working engine from a
+  silent harness. Now 27×(+1) against all-(+1) weights: reference `acc = 27`,
+  trit `TRIT_P`. Neither is reachable by an uninitialised register.
+- **A FLAG PROVING THE CAPTURE FIRED**: `acc_seen` is assigned only under
+  `mac_valid_q`, so it carries a companion `saw_mac`, and the harness now reports
+  *"the MAC never produced a result — nothing was measured"* instead of comparing
+  an initial value.
+- **THE MEASUREMENT**: `saw_mac = 1`, one MAC result, engine `acc = 0` against
+  reference 27. A genuine measurement this time — and a weight-path probe
+  explains it: **`weight_bram writes = 0`**. The prefetcher never writes a single
+  word, so the MAC computes against an unwritten memory. The mismatch is absent
+  weights, not a datapath defect.
+- **WHAT WAS ACTUALLY GAINED**: three waves ago the harness reported a **false
+  agreement**; two waves ago an **unexplained X**; now a **specific, localised
+  failure** — no weight ever reaches the memory the MAC reads. Wrong answer → no
+  answer → **named missing precondition**, and only the last is a foundation.
+- **STILL OPEN**: whether the prefetch fails because this harness does not drive
+  it or because the design does not start it. Prop. 125's sweep raised a prefetch
+  IRQ in some configurations, which suggests the path can work and points at the
+  harness first. A lead, not a conclusion.
+- **PROP. 128** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 661 — the value check's first result was my own uninitialised variable
 
 - **WAVE 660's HEADLINE IS WITHDRAWN.** It reported "engine `acc = 0`, reference

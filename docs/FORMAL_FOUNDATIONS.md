@@ -7725,6 +7725,48 @@ beside it, so the next wave extends it rather than rebuilding it.
 
 ---
 
+### Prop. 128 — the value check now fails for a named reason — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Prop. 127b withdrew a false agreement. This wave makes the harness capable of
+producing a real one, and it now fails in a way that says why.
+
+**128a. A reference no uninitialised variable can produce.** The old vector was
+9×(+1), 9×(0), 9×(−1), chosen so the reference accumulator would be exactly 0 —
+wrong under most indexing errors, and *also* what an unwritten counter reads. It
+could not distinguish a working engine from a silent harness. The vector is now
+27×(+1) against all-(+1) weights: reference `acc = 27`, reference trit
+`TRIT_P`. Neither value is reachable by an uninitialised register.
+
+**128b. A flag proving the capture fired.** `acc_seen` is assigned only under
+`mac_valid_q`, so it now carries a companion `saw_mac`, and the harness reports
+*"the MAC never produced a result — nothing was measured"* rather than comparing
+an initial value. Comparing an unassigned variable against a reference is not a
+measurement, and it looks exactly like a passing test.
+
+**128c. The measurement, and why it still says nothing about the design.**
+`saw_mac = 1`, one MAC result, engine `acc = 0` against reference 27. That is a
+genuine measurement — and a probe on the weight path explains it:
+**`weight_bram writes = 0`.** The prefetcher never writes a single word, so the
+MAC computes against an unwritten memory. The mismatch is explained by absent
+weights, not by a defect in the datapath.
+
+**128d. What has actually been gained.** Three waves ago the harness reported a
+false agreement. Two waves ago it reported an unexplained `X`. It now reports a
+specific, localised failure — *no weight ever reaches the memory the MAC reads* —
+which is a statement that can be acted on. The progression is from a wrong answer
+to no answer to a **named missing precondition**, and only the last of those is
+a foundation.
+
+**128e. Still not established.** Whether the prefetch fails because the harness
+does not drive it correctly or because the design does not start it is open. The
+sweep harness of Prop. 125 did raise a prefetch IRQ in some configurations, which
+suggests the path can work and points at this harness first. That is a lead, not
+a conclusion.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

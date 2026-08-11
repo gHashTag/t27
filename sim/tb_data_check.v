@@ -22,17 +22,20 @@ module tb_data;
     reg clk = 0, rst_n = 0;
     always #5 clk = ~clk;
 
-    // ---- the known input vector: 9x(+1), 9x(0), 9x(-1) in one 54-bit word --
-    // dot with all-(+1) weights = 9*(+1) + 9*0 + 9*(-1) = 0
+    // ---- the known input vector: 27x(+1) in one 54-bit word ---------------
+    // dot with all-(+1) weights = 27*(+1) = +27, requant -> TRIT_P
     function [53:0] input_word;
         input dummy;
         integer i;
         begin
             input_word = 54'd0;
             for (i = 0; i < 27; i = i + 1)
-                input_word[i*2 +: 2] = (i < 9)  ? 2'b10 :   // +1
-                                       (i < 18) ? 2'b01 :   // 0
-                                                  2'b00;    // -1
+                // Wave 662: all (+1). The previous vector was chosen so the
+                // reference accumulator would be 0 -- a value wrong under most
+                // indexing errors, and ALSO the value an uninitialised counter
+                // reads. It could not tell a working engine from a silent
+                // harness. 27 and TRIT_P can be produced by neither.
+                input_word[i*2 +: 2] = 2'b10;
         end
     endfunction
 
@@ -156,6 +159,11 @@ module tb_data;
 
     integer cyc; integer seen; integer pf_wait; reg [53:0] got;
     reg signed [15:0] acc_seen;
+    // Wave 662: a companion flag. Comparing an assigned-under-a-condition
+    // variable against a reference is not a measurement unless the
+    // condition fired, and the previous version reported its initial
+    // value as an agreement.
+    reg saw_mac;
 
     // capture the first emitted activation word and the MAC result
     always @(posedge clk) if (rst_n) begin
@@ -163,12 +171,20 @@ module tb_data;
             got  = actw;
             seen = 1;
         end
-        if (dut.mac_valid_q) acc_seen = dut.mac_result;
+        if (dut.mac_valid_q) begin acc_seen = dut.mac_result; saw_mac = 1'b1; end
+    end
+
+
+    // ---- weight-path probe --------------------------------------------------
+    integer wr_beats = 0; integer mac_beats = 0;
+    always @(posedge clk) if (rst_n) begin
+        if (dut.prefetch.bram_we) wr_beats = wr_beats + 1;
+        if (dut.mac_valid_q)      mac_beats = mac_beats + 1;
     end
 
     initial begin
         aw=0; wd=0; awv=0; wv=0; ar=0; arv=0; rr=1;
-        seen=0; got=54'd0; acc_seen=0; cyc=0;
+        seen=0; got=54'd0; acc_seen=0; saw_mac=0; cyc=0;
         repeat (8) @(posedge clk); rst_n = 1; repeat (4) @(posedge clk);
 
         csr_write(8'h10, 32'd1);          // num_layers
@@ -194,7 +210,9 @@ module tb_data;
         $display("REFERENCE  acc=%0d  trit=%b", ref_acc(0), ref_trit(ref_acc(0)));
         $display("ENGINE     acc=%0d  trit=%b  (word=%h, emitted=%0d)",
                  acc_seen, got[1:0], got, seen);
-        if (seen == 0)
+        if (!saw_mac)
+            $display("RESULT: THE MAC NEVER PRODUCED A RESULT -- nothing was measured");
+        else if (seen == 0)
             $display("RESULT: NO ACTIVATION WORD EMITTED");
         else if (acc_seen !== ref_acc(0))
             $display("RESULT: MAC MISMATCH  engine=%0d reference=%0d",
@@ -204,6 +222,10 @@ module tb_data;
                      got[1:0], ref_trit(ref_acc(0)));
         else
             $display("RESULT: MATCH");
+        $display("PROBE weight_bram writes=%0d  mac results=%0d  saw_mac=%b",
+                 wr_beats, mac_beats, saw_mac);
+        $display("PROBE weight_bram writes=%0d  mac results=%0d  saw_mac=%b",
+                 wr_beats, mac_beats, saw_mac);
         $finish;
     end
 endmodule
