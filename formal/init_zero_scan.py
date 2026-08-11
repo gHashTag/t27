@@ -43,7 +43,7 @@ import sys
 
 RESET = re.compile(r"if\s*\(\s*!\s*rst_n\s*\)(.*?)(?=\bend\b|\belse\b)", re.S)
 ASSIGN = re.compile(r"(\w+)\s*<=\s*([^;]+);")
-ZERO = re.compile(r"^(?:\d*'?[bdhBDH]?0+|0|\{[\w'\s:+*-]*\{?1'b0\}?\})$")
+ZERO = re.compile(r"^(?:\d*'?s?[bdhBDH]?0+|0|\{[\w'\s:+*-]*\{?1'b0\}?\})$")
 NOTE = re.compile(r"//\s*INIT-ZERO:\s*(\w+)\s+(.+)")
 
 

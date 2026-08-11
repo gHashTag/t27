@@ -7200,6 +7200,49 @@ answer you already know before believing its output.
 
 ---
 
+### Prop. 118 — six of the ten over-detections, fixed — `FIXED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 115 found all ten gates fail some semantics-preserving change. Each census
+entry carried a proved equivalence — a yosys `miter -equiv` for the RTL cases, a
+CommonMark render for the documentation one — so each is a gate rejecting work
+that is genuinely correct. Six were one-line defects:
+
+| gate | what it rejected | cause |
+|---|---|---|
+| `init_zero_scan` | `16'sd0` as a reset value | the base class omitted SystemVerilog's signed marker `s`, though this codebase writes signed literals everywhere |
+| `claims_check` | a re-aligned column in a shell script | `^ +probe '` demanded exactly one space |
+| `doc_gate` | a `**Gate:**` line indented two spaces | `startswith` at column 0; the indented form renders to byte-identical HTML |
+| `bound_scan` | `` // BOUND: `accumulator` `` | `(\w+)` cannot match a backticked name — the quoting style the gate's own errors use |
+| `identity_scan` | a comment *inside* an assertion body | bodies were normalised without stripping comments, so a comment explaining why a property is **not** a self-comparison made it read as one |
+| `guard_scan` | a comment saying an open-guard "has been removed" | matched inside `//` comments |
+
+**118a. Three of the six were the same mistake.** `identity_scan`, `guard_scan`
+and (in Props. 95 and 102c) `claims_check` and `orphan_scan` all matched text
+inside comments. That is now five instances of one shape across four files, and
+each was found separately rather than by grepping after the first. Prop. 103's
+third regularity — the same defect recurs in sibling files — has cost more here
+than any other single lesson.
+
+**118b. Every one rejected this repository's own conventions.** A signed literal,
+a backticked identifier, an indented markdown line, a retrospective comment
+about a removed guard: not exotic inputs, but the house style. A gate written
+from an author's mental model of the code encodes that model's blind spots, and
+the author's own idioms are exactly what it fails to anticipate — because they
+were invisible while writing it.
+
+**118c. Four remain.** `encoding_gate` matches exact literal text so `2'd0` for
+`2'b00` reads as a defect; `mirror_check` compares net names so a consistent
+internal rename fails; `width_scan`'s floor turns a line-wrap into a CI failure;
+`orphan_scan` globs only `*.yml` so a `.yaml` workflow is invisible. Each needs
+more than a character, and each is recorded rather than quietly deferred.
+
+Verified: 10 injections from the census, all now quiet, with the discriminating
+cases checked in both directions — `16'sd0` reads as zero and `16'sd1` does not.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

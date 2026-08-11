@@ -127,7 +127,7 @@ def derive(root):
         found["integration properties"] = core + deep
 
     wf = (root / ".github" / "workflows" / "formal-yosys.yml").read_text()
-    found["engine liveness probes"] = len(re.findall(r"^ +probe '", wf, re.M))
+    found["engine liveness probes"] = len(re.findall(r"^\s+probe\s+'", wf, re.M))
 
     # Swept steps. Derived by importing the sweep's own enumeration rather than
     # re-implementing it: two independent counters of the same thing drift, and

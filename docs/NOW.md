@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-12
 
+## Wave 651 — six of the ten over-detections, fixed
+
+- **EVERY ONE HAD BEEN REJECTING THIS REPOSITORY'S OWN CONVENTIONS**:
+  - `init_zero_scan` — `16'sd0` as a reset value; the base class omitted
+    SystemVerilog's signed marker `s`, though this codebase writes signed
+    literals everywhere.
+  - `claims_check` — a re-aligned column in a shell script; `^ +probe '`
+    demanded exactly one space.
+  - `doc_gate` — a `**Gate:**` line indented two spaces, which renders to
+    **byte-identical** HTML.
+  - `bound_scan` — `` // BOUND: `accumulator` ``; `(\w+)` cannot match a
+    backticked name, the very quoting style the gate's own errors use.
+  - `identity_scan` — a comment *inside* an assertion body explaining why that
+    assertion is **not** a self-comparison made it read as one.
+  - `guard_scan` — a comment saying an open-guard "has been removed".
+- **THREE OF THE SIX WERE THE SAME MISTAKE**: matching text inside comments.
+  That is now **five instances of one shape across four files**, each found
+  separately rather than by grepping after the first. Prop. 103's third
+  regularity has cost more than any other lesson here.
+- **THE PATTERN**: a gate written from an author's mental model encodes that
+  model's blind spots, and the author's **own idioms** are exactly what it fails
+  to anticipate — they were invisible while writing it.
+- **FOUR REMAIN**, each needing more than a character: `encoding_gate` (exact
+  literal text, so `2'd0` for `2'b00` reads as a defect), `mirror_check`
+  (compares net names, so a consistent rename fails), `width_scan` (its floor
+  turns a line-wrap into a CI failure), `orphan_scan` (globs only `*.yml`).
+- **VERIFIED**: 10 census injections now quiet, discriminating cases checked
+  both ways — `16'sd0` reads as zero, `16'sd1` does not.
+- **PROP. 118** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 650 — the 9-of-37 figure was my classifier, not the suite
 
 - **WAVE 649's HEADLINE NUMBER WAS WRONG.** It reported 9 diagnosed / 28

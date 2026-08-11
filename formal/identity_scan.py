@@ -31,7 +31,12 @@ import pathlib
 
 def bodies(path):
     """Yield (property_name, normalised_body) for each labelled assertion."""
-    src = open(path).read()
+    # Comments stripped FIRST. Prop. 118: bodies() spliced `//` comments into
+    # the normalised body, so an explanatory comment inside an assertion's
+    # parens -- one that happened to quote a self-comparison while explaining
+    # why the assertion is NOT one -- made the gate declare a correct property
+    # free. Over-detection on the repository's own documentation style.
+    src = re.sub(r"//[^\n]*", "", open(path).read())
     for m in re.finditer(r"\b(a_[a-z0-9_]+)\s*:\s*assert\s*\(", src):
         i = m.end() - 1
         depth, j = 0, i

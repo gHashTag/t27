@@ -43,8 +43,11 @@ def main():
 
     bad = []
     for f in files:
+        # Prop. 118: this matched inside `//` comments, so a retrospective
+        # note saying an open-guard "has been removed" -- the exact genre of
+        # comment this repository writes -- reported the guard as present.
         for n, line in enumerate(open(f).read().split("\n"), 1):
-            if PATTERN.search(line):
+            if PATTERN.search(re.sub(r"//.*$", "", line)):
                 bad.append(f"{f.relative_to(root)}:{n}: {line.strip()[:70]}")
 
     for b in bad:

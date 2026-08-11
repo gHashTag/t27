@@ -85,7 +85,7 @@ def check(path):
     if inb:
         fail.append(f"{path}:{st+1}: unclosed code fence")
 
-    gates = sum(1 for l in lines if l.startswith("**Gate:**"))
+    gates = sum(1 for l in lines if l.lstrip().startswith("**Gate:**"))
 
     # Resolve every Gate: line against a real workflow step. Wave 641b: this
     # gate checked only that the LINE WAS PRESENT and never opened .github/ --
@@ -109,7 +109,7 @@ def check(path):
                     "the Gate: resolution check would pass on nothing")
     named = unresolved = unparsed = 0
     for n, l in enumerate(lines, 1):
-        if not l.startswith("**Gate:**"):
+        if not l.lstrip().startswith("**Gate:**"):
             continue
         # Strip BOLD before extracting italics: `**prove**` is not a step
         # name, and reading its inner text as one made a correct line fail --

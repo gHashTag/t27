@@ -47,7 +47,7 @@ INCR = re.compile(r"^\s*(?:.*?\b)?(\w+)\s*<=\s*([^;]*?\b\1\b\s*\+[^;]*);", re.M)
 DECR = re.compile(r"^\s*(?:.*?\b)?(\w+)\s*<=\s*([^;]*?\b\1\b\s*-[^;]*);", re.M)
 PORT = re.compile(r"\b(?:input|output)\s+(?:wire\s+|reg\s+)?(?:signed\s*)?"
                   r"(?:\[[^\]]*\]\s*)?(\w+)")
-NOTE = re.compile(r"//\s*BOUND:\s*(\w+)\s+(.+)")
+NOTE = re.compile(r"//\s*BOUND:\s*`?(\w+)`?\s+(.+)")
 
 # `==`, `!=`, `<` and `>` only. NOT `<=` or `>=`: in Verilog `<=` at statement
 # level is the nonblocking ASSIGNMENT, and a regex cannot tell it from the
