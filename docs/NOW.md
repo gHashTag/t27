@@ -2,6 +2,41 @@
 
 Last updated: 2026-08-12
 
+## Wave 654 — five confirmed design defects, and multi-layer inference does not run
+
+- **FIVE DEFECTS, ALL REACHABLE IN THE ASSEMBLED ENGINE**, each independently
+  reproduced by a second agent. Largest single result of the campaign, and the
+  first about the **design** rather than the tooling.
+  1. `activation_requant` has **no flush** — a layer's trailing `N mod 27`
+     results are never emitted (Prop. 120).
+  2. Those trailing trits **leak into the next layer's word**: 2 beats `acc=+1`,
+     idle, 25 beats `acc=−1`, and an emitted word still carries `TRIT_P`.
+  3. The activation buffer is indexed by **neuron**, not by **chunk**.
+  4. **Multi-layer inference DEADLOCKS** — reproduced on the assembled engine by
+     an independent Icarus testbench driving it *only through the AXI4-Lite CSR
+     aperture*, with a compliant AXI4 read-slave.
+  5. The ping-pong flips **two cycles before** the requantizer emits a layer's
+     final word.
+- **TWO OF THEM SHARE ONE LINE**: `double_buffer_ctrl.sv:35`,
+  `assign read_addr = neuron_id;`. A neuron's input vector spans `num_chunks`
+  words and every neuron must see the **same** vector; addressing by neuron
+  gives each a different word. That is defect 3 and the root of defect 4's
+  deadlock.
+- **ALL 28 INTEGRATION PROPERTIES STILL PROVE.** Prop. 81b named the boundary;
+  this is the demonstration at scale. Handshakes, phase, contiguity and
+  readiness are correct while the machine computes the wrong answer and, for
+  more than one layer, does not terminate.
+- **WHY ONE DAY FOUND WHAT TWELVE DAYS DID NOT**: nothing was wrong with the
+  instrument work — Props. 111–119 fixed real defects. But every one of those
+  waves asked *"is this gate sound?"* and none asked *"is the design correct?"*.
+  Prop. 103 predicted it: a catalogue of failure shapes is a catalogue of the
+  questions asked.
+- **NOT FIXED, DELIBERATELY**: each fix changes emitted hardware and they
+  interact — defect 3's fix likely subsumes defect 4's. And whoever takes them
+  must retire `a_word_only_on_full` in the same change, or the suite will
+  **reject the repair**.
+- **PROP. 121** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 653 — the requantizer never flushes, and a property asserts that it doesn't
 
 - **A CONFIRMED DESIGN DEFECT**, independently reproduced with a separate harness

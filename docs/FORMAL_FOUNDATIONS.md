@@ -7334,6 +7334,62 @@ refutation.
 
 ---
 
+### Prop. 121 — five confirmed design defects, and multi-layer inference does not run — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Prop. 120 recorded the first of the hunt's findings. The refutation phase has now
+independently reproduced **five**, every one judged reachable in the assembled
+engine. This is the largest single result of the campaign, and it is about the
+**design** rather than the tooling.
+
+| # | defect | reproduced by |
+|---|---|---|
+| 1 | `activation_requant` has no flush — a layer's trailing `N mod 27` results are never emitted | module-level harness (Prop. 120) |
+| 2 | those trailing trits **leak into the next layer's word**, carrying stale values across a layer boundary | concrete trace: 2 beats `acc=+1`, idle, 25 beats `acc=−1`, and an emitted word still carries `TRIT_P` |
+| 3 | the activation buffer is indexed by **neuron**, not by **chunk** | formal, on repo RTL |
+| 4 | **multi-layer inference deadlocks** | independent Icarus testbench driving the assembled engine *only through its AXI4-Lite CSR aperture*, with a compliant AXI4 read-slave |
+| 5 | the ping-pong flips **two cycles before** the requantizer emits a layer's final word | timing derived from the RTL, then proved |
+
+**121a. Two of them share one line.** `double_buffer_ctrl.sv:35` reads
+`assign read_addr = neuron_id;`, and that drives `rd_addr` on both activation
+memories. A neuron's input vector spans `num_chunks` words and **every neuron
+must see the same vector**; addressing by neuron gives each neuron a different
+word instead. That is defect 3, and it is also the root of the deadlock in
+defect 4 — the layer-start gate compares packed-word *slots* against a *neuron*
+count, two quantities that only coincide when `num_chunks == 1` and
+`num_neurons ≤ 27`.
+
+**121b. What the engine's 28 integration properties say about this.** They all
+still prove. Prop. 81b named the boundary and this is the demonstration at
+scale: handshakes, buffer phase, address contiguity and readiness are all
+correct while the machine computes the wrong answer and, for more than one
+layer, does not terminate. A control suite reports perfect health straight
+through five data defects.
+
+**121c. Why the design-level pass found in one day what twelve days of
+instrument work did not.** Nothing was wrong with the instruments — Props.
+111–119 fixed real defects in them. But every one of those waves asked *"is this
+gate sound?"* and none asked *"is the design correct?"*. The taxonomy of
+Prop. 103 predicted exactly this: a catalogue of failure shapes is a catalogue of
+the questions asked. Twelve days of asking one question produced no answers to
+the other.
+
+**121d. Not fixed here, and that is deliberate.** Each defect has a proposed fix
+in the emitters — a flush port on the packer, a chunk counter for the buffer
+index, a drain interlock before the ping-pong flip. All change emitted hardware
+and interact with each other; defect 3's fix likely subsumes defect 4's. Choosing
+among them is a design decision, and the campaign's own discipline says a
+verification pass records what it found rather than rewriting the subject.
+
+**121e. The properties that assert the defects must go with the fixes.**
+`a_word_only_on_full` proves the missing flush is intended (Prop. 120b). Any
+flush implementation fails it. Whoever takes the fix must retire that property in
+the same change, or the suite will reject the repair — which is what "protected
+by an assertion" costs.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
