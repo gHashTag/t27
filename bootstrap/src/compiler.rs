@@ -4336,6 +4336,14 @@ pub struct Codegen {
     /// Locals bound to the undefined scaffold helpers `default_input()` /
     /// `valid_input()`, mapped to the Zig type their consumer declares.
     scaffold_locals: std::collections::HashMap<String, String>,
+    /// W625: UNTYPED locals whose initializer is `.len`-tainted, so the binding
+    /// is `usize` in Zig. Found by forcing analysis of the 14% of generated
+    /// bodies nothing referenced (T21): `estimate_10k_size` in `coder/dataset`
+    /// carries a length through FOUR untyped `const`s before returning it under
+    /// `-> u32`, and W624's expression-local taint could not see it. A local
+    /// with a DECLARED type never enters this set -- the W624 `let` rule
+    /// already casts at the binding, so the name really is that type. See T23.
+    len_locals: std::collections::HashSet<String>,
     /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
     /// a tag comparison -- Zig has no ordering on enums.
     declared_enums: std::collections::HashSet<String>,
@@ -4374,6 +4382,7 @@ impl Codegen {
             declared_fn_returns: std::collections::HashMap::new(),
             slice_locals: std::collections::HashMap::new(),
             scaffold_locals: std::collections::HashMap::new(),
+            len_locals: std::collections::HashSet::new(),
             declared_enums: std::collections::HashSet::new(),
             struct_field_types: std::collections::HashMap::new(),
             string_names: std::collections::HashSet::new(),
@@ -5401,8 +5410,20 @@ impl Codegen {
         if self.is_len_access(n) {
             return true;
         }
+        // W625: a bare name bound earlier to a len-tainted initializer. Without
+        // this, taint dies at the first `const`, and `estimate_10k_size`
+        // carries a length through four of them.
+        if n.kind == NodeKind::ExprIdentifier && self.len_locals.contains(&n.name) {
+            return true;
+        }
         if n.kind == NodeKind::ExprBinary
-            && matches!(n.extra_op.as_str(), "+" | "-" | "*" | "/" | "%")
+            // W625: `<<`/`>>` join the set because the corpus site shifts
+            // twice. Shifts of an integer stay integral, so `@intCast` is as
+            // sound here as it is for `+`.
+            && matches!(
+                n.extra_op.as_str(),
+                "+" | "-" | "*" | "/" | "%" | "<<" | ">>"
+            )
             && n.children.len() == 2
         {
             let ok = |c: &Node| {
@@ -5515,6 +5536,9 @@ impl Codegen {
         self.collect_slice_locals(&node.children);
         self.scaffold_locals.clear();
         self.collect_scaffold_locals(&node.children);
+        // W625: len-taint is per-function; a name reused in the next function
+        // must not inherit it.
+        self.len_locals.clear();
         self.current_return_type = node.extra_return_type.clone();
         // W593: float-typed LOCALS. `float_names` held only parameters and
         // struct fields, so a cast of a local declared `let x: f32` took the
@@ -5665,6 +5689,9 @@ impl Codegen {
         self.collect_slice_locals(&node.children);
         self.scaffold_locals.clear();
         self.collect_scaffold_locals(&node.children);
+        // W625: len-taint is per-function; a name reused in the next function
+        // must not inherit it.
+        self.len_locals.clear();
 
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
@@ -6105,7 +6132,18 @@ impl Codegen {
                                 // context; W623 closed two. See T20.
                                 let lty = node.extra_type.clone();
                                 let init = node.children[0].clone();
-                                if !self.gen_len_cast(&init, &lty) {
+                                if self.gen_len_cast(&init, &lty) {
+                                    // The cast fired, so the binding really is
+                                    // `lty`. It must NOT carry taint onward.
+                                    self.len_locals.remove(&node.name);
+                                } else {
+                                    // W625: no cast -- either untyped, or
+                                    // declared `usize`. Either way the binding
+                                    // is `usize` when its initializer is, and
+                                    // the taint has to survive the `const`.
+                                    if self.len_tainted_int_expr(&init) {
+                                        self.len_locals.insert(node.name.clone());
+                                    }
                                     self.gen_expr(&node.children[0]);
                                 }
                             }
@@ -33106,6 +33144,45 @@ mod tests_w458 {
     // six-position probe found three more, of which two are real Zig errors
     // (`let` with a declared type, and a struct-literal field) and one is not
     // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W625: found by FORCING analysis of the bodies nothing referenced (T21).
+    // `estimate_10k_size` in `coder/dataset` carries a length through four
+    // untyped `const`s before returning it under `-> u32`; W624's taint was
+    // expression-local and died at the first binding. T23.
+    #[test]
+    fn len_taint_survives_untyped_local_bindings() {
+        let src = "module M\n\nfn f(a: []u32, b: []u32) -> u32 {\n\
+                   \x20   let base = a.len() * b.len();\n\
+                   \x20   let permuted = base << 2;\n\
+                   \x20   let composed = permuted + 1;\n\
+                   \x20   return composed;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return @as(u32, @intCast(composed));"),
+            "taint must survive four hops of untyped const:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_taint_does_not_survive_a_local_that_was_already_cast() {
+        // The W624 `let` rule casts at the binding, so the name IS `u32` and a
+        // second cast on return would be noise.
+        let src = "module M\n\nfn f(s: string) -> u32 {\n\
+                   \x20   let n : u32 = s.len();\n\
+                   \x20   return n;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("const n: u32 = @as(u32, @intCast(s.len));"),
+            "the binding is cast:\n{}",
+            z
+        );
+        assert!(
+            z.contains("return n;"),
+            "and the return must NOT be cast again:\n{}",
+            z
+        );
+    }
+
     #[test]
     fn len_in_typed_let_casts_to_the_declared_local_type() {
         let src = "module M\n\nfn f(s: string) -> u32 {\n    let n : u32 = s.len();\n    return n;\n}\n";

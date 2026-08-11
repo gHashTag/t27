@@ -988,6 +988,178 @@ misses.
 
 ---
 
+### T22 (W625) — Forcing analysis is not a refinement of the error count; it changes which failure modes exist
+
+**T21 said 1069 is a lower bound. W625 measured the bound.** Appending
+`comptime { _ = &f; }` for every top-level function to each of the 34 generated
+files — no change to any generated logic — forces Zig to analyse the 180 bodies
+nothing referenced.
+
+| | reachable | forced | Δ |
+|---|---:|---:|---:|
+| total diagnostics | 1069 | **1104** | **+35** |
+| `expected type '<sized int>', found 'usize'` | **0** | **1** | **+1** |
+
+**T18's headline "9 → 0" is false as stated.** A tenth site exists, and it had
+never been analysed by any measurement this project has published:
+
+```zig
+fn estimate_10k_size(base_templates: [][]const u8, bitwidths: []u32) u32 {
+    const base     = base_templates.len * bitwidths.len;   // usize
+    const permuted = base << 2;                            // usize
+    const mutated  = permuted << 3;                        // usize
+    const composed = mutated + (mutated * (mutated - 1));  // usize
+    ...
+    return composed;   // error: expected type 'u32', found 'usize'
+}
+```
+
+The correct claim is *"9 of 10 sites, all of them reachable; the tenth was in the
+unmeasured 14%."*
+
+**The +35 is not a scaled-up version of the same errors.** Three classes have
+count **zero** in every figure this document has ever published and are non-zero
+under forcing:
+
+| class | reachable | forced |
+|---|---:|---:|
+| `not yet implemented` (`@compileError`) | **0** | **15** |
+| `invalid pointer-pointer arithmetic operator` | **0** | 1 |
+| `incompatible types: '*const [14:0]u8' and 'u32'` | **0** | 1 |
+| `invalid operands to binary expression: 'pointer' and 'pointer'` | 35 | 47 |
+| six further classes | — | +6 |
+
+**Statement.** Let `N_R` be the diagnostic count over the reachable fragment and
+`N_F` the count with analysis forced. `N_F ≥ N_R` is trivial. What is not trivial
+is that `supp(E_F) ⊋ supp(E_R)` — the *support* grows, so `N_F` is not `N_R`
+scaled by a coverage factor and cannot be estimated from it. A reachability-
+conditioned count does not under-report a known distribution; it reports a
+**different distribution**, missing entire classes.
+
+**The 15 `@compileError("not yet implemented")` are the sharpest case.** They are
+the backend's own honest marker for an unwritten spec function — the population
+`t27c impl-status` exists to count. They were invisible to the error count *by
+construction*: an unwritten function has no callers, so nothing references it, so
+Zig never reaches the `@compileError`. **The project's two instruments —
+"how many specs are stubs" and "how many errors does the corpus have" — were
+measuring populations that could not overlap, and neither said so.**
+
+*Falsification condition:* a class present under forcing that is also present,
+at any count, in the reachable measurement — which would make the support
+identical and the count merely scaled.
+
+---
+
+### T23 (W625) — A taint analysis that is expression-local dies at the first binding, and a positional probe cannot see that
+
+**T20's probe enumerated syntactic positions. It found five and closed them.**
+It did not find the site above, because that site is in *none of the five* — it
+is `return composed;`, a bare identifier, which the probe would classify as
+"nothing to do here."
+
+`len_tainted_int_expr` walked the return expression's own tree. `composed` is an
+`ExprIdentifier`; the four `const` bindings that carry the length are not in that
+tree. **The taint was expression-local, so it died at the first `const`, and the
+site needed four hops.**
+
+**Statement.** Let `τ` be a taint relation over expressions and `Γ` the local
+binding environment. An analysis computing `τ` by structural recursion on a
+single expression is sound only when `Γ` introduces no tainted names — i.e. when
+every binding is either type-annotated or absent. In a language with untyped
+local bindings, `τ` must be a **fixpoint over `Γ`**, not a fold over one term.
+The difference is invisible to any enumeration indexed by *syntactic position*,
+because the defect is at a position the enumeration correctly marks as clean.
+
+**Corollary — T20's method has a blind spot of its own, and it is the same
+shape.** T20 replaced "sample the corpus" with "enumerate the class", and the
+enumeration was indexed by the wrong variable: position, when the class also
+ranges over *dataflow distance*. **A probe is a population too**, and choosing
+its index is the same selection decision T16 and T20 both name. Nothing about
+enumerating rather than sampling protects against picking the wrong axis.
+
+**Implemented and measured.** Locals whose initializer is tainted and whose
+declared type did not already absorb it now carry the taint; `<<` and `>>` join
+the operator set because the site shifts twice. Result:
+
+| | before | after |
+|---|---:|---:|
+| forced total | 1104 | **1103** |
+| forced `usize` mismatches | 1 | **0** |
+| reachable total | 1069 | **1069** |
+| generated lines changed, whole corpus | — | **1** |
+
+**No unmasking this time** — the class diff removes exactly one entry and adds
+none, unlike T19's case. One line of generated code changed in 34 files, in a
+function that no test, no measurement, and no previous wave had ever compiled.
+
+*Falsification condition:* a tainted path through a construct the fixpoint does
+not model — a loop-carried binding, a struct field, or a taint that enters
+through a function return rather than a local.
+
+---
+
+### T24 (W625) — A verification command's cost is set by its widest input glob, and a generator that commits every iteration inverts the corpus
+
+**Discovered by asking why `t27c suite` never returned.** `CLAUDE.md` §2 names it
+as the local CI-like sweep. Two waves in a row could not complete it. Sampling
+the process found it in `Command::output()`, draining a child that had spent
+minutes on a single file.
+
+The file was `specs/scratch/w590_bench_module_17d_aos_var_call_reassign.t27`:
+**14.3 MB, 786 483 lines, one function, one test** — a 17-dimensional nested
+array literal from the AoS-swarm generator.
+
+**The first draft of this theorem named the wrong glob.** `suite` has an
+`icarus_regression_specs()` that filters `specs/scratch/` to `w5*`/`w3*` — 155
+files, 198.1 MB — and that is the glob I wrote down. Then I re-read the process
+list: it was parsing `w740_bench_module_299x2p6_…`, which that filter excludes.
+`run_comprehensive` opens with `collect_t27(&repo.join("specs"))` and runs a
+`parse` phase over **every** result: 1064 files, 588 MB, the whole of
+`specs/scratch/` included. *A theorem about a command's widest glob was one
+paragraph away from shipping with a narrower glob named* — the same shape as
+T15's near-miss, caught the same way, by looking instead of reasoning.
+
+**The corpus this project exists to verify is 6.5 MB.**
+
+| | files | bytes |
+|---|---:|---:|
+| `specs/scratch/*x2p6*` — one generator sweep, committed iteration by iteration | 288 | **378.9 MB** |
+| all of `specs/scratch/` | 455 | 578.0 MB |
+| **every other spec in the repository** | **609** | **6.5 MB** |
+
+**89 : 1 by bytes, in favour of the scaffolding.** The `x2p6` sweep alone is 288
+files that differ only in one outer array dimension.
+
+Measured parse throughput on these artefacts:
+
+| shape family | files timed | throughput |
+|---|---:|---|
+| `Nx2p6`, N = 137 … 597 | 7 | **0.081 MB/s**, constant (linear in N) |
+| `21x2p7` | 1 | **2.75 MB/s** |
+
+**A 34× spread by shape at comparable size**, so no total is derivable from
+bytes, and none is claimed here. What is directly observed: the run reached
+**47 minutes still inside the `parse` phase**, having produced no output at all —
+no pass, no fail, no progress line.
+
+**Statement.** Let a verification command `V` be specified by an input glob `G`
+and let `A ⊆ G` be the artefacts under test. `cost(V)` is a function of `G`, not
+of `A`. When a generator writes into a directory `G` admits, `|G \ A|` grows
+without bound at no review cost, and `cost(V) → ∞` while the *evidence* `V`
+produces about `A` stays fixed. The command does not fail; it stops terminating,
+which reports as neither pass nor fail.
+
+**Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
+that table is a stage that *silently discarded* input and reported success. `V`
+silently *admits* input and reports nothing at all. Both are invisible for the
+same reason: nothing asks the stage to account for its population.
+
+*Falsification condition:* a completed `t27c suite` run whose wall time is
+dominated by `specs/` outside `specs/scratch/`, or a `parse`-phase glob that
+excludes generated benchmark artefacts.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

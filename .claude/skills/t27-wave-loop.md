@@ -5035,6 +5035,49 @@ These cost a wave each. Follow them before step 1.
      `split_whitespace().next()`, so a bare digest passes silently and the
      divergence surfaces only in a future consumer.
 
+176. **Force analysis before you believe a zero.** Appending
+     `comptime { _ = &f; }` for every top-level fn to the generated Zig -- no
+     logic change -- took the corpus from 1069 to 1104 diagnostics and the
+     `usize` class from **0 to 1**. The tenth `.len` site had never been
+     compiled by anything. A zero measured over reachable code is not a zero.
+
+177. **Forcing grows the SUPPORT, not just the count.** Three classes were zero
+     in every published figure and non-zero under forcing, including 15
+     `@compileError("not yet implemented")` -- the backend's own stub marker.
+     An unwritten function has no callers, so nothing references it, so the
+     error count and `impl-status` were measuring populations that CANNOT
+     overlap. You cannot estimate the forced count from the reachable one.
+
+178. **A probe is a population too -- and its INDEX is a selection decision.**
+     W624 enumerated five syntactic positions and closed them; the tenth site
+     was at none of them (`return composed;`, a bare identifier), because the
+     class also ranges over DATAFLOW DISTANCE. Enumerating instead of sampling
+     does not protect you from picking the wrong axis.
+
+179. **Taint computed by structural recursion on one expression dies at the
+     first binding.** With untyped locals it must be a fixpoint over the local
+     environment. The corpus site carried a length through FOUR untyped
+     `const`s. When you add taint propagation, also REMOVE names the cast
+     already absorbed, or you cast twice.
+
+180. **`t27c suite` walks all of `specs/` -- 588 MB, of which 578 MB is
+     `specs/scratch/` generator output and 6.5 MB is the real corpus (89:1).**
+     288 of the 455 scratch files are one `x2p6` sweep committed iteration by
+     iteration. Parse throughput on them is 0.081 MB/s. The sweep does not
+     fail; it stops terminating, which reports as neither pass nor fail. Do not
+     plan a wave around `suite` completing until that glob is narrowed.
+
+181. **When a command does not return, SAMPLE it before assuming a hang.**
+     `sample <pid>` gave `run_comprehensive -> Command::output()` in one call,
+     and `pgrep -P <pid>` named the exact child file. Twenty seconds of
+     diagnosis replaced a guess.
+
+182. **Check the glob in the SOURCE, not the one you remember.** The first draft
+     of T24 named `icarus_regression_specs()` (155 files, w5*/w3*). The process
+     list showed it parsing a `w740` file that filter excludes -- the real glob
+     was `collect_t27(repo.join("specs"))` in the parse phase. Same near-miss
+     as T15, caught the same way: by looking.
+
 ### How to update this tracker
 
 After closing a wave:
