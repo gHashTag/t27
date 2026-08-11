@@ -197,26 +197,53 @@ def main(argv):
             moved.append((str(fbak / f.name), str(f)))
 
     green, applied = [], []
+    diagnosed_steps, indeterminate = [], []
     try:
         print(f"{'step':58s} {'exit':>4s}   verdict")
         print("-" * 92)
         for name, run in steps:
             script = bak / "step.sh"
             open(script, "w").write(run)
+            out = ""
             try:
                 r = subprocess.run(["bash", str(script)], cwd=root,
                                    capture_output=True, text=True, timeout=1800)
                 rc = r.returncode
+                out = (r.stdout or "") + (r.stderr or "")
             except subprocess.TimeoutExpired:
                 rc = -1
             exempt = name in EXEMPT
-            if exempt:
+            # Count an exemption only when it actually SUPPRESSED a green
+            # verdict. Wave 649: this appended on name membership alone, so a
+            # step in EXEMPT that FAILED was still reported as exempt, and the
+            # summary read identically whether the exemption did any work.
+            if exempt and rc == 0:
                 applied.append(name)
             bad = rc == 0 and not exempt
             if bad:
                 green.append(name)
+
+            # A THIRD verdict. Wave 649: every non-zero exit was read as
+            # "fails, correct" -- so a missing binary (rc 127), an unrelated
+            # crash, and a hang all counted as a healthy gate. Classifying the
+            # captured output of the real swept set gave 11 steps that produced
+            # a designed diagnosis of the absence, 10 that died with a raw
+            # traceback, and 19 that exited non-zero saying nothing at all.
+            # All forty printed the same words, and the summary said
+            # "0 passing on nothing" either way.
+            #
+            # DIAGNOSED requires positive evidence that the step noticed its
+            # subject was gone. Anything else that merely failed is
+            # INDETERMINATE: not a pass, but not evidence of a working gate.
+            diagnosed = ("::error::" in out
+                         or "missing" in out.lower()
+                         or "found no" in out.lower()
+                         or "emit the bundle" in out.lower())
+            if not (bad or (exempt and rc == 0)):
+                (diagnosed_steps if diagnosed else indeterminate).append(name)
             verdict = ("exempt" if exempt and rc == 0 else
-                       "PASSES ON NOTHING" if bad else "fails, correct")
+                       "PASSES ON NOTHING" if bad else
+                       "diagnosed" if diagnosed else "INDETERMINATE")
             print(f"{name[:58]:58s} {rc:>4d}   {verdict}")
     finally:
         for dst, src in moved:
@@ -228,6 +255,21 @@ def main(argv):
             shutil.move(dst, src)
         shutil.rmtree(bak, ignore_errors=True)
 
+    # A RATCHET, not a wall. 28 of 37 steps merely crash when starved rather
+    # than diagnosing the absence, and failing all 28 today would take the gate
+    # out of service -- which is how an incomplete gate becomes an unsound one
+    # (Prop. 115b). The count is published and may only fall.
+    INDETERMINATE_CEILING = 28
+    if len(indeterminate) > INDETERMINATE_CEILING:
+        print(f"::error::{len(indeterminate)} steps merely CRASH when starved "
+              f"rather than diagnosing the absence, above the ceiling of "
+              f"{INDETERMINATE_CEILING}. A step that dies with a bare traceback "
+              "proves nothing about whether it reads its subject: it fails "
+              "when starved and would fail just as readily if it were simply "
+              "broken. Lower the ceiling as steps gain real diagnostics; never "
+              "raise it. Prop. 116.")
+        return 1
+
     for n in green:
         print(f"::error::step '{n}' exits 0 with no RTL and no properties "
               "present -- it is not measuring the design")
@@ -237,7 +279,8 @@ def main(argv):
     # this file exists to find.
     print(f"\nabsence sweep: {len(steps)} steps across {len(paths)} workflows, "
           f"{len(builders)} builders not swept, "
-          f"{len(applied)} exempt, {len(recursive)} recursive, "
+          f"{len(diagnosed_steps)} diagnosed, {len(indeterminate)} "
+          f"indeterminate, {len(applied)} exempt, {len(recursive)} recursive, "
           f"{len(green)} passing on nothing")
     return 1 if green else 0
 

@@ -2,6 +2,29 @@
 
 Last updated: 2026-08-12
 
+## Wave 649 — the sweep's verdict was the sign of an exit code
+
+- **EVERY NON-ZERO EXIT READ AS "fails, correct"**: a missing binary (`rc 127`),
+  an unrelated crash, and a hang (`rc -1`) all printed as a healthy gate.
+  Verified with synthetic one-step workflows through the shipped sweep.
+- **ON THE REAL SWEPT SET, MOST ARE CRASHES**: classifying what each step
+  actually emits when starved — **9 diagnosed** (an `::error::` or a named
+  absence message) against **28 INDETERMINATE** (exited non-zero saying nothing
+  about the absence). *"0 passing on nothing"* was true and nearly vacuous.
+- **THAT IS EXACTLY HOW PROP. 114's TWO BROKEN STEPS HID**: a step dying with a
+  bare traceback would fail just as readily if it were simply broken.
+- **A RATCHET, NOT A WALL**: failing all 28 today would take the gate out of
+  service — Prop. 115b's mechanism, by which an incomplete gate becomes an
+  unsound one. The count is published in the summary and capped at its current
+  value: it may fall, never rise.
+- **`N exempt` COUNTED MEMBERSHIP, NOT USE**: a step in `EXEMPT` that *failed*
+  was still tallied as exempt, so the summary read identically whether the
+  exemption suppressed anything. Now counted only when it actually suppressed a
+  green verdict — which is what the Wave 643 comment already claimed.
+- **WHAT THE NUMBER MEANS**: 9 of 37 is not a failure of the suite; it is the
+  first honest measurement of how many CI steps can say *why* they failed.
+- **PROP. 116** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 648 — two CI steps were already broken, and over-detection is universal
 
 - **TWO LIVE CI STEPS WERE BROKEN IN NORMAL OPERATION**, and the sweep recorded

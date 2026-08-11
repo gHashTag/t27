@@ -7104,6 +7104,52 @@ simply never been probed from this direction.
 
 ---
 
+### Prop. 116 — the sweep's verdict was the sign of an exit code — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 114 gave the sweep its positive arm. This addresses the negative arm's own
+weakness, and the measurement is worse than the defect.
+
+**116a. Every non-zero exit read as "fails, correct".** A missing binary
+(`rc 127`), an unrelated crash, and a hang (`rc -1`) were all printed as a
+healthy gate. Verified with synthetic one-step workflows through the shipped
+sweep: `yosys_that_does_not_exist` → *"fails, correct"*; `exit 42` →
+*"fails, correct"*; `sleep 60` against a 5-second timeout → *"fails, correct"*.
+
+**116b. On the real swept set, most of them are crashes.** Classifying the
+captured output of every step, with `diagnosed` requiring positive evidence that
+the step *noticed* its subject was gone:
+
+| verdict | count |
+|---|---|
+| **diagnosed** — produced an `::error::` or a named-absence message | **9** |
+| **INDETERMINATE** — exited non-zero saying nothing about the absence | **28** |
+
+So *"0 passing on nothing"* was true and nearly vacuous. Nine steps demonstrate
+they read their subject; twenty-eight demonstrate only that they fell over, and
+a step that dies with a bare traceback would fail just as readily if it were
+simply broken — which is exactly how Prop. 114's two defects hid.
+
+**116c. A ratchet, not a wall.** Failing all 28 today would take the gate out of
+service, and a gate that fails correct work gets disabled — Prop. 115b's
+mechanism, by which an incomplete gate becomes an unsound one. The count is
+published in the summary and capped at its current value: it may fall, never
+rise.
+
+**116d. `N exempt` counted membership, not use.** A step in `EXEMPT` that
+*failed* was still tallied as exempt, so the summary read identically whether
+the exemption suppressed anything. Now counted only when it actually suppressed
+a green verdict — which is what the Wave 643 comment already claimed it did.
+
+**116e. What the number means going forward.** 9 of 37 is not a failure of the
+suite; it is the first honest measurement of how many CI steps can tell you
+*why* they failed. Every step moved from INDETERMINATE to diagnosed is a step
+whose green is worth something, and the ceiling makes that progress visible
+instead of assumed.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
