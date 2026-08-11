@@ -28,9 +28,16 @@ Caused by: DLC10 cable not found (VID=0x03FD)
 |---|---|---|
 | **T1** | The ternary MAC RTL is equivalent to its spec | **machine-checked** — yosys SAT miter, ports bound by name |
 | **T2** | The lowering is multiplier-free | **machine-checked** — no `$mul` cell survives `synth_xilinx` |
-| **T3** | Timing closes at 150.63 MHz | tool report (Vivado), not a proof |
+| **P1** | Timing closes at 150.63 MHz | tool report (nextpnr-xilinx / openXC7), not a proof |
 | **P15** | `specs/fpga/` 246 tests, `specs/boards/` 54 tests | **measured**, 0 failures |
-| **P12** | No remaining blocker in the RACE kernels is a compiler defect | measured across 6 kernels |
+| ~~**P12**~~ | ~~No remaining blocker in the RACE kernels is a compiler defect~~ | **REFUTED W623** — four compiler-defect classes; one fixed, 9 sites, spec text unchanged (T18) |
+
+> **Labels in this table name claims in
+> [`docs/theory/IGLA-FORMAL-RESULTS.md`](../theory/IGLA-FORMAL-RESULTS.md).**
+> Until W623 the **T3** row named a different claim than T3 in that document
+> (which is the accumulator invariant); the timing sentence is **P1** there and
+> is disclaimed as a theorem. Corrected above. Never write a bare label — see
+> **T15**.
 
 **What is *not* proved:** that the bitstream on real silicon behaves as the
 simulation does. No wave in this chain has produced that evidence, and no wave

@@ -5374,6 +5374,84 @@ impl Codegen {
         }
     }
 
+    // W623: `.len()` is `usize` in Zig, but a t27 signature that consumes or
+    // returns a length declares a SIZED integer (`u32` throughout the corpus).
+    // The backend emitted `.len` bare, so `return s.len;` under `-> u32` and
+    // `f(line, kw_pos + keyword.len)` under `f(_, idx: u32)` both failed with
+    // "expected type 'u32', found 'usize'". Nine sites across five specs; each
+    // is fixed by a cast the SPEC CANNOT SPELL, which is what makes it a
+    // compiler defect rather than a specification decision (refutes P12).
+    fn is_len_access(&self, n: &Node) -> bool {
+        if n.kind != NodeKind::ExprCall {
+            return false;
+        }
+        // The three spellings gen_expr lowers to a bare `.len` field read.
+        (n.extra_kind == "method" && n.name == "len" && n.children.len() == 1)
+            || (n.children.is_empty() && n.name.ends_with(".len"))
+            || (n.name == "len"
+                && n.children.len() == 1
+                && !self.declared_fns.contains("len"))
+    }
+
+    /// True when `n` reads a `.len` and the whole expression is integer
+    /// arithmetic, so wrapping it in `@intCast` is type-correct. Deliberately
+    /// narrow: a call or a float operand anywhere makes it false, because
+    /// `@intCast` of a non-integer is itself an error.
+    fn len_tainted_int_expr(&self, n: &Node) -> bool {
+        if self.is_len_access(n) {
+            return true;
+        }
+        if n.kind == NodeKind::ExprBinary
+            && matches!(n.extra_op.as_str(), "+" | "-" | "*" | "/" | "%")
+            && n.children.len() == 2
+        {
+            let ok = |c: &Node| {
+                self.len_tainted_int_expr(c)
+                    || c.kind == NodeKind::ExprIdentifier
+                    || (c.kind == NodeKind::ExprLiteral && !c.name.contains('.'))
+            };
+            return (self.len_tainted_int_expr(&n.children[0])
+                || self.len_tainted_int_expr(&n.children[1]))
+                && ok(&n.children[0])
+                && ok(&n.children[1]);
+        }
+        false
+    }
+
+    /// The sized Zig integer a t27 type names, or `None` for `usize`/`isize`
+    /// (already the type of `.len`) and for everything non-integral.
+    pub(crate) fn sized_int_type(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        let (head, rest) = t.split_at(if t.starts_with('u') || t.starts_with('i') {
+            1
+        } else {
+            return None;
+        });
+        if !matches!(head, "u" | "i") || rest.is_empty() {
+            return None;
+        }
+        if !rest.chars().all(|c| c.is_ascii_digit()) {
+            return None; // usize / isize / u8x4 / anything else
+        }
+        Some(t.to_string())
+    }
+
+    /// Emit `expr`, cast to `ty` when `ty` is a sized integer and `expr` reads
+    /// a `.len`. Returns true when the cast was emitted.
+    fn gen_len_cast(&mut self, expr: &Node, ty: &str) -> bool {
+        let target = match Self::sized_int_type(ty) {
+            Some(t) => t,
+            None => return false,
+        };
+        if !self.len_tainted_int_expr(expr) {
+            return false;
+        }
+        self.write(&format!("@as({}, @intCast(", target));
+        self.gen_expr(expr);
+        self.write("))");
+        true
+    }
+
     fn gen_fn_decl(&mut self, node: &Node) {
         if node.extra_pub {
             self.write("pub ");
@@ -5851,7 +5929,10 @@ impl Codegen {
                             }
                         }
                     }
-                    self.gen_expr(v);
+                    // W623: `return s.len;` under a `-> u32` signature.
+                    if !self.gen_len_cast(v, &ret) {
+                        self.gen_expr(v);
+                    }
                 }
                 self.write_line(";");
             }
@@ -6018,7 +6099,16 @@ impl Codegen {
                                 let lit = node.children[0].clone();
                                 self.gen_array_literal_braces(&lit);
                             }
-                            None => self.gen_expr(&node.children[0]),
+                            None => {
+                                // W624: `let n : u32 = s.len();`. Third of the
+                                // five positions a length can reach a sized-int
+                                // context; W623 closed two. See T20.
+                                let lty = node.extra_type.clone();
+                                let init = node.children[0].clone();
+                                if !self.gen_len_cast(&init, &lty) {
+                                    self.gen_expr(&node.children[0]);
+                                }
+                            }
                         }
                     } else {
                         // Zig has no uninitialized declarations.
@@ -6529,7 +6619,18 @@ impl Codegen {
                                 self.write("&");
                                 self.gen_expr(arg);
                             }
-                            None => self.gen_expr(arg),
+                            None => {
+                                // W623: `f(line, kw_pos + keyword.len)` where the
+                                // callee declares `idx: u32`.
+                                let pty = param_types
+                                    .as_ref()
+                                    .and_then(|ps| ps.get(i))
+                                    .cloned()
+                                    .unwrap_or_default();
+                                if !self.gen_len_cast(arg, &pty) {
+                                    self.gen_expr(arg);
+                                }
+                            }
                         }
                     }
                     self.write(")");
@@ -6815,7 +6916,23 @@ impl Codegen {
                                     }
                                 }
                             }
-                            _ => self.gen_expr(&field.children[0]),
+                            _ => {
+                                // W624: `Box { n: s.len() }` where the field
+                                // declares a sized int. The W623 fix covered
+                                // return and argument position only, because
+                                // those are the two the corpus happened to
+                                // exercise -- the same population-selection
+                                // trap T16 names. Measured by probe, not by
+                                // reading the corpus. See T20.
+                                let fty = self
+                                    .struct_field_types
+                                    .get(&(node.name.clone(), field.name.clone()))
+                                    .cloned()
+                                    .unwrap_or_default();
+                                if !self.gen_len_cast(&field.children[0], &fty) {
+                                    self.gen_expr(&field.children[0]);
+                                }
+                            }
                         }
                     }
                 }
@@ -32957,6 +33074,84 @@ mod tests_w458 {
             "expected function body to reference module array rom[i]:\n{}",
             v
         );
+    }
+
+    // W623: `.len` is usize in Zig; every t27 signature that carries a length
+    // declares a sized integer. Refutes P12 ("not one is a compiler defect").
+    #[test]
+    fn len_in_return_position_casts_to_sized_return_type() {
+        let src = "module M\n\nfn str_len(s: string) -> u32 {\n    return s.len();\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return @as(u32, @intCast(s.len));"),
+            "expected a sized cast on a usize length:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_in_argument_position_casts_to_declared_param_type() {
+        // The seven of nine corpus sites that the return-position rule misses.
+        let src = "module M\n\nfn at(s: string, idx: u32) -> u32 {\n    return idx;\n}\n\n\
+                   fn tail(s: string, kw: string, p: u32) -> u32 {\n    return at(s, p + kw.len());\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("at(s, @as(u32, @intCast(p + kw.len)))"),
+            "expected the argument cast to the callee's declared u32:\n{}",
+            z
+        );
+    }
+
+    // W624: the W623 fix covered the two positions the corpus exercised. A
+    // six-position probe found three more, of which two are real Zig errors
+    // (`let` with a declared type, and a struct-literal field) and one is not
+    // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    #[test]
+    fn len_in_typed_let_casts_to_the_declared_local_type() {
+        let src = "module M\n\nfn f(s: string) -> u32 {\n    let n : u32 = s.len();\n    return n;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("const n: u32 = @as(u32, @intCast(s.len));"),
+            "expected the declared local type to drive the cast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_in_struct_literal_field_casts_to_the_declared_field_type() {
+        let src = "module M\n\npub const Box = struct {\n    n : u32,\n}\n\n\
+                   fn f(s: string) -> Box {\n    return Box { n: s.len() };\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains(".n = @as(u32, @intCast(s.len))"),
+            "expected the declared field type to drive the cast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_comparison_is_left_alone_because_zig_peer_resolves_it() {
+        // Not an omission: `s.len > cap` compiles in Zig without a cast, and
+        // wrapping it would narrow the comparison. Measured, not assumed.
+        let src = "module M\n\nfn f(s: string, cap: u32) -> bool {\n    return s.len() > cap;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return s.len > cap;"),
+            "comparison must stay uncast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_cast_is_not_applied_to_usize_or_non_integer_targets() {
+        assert_eq!(super::Codegen::sized_int_type("u32"), Some("u32".to_string()));
+        assert_eq!(super::Codegen::sized_int_type("i16"), Some("i16".to_string()));
+        // usize IS the type of `.len`; casting it would be noise, not a fix.
+        assert_eq!(super::Codegen::sized_int_type("usize"), None);
+        assert_eq!(super::Codegen::sized_int_type("isize"), None);
+        assert_eq!(super::Codegen::sized_int_type("f64"), None);
+        assert_eq!(super::Codegen::sized_int_type("string"), None);
+        assert_eq!(super::Codegen::sized_int_type("[]i8"), None);
     }
 
     #[test]

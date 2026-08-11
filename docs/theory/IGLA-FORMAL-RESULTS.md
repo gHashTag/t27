@@ -52,6 +52,14 @@ the cell census.
 T2 is what makes T1 interesting: equivalence alone would be unremarkable if both
 designs used a multiplier.
 
+> **LABEL COLLISION (audit, W623).** `docs/fpga/IGLA-FPGA-LAUNCH-PLAN.md:31`
+> files a row "T3 = timing closes at 150.63 MHz" against this number, in a table
+> whose T1/T2 rows DO correspond to this document. That sentence is not
+> this theorem and is not a theorem at all — it is **P1**, and line 156 of this
+> document disclaims it explicitly. Its home is
+> `docs/fpga/IGLA-FPGA-LAUNCH-PLAN.md:31`. The tool was nextpnr-xilinx/openXC7
+> (`Generator=xc7frames2bit` in the bitstream header), not Vivado. See **T15**.
+
 ### T3 — Unbounded accumulator invariant by temporal induction
 
 > The demo core's accumulator stays within its declared range for **all** input
@@ -622,6 +630,364 @@ intended assignment without type information, or a language rule making
 
 ---
 
+### T15 (W623) — A claim is identified by its DOCUMENT, not by its label; a bare label is not a reference
+
+**Discovered by an independent audit of twelve claims from this document.** One
+verdict came back `CLAIM_WRONG` for a reason that has nothing to do with the
+theorem: the register entry filed under **T3** and the theorem numbered **T3**
+here are *different claims in different files.*
+
+| | |
+|---|---|
+| `docs/fpga/IGLA-FPGA-LAUNCH-PLAN.md:31`, row **T3** | "Timing closes at 150.63 MHz" |
+| `docs/theory/IGLA-FORMAL-RESULTS.md`, **T3** | Unbounded accumulator invariant by temporal induction |
+
+The launch plan's table is not an independent numbering that happens to clash:
+its **T1** and **T2** rows correspond exactly to T1 and T2 here, and its **P15**
+and **P12** rows to P15 and P12 here. Four of six labels agree, so a reader is
+entitled to assume the fifth does. It does not. This document *explicitly
+disclaims* the timing sentence
+as a theorem — it appears at line 156 under "What is deliberately not claimed"
+and again as **P1**, a measured proposition. The audit also found the attributed
+tool wrong: the bitstream header records `Generator=xc7frames2bit`
+(nextpnr-xilinx / openXC7), not Vivado.
+
+**This theorem caught its own first draft.** The audit brief located the
+colliding row in `docs/DECISION-REGISTER.md`; I wrote that down, then grepped —
+the register has contained no `T3` entry since its W621 rewrite. The collision is
+with the launch plan. **A theorem about referring to claims by bare label was
+one commit away from shipping with the wrong document named.** That is not irony;
+it is the measurement: the failure mode is available to anyone who does not check
+the file, including the person stating it.
+
+**Statement.** Let `L` be a label (`T3`, `P12`, …) and `D` a document. A claim is
+the pair `(D, L)`. A reference that carries only `L` denotes a claim **iff** `L`
+is unique across every document in the reference's scope. In a repository with
+`k` documents that number claims independently, label uniqueness is not an
+invariant — it fails silently, because both sides typecheck as prose.
+
+**Corollary — the failure is undetectable by re-checking the claim.** An auditor
+sent to verify "T3: timing closes at 150.63 MHz" can confirm the *number* (the
+tool report says 150.63) and still be auditing a claim the source document never
+made. Only comparing *label to document* exposes it. Every cross-document claim
+reference in this repository must therefore carry its file path.
+
+*Falsification condition:* a second label collision that a claim-level re-check
+does detect, or a repo-wide uniqueness invariant that makes bare labels sound.
+
+---
+
+### T16 (W623) — A rule verified only on the population authored FROM it is untested
+
+**Discovered by audit of P16.** P16 checks the GoldenFloat ladder rule
+`e = round((N−1)/φ²)`, `m = N−1−e` against the specs and states, in its own text,
+"This is not tautological: every value is hand-entered." The audit re-ran it:
+
+| | recorded | measured |
+|---|---:|---:|
+| catalog entries checked | 17 | **17** |
+| catalog mismatches | 0 | **0** |
+| **spec files checked** | **9** | **16** |
+| spec mismatches | 0 | **0** |
+
+The undercount is not the interesting part. **The nine that were counted are
+exactly the nine `status=Open` rungs authored *from* the rule** (gf6, gf10, gf14,
+gf48, gf96, gf128, gf256, gf512, gf1024) — the only nine that declare the triple
+as top-level `pub const`. The seven missed (gf4, gf8, gf12, gf16, gf20, gf24,
+gf32, gf64) are the **empirically designed** rungs, which declare the same triple
+as block-scoped `const`. The check's *grep shape selected precisely the
+sub-population that cannot falsify the rule.*
+
+**Statement.** Let `R` be a rule and `S = S_derived ⊎ S_independent` a population,
+where every member of `S_derived` was constructed by applying `R`. Then
+`R` holding on `S_derived` has **likelihood ratio 1** — it is entailed by
+construction and carries no evidence. All evidential weight lives in
+`S_independent`. A verification restricted to `S_derived` is a tautology check
+wearing a measurement's clothes, **and it reports the same "0 mismatches" that a
+genuine test would.**
+
+**Why the accident was invisible.** The selection was made by a *syntactic*
+property (`pub const` at top level) that happens to correlate perfectly with the
+*epistemic* property (authored-from-the-rule). Nothing in the check mentions
+provenance; the bias entered through a grep.
+
+> The result survives — extended to all 16, still 0 mismatches, so the rule is
+> now **actually** tested and the conclusion is *stronger* than recorded. But it
+> was not tested when it was published, and the published text asserted that it
+> was.
+
+*Falsification condition:* a member of `S_derived` that violates `R` (which would
+mean the population is not derived from `R` after all), or a demonstration that
+the nine were authored independently of the closed form.
+
+---
+
+### T17 (W623) — Bit-exact reproduction under an unstated rule is not reproduction
+
+**Discovered by audit of P30.** Every figure in P30 re-derived *bit-exactly* —
+1610, 9098, 7488, 537, 337, 874, 0.334, 0.045, 7.41× — and the verdict was still
+`NUMBERS_WRONG`. The auditor had to attribute compile errors to test blocks, and
+found **two defensible attribution rules**: (A) the *enclosing* block, and (B)
+the nearest *preceding* block start. The document states neither. The recorded
+figures reproduce under exactly one of them.
+
+**Statement.** A measurement is a function `f(corpus, rule) → value`. Publishing
+`value` and `corpus` while omitting `rule` does not make the measurement
+reproducible; it makes it **searchable** — a re-runner recovers the number by
+trying rules until one matches, which is curve-fitting to a known answer, not
+verification. The document is reproducible iff `rule` is recoverable from its
+text alone.
+
+**Corollary — bit-exactness is evidence of a shared rule, not of a correct one.**
+Two runs agreeing to the last digit tells you `rule₁ = rule₂`. It says nothing
+about whether either is the rule the claim needs. The stronger the agreement, the
+more confidently a reader infers soundness — so **this failure mode is worse the
+more precisely it reproduces.**
+
+**Companion result from the same audit.** P25's figures did *not* reproduce
+exactly (1461 measured vs 1458 recorded; 887 vs 886) — a 0.2% drift with no
+stated cause. The pair is instructive: P25 is *less* precise and *more*
+honest about its own uncertainty than P30, which is precise to the digit under a
+rule it never names.
+
+*Falsification condition:* an attribution rule recoverable from P30's text alone
+that yields its published figures.
+
+---
+
+### T18 (W623) — Demonstration outranks argument: the P12 refutation, executed
+
+**P12 (W597) asserted:** *"Every remaining blocker is a specification decision.
+Not one is a compiler defect, a missing lowering, or a parse gap."* The audit
+returned `CLAIM_WRONG` with four defect classes. **A claim of the form "no X
+exists" is refuted by exhibiting one X — so this wave built one.**
+
+`.len()` is `usize` in Zig; every t27 signature in the corpus that consumes or
+returns a length declares a **sized** integer. The backend emitted `.len` bare.
+
+```t27
+module mini_len
+fn str_len(s: string) -> u32 { return s.len(); }
+test len_of_abc  when n = str_len("abc")  then n == 3
+```
+
+| | before | after |
+|---|---|---|
+| emitted Zig | `return s.len;` | `return @as(u32, @intCast(s.len));` |
+| `zig test --test-no-exec` | `error: expected type 'u32', found 'usize'` | **rc = 0** |
+
+Measured over all 34 specs under `specs/igla`, `t27c gen` + `zig test
+--test-no-exec` (zig 0.16.0):
+
+| | before | after |
+|---|---:|---:|
+| `expected type '<sized int>', found 'usize'` | **9** | **0** |
+| total compile errors | 1076 | **1069** |
+
+**The spec text did not change.** Nine call sites in five specs
+(`coder/eval`, `coder/tokenizer`, `race/backend`, `race/eda`,
+`race/ternary_inference`) went from non-compiling to compiling by a change to
+`bootstrap/src/compiler.rs` alone. That is P12's own falsification condition,
+met.
+
+**Statement.** For a universally quantified negative claim `¬∃x. P(x)` over a
+mechanised domain, the refutation of record is a **constructed and re-run
+witness**, not an enumeration of candidates. An audit that *lists* four candidate
+defects leaves open that all four are misreadings — the failure mode this project
+has recorded eleven times (see **P35**). Building one and re-measuring closes
+that gap, and it is the only method that does.
+
+**Two of the nine were in return position and seven in ARGUMENT position** — the
+narrow reading ("`return x.len()` under a sized return type") would have covered
+2 of 9. The measurement, not the exemplar, set the fix's scope.
+
+*Falsification condition:* a spec-text-only change that fixes those nine sites
+without touching the compiler.
+
+> **T18's own table needed a reconciliation it did not carry.** 9 usize errors
+> removed, total down only 7. The missing 2 are not rounding — they are two
+> errors the fix *created* by removing the ones that masked them. See **T19**,
+> which was found by re-running T18's measurement rather than by reading it.
+
+---
+
+### T19 (W624) — A compile-error count is not an order on correctness: fixing a defect can raise it
+
+**Discovered by independently re-running T18's measurement.** Both endpoints
+reproduce exactly — 1076 → 1069 total, 9 → 0 usize mismatches. The two rows do
+not reconcile: nine errors were removed and the total fell by seven.
+
+Diffing the error *classes*, not the totals, locates the missing two:
+
+| error class | W622 | W623 |
+|---|---:|---:|
+| `expected type 'u32', found 'usize'` | 9 | **0** |
+| `incompatible types: 'struct { u32 }' and '[]u32'` | 2 | **4** |
+| everything else | 1065 | 1065 |
+| **total** | **1076** | **1069** |
+
+The two new ones are at `coder_tokenizer.zig:470` and `:527` — **the same two
+lines that carried a usize error before the fix**:
+
+```zig
+// before: the argument fails first, and the compiler stops there
+return .{ kw_id } + tokenize_verilog_inner(code, idx + word.len);
+//                                               ^^^^^^^^^^^^^^ expected u32, found usize
+
+// after: the argument typechecks, so analysis reaches the OUTER expression
+return .{ kw_id } + tokenize_verilog_inner(code, @as(u32, @intCast(idx + word.len)));
+//     ^^^^^^^^^^^^^^ incompatible types: 'struct { u32 }' and '[]u32'
+```
+
+The `.{ kw_id } + <slice>` defect was there all along. It was **unreachable to
+the type-checker** because a different error on the same line aborted analysis
+first.
+
+**Statement.** Let `E(c)` be the multiset of diagnostics a compiler emits for
+program `c`. Diagnostics are not independent: a diagnostic `e₁` may *mask* `e₂`
+when the analysis that would produce `e₂` is not reached. Therefore `|E|` is
+**not monotone** under defect repair — for a repair `c → c'` that strictly
+removes defects, `|E(c')| > |E(c)|` is possible, and `|E(c')| < |E(c)|` is
+compatible with new defects having been introduced. `|E|` orders nothing.
+
+**Corollary — the only sound progress metric is a per-class, per-site diff.**
+The headline `1076 → 1069` is *true* and tells you nothing about whether the
+change was an improvement; the same seven-error drop is produced by "fixed nine,
+unmasked two" and by "fixed eleven, broke four". Both endpoints must be
+partitioned by class before the delta means anything.
+
+**Where this sits.** This is the compiler-diagnostics case of a hazard the field
+knows under other names. Parser error recovery has fought *spurious cascaded
+errors* since the 1980s (the Burke–Fisher repair line exists precisely to stop
+one syntax error from generating a shower of phantom ones), and every type
+checker that stops at the first ill-typed subterm masks the rest of the
+expression. What is specific here is the **direction**: the literature worries
+about a defect producing too many diagnostics; this result is about a defect
+producing too *few*, so that removing it makes the count go up. Under Goodhart's
+law the danger is sharper than the usual reading — the count is not merely a
+proxy that degrades when targeted, it is a proxy that *inverts*.
+
+*Falsification condition:* a demonstration that the two `coder_tokenizer` errors
+are caused by the W623 cast rather than exposed by it — e.g. they persist when
+the same lines are made to typecheck by any other means.
+
+---
+
+### T20 (W624) — A fix's scope is set by the population that exercised it, not by the class it names
+
+**Discovered by probing, not by reading the corpus.** T18 states its class
+plainly: `.len` is `usize`, and every t27 signature carrying a length declares a
+*sized* integer. It then implements **two** of the syntactic positions in which
+that class can arise, because the nine measured sites occupied exactly two.
+T18's own last line records the reasoning — *"the measurement, not the exemplar,
+set the fix's scope"* — and that is the defect, stated as a virtue.
+
+A six-position probe (`probe_len.t27`, one function per position, compiled with
+`zig test --test-no-exec`) enumerates the class:
+
+| # | position | cast emitted by W623 | actually a Zig error? |
+|---|---|:--:|---|
+| 1 | `return s.len()` under `-> u32` | yes | yes |
+| 2 | `f(s, s.len())` where `f` declares `u32` | yes | yes |
+| 3 | `return base + s.len()` under `-> u32` | yes | yes |
+| 4 | `let n : u32 = s.len();` | **no** | **yes** |
+| 5 | `Box { n: s.len() }`, field `n : u32` | **no** | **yes** |
+| 6 | `s.len() > cap`, `cap : u32` | no | **no** — Zig peer-resolves |
+
+Two genuine gaps and one *non*-gap. Position 6 matters as much as 4 and 5: a fix
+scoped by "wherever a length meets a sized int" would have wrapped it, narrowing
+a comparison that was already correct. **The class named by the theorem is
+neither a subset nor a superset of the class that needs fixing.**
+
+**Statement.** Let a defect class `C` be characterised semantically (here: a
+`usize` length reaching a sized-integer context) and let `Σ` be the set of
+syntactic positions realising `C`. A corpus `K` exercises some `Σ_K ⊆ Σ`. A fix
+derived from measurement over `K` implements `Σ_K`; a fix derived from `C`
+implements `Σ`. These coincide **iff** `Σ_K = Σ`, which measurement over `K`
+cannot establish — `K` is silent about the positions it does not contain.
+Closing the gap requires a **constructed enumeration of `Σ`**, which is a
+different activity from measuring `K`.
+
+**This wave implemented positions 4 and 5, and the corpus output is
+byte-identical.** `diff -rq` over all 34 generated `.zig` files before and after:
+no difference. That is not a weak result — it is the *proof of the theorem*. The
+extension is verified entirely by constructed witnesses, because the corpus
+contains zero instances of either position. Had the fix been justified by corpus
+measurement, it could not have been written at all.
+
+**T20 is T16's sibling, with the selector moved.** T16: a *rule* validated on the
+population authored from it. T20: a *fix* scoped by the population that happened
+to exercise it. In both, a **syntactic** selector (`pub const` at top level;
+"which positions appear in `specs/igla`") silently stands in for an **epistemic**
+one (independent evidence; the true extent of the class), and in both the
+resulting report — "0 mismatches", "9 of 9 sites fixed" — is indistinguishable
+from the sound version.
+
+*Falsification condition:* a seventh position realising the class that the probe
+misses, or a demonstration that positions 4 and 5 cannot occur in a well-formed
+`.t27` spec.
+
+---
+
+### T21 (W624) — The corpus error count is a reachability-conditioned statistic, not a property of the compiler
+
+**Discovered while validating T20's probe.** The first probe put all six
+positions in one file with a single test, which referenced one function. It
+compiled clean — `rc = 0`, no diagnostics. The second probe contained the *same
+function bodies* for positions 4–6 and added a test calling each. It reported two
+errors.
+
+| probe | bodies for positions 4, 5, 6 | tests referencing them | errors |
+|---|---|---:|---:|
+| `probe_len.t27` | identical | 0 | **0** |
+| `probe_len2.t27` | identical | 3 | **2** |
+
+Zig analyses a function body only when it is *referenced*. `zig test
+--test-no-exec` therefore reports diagnostics for the reachable fragment of a
+file and is silent about the rest, **without saying so**.
+
+**Statement.** Let `N(f)` be the diagnostic count `zig test --test-no-exec`
+reports for generated file `f`. Then `N` is a function of the pair
+*(generated code, reference graph)*, not of the generated code alone. Adding a
+test — changing no generated logic whatsoever — can strictly increase `N`. Every
+figure in this document of the form "total compile errors" is therefore a
+**joint** measurement of the backend and the corpus's own test coverage, and none
+of them may be attributed to the backend alone.
+
+**How large is the unmeasured fragment?** Over the 34 generated files:
+
+| | count |
+|---|---:|
+| distinct generated functions | 1286 |
+| never referenced anywhere in their own file | **180 (14.0%)** |
+
+Each generated `.zig` is compiled as a standalone unit, so an unreferenced
+function in that unit is an unanalysed function: **roughly one function body in
+seven has never been type-checked at all.** The true error count of the corpus is
+unknown and is bounded below, not estimated, by 1069.
+
+**Consequences for the figures already published here.** P25's 1458/1461, P30's
+1076, T18's 1076 → 1069 and T19's class table are all conditioned on the same
+reference graph, so *deltas between them remain valid* — the graph did not change
+between those measurements. What is not valid is reading any of them as "the
+corpus contains N errors". They say "N errors are reachable".
+
+**Where this sits.** This is the same structure as *coverage-conditioned defect
+density* in the testing literature: a defect count from a test suite measures
+suite ∧ code, and the classic error is reporting it as a property of the code.
+Compilers make the trap sharper than test suites do, because a compiler is
+normally assumed to be a *total* function of the source text. For a lazily
+analysed language it is not — Zig's on-demand semantic analysis is a deliberate
+design choice with the same shape as C++ template instantiation, where an
+uninstantiated template's body is likewise never fully checked.
+
+*Falsification condition:* a `--test-no-exec` invocation that analyses
+unreferenced bodies (making `N` a function of the code alone), or a demonstration
+that the 180 unreferenced functions are reachable through a path this count
+misses.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
@@ -862,6 +1228,15 @@ scaffold.
 **Falsified by.** An overlap materially larger than 3 under a different
 definition of "unwritten".
 
+> **REFUTED BY AUDIT + DEMONSTRATION, W623.** The headline is false: four
+> compiler-defect classes exist, and one of them was fixed in W623 by a
+> compiler-only change that made nine sites compile with their spec text
+> unchanged. Two table rows are also wrong — `cordic_top` and `cordic_fixed` are
+> recorded as "compiles", and neither produces a binary (43 and 50 Zig errors,
+> including 33 hard type errors no row accounts for). Rows that hold:
+> `adder_tree` 335/335, `cordic` 336 tests, `ternary_mac`, `ternary_gemm`,
+> `systolic_ternary`, `opcodes`, `eda` do not compile. See **T18**.
+
 ### P12 — The IGLA RACE kernels are blocked by decisions, not by the compiler (W597)
 
 After twenty-nine waves, the state of the six kernels this project exists to
@@ -993,6 +1368,10 @@ three classes tabulated in T6.
 
 ---
 
+> **STALE (audit, W623).** BLOCKED is 541, recorded 540. Every other figure
+> re-derives exactly: MEASURED 30, of those 100% = 29, INVARIANTS ONLY 9, NO
+> TESTS 4, STUBS 25, tests 1024, pass 1018, fail 6, rate 99.4%, invariants 445.
+
 ### P15 (W600) — Of the corpus that runs, 99.4% is right, and every failure is in one file
 
 The first per-test measurement over the whole spec tree
@@ -1043,6 +1422,11 @@ specs and the board.
 a rate that moves when the measurement is repeated.
 
 ---
+
+> **NUMBERS WRONG (audit, W623).** Spec side: 16 rung specs declare the triple,
+> not 9 — and the nine counted were exactly the nine authored FROM the rule. The
+> conclusion survives (0 mismatches over all 16) and is now stronger than
+> recorded, but it was not tested when published. See **T16**.
 
 ### P16 (W601) — The GF ladder is transcription-clean, and the "38 L4 violations" were 13
 
@@ -1518,6 +1902,11 @@ helper does not. Zig spells it `[_]T{v} ** n`.
 it wrongly wraps, or a repeat literal that still emits `;`.
 
 ---
+
+> **NUMBERS WRONG (audit, W623).** Re-measured at the W610 baseline
+> (`b78ef267f`, zig 0.16.0): 1461 total errors vs 1458 recorded;
+> `use of undeclared identifier` 887 (60.7%) vs 886 (61%). A 0.2% drift with no
+> stated cause. The conclusion is unaffected.
 
 ### P25 (W610) — 82% of what blocks IGLA is functions nobody wrote
 
@@ -2303,6 +2692,61 @@ step, and the divergence is only visible because the corpus is now compiled
 end-to-end. **T9 says the result is unsatisfiable, and the literature says the
 remedy is a migration, not a patch.**
 
+### Measurement hygiene: what T16, T17, T19, T20 and T21 are cases of (W624)
+
+Five of this document's theorems are not about ternary arithmetic, compilers, or
+FPGAs. They are about **how a measurement can be true and worthless at the same
+time**, and each has an established home.
+
+**Selection on the derived population (T16, T20).** The nearest well-developed
+literature is *leakage* in machine-learning-based science: Kapoor and Narayanan's
+2023 survey catalogues a family of failures in which a model is evaluated on data
+that is not independent of how it was built, and reports across seventeen fields
+that reproduce this pattern. The structural point transfers exactly. T16's nine
+GF rungs stand to the ladder rule as a test set drawn from the training
+distribution stands to a model: the check runs, the number is right, and the
+likelihood ratio is 1. T20 is the same defect on the *fix* side rather than the
+*validation* side — a repair scoped by the sample rather than by the class. In
+statistics both are ordinary **selection on the dependent variable**, whose
+classic treatment is the survivorship-bias literature; what makes the software
+case treacherous is that the selector is a `grep` pattern or "which positions the
+corpus contains", so nothing in the artefact records that a selection happened.
+
+**The unstated analysis rule (T17).** This is *researcher degrees of freedom* —
+Simmons, Nelson and Simonsohn's 2011 demonstration that undisclosed flexibility
+in analysis choices lets a determined analyst reach significance from noise, and
+Gelman and Loken's *garden of forking paths*, which shows the same effect without
+any intent, from choices made once and never written down. T17 sharpens it for
+computational work: the artefact reproduces **bit-exactly**, which in the
+reproducibility literature (Claerbout's line, and the ACM artefact-badging
+scheme's separation of *Results Reproduced* from *Artifacts Available*) is the
+strongest available evidence — and here it is evidence only that the same
+unstated rule was applied twice.
+
+**Non-monotone quality proxies (T19).** Diagnostic counts are the compiler case
+of a proxy that inverts under optimisation, which is Goodhart's law with a sign
+change. The mechanism — one error preventing the analysis that would find another
+— is the mirror image of the *cascaded spurious error* problem that motivated
+Burke and Fisher's parser repair work: the field built machinery to stop one
+defect from inflating the count, and the same coupling deflates it.
+
+**Coverage-conditioned counts (T21).** Defect density from a test suite measures
+*suite ∧ code*; reporting it as a property of the code is a standard error in
+empirical software engineering. Lazily analysed languages make the trap worse,
+because a compiler is intuitively a total function of its input and Zig's
+on-demand semantic analysis is not — the same shape as an uninstantiated C++
+template, whose body is checked only where it is used.
+
+**What is specific to this project.** Every one of the five was found by
+*re-running a measurement this repository had already published*, not by reading
+its text, and in four of five the published prose asserted the very property the
+re-run refuted (P16: "This is not tautological"; P30: bit-exact figures; T18:
+"9 sites, scope set by measurement"; the corpus totals: reported unqualified).
+The chain's own conclusion in §4 — that every gap was invisible for the same
+reason — now has a second, sharper instance: **the gaps are invisible to
+re-reading and visible only to re-execution.** That is a claim about method, and
+it is the one this document is best positioned to make.
+
 ### What is genuinely novel here
 
 Not the arithmetic, and not the architecture. What this repository has that the
@@ -2331,11 +2775,20 @@ Eighteen waves of findings share one shape:
 | W586 | **every count** | 118 unwritten specs reported as compile failures |
 | W587 | `use_resolve` | an import silently resolving to nothing, because of a trailing comment |
 | W588 | **my own measurement** | a regex matched path prefixes, so 892 enum-variant references were counted as missing imports — corrected in W589 |
+| W624 | **the error count itself** | two defects, unmasked by a repair and absorbed into a net −7 that read as pure progress (T19) |
+| W624 | **`zig --test-no-exec`** | 180 of 1286 generated function bodies (14.0%), never referenced and therefore never type-checked (T21) |
 
 **Every one is a component that accepted input, produced a smaller or different
 program, and reported success.** Not one was found by a test failing. Each was
 found by asking a component to state what it does — a completeness check, a
 conformance table, a compiler run — and comparing that to what it actually did.
+
+**W624 extends the list past components to *metrics*.** The last two rows are not
+parsers or backends; they are the numbers this document uses to describe them. A
+count that silently drops what it did not reach behaves exactly like a lexer that
+silently drops `?` — it accepts the corpus, produces a smaller answer, and
+reports success. The rule below was written for stages. It applies unchanged to
+statistics: **ask a measurement to account for its population.**
 
 The practical rule, and the one result here that generalises past this
 repository:
