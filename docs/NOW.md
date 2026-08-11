@@ -2,6 +2,40 @@
 
 Last updated: 2026-08-12
 
+## Wave 658 — one units confusion with four faces, and a root cause refuted
+
+- **EXACTLY ONE CONFIGURATION IN 81 WORKS.** Sweeping the assembled engine
+  through its CSR aperture with Icarus (N = 0…80, plus the full grid): no
+  configuration with `num_neurons >= 2` starts layer 0. Measured mechanism —
+  the DMA writes `ceil(N/8)` words while the gate demands `filled >= N`.
+- **THE THREE CANDIDATES, EACH TESTED ALONE**:
+  - **(b) reader index** → **byte-identical to stock across all 28
+    configurations**. Changes *nothing*. **This is what Prop. 121a published as
+    the root; it is now refuted outright.**
+  - **(c) packer ratio** → identical for every N ≥ 2. Not the blocker.
+  - **(a) DMA length** → the only single change that unblocks layer 0 — but with
+    it fixed, **layer 1 still never starts for any N**.
+- **THE REAL ROOT IS A FOURTH READING NOBODY LISTED**: the activation buffer must
+  be indexed by **chunk**, not neuron. `trit27_dot_product` takes 27 inputs per
+  cycle and `chunk_addr` walks `neuron·C + chunk`, so the input vector is C words
+  and **every neuron reads the same C words**. Under that reading **(c) is
+  correct and not a defect at all**, and all four remaining errors are faces of
+  **one units confusion: neurons versus 27-trit chunks** — the same confusion
+  `units_scan` was built for, one level up.
+- **CONFIRMED BY CONSTRUCTION**: five coherent changes make 2-layer inference
+  complete cleanly with the done IRQ for **every** configuration where
+  `ceil(N/27) >= C`. Configurations that still refuse are exactly those asking
+  layer 1 for more chunks than layer 0 can produce, and they report the error IRQ
+  rather than computing garbage. No exceptions.
+- **TWO EARLIER DEFECTS QUANTIFIED**: no-flush emits `floor(N/27)` words exactly,
+  so **N=26 produces ZERO activation words for 26 computed neurons**; ping-pong
+  loses exactly 2 words at C=1, 1 at C=2.
+- **THE METHOD LESSON**: three candidates came from static reading and
+  adversarial proof, and the true root was none of them. Only sweeping the whole
+  machine could adjudicate. A defect list from module-level analysis can be
+  complete about symptoms and wrong about causes.
+- **PROP. 125** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 657 — name the subject a gate exists for
 
 - **THREE GATES NOW NAME THEIR SUBJECT.** Prop. 123 showed a floor on a total

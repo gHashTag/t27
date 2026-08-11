@@ -7533,6 +7533,82 @@ cites it. Re-applied with `assert s.count(old) == 1`.
 
 ---
 
+### Prop. 125 — one units confusion with four faces, and a root cause refuted — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+The adjudication swept the assembled engine through its CSR aperture with
+Icarus: N = 0…80 at C=1,L=1 plus the full grid N ∈ {1,2,8,26,27,28,54} × C ∈
+{1,2} × L ∈ {1,2}. It settles the question Props. 121–122 left open, and the
+answer is not on the candidate list.
+
+**125a. Exactly one configuration in 81 works.** No configuration with
+`num_neurons ≥ 2` starts layer 0. Measured mechanism: `dma_controller` writes
+`ceil(N/8)` words — observed 1,1,1,4,4,4,7 for N = 1,2,8,26,27,28,54 — while the
+gate requires `filled >= neurons_per_layer` = N. `ceil(N/8) ≥ N` holds only for
+N ≤ 1. `layer_start_g` never fires, `buffer_unwritten` pulses, the error IRQ
+latches, and `busy` sticks at 1 forever.
+
+The harness is not the cause: the same testbench terminates cleanly with the
+done IRQ on N=1,L=1 and on 20 of 28 configurations of the repaired variant.
+
+**125b. The three candidates, each tested alone.**
+
+| candidate | change | result |
+|---|---|---|
+| (b) reader index | `read_addr = neuron_id` → `neuron_id/27` | **byte-identical to stock across all 28 configurations** |
+| (c) packer ratio | 27:1 → 1:1 | identical to stock for every N ≥ 2 |
+| (a) DMA length | `.length(reg_neurons)` → `.length(8·reg_neurons)` | **the only single change that unblocks layer 0** |
+
+**Candidate (b) changes nothing whatsoever — it is neither necessary nor
+sufficient for any observed behaviour.** Prop. 121a published it as the root of
+two defects. Prop. 122c already recorded that as one agent's judgement rather
+than a finding; it is now **refuted outright**.
+
+**125c. And (a) is not primary either.** With (a) fixed, layer 1 still never
+starts for *any* N. With (a)+(c) together, likewise. Multi-layer inference is
+blocked by something none of the three candidates touches.
+
+**125d. The primary error is a fourth reading the list did not contain.** The
+activation buffer must be indexed by **chunk**, not by neuron.
+`trit27_dot_product` consumes 54 bits of activation against 54 of weight — 27
+inputs per cycle — and `chunk_addr` walks `neuron·C + chunk` over the weight
+memory, so the weight store is an N×C matrix of 27-input chunks. The input
+*vector* is therefore C words of 27 trits, and **every one of the N neurons reads
+the same C words**.
+
+Under that reading the whole picture changes: **(c) is correct and not a defect
+at all**; (b) is wrong but `neuron_id/27` is also wrong — the right value is
+`chunk_id`; (a) is wrong because the length should be `chunks_per_neuron·8`
+bytes; and the gate comparing *words* against *neurons* is a fourth error nobody
+had listed. **All four are faces of one units confusion: neurons versus 27-trit
+chunks** — the same confusion `units_scan` was built for in Prop. 123, one level
+up.
+
+**125e. Confirmed by construction.** Five coherent changes — read address =
+`chunk_id`, DMA length = `chunks_per_neuron·8`, gate against
+`chunks_per_neuron`, an end-of-layer flush, and the ping-pong flip delayed 5
+cycles — make two-layer inference run to completion with the done IRQ and no
+error for **every** configuration where `ceil(N/27) ≥ C`. Layer-0 `act_words` is
+then `ceil(N/27)` exactly. The configurations that still refuse are precisely
+those asking layer 1 to consume more chunks than layer 0 can produce, and they
+report the error IRQ rather than computing garbage. Predicted and measured
+patterns match with no exceptions.
+
+**125f. Two earlier defects now quantified in the assembled engine.** The
+no-flush defect (Prop. 120) emits `act_words = floor(N/27)` exactly — 0,0,0,0,1,
+1,2 for the seven N values, so **N=26 produces zero activation words for
+twenty-six computed neurons**. The ping-pong defect loses exactly 2 words at C=1
+and 1 word at C=2.
+
+**125g. What this says about the method.** Three candidates were enumerated from
+static reading and adversarial proof, and the true root was none of them. It took
+*sweeping the assembled machine* to find that the three were faces of a fourth.
+A defect list assembled from module-level analysis can be complete about symptoms
+and wrong about causes, and only the whole system can adjudicate.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
