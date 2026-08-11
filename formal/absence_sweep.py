@@ -49,6 +49,11 @@ EXEMPT = {
         "bench.py --self-test exercises its own guards with synthetic commands "
         "and has no RTL subject at all. Its absence case is internal: six "
         "self-test cases, each of which must fire (Prop. 87).",
+    "No gate reads Verilog without stripping comments or saying why":
+        "comment_scan's subject is formal/*.py -- the gate scripts -- which this "
+        "sweep deliberately PRESERVES (Prop. 109), so starving build/rtl cannot "
+        "make it fail. Its own absence case is the zero-scope guard: it errors "
+        "if no gate in the tree reads Verilog with a regex (Prop. 119).",
     "No gate mutates a path its docstring never names":
         "faith_check's subject is formal/*.py -- the gate scripts themselves -- "
         "which this sweep now deliberately PRESERVES (Prop. 109). Starving "

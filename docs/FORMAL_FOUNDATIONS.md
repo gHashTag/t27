@@ -7243,6 +7243,48 @@ cases checked in both directions — `16'sd0` reads as zero and `16'sd1` does no
 
 ---
 
+### Prop. 119 — closing a class that cost five waves — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No gate reads Verilog without stripping comments or saying why*
+
+One defect shape has now taken five separate fixes across four files:
+
+| prop | gate | what a comment did |
+|---|---|---|
+| 95 | `claims_check` | invented a 29th integration property out of a comment quoting an assertion |
+| 102c | `orphan_scan` | identical defect, identical regex, sibling file — survived a wave because nobody grepped |
+| 118 | `identity_scan` | a comment explaining why a property is **not** a self-comparison made it read as one |
+| 118 | `guard_scan` | a note saying a guard "has been removed" reported it as present |
+| 118 | `bound_scan` | rejected the repository's own backtick style in a note it parses |
+
+Every one was found on its own, wave after wave. `formal/comment_scan.py` closes
+the class: any gate that reads Verilog and applies a regex must strip `//`
+comments first, or declare in writing why it does not.
+
+**119a. Declaring is the interesting half.** Four gates read comments *on
+purpose* and now say so — `width_scan` parses `range [-N, +M]` annotations and
+would have nothing left if they were stripped; `phantom_scan` matches yosys
+warning output, where `//` cannot occur; `faith_check` reads `formal/*.py`, and
+the `build/rtl` strings that put it in scope are path literals it compares
+against docstrings; `encoding_gate` permutes declarations in a copy fed only to
+yosys, which ignores comments anyway. The marker forces that question to be
+answered once, in writing, where a reader can check it — rather than being
+rediscovered by a defect.
+
+**119b. It over-detected on its first run, for the fifth wave running.**
+`mutate.py` does strip comments, in a helper called `code_mask` that also masks
+nested `` `ifdef T27_FORMAL `` regions and labelled assertion lines. The
+recognised-stripper list did not know that name, so a gate doing exactly the
+right thing was reported as one that was not — over-detection inside the gate
+written to close an over-detection class. Fixed by recognising the name.
+
+**119c. What this is worth.** Not the five fixes — those were already made. It
+is that a sixth instance now fails the build instead of being discovered by
+whatever it breaks. The pattern had a textual signature the whole time, and five
+waves went by without anyone searching for it.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

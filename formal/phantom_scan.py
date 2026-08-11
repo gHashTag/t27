@@ -30,6 +30,9 @@ import re
 import subprocess
 import sys
 
+# comment-scan: matches yosys WARNING OUTPUT, not Verilog source. A `//`
+# comment cannot appear in the warning stream it reads.
+
 # props file -> (wrapper top, DUT sources it needs)
 SUITES = [
     ("interrupt_controller_props.sv", "irq_props", ["interrupt_controller"]),

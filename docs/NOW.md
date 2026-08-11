@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-12
 
+## Wave 652 — closing a class that cost five waves, and the RTL hunt lands
+
+- **THE COMMENT-MATCHING SHAPE HAS COST FIVE FIXES ACROSS FOUR FILES** — Props.
+  95, 102c and three in 118 — every one found on its own, wave after wave,
+  because nobody grepped for the signature. `formal/comment_scan.py` closes the
+  class: a gate reading Verilog with a regex must strip `//` comments **or
+  declare in writing why it does not**.
+- **DECLARING IS THE INTERESTING HALF**: four gates read comments *on purpose* —
+  `width_scan` parses `range [-N, +M]` annotations, `phantom_scan` matches yosys
+  warning output, `faith_check` reads `.py` not `.sv`, `encoding_gate` permutes a
+  copy fed only to yosys. The marker forces that question to be answered once,
+  in writing, rather than rediscovered by a defect.
+- **IT OVER-DETECTED ON ITS OWN FIRST RUN — FIFTH CONSECUTIVE WAVE**:
+  `mutate.py`'s stripper is called `code_mask`, and the recognised-name list did
+  not know it, so a gate doing the right thing was reported as one that was not.
+- **THE RTL HUNT RETURNED REAL DESIGN DEFECTS** — first design-level pass since
+  Prop. 80, six yosys-verified findings pending independent refutation. The
+  clearest, confirmed by reading: `activation_requant` has **no flush path**.
+  `word_valid` asserts only at `trit_count == 26`, so the last (N mod 27)
+  neurons of every layer are stranded in a partial word and never emitted — and
+  the module's own inline property `a_word_only_on_full` **asserts** that
+  behaviour, encoding the gap as intended. The same shape as Prop. 80's defect,
+  which a unit test had pinned.
+- **PROP. 119** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 651 — six of the ten over-detections, fixed
 
 - **EVERY ONE HAD BEEN REJECTING THIS REPOSITORY'S OWN CONVENTIONS**:

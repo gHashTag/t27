@@ -860,6 +860,15 @@ jobs:
       # and unfaithful, and observed the third had no instrument. This is the
       # first one: a gate that MUTATES a path its own docstring never names is
       # changing an artifact its description does not mention. Prop. 111.
+      # Prop. 119: five fixes across four files went to one shape -- a regex
+      # applied to raw Verilog, matching inside a `//` comment. This closes the
+      # class rather than meeting it a sixth time.
+      - name: No gate reads Verilog without stripping comments or saying why
+        run: |
+          set -euo pipefail
+          python3 formal/comment_scan.py --self-test
+          python3 formal/comment_scan.py
+
       - name: No gate mutates a path its docstring never names
         run: |
           set -euo pipefail

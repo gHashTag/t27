@@ -45,6 +45,10 @@ import pathlib
 import re
 import sys
 
+# comment-scan: comments ARE the subject. This parses `range [-N, +M]`
+# annotations written beside declarations (Prop. 82); stripping them would
+# delete everything the DOCUMENTED check reads.
+
 DECL = re.compile(r"^\s*(?:(?:input|output)\s+)?wire\s+signed\s*\[(\d+):(\d+)\]"
                   r"\s+(\w+)")
 RANGE_COMMENT = re.compile(r"range\s*\[\s*(-?\d+)\s*,\s*\+?(-?\d+)\s*\]")

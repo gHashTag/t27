@@ -38,6 +38,11 @@ import pathlib
 import re
 import subprocess
 import sys
+
+# comment-scan: permutes localparam DECLARATIONS in RTL and the value macro
+# in a property file. A commented-out declaration would be permuted too --
+# harmless, since the permuted copy is only fed to yosys, which ignores
+# comments. Verified: the shipped tree has no commented TRIT_* declaration.
 import tempfile
 
 # Theorem -> must it refute under the permutation?

@@ -57,6 +57,10 @@ import pathlib
 import re
 import sys
 
+# comment-scan: reads formal/*.py, not Verilog. The `build/rtl` strings that
+# put it in scope are PATH LITERALS it compares against docstrings, never
+# Verilog source it parses.
+
 # Paths this gate itself reads, declared here so it is subject to its own check:
 # formal/*.py.
 
