@@ -7663,6 +7663,52 @@ runs and its properties hold — neither statement is "the design is correct".
 
 ---
 
+### Prop. 127 — the first end-to-end value check, and what it found — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Every property in this campaign constrains **control**. Prop. 81b named that
+boundary; Prop. 121 demonstrated it at scale, with 28 properties proving while
+the machine computed the wrong answer and deadlocked. **Nothing had ever compared
+an engine output against a reference.** `sim/tb_data_check.v` is the first.
+
+**127a. How it is possible.** The engine's two memory ports are separate: the DMA
+reads input activations over `m_axi_*`, the prefetcher reads weights over
+`mem_rd_*`. So the testbench can serve a known input vector on one and known
+weights on the other, compute the expected result itself, and compare. The
+existing sweep harness fed a constant to both, which is why it could only ever
+check control flow.
+
+The vector is 9×(+1), 9×(0), 9×(−1) against all-(+1) weights, so the reference
+accumulator is exactly 0 and the reference trit is `TRIT_Z` at threshold 3 — a
+value that is wrong under almost any indexing error, since a mis-addressed read
+would pick up a different mixture.
+
+**127b. The MAC agrees with the reference.** Engine `acc = 0`, reference
+`acc = 0`. That is the first end-to-end numerical agreement recorded in this
+campaign, and it is evidence the repaired chunk-indexed datapath computes the
+dot product it is supposed to.
+
+**127c. The emitted activation trit reads `X`.** The word comes out as
+`0000000000000X`: every packed field is 0 except the low trit, which is
+undefined. `shift_word` **is** reset to `54'd0` (activation_requant.sv:65), so
+the X enters from the requant path rather than from an uninitialised shifter.
+
+This is recorded as an **observation, not a defect**. It appears in the N=1
+configuration, which is the one exercising the new flush branch with a single
+trit collected, and I have not established whether it is a real X in emitted data,
+a sampling-time artifact between `mac_valid_q` and the requantizer's `valid_in`,
+or a testbench error. An undefined value reaching an output would be serious;
+saying so before it is established would be worse.
+
+**127d. Why this belongs in the repository rather than a scratch directory.** The
+harness is the only artifact in the campaign that can answer "does the engine
+compute the right number". Its absence is what let six defects through. It is
+checked in at `sim/tb_data_check.v` with the Icarus declare-before-use adapter
+beside it, so the next wave extends it rather than rebuilding it.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

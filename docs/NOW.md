@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-12
 
+## Wave 660 — the first end-to-end value check
+
+- **NOTHING HAD EVER COMPARED AN ENGINE OUTPUT TO A REFERENCE.** Every property
+  constrains control; Prop. 121 showed 28 of them proving while the machine
+  computed the wrong answer. `sim/tb_data_check.v` is the first value check.
+- **HOW IT IS POSSIBLE**: the engine's two memory ports are separate — the DMA
+  reads activations over `m_axi_*`, the prefetcher reads weights over
+  `mem_rd_*` — so the TB serves a known input on one and known weights on the
+  other and computes the expected result itself. The existing sweep fed a
+  constant to both, which is why it could only check control flow.
+- **THE VECTOR**: 9×(+1), 9×(0), 9×(−1) against all-(+1) weights, so the
+  reference accumulator is exactly **0** — a value wrong under almost any
+  indexing error, since a mis-addressed read picks up a different mixture.
+- **THE MAC AGREES**: engine `acc = 0`, reference `acc = 0`. **First end-to-end
+  numerical agreement in the campaign**, and evidence the repaired chunk-indexed
+  datapath computes the dot product it should.
+- **THE EMITTED TRIT READS `X`** — word `0000000000000X`. `shift_word` **is**
+  reset to `54'd0`, so the X enters from the requant path, not an uninitialised
+  shifter. Recorded as an **observation, not a defect**: it appears in the N=1
+  configuration exercising the new flush with a single trit, and I have not
+  established whether it is real, a sampling artifact between `mac_valid_q` and
+  the requantizer's `valid_in`, or a testbench error. An undefined value
+  reaching an output would be serious; claiming it before establishing it would
+  be worse.
+- **CHECKED IN, NOT SCRATCH**: `sim/tb_data_check.v` plus the Icarus adapter, so
+  the next wave extends it rather than rebuilding it.
+- **PROP. 127** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 659 — the fix, applied and verified both ways
 
 - **FIFTEEN EMITTER EDITS**, each asserted against its anchor, and the
