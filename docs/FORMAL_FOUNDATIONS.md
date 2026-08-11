@@ -7767,6 +7767,45 @@ a conclusion.
 
 ---
 
+### Prop. 129 — nothing loads layer 0's weights — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Prop. 128 localised the value check's failure to `weight_bram writes = 0` and
+recorded two hypotheses: the harness does not drive the prefetch, or the design
+does not start it. **It is the design.**
+
+**129a. The probe.** `start_prefetch = 0`, `mem_rd_en = 0`, `mem_rd_valid = 0`,
+`prefetch_done = 0`, `bram_we = 0`. Nothing about the weight path is exercised
+at all — this is not a stalled handshake or a wrong parameter, it is a signal
+that never asserts.
+
+**129b. Why.** `multilayer_sequencer` asserts `start_prefetch` in exactly one
+place: in `LAYER_RUN`, when `layer_done` fires **and** `current_layer` is not the
+last. It exists to fetch the weights for the **next** layer. There is no
+corresponding load before the first, and the engine has no other weight-write
+path — its only weight interface is the prefetcher's read port
+(`mem_addr`/`mem_rd_en`/`mem_rd_data`). So **layer 0 always computes against an
+unwritten weight memory.**
+
+**129c. Corroborated by the earlier sweep, which nobody had read this way.**
+Prop. 125's harness recorded a prefetch-IRQ column, and it is **0 for every
+configuration** — L=1 and L=2 alike. That table has been in the tree since Wave
+658 with the answer in it. A column read as "nothing interesting" was the finding.
+
+**129d. Why no property caught it.** The same boundary as Props. 81b and 121: the
+28 integration properties constrain handshakes, phase and readiness, and an
+engine reading an unwritten memory violates none of them. It runs, it completes,
+it raises done. The weight memory's *contents* are not something any property
+mentions.
+
+**129e. What this does not settle.** Whether layer-0 weights are meant to arrive
+by a route that was never built, or whether the sequencer should prefetch before
+the first layer as well, is a design question. The measurement is that no route
+exists today and every layer-0 result is computed against undefined data.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

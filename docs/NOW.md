@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-12
 
+## Wave 663 — nothing loads layer 0's weights
+
+- **PROP. 128 LEFT TWO HYPOTHESES** — the harness does not drive the prefetch, or
+  the design does not start it. **It is the design.**
+- **THE PROBE IS UNAMBIGUOUS**: `start_prefetch = 0`, `mem_rd_en = 0`,
+  `mem_rd_valid = 0`, `prefetch_done = 0`, `bram_we = 0`. Not a stalled
+  handshake or a wrong parameter — a signal that never asserts.
+- **WHY**: `multilayer_sequencer` asserts `start_prefetch` in exactly one place —
+  in `LAYER_RUN`, when `layer_done` fires **and** this is not the last layer. It
+  exists to fetch weights for the **next** layer. There is no load before the
+  first, and the engine has no other weight-write path: its only weight interface
+  is the prefetcher's read port. **Layer 0 always computes against an unwritten
+  weight memory.**
+- **CORROBORATED BY DATA ALREADY IN THE TREE**: Prop. 125's sweep recorded a
+  prefetch-IRQ column that is **0 for every configuration**, L=1 and L=2 alike.
+  It has been committed since Wave 658 with the answer in it — read as "nothing
+  interesting".
+- **WHY NO PROPERTY CAUGHT IT**: Props. 81b/121's boundary again. An engine
+  reading an unwritten memory violates no handshake, phase or readiness claim.
+  It runs, it completes, it raises done. No property mentions memory *contents*.
+- **NOT SETTLED**: whether layer-0 weights were meant to arrive by a route never
+  built, or the sequencer should prefetch before the first layer too. The
+  measurement is that **no route exists today**.
+- **PROP. 129** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 662 — the value check now fails for a named reason
 
 - **A REFERENCE NO UNINITIALISED VARIABLE CAN PRODUCE**: the old vector made the

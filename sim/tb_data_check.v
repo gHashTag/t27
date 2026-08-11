@@ -177,8 +177,13 @@ module tb_data;
 
     // ---- weight-path probe --------------------------------------------------
     integer wr_beats = 0; integer mac_beats = 0;
+    integer sp_n = 0; integer rden_n = 0; integer rdv_n = 0; integer pfd_n = 0;
     always @(posedge clk) if (rst_n) begin
         if (dut.prefetch.bram_we) wr_beats = wr_beats + 1;
+        if (dut.start_prefetch) sp_n = sp_n + 1;
+        if (dut.mem_rd_en)      rden_n = rden_n + 1;
+        if (dut.mem_rd_valid)   rdv_n = rdv_n + 1;
+        if (dut.prefetch_done)  pfd_n = pfd_n + 1;
         if (dut.mac_valid_q)      mac_beats = mac_beats + 1;
     end
 
@@ -189,7 +194,12 @@ module tb_data;
 
         csr_write(8'h10, 32'd1);          // num_layers
         csr_write(8'h14, N);              // neurons
-        csr_write(8'h18, {16'd64, 8'd0, C[7:0]});   // weight_words, chunks
+        // Wave 663: weight_words is NEURONS x CHUNKS, not a constant. The
+        // sweep harness of Prop. 125 computes W = N*C and reaches the
+        // prefetcher; this one hardcoded 64 and never saw a single BRAM
+        // write. Also enable the IRQs the sweep enables.
+        csr_write(8'h18, ((N*C) << 16) | C);        // weight_words, chunks
+        csr_write(8'h08, 32'd7);                    // irq enable
         csr_write(8'h1C, THRESH);         // threshold
         csr_write(8'h00, 32'h2);          // start DMA
         @(posedge clk); csr_write(8'h00, 32'h0);
@@ -222,10 +232,10 @@ module tb_data;
                      got[1:0], ref_trit(ref_acc(0)));
         else
             $display("RESULT: MATCH");
-        $display("PROBE weight_bram writes=%0d  mac results=%0d  saw_mac=%b",
-                 wr_beats, mac_beats, saw_mac);
-        $display("PROBE weight_bram writes=%0d  mac results=%0d  saw_mac=%b",
-                 wr_beats, mac_beats, saw_mac);
+        $display("PROBE bram_we=%0d start_prefetch=%0d mem_rd_en=%0d mem_rd_valid=%0d prefetch_done=%0d mac=%0d",
+                 wr_beats, sp_n, rden_n, rdv_n, pfd_n, mac_beats);
+        $display("PROBE bram_we=%0d start_prefetch=%0d mem_rd_en=%0d mem_rd_valid=%0d prefetch_done=%0d mac=%0d",
+                 wr_beats, sp_n, rden_n, rdv_n, pfd_n, mac_beats);
         $finish;
     end
 endmodule
