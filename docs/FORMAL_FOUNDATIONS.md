@@ -6737,6 +6737,55 @@ function, test that function.
 
 ---
 
+### Prop. 109 — the sweep was starving the instruments, not the subjects — `FIXED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+`absence_sweep` is the load-bearing gate: it certifies that all forty CI checking
+steps **fail when starved**, which is what licenses reading any of their greens
+as evidence. It was the only gate never audited — an agent assigned to it stalled
+in two consecutive rounds.
+
+**109a. It moved the gate scripts aside along with the design.** The sweep
+relocated `build/rtl/` *and the whole of* `formal/` — which holds all ten gate
+**scripts**. Every python step then failed with
+`No such file or directory: formal/<gate>.py`, and the sweep recorded *"fails,
+correct"*.
+
+For roughly a quarter of the swept steps, the only thing established was that
+**deleting a script breaks the step that runs it**. That is circular, and it
+proves nothing whatever about whether the gate reads its subject. The claim
+*"0 passing on nothing"* was, for those steps, not evidence.
+
+Now `build/rtl/` goes entirely and only the non-`.py` files leave `formal/`, so
+the instruments survive while their subjects are gone.
+
+**109b. The fix immediately exposed two steps that pass on nothing.** With the
+scripts present, *Benchmark harness self-test* and *Every proposition carries the
+gate that keeps it true* both exit 0 on an empty tree — because their subjects
+are not the RTL. `bench --self-test` exercises its own guards with synthetic
+commands; `doc_gate` reads markdown and workflow step names.
+
+Both are now EXEMPT **with a written reason and an internal absence case of
+their own**, because demanding that a documentation gate fail when the RTL is
+missing would be shape 7 — failing a correct artifact. The sweep had silently
+assumed every step's subject is the design.
+
+**109c. What this costs and what it buys.** The swept count drops from 39 to 37
+and the exemptions rise from 1 to 3. That is a smaller number describing a real
+guarantee, replacing a larger one describing a circular test — the trade this
+campaign has made repeatedly, and the reason Prop. 101 requires exemptions to be
+counted out loud.
+
+**109d. The audit reported this as a new shape; it is not.** It was filed as
+*"the sweep runs only the negative arm of a two-arm control"* — true, and a real
+observation — but the mechanism is shape 2: the sweep declined to distinguish
+*"failed because the subject is missing"* from *"failed because the script is
+missing"*, and counted both as success without saying so. Prop. 106's table
+stands.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

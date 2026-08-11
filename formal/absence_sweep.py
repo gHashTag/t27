@@ -40,6 +40,20 @@ EXEMPT = {
         "so it depends on neither directory. Its own absence case -- an "
         "emission containing no assertions -- is covered by the assertion "
         "count inside that step (Prop. 59).",
+    # Wave 643. Both surfaced the moment the sweep stopped deleting the gate
+    # scripts along with the subject: they had been "failing correctly" because
+    # their own script was gone, which established nothing. Their subject is
+    # not the RTL, so starving build/rtl cannot make them fail -- and demanding
+    # that it does would be shape 7, failing a correct artifact.
+    "Benchmark harness self-test":
+        "bench.py --self-test exercises its own guards with synthetic commands "
+        "and has no RTL subject at all. Its absence case is internal: six "
+        "self-test cases, each of which must fire (Prop. 87).",
+    "Every proposition carries the gate that keeps it true":
+        "doc_gate reads FORMAL_FOUNDATIONS.md and the workflow step names, not "
+        "the design. Emptying build/rtl leaves its subject untouched. Its own "
+        "absence case is the props==0 guard and the Gate:-resolution count "
+        "added in Prop. 107.",
 }
 
 
@@ -100,14 +114,31 @@ def main(argv):
     bak = root / "build" / "_absence_bak"
     shutil.rmtree(bak, ignore_errors=True)
     os.makedirs(bak)
+    # Starve the SUBJECTS, not the instruments. Wave 643: this moved the whole
+    # of `formal/` aside -- including all ten gate SCRIPTS. Every python step
+    # then failed with "No such file or directory: formal/<gate>.py", and the
+    # sweep recorded "fails, correct". For roughly a quarter of the swept steps
+    # the only thing established was that deleting a script breaks the step
+    # that runs it, which is circular and proves nothing about whether the gate
+    # reads its subject.
+    #
+    # `build/rtl` goes entirely (it is all subject). From `formal/` only the
+    # property files and RTL go; the *.py gates stay, so a step that passes now
+    # passes while genuinely starved.
     moved = []
-    for d in ["build/rtl", "formal"]:
-        src = root / d
-        if src.exists():
-            dst = bak / d.replace("/", "_")
-            shutil.move(str(src), str(dst))
-            os.makedirs(src, exist_ok=True)
-            moved.append((str(dst), str(src)))
+    src = root / "build" / "rtl"
+    if src.exists():
+        dst = bak / "build_rtl"
+        shutil.move(str(src), str(dst))
+        os.makedirs(src, exist_ok=True)
+        moved.append((str(dst), str(src)))
+
+    fbak = bak / "formal_subjects"
+    os.makedirs(fbak, exist_ok=True)
+    for f in sorted((root / "formal").glob("*")):
+        if f.is_file() and f.suffix != ".py":
+            shutil.move(str(f), str(fbak / f.name))
+            moved.append((str(fbak / f.name), str(f)))
 
     green, applied = [], []
     try:
@@ -133,7 +164,11 @@ def main(argv):
             print(f"{name[:58]:58s} {rc:>4d}   {verdict}")
     finally:
         for dst, src in moved:
-            shutil.rmtree(src, ignore_errors=True)
+            d, sp = pathlib.Path(dst), pathlib.Path(src)
+            if d.is_dir():
+                shutil.rmtree(src, ignore_errors=True)
+            elif sp.exists():
+                sp.unlink()
             shutil.move(dst, src)
         shutil.rmtree(bak, ignore_errors=True)
 

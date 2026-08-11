@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-11
 
+## Wave 643 — the sweep was starving the instruments, not the subjects
+
+- **THE LOAD-BEARING GATE, NEVER AUDITED** (its agent stalled twice):
+  `absence_sweep` certifies all forty CI steps **fail when starved**, which is
+  what licenses reading any of their greens as evidence.
+- **IT MOVED THE GATE SCRIPTS ASIDE ALONG WITH THE DESIGN.** It relocated
+  `build/rtl/` *and the whole of* `formal/` — which holds all ten gate
+  **scripts**. Every python step then failed with `No such file or directory:
+  formal/<gate>.py`, recorded as *"fails, correct"*. For ~a quarter of the swept
+  steps the only thing established was that **deleting a script breaks the step
+  that runs it**. The claim "0 passing on nothing" was not evidence.
+- **THE FIX IMMEDIATELY EXPOSED TWO STEPS THAT PASS ON NOTHING**: `bench
+  --self-test` and `doc_gate`, whose subjects are not the RTL. Both now EXEMPT
+  with a written reason and an internal absence case — demanding a documentation
+  gate fail when the RTL is missing would be **shape 7**.
+- **COST AND BENEFIT**: swept count **39 → 37**, exemptions **1 → 3**. A smaller
+  number describing a real guarantee, replacing a larger one describing a
+  circular test.
+- **THE AUDIT CALLED IT A NEW SHAPE; IT IS NOT** — the mechanism is shape 2, a
+  decline not counted: the sweep never distinguished "failed because the subject
+  is missing" from "failed because the script is missing". Prop. 106 stands.
+- **AND THE PROP. 107 GATE CAUGHT MY OWN NEW PROPOSITION** citing a nonexistent
+  step — working exactly as built, one wave later, on my own writing.
+- **PROP. 109** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 642 — the mirror compared nothing, if you asked it positionally
 
 - **`mirror_check` HOLDS PROP. 92'S COMPOSITION PROOF TO THE REAL CIRCUIT.** Two
