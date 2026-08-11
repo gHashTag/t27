@@ -6786,6 +6786,84 @@ stands.
 
 ---
 
+### Prop. 110 — three orthogonal ways a gate is wrong — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 103 listed five defect shapes; Prop. 106 added a sixth column for
+over-detection and left it as "shape 7". With roughly thirty-five confirmed
+instances the list resolves into something with structure, and the structure
+makes a prediction the list does not.
+
+**110a. The framing.** A gate `G` is a decision procedure over artifacts. Let
+`P` be the property it is *documented* to enforce. Two standard notions apply,
+and one that is not standard:
+
+> **Sound** — `G(a) = pass ⟹ P(a)`. No artifact violating `P` gets through.
+>
+> **Complete** — `P(a) ⟹ G(a) = pass`. No artifact satisfying `P` is failed.
+>
+> **Faithful** — the property `G` actually decides *is* `P`, rather than some
+> `P′` that resembles it.
+
+Every confirmed defect in this campaign is a failure of exactly one of the three,
+and the three are independent: a gate can be sound and complete for `P′` while
+`P′` has nothing to do with what its docstring claims.
+
+**110b. The census, by category.**
+
+| category | what fails | instances | shapes |
+|---|---|---|---|
+| **Unsound** | passes an artifact violating `P` | ~28 | 1–5 |
+| **Incomplete** | fails an artifact satisfying `P` | 3 | 7 |
+| **Unfaithful** | decides `P′`, claims `P` | 4 | — |
+
+The five shapes of Prop. 103 are *all* mechanisms of unsoundness. That is not a
+property of gates; it is a property of **how this campaign has been looking**.
+Every audit so far was instructed to find gates that pass when they should fail,
+so the taxonomy it produced enumerates the ways that happens and nothing else.
+
+**110c. The unfaithful category is the one adversarial testing cannot find.**
+Props. 73, 85f, 91c and the Wave-643 sweep are its four members. In each, the
+instrument was *correct* — it decided its `P′` soundly and completely — and the
+sentence describing it named a different `P`:
+
+- Prop. 73: the matrix measured gaps against **one wrapper**; the caption said
+  gaps in **the module**.
+- Prop. 85f: the timings were real; they were measured under **contention** and
+  described as a clean comparison.
+- Prop. 91c: an inference whose endpoint described a **22-property**
+  configuration that no longer existed.
+- Prop. 109: the sweep soundly decided *"does this step fail when its script is
+  deleted"* while claiming *"does this step fail when the design is absent"*.
+
+No amount of injecting defects into the subject finds any of these, because the
+gate answers correctly every time. **Only reading the claim against the
+implementation finds them** — which is why Prop. 73's error stood for twelve
+waves while the harness ran green throughout.
+
+**110d. What this predicts.** Three things, all falsifiable:
+
+1. An audit instructed to hunt **over-detection** will find shapes that are not
+   1–5, because 1–5 are unsoundness mechanisms by construction. Finding them
+   does *not* falsify Prop. 103; it confirms that Prop. 103 described one
+   category rather than the field.
+2. The unfaithful category will keep appearing at roughly its historic rate
+   (~1 per 8 waves) and will keep being found by *reading*, not by testing.
+3. If a future defect fits none of the three categories, this proposition is
+   wrong. A gate is a decision procedure; sound, complete and faithful are
+   exhaustive over "the answer is wrong" and "the question is wrong". A
+   counterexample would have to be a fourth thing to be wrong about.
+
+**110e. The methodological consequence.** Adversarial agent review — the
+technique that found ~28 defects in ten days — is a **soundness** instrument. It
+is nearly blind to the other two categories, and the campaign's own record shows
+it: every unfaithful defect was caught by a human or a model *re-reading a
+claim*, never by an injection. A verification effort that runs only adversarial
+review will drive unsoundness toward zero and leave its captions untouched.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

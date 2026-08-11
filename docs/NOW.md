@@ -1,6 +1,32 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
+
+## Wave 644 — three orthogonal ways a gate is wrong
+
+- **THE LIST BECOMES A STRUCTURE**: with ~35 confirmed instances, a gate — a
+  decision procedure over artifacts — can be wrong in three independent ways.
+  **Sound**: `G(a) = pass ⟹ P(a)`. **Complete**: `P(a) ⟹ G(a) = pass`.
+  **Faithful**: the property `G` actually decides *is* `P`, not some `P′`.
+- **THE CENSUS**: unsound ~28 (shapes 1–5) · incomplete 3 (shape 7) ·
+  **unfaithful 4**.
+- **ALL FIVE CATALOGUED SHAPES ARE UNSOUNDNESS MECHANISMS** — which is a fact
+  about *how this campaign has been looking*, not about gates. Every audit was
+  instructed to find gates that pass when they should fail, so the taxonomy
+  enumerates the ways that happens and nothing else.
+- **THE UNFAITHFUL CATEGORY IS THE ONE ADVERSARIAL TESTING CANNOT FIND**: Props.
+  73, 85f, 91c and 109. In each the instrument was *correct* — it decided its own
+  `P′` soundly and completely — and the sentence describing it named a different
+  `P`. No injection finds these, because the gate answers correctly every time.
+  Prop. 73's error stood **twelve waves** with the harness green throughout.
+- **THREE FALSIFIABLE PREDICTIONS**: an over-detection hunt will find shapes
+  outside 1–5 (and that would *confirm*, not refute, Prop. 103's scope); the
+  unfaithful category recurs at ~1 per 8 waves and is found by reading, never by
+  testing; and a defect fitting none of the three categories falsifies this.
+- **THE METHODOLOGICAL CONSEQUENCE**: adversarial agent review — ~28 defects in
+  ten days — is a **soundness instrument**. Run alone, it drives unsoundness
+  toward zero and leaves every caption untouched.
+- **PROP. 110** in `docs/FORMAL_FOUNDATIONS.md`.
 
 ## Wave 643 — the sweep was starving the instruments, not the subjects
 
