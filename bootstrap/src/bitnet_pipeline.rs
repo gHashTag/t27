@@ -240,8 +240,12 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str(");\n");
     out.push_str("\n");
     out.push_str("    localparam IDLE=0, LAYER_RUN=1, PREFETCH=2, DONE_ST=3;\n");
-    out.push_str("    assign idle = (state == IDLE);\n");
+    // Prop. 133: declaration before the continuous assignment that reads it.
+    // Yosys accepts either order; Icarus rejects use-before-declaration, so
+    // this ordering made the module provable but not SIMULABLE -- and
+    // simulation is the only thing in this campaign that reads values.
     out.push_str("    reg [1:0] state;\n");
+    out.push_str("    assign idle = (state == IDLE);\n");
     // Prop. 131: marks the PREFETCH pass that loads layer 0 rather than
     // the next layer, so the shared state does not advance current_layer.
     out.push_str("    reg       first_load;\n");

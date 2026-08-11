@@ -3,6 +3,35 @@
 Last updated: 2026-08-12
 
 
+
+## Wave 666 — the instrument was lying, and only a control caught it
+
+Three results, one retraction.
+
+**A configuration guard (Prop. 132).** `weight_prefetch_ctrl` reports
+`prefetch_done` for a fetch of zero words. `weight_words` lives in
+`reg_chunks[31:16]`, which resets to zero — so the DEFAULT configuration makes
+the engine issue no reads, write no weights, run the MAC, and emit `X`, silently.
+`start` is now gated on `weight_words >= neurons x chunks`, with a sticky
+`cfg_err` in `reg_status[2]` and a property requiring the refusal be observable.
+
+**A vacuity gate (Prop. 133), and it is the biggest result here.** Two experiments
+this wave "confirmed" their hypotheses. Both were vacuous: under `-set-init-zero`,
+assuming a reset-to-zero register is nonzero makes the assumption set
+unsatisfiable, and yosys then proves *everything*, including `assert (1'b0)`,
+with no diagnostic and exit code 0. Verified with a control — the false assertion
+proves under the assumption and refutes without it. Gate 15 now injects
+`assert(1'b0)` and fails the build if it proves. The 30 integration properties
+are, for the first time, **measured** non-vacuous rather than assumed so.
+
+**A retraction (Prop. 134).** The generated top reads five nets in instantiations
+above their declarations. Yosys tolerates it; Icarus does not. So the design is
+provable but not simulable — control checked, arithmetic never. Wave 665's
+reported `bram_we = 1` and matching `TRIT_P` cannot be reproduced from the current
+tree and is **withdrawn as unreproduced**. The harness bug found while chasing it
+is real and fixed: it sampled the MAC result under the compute stage's *input*
+valid, one stage before the value existed.
+
 ## Wave 665 — layer 0 loads its weights; the property still refutes
 
 The prefetcher was a between-layers mechanism with no initial load (Prop. 129).

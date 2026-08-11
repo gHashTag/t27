@@ -836,6 +836,9 @@ jobs:
       - name: No property is gated as an expected refutation
         run: python3 formal/guard_scan.py
 
+      - name: Vacuity gate — no property may pass on an empty trace set
+        run: python3 formal/vacuity_gate.py
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

@@ -171,7 +171,13 @@ module tb_data;
             got  = actw;
             seen = 1;
         end
-        if (dut.mac_valid_q) begin acc_seen = dut.mac_result; saw_mac = 1'b1; end
+        // Wave 666: this sampled dut.mac_result under dut.mac_valid_q -- but
+        // mac_valid_q is the compute stage's INPUT valid (.valid_in(mac_valid_q))
+        // and mac_result is its OUTPUT. The harness read the result one stage
+        // before it existed, and reported acc=0 beside an emitted TRIT_P, which
+        // a threshold-3 requantizer cannot produce. Sample the value the
+        // requantizer is actually handed: .valid_in(mac_valid_out), .acc(mac_result).
+        if (dut.mac_valid_out) begin acc_seen = dut.mac_result; saw_mac = 1'b1; end
     end
 
 

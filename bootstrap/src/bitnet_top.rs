@@ -160,7 +160,21 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire [31:0] reg_ctrl, reg_irq_en, reg_num_layers, reg_neurons;\n");
     s.push_str("    wire [31:0] reg_chunks, reg_threshold;\n");
     s.push_str("    wire [63:0] reg_weight_addr, reg_input_addr, reg_output_addr;\n");
-    s.push_str("    wire [31:0] reg_status = {30'd0, done, busy};\n");
+    // Prop. 132: declared here rather than beside its always-block because
+    // Icarus requires declare-before-use and reg_status reads it.
+    // Prop. 133: hoisted above the axi_lite_slave instantiation that reads
+    // it. Yosys resolves declare-after-use; Icarus rejects it, so this
+    // ordering silently decided that the design could be proved but not
+    // simulated -- and simulation is the only thing that reads values.
+    s.push_str("    wire [2:0]  irq_status_w;\n");
+    s.push_str("    reg  [31:0] cycles;\n");
+    // Prop. 133: declared here, assigned at its natural place below. The
+    // multilayer_sequencer instantiation reads it hundreds of lines earlier;
+    // splitting declaration from assignment is the general fix for a
+    // forward reference that yosys tolerates and Icarus does not.
+    s.push_str("    wire        layer_done_dly;\n");
+    s.push_str("    reg cfg_err;\n");
+    s.push_str("    wire [31:0] reg_status = {29'd0, cfg_err, done, busy};\n");
     s.push_str("    axi_lite_slave csr (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n),\n");
     s.push_str("        .s_axi_awaddr(s_axi_awaddr), .s_axi_awvalid(s_axi_awvalid),\n");
@@ -207,14 +221,12 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire [15:0] weight_words      = reg_chunks[31:16];\n");
     s.push_str("    wire signed [15:0] threshold  = reg_threshold[15:0];\n");
     s.push_str("\n");
-    s.push_str("    wire [2:0]  irq_status_w;\n");
     s.push_str("    wire        dma_busy;\n");
     s.push_str("    wire        seq_idle;\n");
     s.push_str("    // BOUND: cycles deliberately unbounded. A free-running performance counter,\n");
     s.push_str("    // reset on start and incremented while busy; it wraps after 2^32 busy cycles\n");
     s.push_str("    // (~43 s at 100 MHz). Wrapping degrades a reported statistic and cannot\n");
     s.push_str("    // corrupt data, since nothing in the datapath reads it. Prop. 84.\n");
-    s.push_str("    reg  [31:0] cycles;\n");
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
     s.push_str("    wire layer_start, start_prefetch;\n");
@@ -407,7 +419,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     // ping-pong on the raw pulse writes that word into the buffer just
     // handed to the reader. ld_pipe[3] drives the flush, ld_pipe[4] the flip.
     s.push_str("    reg  [4:0]  ld_pipe;\n");
-    s.push_str("    wire        layer_done_dly = ld_pipe[4];\n");
+    s.push_str("    assign      layer_done_dly = ld_pipe[4];\n");
     s.push_str("    wire [11:0] dma_local_addr;\n");
     s.push_str("    wire [63:0] dma_local_wdata;\n");
     s.push_str("    wire [63:0] dma_awaddr_nc, dma_wdata_nc;\n");
@@ -474,7 +486,31 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire wr_en_b = dma_local_we ? !use_buffer_a : (act_word_valid &&  use_buffer_a);\n");
     s.push_str("    wire [11:0] act_wr_addr = dma_local_we ? dma_local_addr : act_wr_word;\n");
     s.push_str("    wire [53:0] act_wr_data = dma_local_we ? dma_local_wdata[53:0] : act_word;\n");
-    s.push_str("    assign start = reg_ctrl[0] && !dma_busy && input_loaded;\n");
+    // Prop. 132: the activation path has had an input_loaded interlock for
+    // many waves -- start is held until the DMA has actually written the
+    // buffer. The WEIGHT path had no equivalent. weight_words comes from
+    // reg_chunks[31:16], whose RESET value is zero, and weight_prefetch_ctrl
+    // treats num_words == 0 by going straight to DONE and asserting
+    // prefetch_done for a fetch it never performed. Simulation: bram_we = 0,
+    // mem_rd_en = 0, prefetch_done high, MAC runs, an activation word of X is
+    // emitted, and nothing anywhere reports a problem.
+    // Prop. 132: non-zero is not the contract. The prefetcher writes
+    // `weight_words` addresses; the MAC walks neurons x chunks_per_neuron of
+    // them. A host declaring fewer weight words than the network needs reads
+    // unwritten memory just as surely as one declaring none -- the yosys
+    // counterexample that survived the != 0 guard. The product is 24 bits
+    // against a 16-bit field, so the comparison is widened rather than
+    // truncated: a network whose weight count does not fit is invalid too.
+    s.push_str("    wire [23:0] cfg_required = neurons_per_layer * {16'd0, chunks_per_neuron};\n");
+    s.push_str("    wire cfg_valid = (weight_words != 16'd0)\n");
+    s.push_str("                  && ({8'd0, weight_words} >= cfg_required);\n");
+    s.push_str("    assign start = reg_ctrl[0] && !dma_busy && input_loaded && cfg_valid;\n");
+    s.push_str("\n");
+    s.push_str("    // A refused start must be visible to the host, or the engine simply\n");
+    s.push_str("    // does nothing and the host waits forever for a done that cannot come.\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (!rst_n) cfg_err <= 1'b0;\n");
+    s.push_str("        else if (reg_ctrl[0] && !cfg_valid) cfg_err <= 1'b1;\n");
     s.push_str("\n");
     s.push_str("    // Per-buffer written flags, in real hardware. A single global\n");
     s.push_str("    // input_loaded bit is the wrong shape: it answers \"did anything get\n");
@@ -710,12 +746,19 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // which is precisely how use_buffer_a was dead for four waves.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_start_follows_ctrl_unless_interlocked:\n");
-    s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy && input_loaded));\n");
+    s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy && input_loaded && cfg_valid));\n");
     s.push_str("    // ...and the interlock is the ONLY thing that may suppress a start.\n");
-    s.push_str("    always @(posedge clk) if (rst_n && !dma_busy && input_loaded)\n");
+    s.push_str("    always @(posedge clk) if (rst_n && !dma_busy && input_loaded && cfg_valid)\n");
     s.push_str("        a_start_is_ctrl_bit0: assert (start == reg_ctrl[0]);\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
     s.push_str("        a_status_reflects_engine: assert (reg_status[0] == busy && reg_status[1] == done);\n");
+    s.push_str("\n");
+    s.push_str("    // Prop. 132: a refusal the host cannot observe is a hang. If the CSR\n");
+    s.push_str("    // start bit is set against an invalid configuration, cfg_err must be\n");
+    s.push_str("    // raised by the next cycle. This is not a restatement of the guard:\n");
+    s.push_str("    // the guard suppresses start, this requires the suppression be VISIBLE.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(reg_ctrl[0]) && $past(!cfg_valid))\n");
+    s.push_str("        a_refused_start_is_reported: assert (cfg_err);\n");
     s.push_str("\n");
     s.push_str("    // Minimal external-memory model: read data only ever follows a\n");
     s.push_str("    // request. Without it mem_rd_valid is a free input, and a memory\n");
@@ -1013,7 +1056,8 @@ mod tests {
             assert!(v.contains(port), "missing AXI-Lite port `{port}`");
         }
         // ...and the CSRs actually drive the engine.
-        assert!(v.contains("assign start = reg_ctrl[0] && !dma_busy && input_loaded;"));
+        assert!(v.contains("assign start = reg_ctrl[0] && !dma_busy && input_loaded && cfg_valid;"));
+        assert!(v.contains("a_refused_start_is_reported"));
         assert!(v.contains("wire [5:0]  num_layers        = reg_num_layers[5:0];"));
     }
 

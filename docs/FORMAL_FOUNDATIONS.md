@@ -7893,6 +7893,140 @@ question, unestablished, and not to be reported as a design result either way.
 
 ---
 
+### Prop. 132 — the engine trusted a CSR that resets to zero — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (all 28, tracker-backed included)*
+
+**132a. The activation path had the interlock; the weight path did not.**
+`start` has been held behind `input_loaded` for many waves — the DMA must have
+written the buffer before inference begins. `weight_words` comes from
+`reg_chunks[31:16]`, and nothing checked it at all.
+
+**132b. `weight_prefetch_ctrl` reports success for a fetch it never performs.**
+Line 92 reads `if (num_words != 16'd0)`; the zero case falls through to `DONE_ST`
+and asserts `prefetch_done`. Simulation at `weight_words = 0` — **the reset value
+of `reg_chunks`** — gives `bram_we = 0`, `mem_rd_en = 0`, `prefetch_done` high,
+the MAC running, and an activation word of `X` emitted. A host that starts
+inference without writing `0x18` gets exactly this, silently.
+
+**132c. Non-zero is not the contract.** The `!= 0` guard alone did not make the
+weight-contents property provable. The prefetcher writes `weight_words`
+addresses while the MAC walks `neurons × chunks_per_neuron`; declaring too few
+weights reads unwritten memory as surely as declaring none. The guard is
+`weight_words != 0 && weight_words >= neurons × chunks_per_neuron`, widened to
+24 bits rather than truncated.
+
+**132d. A refusal the host cannot see is a hang.** `cfg_err` is sticky, exposed
+as `reg_status[2]`, and carries its own property — `a_refused_start_is_reported`
+— which is deliberately *not* a restatement of the guard: the guard suppresses
+the start, the property requires the suppression be observable.
+
+**132e. What this did not fix.** The weight-contents property still refutes,
+with a counterexample requiring between 15 and 18 cycles. The configuration
+guard was necessary and is not sufficient.
+
+---
+
+### Prop. 133 — a proof under assumptions is worthless without an emptiness check — `PROVEN`
+
+**Gate:** `formal-yosys.yml` → *Vacuity gate — no property may pass on an empty trace set*
+
+This is the most consequential result in the campaign so far, and it is about the
+method rather than the design.
+
+**133a. Two experiments, both vacuous, both initially read as findings.** To test
+whether a degenerate `weight_words` explained the refutation, this wave assumed
+`weight_words != 0` and the property proved. That was written down as "root cause
+confirmed". An aliveness probe then showed `layer_valid` was *unreachable* under
+the assumption. The same happened for `num_layers == 1`.
+
+**133b. The mechanism, and it is general.** Under `-set-init-zero` every register
+is zero at `t = 0`. An assumption of the form
+
+```
+always @(posedge clk) if (rst_n) assume (R == k);   // k != 0, R resets to 0
+```
+
+is contradicted at the first cycle where `rst_n` holds. No trace satisfies it.
+Yosys then reports **"proof succeeded"** for every property in the run — with no
+diagnostic, no warning, and exit code 0.
+
+**133c. The decisive test, with a control.** `assert (1'b0)` **proves** under the
+assumption and **refutes** without it. A literally false assertion passing is
+proof that the trace set is empty and every result from that configuration is
+meaningless.
+
+**133d. Theorem (vacuity).** *Let `A` be an assumption set and `P` any property.
+If `A` is unsatisfiable over traces of length ≤ n, then `A ⊨ P` holds for every
+`P`, including `P = false`. Therefore the verdict "`P` proved under `A`" carries
+information about `P` only if `A` is satisfiable.* The contrapositive is the
+gate: refuting `assert(false)` witnesses a satisfying trace, which is exactly
+satisfiability of `A`. One extra solver call decides it.
+
+**133e. The production suite is live — now established rather than assumed.**
+The emptiness probe refutes under all three configurations the suite is run
+in (`T27_FORMAL`, `+DEEP`, `+OPEN`) at `seq 40`. The 30 integration properties
+are non-vacuous. Before this wave that was an assumption about assumptions, held
+for 130 propositions.
+
+**133f. Gate 15 is the first gate here that runs the solver.** The other fourteen
+read text, because the defects they catch are visible in source. This one cannot
+be: it injects `assert (1'b0)` and fails the build if it proves. Verified against
+all three bars — it passes clean, its probe anchor is asserted to match exactly
+once, and it bites a planted unsatisfiable assumption in every configuration.
+
+**133g. OPEN — the gate does not yet satisfy the starvation contract.**
+`absence_sweep.py` reports it as a step that *crashes* when starved rather than
+diagnosing the absence, which Prop. 116 set a ceiling of zero for. It is the only
+gate here that invokes the solver, so it is also the only one whose starved run
+is slow enough to be killed rather than answered. Recorded as failing, not
+excluded from the sweep and not given a raised ceiling: a gate that cannot say
+why it declined is exactly what Props. 103 and 116 were written about, and this
+one is not exempt because I wrote it this wave.
+
+**133h. This is Prop. 110's `unfaithful` category turned on the method.** A gate
+can soundly decide `P′` while claiming `P`. Here the solver soundly decided
+"`P` holds on the empty set" while I read "`P` holds". The taxonomy was written
+for the artifact under test; it applies just as well to the instrument.
+
+---
+
+### Prop. 134 — the generated top has never been simulable, and Wave 665's measurement is not reproducible — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (all 28, tracker-backed included)*
+
+**134a. Yosys resolves declare-after-use; Icarus rejects it.** `bitnet_engine_top`
+reads `irq_status_w`, `cycles`, `layer_done_dly`, `layer_start_g`, and
+`pf_overflow` in instantiations hundreds of lines above their declarations.
+Fixing them one at a time produced a cascade rather than convergence.
+
+**134b. The consequence is not cosmetic.** Every property in this campaign is
+proved by yosys, which tolerates the ordering. Every *value* ever measured comes
+from Icarus, which does not. A design that can be proved but not simulated is a
+design whose control has been checked and whose arithmetic never has.
+
+**134c. Wave 665's simulation result must be withdrawn as unreproduced.** That
+wave reported `bram_we = 1` and an emitted trit of `TRIT_P` matching the
+reference — described as the campaign's first agreement between an engine output
+and a computed expectation. The harness copies from `build/rtl`, and `build/rtl`
+as generated today does not compile under Icarus. The result is not refuted; it
+is **unreproducible with the current tree**, which for a published measurement is
+the same obligation. It is withdrawn pending a build that compiles.
+
+**134d. The capture bug found while investigating stands on its own.** The
+harness sampled `mac_result` under `mac_valid_q`, but `mac_valid_q` is the
+compute stage's *input* valid — `.valid_in(mac_valid_q)` — while the requantizer
+is fed `.valid_in(mac_valid_out), .acc(mac_result)`. It read the result one stage
+before it existed. That fully explains the impossible pair reported last wave:
+`acc = 0` beside an emitted `TRIT_P` at threshold 3. Corrected in
+`sim/tb_data_check.v`; not yet exercised, because of 134a.
+
+**134e. Two emitters produce the same module.** `gen-bitnet-bundle` and
+`gen-bitnet-engine-top` both write `bitnet_engine_top.sv`, with different
+declaration ordering. Whichever ran last decides what is verified.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
