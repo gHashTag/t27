@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-12
 
+## Wave 659 — the fix, applied and verified both ways
+
+- **FIFTEEN EMITTER EDITS**, each asserted against its anchor, and the
+  regenerated bundle checked to carry all fifteen changes the verified variant
+  had: **15/15**.
+- **SIMULATION**: through the AXI CSR aperture, layer 0 starts and completes for
+  **every** configuration swept — against **one of eighty-one** before — and
+  two-layer inference completes with the done IRQ wherever `ceil(N/27) >= C`.
+  The rest raise the error IRQ rather than computing garbage.
+- **THE INTEGRATION SUITE REFUTED AT FIRST.** A before/after control against the
+  pre-fix tree showed all three engine properties **proved before, refuted
+  after** — so the fix changed them, and the question was whether they described
+  the design or the bug.
+  - `a_buffer_alternates` hung on `$past(layer_done_pulse)`, asserting the flip
+    happens one cycle after the strobe — which **is** Prop. 121's defect 5.
+  - `a_read_slot_written` / `a_read_within_written` tracked `buf_read_addr`,
+    which the repair disconnected from the activation memories.
+  - Plus `a_word_only_on_full`, retired earlier.
+- **RE-POINTED, NOT WEAKENED**: each keeps its claim and names the signal that
+  now carries the meaning it was written about. **All 28 prove at `seq 40`**,
+  simulation unchanged, all fourteen gates green.
+- **FOUR PROPERTIES HAVE NOW BEEN FOUND ASSERTING A DEFECT** rather than a
+  contract. A suite grown alongside a bug will contain properties that *are* the
+  bug, and a repair must retire them in the same change or read as a regression.
+- **STILL NOT ESTABLISHED**: the sweep covers the configurations swept; the
+  proofs are bounded at `seq 40`. The engine runs and its properties hold —
+  neither is "the design is correct".
+- **PROP. 126** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 658 — one units confusion with four faces, and a root cause refuted
 
 - **EXACTLY ONE CONFIGURATION IN 81 WORKS.** Sweeping the assembled engine

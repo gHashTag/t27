@@ -7609,6 +7609,60 @@ and wrong about causes, and only the whole system can adjudicate.
 
 ---
 
+### Prop. 126 — the fix, applied and verified both ways — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+Prop. 125 identified one units confusion with four faces and demonstrated a
+repair. This applies it to the emitters and closes the verification.
+
+**126a. Fifteen edits, all asserted.** `activation_requant` gains a `flush_in`
+port and an end-of-layer branch that right-aligns a partial word.
+`bitnet_engine_top` addresses the activation buffers by **chunk**
+(`act_rd_addr = chunk_id`), takes the DMA length as `chunks_per_neuron·8` bytes,
+compares the readiness gate words-to-chunks, and routes `layer_done` through a
+five-stage delay so the requantizer drains before the ping-pong flips. Each edit
+was asserted against its anchor, and the regenerated bundle was then checked to
+carry all fifteen changes the verified variant had: **15/15**.
+
+**126b. Simulation.** Driving the assembled engine only through its AXI4-Lite CSR
+aperture: layer 0 starts and completes for **every** configuration in the sweep,
+against exactly one of eighty-one before. Two-layer inference completes with the
+done IRQ for every configuration where `ceil(N/27) ≥ C`; those asking layer 1 for
+more chunks than layer 0 can produce raise the error IRQ instead of computing
+garbage.
+
+**126c. Four properties encoded the defect, not the contract.** The integration
+suite refuted at first. A before/after control against the pre-fix tree showed
+all three engine properties **proved before and refuted after**, so the fix
+changed them — the question was whether they described the design or the bug.
+
+- `a_buffer_alternates` hung on `$past(layer_done_pulse)`, asserting the flip
+  happens one cycle after the strobe. That *is* Prop. 121's defect 5. Re-pointed
+  at `layer_done_dly`.
+- `a_read_slot_written` and `a_read_within_written` tracked `buf_read_addr`,
+  which the repair disconnected from the activation memories. They were
+  asserting about a wire that no longer reaches the thing they describe.
+  Re-pointed at `act_rd_addr`, in both the A and B arms.
+- `a_word_only_on_full` (Prop. 120b) proved the packer never emits a partial
+  word. Retired for `a_word_on_full_or_flush`.
+
+None was weakened: each keeps its claim and names the signal that now carries the
+meaning it was written about. **All 28 integration properties then prove at
+`seq 40`**, and the simulation sweep is unchanged.
+
+**126d. The count of defect-asserting properties is now four.** Props. 80 and 120
+each found one assertion pinning a defect; this wave found three more in a single
+repair. A verification suite that has grown alongside a defect will contain
+properties that *are* the defect, and the repair must retire them in the same
+change or read as a regression. Budget for that when estimating a fix.
+
+**126e. What is still not established.** The simulation covers the configurations
+swept, not all of them; the formal proofs are bounded at `seq 40`. The engine now
+runs and its properties hold — neither statement is "the design is correct".
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -805,7 +805,11 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // $past(x)[1:0] is not legal Verilog -- part-selecting a system function\n");
     s.push_str("    // call. Register the previous read address instead.\n");
     s.push_str("    reg [11:0] fv_prev_rd;\n");
-    s.push_str("    always @(posedge clk) fv_prev_rd <= buf_read_addr;\n");
+    // Prop. 127: tracked buf_read_addr, which the repair disconnected from
+    // the activation memories -- act_rd_addr (the chunk index) now addresses
+    // them. Following the old signal left both read properties asserting
+    // about a wire that no longer reaches the memory they describe.
+    s.push_str("    always @(posedge clk) fv_prev_rd <= act_rd_addr;\n");
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (!rst_n) begin fv_bm_a <= 4'd0; fv_bm_b <= 4'd0; end\n");
     s.push_str("        else begin\n");
@@ -832,8 +836,8 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // Prop. 39e.\n");
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (rst_n && $past(rst_n) && mac_valid_q)\n");
-    s.push_str("            a_read_within_written: assert (use_buffer_a ? ($past(buf_read_addr) <= fv_maxwr_a)\n");
-    s.push_str("                                                       : ($past(buf_read_addr) <= fv_maxwr_b));\n");
+    s.push_str("            a_read_within_written: assert (use_buffer_a ? ($past(act_rd_addr) <= fv_maxwr_a)\n");
+    s.push_str("                                                       : ($past(act_rd_addr) <= fv_maxwr_b));\n");
     s.push_str("`endif\n");
     s.push_str("\n");
     s.push_str("    // ---- cross-layer properties (the first spanning two layers) ----\n");
@@ -849,7 +853,11 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("\n");
     s.push_str("    // The ping-pong actually alternates across a layer boundary, so the\n");
     s.push_str("    // buffer layer N wrote is the buffer layer N+1 reads.\n");
-    s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_done_pulse))\n");
+    // Prop. 127: hung on layer_done_pulse, which is when the flip USED to
+    // happen. The repair delays the flip until the requantizer has drained
+    // (Prop. 121 defect 5), so the property was asserting the defective
+    // timing. Same claim, re-pointed at the strobe that now flips it.
+    s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_done_dly))\n");
     s.push_str("        a_buffer_alternates: assert (use_buffer_a == !$past(use_buffer_a));\n");
     s.push_str("\n");
     s.push_str("    // No activation is consumed from a buffer nothing has written.\n");
