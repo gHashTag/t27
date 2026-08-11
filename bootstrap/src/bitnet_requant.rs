@@ -106,7 +106,12 @@ pub fn build_activation_requant(module_name: &str) -> String {
     s.push_str("    output reg                trit_valid,\n");
     s.push_str("    // Packed activation word for the next layer\n");
     s.push_str("    output reg  [53:0]        word,\n");
-    s.push_str("    output reg                word_valid\n");
+    s.push_str("    output reg                word_valid,\n");
+    // Prop. 126: the end-of-layer strobe. Without it the packer emits only
+    // FULL words, stranding the last (num_neurons mod 27) results of every
+    // layer and leaking them into the next layer's first word (Props. 120,
+    // 121). Driven from layer_done + 4 cycles, before the ping-pong flip.
+    s.push_str("    input  wire               flush_in\n");
     s.push_str(");\n");
     s.push_str("\n");
 
@@ -161,6 +166,15 @@ pub fn build_activation_requant(module_name: &str) -> String {
     s.push_str("                end else begin\n");
     s.push_str("                    trit_count <= trit_count + 5'd1;\n");
     s.push_str("                end\n");
+    s.push_str("            end else if (flush_in && trit_count != 5'd0) begin\n");
+    s.push_str("                // Prop. 126 FLUSH: the layer ended on a partial\n");
+    s.push_str("                // word. Right-align the trits collected so far;\n");
+    s.push_str("                // the vacated high fields read as 2'b00, which\n");
+    s.push_str("                // decodes to TRIT_N -- see the note below.\n");
+    s.push_str("                word       <= shift_word >> ((6'd27 - {1'b0, trit_count}) << 1);\n");
+    s.push_str("                word_valid <= 1'b1;\n");
+    s.push_str("                trit_count <= 5'd0;\n");
+    s.push_str("                shift_word <= 54'd0;\n");
     s.push_str("            end\n");
     s.push_str("        end\n");
     s.push_str("    end\n");
@@ -195,11 +209,24 @@ pub fn build_activation_requant(module_name: &str) -> String {
         "        a_count_in_range: assert (trit_count <= 5'd{});\n",
         TRITS_PER_WORD - 1
     ));
+    // RETIRED IN PROP. 126 -- a_word_only_on_full.
+    //
+    // It asserted `$past(trit_count) == 26 && $past(valid_in)` whenever a word
+    // was emitted, which PROVED the packer never emits a partial word. That was
+    // the defect, not the contract: a layer whose neuron count is not a multiple
+    // of 27 stranded its last results (Prop. 120) and leaked them into the next
+    // layer (Prop. 121). The property made the repair fail CI, which is what
+    // "protected by an assertion" costs (Prop. 120b).
+    //
+    // Replaced by the contract the repaired design actually has: a word is
+    // emitted either on a full accumulation OR on the end-of-layer flush, and
+    // never spontaneously.
     s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && word_valid)\n");
     s.push_str(&format!(
-        "        a_word_only_on_full: assert ($past(trit_count) == 5'd{} && $past(valid_in));\n",
+        "        a_word_on_full_or_flush: assert (($past(trit_count) == 5'd{} && $past(valid_in))\n",
         TRITS_PER_WORD - 1
     ));
+    s.push_str("                                        || ($past(flush_in) && $past(trit_count) != 5'd0));\n");
     s.push_str("`endif\n");
     s.push_str("\n");
 

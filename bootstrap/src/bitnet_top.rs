@@ -221,7 +221,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire prefetch_done;\n");
     s.push_str("    multilayer_sequencer seq (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n), .start(start), .num_layers(num_layers),\n");
-    s.push_str("        .layer_done(layer_done_pulse), .prefetch_done(prefetch_done),\n");
+    s.push_str("        .layer_done(layer_done_dly), .prefetch_done(prefetch_done),\n");
     s.push_str("        .current_layer(current_layer), .layer_start(layer_start),\n");
     s.push_str("        .start_prefetch(start_prefetch), .inference_done(done),\n");
     s.push_str("        .idle(seq_idle)\n");
@@ -300,7 +300,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    double_buffer_ctrl dbl_buf (\n");
-    s.push_str("        .clk(clk), .rst_n(rst_n), .layer_done(layer_done_pulse),\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n), .layer_done(layer_done_dly),\n");
     s.push_str("        .current_layer(current_layer), .use_buffer_a(use_buffer_a),\n");
     s.push_str("        .read_addr(buf_read_addr), .write_addr(buf_write_addr), .neuron_id(neuron_id[11:0])\n");
     s.push_str("    );\n");
@@ -339,6 +339,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // on the strength of `a_chunk_addr_resets: assert (chunk_addr == 12'd0)`,\n");
     s.push_str("    // which is a claim ABOUT the design inside `ifdef T27_FORMAL, not a\n");
     s.push_str("    // mechanism that constrains it. Props. 84, 95b.\n");
+    s.push_str("    always @(posedge clk or negedge rst_n)\n");
+    s.push_str("        if (!rst_n) ld_pipe <= 5'd0;\n");
+    s.push_str("        else        ld_pipe <= {ld_pipe[3:0], layer_done_pulse};\n");
+    s.push_str("\n");
     s.push_str("    reg [11:0] chunk_addr;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
     s.push_str("        if (!rst_n)          chunk_addr <= 12'd0;\n");
@@ -398,6 +402,12 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // first layer will READ, while the requantizer writes the other one.\n");
     s.push_str("    wire        dma_done, dma_local_we;\n");
     s.push_str("    wire        pf_overflow, dma_overflow;\n");
+    // Prop. 126: layer_done, delayed. The requantizer emits a layer's final
+    // word up to two cycles after layer_done_pulse, so flipping the
+    // ping-pong on the raw pulse writes that word into the buffer just
+    // handed to the reader. ld_pipe[3] drives the flush, ld_pipe[4] the flip.
+    s.push_str("    reg  [4:0]  ld_pipe;\n");
+    s.push_str("    wire        layer_done_dly = ld_pipe[4];\n");
     s.push_str("    wire [11:0] dma_local_addr;\n");
     s.push_str("    wire [63:0] dma_local_wdata;\n");
     s.push_str("    wire [63:0] dma_awaddr_nc, dma_wdata_nc;\n");
@@ -431,7 +441,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("               && !layer_valid && !mac_valid_q && !act_trit_valid),\n");
     s.push_str("        .src_addr(reg_input_addr),\n");
     s.push_str("        .dst_addr(reg_output_addr),\n");
-    s.push_str("        .length(reg_neurons),\n");
+    s.push_str("        .length({21'd0, chunks_per_neuron, 3'b000}),\n");
     s.push_str("        .direction(1'b0),\n");
     s.push_str("        .busy(dma_busy), .done(dma_done),\n");
     s.push_str("        .m_axi_araddr(m_axi_araddr), .m_axi_arlen(m_axi_arlen),\n");
@@ -512,25 +522,29 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    always @(posedge clk)\n");
     s.push_str("        if (!rst_n) begin filled_a <= 16'd0; filled_b <= 16'd0; end\n");
     s.push_str("        else begin\n");
-    s.push_str("            if (layer_done_pulse &&  use_buffer_a) filled_a <= 16'd0;\n");
+    s.push_str("            if (layer_done_dly &&  use_buffer_a) filled_a <= 16'd0;\n");
     s.push_str("            else if (wr_en_a) filled_a <= {4'd0, act_wr_addr} + 16'd1;\n");
-    s.push_str("            if (layer_done_pulse && !use_buffer_a) filled_b <= 16'd0;\n");
+    s.push_str("            if (layer_done_dly && !use_buffer_a) filled_b <= 16'd0;\n");
     s.push_str("            else if (wr_en_b) filled_b <= {4'd0, act_wr_addr} + 16'd1;\n");
     s.push_str("        end\n");
     s.push_str("\n");
     s.push_str("    wire [15:0] filled = use_buffer_a ? filled_a : filled_b;\n");
     s.push_str("    wire input_ready   = (use_buffer_a ? wrote_a : wrote_b)\n");
-    s.push_str("                      && (filled >= neurons_per_layer);\n");
+    s.push_str("                      && (filled >= {8'd0, chunks_per_neuron});\n");
     s.push_str("    wire layer_start_g = layer_start && input_ready;\n");
     s.push_str("    wire buffer_unwritten = layer_start && !input_ready;\n");
     s.push_str("    wire [53:0] act_rd_a, act_rd_b;\n");
     s.push_str("\n");
+    // Prop. 126: the activation buffer holds chunks_per_neuron words of the
+    // input VECTOR, and every neuron reads all of them. Addressing by
+    // neuron_id gave each neuron a different word -- Prop. 125's root.
+    s.push_str("    wire [11:0] act_rd_addr = {4'd0, chunk_id};\n");
     s.push_str("    weight_bram amem_a (\n");
-    s.push_str("        .clk(clk), .rd_addr(buf_read_addr), .rd_data(act_rd_a),\n");
+    s.push_str("        .clk(clk), .rd_addr(act_rd_addr), .rd_data(act_rd_a),\n");
     s.push_str("        .wr_addr(act_wr_addr), .wr_data(act_wr_data), .wr_en(wr_en_a)\n");
     s.push_str("    );\n");
     s.push_str("    weight_bram amem_b (\n");
-    s.push_str("        .clk(clk), .rd_addr(buf_read_addr), .rd_data(act_rd_b),\n");
+    s.push_str("        .clk(clk), .rd_addr(act_rd_addr), .rd_data(act_rd_b),\n");
     s.push_str("        .wr_addr(act_wr_addr), .wr_data(act_wr_data), .wr_en(wr_en_b)\n");
     s.push_str("    );\n");
     s.push_str("\n");
@@ -572,7 +586,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        .trit(act_trit),\n");
     s.push_str("        .trit_valid(act_trit_valid),\n");
     s.push_str("        .word(act_word),\n");
-    s.push_str("        .word_valid(act_word_valid)\n");
+    s.push_str("        .word_valid(act_word_valid), .flush_in(ld_pipe[3])\n");
     s.push_str("    );\n");
     s.push_str("\n");
     s.push_str("    // Neuron output: compare the accumulated dot product against the\n");
