@@ -5060,12 +5060,14 @@ These cost a wave each. Follow them before step 1.
      `const`s. When you add taint propagation, also REMOVE names the cast
      already absorbed, or you cast twice.
 
-180. **`t27c suite` walks all of `specs/` -- 588 MB, of which 578 MB is
-     `specs/scratch/` generator output and 6.5 MB is the real corpus (89:1).**
-     288 of the 455 scratch files are one `x2p6` sweep committed iteration by
-     iteration. Parse throughput on them is 0.081 MB/s. The sweep does not
-     fail; it stops terminating, which reports as neither pass nor fail. Do not
-     plan a wave around `suite` completing until that glob is narrowed.
+180. **`t27c suite` walks all of `specs/` -- byte-exact 612,924,235 B, of which
+     `specs/scratch/` is 606,113,688 B (98.89% share, 88.99:1 ratio) and the
+     real corpus is 6,810,547 B.** 288 of the 455 scratch files are one `x2p6`
+     sweep committed iteration by iteration; parse throughput on them is
+     0.081 MB/s. **It DOES terminate** -- 4782 s uncontended, 6205 s under load
+     -- so budget ~80 minutes, do not assume a hang, and never pipe it through
+     `tail` (lesson 187). *This lesson previously said "it stops terminating";
+     that was wrong, and lesson 183 is why.*
 
 181. **When a command does not return, SAMPLE it before assuming a hang.**
      `sample <pid>` gave `run_comprehensive -> Command::output()` in one call,
@@ -5080,7 +5082,7 @@ These cost a wave each. Follow them before step 1.
 
 183. **"Has not finished" is NEVER evidence for "will not finish".** I watched
      `t27c suite` for 47 minutes with no output, published "the command stops
-     terminating", and it finished at ~52 minutes with a verdict. A finite
+     terminating", and it finished shortly after with a verdict. A finite
      observation can REFUTE non-termination and can never establish it, so the
      likelihood ratio against "merely slow" is 1 -- a finite wait carries
      exactly zero evidence. Write what you observed ("no output after N
@@ -5170,15 +5172,27 @@ These cost a wave each. Follow them before step 1.
      and later run `<scratch>/t27c.BEFORE suite --repo-root .`. This is the only
      thing that upgrades a structural exoneration into a measured one.
 
-196. **Suite wall time is contention-dominated, not a constant.** 6205 s
-     (103.4 min) measured exactly while a 13-agent audit ran concurrently, vs
-     ~52 min under light load -- a 2x spread. The VERDICT was stable across
+196. **Suite wall time is contention-dominated, not a constant.** 4782 s
+     (79.7 min) uncontended vs 6205 s (103.4 min) while a 13-agent audit ran
+     concurrently -- a 1.3x spread. The VERDICT was stable across
      both (2614, term for term). Quote the verdict, and quote wall times as
      observations with their load, never as "the runtime".
 
 197. **Time a background run with `SECONDS=0; cmd; echo ${SECONDS}s`** rather
      than reading `ps -o etime` later. The shell timer is exact and survives
-     into the log; `etime` is a snapshot you have to be present for.
+     into the log; `etime` is a snapshot you have to be present for. I wrote
+     "~52 minutes" from the last `etime` I happened to see (50:11) and repeated
+     it through three drafts; the uncontended run is 79.7 min, so the real time
+     was almost certainly LONGER. **A lower bound reported as a point
+     estimate** -- the fifth error in one theorem, all five about how I looked
+     rather than about the compiler.
+
+198. **When a theorem turns out to have one wrong observation, re-derive ALL of
+     them from the raw artefact.** T24 shipped five false observations and each
+     was found separately, on five different occasions, because I corrected
+     what I was shown instead of re-auditing the paragraph. The cheap move is
+     one pass over every number in the claim, against the log, the source and
+     the clock.
 
 ### How to update this tracker
 

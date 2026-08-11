@@ -1100,11 +1100,12 @@ through a function return rather than a local.
 
 ### T24 (W625, **corrected W626**) — A verification command's cost is set by its widest input glob, and a generator that commits every iteration inverts the corpus
 
-> **CORRECTION, W626 — this theorem shipped with three false observations, and
-> I produced two of them myself.**
+> **CORRECTION, W626 — this theorem shipped with five false observations, and I
+> produced four of them myself. Not one is about the compiler; every one is
+> about how I looked.**
 >
-> **(1) "Stops terminating" — false.** The run **completed**, ~52 minutes after
-> it started, exiting non-zero: `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`,
+> **(1) "Stops terminating" — false.** The run **completed** and exited
+> non-zero: `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`,
 > `ACCEPTABLE: no`. I published it while the process was still running, treating
 > *not yet finished* as *will not finish*. **The theorem's own falsification
 > condition was "a completed `t27c suite` run"; it was met by the run I was
@@ -1120,6 +1121,12 @@ through a function return rather than a local.
 >
 > **(3) The glob was wrong in the first draft** — corrected before publication,
 > by looking at the process list.
+>
+> **(5) "~52 minutes" — never measured.** It was the last `etime` I happened to
+> read (50 min 11 s) before looking away, written up as a point estimate. An
+> uncontended run is **4782 s (79.7 min)**, so the first run almost certainly
+> took *longer* than 52 minutes, not less. **A lower bound reported as an
+> estimate.**
 >
 > **(4) "89% about scaffolding" — a ratio written as a percentage.** `specs/` is
 > **612 924 235 B** across 1064 files; `specs/scratch/` is **606 113 688 B**
@@ -1183,7 +1190,8 @@ Measured parse throughput on these artefacts:
 
 **A 34× spread by shape at comparable size**, so no total is derivable from
 bytes, and none is claimed here. What was directly observed: the run spent
-**47 minutes inside the `parse` phase** and completed at roughly 52 minutes.
+**at least 47 minutes inside the `parse` phase** and completed. (Its total wall
+time was never measured — see the table below.)
 (The first draft added "with no output at all"; that was an artefact of the
 `| tail -25` I had attached to it — see the correction above and **T26**.)
 
@@ -1211,11 +1219,23 @@ part of a 249 that also counts generator output and deliberate `*_negative_*`
 fixtures (17 exist; 5 appear among the failures). The cheap fix is not a progress
 line — it is to **report each phase per population**.
 
-*Wall time, two observations under different loads.* **6205 s (103.4 min)**
-measured exactly for a run that overlapped a 13-agent audit; **~52 min** read off
-`etime` for an earlier run under light load. Per **T25** both stand as
-observations; neither is *the* runtime, and the 2× spread is contention, not the
-tool. What is stable across both is the verdict — 2614, term for term.
+*Wall time — two measurements and one lower bound.*
+
+| run | wall time | load |
+|---|---:|---|
+| pre-W623 | **4782 s** (79.7 min) | uncontended |
+| W625 | **6205 s** (103.4 min) | overlapping a 13-agent audit |
+| W624 (first run) | **≥ 3011 s** (last `etime` seen: 50 min 11 s) | moderate |
+
+**The first run's time was never measured.** "~52 minutes" appeared in the first
+three drafts of this section; it was manufactured from the last `etime` I
+happened to observe before looking away. Given the uncontended run takes 79.7
+minutes, the first run — which overlapped several parse benchmarks — almost
+certainly ran *longer* than 79.7, not 52. **A lower bound was reported as a point
+estimate**, which is the fifth instance of T24's family (see **T25** and
+**T26**): the observation was of my watching, not of the process.
+
+What is stable across all three is the verdict: **2614, term for term.**
 
 **Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
 that table is a stage that *silently discarded* input and reported success. `V`
@@ -1233,7 +1253,7 @@ excludes generated benchmark artefacts.
 **This theorem exists because T24's first draft was wrong, and the wrongness has
 a shape worth naming.** I observed a process at 47 minutes with no output,
 wrote *"the command does not fail; it stops terminating"*, and published it —
-then the same process finished, at ~52 minutes, with a verdict.
+then the same process finished, with a verdict.
 
 **The inference was not merely unlucky. It was unfalsifiable as stated.** "Stops
 terminating" cannot be confirmed by any finite observation; only refuted. So the
@@ -1411,32 +1431,30 @@ touched.
 **3. Blast radius, already on record.** Generated Zig over `specs/igla` was
 byte-identical W623 → W624 and differed by exactly **one line** W624 → W625.
 
-**4. Differential run, W624 → W625 (added after the structural argument).** The
-suite was re-run end to end on the W625 binary. **Every term is identical:**
+**4. Differential runs — the falsification condition, executed.** `suite` invokes
+itself through `std::env::current_exe()` (`suite.rs:29`), so an older binary
+drives every phase. The pre-W623 build was kept before the rebuild, and the
+suite was run end to end three times:
 
-| | W624 run | W625 run |
-|---|---:|---:|
-| Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C | 249 ×6 | 249 ×6 |
-| Verilog yosys smoke · FPGA smoke · GF16 | 62 · 1 · 1 | 62 · 1 · 1 |
-| Seal mismatches | 1056 | 1056 |
-| **TOTAL** | **2614** | **2614** |
-| gate failures | 0 | 0 |
+| | pre-W623 | W624 | W625 |
+|---|---:|---:|---:|
+| Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C | 249 ×6 | 249 ×6 | 249 ×6 |
+| Verilog yosys smoke · FPGA smoke · GF16 | 62 · 1 · 1 | 62 · 1 · 1 | 62 · 1 · 1 |
+| Seal mismatches | 1056 | 1056 | 1056 |
+| gate failures | 0 | 0 | 0 |
+| **TOTAL** | **2614** | **2614** | **2614** |
 
-**This is a real differential and it covers W624 → W625 only.** The stated
-falsification condition asks for a run of the **pre-W623** compiler, which the
-two runs above do not provide. That run is in flight (`suite` re-invokes itself
-via `std::env::current_exe()`, so an older binary drives every phase). Until it
-reports, the exoneration of W623 itself rests on legs 1–3.
+**Term for term identical across all three.** T28's falsification condition —
+*"a differential run of the pre-W623 compiler reporting a total below 2614"* —
+was executed and **not met**. The exoneration is no longer structural; it is
+measured, and it covers all 2614.
 
 **The residual gap is named rather than buried:** these commits could have
-*added* to an already-mismatching `gen_hash_zig`. That changes no pass/fail
-outcome, because every such spec already fails on a non-Zig backend.
-
-**Wall time, now exact.** The W625 differential ran **6205 s (103.4 min)**,
-measured with a shell timer — under heavy CPU contention from a 13-agent audit
-running concurrently. The first run's "~52 min" was read off `etime` under light
-load. Per **T25** both observations stand as observations; neither is *the*
-runtime, and the spread is the contention, not the tool.
+*added* to an already-mismatching `gen_hash_zig` without moving any counter.
+That changes no pass/fail outcome, because every such spec already fails on a
+non-Zig backend — but the suite could not see it either way, which is **T27**'s
+point about a gate with a non-zero baseline, arriving here as a limit on this
+very exoneration.
 
 **Statement.** For a change `Δ` confined to a module `M`, and a failure
 population `F`, `Δ` is exonerated of `F` if every member of `F` is produced by a

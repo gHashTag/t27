@@ -130,7 +130,10 @@ AoS-swarm generator.
 | all of `specs/scratch/` | 455 | 578.0 MB |
 | **every other spec in the repository** | **609** | **6.5 MB** |
 
-**89 : 1 by bytes, in favour of the scaffolding.** Measured parse throughput:
+**88.99 : 1 by bytes, in favour of the scaffolding** — byte-exact
+612 924 235 total / 606 113 688 scratch / 6 810 547 corpus, a **98.89%** share.
+(The table above is `du`, which counts allocated blocks; corrected W626.)
+Measured parse throughput:
 **0.081 MB/s** across the `x2p6` family (linear in the outer multiplier, N = 137
 … 597) against **2.75 MB/s** for `21x2p7` — a 34× spread by *shape*, so no total
 is derivable from bytes and none is claimed. Directly observed: **47 minutes,
@@ -139,15 +142,16 @@ progress line.
 
 > ### CORRECTION (W626) — the suite terminated
 >
-> **The run described above finished**, ~52 minutes in, and exited non-zero:
+> **The run described above finished** and exited non-zero:
 > `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`, `ACCEPTABLE: no`. The sentence
 > below saying it *"stops terminating"* was written while the process was still
 > running, and it is **false**. A finite silence is consistent with slow and with
 > hung; it is evidence for neither. See **T25**.
 >
 > The cost numbers are unaffected. The corrected consequence: the suite
-> terminates, and the problem is that **52 minutes buys a verdict that is 89%
-> about scaffolding**, emitted only at the end — a signal-to-cost failure, plus a
+> terminates, and the problem is that **an uncontended run costs 4782 s (79.7
+> min) for a verdict whose byte cost is 98.89% scaffolding**, emitted only at the
+> end — a signal-to-cost failure, plus a
 > silence long enough that an observer misclassifies it as a hang.
 >
 > **And the verdict it buys was worth having.** Parsing every `.t27` *outside*
@@ -177,7 +181,7 @@ blast radius, not a repair — it is Option 1 below.
 
 - ~~**`t27c suite` still has not completed.** Its non-termination is the datum
   behind T24; nothing in this wave was verified through it.~~
-  **Superseded (W626):** it completed at ~52 min with 2614 failures. Nothing in
+  **Superseded (W626):** it completed, with 2614 failures. Nothing in
   this wave was verified through it *at the time of writing*, which remains true;
   the reason given was wrong.
 - **No web literature this loop either.** `WebSearch`/`WebFetch` have failed with

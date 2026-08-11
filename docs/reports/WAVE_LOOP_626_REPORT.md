@@ -1,4 +1,4 @@
-# Wave Loop 626 — the suite finished and refuted me four times; then it said something worth hearing
+# Wave Loop 626 — the suite finished and refuted me five times; then it said something worth hearing
 
 **Date:** 2026-08-12 · **Predecessor:** [`WAVE_LOOP_625_REPORT.md`](WAVE_LOOP_625_REPORT.md) · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -8,15 +8,15 @@
 ## Summary
 
 ```
-The W625 run of `t27c suite` completed. It falsified FOUR observations in the
-theorem I had just written about it -- and I produced three of them myself.
+The run of `t27c suite` completed. It falsified FIVE observations in the theorem
+I had just written about it -- and I produced four of them myself.
 
 T25  "has not finished" is never evidence for "will not finish"
 T26  the instrument produces the observation; `| tail -25` was the silence
 T27  a total that sums GATED phases counts one defect once per phase
      -- 1494 of 2614 (57%) is one fact reported six times
-T28  none of the 2614 is this session's doing; the argument is structural,
-     and it names the population it covers
+T28  none of the 2614 is this session's doing -- three differential suite
+     runs (pre-W623 / W624 / W625) agree term for term
 
 And the number that was hiding inside the aggregate:
      33.8% of the hand-written spec corpus does not parse.
@@ -24,9 +24,9 @@ And the number that was hiding inside the aggregate:
 
 ---
 
-## 1. Four corrections to T24
+## 1. Five corrections to T24
 
-The run finished at roughly 52 minutes, exiting non-zero: `TOTAL FAILURES: 2614`,
+The run finished, exiting non-zero: `TOTAL FAILURES: 2614`,
 `GATE FAILURES: 0`, `ACCEPTABLE: no`.
 
 | # | T24 said | truth | who caused the error |
@@ -35,6 +35,7 @@ The run finished at roughly 52 minutes, exiting non-zero: `TOTAL FAILURES: 2614`
 | 2 | "no output at all, no progress line" | streams `FAIL <phase> (<path>)` from Phase 1 | **me** — `\| tail -25` |
 | 3 | glob = `icarus_regression_specs()` | glob = `collect_t27(repo/specs)` | me — read from memory |
 | 4 | "89% about scaffolding" | **98.89%** by bytes; 88.99 **: 1** is the ratio | **me** — ratio written as a percent |
+| 5 | "~52 minutes" | never measured; last `etime` seen was 50:11, and an uncontended run takes **79.7 min** | **me** — lower bound as point estimate |
 
 **(2) is the sharpest.** `suite` had been reporting continuously for 47 minutes.
 `tail -N` must read to end-of-stream before it knows which N lines are last, so
@@ -55,8 +56,9 @@ minutes of diagnostics, discarded all but 25, and reported success.
 > wait carries exactly zero evidence. This is T18's rule with the quantifier
 > flipped; the repository had it seven waves earlier.
 
-**All four are one error: the apparatus treated as transparent** — memory,
-waiting, `tail`, and a ratio carried across a unit change.
+**All five are one error: the apparatus treated as transparent** — memory,
+waiting, `tail`, a ratio carried across a unit change, and a clock I stopped
+reading. Not one is about the compiler; every one is about how I looked.
 
 ---
 
@@ -132,19 +134,36 @@ of `compiler.rs` since. **99.2% of the sealed surface is stale.**
    `gen_hash_c` (1011) or `gen_hash_rust` (790) — backends never touched here.
 3. **Blast radius:** generated Zig byte-identical W623→W624, one line W624→W625.
 
-4. **Differential run, W624 → W625.** The suite was re-run end to end on the
-   W625 binary: **2614, term for term identical** — 249 ×6, 62, 1, 1, 1056,
-   gates 0. Exact wall time **6205 s (103.4 min)**, under contention from the
-   13-agent audit; the earlier ~52 min was under light load. The 2× spread is
-   contention; the verdict is stable.
+4. **Differential runs — T28's falsification condition, executed.** `suite`
+   invokes itself through `std::env::current_exe()` (`suite.rs:29`), so an older
+   binary drives every phase. The pre-W623 build was kept before the rebuild.
+   Three end-to-end runs:
 
-**Caveat, stated rather than buried:** the differential above covers
-W624 → W625. A run of the **pre-W623** compiler — T28's actual falsification
-condition — is in flight (`suite` re-invokes itself via `current_exe`, so an
-older binary drives every phase). Until it reports, W623 itself is exonerated
-structurally, not differentially. A structural argument is weaker: it shows the
-change did not **create** those failures. It covers 1494 + 1056 = 2550 of 2614 by
-legs 1–2; the remaining 64 rest on leg 3.
+| | pre-W623 | W624 | W625 |
+|---|---:|---:|---:|
+| Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C | 249 ×6 | 249 ×6 | 249 ×6 |
+| yosys smoke · FPGA smoke · GF16 | 62 · 1 · 1 | 62 · 1 · 1 | 62 · 1 · 1 |
+| Seal mismatches · gate failures | 1056 · 0 | 1056 · 0 | 1056 · 0 |
+| **TOTAL** | **2614** | **2614** | **2614** |
+| wall time | **4782 s** | ≥ 3011 s (unmeasured) | **6205 s** |
+| load | uncontended | moderate | 13-agent audit |
+
+**Term for term identical across all three.** The condition —
+*"a differential run of the pre-W623 compiler reporting a total below 2614"* —
+was executed and **not met**. The exoneration is no longer structural; it is
+measured, and it covers all 2614.
+
+**Caveat, stated rather than buried:** these commits could have *added* to an
+already-mismatching `gen_hash_zig` without moving any counter. That changes no
+pass/fail outcome — every such spec already fails on a non-Zig backend — but the
+suite could not have seen it either way. **T27's point about a non-zero baseline
+arrives here as a limit on this very exoneration.**
+
+**And a fifth correction.** "~52 min" for the first run, repeated in three
+drafts, was never measured — it was the last `etime` I happened to see (50 min
+11 s) turned into a point estimate. The uncontended run takes 79.7 min, so the
+first run almost certainly ran *longer* than 52, not shorter. **A lower bound
+reported as an estimate**; same family as the other four (**T25**, **T26**).
 
 ---
 
@@ -173,9 +192,8 @@ general knowledge under §3's standing rule; **no citation was fabricated.**
 | non-scratch parse | **403 ok / 206 fail** |
 | scratch parse | 412 ok / 43 fail |
 | byte totals | 612 924 235 / 606 113 688, re-derived |
-| regression W624 → W625 | **none** — differential run, 2614 term for term |
-| regression from W623 | none (structural; differential in flight) |
-| suite wall time | 6205 s contended · ~52 min light load |
+| regression, pre-W623 vs W624 vs W625 | **none** — three differential runs, 2614 term for term |
+| suite wall time | 4782 s uncontended · 6205 s contended |
 | `cargo test --bins len_` | 8 passed |
 
 ---
