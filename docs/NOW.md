@@ -2,6 +2,24 @@
 
 Last updated: 2026-08-12
 
+
+## Wave 665 — layer 0 loads its weights; the property still refutes
+
+The prefetcher was a between-layers mechanism with no initial load (Prop. 129).
+`IDLE`'s `start` now routes through the existing `PREFETCH` state, with a
+`first_load` flag suppressing that state's `current_layer` increment.
+
+Simulation, on the weight path that read zero in every previous wave:
+`start_prefetch = 1`, `mem_rd_en = 3`, **`bram_we = 1`**, `prefetch_done`
+asserted — and the emitted activation trit is `2'b10`, **`TRIT_P`, matching the
+reference**. First agreement between an engine output and a computed expectation
+in this campaign.
+
+The formal property added last wave for exactly this gap, `a_weight_read_was_written`,
+**still refutes at `seq 40`**. The 28 integration properties still prove. The
+simulation and the solver disagree, and the defect is not closed until they agree.
+Prop. 131 states both results and chooses neither.
+
 ## Wave 664 — a property about memory contents, and a gate that promised what it never did
 
 - **THE MISSING PROPERTY CLASS, ADDED**: three defects share the shape *control

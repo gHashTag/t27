@@ -7849,6 +7849,50 @@ nothing about weights beyond the fourth address.
 
 ---
 
+### Prop. 131 — layer 0 now loads its weights, and the property still refutes — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation*
+
+Prop. 129 found that nothing loads layer 0's weights: `start_prefetch` is
+asserted only when a layer finishes and another follows, making the prefetcher a
+between-layers mechanism with no initial load. This completes it.
+
+**131a. The change reuses existing machinery.** The prefetcher already does the
+right thing. `IDLE` now routes `start` through the existing `PREFETCH` state
+rather than straight to `LAYER_RUN`, and a `first_load` flag suppresses that
+state's `current_layer` increment — which is correct when fetching for the *next*
+layer and wrong for an initial load. That keeps the two-bit state encoding rather
+than adding a fifth state.
+
+**131b. Simulation: the weight memory is written for the first time.** Before,
+every signal on the weight path read zero. After: `start_prefetch = 1`,
+`mem_rd_en = 3`, `mem_rd_valid = 3`, **`bram_we = 1`**, `prefetch_done` asserted.
+And the emitted activation trit is now `2'b10` — **`TRIT_P`, matching the
+reference** — where it was `X` two waves ago and `xx` before that.
+
+**131c. The formal property still refutes, and that is not a detail.**
+`a_weight_read_was_written` was added in Prop. 130 as an expected refutation
+encoding this exact gap. It **still refutes at `seq 40`** on the repaired design.
+
+Two readings, and this proposition does not choose between them: the bound may be
+too short for the prefetch to complete from reset in the formal model, or a
+reachable case remains where the MAC reads an unwritten address. The simulation
+result and the formal result disagree, and the honest position is that the defect
+is **not closed** until they agree.
+
+**131d. What is established.** The weight path is exercised where it was
+completely idle, and one end-to-end trit matches its reference. That is the first
+agreement between an engine output and a computed expectation in this campaign —
+and it is one value, in one configuration, against a property that still fails.
+
+**131e. The MAC accumulator still reads 0 against a reference of 27.** The
+harness captures `mac_result` under `mac_valid_q`, which fired once. A design
+producing `TRIT_P` cannot have an accumulator of 0 at threshold 3, so the capture
+and the requantizer are almost certainly sampling different cycles — a harness
+question, unestablished, and not to be reported as a design result either way.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

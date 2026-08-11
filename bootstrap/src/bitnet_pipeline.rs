@@ -242,6 +242,9 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("    localparam IDLE=0, LAYER_RUN=1, PREFETCH=2, DONE_ST=3;\n");
     out.push_str("    assign idle = (state == IDLE);\n");
     out.push_str("    reg [1:0] state;\n");
+    // Prop. 131: marks the PREFETCH pass that loads layer 0 rather than
+    // the next layer, so the shared state does not advance current_layer.
+    out.push_str("    reg       first_load;\n");
     out.push_str("    reg       pf_ack;   // controller acknowledged this prefetch request\n");
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
@@ -252,6 +255,10 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("            start_prefetch <= 1'b0;\n");
     out.push_str("            inference_done <= 1'b0;\n");
     out.push_str("            pf_ack <= 1'b0;\n");
+    // Prop. 131: distinguishes the initial weight load from the between-layer
+    // prefetch, so the shared PREFETCH state can serve both without adding a
+    // fifth state to a two-bit encoding.
+    out.push_str("            first_load <= 1'b0;\n");
     out.push_str("        end else case(state)\n");
     out.push_str("            IDLE: begin\n");
     out.push_str("                layer_start <= 1'b0;\n");
@@ -264,10 +271,17 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("                // weight_prefetch_ctrl already completed their zero jobs; four\n");
     out.push_str("                // modules disagreeing on this was the real defect.\n");
     out.push_str("                if (start && num_layers == 6'd0) state <= DONE_ST;\n");
+    // Prop. 129/131: this ran layer 0 immediately, so layer 0 computed
+    // against a weight BRAM nothing had written -- start_prefetch was
+    // asserted only when a layer FINISHED and another followed, making the
+    // prefetcher a between-layers mechanism with no initial load. Route the
+    // start through PREFETCH instead; first_load keeps current_layer at 0.
     out.push_str("                else if (start) begin\n");
     out.push_str("                    current_layer <= 6'd0;\n");
-    out.push_str("                    layer_start <= 1'b1;\n");
-    out.push_str("                    state <= LAYER_RUN;\n");
+    out.push_str("                    first_load <= 1'b1;\n");
+    out.push_str("                    start_prefetch <= 1'b1;\n");
+    out.push_str("                    pf_ack <= 1'b0;\n");
+    out.push_str("                    state <= PREFETCH;\n");
     out.push_str("                end\n");
     out.push_str("            end\n");
     out.push_str("            LAYER_RUN: begin\n");
@@ -297,7 +311,8 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("                start_prefetch <= 1'b0;\n");
     out.push_str("                if (!prefetch_done) pf_ack <= 1'b1;\n");
     out.push_str("                if (pf_ack && prefetch_done) begin\n");
-    out.push_str("                    current_layer <= current_layer + 6'd1;\n");
+    out.push_str("                    if (!first_load) current_layer <= current_layer + 6'd1;\n");
+    out.push_str("                    first_load <= 1'b0;\n");
     out.push_str("                    layer_start <= 1'b1;\n");
     out.push_str("                    state <= LAYER_RUN;\n");
     out.push_str("                end\n");
