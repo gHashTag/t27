@@ -193,6 +193,15 @@ def scan(root):
 
     # A scan that parsed nothing reports zero unannotated registers and reads
     # as a pass. Prop. 82c's lesson, kept.
+    # WITNESS: `accumulator` is the Prop. 83 register -- the 16-bit sum safe
+    # only because a different module bounds its chunk run. It is why this gate
+    # exists, so its absence must be loud rather than inferred from a total.
+    if not any(r[2] == "accumulator" for r in rows):
+        print("::error::bound_scan never classified `accumulator`, the register "
+              "this gate was written for (Prop. 83). It classified "
+              f"{len(rows)} others and would have reported clean. See Prop. 124.")
+        return 1
+
     if not rows:
         print(f"::error::bound_scan found no self-incrementing registers across "
               f"{len(files)} files -- it checked nothing, so its silence means "

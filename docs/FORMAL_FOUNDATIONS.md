@@ -7489,6 +7489,50 @@ point.
 
 ---
 
+### Prop. 124 — name the subject a gate exists for, and two negative results — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No port is driven by a signal naming a different quantity*
+
+Prop. 123 showed a gate passing its coverage floor while missing exactly the
+artifact it was written for: `compared > 0` held on twenty other connections
+while `dma_controller` went unparsed. **A floor on a total says nothing about
+coverage of the thing you care about.** Three gates now name their subject.
+
+| gate | witness | why that one |
+|---|---|---|
+| `units_scan` | the `dma_controller` instantiation is parsed | Prop. 122a's connection |
+| `width_scan` | `l2` is among the declarations examined | Prop. 80's defect site |
+| `bound_scan` | `accumulator` is among the registers classified | Prop. 83's register |
+
+All three verified by renaming the subject in a scratch copy: **3/3 fire**.
+
+**124a. Widening the units vocabulary was mostly a negative result.** Enumerating
+the 141 skipped connections was supposed to reveal unchecked quantities. It
+revealed `clk`, `rst_n`, `rd_data`, `wr_en`, `a`, `b`, `sum`, `cin`, `cout` and
+AXI handshakes — **not quantities at all**. My previous report framed this as
+"the vocabulary covers 14%", implying 86% of quantities were unchecked; the truth
+is that most connections are not quantities and are correctly skipped. One family
+was genuinely missing — addresses — and adding it took the compared count from 23
+to 42 with **0 new disagreements**.
+
+**124b. Two of my own tests were wrong before either gate was.** The
+`width_scan` witness appeared not to fire because its *reduction floor* caught
+the mutation first — the gate failed correctly, by a different guard, and the
+test demanded one specific message. And the `bound_scan` witness appeared silent
+because I renamed only the register's **declaration**, while that gate identifies
+registers from **assignments**; the mutation never removed the subject from its
+view. In both cases the instrument was right and the check of it was wrong, which
+is the mirror of Prop. 89b.
+
+**124c. And an edit that silently did nothing.** The `width_scan` witness was
+first inserted with `str.replace()` on an anchor that did not match, with no
+assertion on the count — so `names_seen` stayed empty and the witness fired
+against the shipped tree. This campaign has written down "assert your injection
+landed" three times (Props. 82d, 98, 111) and it was violated in the wave that
+cites it. Re-applied with `assert s.count(old) == 1`.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

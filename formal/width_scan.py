@@ -244,8 +244,10 @@ def scan(root):
               "emit the bundle before running this gate")
         return 1
     bad, declared, annotated, reduced, skipped = [], 0, 0, 0, 0
+    names_seen = set()
     for f in files:
         b, d, a, r, k = check_file(f)
+        names_seen |= set(parse(f.read_text())[0])
         bad += b
         declared += d
         annotated += a
@@ -278,6 +280,18 @@ def scan(root):
                   "hid, since a smaller number reads exactly like a healthy "
                   "one. Raise the floor deliberately if the emitters changed.")
             return 1
+    # WITNESS: `l2` in adder_tree_27 is the Prop. 80 defect site -- the
+    # declaration whose comment documented a range its width could not hold.
+    # Wave 657: a floor on totals cannot tell you whether THAT declaration was
+    # seen, and Prop. 123 showed a gate passing its floor while missing exactly
+    # the artifact it existed for.
+    if "l2" not in names_seen:
+        print("::error::width_scan never examined `l2`, the adder_tree_27 "
+              "declaration this gate was written for (Prop. 80). It checked "
+              f"{declared} other declarations and would have reported clean. "
+              "See Prop. 124.")
+        return 1
+
     if annotated == 0 or declared == 0 or reduced == 0:
         print(f"::error::width_scan parsed {declared} signed declarations, "
               f"{annotated} of them range-annotated, and checked {reduced} "

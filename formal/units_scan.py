@@ -47,6 +47,14 @@ FAMILIES = {
                 "word", "words", "num_words", "word_index", "wr_word"),
     "layers":  ("layer", "layers", "num_layers"),
     "beats":   ("beat", "beats", "arlen", "awlen", "burst_count"),
+    # Wave 657: addresses are a quantity too, and an address driven by a count
+    # (or vice versa) is the same class of defect as Prop. 122a. Added after
+    # enumerating what the scan was skipping -- see Prop. 124 for why that
+    # enumeration mostly found NON-quantities.
+    "addrs":   ("addr", "address", "araddr", "awaddr", "rd_addr", "wr_addr",
+                "src_addr", "dst_addr", "bram_addr", "local_addr", "chunk_addr",
+                "act_wr_addr", "read_addr", "write_addr", "buf_read_addr",
+                "buf_write_addr", "mem_addr"),
 }
 
 # The module name cannot be a keyword. Wave 656: `else if (...)` parsed as a
@@ -88,7 +96,7 @@ HEAD = re.compile(r"^[ \t]*([A-Za-z_]\w*)[ \t]+([A-Za-z_]\w*)[ \t]*\(", re.M)
 
 
 def instantiations(src):
-    """(module, instance, body) with the body matched by paren DEPTH.
+    r"""(module, instance, body) with the body matched by paren DEPTH.
 
     Wave 656: the first version captured the body with a non-greedy `(.*?)\);`,
     which stops at the first `);` and cannot survive a nested parenthesis. The
@@ -153,8 +161,10 @@ def scan(root):
               "the bundle before running this gate")
         return 1
     bad, compared, skipped, allknown = [], 0, 0, []
+    modules_seen = []
     for f in files:
         b, c, s, k = check_file(f)
+        modules_seen += [m for m, _i, _b, _a in instantiations(strip(f.read_text()))]
         allknown += k
         bad += b
         compared += c
@@ -165,6 +175,19 @@ def scan(root):
         print(f"::error::{b}")
     # Silence must be measurable: a vocabulary that recognised nothing would
     # report a clean sweep.
+    # WITNESS: the specific connection this gate exists for must have been
+    # parsed. Wave 656 shipped a version that never saw it -- eleven
+    # instantiations read, dma_controller absent, tree clean -- while the
+    # `compared > 0` floor passed on twenty other connections. A floor on a
+    # total says nothing about coverage of the thing you care about, so name it.
+    witness = any("dma_controller" in m for m in modules_seen)
+    if not witness:
+        print("::error::units_scan never parsed the `dma_controller` "
+              "instantiation, which is the connection it was written for "
+              "(Prop. 122a). It examined other connections and would have "
+              "reported a clean tree. See Prop. 124.")
+        return 1
+
     if compared == 0:
         print(f"::error::units_scan compared 0 connections across {len(files)} "
               f"files ({skipped} skipped as unrecognised) -- it checked nothing, "

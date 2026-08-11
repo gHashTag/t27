@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-12
 
+## Wave 657 — name the subject a gate exists for
+
+- **THREE GATES NOW NAME THEIR SUBJECT.** Prop. 123 showed a floor on a total
+  passing while the one artifact that mattered went unparsed.
+  - `units_scan` — the `dma_controller` instantiation must be parsed
+  - `width_scan` — `l2` must be among the declarations examined (Prop. 80's site)
+  - `bound_scan` — `accumulator` must be among the registers classified (Prop. 83)
+  Verified by renaming each subject in a scratch copy: **3/3 fire**.
+- **WIDENING THE UNITS VOCABULARY WAS MOSTLY A NEGATIVE RESULT**: the 141
+  skipped connections are `clk`, `rst_n`, `rd_data`, `wr_en`, `a`, `b`, `sum`,
+  `cin`, AXI handshakes — **not quantities**. My "covers 14%" framing implied
+  86% of quantities were unchecked; in truth most connections are not
+  quantities. One family was genuinely missing — addresses — taking compared
+  from 23 → 42 with **0 new disagreements**.
+- **TWO OF MY OWN TESTS WERE WRONG BEFORE EITHER GATE WAS**: `width_scan`'s
+  witness looked silent because its *reduction floor* caught the mutation first
+  (correct failure, different message), and `bound_scan`'s looked silent because
+  I renamed only the **declaration** while that gate identifies registers from
+  **assignments** — the mutation never removed the subject. Mirror of Prop. 89b.
+- **AND AN EDIT THAT SILENTLY DID NOTHING**: the `width_scan` witness was first
+  inserted with `str.replace()` on a non-matching anchor, no count assertion, so
+  `names_seen` stayed empty and the witness fired against the shipped tree.
+  "Assert your injection landed" is written down three times in this campaign
+  (Props. 82d, 98, 111) and was violated in the wave citing it.
+- **PROP. 124** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 656 — a gate that could not see the defect it was written for
 
 - **THE UNITS GATE**: Prop. 122a was invisible to every property because each
