@@ -99,8 +99,55 @@ def collect(root, wf_path):
     return steps, skipped, builders
 
 
+def positive_arm(root, steps, only=None):
+    """Run each step with the tree INTACT. A step that fails here is broken.
+
+    Wave 648. The sweep is a negative control: it establishes that a step fails
+    when starved. That licenses nothing on its own, because a step that is
+    ALREADY BROKEN also fails when starved -- and the sweep records it as
+    "fails, correct". Two live instances were confirmed this way:
+
+      * "Prove zero-size properties" carried a stray third element in a tuple
+        list the loop unpacked as two, so it raised ValueError after the first
+        two suites. Four of the eight zero-size properties were never proved.
+      * "Baseline, control, and mutation" named the engine emitter's
+        pre-2026-08-09 text as a mutation target. The emitter now writes the
+        declaration and the assignment on separate lines, so the target
+        appeared zero times, the mutation was never applied, and the suite
+        silently tested 7 of 8 mutants.
+
+    Both exited non-zero in normal operation and both were invisible to the
+    sweep, which only ever asked the starved question. This runs the other arm.
+
+    Opt-in via --positive: it executes the real proofs and takes as long as CI
+    does, where the sweep itself is minutes.
+    """
+    bad = []
+    print(f"\n{'step':58s} {'exit':>4s}   verdict")
+    print("-" * 92)
+    for name, script in steps:
+        if only and only not in name:
+            continue
+        r = subprocess.run(["bash", "-c", script], cwd=root,
+                           capture_output=True, text=True)
+        ok = r.returncode == 0
+        print(f"{name[:58]:58s} {r.returncode:>4d}   "
+              f"{'ok' if ok else 'BROKEN IN NORMAL OPERATION'}")
+        if not ok:
+            tail = (r.stderr or r.stdout or "").strip().splitlines()[-1:]
+            bad.append((name, r.returncode, tail[0][:120] if tail else ""))
+    for name, rc, msg in bad:
+        print(f"::error::step '{name}' exits {rc} with the tree INTACT -- it is "
+              f"broken in normal operation, and the starved sweep reads that "
+              f"same failure as 'fails, correct'. Last line: {msg}")
+    print(f"\npositive arm: {len(bad)} step(s) broken in normal operation")
+    return 1 if bad else 0
+
+
 def main(argv):
     root = pathlib.Path(__file__).resolve().parent.parent
+    positive = "--positive" in argv
+    argv = [a for a in argv if a != "--positive"]
     paths = argv[1:] or [str(root / w) for w in DEFAULT_WORKFLOWS]
 
     steps, recursive, builders = [], [], []
@@ -112,6 +159,9 @@ def main(argv):
         print(f"{pathlib.Path(p).name}: {len(s)} checking steps"
               f"{f', {len(sk)} recursive (skipped: {sk})' if sk else ''}"
               f"{f', {len(bl)} builders not swept' if bl else ''}")
+
+    if positive:
+        return positive_arm(root, steps)
 
     if not steps:
         print(f"::error::absence_sweep found no checking steps in {paths}")

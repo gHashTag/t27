@@ -7024,6 +7024,86 @@ members now have a mechanical check; the category is **not** closed.
 
 ---
 
+### Prop. 114 — two CI steps were already broken, and the sweep read it as correct — `FIXED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 109 fixed the absence sweep so it starves subjects rather than
+instruments. That made the negative control sound. It did not make it
+sufficient, because **a step that is already broken also fails when starved**,
+and the sweep records that as *"fails, correct"*. Two live instances:
+
+**114a. `Prove zero-size properties` raised `ValueError` after two suites.**
+Its `SUITES` list carried a stray third element —
+`("weight_prefetch_ctrl", "zs_prefetch", "")` — while the loop unpacks two.
+Python raised `too many values to unpack (expected 2, got 3)` after the first
+two wrappers, so **`zs_prefetch` and `zs_layer` — four of the eight zero-size
+properties — were never proved**, and the step exited 1 in normal operation.
+
+The irony is exact: this is the suite of Prop. 69, whose whole finding was that
+eight zero-size properties were counted while no job ran them. Half of them went
+back to being unrun, by a one-character defect, and the gate built to detect
+that class could not see it.
+
+**114b. `Baseline, control, and mutation` mutated text that no longer exists.**
+Its target was the engine emitter's pre-2026-08-09 wording,
+`wire start = reg_ctrl[0] && !dma_busy;`. The emitter now writes the declaration
+and the assignment on separate lines (`bitnet_engine_top.sv:122` and `:372`), so
+the target appeared **zero times**, the mutation was never applied, and the
+mutation suite **silently tested 7 of 8 mutants** while the step exited 1. The
+mutation guarded Prop. 24's liveness result.
+
+**114c. The missing arm.** A negative control licenses nothing on its own:
+"fails when starved" and "works when fed" are two claims, and the sweep only
+ever asked the first. `absence_sweep --positive` now runs every step with the
+tree **intact** and fails on any that does not pass. Verified both ways — the
+fixed step passes, and the re-injected stray tuple is caught with its exact
+`ValueError` in the error line.
+
+It is opt-in because it executes the real proofs and costs what CI costs, where
+the starved sweep is minutes. That is the honest trade: the guarantee is worth
+an hour, and pretending otherwise would put a second unrun check in the tree.
+
+---
+
+### Prop. 115 — over-detection is not rare; it is universal — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Numbers in the documentation match the tree*
+
+Prop. 110 recorded three incomplete (shape 7) instances and called the frequency
+unmeasured, predicting that an audit which hunted over-detection would find
+shapes outside 1–5. A census was run against all ten gates, each probed with
+semantics-preserving changes to its subject.
+
+**Every one of the ten over-detects.** Reported instances include:
+`identity_scan` splicing `//` comments into an assertion body; `encoding_gate`
+failing on an equivalent literal spelling (`2'd0` for `2'b00`); `init_zero_scan`
+not recognising a signed zero literal; `guard_scan` firing on a comment that
+quotes the guard it looks for; `width_scan`'s floor turning any reformatting
+into a failure; `doc_gate` requiring `**Gate:**` at column 0; `orphan_scan`
+globbing only `*.yml` so a `.yaml` workflow is invisible.
+
+**115a. The rate.** 10 of 10. Unsoundness was found in 6 of 10 gates across ten
+days of adversarial review; incompleteness is in all of them, and was found in
+one pass, because nobody had asked. Prop. 110's framing predicted this
+asymmetry precisely: the five catalogued shapes are unsoundness mechanisms
+*because every audit was instructed to look for unsoundness*.
+
+**115b. Why it is not simply the more dangerous number.** An unsound gate passes
+bad artifacts silently. An incomplete gate fails good ones loudly — and a gate
+that cries wolf gets disabled, which converts it into an unsound one with extra
+steps. The two failure modes are not symmetric in consequence, but they are
+symmetric in ending with a gate that does not do its job.
+
+**115c. What this campaign's own record now shows.** Three consecutive waves
+each shipped an instrument that over-detected on its first run (Props. 111,
+112, 113), and each was fixed by *narrowing the question* rather than adding
+exceptions. That is not carelessness three times; it is the default behaviour of
+a new check, and the census says the older ones are no different — they have
+simply never been probed from this direction.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

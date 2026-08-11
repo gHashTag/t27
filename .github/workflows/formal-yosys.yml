@@ -566,7 +566,15 @@ jobs:
           import re, subprocess, sys
           SUITES = [("multilayer_sequencer", "zs_multilayer"),
                     ("dma_controller",       "zs_dma"),
-                    ("weight_prefetch_ctrl", "zs_prefetch", ""),
+                    # Wave 648: this carried a stray third element, and the
+                    # loop below unpacks TWO. Python raised
+                    # `ValueError: too many values to unpack` after the first
+                    # two suites, so zs_prefetch and zs_layer -- four of the
+                    # eight zero-size properties -- were never proved, and the
+                    # step exited 1 in normal operation. The absence sweep read
+                    # that failure as "fails, correct", because a step that is
+                    # already broken fails when starved too. Prop. 114.
+                    ("weight_prefetch_ctrl", "zs_prefetch"),
                     ("layer_sequencer",      "zs_layer")]
           SEQ = 24
           src = open("formal/zero_size_props.sv").read()

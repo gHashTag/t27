@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-12
 
+## Wave 648 — two CI steps were already broken, and over-detection is universal
+
+- **TWO LIVE CI STEPS WERE BROKEN IN NORMAL OPERATION**, and the sweep recorded
+  both as *"fails, correct"* — because a step already broken also fails when
+  starved.
+  - `Prove zero-size properties`: a stray third element in a tuple list the loop
+    unpacks as two → `ValueError: too many values to unpack` after two wrappers.
+    **Four of the eight zero-size properties were never proved** — the very
+    suite whose unrun properties Prop. 69 was about.
+  - `Baseline, control, and mutation`: the mutation target named the emitter's
+    **pre-2026-08-09** text. The emitter now splits declaration and assignment,
+    so the target appeared **zero times**, the mutation was never applied, and
+    the suite **silently tested 7 of 8 mutants**.
+- **THE MISSING ARM**: a negative control licenses nothing alone. *"Fails when
+  starved"* and *"works when fed"* are two claims; only the first was ever
+  asked. `absence_sweep --positive` runs every step against an **intact** tree.
+  Verified both ways — fixed step passes, re-injected tuple caught with its
+  exact `ValueError`. Opt-in, because it costs what CI costs.
+- **OVER-DETECTION IS UNIVERSAL** (Prop. 115): a census of all ten gates found
+  **10 of 10 over-detect** on some semantics-preserving change — a comment
+  spliced into an assertion body, an equivalent literal spelling (`2'd0` for
+  `2'b00`), a signed zero, a `.yaml` workflow, a `**Gate:**` line indented.
+  Unsoundness was found in 6 of 10 over ten days; incompleteness is in **all**
+  of them and fell out of one pass, because nobody had asked.
+- **THAT CONFIRMS PROP. 110's FRAMING**: the five catalogued shapes are
+  unsoundness mechanisms *because every audit was instructed to look for
+  unsoundness*. And a gate that cries wolf gets disabled — which converts it
+  into an unsound one with extra steps.
+- **PROPS. 114, 115** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 647 — the third projection, and a superseded figure stated as live
 
 - **THE AUDIT FOUND THE DEFECT BEFORE THE GATE EXISTED.** README asserted

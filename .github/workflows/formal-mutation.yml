@@ -248,8 +248,15 @@ jobs:
                ("else if (layer_done) use_buffer_a <= ~use_buffer_a;",
                 "else if (layer_done) use_buffer_a <= use_buffer_a;"), 4),
               ("tie inference start off (engine stalls)", "bitnet_engine_top",
-               ("wire        start             = reg_ctrl[0] && !dma_busy;",
-                "wire        start             = 1'b0;"), 5),
+               # Wave 648: this named the emitter's pre-2026-08-09 text. The
+               # emitter now writes the declaration and the assignment on
+               # separate lines, so the target appeared ZERO times, the
+               # mutation was never applied, and the suite silently tested 7 of
+               # 8 mutants while the step exited 1. The absence sweep read that
+               # as "fails, correct", because a step already broken fails when
+               # starved too. Prop. 114.
+               ("assign start = reg_ctrl[0] && !dma_busy && input_loaded;",
+                "assign start = 1'b0;"), 5),
               ("zero-length request dropped again", "dma_controller",
                ("end else begin\n                    state           <= DONE_ST;\n                end",
                 "end else begin\n                    state           <= IDLE;\n                end"), 6),
