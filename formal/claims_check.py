@@ -171,12 +171,62 @@ CLAIMS = {
     "engine liveness probes": r"\*\*(\d+) engine liveness probes\*\*",
     "absence-swept steps": r"runs \*\*all (\d+) checking steps of both formal "
                            r"workflows\*\*",
+
     "direct modules": r"of \*\*23\*\* in the bundle, (\d+) have properties of "
                       r"their own",
     "indirect modules": r"and \*\*(\d+) are constrained only at one remove\*\*",
     "unreached modules": r"\*\*(\d+) ternary primitives are instantiated by "
                          r"nothing at all\*\*",
 }
+
+
+# Wave 646. A registered claim can be right while an UNREGISTERED SYNONYM of it
+# drifts in the same document. README said "all 37 checking steps" (gated, and
+# correct) and, four hundred words later, "all forty CI steps" (ungated, and
+# wrong -- the sweep walks 41 and checks 37). Both describe the same sweep.
+#
+# Registering the second spelling is the wrong fix: a CLAIMS entry demands its
+# pattern MATCH, so it forbids ever rephrasing the sentence. The right check is
+# the inverse -- for a quantity the tree already knows, no OTHER numeric claim
+# about it may appear unregistered. This is the Prop. 73 shape reduced to
+# something decidable: the data was right and a caption elsewhere described a
+# different set.
+UNREGISTERED = [
+    ("absence-swept steps",
+     # The qualifier is REQUIRED. A first version matched any "N steps" and
+     # fired on "10 steps" -- the ten-step development pipeline, a different
+     # subject in the same file. Over-detection in the instrument built to
+     # catch a caption describing the wrong set, which is the third wave
+     # running that a new check has met shape 7 on its first run.
+     re.compile(r"\b(?:all\s+)?(\d+|forty|thirty|twenty)\s+"
+                r"(?:CI|checking|swept|sweep)\s+steps\b", re.I),
+     r"runs \*\*all \d+ checking steps of both formal workflows\*\*"),
+]
+
+WORDNUM = {"forty": 40, "thirty": 30, "twenty": 20}
+
+
+def unregistered(root, found):
+    """Numeric claims about a gated quantity that no CLAIMS pattern covers."""
+    bad = []
+    text = (root / "README.md").read_text()
+    for claim, rx, registered in UNREGISTERED:
+        if claim not in found:
+            continue
+        truth = found[claim]
+        # Blank out the registered spelling so only synonyms remain.
+        rest = re.sub(registered, " ", text)
+        for m in rx.finditer(rest):
+            raw = m.group(1)
+            n = WORDNUM.get(raw.lower(), None)
+            n = int(raw) if n is None and raw.isdigit() else n
+            if n is None or n == truth:
+                continue
+            bad.append(f"README.md: \"{m.group(0)}\" is an unregistered claim "
+                       f"about `{claim}`, which the tree puts at {truth}. The "
+                       "registered spelling is checked and this one is not, so "
+                       "the two can disagree in the same document (Prop. 112).")
+    return bad
 
 
 def check(root):
@@ -212,6 +262,7 @@ def check(root):
             print(f"  UNMET {claim}: pattern matches nothing in README.md")
             bad.append(f"README.md: the pattern for '{claim}' matches nothing "
                        "-- the claim is unchecked, not clean")
+    bad += unregistered(root, found)
     for b in bad:
         print(f"::error::{b} -- a number in the prose has drifted from the tree")
     print(f"\nclaims check: {len(CLAIMS)} checkable claims, {len(bad)} stale")
@@ -234,7 +285,20 @@ def self_test():
                   lambda: (td / "README.md").write_text(
                       (root / "README.md").read_text().replace(
                           "documentation gate covering all **",
-                          "documentation gate covering all **9", 1)), 1)]
+                          "documentation gate covering all **9", 1)), 1),
+                 # Wave 646: an UNREGISTERED SYNONYM of a gated claim. README
+                 # carried "all 37 checking steps" (gated, correct) and, four
+                 # hundred words later, "all forty CI steps" (ungated, wrong).
+                 # Both described the same sweep. Registering the second
+                 # spelling would forbid ever rephrasing the sentence, so the
+                 # check is the inverse: no OTHER numeric claim about a gated
+                 # quantity may appear.
+                 ("an unregistered synonym of a gated claim",
+                  lambda: (td / "README.md").write_text(
+                      (root / "README.md").read_text().replace(
+                          "certifying that every checking step fails when starved",
+                          "certifying that all forty CI steps fail when starved",
+                          1)), 1)]
         shutil.copy(root / "README.md", td / "README.md")
         bad = []
         for name, setup, want in cases:

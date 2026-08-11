@@ -2,6 +2,31 @@
 
 Last updated: 2026-08-12
 
+## Wave 646 — a gated claim and its ungated synonym, in the same document
+
+- **THE SECOND UNFAITHFUL PROJECTION FOUND A LIVE INSTANCE.** README stated, four
+  hundred words apart: *"runs all **37** checking steps"* (gated, correct) and
+  *"certifying that all **forty** CI steps fail when starved"* (ungated, wrong —
+  the sweep walks 41 and checks 37). Both describe the same sweep. A gate that
+  matches one phrasing sees only that phrasing. Prop. 73's shape at its smallest.
+- **REGISTERING THE SYNONYM IS THE WRONG FIX, AND THE GATE SAID SO**: a `CLAIMS`
+  entry demands its pattern *match*, so it would forbid ever rephrasing the
+  sentence. Removing the numeric wording tripped the Wave-631 UNMET guard —
+  *"the claim is unchecked, not clean"* — which ruled out the obvious design.
+- **THE CHECK IS THE INVERSE**: for a quantity the tree already knows, **no
+  other numeric claim about it may appear unregistered**. The registered
+  spelling is blanked out and anything numeric left over is a finding. Permits
+  rephrasing, forbids drift, needs no second pattern to maintain.
+- **IT OVER-DETECTED ON ITS FIRST RUN, THIRD WAVE RUNNING**: the first pattern
+  matched any *N steps* and fired on *"explanations ≤ 10 steps"* — the CLARA
+  pipeline, a different subject in the same file. Narrowed to require an
+  explicit qualifier. Prop. 110's prediction has now held in three consecutive
+  waves on three different checks.
+- **A NEGATIVE RESULT, RECORDED**: the first design for this projection — check
+  counts stated in gate docstrings — was abandoned because **no gate docstring
+  states a count**. It would have been a gate that checks nothing.
+- **PROP. 112** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 645 — the first instrument for the unfaithful category, and its limit
 
 - **PROP. 110 SAID THE UNFAITHFUL CATEGORY HAS NO INSTRUMENT.** `formal/faith_check.py`

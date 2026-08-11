@@ -6927,6 +6927,51 @@ instrumented, not covered.
 
 ---
 
+### Prop. 112 — a gated claim and its ungated synonym, in the same document — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Numbers in the documentation match the tree*
+
+Prop. 111 instrumented the *path* projection of the unfaithful category and
+noted the other three recorded members are not path-shaped. This is the second
+projection, and it found a live instance.
+
+**112a. The finding.** README stated, four hundred words apart:
+
+> "runs **all 37 checking steps** of both formal workflows"  — gated, and correct
+>
+> "certifying that all **forty** CI steps fail when starved"  — ungated, and wrong
+
+Both describe the same sweep, which walks 41 steps and checks 37. The first is
+matched by a `claims_check` pattern and has been kept correct through four
+count changes. The second was invisible, because a gate that matches one
+phrasing sees only that phrasing. This is Prop. 73's shape at its smallest: the
+data was right and a caption elsewhere described a different set.
+
+**112b. Registering the synonym is the wrong fix, and the gate said so.** A
+`CLAIMS` entry demands its pattern *match* — so registering `"all N CI steps"`
+would forbid ever rephrasing the sentence. Removing the numeric phrasing
+immediately tripped the UNMET guard added in Wave 631: *"the pattern matches
+nothing — the claim is unchecked, not clean"*. Correct behaviour, and it ruled
+out the obvious design.
+
+**112c. The check is the inverse.** For a quantity the tree already knows, **no
+*other* numeric claim about it may appear unregistered**. The registered
+spelling is blanked out of the text and anything numeric left over is a finding.
+That permits rephrasing, forbids drift, and needs no second pattern to maintain.
+
+**112d. It over-detected on its first run, for the third wave running.** The
+first pattern matched any `N steps` and fired on *"explanations ≤ 10 steps"* —
+the CLARA pipeline, a different subject in the same file. Narrowed to require an
+explicit qualifier (`CI`, `checking`, `swept`, `sweep`). Prop. 110's prediction
+that an instrument aimed at a new category meets shape 7 first has now held in
+three consecutive waves, on three different checks.
+
+**112e. Verified by injection.** Re-inserting *"all forty CI steps"* into a
+temporary copy produces exactly one finding naming the gated quantity and the
+tree's value. Kept as the third `claims_check` self-test case.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
