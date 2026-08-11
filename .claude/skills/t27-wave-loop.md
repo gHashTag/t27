@@ -5127,6 +5127,42 @@ These cost a wave each. Follow them before step 1.
      inferred from a finite wait, "silent" inferred from a pipe that could not
      have shown otherwise. One error, three surfaces.
 
+190. **A failure total that sums GATED phases counts one defect once per phase.**
+     `t27c suite`'s 2614 is `6 x 249 + 62 + 1 + 1 + 1056`, and the six 249s are
+     byte-identical file sets (`comm -3` -> 0 diff on all five downstream
+     subcommands). **1494 of 2614 -- 57% -- is one fact reported six times.**
+     Never read `TOTAL FAILURES` as a count of distinct defects; partition by
+     phase and by population first.
+
+191. **A gate whose baseline is already non-zero detects nothing.**
+     `TOTAL FAILURES: 2614` with `GATE FAILURES: 0` means the conformance gates
+     are clean and the exit code is driven by accumulated drift. A NEW break
+     lands inside 2614 and moves the exit code not at all. Before trusting any
+     "the suite passes/fails" statement, ask what its baseline is.
+
+192. **99.2% of the sealed surface is stale, and ~940 of 1056 is pure compiler
+     drift** (spec_hash unchanged, generated output changed). Seals were last
+     written 2026-08-06/09; 34 commits and +2719/-102 lines of compiler.rs
+     landed after. Do NOT re-seal to make the number go down until the suite can
+     tell a change from the status quo -- re-sealing blesses whatever the
+     compiler currently emits, including a regression already in the tree.
+
+193. **To exonerate a change of a failure population, argue STRUCTURALLY and
+     name the population you covered.** The W623-W625 edits are all inside
+     `impl Codegen` (4305-7027); `Lexer` (237) and `impl Parser` (952) are
+     untouched, and parsing strictly precedes codegen -- so none of the 1494
+     parse-gated failures can be theirs. Field-level seal data covers another
+     1056 (zero specs mismatch on `gen_hash_zig` alone). That is 2550 of 2614.
+     **This is weaker than a differential run and must say so**: it shows the
+     change did not CREATE those failures, not that it created none.
+
+194. **Verify the suite's own headline against a hand sweep before believing
+     it.** `Parse failures: 249` hides `403 ok / 206 FAIL` (33.8%) on the
+     hand-written corpus and `412 / 43` (9.5%) on scratch. The 206 spread over
+     **47 distinct error classes** -- top three (KwInvariant in expression
+     position 30, KwStruct at module level 27, Ident after expression statement
+     24) cover 81. One aggregate, two populations, forty-seven causes.
+
 ### How to update this tracker
 
 After closing a wave:

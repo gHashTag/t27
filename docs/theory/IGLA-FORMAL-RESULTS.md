@@ -1118,12 +1118,21 @@ through a function return rather than a local.
 > The tool reported continuously; my own pipeline destroyed the signal, and I
 > attributed the absence to the tool. See **T26**.
 >
-> **(3) The glob was wrong in the first draft** — corrected below before
-> publication, by looking at the process list.
+> **(3) The glob was wrong in the first draft** — corrected before publication,
+> by looking at the process list.
 >
-> The cost numbers survive and are unchanged; all three errors were about what
-> the command *does*, not what it *costs*. The corrected consequence is stated
-> at the end.
+> **(4) "89% about scaffolding" — a ratio written as a percentage.** `specs/` is
+> **612 924 235 B** across 1064 files; `specs/scratch/` is **606 113 688 B**
+> across 455. The scratch *share* is **98.89%**; the *ratio* to the 6 810 547 B
+> of real corpus is **88.99 : 1**. I measured the ratio, then wrote it with a
+> percent sign. This document's own P35 catalogues the class — *"a number copied
+> from the wrong column"* — and this is an instance of it, in a correction to a
+> theorem, written while correcting two other errors in the same theorem.
+>
+> Sizes here are byte-exact (`find specs -name '*.t27' -exec stat -f%z {} +`);
+> the earlier "588 MB / 578 MB" were `du` figures, which count allocated blocks.
+>
+> The cost claim survives. The corrected consequence is stated at the end.
 
 **Discovered by asking why `t27c suite` had not returned.** `CLAUDE.md` §2 names
 it as the local CI-like sweep. Two waves in a row were written without it.
@@ -1146,14 +1155,24 @@ T15's near-miss, caught the same way, by looking instead of reasoning.
 
 **The corpus this project exists to verify is 6.5 MB.**
 
-| | files | bytes |
-|---|---:|---:|
-| `specs/scratch/*x2p6*` — one generator sweep, committed iteration by iteration | 288 | **378.9 MB** |
-| all of `specs/scratch/` | 455 | 578.0 MB |
-| **every other spec in the repository** | **609** | **6.5 MB** |
+| | files | bytes | share |
+|---|---:|---:|---:|
+| `specs/scratch/*x2p6*` — one generator sweep, committed iteration by iteration | 288 | 397 300 000 approx. | — |
+| all of `specs/scratch/` | 455 | **606 113 688** | **98.89%** |
+| **every other spec in the repository** | **609** | **6 810 547** | **1.11%** |
+| total (`collect_t27(repo/specs)`) | 1064 | 612 924 235 | 100% |
 
-**89 : 1 by bytes, in favour of the scaffolding.** The `x2p6` sweep alone is 288
-files that differ only in one outer array dimension.
+**88.99 : 1 by bytes, in favour of the scaffolding.** The `x2p6` sweep alone is
+288 files differing only in one outer array dimension.
+
+**Eight of the suite's sixteen phases walk that unfiltered glob.** All 609
+non-scratch specs clear an entire walk in **3.35–4.03 s** per subcommand
+(measured over `typecheck`, `gen-rust`, `gen-verilog`, `gen-c`); the cost is
+carried entirely by single scratch files — one live `t27c parse` on
+`w584_bench_17d_aos_call_dedup.t27` (23 260 502 B) was observed running past
+**504 s**, and one parse child peaked at **1 406 MB RSS**. `--fast` skips exactly
+one phase (the FPGA lake-package build) and **zero spec files**; no flag or
+environment variable excludes scratch.
 
 Measured parse throughput on these artefacts:
 
@@ -1177,20 +1196,25 @@ pass/fail but **evidence per unit cost**, and it tends to zero.
 
 **Corrected consequence (W626).** The failure is neither liveness nor silence.
 `V` terminates, and it reports each failure as it happens. What it costs is
-**52 minutes for a verdict that is 89% about files nobody is verifying**, and
-what it lacks is not progress output but a *partition*: `Parse failures: 249` is
-one number over two populations that mean different things. Split by the glob:
+**tens of minutes for a verdict whose byte cost is 98.89% scaffolding**, and what
+it lacks is not progress output but a *partition*: `Parse failures: 249` is one
+number over two populations that mean different things. Split by the glob:
 
 | | ok | fail | rate |
 |---|---:|---:|---|
 | `specs/` outside `specs/scratch/` — **the corpus** | 403 | **206** | **33.8%** |
-| the remainder, i.e. `specs/scratch/` scaffolding | — | ~43 | — |
+| `specs/scratch/` — scaffolding | 412 | 43 | 9.5% |
 
 **The interesting number was inside the uninteresting one.** A 33.8%
-parse-failure rate on the real corpus is a headline; it was reported as part of a
-249 that also counts generator output and deliberate `*_negative_*` fixtures
-(17 exist; 5 appear among the failures observed). The cheap fix is not a progress
+parse-failure rate on the hand-written corpus is a headline; it was reported as
+part of a 249 that also counts generator output and deliberate `*_negative_*`
+fixtures (17 exist; 5 appear among the failures). The cheap fix is not a progress
 line — it is to **report each phase per population**.
+
+*Wall time is left unstated.* The ~52 minutes observed for the first run could
+not be reproduced: a later run had not finished Phase 1 after 23 min 52 s, under
+CPU contention from the audit itself. Per **T25**, the honest record is the two
+observations, not an average of them.
 
 **Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
 that table is a stage that *silently discarded* input and reported success. `V`
@@ -1295,6 +1319,115 @@ composition.**
 
 *Falsification condition:* an invocation of `t27c suite` that genuinely emits
 nothing during the parse phase when its stdout is unbuffered and undiscarded.
+
+---
+
+### T27 (W626) — A failure total that sums gated phases counts defects with multiplicity, and a gate whose baseline is already non-zero carries no signal
+
+**`TOTAL FAILURES: 2614` reconciles exactly.** `bootstrap/src/suite.rs:1484`
+defines it as a plain sum, and the sum has no residual:
+
+| term | value |
+|---|---:|
+| Parse | 249 |
+| Typecheck | 249 |
+| Gen Zig | 249 |
+| Gen Rust | 249 |
+| Gen Verilog | 249 |
+| Gen C | 249 |
+| Verilog yosys smoke | 62 |
+| FPGA smoke | 1 |
+| GF16 conformance | 1 |
+| **Seal mismatches** | **1056** |
+| Icarus, Cocotb, FP divergence, gates | 0 |
+| **total** | **2614** |
+
+`6 × 249 = 1494`; `1494 + 62 + 1 + 1 + 1056 = 2614`.
+
+**The six 249s are the same 249 files, and that is measured, not inferred.** Each
+of the five downstream subcommands was re-run independently over all 609
+non-scratch specs; each failed on 206, and `comm -3` against the parse-failure
+list returned **0 differing lines in all five cases**. All 43 scratch
+gen-failures also fail `t27c parse` with rc = 1. Every downstream phase fails for
+one reason: the file never parses.
+
+> **2614 counters carry five independent facts:** 249 unparseable specs, 1056
+> stale seals, 62 yosys smoke failures, 1 FPGA smoke, 1 GF16. **1494 of the 2614
+> — 57% — is one fact reported six times.**
+
+**Statement.** Let phases `φ₁ … φₖ` be *gated*, so `φᵢ` runs only on inputs that
+cleared `φᵢ₋₁`, and let the summary report `Σᵢ |fail(φᵢ)|`. Then a single defect
+in `φ₁` contributes `k` to the total. The sum is a count of
+**(defect, phase) pairs**, not of defects, and its multiplicity depends on
+pipeline *depth* — so lengthening the pipeline inflates the total without any
+change to the artefact. **A total under gating is not a measure of the thing it
+appears to measure.**
+
+**Corollary — and this is the operationally serious half. A gate whose baseline
+is already non-zero cannot detect a regression.** `TOTAL FAILURES: 2614` with
+`GATE FAILURES: 0` means the conformance gates are clean and the non-zero exit is
+driven entirely by accumulated drift. Any *new* parse break or seal break lands
+inside 2614 and moves the exit code not at all — it was already non-zero.
+**The suite cannot distinguish "nothing changed" from "you broke the compiler",
+and it has not been able to for some time.**
+
+**The 1056 seals decompose, and the decomposition is the finding.** 1037 real
+hash mismatches, 18 specs with *no saved seal at all* (`specs/ternary/gft_*.t27`),
+1 vacuous seal. Of the 1037, only **98** have a changed `spec_hash` — the spec
+text moved. The other ~940 are **pure compiler drift**: the spec is unchanged and
+the generated output is not. The seals were last written 2026-08-06/09; **34
+commits totalling +2719/−102 lines** landed in `compiler.rs` afterwards.
+**99.2% of the sealed surface is stale**, which makes the seal phase the largest
+single term in the total and simultaneously the one carrying the least
+information.
+
+*Falsification condition:* a phase whose failure set is disjoint from the parse
+failures (which would mean the 249s are not one population), or a seal mismatch
+attributable to spec text in more than 98 cases.
+
+---
+
+### T28 (W626) — This session's compiler work caused none of it, and the argument that shows so is structural, not differential
+
+**The honest question after four waves of compiler edits is whether the 2614 is
+partly mine.** It is not, and the evidence has three legs.
+
+**1. 1494 of 2614 are parse failures, and nothing in the diff can reach the
+parser.** `git diff` over the three commits is **+276 / −4** in
+`bootstrap/src/compiler.rs`. Every hunk header lands at lines 4336, 4382, 5383,
+5536, 5689, 5956, 6126, 6657, 6954 — all inside `impl Codegen`
+(`pub struct Codegen` at 4305, `pub struct VerilogCodegen` at 7027) — plus one at
+33114 in `mod tests_w458`. `pub struct Lexer` (237) and `impl Parser` (952) are
+untouched. **Parsing strictly precedes codegen; a `Codegen` edit cannot
+manufacture a parse error.**
+
+**2. The 1056 seal mismatches are not attributable to the Zig backend.** Field
+level: **zero** specs mismatch on `gen_hash_zig` alone. Every one of the 1037
+hash mismatches includes at least one of `gen_hash_verilog` (1033),
+`gen_hash_c` (1011), `gen_hash_rust` (790) — three backends these commits never
+touched.
+
+**3. Blast radius, already on record.** Generated Zig over `specs/igla` was
+byte-identical W623 → W624 and differed by exactly **one line** W624 → W625.
+
+**The caveat is load-bearing and is stated rather than buried.** No pre-W623
+compiler was built and the suite was not re-run differentially. The verdict rests
+on a structural argument plus field-level seal data. The residual gap — that
+these commits could have *added* to an already-mismatching `gen_hash_zig` —
+changes no pass/fail outcome, because every such spec already fails on a
+non-Zig backend.
+
+**Statement.** For a change `Δ` confined to a module `M`, and a failure
+population `F`, `Δ` is exonerated of `F` if every member of `F` is produced by a
+stage that runs strictly before `M` or by a module disjoint from `M`. This is
+sound and cheap, and it is **weaker** than a differential run: it establishes
+that `Δ` did not *create* those failures, not that `Δ` created none at all.
+**A structural exoneration must name the population it covers.** Here it covers
+1494 (parse-gated) + 1056 (non-Zig seal fields) = 2550 of 2614; the remaining 64
+(62 yosys smoke + 1 FPGA + 1 GF16) are covered by leg 3 rather than leg 1 or 2.
+
+*Falsification condition:* a differential run of the pre-W623 compiler reporting
+a total below 2614.
 
 ---
 
