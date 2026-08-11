@@ -1098,12 +1098,26 @@ through a function return rather than a local.
 
 ---
 
-### T24 (W625) — A verification command's cost is set by its widest input glob, and a generator that commits every iteration inverts the corpus
+### T24 (W625, **corrected W626**) — A verification command's cost is set by its widest input glob, and a generator that commits every iteration inverts the corpus
 
-**Discovered by asking why `t27c suite` never returned.** `CLAUDE.md` §2 names it
-as the local CI-like sweep. Two waves in a row could not complete it. Sampling
-the process found it in `Command::output()`, draining a child that had spent
-minutes on a single file.
+> **CORRECTION, W626 — the first version of this theorem said the suite "stops
+> terminating". It does not.** The run this theorem was written about
+> **completed**, ~52 minutes after it started, and exited non-zero:
+> `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`, `ACCEPTABLE: no`. I published
+> "stops terminating" while the process was still running and treated *not yet
+> finished* as *will not finish* — an unfalsifiable reading of an observation
+> that was about to falsify it. **The theorem's own falsification condition was
+> "a completed `t27c suite` run"; it was met by the run I was describing.**
+>
+> The cost claim survives and the numbers below are unchanged. What was wrong
+> was the *consequence*: the command terminates, and its problem is that
+> **52 minutes buys a number that is 89% about scaffolding** — a signal-to-cost
+> failure, not a liveness one. The corrected consequence is stated at the end.
+
+**Discovered by asking why `t27c suite` had not returned.** `CLAUDE.md` §2 names
+it as the local CI-like sweep. Two waves in a row were written without it.
+Sampling the process found it in `Command::output()`, draining a child that had
+spent minutes on a single file.
 
 The file was `specs/scratch/w590_bench_module_17d_aos_var_call_reassign.t27`:
 **14.3 MB, 786 483 lines, one function, one test** — a 17-dimensional nested
@@ -1138,25 +1152,80 @@ Measured parse throughput on these artefacts:
 | `21x2p7` | 1 | **2.75 MB/s** |
 
 **A 34× spread by shape at comparable size**, so no total is derivable from
-bytes, and none is claimed here. What is directly observed: the run reached
-**47 minutes still inside the `parse` phase**, having produced no output at all —
-no pass, no fail, no progress line.
+bytes, and none is claimed here. What was directly observed: the run spent
+**47 minutes inside the `parse` phase with no output at all** — no pass, no fail,
+no progress line — and then completed at roughly 52 minutes.
 
 **Statement.** Let a verification command `V` be specified by an input glob `G`
 and let `A ⊆ G` be the artefacts under test. `cost(V)` is a function of `G`, not
 of `A`. When a generator writes into a directory `G` admits, `|G \ A|` grows
-without bound at no review cost, and `cost(V) → ∞` while the *evidence* `V`
-produces about `A` stays fixed. The command does not fail; it stops terminating,
-which reports as neither pass nor fail.
+without bound at no review cost, so `cost(V)` grows without bound while the
+*evidence* `V` produces about `A` stays fixed. The ratio that matters is not
+pass/fail but **evidence per unit cost**, and it tends to zero.
+
+**Corrected consequence (W626).** The failure is not liveness. `V` terminates
+and returns a verdict; the verdict simply costs 52 minutes and is 89% about
+files nobody is verifying. Worse, it emits **nothing** until it is done — a
+47-minute silence is indistinguishable from a hang, which is how the first
+version of this theorem went wrong. **A long-running verification command that
+does not report progress converts a cost problem into an apparent liveness
+problem, and an observer will misclassify it.** That is the operational claim,
+and it is the one with a cheap fix: print the phase and the file count.
 
 **Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
 that table is a stage that *silently discarded* input and reported success. `V`
-silently *admits* input and reports nothing at all. Both are invisible for the
-same reason: nothing asks the stage to account for its population.
+silently *admits* input and reports nothing until the end. Both are invisible for
+the same reason: nothing asks the stage to account for its population.
 
 *Falsification condition:* a completed `t27c suite` run whose wall time is
 dominated by `specs/` outside `specs/scratch/`, or a `parse`-phase glob that
 excludes generated benchmark artefacts.
+
+---
+
+### T25 (W626) — "Has not finished" is not evidence for "will not finish", and the difference is one falsification condition away
+
+**This theorem exists because T24's first draft was wrong, and the wrongness has
+a shape worth naming.** I observed a process at 47 minutes with no output,
+wrote *"the command does not fail; it stops terminating"*, and published it —
+then the same process finished, at ~52 minutes, with a verdict.
+
+**The inference was not merely unlucky. It was unfalsifiable as stated.** "Stops
+terminating" cannot be confirmed by any finite observation; only refuted. So the
+evidence I had — a finite silence — was *logically incapable* of supporting it,
+while being fully consistent with it. That asymmetry is the whole error: a finite
+observation can refute non-termination and can never establish it, so a claim of
+non-termination from a finite wait is a claim with no evidential basis, however
+long the wait.
+
+**Statement.** Let `P` be a property whose confirming evidence is infinite and
+whose refuting evidence is finite (non-termination, "no such X exists",
+"never occurs"). For such `P`, any finite observation `O` satisfies
+`Pr(O | P) = Pr(O | ¬P_slow)` — the likelihood ratio is 1 against the hypothesis
+"it is merely slow." **A finite wait carries exactly zero evidence for
+non-termination.** The only sound moves are to wait longer (which never
+concludes), to bound the work analytically, or to state the claim as what was
+observed: *"no output after N minutes."*
+
+**Corollary — this is T18's rule with the quantifier flipped, and I already had
+it.** T18 says a claim `¬∃x. P(x)` is refuted by *building* a witness, because
+enumeration of candidates leaves the negative open. T24's first draft made the
+dual mistake: it *asserted* a negative-existential ("no terminating run exists")
+from a finite failure to observe one. **The repository had recorded the correct
+rule seven waves earlier and I applied it in the direction that suited the
+sentence I wanted to write.**
+
+**What the correct claim costs.** Nothing. "47 minutes of `parse` with no output"
+is a stronger, cheaper, and fully supported statement, and it is the one that
+motivates the actual fix (emit progress). The overreach bought no explanatory
+power and cost a published error.
+
+*Falsification condition:* a finite observation that does license a
+non-termination conclusion — e.g. a proof that the process is in a state with no
+exit transition, which is analysis, not waiting. That is precisely the move this
+theorem says is required.
+
+---
 
 ---
 

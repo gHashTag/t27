@@ -5078,6 +5078,31 @@ These cost a wave each. Follow them before step 1.
      was `collect_t27(repo.join("specs"))` in the parse phase. Same near-miss
      as T15, caught the same way: by looking.
 
+183. **"Has not finished" is NEVER evidence for "will not finish".** I watched
+     `t27c suite` for 47 minutes with no output, published "the command stops
+     terminating", and it finished at ~52 minutes with a verdict. A finite
+     observation can REFUTE non-termination and can never establish it, so the
+     likelihood ratio against "merely slow" is 1 -- a finite wait carries
+     exactly zero evidence. Write what you observed ("no output after N
+     minutes"), which is stronger, cheaper, and fully supported. This is lesson
+     T18's rule with the quantifier flipped, and the repo already had it.
+
+184. **Before publishing a claim about a still-running process, kill it or wait
+     for it.** The claim and its falsifier were in the same terminal.
+
+185. **`t27c suite`'s headline number hides the corpus.** It reported
+     `Parse failures: 249` over all of `specs/` -- but parsing only the specs
+     OUTSIDE `specs/scratch/` gives **403 ok / 206 FAIL, a 33.8% parse-failure
+     rate on the real corpus** (worst: `specs/fpga/testbench` 29,
+     `specs/tri/collections` 18, `specs/numeric` 11, `specs/isa` 11). Always
+     re-run a suite headline with the scaffolding excluded; the aggregate mixes
+     two populations with different meanings.
+
+186. **Parse/Typecheck/GenZig/GenRust/GenVerilog/GenC all reporting the SAME
+     number (249) is a signal, not a coincidence** -- later phases are gated on
+     parse success, so one root failure is counted six times. Do not read
+     `TOTAL FAILURES` as a count of distinct defects.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -137,10 +137,30 @@ is derivable from bytes and none is claimed. Directly observed: **47 minutes,
 still inside the `parse` phase, no output at all** — no pass, no fail, no
 progress line.
 
+> ### CORRECTION (W626) — the suite terminated
+>
+> **The run described above finished**, ~52 minutes in, and exited non-zero:
+> `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`, `ACCEPTABLE: no`. The sentence
+> below saying it *"stops terminating"* was written while the process was still
+> running, and it is **false**. A finite silence is consistent with slow and with
+> hung; it is evidence for neither. See **T25**.
+>
+> The cost numbers are unaffected. The corrected consequence: the suite
+> terminates, and the problem is that **52 minutes buys a verdict that is 89%
+> about scaffolding**, emitted only at the end — a signal-to-cost failure, plus a
+> silence long enough that an observer misclassifies it as a hang.
+>
+> **And the verdict it buys was worth having.** Parsing every `.t27` *outside*
+> `specs/scratch/` gives **403 ok, 206 FAIL** — a **33.8% parse-failure rate on
+> the real corpus**, in `specs/fpga/testbench` (29), `specs/tri/collections` (18),
+> `specs/numeric` (11), `specs/isa` (11) and 40 further directories. That is the
+> finding the suite's one-line summary buries under a 249 that also counts
+> scratch.
+
 > **T24 — `cost(V)` is a function of the glob `G`, not of the artefacts `A ⊆ G`
 > under test.** When a generator writes into a directory `G` admits, `|G \ A|`
-> grows at no review cost, and the command stops terminating — which reports as
-> neither pass nor fail.
+> grows at no review cost, so cost grows without bound while the evidence
+> produced about `A` stays fixed. Evidence per unit cost tends to zero.
 
 This is §4's failure mode with the sign flipped: every entry in that table is a
 stage that *silently discarded* input and reported success. `suite` silently
@@ -155,8 +175,11 @@ blast radius, not a repair — it is Option 1 below.
 
 ## 4. What was NOT done
 
-- **`t27c suite` still has not completed.** Its non-termination is the datum
-  behind T24; nothing in this wave was verified through it.
+- ~~**`t27c suite` still has not completed.** Its non-termination is the datum
+  behind T24; nothing in this wave was verified through it.~~
+  **Superseded (W626):** it completed at ~52 min with 2614 failures. Nothing in
+  this wave was verified through it *at the time of writing*, which remains true;
+  the reason given was wrong.
 - **No web literature this loop either.** `WebSearch`/`WebFetch` have failed with
   a provider error for the whole session. Nothing was cited that was not
   described from general knowledge under §3's standing rule, and **no citation
