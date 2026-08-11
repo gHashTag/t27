@@ -22539,3 +22539,35 @@ the instrument, and nothing was checking it because I wrote it.**
 Corollary: every artefact carrying a number should state when it was last
 re-derived. A count without a date is a claim about the past presented as a
 claim about the present.
+
+## Wave 622 — T14: my own theorem, misapplied, and the number went green anyway
+
+**B -- I applied T11 wrongly and it produced a semantically incorrect change
+that LOWERED the error count.**
+
+T11 says: with pairwise-distinct parameter types, every permutation of a
+correctly-typed argument list denotes the same call. I used that to license a
+SOURCE REWRITE -- move the weight-looking argument last, keep the others in
+relative order -- across 100 call sites. `ternary_mac.t27` went 56 -> 0 errors.
+
+**It was wrong.** `ternary_mac(a[1], w[2], 0)` became `ternary_mac(a[1], 0, w[2])`
+-- acc = a[1], a = 0. Zig widens i8 -> i32, so it TYPE-CHECKS. **A green number
+produced by a wrong change.** Caught by reading the generated code; reverted.
+
+**T14, in two parts:**
+
+(a) **The hypothesis is about ARGUMENT types, not parameter types alone.** An
+untyped numeric literal is `comptime_int` and inhabits BOTH i32 and i8, so the
+multiset equality has no unique witness. 47 of 186 ternary_mac sites (25%) are
+outside T11's scope for this reason.
+
+(b) **The licence is for the COMPILER, not a rewriting tool.** T11 says a unique
+type-correct assignment EXISTS; recovering it needs each argument's type, which
+the compiler has and a text transformation does not.
+
+**A heuristic that reproduces a theorem's conclusion on the easy cases is not an
+implementation of that theorem.** The 86 sites already in declared order were
+unaffected -- all the risk was in the 100 it had to guess on, and it guessed
+positionally.
+
+**C -- board**: cable not found. Verified.

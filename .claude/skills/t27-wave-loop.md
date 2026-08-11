@@ -4959,6 +4959,25 @@ These cost a wave each. Follow them before step 1.
      found in the project's own record-keeping. Nothing was checking it because
      I wrote it.
 
+165. **A theorem's licence does not transfer to a tool that lacks the theorem's
+     inputs.** T11 says a unique type-correct argument assignment EXISTS; the
+     compiler can find it because it knows each argument's type. A source
+     rewrite does not, so reordering by a syntactic heuristic computes something
+     else. Mine turned `ternary_mac(a[1], w[2], 0)` into
+     `ternary_mac(a[1], 0, w[2])` -- acc = a[1] -- which TYPE-CHECKS because Zig
+     widens i8 to i32, and dropped the error count 56 -> 0. **A green number
+     produced by a wrong change.**
+
+166. **An untyped literal voids a "types are pairwise distinct" hypothesis.**
+     `comptime_int` inhabits both i32 and i8, so 47 of 186 ternary_mac sites
+     (25%) are genuinely ambiguous under permutation. Check the ARGUMENT types,
+     not just the parameter types.
+
+167. **When a heuristic makes the number go the right way, check the cases it
+     had to GUESS on.** The 86 sites already in declared order were unaffected;
+     all the risk lived in the 100 it rewrote. Sample from those, never from the
+     population as a whole.
+
 ### How to update this tracker
 
 After closing a wave:

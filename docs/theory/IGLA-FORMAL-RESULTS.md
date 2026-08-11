@@ -422,6 +422,13 @@ t27 field type admitting no default.
 
 ---
 
+> **HYPOTHESIS TIGHTENED IN W622.** The proof below is valid, but its hypothesis
+> is stronger than it appears: it requires each **argument** to have a unique
+> type, not merely each **parameter**. An untyped numeric literal is
+> `comptime_int` and inhabits *several* parameter types at once, so 25% of the
+> `ternary_mac` call sites fall outside T11's scope. And T11 licenses resolution
+> **by the compiler, from types** — not a source rewrite from syntax. See **T14**.
+
 ### T11 (W620) — When parameter types are pairwise distinct, argument ORDER carries no information
 
 **Statement.** Let `f` have parameters of types `T₁ … Tₙ`, **pairwise distinct**.
@@ -552,6 +559,66 @@ fix them and correctly refuse to touch `tmul`.
 
 *Falsification condition:* a function in the 906 whose permuted call is
 ambiguous, or one in the 1 278 whose permutations are all unique.
+
+---
+
+### T14 (W622) — T11's licence does not transfer to a source rewrite, and untyped literals void its hypothesis
+
+**This theorem exists because I applied T11 wrongly and the result was a
+semantically incorrect change**, caught by re-reading the generated code.
+
+**(a) The hypothesis is about ARGUMENT types, not parameter types alone.**
+
+T11 assumes the argument multiset `{S}` equals the parameter multiset `{T}`.
+An untyped numeric literal has type `comptime_int`, which **coerces to more than
+one** of the parameter types — for `ternary_mac(acc: i32, a: i8, w: TernaryWeight)`
+a literal `0` inhabits *both* `i32` and `i8`. The multiset equality is then not
+witnessed by a unique bijection, and **T11 does not apply.**
+
+| | |
+|---|---:|
+| 3-argument `ternary_mac` call sites | **186** |
+| containing an untyped numeric literal — **outside T11** | **47 (25 %)** |
+| all arguments named — inside T11 | 139 (75 %) |
+
+**(b) The licence is for the COMPILER, not for a rewriting tool.**
+
+T11 says a unique type-correct assignment *exists*. Recovering it requires
+knowing each argument's type — which the compiler has and a text transformation
+does not. A rewrite that reorders by a **syntactic** heuristic computes something
+else entirely.
+
+**The failure, concretely.** Reordering 100 call sites by "move the
+weight-looking argument last, keep the others in relative order" turned
+
+```t27
+ternary_mac(a[1], w[2], 0)        // intended: acc = 0, a = a[1], w = w[2]
+```
+
+into
+
+```t27
+ternary_mac(a[1], 0, w[2])        // acc = a[1], a = 0   -- type-correct, WRONG
+```
+
+Zig widens `i8 → i32`, so the result **type-checks** and the error count for
+`ternary_mac.t27` fell from 56 to 0 — **a green number produced by a wrong
+change.** Reverted.
+
+> **A heuristic that reproduces a theorem's conclusion on the easy cases is not
+> an implementation of that theorem.** The 86 sites already in declared order
+> were unaffected; the 100 that were not are exactly the ones where the
+> heuristic had to guess, and it guessed positionally.
+
+**Corollary — the corrected scope of the T13 feature.** Type-directed argument
+resolution is sound on calls where the parameter types are pairwise distinct
+**and every argument has a unique type**. Literal arguments must be resolved by
+their position or declined. The 41% figure from T13 bounds the *functions*; this
+bounds the *call sites*, and for `ternary_mac` it removes a quarter of them.
+
+*Falsification condition:* a source-level rewrite that provably recovers the
+intended assignment without type information, or a language rule making
+`comptime_int` inhabit exactly one parameter type.
 
 ---
 
