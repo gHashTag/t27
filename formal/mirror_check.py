@@ -56,6 +56,19 @@ def params(text, module):
     for src in (text, b):                    # module scope wins over file scope
         for name, val in PARAM.findall(re.sub(r"//[^\n]*", "", src)):
             out[name] = re.sub(r"\s+", "", val)
+    # Resolve TRANSITIVELY. Wave 642: this resolved exactly one level, so
+    # `localparam TRIT_Z = ZERO;` left the string "ZERO" where a value was
+    # meant -- a name standing in for a value, the same shape the resolution
+    # was added to fix one wave earlier. Fixed point, with a bound so a cyclic
+    # definition terminates instead of hanging.
+    for _ in range(8):
+        changed = False
+        for k, v in list(out.items()):
+            if v in out and out[v] != v:
+                out[k] = out[v]
+                changed = True
+        if not changed:
+            break
     return out
 
 
@@ -101,6 +114,20 @@ def check(root):
         return 1
 
     bad = []
+    # A stage with NO named connections compares equal to any other such stage,
+    # so the gate would report "0 disagreements" while comparing nothing.
+    # Wave 642: positional instantiation -- `trit_full_adder fa0 (a, b, cin,
+    # sum, cout);` -- yields zero extracted connections and is perfectly legal
+    # Verilog. Shape 2, a decline that was not counted, inside the gate that
+    # holds Prop. 92's proof to the real circuit.
+    for label, st in (("trit3_add", concrete), ("add3_abstract", abstract)):
+        empty = [n for n, c in st if not c]
+        if empty:
+            bad.append(f"{label}: {len(empty)} stage(s) {empty} have no NAMED "
+                       "port connections -- positional instantiation, which this "
+                       "gate cannot compare. It would otherwise report agreement "
+                       "between two things it never read.")
+
     if len(concrete) != len(abstract):
         bad.append(f"stage count differs: trit3_add has {len(concrete)}, "
                    f"add3_abstract has {len(abstract)}")
@@ -172,6 +199,35 @@ def self_test():
     # The case this gate got WRONG on its first version, kept as a permanent
     # regression test: the same identifier holding different values on the two
     # sides. Wave 636b.
+    # Wave 642 regressions.
+    pos = rtl_src.replace(
+        "trit_full_adder fa0 (.a(a[1:0]), .b(b[1:0]), .cin(TRIT_Z), .sum(sum[1:0]), .cout(c0));",
+        "trit_full_adder fa0 (a[1:0], b[1:0], TRIT_Z, sum[1:0], c0);")
+    if pos == rtl_src:
+        bad.append("the positional-instantiation injection changed nothing")
+    else:
+        rc = run(pos, props_src)
+        print(f"  {'ok  ' if rc else 'FAIL'} a positionally-instantiated stage "
+              f"is caught, not silently compared as empty (exit {rc})")
+        if rc == 0:
+            bad.append("a stage with no named connections compared as agreeing "
+                       "-- the gate read nothing and reported agreement")
+
+    # Transitive localparam resolution, checked directly on the resolver rather
+    # than through a full injection: `TRIT_Z = ZZ` must resolve to ZZ's VALUE,
+    # not to the string "ZZ". Wave 642 -- the resolver added one wave earlier
+    # went exactly one level deep, leaving a name where a value was meant.
+    chained = ("module m;\n"
+               "    localparam [1:0] ZZ = 2'b10;\n"
+               "    localparam [1:0] TRIT_Z = ZZ;\n"
+               "endmodule\n")
+    got = params(chained, "m").get("TRIT_Z")
+    ok = got == "2'b10"
+    print(f"  {'ok  ' if ok else 'FAIL'} a localparam defined via another "
+          f"resolves to its VALUE: TRIT_Z -> {got!r} (want \"2'b10\")")
+    if not ok:
+        bad.append(f"a chained localparam resolved to {got!r}, not its value")
+
     shifted = rtl_src.replace("localparam [1:0] TRIT_Z = 2'b01;",
                               "localparam [1:0] TRIT_Z = 2'b10;")
     print(f"  {'ok  ' if shifted != rtl_src else 'FAIL'} the constant-shift "

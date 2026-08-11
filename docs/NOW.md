@@ -2,6 +2,27 @@
 
 Last updated: 2026-08-11
 
+## Wave 642 — the mirror compared nothing, if you asked it positionally
+
+- **`mirror_check` HOLDS PROP. 92'S COMPOSITION PROOF TO THE REAL CIRCUIT.** Two
+  of the three criticals reported against it reproduce.
+- **POSITIONAL INSTANTIATION YIELDS ZERO EXTRACTED CONNECTIONS**: `CONN` matches
+  only `.name(net)`, so `trit_full_adder fa0 (a, b, cin, sum, cout);` — legal
+  Verilog — produces an **empty** map, and empty compares equal to empty. The
+  gate would print *"3 stages vs 3, 0 disagreements"* having read **nothing**.
+  Shape 2, inside the gate that exists to stop a proof drifting from its subject.
+  A stage with no named connections is now an error.
+- **LOCALPARAM CHAINS RESOLVED ONE LEVEL**: the resolver added in Wave 636b —
+  itself the fix for comparing names instead of values — turned
+  `localparam TRIT_Z = ZZ;` into the string `"ZZ"`. The same shape it was written
+  to eliminate, one indirection further out. Now a bounded fixed point.
+- **ONE REPORTED CRITICAL DID NOT REPRODUCE**: instances inside `/* */` block
+  comments are correctly excluded. Recorded so it is not re-litigated.
+- **TEST THE FUNCTION YOU FIXED**: the chain regression was first written as a
+  full RTL injection and failed for a reason that was the *injection's*. Checking
+  `params()` directly proves the property the fix is about.
+- **PROP. 108** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 641b — a quarter of the gate citations named steps that did not exist
 
 - **THE RULE THIS FILE IS BUILT ON** is that every proposition names the CI step

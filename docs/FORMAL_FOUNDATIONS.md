@@ -6696,6 +6696,47 @@ guard was right; its notion of "where the repository is" was not.
 
 ---
 
+### Prop. 108 — the mirror compared nothing, if you asked it positionally — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Prove the trit algebra (exhaustive)*
+
+`mirror_check` holds Prop. 92's composition proof to the real circuit: the
+abstraction duplicates `trit3_add`'s wiring, so something mechanical must pin the
+copy to the original. Two of the three criticals reported against it reproduce.
+
+**108a. Positional instantiation yields zero extracted connections.** `CONN`
+matches only `.name(net)` form. `trit_full_adder fa0 (a[1:0], b[1:0], TRIT_Z,
+sum[1:0], c0);` — perfectly legal Verilog — produces an **empty** connection map,
+and an empty map compares equal to any other empty map. The gate would print
+*"3 concrete stages vs 3 abstract, 0 disagreements"* while having read nothing
+from either.
+
+Shape 2, a decline that is not counted, inside the gate that exists to stop a
+proof drifting from its subject. A stage with no named connections is now an
+error naming the stages involved, because the honest report is *"I cannot
+compare these"*, not *"these agree"*.
+
+**108b. Localparam chains resolved exactly one level.** The resolver added in
+Wave 636b — itself the fix for comparing names instead of values — turned
+`localparam TRIT_Z = ZZ;` into the string `"ZZ"`. A name standing in for a value,
+which is the same shape the resolver was written to eliminate, one indirection
+further out. Now a bounded fixed point, so a cyclic definition terminates rather
+than hanging.
+
+**108c. One reported critical did not reproduce.** Instances inside `/* */`
+block comments were said to be counted. They are not: the shipped parser found
+exactly the one live instance in a two-instance test, the commented one
+excluded. Recorded so it is not re-litigated.
+
+**108d. Both fixes were verified against the resolver, not only end-to-end.**
+The chained-localparam regression was first written as a full RTL injection and
+failed for a reason that was the *injection's*, not the gate's. Testing
+`params()` directly proves the property the fix is about; an end-to-end
+injection would have proved something about anchor text. When a fix is to one
+function, test that function.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
