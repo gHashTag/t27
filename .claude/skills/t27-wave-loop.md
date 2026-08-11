@@ -4978,6 +4978,63 @@ These cost a wave each. Follow them before step 1.
      all the risk lived in the 100 it rewrote. Sample from those, never from the
      population as a whole.
 
+168. **Reproducing both ENDPOINTS is not reproducing the DELTA.** W624 re-ran
+     W623's headline and got 1076 and 1069 exactly -- and the rows still did not
+     add up, because 9 errors were removed and the total fell by 7. Diff the
+     error CLASSES (`grep -oE 'error: .*' | sed 's/[0-9]\+/N/g' | sort |
+     uniq -c`), never the totals. The missing 2 were pre-existing defects
+     UNMASKED by the fix, on the very lines the fix touched.
+
+169. **A compile-error count orders nothing.** Diagnostics mask each other: one
+     error stops the analysis that would find the next. So a repair that
+     strictly removes defects can RAISE the count, and a falling count is
+     compatible with new defects. "Total errors went down" is not evidence
+     without a per-class, per-site partition. (T19.)
+
+170. **Enumerate the class by PROBE before you fix it; measuring the corpus only
+     tells you which positions the corpus happens to contain.** W623 named the
+     class "`.len` is usize in every sized-int context" and implemented 2 of the
+     5 syntactic positions, because the 9 measured sites occupied exactly 2.
+     Writing one function per position found two real gaps (`let n : u32 = ...`,
+     struct-literal field) AND one false one (comparison -- Zig peer-resolves it,
+     so a cast there would have narrowed working code). Pin the non-gap with a
+     test so the next wave does not "fix" it. (T20.)
+
+171. **A fix whose corpus output is BYTE-IDENTICAL can still be the right fix.**
+     `diff -rq` over all 34 generated `.zig` files showed no change after closing
+     positions 4 and 5 -- because the corpus contains zero instances. That is
+     the proof, not the problem: a change justified by corpus measurement could
+     not have been written at all. Constructed witnesses are the evidence when
+     the population is empty.
+
+172. **`zig test --test-no-exec` only analyses REFERENCED bodies.** The same
+     three functions gave 0 errors unreferenced and 2 errors with tests calling
+     them. 180 of 1286 generated functions (14.0%) are never referenced in their
+     own unit, so roughly one body in seven has never been type-checked. Every
+     "total compile errors" figure is therefore a joint measurement of the
+     backend AND the corpus's test coverage; 1069 is a lower bound, not a count.
+     Deltas across measurements sharing one reference graph stay valid. (T21.)
+
+173. **The metric belongs on the "silently discards" list with the lexer and the
+     parser.** A count that drops what it did not reach behaves exactly like a
+     stage that accepts input, produces a smaller answer, and reports success.
+     The standing rule -- *ask each stage to account for its input* -- applies
+     unchanged to statistics: **ask a measurement to account for its
+     population.**
+
+174. **Rebuild before you probe.** A probe that contradicted three passing unit
+     tests was measuring a stale `target/release/t27c` left behind by a
+     before/after A-B build. `cargo test` rebuilds its own harness and does NOT
+     refresh the plain binary. Before believing a CLI result that disagrees with
+     a unit test, re-run `cargo build --release -p t27c`.
+
+175. **Do not hand-edit `bootstrap/stage0/FROZEN_HASH` to a bare digest.** The
+     canonical operational line is `<64-hex-sha256>  <repo-relative-path>` --
+     what `t27c frozen-digest` prints, what `scripts/reseal-apply.sh` writes, and
+     what `build.rs`'s panic text and FROZEN.md §4 name. `build.rs` takes
+     `split_whitespace().next()`, so a bare digest passes silently and the
+     divergence surfaces only in a future consumer.
+
 ### How to update this tracker
 
 After closing a wave:
