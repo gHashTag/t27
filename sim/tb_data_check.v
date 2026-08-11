@@ -154,7 +154,7 @@ module tb_data;
         end
     endtask
 
-    integer cyc; integer seen; reg [53:0] got;
+    integer cyc; integer seen; integer pf_wait; reg [53:0] got;
     reg signed [15:0] acc_seen;
 
     // capture the first emitted activation word and the MAC result
@@ -177,10 +177,18 @@ module tb_data;
         csr_write(8'h1C, THRESH);         // threshold
         csr_write(8'h00, 32'h2);          // start DMA
         @(posedge clk); csr_write(8'h00, 32'h0);
-        repeat (200) @(posedge clk);
+        // Wait for the weight PREFETCH to finish, not a fixed delay.
+        // Wave 661: 200 cycles was not enough, so the MAC read an
+        // unwritten weight BRAM and the accumulator arrived at the
+        // requantizer as X.
+        // Wave 661: the weight prefetch is triggered BY the inference start,
+        // so waiting for prefetch_done before starting is a deadlock of my own
+        // making. Start inference, then give the prefetch room to run.
+        repeat (400) @(posedge clk);
         csr_write(8'h00, 32'h1);          // start inference
         @(posedge clk); csr_write(8'h00, 32'h0);
 
+        repeat (2000) @(posedge clk);
         while (cyc < 20000 && seen == 0) begin @(posedge clk); cyc = cyc + 1; end
 
         $display("REFERENCE  acc=%0d  trit=%b", ref_acc(0), ref_trit(ref_acc(0)));

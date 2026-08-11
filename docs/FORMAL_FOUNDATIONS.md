@@ -7684,22 +7684,38 @@ accumulator is exactly 0 and the reference trit is `TRIT_Z` at threshold 3 — a
 value that is wrong under almost any indexing error, since a mis-addressed read
 would pick up a different mixture.
 
-**127b. The MAC agrees with the reference.** Engine `acc = 0`, reference
-`acc = 0`. That is the first end-to-end numerical agreement recorded in this
-campaign, and it is evidence the repaired chunk-indexed datapath computes the
-dot product it is supposed to.
+**127b. WITHDRAWN — the MAC agreement was my variable's initial value.** This
+proposition first reported "engine `acc = 0`, reference `acc = 0`" as the first
+end-to-end numerical agreement in the campaign. It is not one.
 
-**127c. The emitted activation trit reads `X`.** The word comes out as
-`0000000000000X`: every packed field is 0 except the low trit, which is
-undefined. `shift_word` **is** reset to `54'd0` (activation_requant.sv:65), so
-the X enters from the requant path rather than from an uninitialised shifter.
+`acc_seen` is initialised to 0 in the testbench and assigned only under
+`mac_valid_q`. I never established that assignment ever fired, and a trace of the
+requantizer's inputs shows `acc = xxxx` arriving at the moment `valid_in` is
+asserted — which is inconsistent with a measured zero. The reported "agreement"
+is a variable that was never written matching a reference that happens to be
+zero.
 
-This is recorded as an **observation, not a defect**. It appears in the N=1
-configuration, which is the one exercising the new flush branch with a single
-trit collected, and I have not established whether it is a real X in emitted data,
-a sampling-time artifact between `mac_valid_q` and the requantizer's `valid_in`,
-or a testbench error. An undefined value reaching an output would be serious;
-saying so before it is established would be worse.
+The vector was chosen so the reference would be 0 *because* that value is wrong
+under most indexing errors (127a). That choice made the reference collide with
+the one value an uninitialised counter would show, and the collision was not
+noticed. **A reference value chosen to be discriminating against the design can
+still be indiscriminate against the harness.**
+
+**127c. The X is traced to an unwritten weight memory, and the harness is why.**
+A cycle-level trace of the requantizer's inputs settles it: `acc` is already
+`xxxx` when `valid_in` is asserted, so the X does not originate in the requant
+path. `shift_word` is reset to `54'd0`, and the undefined value arrives from
+upstream.
+
+The cause is that the weight BRAM is read before anything writes it. Two harness
+errors compounded, both mine: the testbench started inference on a fixed 200-cycle
+delay rather than on any observable condition, and a subsequent attempt to wait
+for `prefetch_done` **deadlocked**, because the weight prefetch is triggered *by*
+the inference start and therefore cannot complete before it.
+
+So the X is a harness artifact so far as it has been established, and the value
+check does not yet demonstrate anything about the design. That is the honest
+status: an instrument built this wave, not yet a measurement.
 
 **127d. Why this belongs in the repository rather than a scratch directory.** The
 harness is the only artifact in the campaign that can answer "does the engine

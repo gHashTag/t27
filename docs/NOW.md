@@ -2,6 +2,28 @@
 
 Last updated: 2026-08-12
 
+## Wave 661 — the value check's first result was my own uninitialised variable
+
+- **WAVE 660's HEADLINE IS WITHDRAWN.** It reported "engine `acc = 0`, reference
+  `acc = 0`" as the campaign's first end-to-end numerical agreement. `acc_seen`
+  is **initialised to 0** and assigned only under `mac_valid_q`, and I never
+  established that assignment fired. A cycle trace shows `acc = xxxx` arriving at
+  the requantizer when `valid_in` asserts — inconsistent with a measured zero.
+- **THE VECTOR WAS CHOSEN TO MAKE THE REFERENCE 0** because that value is wrong
+  under most indexing errors. That choice made it collide with exactly the value
+  an uninitialised counter shows. **A reference chosen to discriminate against
+  the design can be indiscriminate against the harness.**
+- **THE X IS TRACED**: `acc` is already undefined upstream of the requantizer, so
+  it does not originate there. The weight BRAM is read before anything writes it.
+- **TWO HARNESS ERRORS, BOTH MINE**: inference started on a fixed 200-cycle delay
+  rather than an observable condition; and a later attempt to wait for
+  `prefetch_done` **deadlocked**, because the prefetch is triggered *by* the
+  inference start and cannot complete before it. `prefetch_done=0 after 5000
+  cycles` was my own deadlock, not a design finding.
+- **HONEST STATUS**: the value check is an **instrument built, not a measurement
+  taken**. It demonstrates nothing about the design yet.
+- **PROP. 127b/c** corrected in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 660 — the first end-to-end value check
 
 - **NOTHING HAD EVER COMPARED AN ENGINE OUTPUT TO A REFERENCE.** Every property
