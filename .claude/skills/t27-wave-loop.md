@@ -5163,6 +5163,23 @@ These cost a wave each. Follow them before step 1.
      position 30, KwStruct at module level 27, Ident after expression statement
      24) cover 81. One aggregate, two populations, forty-seven causes.
 
+195. **`t27c suite` re-invokes ITSELF via `std::env::current_exe()`
+     (suite.rs:29), so running an OLD binary drives every phase with that old
+     compiler.** That makes a true differential run cheap: keep the pre-change
+     binary (`cp target/release/t27c <scratch>/t27c.BEFORE` before you rebuild)
+     and later run `<scratch>/t27c.BEFORE suite --repo-root .`. This is the only
+     thing that upgrades a structural exoneration into a measured one.
+
+196. **Suite wall time is contention-dominated, not a constant.** 6205 s
+     (103.4 min) measured exactly while a 13-agent audit ran concurrently, vs
+     ~52 min under light load -- a 2x spread. The VERDICT was stable across
+     both (2614, term for term). Quote the verdict, and quote wall times as
+     observations with their load, never as "the runtime".
+
+197. **Time a background run with `SECONDS=0; cmd; echo ${SECONDS}s`** rather
+     than reading `ps -o etime` later. The shell timer is exact and survives
+     into the log; `etime` is a snapshot you have to be present for.
+
 ### How to update this tracker
 
 After closing a wave:

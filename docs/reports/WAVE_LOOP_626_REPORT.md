@@ -132,10 +132,19 @@ of `compiler.rs` since. **99.2% of the sealed surface is stale.**
    `gen_hash_c` (1011) or `gen_hash_rust` (790) — backends never touched here.
 3. **Blast radius:** generated Zig byte-identical W623→W624, one line W624→W625.
 
-**Caveat, stated rather than buried:** no pre-W623 compiler was built and no
-differential suite run was done. This is a *structural* exoneration, which is
-weaker — it shows the change did not **create** those failures. It covers
-1494 + 1056 = 2550 of 2614 by legs 1–2; the remaining 64 rest on leg 3.
+4. **Differential run, W624 → W625.** The suite was re-run end to end on the
+   W625 binary: **2614, term for term identical** — 249 ×6, 62, 1, 1, 1056,
+   gates 0. Exact wall time **6205 s (103.4 min)**, under contention from the
+   13-agent audit; the earlier ~52 min was under light load. The 2× spread is
+   contention; the verdict is stable.
+
+**Caveat, stated rather than buried:** the differential above covers
+W624 → W625. A run of the **pre-W623** compiler — T28's actual falsification
+condition — is in flight (`suite` re-invokes itself via `current_exe`, so an
+older binary drives every phase). Until it reports, W623 itself is exonerated
+structurally, not differentially. A structural argument is weaker: it shows the
+change did not **create** those failures. It covers 1494 + 1056 = 2550 of 2614 by
+legs 1–2; the remaining 64 rest on leg 3.
 
 ---
 
@@ -164,7 +173,9 @@ general knowledge under §3's standing rule; **no citation was fabricated.**
 | non-scratch parse | **403 ok / 206 fail** |
 | scratch parse | 412 ok / 43 fail |
 | byte totals | 612 924 235 / 606 113 688, re-derived |
-| regression from W623–W625 | **none** (structural, population named) |
+| regression W624 → W625 | **none** — differential run, 2614 term for term |
+| regression from W623 | none (structural; differential in flight) |
+| suite wall time | 6205 s contended · ~52 min light load |
 | `cargo test --bins len_` | 8 passed |
 
 ---

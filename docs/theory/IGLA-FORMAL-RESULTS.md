@@ -1211,10 +1211,11 @@ part of a 249 that also counts generator output and deliberate `*_negative_*`
 fixtures (17 exist; 5 appear among the failures). The cheap fix is not a progress
 line — it is to **report each phase per population**.
 
-*Wall time is left unstated.* The ~52 minutes observed for the first run could
-not be reproduced: a later run had not finished Phase 1 after 23 min 52 s, under
-CPU contention from the audit itself. Per **T25**, the honest record is the two
-observations, not an average of them.
+*Wall time, two observations under different loads.* **6205 s (103.4 min)**
+measured exactly for a run that overlapped a 13-agent audit; **~52 min** read off
+`etime` for an earlier run under light load. Per **T25** both stand as
+observations; neither is *the* runtime, and the 2× spread is contention, not the
+tool. What is stable across both is the verdict — 2614, term for term.
 
 **Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
 that table is a stage that *silently discarded* input and reported success. `V`
@@ -1410,12 +1411,32 @@ touched.
 **3. Blast radius, already on record.** Generated Zig over `specs/igla` was
 byte-identical W623 → W624 and differed by exactly **one line** W624 → W625.
 
-**The caveat is load-bearing and is stated rather than buried.** No pre-W623
-compiler was built and the suite was not re-run differentially. The verdict rests
-on a structural argument plus field-level seal data. The residual gap — that
-these commits could have *added* to an already-mismatching `gen_hash_zig` —
-changes no pass/fail outcome, because every such spec already fails on a
-non-Zig backend.
+**4. Differential run, W624 → W625 (added after the structural argument).** The
+suite was re-run end to end on the W625 binary. **Every term is identical:**
+
+| | W624 run | W625 run |
+|---|---:|---:|
+| Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C | 249 ×6 | 249 ×6 |
+| Verilog yosys smoke · FPGA smoke · GF16 | 62 · 1 · 1 | 62 · 1 · 1 |
+| Seal mismatches | 1056 | 1056 |
+| **TOTAL** | **2614** | **2614** |
+| gate failures | 0 | 0 |
+
+**This is a real differential and it covers W624 → W625 only.** The stated
+falsification condition asks for a run of the **pre-W623** compiler, which the
+two runs above do not provide. That run is in flight (`suite` re-invokes itself
+via `std::env::current_exe()`, so an older binary drives every phase). Until it
+reports, the exoneration of W623 itself rests on legs 1–3.
+
+**The residual gap is named rather than buried:** these commits could have
+*added* to an already-mismatching `gen_hash_zig`. That changes no pass/fail
+outcome, because every such spec already fails on a non-Zig backend.
+
+**Wall time, now exact.** The W625 differential ran **6205 s (103.4 min)**,
+measured with a shell timer — under heavy CPU contention from a 13-agent audit
+running concurrently. The first run's "~52 min" was read off `etime` under light
+load. Per **T25** both observations stand as observations; neither is *the*
+runtime, and the spread is the contention, not the tool.
 
 **Statement.** For a change `Δ` confined to a module `M`, and a failure
 population `F`, `Δ` is exonerated of `F` if every member of `F` is produced by a
