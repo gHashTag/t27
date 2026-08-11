@@ -57,8 +57,8 @@ Discoverability mirror of the numeric corpus. GitHub remains the primary source 
 | Compiler | `t27c parse` | GREEN | 170+ specs parse |
 | Compiler | `t27c gen-verilog` | GREEN | 5/5 FPGA modules synthesize |
 | Compiler | `t27c seal` | GREEN | 170+ seals in `.trinity/seals/` |
-| FPGA | Yosys synthesis | GREEN | 5/5 modules pass synth_xilinx |
-| FPGA | E2E bitstream | GREEN | Yosys→nextpnr→prjxray→.bit (zero Vivado) |
+| FPGA | Yosys synthesis | RED | `fpga-synthesis` CI job failing; last green 2026-04-14. Local `gen-verilog` smoke still passes 5/5 |
+| FPGA | E2E bitstream | RED | Yosys→nextpnr→prjxray→.bit never validated in CI: `fpga-build.yml` is 36 success / 842 failure / 3 cancelled over 881 runs, and `fpga-bitstream` is skipped behind `needs: fpga-synthesis` |
 | FPGA | Board profiles | GREEN | QMTECH XC7A100T (minimal+full), Arty A7 |
 | FPGA | `--profile` flag | GREEN | `--profile minimal|full` in fpga-build |
 | Pins | Pins IR | GREEN | `specs/pins/ir.t27` — conflict detection invariants |
@@ -67,7 +67,7 @@ Discoverability mirror of the numeric corpus. GitHub remains the primary source 
 | CI | Seal coverage | GREEN | All specs sealed |
 | CI | Schema validation | GREEN | Conformance vectors validated |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
-| CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
+| CI | FPGA bitstream artifact | RED | No .bit uploaded since 2026-04-14 — job skipped behind failing `fpga-synthesis` |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
