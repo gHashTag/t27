@@ -206,6 +206,48 @@ UNREGISTERED = [
 WORDNUM = {"forty": 40, "thirty": 30, "twenty": 20}
 
 
+# Wave 647, the THIRD unfaithful projection: PROVENANCE.
+#
+# Prop. 110's unfaithful category has four members. Prop. 111 instrumented the
+# path projection of one; Prop. 112 the scope projection of another. The
+# remaining two are timing claims whose captions outlived the conditions they
+# were measured under -- Prop. 85f's contention, Prop. 91c's 22-property
+# configuration that no longer exists.
+#
+# The campaign's own convention makes this decidable. FORMAL_FOUNDATIONS
+# propositions are DATED RECORDS, so a duration there is historical by
+# construction. README is the CURRENT-STATE document, so a duration here is a
+# live claim. A live timing claim must therefore be traceable: it carries either
+# a provenance marker (the conditions it was measured under) or a proposition
+# citation the reader can follow to find them.
+#
+# Verified: 0 findings on the shipped tree, and an injected bare timing --
+# "the whole suite now runs in 47 seconds", 300 characters from any citation --
+# is caught.
+TIME = re.compile(r"(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds|min|minutes)\b", re.I)
+PROVENANCE = re.compile(
+    r"idle machine|competing prover|load [\d.]+|fingerprint|range[s]? \[|"
+    r"median|paired run|disjoint range|superseded|published|not completed|"
+    r"recorded as", re.I)
+CITATION = re.compile(r"Prop\.\s*\d+")
+
+
+def untraceable_timings(root):
+    """Durations in README with neither provenance nor a traceable citation."""
+    text = (root / "README.md").read_text()
+    bad = []
+    for m in TIME.finditer(text):
+        w = text[max(0, m.start() - 300):m.end() + 300]
+        if PROVENANCE.search(w) or CITATION.search(w):
+            continue
+        ctx = text[max(0, m.start() - 50):m.start()].strip()[-50:]
+        bad.append(f"README.md: the duration \"{m.group(0)}\" carries neither a "
+                   "provenance marker nor a proposition citation, so a reader "
+                   "cannot find what machine state it describes. A timing is a "
+                   f"claim about conditions (Prop. 113). Context: ...{ctx}")
+    return bad
+
+
 def unregistered(root, found):
     """Numeric claims about a gated quantity that no CLAIMS pattern covers."""
     bad = []
@@ -216,6 +258,12 @@ def unregistered(root, found):
         truth = found[claim]
         # Blank out the registered spelling so only synonyms remain.
         rest = re.sub(registered, " ", text)
+        # A document that DISCUSSES a bad claim quotes it. Wave 647: this fired
+        # on README's own account of the Prop. 112 fix, which cites the wrong
+        # phrasing as its example -- the same shape as Prop. 95, where a
+        # counter read an assertion quoted inside a comment. Prose here marks a
+        # quoted string with *"..."*, so those are removed before matching.
+        rest = re.sub(r'\*"[^"]*"\*', " ", rest)
         for m in rx.finditer(rest):
             raw = m.group(1)
             n = WORDNUM.get(raw.lower(), None)
@@ -263,6 +311,7 @@ def check(root):
             bad.append(f"README.md: the pattern for '{claim}' matches nothing "
                        "-- the claim is unchecked, not clean")
     bad += unregistered(root, found)
+    bad += untraceable_timings(root)
     for b in bad:
         print(f"::error::{b} -- a number in the prose has drifted from the tree")
     print(f"\nclaims check: {len(CLAIMS)} checkable claims, {len(bad)} stale")
@@ -298,7 +347,19 @@ def self_test():
                       (root / "README.md").read_text().replace(
                           "certifying that every checking step fails when starved",
                           "certifying that all forty CI steps fail when starved",
-                          1)), 1)]
+                          1)), 1),
+                 # Wave 647: a bare timing, 300 characters from any provenance
+                 # marker or proposition citation. A duration in the
+                 # current-state document is a claim about a machine state, and
+                 # a reader who cannot find those conditions cannot judge it.
+                 ("a timing with neither provenance nor a citation",
+                  lambda: (td / "README.md").write_text(
+                      (root / "README.md").read_text().replace(
+                          "## Quick Start",
+                          ("lorem ipsum dolor sit amet " * 40)
+                          + " The whole suite now runs in 47 seconds. "
+                          + ("lorem ipsum dolor sit amet " * 40)
+                          + "\n\n## Quick Start", 1)), 1)]
         shutil.copy(root / "README.md", td / "README.md")
         bad = []
         for name, setup, want in cases:

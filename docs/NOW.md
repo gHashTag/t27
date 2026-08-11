@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-12
 
+## Wave 647 — the third projection, and a superseded figure stated as live
+
+- **THE AUDIT FOUND THE DEFECT BEFORE THE GATE EXISTED.** README asserted
+  *"153 s to 241 s — 1.58×, +88 s from two properties"* and, three thousand words
+  later, *"0.82× — 26 s faster (three paired runs, disjoint ranges)"*. The second
+  is provenanced, supersedes the first, and even says so — but a reader meeting
+  the first sentence gets a **retracted number with no warning**. Prop. 81d's
+  shape exactly. Now carries an inline forward pointer.
+- **THE RULE, MADE DECIDABLE BY THE CAMPAIGN'S OWN CONVENTION**:
+  FORMAL_FOUNDATIONS propositions are *dated records*, so a duration there is
+  historical by construction; README is the *current-state* document, so every
+  duration there must be **traceable** — carrying either a provenance marker or
+  a proposition citation. **15 durations, 0 untraceable**; an injected *"the
+  whole suite now runs in 47 seconds"*, 300 characters from any citation, is
+  caught and kept as a self-test.
+- **THE WAVE-646 GATE FIRED ON THE DOCUMENTATION OF ITS OWN FIX**: it flagged
+  *"all forty CI steps"*, which appears in README only because the Prop. 112
+  narrative **quotes it as the example of the defect it fixed**. Same shape as
+  Prop. 95 — a document that discusses a bad claim must contain it. Quoted
+  strings are now excluded before matching.
+- **WHERE THE CATEGORY STANDS**: path (111), scope (112) and provenance (113)
+  each address one of the four recorded members. The fourth — a caption naming a
+  *module* where the data described a *wrapper* — is a noun-phrase mismatch with
+  no countable projection, which is why it survived twelve waves. **Three of
+  four instrumented; the category is not closed.**
+- **PROP. 113** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 646 — a gated claim and its ungated synonym, in the same document
 
 - **THE SECOND UNFAITHFUL PROJECTION FOUND A LIVE INSTANCE.** README stated, four

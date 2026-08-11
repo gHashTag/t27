@@ -6972,6 +6972,58 @@ tree's value. Kept as the third `claims_check` self-test case.
 
 ---
 
+### Prop. 113 — the third projection, and a superseded figure stated as live — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *Numbers in the documentation match the tree*
+
+Prop. 110's unfaithful category has four members. Prop. 111 instrumented the
+**path** projection of one, Prop. 112 the **scope** projection of another. The
+remaining two are timing claims whose captions outlived the conditions they were
+measured under — Prop. 85f's contention, Prop. 91c's 22-property configuration.
+This is the **provenance** projection, and auditing for it found a live defect
+before the gate was written.
+
+**113a. The campaign's own convention makes this decidable.**
+FORMAL_FOUNDATIONS propositions are *dated records*, so a duration there is
+historical by construction. README is the *current-state* document, so a
+duration there is a live claim. A live timing must therefore be **traceable**:
+it carries either a provenance marker (the conditions it was measured under) or
+a proposition citation the reader can follow to find them. 15 durations in
+README, 0 untraceable; an injected *"the whole suite now runs in 47 seconds"*,
+300 characters from any citation, is caught.
+
+**113b. The audit found a superseded figure stated as live.** README asserted:
+
+> "took its cheapest step from **153 s to 241 s** — 1.58×, +88 s from two
+> properties"
+
+and, three thousand words later:
+
+> "the drain properties turn out to make the engine proof **0.82× — 26 s
+> faster** (three paired runs, disjoint ranges, stable inputs)"
+
+The second is provenanced, supersedes the first, and even says so — *"that
+removes the stated reason for the Wave-633 split"*. But a reader meeting the
+first sentence gets a retracted number with nothing to warn them. This is
+Prop. 81d's shape exactly: a withdrawal recorded far from the claim it
+withdraws. The first figure now carries an inline forward pointer.
+
+**113c. The gate fired on the documentation of its own predecessor.** Prop. 112's
+check flagged *"all forty CI steps"* — appearing in README only because the
+Prop. 112 narrative **quotes it as the example of the defect it fixed**. Same
+shape as Prop. 95, where a counter read an assertion quoted inside a comment: a
+document that discusses a bad claim must contain it. Prose here marks a quoted
+string as `*"…"*`, so those are removed before matching.
+
+**113d. Where the three projections leave the category.** Path (Prop. 111),
+scope (Prop. 112) and provenance (Prop. 113) each address one recorded member,
+and the fourth — Prop. 73's caption naming a *module* where the data described a
+*wrapper* — remains uninstrumented. It is a noun-phrase mismatch with no
+countable projection, which is why it survived twelve waves. Three of four
+members now have a mechanical check; the category is **not** closed.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
