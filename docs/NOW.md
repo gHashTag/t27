@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-12
 
+## Wave 655 — a sixth defect, what was proved clean, and a claim I over-stated
+
+- **A SIXTH DEFECT — A UNITS MISMATCH THAT MAY BLOCK LAYER 0**:
+  `bitnet_engine_top.sv:351` passes `.length(reg_neurons)` to `dma_controller`,
+  whose header reads *"One beat = 8 bytes (64-bit). length is byte-count"*. The
+  same register is `neurons_per_layer` at line 124. So for N neurons the input
+  DMA moves N **bytes** = ⌈N/8⌉ words while the gate demands `filled >= N` —
+  unsatisfiable for N ≥ 2, so Prop. 121's deadlock may reach **layer 0**, not
+  only layer boundaries. Confirmed by reading contract against call; **not yet
+  reproduced in simulation**, and recorded at that strength.
+- **WHAT WAS PROVED CLEAN** — worth as much as the defects:
+  - The quantiser is correct against an independent 17-bit reference over **all**
+    inputs, including the `TRIT_Z` fall-through no property asserts and
+    `threshold = 16'sh8000`, where the 16-bit negation overflows but the priority
+    chain masks it.
+  - Packing order matches its documentation exactly (trit *i* at `[2i+1:2i]`).
+  - `2'b11` is unreachable in **all 27 fields** of `word`, not just the scalar
+    `trit` that `a_trit_never_invalid` guards.
+  - The reset value decodes as 27×`TRIT_N`, but is never observable.
+  - **Five defects sit beside four proved-correct behaviours in one module.** A
+    report listing only failures misrepresents the design.
+- **I OVER-STATED THE ROOT CAUSE**: Prop. 121a called `read_addr = neuron_id`
+  the root of the deadlock. That was the **refuting** agent's judgement; the
+  **hunting** agent explicitly declined to adjudicate — *"if that reader
+  addressing is itself the defect, the fix moves to the reader and the
+  requantizer's 27:1 packing stands"*. Two readings remain open, and 122a adds a
+  third: the DMA length may be primary and both downstream readings consequences.
+- **PROP. 122** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 654 — five confirmed design defects, and multi-layer inference does not run
 
 - **FIVE DEFECTS, ALL REACHABLE IN THE ASSEMBLED ENGINE**, each independently

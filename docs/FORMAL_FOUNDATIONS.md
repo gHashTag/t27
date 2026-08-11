@@ -7390,6 +7390,55 @@ by an assertion" costs.
 
 ---
 
+### Prop. 122 — a sixth defect, what was proved clean, and a claim I over-stated — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (core 24, deep bound)*
+
+The design hunt completed: 11 agents, no errors. Three things it produced that
+Prop. 121 did not record.
+
+**122a. A units mismatch that may block layer 0 as well.**
+`bitnet_engine_top.sv:351` passes `.length(reg_neurons)` to `dma_controller`,
+whose header states **"One beat = 8 bytes (64-bit). length is byte-count"** and
+which writes one local address per beat. The same register is read at line 124
+as `neurons_per_layer`, a *neuron* count.
+
+So for N neurons the input DMA moves N **bytes** — ⌈N/8⌉ words — while the
+readiness gate demands `filled >= neurons_per_layer` = N. For N ≥ 2 the gate can
+never be satisfied, so the deadlock of Prop. 121's defect 4 may reach **layer 0**
+and not only layer boundaries. Confirmed by reading the contract against the
+call; not yet reproduced in simulation, and recorded at that strength.
+
+**122b. What was proved CLEAN, which is worth as much as the defects.** The
+quantiser was checked against an independent 17-bit reference over **all**
+inputs and is correct — including the `TRIT_Z` fall-through that no inline
+property asserts, and including `threshold = 16'sh8000`, where the 16-bit
+negation overflows but the priority chain masks it, so the 16- and 17-bit
+results are observationally equal. The packing order matches its documentation
+exactly (trit *i* at bits `[2i+1:2i]`), proved against an index-addressed
+reference. `2'b11` is unreachable in **all 27 fields** of `word`, not merely in
+the scalar `trit` that `a_trit_never_invalid` guards. And the reset value
+decodes as 27×`TRIT_N` rather than 27×`TRIT_Z` — but is never observable,
+because `word_valid` gates it and 27 beats flush the shifter first.
+
+Five defects sit next to four proved-correct behaviours in the same module. A
+report that lists only the failures misrepresents the design.
+
+**122c. I over-stated the root cause in Prop. 121a.** That proposition asserts
+`read_addr = neuron_id` "is defect 3, and it is also the root of the deadlock in
+defect 4". The **refuting** agent concluded that. The **hunting** agent explicitly
+declined to: *"I did not adjudicate which side of Finding 2 is wrong … if that
+reader addressing is itself the defect, the fix moves to the reader and the
+requantizer's 27:1 packing stands."*
+
+Two readings remain open — either the reader should address by chunk, or the
+packer should not pack 27:1 — and 121a presented one agent's judgement as
+settled. The finding stands; the attribution of the root does not. Prop. 122a
+adds a third possibility, that the DMA length is the primary error and both
+downstream readings are consequences.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
