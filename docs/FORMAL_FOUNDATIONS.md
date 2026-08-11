@@ -6864,6 +6864,69 @@ review will drive unsoundness toward zero and leave its captions untouched.
 
 ---
 
+### Prop. 111 — the first instrument for the unfaithful category, and what it cannot do — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No gate mutates a path its docstring never names*
+
+Prop. 110 sorted every confirmed defect into three independent categories and
+observed that **unfaithful** — soundly deciding some `P′` while claiming `P` —
+has no instrument, and cannot be found by adversarial testing because the gate
+answers correctly every time. `formal/faith_check.py` is a first attempt, and
+the interesting part of this proposition is the limit rather than the check.
+
+**111a. What it does.** Faithfulness in general is undecidable; a projection of
+it is not. The check compares one concrete thing the docstring claims against
+one concrete thing the code does: **which paths the gate MUTATES**. Every path
+passed to a filesystem-changing call — `move`, `rmtree`, `unlink`, `write_text`,
+`open(…, "w")` — must be named in the module docstring. 17 gates, 10 mutated
+paths resolved, 0 undeclared.
+
+**111b. Reads are deliberately excluded, and the first version proved why.** It
+demanded that every path a gate *reads* appear verbatim in its docstring, and
+produced **24 findings on a clean tree** — because a docstring legitimately says
+"reads the emitted RTL" where the code says `build/rtl`. Prose is not a path
+literal. That is over-detection (shape 7) in the instrument built to find
+unfaithfulness, one hour after the category was defined. What is surprising is
+not what a gate reads but what it *changes*.
+
+**111c. The check would NOT have caught Prop. 109, and the first draft said it
+would.** A retroactive test was written to demonstrate the opposite. It briefly
+appeared to pass — because the reconstruction of the pre-fix file had mangled
+the docstring it was supposed to preserve. Repairing the reconstruction turned
+the result negative and it stayed negative.
+
+The reason is instructive. Prop. 109's defect was `absence_sweep` moving the
+whole of `formal/` aside, gate scripts included. But its docstring **did** say it
+empties `formal/`. The path was declared; what went unnoticed was the
+*consequence* — that emptying the directory also removes the instruments. **No
+path-level check can see that.** The surviving claim is narrower than the one
+first written: this catches an *undeclared* path, not a *misunderstood* one.
+
+**111d. Three over-detections in one file in one wave.** The reads version (24
+findings), the function-scope widening (11 findings, all self-tests writing to
+temp trees), and a docstring naming `build/rtl` failing to cover a mutation
+reported as `build`. Each was fixed by narrowing: mutations only, self-test
+functions exempt, paths closed under parent prefixes. Prop. 110's prediction
+that an instrument pointed at a new category would meet shape 7 repeatedly held
+within a single file.
+
+**111e. Its own absence case, since the sweep cannot supply one.**
+`faith_check`'s subject is `formal/*.py` — the gate scripts — which the sweep now
+deliberately *preserves* (Prop. 109). Starving `build/rtl` cannot make it fail,
+and making it fail would mean deleting the instruments the sweep was just fixed
+to keep. It is therefore EXEMPT with a written reason, and carries a floor on
+resolved mutated paths so an extractor that stops seeing anything fails loudly
+rather than reporting a clean tree.
+
+**111f. What remains unmeasured.** The unfaithful category has four recorded
+members; this instrument addresses the *path* projection of one of them. The
+other three — a caption naming a module where the data described a wrapper, a
+timing measured under contention, an inference whose endpoint no longer existed
+— are not path-shaped, and nothing here would find them. The category is now
+instrumented, not covered.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

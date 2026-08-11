@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-12
 
+## Wave 645 — the first instrument for the unfaithful category, and its limit
+
+- **PROP. 110 SAID THE UNFAITHFUL CATEGORY HAS NO INSTRUMENT.** `formal/faith_check.py`
+  is a first one: every path a gate **mutates** must be named in its own module
+  docstring. 17 gates, 10 mutated paths resolved, 0 undeclared.
+- **READS ARE EXCLUDED, AND THE FIRST VERSION PROVED WHY**: demanding that every
+  path a gate *reads* appear verbatim in prose produced **24 findings on a clean
+  tree**, because a docstring says "reads the emitted RTL" where the code says
+  `build/rtl`. Over-detection in the instrument built to find unfaithfulness,
+  one hour after the category was defined.
+- **IT WOULD NOT HAVE CAUGHT PROP. 109 — AND THE FIRST DRAFT SAID IT WOULD.** A
+  retroactive test written to show the opposite briefly appeared to pass, because
+  the reconstruction had **mangled the docstring it was meant to preserve**.
+  Repairing it turned the result negative and it stayed negative. The sweep's
+  docstring *did* declare `formal/`; what went unnoticed was the **consequence**,
+  that emptying it also removes the instruments. No path-level check sees that.
+  The surviving claim is narrower: it catches an *undeclared* path, not a
+  *misunderstood* one.
+- **THREE OVER-DETECTIONS IN ONE FILE IN ONE WAVE** — the reads version (24), the
+  function-scope widening (11, all self-tests writing temp trees), and a
+  docstring naming `build/rtl` failing to cover a mutation reported as `build`.
+  Each fixed by narrowing. Prop. 110's prediction held inside a single file.
+- **ITS OWN ABSENCE CASE**: `faith_check`'s subject is `formal/*.py`, which the
+  sweep now deliberately *preserves* — so it is EXEMPT with a reason and carries
+  a floor on resolved paths instead.
+- **WHAT REMAINS UNMEASURED**: the category has four members; this addresses the
+  *path* projection of one. The other three are not path-shaped. The category is
+  **instrumented, not covered**.
+- **PROP. 111** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 644 — three orthogonal ways a gate is wrong
 
 - **THE LIST BECOMES A STRUCTURE**: with ~35 confirmed instances, a gate — a

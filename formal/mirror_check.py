@@ -23,6 +23,10 @@ It is a small check for a narrow claim, and it is here because the claim is
 load-bearing: without it, "chained exactly as trit3_add chains them" is a
 sentence in a comment rather than a fact about the tree.
 
+Reads build/rtl/trit_stdlib.sv and formal/trit_algebra_props.sv. Writes
+nothing in the repository: its self-test and its run() helper build temporary
+trees under a tempdir and mutate only those.
+
 Usage:  python3 formal/mirror_check.py [--self-test]
 """
 

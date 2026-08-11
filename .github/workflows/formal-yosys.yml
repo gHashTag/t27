@@ -848,6 +848,16 @@ jobs:
           python3 formal/claims_check.py --self-test
           python3 formal/claims_check.py
 
+      # Prop. 110 sorted every confirmed gate defect into unsound, incomplete
+      # and unfaithful, and observed the third had no instrument. This is the
+      # first one: a gate that MUTATES a path its own docstring never names is
+      # changing an artifact its description does not mention. Prop. 111.
+      - name: No gate mutates a path its docstring never names
+        run: |
+          set -euo pipefail
+          python3 formal/faith_check.py --self-test
+          python3 formal/faith_check.py
+
       - name: Every property file is run by some workflow
         run: |
           set -euo pipefail

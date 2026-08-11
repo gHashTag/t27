@@ -15,6 +15,9 @@ So "proved" is not a property of the design, it is a property of the pair
 `--each` neutralises all but one property per run, so a refutation is
 attributable rather than merely present -- the lesson of Prop. 30d, where two
 properties were reported together and only one discriminated.
+
+Writes: build/scale_iso.sv, a temporary single-property copy of the engine
+rewritten once per probe and re-read by yosys in the same step.
 """
 
 import re

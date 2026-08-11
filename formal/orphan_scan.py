@@ -20,6 +20,9 @@ Two levels of finding:
            deliberate choice for expensive harnesses. Silence is what is not
            allowed.
 
+Writes: nothing in the repository. Its self-test copies formal/ and
+.github/workflows into a temporary tree and mutates the copy there.
+
 Usage:  python3 formal/orphan_scan.py [--self-test]
 """
 

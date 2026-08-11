@@ -49,6 +49,12 @@ EXEMPT = {
         "bench.py --self-test exercises its own guards with synthetic commands "
         "and has no RTL subject at all. Its absence case is internal: six "
         "self-test cases, each of which must fire (Prop. 87).",
+    "No gate mutates a path its docstring never names":
+        "faith_check's subject is formal/*.py -- the gate scripts themselves -- "
+        "which this sweep now deliberately PRESERVES (Prop. 109). Starving "
+        "build/rtl cannot make it fail, and making it fail would require "
+        "deleting the very instruments the sweep was fixed to keep. Its own "
+        "absence case is the FLOOR on resolved mutated paths (Prop. 111).",
     "Every proposition carries the gate that keeps it true":
         "doc_gate reads FORMAL_FOUNDATIONS.md and the workflow step names, not "
         "the design. Emptying build/rtl leaves its subject untouched. Its own "
