@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-12
 
+## Wave 653 — the requantizer never flushes, and a property asserts that it doesn't
+
+- **A CONFIRMED DESIGN DEFECT**, independently reproduced with a separate harness
+  and judged **reachable in the assembled engine**. First design-level finding
+  since Prop. 80.
+- **THE DEFECT**: `activation_requant` packs 27 neuron results per 54-bit word
+  and raises `word_valid` **only** at `trit_count == 26`. No flush path, no
+  `layer_done` input. A layer whose neuron count is not a multiple of 27 leaves
+  its last `num_neurons mod 27` results in a partial word that is never emitted
+  — and **nothing constrains `num_neurons`** to a multiple of 27.
+- **A PROPERTY ASSERTS THE GAP**: `a_word_only_on_full` *proves* the module never
+  emits a partial word. The behaviour is encoded as intended — the Wave 628
+  shape, where a defect was not merely untested but **protected** by something
+  asserting it (there a unit test, here a formal property).
+- **THE ANNOTATION SAID THE OPPOSITE OF THE DESIGN**: Props. 84/95b state
+  `act_wr_word` advances **ceil**(num_neurons / 27); the RTL does **floor**. Two
+  readings one file apart, and `ceil` is what it was *intended* to do. The bound
+  argument survives (floor ≤ ceil), so this is not a safety defect but a **false
+  statement about the design** whose falsity points at the functional gap.
+  Corrected in the emitter, with the consequence named.
+- **WHY NO PROPERTY CAUGHT IT**: Prop. 81b's control/data boundary, from the
+  other side. Dropping a layer's last 26 neurons is a **data** loss that leaves
+  every handshake correct — the engine runs, buffers fill, phase alternates, and
+  the answer is wrong.
+- **NOT DECIDED**: whether the fix is a flush path, a contract requiring
+  `num_neurons ≡ 0 (mod 27)`, or a tolerant reader. That changes emitted
+  hardware and is **not a unilateral call**. Five further findings pending
+  refutation.
+- **PROP. 120** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 652 — closing a class that cost five waves, and the RTL hunt lands
 
 - **THE COMMENT-MATCHING SHAPE HAS COST FIVE FIXES ACROSS FOUR FILES** — Props.

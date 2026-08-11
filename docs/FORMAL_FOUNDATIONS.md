@@ -7283,6 +7283,55 @@ is that a sixth instance now fails the build instead of being discovered by
 whatever it breaks. The pattern had a textual signature the whole time, and five
 waves went by without anyone searching for it.
 
+### Prop. 120 — the requantizer never flushes, and a property asserts that it doesn't — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove activation_requant properties*
+
+The first adversarial pass at the **design** since Prop. 80 — twelve days of work
+having gone entirely into instruments — returned six yosys-verified findings.
+This is the one independently reproduced and judged reachable in the assembled
+engine.
+
+**120a. The defect.** `activation_requant` packs 27 neuron results into one
+54-bit word and raises `word_valid` **only** at `trit_count == 26`. There is no
+flush: no `layer_done` input, no partial-word emission. A layer whose neuron
+count is not a multiple of 27 leaves its last `num_neurons mod 27` results in a
+partial word that is never emitted, and **nothing constrains `num_neurons` to a
+multiple of 27** — it is a free 16-bit port.
+
+**120b. A property asserts the gap.** The module carries
+`a_word_only_on_full: assert ($past(trit_count) == 5'd26 && $past(valid_in))`,
+which *proves the module never emits a partial word*. The behaviour is encoded
+as intended. This is precisely the Wave 628 shape: a defect that was not merely
+untested but **protected** by something asserting it — there, a unit test pinning
+the wrong width; here, a formal property pinning the missing flush.
+
+**120c. The annotation says the opposite of the design.** Props. 84/95b annotate
+`act_wr_word` as advancing **`ceil(num_neurons / 27)`** times per layer. The RTL
+advances **`floor`**. Two readings, one file apart, disagreeing about the design
+— and the `ceil` reading is what the design was *intended* to do.
+
+The bound argument built on it is unaffected, since `floor ≤ ceil` and the
+16-bit port keeps the count under 4096 either way. So this is not a safety defect
+in the bound; it is a **false statement about the design**, whose falsity points
+exactly at the functional gap. The annotation now states `floor`, names the
+consequence, and cites this proposition.
+
+**120d. Why no property caught it.** Prop. 81b established that the integration
+suite constrains **control** — handshakes, phase, contiguity, readiness — and a
+genuine arithmetic defect in a module it depends on disturbed none of them. This
+is the same boundary from the other side: dropping the last 26 neurons of a layer
+is a **data** loss that leaves every handshake correct. The engine runs, the
+buffers fill, the phase alternates, and the answer is wrong.
+
+**120e. What is not yet decided.** Whether the fix is a flush path in
+`activation_requant`, a contract requiring `num_neurons ≡ 0 (mod 27)` enforced at
+the sequencer, or a reader that tolerates a partial final word, is a **design
+decision** and not one to take unilaterally — it changes emitted hardware. What
+this proposition fixes is the documentation that was false and the record that
+was missing. The remaining five findings from the hunt are pending independent
+refutation.
+
 ---
 
 ## 2. Related work — verified citations
