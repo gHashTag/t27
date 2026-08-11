@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-12
 
+## Wave 656 — a gate that could not see the defect it was written for
+
+- **THE UNITS GATE**: Prop. 122a was invisible to every property because each
+  side is internally consistent — `dma_controller` is right that `length` counts
+  bytes, the engine is right that `reg_neurons` counts neurons, and **nothing
+  looked at what joins them**. `formal/units_scan.py` reads names across module
+  boundaries.
+- **IT COULD NOT SEE THE CONNECTION IT WAS BUILT FOR.** A non-greedy `(.*?)\);`
+  body capture stops at the first `);` and cannot survive the nested paren in
+  `.start(reg_ctrl[1] && !reg_ctrl[0] && …)`. Eleven instantiations parsed,
+  `dma_controller` not among them, tree reported clean.
+- **AND THE FLOOR DID NOT HELP**: `compared > 0` passed because twenty *other*
+  connections were compared. **A floor on a total says nothing about coverage of
+  the thing you care about.**
+- **A COINCIDENCE HID IT**: `else if (length == reg_neurons)` parsed as an
+  instantiation named `else`, producing a false finding that named exactly the
+  right two signals — so the original run *looked* like it had caught the real
+  defect. That is why the parse error survived a full self-test.
+- **SIXTH CONSECUTIVE WAVE OF FIRST-RUN OVER-DETECTION**: the vocabulary put
+  `chunk` and `word` in different families, but a chunk **is** a 54-bit word
+  here. Merged; the self-test case asserting the distinction is kept **inverted**
+  as the regression.
+- **THE KNOWN DEFECT IS DECLARED, NOT SILENCED**: Prop. 122a is listed in
+  `KNOWN_OPEN` with its reason and issue, reported as a warning, and anything not
+  on that list fails the build. Removing it without fixing turns the gate red.
+- **PROP. 123** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 655 — a sixth defect, what was proved clean, and a claim I over-stated
 
 - **A SIXTH DEFECT — A UNITS MISMATCH THAT MAY BLOCK LAYER 0**:

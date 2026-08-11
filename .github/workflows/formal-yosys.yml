@@ -863,6 +863,16 @@ jobs:
       # Prop. 119: five fixes across four files went to one shape -- a regex
       # applied to raw Verilog, matching inside a `//` comment. This closes the
       # class rather than meeting it a sixth time.
+      # Prop. 123: Prop. 122a was invisible to every property because each side
+      # of the connection is internally consistent -- dma_controller is right
+      # about bytes, the engine is right about neurons, and nothing looked at
+      # what joins them. This reads the names across module boundaries.
+      - name: No port is driven by a signal naming a different quantity
+        run: |
+          set -euo pipefail
+          python3 formal/units_scan.py --self-test
+          python3 formal/units_scan.py
+
       - name: No gate reads Verilog without stripping comments or saying why
         run: |
           set -euo pipefail

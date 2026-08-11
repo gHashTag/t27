@@ -7439,6 +7439,56 @@ downstream readings are consequences.
 
 ---
 
+### Prop. 123 — a gate that could not see the defect it was written for — `FIXED`
+
+**Gate:** `formal-yosys.yml` → *No port is driven by a signal naming a different quantity*
+
+Prop. 122a found a defect no property covers, because each side of it is
+internally consistent: `dma_controller` is right that `length` counts bytes, the
+engine is right that `reg_neurons` counts neurons, and **nothing looks at what
+joins them**. `formal/units_scan.py` reads names across module boundaries and
+reports a port and its driver falling in different quantity families.
+
+**123a. A general units system would be the right answer, and this is not one.**
+Exactly one module in the bundle documents its units at all, so a gate requiring
+declared units would check one port and pass — the failure of Wave 646's
+abandoned design, repeated. This reads the *names*, which the emitters write
+consistently: `.length(reg_neurons)` is a mismatch visible without annotation.
+
+**123b. It could not see the connection it was built for.** The first version
+captured an instantiation body with a non-greedy `(.*?)\);`, which stops at the
+first `);` and cannot survive a nested parenthesis. The engine's DMA
+instantiation opens with
+`.start(reg_ctrl[1] && !reg_ctrl[0] && …)`, so the **one connection the gate
+exists to catch was never parsed**. Eleven instantiations were read;
+`dma_controller` was not among them; the tree reported clean.
+
+And the floor did not help. `compared > 0` passed because twenty *other*
+connections were compared — **a floor on a total says nothing about coverage of
+the thing you care about**. Fixed by matching the body with paren depth.
+
+**123c. It over-detected first, for the sixth consecutive wave.** The initial
+vocabulary put `chunk` and `word` in different families, so
+`.input_chunk(activation_word)` and `.weight_chunk(weight_word)` were reported —
+but a chunk *is* a 54-bit packed word here. The vocabulary encoded a distinction
+the design does not make. Merged, and the self-test case that asserted the
+distinction is kept **inverted**, as the regression that holds them together.
+
+A control keyword was also parsed as a module name: `else if (length == …)` read
+as an instantiation called `else`, which produced the *original* "real" finding
+at a line where no instantiation exists. That coincidence — a false positive
+naming exactly the right two signals — is why the parse defect went unnoticed
+through a full self-test run.
+
+**123d. The known defect is declared, not silenced.** Prop. 122a is real and
+unfixed, because the repair is a design decision. Following Prop. 26's
+expected-refutation convention, it is listed in `KNOWN_OPEN` with its reason and
+issue, reported as a warning, and **anything not on that list fails the build**.
+Removing the entry without fixing the defect turns the gate red, which is the
+point.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
