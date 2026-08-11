@@ -7788,10 +7788,19 @@ path — its only weight interface is the prefetcher's read port
 (`mem_addr`/`mem_rd_en`/`mem_rd_data`). So **layer 0 always computes against an
 unwritten weight memory.**
 
-**129c. Corroborated by the earlier sweep, which nobody had read this way.**
-Prop. 125's harness recorded a prefetch-IRQ column, and it is **0 for every
-configuration** — L=1 and L=2 alike. That table has been in the tree since Wave
-658 with the answer in it. A column read as "nothing interesting" was the finding.
+**129c. Corroborated by the earlier sweep — with a correction to how I read it.**
+Prop. 125's harness recorded a prefetch-IRQ column, and I first reported it as
+**0 for every configuration, L=1 and L=2 alike**. That was column 15. The header
+puts `irq_pf` at column **16**, and column 15 is `irq_done`.
+
+The correct column says something sharper: `irq_pf` is **0 for every
+single-layer run and 1 where a second layer exists**. That is exactly what the
+mechanism predicts — the prefetch fires between layers and never before the
+first — so it is stronger evidence than the flat zero I claimed, and the claim I
+published was false about the data while right about the conclusion.
+
+The table has been in the tree since Wave 658. The finding was in a column read
+as "nothing interesting", and then briefly in the wrong column.
 
 **129d. Why no property caught it.** The same boundary as Props. 81b and 121: the
 28 integration properties constrain handshakes, phase and readiness, and an
@@ -7803,6 +7812,40 @@ mentions.
 by a route that was never built, or whether the sequencer should prefetch before
 the first layer as well, is a design question. The measurement is that no route
 exists today and every layer-0 result is computed against undefined data.
+
+---
+
+### Prop. 130 — a property about memory contents, gated as the defect it is — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No property is gated as an expected refutation*
+
+Three defects now share one shape: **control properties cannot see what is in a
+memory.** Props. 81b, 121 and 129 each passed a suite that constrains handshakes,
+phase and readiness while the engine read data nothing had written.
+
+**130a. The pattern already existed, for the other memory.** The activation
+buffer has carried `a_read_slot_written` since Prop. 33 — a per-slot written
+bitmap, asserting the MAC never reads a slot nothing wrote. It was never applied
+to the **weight** memory, and Prop. 129 is what that omission cost.
+
+`a_weight_read_was_written` is the same construction: a bitmap set by
+`pf_bram_we`, asserted against `chunk_addr` whenever `layer_valid`.
+
+**130b. It refutes, and that is the point.** Verified both ways: with
+`T27_FORMAL_OPEN` defined the engine suite exits 1; in CI's configuration it
+exits 0. The property is gated as an **expected refutation** (Prop. 26), so the
+gap is stated inside the suite rather than only in prose, and a layer-0 weight
+load cannot land without someone moving this property out of the guard.
+
+**130c. Why encode a defect you are not fixing.** The alternative is a
+proposition describing it, which is what Props. 25b and 39e already are — and
+Prop. 129 was found by probing, not by reading them. A refuting property is
+checked on every run; a paragraph is checked when someone happens to read it.
+
+**130d. What it does not do.** It bounds the check at four tracked words
+(`chunk_addr[1:0]`), matching the existing activation-side pattern and the
+`DEPTH 4` CI parameter. A wider memory needs a wider bitmap, and this says
+nothing about weights beyond the fourth address.
 
 ---
 

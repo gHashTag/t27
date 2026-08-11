@@ -119,7 +119,15 @@ def derive(root):
             guard[i] = stack[-1] if stack else None
         core = deep = 0
         for m in re.finditer(r"\ba_[a-z0-9_]+\s*:\s*assert", src):
-            if guard.get(m.start()) == "T27_FORMAL_DEEP":
+            g = guard.get(m.start())
+            # Wave 664: a T27_FORMAL_OPEN property is an EXPECTED REFUTATION,
+            # not a proved one -- the same reason *_alive oracles are excluded
+            # above. Counting one inflates "integration properties" by exactly
+            # the number of known-open defects, which is the opposite of what
+            # that figure is for.
+            if g == "T27_FORMAL_OPEN":
+                continue
+            if g == "T27_FORMAL_DEEP":
                 deep += 1
             else:
                 core += 1

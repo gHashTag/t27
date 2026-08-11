@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-12
 
+## Wave 664 — a property about memory contents, and a gate that promised what it never did
+
+- **THE MISSING PROPERTY CLASS, ADDED**: three defects share the shape *control
+  properties cannot see what is in a memory*. The activation buffer has had
+  `a_read_slot_written` since Prop. 33; the **weight** memory never had the
+  equivalent, and Prop. 129 is what that cost.
+  `a_weight_read_was_written` is the same construction — a bitmap set by
+  `pf_bram_we`, asserted against `chunk_addr` whenever `layer_valid`.
+- **IT REFUTES, AND THAT IS THE POINT**: verified both ways — with
+  `T27_FORMAL_OPEN` the engine suite exits 1, in CI's configuration it exits 0.
+  Gated as an **expected refutation** so the gap lives in the suite rather than
+  only in prose, and a layer-0 load cannot land without moving it out.
+- **`guard_scan` PROMISED AN ESCAPE HATCH IT NEVER IMPLEMENTED**: its error text
+  has said *"fix the defect or document it in FORMAL_FOUNDATIONS.md"* since it
+  was written, with **no mechanism** to accept documentation. Prop. 110's
+  unfaithful category, in a gate's *message* rather than its logic. Now real: a
+  guard is accepted when a proposition names an assertion inside it.
+- **I MISREAD MY OWN CORROBORATION.** Prop. 129c claimed the sweep's prefetch-IRQ
+  column was *0 for every configuration*. That was column 15 — `irq_done`. The
+  header puts `irq_pf` at **16**, and the correct data says **0 for every
+  single-layer run and 1 where a second layer exists** — a *sharper* confirmation
+  of the same mechanism. The published claim was false about the data while right
+  about the conclusion. Corrected in place.
+- **`claims_check` CAUGHT THE COUNT**: an OPEN property is an expected
+  refutation, not a proved one, so it is now excluded from "integration
+  properties" for the same reason `*_alive` oracles are.
+- **PROPS. 129c corrected, 130** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 663 — nothing loads layer 0's weights
 
 - **PROP. 128 LEFT TWO HYPOTHESES** — the harness does not drive the prefetch, or

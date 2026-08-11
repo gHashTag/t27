@@ -618,6 +618,32 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    assign busy = inference_active;\n");
     s.push_str("\n");
 
+    // ---- weight-memory contents (Prop. 130) --------------------------------
+    //
+    // The activation buffer has had a_read_slot_written since Prop. 33: a
+    // per-slot written bitmap, asserting the MAC never reads a slot nothing
+    // wrote. The same pattern was never applied to the WEIGHT memory, and
+    // Prop. 129 is what that cost -- layer 0 always computes against an
+    // unwritten weight BRAM, because the prefetcher fetches the NEXT layer's
+    // weights and nothing loads the first.
+    //
+    // This property REFUTES on the current design. That is the point: it is
+    // gated as an expected refutation (Prop. 26) so the gap is stated in the
+    // suite rather than living only in prose, and so a fix cannot land
+    // silently. When the layer-0 load exists, move it out of the guard.
+    s.push_str("`ifdef T27_FORMAL_OPEN\n");
+    s.push_str("    // Which weight words the prefetcher has written since reset.\n");
+    s.push_str("    reg [3:0] fv_wm_written;\n");
+    s.push_str("    always @(posedge clk)\n");
+    s.push_str("        if (!rst_n) fv_wm_written <= 4'd0;\n");
+    s.push_str("        else if (pf_bram_we) fv_wm_written[pf_bram_addr[1:0]] <= 1'b1;\n");
+    s.push_str("\n");
+    s.push_str("    // The MAC must never read a weight address nothing wrote.\n");
+    s.push_str("    // OPEN: refutes today -- see FORMAL_FOUNDATIONS Prop. 129.\n");
+    s.push_str("    always @(posedge clk) if (rst_n && $past(rst_n) && $past(layer_valid))\n");
+    s.push_str("        a_weight_read_was_written: assert (fv_wm_written[$past(chunk_addr[1:0])]);\n");
+    s.push_str("`endif\n");
+    s.push_str("\n");
     s.push_str("`ifdef T27_FORMAL\n");
     s.push_str("    // ------------------------------------------------------------------\n");
     s.push_str("    // Integration properties. These are the first properties in this repo\n");

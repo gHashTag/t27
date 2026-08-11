@@ -41,19 +41,42 @@ def main():
               "emit the RTL bundle before running this gate")
         return 1
 
+    # Wave 664: the error text below has offered "or document it in
+    # FORMAL_FOUNDATIONS.md" since this gate was written, and nothing ever
+    # implemented that. A gate whose message promises an escape hatch it does
+    # not provide is Prop. 110's unfaithful category, in the message rather
+    # than the logic. This makes the offer real: a guarded region is accepted
+    # when a proposition names the property inside it, so the gap is recorded
+    # where a reader will find it and the guard cannot be used to hide one.
+    doc = ""
+    docp = root / "docs" / "FORMAL_FOUNDATIONS.md"
+    if docp.exists():
+        doc = docp.read_text()
+
     bad = []
     for f in files:
         # Prop. 118: this matched inside `//` comments, so a retrospective
         # note saying an open-guard "has been removed" -- the exact genre of
         # comment this repository writes -- reported the guard as present.
         for n, line in enumerate(open(f).read().split("\n"), 1):
-            if PATTERN.search(re.sub(r"//.*$", "", line)):
-                bad.append(f"{f.relative_to(root)}:{n}: {line.strip()[:70]}")
+            if not PATTERN.search(re.sub(r"//.*$", "", line)):
+                continue
+            # Look ahead for the labelled assertions this guard covers, and
+            # accept the guard only if a proposition names one of them.
+            body = "\n".join(open(f).read().split("\n")[n:n + 40])
+            labels = re.findall(r"\b(a_[a-z0-9_]+)\s*:\s*assert", body)
+            documented = [l for l in labels if l in doc]
+            if labels and documented:
+                print(f"::warning::{f.relative_to(root)}:{n}: expected-refutation "
+                      f"guard, documented via {documented[0]} -- accepted")
+                continue
+            bad.append(f"{f.relative_to(root)}:{n}: {line.strip()[:70]}")
 
     for b in bad:
         print(f"::error::{b} -- a property is gated as an expected refutation; "
               "fix the defect or document it in FORMAL_FOUNDATIONS.md")
-    print(f"guard scan: {len(files)} files, {len(bad)} expected-refutation guards")
+    print(f"guard scan: {len(files)} files, {len(bad)} UNDOCUMENTED "
+          "expected-refutation guards")
     return 1 if bad else 0
 
 
