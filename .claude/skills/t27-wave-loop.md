@@ -5103,6 +5103,30 @@ These cost a wave each. Follow them before step 1.
      parse success, so one root failure is counted six times. Do not read
      `TOTAL FAILURES` as a count of distinct defects.
 
+187. **NEVER pipe a long-running command through `tail`.** `tail -N` must read
+     to end-of-stream before it knows which N lines are last, so it emits
+     NOTHING until the process exits. I ran
+     `t27c suite --repo-root . 2>&1 | tail -25`, watched 47 minutes of silence,
+     and published "the tool produces no output". It had streamed a
+     `FAIL <phase> (<path>): <reason>` line per failure from Phase 1 onward --
+     159 of them were in the log of a re-run that was still going.
+     **Redirect to a file and `tail -f`/re-read it**; never let the instrument
+     be the thing that decides whether there was a signal.
+
+188. **An absence in the output has two preimages: the subject produced
+     nothing, or the instrument withheld it.** The default attribution is to
+     the subject, because the instrument was chosen for convenience and then
+     dropped from the mental model. This is the §4 "silently discards" rule
+     applied to your own shell pipeline -- `tail -25` accepted 47 minutes of
+     diagnostics, discarded all but 25, and reported success.
+
+189. **When a claim turns out wrong, check whether the OTHER claims in the same
+     paragraph came from the same apparatus.** T24 had three false
+     observations, and all three were the apparatus treated as transparent:
+     the glob read from memory instead of the source, "will not finish"
+     inferred from a finite wait, "silent" inferred from a pipe that could not
+     have shown otherwise. One error, three surfaces.
+
 ### How to update this tracker
 
 After closing a wave:

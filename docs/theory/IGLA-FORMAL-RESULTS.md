@@ -1100,19 +1100,30 @@ through a function return rather than a local.
 
 ### T24 (W625, **corrected W626**) — A verification command's cost is set by its widest input glob, and a generator that commits every iteration inverts the corpus
 
-> **CORRECTION, W626 — the first version of this theorem said the suite "stops
-> terminating". It does not.** The run this theorem was written about
-> **completed**, ~52 minutes after it started, and exited non-zero:
-> `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`, `ACCEPTABLE: no`. I published
-> "stops terminating" while the process was still running and treated *not yet
-> finished* as *will not finish* — an unfalsifiable reading of an observation
-> that was about to falsify it. **The theorem's own falsification condition was
-> "a completed `t27c suite` run"; it was met by the run I was describing.**
+> **CORRECTION, W626 — this theorem shipped with three false observations, and
+> I produced two of them myself.**
 >
-> The cost claim survives and the numbers below are unchanged. What was wrong
-> was the *consequence*: the command terminates, and its problem is that
-> **52 minutes buys a number that is 89% about scaffolding** — a signal-to-cost
-> failure, not a liveness one. The corrected consequence is stated at the end.
+> **(1) "Stops terminating" — false.** The run **completed**, ~52 minutes after
+> it started, exiting non-zero: `TOTAL FAILURES: 2614`, `GATE FAILURES: 0`,
+> `ACCEPTABLE: no`. I published it while the process was still running, treating
+> *not yet finished* as *will not finish*. **The theorem's own falsification
+> condition was "a completed `t27c suite` run"; it was met by the run I was
+> describing.** See **T25**.
+>
+> **(2) "No output at all — no pass, no fail, no progress line" — false, and the
+> silence was mine.** `suite` streams `FAIL <phase> (<path>): <reason>` from
+> Phase 1 onward; a re-run logging to a file had 159 such lines while still
+> running. I had invoked it as `… t27c suite --repo-root . 2>&1 | tail -25`.
+> **`tail` consumed every line and emitted nothing until the process exited.**
+> The tool reported continuously; my own pipeline destroyed the signal, and I
+> attributed the absence to the tool. See **T26**.
+>
+> **(3) The glob was wrong in the first draft** — corrected below before
+> publication, by looking at the process list.
+>
+> The cost numbers survive and are unchanged; all three errors were about what
+> the command *does*, not what it *costs*. The corrected consequence is stated
+> at the end.
 
 **Discovered by asking why `t27c suite` had not returned.** `CLAUDE.md` §2 names
 it as the local CI-like sweep. Two waves in a row were written without it.
@@ -1153,8 +1164,9 @@ Measured parse throughput on these artefacts:
 
 **A 34× spread by shape at comparable size**, so no total is derivable from
 bytes, and none is claimed here. What was directly observed: the run spent
-**47 minutes inside the `parse` phase with no output at all** — no pass, no fail,
-no progress line — and then completed at roughly 52 minutes.
+**47 minutes inside the `parse` phase** and completed at roughly 52 minutes.
+(The first draft added "with no output at all"; that was an artefact of the
+`| tail -25` I had attached to it — see the correction above and **T26**.)
 
 **Statement.** Let a verification command `V` be specified by an input glob `G`
 and let `A ⊆ G` be the artefacts under test. `cost(V)` is a function of `G`, not
@@ -1163,14 +1175,22 @@ without bound at no review cost, so `cost(V)` grows without bound while the
 *evidence* `V` produces about `A` stays fixed. The ratio that matters is not
 pass/fail but **evidence per unit cost**, and it tends to zero.
 
-**Corrected consequence (W626).** The failure is not liveness. `V` terminates
-and returns a verdict; the verdict simply costs 52 minutes and is 89% about
-files nobody is verifying. Worse, it emits **nothing** until it is done — a
-47-minute silence is indistinguishable from a hang, which is how the first
-version of this theorem went wrong. **A long-running verification command that
-does not report progress converts a cost problem into an apparent liveness
-problem, and an observer will misclassify it.** That is the operational claim,
-and it is the one with a cheap fix: print the phase and the file count.
+**Corrected consequence (W626).** The failure is neither liveness nor silence.
+`V` terminates, and it reports each failure as it happens. What it costs is
+**52 minutes for a verdict that is 89% about files nobody is verifying**, and
+what it lacks is not progress output but a *partition*: `Parse failures: 249` is
+one number over two populations that mean different things. Split by the glob:
+
+| | ok | fail | rate |
+|---|---:|---:|---|
+| `specs/` outside `specs/scratch/` — **the corpus** | 403 | **206** | **33.8%** |
+| the remainder, i.e. `specs/scratch/` scaffolding | — | ~43 | — |
+
+**The interesting number was inside the uninteresting one.** A 33.8%
+parse-failure rate on the real corpus is a headline; it was reported as part of a
+249 that also counts generator output and deliberate `*_negative_*` fixtures
+(17 exist; 5 appear among the failures observed). The cheap fix is not a progress
+line — it is to **report each phase per population**.
 
 **Corollary — this is the §4 failure mode with the sign flipped.** Every entry in
 that table is a stage that *silently discarded* input and reported success. `V`
@@ -1224,6 +1244,57 @@ power and cost a published error.
 non-termination conclusion — e.g. a proof that the process is in a state with no
 exit transition, which is analysis, not waiting. That is precisely the move this
 theorem says is required.
+
+---
+
+### T26 (W626) — The instrument attached to a measurement can produce the observation, and the default attribution is to the subject
+
+**T24 also claimed the suite emitted "no output at all — no pass, no fail, no
+progress line" for 47 minutes. That is false.** `suite` streams a line per
+failure from Phase 1 onward:
+
+```
+--- Phase 1: Parse ---
+FAIL parse (specs/account/repo.t27): parse failed: Error: Parse error: Expected LBrace, got LParen ('(') at line 12:21
+FAIL parse (specs/api/c_api_contract.t27): parse failed: Error: Parse error: parse error at module level near line 2: …
+```
+
+A re-run logging to a file had **159 such lines while still running**. The
+original invocation was:
+
+```bash
+cargo build --release -p t27c 2>&1 | tail -3 && ./target/release/t27c suite --repo-root . 2>&1 | tail -25
+```
+
+**`tail -25` must read to end-of-stream before it can know which 25 lines are
+last.** It therefore consumed every line and emitted nothing until the process
+exited. The tool reported continuously for 47 minutes; the pipe held all of it;
+I recorded "the tool is silent."
+
+**Statement.** A measurement is `observe(instrument, subject)`. When the
+instrument is *lossy* or *buffering*, an absence in the output has two
+preimages — the subject produced nothing, or the instrument withheld it — and
+they are indistinguishable **from the output alone**. The default attribution is
+to the subject, because the instrument is not part of the mental model of the
+measurement; it was chosen for convenience and then forgotten.
+
+**Corollary — this is the §4 table's failure mode, committed by the observer.**
+Every entry there is a component that accepted input, silently discarded some,
+and reported success. `tail -25` accepted 47 minutes of diagnostics, silently
+discarded all but 25, and reported success. **The rule this document has been
+stating for eighteen waves — *a stage that cannot fail cannot be trusted; ask it
+to account for its input* — applies to the shell pipeline the measurement is
+taken through, and I had not applied it there.**
+
+**The three errors in T24 are one error.** The glob was read from memory instead
+of from the source; "will not finish" was inferred from a finite wait; "silent"
+was inferred from a pipe that could not have shown otherwise. In all three the
+apparatus — memory, waiting, `tail` — was treated as transparent. **`observe` is
+never the identity function, and every claim about a system is a claim about the
+composition.**
+
+*Falsification condition:* an invocation of `t27c suite` that genuinely emits
+nothing during the parse phase when its stdout is unbuffered and undiscarded.
 
 ---
 
