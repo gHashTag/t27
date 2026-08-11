@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-12
 
+## Wave 650 — the 9-of-37 figure was my classifier, not the suite
+
+- **WAVE 649's HEADLINE NUMBER WAS WRONG.** It reported 9 diagnosed / 28
+  indeterminate and called *"0 passing on nothing"* nearly vacuous. Every one of
+  those 28 names the exact missing file, in the tool's own words:
+  `ERROR: File 'build/rtl/interrupt_controller.sv' not found`,
+  `FileNotFoundError: ... 'formal/zero_size_props.sv'`. Those **are** diagnoses.
+- **THE CLASSIFIER LOOKED ONLY FOR THIS REPO'S OWN `::error::` CONVENTION**, so
+  it scored yosys's and Python's perfectly clear messages as silence. Corrected:
+  **37 diagnosed, 0 indeterminate**.
+- **THE RIGHT CRITERION IS PROP. 114's QUESTION**, not a house style: does the
+  failure name a **starved path**, which distinguishes it from a step that was
+  simply broken? `ValueError: too many values to unpack`, `command not found`
+  and a timeout do not — and that ValueError is exactly how one of Prop. 114's
+  defects hid. Checked against seven cases including both: **7/7**.
+- **THE CEILING BECOMES A WALL**: with the true count at 0, a ratchet has
+  nothing to ratchet. Enforced at 0.
+- **THE SELF-TEST WAS MODELLING SOMETHING THE TREE DOES NOT CONTAIN**: its
+  "honest step" was a bare `test -f`, which fails silently — no real step here
+  does that. Made realistic, plus a counterpart that fails *without* naming its
+  subject and must be caught.
+- **FOURTH CONSECUTIVE WAVE OF OVER-DETECTION, AND THE WORST KIND**: Props. 111,
+  112, 113 each shipped an instrument that over-detected on first run. This one
+  over-detected inside **a number that was then published**. A wrong gate fails
+  loudly; a wrong measurement propagates.
+- **PROP. 117** in `docs/FORMAL_FOUNDATIONS.md`.
+
 ## Wave 649 — the sweep's verdict was the sign of an exit code
 
 - **EVERY NON-ZERO EXIT READ AS "fails, correct"**: a missing binary (`rc 127`),

@@ -7150,6 +7150,56 @@ instead of assumed.
 
 ---
 
+### Prop. 117 — the 9-of-37 figure was my classifier, not the suite — `FIXED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 116b reported **9 diagnosed against 28 indeterminate** and concluded that
+*"0 passing on nothing"* was "true and nearly vacuous". That number was wrong,
+and this corrects it in the manner Prop. 85f established.
+
+**117a. What the 28 actually printed.** Every one names the exact missing file,
+in the tool's own words:
+
+```
+ERROR: File `build/rtl/interrupt_controller.sv' not found or is a directory
+FileNotFoundError: [Errno 2] No such file or directory: 'formal/zero_size_props.sv'
+```
+
+Those *are* diagnoses of the absence. The classifier looked only for this
+repository's own `::error::` convention plus three house phrases, so it scored
+yosys's and Python's perfectly clear messages as silence. Corrected figure:
+**37 diagnosed, 0 indeterminate.**
+
+**117b. The right criterion is Prop. 114's question, not a house style.** The
+distinction that matters is whether a failure can be told apart from *"the step
+was already broken"*. A message naming a **starved path** can. `ValueError: too
+many values to unpack`, `command not found`, and a timeout cannot — and that
+ValueError is exactly how one of Prop. 114's two defects hid. The classifier now
+tests for a named subject under `build/rtl` or `formal/`, and is checked against
+seven cases including both Prop. 114 defects: 7/7.
+
+**117c. The ceiling becomes a wall.** Prop. 116c set a ratchet at 28 on the bad
+measurement, reasoning that failing 28 steps would disable the gate. With the
+true count at zero, the ratchet has nothing to ratchet: any step that fails
+without naming what it was missing is indistinguishable from one already broken,
+so the ceiling is 0 and enforced.
+
+**117d. The self-test was modelling something the tree does not contain.** Its
+"honest step" was a bare `test -f`, which fails silently — no real step in this
+repository does that. Made realistic, and given a counterpart that fails *without*
+naming its subject and must be caught. Both directions now covered.
+
+**117e. Fourth consecutive wave, and this one in the measurement itself.**
+Props. 111, 112 and 113 each shipped an instrument that over-detected on its
+first run. This one over-detected in a *number that was then published*, which is
+worse: a wrong gate fails loudly, a wrong measurement propagates. Prop. 115's
+finding that over-detection is universal applies to classifiers as much as to
+gates, and the corrective is the same — check the instrument against cases whose
+answer you already know before believing its output.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -235,10 +235,30 @@ def main(argv):
             # DIAGNOSED requires positive evidence that the step noticed its
             # subject was gone. Anything else that merely failed is
             # INDETERMINATE: not a pass, but not evidence of a working gate.
-            diagnosed = ("::error::" in out
-                         or "missing" in out.lower()
-                         or "found no" in out.lower()
-                         or "emit the bundle" in out.lower())
+            # DIAGNOSED means the failure output NAMES THE STARVED SUBJECT.
+            #
+            # Wave 650 corrects Wave 649's classifier, which looked only for
+            # this repository's own `::error::` convention and reported 9
+            # diagnosed against 28 indeterminate. Re-reading the captured
+            # output showed all 28 name the exact missing file, in the tool's
+            # own words -- `ERROR: File 'build/rtl/x.sv' not found` from yosys,
+            # `FileNotFoundError: ... 'formal/x.sv'` from Python. Those ARE
+            # diagnoses: a step broken for some other reason does not say that.
+            # The Wave 649 figure was over-detection in the measurement, which
+            # is the fourth consecutive wave a new check has fired on correct
+            # behaviour (Prop. 115).
+            #
+            # The distinction that matters is Prop. 114's: can this failure be
+            # told apart from "the step was already broken"? A message naming a
+            # starved path can. `ValueError: too many values to unpack`, rc 127
+            # and a timeout cannot -- and that ValueError is precisely how one
+            # of Prop. 114's two defects hid.
+            low = out.lower()
+            names_subject = ("not found" in low or "filenotfounderror" in low
+                             or "no such file" in low
+                             or "found no" in low or "emit the bundle" in low)
+            starved = "build/rtl" in low or "formal/" in low
+            diagnosed = "::error::" in out or (names_subject and starved)
             if not (bad or (exempt and rc == 0)):
                 (diagnosed_steps if diagnosed else indeterminate).append(name)
             verdict = ("exempt" if exempt and rc == 0 else
@@ -255,11 +275,13 @@ def main(argv):
             shutil.move(dst, src)
         shutil.rmtree(bak, ignore_errors=True)
 
-    # A RATCHET, not a wall. 28 of 37 steps merely crash when starved rather
-    # than diagnosing the absence, and failing all 28 today would take the gate
-    # out of service -- which is how an incomplete gate becomes an unsound one
-    # (Prop. 115b). The count is published and may only fall.
-    INDETERMINATE_CEILING = 28
+    # A WALL, now that the corrected classifier puts the true count at zero.
+    # Wave 649 set this to 28 on a measurement that was itself over-detecting;
+    # every one of those steps names its starved subject in the tool's own
+    # words. With the real figure at 0 a ratchet would be pointless: any step
+    # that fails without naming what it was missing is indistinguishable from
+    # one that was already broken, which is how Prop. 114's two defects hid.
+    INDETERMINATE_CEILING = 0
     if len(indeterminate) > INDETERMINATE_CEILING:
         print(f"::error::{len(indeterminate)} steps merely CRASH when starved "
               f"rather than diagnosing the absence, above the ceiling of "
@@ -298,8 +320,22 @@ def self_test():
     cases = [
         ("a step that passes on nothing",
          [{"name": "Decorative", "run": "echo 'looks fine to me'"}], 1),
+        # Wave 650: the synthetic step used to be a bare `test -f`, which fails
+        # SILENTLY. Every real step in this repository names the file it could
+        # not find -- yosys prints `ERROR: File '...' not found`, Python raises
+        # FileNotFoundError with the path -- and the ceiling is now 0 because
+        # that is the measured truth. A fixture that fails without saying why
+        # was modelling something the tree does not contain.
         ("a step that reads the subject",
-         [{"name": "Honest", "run": "test -f build/rtl/dma_controller.sv"}], 0),
+         [{"name": "Honest",
+           "run": "test -f build/rtl/dma_controller.sv || "
+                  "{ echo \"ERROR: File 'build/rtl/dma_controller.sv' not found\"; "
+                  "exit 1; }"}], 0),
+        # And its counterpart: a step that fails for some OTHER reason must be
+        # INDETERMINATE, not credited as a working gate. This is Prop. 114a's
+        # shape -- the stray-tuple ValueError that let a broken step hide.
+        ("a step that fails without naming its subject",
+         [{"name": "Opaque", "run": "python3 -c \"raise ValueError('boom')\""}], 1),
         ("a workflow with no run steps",
          [{"name": "Checkout", "uses": "actions/checkout@v4"}], 1),
         ("a workflow whose only step is this sweep",
