@@ -9260,6 +9260,68 @@ and a `_CoqProject`.
 
 ---
 
+### Prop. 169 — 165 of 167 propositions cite a workflow that has never run — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Workflow reachable scan — a cited workflow must exist on the default branch*
+
+**169a. The measurement.** Every proposition here carries a `Gate:` line naming a
+CI step. Resolving those against the repository's default branch:
+
+| citations | workflow | status |
+|---|---|---|
+| 144 | `formal-yosys.yml` | **not on `master`** |
+| 21 | `formal-mutation.yml` | **not on `master`** |
+| 1 | `seal-coverage.yml` | on `master` |
+| 1 | `schema-validation.yml` | on `master` |
+
+**2 of 167 propositions are genuinely gated. 165 are not.**
+
+**169b. The mechanism.** GitHub registers workflows from the **default branch**.
+`formal-yosys.yml` exists only on `feat/wave-547/host-heapsort`, and triggers on
+`push`/`pull_request` to `master`. `gh run list --workflow=formal-yosys.yml`
+reports **no runs, ever**. A workflow file on a feature branch, triggering on the
+default branch, is inert.
+
+**169c. What is and is not false.** The gates are real: they are written, they
+are executed every wave, and they have caught roughly thirty defects including
+several in themselves. What is false is the *claim carried by every `Gate:`
+line* — that CI re-checks the property. **A check run by one agent on one machine
+is a measurement; a check run by CI is a guarantee.** Every proposition here has
+been asserting the second while delivering the first.
+
+**169d. The branch state, because the repair is not small.** `HEAD` is **920
+commits ahead of `master` and 1700 behind**, merge base **2026-04-04** — four
+months. 2781 files changed on this side, 7976 on master, **2230 changed on
+both**. There is no PR. Merging is a substantial, conflict-heavy operation and
+is **not attempted here**: an unattended 2230-file conflict resolution would put
+at risk exactly the work it was meant to protect.
+
+**169e. Found by following a failing build, not by suspecting the gates.**
+Wave 679 shipped a `continue-on-error` step and named watching it as the next
+deliverable. Watching it showed `coq-kernel.yml` failing — at
+`actions/checkout@v4` with `EACCES`, so it had never built anything either —
+and the survey that followed found `formal-yosys.yml` with no runs at all. **The
+one action that examined CI rather than the code found in minutes what thirty
+waves of local green had hidden.**
+
+**169f. Theorem (locality of evidence).** *Let `C` be a check and `E` the
+environment in which it is observed to pass. `C` constrains the artifact only in
+states reachable from `E`. If `E` is a single working tree, `C` establishes a
+property of that tree at that moment and nothing about any other clone, branch,
+or future commit.* The `Gate:` convention was introduced precisely to escape
+this — to bind each claim to a re-execution — and it was satisfied by naming a
+step rather than by reaching one.
+
+**169g. Gate 23 closes the class.** `workflow_reachable_scan.py` resolves every
+cited workflow against the default branch using local refs only, and fails when
+one is absent. It fails today, correctly, naming both files. **It is the first
+gate in this campaign whose first run reports that the campaign's own evidence
+is unenforced** — and, being in `formal-yosys.yml`, it is itself ungated until
+that workflow reaches `master`. That is stated rather than worked around: a gate
+cannot bootstrap its own reachability.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

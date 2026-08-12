@@ -18,6 +18,33 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 680 — 165 of 167 propositions cite a workflow that has never run
+
+Watching the `continue-on-error` step from last wave showed `coq-kernel.yml`
+failing at `actions/checkout@v4` with EACCES -- it had never built anything. The
+survey that followed found something far larger:
+
+**`formal-yosys.yml` has NO RUNS, ever.** It exists only on
+`feat/wave-547/host-heapsort` and triggers on push/PR to `master`. GitHub
+registers workflows from the default branch, so a workflow file on a feature
+branch triggering on the default branch is inert.
+
+Resolving every `Gate:` line against `master`: **144 cite formal-yosys.yml, 21
+cite formal-mutation.yml -- neither exists there. 2 of 167 propositions are
+genuinely gated.**
+
+The gates are real and have caught ~30 defects. What is false is the claim each
+`Gate:` line carries -- that CI re-checks the property. *A check run by one
+agent on one machine is a measurement; a check run by CI is a guarantee.*
+
+**The branch is 920 ahead of master and 1700 behind**, merge base 2026-04-04,
+2230 files changed on both sides, no PR. Merging is not attempted here.
+
+Gate 23 resolves cited workflows against the default branch and fails today,
+naming both files. Being in formal-yosys.yml, it is itself ungated until that
+workflow reaches master -- stated rather than worked around.
+
 ## Wave 679 — a _CoqProject nobody runs builds nothing
 
 **Three parser features (Prop. 167).** Array literals whose element type is not

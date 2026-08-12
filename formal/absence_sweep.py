@@ -35,6 +35,12 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    "Workflow reachable scan — a cited workflow must exist on the default branch":
+        "its subject is git refs and docs/FORMAL_FOUNDATIONS.md, not build/rtl "
+        "-- starving the RTL cannot make it fail. Its absence case is internal "
+        "and enforced: with no Gate: lines, or no resolvable default branch, it "
+        "exits 1 naming what it could not find (Prop. 169).",
+
     "Workspace check (all crates, all targets)":
         "its subject is the Rust workspace, not build/rtl -- starving the RTL "
         "cannot make `cargo check` fail. Its absence case is cargo's own: with "
