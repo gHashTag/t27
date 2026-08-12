@@ -952,6 +952,11 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         bless_expectations: bool,
 
+        /// W640: record a missing Icarus baseline instead of failing. The only
+        /// way to acquire one; verification never blesses (T31).
+        #[arg(long, default_value_t = false)]
+        bless_baselines: bool,
+
         /// W632: walk only the hand-written corpus, excluding specs/scratch/.
         /// The ratchet gates on primary corpus failures only, so this drops
         /// 98.89% of the bytes without changing the verdict.
@@ -10149,6 +10154,7 @@ async fn main() -> anyhow::Result<()> {
             ratchet,
             bless_expectations,
             corpus_only,
+            bless_baselines,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10160,6 +10166,7 @@ async fn main() -> anyhow::Result<()> {
                 ratchet,
                 bless_expectations,
                 corpus_only,
+                bless_baselines,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -10484,6 +10491,7 @@ fn main() -> anyhow::Result<()> {
             ratchet,
             bless_expectations,
             corpus_only,
+            bless_baselines,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10495,6 +10503,7 @@ fn main() -> anyhow::Result<()> {
                 ratchet,
                 bless_expectations,
                 corpus_only,
+                bless_baselines,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {

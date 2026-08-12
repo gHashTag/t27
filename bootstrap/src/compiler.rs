@@ -11125,7 +11125,20 @@ impl VerilogCodegen {
             self.local_types.remove(&name);
         }
         self.write_indent();
-        self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
+        // W640 (fixes T45): a test block with no lowered statements printed
+        // PASSED unconditionally -- 3,429 of 12,067 blocks (28%), of which 1,792
+        // come from authored-empty `test X { /* verify baseline */ }`. The Zig
+        // backend emits `test "X" {}` for the same node and claims nothing; the
+        // same source was honest in one backend and false in the other. A
+        // simulation log must not report a check that never ran.
+        if node.children.is_empty() {
+            self.write_line(&format!(
+                "$display(\"[TEST] {} : NOT CHECKED (empty body)\");",
+                node.name
+            ));
+        } else {
+            self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
+        }
         self.dedent();
         self.write_indent();
         self.write_line("end");
@@ -13076,10 +13089,25 @@ impl CCodegen {
                 self.write_line(&format!("test_{}();", fn_name));
             }
             self.write_indent();
-            self.write_line(&format!(
-                "printf(\"All %d tests passed.\\n\", {});",
-                tests.len()
-            ));
+            // W640 (fixes T48's inflated count): `tests.len()` counted
+            // authored-empty blocks, so the runner reported successes for
+            // functions whose body is `/* TODO: implement test */`. The claim
+            // itself is sound -- the emitted `assert(...)` traps, so this line
+            // is only REACHED when nothing failed -- but the denominator was
+            // wrong, which misleads about coverage rather than correctness.
+            let checked = tests.iter().filter(|t| !t.children.is_empty()).count();
+            let empty = tests.len() - checked;
+            if empty > 0 {
+                self.write_line(&format!(
+                    "printf(\"All %d checked tests passed (%d empty, NOT CHECKED).\\n\", {}, {});",
+                    checked, empty
+                ));
+            } else {
+                self.write_line(&format!(
+                    "printf(\"All %d tests passed.\\n\", {});",
+                    checked
+                ));
+            }
             self.write_indent();
             self.write_line("return 0;");
             self.dedent();

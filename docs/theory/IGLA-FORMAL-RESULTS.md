@@ -2699,6 +2699,75 @@ the class is preventable by tooling and not only catchable.
 
 ---
 
+### T50 (W640) — The repairs, and a third cause the first two did not predict
+
+**Three defects found across W633–W638 are now repaired**, in dependency order,
+because two of them change artefacts that an oracle consumes.
+
+**1. T31's bless-on-absence, first — it is a precondition, not a follow-up.**
+`cmd_icarus_simulate_with_baseline` compared against a stored baseline when one
+existed and otherwise *wrote* one and returned `Ok`. Regenerating oracles while
+that path is live means a missing baseline blesses itself unaudited. Acquisition
+is now `--bless-baselines`, and verification with no oracle is a hard failure:
+
+```
+no Icarus baseline at <path> -- run with --bless-baselines to record one,
+and review the diff before committing it (T31)
+```
+
+**2. `gen-c`'s inflated count.** `printf("All %d tests passed", tests.len())`
+counted authored-empty blocks. The claim was *sound* — the emitted `assert(...)`
+traps, so the line is only reached when nothing failed — but the denominator was
+wrong. Now:
+
+```c
+printf("All %d checked tests passed (%d empty, NOT CHECKED).\n", 1, 1);
+```
+
+**3. `gen-verilog`'s unconditional `PASSED`.** A test block with no lowered
+statements now prints `NOT CHECKED (empty body)`.
+
+| | before | after |
+|---|---:|---:|
+| Verilog blocks printing `PASSED` with no check | **3 429** (28%) | **754** (6%) |
+
+**2 675 of 3 429 repaired — a yield of 78%.** And the 754 that remain have a
+**third cause**, distinct from both known ones. Their bodies are not empty:
+
+| statements inside a still-vacuous block | count (sample) |
+|---|---:|
+| `x = x;` | 631 |
+| `x = x + x;` | 475 |
+| `@x(x);` (clock wait) | 83 |
+| assignments from calls | 92 |
+
+**Setup lowered; the assertion did not.** A `given`/`when` clause becomes signal
+assignments, the `then` clause produces nothing, and the block prints `PASSED`
+having exercised the circuit and checked no result. **This is neither
+authored-empty (T45) nor discarded (T42)** — it is a partially-lowered test,
+and no wave predicted it.
+
+**Statement.** Let a repair target a defect characterised by predicate `P`. The
+residue `{x : vacuous(x) ∧ ¬P(x)}` is not noise; it is **the next cause, made
+visible by removing the first**. Its size is the yield's complement, and its
+*shape* — here, "setup without assertion" — is only observable once the dominant
+cause stops masking it. **T19 said fixing a defect can expose another as a
+diagnostic; T50 says the same holds for populations: a partial repair is also a
+measurement instrument.**
+
+**And I could have forecast this yield and did not.** T44 established the test:
+a population is forecastable when the classifier is *per-item* rather than
+first-failure. `children.is_empty()` is per-block — the split was measurable
+before the fix, exactly as the `forall` split was in W635. **I applied the rule
+in the wave that stated it and not in the wave after**, which is T49's pattern
+at one wave's remove.
+
+*Falsification condition:* a still-vacuous block whose body contains a lowered
+assertion, which would mean the scanner's `if (`/`assert`/`FAILED` predicate is
+too narrow rather than the assertion being absent.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

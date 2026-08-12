@@ -30,6 +30,9 @@ pub struct SuiteOptions {
     /// W628: rewrite the expectations ledger from this run. The ONLY writer --
     /// acquisition is never a side effect of verification (T31).
     pub bless_expectations: bool,
+    /// W640: record a missing Icarus baseline instead of failing. The ONLY
+    /// way to acquire one -- verification never blesses (T31).
+    pub bless_baselines: bool,
     /// W632: restrict every spec-walking phase to the hand-written corpus,
     /// excluding `specs/scratch/`. The ratchet already gates on primary CORPUS
     /// failures only, so this removes work whose result the verdict ignores --
@@ -808,7 +811,7 @@ fn is_icarus_lowerable(repo: &Path, rel: &str) -> bool {
     compile.status.success()
 }
 
-fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str) -> anyhow::Result<()> {
+fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str, bless: bool) -> anyhow::Result<()> {
     let out = cmd_icarus_simulate(repo, rel)?;
     let baseline = icarus_baseline_path(repo, rel);
     let actual = normalize_icarus_output(&out);
@@ -822,9 +825,20 @@ fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str) -> anyhow::Result<(
                 actual
             );
         }
-    } else {
+    } else if bless {
         save_icarus_baseline(&baseline, &actual)?;
-        println!("  recorded Icarus baseline: {}", baseline.display());
+        println!("  BLESSED Icarus baseline: {}", baseline.display());
+    } else {
+        // W640 (fixes T31): a verification mode that acquires its own oracle is
+        // a no-op exactly once per item -- on the only run where that item's
+        // behaviour has never been reviewed -- and the artefact it writes makes
+        // every later run look earned. Acquisition is now an explicit,
+        // human-invoked mode. Absence is not amnesty.
+        anyhow::bail!(
+            "no Icarus baseline at {} -- run with --bless-baselines to record one, \
+             and review the diff before committing it (T31)",
+            baseline.display()
+        );
     }
     Ok(())
 }
@@ -1631,7 +1645,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
             let (p3dp, p3df) = run_phase(
                 &repo,
                 "icarus-simulate",
-                cmd_icarus_simulate_with_baseline,
+                |r, rel| cmd_icarus_simulate_with_baseline(r, rel, opts.bless_baselines),
                 &sim_targets,
             )?;
             println!("Icarus Simulation: {} passed, {} failed", p3dp, p3df);
