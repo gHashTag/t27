@@ -23,6 +23,13 @@ pub struct SuiteOptions {
     pub fast: bool,
     /// Write the machine-readable suite summary to this path (Wave Loop 440).
     pub json_out: Option<PathBuf>,
+    /// W628: gate the exit code on `docs/reports/suite_expectations.json`
+    /// instead of on `total_failures != 0`. Without this the suite behaves
+    /// exactly as it did before, so existing CI is unaffected.
+    pub ratchet: bool,
+    /// W628: rewrite the expectations ledger from this run. The ONLY writer --
+    /// acquisition is never a side effect of verification (T31).
+    pub bless_expectations: bool,
 }
 
 fn t27c_exe() -> anyhow::Result<PathBuf> {
@@ -201,6 +208,150 @@ impl PhaseAttribution {
             primary: PhaseSplit::from_failures(&fresh),
             blocked,
         }
+    }
+}
+
+// =========================================================================
+// W628: the expectations ledger.
+//
+// T27 proved a gate whose baseline is already non-zero detects nothing: a new
+// break lands inside 2614 and moves the exit code not at all. T32 surveyed how
+// the field solves this and found one invariant across every system that does
+// it correctly -- lit's XFAIL, DejaGnu's XFAIL/XPASS, Chromium's
+// TestExpectations, `@ts-expect-error`, Rust's `#[expect]`: **the unit of
+// amnesty is an IDENTITY paired with an expected outcome, and the verdict is
+// observed-versus-expected per identity.** None of them reports a total and
+// asks a human to remember what the total used to be.
+//
+// So: a set of `(path, phase)` pairs, not a count. T30 is why this is only
+// 206 entries and not ~1236 -- attribution must precede amnesty.
+//
+// Three anti-rot rules, all from T32's survey, all enforced here rather than
+// left to review:
+//   * an UNEXPECTED PASS is a failure (pytest's `xfail_strict`, made default);
+//   * every entry carries a mandatory `expires`, and a past-due entry FAILS;
+//   * `max_entries` is a monotone-downward cap -- growing it is a hand edit.
+// =========================================================================
+
+/// One amnestied failure: an identity, why, who owns it, and when the amnesty
+/// runs out.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+struct ExpectationEntry {
+    /// Repo-relative spec path.
+    path: String,
+    /// The phase that FIRST rejected it. Never a downstream, gated phase.
+    phase: String,
+    /// Why this is amnestied. Free text, for the human reading the diff.
+    reason: String,
+    /// Tracking issue number.
+    issue: u64,
+    /// `YYYY-MM-DD`. A past-due entry fails the run -- this is the only thing
+    /// in the design that pushes back on normalisation of deviance.
+    expires: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct SuiteExpectations {
+    schema_version: u32,
+    generated_by: String,
+    /// Monotone-downward cap on `entries.len()`. Raising it is a hand edit and
+    /// therefore a reviewable event.
+    max_entries: usize,
+    /// Sorted by `(path, phase)` so diffs stay line-local.
+    entries: Vec<ExpectationEntry>,
+}
+
+impl Default for SuiteExpectations {
+    fn default() -> Self {
+        SuiteExpectations {
+            schema_version: 1,
+            generated_by: "t27c suite --bless-expectations".to_string(),
+            max_entries: 0,
+            entries: Vec::new(),
+        }
+    }
+}
+
+fn expectations_path(repo: &Path) -> PathBuf {
+    repo.join("docs/reports/suite_expectations.json")
+}
+
+/// Load the ledger. **A missing file is `Ok(None)`, never an empty ledger.**
+/// T31 is the bug where a gate treats "no oracle" as "pass"; the caller must
+/// decide explicitly what absence means, so absence is not silently blessed.
+fn load_expectations(path: &Path) -> anyhow::Result<Option<SuiteExpectations>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("reading expectations {}", path.display()))?;
+    let parsed: SuiteExpectations = serde_json::from_str(&raw)
+        .with_context(|| format!("parsing expectations {}", path.display()))?;
+    Ok(Some(parsed))
+}
+
+fn save_expectations(path: &Path, exp: &SuiteExpectations) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, format!("{}\n", serde_json::to_string_pretty(exp)?))
+        .with_context(|| format!("writing expectations {}", path.display()))?;
+    Ok(())
+}
+
+/// The verdict: what the run observed against what the ledger expected.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct RatchetVerdict {
+    /// Observed primary corpus failures with no ledger entry. Regressions.
+    unexpected_failures: Vec<String>,
+    /// Ledger entries that did NOT fail. Fixed -- and a failure, per
+    /// `xfail_strict`, because otherwise the ledger silently rots.
+    unexpected_passes: Vec<String>,
+    /// Entries whose `expires` is in the past.
+    expired: Vec<String>,
+    /// True when `entries.len()` exceeds the declared cap.
+    over_cap: bool,
+    ledger_size: usize,
+    max_entries: usize,
+}
+
+impl RatchetVerdict {
+    fn clean(&self) -> bool {
+        self.unexpected_failures.is_empty()
+            && self.unexpected_passes.is_empty()
+            && self.expired.is_empty()
+            && !self.over_cap
+    }
+}
+
+/// Compare observed primary corpus failures against the ledger.
+/// `observed` is a set of `(path, phase)`; `today` is `YYYY-MM-DD`.
+fn ratchet_compare(
+    observed: &std::collections::BTreeSet<(String, String)>,
+    exp: &SuiteExpectations,
+    today: &str,
+) -> RatchetVerdict {
+    let expected: std::collections::BTreeSet<(String, String)> = exp
+        .entries
+        .iter()
+        .map(|e| (e.path.clone(), e.phase.clone()))
+        .collect();
+
+    let fmt = |(p, ph): &(String, String)| format!("{} [{}]", p, ph);
+
+    RatchetVerdict {
+        unexpected_failures: observed.difference(&expected).map(fmt).collect(),
+        unexpected_passes: expected.difference(observed).map(fmt).collect(),
+        // Lexicographic comparison is correct for zero-padded ISO-8601 dates.
+        expired: exp
+            .entries
+            .iter()
+            .filter(|e| e.expires.as_str() < today)
+            .map(|e| format!("{} [{}] expired {}", e.path, e.phase, e.expires))
+            .collect(),
+        over_cap: exp.entries.len() > exp.max_entries,
+        ledger_size: exp.entries.len(),
+        max_entries: exp.max_entries,
     }
 }
 
@@ -1007,6 +1158,9 @@ struct SuiteSummary {
     /// Per-phase corpus/scratch/blocked breakdown, in phase order.
     #[serde(default)]
     population_split: Vec<(String, PhaseAttribution)>,
+    /// W628: observed-versus-expected verdict, present only under `--ratchet`.
+    #[serde(default)]
+    ratchet: Option<RatchetVerdict>,
 }
 
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
@@ -1701,6 +1855,119 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         "ACCEPTABLE:        {} (known failures match baseline, no other failures)",
         if summary.acceptable { "yes" } else { "no" }
     );
+
+    // ---------------------------------------------------------------------
+    // W628: the expectations ledger. Identity-keyed amnesty over the PRIMARY
+    // CORPUS failures only -- scratch scaffolding and seal staleness are
+    // reported and gate nothing, because a ledger over 455 generated files or
+    // 807 stale golden files is debt, not a defect list. See T33.
+    // ---------------------------------------------------------------------
+    let observed: std::collections::BTreeSet<(String, String)> = ledger
+        .iter()
+        .filter(|(name, _)| name != "seal-verify")
+        .flat_map(|(name, att)| {
+            att.primary
+                .corpus
+                .iter()
+                .map(move |p| (p.clone(), name.clone()))
+        })
+        .collect();
+
+    let exp_path = expectations_path(&repo);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    if opts.bless_expectations {
+        let prior = load_expectations(&exp_path)?;
+        // The cap only ever moves DOWN. Blessing a larger population must be a
+        // hand edit, which is the reviewable event that resists baseline rot.
+        let cap = match &prior {
+            // Monotone DOWNWARD only. If this run observes more than the cap
+            // allows, blessing writes a ledger that immediately fails its own
+            // cap check -- which is the intended, reviewable event: raising the
+            // cap must be a hand edit in the pull request, never a side effect
+            // of running the blessing command.
+            Some(p) => p.max_entries.min(observed.len()),
+            None => observed.len(),
+        };
+        let prior_by_key: std::collections::BTreeMap<(String, String), ExpectationEntry> = prior
+            .map(|p| {
+                p.entries
+                    .into_iter()
+                    .map(|e| ((e.path.clone(), e.phase.clone()), e))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut entries: Vec<ExpectationEntry> = observed
+            .iter()
+            .map(|k| {
+                prior_by_key.get(k).cloned().unwrap_or(ExpectationEntry {
+                    path: k.0.clone(),
+                    phase: k.1.clone(),
+                    reason: "unclassified: blessed by --bless-expectations".to_string(),
+                    issue: 1959,
+                    expires: "2026-11-30".to_string(),
+                })
+            })
+            .collect();
+        entries.sort();
+        let exp = SuiteExpectations {
+            max_entries: cap,
+            entries,
+            ..Default::default()
+        };
+        save_expectations(&exp_path, &exp)?;
+        println!();
+        println!(
+            "[suite] blessed {} expectation(s) -> {}",
+            exp.entries.len(),
+            exp_path.display()
+        );
+    }
+
+    let mut ratchet_clean = true;
+    if opts.ratchet {
+        println!();
+        println!("--- Ratchet (W628) ---");
+        match load_expectations(&exp_path)? {
+            // T31: absence is NOT amnesty. A verification mode with no oracle
+            // is a hard failure, never a silent self-blessing.
+            None => {
+                println!(
+                    "RATCHET: FAIL -- no ledger at {}.\n\
+                     Run `t27c suite --repo-root . --bless-expectations` once, review the\n\
+                     file, and commit it. Absence is not amnesty (T31).",
+                    exp_path.display()
+                );
+                ratchet_clean = false;
+            }
+            Some(exp) => {
+                let v = ratchet_compare(&observed, &exp, &today);
+                println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
+                println!("  observed (primary):  {}", observed.len());
+                println!("  UNEXPECTED FAILURES: {}", v.unexpected_failures.len());
+                for f in v.unexpected_failures.iter().take(25) {
+                    println!("    + {}", f);
+                }
+                println!("  UNEXPECTED PASSES:   {}", v.unexpected_passes.len());
+                for f in v.unexpected_passes.iter().take(25) {
+                    println!("    - {} (fixed -- remove from the ledger)", f);
+                }
+                println!("  EXPIRED ENTRIES:     {}", v.expired.len());
+                for f in v.expired.iter().take(25) {
+                    println!("    ! {}", f);
+                }
+                if v.over_cap {
+                    println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
+                }
+                ratchet_clean = v.clean();
+                println!(
+                    "RATCHET: {}",
+                    if ratchet_clean { "CLEAN" } else { "FAIL" }
+                );
+                summary.ratchet = Some(v);
+            }
+        }
+    }
     println!();
 
     if let Some(path) = opts.json_out.as_ref() {
@@ -1711,6 +1978,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         println!("[suite] JSON summary: {}", path.display());
     }
 
+    if opts.ratchet {
+        // W628: in ratchet mode the verdict is observed-versus-expected per
+        // identity, not the level of a total. This is the whole point: a total
+        // that is already 2614 cannot move when something new breaks (T27).
+        if ratchet_clean {
+            println!("RATCHET CLEAN -- no unexpected failures, passes, or expiries");
+            println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+            return Ok(());
+        }
+        anyhow::bail!("RATCHET FAILED")
+    }
     if total_fail == 0 {
         println!("ALL TESTS PASSED");
         println!("phi^2 + 1/phi^2 = 3 | TRINITY");
@@ -2104,6 +2382,103 @@ mod tests {
     // local variables and never calls anything under test -- which is why
     // `total_failures` could sit unassigned at 0 for a run printing 2614 with
     // a green test suite. See T31.
+    // ---- W628: the ratchet. These call the production comparator. ---------
+    fn mk_exp(pairs: &[(&str, &str)], expires: &str, cap: usize) -> super::SuiteExpectations {
+        super::SuiteExpectations {
+            max_entries: cap,
+            entries: pairs
+                .iter()
+                .map(|(p, ph)| super::ExpectationEntry {
+                    path: p.to_string(),
+                    phase: ph.to_string(),
+                    reason: "test".into(),
+                    issue: 1959,
+                    expires: expires.to_string(),
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn obs(pairs: &[(&str, &str)]) -> std::collections::BTreeSet<(String, String)> {
+        pairs
+            .iter()
+            .map(|(p, ph)| (p.to_string(), ph.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn ratchet_is_clean_when_observed_equals_expected() {
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert!(v.clean(), "{:?}", v);
+    }
+
+    #[test]
+    fn ratchet_reports_a_new_break_as_an_unexpected_failure() {
+        // The regression signal this suite has never had: a total of 2614
+        // cannot move, but a set can.
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
+            &e,
+            "2026-08-12",
+        );
+        assert_eq!(v.unexpected_failures, vec!["specs/b.t27 [parse]".to_string()]);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_treats_a_fix_as_a_failure_so_the_ledger_cannot_rot() {
+        // pytest's `xfail_strict`, made the default. Without this the ledger
+        // accumulates entries for defects that were fixed years ago.
+        let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 2);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert_eq!(v.unexpected_passes, vec!["specs/b.t27 [parse]".to_string()]);
+        assert!(!v.clean(), "an unexpected pass must fail the run");
+    }
+
+    #[test]
+    fn ratchet_fails_on_a_past_due_entry_even_when_the_sets_agree() {
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2026-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert!(v.unexpected_failures.is_empty());
+        assert!(v.unexpected_passes.is_empty());
+        assert_eq!(v.expired.len(), 1);
+        assert!(!v.clean(), "expiry is the only brake on normalisation of deviance");
+    }
+
+    #[test]
+    fn ratchet_fails_when_the_ledger_outgrows_its_cap() {
+        let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
+            &e,
+            "2026-08-12",
+        );
+        assert!(v.over_cap);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_distinguishes_the_same_path_at_different_phases() {
+        // The identity is (path, phase), not path. A file amnestied at `parse`
+        // that starts failing `gen-c` is a NEW defect.
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12");
+        assert_eq!(v.unexpected_failures, vec!["specs/a.t27 [gen-c]".to_string()]);
+        assert_eq!(v.unexpected_passes, vec!["specs/a.t27 [parse]".to_string()]);
+    }
+
+    #[test]
+    fn a_missing_ledger_is_none_not_an_empty_ledger() {
+        // T31: absence must never be silently blessed. An empty ledger would
+        // mean "everything is a regression"; None means "the caller decides".
+        let missing = std::env::temp_dir().join("t27_no_such_expectations_628.json");
+        let _ = std::fs::remove_file(&missing);
+        assert!(super::load_expectations(&missing).unwrap().is_none());
+    }
+
     #[test]
     fn scratch_is_recognised_only_under_the_scratch_prefix() {
         assert!(super::is_scratch("specs/scratch/w590_bench.t27"));

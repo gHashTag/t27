@@ -5250,6 +5250,37 @@ These cost a wave each. Follow them before step 1.
      unverifiable seal. When a number this extreme appears, print the
      complement -- "8 pass" lands where "1056 fail" does not.
 
+206. **The regression half of a ratchet is the obvious half; the DUAL is what
+     keeps it alive.** Gating only on "observed failure with no ledger entry"
+     makes the ledger MONOTONE -- entries are added when defects appear and
+     never removed when they are fixed, because nothing observes the removal.
+     Discriminating power decays to zero, the same terminal state as a
+     never-updated baseline, reached by a different route. **An UNEXPECTED PASS
+     must fail the run** (lit XPASS, DejaGnu, `@ts-expect-error`,
+     `unfulfilled_lint_expectations`; pytest's `xfail_strict` is the field
+     admitting its default was wrong). Then the ledger must EQUAL the observed
+     set, so staleness costs as much as incompleteness. (T33.)
+
+207. **Two brakes must be in code, not in review policy:** a mandatory
+     per-entry `expires` that fails the run even when the sets agree, and a
+     MONOTONE-DOWNWARD size cap so that blessing a larger population writes a
+     ledger which immediately fails its own cap -- forcing the raise to be a
+     hand edit in the PR. Without them the file becomes where defects go to die.
+
+208. **Watch for a clamp that is a no-op.** I wrote
+     `prior.max_entries.min(n).max(n)` for the cap: that is `n` for every
+     input, so the cap tracked whatever it was handed and constrained nothing.
+     Any `x.min(n).max(n)`, `clamp(n, n)`, or `max(a).min(a)` is the identity --
+     grep for the pattern before trusting a limit.
+
+209. **A mode that can CREATE the oracle must never be the mode that CHECKS
+     against it.** `load_expectations` returns `Ok(None)` for a missing file,
+     never an empty ledger (an empty ledger would mean "everything is a
+     regression"); `--ratchet` with no ledger is a hard failure with
+     instructions; `--bless-expectations` is the only writer. Contrast
+     `cmd_icarus_simulate_with_baseline`, which does both in one path and
+     therefore cannot fail on a new item (lesson 201, T31).
+
 ### How to update this tracker
 
 After closing a wave:

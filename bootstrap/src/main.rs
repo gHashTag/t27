@@ -935,6 +935,16 @@ enum Commands {
         /// Write the machine-readable suite summary to this path.
         #[arg(long = "json")]
         json_out: Option<PathBuf>,
+
+        /// W628: gate the exit code on docs/reports/suite_expectations.json
+        /// (unexpected failure / unexpected pass / expired entry) instead of on
+        /// total_failures != 0. Without it the suite behaves exactly as before.
+        #[arg(long, default_value_t = false)]
+        ratchet: bool,
+
+        /// W628: rewrite the expectations ledger from this run. The only writer.
+        #[arg(long, default_value_t = false)]
+        bless_expectations: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -10068,6 +10078,8 @@ async fn main() -> anyhow::Result<()> {
             cocotb,
             fast,
             json_out,
+            ratchet,
+            bless_expectations,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10076,6 +10088,8 @@ async fn main() -> anyhow::Result<()> {
                 cocotb,
                 fast,
                 json_out,
+                ratchet,
+                bless_expectations,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -10397,6 +10411,8 @@ fn main() -> anyhow::Result<()> {
             cocotb,
             fast,
             json_out,
+            ratchet,
+            bless_expectations,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10405,6 +10421,8 @@ fn main() -> anyhow::Result<()> {
                 cocotb,
                 fast,
                 json_out,
+                ratchet,
+                bless_expectations,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {

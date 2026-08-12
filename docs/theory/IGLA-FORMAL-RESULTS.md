@@ -1702,6 +1702,67 @@ a hard error.
 
 ---
 
+### T33 (W628) — The ratchet, and why its *dual* is the load-bearing half
+
+**T27 proved the gate carries no signal; T32 surveyed how the field fixes it;
+W628 built it.** `docs/reports/suite_expectations.json` is a set of
+`(path, phase)` identities over the **primary corpus** population only —
+scratch scaffolding and seal staleness are reported and gate nothing, because a
+ledger over 455 generated files or 807 stale golden files is debt, not a defect
+list. T30 is why this is 206 entries and not ~1236.
+
+**The obvious half is the regression check**: an observed primary failure with
+no ledger entry is `UNEXPECTED FAILURE`, and it fails the run. That is the signal
+this suite has never had — a total of 2614 cannot move when something new
+breaks, but a *set* can.
+
+**The half that actually keeps the thing alive is the dual.** A ledger entry that
+*did not fail* is an `UNEXPECTED PASS`, and it also fails the run.
+
+**Statement.** Let `E` be an amnesty ledger and `O` the observed failure set.
+Gating on `O \ E ≠ ∅` alone makes `E` a **monotone** structure: entries are added
+when defects appear and never removed when they are fixed, because nothing
+observes the removal. Over time `|E| → |universe|` and the gate's discriminating
+power → 0 — the same terminal state T27 measured, reached by a different route.
+Gating additionally on `E \ O ≠ ∅` makes `E` **exact**: it must equal `O`, so it
+is as costly to leave stale as to leave incomplete.
+
+**This is not a refinement; it is what separates the mechanisms that work from
+the ones that rot.** Of the systems T32 surveyed, those that treat an unexpected
+pass as a failure — LLVM `lit`'s XPASS, DejaGnu's separate XPASS accounting,
+TypeScript's `@ts-expect-error`, Rust's `unfulfilled_lint_expectations` — stay
+exact. pytest's `xfail` tolerates XPASS by default, and the later addition of
+`xfail_strict` is the field's own correction. **Skip lists (`lit`'s
+`UNSUPPORTED:`, CTS's `--exclude-filter`, Chromium's `[ Skip ]`) cannot have the
+dual at all**, because a skipped item produces no observation — which is exactly
+why T31's bless-on-absence is the same bug wearing different clothes.
+
+**Two further brakes, both enforced in code rather than left to review:**
+
+| brake | rule | what it resists |
+|---|---|---|
+| `expires` | mandatory per entry; a past-due entry fails the run **even when the sets agree** | normalisation of deviance — the entry that outlives everyone who understood it |
+| `max_entries` | monotone **downward**; blessing a larger population writes a ledger that immediately fails its own cap | growth as a silent side effect of running the blessing command |
+
+**The cap's asymmetry is deliberate and was a bug in the first draft.** I wrote
+`prior.max_entries.min(n).max(n)`, which is `n` for every input — a cap that
+tracks whatever it is handed and therefore constrains nothing. Corrected to
+`prior.max_entries.min(n)`: blessing can only tighten, and **raising the cap must
+be a hand edit in the pull request**, which is the reviewable event the whole
+mechanism exists to force.
+
+**And acquisition is not verification.** `load_expectations` returns
+`Ok(None)` for a missing file, never an empty ledger, and `--ratchet` with no
+ledger is a hard failure with instructions. `--bless-expectations` is the only
+writer. This is T31's fix stated as a rule: **a mode that can create the oracle
+must never be the same mode that checks against it.**
+
+*Falsification condition:* a defect that reaches the corpus without producing an
+`UNEXPECTED FAILURE` — for instance one in a phase the ledger does not cover
+(scratch, seal), which is the deliberate and stated limit of this design.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
