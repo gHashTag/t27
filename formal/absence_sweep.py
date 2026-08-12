@@ -35,6 +35,12 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    "Runaway string scan — an odd quote swallows the rest of its file":
+        "its subject is specs/, not build/rtl -- starving the RTL cannot make "
+        "it fail. Its absence case is internal and enforced: with no specs/ "
+        "directory, or no .t27 files under it, it exits 1 naming what is "
+        "missing (Prop. 188).",
+
     "Workflow reachable scan — a cited workflow must exist on the default branch":
         "its subject is git refs and docs/FORMAL_FOUNDATIONS.md, not build/rtl "
         "-- starving the RTL cannot make it fail. Its absence case is internal "

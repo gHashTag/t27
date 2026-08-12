@@ -88,7 +88,17 @@ def measure():
             r"^\s{0,4}(?:pub|export)\s+(?:fn|const|struct|enum)\s+\w", text, re.M))
         captured = len(re.findall(
             r"kind: (?:ConstDecl|FnDecl|StructDecl|EnumDecl)", r.stdout))
-        blind = 1 if (declares and captured == 0) else 0
+        # Prop. 189: one spec is documentation wearing a .t27 extension.
+        # c_api_contract.t27 is a Markdown API contract -- 13 headings, 8 fenced
+        # blocks -- whose fences hold SIGNATURES WITH INDENTED PROSE beneath
+        # them, not code. Extracting the fences and parsing those alone still
+        # captures zero, so a fence-aware mode would not help: there is no t27
+        # in the file. Whether it should be renamed is a decision about the
+        # corpus, not a parser defect, so it is excused by name with the reason
+        # rather than left as an unexplained 1 in the count.
+        EXCUSED_DOC = {"specs/api/c_api_contract.t27"}
+        rel = str(s.relative_to(ROOT))
+        blind = 1 if (declares and captured == 0 and rel not in EXCUSED_DOC) else 0
         out[str(s.relative_to(ROOT))] = (int(m.group(1)), int(sw.group(1)), blind)
     return out, None
 

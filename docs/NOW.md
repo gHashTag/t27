@@ -28,6 +28,32 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 690 — the corpus reaches zero on every parse metric
+
+**Four more corrupted sites (Prop. 188)**, in a const-with-initialiser shape the
+first sweep's struct-field pattern could not match. *A repair scoped to the shape
+you first saw finds the instances that look like the first one.*
+
+The signature is now **gate 24**: a code line whose double quotes cannot balance
+opens a string the lexer never closes. Three constructs legitimately leave an odd
+count -- a trailing comment holding a quote, a character literal, a raw string --
+each excluded by name after being verified in this corpus.
+
+Its first implementation reported 74 findings, every sampled one spurious: it
+split lines on `//` before counting, which cuts `"https://example.com"` in half.
+**A comment stripper that does not know about strings is a string corrupter.**
+
+**The last zero-capture spec is documentation (Prop. 189).**
+`c_api_contract.t27` holds signatures with indented prose inside Markdown fences;
+parsing the fences alone still captures zero. Excused by name with the reason,
+because *an unexplained residue of one is indistinguishable from a residue of one
+you have not looked at.*
+
+**The corpus, complete: 0 hard failures, 0 swallowed, 0 declaring-but-empty, 0
+runaway strings.** 6244 declarations captured, 1213 tests pass. Seven waves ago
+the first of those numbers was 788.
+
 ## Wave 689 — 107 corrupted field types, hidden behind a runaway string
 
 The 33 remaining zero-capture specs were **not a parser gap**. Every one carried

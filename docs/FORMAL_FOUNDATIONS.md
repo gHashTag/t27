@@ -9839,6 +9839,67 @@ mechanism with a coarse one that does not.**
 
 ---
 
+### Prop. 188 — the runaway-string signature, made permanent — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Runaway string scan — an odd quote swallows the rest of its file*
+
+**188a. Four more sites, in a shape the first sweep could not match.** Prop. 186's
+repair required a struct-field form. `const DEFAULT_KERNEL : [[]U32" = "[2, 2]";`
+is the same corruption in a *constant* with an initialiser, and was missed.
+Repaired by the same bracket-balance oracle, 0 skipped. **A repair scoped to the
+shape you first saw finds the instances that look like the first one.**
+
+**188b. The signature is now a gate, because it has surfaced twice.** A code line
+whose double quotes cannot balance opens a string the lexer never closes.
+
+**188c. Three constructs legitimately leave an odd count**, and each is excluded
+by name after being verified in this corpus: a trailing comment holding a quote
+(`advance(); // closing "`), a character literal (`'"'`), and a raw string
+(`r#"` … `"#`) which spans lines by design.
+
+**188d. The first implementation reported 74 findings, every sampled one
+spurious.** It split each line on `//` before counting — which cuts
+`"https://example.com"` in half. Replaced with a state machine that treats `//`
+as a comment only when *outside* a string. **A comment stripper that does not
+know about strings is a string corrupter**, and this is the inverse of the
+comment-scan rule the campaign already enforces: there, code was read as
+comment; here, a string was read as comment.
+
+**188e. Verified on three bars.** Clean over 497 specs; a planted
+`bits : [[]Usize",` fails by file and line; restoring returns it to clean.
+
+---
+
+### Prop. 189 — the last zero-capture spec is documentation, not a spec — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**189a.** `specs/api/c_api_contract.t27` has 13 Markdown headings and 8 fenced
+blocks. Extracting the fences and parsing **those alone** still captures zero
+declarations — the fences hold *signatures with indented prose beneath them*:
+
+```
+export fn trinity_vsa_version() -> [*]const u8
+    Returns "0.2.0"
+```
+
+**189b. So a fence-aware parser mode would not help.** There is no t27 in the
+file. It is an API contract document that was given a `.t27` extension, and
+whether to rename it is a decision about the corpus rather than a parser defect.
+
+**189c. Excused by name, with the reason, rather than left as an unexplained
+1.** The gate now reads **0 specs declaring but capturing nothing** — and the
+exemption is countable, so a second such file cannot arrive silently. *An
+unexplained residue of one is indistinguishable from a residue of one you have
+not looked at.*
+
+**189d. The corpus, complete.** 497 specs; **0 hard parse failures, 0 swallowed
+declarations, 0 declaring-but-empty, 0 runaway strings**; 384 recovery events
+across 130 specs; 6244 declarations captured; 1213 tests pass. Seven waves ago
+the first of those numbers was 788.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

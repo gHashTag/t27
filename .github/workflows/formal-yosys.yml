@@ -851,6 +851,9 @@ jobs:
       - name: Spec parse gate — "parses OK" must mean the parser read the spec
         run: python3 formal/spec_parse_gate.py
 
+      - name: Runaway string scan — an odd quote swallows the rest of its file
+        run: python3 formal/runaway_string_scan.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 
