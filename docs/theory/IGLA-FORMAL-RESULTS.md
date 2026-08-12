@@ -1823,6 +1823,79 @@ artefact.
 
 ---
 
+### T35 (W629) — 33.8% was a mixture of five populations, and my correction of it was a sixth error
+
+**T34 corrected "33.8% of the corpus does not parse" to 31.1% by excluding 24
+files it called "not source". Checking the 24 individually shows T34 was wrong
+too**, and in the same way — it used a heuristic membership predicate
+(*"does it contain a `module` declaration?"*) without asking what the files
+actually are.
+
+`specs/ar/ternary_logic.t27` is not Markdown and has no `module` line. It is:
+
+```
+spec TernaryLogic {
+    type Trit = Trit
+    const K_FALSE: Trit = Trit::FALSE
+    fn k3_and(a: Trit, b: Trit) -> Trit { return Trit::min(a, b) }
+}
+```
+
+**That is specification source**, in a `spec X { … }` form. And
+`specs/nn/phi_rope.t27` is a *third* thing again — `algorithm X { module: …,
+strand_i: { … } }`, a declarative record, not the `module`/`fn` language at all.
+
+**Classifying the whole corpus by what each file *is*, rather than by a regex
+over the failures:**
+
+| kind | parses | fails | total | rate |
+|---|---:|---:|---:|---:|
+| **`module …` — the language the parser implements** | **399** | **182** | **581** | **31.3%** |
+| `spec X { … }` — an older form | 2 | 6 | 8 | 75.0% |
+| `algorithm X { … }` — a declarative record | 0 | 3 | 3 | 100% |
+| Markdown carrying a `.t27` extension | 0 | 15 | 15 | 100% |
+| other | 2 | 0 | 2 | 0% |
+| **aggregate** | 403 | 206 | 609 | **33.8%** |
+
+**The honest statement is the first row: of the 581 files written in the language
+the parser implements, 182 — 31.3% — do not parse.** The 33.8% headline was a
+mixture over five populations whose true rates are 31.3, 75, 100, 100 and 0, and
+it was pulled upward by 26 files in three other formats, three of which fail by
+construction because they are not that language.
+
+**Statement.** Let `P = ⊎ᵢ Pᵢ` be a population partitioned by *kind*, and let
+`r = Σᵢ fᵢ / Σᵢ nᵢ` be the pooled failure rate. `r` is a weighted mean of the
+`rᵢ` and therefore lies in `[min rᵢ, max rᵢ]`, but it estimates **no** `rᵢ`
+unless the kinds are exchangeable with respect to the measurement. When some
+`Pᵢ` fail *by construction* — the measurement is undefined on them, not merely
+adverse — `r` is not a noisy estimate of the quantity of interest but a
+different quantity. **The remedy is not a better estimator; it is refusing to
+pool.**
+
+**And the sequence is the finding.** 33.8 → 31.1 → 31.3 is not convergence by
+refinement; each step replaced one unvalidated membership predicate with another:
+
+| wave | predicate | population it defined | rate |
+|---|---|---|---:|
+| W626 | "not under `specs/scratch/`" | 609 files of any kind | 33.8% |
+| W628 (T34) | "contains `module`, else not source" | 585, mis-excluding 9 real specs | 31.1% |
+| W629 (T35) | **what the file is, checked by reading each kind** | 581 in the implemented language | **31.3%** |
+
+**T35's own corollary, applied to itself.** The first two predicates were cheap
+and syntactic; the third required opening files of each kind and reading them.
+**Every population error in this document — T16, T20, T24, T29, T34 — has the
+same shape: a syntactic selector standing in for a semantic one.** The
+recurrence is not carelessness repeated five times. It is that the syntactic
+selector is *always available* and the semantic one always costs a read, so the
+cheap one is what gets written unless something forces the read. **What forced it
+here was the ledger**: 206 paths that can be opened, versus a total that cannot.
+
+*Falsification condition:* a sixth kind in the corpus, or a member of kind 1
+that is not in fact written in the implemented language — either would mean the
+partition is still wrong, which given this record is the way to bet.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

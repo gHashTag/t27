@@ -2483,6 +2483,55 @@ impl Parser {
         // `}` that truncated them: the brace made the parser stop before
         // reaching the unparsable tail, so the file "parsed" and 16,792 lines
         // were silently discarded.
+        // W629: `invariant <expr>;` in STATEMENT position, i.e. inside a
+        // `test { ... }` or `fn { ... }` body. `invariant` lexes as a keyword
+        // and was only handled at module level (`parse_invariant_block`), so
+        // the body form failed with "Unexpected token in expression:
+        // KwInvariant" -- 30 of the 182 corpus parse failures, the single
+        // largest class.
+        //
+        // This is not an optional nicety: L4 (TESTABILITY) requires every spec
+        // to carry `test`/`invariant`/`bench`, so the constitution mandates a
+        // form the parser rejected. Semantically an `invariant` inside a body
+        // is an assertion, so it lowers to exactly what `assert <expr>` does
+        // below. Same safety contract: any shape this cannot model restores
+        // the checkpoint, so a spec that parsed before still parses. See T36.
+        if self.current.kind == TokenKind::KwInvariant
+            && self.peek.kind != TokenKind::LBrace
+            && self.peek.kind != TokenKind::Semicolon
+            && self.peek.kind != TokenKind::RBrace
+            && self.peek.kind != TokenKind::Eof
+        {
+            let line = self.current.line as u32;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `invariant`
+            // `invariant name: expr` and `invariant name { ... }` are the
+            // module-level block forms; only the bare-expression form belongs
+            // here, so a following `:` or `{` means we guessed wrong.
+            let named = self.current.kind == TokenKind::Ident
+                && (self.peek.kind == TokenKind::Colon || self.peek.kind == TokenKind::LBrace);
+            if !named {
+                match self.parse_expr() {
+                    Ok(cond) => {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.line = line;
+                        call.children.push(cond);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.line = line;
+                        stmt.children.push(call);
+                        return Ok(stmt);
+                    }
+                    Err(_) => self.restore_state(checkpoint),
+                }
+            } else {
+                self.restore_state(checkpoint);
+            }
+        }
+
         if self.current.kind == TokenKind::Ident
             && self.current.lexeme == "assert"
             && self.peek.kind != TokenKind::LParen
@@ -33144,6 +33193,43 @@ mod tests_w458 {
     // six-position probe found three more, of which two are real Zig errors
     // (`let` with a declared type, and a struct-literal field) and one is not
     // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W629: `invariant <expr>;` in statement position. The single largest parse
+    // failure class in the corpus (30 of 182), and L4 TESTABILITY requires the
+    // very keyword the parser rejected there. T36.
+    #[test]
+    fn invariant_in_a_test_body_lowers_to_an_assertion() {
+        let src = "module M\n\nfn calc() -> u32 {\n    return 54;\n}\n\n\
+                   test t {\n    var d : u32 = calc();\n    invariant d > 0;\n    invariant d == 54;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("d > 0"),
+            "the first invariant must survive as an assertion:\n{}",
+            z
+        );
+        assert!(
+            z.contains("d == 54"),
+            "the second invariant must survive as an assertion:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn invariant_in_a_fn_body_is_also_an_assertion() {
+        let src = "module M\n\nfn f(a: u32) -> u32 {\n    invariant a > 0;\n    return a;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("a > 0"), "{}", z);
+    }
+
+    #[test]
+    fn module_level_invariant_blocks_are_untouched() {
+        // The statement form must not swallow the module-level block form --
+        // `parse_body_stmt` is statement position only, and a following `:` or
+        // `{` restores the checkpoint.
+        let src = "module M\n\nfn f(a: u32) -> u32 {\n    return a;\n}\n\n\
+                   invariant positive {\n    assert f(1) > 0;\n}\n";
+        Compiler::compile(src).expect("a module-level invariant block must still parse");
+    }
+
     // W625: found by FORCING analysis of the bodies nothing referenced (T21).
     // `estimate_10k_size` in `coder/dataset` carries a length through four
     // untyped `const`s before returning it under `-> u32`; W624's taint was

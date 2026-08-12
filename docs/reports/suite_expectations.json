@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 206,
+  "max_entries": 178,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -284,20 +284,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/boards/arty_a7_integration.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/boards/qmtech_a100t_integration.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/fifo.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected RParen, got LBrace ('{')",
@@ -340,104 +326,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/testbench/apb_bridge_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/assembler_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/axi4_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/bootrom_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/bridge_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/clock_domain_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/cts_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/dft_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/fifo_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/formal_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/gf16_accel_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/hir_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/integration_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/linker_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/testbench/mac_tb.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
@@ -445,77 +333,7 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/testbench/memory_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/partition_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/placement_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/testbench/power_analysis_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/power_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/router_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/simulator_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/spi_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/stdlib_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/ternary_isa_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/timing_tb.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
       "issue": 1959,
@@ -536,13 +354,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/testbench/vcd_trace_tb.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/vcd_conformance_compare.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
@@ -553,13 +364,6 @@
       "path": "specs/fpga/vcd_trace.t27",
       "phase": "parse",
       "reason": "Expected LBrace, got Amp ('&')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/verification/build_verify.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
