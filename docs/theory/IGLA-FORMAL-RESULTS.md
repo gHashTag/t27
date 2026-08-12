@@ -2638,6 +2638,67 @@ would make the header's blanket statement false.
 
 ---
 
+### T49 (W639) — T35's error, committed one wave after T35, in the table demonstrating T48
+
+**W638 published a backend-coverage table: 64% / 68% for three backends against
+5% / 25% for two.** The denominator pooled every declared construct in the
+120-spec sample, **including specs for which that backend emitted nothing at
+all.** An empty output is a *different* failure from a silently-dropped
+construct; those specs do not belong in the denominator of *"did this backend
+lower the construct?"*
+
+Conditioned on specs where the backend produced output:
+
+| backend | tests | invariants | first printed as |
+|---|---:|---:|---|
+| `gen` (Zig) | **97%** | **99%** | 64% / 68% |
+| `gen-c` | 97% | 99% | 64% / 68% |
+| `gen-verilog` | 97% | 99% | 64% / 68% |
+| `gen-rust` | **7%** | 37% | 5% / 25% |
+| `gen-verilog-hir` | 7% | 30% | 5% / 21% |
+
+**The correction makes the finding stronger** — the split is 97/99 against 7/30,
+not 64/68 against 5/25 — which is the second time this session a correction has
+sharpened rather than softened the result (cf. T34→T35).
+
+**And it is exactly the error T35 names**, committed **one wave after T35 was
+written**, in the table demonstrating T48. T35's own statement:
+
+> *"When some `Pᵢ` fail **by construction** — the measurement is undefined on
+> them, not merely adverse — `r` is not a noisy estimate of the quantity of
+> interest but a different quantity. The remedy is not a better estimator; it is
+> refusing to pool."*
+
+A spec whose backend emitted nothing is a `Pᵢ` on which "was this construct
+lowered?" is **undefined**, not adverse.
+
+**Statement.** Let `L` be a documented failure mode and `w(L)` the wave that
+documented it. Observing a fresh instance of `L` at `w(L) + 1`, produced by the
+author of `w(L)`, is evidence that documentation does not transfer to the
+author's own next artefact. **The mechanism is availability, not ignorance**:
+the pooled denominator is what the loop naturally produces (`for spec: for
+backend: count`), and the conditioned one requires an extra branch that the
+lesson does not make salient at the moment of writing the loop.
+
+**Corollary — the remedy is mechanical, not mnemonic.** Nine instances of this
+substitution are now recorded (T16, T20, T24, T29, T34, T35, T47's detector,
+this, and W636's ledger scrape). **Not one was prevented by having written the
+previous one down.** What has actually caught them is *re-measurement by a
+different route* — which is why T49's fix is not "remember to condition" but the
+gate below.
+
+**Implemented.** `backends-declare-omissions` is a suite phase: for every
+`test`/`invariant` a spec declares, each backend must either lower it or carry
+`NOT LOWERED BY THIS BACKEND` in its output. **Silence fails.** The phase
+conditions correctly by construction — a backend that produced no output is
+skipped, because the question is undefined there.
+
+*Falsification condition:* a tenth instance of the substitution that this gate,
+or any other mechanical check, prevents rather than detects — which would show
+the class is preventable by tooling and not only catchable.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

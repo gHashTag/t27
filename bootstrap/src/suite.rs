@@ -494,6 +494,69 @@ fn cmd_no_vacuous_verilog_test(repo: &Path, rel: &str) -> anyhow::Result<()> {
     )
 }
 
+/// W639: T48's differential, as a gate. For every `test` / `invariant` a spec
+/// declares, each backend must either LOWER it (the name appears in the output)
+/// or DECLARE the omission in the artefact. Silence -- emitting neither the
+/// construct nor a notice -- is the one failure mode with no local evidence: it
+/// is indistinguishable from "the source had nothing to lower", and only a
+/// cross-backend comparison can see it.
+///
+/// Conditioned on backends that produced output at all; an empty output is a
+/// different failure and belongs to another phase (T35/T49).
+fn cmd_backends_declare_omissions(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let names: Vec<String> = src
+        .lines()
+        .filter_map(|l| {
+            let t = l.trim_start();
+            for kw in ["test ", "invariant "] {
+                if let Some(rest) = t.strip_prefix(kw) {
+                    let n: String = rest
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
+                        .collect();
+                    if !n.is_empty() {
+                        return Some(n);
+                    }
+                }
+            }
+            None
+        })
+        .collect();
+    if names.is_empty() {
+        return Ok(());
+    }
+    let backends: [(&str, fn(&str) -> Result<String, String>); 3] = [
+        ("gen", crate::compiler::Compiler::compile),
+        ("gen-rust", crate::compiler::Compiler::compile_rust),
+        ("gen-verilog", crate::compiler::Compiler::compile_verilog),
+    ];
+    let mut complaints: Vec<String> = Vec::new();
+    for (label, f) in backends {
+        let out = match f(&src) {
+            Err(_) => continue,          // no output: another phase's business
+            Ok(o) if o.trim().is_empty() => continue,
+            Ok(o) => o,
+        };
+        // An artefact that names its omission is honest, whatever it omits.
+        if out.contains("NOT LOWERED BY THIS BACKEND") {
+            continue;
+        }
+        let missing = names.iter().filter(|n| !out.contains(n.as_str())).count();
+        if missing > 0 {
+            complaints.push(format!("{}: {} of {} silently absent", label, missing, names.len()));
+        }
+    }
+    if complaints.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "backend(s) dropped declared constructs without saying so -- {}",
+        complaints.join("; ")
+    )
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1377,6 +1440,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("no-vacuous-verilog-test", p1efail, &mut ledger, &mut upstream_failed);
     push_phase("no-vacuous-verilog-test", p1ep, p1ef, 0);
 
+    println!("--- Phase 1a5: Backends declare their omissions ---");
+    let (p1gp, p1gf, p1gfail) = run_phase_with_failures(
+        &repo,
+        "backends-declare-omissions",
+        cmd_backends_declare_omissions,
+        &specs_compiler,
+    )?;
+    println!("Backend omissions: {} declared, {} silent", p1gp, p1gf);
+    record("backends-declare-omissions", p1gfail, &mut ledger, &mut upstream_failed);
+    push_phase("backends-declare-omissions", p1gp, p1gf, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -1912,11 +1986,12 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1cf + p1df + p1ef + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Parse DISCARD fails:      {}", p1cf);
     println!("Vacuous invariant specs:  {}", p1df);
     println!("Vacuous verilog tests:    {}", p1ef);
+    println!("Silent backend drops:     {}", p1gf);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

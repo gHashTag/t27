@@ -5631,6 +5631,28 @@ These cost a wave each. Follow them before step 1.
      invariant(s)` and tells the reader where the checks do live. Emitting
      library code without tests is fine; emitting it silently is the defect.
 
+260. **Condition the denominator on where the question is DEFINED.** W638's
+     backend table pooled specs where the backend emitted NOTHING AT ALL into
+     the denominator of "did it lower this construct?". Conditioned properly the
+     split is **97%/99% vs 7%/30%**, not 64%/68% vs 5%/25% -- the correction made
+     the finding stronger. This is T35's error committed ONE WAVE AFTER T35, in
+     the table demonstrating T48. (T49.)
+
+261. **Nine instances of syntactic-for-semantic selection are now recorded and
+     NOT ONE was prevented by having written the previous one down** (T16, T20,
+     T24, T29, T34, T35, T47's detector, T49, and W636's ledger scrape). The
+     mechanism is AVAILABILITY, not ignorance: the pooled loop
+     (`for spec: for backend: count`) is what you naturally write, and
+     conditioning needs an extra branch the lesson does not make salient while
+     you are writing the loop. **The remedy is mechanical, not mnemonic** --
+     what has actually caught them is re-measurement by a different route.
+
+262. **`backends-declare-omissions` is the differential as a gate**: every
+     declared `test`/`invariant` must be lowered by each backend OR the output
+     must carry `NOT LOWERED BY THIS BACKEND`. Silence fails. The phase
+     conditions correctly by construction -- a backend that produced no output
+     is skipped, because the question is undefined there.
+
 ### How to update this tracker
 
 After closing a wave:
