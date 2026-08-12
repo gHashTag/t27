@@ -944,6 +944,25 @@ impl Parser {
         }
     }
 
+    /// Snapshot enough state to un-consume tokens (Prop. 178).
+    ///
+    /// `source` is immutable, so a mark is three integers plus the two
+    /// lookahead tokens. Without this, any construct not recognisable from
+    /// `current` + `peek` had to be matched by a bounded shape -- and a shape
+    /// bound safe enough to ship was too narrow for the corpus (Prop. 174c).
+    fn mark(&self) -> (usize, usize, usize, Token, Token) {
+        (self.lexer.pos, self.lexer.line, self.lexer.col,
+         self.current.clone(), self.peek.clone())
+    }
+
+    fn reset(&mut self, m: (usize, usize, usize, Token, Token)) {
+        self.lexer.pos = m.0;
+        self.lexer.line = m.1;
+        self.lexer.col = m.2;
+        self.current = m.3;
+        self.peek = m.4;
+    }
+
     fn advance(&mut self) {
         self.current = self.peek.clone();
         self.peek = self.lexer.next_token();
@@ -1859,23 +1878,24 @@ impl Parser {
                         break;
                     }
                 }
-            } else if self.current.kind == TokenKind::Lt
-                && self.peek.kind == TokenKind::Ident
-            {
-                // Angle-bracket generics, `Result<T, E>`. Prop. 174: this was a
-                // DEPTH scan, which runs to EOF when the `<` is a comparison --
-                // latent until the generic-fn-name fix let parsing reach a
-                // return type at all, then it destroyed the whole file. Bounded
-                // by shape, exactly as the fn-name list is: `< Ident (, Ident)* >`
-                // and nothing else.
+            } else if self.current.kind == TokenKind::Lt {
+                // Prop. 178: with backtracking the argument is a full TYPE,
+                // recursively -- `Result<[T?], StorageError>`, which the shape
+                // bound of Prop. 174 could not accept. A depth scan ran to EOF
+                // whenever the `<` was a comparison; here, if the list does not
+                // close, every token is un-consumed and the `<` falls through as
+                // whatever it really was.
+                let m = self.mark();
                 let mut gen = String::from("<");
                 self.advance();
+                let mut ok = true;
                 loop {
-                    if self.current.kind != TokenKind::Ident {
+                    let arg = self.parse_type_annotation();
+                    if arg.is_empty() {
+                        ok = false;
                         break;
                     }
-                    gen.push_str(&self.current.lexeme);
-                    self.advance();
+                    gen.push_str(&arg);
                     if self.current.kind == TokenKind::Comma {
                         gen.push(',');
                         self.advance();
@@ -1883,10 +1903,12 @@ impl Parser {
                     }
                     break;
                 }
-                if self.current.kind == TokenKind::Gt {
+                if ok && self.current.kind == TokenKind::Gt {
                     gen.push('>');
                     self.advance();
                     ty.push_str(&gen);
+                } else {
+                    self.reset(m);
                 }
             }
         } else if self.current.kind == TokenKind::KwVoid {

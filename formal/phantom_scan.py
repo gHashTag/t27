@@ -122,6 +122,35 @@ def main():
         print(f"::error::phantom_scan found no RTL under {root}/build/rtl -- "
               "emit the bundle before running this gate")
         return 1
+    # Prop. 179: SUITES is hand-maintained, and Prop. 176 found two property
+    # files that had been absent from it -- the same two that were absent from a
+    # CI job for many waves. A justified omission and a forgotten one look
+    # identical from inside the list, so every formal/*.sv must now be either
+    # covered or explicitly excused.
+    EXCUSED = {
+        "assume_liveness_check.sv":
+            "a self-contained canary with no DUT: it asserts something false "
+            "under an unsatisfiable assumption, so it has no design signals to "
+            "be phantoms of.",
+        "axi4_read_slave_model.sv":
+            "an environment model, not a property file. It is instantiated BY "
+            "dma_props, and is scanned there as an extra source.",
+        "witnesses.sv":
+            "scanned via its own entries below rather than as a standalone "
+            "wrapper; listed here so the coverage check can see it accounted for.",
+    }
+    listed = {props for props, *_ in SUITES}
+    unaccounted = sorted(
+        f.name for f in (root / "formal").glob("*.sv")
+        if f.name not in listed and f.name not in EXCUSED
+    )
+    if unaccounted:
+        for f in unaccounted:
+            print(f"::error::formal/{f} is in neither SUITES nor EXCUSED -- a "
+                  f"property file nothing phantom-scans can assert about a wire "
+                  f"that does not exist and prove without reading the design")
+        return 1
+
     bad, n = [], 0
     for props, top, duts, *rest in SUITES:
         extra = rest[0] if rest else ()

@@ -9521,6 +9521,79 @@ fix was right and the chain was four long.
 
 ---
 
+### Prop. 178 — the chain is five deep, and the lexer silently discards what it cannot read — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**178a. Backtracking implemented and verified.** `Lexer` is
+`{source, pos, line, col}` with `source` immutable, so `mark()` is three
+integers plus the two lookahead tokens and `reset()` restores them. With it a
+generic argument is a full **type, recursively** — `Result<[T?], StorageError>`,
+which Prop. 174's shape bound could not accept — and the `<` falls through
+untouched when the list does not close.
+
+**178b. The disambiguating invariant is positional.** A generic list on a
+function name, or on a call, is *always* immediately followed by `(`. Requiring
+that settles the `<` ambiguity without characterising a comparison at all. Both
+sites use it; both were verified to parse `fn read<T>(...)` and `read<str>(...)`
+in isolation.
+
+**178c. The chain in `specs/storage/kv.t27` is at least five links.**
+
+| # | construct | status |
+|---|---|---|
+| 1 | `fn read<T>(...)` — generic fn name | implemented, verified |
+| 2 | `(T) -> void` — parenthesised fn type | **shipped, Wave 684** |
+| 3 | `[T?]` — optional suffix | free: the lexer drops `?` |
+| 4 | `read<str>(...)` — generic call | implemented, verified |
+| 5 | `\|x\| x + 1` — closure | **not implemented** |
+
+Each is unreachable until the previous parses, so link 5 was invisible until 1, 2
+and 4 all worked. **Prop. 177f in practice: with any of 1–4 present and 5 absent,
+the file goes from a partial parse to a hard failure.**
+
+**178d. So the chain heads were removed and the safe remainder kept.**
+Backtracking and recursive generic arguments ship; generic fn names and generic
+calls do not, because they are the head of an open chain. **12 swallowed
+declarations, unchanged; `kv.t27` unregressed; 1213 tests pass.** The two kept
+pieces change no count and replace a shape bound that could not express the
+corpus — correct on their own terms, which is the standard applied since
+Prop. 174d.
+
+**178e. `?` is not a token — the lexer's default case discards unknown
+characters and recurses.** So `T?` lexes as `T` and the optional-type link was
+free. That is convenient here and is a defect in general: **a typo in a spec
+disappears rather than erroring.** Recorded, not fixed — making `?` a token
+would require deciding what every other unknown byte means, which is a language
+decision.
+
+---
+
+### Prop. 179 — a justified omission and a forgotten one look identical from inside the list — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No property references a signal that does not exist*
+
+**179a. The audit found no new gaps, which is the useful half.** Every
+hand-maintained list in `formal/` was checked against the filesystem. The
+omissions are all justified: the canary has no DUT, the AXI model is an
+environment not a property file, `behavior_sva_v2` is not in the engine bundle.
+
+**179b. But justified-and-implicit is exactly how the last one hid.** Prop. 176's
+two files were absent from `SUITES` for the same reason anything is absent from a
+hand-maintained list — nobody thought of them. `phantom_scan.py` now requires
+every `formal/*.sv` to be **either covered or excused with a written reason**,
+and fails naming any file that is neither. Verified: a planted property file
+fails the gate by name; removing it restores the clean run.
+
+**179c. Corollary (closing a class beats fixing an instance, when the class is a
+list).** *For any hand-maintained enumeration of files, add a check that the
+enumeration covers the directory, with an explicit exemption set. The exemptions
+are then countable, reviewable, and cannot grow silently.* The cost is one pass
+over a glob; the alternative is rediscovering the same omission with a different
+instrument, which this campaign has now done twice for the same two files.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

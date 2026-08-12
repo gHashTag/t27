@@ -23,6 +23,29 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 685 — the chain is five deep, not four
+
+**Backtracking works (Prop. 178).** A mark is three integers plus two tokens, so
+a generic argument can be a full type recursively -- `Result<[T?], StorageError>`,
+which the shape bound could not express. The invariant that disambiguates `<` is
+positional: a generic list is always immediately followed by `(`.
+
+Both chain heads were implemented and verified in isolation. Then `kv.t27`
+revealed a **fifth** link: `|x| x + 1`, a closure. Links 1-4 all work; 5 does
+not, and Prop. 177f says any subset with 1 but not 5 makes the file strictly
+worse. So the heads were removed and the safe remainder kept: **12 swallowed,
+unchanged; kv.t27 unregressed; 1213 tests pass.**
+
+**`?` is not a token.** The lexer's default case discards unknown characters and
+recurses, so `T?` lexes as `T` -- convenient here, and a defect in general: a
+typo in a spec disappears rather than erroring. Recorded, not fixed.
+
+**Every hand-maintained list in formal/ audited (Prop. 179).** No new gaps -- all
+omissions justified. But *justified-and-implicit is how the last one hid*, so
+phantom_scan now requires each formal/*.sv to be covered or excused with a
+written reason, and fails naming any file that is neither.
+
 ## Wave 684 — occlusion four deep, and the two files no list ever reached
 
 **phantom_scan omitted two property files (Prop. 176)** -- `max_size_props.sv`
