@@ -560,6 +560,67 @@ fn cmd_backends_declare_omissions(repo: &Path, rel: &str) -> anyhow::Result<()> 
     )
 }
 
+/// W644: T53 found an escape that exists, is tested, and was omitted at two of
+/// its emit sites -- and its real finding was that **nobody can enumerate the
+/// sites**. Correctness is a conjunctive obligation over a set that grows
+/// whenever an emitter is added, so no amount of care at the known sites is
+/// evidence about the unknown ones.
+///
+/// So this checks the ARTEFACT, not the code paths. You cannot enumerate emit
+/// sites; you can enumerate the output's declared identifiers. Any declaration
+/// whose name is a Verilog keyword and is not backslash-escaped fails, wherever
+/// in the backend it came from. See T54.
+fn cmd_verilog_declares_no_keyword(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()), // another phase's business (T30)
+        Ok(v) => v,
+    };
+    let mut bad: Vec<String> = Vec::new();
+    for (i, line) in v.lines().enumerate() {
+        let t = line.trim();
+        // Declarations the backend emits: `reg …  NAME…`, `wire … NAME…`,
+        // `integer NAME`, and the loop-variable form `for (NAME = …`.
+        let after = if let Some(r) = t.strip_prefix("reg ") {
+            r
+        } else if let Some(r) = t.strip_prefix("wire ") {
+            r
+        } else if let Some(r) = t.strip_prefix("integer ") {
+            r
+        } else {
+            continue;
+        };
+        // Skip the width/sign prefix: `signed`, `[15:0]`, whitespace.
+        let name = after
+            .split_whitespace()
+            .find(|w| !w.starts_with('[') && *w != "signed" && *w != "unsigned")
+            .unwrap_or("");
+        // `uf ` -- already escaped, and the escape is the whole point.
+        if name.starts_with('\\') {
+            continue;
+        }
+        let ident: String = name
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if ident.is_empty() {
+            continue;
+        }
+        if crate::compiler::Compiler::is_verilog_keyword(&ident) {
+            bad.push(format!("line {}: `{}` declared unescaped", i + 1, ident));
+        }
+    }
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "generated Verilog declares {} identifier(s) that are Verilog keywords: {}",
+        bad.len(),
+        bad.join("; ")
+    )
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1465,6 +1526,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("backends-declare-omissions", p1gfail, &mut ledger, &mut upstream_failed);
     push_phase("backends-declare-omissions", p1gp, p1gf, 0);
 
+    println!("--- Phase 1a6: Verilog declares no bare keyword ---");
+    let (p1hp, p1hf, p1hfail) = run_phase_with_failures(
+        &repo,
+        "verilog-no-keyword-decl",
+        cmd_verilog_declares_no_keyword,
+        &specs_compiler,
+    )?;
+    println!("Verilog keyword decls: {} clean, {} with a bare keyword", p1hp, p1hf);
+    record("verilog-no-keyword-decl", p1hfail, &mut ledger, &mut upstream_failed);
+    push_phase("verilog-no-keyword-decl", p1hp, p1hf, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -2000,12 +2072,13 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1hf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Parse DISCARD fails:      {}", p1cf);
     println!("Vacuous invariant specs:  {}", p1df);
     println!("Vacuous verilog tests:    {}", p1ef);
     println!("Silent backend drops:     {}", p1gf);
+    println!("Verilog keyword decls:    {}", p1hf);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

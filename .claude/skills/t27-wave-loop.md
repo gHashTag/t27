@@ -5770,6 +5770,25 @@ These cost a wave each. Follow them before step 1.
      ``register `i' unknown`` -- T19's unmasking, live. The keyword defect was
      hiding an undeclared-loop-variable defect in the same file.
 
+279. **When a property is CONJUNCTIVE over an unenumerable producer set but
+     DECIDABLE on the output, check the output.** T53 found an escape omitted at
+     two of its emit sites; the real problem was that nobody can list the sites.
+     `verilog-no-keyword-decl` checks the generated Verilog's DECLARED NAMES
+     instead -- a total function over the artefact. It survives a new emitter, a
+     refactor, and an author who never read the lesson. (T54.)
+
+280. **Verify a gate by REVERTING the repair it was built for.** With W643's fix
+     in place the gate is clean; with the declaration site reverted it prints
+     ``line 44: `buf` declared unescaped`` and fails. That is proof the gate
+     would have caught the defect -- and it runs in milliseconds where the
+     original discovery took a 100-minute Icarus run.
+
+281. **Two generators of recurrence, one remedy shape.** T52: "the empty case
+     renders as success" -> reserve a symbol. T54: "the obligation is spread
+     over a set nobody can list" -> check the artefact, not the producers. Both
+     say: **stop relying on the author to remember; put the check where the
+     evidence is total.**
+
 ### How to update this tracker
 
 After closing a wave:

@@ -7389,7 +7389,7 @@ impl VerilogCodegen {
     /// Verilog-2001 reserved keywords. If a user identifier collides with one,
     /// escape it with the \\identifier<space> form so it is treated as an
     /// ordinary identifier and not parsed as a keyword.
-    fn verilog_keywords() -> &'static [&'static str] {
+    pub(crate) fn verilog_keywords() -> &'static [&'static str] {
         &[
             "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
             "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
@@ -14452,6 +14452,12 @@ pub struct Compiler;
 
 #[allow(dead_code)]
 impl Compiler {
+    /// W644: expose the keyword predicate so a gate can check the ARTEFACT
+    /// rather than the emit sites, which T53 showed cannot be enumerated.
+    pub fn is_verilog_keyword(name: &str) -> bool {
+        VerilogCodegen::verilog_keywords().contains(&name)
+    }
+
     pub fn compile(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);

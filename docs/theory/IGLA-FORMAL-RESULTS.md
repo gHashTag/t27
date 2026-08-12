@@ -2981,6 +2981,72 @@ absence of any enumeration mechanism makes likely.
 
 ---
 
+### T54 (W644) — You cannot enumerate the emit sites. You can enumerate the output's tokens.
+
+**T53's real finding was not the two unescaped sites but that nobody can list
+them.** Correctness of an escape is a conjunctive obligation over a set `S` of
+emit sites that grows whenever an emitter is added, and no amount of care at the
+known members is evidence about the unknown ones. T49 established that the
+remedy for a recurring class is **mechanical, not mnemonic**. This is the
+mechanism.
+
+**The move is to change what is checked.** Instead of auditing the code paths
+that *produce* identifiers — unenumerable — audit the identifiers that *appear*:
+
+```
+verilog-no-keyword-decl:  for every declaration in the generated Verilog,
+                          the declared name must not be a bare Verilog keyword.
+```
+
+Declared names are extractable from the artefact by a total function. The emit
+sites are not.
+
+**Statement.** Let a property `P` be established by a *conjunctive* obligation
+over a producer set `S` that is not enumerable, and let the same property be
+*decidable* on the produced artefact `A`. Then checking `P(A)` is strictly
+stronger than checking `∀s ∈ S`, because the artefact check is:
+
+| | site audit | artefact audit |
+|---|---|---|
+| completeness | depends on enumerating `S` | total over `A` |
+| survives a new emitter | **no** | **yes** |
+| survives a refactor | no | yes |
+| localises the defect | yes, to a site | to a line, which names the site |
+
+**The artefact check subsumes the site audit and is cheaper.** The general form:
+**when a property is conjunctive over an unenumerable producer set but decidable
+on the output, check the output.**
+
+**Verified by reverting the repair.** With W643's fix in place the gate is clean.
+With the declaration site reverted to `node.name`:
+
+```
+FAIL verilog-no-keyword-decl (specs/mini/kw.t27):
+  generated Verilog declares 1 identifier(s) that are Verilog keywords:
+  line 44: `buf` declared unescaped
+```
+
+**The gate names the exact defect, by line, that took a 100-minute Icarus run to
+surface in W643.** It runs in-process, in milliseconds, over the corpus.
+
+**And it answers T53's falsification condition without waiting for it.** T53
+predicted "a third unescaped emit site is the way to bet". That bet is now
+uncheckable-by-inspection and decidable-by-gate: whichever site it is, and
+whenever it is added, the artefact check finds it.
+
+**Where this sits in the session.** Five reserved-symbol fixes (T52) addressed
+*"the empty case renders as success"*. This addresses a different generator of
+recurrence: *"the obligation is spread over a set nobody can list"*. Both have
+the same remedy shape — **stop relying on the author to remember, and put the
+check where the evidence is total.**
+
+*Falsification condition:* an unescaped identifier that reaches valid Verilog
+without appearing in a declaration this gate parses — for instance one emitted
+only in expression position, where the existing escape already runs, or inside a
+construct whose declaration syntax the scanner does not model.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
