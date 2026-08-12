@@ -438,6 +438,62 @@ fn cmd_no_vacuous_invariant(repo: &Path, rel: &str) -> anyhow::Result<()> {
     )
 }
 
+/// W636: a generated Verilog test block that prints `[TEST] X : PASSED` with
+/// no check between "starting" and "PASSED". Measured at 3,429 of 12,067 blocks
+/// (28%); 1,792 trace to `test X { /* verify baseline */ }` -- authored-empty
+/// placeholders carrying an identical generator comment.
+///
+/// The Zig backend emits `test "X" {}` for the same AST -- empty, claiming
+/// nothing. **The same source is honest in one backend and false in the other**,
+/// which isolates the defect to the Verilog reporting convention. See T45.
+///
+/// This phase REPORTS; it does not change the emitted text. Changing it would
+/// invalidate 108 committed Icarus baselines (44% of whose recorded lines are
+/// PASSED), and re-blessing golden output is an explicit human step (T31).
+fn cmd_no_vacuous_verilog_test(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog(&src) {
+        Err(_) => return Ok(()), // another phase's business (T30)
+        Ok(v) => v,
+    };
+    let mut vacuous = 0usize;
+    let mut in_block = false;
+    let (mut has_check, mut has_passed) = (false, false);
+    for line in v.lines() {
+        let t = line.trim();
+        if t.starts_with("initial begin :") {
+            in_block = true;
+            has_check = false;
+            has_passed = false;
+            continue;
+        }
+        if !in_block {
+            continue;
+        }
+        if t == "end" {
+            if has_passed && !has_check {
+                vacuous += 1;
+            }
+            in_block = false;
+            continue;
+        }
+        if t.starts_with("if (") || t.contains("assert") || t.contains("FAILED") {
+            has_check = true;
+        }
+        if t.contains(": PASSED") {
+            has_passed = true;
+        }
+    }
+    if vacuous == 0 {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} generated test block(s) print PASSED with no check; a simulation log          reports them as successes",
+        vacuous
+    )
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1310,6 +1366,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("no-vacuous-invariant", p1dfail, &mut ledger, &mut upstream_failed);
     push_phase("no-vacuous-invariant", p1dp, p1df, 0);
 
+    println!("--- Phase 1a4: Verilog tests actually check something ---");
+    let (p1ep, p1ef, p1efail) = run_phase_with_failures(
+        &repo,
+        "no-vacuous-verilog-test",
+        cmd_no_vacuous_verilog_test,
+        &specs_compiler,
+    )?;
+    println!("Verilog test bodies: {} clean, {} with unconditional PASSED", p1ep, p1ef);
+    record("no-vacuous-verilog-test", p1efail, &mut ledger, &mut upstream_failed);
+    push_phase("no-vacuous-verilog-test", p1ep, p1ef, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -1840,10 +1907,11 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1cf + p1df + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1df + p1ef + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Parse DISCARD fails:      {}", p1cf);
     println!("Vacuous invariant specs:  {}", p1df);
+    println!("Vacuous verilog tests:    {}", p1ef);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

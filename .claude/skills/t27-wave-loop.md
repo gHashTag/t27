@@ -5538,6 +5538,32 @@ These cost a wave each. Follow them before step 1.
      already named. When adding a phase, check whether its failures are
      `blocked` before assuming you found something new.
 
+246. **Differential backend testing is an ORACLE for report honesty, and this
+     repo has five backends over one AST.** The same empty node
+     `test X { /* verify baseline */ }` becomes `test "X" {}` in Zig (honest --
+     claims nothing) and `$display("[TEST] X : PASSED")` in Verilog (false).
+     When two backends disagree in EPISTEMIC CONTENT, at most one is faithful,
+     and the disagreement localises the defect without any reasoning about the
+     node. Cross-check backends before reasoning about the front end. (T45.)
+
+247. **3,429 of 12,067 generated Verilog test blocks (28%) print PASSED with no
+     check**, and **1,792 of them are AUTHORED-EMPTY** -- `test X { /* verify
+     baseline */ }`, identical comment, 64 per file, plainly generator output.
+     This is NOT the discard defect (T43): nothing was dropped, the block really
+     has no body. Two different causes, one symptom.
+
+248. **164 of 373 lines (44%) in the 108 committed Icarus baselines are
+     `PASSED`** -- unconditional successes frozen into the regression suite's
+     golden output. `Icarus simulation fails: 0` in every suite run is, for
+     these blocks, true because nothing was checked. Before trusting a
+     zero-failure phase, ask what its baseline records.
+
+249. **Surfacing a defect and repairing it are separable, and when repair means
+     RE-BLESSING AN ORACLE they must be separated.** I gated the vacuous Verilog
+     tests and deliberately did NOT change the emitted text: correcting it
+     invalidates 108 baselines, which is an explicit human step (T31). Gate
+     first, report the blast radius, let a human bless.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -2373,6 +2373,71 @@ obstacle.
 
 ---
 
+### T45 (W636) — The same empty test is honest in one backend and a false PASSED in the other, and the difference is baked into 108 committed baselines
+
+**W635 recommended auditing the other backends for success-claiming strings.
+The first one checked reproduces T43 in a worse place.** In the generated
+Verilog:
+
+```verilog
+initial begin : ternary_mac_w321_batch_depth_invariant_1_test
+    $display("[TEST] ternary_mac_w321_batch_depth_invariant_1 : starting");
+    $display("[TEST] ternary_mac_w321_batch_depth_invariant_1 : PASSED");
+end
+```
+
+**Nothing between "starting" and "PASSED".** Corpus-wide: **3 429 of 12 067
+generated test blocks (28%) print PASSED with no check of any kind.**
+
+**And this time the root cause is not a discard.** The source is:
+
+```t27
+test ternary_mac_w321_batch_depth_invariant_1 { /* verify baseline */ }
+```
+
+An **authored-empty** test. Nothing was dropped; the block genuinely has no
+body. **1 792 such blocks exist — 38% of all brace-form tests — and every one
+carries the identical comment `/* verify baseline */`**, at 64 per file across
+many files: generator output.
+
+**The control is what makes this sharp.** The Zig backend, from the *same AST*:
+
+```zig
+test "ternary_mac_w321_batch_depth_invariant_1" {
+}
+```
+
+**Empty, and claiming nothing.** Same source, same parse, same node — honest in
+one backend, false in the other. **The defect is isolated to the Verilog
+backend's reporting convention**, with the AST and the front end exonerated by
+construction.
+
+**Statement.** Let two backends `B₁`, `B₂` lower the same node `n`. If
+`report(B₁(n)) ≠ report(B₂(n))` in *epistemic content* — one claiming a property
+the other does not — then at most one is a faithful rendering of `n`, and the
+disagreement localises the defect without any reasoning about `n` itself.
+**Differential backend testing is therefore an oracle for report honesty**, and
+this repository already has five backends over one AST — an oracle it was not
+using.
+
+**The sting is downstream.** `.trinity/icarus-baselines/` holds 108 baseline
+files recording 373 expected simulation lines, **164 of which (44%) are
+`PASSED`**. Unconditional successes are frozen into the regression suite's own
+golden output. And every suite run in this session reported
+`Icarus simulation fails: 0` — a figure that, for these blocks, is true because
+nothing was checked.
+
+**Gated, not changed.** `no-vacuous-verilog-test` is a suite phase reporting the
+population. The emitted text is deliberately left alone: correcting it would
+invalidate 108 committed baselines, and re-blessing golden output is an explicit
+human step (**T31**). **Surfacing a defect and repairing it are separable, and
+when repair means re-blessing an oracle, they must be separated.**
+
+*Falsification condition:* an Icarus run in which one of these blocks reports
+`FAILED` — which would mean a check exists that this analysis does not see.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
