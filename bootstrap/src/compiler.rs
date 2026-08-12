@@ -1191,6 +1191,20 @@ impl Parser {
             if self.current.kind == TokenKind::Ident {
                 mod_name.push_str(&self.current.lexeme);
                 self.advance();
+                // Prop. 170: dotted module names, `module sandbox.https_enforce;`.
+                // Only hyphenated parts were consumed, so the `.` ended the
+                // name and became an unexpected top-level token -- 4 module-level
+                // declarations discarded. Accepted for the same reason hyphens
+                // are: this is a NAME, and the parser's job here is to read it,
+                // not to adjudicate the project's naming convention.
+                while self.current.kind == TokenKind::Dot {
+                    mod_name.push('.');
+                    self.advance();
+                    if self.current.kind == TokenKind::Ident {
+                        mod_name.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
                 // Consume hyphenated parts: - ident - ident ...
                 while self.current.kind == TokenKind::Minus {
                     mod_name.push('-');

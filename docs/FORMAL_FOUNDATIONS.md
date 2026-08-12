@@ -9262,7 +9262,7 @@ and a `_CoqProject`.
 
 ### Prop. 169 — 165 of 167 propositions cite a workflow that has never run — `CORRECTED`
 
-**Gate:** `formal-yosys.yml` → *Workflow reachable scan — a cited workflow must exist on the default branch*
+**Gate:** `formal-yosys.yml` → *Workflow reachable scan — a cited workflow must exist on the default branch (non-blocking, see Prop. 169)*
 
 **169a. The measurement.** Every proposition here carries a `Gate:` line naming a
 CI step. Resolving those against the repository's default branch:
