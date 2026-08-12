@@ -1738,6 +1738,25 @@ impl Parser {
                 let mut type_str = String::new();
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
+                    // Prop. 191: this is the FOURTH inline copy of type
+                    // parsing, and it is genuinely wrong -- it concatenates raw
+                    // lexemes until a comma, so `Map<K, V>` or `(A, B)` is
+                    // truncated at the first comma and the remainder is read as
+                    // a new field. It is left in place because TWO repairs were
+                    // tried and both regressed:
+                    //
+                    //   * delegating to parse_type_annotation -- that parser has
+                    //     no notion of a field terminator and consumed the
+                    //     struct's closing brace; 5 specs became
+                    //     `Expected RBrace, got Eof`.
+                    //   * making this loop nesting-aware (a comma inside <>, ()
+                    //     or [] belongs to the type) -- same 6 specs went blind,
+                    //     so it over-consumes on some field type and shifts
+                    //     every construct after it.
+                    //
+                    // Both were measured against the ratchet and reverted
+                    // (161 events / 0 blind -> 171 / 6, twice). The next attempt
+                    // needs the counterexample field type, not a third guess.
                                     // Collect type tokens until comma, semicolon, or closing brace
                     while self.current.kind != TokenKind::Comma
                         && self.current.kind != TokenKind::Semicolon

@@ -30,6 +30,30 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 692 — a fourth copy, found by grep, not repairable in isolation
+
+The grep Prop. 190d called for found one more inline type parser:
+`parse_struct_body` concatenates lexemes until a comma, so `Map<K, V>` is
+truncated and the remainder read as a new field.
+
+**Two repairs, both measured, both reverted.** Delegating to
+parse_type_annotation: 161 -> 171 events, 0 -> 6 specs capturing nothing -- that
+parser has no field terminator and ate the struct's closing brace. Making the
+loop nesting-aware: identical regression. Reverting restored 161/0 exactly.
+
+The second attempt also hung the build -- guarding the exit on balanced nesting
+meant an unbalanced type at EOF spun forever. **A scanner's termination must
+never depend on its input being well-formed.**
+
+The obvious explanation is wrong: parse_struct_body has two callers, both genuine
+structs. It over-consumes on some field type and shifts everything after it --
+the observable failure sits 40 lines later at an unrelated block.
+
+Left in place with both failures recorded at the site. *Locating duplication is
+mechanical; removing it is not, because each copy has adapted to the call sites
+that reach it.*
+
 ## Wave 691 — a third copy of the type parser
 
 **384 -> 161 recovery events**, specs recovering 130 -> 73, declarations captured

@@ -9945,6 +9945,53 @@ there and not here.**
 
 ---
 
+### Prop. 191 — a fourth copy of the type parser, found by grep and not repairable in isolation — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**191a. The grep Prop. 190d called for found one more.** Scanning
+`compiler.rs` for the inline-type idiom — building a type string from raw lexemes
+instead of calling `parse_type_annotation` — returns exactly two functions:
+`parse_type_annotation` itself, and **`parse_struct_body`**. The latter
+concatenates lexemes *until a comma*, so a field type containing one — `Map<K, V>`,
+`(A, B)` — is truncated at the comma and the remainder read as a new field.
+
+**191b. Two repairs, both measured, both reverted.**
+
+| attempt | result |
+|---|---|
+| delegate to `parse_type_annotation` | 161 → 171 events, **0 → 6** specs capturing nothing; that parser has no field terminator and ate the struct's closing brace |
+| make the loop nesting-aware | **identical** regression, 171 / 6 |
+
+Reverting restored 161 / 0 exactly, which is what identifies the cause. The
+second attempt also hung the build: guarding the loop's exit on balanced nesting
+meant an unbalanced type at end-of-file spun forever, because the lexer yields
+`Eof` indefinitely and `advance()` never progresses. **A scanner's termination
+must never depend on its input being well-formed.**
+
+**191c. The obvious explanation is wrong.** `parse_struct_body` has exactly two
+callers, both genuine struct declarations — so the regression is not "a shared
+function used by unrelated grammar". It over-consumes on some field type and
+shifts every construct after it; the observable failure in `handoff.t27` is at a
+`test "..." { }` block 40 lines later. **Prop. 186e again: a scanner that consumes
+too much reports its symptom at the consumer, with no positional information
+about the cause.**
+
+**191d. Left in place, with both failures recorded at the site.** The defect is
+real and bounded, the two approaches that do not work are written into the code
+with their measurements, and the next attempt needs the counterexample field type
+rather than a third guess. **A defect documented with two eliminated approaches
+is worth more than a third speculative fix**, and this is the standard applied
+since Prop. 174.
+
+**191e. Corollary (the grep is cheap; the repair may not be).** Prop. 190d
+recommended grepping for further copies, on the reasoning that two had been found
+by accident. The grep took one command and found the fourth immediately —
+**locating duplication is mechanical; removing it is not**, because each copy has
+adapted to the exact call sites that reach it.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
