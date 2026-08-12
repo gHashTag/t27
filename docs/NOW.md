@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-12
 
+## One contextual keyword recovered 2,865 unread lines (Closes #2132)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2132
+- PR: (direct commit)
+
+### What landed
+
+Prop. 195's 8 empty-shell specs all open `spec Name {`, and `spec` is **not a
+keyword in this language** -- it lexes as a bare identifier, so the declaration
+never forms and the parser emits an anonymous `Module` wrapper.
+
+`spec` cannot simply be promoted: it is used **31 times as an ordinary
+identifier** here (`fn generate_t27(spec: TriSpec)`). The separator is positional
+-- a module opener is `spec Ident {` and nothing else -- so it is a contextual
+keyword decided by three tokens, implemented with backtracking.
+
+| | before | after |
+|---|---|---|
+| specs read as empty shells | 8 | **1** |
+| recovery events, 497 specs | 161 | **154** |
+| declarations swallowed | 0 | 0 |
+| Rust tests | 1213 pass | 1213 pass |
+
+Both baselines re-locked. Every gate re-run, not just the touched ones
+(the wave-695 lesson): all green.
+
+### Honesty limits (BINDING)
+
+- **One shell remains and it is a DIFFERENT defect.** `ternary_logic.t27` opens
+  `type Trit = Trit`, an unsupported construct whose recovery occludes the rest
+  (Prop. 177f). It is ratcheted, not fixed.
+- **This raises how much is read, not whether what is read is correct.** The
+  newly-captured declarations have not been checked for content; Prop. 192's 18
+  corrupted field types are the standing reminder that capture is not correctness.
+- The 7 recovered specs are now parsed, but nothing consumes their contents yet --
+  no generator, no checker reads them. "Read by the parser" is not "used".
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169).
+
+
 ## 2,865 lines of spec are read as an empty shell (Closes #2131)
 
 - Branch: `feat/wave-547/host-heapsort`

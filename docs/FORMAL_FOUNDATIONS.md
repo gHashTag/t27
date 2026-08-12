@@ -10247,6 +10247,53 @@ described as the stronger one.
 
 ---
 
+### Prop. 196 — one contextual keyword recovered 2,865 lines the compiler had never read — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Capture density scan — if the output does not grow with the file, nothing was read*
+
+Prop. 195 measured 8 specs, 2,865 code lines, captured as anonymous 2-node shells.
+The cause is one token: they open `spec Name {`, and **`spec` is not a keyword in
+this language at all** — it lexes as a bare identifier, so the declaration never
+forms and the parser emits an empty `Module` wrapper.
+
+**`spec` cannot simply be promoted to a keyword.** It appears 31 times in this
+corpus as an ordinary identifier — `fn generate_t27(spec: TriSpec)`,
+`when spec = parse_tri_file(content)` — and a blanket alias breaks every one. The
+one-line fix that suggests itself is wrong, and only counting the other uses shows
+it.
+
+What separates the two is positional, the same shape as Prop. 190's generic-list
+rule: **a module opener is `spec Ident {` and nothing else**, so three tokens
+decide it. Implemented by backtracking, since the parser holds two tokens of
+lookahead and this needs three.
+
+| | before | after |
+|---|---|---|
+| specs read as empty shells | **8** | **1** |
+| recovery events, all 497 specs | 161 | **154** |
+| declarations swallowed | 0 | 0 |
+| Rust tests | 1213 pass | 1213 pass |
+
+**The one that remains is a different defect, and its shape is the point.**
+`ternary_logic.t27` opens with `type Trit = Trit`, an unsupported construct, and
+recovery from it occludes everything after — Prop. 177f's occlusion relation. Two
+independent causes produced one indistinguishable symptom, and the count going
+`8 → 1` rather than `8 → 0` is the only evidence that a second cause exists.
+
+**Theorem (repair asymmetry).** Prop. 195's density check is a *ratio* test, so it
+reports how much was read without knowing why. That makes it a valid detector for
+an unbounded class of causes, and a useless localiser for any one of them: the
+diagnosis needed a separate instrument (reading the file) for each. **A detector
+whose residue is bounded and a diagnostic that names a cause are different
+instruments, and a campaign needs both** — Prop. 193 argued for the first, and
+this is the wave that shows the first alone cannot close anything.
+
+Three bars: **TRUE** — every gate green, 1213 tests pass. **ALIVE** — the ratchet
+moved in the direction claimed on both counters, from independent measurements.
+**BITING** — reverting the parser change restores 8 shells and 161 events.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

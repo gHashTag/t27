@@ -1234,9 +1234,32 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Node, String> {
         let mut module = Node::new(NodeKind::Module);
 
+        // Prop. 196: `spec Name {` is a CONTEXTUAL alias for `module Name {`.
+        // 8 specs (2865 code lines) open with `spec` and were parsed as an
+        // anonymous empty shell -- 2 AST nodes each regardless of size, with
+        // zero recovery events, so every gate passed them (Prop. 195).
+        //
+        // `spec` cannot become a plain keyword: it is used 31 times in this
+        // corpus as an ordinary identifier, e.g. `fn generate_t27(spec:
+        // TriSpec)`. Promoting it wholesale would break those. The positional
+        // invariant that separates the two is the same shape as Prop. 190's
+        // generic-list rule: a module opener is `spec Ident {` and nothing
+        // else, so three tokens decide it. Backtrack rather than guess.
+        let spec_alias = self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "spec"
+            && self.peek.kind == TokenKind::Ident
+            && {
+                let m = self.mark();
+                self.advance();
+                self.advance();
+                let ok = self.current.kind == TokenKind::LBrace;
+                self.reset(m);
+                ok
+            };
+
         // [BUG 4 FIX] Parse optional module declaration
-        if self.current.kind == TokenKind::KwModule {
-            self.advance(); // consume 'module'
+        if self.current.kind == TokenKind::KwModule || spec_alias {
+            self.advance(); // consume 'module' (or the contextual 'spec')
                             // Module name can contain hyphens: e.g. "tritype-base"
             let mut mod_name = String::new();
             if self.current.kind == TokenKind::Ident {
