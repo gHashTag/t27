@@ -21,6 +21,33 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 683 — one mistake in two copies, and a withdrawn explanation
+
+**Swept every workflow step for Prop. 173's shape.** The witness step is the
+other place where every case expects a refutation. Its exit-code handling was
+already correct, but `witnesses.sv` is hand-written: rename a signal in an
+emitter and yosys implicitly declares an undriven wire, the witness genuinely
+refutes, and the step reports "case reachable" about a wire that does not exist.
+Guarded; a planted rename takes it from 14 ok / exit 0 to 14 errors / exit 1.
+
+**Generic function names: attempted twice, reverted twice.** A depth-scanned
+`<...>` runs to EOF because `<` is also a comparison. Bounding it by shape fixed
+that and exposed a LATENT COPY of the same defect in parse_type_annotation --
+which had never mattered, because the name always failed first. The shape bound
+is then too narrow for `Result<[T?], StorageError>`, and a correct version needs
+backtracking this parser does not have. Recorded as the blocking constraint.
+
+Kept: the type-annotation scan is now bounded rather than unbounded. It changes
+no count and was one signature away from destroying a file.
+
+**And Prop. 173d is WITHDRAWN.** I claimed `$( ... 2>&1 )` failed to capture
+stderr across a multi-line command substitution. Re-tested: it captures 132931
+bytes with the warning present, and with `-q` restored it still contains the
+exact pattern. **I cannot reproduce the failure I published an explanation for.**
+Two changes went in together and the working result was attributed to the wrong
+one.
+
 ## Wave 682 — the liveness step scored every failure as a refutation
 
 The probe helper read `if yosys ...; then got=proves; else got=refutes; fi`, and

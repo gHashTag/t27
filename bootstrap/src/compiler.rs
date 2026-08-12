@@ -1833,22 +1833,34 @@ impl Parser {
                         break;
                     }
                 }
-            } else if self.current.kind == TokenKind::Lt {
-                // Angle-bracket generics, `Result<T, E>`. Only reached in a type
-                // position, so `<` here cannot be a comparison.
-                let mut depth = 0i32;
+            } else if self.current.kind == TokenKind::Lt
+                && self.peek.kind == TokenKind::Ident
+            {
+                // Angle-bracket generics, `Result<T, E>`. Prop. 174: this was a
+                // DEPTH scan, which runs to EOF when the `<` is a comparison --
+                // latent until the generic-fn-name fix let parsing reach a
+                // return type at all, then it destroyed the whole file. Bounded
+                // by shape, exactly as the fn-name list is: `< Ident (, Ident)* >`
+                // and nothing else.
+                let mut gen = String::from("<");
+                self.advance();
                 loop {
-                    match self.current.kind {
-                        TokenKind::Lt => depth += 1,
-                        TokenKind::Gt => depth -= 1,
-                        TokenKind::Eof => break,
-                        _ => {}
-                    }
-                    ty.push_str(&self.current.lexeme);
-                    self.advance();
-                    if depth == 0 {
+                    if self.current.kind != TokenKind::Ident {
                         break;
                     }
+                    gen.push_str(&self.current.lexeme);
+                    self.advance();
+                    if self.current.kind == TokenKind::Comma {
+                        gen.push(',');
+                        self.advance();
+                        continue;
+                    }
+                    break;
+                }
+                if self.current.kind == TokenKind::Gt {
+                    gen.push('>');
+                    self.advance();
+                    ty.push_str(&gen);
                 }
             }
         } else if self.current.kind == TokenKind::KwVoid {

@@ -9351,13 +9351,25 @@ stayed dead for four waves.
 Before either, the run is rejected if yosys emitted `is implicitly declared` —
 and `-q` was removed so that warning reaches the log at all.
 
-**173d. Capturing with `$( ... 2>&1 )` did not work here, and the failure was
-silent.** Inside a multi-line command substitution the stderr redirect did not
-reach the capture: the phantom warning printed to the job log and the grep saw
-nothing, so the first version of this fix passed the phantom test while
-appearing correct. Redirecting to a **file** removed the quoting question
-entirely. *A guard that reads a variable you did not verify is populated is a
-guard on an empty string.*
+**173d. WITHDRAWN — the stated cause is not reproducible.** This proposition
+originally claimed that `$( ... 2>&1 )` across a multi-line command substitution
+failed to capture stderr, which is why the first version of the guard did not
+fire. **That is false.** Re-tested directly: the capture returns 132931 bytes
+with the warning present; with `-q` restored it returns 178 bytes and *still*
+contains `is implicitly declared`, matching the guard's exact pattern. Neither
+the capture form nor `-q` suppresses it.
+
+So the first guard should have fired and did not, and **I cannot reproduce the
+failure.** The most likely remaining explanation is my *test harness* — it
+extracts the step from YAML and de-indents it, which mangles the embedded Python
+heredoc that writes the probe file — but that is a hypothesis, not a measurement,
+and it is recorded as such.
+
+What survives: the shipped fix is verified on all three bars (173e), and the
+file-redirect is kept because it is unambiguous, not because it was shown
+necessary. **Two changes went in together — dropping `-q` and redirecting to a
+file — and the working result was attributed to the wrong one.** Change one
+thing when you intend to learn which one mattered.
 
 **173e. Verified on three bars.** TRUE — all seven real probes pass and the step
 exits 0. ALIVE — each produces a genuine verdict, six refuting and one proving.
@@ -9370,6 +9382,71 @@ the default. Any fault that lands in the default branch is undetectable in those
 `k` cases, and the probability a random fault is masked rises with `k/n`.* Here
 `k/n = 6/7`. The design rule follows: **never let the default branch of a verdict
 be the answer most checks expect** — make the default a third value that fails.
+
+---
+
+### Prop. 174 — a depth-scanned `<...>` runs to EOF, and the fix was occluded — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**174a. Two attempts at generic function names, both reverted, and the second
+taught more than the first.** `fn read<T>(...)` costs 8 of the 13 remaining
+swallowed declarations. Attempt one scanned to a matching `>` **by depth**: `<`
+and `>` are also comparisons, so on the wrong signature it ran to EOF and turned
+a whole spec into `Expected RBrace, got Eof`.
+
+**174b. Attempt two was bounded by SHAPE — and exposed a latent copy of the same
+defect.** Consuming only `< Ident (, Ident)* >` cannot run away. It still failed,
+in a *different* place: `parse_type_annotation`'s angle handling, added in Wave
+679, was **also** a depth scan. It had never mattered because `fn read<T>(`
+failed at the name, so no return type was ever reached. Fixing the name let
+parsing reach `-> Result<T, StorageError>` and the older defect fired.
+**Third instance of Prop. 167's occlusion relation**, now between two copies of
+one mistake.
+
+**174c. The shape bound is too narrow for this corpus, and that is why the
+feature is still unimplemented.** `Result<[T?], StorageError>` has a generic
+argument that is not a bare identifier. A correct implementation needs the
+argument to be a full type, recursively — which this parser cannot attempt
+without backtracking, because a failed match has already consumed tokens.
+Recorded as the blocking constraint rather than worked around.
+
+**174d. What was kept.** The type-annotation angle handling is now shape-bounded
+instead of depth-scanned. It reduces nothing measurable — 13 swallowed either
+way — and is kept because **replacing an unbounded scan with a bounded one is
+correct on its own terms**, and the unbounded version was one signature away
+from destroying a file. Verified: `specs/storage/kv.t27` parses, 1213 tests pass.
+
+---
+
+### Prop. 175 — the witness step had the same phantom exposure — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Properties are non-vacuous (witnesses must refute)*
+
+**175a. Found by sweeping for the shape, not by accident.** Prop. 173 gave the
+rule — *never let the default branch of a verdict be the answer most checks
+expect* — so every workflow step was scanned for it. The witness step is the
+other place where **every** case expects a refutation.
+
+**175b. Its exit-code handling was already correct** — it greps `proof did fail`
+rather than trusting `$?`, the Prop. 58 fix applied years of waves ago. But
+`formal/witnesses.sv` is hand-written and names design signals. Rename one in an
+emitter and yosys implicitly declares an undriven wire, the witness genuinely
+refutes, and the step reports **"case reachable"** about a wire that does not
+exist. All 14 witnesses expect a refutation, so the failure is invisible by
+construction.
+
+**175c. Guarded and verified biting.** Renaming one signal in `witnesses.sv`
+takes the step from **14 ok / 0 errors / exit 0** to **0 ok / 14 errors / exit 1**
+— all fourteen, because that file is read into every run, which is the loud
+behaviour wanted.
+
+**175d. Corollary (a hand-written property file is a phantom surface).** *Any
+artifact that names a signal by string, and is checked against a generated
+design, silently decouples the moment the generator renames it.* The check is
+mechanical and cheap — grep the tool's warnings for an implicit declaration —
+and it belongs in **every** step that reads properties against emitted RTL, not
+only the one where the exposure was first noticed.
 
 ---
 

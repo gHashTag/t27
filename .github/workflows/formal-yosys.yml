@@ -1173,6 +1173,19 @@ jobs:
             # dropped the verdict line, turning REFUTES into "did not refute".
             # bash does not expand these, zsh does, so the same command gives
             # different verdicts on CI and on a developer's machine. Prop. 58.
+            # Prop. 175: the same phantom exposure as the liveness probes.
+            # witnesses.sv is hand-written and names design signals; if an
+            # emitter renames one, yosys implicitly declares an undriven wire,
+            # the witness genuinely refutes, and this step reports "case
+            # reachable" about a wire that does not exist. Every witness here
+            # expects a refutation, so the failure is invisible by construction.
+            if printf '%s\n' "$out" | grep -q "is implicitly declared"; then
+              echo "::error::${top}: the witness names a signal the design does"
+              echo "         not have -- the refutation is about a phantom wire."
+              printf '%s\n' "$out" | grep "implicitly declared" | head -2
+              fail=1
+              return
+            fi
             if printf '%s\n' "$out" | grep -q "proof did fail"; then
               echo "ok       ${top} (case reachable)"
             else
