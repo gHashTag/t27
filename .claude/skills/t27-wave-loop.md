@@ -5295,6 +5295,28 @@ These cost a wave each. Follow them before step 1.
      (primary): 0`, and the run exits 1 with UNEXPECTED PASS. If a zero-defect
      tree passes, the ledger is permissive and will rot.
 
+212. **Filter the population BEFORE you bless it.** The 206-entry ledger's
+     first classification found 15 Markdown files carrying a `.t27` extension
+     and 9 with no `module` declaration. A Markdown file has no parse outcome --
+     it has a category error -- so amnestying it installs an entry that can
+     NEVER be removed: the terminal state of normalisation of deviance, on day
+     one. `expires` cannot discharge that duty; only filtering can. (T34.)
+
+213. **"33.8% of the corpus does not parse" was itself a count over a mixed
+     population.** 24 of 609 are not source; the real figure is 182/585 =
+     31.1%. I published the 33.8% in W626 and repeated it in W627. **The lesson
+     that keeps recurring in this repo recurred inside the correction to it** --
+     check whether every member of the denominator is the kind of thing the
+     numerator measures.
+
+214. **Classify a ledger mechanically the moment you bless it.** Re-run the
+     failing phase per entry, normalise line:col and fn name out of the
+     message, and write the class into `reason`. 206 entries became 48 classes
+     with the top 12 covering 146 -- a work queue grouped by cause instead of a
+     list of paths. Then READ the offending source line for the top classes;
+     the top three here were two parser gaps and one misfiled artefact, which
+     no amount of message-grouping would have told you.
+
 ### How to update this tracker
 
 After closing a wave:
