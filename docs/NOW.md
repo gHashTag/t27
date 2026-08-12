@@ -8,6 +8,33 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 671 — a corrupting commit and a swallowing parser, hiding each other
+
+**One semicolon (Prop. 146).** `parse_const_decl`'s value branch returned
+without consuming the trailing `;`, so every `const X = v;` left a stray token
+that errored and took the next declaration with it. Recovery events
+**1741 -> 556**, specs recovering **427 -> 205**, constants lost
+**3292 -> 2339**. The sibling bracket branch consumes it correctly, which is why
+it survived: some constants parsed, so nothing looked broken.
+
+**162167 characters (Prop. 147).** With errors finally visible, the top one read
+`Expected LBrace, got Number ('257')` on `fn bit_to_trit_pair(bit: u8) 257
+[2]i32 {`. Commit `fcf80027d` "replace all Unicode with ASCII in 160 .t27 files"
+substituted each non-ASCII character's **running index** instead of a
+transliteration. Byte-level: `\342\206\222` (U+2192) became ` 12 `. 112
+distinct characters, 154 files.
+
+The two defects concealed each other exactly: the corruption produced parse
+errors and the silent recovery swallowed them, so 497/497 specs "parsed"
+throughout. Fix the discarding defect first — it is the one whose repair turns
+hidden state into evidence.
+
+Repaired 483 arrow sites across 37 files, reconstructed from the pre-image
+rather than guessed. **27 committed**; the rest are blocked by pre-existing
+uncommitted edits in 62 specs, so the standing dirty-tree question now has a
+cost attached.
+
 ## Wave 670 — 497 specs parse, and 3292 declarations never reach an AST
 
 Writing the requantizer spec Prop. 140 needed produced an AST with none of its

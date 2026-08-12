@@ -29,9 +29,9 @@ module TernaryShift {
     // 2. Shift Operations
     // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
 
-    // ternary_shift_left(word: []i32, shift: usize, len: usize) 256 bool
+    // ternary_shift_left(word: []i32, shift: usize, len: usize) -> bool
     // Shift word left by N trits, fill with zero
-    fn ternary_shift_left(word: []i32, shift: usize, len: usize) 257 bool {
+    fn ternary_shift_left(word: []i32, shift: usize, len: usize) -> bool {
         if (shift >= len) {
             return false;  // Would shift everything out
         }
@@ -52,9 +52,9 @@ module TernaryShift {
         return true;
     }
 
-    // ternary_shift_right(word: []i32, shift: usize, len: usize) 258 bool
+    // ternary_shift_right(word: []i32, shift: usize, len: usize) -> bool
     // Shift word right by N trits, fill with zero
-    fn ternary_shift_right(word: []i32, shift: usize, len: usize) 259 bool {
+    fn ternary_shift_right(word: []i32, shift: usize, len: usize) -> bool {
         if (shift >= len) {
             return false;  // Would shift everything out
         }
@@ -81,9 +81,9 @@ module TernaryShift {
     // 3. Rotate Operations
     // 313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385
 
-    // ternary_rotate_left(word: []i32, shift: usize, len: usize) 386 void
+    // ternary_rotate_left(word: []i32, shift: usize, len: usize) -> void
     // Rotate word left by N trits (circular shift)
-    fn ternary_rotate_left(word: []i32, shift: usize, len: usize) 387 void {
+    fn ternary_rotate_left(word: []i32, shift: usize, len: usize) -> void {
         if (len == 0) {
             return;
         }
@@ -112,9 +112,9 @@ module TernaryShift {
         }
     }
 
-    // ternary_rotate_right(word: []i32, shift: usize, len: usize) 388 void
+    // ternary_rotate_right(word: []i32, shift: usize, len: usize) -> void
     // Rotate word right by N trits (circular shift)
-    fn ternary_rotate_right(word: []i32, shift: usize, len: usize) 389 void {
+    fn ternary_rotate_right(word: []i32, shift: usize, len: usize) -> void {
         if (len == 0) {
             return;
         }
@@ -147,9 +147,9 @@ module TernaryShift {
     // 4. Arithmetic Shift (Signed Shift)
     // 443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515
 
-    // ternary_arithmetic_shift_right(word: []i32, shift: usize, len: usize) 516 bool
+    // ternary_arithmetic_shift_right(word: []i32, shift: usize, len: usize) -> bool
     // Arithmetic shift right: preserves sign bit
-    fn ternary_arithmetic_shift_right(word: []i32, shift: usize, len: usize) 517 bool {
+    fn ternary_arithmetic_shift_right(word: []i32, shift: usize, len: usize) -> bool {
         if (len == 0) {
             return false;
         }
@@ -184,9 +184,9 @@ module TernaryShift {
     // 5. Bit/Trit Extraction
     // 571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643
 
-    // extract_trits(word: []i32, start: usize, count: usize, result: []i32) 644 bool
+    // extract_trits(word: []i32, start: usize, count: usize, result: []i32) -> bool
     // Extract N trits starting from position S
-    fn extract_trits(word: []i32, start: usize, count: usize, result: []i32) 645 bool {
+    fn extract_trits(word: []i32, start: usize, count: usize, result: []i32) -> bool {
         if (start + count > word.len) {
             return false;
         }
@@ -200,9 +200,9 @@ module TernaryShift {
         return true;
     }
 
-    // insert_trits(word: []i32, start: usize, count: usize, values: []i32) 646 bool
+    // insert_trits(word: []i32, start: usize, count: usize, values: []i32) -> bool
     // Insert N trits starting from position S
-    fn insert_trits(word: []i32, start: usize, count: usize, values: []i32) 647 bool {
+    fn insert_trits(word: []i32, start: usize, count: usize, values: []i32) -> bool {
         if (start + count > word.len) {
             return false;
         }

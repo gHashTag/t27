@@ -52,11 +52,11 @@ This new spec provides:
 
 #### 3. Three Hypothetical Bridge Pathways
 
-**Pathway A**: CS Effective Action 23 Wilson Loop Effective Action
+**Pathway A**: CS Effective Action -> Wilson Loop Effective Action
 - Status: No derivation exists
 - Barriers: CS is topological (metric-independent), Wilson loop action would be metric-dependent
 
-**Pathway B**: Wilson Loop 24 LQG Area Operator with CS Corrections
+**Pathway B**: Wilson Loop -> LQG Area Operator with CS Corrections
 - Status: No calculation exists
 - Barriers: CS Wilson loops are 1D in 2D, LQG area is 3D surface operator
 

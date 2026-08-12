@@ -24,9 +24,9 @@ module TernaryBitwise {
     // 2. Tritwise AND
     // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
 
-    // tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) 256 void
+    // tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise AND operation (acts as MIN in balanced ternary)
-    fn tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) 257 void {
+    fn tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             // AND is essentially MIN for balanced ternary
@@ -43,9 +43,9 @@ module TernaryBitwise {
     // 3. Tritwise OR
     // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
 
-    // tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) 384 void
+    // tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise OR operation (acts as MAX in balanced ternary)
-    fn tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) 385 void {
+    fn tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             // OR is essentially MAX for balanced ternary
@@ -62,10 +62,10 @@ module TernaryBitwise {
     // 4. Tritwise XOR
     // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
 
-    // tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) 512 void
+    // tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise XOR (exclusive OR) operation
     // Returns TRIT_ZERO if inputs are same, otherwise indicates difference
-    fn tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) 513 void {
+    fn tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             if (a[i] == b[i]) {
@@ -86,9 +86,9 @@ module TernaryBitwise {
     // 5. Tritwise NOT
     // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
 
-    // tritwise_not(word: []i32, result: []i32, len: usize) 640 void
+    // tritwise_not(word: []i32, result: []i32, len: usize) -> void
     // Tritwise NOT (inversion) operation
-    fn tritwise_not(word: []i32, result: []i32, len: usize) 641 void {
+    fn tritwise_not(word: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             result[i] = -word[i];
@@ -100,9 +100,9 @@ module TernaryBitwise {
     // 6. Tritwise NAND
     // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
 
-    // tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) 768 void
+    // tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise NAND (NOT AND) operation
-    fn tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) 769 void {
+    fn tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var temp : [WORD_SIZE]i32 = undefined;
         tritwise_and(a, b, temp, len);
         tritwise_not(temp, result, len);
@@ -112,9 +112,9 @@ module TernaryBitwise {
     // 7. Tritwise NOR
     // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
 
-    // tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) 896 void
+    // tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise NOR (NOT OR) operation
-    fn tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) 897 void {
+    fn tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var temp : [WORD_SIZE]i32 = undefined;
         tritwise_or(a, b, temp, len);
         tritwise_not(temp, result, len);
@@ -124,9 +124,9 @@ module TernaryBitwise {
     // 8. Tritwise XNOR
     // 951952953954955956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
 
-    // tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) 1024 void
+    // tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) -> void
     // Tritwise XNOR (exclusive NOR) - equality test
-    fn tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) 1025 void {
+    fn tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             if (a[i] == b[i]) {
@@ -142,9 +142,9 @@ module TernaryBitwise {
     // 9. Mask Operations
     // 1079108010811082108310841085108610871088108910901091109210931094109510961097109810991100110111021103110411051106110711081109111011111112111311141115111611171118111911201121112211231124112511261127112811291130113111321133113411351136113711381139114011411142114311441145114611471148114911501151
 
-    // tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) 1152 void
+    // tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) -> void
     // Apply mask: keep trits where mask is POS, zero elsewhere
-    fn tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) 1153 void {
+    fn tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             if (mask[i] == TRIT_POS) {
@@ -156,9 +156,9 @@ module TernaryBitwise {
         }
     }
 
-    // tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) 1154 void
+    // tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) -> void
     // Merge based on mask: take from a where mask is POS, from b otherwise
-    fn tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) 1155 void {
+    fn tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) -> void {
         var i : usize = 0;
         while (i < len) {
             if (mask[i] == TRIT_POS) {

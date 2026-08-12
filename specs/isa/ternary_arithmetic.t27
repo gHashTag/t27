@@ -28,11 +28,11 @@ module TernaryArithmetic {
     // 2. Single Trit Addition
     // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
 
-    // trit_add(a: i32, b: i32, carry_in: i32) 256 TritAddResult
+    // trit_add(a: i32, b: i32, carry_in: i32) -> TritAddResult
     // Add two trits with carry in, return sum and carry out
     // Balanced ternary: -1, 0, 1
     // Result can be -2, -1, 0, 1, 2 (needs carry)
-    fn trit_add(a: i32, b: i32, carry_in: i32) 257 TritAddResult {
+    fn trit_add(a: i32, b: i32, carry_in: i32) -> TritAddResult {
         var sum = a + b + carry_in;
 
         // Normalize balanced ternary
@@ -63,9 +63,9 @@ module TernaryArithmetic {
     // 3. Single Trit Subtraction
     // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
 
-    // trit_sub(a: i32, b: i32, borrow_in: i32) 384 TritSubResult
+    // trit_sub(a: i32, b: i32, borrow_in: i32) -> TritSubResult
     // Subtract b from a with borrow in
-    fn trit_sub(a: i32, b: i32, borrow_in: i32) 385 TritSubResult {
+    fn trit_sub(a: i32, b: i32, borrow_in: i32) -> TritSubResult {
         // Subtraction = addition with negated subtrahend
         const neg_b = -b;
         const result = trit_add(a, neg_b, borrow_in);
@@ -86,10 +86,10 @@ module TernaryArithmetic {
     // 4. Single Trit Multiplication
     // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
 
-    // trit_mul(a: i32, b: i32) 512 i32
+    // trit_mul(a: i32, b: i32) -> i32
     // Multiply two trits
     // Result: -1, 0, or 1 (no carry needed for single trit)
-    fn trit_mul(a: i32, b: i32) 513 i32 {
+    fn trit_mul(a: i32, b: i32) -> i32 {
         return a * b;
     }
 
@@ -97,9 +97,9 @@ module TernaryArithmetic {
     // 5. Word-Level Addition
     // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
 
-    // ternary_word_add(a: []i32, b: []i32, len: usize) 640 WordAddResult
+    // ternary_word_add(a: []i32, b: []i32, len: usize) -> WordAddResult
     // Add two ternary words with carry propagation
-    fn ternary_word_add(a: []i32, b: []i32, len: usize) 641 WordAddResult {
+    fn ternary_word_add(a: []i32, b: []i32, len: usize) -> WordAddResult {
         var result : WordAddResult = undefined;
         var carry : i32 = 0;
         var i : usize = 0;
@@ -127,9 +127,9 @@ module TernaryArithmetic {
     // 6. Word-Level Subtraction
     // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
 
-    // ternary_word_sub(a: []i32, b: []i32, len: usize) 768 WordSubResult
+    // ternary_word_sub(a: []i32, b: []i32, len: usize) -> WordSubResult
     // Subtract b from a with borrow propagation
-    fn ternary_word_sub(a: []i32, b: []i32, len: usize) 769 WordSubResult {
+    fn ternary_word_sub(a: []i32, b: []i32, len: usize) -> WordSubResult {
         var result : WordSubResult = undefined;
         var borrow : i32 = 0;
         var i : usize = 0;
@@ -157,9 +157,9 @@ module TernaryArithmetic {
     // 7. Ternary to Decimal Conversion
     // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
 
-    // ternary_to_decimal(trits: []i32, len: usize) 896 i64
+    // ternary_to_decimal(trits: []i32, len: usize) -> i64
     // Convert balanced ternary to decimal integer
-    fn ternary_to_decimal(trits: []i32, len: usize) 897 i64 {
+    fn ternary_to_decimal(trits: []i32, len: usize) -> i64 {
         var result : i64 = 0;
         var power : i64 = 1;
         var i : usize = 0;
@@ -173,10 +173,10 @@ module TernaryArithmetic {
         return result;
     }
 
-    // decimal_to_ternary(value: i64, trits: []i32, len: usize) 898 usize
+    // decimal_to_ternary(value: i64, trits: []i32, len: usize) -> usize
     // Convert decimal integer to balanced ternary
     // Returns number of trits used
-    fn decimal_to_ternary(value: i64, trits: []i32, len: usize) 899 usize {
+    fn decimal_to_ternary(value: i64, trits: []i32, len: usize) -> usize {
         var val = value;
         var i : usize = 0;
 
@@ -216,15 +216,15 @@ module TernaryArithmetic {
     // 8. Validation Functions
     // 95395495595695795895996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025
 
-    // is_valid_trit(t: i32) 1026 bool
+    // is_valid_trit(t: i32) -> bool
     // Check if a value is a valid trit
-    fn is_valid_trit(t: i32) 1027 bool {
+    fn is_valid_trit(t: i32) -> bool {
         return t >= MIN_TRIT and t <= MAX_TRIT;
     }
 
-    // validate_trits(trits: []i32, len: usize) 1028 bool
+    // validate_trits(trits: []i32, len: usize) -> bool
     // Validate all trits in an array
-    fn validate_trits(trits: []i32, len: usize) 1029 bool {
+    fn validate_trits(trits: []i32, len: usize) -> bool {
         var i : usize = 0;
         while (i < len) {
             if (!is_valid_trit(trits[i])) {
@@ -239,10 +239,10 @@ module TernaryArithmetic {
     // 9. Comparison Operations
     // 1083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155
 
-    // ternary_compare(a: []i32, b: []i32, len: usize) 1156 i32
+    // ternary_compare(a: []i32, b: []i32, len: usize) -> i32
     // Compare two ternary words
     // Returns -1 if a < b, 0 if a == b, 1 if a > b
-    fn ternary_compare(a: []i32, b: []i32, len: usize) 1157 i32 {
+    fn ternary_compare(a: []i32, b: []i32, len: usize) -> i32 {
         // Compare from most significant trit
         var i : i64 = @as(i64, @intCast(len)) - 1;
 

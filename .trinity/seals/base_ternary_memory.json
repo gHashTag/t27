@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fa22a67f44c364554c387e53803dd48d1e144850b02e2c5e8909d41add4692dc",
-  "gen_hash_rust": "sha256:6d6591cdfa0496ab2a655d2c148f73a6ea0e5693d594787ae2eaf98318c703cb",
-  "gen_hash_verilog": "sha256:024345bf1afe1b161dc493564ccb072c42af770584db407833331c6d64d7c49c",
-  "gen_hash_zig": "sha256:0d2539f32a9af38d9952856da434a8b5b719ad5f7e0b4feb6ab5550c3fd64a8b",
+  "gen_hash_c": "sha256:de4dbe364fae8525575c148699e78f03ec68ad2e79aab7ebbb35858fadad2d5f",
+  "gen_hash_rust": "sha256:fae0acb1fcb53e33a2575f191bad2d3fe1b0868884e410968979aefe79c18fa6",
+  "gen_hash_verilog": "sha256:4c210f4950e8f11b8f9fa86867bedfdf4f7ffa1d03591f734998592358ec4249",
+  "gen_hash_zig": "sha256:123d094b9f7a0a7b192e69cbac24b202a568e11608507bcc05ae9ad133b8d82f",
   "module": "TernaryMemory",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:937bd385e715c44fb216c71ed30d20a6242ef4c9c206791301fcedde996cc4a3",
+  "sealed_at": "2026-08-12T01:11:29Z",
+  "spec_hash": "sha256:f976843b7ff773d5523e1824bfc46e38fc34b419bfb30200f659d592abdba3c7",
   "spec_path": "specs/base/ternary_memory.t27"
 }

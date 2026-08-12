@@ -105,7 +105,7 @@ module ISARegisters {
     // 4. Register Read/Write
     // 511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583
 
-    // reg_read(reg: u8) 584 TernaryWord
+    // reg_read(reg: u8) -> TernaryWord
     // Read from register file
     // R0 always returns 0 (zero register)
     // Returns error sentinel if register number is invalid
@@ -124,7 +124,7 @@ module ISARegisters {
         return register_file[reg];
     }
 
-    // reg_write(reg: u8, value: TernaryWord) 585 bool
+    // reg_write(reg: u8, value: TernaryWord) -> bool
     // Write to register file
     // R0 writes are ignored (zero register is read-only)
     // Returns true if write succeeded, false if invalid register
@@ -147,7 +147,7 @@ module ISARegisters {
     // 5. Coptic Encoding Conversion
     // 651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723
 
-    // reg_to_coptic(reg: u8) 724 u32
+    // reg_to_coptic(reg: u8) -> u32
     // Convert register number to Coptic Unicode code point
     // Returns 0 if register number is invalid
     fn reg_to_coptic(reg: u8) -> u32 {
@@ -157,7 +157,7 @@ module ISARegisters {
         return COPTIC_ALPHABET[reg];
     }
 
-    // coptic_to_reg(cp: u32) 725 u8
+    // coptic_to_reg(cp: u32) -> u8
     // Convert Coptic Unicode code point to register number
     // Returns 0xFF if not a valid register character
     fn coptic_to_reg(cp: u32) -> u8 {
@@ -177,7 +177,7 @@ module ISARegisters {
     // 6. Status Register Operations
     // 791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863
 
-    // status_read(flag: u8) 864 bool
+    // status_read(flag: u8) -> bool
     // Read a specific flag from status register (R20)
     // Returns true if flag is set, false otherwise
     fn status_read(flag: u8) -> bool {
@@ -186,7 +186,7 @@ module ISARegisters {
         return (status_val.raw & mask) != 0;
     }
 
-    // status_write(flag: u8, value: bool) 865 bool
+    // status_write(flag: u8, value: bool) -> bool
     // Set or clear a specific flag in status register (R20)
     // Returns true if operation succeeded
     fn status_write(flag: u8, value: bool) -> bool {
@@ -210,7 +210,7 @@ module ISARegisters {
     // 7. Stack Operations (using R17 as stack pointer)
     // 9319329339349359369379389399409419429439449459469479489499509519529539549559569579589599609619629639649659669679689699709719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000100110021003
 
-    // push_reg(reg: u8) 1004 bool
+    // push_reg(reg: u8) -> bool
     // Push register value to stack (using R17 as stack pointer)
     // Stack grows downward (decrement before store)
     // Returns true if push succeeded
@@ -237,7 +237,7 @@ module ISARegisters {
         return true;
     }
 
-    // pop_reg(reg: u8) 1005 bool
+    // pop_reg(reg: u8) -> bool
     // Pop value from stack into register (using R17 as stack pointer)
     // Stack grows downward (load then increment)
     // Returns true if pop succeeded
@@ -265,7 +265,7 @@ module ISARegisters {
     // 8. Context Save/Restore
     // 1071107210731074107510761077107810791080108110821083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143
 
-    // save_context() 1144 void
+    // save_context() -> void
     // Save caller-saved registers (R5-R9) to stack
     // Used by function prologue
     fn save_context() -> void {
@@ -276,7 +276,7 @@ module ISARegisters {
         push_reg(R9);
     }
 
-    // restore_context() 1145 void
+    // restore_context() -> void
     // Restore caller-saved registers from stack
     // Used by function epilogue
     fn restore_context() -> void {

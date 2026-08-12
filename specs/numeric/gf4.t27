@@ -53,14 +53,14 @@ module GF4 {
 
         // For GF4, quantize to available values
         // Available positive values (mant * exp_scale):
-        // mant=0.00, exp=1.0 418 0.00
-        // mant=0.25, exp=1.0 419 0.25
-        // mant=0.50, exp=1.0 420 0.50
-        // mant=0.75, exp=1.0 421 0.75
-        // mant=0.00, exp=2.0 422 0.00
-        // mant=0.25, exp=2.0 423 0.50
-        // mant=0.50, exp=2.0 424 1.00
-        // mant=0.75, exp=2.0 425 1.50
+        // mant=0.00, exp=1.0 -> 0.00
+        // mant=0.25, exp=1.0 -> 0.25
+        // mant=0.50, exp=1.0 -> 0.50
+        // mant=0.75, exp=1.0 -> 0.75
+        // mant=0.00, exp=2.0 -> 0.00
+        // mant=0.25, exp=2.0 -> 0.50
+        // mant=0.50, exp=2.0 -> 1.00
+        // mant=0.75, exp=2.0 -> 1.50
 
         // Unique positive non-zero values: 0.25, 0.5, 0.75, 1.0, 1.5
 
@@ -93,10 +93,10 @@ module GF4 {
             return 0.0;
         }
 
-        // Decode mantissa (2 bits 426 values 0, 0.25, 0.5, 0.75)
+        // Decode mantissa (2 bits -> values 0, 0.25, 0.5, 0.75)
         const mant = (mant_bits as f32) / 4.0;
 
-        // Decode exponent (1 bit 427 1.0 or 2.0)
+        // Decode exponent (1 bit -> 1.0 or 2.0)
         const exp_scale = if (exp_bit) { 2.0 } else { 1.0 };
 
         const value = mant * exp_scale;
@@ -112,12 +112,12 @@ module GF4 {
     // 493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565
 
     fn max_value() -> f32 {
-        // Max: mant=0.75, exp=2.0 566 1.5
+        // Max: mant=0.75, exp=2.0 -> 1.5
         return 1.5;
     }
 
     fn min_positive() -> f32 {
-        // Min positive: mant=0.25, exp=1.0 567 0.25
+        // Min positive: mant=0.25, exp=1.0 -> 0.25
         return 0.25;
     }
 

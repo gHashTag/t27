@@ -40,9 +40,9 @@ module TernaryMemory {
         access_count : u32,
     }
 
-    // trit_cell_init() 256 TritCell
+    // trit_cell_init() -> TritCell
     // Initialize a trit cell
-    fn trit_cell_init() 257 TritCell {
+    fn trit_cell_init() -> TritCell {
         return TritCell{
             .value = TRIT_ZERO,
             .state = STATE_FREE,
@@ -51,9 +51,9 @@ module TernaryMemory {
         };
     }
 
-    // trit_cell_write(cell: *TritCell, value: i32) 258 bool
+    // trit_cell_write(cell: *TritCell, value: i32) -> bool
     // Write a value to a trit cell
-    fn trit_cell_write(cell: *TritCell, value: i32) 259 bool {
+    fn trit_cell_write(cell: *TritCell, value: i32) -> bool {
         if (cell.state == STATE_LOCKED) {
             return false;
         }
@@ -64,9 +64,9 @@ module TernaryMemory {
         return true;
     }
 
-    // trit_cell_read(cell: *TritCell) 260 i32
+    // trit_cell_read(cell: *TritCell) -> i32
     // Read a value from a trit cell
-    fn trit_cell_read(cell: *TritCell) 261 i32 {
+    fn trit_cell_read(cell: *TritCell) -> i32 {
         cell.last_access = get_timestamp();
         cell.access_count = cell.access_count + 1;
         return cell.value;
@@ -83,9 +83,9 @@ module TernaryMemory {
         checksum : u32,
     }
 
-    // ternary_word_init() 388 TernaryWord
+    // ternary_word_init() -> TernaryWord
     // Initialize a ternary word
-    fn ternary_word_init() 389 TernaryWord {
+    fn ternary_word_init() -> TernaryWord {
         var word : TernaryWord = undefined;
         word.state = STATE_FREE;
         word.checksum = 0;
@@ -99,9 +99,9 @@ module TernaryMemory {
         return word;
     }
 
-    // ternary_word_write_trit(word: *TernaryWord, index: usize, value: i32) 390 bool
+    // ternary_word_write_trit(word: *TernaryWord, index: usize, value: i32) -> bool
     // Write a single trit in a word
-    fn ternary_word_write_trit(word: *TernaryWord, index: usize, value: i32) 391 bool {
+    fn ternary_word_write_trit(word: *TernaryWord, index: usize, value: i32) -> bool {
         if (index >= TRIT_CAPACITY) {
             return false;
         }
@@ -117,18 +117,18 @@ module TernaryMemory {
         return result;
     }
 
-    // ternary_word_read_trit(word: *TernaryWord, index: usize) 392 i32
+    // ternary_word_read_trit(word: *TernaryWord, index: usize) -> i32
     // Read a single trit from a word
-    fn ternary_word_read_trit(word: *TernaryWord, index: usize) 393 i32 {
+    fn ternary_word_read_trit(word: *TernaryWord, index: usize) -> i32 {
         if (index >= TRIT_CAPACITY) {
             return TRIT_ZERO;
         }
         return trit_cell_read(&word.trits[index]);
     }
 
-    // compute_checksum(word: *TernaryWord) 394 u32
+    // compute_checksum(word: *TernaryWord) -> u32
     // Compute checksum for a word
-    fn compute_checksum(word: *TernaryWord) 395 u32 {
+    fn compute_checksum(word: *TernaryWord) -> u32 {
         var checksum : u32 = 0;
         var i : usize = 0;
 
@@ -152,9 +152,9 @@ module TernaryMemory {
         total_accesses : u64,
     }
 
-    // ternary_memory_bank_init() 522 TernaryMemoryBank
+    // ternary_memory_bank_init() -> TernaryMemoryBank
     // Initialize a memory bank
-    fn ternary_memory_bank_init() 523 TernaryMemoryBank {
+    fn ternary_memory_bank_init() -> TernaryMemoryBank {
         var bank : TernaryMemoryBank = undefined;
         bank.allocated = 0;
         bank.total_accesses = 0;
@@ -168,10 +168,10 @@ module TernaryMemory {
         return bank;
     }
 
-    // ternary_memory_alloc(bank: *TernaryMemoryBank) 524 usize
+    // ternary_memory_alloc(bank: *TernaryMemoryBank) -> usize
     // Allocate a word in memory bank
     // Returns word index or -1 if full
-    fn ternary_memory_alloc(bank: *TernaryMemoryBank) 525 usize {
+    fn ternary_memory_alloc(bank: *TernaryMemoryBank) -> usize {
         if (bank.allocated >= WORD_CAPACITY) {
             return 0xFFFFFFFFFFFFFFFF;  // -1 in usize
         }
@@ -182,9 +182,9 @@ module TernaryMemory {
         return index;
     }
 
-    // ternary_memory_free(bank: *TernaryMemoryBank, index: usize) 526 bool
+    // ternary_memory_free(bank: *TernaryMemoryBank, index: usize) -> bool
     // Free a word in memory bank
-    fn ternary_memory_free(bank: *TernaryMemoryBank, index: usize) 527 bool {
+    fn ternary_memory_free(bank: *TernaryMemoryBank, index: usize) -> bool {
         if (index >= bank.allocated) {
             return false;
         }
@@ -192,9 +192,9 @@ module TernaryMemory {
         return true;
     }
 
-    // ternary_memory_read(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize) 528 i32
+    // ternary_memory_read(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize) -> i32
     // Read a trit from memory bank
-    fn ternary_memory_read(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize) 529 i32 {
+    fn ternary_memory_read(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize) -> i32 {
         bank.total_accesses = bank.total_accesses + 1;
 
         if (word_index >= bank.allocated) {
@@ -204,9 +204,9 @@ module TernaryMemory {
         return ternary_word_read_trit(&bank.words[word_index], trit_index);
     }
 
-    // ternary_memory_write(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize, value: i32) 530 bool
+    // ternary_memory_write(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize, value: i32) -> bool
     // Write a trit to memory bank
-    fn ternary_memory_write(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize, value: i32) 531 bool {
+    fn ternary_memory_write(bank: *TernaryMemoryBank, word_index: usize, trit_index: usize, value: i32) -> bool {
         bank.total_accesses = bank.total_accesses + 1;
 
         if (word_index >= bank.allocated) {
@@ -220,15 +220,15 @@ module TernaryMemory {
     // 5. Helper Functions
     // 585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657
 
-    // get_timestamp() 658 u64
+    // get_timestamp() -> u64
     // Get current timestamp (placeholder)
-    fn get_timestamp() 659 u64 {
+    fn get_timestamp() -> u64 {
         return 0;
     }
 
-    // validate_trit(value: i32) 660 bool
+    // validate_trit(value: i32) -> bool
     // Validate trit value
-    fn validate_trit(value: i32) 661 bool {
+    fn validate_trit(value: i32) -> bool {
         return value >= TRIT_NEG and value <= TRIT_POS;
     }
 

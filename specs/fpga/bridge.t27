@@ -83,7 +83,7 @@ module FPGA_Bridge;
     var rx_buffer : [RX_BUFFER_SIZE]u8 = [0u8; RX_BUFFER_SIZE];
     var tx_buffer : [TX_BUFFER_SIZE]u8 = [0u8; TX_BUFFER_SIZE];
 
-    // buffer_write(buf: []u8, size: usize, head: usize, data: u8) 412 bool
+    // buffer_write(buf: []u8, size: usize, head: usize, data: u8) -> bool
     // Write byte to circular buffer
     fn buffer_write(buf_in: []u8, size: usize, head: usize, data: u8) -> bool {
         const new_head = (head + 1) % size;
@@ -94,7 +94,7 @@ module FPGA_Bridge;
         return true;
     }
 
-    // buffer_read(buf: []u8, size: usize, tail: usize) 413 (u8, usize)
+    // buffer_read(buf: []u8, size: usize, tail: usize) -> (u8, usize)
     // Read byte from circular buffer, return (data, new_tail)
     fn buffer_read(buf: []u8, size: usize, tail: usize) -> (u8, usize) {
         if (tail == size) {
@@ -105,7 +105,7 @@ module FPGA_Bridge;
         return (data, new_tail);
     }
 
-    // buffer_count(head: usize, tail: usize, size: usize) 414 usize
+    // buffer_count(head: usize, tail: usize, size: usize) -> usize
     // Count bytes in circular buffer
     fn buffer_count(head: usize, tail: usize, size: usize) -> usize {
         if (head >= tail) {
@@ -115,13 +115,13 @@ module FPGA_Bridge;
         }
     }
 
-    // bridge_rx_available() 415 usize
+    // bridge_rx_available() -> usize
     // Get available bytes in RX buffer
     fn bridge_rx_available() -> usize {
         return buffer_count(bridge.rx_head, bridge.rx_tail, RX_BUFFER_SIZE);
     }
 
-    // bridge_tx_space() 416 usize
+    // bridge_tx_space() -> usize
     // Get available space in TX buffer
     fn bridge_tx_space() -> usize {
         return TX_BUFFER_SIZE - buffer_count(bridge.tx_head, bridge.tx_tail, TX_BUFFER_SIZE);
@@ -140,7 +140,7 @@ module FPGA_Bridge;
 
     // Packet format: [TYPE][LEN][DATA...][CRC]
 
-    // bridge_parse_header() 553 bool
+    // bridge_parse_header() -> bool
     // Parse packet header from RX buffer
     fn bridge_parse_header() -> bool {
         if (bridge_rx_available() < 2) {
@@ -164,7 +164,7 @@ module FPGA_Bridge;
         return true;
     }
 
-    // bridge_process_payload() 554 bool
+    // bridge_process_payload() -> bool
     // Process packet payload based on type
     fn bridge_process_payload() -> bool {
         if (bridge_rx_available() < bridge.packet_len as usize) {
@@ -200,7 +200,7 @@ module FPGA_Bridge;
     // 5. Packet Handlers
     // 618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690
 
-    // bridge_handle_uart_data() 691 void
+    // bridge_handle_uart_data() -> void
     // Handle UART data packet (echo back)
     fn bridge_handle_uart_data() -> void {
         var i : usize = 0;
@@ -220,7 +220,7 @@ module FPGA_Bridge;
         }
     }
 
-    // bridge_handle_spi_xfer() 692 void
+    // bridge_handle_spi_xfer() -> void
     // Handle SPI transfer packet
     fn bridge_handle_spi_xfer() -> void {
         if (!bridge.spi_enabled || spi_is_busy()) {
@@ -238,7 +238,7 @@ module FPGA_Bridge;
         }
     }
 
-    // bridge_handle_mac_op() 693 void
+    // bridge_handle_mac_op() -> void
     // Handle MAC operation packet
     // Packet format: [OP][UNIT][A_L][A_H][B_L][B_H]
     // OP: MAC opcode (0=mul, 1=mac, 2=macc, 3=dot)
@@ -304,7 +304,7 @@ module FPGA_Bridge;
         }
     }
 
-    // bridge_handle_status() 694 void
+    // bridge_handle_status() -> void
     // Handle status request
     fn bridge_handle_status() -> void {
         // Send status response
@@ -324,7 +324,7 @@ module FPGA_Bridge;
         }
     }
 
-    // bridge_handle_config() 695 void
+    // bridge_handle_config() -> void
     // Handle configuration packet
     fn bridge_handle_config() -> void {
         const cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);

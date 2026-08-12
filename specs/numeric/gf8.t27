@@ -113,14 +113,14 @@ module GF8 {
     // 484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556
 
     fn max_value() -> f32 {
-        // Max normalized: mant=1.9375, exp=3 557 15.5
+        // Max normalized: mant=1.9375, exp=3 -> 15.5
         const mant_max = 1.0 + 15.0 / 16.0;
         const exp_max = (1 << EXP_BITS) - 1 - EXP_BIAS;
         return mant_max * pow(2.0, exp_max as f32);
     }
 
     fn min_positive() -> f32 {
-        // Min subnormal: mant=1/16, exp=-2 558 0.0625
+        // Min subnormal: mant=1/16, exp=-2 -> 0.0625
         const mant_min = 1.0 / 16.0;
         const exp_min = -EXP_BIAS as i8 + 1;
         return mant_min * pow(2.0, exp_min as f32);

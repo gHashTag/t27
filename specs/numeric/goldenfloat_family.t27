@@ -31,7 +31,7 @@ module GoldenFloatFamily {
     // exp/mant ratios closer to 0.618 are more "golden"
     const PHI_RATIO_TARGET : f64 = sacred_physics::PHI_INV;
 
-    // Format array: ordered by bits (4 286 32)
+    // Format array: ordered by bits (4 -> 32)
     const GOLDEN_FLOAT_FAMILY : [7]GoldenFloatFormat = [
         // name,  bits, S,  E,  M,   ratio, phi_dist, primary
         GoldenFloatFormat{

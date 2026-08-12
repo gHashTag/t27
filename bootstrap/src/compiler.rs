@@ -1381,6 +1381,15 @@ impl Parser {
             {
                 self.skip_to_semicolon()?;
             }
+            // Prop. 146: this path returned WITHOUT consuming the trailing
+            // semicolon, so every `const X = v;` left a stray `;` at top level.
+            // The next parse_top_level_decl saw Semicolon, errored, and
+            // recovery discarded whatever followed. The sibling branch for
+            // bracket-valued consts consumes it correctly, which is why the
+            // omission survived: some consts parsed, so nothing looked broken.
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
             return Ok(decl);
         }
 

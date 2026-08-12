@@ -76,7 +76,7 @@ module BrainSummaries {
     // 3. Episode Aggregation
     // 309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381
 
-    // aggregate_episodes() 382 BrainSummary
+    // aggregate_episodes() -> BrainSummary
     // Aggregate episodes into a summary
     fn aggregate_episodes(episodes: []lotus.Episode, summary_type: u8) -> BrainSummary {
         var summary : BrainSummary = undefined;
@@ -140,7 +140,7 @@ module BrainSummaries {
     // 4. Quality Assessment
     // 436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508
 
-    // determine_quality() 509 u8
+    // determine_quality() -> u8
     // Determine overall quality from metrics
     fn determine_quality(summary: BrainSummary) -> u8 {
         const success_rate : f64;
@@ -165,7 +165,7 @@ module BrainSummaries {
     // 5. Summary Persistence
     // 563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635
 
-    // save_summary() 636 bool
+    // save_summary() -> bool
     // Save summary to persistent storage
     fn save_summary(summary: BrainSummary, path: []u8) -> bool {
         // Implementation: serialize and write to file
@@ -173,7 +173,7 @@ module BrainSummaries {
         return true;
     }
 
-    // load_summary() 637 BrainSummary
+    // load_summary() -> BrainSummary
     // Load summary from persistent storage
     fn load_summary(summary_id: usize) -> BrainSummary {
         var summary : BrainSummary = undefined;
@@ -185,7 +185,7 @@ module BrainSummaries {
     // 6. Summary Generation
     // 691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763
 
-    // generate_daily_summary() 764 BrainSummary
+    // generate_daily_summary() -> BrainSummary
     // Generate daily summary of episodes
     fn generate_daily_summary(day_start: u64, day_end: u64) -> BrainSummary {
         var episodes : [MAX_EPISODES_PER_SUMMARY]lotus.Episode;
@@ -201,7 +201,7 @@ module BrainSummaries {
         return summary;
     }
 
-    // generate_ring_summary() 765 BrainSummary
+    // generate_ring_summary() -> BrainSummary
     // Generate summary for a specific ring
     fn generate_ring_summary(ring_number: usize) -> BrainSummary {
         var episodes : [MAX_EPISODES_PER_SUMMARY]lotus.Episode;
@@ -217,7 +217,7 @@ module BrainSummaries {
         return summary;
     }
 
-    // generate_phase_summary() 766 BrainSummary
+    // generate_phase_summary() -> BrainSummary
     // Generate summary for a phase
     fn generate_phase_summary(phase_number: u8, ring_start: usize, ring_end: usize) -> BrainSummary {
         var episodes : [MAX_EPISODES_PER_SUMMARY]lotus.Episode;

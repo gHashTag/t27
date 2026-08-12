@@ -31,20 +31,20 @@ module TernaryEncoding {
     // 2. Bit to Trit Conversion
     // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
 
-    // bit_to_trit_pair(bit: u8) 256 [2]i32
+    // bit_to_trit_pair(bit: u8) -> [2]i32
     // Convert a single bit (0 or 1) to a pair of trits
     // 0 -> [0, 0], 1 -> [1, 0]
-    fn bit_to_trit_pair(bit: u8) 257 [2]i32 {
+    fn bit_to_trit_pair(bit: u8) -> [2]i32 {
         if (bit == 0) {
             return [_]i32{TRIT_ZERO, TRIT_ZERO};
         }
         return [_]i32{TRIT_POS, TRIT_ZERO};
     }
 
-    // bits_to_trits(bits: u8) 258 [3]i32
+    // bits_to_trits(bits: u8) -> [3]i32
     // Convert a nibble (4 bits) to 3 trits
     // Maps 0-15 to balanced ternary
-    fn bits_to_trits(bits: u8) 259 [3]i32 {
+    fn bits_to_trits(bits: u8) -> [3]i32 {
         var result : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
         var value = bits;
         var i : usize = 0;
@@ -68,10 +68,10 @@ module TernaryEncoding {
     // 3. Trit to Bit Conversion
     // 313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385
 
-    // trits_to_bits(trits: [3]i32) 386 u8
+    // trits_to_bits(trits: [3]i32) -> u8
     // Convert 3 trits to a nibble (4 bits)
     // Assumes trits represent a valid value 0-15
-    fn trits_to_bits(trits: [3]i32) 387 u8 {
+    fn trits_to_bits(trits: [3]i32) -> u8 {
         var result : i32 = 0;
         var power : i32 = 1;
         var i : usize = 0;
@@ -94,10 +94,10 @@ module TernaryEncoding {
     // 4. Byte to Trit Array Conversion
     // 441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513
 
-    // byte_to_trits(byte: u8, trits: []i32, len: usize) 514 usize
+    // byte_to_trits(byte: u8, trits: []i32, len: usize) -> usize
     // Convert a byte to trits
     // Returns number of trits used
-    fn byte_to_trits(byte: u8, trits: []i32, len: usize) 515 usize {
+    fn byte_to_trits(byte: u8, trits: []i32, len: usize) -> usize {
         // Convert byte (0-255) to balanced ternary
         var value : i32 = @as(i32, @intCast(byte));
         var i : usize = 0;
@@ -128,10 +128,10 @@ module TernaryEncoding {
         return len;
     }
 
-    // trits_to_byte(trits: []i32, len: usize) 516 u8
+    // trits_to_byte(trits: []i32, len: usize) -> u8
     // Convert trits to a byte
     // Assumes trits represent a valid value 0-255
-    fn trits_to_byte(trits: []i32, len: usize) 517 u8 {
+    fn trits_to_byte(trits: []i32, len: usize) -> u8 {
         var result : i32 = 0;
         var power : i32 = 1;
         var i : usize = 0;
@@ -154,17 +154,17 @@ module TernaryEncoding {
     // 5. Balanced to Unipolar Conversion
     // 571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643
 
-    // balanced_to_unipolar(trit: i32) 644 i32
+    // balanced_to_unipolar(trit: i32) -> i32
     // Convert balanced ternary trit to unipolar
     // -1 -> 0, 0 -> 1, 1 -> 2
-    fn balanced_to_unipolar(trit: i32) 645 i32 {
+    fn balanced_to_unipolar(trit: i32) -> i32 {
         return trit + 1;
     }
 
-    // unipolar_to_balanced(trit: i32) 646 i32
+    // unipolar_to_balanced(trit: i32) -> i32
     // Convert unipolar trit to balanced ternary
     // 0 -> -1, 1 -> 0, 2 -> 1
-    fn unipolar_to_balanced(trit: i32) 647 i32 {
+    fn unipolar_to_balanced(trit: i32) -> i32 {
         return trit - 1;
     }
 
@@ -172,15 +172,15 @@ module TernaryEncoding {
     // 6. String Encoding
     // 701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773
 
-    // char_to_trits(c: u8, trits: []i32, len: usize) 774 usize
+    // char_to_trits(c: u8, trits: []i32, len: usize) -> usize
     // Convert ASCII character to trits
-    fn char_to_trits(c: u8, trits: []i32, len: usize) 775 usize {
+    fn char_to_trits(c: u8, trits: []i32, len: usize) -> usize {
         return byte_to_trits(c, trits, len);
     }
 
-    // trits_to_char(trits: []i32, len: usize) 776 u8
+    // trits_to_char(trits: []i32, len: usize) -> u8
     // Convert trits to ASCII character
-    fn trits_to_char(trits: []i32, len: usize) 777 u8 {
+    fn trits_to_char(trits: []i32, len: usize) -> u8 {
         return trits_to_byte(trits, len);
     }
 
@@ -188,21 +188,21 @@ module TernaryEncoding {
     // 7. Validation
     // 831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903
 
-    // is_valid_trit(t: i32) 904 bool
+    // is_valid_trit(t: i32) -> bool
     // Check if a value is a valid trit
-    fn is_valid_trit(t: i32) 905 bool {
+    fn is_valid_trit(t: i32) -> bool {
         return t >= TRIT_NEG and t <= TRIT_POS;
     }
 
-    // is_valid_unipolar_trit(t: i32) 906 bool
+    // is_valid_unipolar_trit(t: i32) -> bool
     // Check if a value is a valid unipolar trit (0, 1, 2)
-    fn is_valid_unipolar_trit(t: i32) 907 bool {
+    fn is_valid_unipolar_trit(t: i32) -> bool {
         return t >= 0 and t <= 2;
     }
 
-    // validate_trits(trits: []i32, len: usize) 908 bool
+    // validate_trits(trits: []i32, len: usize) -> bool
     // Validate all trits in an array
-    fn validate_trits(trits: []i32, len: usize) 909 bool {
+    fn validate_trits(trits: []i32, len: usize) -> bool {
         var i : usize = 0;
         while (i < len) {
             if (!is_valid_trit(trits[i])) {
@@ -224,9 +224,9 @@ module TernaryEncoding {
         is_valid : bool,
     }
 
-    // get_encoding_info(trits: []i32, len: usize) 1036 EncodingInfo
+    // get_encoding_info(trits: []i32, len: usize) -> EncodingInfo
     // Get information about a trit encoding
-    fn get_encoding_info(trits: []i32, len: usize) 1037 EncodingInfo {
+    fn get_encoding_info(trits: []i32, len: usize) -> EncodingInfo {
         var info : EncodingInfo = undefined;
         info.encoding_type = ENCODING_BALANCED;
         info.trits_used = len;

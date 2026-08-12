@@ -98,7 +98,7 @@ module SPI_Master;
         .cs_deassert_cnt = 0,
     };
 
-    // spi_set_prescaler(psc: u8) 412 bool
+    // spi_set_prescaler(psc: u8) -> bool
     // Set SPI clock prescaler
     fn spi_set_prescaler(psc: u8) -> bool {
         if (psc > PRESCALER_256) {
@@ -108,7 +108,7 @@ module SPI_Master;
         return true;
     }
 
-    // spi_get_prescaler_div() 413 u32
+    // spi_get_prescaler_div() -> u32
     // Get actual prescaler divider value
     fn spi_get_prescaler_div() -> u32 {
         match spi.prescaler {
@@ -124,13 +124,13 @@ module SPI_Master;
         }
     }
 
-    // spi_get_sck_freq() 414 u32
+    // spi_get_sck_freq() -> u32
     // Get SPI SCK frequency
     fn spi_get_sck_freq() -> u32 {
         return CLK_FREQ / spi_get_prescaler_div();
     }
 
-    // spi_set_data_width(width: u8) 415 bool
+    // spi_set_data_width(width: u8) -> bool
     // Set data width (1-32 bits)
     fn spi_set_data_width(width: u8) -> bool {
         if (width == 0 || width > MAX_DATA_WIDTH) {
@@ -140,13 +140,13 @@ module SPI_Master;
         return true;
     }
 
-    // spi_is_busy() 416 bool
+    // spi_is_busy() -> bool
     // Check if SPI is busy
     fn spi_is_busy() -> bool {
         return spi.busy;
     }
 
-    // spi_transfer(data: u32) 417 bool
+    // spi_transfer(data: u32) -> bool
     // Start SPI transfer
     fn spi_transfer(data: u32) -> bool {
         if (spi.busy) {
@@ -161,19 +161,19 @@ module SPI_Master;
         return true;
     }
 
-    // spi_read_rx() 418 u32
+    // spi_read_rx() -> u32
     // Read received data (lower bits only)
     fn spi_read_rx() -> u32 {
         return spi.rx_data & ((1u32 << spi.data_width) - 1);
     }
 
-    // spi_get_cs() 419 bool
+    // spi_get_cs() -> bool
     // Get CS line state
     fn spi_get_cs() -> bool {
         return spi.cs_asserted;
     }
 
-    // spi_get_sck() 420 bool
+    // spi_get_sck() -> bool
     // Get SCK line state (Mode 0: idle low)
     fn spi_get_sck() -> bool {
         // In Mode 0: SCK is low in idle
@@ -185,7 +185,7 @@ module SPI_Master;
         }
     }
 
-    // spi_get_mosi() 421 bool
+    // spi_get_mosi() -> bool
     // Get MOSI line state
     fn spi_get_mosi() -> bool {
         if (!spi.busy || spi.state != SPI_TRANSFER) {
@@ -194,7 +194,7 @@ module SPI_Master;
         return (spi.tx_data >> (spi.data_width - spi.bit_count - 1)) & 1 == 1;
     }
 
-    // spi_tick() 422 void
+    // spi_tick() -> void
     // Process one system clock cycle
     fn spi_tick() -> void {
         match spi.state {
@@ -225,7 +225,7 @@ module SPI_Master;
         }
     }
 
-    // spi_transfer_bit() 423 void
+    // spi_transfer_bit() -> void
     // Transfer single bit
     fn spi_transfer_bit() -> void {
         const prescaler_div = spi_get_prescaler_div();

@@ -8475,6 +8475,92 @@ documented command nobody has run.
 
 ---
 
+### Prop. 146 — one unconsumed semicolon cost 1259 recovery events — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**146a. The defect.** `parse_const_decl`'s `= value` branch returns without
+consuming the trailing `;`. The stray semicolon becomes the next
+`parse_top_level_decl`'s current token, which errors, and recovery discards
+whatever follows. The sibling branch for bracket-valued constants consumes it
+correctly — which is exactly why the omission survived: **some constants parsed,
+so nothing looked broken.**
+
+**146b. The measurement.** Recovery events **1741 → 556**; specs recovering
+**427 → 205**; constants never reaching an AST **3292 → 2339**. One line.
+
+**146c. The ratchet is what made the fix scorable.** Prop. 143 built the counter
+before there was anything to count. Without it "I fixed a parser bug" is a claim;
+with it the fix has a number, in the direction the gate enforces, measured by the
+same instrument that will catch its regression.
+
+**146d. Corollary (a partial-success defect is the hardest to see).** *An error
+that destroys some inputs and not others produces a system that appears to work.*
+A parser that dropped every constant would have been fixed the day it shipped.
+One that drops 69% of them ships for the life of the repository, because every
+spot check finds a constant that parsed.
+
+---
+
+### Prop. 147 — a Unicode-to-ASCII commit replaced 162167 characters with a running counter — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**147a. Found by reading a parse error, not by looking for corruption.** With
+Prop. 143's counter reporting, the top remaining error on `ternary_encoding.t27`
+was `Expected LBrace, got Number ('257')` — on a line reading
+`fn bit_to_trit_pair(bit: u8) 257 [2]i32 {`. A bare number where a return arrow
+belongs.
+
+**147b. Byte-level attribution.** Commit `fcf80027d`, *"fix(l3-purity): replace
+all Unicode with ASCII in 160 .t27 files"*:
+
+```
+before:  ) â     Trit      # U+2192 RIGHTWARDS ARROW
+after:   )    1   2         Trit      # the character's running index
+```
+
+`git log -S` for the ASCII form finds nothing, so the arrow was **never** `->`.
+The script enumerated non-ASCII characters and substituted each occurrence's
+**index** in place of a transliteration.
+
+**147c. Scale.** 154 `.t27` files, **112 distinct non-ASCII characters**,
+**162167 occurrences**. `═` accounts for 155801 (comment banners, which is why
+`gamma_conjecture.t27` carries lines reading `123456789101112...` — the digits
+are consecutive indices). `→` accounts for 677, and those are the ones inside
+function signatures.
+
+**147d. The two defects concealed each other exactly.** The corruption produced
+parse errors; the silent recovery of Prop. 143 swallowed them. Neither was
+visible while the other stood, and the repository reported 497/497 specs parsing
+throughout. **A defect that generates errors is invisible behind a defect that
+discards errors** — and the pairing is not a coincidence, because a corpus whose
+errors are all swallowed accumulates corruption without resistance.
+
+**147e. Repair, scoped and verified.** 483 arrow sites restored across 37 files,
+reconstructed from `fcf80027d^` rather than guessed from patterns: for each line
+the pre-image's `→` positions decide where `->` goes, and the result must equal
+the pre-image with `→` transliterated or the line is left alone. Recovery events
+**556 → 482**. The other 111 characters — Greek letters, box drawing, math
+symbols, all in prose — are **reported and not touched**; restoring them is a
+transliteration decision about 161490 characters, not a mechanical repair.
+
+**147f. 62 specs could not receive their repair.** They carry uncommitted
+working-tree modifications predating this session, so the corruption commit's
+pre-image is not an authority on their current content and the repair cannot be
+separated from the existing edits. Only the 27 specs whose diff is provably a
+pure number→arrow substitution were committed. **The standing dirty-tree
+question now has a cost attached to it.**
+
+**147g. Theorem (error-channel occlusion).** *Let `D₁` be a defect whose only
+observable is an error on channel `c`, and `D₂` a defect that discards channel
+`c`. Then in any system containing both, neither is observable, and removing
+`D₂` alone reveals `D₁` at full magnitude while removing `D₁` alone reveals
+nothing.* The asymmetry is the actionable part: **fix the discarding defect
+first**, because it is the one whose repair converts hidden state into evidence.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

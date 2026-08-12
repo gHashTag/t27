@@ -124,7 +124,7 @@ module QueenLotus {
     // 4. Main Orchestration
     // 435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507
 
-    // lotus_orchestrate() 508 CycleResult
+    // lotus_orchestrate() -> CycleResult
     // Run complete 6-phase Lotus cycle
     // Returns: context, evaluation, plan, result, outcome
     fn lotus_orchestrate() -> CycleResult {
@@ -154,7 +154,7 @@ module QueenLotus {
         return result;
     }
 
-    // lotus_phase(phase: u8) 509 PhaseOutput
+    // lotus_phase(phase: u8) -> PhaseOutput
     // Execute a single phase of the Lotus cycle
     fn lotus_phase(phase: u8) -> PhaseOutput {
         current_phase = phase;
@@ -187,7 +187,7 @@ module QueenLotus {
         data : [256]u8 = [0; 256],
     }
 
-    // observe_state() 636 Context
+    // observe_state() -> Context
     // Gather current state information
     fn observe_state() -> Context {
         const active_issues = get_active_issues_count();
@@ -201,20 +201,20 @@ module QueenLotus {
         };
     }
 
-    // get_active_issues_count() 637 usize
+    // get_active_issues_count() -> usize
     // Get number of active issues
     fn get_active_issues_count() -> usize {
         // Query issue tracker
         return 0;  // Placeholder
     }
 
-    // get_system_health() 638 f64
+    // get_system_health() -> f64
     // Get system health score (0.0 to 1.0)
     fn get_system_health() -> f64 {
         return 1.0;  // Placeholder
     }
 
-    // get_timestamp() 639 u64
+    // get_timestamp() -> u64
     // Get current timestamp
     fn get_timestamp() -> u64 {
         // Return current time (placeholder)
@@ -231,7 +231,7 @@ module QueenLotus {
         count : usize,
     }
 
-    // recall_episodes() 766 RecallEpisode
+    // recall_episodes() -> RecallEpisode
     // Recall relevant episodes from episode buffer
     // Uses HSLM for semantic similarity search
     fn recall_episodes() -> RecallEpisode {
@@ -264,7 +264,7 @@ module QueenLotus {
         confidence : f64,
     }
 
-    // evaluate_quality(recalled: RecallEpisode) 893 Evaluation
+    // evaluate_quality(recalled: RecallEpisode) -> Evaluation
     // Evaluate quality based on episode outcomes
     fn evaluate_quality(recalled: RecallEpisode) -> Evaluation {
         var success_count : u8 = 0;
@@ -322,7 +322,7 @@ module QueenLotus {
         };
     }
 
-    // evaluate_quality_() 894 EvaluationResult
+    // evaluate_quality_() -> EvaluationResult
     // Wrapper for phase execution
     fn evaluate_quality_() -> EvaluationResult {
         const recalled = recall_episodes();
@@ -344,7 +344,7 @@ module QueenLotus {
         target_value : i32,
     }
 
-    // generate_plan(evaluation: Evaluation) 1021 Plan
+    // generate_plan(evaluation: Evaluation) -> Plan
     // Generate action plan based on quality evaluation
     fn generate_plan(evaluation: Evaluation) -> Plan {
         var delta_type : u8 = DELTA_WAIT;
@@ -362,7 +362,7 @@ module QueenLotus {
         };
     }
 
-    // generate_plan_() 1022 PlanResult
+    // generate_plan_() -> PlanResult
     // Wrapper for phase execution
     fn generate_plan_() -> PlanResult {
         const eval = evaluate_quality_();
@@ -391,7 +391,7 @@ module QueenLotus {
         execution_time_ms : u64,
     }
 
-    // execute_action(plan: Plan) 1149 Action
+    // execute_action(plan: Plan) -> Action
     // Execute the planned action
     fn execute_action(plan: Plan) -> Action {
         var success = false;
@@ -416,7 +416,7 @@ module QueenLotus {
         };
     }
 
-    // execute_action_() 1150 ActionResult
+    // execute_action_() -> ActionResult
     // Wrapper for phase execution
     fn execute_action_() -> ActionResult {
         const plan_result = generate_plan_();
@@ -432,21 +432,21 @@ module QueenLotus {
         };
     }
 
-    // scale_up_resources() 1151 bool
+    // scale_up_resources() -> bool
     // Increase system resources
     fn scale_up_resources() -> bool {
         // Increase agent count, memory allocation, etc.
         return true;
     }
 
-    // scale_down_resources() 1152 bool
+    // scale_down_resources() -> bool
     // Decrease system resources
     fn scale_down_resources() -> bool {
         // Decrease agent count, free memory, etc.
         return true;
     }
 
-    // set_parameter(plan: Plan) 1153 bool
+    // set_parameter(plan: Plan) -> bool
     // Set a policy parameter
     fn set_parameter(plan: Plan) -> bool {
         // Set parameter from plan
@@ -464,7 +464,7 @@ module QueenLotus {
         episode_id : usize,
     }
 
-    // record_episode(cycle_result: CycleResult) 1280 u8
+    // record_episode(cycle_result: CycleResult) -> u8
     // Record episode to buffer
     fn record_episode(cycle_result: CycleResult) -> u8 {
         const slot = current_episode % EPISODE_BUFFER_SIZE;
@@ -484,7 +484,7 @@ module QueenLotus {
         return OUTCOME_SUCCESS;  // Placeholder
     }
 
-    // record_episode_() 1281 RecordResult
+    // record_episode_() -> RecordResult
     // Wrapper for phase execution
     fn record_episode_() -> RecordResult {
         const cycle_result = CycleResult{
@@ -504,7 +504,7 @@ module QueenLotus {
         };
     }
 
-    // determine_outcome(result: CycleResult) 1282 u8
+    // determine_outcome(result: CycleResult) -> u8
     // Determine episode outcome based on action success
     fn determine_outcome(result: CycleResult) -> u8 {
         if (result.action.success) {
@@ -518,7 +518,7 @@ module QueenLotus {
     // 11. Agent Spawning
     // 1336133713381339134013411342134313441345134613471348134913501351135213531354135513561357135813591360136113621363136413651366136713681369137013711372137313741375137613771378137913801381138213831384138513861387138813891390139113921393139413951396139713981399140014011402140314041405140614071408
 
-    // lotus_spawn(agent_type: u8, count: u8) 1409 bool
+    // lotus_spawn(agent_type: u8, count: u8) -> bool
     // Spawn new agents for orchestration
     fn lotus_spawn(agent_type: u8, count: u8) -> bool {
         var spawned : u8 = 0;
@@ -533,7 +533,7 @@ module QueenLotus {
         return true;
     }
 
-    // spawn_agent(agent_type: u8) 1410 bool
+    // spawn_agent(agent_type: u8) -> bool
     // Spawn a single agent
     fn spawn_agent(agent_type: u8) -> bool {
         // Spawn agent of specified type
@@ -544,7 +544,7 @@ module QueenLotus {
     // 12. Phase Management
     // 1464146514661467146814691470147114721473147414751476147714781479148014811482148314841485148614871488148914901491149214931494149514961497149814991500150115021503150415051506150715081509151015111512151315141515151615171518151915201521152215231524152515261527152815291530153115321533153415351536
 
-    // lotus_phase_management() 1537 bool
+    // lotus_phase_management() -> bool
     // Manage phase transitions and timeouts
     fn lotus_phase_management() -> bool {
         if (check_phase_timeout()) {
@@ -554,7 +554,7 @@ module QueenLotus {
         return false;
     }
 
-    // check_phase_timeout() 1538 bool
+    // check_phase_timeout() -> bool
     // Check if current phase has timed out
     fn check_phase_timeout() -> bool {
         const current_time = get_timestamp();
@@ -563,7 +563,7 @@ module QueenLotus {
         return elapsed > PHASE_TIMEOUT_MS;
     }
 
-    // force_phase_transition() 1539 void
+    // force_phase_transition() -> void
     // Force transition to next phase
     fn force_phase_transition() -> void {
         current_phase = current_phase + 1;

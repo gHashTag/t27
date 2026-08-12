@@ -24,16 +24,16 @@ module TernaryGates {
     // 2. NOT Gate (Ternary Inverter)
     // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
 
-    // ternary_not(a: i32) 256 i32
+    // ternary_not(a: i32) -> i32
     // Ternary NOT (inverts trit value)
     // TRIT_NEG -> TRIT_POS, TRIT_ZERO -> TRIT_ZERO, TRIT_POS -> TRIT_NEG
-    fn ternary_not(a: i32) 257 i32 {
+    fn ternary_not(a: i32) -> i32 {
         return -a;
     }
 
-    // ternary_not_with_delay(a: i32) 258 GateResult
+    // ternary_not_with_delay(a: i32) -> GateResult
     // Ternary NOT with delay information
-    fn ternary_not_with_delay(a: i32) 259 GateResult {
+    fn ternary_not_with_delay(a: i32) -> GateResult {
         return GateResult{
             .output = -a,
             .delay = GATE_DELAY_UNIT,
@@ -44,20 +44,20 @@ module TernaryGates {
     // 3. MIN Gate (Ternary AND)
     // 313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385
 
-    // ternary_min(a: i32, b: i32) 386 i32
+    // ternary_min(a: i32, b: i32) -> i32
     // Ternary MIN (acts as AND in balanced ternary)
     // Result is the minimum of two trits
-    fn ternary_min(a: i32, b: i32) 387 i32 {
+    fn ternary_min(a: i32, b: i32) -> i32 {
         if (a < b) {
             return a;
         }
         return b;
     }
 
-    // ternary_and(a: i32, b: i32) 388 i32
+    // ternary_and(a: i32, b: i32) -> i32
     // Ternary AND (logical AND with three-valued logic)
     // Uses Kleene/389ukasiewicz interpretation
-    fn ternary_and(a: i32, b: i32) 390 i32 {
+    fn ternary_and(a: i32, b: i32) -> i32 {
         // Map to [0,1,2] for logical AND
         const a_mapped = a + 1;  // -1->0, 0->1, 1->2
         const b_mapped = b + 1;
@@ -69,20 +69,20 @@ module TernaryGates {
     // 4. MAX Gate (Ternary OR)
     // 444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516
 
-    // ternary_max(a: i32, b: i32) 517 i32
+    // ternary_max(a: i32, b: i32) -> i32
     // Ternary MAX (acts as OR in balanced ternary)
     // Result is the maximum of two trits
-    fn ternary_max(a: i32, b: i32) 518 i32 {
+    fn ternary_max(a: i32, b: i32) -> i32 {
         if (a > b) {
             return a;
         }
         return b;
     }
 
-    // ternary_or(a: i32, b: i32) 519 i32
+    // ternary_or(a: i32, b: i32) -> i32
     // Ternary OR (logical OR with three-valued logic)
     // Uses Kleene/520ukasiewicz interpretation
-    fn ternary_or(a: i32, b: i32) 521 i32 {
+    fn ternary_or(a: i32, b: i32) -> i32 {
         const a_mapped = a + 1;
         const b_mapped = b + 1;
         const result_mapped = ternary_max(a_mapped, b_mapped);
@@ -93,9 +93,9 @@ module TernaryGates {
     // 5. Consensus Gate
     // 575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647
 
-    // ternary_consensus(a: i32, b: i32, c: i32) 648 i32
+    // ternary_consensus(a: i32, b: i32, c: i32) -> i32
     // Consensus gate: returns value if all equal, else TRIT_ZERO
-    fn ternary_consensus(a: i32, b: i32, c: i32) 649 i32 {
+    fn ternary_consensus(a: i32, b: i32, c: i32) -> i32 {
         if (a == b and b == c) {
             return a;
         }
@@ -106,9 +106,9 @@ module TernaryGates {
     // 6. Majority Gate
     // 703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775
 
-    // ternary_majority(a: i32, b: i32, c: i32) 776 i32
+    // ternary_majority(a: i32, b: i32, c: i32) -> i32
     // Majority gate: returns the most common value
-    fn ternary_majority(a: i32, b: i32, c: i32) 777 i32 {
+    fn ternary_majority(a: i32, b: i32, c: i32) -> i32 {
         // Count occurrences
         var neg_count : i32 = 0;
         var zero_count : i32 = 0;
@@ -139,9 +139,9 @@ module TernaryGates {
     // 7. Any Gate
     // 831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903
 
-    // ternary_any(a: i32, b: i32, c: i32) 904 i32
+    // ternary_any(a: i32, b: i32, c: i32) -> i32
     // Any gate: returns TRIT_POS if any input is TRIT_POS
-    fn ternary_any(a: i32, b: i32, c: i32) 905 i32 {
+    fn ternary_any(a: i32, b: i32, c: i32) -> i32 {
         if (a == TRIT_POS or b == TRIT_POS or c == TRIT_POS) {
             return TRIT_POS;
         }
@@ -155,9 +155,9 @@ module TernaryGates {
     // 8. All Gate
     // 95996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025102610271028102910301031
 
-    // ternary_all(a: i32, b: i32, c: i32) 1032 i32
+    // ternary_all(a: i32, b: i32, c: i32) -> i32
     // All gate: returns TRIT_NEG if all inputs are TRIT_NEG
-    fn ternary_all(a: i32, b: i32, c: i32) 1033 i32 {
+    fn ternary_all(a: i32, b: i32, c: i32) -> i32 {
         if (a == TRIT_NEG and b == TRIT_NEG and c == TRIT_NEG) {
             return TRIT_NEG;
         }

@@ -14,19 +14,19 @@ module JonesTopologyDecisionGate {
     // Decision Gate Hypotheses
     // 7172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
 
-    // TH-01: Self-similarity 140 d = 1.0
+    // TH-01: Self-similarity -> d = 1.0
     // Same structure compared with itself should have perfect similarity
     const TH_01_TARGET : f64 = 1.0;
 
-    // TH-02: Inversion similarity 141 d < 0.95
+    // TH-02: Inversion similarity -> d < 0.95
     // Inverted structure should have low similarity
     const TH_02_THRESHOLD : f64 = 0.95;
 
-    // TH-03: Different types 142 d < 0.5
+    // TH-03: Different types -> d < 0.5
     // Tree vs cycle structures should have low similarity
     const TH_03_THRESHOLD : f64 = 0.5;
 
-    // TH-04: Simple 143 complex monotonic
+    // TH-04: Simple -> complex monotonic
     // Complex structure should have HIGHER complexity level than simple
     const TH_04_EXPECTED : u8 = jones_topology_filter::COMPLEXITY_HIGH;
 

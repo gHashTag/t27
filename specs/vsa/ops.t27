@@ -30,7 +30,7 @@ module VSAOps {
     // 2. Bind Operation
     // 207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279
 
-    // bind(a: []Trit, b: []Trit, len: usize) 280 []Trit
+    // bind(a: []Trit, b: []Trit, len: usize) -> []Trit
     // XOR-like operation for balanced ternary hypervectors
     // Algorithm: if a[i] == 0 return b[i]; else if b[i] == 0 return a[i];
     //           else return a[i] * b[i] (which is either -1 or +1)
@@ -64,7 +64,7 @@ module VSAOps {
     // 3. Unbind Operation
     // 346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418
 
-    // unbind(bound: []Trit, key: []Trit, len: usize) 419 []Trit
+    // unbind(bound: []Trit, key: []Trit, len: usize) -> []Trit
     // Inverse of bind operation
     // For XOR-like bind: unbind(x, y) = bind(x, y)
     // Used for: retrieving bound values from hypervectors
@@ -77,7 +77,7 @@ module VSAOps {
     // 4. Bundle Operations
     // 485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557
 
-    // bundle2(a: []Trit, b: []Trit, len: usize) 558 []Trit
+    // bundle2(a: []Trit, b: []Trit, len: usize) -> []Trit
     // Majority vote of 2 ternary vectors
     // Algorithm: if a[i] == 0 return b[i]; else if b[i] == 0 return a[i];
     //           else return sign(a[i] + b[i]) 559 {-1, 0, +1}
@@ -110,7 +110,7 @@ module VSAOps {
         return result;
     }
 
-    // bundle3(a: []Trit, b: []Trit, c: []Trit, len: usize) 560 []Trit
+    // bundle3(a: []Trit, b: []Trit, c: []Trit, len: usize) -> []Trit
     // Majority vote of 3 ternary vectors
     // Algorithm: sum = a[i] + b[i] + c[i]; result = sign(sum)
     // Used for: robust superposition, noise reduction
@@ -141,7 +141,7 @@ module VSAOps {
     // 5. Similarity Operations
     // 626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695696697698
 
-    // similarity(a: []Trit, b: []Trit, len: usize, metric: u8) 699 f64
+    // similarity(a: []Trit, b: []Trit, len: usize, metric: u8) -> f64
     // Compute similarity between two hypervectors
     // Metrics: COSINE, HAMMING, DOT
     fn similarity(a: []Trit, b: []Trit, len: usize, metric: u8) -> f64 {
@@ -154,7 +154,7 @@ module VSAOps {
         return dot_product(a, b, len);
     }
 
-    // cosine_similarity(a: []Trit, b: []Trit, len: usize) 700 f64
+    // cosine_similarity(a: []Trit, b: []Trit, len: usize) -> f64
     // Cosine similarity: (a701b) / (||a|| * ||b||)
     fn cosine_similarity(a: []Trit, b: []Trit, len: usize) -> f64 {
         const dot = dot_product(a, b, len);
@@ -168,14 +168,14 @@ module VSAOps {
         return dot / (norm_a * norm_b);
     }
 
-    // hamming_similarity(a: []Trit, b: []Trit, len: usize) 702 f64
+    // hamming_similarity(a: []Trit, b: []Trit, len: usize) -> f64
     // Hamming similarity: 1 - (hamming_distance / len)
     fn hamming_similarity(a: []Trit, b: []Trit, len: usize) -> f64 {
         const dist = hamming_distance(a, b, len);
         return 1.0 - (dist as f64 / len as f64);
     }
 
-    // dot_product(a: []Trit, b: []Trit, len: usize) 703 f64
+    // dot_product(a: []Trit, b: []Trit, len: usize) -> f64
     // Compute dot product 704 a[i] * b[i]
     fn dot_product(a: []Trit, b: []Trit, len: usize) -> f64 {
         var acc : i64 = 0;
@@ -190,7 +190,7 @@ module VSAOps {
         return acc as f64;
     }
 
-    // vector_norm(v: []Trit, len: usize) 705 f64
+    // vector_norm(v: []Trit, len: usize) -> f64
     // Compute L2 norm: sqrt(706 v[i]707)
     // For trits: v[i]708 is always 0 or 1
     // So norm = sqrt(count of non-zero trits)
@@ -208,7 +208,7 @@ module VSAOps {
         return sqrt(nonzero_count as f64);
     }
 
-    // hamming_distance(a: []Trit, b: []Trit, len: usize) 709 usize
+    // hamming_distance(a: []Trit, b: []Trit, len: usize) -> usize
     // Count positions where a[i] != b[i]
     fn hamming_distance(a: []Trit, b: []Trit, len: usize) -> usize {
         var distance : usize = 0;
@@ -228,7 +228,7 @@ module VSAOps {
     // 6. Permutation Operations
     // 775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847
 
-    // permute(v: []Trit, len: usize, shift: usize) 848 []Trit
+    // permute(v: []Trit, len: usize, shift: usize) -> []Trit
     // Circular shift of hypervector by shift positions
     // Used for: sequence encoding, position tagging
     fn permute(v: []Trit, len: usize, shift: usize) -> []Trit {
@@ -247,7 +247,7 @@ module VSAOps {
         return result;
     }
 
-    // encode_sequence(items: [][]Trit, count: usize, item_len: usize) 849 []Trit
+    // encode_sequence(items: [][]Trit, count: usize, item_len: usize) -> []Trit
     // Encode sequence of items using position-aware binding
     // result = items[0] + permute(items[1], 1) + permute(items[2], 2) + ...
     fn encode_sequence(items: [][]Trit, count: usize, item_len: usize) -> []Trit {
@@ -263,7 +263,7 @@ module VSAOps {
         return result;
     }
 
-    // probe_sequence(seq: []Trit, candidate: []Trit, position: usize, len: usize) 850 f64
+    // probe_sequence(seq: []Trit, candidate: []Trit, position: usize, len: usize) -> f64
     // Probe if candidate is at position in encoded sequence
     // Returns similarity between seq and permute(candidate, position)
     fn probe_sequence(seq: []Trit, candidate: []Trit, position: usize, len: usize) -> f64 {
