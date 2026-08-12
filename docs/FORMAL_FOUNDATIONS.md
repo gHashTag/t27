@@ -9992,6 +9992,73 @@ adapted to the exact call sites that reach it.
 
 ---
 
+### Prop. 192 — the field type that defeats a nesting-aware parser is corrupt data, not grammar — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Runaway string scan — an odd quote swallows the rest of its file* — which now also fails on a new field type whose brackets cannot balance.
+
+Prop. 191 recorded two failed attempts to replace `parse_struct_body`'s
+comma-terminated field-type scan with a nesting-aware one, and closed by stating
+that *"the next attempt needs the counterexample field type, not a third guess."*
+This wave instrumented the loop instead of guessing. The trace named it in one
+run:
+
+```
+FIELD-TOK line 57 Ident 'timestamp'    <- a NEW FIELD, being eaten as a type
+FIELD-TOK line 57 Comma ','            <- consumed, not stopped at
+FIELD-TOK line 58 RBrace '}'           <- the struct's own closing brace
+FIELD-TOK line 64 KwTest 'test'        <- and on into the next block
+```
+
+Scanning back to the field that opened a bracket and never closed it:
+
+```
+benchmarks  : [[]Const [,
+regressions : [[]Const [,
+```
+
+Three `[` and one `]`. **A nesting-aware scanner is correct to never stop on
+this**, because the nesting genuinely never closes. Both "failed" repairs were
+correct code meeting malformed input — and the naive scanner survives the corpus
+only because it ignores nesting, which is exactly the property that makes it
+wrong everywhere else.
+
+Enumerated: **18 such field types across 10 specs**, the same generator defect as
+Prop. 186's 107 `[[]Usize",` sites with `[` substituted for `]` instead of `"`.
+
+**The general shape, and it is the sharper half of this result.** Prop. 186e
+established that a lexical error which *consumes* rather than reports puts the
+symptom far from the cause. This is its complement:
+
+> A defect in the data is invisible to every component built to tolerate it.
+> The one component that would have to notice — the one whose correctness
+> depends on the malformed property — is the one that was written not to look.
+
+The parser could not see these 18 because it does not track nesting. The
+`spec_parse_gate` could not see them because they cost no recovery event: the
+naive loop stops at the comma and produces a wrong type string, silently, which
+is a *value* defect where every instrument in this campaign measures *control*.
+Six waves of parser work and 24 gates passed over a corruption that a
+four-character balance check finds instantly.
+
+**Not repaired, and the reason is the gate's content.** Balance decides only the
+bracket: `[[]Const [` → `[[]Const ]` is balanced and is a list type with no
+element. The element type was lost by the same generator, and no oracle in the
+repository recovers it — unlike Prop. 186, where bracket balance determined the
+whole repair and 107 of 107 sites were fixed with 0 skipped. Guessing 18 element
+types is a decision about what the corpus *meant*, which is not a scanner's to
+make (Prop. 189). Gate 24 therefore **ratchets** them: the 18 are recorded in
+`formal/unbalanced_fields_baseline.txt`, and a 19th fails the build.
+
+**Corollary (the tolerance ledger).** Every `catch`, every recovery path, every
+"skip to the next declaration" is a place where a class of defect becomes
+permanently unobservable. Tolerance is not free; it is paid for in blindness, and
+the debt is invisible by construction. The only way to price it is to run, once,
+an instrument that does *not* tolerate — which is what the four-line `eprintln!`
+above was, and what it cost was one wave against six.
+
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

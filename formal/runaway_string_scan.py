@@ -76,6 +76,31 @@ def odd_quote_lines(text):
             out.append((i, s))
     return out
 
+def unbalanced_field_types(text):
+    """Field declarations whose bracket nesting never closes (Prop. 192).
+
+    `benchmarks : [[]Const [,` has three `[` and one `]`. A scanner that
+    respects nesting therefore never stops, and consumes the struct's closing
+    brace and everything after it. The naive scanner in `parse_struct_body`
+    survives it only by ignoring nesting entirely -- which is why this
+    corruption has been invisible: the one component that would notice is the
+    one component written not to look.
+
+    Same family as the runaway string above: a generator emitted a wrong
+    character (`[` for `]`, as it emitted `"` for `]` elsewhere) and nothing
+    reported it.
+    """
+    out = []
+    for i, line in enumerate(text.splitlines(), 1):
+        s = line.strip()
+        if s.startswith("//") or s.startswith("#"):
+            continue
+        m = re.match(r"^\s*\w+\s*:\s*(\[[^,;]*)[,;]\s*$", line)
+        if m and m.group(1).count("[") != m.group(1).count("]"):
+            out.append((i, s))
+    return out
+
+
 def main():
     if not SPECS.exists():
         print(f"::error::runaway string scan: no such directory 'specs' under "
@@ -88,6 +113,7 @@ def main():
         return 1
 
     findings = []
+    unbalanced = []
     for f in files:
         try:
             text = f.read_text()
@@ -95,9 +121,35 @@ def main():
             continue
         for line_no, src in odd_quote_lines(text):
             findings.append((str(f.relative_to(ROOT)), line_no, src))
+        for line_no, src in unbalanced_field_types(text):
+            unbalanced.append((str(f.relative_to(ROOT)), line_no, src))
 
     print(f"runaway string scan: {len(files)} specs, {len(findings)} lines whose "
-          f"quotes cannot balance")
+          f"quotes cannot balance, {len(unbalanced)} field types whose brackets "
+          f"cannot balance")
+
+    # Prop. 192: RATCHETED, not walled. The 18 known instances lose an element
+    # type as well as a bracket -- `[[]Const [,` -- and balance decides only the
+    # bracket, so repairing them is a judgement about what the type WAS. The
+    # gate records the set and fails when it grows.
+    ub_baseline = ROOT / "formal" / "unbalanced_fields_baseline.txt"
+    ub_now = sorted(f"{p}:{n}" for p, n, _ in unbalanced)
+    if not ub_baseline.exists():
+        ub_baseline.write_text("\n".join(ub_now) + ("\n" if ub_now else ""))
+        print(f"runaway string scan: unbalanced-field baseline written "
+              f"({len(ub_now)} entries)")
+    else:
+        was = [l for l in ub_baseline.read_text().splitlines() if l.strip()]
+        new_ub = [u for u in ub_now if u not in was]
+        if new_ub:
+            print(f"::error::runaway string scan: {len(new_ub)} NEW field "
+                  f"type(s) whose brackets cannot balance. A nesting-aware "
+                  f"scanner never stops on these and consumes the rest of the "
+                  f"enclosing block (Prop. 192)")
+            for u in new_ub[:10]:
+                print(f"  {u}")
+            return 1
+
     if not findings:
         return 0
 

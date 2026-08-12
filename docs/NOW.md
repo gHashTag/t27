@@ -2,6 +2,55 @@
 
 Last updated: 2026-08-12
 
+## The counterexample was corrupt data, not grammar (Closes #2128)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2128
+- PR: (direct commit)
+
+### What landed
+
+Prop. 191 closed with an open item: name the field type that makes a
+nesting-aware `parse_struct_body` over-consume, rather than guess a third
+repair. Instrumenting the loop with four `eprintln!` lines named it in one run:
+
+```
+benchmarks  : [[]Const [,     <- three `[`, one `]`
+regressions : [[]Const [,
+```
+
+A nesting-aware scanner is **correct** never to stop on this — the nesting
+genuinely never closes. Both earlier "failed" repairs were correct code meeting
+malformed input. The naive comma-terminated scanner survives the corpus only
+because it ignores nesting, which is the property that makes it wrong elsewhere.
+
+Enumerated: **18 such field types across 10 specs** — the same generator defect
+as Prop. 186's 107 `[[]Usize",` sites, `[` substituted for `]` instead of `"`.
+
+Gate 24 (`formal/runaway_string_scan.py`) now also reports field types whose
+brackets cannot balance, and ratchets the 18 in
+`formal/unbalanced_fields_baseline.txt`.
+
+Ratchet unchanged and re-verified after restoring the instrumented file:
+**497 specs, 161 recovery events, 0 declarations swallowed, 0 specs declaring
+but capturing nothing.**
+
+### Honesty limits (BINDING)
+
+- **The 18 are NOT repaired.** Bracket balance decides the bracket
+  (`[[]Const ]`) but not the element type the generator also lost. Unlike
+  Prop. 186 — where balance determined the whole repair and 107 of 107 sites
+  were fixed with 0 skipped — no oracle in this repository recovers the element
+  type. Guessing 18 of them is a decision about what the corpus meant.
+- **The gate ratchets, it does not repair.** A 19th unbalanced field type fails
+  the build; the existing 18 do not.
+- This says nothing about whether the affected specs are otherwise correct, and
+  nothing about hardware. No RTL, synthesis or measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169). Every `Gate:` line here, including Prop. 192's, is gated by a
+  step that is real and locally green, in a workflow that CI does not execute.
+
+
 
 
 
