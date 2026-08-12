@@ -173,6 +173,14 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     // splitting declaration from assignment is the general fix for a
     // forward reference that yosys tolerates and Icarus does not.
     s.push_str("    wire        layer_done_dly;\n");
+    // Prop. 135: the remaining four forward references, hoisted to the same
+    // place. Each is read by an instantiation above its natural declaration;
+    // yosys resolves declare-after-use and Icarus rejects it, which is how a
+    // design became provable but not simulable for the whole campaign.
+    s.push_str("    wire        pf_overflow, dma_overflow;\n");
+    s.push_str("    reg  [4:0]  ld_pipe;\n");
+    s.push_str("    wire        layer_start_g;\n");
+    s.push_str("    reg         mac_valid_q, mac_first_q, mac_last_q;\n");
     s.push_str("    reg cfg_err;\n");
     s.push_str("    wire [31:0] reg_status = {29'd0, cfg_err, done, busy};\n");
     s.push_str("    axi_lite_slave csr (\n");
@@ -413,12 +421,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // Input DMA: loads layer 0's activations from DDR into the buffer the\n");
     s.push_str("    // first layer will READ, while the requantizer writes the other one.\n");
     s.push_str("    wire        dma_done, dma_local_we;\n");
-    s.push_str("    wire        pf_overflow, dma_overflow;\n");
     // Prop. 126: layer_done, delayed. The requantizer emits a layer's final
     // word up to two cycles after layer_done_pulse, so flipping the
     // ping-pong on the raw pulse writes that word into the buffer just
     // handed to the reader. ld_pipe[3] drives the flush, ld_pipe[4] the flip.
-    s.push_str("    reg  [4:0]  ld_pipe;\n");
     s.push_str("    assign      layer_done_dly = ld_pipe[4];\n");
     s.push_str("    wire [11:0] dma_local_addr;\n");
     s.push_str("    wire [63:0] dma_local_wdata;\n");
@@ -567,7 +573,7 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    wire [15:0] filled = use_buffer_a ? filled_a : filled_b;\n");
     s.push_str("    wire input_ready   = (use_buffer_a ? wrote_a : wrote_b)\n");
     s.push_str("                      && (filled >= {8'd0, chunks_per_neuron});\n");
-    s.push_str("    wire layer_start_g = layer_start && input_ready;\n");
+    s.push_str("    assign layer_start_g = layer_start && input_ready;\n");
     s.push_str("    wire buffer_unwritten = layer_start && !input_ready;\n");
     s.push_str("    wire [53:0] act_rd_a, act_rd_b;\n");
     s.push_str("\n");
@@ -587,7 +593,6 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    assign activation_word = use_buffer_a ? act_rd_a : act_rd_b;\n");
     s.push_str("\n");
     s.push_str("    // One-cycle skew to match the BRAM read latency.\n");
-    s.push_str("    reg mac_valid_q, mac_first_q, mac_last_q;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
     s.push_str("        if (!rst_n) begin\n");
     s.push_str("            mac_valid_q <= 1'b0; mac_first_q <= 1'b0; mac_last_q <= 1'b0;\n");

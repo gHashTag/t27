@@ -839,6 +839,9 @@ jobs:
       - name: Vacuity gate — no property may pass on an empty trace set
         run: python3 formal/vacuity_gate.py
 
+      - name: Vacuity sweep — every proof step must refute assert(false)
+        run: python3 formal/vacuity_sweep.py
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

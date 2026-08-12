@@ -4,6 +4,33 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 667 — the engine computes 27, and the campaign's proofs are not vacuous
+
+**The measurement (Prop. 135).** Four nets were read above their declarations;
+yosys resolves that, Icarus does not, which is why the design had been provable
+but never simulable. Hoisting them made the top compile. Reference 27 against
+all-(+1) weights: **engine `acc = 27`, `trit = TRIT_P`, `RESULT: MATCH`.**
+
+Validated on three bars. TRUE: exact agreement. ALIVE: the MAC fired, weights
+were written, and 27 is not any default the capture could hold. BITING:
+perturbing the reference alone by +1 yields `engine=27 reference=28`. A weaker
+control was run first and rejected — zeroing the weights moved both sides
+together, which shows responsiveness, not detection.
+
+Wave 665's withdrawn claim is resolved upward: reproduced, and the accumulator
+agrees too, which it did not then.
+
+**The audit (Prop. 136).** Gate 16 re-runs every proof step in both workflows
+with `assert(1'b0)` injected and requires a refutation. **12 live, 0 vacuous,
+6 not audited** — no proof in this campaign has been passing vacuously.
+
+Its first run said twelve steps were vacuous and every one was false: the probe
+never landed, and an unprobed suite proves, so a probe that fails to deliver
+reports the *opposite* of the truth. Caught by the contradiction with
+`vacuity_gate.py`. Then a second false positive one command later, when the
+comment stripper shifted the offsets the insertion used. Both are written down.
+
 ## Wave 666 — the instrument was lying, and only a control caught it
 
 Three results, one retraction.

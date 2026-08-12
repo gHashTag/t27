@@ -20,6 +20,9 @@ configuration is meaningless.
 This gate is the reason the campaign can now state that its 30 integration
 properties are non-vacuous. Before Wave 666 that was an assumption about
 assumptions.
+
+ARTIFACTS. Reads `build/rtl/*.sv`. Writes nothing outside a temporary
+directory: the probed top is a COPY, and `build/rtl` is left exactly as found.
 """
 import pathlib
 import re
@@ -83,11 +86,16 @@ def main():
     # absent reports success for having checked nothing, and this gate was
     # written to catch precisely that class of lie.
     if missing:
-        print(f"vacuity gate: FAIL -- RTL not generated ({missing[0]}.sv absent); "
-              "nothing was checked")
+        # Prop. 135: absence_sweep classifies a failure as DIAGNOSED only when
+        # the output NAMES THE STARVED SUBJECT -- otherwise it cannot be told
+        # apart from a step that was already broken (Prop. 114). Say the path.
+        print(f"::error::vacuity gate: no such file "
+              f"'build/rtl/{missing[0]}.sv' -- the design is absent, so the "
+              f"emptiness probe checked nothing")
         return 1
     if not shutil.which("yosys"):
-        print("vacuity gate: FAIL -- yosys not on PATH; nothing was checked")
+        print("::error::vacuity gate: yosys not found on PATH -- the "
+              "emptiness probe needs the solver and checked nothing")
         return 1
 
     problems = []
@@ -100,14 +108,16 @@ def main():
         text = top.read_text()
         n = text.count(ANCHOR)
         if n != 1:
-            print(f"vacuity gate: FAIL -- probe anchor matched {n} times, not 1. "
-                  "A probe that does not land tests nothing.")
+            print(f"::error::vacuity gate: probe anchor matched {n} times in "
+                  f"build/rtl/bitnet_engine_top.sv, not 1 -- a probe that does "
+                  f"not land tests nothing")
             return 1
         top.write_text(text.replace(ANCHOR, ANCHOR + PROBE, 1))
 
         # The probe must be present in the text the solver reads.
         if "a_vacuity_probe" not in top.read_text():
-            print("vacuity gate: FAIL -- probe not written")
+            print("::error::vacuity gate: probe not written into "
+                  "build/rtl/bitnet_engine_top.sv")
             return 1
 
         for name, defines in CONFIGS:
@@ -134,7 +144,8 @@ def main():
         for m in MODULES)
 
     if problems:
-        print(f"vacuity gate: FAIL -- {len(problems)} vacuous configuration(s)")
+        print(f"::error::vacuity gate: {len(problems)} vacuous "
+              f"configuration(s) over build/rtl")
         for p in problems:
             print(f"  {p}")
         return 1
@@ -151,6 +162,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as exc:
-        print(f"vacuity gate: FAIL -- could not run the emptiness probe "
-              f"({type(exc).__name__}: {exc}); nothing was checked")
+        print(f"::error::vacuity gate: could not run the emptiness probe "
+              f"over build/rtl ({type(exc).__name__}: {exc}) -- "
+              f"nothing was checked")
         sys.exit(1)

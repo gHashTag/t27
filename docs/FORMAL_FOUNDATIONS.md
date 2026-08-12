@@ -8027,6 +8027,107 @@ declaration ordering. Whichever ran last decides what is verified.
 
 ---
 
+### Prop. 135 — the first validated end-to-end value measurement — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Prove integration properties (all 28, tracker-backed included)*
+
+**135a. Four nets stood between provable and simulable.** `pf_overflow`,
+`ld_pipe`, `layer_start_g` and `mac_valid_q` were read by instantiations above
+their declarations. Yosys resolves declare-after-use; Icarus rejects it. Hoisting
+all four — splitting declaration from assignment where one carried an assignment —
+made the generated top compile for the first time.
+
+**135b. The measurement.** Reference: 27 lanes of `+1` against all-`+1` weights,
+`acc = 27`, requantized at threshold 3 to `TRIT_P`. Engine: **`acc = 27`,
+`trit = 2'b10`, `RESULT: MATCH`.** The weight path shows `bram_we = 1`,
+`mem_rd_en = 3`, `prefetch_done` asserted.
+
+**135c. Three bars, because a value check that cannot fail is worth nothing.**
+
+- **TRUE** — engine and reference agree exactly.
+- **ALIVE** — the MAC fired (`saw_mac`), weights were written, and the expected
+  value is 27, which is neither zero nor any uninitialised register's contents.
+  Prop. 127b was withdrawn precisely for reporting an initial value as agreement.
+- **BITING** — perturbing the *reference* by `+1` while leaving the engine
+  untouched yields `MAC MISMATCH engine=27 reference=28`. The check can fail.
+
+A weaker control was run first and rejected: setting the weights to zero moved
+engine and reference *together* (both to `acc = 0`, `TRIT_Z`), which demonstrates
+responsiveness but not detection. Only the desynchronised control establishes
+that the harness compares.
+
+**135d. Wave 665's withdrawal is now resolved, and upward.** That result is
+reproduced and extended: the accumulator agrees too, which it did not then,
+because the harness had been sampling `mac_result` under the compute stage's
+*input* valid. A withdrawal is not a retraction of the underlying fact — it is a
+statement that the evidence was not reproducible. It now is.
+
+**135e. Theorem (three-bar adequacy for a value check).** *A comparison of a
+design output `d` against a reference `r` licenses the conclusion "the design
+computes `r`" only if (i) `d = r`, (ii) the capture condition for `d` was
+observed to fire and `r` is distinguishable from every default the capture could
+hold, and (iii) there exists a perturbation of `r` alone for which the comparison
+reports failure.* Dropping (ii) admits an unfired capture reading its
+initialiser — Prop. 127b. Dropping (iii) admits a comparison that is not wired to
+the design at all — Props. 121, 128. Conditions (ii) and (iii) are each one extra
+simulation.
+
+---
+
+### Prop. 136 — the retroactive vacuity audit is clean, and it found twelve of its own false positives first — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Vacuity sweep — every proof step must refute assert(false)*
+
+**136a. Every proof in this campaign predates the vacuity check.** Prop. 133 built
+a gate for the engine suite. Twelve of the fifteen property wrappers use `assume`,
+and none of them had ever been asked whether any trace satisfies its assumptions.
+
+**136b. Gate 16 asks it once per step.** `formal/vacuity_sweep.py` parses every
+`sat -verify -prove-asserts` invocation out of both formal workflows, re-runs it
+verbatim with `assert (1'b0)` injected into its `-top` module, and requires a
+refutation.
+
+**136c. Result: 12 live, 0 vacuous, 6 not audited, of 18 proof steps.** No proof
+in this campaign has been passing vacuously. The six are reported rather than
+absorbed: four have a shell-variable `-top` this parser does not expand, one is
+combinational and has no posedge clock to hang a probe on, and one is a template
+naming `${mod}.sv`.
+
+**136d. Its first run reported twelve vacuous steps, and every one was false.**
+The workflow writes relative paths; the substitution was keyed on absolute ones,
+so the probed copies were written and then not read. An unprobed suite proves —
+so a probe that fails to land reports *the exact opposite of the truth*. The
+contradiction that exposed it was `bitnet_engine_top` appearing as vacuous
+minutes after `vacuity_gate.py` measured it live.
+
+**136e. The shape was already in the catalogue, and in the sibling tool's own
+assertions.** `vacuity_gate.py` asserts its probe anchor matches exactly once,
+with the comment *"a probe that does not land tests nothing"*. The sweep, written
+one wave later by the same hand, omitted that check. Prop. 103's first shape —
+matching a form rather than a fact — does not stop applying because you wrote it
+down.
+
+**136f. Corollary (asymmetry of probe failure).** *An injected-probe audit whose
+probe silently fails to land does not degrade to "no information": it inverts.
+The unprobed artifact satisfies the probe's negation, so every step reports the
+failing verdict.* Hence such an audit must assert delivery of the probe, not
+merely its construction — an unverifiable step in a diagnostic tool is worse than
+its absence, because it is read as data.
+
+**136g. And once more, immediately.** Adding the comment stripper that
+Prop. 136e's sibling gate demanded introduced a fresh false positive within one
+command: detection moved to the stripped text while the insertion offset still
+indexed the original, so the probe landed outside the module. Stripping shifts
+every index after the first comment. Detection and offsets must not come from
+different strings — a general hazard for any tool that sanitises text and then
+edits by position.
+
+**136h. Verified biting.** Planting `assume (1'b0)` in `double_buffer_props.sv`
+moves the sweep to 11 live / 1 vacuous and names that step exactly; removing it
+restores 12 / 0.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
