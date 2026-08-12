@@ -2,6 +2,50 @@
 
 Last updated: 2026-08-12
 
+## 36% of the parser backlog is Markdown (Closes #2133)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2133
+- PR: (direct commit)
+
+### What landed
+
+`formal/spec_class_scan.py` (gate 28), Prop. 197, and one `eprintln!` in
+`main.rs`. The parser was already collecting an error message for every recovery
+event into `discarded` and discarding them; emitting them turns 154 events into a
+ranked work-list. The top two causes, excluding the file Prop. 189 excused:
+
+| events | files | cause | example |
+|---|---|---|---|
+| 48 | 30 | Unexpected top-level token: Ident | `## Specification` |
+| 43 | 17 | Unexpected top-level token: Minus | `- protocol_version: ...` |
+
+Both Markdown. **16 of 497 specs carry Markdown structure and account for 55 of
+154 recovery events -- 36%.**
+
+Prop. 189 excused one of these BY NAME as a singleton. It was a sample of a
+population, and fifteen siblings went on inflating a number read every wave as a
+parser backlog.
+
+All 20 gates green, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **Nothing was renamed or repaired.** The gate classifies and ratchets; whether a
+  Markdown-shaped `.t27` should become `.md` is a corpus decision, and that is the
+  same reasoning Prop. 189 used -- now applied to the population instead of one file.
+- **The classification is structural and approximate in both directions.** A spec
+  with a long fenced example is called a document; a document with no headings is
+  called a spec. The threshold (>=2 headings or >=2 fences) was chosen by
+  inspecting the distribution, is not derived from anything, and is printed on
+  every run so it can be argued with.
+- **The 55/154 split does not mean the other 99 are parser gaps.** They are
+  unclassified, not diagnosed.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169).
+
+
 ## One contextual keyword recovered 2,865 unread lines (Closes #2132)
 
 - Branch: `feat/wave-547/host-heapsort`

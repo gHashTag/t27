@@ -10294,6 +10294,57 @@ moved in the direction claimed on both counters, from independent measurements.
 
 ---
 
+### Prop. 197 — 36% of the "parser backlog" is Markdown, and the count could not say so — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec class scan — prose in a .t27 file is not a parser backlog*
+
+Prop. 196 closed with a theorem: a ratio test detects without localising, so a
+campaign needs diagnostics as well as detectors. This wave built the diagnostic.
+The parser was already collecting an error message for every recovery event into
+`discarded` and **throwing them away** — one `eprintln!` made 154 events into a
+ranked work-list. Ranked, excluding the file Prop. 189 already excused:
+
+| events | files | cause | example |
+|---|---|---|---|
+| 48 | 30 | `Unexpected top-level token: Ident` | `## Specification` |
+| 43 | 17 | `Unexpected top-level token: Minus` | `- protocol_version: semver, ...` |
+
+Both are **Markdown** — headings and bullet lists, in files named `.t27`.
+Enumerated structurally: **16 of 497 specs carry Markdown structure and account
+for 55 of 154 recovery events, 36%.**
+
+**Prop. 189 had already met one of these and mis-scoped it.**
+`c_api_contract.t27` was excused *by name*, with the reasoning that renaming it is
+a corpus decision rather than a parser defect. The reasoning was right; the scope
+was wrong. It was recorded as a singleton exception when it was a **sample of a
+population**, and fifteen others went on inflating a number every wave read as a
+parser backlog. An exemption granted by name cannot notice it has siblings.
+
+**Theorem (composition confound).** Let a ratchet report `M(C) = Σ_{x∈C} m(x)`
+over a corpus `C` partitioned into kinds `K₁ … Kₙ` with different characteristic
+`m`. Then `M` moves under *three* independent operations — improving the subject,
+improving the instrument, and **changing the mix of kinds** — and its value alone
+cannot distinguish them. Renaming sixteen files `.md` would move this campaign's
+headline parser number from 154 to 99 while changing neither the parser nor any
+spec.
+
+Corollary: **every ratchet over a heterogeneous population is partly a composition
+metric**, and reporting it as a quality metric is the unexamined-denominator
+failure of Prop. 194 with the denominator's *contents* rather than its size. The
+fix is the same shape — publish the partition, not just the total.
+
+**What this gate does and does not do.** It classifies and ratchets the document
+count; it renames nothing, because that is still a corpus decision. Its threshold
+(≥2 headings or ≥2 fenced blocks) was chosen after inspecting the distribution and
+is printed with every run so it can be argued with — it is not derived from
+anything, and the classification is approximate in both directions.
+
+Three bars: **TRUE** — exits 0; all 20 gates green; 1213 tests pass. **ALIVE** —
+497 files partitioned 16/481, not a degenerate split. **BITING** — removing two
+entries from the baseline makes it name them and exit 1.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

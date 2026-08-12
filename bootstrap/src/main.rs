@@ -2992,6 +2992,14 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     // numbers differ and conflating them overstates precision -- the exact
     // unexamined-label failure this campaign keeps finding.
     eprintln!("recovery-events: {}", discarded.len());
+    // Prop. 197: the COUNT is a detector and the MESSAGES are the diagnostic.
+    // Prop. 196 showed a ratio test can prove something is unread and never say
+    // why -- `8 -> 1` needed a separate reading of each file. These strings were
+    // being collected and thrown away, so every wave that wanted a cause had to
+    // re-derive one by hand. Emitting them makes recovery a ranked work-list.
+    for d in &discarded {
+        eprintln!("recovery-at: {}", d.replace('\n', " "));
+    }
     // Prop. 152: the sound version of what Prop. 149 withdrew. Counted by the
     // parser, so module scope is decided by parsing rather than by a regex.
     eprintln!("declarations-swallowed: {}", swallowed.len());

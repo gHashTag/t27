@@ -863,6 +863,9 @@ jobs:
       - name: Capture density scan — if the output does not grow with the file, nothing was read
         run: python3 formal/capture_density_scan.py
 
+      - name: Spec class scan — prose in a .t27 file is not a parser backlog
+        run: python3 formal/spec_class_scan.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 
