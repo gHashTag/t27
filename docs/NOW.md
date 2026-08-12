@@ -6,6 +6,30 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 669 — a boundary no vector had ever touched, and a corrected pass-rate
+
+**Values, at last (Prop. 140).** Every vector in this campaign was all-(+1)
+against all-(+1), so the accumulator was always 27C and the trit always TRIT_P.
+Shape was swept; values never were. Randomised trits behind `T27_SEED` reach
+`acc` in [-3, 27] and all three trit values — and two seeds land on
+`acc = -threshold` exactly, where the design emits TRIT_N and the independently
+written reference said TRIT_Z. The design's chain is inclusive and is stated
+twice, in the RTL and in its own properties; the reference agreed with neither
+and was wrong. **A boundary disagreement is visible only from the boundary**, and
+139 propositions had never been there.
+
+**Coverage closed (Prop. 141).** 30 of 30 proof steps audited for vacuity: 28
+live, 1 vacuous by design, 1 immune by construction, 0 unaudited. The two
+non-audited steps are opposite kinds — one exempt by argument, one structurally
+unable to fail silently — and both are now enforced rather than listed.
+
+**A correction (Prop. 142).** Prop. 125's "20 of 28 configurations terminate"
+counted twelve points that were never well-formed. Its headline — one in 81 — is
+untouched, because that sweep is all L=1 where well-formedness is vacuous. The
+well-formed subset is re-measured at **16 of 16 MATCH**, on accumulator, trit and
+word count. A terminations figure has been replaced by a correctness one.
+
 ## Wave 668 — a sweep that looked eighteen wide was three facts, and its six failures were an ill-posed question
 
 **The sweep (Prop. 137).** Gate 17 runs the value check across the configuration

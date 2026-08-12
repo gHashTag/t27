@@ -8251,6 +8251,117 @@ is growing.
 
 ---
 
+### Prop. 140 — 139 propositions never touched the boundary — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Value sweep — engine arithmetic against a reference, across configurations*
+
+**140a. Shape had been swept; values never had.** Every vector in this campaign
+was all-`+1` inputs against all-`+1` weights. The accumulator is then `27C` and
+the trit always `TRIT_P`. A sign error, a lane transposition, a wrong trit decode
+and an inverted comparison all survive that vector in every configuration —
+Prop. 137's twelve-point grid included.
+
+**140b. Randomised trits, drawn reproducibly.** A written-out xorshift behind
+`T27_SEED`, with seed 0 preserving the historical vector so nothing already
+measured is disturbed. Across twelve seeds the reference reaches `acc ∈ [-3, 27]`
+and all three trit values.
+
+**140c. Two seeds disagreed, at exactly one point.** Seeds 5 and 7 both land on
+`acc = -3` with `threshold = 3`. The design emits `TRIT_N`; the testbench
+reference said `TRIT_Z`. The design's chain is inclusive — `acc >= threshold`,
+`acc <= -threshold` — and the reference had been written independently with `>`
+and `<`. They agree everywhere except `acc = ±threshold`.
+
+**140d. The design wins, and the reason is not "it is the design".** No `.t27`
+spec governs the requantizer's boundary, so there is no authority above the two
+implementations. The design's convention is stated twice — as a documented
+priority chain in the RTL and as `activation_requant`'s own inline properties —
+while the reference agreed with neither. Had the intended semantics been
+exclusive, this same evidence would have condemned the design; recording which
+way the evidence pointed matters more than which side won.
+
+**140e. Why 139 propositions could not see it.** A boundary disagreement is
+visible only from the boundary. The all-`+1` vector produces `acc = 27C ≥ 27`,
+never within 24 of the threshold at any swept configuration. Twenty-nine
+integration properties constrain control and are blind to it by construction
+(Prop. 81b); the value check existed and used the one vector that cannot reach it.
+
+**140f. Theorem (adequacy needs value coverage, not configuration coverage).**
+*Let `f` be a design and `r` a reference, and let `D` be the set of inputs a test
+suite applies. If every `d ∈ D` maps to the same point of `f`'s output partition,
+then the suite distinguishes `f` from `r` only if they differ on that point —
+regardless of how many configurations `D` is replicated across.* Sweeping shape
+replicates `D`; it does not enlarge it. The corollary is operational: **a suite
+whose expected output is constant is testing one thing, and its size is
+decoration.**
+
+**140g. Boundary cases now travel with the sweep.** Seeds 5 and 7 are pinned into
+the grid at two shapes, so the `±threshold` case is exercised on every run rather
+than rediscovered.
+
+---
+
+### Prop. 141 — every proof step is audited, and the last two were exempt for opposite reasons — `PROVEN`
+
+**Gate:** `formal-yosys.yml` → *Vacuity sweep — every proof step must refute assert(false)*
+
+**141a. 30 of 30.** **28 live, 0 vacuous, 1 vacuous by design, 1 immune by
+construction, 0 not audited.** Prop. 136 started at 12 audited of 18 known.
+
+**141b. The two non-audited steps are not the same kind of thing, and collapsing
+them would have been the error.** `assume_liveness_check` is *designed* to be
+vacuous — it assumes something unsatisfiable and asserts something false, so it
+proves only when the flow honours assumptions at all. "Properties are non-vacuous
+(witnesses must refute)" is *immune*: its pass condition is a refutation, and
+vacuity makes refutation impossible, so an empty trace set can only turn it red.
+One is an exemption granted by argument; the other needs no exemption because the
+hazard cannot reach it.
+
+**141c. Both are enforced rather than merely listed.** If the canary stops being
+vacuous the sweep fails, because the flow has stopped applying assumptions. If
+the immune step disappears from the workflows the sweep fails, because a stale
+exemption reads exactly like coverage.
+
+---
+
+### Prop. 142 — "20 of 28" counted twelve configurations that were never defined — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Value sweep — engine arithmetic against a reference, across configurations*
+
+**142a. The claim, and what was wrong with it.** Prop. 125 reported that the
+harness "terminates cleanly with the done IRQ on 20 of 28 configurations of the
+repaired variant" — a grid of `N ∈ {1,2,8,26,27,28,54} × C ∈ {1,2} × L ∈ {1,2}`.
+Prop. 138 established that `L > 1` requires `N = C × 27`. Of the fourteen `L = 2`
+points, exactly **two** satisfy that. **Twelve of the twenty-eight were ill-posed,
+and whether they terminated is not evidence about the design.**
+
+**142b. What survives untouched.** Prop. 125's headline — *exactly one
+configuration in 81 works* — is unaffected. That sweep is `N = 0…80` at `C = 1`,
+`L = 1`, and well-formedness is vacuous at `L = 1`: a single-layer network has no
+successor to be consistent with. A retroactive check that clears a prior claim is
+worth as much as one that condemns it, and this one does both in the same
+paragraph.
+
+**142c. The well-formed subset, re-measured on values.** All sixteen well-formed
+configurations of that grid — fourteen at `L = 1`, two at `L = 2` — now **MATCH**
+on accumulator, trit, and emitted-word count. `N = 26`, which Prop. 125 recorded
+as producing zero activation words for twenty-six computed neurons, emits exactly
+one; `N = 28` and `N = 54` emit two; the `L = 2` pair emit two and four.
+
+**142d. This replaces a control-flow figure with an arithmetic one.** "20 of 28"
+counted *terminations*. Sixteen of sixteen counts *correct answers*. The first
+was contaminated by ill-posed points and measured only that the machine stopped;
+the second is smaller, well-posed, and measures what the machine computed.
+
+**142e. Corollary (an ill-posed point is not a conservative one).** *Including
+configurations outside a design's contract does not make a pass-rate pessimistic;
+it makes it uninterpretable.* Twelve ill-posed points could have inflated or
+deflated "20 of 28" depending on which way their undefined behaviour fell — and
+in Prop. 138 the analogous points did both, failing at `C ≥ 2` and passing at
+`C = 1` for no reason connected to the design.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

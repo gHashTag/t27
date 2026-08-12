@@ -31,6 +31,14 @@ module tb_data;
 `ifndef T27_THRESH
   `define T27_THRESH 3
 `endif
+// Wave 669: seed 0 keeps the all-(+1) vector every earlier wave used. Any
+// other seed draws pseudo-random trits. Prop. 140 -- with all-(+1) inputs and
+// all-(+1) weights the accumulator is always 27*C and the trit always TRIT_P,
+// so a sign error, a lane transposition or a wrong trit decode survives every
+// configuration in the sweep. Shape was varied; VALUES never were.
+`ifndef T27_SEED
+  `define T27_SEED 0
+`endif
     localparam integer C = `T27_C;          // chunks per neuron
     localparam integer N = `T27_N;          // neurons
     localparam integer L = `T27_L;          // layers
@@ -39,20 +47,46 @@ module tb_data;
     reg clk = 0, rst_n = 0;
     always #5 clk = ~clk;
 
-    // ---- the known input vector: 27x(+1) in one 54-bit word ---------------
-    // dot with all-(+1) weights = 27*(+1) = +27, requant -> TRIT_P
+    // ---- pseudo-random trits, or the historical all-(+1) vector -----------
+    // A 32-bit xorshift, written out so both the testbench and any reader can
+    // reproduce a failing seed exactly. Trits are drawn from {-1, 0, +1} with
+    // 2'b11 never generated -- it is reserved and feeding it would test the
+    // testbench's idea of the encoding rather than the design.
+    function [31:0] xs32;
+        input [31:0] x;
+        reg [31:0] y;
+        begin
+            y = x; y = y ^ (y << 13); y = y ^ (y >> 17); y = y ^ (y << 5);
+            xs32 = y;
+        end
+    endfunction
+
+    function [1:0] trit_of;
+        input [31:0] r;
+        begin
+            case (r % 3)
+                0: trit_of = 2'b00;   // -1
+                1: trit_of = 2'b01;   //  0
+                default: trit_of = 2'b10;   // +1
+            endcase
+        end
+    endfunction
+
     function [53:0] input_word;
         input dummy;
         integer i;
+        reg [31:0] r;
         begin
             input_word = 54'd0;
-            for (i = 0; i < 27; i = i + 1)
-                // Wave 662: all (+1). The previous vector was chosen so the
-                // reference accumulator would be 0 -- a value wrong under most
-                // indexing errors, and ALSO the value an uninitialised counter
-                // reads. It could not tell a working engine from a silent
-                // harness. 27 and TRIT_P can be produced by neither.
-                input_word[i*2 +: 2] = 2'b10;
+            r = `T27_SEED + 32'h9E3779B9;
+            for (i = 0; i < 27; i = i + 1) begin
+                r = xs32(r);
+                // Wave 662: all (+1) at seed 0. The vector before that was
+                // chosen so the reference accumulator would be 0 -- which is
+                // ALSO what an uninitialised counter reads, so it could not
+                // tell a working engine from a silent harness.
+                input_word[i*2 +: 2] = (`T27_SEED == 0) ? 2'b10 : trit_of(r);
+            end
         end
     endfunction
 
@@ -60,9 +94,14 @@ module tb_data;
     function [53:0] weight_word;
         input dummy;
         integer i;
+        reg [31:0] r;
         begin
             weight_word = 54'd0;
-            for (i = 0; i < 27; i = i + 1) weight_word[i*2 +: 2] = 2'b10;
+            r = `T27_SEED + 32'h85EBCA6B;
+            for (i = 0; i < 27; i = i + 1) begin
+                r = xs32(r);
+                weight_word[i*2 +: 2] = (`T27_SEED == 0) ? 2'b10 : trit_of(r);
+            end
         end
     endfunction
 
@@ -90,12 +129,27 @@ module tb_data;
         end
     endfunction
 
-    // requant: +1 above threshold, -1 below -threshold, else 0
+    // requant: the boundary is INCLUSIVE, and that was not free.
+    //
+    // Wave 669, Prop. 140: this reference was written independently with `>`
+    // and `<`, and disagreed with the design at exactly acc == +-threshold --
+    // one point out of the whole range. Seeds 5 and 7 land on acc = -3 with
+    // threshold 3: the design emits TRIT_N, this said TRIT_Z. Every vector
+    // used before this wave was all-(+1), so the accumulator was always 27*C
+    // and the boundary was never once touched in 139 propositions.
+    //
+    // No .t27 spec governs the requantizer's boundary, so there is no
+    // authority above the two implementations. The design's convention wins
+    // here because it is stated in the RTL as a documented priority chain AND
+    // asserted by activation_requant's own inline properties, so it is the
+    // convention twice over; this reference agreed with neither. Recorded
+    // rather than silently patched: had the intended semantics been exclusive,
+    // this same evidence would have condemned the design.
     function [1:0] ref_trit;
         input signed [15:0] a;
         begin
-            ref_trit = (a >  THRESH) ? 2'b10 :
-                       (a < -THRESH) ? 2'b00 : 2'b01;
+            ref_trit = (a >=  THRESH) ? 2'b10 :
+                       (a <= -THRESH) ? 2'b00 : 2'b01;
         end
     endfunction
 

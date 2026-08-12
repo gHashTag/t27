@@ -136,10 +136,30 @@ def main():
     # contradictory while the flow at large is fine.
     EXPECTED_VACUOUS = {"assume_liveness_check"}
 
+    # Prop. 141. One step is IMMUNE by construction rather than exempt by
+    # decree, and the difference matters. "Properties are non-vacuous
+    # (witnesses must refute)" passes only when each witness REFUTES -- that is
+    # its success condition, not its failure condition. An unsatisfiable
+    # assumption set makes refutation impossible, so vacuity can only turn that
+    # step RED. It cannot produce a false pass, which is the entire hazard this
+    # sweep exists to catch.
+    #
+    # It also cannot be probed mechanically: its file list is `${mod}.sv`,
+    # filled from a shell function argument. Left unaudited it was the last
+    # "not audited" line in an otherwise green summary -- and an unexplained
+    # exclusion in a green summary is how things stay unexamined (Prop. 139a).
+    IMMUNE_BY_REFUTATION = {"Properties are non-vacuous (witnesses must refute)"}
+
     vacuous, skipped, live = [], [], 0
     canaries = 0
+    immune = 0
     for name, script, top, files in found:
         srcs = [ROOT / f for f in files]
+        if name.split(" [")[0] in IMMUNE_BY_REFUTATION:
+            immune += 1
+            print(f"  immune   {name[:52]}: passes only on refutation, so "
+                  f"vacuity can only fail it")
+            continue
         if any(not s.exists() for s in srcs):
             missing = next(s for s in srcs if not s.exists())
             skipped.append(f"{name[:44]}: no such file '{missing.name}'")
@@ -218,8 +238,16 @@ def main():
     for s in skipped:
         print(f"  skipped  {s}")
     print(f"vacuity sweep: {live} live, {len(vacuous)} vacuous, "
-          f"{canaries} vacuous by design, {len(skipped)} not audited, "
-          f"of {len(found)} proof steps")
+          f"{canaries} vacuous by design, {immune} immune by construction, "
+          f"{len(skipped)} not audited, of {len(found)} proof steps")
+
+    # An immunity claim that names a step no longer present is a stale
+    # exemption, and a stale exemption reads exactly like coverage.
+    if immune != len(IMMUNE_BY_REFUTATION):
+        print(f"::error::vacuity sweep: {len(IMMUNE_BY_REFUTATION) - immune} "
+              f"step(s) claimed immune-by-refutation are not present in "
+              f".github/workflows -- the exemption is stale")
+        return 1
 
     # A canary that stops being vacuous is a silent catastrophe: it means the
     # flow no longer applies assumptions, and every "given a compliant

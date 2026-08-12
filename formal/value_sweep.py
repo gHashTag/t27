@@ -64,14 +64,25 @@ VVP = "/opt/homebrew/bin/vvp"
 #
 # The single-layer rows keep the free cross, because a network with one layer
 # has no successor to be consistent with.
-GRID = ([(c, n, 1) for c in (1, 2, 3) for n in (1, 2, 3)]
-        + [(c, c * 27, 2) for c in (1, 2, 3)])
+GRID = ([(c, n, 1, 0) for c in (1, 2, 3) for n in (1, 2, 3)]
+        + [(c, c * 27, 2, 0) for c in (1, 2, 3)]
+        # Prop. 140: shape was swept, values never were. At seed 0 every input
+        # and weight is +1, so the accumulator is always 27*C and the trit
+        # always TRIT_P -- a sign error, a lane transposition or a wrong trit
+        # decode survives the entire grid above. These seeds draw pseudo-random
+        # trits; between them they reach acc in [-3, +27] and all three trit
+        # values. Seeds 5 and 7 land exactly on acc == -threshold, the boundary
+        # that exposed a disagreement between the design and this testbench's
+        # reference after 139 propositions had never touched it.
+        + [(1, 1, 1, s) for s in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)]
+        + [(2, 2, 1, s) for s in (1, 5, 7)])
 
 
-def run_one(work, c, n, layers):
-    exe = work / f"s_{c}_{n}_{layers}.vvp"
+def run_one(work, c, n, layers, seed):
+    exe = work / f"s_{c}_{n}_{layers}_{seed}.vvp"
     cmd = [IVERILOG, "-g2012", "-o", str(exe), "-s", "tb_data",
            f"-DT27_C={c}", f"-DT27_N={n}", f"-DT27_L={layers}",
+           f"-DT27_SEED={seed}",
            str(work / "tb_data.v")] + [str(work / f"{m}.sv") for m in MODULES]
     b = subprocess.run(cmd, capture_output=True, text=True)
     if b.returncode != 0:
@@ -124,10 +135,11 @@ def main():
         shutil.copy(TB, work / "tb_data.v")
         for m in MODULES:
             shutil.copy(RTL / f"{m}.sv", work / f"{m}.sv")
-        for c, n, layers in GRID:
-            status, detail = run_one(work, c, n, layers)
-            results[(c, n, layers)] = (status, detail)
-            print(f"  C={c} N={n} L={layers}   {status:10} {detail[:76]}")
+        for c, n, layers, seed in GRID:
+            status, detail = run_one(work, c, n, layers, seed)
+            results[(c, n, layers, seed)] = (status, detail)
+            print(f"  C={c} N={n} L={layers} seed={seed:<2} {status:10} "
+                  f"{detail[:70]}")
 
     tally = {}
     for status, _ in results.values():
@@ -148,8 +160,8 @@ def main():
     # (Prop. 26's expected-refutation convention exists for this). What it
     # enforces is that the SET of failing configurations does not grow.
     baseline = ROOT / "formal" / "value_sweep_baseline.txt"
-    now = sorted(f"C={c} N={n} L={l} {results[(c, n, l)][0]}"
-                 for (c, n, l) in results)
+    now = sorted(f"C={c} N={n} L={l} S={s} {results[(c, n, l, s)][0]}"
+                 for (c, n, l, s) in results)
     if not baseline.exists():
         baseline.write_text("\n".join(now) + "\n")
         print(f"value sweep: baseline written to {baseline.name} "
