@@ -394,6 +394,27 @@ fn run_phase_with_failures(
     Ok((pass, fail, failures))
 }
 
+/// W633: a parse that REACHED EOF is not a parse that read everything.
+/// Top-level drop-recovery resyncs past an unrecognised declaration, so
+/// `parse` returns success on input it consumed and threw away -- measured at
+/// 55,563 tokens across 130 corpus specs, invisible to every gate this project
+/// has ever run. Runs in-process: no subprocess, so the phase is nearly free.
+/// See T42.
+fn cmd_parse_no_discard(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    match crate::compiler::Compiler::parse_ast_accounted(&src) {
+        // A file that does not parse at all is the `parse` phase's business,
+        // not this one; do not double-report it (T30).
+        Err(_) => Ok(()),
+        Ok((_, 0)) => Ok(()),
+        Ok((_, n)) => anyhow::bail!(
+            "parser reached EOF but DISCARDED {} top-level token(s);              they never reach codegen",
+            n
+        ),
+    }
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1248,6 +1269,13 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("parse", p1fail, &mut ledger, &mut upstream_failed);
     push_phase("parse", p1p, p1f, 0);
 
+    println!("--- Phase 1a2: Parse completeness (no silent discard) ---");
+    let (p1cp, p1cf, p1cfail) =
+        run_phase_with_failures(&repo, "parse-no-discard", cmd_parse_no_discard, &specs_compiler)?;
+    println!("Parse completeness: {} clean, {} discarding", p1cp, p1cf);
+    record("parse-no-discard", p1cfail, &mut ledger, &mut upstream_failed);
+    push_phase("parse-no-discard", p1cp, p1cf, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -1778,8 +1806,9 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
+    println!("Parse DISCARD fails:      {}", p1cf);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

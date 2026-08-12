@@ -939,6 +939,12 @@ pub struct Parser {
     /// the branch body, not a struct literal. Rust has the same ambiguity and
     /// resolves it the same way (W578).
     no_struct_literal: u32,
+    /// W633: tokens DISCARDED by top-level drop-recovery. The parser resyncs
+    /// past an unrecognised declaration and reaches EOF, so
+    /// `parse_ast_strict`'s "did we reach EOF?" check reports "consumed all"
+    /// -- for input that was consumed AND THROWN AWAY. Counting them is what
+    /// makes that population visible. See T42.
+    dropped_top_level_tokens: usize,
 }
 
 #[derive(Clone)]
@@ -959,6 +965,7 @@ impl Parser {
             peek: second,
             pending_pragma: String::new(),
             no_struct_literal: 0,
+            dropped_top_level_tokens: 0,
         }
     }
 
@@ -1127,8 +1134,14 @@ impl Parser {
             if paren_depth == 0 && bracket_depth == 0 && self.is_top_level_start() {
                 break;
             }
+            self.dropped_top_level_tokens += 1;
             self.advance();
         }
+    }
+
+    /// W633: how many tokens this parse threw away during top-level recovery.
+    pub(crate) fn dropped_top_level_tokens(&self) -> usize {
+        self.dropped_top_level_tokens
     }
 
     /// Refuse an unterminated string wherever it appears. The token carries the
@@ -14642,6 +14655,17 @@ impl Compiler {
             ));
         }
         Ok(ast)
+    }
+
+    /// W633: parse, and report how many tokens top-level recovery DISCARDED.
+    /// `parse_ast_strict` asks "did the parser reach EOF?", which is satisfied
+    /// by a parse that reached EOF by dropping tokens on the way. This asks the
+    /// question that one meant to ask. See T42.
+    pub fn parse_ast_accounted(source: &str) -> Result<(Node, usize), String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        Ok((ast, parser.dropped_top_level_tokens()))
     }
 
     pub fn parse_ast(source: &str) -> Result<Node, String> {

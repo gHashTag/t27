@@ -2134,6 +2134,92 @@ sensitivity is wider than measured here.
 
 ---
 
+### T42 (W633) — The detector built for silent truncation reports zero, and 130 specs are silently discarding 55 563 tokens
+
+**W632 recommended adding `parse-complete` as a gated phase, predicting the
+ledger would "grow sharply". It ran in under a second and reported:**
+
+```
+  specs scanned            609
+  parse and consume all    436
+  parse but TRUNCATE       0
+  do not parse             173
+```
+
+**Zero.** And the trailing garbage that W632 proved invisible to `parse` was
+*also* invisible to `parse-complete`. So the recommendation rested on a false
+premise, and the detector purpose-built for this class does not detect it.
+
+**Why.** `parse_ast_strict` asks one question:
+
+```rust
+let ast = parser.parse()?;
+if parser.current.kind != TokenKind::Eof {
+    return Err("input not fully consumed: stopped at …");
+}
+```
+
+*"Did the parser reach EOF?"* — but `skip_to_next_top_level()` is **deliberate
+drop-recovery**: on an unrecognised top-level item it advances past the tokens
+and resynchronises to the next declaration. The repository documents this
+behaviour and has tests characterising it. So a parse can reach EOF **by
+throwing tokens away on the route**, and the check reports "consumed all".
+
+**Reaching the end of the input is not the same as reading it.**
+
+**Instrumented and measured.** A counter in `skip_to_next_top_level`, exposed
+through a new `parse_ast_accounted`, over the same 609 corpus specs:
+
+| | before | corrected |
+|---|---:|---:|
+| parse and consume all | 436 | **306** |
+| parse but TRUNCATE | 0 | 0 |
+| **parse but DISCARD** | *not measured* | **130 specs, 55 563 tokens** |
+| do not parse | 173 | 173 |
+
+**The 436 was wrong by 130 files.** And the worst offenders are the specs this
+project exists for:
+
+| spec | tokens discarded |
+|---|---:|
+| `specs/igla/race/systolic_ternary.t27` | **5 358** |
+| `specs/igla/race/cordic_top.t27` | 3 209 |
+| `specs/vsa/ops.t27` | 3 146 |
+| `specs/ml/optimizer/adamw.t27` | 2 098 |
+| `specs/igla/race/cordic.t27` | 1 847 |
+| **`specs/igla/race/ternary_mac.t27`** | **1 368** |
+
+`ternary_mac.t27` is the spec **T1 and T2 are theorems about.**
+
+**Statement.** Let a recovering parser have transitions `consume` and
+`discard`. A completeness predicate of the form `position = EOF` is satisfied by
+any run whose `discard` transitions are unbounded, so it certifies
+*termination of scanning*, not *coverage of input*. The sound predicate is
+`discard_count = 0`. **The two differ exactly on the population that
+error-recovery was designed to absorb** — which is the population most likely to
+contain unread specification.
+
+**Corollary — this is §4's list with the detector on it.** Every entry in that
+table is a stage that accepted input, produced less than it should, and reported
+success. `parse-complete` is a stage built **to catch precisely that**, which
+accepted input, checked the wrong invariant, and reported success. **A detector
+is a stage.** W588 already recorded "my own measurement" as an entry; this is the
+same, one level further in: not a measurement that was wrong, but a *detector for
+wrongness* that was wrong in the way it was built to detect.
+
+**Now gated.** `parse-no-discard` is a suite phase, runs in-process (no
+subprocess, ~free), and the ratchet immediately reported **130 unexpected
+failures** and refused to pass — the mechanism doing exactly its job on a
+population that had been invisible to every gate this project has ever run.
+Blessing them took the ledger 173 → 303 and required a **hand raise of
+`max_entries`**, which is the reviewable event T33's design demands.
+
+*Falsification condition:* a discarded token that does reach codegen, which
+would mean the drop is not a drop; or a definition of "complete parse" under
+which 55 563 discarded tokens is conformant.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

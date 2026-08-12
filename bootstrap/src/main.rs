@@ -3504,6 +3504,7 @@ fn run_parse_complete(specs_dir: &str, include_scratch: bool) -> anyhow::Result<
     }
     files.sort();
     let (mut ok, mut truncated, mut rejected) = (0usize, 0usize, 0usize);
+    let (mut discarded, mut discarded_tokens) = (0usize, 0usize);
     for f in &files {
         let src = match std::fs::read_to_string(f) {
             Ok(s) => s,
@@ -3514,7 +3515,21 @@ fn run_parse_complete(specs_dir: &str, include_scratch: bool) -> anyhow::Result<
             continue;
         }
         match compiler::Compiler::parse_ast_strict(&src) {
-            Ok(_) => ok += 1,
+            Ok(_) => {
+                // W633: reaching EOF is NOT the same as reading everything.
+                // Top-level drop-recovery resyncs past an unrecognised
+                // declaration, so a parse can reach EOF having thrown tokens
+                // away -- and `parse_ast_strict` calls that "consume all".
+                match compiler::Compiler::parse_ast_accounted(&src) {
+                    Ok((_, 0)) => ok += 1,
+                    Ok((_, n)) => {
+                        discarded += 1;
+                        discarded_tokens += n;
+                        println!("{}: DISCARDED {} top-level token(s)", f.display(), n);
+                    }
+                    Err(_) => ok += 1,
+                }
+            }
             Err(e) => {
                 truncated += 1;
                 println!("{}: {}", f.display(), e);
@@ -3526,6 +3541,7 @@ fn run_parse_complete(specs_dir: &str, include_scratch: bool) -> anyhow::Result<
     println!("  specs scanned            {}", files.len());
     println!("  parse and consume all    {}", ok);
     println!("  parse but TRUNCATE       {}", truncated);
+    println!("  parse but DISCARD        {} ({} token(s))", discarded, discarded_tokens);
     println!("  do not parse             {}", rejected);
     Ok(())
 }

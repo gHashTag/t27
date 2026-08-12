@@ -5435,6 +5435,38 @@ These cost a wave each. Follow them before step 1.
      a perturbation you have independently confirmed the underlying predicate
      rejects: run `t27c parse <file>` on the corrupted file FIRST.
 
+231. **"Reached EOF" is NOT "read the input".** `parse_ast_strict` checks
+     `parser.current.kind != Eof` and calls anything else "consume all" -- but
+     `skip_to_next_top_level()` is deliberate DROP-RECOVERY that advances past
+     unrecognised declarations and resyncs. A parse can reach EOF by throwing
+     tokens away en route. The sound predicate is **discard_count == 0**, and
+     the two differ exactly on the population error-recovery was built to
+     absorb. (T42.)
+
+232. **Measured: 130 of 609 corpus specs silently DISCARD 55,563 top-level
+     tokens** -- while `parse-complete` reported `TRUNCATE 0`. The "436 parse
+     and consume all" figure was wrong by 130 files; the truth is 306. Worst:
+     `systolic_ternary.t27` 5,358 tokens, `cordic_top.t27` 3,209,
+     **`ternary_mac.t27` 1,368** -- the spec T1 and T2 are theorems ABOUT.
+
+233. **A DETECTOR is a stage, and belongs on the section-4 list.** Every entry
+     there is a component that accepted input, produced less than it should,
+     and reported success. `parse-complete` is a component built to catch
+     exactly that, which accepted input, checked the wrong invariant, and
+     reported success. When a detector reports zero, ask what its predicate
+     actually says -- not what its name promises.
+
+234. **A W632-style recommendation can rest on a false premise; check it before
+     spending the wave.** I predicted "the ledger will grow sharply" from
+     adding `parse-complete`. It reported 0 in under a second. The wave's value
+     came from asking WHY zero, not from the planned work.
+
+235. **When a new phase surfaces a hidden population, the ratchet is supposed
+     to go red.** 130 UNEXPECTED FAILURES, `RATCHET: FAIL`, rc 1 -- then bless,
+     then **raise `max_entries` BY HAND** (173 -> 303). `--bless` deliberately
+     writes `cap = min(prior, observed)` so a growing ledger fails its own cap
+     until a human raises it in the PR. That refusal is the feature.
+
 ### How to update this tracker
 
 After closing a wave:
