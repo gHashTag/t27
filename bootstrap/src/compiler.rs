@@ -26,6 +26,8 @@ pub enum NodeKind {
     ExprIdentifier,
     ExprEnumValue,
     ExprCall,
+    /// A postfix `?` -- try, or an optional type (Prop. 182).
+    ExprTry,
     /// A closure literal, `|a, b| expr` (Prop. 180).
     ExprClosure,
     ExprFieldAccess,
@@ -122,6 +124,8 @@ impl Node {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
+    /// `?` -- postfix optional type, postfix try, or prefix optional (Prop. 182).
+    Question,
     // Keywords
     KwPub,
     KwConst,
@@ -880,6 +884,7 @@ impl Lexer {
             b'|' => TokenKind::Pipe,
             b'^' => TokenKind::Caret,
             b'~' => TokenKind::Tilde,
+            b'?' => TokenKind::Question,
             b'<' => TokenKind::Lt,
             b'>' => TokenKind::Gt,
             _ => {
@@ -1728,6 +1733,14 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
+        // Prop. 182: PREFIX optional, `?*anyopaque`. One of three distinct
+        // meanings `?` carries in this corpus; the other two are handled below
+        // and in the expression parser.
+        if self.current.kind == TokenKind::Question {
+            ty.push('?');
+            self.advance();
+        }
+
         // Handle pointer prefix: *Type or *const Type
         if self.current.kind == TokenKind::Star {
             ty.push('*');
@@ -1871,6 +1884,14 @@ impl Parser {
                 } else {
                     break;
                 }
+            }
+
+            // Prop. 182: POSTFIX optional, `ToolDefinition?`. Distinct from the
+            // try operator: this one sits in a TYPE position, where no
+            // expression can appear, so the two cannot be confused.
+            if self.current.kind == TokenKind::Question {
+                ty.push('?');
+                self.advance();
             }
 
             // Prop. 158: generic type application, `Either(L, R)` and `List(void)`.
@@ -2803,6 +2824,15 @@ impl Parser {
                 } else {
                     break;
                 }
+            } else if self.current.kind == TokenKind::Question {
+                // Prop. 182: the TRY operator, `word("module")?`. Postfix in an
+                // EXPRESSION position -- the third meaning of `?`. Position is
+                // what separates it from the optional-type suffix: a type
+                // annotation and an expression never occupy the same slot.
+                self.advance();
+                let mut t = Node::new(NodeKind::ExprTry);
+                t.children.push(expr);
+                expr = t;
             } else if self.current.kind == TokenKind::LBracket {
                 self.advance(); // consume [
                 let index = self.parse_expr()?;

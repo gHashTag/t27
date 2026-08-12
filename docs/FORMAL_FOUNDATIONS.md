@@ -9667,6 +9667,65 @@ one layer lower.
 
 ---
 
+### Prop. 182 — `?` carries three meanings, separated by position alone — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**182a. Prop. 181 said making `?` a token was "a language decision". Measuring
+what it means in this corpus turned it into three ordinary ones.**
+
+| use | count | position |
+|---|---|---|
+| postfix optional type, `ToolDefinition?` | 70 | type |
+| postfix try, `word("module")?` | 48 | expression |
+| prefix optional, `?*anyopaque` | 13 | type |
+
+**182b. Nothing distinguishes them lexically; position does it entirely.** A type
+annotation and an expression never occupy the same slot, so a postfix `?` in a
+type is an optional and a postfix `?` in an expression is a try — with no
+lookahead, no backtracking and no ambiguity. **The fourth construct in three
+waves settled by asking *where* rather than *what*.**
+
+**182c. Measured.** Lexer discards **880 → 647**, specs discarding **79 → 24**;
+swallowed declarations unchanged at 4; recovery events 487 → 492; **1213 tests
+pass**. The +5 events are the token surfacing errors the discard had hidden — the
+occlusion relation once more, now at the lexical layer.
+
+**182d. `Option<T>` and `T` are distinguishable again.** Prop. 181 recorded that
+`[T?]` "worked" only because the `?` vanished. It now reaches the AST as part of
+the type. That is not type-checking — this parser does none — but the
+distinction is no longer *destroyed before* anything could check it.
+
+---
+
+### Prop. 183 — five arrows in signatures, 727 in prose, and one that must not be touched — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**183a. The residue is small and precisely located.** Of 734 `U+2192` characters
+in `specs/`, **727 are in comments** and 7 in code. Of those 7, **one is inside a
+string literal** — `format("Step {}: {} → {} ({})")` — where the arrow is data
+and changing it would corrupt output. **Five were repaired**, in two specs whose
+function signatures read `fn forward(...) → BlockState`.
+
+**183b. Those two files were never touched by the corruption commit.** `fcf80027d`
+changed 154 files; these are not among them, so their arrows are original
+Unicode that no repair pass had reason to visit. **A repair scoped to a commit's
+file list cannot see the same defect outside it** — and the defect here was
+invisible because the lexer discarded the byte rather than erroring.
+
+**183c. 280 specs still contain 257486 non-ASCII bytes.** The `l3-purity` goal
+that motivated `fcf80027d` was never reached, and mostly need not be: the bytes
+are in comments and strings, where they are harmless and often meaningful. Only
+**8** reached the lexer's default arm. **The useful measurement is not how much
+non-ASCII exists, but how much of it the compiler cannot read.**
+
+**183d. Lexer discards 647 → 632.** The remainder is 72 backticks and 18 hashes,
+both in prose positions the lexer has no rule for, and both harmless in the same
+way — but now counted rather than invisible.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -25,6 +25,30 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 687 — `?` was three decisions, not one
+
+Prop. 181 called making `?` a token "a language decision". Measuring what it
+means in the corpus turned it into three ordinary ones: postfix optional type
+(70), postfix try (48), prefix optional (13). **Nothing distinguishes them
+lexically; position does it entirely** -- a type annotation and an expression
+never occupy the same slot. Fourth construct in three waves settled by asking
+*where* rather than *what*.
+
+Lexer discards **880 -> 647**, specs discarding **79 -> 24**, swallowed still 4,
+1213 tests pass. `Option<T>` and `T` are distinguishable again -- the `?` reaches
+the AST instead of being deleted before anything could check it.
+
+**And the corruption residue is five arrows (Prop. 183).** Of 734 U+2192 in
+specs/, 727 are in comments, 7 in code, and **one of those is inside a string
+literal** where the arrow is data. Five were repaired, in two files the
+corruption commit never touched -- *a repair scoped to a commit's file list
+cannot see the same defect outside it.*
+
+280 specs still hold 257486 non-ASCII bytes, and mostly should: only 8 ever
+reached the lexer. **The useful measurement is not how much non-ASCII exists but
+how much the compiler cannot read.**
+
 ## Wave 686 — the chain closed: 788 -> 4
 
 Six links, not five. The sixth was invisible until the other five worked, and it
