@@ -1,0 +1,113 @@
+name: Lean proofs
+
+# Turns "1,254 lemmas, 0 sorry, 0 axioms" from an assertion into a check anyone can read.
+#
+# Two things this workflow deliberately does that a naive one does not:
+#
+#  1. It fails if the root does not import every module. On 2026-08-12 `lake build` returned
+#     "Build completed successfully" while compiling 9 of 23 modules, because
+#     `lean_lib «Trinity»` defaults to `roots := #[Trinity]` and Trinity.lean imported nine.
+#     A build target that does not reach the source proves nothing about it.
+#
+#  2. It never reads an exit code through a pipe. `lake build | tee log` reports tee's status,
+#     which is always 0 — that hid a failing build for an hour the same day. Every command
+#     below is checked directly, with output redirected rather than piped.
+
+on:
+  push:
+    paths: ['proofs/lean4/**', '.github/workflows/lean-proofs.yml']
+  pull_request:
+    paths: ['proofs/lean4/**', '.github/workflows/lean-proofs.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: lean-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: proofs/lean4
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan (toolchain pinned by lean-toolchain)
+        run: |
+          set -euo pipefail
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Report toolchain
+        run: |
+          set -euo pipefail
+          echo "pinned: $(cat lean-toolchain)"
+          lake --version
+
+      - name: Cache mathlib oleans
+        uses: actions/cache@v4
+        with:
+          path: proofs/lean4/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('proofs/lean4/lake-manifest.json', 'proofs/lean4/lean-toolchain') }}
+
+      - name: Fetch mathlib cache
+        run: |
+          set -euo pipefail
+          lake exe cache get
+
+      # ---- gate 1: the root must reach every source file -------------------
+      - name: Root must import every module
+        run: |
+          set -euo pipefail
+          find Trinity -name '*.lean' \
+            | sed 's|^Trinity/||; s|\.lean$||; s|/|.|g' | sort -u > /tmp/on_disk
+          grep -oE '^import Trinity\.[A-Za-z0-9_.]+' Trinity.lean \
+            | sed 's/^import Trinity\.//' | sort -u > /tmp/imported
+          missing=$(comm -23 /tmp/on_disk /tmp/imported || true)
+          echo "on disk : $(wc -l < /tmp/on_disk)"
+          echo "imported: $(wc -l < /tmp/imported)"
+          if [ -n "$missing" ]; then
+            echo "::error::Trinity.lean does not import these modules, so the build does not check them:"
+            echo "$missing" | sed 's/^/  /'
+            exit 1
+          fi
+          echo "root reaches every module"
+
+      # ---- gate 2: the build itself, exit code read directly ---------------
+      - name: lake build
+        run: |
+          set -euo pipefail
+          lake build > /tmp/build.log 2>&1 || { tail -200 /tmp/build.log; exit 1; }
+          tail -5 /tmp/build.log
+
+      # ---- gate 3: no holes ------------------------------------------------
+      - name: No sorry, no custom axioms
+        run: |
+          set -euo pipefail
+          warns=$(grep -ci "declaration uses \`sorry\`" /tmp/build.log || true)
+          axioms=$(grep -rcE '^[[:space:]]*axiom[[:space:]]' Trinity --include='*.lean' \
+                   | awk -F: '{n+=$2} END{print n+0}')
+          lemmas=$(grep -rcE '^[[:space:]]*(theorem|lemma)[[:space:]]' Trinity --include='*.lean' \
+                   | awk -F: '{n+=$2} END{print n+0}')
+          echo "theorem/lemma : $lemmas"
+          echo "sorry warnings: $warns"
+          echo "custom axioms : $axioms"
+          {
+            echo "### Lean proofs"
+            echo ""
+            echo "| metric | value |"
+            echo "|---|---|"
+            echo "| modules | $(wc -l < /tmp/on_disk) |"
+            echo "| theorem/lemma | $lemmas |"
+            echo "| \`sorry\` | $warns |"
+            echo "| custom \`axiom\` | $axioms |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          [ "$warns"  -eq 0 ] || { echo "::error::$warns declaration(s) use sorry"; fail=1; }
+          [ "$axioms" -eq 0 ] || { echo "::error::$axioms custom axiom(s) declared"; fail=1; }
+          exit $fail

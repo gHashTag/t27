@@ -1,6 +1,6 @@
 # NOW — feat(igla): Wave Loop 899 (2026-08-06)
 
-Last updated: 2026-08-06
+Last updated: 2026-08-12
 
 ## feat(igla): Wave Loop 898 close-out — [615][2]^6 Pt packed AoS witness (Refs #1859)
 
@@ -1492,6 +1492,9 @@ Last updated: 2026-07-29
 Continue the odd outer-dimension module-scope AoS ladder with `[401][2]^6 Pt`.
 Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
+  **Correction 2026-08-12:** "cliff" misnames the constraint. W584 *passed* at 4 MiBit
+  (icarus-simulate ~22.5 min, icarus-cocotb ~23.7 min); the real bound is CI wall-clock,
+  not Icarus/Yosys capacity. See `docs/reports/CORRECTION_4MIBIT_CLIFF_2026-08-12.md`.
 
 ### Variants
 - **A (recommended):** `[401][2]^6 Pt` module-scope var from call.

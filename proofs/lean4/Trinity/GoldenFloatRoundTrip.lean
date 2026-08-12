@@ -54,11 +54,27 @@ theorem field_budget (N : ℕ) (hN : 1 ≤ N) :
     Совпадает с профилем GoldenFloat 16. -/
 theorem gf16_fields :
     eBits 16 = 6 ∧ mBits 16 = 9 ∧ biasOf 16 = 31 := by
-  refine ⟨?_, ?_, ?_⟩
-  · -- e = ⌊15/φ² + 1/2⌋ = ⌊5.729...⌋ = 6 ; требует численной границы 5 < 15/φ²+1/2 < 6.5
-    sorry  -- [ТРЕБУЕТ lake build: nlinarith с phi² = φ+1 и √5-границами]
-  · unfold mBits; sorry
-  · unfold biasOf; sorry
+  -- φ² = φ + 1 и границы √5 дают 15/φ² ∈ (5.72, 5.73), откуда ⌊15/φ² + 1/2⌋ = 6.
+  have s5 : (Real.sqrt 5 : ℝ) ^ 2 = 5 := sqrt5_sq
+  have s5n : (0:ℝ) ≤ Real.sqrt 5 := Real.sqrt_nonneg 5
+  have s5lo : (2.236:ℝ) < Real.sqrt 5 := by nlinarith
+  have s5hi : Real.sqrt 5 < 2.2361 := by nlinarith
+  have plo : (1.618:ℝ) < phi := by unfold phi; linarith
+  have phi_hi : phi < 1.61805 := by unfold phi; linarith
+  have hq : phi ^ 2 = phi + 1 := phi_quadratic
+  have hp2lo : (2.618:ℝ) < phi ^ 2 := by rw [hq]; linarith
+  have hp2hi : phi ^ 2 < 2.61805 := by rw [hq]; linarith
+  have hpos : (0:ℝ) < phi ^ 2 := by nlinarith
+  have hlo : (5.72:ℝ) < 15 / phi ^ 2 := by rw [lt_div_iff₀ hpos]; nlinarith
+  have hhi : (15:ℝ) / phi ^ 2 < 5.73 := by rw [div_lt_iff₀ hpos]; nlinarith
+  have he : eBits 16 = 6 := by
+    unfold eBits
+    have h15 : ((16 : ℕ) : ℝ) - 1 = 15 := by norm_num
+    rw [h15, Int.floor_eq_iff]
+    constructor <;> [push_cast; push_cast] <;> linarith
+  refine ⟨he, ?_, ?_⟩
+  · unfold mBits; rw [he]; norm_num
+  · unfold biasOf; rw [he]; norm_num [show Int.toNat 5 = 5 from rfl]
 
 /-! ## 2. Модель нормального значения и round-trip
 

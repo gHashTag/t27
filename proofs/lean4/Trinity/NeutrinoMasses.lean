@@ -24,37 +24,37 @@ def m_muon : ℝ := 0.105658
 def m_tau : ℝ := 1.77686
 
 -- 600-cell spectral cutoff (postulated identification)
-def Lambda_600 : ℝ := M_Planck / (h_H4 * phi)
+noncomputable def Lambda_600 : ℝ := M_Planck / (h_H4 * phi)
 
 -- Majorana mass scale (NCG cutoff scale)
-def M_R_majorana : ℝ := Lambda_600
+noncomputable def M_R_majorana : ℝ := Lambda_600
 
 -- Light neutrino masses via seesaw
-def m_nu_electron : ℝ := m_electron^2 / M_R_majorana
+noncomputable def m_nu_electron : ℝ := m_electron^2 / M_R_majorana
 
-def m_nu_muon : ℝ := m_muon^2 / M_R_majorana
+noncomputable def m_nu_muon : ℝ := m_muon^2 / M_R_majorana
 
-def m_nu_tau : ℝ := m_tau^2 / M_R_majorana
+noncomputable def m_nu_tau : ℝ := m_tau^2 / M_R_majorana
 
 -- Convert to eV
-def m_nu_electron_eV : ℝ := m_nu_electron * 1e9
+noncomputable def m_nu_electron_eV : ℝ := m_nu_electron * 1e9
 
-def m_nu_muon_eV : ℝ := m_nu_muon * 1e9
+noncomputable def m_nu_muon_eV : ℝ := m_nu_muon * 1e9
 
-def m_nu_tau_eV : ℝ := m_nu_tau * 1e9
+noncomputable def m_nu_tau_eV : ℝ := m_nu_tau * 1e9
 
 -- Positivity lemmas
-lemma h_H4_pos : 0 < h_H4 := by norm_num
+lemma h_H4_pos : 0 < h_H4 := by norm_num [h_H4]
 
-lemma M_Planck_pos : 0 < M_Planck := by norm_num
+lemma M_Planck_pos : 0 < M_Planck := by norm_num [M_Planck]
 
-lemma v_EW_pos : 0 < v_EW := by norm_num
+lemma v_EW_pos : 0 < v_EW := by norm_num [v_EW]
 
-lemma m_electron_pos : 0 < m_electron := by norm_num
+lemma m_electron_pos : 0 < m_electron := by norm_num [m_electron]
 
-lemma m_muon_pos : 0 < m_muon := by norm_num
+lemma m_muon_pos : 0 < m_muon := by norm_num [m_muon]
 
-lemma m_tau_pos : 0 < m_tau := by norm_num
+lemma m_tau_pos : 0 < m_tau := by norm_num [m_tau]
 
 lemma Lambda_600_pos : 0 < Lambda_600 := by
   unfold Lambda_600 M_Planck h_H4
@@ -112,15 +112,15 @@ lemma seesaw_ordering {a b M_R : ℝ}
     (ha : 0 < a) (hab : a < b) (hM_R : 0 < M_R) :
     a^2 / M_R < b^2 / M_R := by
   apply div_lt_div_of_pos_right
-  · exact hM_R
   · apply pow2_pos_lt
     · exact ha
     · exact hab
+  · exact hM_R
 
 -- Normal ordering theorem
-lemma m_electron_lt_m_muon : m_electron < m_muon := by norm_num
+lemma m_electron_lt_m_muon : m_electron < m_muon := by norm_num [m_electron, m_muon]
 
-lemma m_muon_lt_m_tau : m_muon < m_tau := by norm_num
+lemma m_muon_lt_m_tau : m_muon < m_tau := by norm_num [m_muon, m_tau]
 
 theorem neutrino_normal_ordering :
     m_nu_electron < m_nu_muon ∧ m_nu_muon < m_nu_tau := by
@@ -139,7 +139,7 @@ theorem neutrino_normal_ordering :
 -- Mass-squared differences
 noncomputable def Delta_m2_21 : ℝ := m_nu_muon_eV^2 - m_nu_electron_eV^2
 
-def Delta_m2_31 : ℝ := m_nu_tau_eV^2 - m_nu_electron_eV^2
+noncomputable def Delta_m2_31 : ℝ := m_nu_tau_eV^2 - m_nu_electron_eV^2
 
 lemma Delta_m2_21_pos : 0 < Delta_m2_21 := by
   unfold Delta_m2_21
