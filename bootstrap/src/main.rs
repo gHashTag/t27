@@ -2979,7 +2979,7 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    let (ast, discarded) = compiler::Compiler::parse_ast_reporting(&source);
+    let (ast, discarded, swallowed) = compiler::Compiler::parse_ast_full(&source);
     match ast {
         Ok(ast) => println!("{:#?}", ast),
         Err(e) => anyhow::bail!("Parse error: {}", e),
@@ -2991,6 +2991,12 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     // numbers differ and conflating them overstates precision -- the exact
     // unexamined-label failure this campaign keeps finding.
     eprintln!("recovery-events: {}", discarded.len());
+    // Prop. 152: the sound version of what Prop. 149 withdrew. Counted by the
+    // parser, so module scope is decided by parsing rather than by a regex.
+    eprintln!("declarations-swallowed: {}", swallowed.len());
+    for (kw, line) in swallowed.iter().take(5) {
+        eprintln!("  swallowed: {} at line {}", kw, line);
+    }
     for d in discarded.iter().take(5) {
         eprintln!("  discarded: {}", d);
     }

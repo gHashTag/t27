@@ -10,6 +10,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 673 — the worst file in the corpus was never losing anything
+
+**Correcting my own headline (Prop. 151).** Wave 672's "61 deleted Coq proofs"
+was a classifier bug: the counter was keyed on (state, class) and the example
+dict on class alone, so a *modified* coq/ file was printed as the exemplar for a
+*deletion* bucket. The 61 are `specs/fpga/*.v` -- generated Verilog committed
+into the SSOT directory. All 61 have both a source .t27 and a regenerated copy
+in gen/verilog/; zero would be lost. Deletion committed: 15143 lines.
+
+**The silent loss mechanism, found (Prop. 152).** `is_top_level_start`
+deliberately excludes `const`/`var` because keyword-style test blocks contain
+them -- correct for those callers, and shared with error recovery it means
+recovery skips past every module-level `const` until it finds a `fn` or `pub`.
+That is exactly why `pub const` survived and bare `const` did not. Fixed at the
+call site. The parser now reports `declarations-swallowed` directly, which is
+the sound metric Prop. 149 said only it could give: **523 events, 788 swallowed**.
+
+**And it vindicated the withdrawal.** `gf16.t27`, ranked worst in the corpus at
+"640 constants lost", has 20 `pub const` and 20 ConstDecls, 0 events, 0
+swallowed. Parsed perfectly. All 669 bare `const` are function locals.
+
+**56, not 72 (Prop. 153).** Of the specs blocking repairs, 16 are provably my
+own work by the pre-image oracle and are now committed.
+
 ## Wave 672 — a withdrawn metric, 162167 characters restored, and 61 deleted proofs
 
 **`#` was never lexed (Prop. 148).** Documented as a comment alongside `//`,

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:094c427f26736a49ebed0439c3436f16997af821cbadf6d67c3dbd1bb46e0285",
+  "gen_hash_rust": "sha256:a351ea79af08f9e36d65e5b9792245ca8c8817ca2a0612712d060c3b873f10d2",
+  "gen_hash_verilog": "sha256:d36c1f68c55181f2df8508b804020b5783a43f247c757ff0520c262cf8968138",
+  "gen_hash_zig": "sha256:e6f93a918a1b0b697f9236bba04b9bcc13ef7765717c3001476c12ed52eae83d",
+  "module": "main_zig_handwritten",
+  "ring": 12,
+  "sealed_at": "2026-08-12T02:11:17Z",
+  "spec_hash": "sha256:bb8b940856ee96a4afc932cd7cd21be6ff77c5f96b6bec57c3e08db8770a14a6",
+  "spec_path": "contrib/backend/zig/legacy/main_zig_handwritten.t27"
+}

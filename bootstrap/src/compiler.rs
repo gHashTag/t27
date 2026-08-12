@@ -910,6 +910,16 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    /// Module-level declarations swallowed by error recovery, by keyword.
+    ///
+    /// Prop. 152: Prop. 149 withdrew an external estimate of this because no
+    /// regex can separate a module-level `const` from a function-local one --
+    /// that separation IS parsing. The parser can answer it exactly: while
+    /// skipping to the next top-level declaration, count the declaration
+    /// keywords passed over. Tokens inside brace groups are consumed by
+    /// `skip_brace_body` and never seen here, so function-local bindings are
+    /// excluded by construction rather than by a heuristic.
+    pub swallowed: Vec<(String, usize)>,
     /// Declarations this parser silently discarded during error recovery.
     ///
     /// Prop. 143: `parse_module_body` recovers from a failed declaration by
@@ -930,6 +940,7 @@ impl Parser {
             current: first,
             peek: second,
             discarded: Vec::new(),
+            swallowed: Vec::new(),
         }
     }
 
@@ -1039,12 +1050,48 @@ impl Parser {
 
     // Skip tokens until we reach a top-level keyword (for keyword-style test/invariant/bench)
     // Handles nested braces, brackets, and parens so we don't stop inside nested groups
-    fn skip_to_next_top_level(&mut self) {
+    /// Prop. 152: `stop_at_decl` decides whether `const`/`var` terminate the
+    /// skip. `is_top_level_start` excludes them deliberately, because a
+    /// keyword-style `test name given ... when ...` block may contain them --
+    /// so the test/invariant/bench call sites must keep skipping past them.
+    ///
+    /// The ERROR-RECOVERY call site is different: it is positioned in a module
+    /// body, where a `const` unambiguously starts a declaration. Sharing the
+    /// conservative behaviour there made every module-level `const` after a
+    /// failed declaration vanish, with no error and no diagnostic -- which is
+    /// why `pub const` survived (KwPub stops the skip) and bare `const` did
+    /// not.
+    fn skip_to_next_top_level_inner(&mut self, stop_at_decl: bool) {
         let mut paren_depth: i32 = 0;
         let mut bracket_depth: i32 = 0;
         loop {
             if self.current.kind == TokenKind::Eof {
                 break;
+            }
+            // Prop. 152: a declaration keyword reached here is swallowed ONLY
+            // if the loop does not stop on it. The loop breaks on
+            // is_top_level_start() at depth 0, so counting before that check
+            // records the terminating keyword too -- an over-count, and the
+            // first version of this counter did exactly that (28 reported on a
+            // file with zero recovery events). Count only what is passed OVER.
+            let at_decl = stop_at_decl
+                && matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar);
+            let stopping = paren_depth == 0
+                && bracket_depth == 0
+                && (self.is_top_level_start() || at_decl);
+            if !stopping {
+                match self.current.kind {
+                TokenKind::KwConst
+                | TokenKind::KwFn
+                | TokenKind::KwStruct
+                | TokenKind::KwEnum
+                | TokenKind::KwVar => {
+                    let kw = format!("{:?}", self.current.kind);
+                    let line = self.current.line;
+                    self.swallowed.push((kw, line));
+                }
+                _ => {}
+                }
             }
             // Handle brace groups by using skip_brace_body
             if self.current.kind == TokenKind::LBrace {
@@ -1076,11 +1123,22 @@ impl Parser {
                 continue;
             }
             // Only check for top-level start when not inside nested groups
-            if paren_depth == 0 && bracket_depth == 0 && self.is_top_level_start() {
+            if stopping {
                 break;
             }
             self.advance();
         }
+    }
+
+    /// Conservative skip, for keyword-style blocks that may contain `const`.
+    fn skip_to_next_top_level(&mut self) {
+        self.skip_to_next_top_level_inner(false);
+    }
+
+    /// Recovery skip, positioned in a module body where `const` is a
+    /// declaration and must terminate the skip (Prop. 152).
+    fn skip_to_next_decl(&mut self) {
+        self.skip_to_next_top_level_inner(true);
     }
 
     pub fn parse(&mut self) -> Result<Node, String> {
@@ -1216,7 +1274,7 @@ impl Parser {
                     // Recovery is deliberate; the SILENCE was not. Record what
                     // was dropped so a caller can report it (Prop. 143).
                     self.discarded.push(e);
-                    self.skip_to_next_top_level();
+                    self.skip_to_next_decl();
                 }
             }
         }
@@ -6226,6 +6284,16 @@ impl Compiler {
         let mut parser = Parser::new(lexer);
         let ast = parser.parse();
         (ast, parser.discarded)
+    }
+
+    /// Parse, returning both recovery errors and the module-level declarations
+    /// those recoveries swallowed (Prop. 152).
+    pub fn parse_ast_full(source: &str)
+        -> (Result<Node, String>, Vec<String>, Vec<(String, usize)>) {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse();
+        (ast, parser.discarded, parser.swallowed)
     }
 
     /// Compile a single file as part of a project, resolving imports using the module map.

@@ -67,8 +67,15 @@ def measure():
         # separating them needs parsing -- which is the thing being measured.
         # Only the parser can report this soundly. The ratchet now runs on
         # recovery events alone, which the parser itself emits.
-        got = len(re.findall(r"kind: ConstDecl", r.stdout))
-        out[str(s.relative_to(ROOT))] = (int(m.group(1)), 0)
+        # Prop. 152: the sound replacement for what Prop. 149 withdrew. The
+        # PARSER reports how many module-level declarations its recovery
+        # swallowed -- module scope decided by parsing, not by a regex.
+        sw = re.search(r"declarations-swallowed: (\d+)", r.stderr)
+        if sw is None:
+            return None, (f"no 'declarations-swallowed:' line from t27c on "
+                          f"{s.relative_to(ROOT)} -- the gate cannot see what "
+                          f"recovery discarded")
+        out[str(s.relative_to(ROOT))] = (int(m.group(1)), int(sw.group(1)))
     return out, None
 
 
@@ -92,8 +99,7 @@ def main():
     lost = sum(v[1] for v in now.values())
     dirty = sum(1 for v in now.values() if v[0])
     print(f"spec parse gate: {len(now)} specs, {dirty} recovering, "
-          f"{total} recovery events "
-          f"(the constants-lost component is withdrawn -- see Prop. 149)")
+          f"{total} recovery events, {lost} declarations swallowed")
 
     if not BASELINE.exists():
         BASELINE.write_text("".join(f"{v[0]}\t{v[1]}\t{k}\n"
@@ -115,7 +121,7 @@ def main():
                    if v[0] > was.get(k, (0, 0))[0] or v[1] > was.get(k, (0, 0))[1]]
     if regressions:
         print(f"::error::spec parse gate: {len(regressions)} spec(s) under "
-              f"specs/ discard MORE declarations than the baseline -- a spec "
+              f"specs/ recover more or swallow more than the baseline -- a spec "
               f"that parses less than it used to is a spec the compiler reads "
               f"less of")
         for k, a, b in regressions[:10]:

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3ad60a12aacbf6df32ea620151856dfa57751814bcee350cc86a3d0a30f41c7a",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:1177995cbac4b24a1ab81aabd8314fd0d32efe3098d477e8d7f61e4970c7f73b",
+  "gen_hash_zig": "sha256:a8fc650b12329886c56e8f040e09e9c5c7f8ed18867fe1e468bf2c32f7e95737",
+  "module": "design",
+  "ring": 12,
+  "sealed_at": "2026-08-12T02:11:17Z",
+  "spec_hash": "sha256:11fb3a5964fa96b10be4a51ab9f4e85376215de251847c77452e8bd711635086",
+  "spec_path": "examples/fpga/qmtech_minimal/design.t27"
+}
