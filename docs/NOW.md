@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-12
 
+## Search for the question, not the shape you already found (Closes #2129)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2129
+- PR: (direct commit)
+
+### What landed
+
+`formal/delimiter_balance_scan.py` (gate 25) and Prop. 193. Two members of one
+corruption family were found six waves apart, and each gate was then written for
+the shape already in hand -- so neither could see the other. This gate asks the
+question both are instances of: **can this file's delimiters close at all?**
+
+It widened the family on its first run. The shape-specific scan found 18 field
+types in **10** specs, all `[`. This finds **18 specs, 21 class-level imbalances,
+three delimiter classes** -- including 4 specs with unbalanced parentheses and 4
+with unbalanced braces that no `[`-shaped search could return.
+`runtime/instance.t27` is off by ten braces.
+
+Three bars measured: TRUE (exit 0 on the corpus), ALIVE (497 scanned, 18
+reported), BITING (a planted `const X = [1, 2;` gives exit 1 naming file and
+class; removing it gives 0).
+
+### Honesty limits (BINDING)
+
+- **Ratcheted, not repaired.** A non-zero global balance is *necessary* evidence
+  of a defect, not sufficient proof: the scanner's string and comment handling is
+  a model of the lexer, not the lexer. The baseline stores file+class+delta
+  triples, so a file that swaps one imbalance for another still fails.
+- **The 21 are not diagnosed.** Which line in `runtime/instance.t27` loses ten
+  braces is not established here, and the paren/brace cases have not been shown
+  to share Prop. 186's generator.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169) -- `workflow_reachable_scan` exits 1 on this tree for exactly that
+  reason, and its own step carries `continue-on-error`. Prop. 193's gate is real
+  and locally green in a workflow CI does not execute.
+
+
 ## The counterexample was corrupt data, not grammar (Closes #2128)
 
 - Branch: `feat/wave-547/host-heapsort`

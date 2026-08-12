@@ -854,6 +854,9 @@ jobs:
       - name: Runaway string scan — an odd quote swallows the rest of its file
         run: python3 formal/runaway_string_scan.py
 
+      - name: Delimiter balance scan — a spec whose delimiters cannot close
+        run: python3 formal/delimiter_balance_scan.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 
