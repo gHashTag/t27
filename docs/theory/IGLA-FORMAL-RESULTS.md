@@ -1983,6 +1983,73 @@ tractable by class after all.
 
 ---
 
+### T39 (W631) — The suite exits zero while 2416 counters are non-zero, and the arithmetic confirms T27 to the unit
+
+**`t27c suite --repo-root . --ratchet` on the real corpus, 4057 s:**
+
+```
+--- Ratchet (W628) ---
+  ledger:              173 / 173 cap
+  observed (primary):  173
+  UNEXPECTED FAILURES: 0
+  UNEXPECTED PASSES:   0
+  EXPIRED ENTRIES:     0
+RATCHET: CLEAN
+…
+TOTAL FAILURES:    2416
+rc = 0
+```
+
+**This is the first zero exit from `t27c suite` in this chain**, and it exits
+zero *while its own total is 2416*. That single line is what five waves were
+for: the verdict is now **observed-versus-expected per identity**, not the level
+of a total. T27 proved the level could not move when something new broke; the
+ledger moves, and the level is now merely reported.
+
+**The hand-ratcheted ledger and the production path agree exactly.** W629 and
+W630 updated the ledger from direct parse measurements rather than by running
+the ~70-minute suite. The tool independently observed **173**, against a ledger
+of **173**, with zero unexpected in either direction — so the manual updates
+were equivalent to what `--bless` would have written. That equivalence was
+assumed for two waves and is now measured.
+
+**And the counter arithmetic confirms T27 to the unit.** 33 corpus specs were
+fixed across W629 and W630 (206 → 173). The total fell 2614 → 2416:
+
+| | before | after | Δ |
+|---|---:|---:|---:|
+| parse | 249 | 216 | −33 |
+| typecheck, gen-zig, gen-rust, gen-verilog, gen-c | 249 ×5 | 216 ×5 | **−165** |
+| seal-verify | 1056 | 1056 | 0 |
+| **total** | **2614** | **2416** | **−198** |
+
+`198 / 33 = 6.000` — **exactly six counters per file fixed.** T27 stated that a
+single unparseable spec contributes once per gated phase; here the claim is
+inverted and confirmed: removing one contributes exactly `−6`. Seal-verify is
+unchanged because those 33 files moved *within* it, from `blocked` to `primary`
+— they now parse, so they reach the seal check, and the seal is stale. **Nothing
+was lost and nothing double-counted; the ledger's `blocked` bookkeeping accounts
+for every one of the 198.**
+
+**Statement.** For a gated pipeline of depth `k` over a population, the total is
+`Σᵢ |fail(φᵢ)|` and a repair of one primary defect changes it by exactly `−k`
+when the file clears every phase, and by `−(k − j)` when it newly *reaches* `j`
+further phases and fails them. **The total is therefore a linear function of
+repairs with a coefficient set by pipeline shape**, which is why it is a poor
+progress metric and a perfectly good *consistency check*: it must move by a
+multiple of the depth, and if it does not, the attribution is wrong.
+
+**This turns T27's complaint into a tool.** A total that cannot detect a
+regression can still detect a *bookkeeping error*, because its arithmetic is
+over-determined once the ledger names the files. That is the only use for which
+it is now employed here.
+
+*Falsification condition:* a repair that moves the total by an amount not
+decomposable into per-phase gains and blocked-to-primary transfers — which would
+mean a phase counts something the attribution does not model.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

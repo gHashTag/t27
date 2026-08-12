@@ -5385,6 +5385,27 @@ These cost a wave each. Follow them before step 1.
      ending in `::` and the brace to be misparsed at module level; that is the
      hook. Keep the checkpoint/restore contract.
 
+224. **`t27c suite --ratchet` is GREEN on the real corpus: rc 0 with
+     TOTAL FAILURES 2416.** That line is the whole point of W626-W631 -- the
+     verdict is observed-versus-expected per identity, not the level of a
+     total. Use `--ratchet` for the verdict; read TOTAL FAILURES as
+     information only. Wall time 4057 s. (T39.)
+
+225. **The hand-ratcheted ledger matched the tool exactly** (173 observed vs
+     173 expected, zero unexpected either way). Updating the ledger from direct
+     `t27c parse` measurements IS equivalent to `--bless`, and now measured
+     rather than assumed -- so you can ratchet in the commit that fixes things
+     and confirm with one nightly run instead of blocking on 70 minutes each
+     time.
+
+226. **Use TOTAL FAILURES as an over-determined CONSISTENCY CHECK, never as
+     progress.** 33 specs fixed moved it 2614 -> 2416: exactly -198, i.e.
+     **-6.000 per file** (parse + 5 gated gen phases). seal-verify stayed at
+     1056 because those files moved WITHIN it, blocked -> primary: they now
+     parse, so they reach the seal check and the seal is stale. If the total
+     does not move by a clean multiple of the pipeline depth, your attribution
+     is wrong. (T39.)
+
 ### How to update this tracker
 
 After closing a wave:
