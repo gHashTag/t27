@@ -945,6 +945,10 @@ pub struct Parser {
     /// -- for input that was consumed AND THROWN AWAY. Counting them is what
     /// makes that population visible. See T42.
     dropped_top_level_tokens: usize,
+    /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
+    /// told us 55,563 tokens vanish; only reading them can say whether any of
+    /// it is content a theorem depends on. See T43.
+    dropped_spans: Vec<(u32, String)>,
 }
 
 #[derive(Clone)]
@@ -966,6 +970,7 @@ impl Parser {
             pending_pragma: String::new(),
             no_struct_literal: 0,
             dropped_top_level_tokens: 0,
+            dropped_spans: Vec::new(),
         }
     }
 
@@ -1135,6 +1140,10 @@ impl Parser {
                 break;
             }
             self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
+            }
             self.advance();
         }
     }
@@ -14666,6 +14675,14 @@ impl Compiler {
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
         Ok((ast, parser.dropped_top_level_tokens()))
+    }
+
+    /// W634: the discarded tokens themselves, as `(line, lexeme)`.
+    pub fn parse_ast_dropped_spans(source: &str) -> Result<Vec<(u32, String)>, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let _ = parser.parse()?;
+        Ok(parser.dropped_spans.clone())
     }
 
     pub fn parse_ast(source: &str) -> Result<Node, String> {

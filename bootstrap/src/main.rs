@@ -168,6 +168,12 @@ enum Commands {
         /// Include specs/scratch (generated benchmark fixtures)
         #[arg(long, default_value_t = false)]
         include_scratch: bool,
+
+        /// W634: print the tokens top-level drop-recovery DISCARDED in this
+        /// one spec, grouped by line. Counting says how much vanished;
+        /// only reading says whether any of it mattered.
+        #[arg(long)]
+        show: Option<String>,
     },
     /// Check call sites against the signatures they call (arity and
     /// aggregate-vs-scalar), across a spec tree
@@ -3482,7 +3488,37 @@ fn run_parse_conform() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_parse_complete(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()> {
+fn run_parse_complete(
+    specs_dir: &str,
+    include_scratch: bool,
+    show: Option<&str>,
+) -> anyhow::Result<()> {
+    // W634: single-file mode -- print what was discarded, grouped by line, so a
+    // human can decide whether any of it is content a theorem depends on.
+    if let Some(path) = show {
+        let src = std::fs::read_to_string(path)?;
+        let spans = compiler::Compiler::parse_ast_dropped_spans(&src)
+            .map_err(|e| anyhow::anyhow!("{} does not parse: {}", path, e))?;
+        if spans.is_empty() {
+            println!("{}: nothing discarded", path);
+            return Ok(());
+        }
+        let lines: Vec<&str> = src.lines().collect();
+        let mut by_line: std::collections::BTreeMap<u32, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for (l, lex) in &spans {
+            by_line.entry(*l).or_default().push(lex.clone());
+        }
+        println!("{}: {} token(s) DISCARDED across {} line(s)", path, spans.len(), by_line.len());
+        println!();
+        for (l, toks) in &by_line {
+            let text = lines.get((*l as usize).saturating_sub(1)).unwrap_or(&"");
+            println!("  {:5}| {}", l, text.trim_end());
+            println!("        dropped: {}", toks.join(" "));
+        }
+        return Ok(());
+    }
+
     let mut files: Vec<std::path::PathBuf> = Vec::new();
     let mut stack = vec![std::path::PathBuf::from(specs_dir)];
     while let Some(dir) = stack.pop() {
@@ -9984,8 +10020,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch } => {
-            run_parse_complete(&specs_dir, include_scratch)?
+        Commands::ParseComplete { specs_dir, include_scratch, show } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?
@@ -10320,8 +10356,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch } => {
-            run_parse_complete(&specs_dir, include_scratch)?
+        Commands::ParseComplete { specs_dir, include_scratch, show } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
             run_check_calls(&specs_dir, include_scratch)?

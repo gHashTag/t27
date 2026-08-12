@@ -2220,6 +2220,86 @@ which 55 563 discarded tokens is conformant.
 
 ---
 
+### T43 (W634) — 1 087 invariants are emitted as "verified (no statements)". T1 and T2 survive; the spec's own assertion of T2 does not.
+
+**W633 asked one question: are T1 and T2 theorems about the spec that was
+actually compiled, or about a spec with 1 368 tokens removed?**
+
+**Answer: they are about the spec that was compiled. T1 and T2 stand.** All five
+`fn`/`const`/`struct`/`type` declarations in `ternary_mac.t27` reach both the
+AST and the generated Verilog; **no implementation is discarded.** The golden
+model the SAT miter compares against is built from those bodies, so T1's subject
+is intact, and T2 is a property of the netlist. Neither depends on what was
+dropped.
+
+**What was dropped is confined to the statements of intent:**
+
+| construct | lines carrying dropped tokens | total lines | share |
+|---|---:|---:|---:|
+| `invariant` | 155 | 571 | **27%** |
+| `test` | 50 | 1812 | 3% |
+| `bench` | 10 | 14 | **71%** |
+| `fn` / `const` / `struct` / `type` | **0** | — | **0%** |
+
+**And then the backend says they were verified.** The dropped tokens are the
+*bodies* of those clauses; the *names* survive. So `t27c gen` emits:
+
+```zig
+// invariant: ternary_mul_no_star
+// invariant: ternary_mul_no_star verified (no statements)
+```
+
+for a spec that says:
+
+```t27
+invariant ternary_mul_no_star
+    forall a : i8, w : TernaryWeight
+    ternary_mul(a, w) == a * ternary_decode(w)
+```
+
+**`ternary_mul_no_star` is the spec's own statement of the multiplier-free
+property — the property T2 is about.** It is emitted as a comment reporting
+successful verification of nothing. The Verilog backend does the same, as
+`// invariant: <name>` with no assertion.
+
+**Corpus-wide measurement:**
+
+| | count |
+|---|---:|
+| specs declaring invariants | 294 |
+| invariants declared | **6 148** |
+| emitted as `verified (no statements)` | **1 087 (18%)** |
+| in `ternary_mac.t27` alone | **55 of 137 (40%)** |
+
+**Statement.** Let a compiler emit, for each specification clause `c`, either a
+check `check(c)` or a report `verified(c)`. If the path that produces
+`verified(c)` is reachable when `body(c)` was discarded, then `verified` is
+**not a predicate on `c`** — it is a predicate on *the compiler having reached
+the end of the clause header*. The artefact then carries a positive verification
+claim whose truth-maker is the absence of content.
+
+**This is §4's rule at its terminus.** Every entry in that table is a stage that
+accepted input, produced less than it should, and **reported success**. Here the
+report of success is not incidental to the discard — **it is emitted in the same
+breath, into the artefact, in the vocabulary of verification.** A stage that
+silently discards is a bug; a stage that discards and then writes
+*"verified (no statements)"* into the output is the bug describing itself
+accurately and being read as a guarantee.
+
+**The calibration matters and must not be overstated.** This does not falsify
+T1 or T2, and the fact that it does not is itself the interesting part:
+**T1 and T2 are sound precisely because they are checked by machinery outside
+the spec language** — a yosys SAT miter over the netlist, and a cell-type scan.
+Every claim in this document that rests on `invariant` clauses instead rests on
+a construct that is vacuous 18% of the time. **The formal results survived by
+not depending on the formalism.**
+
+*Falsification condition:* an invariant emitted as `verified (no statements)`
+whose body was in fact checked somewhere else in the pipeline — which would mean
+the message is misleading rather than the verification absent.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

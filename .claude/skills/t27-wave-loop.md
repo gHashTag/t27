@@ -5467,6 +5467,38 @@ These cost a wave each. Follow them before step 1.
      writes `cap = min(prior, observed)` so a growing ledger fails its own cap
      until a human raises it in the PR. That refusal is the feature.
 
+236. **1,087 of 6,148 invariants (18%) are emitted as
+     `verified (no statements)`** -- and 55 of 137 (40%) in
+     `ternary_mac.t27`, the flagship spec. The clause NAME survives top-level
+     drop-recovery while its BODY is discarded, so the backend reaches the end
+     of the header and reports verification of nothing. Grep any generated Zig
+     for `verified (no statements)` before believing an invariant count. (T43.)
+
+237. **T1 and T2 SURVIVE, and the reason is the lesson.** No implementation is
+     discarded -- all fn/const/struct/type reach the AST and the Verilog -- so
+     the golden model the SAT miter compares against is intact. **T1 and T2 are
+     sound precisely because they are checked by machinery OUTSIDE the spec
+     language** (a yosys miter, a cell-type scan). Anything resting on
+     `invariant` clauses instead rests on a construct vacuous 18% of the time.
+     **The formal results survived by not depending on the formalism.**
+
+238. **Discard is confined to intent, not implementation.** In ternary_mac.t27:
+     invariant 155/571 lines (27%), bench 10/14 (71%), test 50/1812 (3%),
+     fn/const/struct/type **0**. When you find a silent-discard channel, always
+     classify the dropped lines by ENCLOSING CONSTRUCT before judging severity
+     -- "8.7% of the file" and "27% of the invariants, 0% of the code" are very
+     different findings.
+
+239. **A stage that discards and then writes "verified" into the artefact is
+     worse than one that only discards.** The success report is emitted in the
+     same breath, in the vocabulary of verification, and a reader takes it as a
+     guarantee. When auditing a generator, grep its OUTPUT for words like
+     "verified", "checked", "OK" and ask what predicate produced each one.
+
+240. **`t27c parse-complete --show <path>` prints the discarded tokens** grouped
+     by line with the source text (added W634). Use it before reasoning about
+     what a spec "says" -- the file and the compiled artefact differ.
+
 ### How to update this tracker
 
 After closing a wave:
