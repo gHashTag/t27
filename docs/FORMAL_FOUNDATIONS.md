@@ -9594,6 +9594,79 @@ instrument, which this campaign has now done twice for the same two files.
 
 ---
 
+### Prop. 180 — the chain was six links, and closing it took 788 → 4 — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**180a. The complete chain in `specs/storage/kv.t27`.**
+
+| # | construct | resolution |
+|---|---|---|
+| 1 | `fn read<T>(...)` generic fn name | positional invariant + backtracking |
+| 2 | `(T) -> void` parenthesised fn type | new branch in `parse_type_annotation` |
+| 3 | `[T?]` optional suffix | free — the lexer discards `?` |
+| 4 | `read<str>(...)` generic call | same invariant, expression position |
+| 5 | `\|x\| x + 1` closure | new primary-expression branch |
+| 6 | **`fn: (T) -> void`** — parameter *named* `fn` | keyword-as-name when followed by `:` |
+
+**Link 6 was invisible until all of 1–5 worked**, and it was self-inflicted: the
+`fn` *type* keyword added in Prop. 167 collided with `fn` as a parameter *name*,
+so the param parser skipped the name and the type parser read the name as a
+type. **A feature can occlude a defect it created.**
+
+**180b. One invariant settles three ambiguities.** A generic list is *always*
+immediately followed by `(` — true on a function name and on a call. A binary
+`|` can never *start* an expression, so a `Pipe` in primary position is a
+closure. A keyword immediately followed by `:` is a name, because nothing else
+can be. **Each is a statement about what the wanted construct must look like,
+never about what the feared one looks like.** Two earlier attempts failed doing
+the latter.
+
+**180c. Measured.** Swallowed declarations **12 → 4**; recovery events 498 → 487;
+specs recovering 183 → 182; **0 hard parse failures**; 5938 declarations
+captured; **1213 tests pass**. Net across five waves: **788 → 4**, a 99.5%
+reduction, every step scored by the same ratchet.
+
+**180d. Why this wave could be atomic when the last could not.** Prop. 177f
+forbids partial delivery of a chain. Wave 685 measured the depth by implementing
+links throwaway-style and reading what each exposed; this wave started from that
+measurement. **The depth of an occlusion chain is not visible from the artifact —
+it has to be bought, and the buying is not wasted work.**
+
+---
+
+### Prop. 181 — the lexer discards 880 characters, silently — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**181a.** The lexer's default arm skips an unrecognised byte and recurses, with
+no record. Measured across `specs/`: **880 characters discarded in 79 specs.**
+
+| count | char | what it is |
+|---|---|---|
+| 164 | `?` | optional-type suffix — this is why link 3 was "free" |
+| 72 | `` ` `` | backticks, mostly in prose |
+| 17 | `#` | a hash not at column 1 |
+| 8 | `â`, `Ï` | **UTF-8 continuation bytes** — residue of the Prop. 147 corruption |
+
+**181b. "Free" was a euphemism.** `[T?]` parsed only because the `?` vanished. A
+construct that works because its distinguishing character is deleted is not
+supported — it is *ignored*, and `Option<T>` and `T` are indistinguishable to
+this compiler. Recorded so the next reader does not mistake link 3 for
+implemented.
+
+**181c. And the corruption is not fully repaired.** Eight discarded bytes are
+UTF-8 continuations — files the Wave 672 transliteration could not touch because
+they carried uncommitted edits. **A defect that is silently swallowed leaves no
+trace in any count**, which is why 880 is the first measurement of it.
+
+**181d. Counted, not fixed.** Deciding what each unknown byte *means* is a
+language decision. The count costs nothing and converts an invisible loss into a
+number that can be ratcheted — the same move as Prop. 143's recovery counter,
+one layer lower.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

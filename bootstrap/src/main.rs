@@ -2979,7 +2979,8 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    let (ast, discarded, swallowed) = compiler::Compiler::parse_ast_full(&source);
+    let (ast, discarded, swallowed, dropped) =
+        compiler::Compiler::parse_ast_full(&source);
     match ast {
         Ok(ast) => println!("{:#?}", ast),
         Err(e) => anyhow::bail!("Parse error: {}", e),
@@ -2994,6 +2995,11 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     // Prop. 152: the sound version of what Prop. 149 withdrew. Counted by the
     // parser, so module scope is decided by parsing rather than by a regex.
     eprintln!("declarations-swallowed: {}", swallowed.len());
+    // Prop. 181: characters the lexer could not recognise and threw away.
+    eprintln!("lexer-discarded-chars: {}", dropped.len());
+    for (ch, l, col) in dropped.iter().take(5) {
+        eprintln!("  discarded char {:?} at line {}:{}", ch, l, col);
+    }
     for (kw, line) in swallowed.iter().take(5) {
         eprintln!("  swallowed: {} at line {}", kw, line);
     }

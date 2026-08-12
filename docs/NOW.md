@@ -24,6 +24,28 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 686 — the chain closed: 788 -> 4
+
+Six links, not five. The sixth was invisible until the other five worked, and it
+was self-inflicted: `fn: (T) -> void`, a parameter NAMED `fn`, collided with the
+`fn` TYPE keyword added in Prop. 167. **A feature can occlude a defect it
+created.**
+
+One invariant settles three ambiguities: a generic list is always immediately
+followed by `(`; a binary `|` can never start an expression; a keyword followed
+by `:` is a name. *Each says what the wanted construct must look like, never what
+the feared one looks like.*
+
+**Swallowed 12 -> 4. 0 hard parse failures. 1213 tests pass.** Net across five
+waves: **788 -> 4**.
+
+**And the lexer discards 880 characters silently (Prop. 181)** across 79 specs --
+164 `?`, 72 backticks, 17 `#`, and 8 UTF-8 continuation bytes that are residue of
+the Wave 147 corruption. `[T?]` "worked" only because the `?` vanished: `Option<T>`
+and `T` are indistinguishable to this compiler. Counted, not fixed -- deciding
+what each unknown byte means is a language decision.
+
 ## Wave 685 — the chain is five deep, not four
 
 **Backtracking works (Prop. 178).** A mark is three integers plus two tokens, so

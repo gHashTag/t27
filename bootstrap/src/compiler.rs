@@ -26,6 +26,8 @@ pub enum NodeKind {
     ExprIdentifier,
     ExprEnumValue,
     ExprCall,
+    /// A closure literal, `|a, b| expr` (Prop. 180).
+    ExprClosure,
     ExprFieldAccess,
     ExprSwitch,
     ExprBinary,
@@ -224,6 +226,14 @@ pub struct Lexer {
     pos: usize,
     line: usize,
     col: usize,
+    /// Characters the lexer could not recognise and threw away (Prop. 181).
+    ///
+    /// The default arm below skips an unknown byte and recurses, silently. That
+    /// is how `?` came to be free -- `T?` lexes as `T` -- and it is also how a
+    /// typo in a spec disappears instead of erroring. Recorded rather than
+    /// changed: deciding what each unknown byte MEANS is a language decision,
+    /// but a count costs nothing and turns an invisible loss into a number.
+    pub discarded_chars: Vec<(char, usize, usize)>,
 }
 
 impl Lexer {
@@ -233,6 +243,7 @@ impl Lexer {
             pos: 0,
             line: 1,
             col: 1,
+            discarded_chars: Vec::new(),
         }
     }
 
@@ -872,7 +883,12 @@ impl Lexer {
             b'<' => TokenKind::Lt,
             b'>' => TokenKind::Gt,
             _ => {
-                // Unknown character — skip and recurse
+                // Unknown character — skip and recurse, but COUNT it (Prop. 181).
+                let bad = ch as char;
+                let (l, c) = (self.line, self.col);
+                if self.discarded_chars.len() < 64 {
+                    self.discarded_chars.push((bad, l, c));
+                }
                 self.advance();
                 return self.next_token();
             }
@@ -1941,10 +1957,44 @@ impl Parser {
         }
 
         // Parse parameter list
+        // Prop. 180: generic parameters on the function NAME, `fn read<T>(...)`.
+        // A generic list on a function name is ALWAYS immediately followed by
+        // `(`; requiring that settles the `<`/comparison ambiguity without
+        // characterising a comparison. Backtracked if it does not hold.
+        if self.current.kind == TokenKind::Lt {
+            let m = self.mark();
+            let mut generics = String::from("<");
+            self.advance();
+            let mut ok = true;
+            loop {
+                let arg = self.parse_type_annotation();
+                if arg.is_empty() { ok = false; break; }
+                generics.push_str(&arg);
+                if self.current.kind == TokenKind::Comma { generics.push(','); self.advance(); continue; }
+                break;
+            }
+            if ok && self.current.kind == TokenKind::Gt {
+                self.advance();
+                if self.current.kind == TokenKind::LParen {
+                    generics.push('>');
+                    decl.extra_field = generics;
+                } else { self.reset(m); }
+            } else { self.reset(m); }
+        }
+
         self.expect(TokenKind::LParen)?;
         while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
             // Parse param name
-            if self.current.kind != TokenKind::Ident {
+            //
+            // Prop. 180: a parameter may be NAMED after a keyword -- the corpus
+            // has `fn: (T) -> void`. Skipping the token here dropped the name,
+            // and the type parser then read `fn` as the function-type keyword
+            // added in Prop. 167, so the whole declaration collapsed. A keyword
+            // immediately followed by `:` is a name: nothing else can be.
+            let keyword_as_name = self.current.kind != TokenKind::Ident
+                && self.peek.kind == TokenKind::Colon
+                && !self.current.lexeme.is_empty();
+            if self.current.kind != TokenKind::Ident && !keyword_as_name {
                 // Skip unexpected token
                 self.advance();
                 continue;
@@ -2912,6 +2962,27 @@ impl Parser {
                     return self.parse_struct_literal(name);
                 }
 
+                // Prop. 180: a generic CALL, `read<str>(...)` -- the same
+                // positional invariant in expression position.
+                if self.current.kind == TokenKind::Lt {
+                    let m = self.mark();
+                    self.advance();
+                    let mut ok = true;
+                    loop {
+                        let arg = self.parse_type_annotation();
+                        if arg.is_empty() { ok = false; break; }
+                        if self.current.kind == TokenKind::Comma { self.advance(); continue; }
+                        break;
+                    }
+                    if ok && self.current.kind == TokenKind::Gt {
+                        self.advance();
+                        if self.current.kind == TokenKind::LParen {
+                            return self.parse_call_args(name);
+                        }
+                    }
+                    self.reset(m);
+                }
+
                 // Check for function call: name(args) or namespace::func(args)
                 if self.current.kind == TokenKind::LParen {
                     return self.parse_call_args(name);
@@ -2952,6 +3023,34 @@ impl Parser {
 
             // Array literal: [_]Type{ values } or [N]Type{ values }
             TokenKind::LBracket => self.parse_array_literal(),
+            // Prop. 180: closures, `|c| c.is_ascii_digit()` and `|_| Err(e)`.
+            // 33 occur in the corpus, always after `(` or `,`. The positional
+            // invariant that makes `|` unambiguous is the same shape as the one
+            // for `<`: a BINARY `|` can never START an expression, so a Pipe
+            // reached in primary position is a closure and nothing else.
+            TokenKind::Pipe => {
+                self.advance(); // consume opening |
+                let mut node = Node::new(NodeKind::ExprClosure);
+                let mut params = String::new();
+                // `_` lexes as an identifier here, so `|_|` needs no special case.
+                while self.current.kind == TokenKind::Ident {
+                    if !params.is_empty() {
+                        params.push(',');
+                    }
+                    params.push_str(&self.current.lexeme);
+                    self.advance();
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    }
+                }
+                node.extra_field = params;
+                if self.current.kind == TokenKind::Pipe {
+                    self.advance(); // consume closing |
+                }
+                let body = self.parse_expr()?;
+                node.children.push(body);
+                Ok(node)
+            }
             // Prop. 167: address-of. `&` existed only as part of `&&` and `&=`,
             // so `&[_][]u8{}` was not an expression the parser could begin.
             TokenKind::Amp if self.current.lexeme != "&&" => {
@@ -6553,11 +6652,13 @@ impl Compiler {
     /// Parse, returning both recovery errors and the module-level declarations
     /// those recoveries swallowed (Prop. 152).
     pub fn parse_ast_full(source: &str)
-        -> (Result<Node, String>, Vec<String>, Vec<(String, usize)>) {
+        -> (Result<Node, String>, Vec<String>, Vec<(String, usize)>,
+            Vec<(char, usize, usize)>) {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let ast = parser.parse();
-        (ast, parser.discarded, parser.swallowed)
+        let chars = parser.lexer.discarded_chars.clone();
+        (ast, parser.discarded, parser.swallowed, chars)
     }
 
     /// Compile a single file as part of a project, resolving imports using the module map.
