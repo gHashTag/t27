@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:630c8ec17659f0c4de2e47e03d3db0f246f465b393b45a7b6dac36430c063f14",
   "module": "SacredAttention",
   "ring": 12,
-  "sealed_at": "2026-08-12T01:11:29Z",
-  "spec_hash": "sha256:9224bd1de7fe083a06bccd01203c58189517741cc5b5cccc30a8425cbf972d41",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:047f45886e3c8de4bb0a634d2f25d2aa30dc77d9bdfa255127d4b7e7b861506d",
   "spec_path": "specs/nn/attention.t27"
 }

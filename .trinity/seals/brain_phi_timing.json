@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:209d1e3089dc58d6c6203ab53175a2a639355365069e20eae7e9417412e5d420",
   "module": "brain-phi-timing",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:ffd2b818210ba99175f2f20c48790f6e82cb63dc880c0bc57f0b1e263d2a54d1",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:80966e05fa9420834513a68d667eb8752ac7360ac01d4ae1e2294a9de72b28f3",
   "spec_path": "specs/brain/phi_timing.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6ad00347ff3035aa06196823220d640f69bb53778c98f141094ac58e970b4935",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:1920e6c067ad95834cf0ebfa8f91c0002ea24ce3d6254f9161b26878ce280dc4",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:0481f18b51eb96c02e6340593e336e8c10c067d2d178be57dfd53e88e577cbbc",
   "spec_path": "specs/neural/forward_pass.t27"
 }

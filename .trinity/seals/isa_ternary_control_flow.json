@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:621ad217e6d31fd035c354c5c6e9cbf29645611f0a39a5b398bce05d4bac3acc",
-  "gen_hash_rust": "sha256:f4f9250f3437b9213247f7c6dd9f03c05258e21ce8e2bf2ec1af94494ac84048",
-  "gen_hash_verilog": "sha256:8aa0dff9da3686abe02bb891e835d6ebc8ad1482ba10c735f7be59d92a94e8df",
-  "gen_hash_zig": "sha256:e8f03affb9e4dfc88cdc9badc439523723401d01338a6784c760378657c5b506",
+  "gen_hash_c": "sha256:144a534b3527693d3e5eedea5a8cda7b2b922d383e4f61572b0bb05d62b9f4e2",
+  "gen_hash_rust": "sha256:15c5795b7cd553254d51652284f9b21605381dede7355c1ab942315978344403",
+  "gen_hash_verilog": "sha256:3d617aa57ce0598db8aba4288216ea507da50e176608632ebd1a0012c92bc457",
+  "gen_hash_zig": "sha256:b188c194e02795e39161e419c383e35db878a9e7685973fb36761f8400fdba66",
   "module": "TernaryControlFlow",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:45Z",
-  "spec_hash": "sha256:8062834e4f6b4192d8fbcbb7b7ec89d975853b2a1ba1f1ae508c2717f472da15",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:e076ebecb0f5d0097aac6a9c888cd9736f3f4bede8b20f99eb114245a91c57be",
   "spec_path": "specs/isa/ternary_control_flow.t27"
 }

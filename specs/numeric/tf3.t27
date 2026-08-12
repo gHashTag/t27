@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-; tf3.t27 0 TF3 (Ternary Float 3) Format Specification
+; tf3.t27 -- TF3 (Ternary Float 3) Format Specification
 ; 8-bit representation for ternary neural network weights
 ; Bit layout: [S(1) E(3) M(4)] = [7:7][6:4][3:0]
-; 12 + 1/34 = 3 | TRINITY
+; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module triformat-tf3;
 
@@ -40,7 +40,7 @@ pub const TF3 = u8;
 // Mantissa Lookup Table
 // ============================================================================
 // TF3 mantissa lookup: (1 + m/2^4) * 2^(e-3)
-// m 5 [0, 15], e 6 [0, 7], bias = 3
+// m in [0, 15], e in [0, 7], bias = 3
 // Indexed as: table[e * 16 + m]
 pub const mant_lookup_table : [128]u16 = [128]u16{
     // e=0: (1+m/16) * 2^(-3) = (1+m/16) / 8
@@ -232,7 +232,7 @@ pub fn tf3_min(a: TF3, b: TF3) TF3 {
 
 // tf3_from_f32_phi(value: f32) -> TF3
 // Encode IEEE 754 to TF3 with phi-optimized rounding
-// Uses golden ratio bias (1/23 24 0.618) for rounding decisions
+// Uses golden ratio bias (1/phi ~= 0.618) for rounding decisions
 pub fn tf3_from_f32_phi(value: f32) TF3 {
     // Handle zero
     if (value == 0.0) {
@@ -254,7 +254,7 @@ pub fn tf3_from_f32_phi(value: f32) TF3 {
         exp += 1;
     }
 
-    // Phi-optimized rounding: bias = 1/25 26 0.618
+    // Phi-optimized rounding: bias = 1/phi ~= 0.618
     const PHI_BIAS: f32 = 0.618;
     const mantissa_raw = (scaled - 0.5 + PHI_BIAS / 16.0) * 16.0;
     const mantissa = @as(i8, @intFromFloat(@round(mantissa_raw)));

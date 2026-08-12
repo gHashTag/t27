@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3aa8945ef37b39dfca296db1b7a170e9df7484af57137350aeec6028323a6ecf",
   "module": "JonesTopologyDecisionGate",
   "ring": 12,
-  "sealed_at": "2026-08-12T01:11:29Z",
-  "spec_hash": "sha256:3101e36e939e67bee49182b5a0bac0dbfd9e3125006473fd2d1e5afcd7db7bc9",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:2621efc18ca1011acb3ad4fe138ff72f70162e05cdab449c568451185278110a",
   "spec_path": "specs/demos/jones_topology_decision_gate.t27"
 }

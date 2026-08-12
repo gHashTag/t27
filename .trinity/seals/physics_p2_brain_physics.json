@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e5bff29d642dab324ff1bba9a589e440677d1ee04adc007b5ad7212a5c2a9100",
   "module": "P2Brain",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:29b58480f94ecc32197ca8ca2c20f330caf65df4d36a079bf42a2cd0765dd6dd",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:3bfbe26c1468db42668aa1b0c6734d211af0d7f7769263a55f6123bc162f9cc3",
   "spec_path": "specs/physics/p2_brain_physics.t27"
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-; gf16.t27 0 GoldenFloat16 Encode/Decode
+; gf16.t27 -- GoldenFloat16 Encode/Decode
 ; GF16: 16-bit floating point with 1 sign + 6 exponent + 9 mantissa
 ; Bit layout: [S(1) E(6) M(9)] = [15:15][14:9][8:0]
-; 12 + 1/34 = 3 | TRINITY
+; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module triformat-gf16;
 
@@ -188,7 +188,7 @@ pub fn gf16_decode_to_f32(gf16: GF16) f32 {
 // gf16_round_phi(value: f32) -> GF16
 // Phi-optimized rounding for GF16
 // Uses golden ratio bias for rounding decisions instead of standard round-to-nearest
-// Bias = (1/14 - 0.5) * scale, where 1/15 16 0.618
+// Bias = (1/phi - 0.5) * scale, where 1/phi ~= 0.618
 // This improves numerical stability for sacred physics calculations
 pub fn gf16_round_phi(value: f32) GF16 {
     // Handle zero
@@ -1411,7 +1411,7 @@ invariant gf16_sqrt_of_square_less_than_or_equal {
 }
 
 invariant gf16_fma_distributive_approximation {
-    // gf16_fma(a, b, c) 61 gf16_add(gf16_mul(a, b), c)
+    // gf16_fma(a, b, c) ~= gf16_add(gf16_mul(a, b), c)
     // Not exact due to encoding rounding
     @compileAssert(true);
 }
@@ -1722,7 +1722,7 @@ invariant gf16_cos_zero_returns_one {
 }
 
 invariant gf16_trig_identity_approx {
-    // sin^2(x) + cos^2(x) 62 1 for reasonable x values
+    // sin^2(x) + cos^2(x) ~= 1 for reasonable x values
     @compileAssert(true);
 }
 
@@ -2724,7 +2724,7 @@ test "gf16_exp_zero" {
 }
 
 test "gf16_exp_one" {
-    // Verify: e^1 63 2.718
+    // Verify: e^1 ~= 2.718
     const x = gf16_encode_f32(1.0);
     const result = gf16_exp(x);
     const decoded = gf16_decode_to_f32(result);
@@ -2732,7 +2732,7 @@ test "gf16_exp_one" {
 }
 
 test "gf16_exp_negative" {
-    // Verify: e^-1 64 0.368
+    // Verify: e^-1 ~= 0.368
     const x = gf16_encode_f32(-1.0);
     const result = gf16_exp(x);
     const decoded = gf16_decode_to_f32(result);
@@ -2755,7 +2755,7 @@ test "gf16_log_one" {
 }
 
 test "gf16_log_e" {
-    // Verify: ln(e) 65 1
+    // Verify: ln(e) ~= 1
     const e = gf16_encode_f32(2.71828);
     const result = gf16_log(e);
     const decoded = gf16_decode_to_f32(result);
@@ -2839,7 +2839,7 @@ test "gf16_sin_zero" {
 }
 
 test "gf16_sin_small_angle" {
-    // Verify: sin(66/6) 67 0.5
+    // Verify: sin(pi/6) ~= 0.5
     const pi_six = gf16_encode_f32(3.14159 / 6.0);
     const result = gf16_sin(pi_six);
     const decoded = gf16_decode_to_f32(result);
@@ -2855,7 +2855,7 @@ test "gf16_cos_zero" {
 }
 
 test "gf16_cos_small_angle" {
-    // Verify: cos(68/6) 69 0.866
+    // Verify: cos(pi/6) ~= 0.866
     const pi_six = gf16_encode_f32(3.14159 / 6.0);
     const result = gf16_cos(pi_six);
     const decoded = gf16_decode_to_f32(result);
@@ -2863,7 +2863,7 @@ test "gf16_cos_small_angle" {
 }
 
 test "gf16_trig_identity" {
-    // Verify: sin^2(x) + cos^2(x) 70 1 for small x
+    // Verify: sin^2(x) + cos^2(x) ~= 1 for small x
     const x = gf16_encode_f32(0.5);
     const sin_val = gf16_decode_to_f32(gf16_sin(x));
     const cos_val = gf16_decode_to_f32(gf16_cos(x));

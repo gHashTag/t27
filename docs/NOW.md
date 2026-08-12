@@ -9,6 +9,30 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 672 — a withdrawn metric, 162167 characters restored, and 61 deleted proofs
+
+**`#` was never lexed (Prop. 148).** Documented as a comment alongside `//`,
+handled nowhere. 199 comment lines parsed as declarations. Scoped to
+line-initial because `#` also opens raw strings. 482 -> 474 recovery events --
+eight, not the 57 the clustering suggested, because `t27c parse` prints only the
+first five messages per file. **A truncated sample of errors is not a census.**
+
+**The constants-lost metric is withdrawn (Prop. 149).** `^\s*const\s+\w+`
+missed every `pub const` and instead counted function-local bindings. Three
+formulations gave three answers (2339 / 2444 / 118%), and there is no sound
+regex: `const` is legal at module scope and inside functions, so separating them
+requires parsing -- the thing being measured. The gate now ratchets on recovery
+events alone, which the parser emits. Third mislabel in the same instrument.
+
+**The transliteration Prop. 147 declined (Prop. 150).** 148 entries covering
+162123/162167 occurrences; 1882 lines across 130 files, each verified against
+the pre-image; 17 lines skipped rather than guessed. 112 files committed,
+55 held back by pre-existing edits.
+
+**And the tree classification found 61 deleted Coq proofs** under `coq/Kernel/`
+-- removed on disk, never committed, invisible to everything.
+
 ## Wave 671 — a corrupting commit and a swallowing parser, hiding each other
 
 **One semicolon (Prop. 146).** `parse_const_decl`'s value branch returned

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1a0f9f16d7f9b3ab29d801c6d042d0fc44880f00a99a7187a39f7a6d9ef788e2",
   "module": "c_api_contract",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:4f64c91d79a5246a2a7c5afc031caa78b5927f8ea06cdbf259e3bcbb2a93a2aa",
+  "sealed_at": "2026-08-12T01:50:51Z",
+  "spec_hash": "sha256:4b34351e1bafe5e6cc26db176be01be8db82425a9b4200d04ff2beaeed78df9b",
   "spec_path": "specs/api/c_api_contract.t27"
 }

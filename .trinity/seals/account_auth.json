@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:468851edf91b839900d3711c65b65e22a153f8d2c6da7f1c5764a4a747b1a1aa",
   "module": "AccountAuth",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:d3a5c7757dd719955e3bb8bda8e32fb17cb294b9c0106835b488ce3d8e2abf3b",
+  "sealed_at": "2026-08-12T01:50:51Z",
+  "spec_hash": "sha256:ecab5fe85fb78bbfd2e48df5bd5ec91517048968e63f8ddfeecf9c350d1104cb",
   "spec_path": "specs/account/auth.t27"
 }

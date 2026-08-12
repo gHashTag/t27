@@ -52,13 +52,23 @@ def measure():
             return None, (f"no 'recovery-events:' line from t27c on "
                           f"{s.relative_to(ROOT)} -- the gate cannot see what "
                           f"was dropped, so it is measuring nothing")
-        # Recovery events are not the loss. What is LOST is the gap between
-        # the constants written and the constants that reach an AST -- and a
-        # planted regression moved the second while leaving the first
-        # unchanged, which is how this distinction was found. Ratchet on both.
-        src = len(re.findall(r"^\s*const\s+\w+", s.read_text(), re.M))
+        # WITHDRAWN (Prop. 149): a second component counted "constants
+        # written minus constants reaching an AST". No regex formulation of
+        # it is sound, and three attempts each gave a different answer:
+        #
+        #   ^\s*const\s+\w+        -> counted FUNCTION-LOCAL bindings and
+        #                             missed every `pub const`; this is the
+        #                             version that shipped, reporting 3292
+        #   brace-depth <= 1       -> array literals `[32]u16{` open braces,
+        #                             so the depth accounting drifts
+        #   ^\s*pub\s+const        -> undercounts; the ratio came out at 118%
+        #
+        # `const` is legal at module scope AND inside a function body, so
+        # separating them needs parsing -- which is the thing being measured.
+        # Only the parser can report this soundly. The ratchet now runs on
+        # recovery events alone, which the parser itself emits.
         got = len(re.findall(r"kind: ConstDecl", r.stdout))
-        out[str(s.relative_to(ROOT))] = (int(m.group(1)), src - got)
+        out[str(s.relative_to(ROOT))] = (int(m.group(1)), 0)
     return out, None
 
 
@@ -82,7 +92,8 @@ def main():
     lost = sum(v[1] for v in now.values())
     dirty = sum(1 for v in now.values() if v[0])
     print(f"spec parse gate: {len(now)} specs, {dirty} recovering, "
-          f"{total} recovery events, {lost} constants never reaching an AST")
+          f"{total} recovery events "
+          f"(the constants-lost component is withdrawn -- see Prop. 149)")
 
     if not BASELINE.exists():
         BASELINE.write_text("".join(f"{v[0]}\t{v[1]}\t{k}\n"

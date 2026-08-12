@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:06e339b1c14e7dba3db1f9f4471296b23e0f164904030084d1bb72668cd55ac8",
   "module": "TernaryBigInt",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:45Z",
-  "spec_hash": "sha256:4725977139ac9ad1a26f03a40ca7238289043e5754923d144eb4e021cb22f9c7",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:0212018be7803c07848fd1469bb60286629b1121e52b910762ebea06918acc1e",
   "spec_path": "specs/ternary/bigint.t27"
 }

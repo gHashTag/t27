@@ -8374,7 +8374,7 @@ identifiers — 16 nodes, an empty `Module`. Exit 0 over an empty set.
 **143b. The control located it in the corpus, not the file.** The repository's
 flagship spec, `gamma_conjecture.t27`, has 14 constant declarations in source
 and **3** in its AST. Across 43 specs: 676 written, 214 captured — **31%**.
-Across all 497: **3292 constants never reach any AST**, and every spec exits 0.
+Across all 497: **3292 constants never reach any AST** *(WITHDRAWN — Prop. 149: this figure counted function-local bindings and missed every `pub const`)*, and every spec exits 0.
 
 **143c. The mechanism is four lines.** `parse_module_body` recovers from a
 failed declaration by calling `skip_to_next_top_level()` and continuing:
@@ -8487,7 +8487,7 @@ correctly — which is exactly why the omission survived: **some constants parse
 so nothing looked broken.**
 
 **146b. The measurement.** Recovery events **1741 → 556**; specs recovering
-**427 → 205**; constants never reaching an AST **3292 → 2339**. One line.
+**427 → 205**; constants never reaching an AST **3292 → 2339** *(WITHDRAWN — Prop. 149)*. One line.
 
 **146c. The ratchet is what made the fix scorable.** Prop. 143 built the counter
 before there was anything to count. Without it "I fixed a parser bug" is a claim;
@@ -8558,6 +8558,108 @@ observable is an error on channel `c`, and `D₂` a defect that discards channel
 `D₂` alone reveals `D₁` at full magnitude while removing `D₁` alone reveals
 nothing.* The asymmetry is the actionable part: **fix the discarding defect
 first**, because it is the one whose repair converts hidden state into evidence.
+
+---
+
+### Prop. 148 — `#` was documented as a comment and never lexed — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**148a.** The lexer skips `//`, `/* */`, and `;` at column 1. It has never
+handled `#`, which the project's own spec-authoring guidance documents alongside
+`//`. 199 comment lines across the corpus were parsed as declarations.
+
+**148b. Scoped, because `#` is not only a comment.** It also opens raw string
+literals (`r#"..."#`). The rule is line-initial `#` only, matching the existing
+`;` precedent — and verified first: **0** line-initial `#` in the corpus look
+like syntax rather than prose.
+
+**148c. Measured: 482 → 474 recovery events.** Eight, not the 57 the earlier
+clustering suggested — because `t27c parse` prints only the **first five**
+messages per file, so every cluster count in Prop. 147's investigation was over a
+truncated sample. **A truncated sample of errors is not a census of causes**, and
+it was read as one.
+
+---
+
+### Prop. 149 — the constants-lost metric is withdrawn; no regex formulation is sound — `WITHDRAWN`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**149a. What was published.** Prop. 143 reported *3292 constants never reach any
+AST* and Prop. 146 reported that falling to *2339*. Both figures came from
+`^\s*const\s+\w+` against `kind: ConstDecl`.
+
+**149b. That regex measured the wrong set, in both directions at once.** It
+required `const` at line start, so it **missed every `pub const`** — the actual
+module-level declarations — and instead matched `const bit = ...`, which are
+**function-local bindings** that were never meant to be module-level nodes.
+
+**149c. Three formulations, three different answers.**
+
+| formulation | result |
+|---|---|
+| `^\s*const\s+\w+` (shipped) | 2339 lost |
+| brace-depth ≤ 1 | 2444 lost — but array literals `[32]u16{` open braces, so the depth accounting drifts |
+| `^\s*pub\s+const` | ratio **118%** — the AST has more nodes than the marker, because non-`pub` module constants also produce them |
+
+**149d. The reason there is no sound regex.** `const` is legal at module scope
+**and** inside a function body, and separating them requires parsing — which is
+the thing being measured. **A metric that needs the artifact it is auditing is
+not an external check.** Only the parser can report this.
+
+**149e. Withdrawn, not weakened.** The gate now ratchets on recovery events
+alone, which the parser itself emits and which is sound. The constants figure is
+struck from Props. 143 and 146 rather than restated with a better regex.
+
+**149f. Third instance in the same instrument.** Prop. 144 corrected
+`discarded-declarations` (recovery events mislabelled as declarations); this
+corrects the other half of the same gate. The gate was built to catch a compiler
+that reports success while reading 31% of its input, and it shipped with two
+labels that did not describe what they counted. **The failure being audited and
+the failure of the audit were the same shape.**
+
+---
+
+### Prop. 150 — 162167 characters transliterated; 61 Coq proofs are deleted and unadjudicated — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**150a. The transliteration Prop. 147 declined to make.** A 148-entry table
+covering **162123 of 162167** occurrences (99%) — box drawing to `-`/`=`/`|`,
+arrows to `->`, Greek to names, superscripts to `^N`, math operators to ASCII.
+1882 lines across 130 files, each reconstructed from `fcf80027d^` and accepted
+only if it equals the pre-image transliterated. The remaining 44 occurrences are
+Coptic and Cyrillic in prose, where a mapping would be a guess: **17 lines
+skipped rather than guessed.**
+
+**150b. The result is legible.** `// Strand I 0 Loop Quantum Gravity` becomes
+`// Strand I -- Loop Quantum Gravity`; a comment reading
+`// 12345678910111213...` becomes a `-----` rule. The digits were consecutive
+indices standing in for `─`.
+
+**150c. 112 files committed, 55 held back.** The held-back set carries
+uncommitted edits that make the repair inseparable from them — the same
+constraint as Prop. 147f, now quantified against a larger change.
+
+**150d. Classifying the working tree, which the constraint finally justified.**
+
+| count | state | class |
+|---|---|---|
+| 72 | modified | `.t27` specs — a decision |
+| **61** | **deleted** | **Coq proofs under `coq/Kernel/`** |
+| 5 | modified | Rust/Zig source — a decision |
+| 4 | deleted | `__pycache__` — safe to delete |
+| 2 | modified | `Cargo.toml`/`Cargo.lock` — review |
+| 1 | deleted | generated Verilog |
+
+**150e. The 61 deletions are the item that should not have been sitting in a
+working tree.** They are machine-checked proof files, removed but never
+committed, so they exist in `HEAD` and not on disk. Nothing in this repository
+would notice: no gate reads `coq/`, and the formal workflows are yosys-based.
+**A deletion that is never committed is invisible to every check that reads the
+committed tree and to every check that reads the working tree, because each sees
+a consistent world.**
 
 ---
 

@@ -316,6 +316,20 @@ impl Lexer {
                 continue;
             }
 
+            // Prop. 148: `#` line comments. The project's own spec-authoring
+            // guidance documents "# or //" and only `//` was ever lexed, so 199
+            // comment lines across the corpus parsed as declarations and the
+            // recovery discarded whatever followed -- 57 of the remaining
+            // errors. Scoped to LINE-INITIAL `#`, matching the `;` rule below,
+            // because `#` also appears in raw string literals (`r#"..."#`) and
+            // a blanket rule would eat them.
+            if self.pos < self.source.len() && self.peek() == b'#' && self.col == 1 {
+                while self.pos < self.source.len() && self.peek() != b'\n' {
+                    self.advance();
+                }
+                continue;
+            }
+
             // Skip ; line comments (old t27 comment style: ; at column 1 followed by space)
             if self.pos < self.source.len() && self.peek() == b';' && self.col == 1 {
                 let next = self.peek_offset(1);

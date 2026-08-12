@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4674ff28e22aa7948de8037c14883bad2d36224ca48484d10f417be41e510b5d",
   "module": "TernaryShift",
   "ring": 12,
-  "sealed_at": "2026-08-12T01:11:29Z",
-  "spec_hash": "sha256:530b7008995f22ec38bba48d20572478a4e5f470bf4e13b55f4be654f214cb92",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:ed13dbd99f709317378a87dc3d427eceabc5eab1ddac88c52b0cbf408344585b",
   "spec_path": "specs/isa/ternary_shift.t27"
 }

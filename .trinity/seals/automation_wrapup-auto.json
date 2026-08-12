@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
+  "gen_hash_c": "sha256:68dc6c26115f9a2439ed7f0b771994fe149cc73c43ae8ec67b976d772b50cfd1",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:a0f029e4f435a3996a91b60b3f0e7632c510e1d368462aacbc3c652b9eba0d56",
-  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "gen_hash_verilog": "sha256:4ed85f64c041a712a8e24a0f9a20adbce01886a115be3c31b1143329cdf7e70c",
+  "gen_hash_zig": "sha256:3685d08552546b101b3a4a92990458c1808d4c614286ca9af7f553910354882a",
   "module": "automation::wrapup",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:e724f0c12d0bdd0597db8f88c3c3e00c032b94366bedef62cd20b5ae1cad4c37",
+  "sealed_at": "2026-08-12T01:50:51Z",
+  "spec_hash": "sha256:638f8c5539801b533589411377798f5a62204a19dedb71d2853cde55d12b9ad4",
   "spec_path": "specs/automation/wrapup-auto.t27"
 }

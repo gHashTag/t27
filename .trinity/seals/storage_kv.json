@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0722516dbb8376e3da3262688e5a0b895f62faeca6485e0cd4326ec42938e274",
   "module": "StorageKv",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:46Z",
-  "spec_hash": "sha256:b642ac3ac608ff8b1f91f11ee34db4d0683115f0d648d3f7d8a3ef44a604dbdc",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:5f88d4d494d923d3ec2d7da418e50513a94ee03888176cefad4f10a8f05842c9",
   "spec_path": "specs/storage/kv.t27"
 }

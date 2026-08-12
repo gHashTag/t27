@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c8f3f3d01a8af42c81845b3524cd97dca7953549352ac9d94e189ab7d2e798ff",
   "module": "AccountRepo",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:7dfc25b5a06b57876a2c08234da3494488a455afa7da4433ff5d75c59ef460ca",
+  "sealed_at": "2026-08-12T01:50:51Z",
+  "spec_hash": "sha256:e58af5df8780b31b21f3a23b1ca62e8948f1327130a08f9ff3ec57a56c276d7d",
   "spec_path": "specs/account/repo.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3ba9798458a4619c32b427526bede88d02efa2efcc12555e2d77bdb216c27cfb",
   "module": "SequenceHdc",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:45Z",
-  "spec_hash": "sha256:00ae02f2d888ab8a6c53c22c26f558c5eb0f6f1a45954a46d391495b6bd4008f",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:380f324e20c22b5441bf9cf413249c1c92b09d33507164e62b0e2fe9d69b7b4c",
   "spec_path": "specs/vsa/sequence_hdc.t27"
 }

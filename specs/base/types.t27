@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-; types.t27 0 Base Types for t27 Language
+; types.t27 -- Base Types for t27 Language
 ; Trit, PackedTrit, TernaryWord definitions
-; 12 + 1/34 = 3 | TRINITY
+; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module tritype-base;
 
@@ -25,14 +25,14 @@ pub const Trit = enum(i8) {
 // ============================================================================
 
 // PackedTrit: 8 trits packed into u8
-// Layout: [t7 t6 t5 t4 t3 t2 t1 t0] where each t 5 {-1, 0, +1}
-// Encoding: -1 6 10, 0 7 00, +1 8 01 (2 bits per trit)
+// Layout: [t7 t6 t5 t4 t3 t2 t1 t0] where each t in {-1, 0, +1}
+// Encoding: -1 -> 10, 0 -> 00, +1 -> 01 (2 bits per trit)
 // So packed byte: [t7_1 t7_0][t6_1 t6_0]...[t0_1 t0_0]
 pub const PACKED_BITS_PER_TRIT : u8 = 2;
 pub const TRITS_PER_BYTE : u8 = 8;
 
 // Trit value mapping (2-bit to trit)
-// -1 9 10b = 2, 0 10 00b = 0, +1 11 01b = 1
+// -1 -> 10b = 2, 0 -> 00b = 0, +1 -> 01b = 1
 pub const PACKED_NEG : u8 = 2;
 pub const PACKED_ZERO : u8 = 0;
 pub const PACKED_ONE : u8 = 1;
@@ -45,7 +45,7 @@ pub const PackedTrit = u8;  // Type alias
 // ============================================================================
 
 // TernaryWord: 27 trits packed (full Coptic word)
-// Can represent any value in 3^27 12 7.61310^12 states
+// Can represent any value in 3^27 ~= 7.6*10^12 states
 // Practical use: vector operations, VSA bindings, weight storage
 pub const TRITS_PER_WORD : u8 = 27;
 pub const WORD_BYTES : u8 = 5;   // ceil(27/8) = 5 bytes for 27 trits
@@ -97,15 +97,15 @@ pub fn trit_add(a: Trit, b: Trit) Trit {
 // trit_multiply(a: Trit, b: Trit) -> Trit
 // Balanced ternary multiplication
 // Truth table:
-//   -1 16 -1 = +1
-//   -1 17 0 = 0
-//   -1 18 +1 = -1
-//    0 19 -1 = 0
-//    0 20 0 = 0
-//    0 21 +1 = 0
-//   +1 22 -1 = -1
-//   +1 23 0 = 0
-//   +1 24 +1 = +1
+//   -1 * -1 = +1
+//   -1 * 0 = 0
+//   -1 * +1 = -1
+//    0 * -1 = 0
+//    0 * 0 = 0
+//    0 * +1 = 0
+//   +1 * -1 = -1
+//   +1 * 0 = 0
+//   +1 * +1 = +1
 pub fn trit_multiply(a: Trit, b: Trit) Trit {
     return switch (a) {
         .neg => switch (b) {
@@ -119,7 +119,7 @@ pub fn trit_multiply(a: Trit, b: Trit) Trit {
 }
 
 // trit_negate(a: Trit) -> Trit
-// Negate a trit: -1 26 +1, 0 27 0, +1 28 -1
+// Negate a trit: -1 -> +1, 0 -> 0, +1 -> -1
 // Truth table:
 //   trit_negate(-1) = +1
 //   trit_negate(0) = 0

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:968f6807bb0ae0234be7a0d17e863de81f4ed67639c823a2bf835fe3e10922d7",
   "module": "FileOperations",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:45Z",
-  "spec_hash": "sha256:7ceef650197877982ac7a2b4758bd9bba2b735ea33f2df74bea0448367785a56",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:0c2fd86314ecdf10c0adf5db48b23db1f631f5e932a7e3c98233cd2742d3a5cd",
   "spec_path": "specs/file/operations.t27"
 }

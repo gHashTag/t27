@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:33c7412813f19407d4108c09f50d4650665bfd9f422bd27bb0f3b7a7b8b3debd",
   "module": "brain-bus",
   "ring": 12,
-  "sealed_at": "2026-08-08T18:23:44Z",
-  "spec_hash": "sha256:fe1ec1d596d41c8681abd03703c6b2e1d6552752ad7ae9daa147bd5f68831403",
+  "sealed_at": "2026-08-12T01:50:52Z",
+  "spec_hash": "sha256:8c8317e74a8b9562d87049e4b7826d4231c61236cbd2fa77cbf7e3bc539777ed",
   "spec_path": "specs/brain/bus.t27"
 }
