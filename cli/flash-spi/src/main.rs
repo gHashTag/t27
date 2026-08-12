@@ -78,6 +78,11 @@ fn main() -> Result<()> {
 
     eprintln!("\n=== Step 3/4: write bitstream to SPI flash (~60s) ===");
     let total = bytes.len() as u64;
+    // Prop. 163: `FlashOpts` gained `bitswap` and `no_jprogram` and this call
+    // site was never updated, so this crate stopped compiling -- and no
+    // workflow builds it, so nothing said so. `..Default::default()` is what
+    // would have prevented the drift: bitswap defaults to true, matching
+    // Vivado's `write_cfgmem`, which is what this path wants.
     let opts = FlashOpts {
         verify: !cli.no_verify,
         progress: Some(Box::new(move |w, t| {
@@ -85,6 +90,7 @@ fn main() -> Result<()> {
                 eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));
             }
         })),
+        ..Default::default()
     };
     cable.program_flash(&bytes, opts)?;
 

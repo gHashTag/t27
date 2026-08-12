@@ -5,7 +5,4 @@ proofs/sacred/gamma_phi3.v
 proofs/sacred/l5_identity.v
 proofs/sacred/strong_cp.v
 trios-coq/Physics/Avs96Safe.v
-trios-coq/Physics/NullorReversible.v
 trios-coq/Physics/PurkinjeThermal.v
-trios-coq/Physics/SparsityMask.v
-trios-coq/Physics/SpeculativeExit.v

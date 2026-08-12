@@ -861,6 +861,9 @@ jobs:
       - name: Compiler tests (bootstrap/tests -- ungated until Wave 676)
         run: cargo test -p t27c --release
 
+      - name: Crate coverage scan — every crate must be built by some workflow
+        run: python3 formal/crate_coverage_scan.py
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

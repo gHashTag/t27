@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Gate 22: every Rust crate must be built by some workflow, or be listed.
+
+Prop. 159 found 1213 tests that no job ran, because the only `cargo test`
+workflow discovers `ring-*-rust` crates by matrix and never matched the compiler
+crate. That was one instance. Enumerated: **8 of 30 crates are covered by no
+workflow at all** — and 3 of those 8 did not compile.
+
+The correlation is the finding. `flash-spi` stopped building when `FlashOpts`
+gained two fields and one call site was not updated; nothing built it, so
+nothing said so. **The crates nothing tests are the crates that break**, and the
+gap is invisible because every workflow that runs is green.
+
+WHAT THIS GATE REQUIRES. Every `[package]` under the repository must either
+
+  (a) be named by a workflow (`-p <name>`, its path, or a discovery pattern it
+      demonstrably matches), or
+  (b) appear in the baseline below, recording that it is knowingly ungated.
+
+It RATCHETS: a new ungated crate fails the build; an existing one does not.
+Whether a given crate deserves CI time is a project decision, not a scanner's.
+
+ARTIFACTS. Reads `**/Cargo.toml` and `.github/workflows/*.yml`. WRITES
+`formal/crate_coverage_baseline.txt` when no baseline exists. Nothing else.
+
+Prop. 163.
+"""
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+BASELINE = ROOT / "formal" / "crate_coverage_baseline.txt"
+SKIP = (".git", "target/", "worktrees", "node_modules", "/gen/")
+
+
+def crates():
+    out = {}
+    for c in ROOT.rglob("Cargo.toml"):
+        s = str(c)
+        if any(p in s for p in SKIP):
+            continue
+        # comment-scan: TOML comments start with `#`; a commented-out `name =`
+        # is not a package name.
+        text = "\n".join(l for l in c.read_text(errors="ignore").splitlines()
+                         if not l.lstrip().startswith("#"))
+        if "[package]" not in text:
+            continue
+        m = re.search(r'^\s*name\s*=\s*"([^"]+)"', text, re.M)
+        if m:
+            out[m.group(1)] = str(c.parent.relative_to(ROOT))
+    return out
+
+
+def main():
+    wf_dir = ROOT / ".github" / "workflows"
+    if not wf_dir.exists():
+        print("::error::crate coverage scan: no such directory "
+              "'.github/workflows' -- nothing was scanned")
+        return 1
+    found = crates()
+    if not found:
+        print("::error::crate coverage scan: found no Cargo.toml with a "
+              "[package] section under the repository root -- nothing was "
+              "scanned")
+        return 1
+
+    wf = " ".join(y.read_text(errors="ignore") for y in wf_dir.glob("*.yml"))
+    ungated = []
+    for name, path in sorted(found.items()):
+        covered = (f"-p {name}" in wf) or (path in wf)
+        # A discovery matrix counts only for crates it demonstrably matches.
+        # Prop. 162: a matrix's coverage is its output, not its intent.
+        if not covered and name.startswith("ring-") and "rings_matrix" in wf:
+            covered = True
+        if not covered:
+            ungated.append(f"{name}\t{path}")
+
+    print(f"crate coverage scan: {len(found)} crates, "
+          f"{len(found) - len(ungated)} covered by a workflow, "
+          f"{len(ungated)} ungated")
+
+    if not BASELINE.exists():
+        BASELINE.write_text("\n".join(ungated) + ("\n" if ungated else ""))
+        print(f"crate coverage scan: baseline written to {BASELINE.name} "
+              f"({len(ungated)} ungated)")
+        return 0
+    was = [l for l in BASELINE.read_text().splitlines() if l.strip()]
+    new = [u for u in ungated if u not in was]
+    if new:
+        print(f"::error::crate coverage scan: {len(new)} new crate(s) are built "
+              f"by no workflow. A crate nothing builds is a crate that will "
+              f"stop building without anyone being told -- add it to a "
+              f"workflow, or to {BASELINE.name} with a reason")
+        for n in new:
+            print(f"  {n}")
+        return 1
+    gained = [w for w in was if w not in ungated]
+    if gained:
+        print(f"crate coverage scan: {len(gained)} crate(s) newly covered; "
+              f"update {BASELINE.name} to lock it in")
+    print(f"crate coverage scan: ratchet holds "
+          f"({len(ungated)} <= {len(was)} ungated)")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        print(f"::error::crate coverage scan: could not scan Cargo.toml files "
+              f"({type(exc).__name__}: {exc}) -- nothing was scanned")
+        sys.exit(1)

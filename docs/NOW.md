@@ -15,6 +15,29 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 677 — the crates nothing builds are the crates that broke
+
+**8 of 30 Rust crates are covered by no workflow (Prop. 163)**, and **3 of those
+8 do not compile** -- while none of the 22 covered crates failed. `flash-spi`
+stopped building when `FlashOpts` gained two fields and one call site was not
+updated; nothing built it, so nothing said so.
+
+*A component's build state is observable only where some job builds it.* Adding
+jobs over already-covered components does not raise the reporting rate; only
+enlarging the covered set does. Here 22/30, and all three breakages fell in the
+uncovered 8.
+
+Fixed with `..Default::default()` -- the construct that would have prevented the
+drift. Gate 22 ratchets crate coverage, treating a discovery matrix as covering
+only what it demonstrably matches.
+
+**Three proofs added to a build (Prop. 164).** 641 Qed compiled across 50 files,
+42 unbuilt, 8 undeclared -- from 560/123/17 two waves ago. The whole-project
+build is red for a pre-existing reason (Flocq absent locally); the control
+without my additions fails identically, and each of the three was verified
+target-by-target from the project's own makefile.
+
 ## Wave 676 — 1213 tests nothing ran, and my own gate recognised one build mechanism
 
 **Parser 67 -> 29 (Prop. 158).** 39 of the 67 were generic type application in

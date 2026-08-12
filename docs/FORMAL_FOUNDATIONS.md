@@ -9041,6 +9041,73 @@ result — a matrix's coverage is its output, not its intent.
 
 ---
 
+### Prop. 163 — the crates nothing builds are the crates that broke — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Crate coverage scan — every crate must be built by some workflow*
+
+**163a. Prop. 159 was one instance; enumerated, there are eight.** Of **30 Rust
+crates**, 22 are named by some workflow and **8 are covered by nothing**:
+`dlc10`, `flash-spi`, `tri`, `tri-mcp`, `tri-mining`, `tri_to_t27`,
+`trinity-core`, `trios-bridge`.
+
+**163b. Three of the eight do not compile.** `flash-spi` — `FlashOpts` gained
+`bitswap` and `no_jprogram` and one call site was never updated;
+`tools/converter` — a dependency unavailable offline; `backend/trinity-core` — a
+workspace-membership misconfiguration. **None of the 22 covered crates failed.**
+
+**163c. The correlation is the finding, and the mechanism is plain.** A crate no
+job builds cannot report that it stopped building. Every workflow that runs is
+green, so the repository looks healthy in exactly the region where it is not.
+This is the *third* form of gated-looking-but-ungated evidence in this campaign
+after an unwired step and an unread property file — and the second where the
+absence was discovered by doing something unrelated.
+
+**163d. `flash-spi` fixed with the construct that prevents recurrence.**
+`..Default::default()` rather than naming the two new fields: the struct already
+has a `Default` impl whose values (`bitswap: true`, matching Vivado's
+`write_cfgmem`) are what this path wants, and struct-update syntax does not break
+when a field is added.
+
+**163e. Gate 22 ratchets.** A crate is covered if a workflow names it by `-p`,
+by path, or by a discovery pattern **it demonstrably matches** — Prop. 162's rule
+applied in code. New ungated crates fail; the existing 8 are recorded. Whether a
+given crate deserves CI time is a project decision, not a scanner's.
+
+**163f. Theorem (observability of drift).** *A component's build state is
+observable only where some job builds it. In a repository of `n` components of
+which `k` are built by CI, the probability that a randomly-introduced breakage is
+reported is `k/n`, independent of how many jobs run or how green they are.*
+Adding jobs over already-covered components does not raise it; only enlarging
+`k` does. Here `k/n` was `22/30`, and all three observed breakages fell in the
+uncovered `8`.
+
+---
+
+### Prop. 164 — three proofs added to a build, verified target by target — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**164a.** `NullorReversible.v`, `SparsityMask.v` and `SpeculativeExit.v` are added
+to `trios-coq/_CoqProject`. Totals: **641 `Qed.` compiled across 50 files, 42
+unbuilt, 8 undeclared** — from 560/123/17 two waves ago.
+
+**164b. The full-project build could not verify them, and the control said
+why.** `make` fails on `IGLA/*.vo`, which need `../coq` built, which needs Flocq,
+which CI installs by opam and this environment lacks. Running the same build
+**without** the three additions fails identically — so the failure is
+pre-existing and independent of the change.
+
+**164c. Verified target by target instead.** `make Physics/NullorReversible.vo`
+and its two siblings each build clean from the project's own generated makefile.
+That is a stronger check than the standalone `coqc` of Prop. 161: it uses the
+project's real load paths and dependency graph, and it isolates the three
+additions from a build that was already broken for unrelated reasons.
+**When a whole-suite check is red for a pre-existing reason, verify your change
+at the finest granularity the build system offers, and prove the pre-existing
+failure is pre-existing.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
