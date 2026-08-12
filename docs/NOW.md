@@ -5,6 +5,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 668 — a sweep that looked eighteen wide was three facts, and its six failures were an ill-posed question
+
+**The sweep (Prop. 137).** Gate 17 runs the value check across the configuration
+grid. Accumulators track chunk count exactly — 27, 54, 81 — matching in every
+configuration. But the accumulator depends only on C: N and L never moved it, so
+eighteen configurations were three distinct facts. **Breadth is not
+independence.** The fix was a second observable — the count of emitted activation
+words, `L x ceil(N/27)` — which depends on both ignored axes.
+
+**The near-miss (Prop. 138).** It fired immediately: six of eighteen emitted one
+word where two were owed, every `C>=2, L=2` point, with both layers demonstrably
+running. That is the signature of Prop. 125's flush defects and would have been
+the eighth design defect. It was not a defect. A multi-layer network requires
+`N = C*27` — layer 0 must produce what layer 1 consumes — and the grid was asking
+layer 1 to read 27-81 trits from a layer producing 1-3. At `N = C*27` the same
+points emit 2, 4, 6 words and all MATCH. **Systematic variation across an invalid
+region is the most convincing possible presentation of nothing.**
+
+**The audits (Prop. 139).** Vacuity coverage went from 12 proof steps to 28 —
+shell loops expanded, combinational tops given a clockless probe, and a regex
+that had been swallowing `;` into module names fixed. One step is vacuous by
+design and now says so. Gate 18 asks a question nothing had asked: does a
+property merely restate the RTL line above it? Two do. Both kept, both annotated.
+
 ## Wave 667 — the engine computes 27, and the campaign's proofs are not vacuous
 
 **The measurement (Prop. 135).** Four nets were read above their declarations;

@@ -842,6 +842,12 @@ jobs:
       - name: Vacuity sweep — every proof step must refute assert(false)
         run: python3 formal/vacuity_sweep.py
 
+      - name: Restatement scan — no property may merely repeat its RTL line
+        run: python3 formal/restatement_scan.py
+
+      - name: Value sweep — engine arithmetic against a reference, across configurations
+        run: python3 formal/value_sweep.py
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

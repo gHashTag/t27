@@ -8128,6 +8128,129 @@ restores 12 / 0.
 
 ---
 
+### Prop. 137 — the value check now sweeps, and one observable did all the work — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Value sweep — engine arithmetic against a reference, across configurations*
+
+**137a. One measurement was one point.** Prop. 135 matched engine against
+reference at `N=1, C=1, L=1` — which Prop. 125 had already identified as the
+single configuration out of 81 that completes. The campaign's only arithmetic
+result sat on the point least likely to be representative.
+
+**137b. Gate 17 sweeps it.** `formal/value_sweep.py` parameterises the testbench
+and runs the grid. Accumulators track the chunk count exactly: **27, 54, 81** for
+`C = 1, 2, 3`, matching the reference in every configuration.
+
+**137c. Eighteen configurations were three measurements.** The accumulator
+observable depends only on `C`. Across the whole grid, `N` and `L` never moved
+it — so a sweep that looked eighteen-wide was three distinct facts wearing
+eighteen hats. **Breadth in a sweep is not independence**, and a grid that varies
+parameters the observable cannot see reports coverage it does not have.
+
+**137d. The fix was a second observable, not a bigger grid.** The requantizer
+packs 27 trits per word, so a run of `L` layers of `N` neurons owes
+`L × ceil(N/27)` activation words — a quantity that depends on both axes the
+accumulator ignores. Adding it changed the sweep from three facts to a genuine
+two-dimensional measurement, and it fired immediately.
+
+**137e. The gate does not go red on known-open configurations.** It records a
+baseline and fails only when a configuration that used to MATCH stops matching.
+Prop. 26's expected-refutation convention exists because a gate that is red for a
+known reason gets disabled rather than fixed.
+
+---
+
+### Prop. 138 — the six failures were an ill-posed question, and the check on the question was one line — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Value sweep — engine arithmetic against a reference, across configurations*
+
+**138a. The finding, as it first appeared.** With the word-count observable,
+six of eighteen configurations emitted one activation word where the reference
+owed two. The pattern was sharp: every `C ≥ 2, L = 2` point failed and every
+`C = 1` point passed. Both layers demonstrably ran — `start_prefetch = 2`,
+`mac = 2` — so compute happened and only emission was lost. That is the exact
+signature of the layer-end flush defects of Prop. 125, and it would have been
+written up as the eighth design defect.
+
+**138b. It was not a defect. The networks were ill-posed.** A multi-layer network
+is only defined when layer 0 produces what layer 1 consumes: `N` neurons emit `N`
+trits, and the next layer reads `C` chunks of 27, so `L > 1` requires
+`N = C × 27`. The grid crossed `N ∈ {1,2,3}` with `C ∈ {1,2,3}` freely — asking
+layer 1 to read 27 to 81 trits from a layer that produced 1 to 3.
+
+**138c. The decisive test cost one command.** At `N = C × 27` the same
+configurations emit **2, 4 and 6** words and all MATCH. The design was right; the
+experiment was malformed.
+
+**138d. Why `C = 1` masked it.** Those rows are equally ill-posed — layer 1 wants
+27 trits from a layer producing 1 — yet they emitted the expected count. So the
+apparent `C`-dependence was not a clue about the design at all; it was an
+artefact of which malformed configurations happen to produce the right number of
+words anyway. **A pattern in results from invalid inputs is still a pattern, and
+it will look like a mechanism.**
+
+**138e. Theorem (well-formedness precedes measurement).** *Let `M` be a
+measurement defined on configurations satisfying a well-formedness predicate `W`.
+For `x` with `¬W(x)`, `M(x)` is not evidence about the artifact — neither for nor
+against — regardless of how systematically `M(x)` varies with `x`.* The
+corollary is the working rule: **before reporting that a sweep found a defect,
+verify that the failing configurations are ones the artifact was ever obliged to
+handle.** Systematic variation across an invalid region is the most convincing
+possible presentation of nothing.
+
+**138f. What this cost and what it bought.** It cost one command. It bought not
+publishing a fabricated defect — the fourth time in this campaign a new check
+has fired on correct behaviour (Prop. 115), and the first time the false alarm
+was in the *question* rather than the instrument.
+
+---
+
+### Prop. 139 — every proof step is now audited, and two properties were only repeating themselves — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Restatement scan — no property may merely repeat its RTL line*
+
+**139a. The audit went from 12 steps to 28.** Prop. 136 left six steps
+unaudited. Four drove `-top ${top}` from a shell loop, now expanded one top per
+iteration; one is combinational and now gets a clockless `always @(*)` probe;
+two were an artefact of a regex that swallowed the `;` separating yosys commands
+into the module name. **28 live, 0 vacuous, 1 vacuous by design, 1 not audited,
+of 30.**
+
+**139b. The campaign already had a vacuity canary, and it was not enough.**
+`assume_liveness_check.sv` assumes something unsatisfiable and asserts something
+false, so it proves only when the flow honours assumptions — and it has been in
+the workflow for many waves. The sweep flagged it, correctly, as vacuous. It is
+now exempted with that argument recorded, and its vacuity is *enforced*: if the
+canary ever refutes, the flow has stopped applying assumptions.
+
+The lesson is about scope. That canary asks the question **once, globally, for
+one job**. It cannot see a single wrapper whose own assumptions are mutually
+contradictory while the flow at large is fine. A global liveness check and a
+per-step one are different claims, and having the first is what made the absence
+of the second invisible.
+
+**139c. Gate 18 asks whether a property merely repeats its RTL line.**
+`a_start_follows_ctrl_unless_interlocked` asserts the exact right-hand side of
+the `assign start` above it. In Wave 666 I added a term to that assignment and
+edited the property in the same commit — which felt like verification and was
+bookkeeping. Such a property is refutable only by an inconsistent edit.
+
+**139d. `mirror_check.py` sounds like this gate and is not.** It compares the
+ternary algebra abstraction against `trit_stdlib.sv`. Nothing had ever asked the
+restatement question, and the similar name is exactly why: a check whose name
+suggests coverage it does not provide is worse than no check, because it stops
+the question being asked.
+
+**139e. Two found, both kept, both now annotated.** The scan reports 36 equality
+assertions and flags 2. Both are retained with `// restatement: <reason>` stating
+what they are for — one guards against a CSR aperture instantiated and then
+ignored (how `use_buffer_a` was dead for four waves), the other is the regression
+witness for the two-memory-port split. **Acknowledgement is not vindication**: it
+makes a deliberate choice countable, so a future wave can ask whether the count
+is growing.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

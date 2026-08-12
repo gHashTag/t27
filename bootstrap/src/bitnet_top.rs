@@ -750,6 +750,13 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // would hold vacuously if the slave were instantiated but ignored --\n");
     s.push_str("    // which is precisely how use_buffer_a was dead for four waves.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("    // restatement: this asserts the right-hand side of the\n");
+    s.push_str("    // `assign start` above, so it cannot fail against the design --\n");
+    s.push_str("    // only against an inconsistent edit. KEPT deliberately: its\n");
+    s.push_str("    // subject is not the formula but the WIRING. A CSR aperture\n");
+    s.push_str("    // instantiated and then ignored would leave `start` free while\n");
+    s.push_str("    // every other property still proved, which is exactly how\n");
+    s.push_str("    // use_buffer_a was dead for four waves (Prop. 139).\n");
     s.push_str("        a_start_follows_ctrl_unless_interlocked:\n");
     s.push_str("            assert (start == (reg_ctrl[0] && !dma_busy && input_loaded && cfg_valid));\n");
     s.push_str("    // ...and the interlock is the ONLY thing that may suppress a start.\n");
@@ -781,6 +788,11 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        a_no_weight_write_while_computing: assert (!(pf_bram_we && mac_valid_q));\n");
     s.push_str("    // The external memory port is driven by the prefetcher and nothing else.\n");
     s.push_str("    always @(posedge clk) if (rst_n)\n");
+    s.push_str("    // restatement: mirrors `assign mem_rd_en = pf_arvalid`. KEPT as\n");
+    s.push_str("    // the regression witness for the two-memory-port split: the\n");
+    s.push_str("    // external port must be the PREFETCHER's and never the DMA's,\n");
+    s.push_str("    // and a rewiring that broke that would not violate any other\n");
+    s.push_str("    // property here (Prop. 139).\n");
     s.push_str("        a_mem_port_is_prefetch: assert (mem_rd_en == pf_arvalid);\n");
     s.push_str("\n");
     s.push_str("    // Two independent writers now target the activation buffers. If both\n");

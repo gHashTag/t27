@@ -15,9 +15,26 @@
 `timescale 1ns/1ps
 
 module tb_data;
-    localparam integer C = 1;          // chunks per neuron
-    localparam integer N = 1;          // neurons
-    localparam integer THRESH = 3;     // requant threshold
+    // Wave 668: overridable from the command line so one testbench can sweep
+    // the configuration grid. Prop. 137 -- until this wave the value check
+    // existed only at N=1, C=1, L=1, which is the single configuration
+    // Prop. 125 had already shown to be the one that works.
+`ifndef T27_C
+  `define T27_C 1
+`endif
+`ifndef T27_N
+  `define T27_N 1
+`endif
+`ifndef T27_L
+  `define T27_L 1
+`endif
+`ifndef T27_THRESH
+  `define T27_THRESH 3
+`endif
+    localparam integer C = `T27_C;          // chunks per neuron
+    localparam integer N = `T27_N;          // neurons
+    localparam integer L = `T27_L;          // layers
+    localparam integer THRESH = `T27_THRESH;
 
     reg clk = 0, rst_n = 0;
     always #5 clk = ~clk;
@@ -177,11 +194,25 @@ module tb_data;
         // before it existed, and reported acc=0 beside an emitted TRIT_P, which
         // a threshold-3 requantizer cannot produce. Sample the value the
         // requantizer is actually handed: .valid_in(mac_valid_out), .acc(mac_result).
-        if (dut.mac_valid_out) begin acc_seen = dut.mac_result; saw_mac = 1'b1; end
+        // Wave 668: the FIRST result, not the last. With N > 1 the engine
+        // produces one accumulator per neuron; comparing the last against a
+        // reference computed for neuron 0 would be comparing two different
+        // quantities and calling the disagreement a defect.
+        if (dut.mac_valid_out && !saw_mac) begin
+            acc_seen = dut.mac_result; saw_mac = 1'b1;
+        end
     end
 
 
     // ---- weight-path probe --------------------------------------------------
+    // Wave 668: the accumulator observable depends only on C -- across the
+    // whole grid, N and L never move it, so 18 configurations were 3 distinct
+    // measurements wearing 18 hats. The COUNT of emitted activation words is
+    // the observable that does depend on both: the requantizer packs 27 trits
+    // per word, so a layer of N neurons owes ceil(N/27) words and a run of L
+    // layers owes L times that. This is the units question Prop. 125 was
+    // about, asked of values rather than of control.
+    integer words_out = 0;
     integer wr_beats = 0; integer mac_beats = 0;
     integer sp_n = 0; integer rden_n = 0; integer rdv_n = 0; integer pfd_n = 0;
     always @(posedge clk) if (rst_n) begin
@@ -191,6 +222,7 @@ module tb_data;
         if (dut.mem_rd_valid)   rdv_n = rdv_n + 1;
         if (dut.prefetch_done)  pfd_n = pfd_n + 1;
         if (dut.mac_valid_q)      mac_beats = mac_beats + 1;
+        if (actw_v)               words_out = words_out + 1;
     end
 
     initial begin
@@ -198,7 +230,7 @@ module tb_data;
         seen=0; got=54'd0; acc_seen=0; saw_mac=0; cyc=0;
         repeat (8) @(posedge clk); rst_n = 1; repeat (4) @(posedge clk);
 
-        csr_write(8'h10, 32'd1);          // num_layers
+        csr_write(8'h10, L);              // num_layers
         csr_write(8'h14, N);              // neurons
         // Wave 663: weight_words is NEURONS x CHUNKS, not a constant. The
         // sweep harness of Prop. 125 computes W = N*C and reaches the
@@ -238,8 +270,8 @@ module tb_data;
                      got[1:0], ref_trit(ref_acc(0)));
         else
             $display("RESULT: MATCH");
-        $display("PROBE bram_we=%0d start_prefetch=%0d mem_rd_en=%0d mem_rd_valid=%0d prefetch_done=%0d mac=%0d",
-                 wr_beats, sp_n, rden_n, rdv_n, pfd_n, mac_beats);
+        $display("WORDS engine=%0d expected=%0d  (N=%0d L=%0d)",
+                 words_out, L * ((N + 26) / 27), N, L);
         $display("PROBE bram_we=%0d start_prefetch=%0d mem_rd_en=%0d mem_rd_valid=%0d prefetch_done=%0d mac=%0d",
                  wr_beats, sp_n, rden_n, rdv_n, pfd_n, mac_beats);
         $finish;

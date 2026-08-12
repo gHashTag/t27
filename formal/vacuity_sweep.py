@@ -43,6 +43,14 @@ PROBE = """
 `endif
 """
 
+# Prop. 139: a combinational top has no clock to hang a probe on, and those
+# steps prove at `-seq 1` where a level-sensitive assertion is exactly right.
+PROBE_COMB = """
+`ifdef T27_VACUITY_PROBE
+    always @(*) a_vacuity_probe: assert (1'b0);
+`endif
+"""
+
 
 def steps(wf_text):
     """Every yosys invocation that proves assertions, with its step name."""
@@ -59,11 +67,25 @@ def steps(wf_text):
             script = re.sub(r"\s+", " ", m.group(1)).strip()
             if "-prove-asserts" not in script:
                 continue
-            top = re.search(r"-top\s+(\S+)", script)
+            top = re.search(r"-top\s+([\w$${}]+)", script)
             files = re.findall(r"(\S+\.s?v)\b", script)
             if not top or not files:
                 continue
-            out.append((name, script, top.group(1), files))
+            t = top.group(1)
+            # Prop. 139: four steps drive `-top ${top}` from a shell loop and
+            # were reported as `not audited` for a wave. A step whose vacuity
+            # is unknown sitting inside a green summary is how things stay
+            # unexamined -- expand the loop and audit each top separately.
+            if "$" in t:
+                loop = re.search(r"for\s+\w+\s+in\s+((?:[\w\s]|\\\s*\n)+?);?\s*do",
+                                 block)
+                if loop:
+                    for one in re.sub(r"\\\s*\n\s*", " ", loop.group(1)).split():
+                        var = re.search(r"-top\s+(\S+)", script).group(1)
+                        out.append((f"{name} [{one}]",
+                                    script.replace(var, one), one, files))
+                    continue
+            out.append((name, script, t, files))
     return out
 
 
@@ -100,7 +122,22 @@ def main():
               ".github/workflows -- nothing was audited")
         return 1
 
+    # Prop. 139. One step is DESIGNED to be vacuous. `assume_liveness_check.sv`
+    # assumes something unsatisfiable and asserts something false, so it proves
+    # only when the flow honours assumptions at all -- a canary for the whole
+    # job. This sweep detecting it is the sweep working, and exempting it has to
+    # be argued rather than assumed, so the argument is here: its vacuity is its
+    # contract, and if it ever REFUTES the flow has stopped applying assumptions.
+    #
+    # Worth recording: this canary predates the sweep. The campaign already knew
+    # assumptions could go inert -- it checked once, globally, for one job. What
+    # was missing was the per-step question, which is what Props. 133 and 136
+    # add. A global canary cannot see one wrapper whose own assumptions are
+    # contradictory while the flow at large is fine.
+    EXPECTED_VACUOUS = {"assume_liveness_check"}
+
     vacuous, skipped, live = [], [], 0
+    canaries = 0
     for name, script, top, files in found:
         srcs = [ROOT / f for f in files]
         if any(not s.exists() for s in srcs):
@@ -134,10 +171,7 @@ def main():
 
             text = target.read_text()
             clk = clock_of(text)
-            if clk is None:
-                skipped.append(f"{name[:44]}: {top} has no posedge clock; "
-                               f"a combinational step cannot be probed this way")
-                continue
+            probe = (PROBE.format(clk=clk) if clk else PROBE_COMB)
             # `endmodule` closing the target module, not a later one.
             # Detection uses stripped text; the INSERTION OFFSET must come from the
             # original, because stripping shifts every index after the first
@@ -149,7 +183,7 @@ def main():
             if mend < 0:
                 skipped.append(f"{name[:44]}: no endmodule for {top}")
                 continue
-            probed = (text[:mend] + PROBE.format(clk=clk) + text[mend:])
+            probed = (text[:mend] + probe + text[mend:])
             target.write_text(probed)
 
             probed_script = script
@@ -171,7 +205,11 @@ def main():
             r = subprocess.run(["yosys", "-q", "-p", probed_script],
                                capture_output=True, text=True)
             if r.returncode == 0:
-                vacuous.append(f"{name[:56]} (-top {top})")
+                if top in EXPECTED_VACUOUS:
+                    canaries += 1
+                    print(f"  canary   {name[:52]}: vacuous by design")
+                else:
+                    vacuous.append(f"{name[:56]} (-top {top})")
             elif r.returncode == 1:
                 live += 1
             else:
@@ -180,7 +218,17 @@ def main():
     for s in skipped:
         print(f"  skipped  {s}")
     print(f"vacuity sweep: {live} live, {len(vacuous)} vacuous, "
-          f"{len(skipped)} not audited, of {len(found)} proof steps")
+          f"{canaries} vacuous by design, {len(skipped)} not audited, "
+          f"of {len(found)} proof steps")
+
+    # A canary that stops being vacuous is a silent catastrophe: it means the
+    # flow no longer applies assumptions, and every "given a compliant
+    # environment" result in the job is meaningless. Absence is not a pass.
+    if canaries != len(EXPECTED_VACUOUS):
+        print(f"::error::vacuity sweep: {len(EXPECTED_VACUOUS) - canaries} "
+              f"designed-vacuous canar(ies) in .github/workflows did not prove "
+              f"assert(false) -- the flow may have stopped honouring assumptions")
+        return 1
 
     if vacuous:
         print(f"::error::vacuity sweep: {len(vacuous)} proof step(s) prove "
