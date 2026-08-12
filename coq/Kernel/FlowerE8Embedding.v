@@ -1,3 +1,11 @@
+(* ============================================================================ *)
+(* ASPIRATIONAL / NOT COMPILABLE                                                *)
+(* This file contains proof sketches and pseudo-formal specifications that      *)
+(* reference undefined types (H4_root, E8_roots, QuasicrystalLattice, etc.)     *)
+(* and use notation not supported by Coq. It does NOT compile with coqc.        *)
+(* Treat as research notes, not machine-checked proofs.                         *)
+(* ============================================================================ *)
+
 (** FLOWER-E8-EMBEDDING — E8 = H4 + φ·H4 Decomposition *)
 (*
  * Formal proof of Dechant (2016) theorem: E8 Lie algebra

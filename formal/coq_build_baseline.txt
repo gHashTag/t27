@@ -1,0 +1,17 @@
+coq/Kernel/PhiAttractor.v
+proofs/gravity/dl_bounds.v
+proofs/sacred/dl_bounds.v
+proofs/sacred/gamma_phi3.v
+proofs/sacred/l5_identity.v
+proofs/sacred/strong_cp.v
+proofs/trinity/Bounds_LeptonMasses.v
+proofs/trinity/Bounds_QuarkMasses.v
+proofs/trinity/ConsistencyChecks.v
+proofs/trinity/DerivationLevels.v
+proofs/trinity/ExactIdentities.v
+proofs/trinity/Unitarity.v
+trios-coq/Physics/Avs96Safe.v
+trios-coq/Physics/NullorReversible.v
+trios-coq/Physics/PurkinjeThermal.v
+trios-coq/Physics/SparsityMask.v
+trios-coq/Physics/SpeculativeExit.v

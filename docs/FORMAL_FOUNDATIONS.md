@@ -8759,6 +8759,82 @@ someone's unfinished work and no automated test can adjudicate it.
 
 ---
 
+### Prop. 154 — 123 `Qed.` are type-checked by nothing — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**154a. The README's count is exactly right and is not what it reads as.**
+*"546 Qed. across 41 files"* reproduces to the unit. **69 of those 546, in 7
+files, appear in no `_CoqProject`** — so `coq_makefile` never generates a rule
+for them, `make` never compiles them, and neither Coq CI job type-checks them.
+Two of the seven carry headers, uncommitted until this wave, stating in capitals
+that they do not compile and are *"research notes, not machine-checked proofs"*.
+
+**154b. Across all three proof trees.** Including `proofs/`, which the README's
+command does not scan: **59 `.v` files, 560 `Qed.` inside a build, 123 outside
+one.** 18% of the proof terminators in this repository are in files nothing
+compiles.
+
+**154c. `grep -c 'Qed\.'` measures terminators in text.** Only membership in a
+`_CoqProject` measures proofs. This is the campaign's most-repeated shape — an
+accurate count of a different denominator — now found in the README's own
+headline evidence, and the fourth instance after Props. 116b, 142 and 149.
+
+**154d. The exclusion itself is correct.** `_CoqProject` lists 9 of `coq/`'s 11
+files, and the 2 omitted are exactly the two whose headers say they do not
+compile. Nobody made a mistake in the build; the mistake is a published count
+that ranges over a wider set than the build does.
+
+**154e. Gate 20 requires each file to be built or to say it is not.** A `.v`
+file must appear in its tree's `_CoqProject`, or carry a marker naming itself
+unverified. It **ratchets** rather than walling: whether a given unbuilt proof
+*should* be added to a build is a mathematical judgement about that file, and a
+gate landing red on 17 pre-existing files gets disabled rather than obeyed
+(Prop. 26). Verified biting: a planted `.v` file fails it by name, and removing
+it restores the hold.
+
+**154f. Comment-stripped, because the shape recurs.** Coq block comments are
+`(* ... *)` and a `Qed.` inside one is not a terminator. Five fixes across four
+files have gone to unstripped comments in this campaign, so this counter strips
+before matching and says why.
+
+**154g. What was NOT committed, and why.** `PhiAttractor.v` also carries
+uncommitted changes — but they *remove* four proof-bearing lines and add
+`(* TODO: requires domain-specific contraction analysis *)`. That is someone
+mid-proof, weakening a file, not an honesty annotation. Committing it would have
+silently reduced verified content under cover of a wave about honesty. Left in
+the working tree and named here instead.
+
+**154h. Corollary (evidence counted outside its own gate).** *A quantity cited as
+evidence for a property `P` must range over exactly the artifacts some check
+establishes `P` for. Where the citation's domain strictly contains the check's,
+the excess is presented as evidence and supported by nothing.* The excess is
+invisible precisely because the count is correct — and the check for it is
+mechanical: compare the citation's glob against the gate's input set.
+
+---
+
+### Prop. 155 — `coq/` was never missing anything, and a third filter mismatch — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**155a.** Prop. 151 recorded a residual concern: `coq/` holds "15 files in `HEAD`
+against 11 on disk". Enumerated, both are **15**, byte-identical file lists.
+
+**155b. The discrepancy was two filters compared as one.** `git ls-tree -r HEAD
+--name-only coq/` counts all 15 entries including `.gitignore`, `README.md`,
+`_CoqProject` and `.CoqMakefile.d`; `find coq -name "*.v"` counts the 11 proof
+files. Neither number was wrong; comparing them was.
+
+**155c. Third instance of the same error in this campaign, all mine.** Prop. 149
+compared a regex over `const` against AST `ConstDecl` nodes; Prop. 151 compared a
+counter keyed on `(state, class)` against examples keyed on `class`; this
+compared a tree listing against a filename glob. **The recurring form is that
+both sides are computed correctly, so nothing looks wrong** — and the only
+defence is stating the set each side ranges over before subtracting.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

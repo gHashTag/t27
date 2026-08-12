@@ -11,6 +11,34 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 674 — 123 Qed that nothing type-checks
+
+**The README's count is exact and misleads (Prop. 154).** "546 Qed. across 41
+files" reproduces to the unit -- and **69 of those 546, in 7 files, are in no
+`_CoqProject`**, so no build and no CI job type-checks them. Two of the seven
+carry headers, uncommitted until now, saying in capitals they do not compile and
+are "research notes, not machine-checked proofs".
+
+Across coq/, trios-coq/ and proofs/: **560 Qed inside a build, 123 outside one**
+-- 18%. `grep -c 'Qed\.'` measures proof terminators in text; only membership
+in a build measures proofs. Fourth instance of an accurate count over a wider
+denominator than its own gate.
+
+Gate 20 requires every `.v` file to be in a `_CoqProject` or to declare itself
+unverified, and ratchets rather than walling -- whether an unbuilt proof should
+be built is a mathematical judgement, not a scanner's.
+
+**Not committed:** `PhiAttractor.v`'s uncommitted diff removes four
+proof-bearing lines and adds a TODO. That is someone mid-proof, not an honesty
+annotation, and committing it inside a wave about honesty would have quietly
+reduced verified content.
+
+**And `coq/` was never missing anything (Prop. 155).** The "15 in HEAD vs 11 on
+disk" from last wave was `git ls-tree` (all 15 entries) against `find -name
+'*.v'` (11 proof files). Third filter mismatch in this campaign, all mine; both
+sides computed correctly each time, which is exactly why none looked wrong.
+
 ## Wave 673 — the worst file in the corpus was never losing anything
 
 **Correcting my own headline (Prop. 151).** Wave 672's "61 deleted Coq proofs"
