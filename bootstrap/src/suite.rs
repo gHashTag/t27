@@ -30,6 +30,13 @@ pub struct SuiteOptions {
     /// W628: rewrite the expectations ledger from this run. The ONLY writer --
     /// acquisition is never a side effect of verification (T31).
     pub bless_expectations: bool,
+    /// W632: restrict every spec-walking phase to the hand-written corpus,
+    /// excluding `specs/scratch/`. The ratchet already gates on primary CORPUS
+    /// failures only, so this removes work whose result the verdict ignores --
+    /// and `specs/scratch/` is 606,113,688 of the 612,924,235 bytes the walk
+    /// covers (98.89%). T24 said cost is set by the widest glob; this narrows
+    /// the glob to the artefacts under test. See T40.
+    pub corpus_only: bool,
 }
 
 fn t27c_exe() -> anyhow::Result<PathBuf> {
@@ -1182,6 +1189,29 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
 
     let specs_only = collect_t27(&repo.join("specs"))?;
     let specs_scratch = collect_t27(&repo.join("specs/scratch"))?;
+
+    // W632: narrow the walk to the population the verdict is about. Scratch
+    // files can only ever block themselves, so corpus attribution is unchanged
+    // -- which is the claim the wave measures rather than assumes.
+    let (specs_compiler, specs_only) = if opts.corpus_only {
+        let keep = |v: Vec<PathBuf>| -> Vec<PathBuf> {
+            v.into_iter()
+                .filter(|p| {
+                    rel_arg(&repo, p)
+                        .map(|r| !is_scratch(&r))
+                        .unwrap_or(true)
+                })
+                .collect()
+        };
+        println!(
+            "[suite] --corpus-only: {} of {} specs walked (specs/scratch excluded)",
+            keep(specs_compiler.clone()).len(),
+            specs_compiler.len()
+        );
+        (keep(specs_compiler), keep(specs_only))
+    } else {
+        (specs_compiler, specs_only)
+    };
 
     let mut summary = SuiteSummary {
         repo: repo.display().to_string(),

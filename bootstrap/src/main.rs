@@ -945,6 +945,12 @@ enum Commands {
         /// W628: rewrite the expectations ledger from this run. The only writer.
         #[arg(long, default_value_t = false)]
         bless_expectations: bool,
+
+        /// W632: walk only the hand-written corpus, excluding specs/scratch/.
+        /// The ratchet gates on primary corpus failures only, so this drops
+        /// 98.89% of the bytes without changing the verdict.
+        #[arg(long, default_value_t = false)]
+        corpus_only: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -10080,6 +10086,7 @@ async fn main() -> anyhow::Result<()> {
             json_out,
             ratchet,
             bless_expectations,
+            corpus_only,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10090,6 +10097,7 @@ async fn main() -> anyhow::Result<()> {
                 json_out,
                 ratchet,
                 bless_expectations,
+                corpus_only,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -10413,6 +10421,7 @@ fn main() -> anyhow::Result<()> {
             json_out,
             ratchet,
             bless_expectations,
+            corpus_only,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -10423,6 +10432,7 @@ fn main() -> anyhow::Result<()> {
                 json_out,
                 ratchet,
                 bless_expectations,
+                corpus_only,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {

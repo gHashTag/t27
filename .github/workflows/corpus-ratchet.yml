@@ -1,0 +1,101 @@
+name: Corpus Ratchet
+
+# W632 (BLOCKING). The regression gate this repository did not have.
+#
+# Background: `t27c suite` reports TOTAL FAILURES in the thousands, and W626
+# measured that a gate whose baseline is already non-zero cannot detect a
+# regression -- a new break lands inside the total and moves the exit code not
+# at all. Three end-to-end runs across three compiler builds all reported 2614,
+# term for term.
+#
+# This job gates on `docs/reports/suite_expectations.json` instead: a set of
+# (path, phase) identities over the hand-written corpus. The verdict is
+# observed-versus-expected PER IDENTITY, so it moves when something changes.
+#
+#   UNEXPECTED FAILURE -- a corpus spec failed that is not in the ledger.
+#   UNEXPECTED PASS    -- a ledger entry passed. Also a failure: without this
+#                         the ledger is monotone and rots (see T33).
+#   EXPIRED            -- an entry is past its `expires` date.
+#   OVER CAP           -- the ledger outgrew `max_entries`, which only ever
+#                         moves down. Raising it is a hand edit in the PR.
+#
+# `--corpus-only` excludes `specs/scratch/`, which is 606,113,688 of the
+# 612,924,235 bytes the full walk covers (98.89%) and is generator output the
+# ratchet does not gate on anyway. Measured: 314 s vs 4057 s, with a
+# bit-identical verdict (T40). That is what makes this a per-PR check rather
+# than a nightly nobody reads.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: corpus-ratchet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ratchet:
+    runs-on: ubuntu-latest
+    name: Corpus ratchet (expected-failure ledger)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ratchet-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-ratchet-
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Run the corpus ratchet
+        id: ratchet
+        run: |
+          set -o pipefail
+          # Redirect rather than pipe: `tail` buffers to end-of-stream and makes
+          # a working tool look silent for the whole run (T26).
+          ./target/release/t27c suite --repo-root . --ratchet --corpus-only \
+            --json suite_summary.json > ratchet.log 2>&1
+          rc=$?
+          sed -n '/--- Ratchet (W628) ---/,$p' ratchet.log
+          exit $rc
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error title=Corpus ratchet failed::See the Ratchet section above."
+          echo ""
+          echo "UNEXPECTED FAILURE -> a corpus spec broke. Fix it, or, if the break"
+          echo "  is intended and tracked, add an entry to"
+          echo "  docs/reports/suite_expectations.json by hand with a real reason,"
+          echo "  an issue number and an expires date -- and raise max_entries in"
+          echo "  the same commit, which is the reviewable event."
+          echo ""
+          echo "UNEXPECTED PASS -> you fixed something. Remove its entry and lower"
+          echo "  max_entries to the new size. Regenerate with:"
+          echo "    ./target/release/t27c suite --repo-root . --bless-expectations"
+          echo "  then review the diff before committing it."
+          echo ""
+          echo "EXPIRED -> the amnesty ran out. Fix the spec or renew the date"
+          echo "  with a reason in the PR description."
+
+      - name: Upload the run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-ratchet-log
+          path: |
+            ratchet.log
+            suite_summary.json
+          retention-days: 14

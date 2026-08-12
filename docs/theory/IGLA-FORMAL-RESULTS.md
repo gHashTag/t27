@@ -2050,6 +2050,90 @@ mean a phase counts something the attribution does not model.
 
 ---
 
+### T40 (W632) — Narrowing a gate's glob to the population its verdict is about is free: 12.9× for a bit-identical answer
+
+**T24 said a verification command's cost is set by its widest input glob, not by
+the artefacts under test.** W632 acts on it. The ratchet gates on *primary
+corpus* failures only, so walking `specs/scratch/` produces results the verdict
+ignores. `--corpus-only` drops them.
+
+| | full walk | `--corpus-only` |
+|---|---:|---:|
+| bytes walked | 612 924 235 | **6 810 547** (1.11%) |
+| wall time | 4057 s | **314 s** |
+| ledger / observed | 173 / 173 | **173 / 173** |
+| unexpected failures · passes · expired | 0 · 0 · 0 | **0 · 0 · 0** |
+| verdict | `CLEAN`, rc 0 | **`CLEAN`, rc 0** |
+
+**12.9× faster, and the verdict is bit-identical.** The soundness argument is
+one line: a scratch file can only ever block *itself*, so it never enters the
+attribution of a corpus file — which is a property of W627's per-file
+attribution, not an assumption about the corpus.
+
+**Statement.** Let `V` be a verdict computed from a sub-population `A ⊆ G`, and
+let the pipeline's attribution be *per-item* — no item's classification depends
+on another's. Then walking `G \ A` contributes nothing to `V`, and restricting
+the walk to `A` is **semantics-preserving**, not an approximation. Cost falls by
+`|G \ A| / |G|` and correctness is unchanged.
+
+**Corollary — this is what converts a nightly into a gate.** A 68-minute check
+runs once a day, produces a red build hours after the change, and is read by
+nobody; a 5-minute check runs per pull request. **The engineering content of
+T40 is not the speedup but the fact that the speedup required no trade-off** —
+the cost had been paid for results that were being discarded.
+
+*Falsification condition:* a phase whose per-item classification depends on
+another item — a global uniqueness check, a cross-file symbol table — for which
+the restriction would change a verdict.
+
+---
+
+### T41 (W632) — A ratchet is exactly as blind as the phase predicates it ratchets, and this one inherits a parser that reports success on a file it did not finish reading
+
+**Found by trying to verify the gate and getting the wrong answer.** I appended
+`))) W632 deliberate break (((` to `specs/igla/race/ternary_mac.t27` and ran the
+ratchet, expecting `UNEXPECTED FAILURE`. It reported **`RATCHET: CLEAN`, rc 0**.
+
+The gate was right. **`t27c parse` returns 0 on that file.** The parser stops at
+the last valid top-level construct and does not require EOF, so trailing garbage
+is not a parse error — it is silent truncation, the class this document has
+recorded since W559 and W577 (7 623 test bodies, then 16 792 lines, discarded
+behind a stray brace). A mid-file corruption is caught and named in 315 s; an
+appended one is invisible.
+
+**And the compiler ships the detector.** `t27c parse-complete` exists precisely
+to report *"specs the parser accepts WITHOUT consuming the whole file"*, and
+`t27c lex-dropped` reports characters the lexer silently discards. The phases
+`suite` actually runs are `parse`, `typecheck`, `gen-zig`, `gen-rust`,
+`gen-verilog`, `gen-c`, `seal-verify`, `gen-verilog-yosys-smoke`,
+`fpga-smoke-gate-standalone`, `fixed-point`. **Neither detector is among them.**
+
+**Statement.** A ratchet over predicates `{πᵢ}` detects a change iff some `πᵢ`
+changes value. Its sensitivity is therefore bounded above by
+`⋃ᵢ sensitivity(πᵢ)`, and **no property of the ledger, the cap, the expiry or
+the unexpected-pass rule can raise that bound.** The amnesty mechanism is
+orthogonal to coverage: it makes the *existing* predicates load-bearing and
+adds nothing to what they can see.
+
+**Corollary — the failure mode is the one this project has catalogued twelve
+times, now one level up.** §4's rule is *a stage that cannot fail cannot be
+trusted*. `parse` **can** fail, so it passed the smell test — but it cannot fail
+*on this input class*, and a gate built on it inherits that hole exactly.
+**Building a good gate over an incomplete predicate set produces confident
+green, which is worse than no gate**, because the confidence is now
+mechanised.
+
+**What it costs to close.** `parse-complete` is one more phase over the same 609
+files — the marginal cost is one process spawn per file on a check that already
+spends ~4 200 of them. The reason it is not in this wave is scope, not
+difficulty, and it is Option 1 below.
+
+*Falsification condition:* a `parse` invocation that fails on trailing garbage,
+which would mean the truncation class is already covered and the gate's
+sensitivity is wider than measured here.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

@@ -5406,6 +5406,35 @@ These cost a wave each. Follow them before step 1.
      does not move by a clean multiple of the pipeline depth, your attribution
      is wrong. (T39.)
 
+227. **`--corpus-only` makes the ratchet a per-PR gate: 314 s vs 4057 s,
+     bit-identical verdict.** The ratchet gates on primary CORPUS failures, so
+     walking `specs/scratch/` (98.89% of the bytes) produces results the verdict
+     discards. Soundness is one line: a scratch file can only block ITSELF, so
+     it never enters a corpus file's attribution. **The speedup required no
+     trade-off** -- the cost had been paid for results already being thrown
+     away. Always ask which sub-population your verdict actually reads. (T40.)
+
+228. **A ratchet is exactly as blind as the predicates it ratchets.** I appended
+     `))) break (((` to a corpus spec and the gate said CLEAN -- correctly:
+     **`t27c parse` returns 0 on trailing garbage**, because the parser stops at
+     the last valid construct and does not require EOF. Silent truncation, the
+     W559/W577 class. A MID-FILE break is caught and named. No property of the
+     ledger, cap, expiry or xfail-strict rule can raise sensitivity above
+     `union of sensitivity(phase_i)`. (T41.)
+
+229. **`t27c parse-complete` and `t27c lex-dropped` exist and `suite` does NOT
+     run them.** The phases it runs: parse, typecheck, gen-zig, gen-rust,
+     gen-verilog, gen-c, seal-verify, gen-verilog-yosys-smoke,
+     fpga-smoke-gate-standalone, fixed-point. Before trusting any green from
+     this suite, check `grep -oE 'push_phase\("[a-z0-9-]+"' bootstrap/src/suite.rs`
+     against the subcommand list in `t27c --help`.
+
+230. **When a deliberate break is NOT caught, suspect the break before the
+     gate.** My first W632 verification used trailing garbage and "failed" --
+     the instrument was wrong, not the subject (T26 again). Verify a gate with
+     a perturbation you have independently confirmed the underlying predicate
+     rejects: run `t27c parse <file>` on the corrupted file FIRST.
+
 ### How to update this tracker
 
 After closing a wave:
