@@ -8896,6 +8896,151 @@ judgement about its content. The gate records the set and fails when it grows.
 
 ---
 
+### Prop. 158 — generic type application was the last large parser gap — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**158a.** After Prop. 156 the residue was 67. **39 of those (58%) were one
+feature**: generic type *application* in signatures — `Either(L, R)` as a
+parameter type, `List(void)` as a return type. `parse_type_annotation` handled
+`::` namespaces and never `Name(args)`, so the `(` ended the type, the enclosing
+`fn` failed, and recovery discarded it. Angle-bracket form `Result<T, E>` was
+added alongside; in a type position `<` cannot be a comparison.
+
+**158b. A second, smaller instance of the same omission.** The pointer branch
+`*Type` **returned early**, before the new generic handling could run, so
+`*HashSet(T)` still lost its parameters. Falling through instead: 34 → 29.
+
+**158c. Net across three waves: 788 → 29.** 627 were never losses (Prop. 156's
+scope correction), and 132 were real and are now parsed. The remaining 29 are
+four bounded features: slice-literal initialisers `&[_][]u8{}` (16), `impl`
+blocks (7), dotted module names `module a.b;` (4), and a generic *function*
+name `fn read<T>(...)` (1).
+
+**158d. Corollary (residues cluster, so re-attribute after every fix).** Each
+wave here reduced the residue by first re-clustering it, and each time one cause
+held 58–83% of what remained. **A long tail measured once is a long tail; measured
+again after the head is removed, it is usually another head.** Attributing before
+fixing cost one command per wave and directed all four changes.
+
+---
+
+### Prop. 159 — 1213 tests existed and no workflow ran them — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Compiler tests (bootstrap/tests -- ungated until Wave 676)*
+
+**159a. Found by running them.** Four parser changes in one wave made
+`cargo test` the obvious check. One test failed:
+`top_host_aperture_replaces_config_ports` asserts
+
+```
+assign start = reg_ctrl[0] && !dma_busy && input_loaded;
+```
+
+which is the **pre-Wave-666** form. Prop. 132 added `&& cfg_valid` ten waves ago,
+and the *inline* test in `src/bitnet_top.rs` was updated in that commit while the
+*integration* test in `tests/bitnet_top.rs` was not.
+
+**159b. Nothing ran it, for ten waves.** The pre-commit hook's Gate 3/4 is
+`cargo check` — it compiles and does not execute. The only workflow invoking
+`cargo test` is `rings-rust.yml`, which discovers `ring-*-rust` crates by matrix
+and never matches `t27c`. **1213 tests across 21 integration files plus the unit
+suite, gated by nothing.**
+
+**159c. This is Prop. 69's shape, in a different language.** Eight formal
+properties were once counted as coverage while no job ran them; the discovery
+then was accidental too. The invariant worth extracting: **a test suite's
+existence is evidence about the repository, not about the code** — only a job
+that executes it says anything about the code.
+
+**159d. All 1213 pass after the one-line correction**, and a CI step now runs
+them. The step is added in the same commit as the fix, because a gate that lands
+red on arrival gets disabled rather than obeyed (Prop. 26).
+
+**159e. The check that finds this class in any repository, in one command.** For
+each test directory, grep the workflows for a job that executes it. Presence of a
+`tests/` tree is not coverage; a matrix that *discovers* crates is not coverage
+of crates it does not match — and a discovery matrix is the more dangerous form,
+because it looks parameterised and general.
+
+---
+
+### Prop. 160 — my own gate recognised one build mechanism and called the others absent — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**160a.** Prop. 154 reported 123 `Qed.` in 17 files that "no build compiles". Its
+premise was that `_CoqProject` membership *is* what built means.
+`coq-proofs.yml` does `cd proofs/trinity && coqc -R . Trinity CorePhi.v ...`,
+naming **13 files directly** and using no `_CoqProject` at all.
+
+**160b. 6 of the 17 are type-checked by CI on every push.** Corrected totals:
+**608 `Qed.` compiled across 47 files, 75 unbuilt, 11 files undeclared** —
+against the published 560 / 123 / 17.
+
+**160c. This is the shape the gate was built to catch, in the gate.** Prop. 154's
+own text says a count must range over exactly what some check establishes. It
+then measured "is this file in a `_CoqProject`" while claiming "is this file
+type-checked". **Writing the rule down does not exempt the writer** — the fifth
+instance of that in this campaign, and the second inside an instrument built for
+the class.
+
+**160d. Fixed by asking the question directly.** The gate now scans every
+workflow for explicit `coqc` invocations and treats named files as built.
+
+---
+
+### Prop. 161 — of the 11 genuinely unbuilt files, 3 compile and 8 do not — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**161a. Rocq 9.2 installed; each file compiled standalone with every proof tree
+on the load path.** `trios-coq/Physics/NullorReversible.v`, `SparsityMask.v` and
+`SpeculativeExit.v` **compile clean**. Eight fail with genuine errors: `The
+reference phi was not found`, `The reference lia was not found`, `Cannot
+interpret this number as a value of type nat`. Missing imports, not broken
+mathematics — but unverified until they are fixed.
+
+**161b. The classifier needed correcting mid-measurement, twice.** First run used
+`-R <tree> <Name>` with the wrong logical name, so six load-path failures were
+reported as file defects. Second run put every tree on the path and then read
+the **first stderr line**, which is a duplicate-load-path *warning*, classifying
+all 14 failures as genuine. Filtering for lines beginning `Error` gave the split
+above. **A compile harness must distinguish its own misconfiguration from the
+subject's defects, and stderr order does not do that for you.**
+
+**161c. What this changes and what it does not.** Three files can be added to a
+build immediately, with no mathematical judgement required — they compile.
+Eight need an author. That is a much smaller and sharper ask than "17 unbuilt
+files", and it took installing one toolchain to get there.
+
+---
+
+### Prop. 162 — 1213 tests, and the discovery matrix that covered none of them — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Compiler tests (bootstrap/tests -- ungated until Wave 676)*
+
+See Prop. 159 for the finding. Recorded separately here is the general form,
+because it is the third mechanism by which this repository has held gated-looking
+evidence that no job ran:
+
+| mechanism | instance |
+|---|---|
+| a step that exists but was never wired into any workflow | Prop. 58 (documentation gate) |
+| a property file no step reads | Prop. 69 (eight zero-size properties) |
+| **a discovery matrix that does not match the crate** | **Prop. 159 (1213 tests)** |
+
+**The third is the most dangerous**, because a matrix looks parameterised and
+general. `rings-rust.yml` runs `cargo check` and `cargo test` over every crate
+its matrix discovers, and the matrix discovers `ring-*-rust`. Nothing about
+reading it suggests that the compiler crate is outside its reach.
+
+**162a. Corollary.** *For every test tree, name the job that executes it.* If the
+answer is a matrix, evaluate the matrix and check the tree's crate is in the
+result — a matrix's coverage is its output, not its intent.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

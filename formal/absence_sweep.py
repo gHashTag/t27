@@ -35,6 +35,12 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    "Compiler tests (bootstrap/tests -- ungated until Wave 676)":
+        "its subject is the Rust crate, not build/rtl -- starving the RTL "
+        "cannot make `cargo test` fail, and demanding that it does would be "
+        "over-detection. Its absence case is cargo's own: with the crate gone, "
+        "cargo exits non-zero naming the missing manifest (Prop. 159).",
+
     "Coq build scan — a Qed in a file nobody compiles is not a proof":
         "its subject is coq/, trios-coq/ and proofs/, not build/rtl -- starving "
         "the RTL cannot make it fail, and demanding that it does would be "

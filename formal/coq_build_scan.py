@@ -40,6 +40,26 @@ MARKERS = ("NOT COMPILABLE", "NOT BUILT", "ASPIRATIONAL",
            "not machine-checked", "NOT MACHINE-CHECKED")
 
 
+def workflow_compiled():
+    """File names a workflow compiles with an explicit `coqc` command.
+
+    Prop. 160: this gate's first premise was that `_CoqProject` membership is
+    what "built" means. `coq-proofs.yml` does `cd proofs/trinity && coqc -R .
+    Trinity CorePhi.v ...`, naming 13 files directly and using no _CoqProject at
+    all -- so 6 files that CI type-checks on every push were reported as built
+    by nothing. A gate that recognises one build mechanism and calls the others
+    absent is checking a proxy for its own question.
+    """
+    names = set()
+    wf = ROOT / ".github" / "workflows"
+    if not wf.exists():
+        return names
+    for y in wf.glob("*.yml"):
+        for m in re.finditer(r"coqc\b[^\n|]*", y.read_text(errors="ignore")):
+            names.update(re.findall(r"([A-Za-z_0-9]+\.v)\b", m.group(0)))
+    return names
+
+
 def qed_count(text):
     # comment-scan: Coq block comments are `(* ... *)` and a `Qed.` inside one
     # is not a proof terminator. Strip them before counting.
@@ -54,6 +74,7 @@ def main():
               f"'{TREES[0]}' under the repository root -- nothing was scanned")
         return 1
 
+    wf_names = workflow_compiled()
     built_q = unbuilt_q = declared_q = 0
     built_f = declared_f = 0
     undeclared = []
@@ -70,7 +91,7 @@ def main():
             rel = str(p.relative_to(tree))
             text = p.read_text(errors="ignore")
             n = qed_count(text)
-            if rel in listed:
+            if rel in listed or p.name in wf_names:
                 built_q += n
                 built_f += 1
                 continue
@@ -88,7 +109,8 @@ def main():
         return 1
 
     print(f"coq build scan: {scanned} .v files, "
-          f"{built_q} Qed in a _CoqProject build ({built_f} files), "
+          f"{built_q} Qed compiled by a _CoqProject or a workflow "
+          f"({built_f} files), "
           f"{unbuilt_q} Qed unbuilt ({declared_f} files declare it)")
 
     # RATCHET, not a wall. Whether an unbuilt proof file SHOULD be added to a

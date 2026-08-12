@@ -13,6 +13,54 @@ Last updated: 2026-08-12
 
 
 
+
+
+## Wave 676 — 1213 tests nothing ran, and my own gate recognised one build mechanism
+
+**Parser 67 -> 29 (Prop. 158).** 39 of the 67 were generic type application in
+signatures -- `Either(L, R)`, `List(void)` -- which `parse_type_annotation` never
+handled. Angle-bracket `Result<T, E>` added too. The pointer branch returned
+early, so `*HashSet(T)` still lost its parameters; fixed. Net over three waves:
+**788 -> 29**.
+
+**Running the tests found something bigger (Prop. 159/162).** One test asserts
+the pre-Wave-666 `assign start`, before `&& cfg_valid`. The inline test in src/
+was updated then; the integration test was not, and **nothing ran it for ten
+waves**. Gate 3/4 is `cargo check`; the only `cargo test` workflow discovers
+`ring-*-rust` by matrix and never matches `t27c`. **1213 tests, gated by
+nothing.** All pass after a one-line fix; CI now runs them.
+
+**And my own Coq gate had the defect it was built to catch (Prop. 160).** It
+measured `_CoqProject` membership while claiming "type-checked". `coq-proofs.yml`
+compiles 13 files by explicit `coqc`. Corrected: **608 Qed built, 75 unbuilt, 11
+undeclared** -- not 560 / 123 / 17.
+
+**Rocq 9.2 installed (Prop. 161):** of the 11 genuinely unbuilt, **3 compile
+clean** and 8 fail on missing imports. A much sharper ask than "17 unbuilt".
+
+## Wave 676 — 1213 tests existed and no workflow ran them
+
+**Parser: 67 -> 29 (Prop. 158).** 39 of the 67 were generic type application in
+signatures -- `Either(L, R)` as a parameter, `List(void)` as a return type --
+which `parse_type_annotation` never handled. Angle-bracket `Result<T, E>` added
+alongside. A second instance of the same omission: the pointer branch returned
+early, so `*HashSet(T)` still lost its parameters.
+
+Net across three waves: **788 -> 29**. 627 were never losses; 132 were real.
+
+**Then running `cargo test` found something bigger (Prop. 159).** One test
+asserts the pre-Wave-666 form of `assign start`, before `&& cfg_valid` was added
+by Prop. 132. The inline test in src/ was updated in that commit; the integration
+test was not -- and **nothing ran it for ten waves**.
+
+The pre-commit hook's Gate 3/4 is `cargo check`, which compiles without
+executing. The only workflow calling `cargo test` discovers `ring-*-rust` crates
+by matrix and never matches `t27c`. **1213 tests across 21 integration files,
+gated by nothing.** All pass after the one-line fix; a CI step now runs them.
+
+A discovery matrix is the more dangerous form of this gap: it looks
+parameterised and general while silently covering nothing you did not name.
+
 ## Wave 675 — 788 swallowed declarations were 161, and 133 were one missing feature
 
 **The counter over-counted 4.9x (Prop. 156).** It recorded every declaration the

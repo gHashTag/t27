@@ -854,6 +854,13 @@ jobs:
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 
+      # Prop. 159: bootstrap/tests/ holds 17 integration tests for the compiler
+      # and NO workflow ran them. rings-rust.yml discovers `ring-*-rust` crates
+      # by matrix and never matches t27c. One test had been failing for ten
+      # waves against RTL that changed under it.
+      - name: Compiler tests (bootstrap/tests -- ungated until Wave 676)
+        run: cargo test -p t27c --release
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

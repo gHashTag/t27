@@ -1654,11 +1654,12 @@ impl Parser {
                 ty.push_str("const ");
                 self.advance();
             }
-            if self.current.kind == TokenKind::Ident {
-                ty.push_str(&self.current.lexeme);
-                self.advance();
+            // Prop. 158: this returned here, before the generic-application
+            // handling below, so `*HashSet(T)` lost its parameters and the
+            // enclosing declaration was discarded. Fall through instead.
+            if self.current.kind != TokenKind::Ident {
+                return ty;
             }
-            return ty;
         }
 
         // Handle slice/array prefix: []Type, [N]Type, [[f64; 8]; 8], []const Type
@@ -1724,6 +1725,46 @@ impl Parser {
                     }
                 } else {
                     break;
+                }
+            }
+
+            // Prop. 158: generic type application, `Either(L, R)` and `List(void)`.
+            // Unimplemented until now, and the largest remaining cause of lost
+            // declarations: 39 of 67, split between parameter types and return
+            // types. Captured as text -- this parser does not instantiate
+            // generics, and recording the application is what lets the enclosing
+            // fn parse instead of being discarded.
+            if self.current.kind == TokenKind::LParen {
+                let mut depth = 0i32;
+                loop {
+                    match self.current.kind {
+                        TokenKind::LParen => depth += 1,
+                        TokenKind::RParen => depth -= 1,
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    ty.push_str(&self.current.lexeme);
+                    self.advance();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+            } else if self.current.kind == TokenKind::Lt {
+                // Angle-bracket generics, `Result<T, E>`. Only reached in a type
+                // position, so `<` here cannot be a comparison.
+                let mut depth = 0i32;
+                loop {
+                    match self.current.kind {
+                        TokenKind::Lt => depth += 1,
+                        TokenKind::Gt => depth -= 1,
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    ty.push_str(&self.current.lexeme);
+                    self.advance();
+                    if depth == 0 {
+                        break;
+                    }
                 }
             }
         } else if self.current.kind == TokenKind::KwVoid {

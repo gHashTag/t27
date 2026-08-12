@@ -79,7 +79,16 @@ fn top_host_aperture_replaces_config_ports() {
     // activation buffer nothing has written. Declared early, driven after
     // dma_local_we is in scope. Prop. 33.
     assert!(stdout.contains("wire        start;"));
-    assert!(stdout.contains("assign start = reg_ctrl[0] && !dma_busy && input_loaded;"));
+    // Prop. 159: `&& cfg_valid` was added in Wave 666 -- inference must not run
+    // against a weight memory the host never sized (Prop. 132). The inline test
+    // in src/bitnet_top.rs was updated then; THIS file was not, and nothing ran
+    // it, so it stayed red for ten waves.
+    assert!(stdout.contains(
+        "assign start = reg_ctrl[0] && !dma_busy && input_loaded && cfg_valid;"
+    ));
+    // ...and the guard is observable, or a refused start is indistinguishable
+    // from a hang.
+    assert!(stdout.contains("a_refused_start_is_reported"));
 }
 
 #[test]
