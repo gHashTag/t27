@@ -20,6 +20,28 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 682 — the liveness step scored every failure as a refutation
+
+The probe helper read `if yosys ...; then got=proves; else got=refutes; fi`, and
+**six of its seven probes expect `refutes`** -- so an elaboration error, a syntax
+error, a missing yosys or a timeout all scored `ok`. The campaign's own Prop. 58
+defect, inside the step whose purpose is to prove the engine is not inert.
+
+The more dangerous half is not a tool error: a probe naming a signal the design
+lacks does not fail yosys -- it implicitly declares an undriven wire and the
+property genuinely refutes. **Every `refutes` probe would report ok forever if an
+emitter renamed its signal.**
+
+Fixed: three outcomes (proves / refutes / tool error), plus rejection when yosys
+emits `is implicitly declared`, with `-q` removed so the warning reaches the log.
+
+*Never let the default branch of a verdict be the answer most checks expect.*
+
+One process note: the first version of the fix captured with `$( ... 2>&1 )` and
+the stderr never reached the variable, so it passed the phantom test while
+looking correct. Redirecting to a file removed the ambiguity.
+
 ## Wave 681 — both CI walls repaired; three of my premises overturned
 
 **coq-kernel.yml.** Wall 1: the coqorg image runs as `coq` against a root-owned

@@ -1077,12 +1077,56 @@ jobs:
           probe = "    always @(posedge clk) if (rst_n) w: assert (%s);\n" % sys.argv[2]
           sys.stdout.write(src[:i] + probe + src[i:])
           PY
-            if yosys -q -p "read_verilog -sv -formal build/probe.sv $rest; \
-                            chparam -set DEPTH 4 weight_bram; \
-                            prep -top bitnet_engine_top -flatten; memory_map; \
-                            async2sync; chformal -lower; \
-                            sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" \
-                 >/dev/null 2>&1; then got=proves; else got=refutes; fi
+            # Prop. 173: this read `else got=refutes`, so EVERY non-zero exit --
+            # an elaboration error, a syntax error, a missing yosys, a timeout --
+            # was scored as a refutation. Nine of the eleven probes below EXPECT
+            # `refutes`, so any breakage made this step report `ok` across the
+            # board. That is the campaign's own Prop. 58 defect ("returncode != 0
+            # is not a verdict") sitting inside the step whose whole purpose is
+            # to prove the engine is not inert.
+            #
+            # Three outcomes, never two. A run that neither proves nor names a
+            # refutation is a TOOL ERROR and fails loudly.
+            # Redirect to a FILE rather than capturing with $( ... 2>&1 ):
+            # inside a multi-line command substitution the stderr redirect did
+            # not reliably reach the capture, so the phantom warning below was
+            # printed to the log and never grepped. A file removes the quoting
+            # question entirely.
+            set +e
+            yosys -p "read_verilog -sv -formal build/probe.sv $rest; \
+                      chparam -set DEPTH 4 weight_bram; \
+                      prep -top bitnet_engine_top -flatten; memory_map; \
+                      async2sync; chformal -lower; \
+                      sat -verify -prove-asserts -seq ${seq} -set-init-zero -set-assumes" \
+                 > build/probe.log 2>&1
+            rc=$?
+            set -e
+            # Prop. 173b: an undefined signal in the probe does NOT make yosys
+            # fail -- it implicitly declares an undriven wire and the property
+            # then genuinely refutes (Prop. 62). Nine probes expect `refutes`,
+            # so a typo or a signal that a future emitter renames scores `ok`
+            # forever. `-q` is dropped above precisely so these warnings reach
+            # the capture.
+            if grep -q "is implicitly declared" build/probe.log; then
+              echo "::error::$name: the probe names a signal the design does not"
+              echo "         have -- yosys declared it implicitly and the refutation"
+              echo "         is about a phantom wire, not the engine."
+              grep "implicitly declared" build/probe.log | head -2
+              fail=1
+              return
+            fi
+            if [ "$rc" -eq 0 ]; then
+              got=proves
+            elif grep -q "proof did fail" build/probe.log; then
+              got=refutes
+            else
+              # printf, not echo: yosys prints backslash-prefixed signal names
+              # and a shell whose echo expands escapes truncates at \c (Prop. 58).
+              echo "::error::$name: yosys neither proved nor refuted (rc=$rc)."
+              grep -iE "error|not found|no such" build/probe.log | head -3
+              fail=1
+              return
+            fi
             if [ "$got" != "$want" ]; then
               echo "::error::$name expected to $want but $got"
               fail=1

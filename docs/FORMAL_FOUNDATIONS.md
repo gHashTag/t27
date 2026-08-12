@@ -9322,6 +9322,57 @@ cannot bootstrap its own reachability.
 
 ---
 
+### Prop. 173 — the liveness step scored every failure as a refutation — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Engine is still alive under its interlocks*
+
+**173a. The defect.** The probe helper read
+
+```
+if yosys -q -p "..." >/dev/null 2>&1; then got=proves; else got=refutes; fi
+```
+
+**Six of its seven probes expect `refutes`.** So an elaboration error, a syntax
+error, a missing `yosys`, or a timeout all scored `ok`. This is the campaign's
+own Prop. 58 defect — *"`returncode != 0` is not a verdict"* — living inside the
+step whose entire purpose is to establish the engine is not inert. It was found
+while assessing a cherry-pick, not by suspecting it.
+
+**173b. And the more dangerous half is not a tool error at all.** A probe naming
+a signal the design does not have does **not** make yosys fail: it implicitly
+declares an undriven wire and the property then *genuinely refutes* (Prop. 62).
+Verified — `assert (!signal_that_never_existed)` returns `refutes`, indistinguishable
+from a real one. **Every probe expecting `refutes` would keep reporting `ok`
+forever if an emitter renamed its signal.** That is precisely how `use_buffer_a`
+stayed dead for four waves.
+
+**173c. Three outcomes, and a phantom check.** `rc == 0` → proves; output names
+`proof did fail` → refutes; **anything else is a tool error and fails loudly**.
+Before either, the run is rejected if yosys emitted `is implicitly declared` —
+and `-q` was removed so that warning reaches the log at all.
+
+**173d. Capturing with `$( ... 2>&1 )` did not work here, and the failure was
+silent.** Inside a multi-line command substitution the stderr redirect did not
+reach the capture: the phantom warning printed to the job log and the grep saw
+nothing, so the first version of this fix passed the phantom test while
+appearing correct. Redirecting to a **file** removed the quoting question
+entirely. *A guard that reads a variable you did not verify is populated is a
+guard on an empty string.*
+
+**173e. Verified on three bars.** TRUE — all seven real probes pass and the step
+exits 0. ALIVE — each produces a genuine verdict, six refuting and one proving.
+BITING — a planted phantom fails with the exact warning quoted, and a tool error
+is reported as neither verdict.
+
+**173f. Theorem (asymmetry of default verdicts).** *Let a check map outcomes into
+`{expected, unexpected}` with a default branch, and let `k` of `n` cases expect
+the default. Any fault that lands in the default branch is undetectable in those
+`k` cases, and the probability a random fault is masked rises with `k/n`.* Here
+`k/n = 6/7`. The design rule follows: **never let the default branch of a verdict
+be the answer most checks expect** — make the default a third value that fails.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
