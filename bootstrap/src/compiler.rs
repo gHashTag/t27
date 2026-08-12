@@ -995,18 +995,34 @@ impl Parser {
     fn skip_to_semicolon(&mut self) -> Result<(), String> {
         let mut bracket_depth: i32 = 0;
         let mut paren_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
         while self.current.kind != TokenKind::Eof {
             // Only treat ; as terminator when not inside brackets or parens
-            if self.current.kind == TokenKind::Semicolon && bracket_depth == 0 && paren_depth == 0 {
+            if self.current.kind == TokenKind::Semicolon
+                && bracket_depth == 0
+                && paren_depth == 0
+                && brace_depth == 0
+            {
                 self.advance();
                 return Ok(());
             }
+            // Prop. 166: this delegated to skip_brace_body, which over-consumes
+            // on an empty initialiser like `&[_][]u8{}` and swallowed the
+            // MODULE's closing brace -- turning one unparsed initialiser into
+            // `Expected RBrace, got Eof` for the whole file. Track the depth
+            // inline; a value ends at the first `;` outside every group.
             if self.current.kind == TokenKind::LBrace {
+                brace_depth += 1;
                 self.advance();
-                self.skip_brace_body()?;
-                if self.current.kind == TokenKind::RBrace {
-                    self.advance();
+            } else if self.current.kind == TokenKind::RBrace {
+                if brace_depth == 0 {
+                    // A closing brace we never opened is the end of the
+                    // enclosing block, not part of this value. Stop rather
+                    // than consuming someone else's terminator.
+                    return Ok(());
                 }
+                brace_depth -= 1;
+                self.advance();
             } else if self.current.kind == TokenKind::LBracket {
                 bracket_depth += 1;
                 self.advance();
@@ -1553,7 +1569,24 @@ impl Parser {
         // Initial value: = expr
         if self.current.kind == TokenKind::Equals {
             self.advance(); // consume =
-            let val_node = self.parse_expr()?;
+            // Prop. 166: `?` here propagated an expression-parser failure out of
+            // parse_var_decl, past parse_top_level_decl's recovery, and aborted
+            // the whole file -- one unparsable initialiser such as
+            // `&[_][]u8{}` produced `Expected RBrace, got Eof` for the module.
+            // The array-literal form is genuinely unimplemented; until it is,
+            // record the value as text and let the DECLARATION survive. This is
+            // the parser's existing resilience contract applied one level down.
+            let val_node = match self.parse_expr() {
+                Ok(v) => v,
+                Err(_) => {
+                    let start = self.current.line;
+                    self.skip_to_semicolon()?;
+                    let mut v = Node::new(NodeKind::ExprIdentifier);
+                    v.name = format!("<unparsed initialiser at line {}>", start);
+                    decl.children.push(v);
+                    return Ok(decl);
+                }
+            };
             decl.children.push(val_node);
         }
 

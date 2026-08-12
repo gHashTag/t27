@@ -861,6 +861,12 @@ jobs:
       - name: Compiler tests (bootstrap/tests -- ungated until Wave 676)
         run: cargo test -p t27c --release
 
+      # Prop. 165: five of the eight crates no workflow built are workspace
+      # MEMBERS, so one --workspace invocation covers them. It passes with 0
+      # errors today; two crates had to be fixed first (Props. 163, 165).
+      - name: Workspace check (all crates, all targets)
+        run: cargo check --workspace --all-targets
+
       - name: Crate coverage scan — every crate must be built by some workflow
         run: python3 formal/crate_coverage_scan.py
 

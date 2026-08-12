@@ -16,6 +16,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 678 — one unparsable initialiser destroyed its whole file
+
+**Parser 29 -> 13 (Prop. 166).** `var x = &[_][]u8{};` uses an inferred-length
+array literal the expression parser does not implement -- and `parse_var_decl`
+propagated that with `?`, past the module body's recovery, so the whole file
+ended as `Expected RBrace, got Eof`. One initialiser, one whole spec lost.
+
+*A recovery handler protects exactly the call sites beneath it.* A `?` in a
+helper silently promotes a local failure to a global one. The value position now
+records `<unparsed initialiser at line N>` and the declaration survives.
+
+Net across four waves: **788 -> 13**. All 1213 tests pass.
+
+**Crates 8 ungated -> 3 (Prop. 165).** `backend/trinity-core` and `tri-mining`
+were in neither `members` nor `exclude`, so cargo refused to build them at all;
+excluded, both check clean. Five of the eight are workspace members, so one
+`cargo check --workspace` step covers them -- and it passes with 0 errors, which
+it would not have before this wave.
+
+**And correcting last wave:** `tools/converter` fails only under `--offline`.
+The run that appeared to confirm it printed nothing because cwd had reset and
+cargo said `manifest path does not exist`. **2 of 8, not 3** -- one of the two
+diagnosed wrongly, twice, by accident.
+
 ## Wave 677 — the crates nothing builds are the crates that broke
 
 **8 of 30 Rust crates are covered by no workflow (Prop. 163)**, and **3 of those

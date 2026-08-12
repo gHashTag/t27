@@ -1,7 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["bootstrap", "bindings/javascript", "cli/tri", "cli/trios-bridge", "cli/flash-spi", "cli/dlc10"]
-exclude = ["bindings/python", "tools/converter", "gen"]
+members = ["bootstrap", "bindings/javascript", "cli/tri", "cli/tri-mcp", "cli/trios-bridge", "cli/flash-spi", "cli/dlc10"]
+# Prop. 165: backend/trinity-core and contrib/solana/programs/tri-mining sit
+# under this directory but appear in neither members nor exclude, so cargo
+# reports "current package believes it's in a workspace when it's not" and
+# the crate cannot be built at all. Excluded rather than added as members:
+# that resolves the error without changing what the workspace build covers,
+# which is a separate decision.
+exclude = ["bindings/python", "tools/converter", "gen",
+           "backend/trinity-core", "contrib/solana/programs/tri-mining"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,4 +17,4 @@ license = "MIT"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_bytes = "0.11"
+

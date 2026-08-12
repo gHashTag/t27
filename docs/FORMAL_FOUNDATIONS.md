@@ -9050,7 +9050,7 @@ crates**, 22 are named by some workflow and **8 are covered by nothing**:
 `dlc10`, `flash-spi`, `tri`, `tri-mcp`, `tri-mining`, `tri_to_t27`,
 `trinity-core`, `trios-bridge`.
 
-**163b. Three of the eight do not compile.** `flash-spi` — `FlashOpts` gained
+**163b. Two of the eight do not compile.** *(CORRECTED — Prop. 165: `tools/converter` fails only under `--offline`, and the run that appeared to confirm it was a cwd reset reporting `manifest path does not exist`.)* **Originally recorded as three:** `flash-spi` — `FlashOpts` gained
 `bitswap` and `no_jprogram` and one call site was never updated;
 `tools/converter` — a dependency unavailable offline; `backend/trinity-core` — a
 workspace-membership misconfiguration. **None of the 22 covered crates failed.**
@@ -9105,6 +9105,81 @@ additions from a build that was already broken for unrelated reasons.
 **When a whole-suite check is red for a pre-existing reason, verify your change
 at the finest granularity the build system offers, and prove the pre-existing
 failure is pre-existing.**
+
+---
+
+### Prop. 165 — 8 ungated crates became 3, and one of the three failures was my own flag — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Crate coverage scan — every crate must be built by some workflow*
+
+**165a. Correcting Prop. 163's count.** Of the three crates reported as not
+compiling, `tools/converter` fails only under `--offline` — a dependency absent
+from the local cache, not a defect. Worse, the run that appeared to *confirm* it
+was clean printed nothing because the shell's cwd had reset and cargo reported
+`manifest path does not exist`, which my filter did not match. **Two of eight,
+not three**, and one of the two was diagnosed twice by accident.
+
+**165b. `backend/trinity-core` was in neither `members` nor `exclude`.** Cargo
+then reports *"current package believes it's in a workspace when it's not"* and
+the crate cannot be built at all. Excluded rather than added as a member: that
+resolves the error without changing what the workspace build covers, which is a
+separate decision. `contrib/solana/programs/tri-mining` had the same defect and
+is fixed with it. Both now check clean.
+
+**165c. Five of the eight are workspace members.** So one
+`cargo check --workspace --all-targets` step covers them — it passes with **0
+errors** today, which it would not have before Props. 163 and 165b. **8 ungated
+→ 3.**
+
+**165d. The gate resolves `--workspace` to its members, not to the flag.** Same
+rule as a discovery matrix (Prop. 162): coverage is the invocation's *output*.
+Crediting the flag itself would mark every crate in the repository covered,
+including the three that are explicitly excluded from the workspace and which
+that command does not build.
+
+**165e. Corollary (a coverage-claiming construct must be evaluated, never
+matched).** *For any CI construct that covers a set — a matrix, a `--workspace`
+flag, a glob, a tag selector — the safe reading is the set it resolves to on
+this repository today.* Three distinct constructs in this campaign have now been
+read as broader than they are, and in each case the resolution was a few lines
+of code the checker could run itself.
+
+---
+
+### Prop. 166 — one unparsable initialiser destroyed its whole file — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**166a.** `var segments : [][]u8 = &[_][]u8{};` uses the `[_]`
+inferred-length array literal, which the expression parser does not implement.
+`parse_var_decl` propagated that with `?`, **past** `parse_top_level_decl`'s
+recovery, so the failure escaped the module body loop entirely and the file
+ended as `Expected RBrace, got Eof`. One initialiser, one whole spec lost.
+
+**166b. The repair is the parser's own contract applied one level down.** The
+module body already recovers from a failed declaration; the value position did
+not. On failure the initialiser is now recorded as
+`<unparsed initialiser at line N>` and the **declaration survives**. The array
+literal remains unimplemented and is named as such in the AST rather than
+silently absent.
+
+**166c. 29 → 13, and the file that could not parse at all now parses clean.**
+Net across four waves: **788 → 13**. All 1213 tests pass.
+
+**166d. A second defect found on the way, and left in.** `skip_to_semicolon`
+delegated brace groups to `skip_brace_body`, which over-consumes on an empty
+`{}` and would eat an enclosing block's terminator. Depth is now tracked inline,
+and an unmatched `}` ends the value rather than being consumed — *a scanner must
+never consume a terminator it did not open.* That fix alone did not change the
+measurement, and is kept because it is correct on its own terms.
+
+**166e. Theorem (error propagation across a recovery boundary).** *A recovery
+handler protects exactly the call sites beneath it. An error raised by a callee
+that the handler's caller invokes **outside** the handler's dynamic extent is not
+recovered, regardless of how comprehensive the handler is.* The practical form:
+when a parser has a recovery loop, every helper it calls must either recover
+locally or be called from inside that loop — and a `?` in a helper is a silent
+promotion of a local failure to a global one.
 
 ---
 

@@ -35,6 +35,11 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    "Workspace check (all crates, all targets)":
+        "its subject is the Rust workspace, not build/rtl -- starving the RTL "
+        "cannot make `cargo check` fail. Its absence case is cargo's own: with "
+        "no manifest, cargo exits non-zero naming the missing path (Prop. 165).",
+
     "Crate coverage scan — every crate must be built by some workflow":
         "its subject is Cargo.toml files and .github/workflows, not build/rtl "
         "-- starving the RTL cannot make it fail. Its absence case is internal "

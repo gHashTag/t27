@@ -4,7 +4,8 @@
 Prop. 159 found 1213 tests that no job ran, because the only `cargo test`
 workflow discovers `ring-*-rust` crates by matrix and never matched the compiler
 crate. That was one instance. Enumerated: **8 of 30 crates are covered by no
-workflow at all** — and 3 of those 8 did not compile.
+workflow at all** -- and 2 of those 8 did not compile. (A third
+appeared broken only under `--offline`; see Prop. 165.)
 
 The correlation is the finding. `flash-spi` stopped building when `FlashOpts`
 gained two fields and one call site was not updated; nothing built it, so
@@ -66,9 +67,22 @@ def main():
         return 1
 
     wf = " ".join(y.read_text(errors="ignore") for y in wf_dir.glob("*.yml"))
+
+    # Prop. 165: a `cargo check/test --workspace` step covers exactly the
+    # members list in the root Cargo.toml -- no more, no less. Same rule as a
+    # discovery matrix (Prop. 162): coverage is the invocation's OUTPUT, so
+    # resolve the members rather than crediting the flag.
+    members = set()
+    if re.search(r"cargo\s+(?:check|test|build)[^\n]*--workspace", wf):
+        root = ROOT / "Cargo.toml"
+        if root.exists():
+            m = re.search(r"members\s*=\s*\[([^\]]*)\]", root.read_text())
+            if m:
+                members = set(re.findall(r'"([^"]+)"', m.group(1)))
+
     ungated = []
     for name, path in sorted(found.items()):
-        covered = (f"-p {name}" in wf) or (path in wf)
+        covered = (f"-p {name}" in wf) or (path in wf) or (path in members)
         # A discovery matrix counts only for crates it demonstrably matches.
         # Prop. 162: a matrix's coverage is its output, not its intent.
         if not covered and name.startswith("ring-") and "rings_matrix" in wf:
