@@ -1896,6 +1896,93 @@ partition is still wrong, which given this record is the way to bet.
 
 ---
 
+### T37 (W630) — A diagnostic message is a projection of the cause, and planning from message classes overestimates leverage by a factor of five
+
+**W626 said "three classes cover 81 specs" and W628 said the braced-import class
+was 46.** Both numbers came from grouping the *error message*. Grouping instead
+by the **source line the parser stopped on**, normalised to a syntactic shape,
+gives a different world:
+
+| grouping | classes | top-10 coverage |
+|---|---:|---:|
+| by error message | **25** | **87%** |
+| by failing source shape | **147** | **19%** |
+
+Over the same 178 failures. The message-based view says ten fixes cover
+seven-eighths of the problem; the source-based view says the largest single
+cause is **6 files** and the distribution is a long tail.
+
+**The braced-import class is the concrete case.** By message: 46. By reading the
+line: **9**. The message
+*"Unexpected token in expression: LBrace at module level"* is emitted for a
+braced `use` list, for `impl X {`, for a struct-shaped constant, and for
+everything else that reaches a `{` where the module-level expression parser did
+not want one. **One message, at least a dozen causes.**
+
+**Statement.** Let `c(f)` be the root cause of failure `f` and `m(f)` the
+diagnostic emitted. `m` factors through a compiler's finite message vocabulary,
+so `m = π ∘ c` for a projection `π` that is **not injective**. Grouping by `m`
+therefore computes the partition induced by `π`, whose classes are unions of
+cause-classes. Since work is done per cause, **|m-class| is an upper bound on the
+work a fix in that class removes, and the bound is not tight** — here it
+overstates by 5× on the class that was actually attempted.
+
+**Corollary — a diagnostic vocabulary is a lossy compression tuned for the
+reader, not for the planner.** A compiler chooses messages so a human at *one*
+failure understands *that* failure; nothing in that objective requires messages
+to separate causes across a corpus. Using them as a work breakdown silently
+adopts the compiler author's taxonomy as the project's.
+
+*Falsification condition:* a corpus where the message partition and the
+cause partition coincide — which would mean the compiler emits a distinct
+message per cause, i.e. has as many messages as the language has ways to be
+wrong.
+
+---
+
+### T38 (W630) — Closing a defect class fixes fewer files than the class contains, and the shortfall is unknowable in advance
+
+**Two classes have now been closed with the population measured on both sides.**
+
+| wave | class | files in class | files fixed | yield |
+|---|---|---:|---:|---:|
+| W629 (T36) | `invariant <expr>;` in a body | 30 | **28** | 93% |
+| W630 (T38) | `use a::b::{X, Y};` | 9 | **5** | **56%** |
+
+The four unfixed braced-import files now fail on `Expected DotDot`, on
+`Lt ('<')` — generics — on `impl TestRunnerConfig {`, and on a nested parse
+error. **They were never braced-import failures in the sense that mattered; they
+were files whose *first* defect was a braced import.**
+
+**Statement.** Let `D(f)` be the set of defect classes present in file `f`. A
+parser reports only the first, so the observed class of `f` is
+`min_≺ D(f)` under source order. Closing class `C` fixes exactly
+`{f : D(f) = {C}}`, and the observed population is `{f : min D(f) = C}` — a
+superset. **The yield `|{f : D(f) = {C}}| / |{f : min D(f) = C}|` cannot be
+computed before the fix**, because the second and later elements of `D(f)` are
+*masked by construction*: the parser never reached them.
+
+**This is T19 with the sign flipped and the ledger watching.** T19 observed that
+fixing a defect can *raise* an error count, because removing a masking error
+exposes what was behind it. T38 is the same masking, measured as a *shortfall in
+files fixed* rather than as a rise in diagnostics — and because the ledger is
+keyed by identity, the shortfall is named: four paths, still present, now
+carrying a different reason.
+
+**Practical consequence, and it is the useful half.** A plan of the form *"close
+the three largest classes and the corpus drops by 81"* is unsound twice over —
+T37 says the class sizes are inflated by the message projection, and T38 says the
+yield within a class is below 1 and unknown. **The only honest forecast is the
+one the ledger gives after the fact.** Measured so far: 206 → 178 → 173, with a
+combined yield of 33 files fixed from two classes whose message-based sizes
+summed to 76.
+
+*Falsification condition:* a class with yield 1.0 over a population larger than
+a handful — which would mean single-defect files, and would make the tail
+tractable by class after all.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

@@ -1393,6 +1393,55 @@ impl Parser {
                         }
                     }
                 }
+                // W630: braced import list -- `use a::b::{X, Y, Z};`. The `::`
+                // loop above breaks when the token after `::` is not an Ident,
+                // so `full_path` ends in `::` and the `{ … };` was left to be
+                // parsed as a module-level expression: "Unexpected token in
+                // expression: LBrace". It is sugar for N single imports, and
+                // that is exactly what it lowers to here -- one UseDecl per
+                // name, each with the shared prefix -- so `use_resolve` sees
+                // the shape it already understands. See T38.
+                if self.current.kind == TokenKind::LBrace && full_path.ends_with("::") {
+                    let checkpoint = self.save_state();
+                    let prefix = full_path.trim_end_matches("::").to_string();
+                    self.advance(); // consume `{`
+                    let mut names: Vec<String> = Vec::new();
+                    let mut ok = true;
+                    loop {
+                        if self.current.kind == TokenKind::RBrace {
+                            self.advance();
+                            break;
+                        }
+                        if self.current.kind != TokenKind::Ident {
+                            ok = false;
+                            break;
+                        }
+                        names.push(self.current.lexeme.clone());
+                        self.advance();
+                        if self.current.kind == TokenKind::Comma {
+                            self.advance();
+                        } else if self.current.kind != TokenKind::RBrace {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok && !names.is_empty() {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        for n in names {
+                            let mut node = Node::new(NodeKind::UseDecl);
+                            node.value = format!("{}::{}", prefix, n);
+                            node.name = n;
+                            module.children.push(node);
+                        }
+                        continue;
+                    }
+                    // Same safety contract the rest of this parser carries: any
+                    // shape this cannot model restores the checkpoint, so a
+                    // file that parsed before still parses.
+                    self.restore_state(checkpoint);
+                }
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -33193,6 +33242,31 @@ mod tests_w458 {
     // six-position probe found three more, of which two are real Zig errors
     // (`let` with a declared type, and a struct-literal field) and one is not
     // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W630: `use a::b::{X, Y};` -- sugar for N single imports, lowered to
+    // exactly that so `use_resolve` sees the shape it already understands. T38.
+    #[test]
+    fn braced_import_list_lowers_to_one_use_per_name() {
+        let src = "module M\nuse math::sacred_physics::{PHI, PHI_INV, TRINITY};\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("a braced import list must parse");
+    }
+
+    #[test]
+    fn braced_import_list_with_one_name_and_trailing_comma() {
+        let src = "module M\nuse a::b::{X};\nuse c::d::{Y, Z,};\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("single-name and trailing-comma forms must parse");
+    }
+
+    #[test]
+    fn plain_and_aliased_use_forms_are_unaffected() {
+        // The braced branch only fires on `{` after a path ending in `::`, so
+        // every other `use` shape must reach the code it always did.
+        let src = "module M\nuse base::types;\nuse datalog_solve;\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("plain use forms must still parse");
+    }
+
     // W629: `invariant <expr>;` in statement position. The single largest parse
     // failure class in the corpus (30 of 182), and L4 TESTABILITY requires the
     // very keyword the parser rejected there. T36.

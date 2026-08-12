@@ -5355,6 +5355,36 @@ These cost a wave each. Follow them before step 1.
      and 1574+5 after, with identical failure lists. Another population the
      2614 never covered.
 
+220. **Never plan work from ERROR-MESSAGE classes.** Over the same 178
+     failures: 25 classes by message (top-10 covers 87%) vs **147 classes by
+     failing SOURCE SHAPE** (top-10 covers 19%). "Unexpected token in
+     expression: LBrace at module level" is emitted for braced `use` lists, for
+     `impl X {`, for struct-shaped constants -- one message, a dozen causes. I
+     published "the braced-import class is 46"; reading the failing line gives
+     **9**. A diagnostic vocabulary is lossy compression tuned for a human at
+     ONE failure, not for a planner across a corpus. (T37.)
+
+221. **Group by the SOURCE LINE the parser stopped on, normalised to a shape:**
+     take the line number out of the message, read that line, then
+     `re.sub(r'\d+','N')`, `re.sub(r'"[^"]*"','S')`, `re.sub(r'\b[a-z_]\w*\b','x')`.
+     That is the cause partition; the message is a projection of it.
+
+222. **Class YIELD is below 1 and cannot be known before the fix.** A parser
+     reports only a file's FIRST defect, so the observed class is
+     `min D(f)`, while closing class C fixes only `{f : D(f) == {C}}`.
+     Measured: `invariant` in a body 30 -> 28 fixed (93%); braced imports
+     9 -> 5 (56%), the other four now failing on generics, `impl`, and
+     `Expected DotDot`. **The only honest forecast is the ledger, after the
+     fact.** (T38 -- this is T19's masking, measured as a shortfall in files
+     fixed rather than a rise in diagnostics.)
+
+223. **`use a::b::{X, Y};` is sugar for N single imports** -- lower it to
+     exactly that, one UseDecl per name with the shared prefix, so
+     `use_resolve` sees the shape it already handles. The `::` segment loop
+     breaks when the token after `::` is not an Ident, leaving `full_path`
+     ending in `::` and the brace to be misparsed at module level; that is the
+     hook. Keep the checkpoint/restore contract.
+
 ### How to update this tracker
 
 After closing a wave:
