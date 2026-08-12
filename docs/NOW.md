@@ -22,6 +22,29 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 684 — occlusion four deep, and the two files no list ever reached
+
+**phantom_scan omitted two property files (Prop. 176)** -- `max_size_props.sv`
+and `zero_size_props.sv`, the only ones in formal/ no phantom scan reached. They
+are also the same two Prop. 69 found ungated for many waves. **A file omitted
+from one hand-maintained list is disproportionately likely to be omitted from
+the next.** 20 -> 26 modules scanned; a planted phantom takes it 0 -> 6.
+
+**Backtracking works, and the corpus needs four features at once (Prop. 177).**
+Lexer state is three integers, so a mark is cheap; with it a generic argument can
+be a full type recursively and `fn read<T>(...)` parses. The invariant that
+disambiguates `<` is positional -- a generic list on a fn name is always followed
+by `(` -- not a characterisation of what a comparison looks like.
+
+But `kv.t27` needs generic fn names, THEN `(T) -> void`, THEN `[T?]`, THEN
+`read<str>(...)` in expression position. Each is unreachable until the previous
+parses. *No proper subset containing the first improves the file; any subset
+missing the rest makes it strictly worse.*
+
+So only the piece that cannot regress shipped: **12 swallowed, down from 13**,
+events 502 -> 498, kv.t27 unregressed, 1213 tests pass.
+
 ## Wave 683 — one mistake in two copies, and a withdrawn explanation
 
 **Swept every workflow step for Prop. 173's shape.** The witness step is the

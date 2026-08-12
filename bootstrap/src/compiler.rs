@@ -1754,6 +1754,32 @@ impl Parser {
             }
         }
 
+        // Prop. 177: a PARENTHESISED function type, `(T) -> void`. Distinct from
+        // the `fn(...)` form below; the corpus uses both and this one had no
+        // branch at all, so a parameter carrying it aborted its whole file.
+        if self.current.kind == TokenKind::LParen {
+            let mut depth = 0i32;
+            loop {
+                match self.current.kind {
+                    TokenKind::LParen => depth += 1,
+                    TokenKind::RParen => depth -= 1,
+                    TokenKind::Eof => break,
+                    _ => {}
+                }
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+                if depth == 0 {
+                    break;
+                }
+            }
+            if self.current.kind == TokenKind::Arrow {
+                ty.push_str("->");
+                self.advance();
+                ty.push_str(&self.parse_type_annotation());
+            }
+            return ty;
+        }
+
         // Prop. 167: function types, `fn(TaskResult) void`. A parameter whose
         // type is a function was unparseable, so the enclosing declaration was
         // discarded -- 25 of them, and they became VISIBLE only once the array

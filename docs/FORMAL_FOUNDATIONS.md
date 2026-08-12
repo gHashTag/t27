@@ -9450,6 +9450,77 @@ only the one where the exposure was first noticed.
 
 ---
 
+### Prop. 176 — the two files no coverage check reached, twice — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No property references a signal that does not exist*
+
+**176a.** Prop. 175 gave the rule; applying it found that `phantom_scan.py`'s
+`SUITES` list omitted **`max_size_props.sv` and `zero_size_props.sv`** — the only
+two property files in `formal/` that no phantom scan reached. Added: **20 → 26
+property modules scanned, 0 phantoms.**
+
+**176b. They are the same two files Prop. 69 found ungated.** Those eight
+zero-size properties were counted as coverage for many waves while no job ran
+them. The same pair has now been missed by two different kinds of coverage
+check, written years of waves apart. **A file omitted from one hand-maintained
+list is disproportionately likely to be omitted from the next**, because both
+lists are written by reading the same mental inventory.
+
+**176c. Verified biting.** Planting a phantom in an assertion of the newly-added
+suite takes the scan from 0 to **6** phantom signals — six because that file is
+read into four wrapper tops, which is the loud behaviour wanted. Restoring
+returns it to 0. A first attempt at this test planted into a *comment* and
+caught nothing, which is why the mutation targets an `assert (` line.
+
+---
+
+### Prop. 177 — backtracking is the enabling capability, and the corpus needs four features at once — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**177a. The design.** `Parser` held `current` + `peek` and no way back, so any
+construct not recognisable from two tokens had to be matched by a bounded shape
+— and Prop. 174c showed a shape bound safe enough to ship was too narrow for the
+corpus. `Lexer` is `{source, pos, line, col}` with `source` immutable, so a
+**mark is three integers plus the two lookahead tokens**. Implemented and
+verified: with it, a generic argument can be a full type *recursively*, and
+`fn read<T>(...)` parses in isolation.
+
+**177b. The requirement that makes `<` unambiguous is positional, not lexical.**
+A generic list on a function name is *always* immediately followed by `(`.
+Requiring that — rather than trying to characterise what a comparison looks like
+— is what makes the two impossible to confuse. **State the invariant of the
+construct you want, not the negation of the one you fear.**
+
+**177c. And then the corpus refused it, four features deep.** `specs/storage/kv.t27`
+needs, in order: generic fn names → *then* a parenthesised function type
+`(T) -> void` → *then* an optional-type suffix `[T?]` → *then* a generic **call
+expression** `read<str>(...)`, which is the classic `<` ambiguity in expression
+position. Each becomes reachable only when the previous one parses. **Fourth,
+fifth and sixth instances of Prop. 167's occlusion relation, all inside one
+signature file.**
+
+**177d. So only the piece that cannot regress was shipped.** Without the
+generic-fn-name fix, `kv.t27` still fails at the name and never reaches the rest
+— which makes the parenthesised function type safe to land alone. **12 swallowed
+declarations, down from 13; recovery events 502 → 498; kv.t27 unregressed; 1213
+tests pass.**
+
+**177e. The backtracking work was lost to a careless `git checkout` and is NOT
+reinstated here.** It was correct and verified, and re-adding it without its
+dependants would be dead code. Recorded as a design with a measured result
+(177a–b) so the next attempt starts from the answer rather than the question.
+
+**177f. Theorem (occlusion depth bounds incremental progress).** *If features
+`f₁ … fₙ` occur in one artifact such that `fᵢ` is unreachable until `fᵢ₋₁`
+parses, then no proper subset containing `f₁` improves that artifact, and any
+subset containing `f₁` but not all of `f₂ … fₙ` makes it strictly worse — it
+converts a partial parse into a hard failure.* The operational rule: **when a fix
+makes a file worse, count the chain before assuming the fix is wrong.** Here the
+fix was right and the chain was four long.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

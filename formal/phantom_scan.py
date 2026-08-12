@@ -68,6 +68,17 @@ SUITES = [
     ("weight_prefetch_props.sv", "wp_props", ["weight_prefetch_ctrl"]),
     ("witnesses.sv", None, ["interrupt_controller", "axi_lite_slave", "dma_controller",
                             "layer_sequencer", "weight_prefetch_ctrl"]),
+    # Prop. 176: max_size_props and zero_size_props were the only property
+    # files in formal/ that no phantom scan reached. They are also the suites
+    # Prop. 69 found ungated for many waves -- the same two files have now been
+    # missed by two different kinds of coverage check, which is what a file
+    # nobody thinks of looks like from the outside.
+    ("max_size_props.sv", "ms_prefetch", ["weight_prefetch_ctrl"]),
+    ("max_size_props.sv", "ms_dma", ["dma_controller"]),
+    ("zero_size_props.sv", "zs_multilayer", ["multilayer_sequencer"]),
+    ("zero_size_props.sv", "zs_dma", ["dma_controller"]),
+    ("zero_size_props.sv", "zs_prefetch", ["weight_prefetch_ctrl"]),
+    ("zero_size_props.sv", "zs_layer", ["layer_sequencer"]),
 ]
 
 # The bit index is optional, and omitting it was a real hole. Wave 637c:
