@@ -1472,6 +1472,206 @@ a total below 2614.
 
 ---
 
+### T29 (W627) — The machine-readable summary reported zero failures for every run that printed 2614, and the test covering that field verifies a reimplementation of it
+
+**Found by asking a research agent for implementation constraints, then checking
+the artefact.** `SuiteSummary` declares `total_failures`, `passed` and
+`acceptable` (`suite.rs:919-925`). **None of the three was ever assigned.** They
+were read only at print time (`:1500-1503`) and serialised straight from
+`Default`.
+
+Both `--json` files written this session, from runs that printed
+`TOTAL FAILURES: 2614`:
+
+```json
+{ "total_failures": 0, "passed": false, "acceptable": false, "baseline_failures": 0,
+  "phases": [ {"name":"parse","failed":249}, … {"name":"seal-verify","failed":1056} ] }
+```
+
+**The human output and the machine output of the same run disagree by 2614.**
+Any CI consumer reading `total_failures` sees a clean run. `passed: false` is
+correct only because `false` is the `Default` for `bool`; had the field been
+`passed_count` or an inverted `failed: bool`, the JSON would have asserted
+success. **`ACCEPTABLE: no` printed for the same reason** — not computed,
+defaulted.
+
+**And a test appears to cover exactly this.**
+`test_suite_summary_acceptable_computation` builds a `HashSet` baseline, a
+`known` vector, and asserts `known_set.is_subset(&baseline)` and
+`total.saturating_sub(known.len()) == 0`. Every one of those is a local
+variable. **The test calls nothing under test.** It re-derives the rule inside
+itself and checks that its own arithmetic is consistent, which it is, forever,
+regardless of what the production path does — and the production path did
+nothing at all.
+
+**Statement.** Let a test `T` be intended to verify a property `P` of a
+production function `f`. If `T` computes `P` from locally constructed values
+rather than from `f`'s output, then `T` establishes `P(T's arithmetic)`, not
+`P(f)`. `T` is **total** — it passes for every implementation of `f`, including
+the empty one — so its coverage of `f` is zero while its appearance of coverage
+is complete. **A test that reimplements its subject is not a weak test; it is
+not a test of that subject at all.**
+
+**Corollary — this is T16 in the test suite.** T16 named a *rule* verified only
+on the population authored from it: likelihood ratio 1. A test that reimplements
+its subject is the same defect with the population shrunk to one — the check and
+the checked have a common cause, so agreement is entailed. Both report the same
+green a sound version would.
+
+**Fixed in W627.** The three fields are now assigned from the run, and four new
+tests call the production functions (`is_scratch`, `PhaseSplit::from_failures`,
+`PhaseAttribution::attribute`) rather than restating their rules.
+
+*Falsification condition:* a consumer of `suite_summary.json` that reads
+`total_failures` and behaved correctly anyway, which would mean the field was
+already known to be meaningless.
+
+---
+
+### T30 (W627) — Collapsing gated multiplicity is a prerequisite for any ratchet, not a presentation choice
+
+**T27 measured that 1494 of 2614 is one fact counted six times.** W627 makes the
+suite say so. Every spec-walking phase now records *which* files failed; a
+failure on a file that already failed an earlier, gating phase is classified
+**BLOCKED**, not *failed*:
+
+```
+--- Population split (W627) ---
+phase              corpus  scratch   blocked
+parse                 206       43         0
+typecheck               0        0       249
+gen-zig                 0        0       249
+…
+PRIMARY (corpus):        206
+PRIMARY (scratch):        43
+BLOCKED (gated upstream): …
+DISTINCT FAILING SPECS:  …
+```
+
+**Statement.** Let `E` be an expectation ledger keyed by *(item, phase)*. If
+downstream phases are gated, a single primary defect enters `E` once per phase,
+so `|E|` scales with pipeline depth and every fix of one primary defect requires
+`k` ledger deletions. **A ledger over unattributed failures is not merely
+verbose: its size is a function of the pipeline's shape, so its cap — the only
+mechanism that resists baseline rot — measures the wrong thing.** Attribution
+must precede amnesty.
+
+**Consequence for the design.** With attribution, the corpus ledger is expected
+to be *exactly the 206 parse failures*, all at phase `parse`, because T27
+measured every downstream failure set to be `comm -3`-identical to the parse
+set. Without it, the same information costs ~1236 entries.
+
+*Falsification condition:* a downstream phase whose failure set is not a subset
+of the union of upstream failure sets — i.e. a genuine codegen-only defect,
+which the implementation deliberately still classifies as PRIMARY.
+
+---
+
+### T31 (W627) — A golden-file gate that writes the golden file when it is missing cannot fail on a new item
+
+**Found in the Icarus phase.** `cmd_icarus_simulate_with_baseline`
+(`suite.rs:491-508`):
+
+```rust
+if baseline.exists() {
+    let expected = load_icarus_baseline(&baseline)?;
+    if actual != expected { anyhow::bail!("Icarus output does not match baseline …"); }
+} else {
+    save_icarus_baseline(&baseline, &actual)?;   // <-- records whatever happened
+    println!("  recorded Icarus baseline: {}", baseline.display());
+}
+```
+
+265 baselines exist under `.trinity/icarus-baselines/`. For any spec **without**
+one, the first run writes the file from its own output and returns `Ok(())`.
+**The gate's verdict on a new item is unconditionally "pass", and the artefact it
+just created makes that verdict look earned in every subsequent run.**
+
+**Statement.** A comparison gate over a stored oracle has two regimes: *compare*
+when the oracle exists, *acquire* when it does not. If acquisition happens
+silently inside the same code path as verification, then for each item the gate
+is a no-op exactly once — on its first appearance, which is the only run in which
+the item's behaviour has never been reviewed. **The gate is weakest precisely
+where it is needed most**, and it leaves no trace distinguishing "verified
+against a reviewed oracle" from "blessed itself last Tuesday".
+
+**Corollary — this is §4's list again, with the artefact created rather than
+discarded.** Every entry in §4 is a stage that accepted input, produced less than
+it should, and reported success. This stage accepts input, produces an *oracle*
+it was supposed to be checked against, and reports success. The remedy is the
+same in both cases and is standard practice in the field: acquisition must be an
+explicit, human-invoked mode (a `--bless` flag), and a missing oracle in
+verification mode must be a hard failure.
+
+*Falsification condition:* a policy under which recording an unreviewed baseline
+on first sight is intended — in which case the `println!` should say so and the
+suite summary should count it as a skip rather than a pass.
+
+---
+
+### T32 (W627) — Where the ratchet idea actually comes from, and the two halves that get conflated
+
+**This is context for T27–T31, named from general knowledge and without
+fabricated citations, under §3's standing rule.** The mechanism T27 demands has
+been independently reinvented by most mature toolchains, and it divides into two
+halves that are routinely confused.
+
+**The coarse half stores a scalar.** Two variants must be distinguished. A
+**static threshold** is a number a human writes that nothing updates — ESLint's
+`--max-warnings N` is this, it exits non-zero above `N`, never rewrites `N`, and
+is in practice set to zero. A **true ratchet** additionally rewrites the number
+downward on an improving run, so it turns only one way; `betterer` in the
+JS/TypeScript world commits a results file and tightens it, and RuboCop's
+`--auto-gen-config` writes per-cop `Max:` counts into a TODO file. **Both of the
+genuine auto-tightening tools store per-item or per-class counts, not one global
+integer** — "one number" is a design choice, not a property of the family.
+Diff-scoped gates (golangci-lint's `--new-from-rev`, SonarQube's new-code
+conditions) are a *different* mechanism with inverted trade-offs, not a member
+of this half.
+
+**The fine half attaches an expected outcome to a specific item**, and it is what
+T27's situation actually requires. DejaGnu's vocabulary separates XFAIL from
+XPASS and reports "expected failures" and "unexpected successes" as distinct
+counts; GDB's suite added KFAIL/KPASS to separate a bug-tracked known failure
+from a platform limitation. LLVM's `lit` puts `XFAIL:` in the test file — the
+test still runs, an expected failure does not move the exit code, and **an XPASS
+is classified as a failure and does**. `lit`'s `UNSUPPORTED:` is emphatically not
+the same mechanism: the test is skipped, so an unexpected pass can never be
+observed, which is why parking a known break there hides it. pytest's
+`@pytest.mark.xfail` tolerates XPASS by default, and the existence of
+`xfail_strict` is the field's own admission that the default is wrong. Chromium's
+Blink `TestExpectations` pairs a bug ID, a platform predicate, a path and an
+expectation token, where `[ Failure ]` gives three outcomes and `[ Skip ]` gives
+two. Android CTS's `--exclude-filter` is **not** an instance — it is a skip list,
+the item never runs, and a fix can never be detected. The idea has migrated into
+type systems with the dual made explicit: TypeScript's `@ts-expect-error` is
+itself an error when the next line has no error, mypy's `warn_unused_ignores`
+flags a suppression that no longer suppresses, and Rust's `#[expect(lint)]` fires
+`unfulfilled_lint_expectations` when the lint does not occur.
+
+**The invariant across all of them:** the unit of amnesty is an *identity paired
+with an expected outcome*, and the verdict is a function of observed-versus-
+expected per identity. **Not one of them reports a total and asks a human to
+remember what the total used to be** — which is precisely what this repository's
+suite does, and precisely why T27 found it carries no signal.
+
+**The named failure mode is normalisation of deviance** — Diane Vaughan's term
+from the Challenger analysis, for how individually reasonable decisions to accept
+an out-of-spec observation accumulate until the out-of-spec condition *is* the
+standard. In test infrastructure it presents as baseline rot: adding a line to
+the expectations file is a one-line diff, fixing the bug is a week, and reviewers
+approve baseline additions without reading them. The documented countermeasures
+are policy rather than code — an owner and a tracking issue per entry, an expiry
+that fails the gate when past due, a monotone-downward cap on list size so growth
+requires a labelled override, and periodic forced re-derivation.
+
+**And the implementation bug that converts the whole apparatus into a no-op is
+T31's**: blessing on absence. The field's answer is that acquisition must be an
+explicit human-invoked command and a missing oracle in verification mode must be
+a hard error.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

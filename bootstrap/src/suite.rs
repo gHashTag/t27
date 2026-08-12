@@ -141,6 +141,69 @@ fn run_phase(
     Ok((pass, fail))
 }
 
+/// W627: `specs/scratch/` is generator output -- 455 files and 98.89% of the
+/// 612,924,235 bytes `collect_t27(repo/specs)` returns, against 6,810,547 bytes
+/// of hand-written corpus. Every phase count in this suite has been a sum over
+/// those two populations, which mean entirely different things: a parse failure
+/// in the corpus is a defect, one in a generated benchmark is a fixture. See
+/// T24 and T29.
+fn is_scratch(rel: &str) -> bool {
+    rel.starts_with("specs/scratch/")
+}
+
+/// A phase's failures, split by the population they came from.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct PhaseSplit {
+    /// Failing paths under `specs/` but NOT under `specs/scratch/`.
+    corpus: Vec<String>,
+    /// Failing paths under `specs/scratch/`.
+    scratch: Vec<String>,
+}
+
+impl PhaseSplit {
+    fn from_failures(failures: &[String]) -> Self {
+        let mut s = PhaseSplit::default();
+        for f in failures {
+            if is_scratch(f) {
+                s.scratch.push(f.clone());
+            } else {
+                s.corpus.push(f.clone());
+            }
+        }
+        s
+    }
+
+    fn total(&self) -> usize {
+        self.corpus.len() + self.scratch.len()
+    }
+}
+
+/// W627: a per-file outcome that distinguishes "this phase disagreed" from
+/// "this phase never had a chance". `typecheck`, `gen-*` and friends run on
+/// files that never parsed, so one unparseable spec produced SIX failure
+/// counters. `BLOCKED` is not a failure and must never enter a ledger.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct PhaseAttribution {
+    /// Failures at this phase on files that cleared every earlier phase.
+    primary: PhaseSplit,
+    /// Failures on files already failing an earlier phase. Counted, not blamed.
+    blocked: Vec<String>,
+}
+
+impl PhaseAttribution {
+    /// Split `failures` against the set of paths that already failed upstream.
+    fn attribute(failures: &[String], already_failed: &std::collections::HashSet<String>) -> Self {
+        let (blocked, fresh): (Vec<String>, Vec<String>) = failures
+            .iter()
+            .cloned()
+            .partition(|f| already_failed.contains(f));
+        PhaseAttribution {
+            primary: PhaseSplit::from_failures(&fresh),
+            blocked,
+        }
+    }
+}
+
 /// Like `run_phase`, but also returns the relative paths of failing files so the
 /// suite summary can expose them to CI consumers.
 fn run_phase_with_failures(
@@ -923,6 +986,27 @@ struct SuiteSummary {
     passed: bool,
     /// True when the only observed failures are within the documented baseline.
     acceptable: bool,
+    // ---- W627: population split and gating attribution -------------------
+    /// Failures at the phase that first rejected the file, outside
+    /// `specs/scratch/` and excluding seal staleness. The real defect count.
+    #[serde(default)]
+    primary_corpus_failures: usize,
+    /// The same, for generator scaffolding under `specs/scratch/`.
+    #[serde(default)]
+    primary_scratch_failures: usize,
+    /// Failures on files already failing an earlier, gating phase. These are
+    /// not defects; they are the same defect counted again downstream.
+    #[serde(default)]
+    blocked_failures: usize,
+    /// Distinct spec files failing at least one phase.
+    #[serde(default)]
+    distinct_failing_specs: usize,
+    /// The same, restricted to the hand-written corpus.
+    #[serde(default)]
+    distinct_failing_corpus_specs: usize,
+    /// Per-phase corpus/scratch/blocked breakdown, in phase order.
+    #[serde(default)]
+    population_split: Vec<(String, PhaseAttribution)>,
 }
 
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
@@ -958,14 +1042,33 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         });
     };
 
+    // W627: the population ledger. Every spec-walking phase records WHICH files
+    // failed, so the summary can split corpus from scaffolding (T24/T29) and
+    // separate a primary failure from one merely gated on an earlier one (T27).
+    let mut ledger: Vec<(String, PhaseAttribution)> = Vec::new();
+    let mut upstream_failed: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut record = |name: &str,
+                      failures: Vec<String>,
+                      ledger: &mut Vec<(String, PhaseAttribution)>,
+                      upstream: &mut std::collections::HashSet<String>| {
+        let att = PhaseAttribution::attribute(&failures, upstream);
+        for f in failures {
+            upstream.insert(f);
+        }
+        ledger.push((name.to_string(), att));
+    };
+
     println!("--- Phase 1: Parse ---");
-    let (p1p, p1f) = run_phase(&repo, "parse", cmd_parse, &specs_compiler)?;
+    let (p1p, p1f, p1fail) = run_phase_with_failures(&repo, "parse", cmd_parse, &specs_compiler)?;
     println!("Parse: {} passed, {} failed", p1p, p1f);
+    record("parse", p1fail, &mut ledger, &mut upstream_failed);
     push_phase("parse", p1p, p1f, 0);
 
     println!("--- Phase 1b: Typecheck ---");
-    let (p1bp, p1bf) = run_phase(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
+    let (p1bp, p1bf, p1bfail) =
+        run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
     println!("Typecheck: {} passed, {} failed", p1bp, p1bf);
+    record("typecheck", p1bfail, &mut ledger, &mut upstream_failed);
     push_phase("typecheck", p1bp, p1bf, 0);
 
     println!("--- Phase 1c: GF16 Conformance ---");
@@ -991,33 +1094,36 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     );
 
     println!("--- Phase 2: Gen Zig ---");
-    let (p2p, p2f) = run_phase(
+    let (p2p, p2f, p2fail) = run_phase_with_failures(
         &repo,
         "gen-zig",
         |r, rel| cmd_gen(r, rel, "gen"),
         &specs_compiler,
     )?;
     println!("Gen Zig: {} passed, {} failed", p2p, p2f);
+    record("gen-zig", p2fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-zig", p2p, p2f, 0);
 
     println!("--- Phase 2b: Gen Rust ---");
-    let (p2bp, p2bf) = run_phase(
+    let (p2bp, p2bf, p2bfail) = run_phase_with_failures(
         &repo,
         "gen-rust",
         |r, rel| cmd_gen(r, rel, "gen-rust"),
         &specs_compiler,
     )?;
     println!("Gen Rust: {} passed, {} failed", p2bp, p2bf);
+    record("gen-rust", p2bfail, &mut ledger, &mut upstream_failed);
     push_phase("gen-rust", p2bp, p2bf, 0);
 
     println!("--- Phase 3: Gen Verilog ---");
-    let (p3p, p3f) = run_phase(
+    let (p3p, p3f, p3fail) = run_phase_with_failures(
         &repo,
         "gen-verilog",
         |r, rel| cmd_gen(r, rel, "gen-verilog"),
         &specs_only,
     )?;
     println!("Gen Verilog: {} passed, {} failed", p3p, p3f);
+    record("gen-verilog", p3fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-verilog", p3p, p3f, 0);
 
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
@@ -1180,18 +1286,25 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     }
 
     println!("--- Phase 4: Gen C ---");
-    let (p4p, p4f) = run_phase(
+    let (p4p, p4f, p4fail) = run_phase_with_failures(
         &repo,
         "gen-c",
         |r, rel| cmd_gen(r, rel, "gen-c"),
         &specs_only,
     )?;
     println!("Gen C: {} passed, {} failed", p4p, p4f);
+    record("gen-c", p4fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-c", p4p, p4f, 0);
 
     println!("--- Phase 5: Seal Verify ---");
-    let (p5p, p5f) = run_phase(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
+    let (p5p, p5f, p5fail) =
+        run_phase_with_failures(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
     println!("Seal Verify: {} passed, {} failed", p5p, p5f);
+    // W627: seal staleness is golden-file drift, not a defect population --
+    // 1056 of 1064 are stale and ~940 have an UNCHANGED spec_hash. It is
+    // recorded in the ledger for visibility and excluded from the corpus
+    // defect count below, because listing it as expected failure is debt.
+    record("seal-verify", p5fail, &mut ledger, &mut upstream_failed);
     push_phase("seal-verify", p5p, p5f, 0);
 
     println!("--- Phase 6: Fixed Point ---");
@@ -1498,6 +1611,92 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("GATE FAILURES:     {}", gate_fail);
     println!("TOTAL FAILURES:    {}", total_fail);
     println!("BASELINE FAILURES: {}", summary.baseline_failures);
+
+    // ---------------------------------------------------------------------
+    // W627: the partition. Every number above is a sum over two populations
+    // that mean different things, and over phases that are GATED on each
+    // other -- so one unparseable spec contributes six counters. T27 measured
+    // 1494 of 2614 to be one fact reported six times. See T29/T30.
+    // ---------------------------------------------------------------------
+    let mut distinct: std::collections::BTreeSet<&String> = std::collections::BTreeSet::new();
+    let mut distinct_corpus: std::collections::BTreeSet<&String> =
+        std::collections::BTreeSet::new();
+    let mut primary_corpus = 0usize;
+    let mut primary_scratch = 0usize;
+    let mut blocked_total = 0usize;
+    println!();
+    println!("--- Population split (W627) ---");
+    println!(
+        "{:<16} {:>8} {:>8} {:>9}",
+        "phase", "corpus", "scratch", "blocked"
+    );
+    for (name, att) in &ledger {
+        println!(
+            "{:<16} {:>8} {:>8} {:>9}",
+            name,
+            att.primary.corpus.len(),
+            att.primary.scratch.len(),
+            att.blocked.len()
+        );
+        // Seal staleness is golden-file drift, not a defect population: 1056 of
+        // 1064 are stale and ~940 carry an UNCHANGED spec_hash. Counted and
+        // shown, excluded from the corpus defect figure.
+        if name != "seal-verify" {
+            primary_corpus += att.primary.corpus.len();
+            primary_scratch += att.primary.scratch.len();
+            for f in &att.primary.corpus {
+                distinct_corpus.insert(f);
+            }
+        }
+        blocked_total += att.blocked.len();
+        for f in att
+            .primary
+            .corpus
+            .iter()
+            .chain(att.primary.scratch.iter())
+            .chain(att.blocked.iter())
+        {
+            distinct.insert(f);
+        }
+    }
+    println!();
+    println!("PRIMARY (corpus):        {}", primary_corpus);
+    println!("PRIMARY (scratch):       {}", primary_scratch);
+    println!("BLOCKED (gated upstream):{:>4}", blocked_total);
+    println!("DISTINCT FAILING SPECS:  {}", distinct.len());
+    println!("  of them, corpus:       {}", distinct_corpus.len());
+    println!(
+        "NOTE: TOTAL FAILURES sums GATED phases, so a single unparseable spec is\n\
+         counted once per phase. PRIMARY + BLOCKED is the honest decomposition."
+    );
+
+    // W627 (P0): `total_failures`, `passed` and `acceptable` were DECLARED and
+    // never assigned, so every suite_summary.json ever written reported
+    // `total_failures: 0` for runs that printed 2614, and `acceptable` printed
+    // "no" only because `false` is its Default. The unit test that appears to
+    // cover this re-implements the rule on local variables and never touches
+    // the production path. See T31.
+    summary.total_failures = total_fail;
+    summary.passed = total_fail == 0;
+    summary.acceptable = summary.passed
+        || (summary
+            .known_failures
+            .iter()
+            .cloned()
+            .collect::<std::collections::HashSet<String>>()
+            .len()
+            == summary.baseline_failures
+            && total_fail == summary.known_failures.len());
+    summary.primary_corpus_failures = primary_corpus;
+    summary.primary_scratch_failures = primary_scratch;
+    summary.blocked_failures = blocked_total;
+    summary.distinct_failing_specs = distinct.len();
+    summary.distinct_failing_corpus_specs = distinct_corpus.len();
+    summary.population_split = ledger
+        .iter()
+        .map(|(n, a)| (n.clone(), a.clone()))
+        .collect();
+
     println!(
         "ACCEPTABLE:        {} (known failures match baseline, no other failures)",
         if summary.acceptable { "yes" } else { "no" }
@@ -1842,6 +2041,9 @@ mod tests {
             total_failures: 2,
             passed: false,
             acceptable: true,
+            // W627: new population-split fields; Default keeps these tests
+            // about the fields they were written to cover.
+            ..Default::default()
         };
         let json = serde_json::to_string_pretty(&summary).unwrap();
         let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
@@ -1880,6 +2082,9 @@ mod tests {
             total_failures: 0,
             passed: false,
             acceptable: true,
+            // W627: new population-split fields; Default keeps these tests
+            // about the fields they were written to cover.
+            ..Default::default()
         };
         let json = serde_json::to_string_pretty(&summary).unwrap();
         let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
@@ -1892,6 +2097,66 @@ mod tests {
             value["fpga_smoke_failure_reason"].as_str(),
             Some("demo bitstream not found")
         );
+    }
+
+    // W627: these test the PRODUCTION functions. The neighbouring
+    // `test_suite_summary_acceptable_computation` re-implements its rule on
+    // local variables and never calls anything under test -- which is why
+    // `total_failures` could sit unassigned at 0 for a run printing 2614 with
+    // a green test suite. See T31.
+    #[test]
+    fn scratch_is_recognised_only_under_the_scratch_prefix() {
+        assert!(super::is_scratch("specs/scratch/w590_bench.t27"));
+        assert!(!super::is_scratch("specs/igla/race/ternary_mac.t27"));
+        // Not a prefix match on the basename, and not on a lookalike dir.
+        assert!(!super::is_scratch("specs/scratchpad/x.t27"));
+        assert!(!super::is_scratch("docs/specs/scratch/x.t27"));
+    }
+
+    #[test]
+    fn phase_split_partitions_corpus_from_scaffolding() {
+        let f = vec![
+            "specs/igla/a.t27".to_string(),
+            "specs/scratch/b.t27".to_string(),
+            "specs/numeric/c.t27".to_string(),
+        ];
+        let s = super::PhaseSplit::from_failures(&f);
+        assert_eq!(s.corpus.len(), 2);
+        assert_eq!(s.scratch.len(), 1);
+        assert_eq!(s.total(), 3);
+    }
+
+    #[test]
+    fn attribution_blames_the_first_phase_and_marks_the_rest_blocked() {
+        // The measured shape of this repo: one unparseable spec produces a
+        // failure in six phases. Only the first is a defect.
+        let broken = "specs/api/c_api_contract.t27".to_string();
+        let mut upstream: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        let parse = super::PhaseAttribution::attribute(&[broken.clone()], &upstream);
+        assert_eq!(parse.primary.corpus, vec![broken.clone()]);
+        assert!(parse.blocked.is_empty(), "nothing is upstream of parse");
+        upstream.insert(broken.clone());
+
+        for phase in ["typecheck", "gen-zig", "gen-rust", "gen-verilog", "gen-c"] {
+            let a = super::PhaseAttribution::attribute(&[broken.clone()], &upstream);
+            assert_eq!(a.primary.total(), 0, "{} must blame nothing", phase);
+            assert_eq!(a.blocked, vec![broken.clone()], "{} must be blocked", phase);
+        }
+    }
+
+    #[test]
+    fn attribution_still_blames_a_genuinely_new_downstream_failure() {
+        // A file that parses but fails codegen is a real, separate defect and
+        // must NOT be laundered into `blocked`.
+        let mut upstream: std::collections::HashSet<String> = std::collections::HashSet::new();
+        upstream.insert("specs/a.t27".to_string());
+        let a = super::PhaseAttribution::attribute(
+            &["specs/a.t27".to_string(), "specs/b.t27".to_string()],
+            &upstream,
+        );
+        assert_eq!(a.blocked, vec!["specs/a.t27".to_string()]);
+        assert_eq!(a.primary.corpus, vec!["specs/b.t27".to_string()]);
     }
 
     #[test]

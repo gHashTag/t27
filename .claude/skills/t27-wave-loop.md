@@ -5194,6 +5194,50 @@ These cost a wave each. Follow them before step 1.
      one pass over every number in the claim, against the log, the source and
      the clock.
 
+199. **A test that recomputes its subject's rule on LOCAL variables tests
+     nothing.** `test_suite_summary_acceptable_computation` built a HashSet
+     baseline and a `known` vector and asserted `known_set.is_subset(&baseline)`
+     -- all locals, no call into production. Meanwhile `summary.total_failures`,
+     `.passed` and `.acceptable` were DECLARED AND NEVER ASSIGNED, so every
+     `suite_summary.json` said `total_failures: 0` for runs printing 2614, and
+     `ACCEPTABLE: no` printed only because `false` is bool's Default. **The test
+     is total** -- it passes for every implementation including the empty one.
+     Grep your tests for ones that never name the function they claim to cover.
+     (T29; this is T16 with the population shrunk to one.)
+
+200. **Check the JSON against the stdout of the same run.** Two outputs of one
+     process disagreeing by 2614 is the cheapest possible bug to find and had
+     survived for many waves because nobody diffed them.
+
+201. **A golden-file gate that WRITES the golden file when it is missing cannot
+     fail on a new item.** `cmd_icarus_simulate_with_baseline` (suite.rs:491)
+     compares when the baseline exists and otherwise `save_icarus_baseline(...)`
+     and returns Ok. The gate is a no-op exactly once per item -- on the only
+     run where its behaviour has never been reviewed -- and the file it writes
+     makes every later run look earned. Acquisition must be an explicit
+     `--bless` mode; a missing oracle in verify mode must be a hard failure.
+     (T31.)
+
+202. **Attribution must precede amnesty.** Before building any expected-failure
+     ledger, classify a downstream failure on an already-failing file as
+     BLOCKED, not failed. Otherwise one primary defect costs k ledger entries,
+     the ledger's size tracks pipeline DEPTH rather than defect count, and its
+     cap -- the only thing resisting baseline rot -- measures the wrong thing.
+     With attribution the t27 corpus ledger is exactly 206 parse entries; without
+     it, ~1236. (T30.)
+
+203. **Know which half of the ratchet family you are building.** COARSE =
+     a scalar: a static threshold (ESLint `--max-warnings`, never self-updating)
+     vs a true ratchet that rewrites downward (`betterer`, RuboCop
+     `--auto-gen-config`) -- and note both real ones store PER-ITEM counts, not
+     one integer. FINE = an identity paired with an expected outcome (lit
+     `XFAIL:`, DejaGnu XFAIL/XPASS, Chromium TestExpectations,
+     `@ts-expect-error`, Rust `#[expect]`). **The fine half always treats an
+     unexpected PASS as a failure**; pytest's `xfail_strict` exists because its
+     default does not. Skip lists (lit `UNSUPPORTED:`, CTS `--exclude-filter`,
+     `[ Skip ]`) are NOT this mechanism -- the item never runs, so a fix can
+     never be detected. (T32.)
+
 ### How to update this tracker
 
 After closing a wave:
