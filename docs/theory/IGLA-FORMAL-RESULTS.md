@@ -2571,11 +2571,17 @@ invariants declared), counting how many appear by name in each output:
 
 | backend | tests present | invariants present |
 |---|---:|---:|
-| `gen` (Zig) | 730 (64%) | 575 (68%) |
-| `gen-c` | 730 (64%) | 575 (68%) |
-| `gen-verilog` | 730 (64%) | 574 (68%) |
-| **`gen-rust`** | **54 (5%)** | **214 (25%)** |
-| **`gen-verilog-hir`** | **55 (5%)** | **174 (21%)** |
+| `gen` (Zig) | 730 / 755 (**97%**) | 575 / 582 (**99%**) |
+| `gen-c` | 730 / 755 (97%) | 575 / 582 (99%) |
+| `gen-verilog` | 730 / 755 (97%) | 574 / 582 (99%) |
+| **`gen-rust`** | **54 / 755 (7%)** | **214 / 582 (37%)** |
+| **`gen-verilog-hir`** | **55 / 755 (7%)** | **174 / 582 (30%)** |
+
+> **Corrected in W639.** The first printing read 64/68 against 5/25, pooled over
+> specs where the backend emitted *nothing at all*. Conditioned on specs where
+> that backend produced output — the only denominator on which "did it lower
+> this construct?" is a question — the gap is far starker. **T35's error,
+> committed one wave after T35.** See **T49**.
 
 **Bimodal, and the gap is not a naming artefact.** Over 80 corpus specs that
 declare tests, `gen-rust` output contained `#[test]` or `#[cfg(test)]`

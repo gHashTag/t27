@@ -11,11 +11,17 @@
 W636 checked one backend of four -- the first one tried -- and found T45.
 This finishes the audit.
 
-  gen (zig)         730/1142 tests (64%)   575/840 invariants (68%)
-  gen-c             730 (64%)              575 (68%)
-  gen-verilog       730 (64%)              574 (68%)
-  gen-rust           54 ( 5%)              214 (25%)
-  gen-verilog-hir    55 ( 5%)              174 (21%)
+  gen (zig)         730/755 tests (97%)    575/582 invariants (99%)
+  gen-c             730/755 (97%)          575/582 (99%)
+  gen-verilog       730/755 (97%)          574/582 (99%)
+  gen-rust           54/755 ( 7%)          214/582 (37%)
+  gen-verilog-hir    55/755 ( 7%)          174/582 (30%)
+
+  [CORRECTED W639. The first printing gave 64%/68%/5%/25% -- pooled over
+   specs where the backend emitted NOTHING AT ALL, which is a different
+   failure. Conditioned on specs where that backend produced output, the
+   gap is far starker. My own T35 error, in a table published one wave
+   earlier. See T49.]
 
 `#[test]` appears in gen-rust output for 0 of 80 specs that declare tests.
 
@@ -44,10 +50,18 @@ five backends:
 | `gen-rust` | **nothing** |
 | `gen-verilog-hir` | **nothing** |
 
-Then measured over 120 non-scratch specs (a stated sample; 1 142 tests, 840
-invariants declared) — the table in the summary above. **Bimodal**, and not a
-naming artefact: `#[test]`/`#[cfg(test)]` appears in `gen-rust` output for
-**zero of 80** specs that declare tests.
+Then measured over 120 non-scratch specs (a stated sample) — the table in the
+summary above, **corrected in W639**. **Bimodal**, and not a naming artefact:
+`#[test]`/`#[cfg(test)]` appears in `gen-rust` output for **zero of 80** specs
+that declare tests.
+
+> **Correction (W639).** The percentages first published here (64/68 vs 5/25)
+> were pooled over specs for which the backend emitted *nothing at all* — an
+> empty output is a different failure from a silently-dropped construct.
+> Conditioned properly, the three real backends carry **97% of tests and 99% of
+> invariants**, and the two silent ones carry **7%** and 30–37%. The correction
+> makes the finding stronger and the error is T35's, committed one wave after
+> T35 was written. See **T49**.
 
 ---
 
