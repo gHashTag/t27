@@ -5789,6 +5789,27 @@ These cost a wave each. Follow them before step 1.
      say: **stop relying on the author to remember; put the check where the
      evidence is total.**
 
+282. **The artefact gate found 171 where simulation found 4.** Same defect
+     class (`let input = ...` -> `reg [63:0] input;`, `input` is a Verilog
+     keyword). Simulation sees only the specs it REACHES -- in the Icarus set,
+     actually run; the artefact check is total over the corpus. **Two orders of
+     visibility for the same bug.** When a gate and a runtime check disagree by
+     an order of magnitude, the gate is usually right and the runtime is
+     reachability-limited (T21).
+
+283. **A fix landing in the same wave as its detection needs NO bless.** 171
+     unexpected failures -> one `verilog_safe_identifier` call -> 0, ratchet
+     still CLEAN at 332/332 and the ledger never grew. Prefer this shape:
+     detect a whole class, empty it, and let the ledger stay flat. Blessing is
+     for what you are NOT fixing today.
+
+284. **A checker that claims totality and covers three of ten forms is T43's
+     shape applied to the checker.** `verilog-no-keyword-decl` parses
+     `reg`/`wire`/`integer`; Verilog also declares identifiers in `function`,
+     `task`, `parameter`, `localparam`, `genvar`, port lists and `for`
+     initialisers. Write the gate's own coverage limits into its doc comment
+     the moment you write the gate.
+
 ### How to update this tracker
 
 After closing a wave:
