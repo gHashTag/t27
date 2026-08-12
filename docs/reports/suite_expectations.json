@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 330,
+  "max_entries": 332,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -46,6 +46,13 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/ar/coa_planning.t27",
+      "phase": "backends-declare-omissions",
+      "reason": "`spec X { }` dialect: parses, all backends emit output, and 100% of declared tests/invariants are silently dropped (T35 dialect, T49 gate)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/ar/composition.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
@@ -70,6 +77,13 @@
       "path": "specs/ar/proof_trace.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/restraint.t27",
+      "phase": "backends-declare-omissions",
+      "reason": "`spec X { }` dialect: parses, all backends emit output, and 100% of declared tests/invariants are silently dropped (T35 dialect, T49 gate)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
