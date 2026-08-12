@@ -98,6 +98,11 @@ Split `Parse failures: 249` by the glob:
 | | ok | fail | rate |
 |---|---:|---:|---|
 | `specs/` outside `specs/scratch/` — **the hand-written corpus** | 403 | **206** | **33.8%** |
+
+> **Corrected W628 (T34):** 24 of the 206 are not t27 source — 15 Markdown files
+> carrying a `.t27` extension, 9 with no `module` declaration. Over actual source
+> the rate is **182 / 585 = 31.1%**. The 33.8% is itself a count over a mixed
+> population, one layer below the one this report was about.
 | `specs/scratch/` — generator scaffolding | 412 | 43 | 9.5% |
 
 **The compiler cannot parse a third of its own specification corpus**, and this

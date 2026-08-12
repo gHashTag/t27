@@ -1211,6 +1211,10 @@ number over two populations that mean different things. Split by the glob:
 | | ok | fail | rate |
 |---|---:|---:|---|
 | `specs/` outside `specs/scratch/` — **the corpus** | 403 | **206** | **33.8%** |
+
+*Corrected in W628 (**T34**): 24 of the 206 are not t27 source — 15 Markdown
+files with a `.t27` extension and 9 with no `module` declaration. Over actual
+source the rate is **182 / 585 = 31.1%**.*
 | `specs/scratch/` — scaffolding | 412 | 43 | 9.5% |
 
 **The interesting number was inside the uninteresting one.** A 33.8%
@@ -1760,6 +1764,62 @@ must never be the same mode that checks against it.**
 *Falsification condition:* a defect that reaches the corpus without producing an
 `UNEXPECTED FAILURE` — for instance one in a phase the ledger does not cover
 (scratch, seal), which is the deliberate and stated limit of this design.
+
+---
+
+### T34 (W628) — The ledger's first act was to refute the number that justified building it
+
+**Blessed over the real corpus: 206 entries, `max_entries` 206, and every single
+one at `phase: parse`.** T30 predicted exactly that — attribution collapses 2614
+counters into one ledger of primary defects, and the absence of any non-`parse`
+entry is the same statement as "there is not one genuine codegen-only defect",
+now recorded as an artefact rather than as a table.
+
+**Then the entries were classified**, mechanically, by re-running `t27c parse`
+on each and normalising the diagnostic: **48 distinct classes**, top 12 covering
+146 of 206. Reading the offending source line for the top three — *reading, not
+inferring* — gives three qualitatively different things:
+
+| n | what the parser rejected | what it actually is |
+|---:|---|---|
+| 30 | `invariant divisor > 0;` **inside a `test { }` body** | **parser gap** — and L4 (TESTABILITY) *requires* `test`/`invariant`, so the constitution mandates syntax the parser rejects |
+| 46 | `use math::sacred_physics::{PHI, PHI_INV};` | **parser gap** — braced import lists, used across the corpus |
+| 25 | `# C API CONTRACT 0 Trinity VSA FFI Bridge` … `## Specification` | **not t27 at all** — Markdown wearing a `.t27` extension |
+
+**Counting that third row properly:**
+
+| | n |
+|---|---:|
+| Markdown files with a `.t27` extension | **15** |
+| no `module` declaration, not Markdown either | 9 |
+| **genuine t27 source the parser rejects** | **182** |
+| total | 206 |
+
+**So "33.8% of the hand-written corpus does not parse" — which I published in
+W626 and repeated in W627 — is a count over a mixed population.** 24 of the 609
+are not source. The corrected figure is **182 / 585 = 31.1% of actual t27
+source**, and the 24 are a different defect entirely: misfiled artefacts.
+
+**Statement.** Let a ledger `E` be built from observed failures over a population
+`P`. If `P` contains members for which the phase is *undefined* rather than
+failing — a Markdown file has no parse outcome, it has a category error — then
+`E` amnesties them permanently, because they will never pass. **An entry that
+can never be removed is the terminal state of normalisation of deviance,
+installed on day one.** A ledger's construction therefore imposes a duty its
+`expires` field cannot discharge: the population must first be filtered to items
+for which the check is *meaningful*.
+
+**Corollary — the ledger is a better instrument than the count that motivated
+it, and it proved that by contradicting it.** T27 argued a total carries no
+signal; T33 built the identity-keyed replacement; **T34 is the replacement's
+first measurement, and it corrected a headline figure from two waves earlier
+that no total could have questioned.** That is the argument for identity-keyed
+amnesty stated as a result rather than as a design principle: a set can be
+*inspected*, and 2614 cannot.
+
+*Falsification condition:* one of the 15 files parsing as t27 under some
+configuration — in which case it is source with unusual syntax, not a misfiled
+artefact.
 
 ---
 

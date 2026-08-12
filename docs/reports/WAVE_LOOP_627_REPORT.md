@@ -186,8 +186,9 @@ Verilog, with the RTL then machine-checked against a golden model by a yosys SAT
 miter. Chisel/FIRRTL, SpinalHDL, Amaranth, Bluespec and Veryl all target RTL from
 one host language; Calyx, Filament and Dahlia target accelerators with stronger
 static guarantees; none routinely emits three software backends *and* synthesised
-hardware from the same source. **On the axis measured here, though, a 33.8%
-corpus parse-failure rate is far outside the norm for a language toolchain** —
+hardware from the same source. **On the axis measured here, though, a 31.1%
+corpus parse-failure rate (182 of 585 actual source files; corrected in W628 by
+T34) is far outside the norm for a language toolchain** —
 the comparable projects keep their own corpora at or near 100% parseable and use
 per-item XFAIL for the residue. That number, not the fan-out, is the state of the
 repository.
