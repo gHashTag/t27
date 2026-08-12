@@ -5317,6 +5317,44 @@ These cost a wave each. Follow them before step 1.
      the top three here were two parser gaps and one misfiled artefact, which
      no amount of message-grouping would have told you.
 
+215. **A pooled rate over KINDS estimates none of them.** "33.8% of the corpus
+     does not parse" was a mixture of five populations with true rates
+     31.3 / 75 / 100 / 100 / 0 -- pulled up by 26 files in three other formats
+     (`spec X {}`, `algorithm X {}`, Markdown-as-`.t27`), three of which fail BY
+     CONSTRUCTION because they are not that language. When a subpopulation's
+     measurement is UNDEFINED rather than adverse, the pooled number is a
+     different quantity, not a noisy estimate. **Refuse to pool.** The honest
+     figure is 182/581 = 31.3% over the language the parser implements. (T35.)
+
+216. **The refinement sequence 33.8 -> 31.1 -> 31.3 was not convergence.** Each
+     step swapped one unvalidated membership predicate for another; only the
+     third involved opening files of each kind and reading them. Every
+     population error in this repo -- T16, T20, T24, T29, T34 -- is a SYNTACTIC
+     selector standing in for a SEMANTIC one, and it recurs because the
+     syntactic one is always available while the semantic one always costs a
+     read. What forces the read is a LEDGER: paths you can open, versus a total
+     you cannot.
+
+217. **`invariant <expr>;` in a body lowers to `assert`.** It lexes as a keyword
+     and was handled only at module level, so the body form failed -- 30 of 182
+     failures, the largest class, while L4 TESTABILITY *requires* that keyword.
+     Follow the existing `assert` path in `parse_body_stmt` verbatim, including
+     its checkpoint/restore contract, and guard with "a following `:` or `{`
+     means the module-level block form". Result: 403/206 -> 431/178, newly
+     broken 0. (T36.)
+
+218. **When a fix lands, RATCHET THE LEDGER DOWN in the same commit.** 28
+     unexpected passes -> 28 entries removed, cap 206 -> 178, diff shape
+     "1 insertion, 197 deletions". A total going 2614 -> 2586 would have been
+     invisible and would have named no file. That diff IS the argument for
+     identity-keyed amnesty.
+
+219. **`cargo test --bins` has 5 STANDING failures that `t27c suite` never
+     sees**, because the suite does not invoke cargo test. Before blaming your
+     wave for them, stash your diff and re-run: the counts were 1571+5 before
+     and 1574+5 after, with identical failure lists. Another population the
+     2614 never covered.
+
 ### How to update this tracker
 
 After closing a wave:
