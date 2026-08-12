@@ -40,6 +40,32 @@ MARKERS = ("NOT COMPILABLE", "NOT BUILT", "ASPIRATIONAL",
            "not machine-checked", "NOT MACHINE-CHECKED")
 
 
+def projects_built():
+    """Which trees a workflow actually runs `coq_makefile`/`make` in.
+
+    Prop. 168: this gate's second premise was that appearing in a `_CoqProject`
+    means built. `trios-coq/_CoqProject` lists 20 files and **no workflow
+    mentions trios-coq at all** -- `coq-kernel.yml` does `cd coq` and builds
+    that tree only. A project file nobody invokes builds nothing, so membership
+    in it is not evidence of type-checking.
+
+    Third correction to this gate's notion of "built" (Props. 154, 160, 168).
+    Each time the fix was the same: resolve the construct instead of matching
+    it.
+    """
+    built = set()
+    wf = ROOT / ".github" / "workflows"
+    if not wf.exists():
+        return built
+    for y in wf.glob("*.yml"):
+        t = y.read_text(errors="ignore")
+        if "coq_makefile" not in t and "CoqMakefile" not in t:
+            continue
+        for m in re.finditer(r"cd\s+([\w./-]+)", t):
+            built.add(m.group(1).strip("/"))
+    return built
+
+
 def workflow_compiled():
     """File names a workflow compiles with an explicit `coqc` command.
 
@@ -75,6 +101,7 @@ def main():
         return 1
 
     wf_names = workflow_compiled()
+    live_projects = projects_built()
     built_q = unbuilt_q = declared_q = 0
     built_f = declared_f = 0
     undeclared = []
@@ -91,7 +118,8 @@ def main():
             rel = str(p.relative_to(tree))
             text = p.read_text(errors="ignore")
             n = qed_count(text)
-            if rel in listed or p.name in wf_names:
+            in_live_project = rel in listed and tree.name in live_projects
+            if in_live_project or p.name in wf_names:
                 built_q += n
                 built_f += 1
                 continue

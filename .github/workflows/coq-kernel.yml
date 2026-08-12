@@ -3,11 +3,13 @@ on:
   push:
     paths:
       - 'coq/**'
+      - 'trios-coq/**'
       - '.github/workflows/coq-kernel.yml'
   pull_request:
     branches: [master]
     paths:
       - 'coq/**'
+      - 'trios-coq/**'
       - '.github/workflows/coq-kernel.yml'
 
 jobs:
@@ -27,6 +29,24 @@ jobs:
         run: |
           eval $(opam env)
           cd coq
+          coq_makefile -f _CoqProject -o CoqMakefile
+          make -f CoqMakefile -j$(nproc)
+
+      # Prop. 168: trios-coq/_CoqProject lists 30 files and NO workflow built
+      # them -- 444 Qed. type-checked by nothing, including three added to that
+      # project one wave earlier. It depends on coq/ being built first, which
+      # the step above now guarantees.
+      # NON-BLOCKING on arrival. This tree has never been built by CI, so its
+      # 30 files have never been type-checked together; Flocq is unavailable on
+      # the machine that added this step, so it could not be verified locally.
+      # A step that lands red walls off every PR and gets disabled rather than
+      # fixed (Prop. 26). Flip `continue-on-error` off once it is observed
+      # green -- that flip is the deliverable, not this step.
+      - name: Build trios-coq/ (depends on coq/) -- non-blocking until observed green
+        continue-on-error: true
+        run: |
+          eval $(opam env)
+          cd trios-coq
           coq_makefile -f _CoqProject -o CoqMakefile
           make -f CoqMakefile -j$(nproc)
 

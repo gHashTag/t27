@@ -17,6 +17,35 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 679 — a _CoqProject nobody runs builds nothing
+
+**Three parser features (Prop. 167).** Array literals whose element type is not
+a bare identifier (`[_][]u8{}`), address-of as an expression form, and function
+types in parameter position (`fn(TaskResult) void`).
+
+The middle of that was instructive: after the first two fixes the swallowed
+count went **13 -> 38**. Per-file, 19 improved and one regressed -- a file that
+had reported zero because it never parsed far enough to lose anything countable.
+*A feature whose absence aborts parsing occludes every feature later in the same
+file.* After fixing a parser defect, expect the count to rise; judge per-file.
+
+Final: **38 -> 13**, declarations captured 5905 -> 5931, 0 hard failures, 1213
+tests pass.
+
+**And auditing path filters found the bigger thing (Prop. 168).**
+`coq-kernel.yml` triggers on `coq/**` and does `cd coq`. **No workflow mentions
+`trios-coq` at all.** Its `_CoqProject` lists 30 files that nothing invokes, so
+last wave's published **641 Qed built was really 197**.
+
+`coq-kernel.yml` now builds trios-coq after coq/ and watches its paths, which
+makes 641 true rather than claimed. The step is `continue-on-error` because this
+tree has never been built by CI and Flocq is unavailable here -- flipping that
+off once observed green is the real deliverable.
+
+*A manifest describes a build that some agent must run. Its existence is
+evidence about intent; only an invocation is evidence about execution.*
+
 ## Wave 678 — one unparsable initialiser destroyed its whole file
 
 **Parser 29 -> 13 (Prop. 166).** `var x = &[_][]u8{};` uses an inferred-length

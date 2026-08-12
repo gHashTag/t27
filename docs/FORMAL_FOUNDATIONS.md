@@ -9087,7 +9087,7 @@ uncovered `8`.
 
 **Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
 
-**164a.** `NullorReversible.v`, `SparsityMask.v` and `SpeculativeExit.v` are added
+**164a.** *(WEAKENED — Prop. 168: they were added to a `_CoqProject` no workflow ran; CI now builds it, non-blocking.)* `NullorReversible.v`, `SparsityMask.v` and `SpeculativeExit.v` are added
 to `trios-coq/_CoqProject`. Totals: **641 `Qed.` compiled across 50 files, 42
 unbuilt, 8 undeclared** — from 560/123/17 two waves ago.
 
@@ -9180,6 +9180,83 @@ recovered, regardless of how comprehensive the handler is.* The practical form:
 when a parser has a recovery loop, every helper it calls must either recover
 locally or be called from inside that loop — and a `?` in a helper is a silent
 promotion of a local failure to a global one.
+
+---
+
+### Prop. 167 — three parser features, and the count rose before it fell — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**167a. Array literals of non-identifier element type.** `parse_array_literal`
+read the element type as a bare `Ident`, so `[_][]u8{}` — an array of slices —
+stopped at the `[` of `[]u8`. It now calls `parse_type_annotation`, which
+already handles slices, pointers, namespaces and generic application.
+
+**167b. Address-of was not an expression form.** `&` existed only as part of
+`&&` and `&=`, so `&[_][]u8{}` was not an expression the parser could begin.
+
+**167c. Then the number got worse, and that was the finding.** Swallowed
+declarations went **13 → 38**. Per-file: **19 files improved, one regressed** —
+`specs/runtime/execute.t27`, 0 → 25. It had been reporting zero because it never
+parsed far enough to lose anything countable. The 25 are a *third* missing
+feature made visible by the first two: `resolve_fn: fn(TaskResult) void`, a
+**function type** in a parameter position.
+
+**167d. Function types implemented: 38 → 13.** Declarations captured corpus-wide
+rose **5905 → 5931**, hard parse failures **0**, and all **1213** tests pass.
+
+**167e. Theorem (occlusion ordering, second instance).** Prop. 147 established
+that a defect generating errors is invisible behind one discarding them. This is
+the same relation between two *unimplemented features*: **a feature whose absence
+aborts parsing occludes every feature later in the same file.** The corollary is
+operational and counter-intuitive — *after fixing a parser defect, expect the
+error count to rise, and treat a rise concentrated in few files as newly-visible
+rather than newly-broken.* The discriminator is per-file: 19 better and 1 worse
+is progress; 1 better and 19 worse is a regression.
+
+---
+
+### Prop. 168 — a `_CoqProject` nobody runs builds nothing — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**168a. Found by auditing path filters, not proofs.** `coq-kernel.yml` triggers
+on `paths: coq/**` and does `cd coq`. `coq-proofs.yml` triggers on
+`proofs/trinity/**.v`. **No workflow mentions `trios-coq` at all** — not in a
+path filter, not in a step, nowhere.
+
+**168b. So the published 641 was 197.** `trios-coq/_CoqProject` lists 30 files
+and nothing invokes it. Measured with the corrected gate: **197 `Qed.`
+type-checked across 22 files, 486 unbuilt** — against the 641/42 published one
+wave earlier.
+
+**168c. This retroactively weakens Prop. 164.** Three proofs were added to
+`trios-coq/_CoqProject` and reported as "added to a build". They were added to a
+*project file*, which nothing ran. The target-by-target verification in Prop.
+164c was real and remains valid — those three files do compile — but "in a build"
+overstated what CI does with them.
+
+**168d. Third correction to this gate's notion of *built*.** Prop. 154 counted
+`_CoqProject` membership; Prop. 160 added workflow `coqc` invocations; this adds
+the requirement that some workflow actually **runs** the project. Each time the
+error was matching a construct instead of resolving it, and each time the gate
+had been written by someone who had just written that rule down.
+
+**168e. Repaired, and deliberately non-blocking.** `coq-kernel.yml` now builds
+`trios-coq/` after `coq/` (which it depends on) and watches `trios-coq/**`.
+With that, 641/42 becomes true rather than claimed. The step ships with
+`continue-on-error: true` because **this tree has never been built by CI and
+could not be verified locally — Flocq is unavailable here.** A step that lands
+red walls off every PR and gets disabled rather than fixed. *Flipping
+`continue-on-error` off once it is observed green is the deliverable; the step
+itself is only the setup.*
+
+**168f. Corollary (a build artifact is not a build).** *A manifest, project
+file, solution, target list or lockfile describes a build that some agent must
+run. Its existence is evidence about intent; only an invocation is evidence
+about execution.* Three constructs in this campaign have now been read as
+performing work they merely describe: a discovery matrix, a `--workspace` flag,
+and a `_CoqProject`.
 
 ---
 

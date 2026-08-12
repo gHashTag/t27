@@ -1740,6 +1740,43 @@ impl Parser {
             }
         }
 
+        // Prop. 167: function types, `fn(TaskResult) void`. A parameter whose
+        // type is a function was unparseable, so the enclosing declaration was
+        // discarded -- 25 of them, and they became VISIBLE only once the array
+        // and address-of fixes let those files parse far enough to reach the
+        // signature. Captured as text; this parser does not type-check.
+        if self.current.kind == TokenKind::KwFn {
+            ty.push_str("fn");
+            self.advance();
+            if self.current.kind == TokenKind::LParen {
+                let mut depth = 0i32;
+                loop {
+                    match self.current.kind {
+                        TokenKind::LParen => depth += 1,
+                        TokenKind::RParen => depth -= 1,
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    ty.push_str(&self.current.lexeme);
+                    self.advance();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+            }
+            // Optional return type, with or without an arrow.
+            if self.current.kind == TokenKind::Arrow {
+                ty.push_str("->");
+                self.advance();
+            }
+            if matches!(self.current.kind, TokenKind::Ident | TokenKind::KwVoid
+                        | TokenKind::LBracket | TokenKind::Star) {
+                ty.push(' ');
+                ty.push_str(&self.parse_type_annotation());
+            }
+            return ty;
+        }
+
         // Main type identifier with namespace support (lexer::Lexer, base::types)
         if self.current.kind == TokenKind::Ident {
             ty.push_str(&self.current.lexeme);
@@ -2841,6 +2878,16 @@ impl Parser {
 
             // Array literal: [_]Type{ values } or [N]Type{ values }
             TokenKind::LBracket => self.parse_array_literal(),
+            // Prop. 167: address-of. `&` existed only as part of `&&` and `&=`,
+            // so `&[_][]u8{}` was not an expression the parser could begin.
+            TokenKind::Amp if self.current.lexeme != "&&" => {
+                self.advance();
+                let inner = self.parse_expr_primary()?;
+                let mut node = Node::new(NodeKind::ExprUnary);
+                node.extra_op = "&".to_string();
+                node.children.push(inner);
+                Ok(node)
+            }
 
             _ => Err(format!(
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
@@ -2933,9 +2980,16 @@ impl Parser {
             self.expect(TokenKind::RBracket)?;
         }
 
-        if self.current.kind == TokenKind::Ident {
-            node.extra_type = self.current.lexeme.clone();
-            self.advance();
+        // Prop. 167: the element type was read as a bare identifier, so
+        // `[_][]u8{}` -- an array of slices -- stopped at the `[` of `[]u8`.
+        // Any type is legal here; reuse the type parser, which already handles
+        // slices, pointers, namespaces and generic application.
+        if self.current.kind == TokenKind::Ident
+            || self.current.kind == TokenKind::LBracket
+            || self.current.kind == TokenKind::Star
+            || self.current.kind == TokenKind::KwConst
+        {
+            node.extra_type = self.parse_type_annotation();
         }
 
         if self.current.kind == TokenKind::LBrace {
