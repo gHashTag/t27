@@ -2106,18 +2106,32 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 let v = ratchet_compare(&observed, &exp, &today);
                 println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
                 println!("  observed (primary):  {}", observed.len());
-                println!("  UNEXPECTED FAILURES: {}", v.unexpected_failures.len());
-                for f in v.unexpected_failures.iter().take(25) {
-                    println!("    + {}", f);
+                // W636: these lists used to stop at 25 with NO indication, and
+                // a ledger was built from the truncated output as though it
+                // were complete -- the T26/T41 failure mode, in the tool
+                // written to detect it. A truncating printer must say so.
+                fn show(label: &str, mark: char, items: &[String], note: &str) {
+                    println!("  {}: {}", label, items.len());
+                    const CAP: usize = 25;
+                    for f in items.iter().take(CAP) {
+                        println!("    {} {}{}", mark, f, note);
+                    }
+                    if items.len() > CAP {
+                        println!(
+                            "    ... and {} more NOT SHOWN -- read the ledger or the \
+                             --json summary, never this list (T46)",
+                            items.len() - CAP
+                        );
+                    }
                 }
-                println!("  UNEXPECTED PASSES:   {}", v.unexpected_passes.len());
-                for f in v.unexpected_passes.iter().take(25) {
-                    println!("    - {} (fixed -- remove from the ledger)", f);
-                }
-                println!("  EXPIRED ENTRIES:     {}", v.expired.len());
-                for f in v.expired.iter().take(25) {
-                    println!("    ! {}", f);
-                }
+                show("UNEXPECTED FAILURES", '+', &v.unexpected_failures, "");
+                show(
+                    "UNEXPECTED PASSES  ",
+                    '-',
+                    &v.unexpected_passes,
+                    " (fixed -- remove from the ledger)",
+                );
+                show("EXPIRED ENTRIES    ", '!', &v.expired, "");
                 if v.over_cap {
                     println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
                 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 303,
+  "max_entries": 330,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -95,6 +95,20 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/base/ops.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/base/seed.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/base/ternary_add.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
@@ -179,6 +193,20 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/brain/bus.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/brain/cognitive_loop.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/brain/neural_gamma.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
@@ -186,9 +214,37 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/brain/phi_timing.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/brain/unified_state.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/bus/pubsub.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/bus/schema.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/cloud/railway_deploy.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -249,6 +305,13 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/config/schema.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/conformance/e2e_scenarios.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
@@ -266,6 +329,13 @@
       "path": "specs/demos/jones_topology_filter.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/depin/prove.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1110,6 +1180,13 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/isa/ternary_graph.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/isa/ternary_hash.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
@@ -1159,6 +1236,13 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/isa/ternary_tree.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/jit/jit.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: LParen",
@@ -1166,9 +1250,37 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/lsp/client.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/lsp/language.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/lsp/protocol.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/lsp/schema.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/lsp/server.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1246,6 +1358,13 @@
       "path": "specs/memory/formula_embed.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/memory/memory_primitives.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1446,6 +1565,20 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/numeric/gf_competitive.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gfternary.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/numeric/goldenfloat_family.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwConst ('const')",
@@ -1456,6 +1589,13 @@
       "path": "specs/numeric/lucas_accumulator.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/pellis_verify.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1477,6 +1617,13 @@
       "path": "specs/numeric/tf3.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: parse error near line N: Unexpected token in expression: Equals ('=')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/trinity_numeric_surface.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1614,6 +1761,13 @@
       "expires": "2026-11-30"
     },
     {
+      "path": "specs/pipeline/experience_save.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
       "path": "specs/portable/relay_observer.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
@@ -1631,6 +1785,20 @@
       "path": "specs/provider/schema.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/provider/stream.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/provider/transform.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1701,6 +1869,20 @@
       "path": "specs/sandbox/session_timeout.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/http.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/mdns.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1778,6 +1960,13 @@
       "path": "specs/sync/index.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: Expected RBrace, got Ident ('SyncID')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sync/schema.t27",
+      "phase": "no-vacuous-verilog-test",
+      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },

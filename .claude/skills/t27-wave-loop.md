@@ -5564,6 +5564,25 @@ These cost a wave each. Follow them before step 1.
      invalidates 108 baselines, which is an explicit human step (T31). Gate
      first, report the blast radius, let a human bless.
 
+250. **I built a ledger from my own tool's truncated list.** The gate printed
+     `UNEXPECTED FAILURES: 27` and then 25 paths -- `take(25)` with no "and 2
+     more". I extracted 25, blessed them, and got a ledger of 328 against an
+     observed 330. **This is T26 committed inside the tool written to enforce
+     T26**, using a truncation I authored twelve waves earlier. A ratchet is
+     exactly as blind as its phases (T41) AND exactly as honest as its printer
+     (T46).
+
+251. **Any lossy view must be SELF-DESCRIBING** -- it must carry, in the same
+     channel as the data, the fact that it is lossy and by how much. The count
+     and the list are two channels; their disagreement is only detectable by
+     comparing them, which is exactly what a reader using the list does not do.
+     `head`, `take(n)`, `limit`, `--max-count`, a truncating table: all this
+     hazard. "Print everything" is NOT the rule -- 330 lines is unreadable.
+
+252. **Bless from the TOOL, never from the transcript.** Run
+     `--bless-expectations` and let it write the ledger; do not scrape paths out
+     of a run log. I reverted a hand-built ledger for exactly this reason.
+
 ### How to update this tracker
 
 After closing a wave:

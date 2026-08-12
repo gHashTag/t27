@@ -2438,6 +2438,67 @@ when repair means re-blessing an oracle, they must be separated.**
 
 ---
 
+### T46 (W636) — I built a ledger from my own tool's truncated output, twelve waves after writing the theorem that says not to
+
+**The gate reported `UNEXPECTED FAILURES: 27` and listed them.** I extracted the
+list, added the entries, and raised the cap. The ledger came out at **328**
+against an observed **330**.
+
+**The printer stops at 25.** I had written it that way in W628:
+
+```rust
+for f in v.unexpected_failures.iter().take(25) {
+    println!("    + {}", f);
+}
+```
+
+The count line says 27. The list shows 25. **There is no "and 2 more".**
+
+**This is T26 exactly** — *"an absence in the output has two preimages: the
+subject produced nothing, or the instrument withheld it"* — committed in the
+tool built to enforce the lesson, by the person who wrote the lesson, using a
+truncation they authored twelve waves earlier. T41 then generalised it to
+*"a ratchet is exactly as blind as its phase predicates"*; **T46 is the
+observation that a ratchet is also exactly as honest as its printer.**
+
+**Statement.** Let a report `R` present a set `S` as a count `|S|` and a prefix
+`S[0..k]`. If `k < |S|` and the presentation does not mark the elision, then `R`
+is *individually* correct in both parts and *jointly* misleading: a reader who
+consumes the enumeration obtains `S[0..k]` and, seeing no terminator, has no
+signal distinguishing it from `S`. **The count and the list are two channels,
+and their disagreement is only detectable by comparing them** — which is
+precisely what a reader using the list does not do, because the list is what
+they came for.
+
+**Corollary — the rule is stronger than "print everything".** Printing all 330
+would be unreadable. The requirement is that **any lossy view must be
+self-describing**: it must carry, in the same channel as the data, the fact that
+it is lossy and by how much. `head`, `take(n)`, `limit`, `--max-count` and a
+truncating table are all this hazard.
+
+**Fixed.** The printer now emits, in the same channel:
+
+```
+    ... and 2 more NOT SHOWN -- read the ledger or the --json summary,
+    never this list (T46)
+```
+
+and the ledger built from the truncated list was **reverted and rebuilt with
+`--bless-expectations`** — the tool, not the transcript.
+
+**Where this sits.** §4's table lists components that accepted input, produced
+less than they should, and reported success. **`take(25)` accepted 27 items,
+produced 25, and reported nothing.** The table's entries are lexer, parser, C
+backend, `use_resolve`, "my own measurement" (W588) — and now "my own report".
+The distance between W588 and here is that W588's measurement was *wrong*;
+this one was *right, and truncated*, which is harder to see and therefore worse.
+
+*Falsification condition:* a reader who, given only the truncated list,
+correctly infers that items were omitted — which is what the added line now
+makes possible and was not before.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
