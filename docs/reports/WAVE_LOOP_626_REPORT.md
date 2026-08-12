@@ -71,6 +71,7 @@ reading. Not one is about the compiler; every one is about how I looked.
 | Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C | 249 **× 6** |
 | Verilog yosys smoke | 62 |
 | FPGA smoke · GF16 conformance | 1 · 1 |
+| ~~Icarus · Cocotb~~ | ~~0 · 0~~ — **NOT RUN, not zero (T51, W641)** |
 | **Seal mismatches** | **1056** |
 | **total** | **2614** |
 

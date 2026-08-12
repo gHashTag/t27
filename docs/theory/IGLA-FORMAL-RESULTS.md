@@ -2768,6 +2768,70 @@ too narrow rather than the assertion being absent.
 
 ---
 
+### T51 (W641) — Every summary in this session reported `Icarus simulation fails: 0` for a phase that never ran. It is 31.
+
+**Found by finally running it.** The Icarus phase is opt-in
+(`--icarus-simulate`), and every suite invocation in this session omitted the
+flag. The summary line, in all of them:
+
+```
+Icarus simulation fails:  0
+Cocotb reference fails:   0
+```
+
+Run with the flag (6 113 s):
+
+```
+Icarus Simulation: 124 passed, 31 failed
+Icarus simulation fails:  31
+```
+
+**The mechanism is three lines of Rust:**
+
+```rust
+let mut p3d_fail = 0usize;              // initialised to zero
+if opts.icarus_simulate { … p3d_fail = p3df; }   // assigned ONLY if run
+println!("Icarus simulation fails:  {}", p3d_fail);   // prints 0 either way
+```
+
+**A phase that did not run is reported in the same slot, with the same value, as
+a phase that ran clean.** Zero is the identity for "failures", so the *absence
+of a measurement* is indistinguishable from *a measurement of zero*.
+
+**Statement.** Let a report render a phase's outcome as `f(phase)` where
+`f(not-run) = f(clean)`. Then the report is not a function of the phase's state;
+it is a function of a *projection* that identifies two states a reader must
+distinguish. **The defect is not that the value is wrong — `0` failures did
+occur — but that the encoding is lossy at exactly the point where the reader's
+decision changes.** This is T26's two-preimage problem in a summary field rather
+than in a stream.
+
+**And it contaminates this document's own arithmetic.** W626's decomposition of
+`TOTAL FAILURES: 2614` listed *"Icarus 0, Cocotb 0"* among the five facts. Both
+were not-run, not zero. The total is unaffected — a skipped phase contributes 0
+to the sum either way, which is *why* the error was invisible — but the claim
+that the 2614 decomposes into five *measured* facts was wrong: two of them were
+never measured.
+
+> **A summary that reports skipped and clean identically will produce a correct
+> total and a false inventory.** The total was right for nine waves. The
+> inventory was wrong for nine waves. Only the inventory is what anyone reads to
+> decide what to work on.
+
+**Fixed.** The two lines now print
+`SKIPPED (not run -- pass the flag to enable)`.
+
+**What the 31 are.** 124 passed, 31 failed, including at least two Verilog
+generation failures on the giant scratch benchmarks
+(`parse error at module level near line 46058`) — the T42 discard class
+resurfacing in a fourth place.
+
+*Falsification condition:* a reader who, given the old summary, correctly
+inferred that the phase had not run — which the new line now makes possible and
+the old one did not.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

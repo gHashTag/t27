@@ -2013,8 +2013,27 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Gen Verilog fails:        {}", p3f);
     println!("Gen Verilog smoke fails:  {}", p3b_fail);
     println!("FPGA smoke fails:         {}", p3c_fail);
-    println!("Icarus simulation fails:  {}", p3d_fail);
-    println!("Cocotb reference fails:   {}", p3e_fail);
+    // W641: `p3d_fail` and `p3e_fail` are initialised to 0 and assigned ONLY
+    // when their opt-in flag is set, so a phase that never ran printed `0` in
+    // the same slot as a phase that ran clean. Every summary in this session
+    // reported `Icarus simulation fails: 0`; with --icarus-simulate the true
+    // figure is 31. A skipped phase must not be reported as a passing one.
+    // See T51.
+    let skipped_note = |ran: bool, n: usize| -> String {
+        if ran {
+            n.to_string()
+        } else {
+            "SKIPPED (not run -- pass the flag to enable)".to_string()
+        }
+    };
+    println!(
+        "Icarus simulation fails:  {}",
+        skipped_note(opts.icarus_simulate, p3d_fail)
+    );
+    println!(
+        "Cocotb reference fails:   {}",
+        skipped_note(opts.cocotb, p3e_fail)
+    );
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
