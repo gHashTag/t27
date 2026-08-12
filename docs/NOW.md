@@ -12,6 +12,30 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 675 — 788 swallowed declarations were 161, and 133 were one missing feature
+
+**The counter over-counted 4.9x (Prop. 156).** It recorded every declaration the
+recovery skip passed over -- including `var`s inside keyword-style test blocks,
+which have no terminator and whose contents are legitimately skipped. Restricted
+to declarations at or shallower than the block header's column: **161**.
+
+The column rule was measured before being relied on: of 469 const/var
+occurrences after a keyword-style header, 466 are strictly more indented and 3
+sit at header depth.
+
+**133 of the 161 were one unimplemented feature** -- `pub const ArrayView(T) =
+struct {...}`, generic parameters that `parse_const_decl` never handled.
+Implemented: **161 -> 67**. Net across two waves, 788 -> 67, of which 627 were
+never losses and 94 were real.
+
+**16 of the 17 unbuilt proof files are orphans (Prop. 157)** -- in no
+_CoqProject and Require'd by nothing. Disconnected from the verified corpus in
+both directions.
+
+**docs/BLOCKED_SPECS.md** lists the 54 specs that need a human, with a count of
+how much of each diff is the mechanical corruption repair.
+
 ## Wave 674 — 123 Qed that nothing type-checks
 
 **The README's count is exact and misleads (Prop. 154).** "546 Qed. across 41

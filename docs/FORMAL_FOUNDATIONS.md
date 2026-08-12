@@ -8835,6 +8835,67 @@ defence is stating the set each side ranges over before subtracting.
 
 ---
 
+### Prop. 156 — 788 swallowed declarations were 161, and 133 of those were one missing feature — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**156a. The counter over-counted by 4.9x, and the fix is the same rule as the
+repair.** Prop. 152's counter recorded every declaration keyword the recovery
+skip passed over. Inside a keyword-style `test name given ... when ...` block —
+which has no terminator — those are **test-local** `var`s, legitimately skipped.
+Restricting the count to declarations at or shallower than the block header's
+column gives **161**, not 788.
+
+**156b. Indentation separates them, measured before it was relied on.** Of 469
+`const`/`var` occurrences following a keyword-style header in the corpus, **466
+are strictly more indented** (genuinely inside the block) and **3 sit at header
+depth**. Column sensitivity has precedent in this lexer — the `;` comment rule
+already keys on `col == 1` — and a block with no terminator admits no
+terminator-based rule at all.
+
+**156c. The remaining 161 attribute almost entirely to one missing feature.**
+**133 of 161 (83%)** came from `Unexpected top-level token: LParen` — the
+generic-parameter form `pub const ArrayView(T) = struct { ... }`, which
+`parse_const_decl` never handled. Implementing it (parameters captured as text;
+this parser does not instantiate generics) took the figure to **67**.
+
+**156d. Net across two waves: 788 → 67**, of which 627 were never losses and 94
+were real. Recovery events moved 523 → 530 — upward, and correctly: declarations
+that now parse far enough to fail on their *own* content produce their own
+errors instead of vanishing inside someone else's.
+
+**156e. Theorem (skip-counted quantities need the skip's own scope rule).** *A
+counter placed inside a recovery routine measures whatever that routine passes
+over, which is a superset of what was lost by exactly the elements the routine
+was entitled to discard.* Sound counting requires the counter to share the
+routine's notion of scope — here, the column test — and where the routine has no
+such notion, neither can the counter. **Fourth metric correction in this same
+instrument**, and the first where the corrected number was smaller than the
+error it replaced.
+
+---
+
+### Prop. 157 — 16 of the 17 unbuilt proof files are orphans — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coq build scan — a Qed in a file nobody compiles is not a proof*
+
+**157a.** Prop. 154 established 17 `.v` files are in no `_CoqProject` and declare
+nothing. Following every `Require`/`From ... Require` across all three proof
+trees: **16 of the 17 are referenced by nothing at all.**
+
+**157b. Orphan is a sharper status than unbuilt.** An unbuilt file might still be
+depended upon, in which case adding it to a build is the obvious repair. A file
+that no build compiles *and* no proof imports is disconnected from the verified
+corpus in both directions — it can be added to a build, annotated, or deleted,
+and nothing else in the repository changes either way.
+
+**157c. Not adjudicated here, and why.** `coqc` is not installed in this
+environment, so whether each file *compiles* is unmeasured; and whether a
+disconnected proof of a physical bound belongs in the build is a mathematical
+judgement about its content. The gate records the set and fails when it grows.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -1061,7 +1061,7 @@ impl Parser {
     /// failed declaration vanish, with no error and no diagnostic -- which is
     /// why `pub const` survived (KwPub stops the skip) and bare `const` did
     /// not.
-    fn skip_to_next_top_level_inner(&mut self, stop_at_decl: bool) {
+    fn skip_to_next_top_level_inner(&mut self, stop_at_decl: bool, decl_col: usize) {
         let mut paren_depth: i32 = 0;
         let mut bracket_depth: i32 = 0;
         loop {
@@ -1074,12 +1074,30 @@ impl Parser {
             // records the terminating keyword too -- an over-count, and the
             // first version of this counter did exactly that (28 reported on a
             // file with zero recovery events). Count only what is passed OVER.
-            let at_decl = stop_at_decl
-                && matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar);
+            // Prop. 156: a keyword-style `test name given ... when ...` block
+            // has no terminator, so the skip needs SOME rule for where it ends.
+            // The old rule -- run to the next fn/pub/struct/enum/test -- ate 433
+            // module-level declarations that followed such blocks.
+            //
+            // `decl_col` is the column of the header that opened the block. A
+            // const/var at that column or shallower cannot be inside it.
+            // Measured over the corpus: of 469 const/var occurrences following a
+            // keyword-style header, 466 are strictly more indented (genuinely
+            // inside) and 3 sit at header depth. Column sensitivity has
+            // precedent here -- the `;` comment rule already keys on col == 1.
+            let at_decl = matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
+                && (stop_at_decl || (decl_col > 0 && self.current.col <= decl_col));
             let stopping = paren_depth == 0
                 && bracket_depth == 0
                 && (self.is_top_level_start() || at_decl);
-            if !stopping {
+            // Prop. 156: only MODULE-LEVEL declarations count as swallowed.
+            // Inside a keyword-style block, a `var` at deeper indentation than
+            // the block header is test-local -- skipping it is correct, and
+            // counting it inflated this figure by an order of magnitude. When
+            // decl_col is 0 the caller is error recovery, positioned in a module
+            // body, where every declaration reached is module-level.
+            let module_level = decl_col == 0 || self.current.col <= decl_col;
+            if !stopping && module_level {
                 match self.current.kind {
                 TokenKind::KwConst
                 | TokenKind::KwFn
@@ -1132,13 +1150,18 @@ impl Parser {
 
     /// Conservative skip, for keyword-style blocks that may contain `const`.
     fn skip_to_next_top_level(&mut self) {
-        self.skip_to_next_top_level_inner(false);
+        self.skip_to_next_top_level_inner(false, 0);
+    }
+
+    /// Skip out of a keyword-style block opened at `col` (Prop. 156).
+    fn skip_out_of_block(&mut self, col: usize) {
+        self.skip_to_next_top_level_inner(false, col);
     }
 
     /// Recovery skip, positioned in a module body where `const` is a
     /// declaration and must terminate the skip (Prop. 152).
     fn skip_to_next_decl(&mut self) {
-        self.skip_to_next_top_level_inner(true);
+        self.skip_to_next_top_level_inner(true, 0);
     }
 
     pub fn parse(&mut self) -> Result<Node, String> {
@@ -1328,6 +1351,42 @@ impl Parser {
                 "Expected identifier after 'const', got {:?}",
                 self.current.kind
             ));
+        }
+
+        // Prop. 156: optional generic parameter list, `const ArrayView(T) = ...`.
+        // Unimplemented until now, and the single largest remaining cause of
+        // lost declarations: 133 of 161 module-level declarations swallowed
+        // corpus-wide came from the LParen here being unexpected at top level.
+        // The parameters are captured as text -- this parser does not
+        // instantiate generics, and recording them is what lets the rest of the
+        // declaration parse instead of being discarded.
+        if self.current.kind == TokenKind::LParen {
+            let mut params = String::new();
+            let mut depth = 0i32;
+            loop {
+                match self.current.kind {
+                    TokenKind::LParen => {
+                        depth += 1;
+                        if depth > 1 {
+                            params.push('(');
+                        }
+                    }
+                    TokenKind::RParen => {
+                        depth -= 1;
+                        if depth == 0 {
+                            self.advance();
+                            break;
+                        }
+                        params.push(')');
+                    }
+                    TokenKind::Eof => break,
+                    _ => params.push_str(&self.current.lexeme),
+                }
+                if self.current.kind != TokenKind::Eof {
+                    self.advance();
+                }
+            }
+            decl.extra_field = params;
         }
 
         // Optional type annotation `: Type`
@@ -2993,6 +3052,7 @@ impl Parser {
     }
 
     fn parse_test_block(&mut self) -> Result<Node, String> {
+        let hdr_col = self.current.col;   // Prop. 156
         let mut block = Node::new(NodeKind::TestBlock);
 
         self.advance(); // consume 'test'
@@ -3006,12 +3066,13 @@ impl Parser {
         } else {
             // Keyword-style test: test name given ... when ... then ...
             // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
-            self.skip_to_next_top_level();
+            self.skip_out_of_block(hdr_col);
         }
         Ok(block)
     }
 
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
+        let hdr_col = self.current.col;   // Prop. 156
         let mut block = Node::new(NodeKind::InvariantBlock);
 
         self.advance(); // consume 'invariant'
@@ -3024,12 +3085,13 @@ impl Parser {
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style invariant: skip until next top-level
-            self.skip_to_next_top_level();
+            self.skip_out_of_block(hdr_col);
         }
         Ok(block)
     }
 
     fn parse_bench_block(&mut self) -> Result<Node, String> {
+        let hdr_col = self.current.col;   // Prop. 156
         let mut block = Node::new(NodeKind::BenchBlock);
 
         self.advance(); // consume 'bench'
@@ -3042,7 +3104,7 @@ impl Parser {
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style bench: skip until next top-level
-            self.skip_to_next_top_level();
+            self.skip_out_of_block(hdr_col);
         }
         Ok(block)
     }
