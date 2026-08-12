@@ -17,10 +17,20 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: coqorg/coq:8.19-ocaml-4.14-flambda
+      # Wall 1 (Prop. 171): the image runs as user `coq` against a root-owned
+      # workspace mount, so checkout fails with EACCES on /__w/_temp. master
+      # already carries this fix; this branch held a pre-fix copy. Taken from
+      # master rather than hand-written.
+      options: --user root
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
+      # Wall 2 (Prop. 171): master gets past checkout and fails HERE with exit
+      # 50 -- the runner injects HOME=/github/home while the image's opam root
+      # is /home/coq/.opam. master does NOT have this fix.
       - name: Install Flocq (opam)
+        env:
+          OPAMROOT: /home/coq/.opam
         run: |
           opam update -y
           opam install -y coq-flocq

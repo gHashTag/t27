@@ -19,6 +19,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 681 — both CI walls repaired; three of my premises overturned
+
+**coq-kernel.yml.** Wall 1: the coqorg image runs as `coq` against a root-owned
+workspace mount, so checkout fails with EACCES. **master already had the fix**
+(`options: --user root`, checkout@v6) and this branch carried a pre-fix copy --
+taken from master rather than hand-written. Wall 2: master gets past checkout
+and fails at `Install Flocq (opam)` with exit 50, because the runner injects
+`HOME=/github/home` while the image's opam root is `/home/coq/.opam`. OPAMROOT
+is now explicit; master does not have this fix.
+
+Prop. 169's premise -- "failed at checkout on every run back to 2026-07-11" --
+was wrong. Two stacked walls, not one.
+
+**Cherry-picking is ruled out by evidence.** `formal/` is 46 files and master has
+zero, so that part is a pure add. But the gates' subject is generated RTL from
+Rust sources that diverged 1625/495 lines. A minimal cherry-pick makes 2 of 53
+steps genuinely pass, and step 50's liveness probe cannot distinguish an
+elaboration error from a refutation -- on master it would report `ok` for
+entirely wrong reasons. **Silent false passes are worse than not running.**
+
+**A generic-fn-name parser change was attempted and REVERTED**: the
+angle-bracket scan over-consumed and turned one spec into a hard parse failure.
+1213 tests pass; 13 swallowed declarations unchanged.
+
 ## Wave 680 — 165 of 167 propositions cite a workflow that has never run
 
 Watching the `continue-on-error` step from last wave showed `coq-kernel.yml`
