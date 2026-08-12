@@ -5898,7 +5898,20 @@ impl Codegen {
             // A comment, not @compileLog: @compileLog is a hard compile error
             // under `zig test` ("found compile log statement"), so the marker
             // must stay out of the compiled program.
-            self.write_line(&format!("// invariant: {} verified (no statements)", node.name));
+            //
+            // W635: this used to read "verified (no statements)". It is emitted
+            // exactly when the clause BODY was discarded and nothing was
+            // lowered -- so `verified` was a predicate on the compiler having
+            // reached the end of the clause HEADER, not on the clause. 1,087 of
+            // 6,148 invariants (18%) took this path, including
+            // `ternary_mul_no_star`, the spec's own statement of the
+            // multiplier-free property T2 is about. Skipping an unbounded
+            // `forall` is a defensible language decision; reporting it as
+            // verification is not. See T43/T44.
+            self.write_line(&format!(
+                "// invariant: {} NOT CHECKED -- body was not lowered (T43)",
+                node.name
+            ));
         }
 
         self.dedent();

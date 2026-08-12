@@ -415,6 +415,29 @@ fn cmd_parse_no_discard(repo: &Path, rel: &str) -> anyhow::Result<()> {
     }
 }
 
+/// W635: an `invariant` whose body was never lowered. The backend used to
+/// report these as "verified (no statements)" -- a positive verification claim
+/// whose truth-maker was the absence of content (T43). The message is now
+/// honest; this phase makes the population gated, so it cannot grow unnoticed.
+/// In-process, so the phase costs nothing.
+fn cmd_no_vacuous_invariant(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let zig = match crate::compiler::Compiler::compile(&src) {
+        // A file that does not compile is another phase's business (T30).
+        Err(_) => return Ok(()),
+        Ok(z) => z,
+    };
+    let n = zig.matches("NOT CHECKED -- body was not lowered").count();
+    if n == 0 {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} invariant(s) declared but not lowered: the clause body was discarded          and nothing is checked",
+        n
+    )
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1276,6 +1299,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("parse-no-discard", p1cfail, &mut ledger, &mut upstream_failed);
     push_phase("parse-no-discard", p1cp, p1cf, 0);
 
+    println!("--- Phase 1a3: Invariants lowered (no vacuous checks) ---");
+    let (p1dp, p1df, p1dfail) = run_phase_with_failures(
+        &repo,
+        "no-vacuous-invariant",
+        cmd_no_vacuous_invariant,
+        &specs_compiler,
+    )?;
+    println!("Invariant lowering: {} clean, {} with vacuous invariants", p1dp, p1df);
+    record("no-vacuous-invariant", p1dfail, &mut ledger, &mut upstream_failed);
+    push_phase("no-vacuous-invariant", p1dp, p1df, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -1806,9 +1840,10 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1cf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1df + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Parse DISCARD fails:      {}", p1cf);
+    println!("Vacuous invariant specs:  {}", p1df);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

@@ -5499,6 +5499,31 @@ These cost a wave each. Follow them before step 1.
      by line with the source text (added W634). Use it before reasoning about
      what a spec "says" -- the file and the compiled artefact differ.
 
+241. **Separate the POLICY from the REPORT.** `parse_invariant_clause`
+     documents that `forall` invariants "are not runtime-checkable and fall back
+     to the original skip" -- a defensible decision, since you cannot exhaust
+     `forall x : i32`. The defect was one string: the backend printed
+     "verified (no statements)" on exactly that path. Where a stage has a SKIP
+     branch, the audit question is never "is the skip correct?" but **"what does
+     the artefact say happened?"** -- the two are independently wrong and the
+     second is what a reader consumes. (T44.)
+
+242. **The T38 yield argument does NOT always apply -- check whether your
+     measurement serialises the population.** A parser reports only the first
+     defect, so later ones are unobservable until the first is fixed (T38).
+     Vacuous invariants are classified per clause by the same emit site that
+     prints the marker, so the split is measurable UP FRONT: 1,087 total, 837
+     (77%) `forall`, 250 (23%) other shapes. **Ask which regime you are in
+     before declaring a forecast impossible.**
+
+243. **Forecast stated before the work, for the next wave to check against:**
+     the 250 non-`forall` clauses look lowerable by existing machinery (the
+     cheap 23%); the 837 `forall` clauses need a language decision, and of
+     1,299 quantified bindings **at most 347 are over domains small enough to
+     exhaust** (i8/u8/bool/Trit/TernaryWeight/i16/u16) -- 309 are i32/u32/f32
+     and ~400 are strings, slices and structs. **A full `forall` implementation
+     cannot reach 100%, and any plan that promises it is already refuted.**
+
 ### How to update this tracker
 
 After closing a wave:

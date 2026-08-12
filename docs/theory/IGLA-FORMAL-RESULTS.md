@@ -2300,6 +2300,79 @@ the message is misleading rather than the verification absent.
 
 ---
 
+### T44 (W635) — The skip was a decision; only the message was a defect. And the yield question can be asked *before* the fix.
+
+**Reading the emit site settles what T43 found.** `parse_invariant_clause`
+carries this, written before this session:
+
+> *"`forall`-quantified statements (837) are not runtime-checkable and fall back
+> to the original skip, as does anything else this cannot model."*
+
+**So the skip is deliberate and documented.** Declining to lower an unbounded
+`forall` into a runtime assertion is a defensible language decision — you cannot
+exhaust `forall x : i32`. **What was not defensible was the message.** The
+backend emitted `// invariant: X verified (no statements)` on exactly the path
+where the body had been discarded.
+
+**The defect was one string, and it is now:**
+
+```zig
+// invariant: ternary_mul_no_star NOT CHECKED -- body was not lowered (T43)
+```
+
+**Statement.** Separate the *policy* from the *report*. A pipeline may soundly
+decline to check a clause; it may not describe declining as verifying. Where a
+stage has a `skip` branch, the audit question is never "is the skip correct?" —
+it is **"what does the artefact say happened?"** The two are independently
+wrong, and the second is the one a reader consumes.
+
+**Now gated.** `no-vacuous-invariant` is a suite phase (in-process, free): a spec
+emitting any unlowered invariant fails it. The population cannot grow unnoticed
+again.
+
+---
+
+**And the second half of this result is methodological.** T38 established that a
+class's *yield* — how many files a fix actually repairs — cannot be known in
+advance, because a parser reports only the first defect. **That argument does not
+apply here**, and W635 tests the difference by measuring the split *before*
+attempting the fix:
+
+| | count | share |
+|---|---:|---:|
+| vacuous invariants | **1 087** | 100% |
+| body begins `forall` | **837** | **77%** |
+| other shapes (`x > y;`, `let x = f()`, struct literals) | **250** | 23% |
+| specs affected | 100 | |
+
+And the `forall` domains, over 852 clauses / 1 299 bindings:
+
+| domain | bindings | exhaustible? |
+|---|---:|---|
+| `i32`, `u32`, `f32` | 309 | **no** |
+| `string`, slices, structs | ~400 | **no** |
+| `i8`, `u8`, `bool`, `Trit`, `TernaryWeight`, `i16`, `u16` | **347** | yes, in principle |
+
+**Why the forecast is possible here and was not in T38.** T38's masking is
+sequential — the parser stops at the first defect, so later ones are unobservable
+until the first is fixed. Vacuous invariants are **not** sequenced: every clause
+is classified independently, and the classifier is the same emit site that
+produces the marker. **When the observation is per-item rather than
+first-failure, the yield is measurable up front.** The distinction is not about
+effort; it is about whether the measurement apparatus serialises the population.
+
+**The honest forecast, stated before the work:** the 250 non-`forall` clauses
+look lowerable by the existing machinery and are the cheap 23%. The 837 `forall`
+clauses need a language decision, and **at most 347 of 1 299 bindings are over
+domains small enough to exhaust** — so even a full `forall` implementation
+cannot reach 100%, and any claim that it will is already refuted.
+
+*Falsification condition:* a `forall` clause over `i32` or `string` that is
+lowered to a sound runtime check, which would mean the domains are not the
+obstacle.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
