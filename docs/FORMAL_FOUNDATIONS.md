@@ -10185,6 +10185,68 @@ which is Prop. 194 about Prop. 194's own wave.
 
 ---
 
+### Prop. 195 — 2,865 lines of spec are read as an empty shell, and every gate said green — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Capture density scan — if the output does not grow with the file, nothing was read*
+
+The skill governing this corpus opens with a rule: *a verified claim is recorded
+as a `.t27` spec; Markdown is a companion, never the record.* Testing whether the
+form it documents is the form the compiler reads:
+
+| form | files | code lines | AST nodes captured | density |
+|---|---|---|---|---|
+| module (`module X { const ... }`) | 41 | 7,194 | 4,982 | **69.3 / 100 lines** |
+| declarative (`spec`/`rule`/`lemma`) | 28 | 13,598 | **56** | **0.4 / 100 lines** |
+
+**173×.** The declarative form captures exactly **2 nodes per file regardless of
+size** — `catalog_coverage_delta.t27` is 6,630 lines and yields 2. The nodes are
+`kind: Module, name: ""`: an anonymous wrapper with nothing inside.
+
+t27's own corpus has it too: **8 specs, 2,865 code lines, all capturing exactly
+2 nodes.**
+
+**Every existing gate passes them.** Zero recovery events, zero declarations
+swallowed, delimiters balanced, quotes even. And gate 19's blind check — written
+in Prop. 186 precisely to catch "declares but captures nothing" — could not fire,
+for two independent reasons that are both Prop. 194's numerator fallacy inside my
+own instrument:
+
+1. it tests `captured == 0`, and these capture 2;
+2. it is guarded by *"does the file declare something `pub`"*, and these 8 declare
+   nothing public — **the guard added to suppress false positives removed exactly
+   the cases where capture is worst.**
+
+**Theorem (recorded is not read).** Let `W` be a well-formedness predicate a
+checker enforces and `R` the property that a consumer extracts content. Every
+gate in this campaign establishes some `W`. But `W ⊬ R`: a file can satisfy every
+syntactic and control-flow check and still yield `O(1)` output for `O(n)` input.
+The observable that separates them is not any predicate on the file — it is
+**whether the consumer's output scales with the input**, which is why no
+shape-search could ever have found this (Prop. 193) and no numerator could have
+reported it (Prop. 194).
+
+**Corollary — this is the SSOT rule failing while being obeyed.** The instruction
+"record it as a `.t27` spec" was followed. 13,598 lines were written in a form the
+compiler reads as empty. Recording and reading are different relations, and a
+source-of-truth discipline that checks only the first is a filing system.
+
+**An instrument refuted its author in its own log.** This gate's first docstring
+claimed the corpus was "sharply bimodal, a factor of 200 with nothing in between",
+justifying a single threshold. The gap line printed **6×** on the first run. The
+truth: 8 shells at 0.004–0.0087, a 5.9× jump, then a *continuum* from 0.0513
+upward with no gap at all. So the gate isolates total shells and nothing more, and
+the 0.05–0.07 band is acknowledged residue. The claim did not ship only because
+the instrument printed the number that killed it.
+
+Three bars: **TRUE** — exits 0. **ALIVE** — 332 of 497 specs measured, median 1.95
+nodes/line, 8 flagged. **BITING** — removing two entries from the baseline makes it
+name them and exit 1; restoring gives 0. *Limit:* that exercises detection and
+reporting, not the density computation on a newly constructed file — writing a
+probe into `specs/` was declined, and the weaker test is recorded rather than
+described as the stronger one.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

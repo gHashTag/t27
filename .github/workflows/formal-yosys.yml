@@ -860,6 +860,9 @@ jobs:
       - name: Coverage gate — a gate reporting only its numerator is not coverage
         run: python3 formal/coverage_gate.py
 
+      - name: Capture density scan — if the output does not grow with the file, nothing was read
+        run: python3 formal/capture_density_scan.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 

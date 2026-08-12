@@ -1,0 +1,8 @@
+specs/ar/asp_solver.t27	408
+specs/ar/coa_planning.t27	496
+specs/ar/composition.t27	420
+specs/ar/datalog_engine.t27	261
+specs/ar/explainability.t27	410
+specs/ar/proof_trace.t27	229
+specs/ar/restraint.t27	324
+specs/ar/ternary_logic.t27	317

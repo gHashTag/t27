@@ -2,6 +2,55 @@
 
 Last updated: 2026-08-12
 
+## 2,865 lines of spec are read as an empty shell (Closes #2131)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2131
+- PR: (direct commit)
+
+### What landed
+
+`formal/capture_density_scan.py` (gate 27) and Prop. 195. The question: is the
+spec form documented as canonical the form the compiler actually reads?
+
+| form | files | code lines | AST nodes | density |
+|---|---|---|---|---|
+| module | 41 | 7,194 | 4,982 | 69.3 / 100 lines |
+| declarative | 28 | 13,598 | **56** | **0.4 / 100 lines** |
+
+The declarative form captures exactly **2 nodes per file regardless of size** --
+`kind: Module, name: ""`, an anonymous wrapper with nothing inside. t27's own
+corpus: **8 specs, 2,865 code lines, all exactly 2 nodes**, and every existing
+gate passes them.
+
+Gate 19's blind check could not fire on them: it tests `captured == 0` (these
+capture 2), and it is guarded by "declares something `pub`" (these declare
+nothing public). The guard added to suppress false positives removed exactly the
+cases where capture is worst.
+
+The gate refuted its author in its own log: the first docstring claimed 200x
+bimodality; the gap line printed **6x** on the first run. Corrected, with the
+0.05-0.07 band recorded as acknowledged residue.
+
+### Honesty limits (BINDING)
+
+- **Nothing was repaired.** The 8 shells are ratcheted, not fixed. Whether each
+  should be rewritten in module form, or is documentation wearing a `.t27`
+  extension (Prop. 189), is a decision about the corpus.
+- **The gate measures node COUNT, never node correctness.** A file whose
+  declarations are captured with wrong contents passes -- Prop. 192's 18 corrupted
+  field types are exactly that case.
+- **BITING was tested on the detection path only.** Removing baseline entries
+  makes the gate name them and exit 1; writing a probe spec into `specs/` was
+  declined, so the density computation on a newly constructed file is untested.
+  The weaker test is recorded as the weaker test.
+- Files under 40 code lines are not examined, and the 6 files at 0.05-0.07
+  nodes/line are weakly read and NOT flagged.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169).
+
+
 ## Two gates printed their own blindness in green (Closes #2130)
 
 - Branch: `feat/wave-547/host-heapsort`
