@@ -9726,6 +9726,61 @@ way — but now counted rather than invisible.
 
 ---
 
+### Prop. 184 — swallowed declarations reach zero, and two parsers for one grammar was the last cause — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**184a. The final four were all in one file, and the cause was duplication.**
+`parse_const_decl` carried its **own inline type parser** — a `[` prefix and an
+identifier, nothing else — so `const X : &[u8; 5]` failed at the `&` while the
+same type parsed correctly in a function signature. Delegating to
+`parse_type_annotation` took swallowed declarations **4 → 0** and recovery events
+492 → 429. **Two parsers for one grammar diverge; the only question is which
+construct finds it.**
+
+**184b. Reference types and braced use-lists.** `&T` / `&mut T` had no rule in
+type position (1869 such positions exist across 101 specs; only one file lost
+declarations, because elsewhere `&` sits in expression position where Prop. 167
+handles it). `use a::b::{X, Y, Z}` had no rule at all — the `{` became an
+unexpected top-level token and discarded everything after it, 20 declarations in
+one spec.
+
+**184c. Net: 788 → 0 swallowed across six waves**, recovery events 426, hard
+parse failures 0, declarations captured 5931 → **6004**, 1213 tests pass.
+
+---
+
+### Prop. 185 — "0 swallowed" was true and incomplete — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**185a. The counter cannot see a file whose module body is never entered.**
+`declarations-swallowed` counts what the *recovery skip* passes over. A spec
+whose header or preamble fails never reaches that loop, so it contributes **0**
+while capturing nothing. `c_api_contract.t27` declares 22 `export fn` and
+captured **0**, with the corpus-wide counter reading 0.
+
+**185b. A file-level metric has no such blind spot.** Specs containing a
+`pub`/`export` declaration and capturing **zero** nodes: **40 before this wave,
+34 after.** It is coarse and it cannot be fooled by scope.
+
+**185c. And I nearly published the fifth instance of Prop. 149's error.** A first
+attempt measured "9735 declarations in source, 5929 captured — 60%" using
+`^\s*(?:pub\s+)?(?:fn|const|...)`, which counts **function-local** `const`
+bindings. `gf16.t27` alone contributed 669 phantom losses — the same file, the
+same regex, and the same wrong conclusion Prop. 149 withdrew. **Caught only
+because that file's number was memorable.** The lesson generalises past this
+metric: *a regex that must distinguish scope is measuring something a parser
+defines, and will be wrong in the direction that makes the finding look bigger.*
+
+**185d. What the 34 are.** At least two distinct causes: `c_api_contract.t27` is
+a genuine **literate Markdown** file (16 code fences, 13 headings) with unmarked
+prose between them; the rest are ordinary specs failing on constructs not yet
+identified. Recorded as two groups rather than one number, because a single
+count would imply a single fix.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

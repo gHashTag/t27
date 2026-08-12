@@ -26,6 +26,29 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 688 — swallowed declarations reach zero, and the metric's blind spot
+
+**788 -> 0.** The last four were all in one file and the cause was duplication:
+`parse_const_decl` carried its own inline type parser, so `const X : &[u8; 5]`
+failed at the `&` while the same type parsed fine in a function signature.
+*Two parsers for one grammar diverge; the only question is which construct finds
+it.* Also added: reference types in type position, and braced use-lists
+(`use a::b::{X, Y}`), worth 20 declarations in one spec.
+
+Recovery events 492 -> 426, captured 5931 -> **6004**, 1213 tests pass.
+
+**But "0 swallowed" is true and incomplete (Prop. 185).** The counter sees only
+what the recovery skip passes over; a spec whose preamble fails never enters that
+loop. `c_api_contract.t27` declares 22 `export fn` and captures 0, while the
+corpus counter reads 0. A file-level metric has no such blind spot: **40 specs
+captured zero before this wave, 34 after.**
+
+**And I nearly published the fifth instance of Prop. 149's error** -- "60%
+captured", from a regex that counts function-local `const` as module-level.
+gf16.t27 alone contributed 669 phantom losses. Caught only because that file's
+number was memorable.
+
 ## Wave 687 — `?` was three decisions, not one
 
 Prop. 181 called making `?` a token "a language decision". Measuring what it

@@ -1333,6 +1333,27 @@ impl Parser {
                             if self.current.kind == TokenKind::Ident {
                                 full_path.push_str(&self.current.lexeme);
                                 self.advance();
+                            } else if self.current.kind == TokenKind::LBrace {
+                                // Prop. 184: a braced use-list,
+                                // `use a::b::{X, Y, Z};`. Without a branch here
+                                // the `{` was an unexpected top-level token and
+                                // every declaration after it was discarded --
+                                // 20 in one spec alone.
+                                let mut depth = 0i32;
+                                loop {
+                                    match self.current.kind {
+                                        TokenKind::LBrace => depth += 1,
+                                        TokenKind::RBrace => depth -= 1,
+                                        TokenKind::Eof => break,
+                                        _ => {}
+                                    }
+                                    full_path.push_str(&self.current.lexeme);
+                                    self.advance();
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                }
+                                break;
                             } else {
                                 break;
                             }
@@ -1460,31 +1481,15 @@ impl Parser {
         }
 
         // Optional type annotation `: Type`
+        //
+        // Prop. 184: this had its OWN inline type parser -- it handled a `[`
+        // prefix and an identifier and nothing else, so `const X : &[u8; 5]`
+        // failed at the `&` while the same type parsed fine in a function
+        // signature. Two parsers for one grammar diverge; the only question is
+        // which construct finds it. Delegate to the shared one.
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
-                            // Type can be complex: u8, i8, []Trit, [N]T, etc.
-            let mut type_str = String::new();
-            // Handle [] prefix for slice types
-            if self.current.kind == TokenKind::LBracket {
-                type_str.push('[');
-                self.advance();
-                // Might have a size expression
-                while self.current.kind != TokenKind::RBracket
-                    && self.current.kind != TokenKind::Eof
-                {
-                    type_str.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                type_str.push(']');
-                if self.current.kind == TokenKind::RBracket {
-                    self.advance();
-                }
-            }
-            if self.current.kind == TokenKind::Ident {
-                type_str.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            decl.extra_type = type_str;
+            decl.extra_type = self.parse_type_annotation();
         }
 
         // = value
@@ -1732,6 +1737,21 @@ impl Parser {
     /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
+
+        // Prop. 184: reference types, `&RequestContext`, `&[u8; 5]`, `&mut T`.
+        // 1869 reference-typed positions exist across 101 specs; only one file
+        // lost declarations to them, because elsewhere `&` appears in
+        // EXPRESSION position where Prop. 167 already handles address-of. A
+        // type position had no rule at all.
+        if self.current.kind == TokenKind::Amp && self.current.lexeme != "&&" {
+            ty.push('&');
+            self.advance();
+            // `mut` is not a keyword in this lexer; it arrives as an Ident.
+            if self.current.kind == TokenKind::Ident && self.current.lexeme == "mut" {
+                ty.push_str("mut ");
+                self.advance();
+            }
+        }
 
         // Prop. 182: PREFIX optional, `?*anyopaque`. One of three distinct
         // meanings `?` carries in this corpus; the other two are handled below
