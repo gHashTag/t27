@@ -3462,8 +3462,13 @@ fn run_lex_dropped(specs_dir: &str) -> anyhow::Result<()> {
     let mut top: Vec<_> = by_file.into_iter().collect();
     top.sort_by(|a, b| b.1.cmp(&a.1));
     println!("  most affected specs:");
-    for (f, n) in top.into_iter().take(10) {
+    // W637: a capped list must say it is capped (T46).
+    let __total = top.len();
+    for (f, n) in top.iter().take(10) {
         println!("    {:>6}  {}", n, f);
+    }
+    if __total > 10 {
+        println!("    ... and {} more not shown", __total - 10);
     }
     Ok(())
 }
@@ -3633,8 +3638,13 @@ fn run_check_calls(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()>
         println!("  most affected callees:");
         let mut top: Vec<_> = by_callee.into_iter().collect();
         top.sort_by(|a, b| b.1.cmp(&a.1));
-        for (name, n) in top.into_iter().take(8) {
+        // W637: a capped list must say it is capped (T46).
+        let __total = top.len();
+        for (name, n) in top.iter().take(8) {
             println!("    {:<28} {}", name, n);
+        }
+        if __total > 8 {
+            println!("    ... and {} more not shown", __total - 8);
         }
     }
     Ok(())

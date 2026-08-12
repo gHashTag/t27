@@ -1835,8 +1835,13 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                         );
                         let mut top: Vec<_> = r.classes.iter().collect();
                         top.sort_by(|a, b| b.1.cmp(a.1));
-                        for (class, n) in top.into_iter().take(3) {
+                        // W637: a capped list must say it is capped (T46).
+                        let __total = top.len();
+                        for (class, n) in top.iter().take(3) {
                             println!("    {:>5}  {}", n, class);
+                        }
+                        if __total > 3 {
+                            println!("    ... and {} more class(es) not shown", __total - 3);
                         }
                     }
                     None => println!("  C headers: SKIPPED (no C compiler)"),

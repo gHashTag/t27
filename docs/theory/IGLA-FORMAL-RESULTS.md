@@ -2499,6 +2499,58 @@ makes possible and was not before.
 
 ---
 
+### T47 (W637) — The convention was already right; the new code broke it. And the audit's own detector was 50% false positives.
+
+**T46 said a lossy view must be self-describing. W637 audits every one in the
+toolchain.** Thirteen printing truncations exist outside tests:
+
+| | count |
+|---|---:|
+| already announced elision (`... and N more`) | **7** |
+| headline the cap in the section title (`--- Top 20 specs by lines ---`) | 1 |
+| **genuinely silent — fixed this wave** | **3** |
+| not list caps at all (detector false positives) | **2** |
+
+**The finding is not that the codebase was careless — it is the opposite.**
+Seven of ten real reader-facing list caps *already* printed
+`... and {} more`. The project had the convention. **My `take(25)` in W628 broke
+a practice the surrounding code had been following**, which is a different
+defect from the one T46 described: not an oversight in a young convention, but a
+regression against an established one.
+
+**Statement.** When a codebase already exhibits a safety convention at rate `r`
+across `n` sites, a new violation is evidence about the *author*, not the
+*codebase*. The remedy differs accordingly: a codebase-level absence needs a
+rule and a linter; a single regression against an established rate needs the
+rule written down where the next author will read it. **Measuring `r` before
+prescribing is what tells the two apart** — and it is the step a "we should
+always announce truncation" recommendation skips.
+
+**And the detector was wrong three times in six.** The audit flagged six silent
+sites. Three were real. The other three:
+
+| site | why it is not the hazard |
+|---|---|
+| `main.rs:7681` | the section header *is* the announcement — `--- Top 20 specs by lines ---` |
+| `main.rs:9499` | `chars().take(40)` — per-node string elision in a tree printer, not a list cap |
+| `suite.rs:2284` | `content.lines().take(8)` — reading a file header to validate it; a parsing step, not a report |
+
+**A 50% false-positive rate, and the cause is T37 exactly**: I grouped by a
+*syntactic* signal (`.take(N)` near a `println!`) standing in for a *semantic*
+one (a reader-facing enumeration of a set). **This is the seventh instance of
+that substitution in this session** — T16, T20, T24, T29, T34, T35, and now the
+detector written to close T46.
+
+**The honest summary of an audit is its precision, not its count.** "Six silent
+truncations found" would have been a true sentence and a misleading one; three
+of the six were the detector, not the code.
+
+*Falsification condition:* a reader-facing list cap in this tree that neither
+announces elision nor headlines its bound — which the re-audit says does not
+exist, and which the next `take(N)` will create.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

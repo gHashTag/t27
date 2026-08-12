@@ -5583,6 +5583,25 @@ These cost a wave each. Follow them before step 1.
      `--bless-expectations` and let it write the ledger; do not scrape paths out
      of a run log. I reverted a hand-built ledger for exactly this reason.
 
+253. **Measure the CONVENTION RATE before prescribing a rule.** The truncation
+     audit found 7 of 10 real reader-facing list caps ALREADY printed
+     `... and {} more`. The project had the practice; my W628 `take(25)` broke
+     it. A codebase-level absence needs a rule and a linter; a single regression
+     against an established rate needs the rule written where the next author
+     reads it. Measuring `r` first is what tells the two apart. (T47.)
+
+254. **Report an audit's PRECISION, not just its count.** My detector flagged 6
+     silent truncations; 3 were real. The others: a section header that IS the
+     announcement (`--- Top 20 specs by lines ---`), a `chars().take(40)`
+     per-string elision, and a `lines().take(8)` file-header read. "Six silent
+     truncations found" would have been true and misleading.
+
+255. **Seventh instance this session of a syntactic selector standing in for a
+     semantic one** -- `.take(N)` near a `println!` for "a reader-facing
+     enumeration of a set". T16, T20, T24, T29, T34, T35, and now the detector
+     written to close T46. **Assume your next classifier has this bug and
+     budget a manual read of its hits.**
+
 ### How to update this tracker
 
 After closing a wave:
