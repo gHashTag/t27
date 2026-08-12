@@ -17,7 +17,15 @@ is ODD cannot close its own string. That is not always a defect -- a character
 literal `'"'` is legal, and a multi-line string would be too if this language had
 one -- so those are excluded explicitly rather than silently.
 
-ARTIFACTS. Reads `specs/**/*.t27`. Writes nothing.
+COVERAGE. Examines every line of all 497 specs for quote parity, which is total
+-- a line either can close its own string or cannot. The bracket component added
+in Prop. 192 is NOT total: it matches field declarations of the form
+`name : [...],` and so covers exactly that shape. Prop. 193's
+`delimiter_balance_scan` is the question-shaped replacement for it and subsumes
+it; this one is kept as the regression test for the 107 sites of Prop. 186.
+
+ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/unbalanced_fields_baseline.txt`
+when no baseline exists (Prop. 192). Nothing else.
 
 Prop. 188.
 """

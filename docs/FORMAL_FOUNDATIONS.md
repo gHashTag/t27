@@ -10113,6 +10113,78 @@ scanned, 18 reported, so the scan is not vacuous. **BITING** — a planted
 
 ---
 
+### Prop. 194 — two gates printed their own blindness in green, every wave, and it was read as coverage — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coverage gate — a gate reporting only its numerator is not coverage*
+
+Prop. 193 proved a shape search cannot bound its own residue. Turning that on this
+campaign's 29 instruments produced something worse than the theorem predicts: two
+gates have been **reporting their residue in their own summary line since the wave
+they landed**, in green, and it was never read as a denominator.
+
+```
+units scan: 13 files, 41 connections compared, 122 SKIPPED AS UNRECOGNISED,
+            0 new disagreements
+width scan: 16 signed declarations (3 RANGE-ANNOTATED), 5 reductions checked,
+            0 uncheckable
+```
+
+`units_scan` infers a quantity from a port **name**, against a hand-written
+`FAMILIES` table, so a port not named in that table is never compared: **41 of
+163, 25%**. `width_scan` needs a range annotation to know what a declaration is
+supposed to hold: **3 of 16, 19%**.
+
+Neither gate is wrong. Each answers its question correctly. What was wrong is the
+reading — "0 new disagreements" was taken as *no unit defects* when it means *no
+unit defects among the quarter of connections whose names we recognise*.
+
+**Theorem (the numerator fallacy).** Let a gate `G` examine a subset `E ⊆ A` of an
+artefact and report `|F|` findings. Then `G`'s exit status is a statement about
+`E`, and
+
+```
+P(no defect in A) is unconstrained by F whenever A \ E ≠ ∅
+```
+
+— yet `|F| = 0` and `E = A` produce *identical output*. **A green gate is
+indistinguishable from a blind one unless the denominator is published.** This is
+the same shape as Prop. 25b's vacuity and Prop. 169f's locality of evidence, at
+the level of the instrument rather than the proof: an unstated scope silently
+becomes a universal claim.
+
+**Enumerated: 22 of 29 checking scripts publish no denominator at all.** Seven
+print a skipped/exempt count; the rest print a numerator and an exit code. That is
+not evidence they are narrow — it is the absence of evidence either way, which is
+the point.
+
+**The fix is documentation, deliberately.** No scanner can compute another
+scanner's true denominator — that is the halting problem wearing a lab coat. Gate
+26 requires a `COVERAGE.` paragraph stating what was examined, what was not, and
+why. A gate whose author cannot write that paragraph has not established coverage
+of anything. It checks the **presence** of the marker and never the truth of the
+paragraph, and says so in its own `COVERAGE.` section — a gate that cannot audit
+itself must at least declare that.
+
+**Corollary, and it retires an instrument.** Writing `units_scan`'s paragraph
+established that its residue is *not* reducible by widening `FAMILIES`: that is a
+shape search over names, and Prop. 193 applies. Only a design-side naming
+convention or a type annotation can close it. Likewise `width_scan`'s 13
+unannotated declarations do not lack a better regex — **the information is absent
+from the artefact**. Stating a denominator turned two "scan harder" backlog items
+into one design question, which is what a denominator is for.
+
+Three bars: **TRUE** — exits 0. **ALIVE** — 30 scripts, 3 declaring, 23 not, 4
+exempt; not a vacuous partition. **BITING** — a planted gate with no `COVERAGE.`
+paragraph returns exit 1; removing it returns 0.
+
+**It bit immediately.** Running the suite after this landed, `faith_check` failed:
+Prop. 192's change made `runaway_string_scan` write a baseline while its
+`ARTIFACTS.` line still read "Writes nothing." **Wave 693 shipped with that gate
+red and it was not noticed until a new gate forced a re-run of the whole set** —
+which is Prop. 194 about Prop. 194's own wave.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

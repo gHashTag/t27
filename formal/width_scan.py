@@ -39,6 +39,14 @@ Verilog width checker. It is the specific check that would have caught the
 specific defect, generalised as far as the emitters' own conventions allow.
 
 Usage:  python3 formal/width_scan.py [--self-test]
+COVERAGE. Measured: of 16 signed declarations across 13 emitted files, **3
+carry a range annotation** and are therefore checkable; the other 13 are not
+examined at all. A declaration states its width; the RANGE it is supposed to hold
+is what the check needs, and only an annotation supplies it. So this gate's green
+means "no width defect among the 19% of declarations that told us their range".
+The residue is not reducible by a better regex -- the information is absent from
+the artefact, and the fix is annotating declarations, not scanning harder.
+
 """
 
 import pathlib

@@ -857,6 +857,9 @@ jobs:
       - name: Delimiter balance scan — a spec whose delimiters cannot close
         run: python3 formal/delimiter_balance_scan.py
 
+      - name: Coverage gate — a gate reporting only its numerator is not coverage
+        run: python3 formal/coverage_gate.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 

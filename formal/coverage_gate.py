@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""Gate 26: a gate that reports only its numerator cannot be read as coverage.
+
+Prop. 193 proved that a scan matching an observed shape covers exactly the
+members containing that shape, and that its residue is undetectable by
+construction. This gate is that theorem turned on the campaign's own instruments,
+and the first measurement is worse than the theorem predicts -- because two gates
+have been printing their residue in their summary line all along, in green, and
+nobody read it as coverage:
+
+    units scan: 13 files, 41 connections compared,
+                122 SKIPPED AS UNRECOGNISED, 0 new disagreements
+    width scan: 16 signed declarations (3 RANGE-ANNOTATED),
+                5 reductions checked, 0 uncheckable
+
+`units_scan` infers a quantity from a NAME, against a hand-written `FAMILIES`
+table. A port whose name is not in that table is not compared -- so the gate is
+blind to **75%** of what it looks at. `width_scan` can only check a declaration
+that carries a range annotation: **3 of 16**. Both exit 0. Both have exited 0
+every wave since they landed.
+
+Neither is broken. Each answers its question correctly. The defect is that the
+green was read as "no width defects" when it means "no width defects among the
+19% of declarations that told us their range".
+
+WHAT THIS GATE REQUIRES. Every checking script in `formal/` must carry a
+`COVERAGE.` paragraph in its module docstring, stating what it examined, what it
+could not examine, and why. That is a documentation requirement, deliberately --
+no scanner can compute another scanner's true denominator (that is the halting
+problem wearing a lab coat), but a gate whose author cannot state the denominator
+in one paragraph has not established coverage of anything.
+
+It RATCHETS. Landing red on 29 gates would get it disabled rather than obeyed
+(Prop. 26); it fails when a gate without a `COVERAGE.` paragraph is ADDED, and
+when a gate that had one loses it.
+
+COVERAGE. Examines every `formal/*.py` whose module docstring exists: 29 of 29
+files. It checks for the PRESENCE of the marker, never the truth of the paragraph
+beneath it -- a gate can satisfy this with a false denominator, and this gate
+cannot tell. Helper modules that perform no checking (`bench`, `mutate`,
+`trace_reader`, `scale_probe`) are exempted BY NAME below, with the reason.
+
+ARTIFACTS. Reads `formal/*.py`. WRITES `formal/coverage_baseline.txt` when no
+baseline exists. Nothing else.
+
+Prop. 194.
+"""
+import ast
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+FORMAL = ROOT / "formal"
+
+# Not checking scripts: they produce inputs or read outputs for other steps, so
+# "what fraction of the artefact did you examine" is not a question they answer.
+EXEMPT = {
+    "bench.py":        "times a command; reports a measurement, makes no finding",
+    "mutate.py":       "generates mutants; it is the subject of a check, not one",
+    "trace_reader.py": "parses a counterexample another gate produced",
+    "scale_probe.py":  "reports which properties survive a larger bound; a probe",
+}
+
+
+def main():
+    if not FORMAL.exists():
+        print("::error::coverage gate: no such directory 'formal' under the "
+              "repository root -- nothing was scanned")
+        return 1
+    files = sorted(p for p in FORMAL.glob("*.py"))
+    if not files:
+        print("::error::coverage gate: found no .py files under formal/ -- "
+              "nothing was scanned")
+        return 1
+
+    missing, ok, exempt = [], 0, 0
+    for p in files:
+        if p.name in EXEMPT:
+            exempt += 1
+            continue
+        try:
+            doc = ast.get_docstring(ast.parse(p.read_text())) or ""
+        except SyntaxError:
+            print(f"::error::coverage gate: {p.name} does not parse -- a gate "
+                  f"that cannot be imported checks nothing")
+            return 1
+        if "COVERAGE." in doc:
+            ok += 1
+        else:
+            missing.append(p.name)
+
+    print(f"coverage gate: {len(files)} scripts, {ok} declare a denominator, "
+          f"{len(missing)} do not, {exempt} exempt as non-checking")
+
+    baseline = FORMAL / "coverage_baseline.txt"
+    now = sorted(missing)
+    if not baseline.exists():
+        baseline.write_text("\n".join(now) + ("\n" if now else ""))
+        print(f"coverage gate: baseline written to {baseline.name} "
+              f"({len(now)} without a denominator)")
+        return 0
+
+    was = [l for l in baseline.read_text().splitlines() if l.strip()]
+    new = [m for m in now if m not in was]
+    if new:
+        print(f"::error::coverage gate: {len(new)} checking script(s) do not "
+              f"state a COVERAGE. denominator. A gate reporting only its "
+              f"numerator cannot be read as coverage -- `units_scan` skips 122 "
+              f"of 163 connections and exits 0, and has done so every wave "
+              f"since it landed (Prop. 194)")
+        for m in new:
+            print(f"  formal/{m}")
+        return 1
+    fixed = [w for w in was if w not in now]
+    if fixed:
+        print(f"coverage gate: {len(fixed)} script(s) now state a denominator; "
+              f"update {baseline.name} to lock it in")
+    print(f"coverage gate: ratchet holds ({len(now)} <= {len(was)} silent)")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        print(f"::error::coverage gate: could not scan formal/ "
+              f"({type(exc).__name__}: {exc}) -- nothing was scanned")
+        sys.exit(1)

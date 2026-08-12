@@ -2,6 +2,53 @@
 
 Last updated: 2026-08-12
 
+## Two gates printed their own blindness in green (Closes #2130)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2130
+- PR: (direct commit)
+
+### What landed
+
+`formal/coverage_gate.py` (gate 26) and Prop. 194. Applying Prop. 193's theorem
+to this campaign's own 29 instruments found something worse than it predicts: two
+gates have been reporting their residue in their summary line since they landed,
+and it was read as coverage.
+
+```
+units scan: 41 connections compared, 122 SKIPPED AS UNRECOGNISED, 0 disagreements
+width scan: 16 signed declarations (3 RANGE-ANNOTATED), 0 uncheckable
+```
+
+`units_scan` covers **41 of 163 (25%)**; `width_scan` **3 of 16 (19%)**. Both
+exit 0 and always have. **22 of 29 checking scripts publish no denominator at
+all.** Gate 26 requires a `COVERAGE.` paragraph; `units_scan`, `width_scan` and
+`runaway_string_scan` now carry measured ones.
+
+It bit on its first full run: **wave 693 shipped with `faith_check` red** --
+Prop. 192's change made `runaway_string_scan` write a baseline while its
+`ARTIFACTS.` line still said "Writes nothing". Fixed here.
+
+Three bars: TRUE (exit 0), ALIVE (30 scripts, 3 declaring / 23 not / 4 exempt),
+BITING (a planted gate with no `COVERAGE.` paragraph gives exit 1; removing it
+gives 0).
+
+### Honesty limits (BINDING)
+
+- **Gate 26 checks the PRESENCE of the marker, never the truth of the paragraph.**
+  A gate can satisfy it with a false denominator and this gate cannot tell. It
+  says so in its own `COVERAGE.` section.
+- **22 gates still have no denominator.** The ratchet stops the number growing; it
+  does not establish coverage for any existing gate. Every claim resting on those
+  22 remains a statement about an unpublished subset.
+- The 25% and 19% figures are the gates' own reported counts on this tree today,
+  not a bound on defects present.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169). Prop. 194's gate is real and locally green in a workflow CI does
+  not execute -- which is the same defect one level up, and it stays open.
+
+
 ## Search for the question, not the shape you already found (Closes #2129)
 
 - Branch: `feat/wave-547/host-heapsort`

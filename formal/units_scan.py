@@ -27,6 +27,17 @@ opinion", and the summary says how many were skipped so that silence is
 measurable (Prop. 116's lesson).
 
 Usage:  python3 formal/units_scan.py [--self-test]
+COVERAGE. Measured, and it is the reason Prop. 194 exists: of 163 port
+connections across 13 files, this gate compares **41** and skips **122 as
+unrecognised** -- it is blind to 75% of what it looks at. A quantity is inferred
+from the port NAME against the hand-written `FAMILIES` table above, so any port
+whose name is not in that table is not compared, and a defect there is
+undetectable by construction, not merely unfound. The gate has exited 0 every
+wave since it landed; that green means "no unit disagreement among the quarter of
+connections whose names we recognise", and nothing more. Widening `FAMILIES` is a
+shape search (Prop. 193) and cannot bound this residue -- only a design-side
+convention that names quantities, or a type annotation, could.
+
 """
 
 import pathlib
