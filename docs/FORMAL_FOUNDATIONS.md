@@ -9900,6 +9900,51 @@ the first of those numbers was 788.
 
 ---
 
+### Prop. 190 — a third copy of the type parser, and 384 → 161 recovery events — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**190a. The largest single cause was duplication, again.** The **return type** in
+`parse_fn_decl` had its own inline parser — identifier, generic list, bracket
+prefixes, and *not* `(` — so a tuple return `-> (Lexer, Token)` failed while the
+identical type parsed correctly in a parameter. Prop. 184 removed the second copy
+from `parse_const_decl` for exactly this reason. Delegating this one:
+**276 → 188 events, 88 in a single change.**
+
+**Two parsers for one grammar diverge; three diverge twice.** The corpus found
+the const copy through `&[u8; 5]` and the return copy through `(Lexer, Token)` —
+different constructs, same defect, two waves apart.
+
+**190b. Three bounded features, measured individually.**
+
+| feature | events |
+|---|---|
+| signature-only declarations, `pub fn f(a: T) -> U;` | 384 → 291 |
+| tuple structs, `struct AccountID(str);` | 291 → 276 |
+| return-type delegation | 276 → 188 |
+| stray top-level `;` and namespaced `module a::b {` | 188 → 161 |
+
+Specs producing any recovery event: **130 → 73**. Declarations captured
+**6244 → 6475**. Swallowed 0, hard failures 0, declaring-but-empty 0 throughout.
+1213 tests pass.
+
+**190c. What remains is not parser work.** Of 161 events, **96 are prose** — 56
+bare identifiers and 40 Markdown bullets, all inside documentation files like
+`c_api_contract.t27` (Prop. 189) and `gf16_bfloat16_nmse.t27`. They are English
+sentences in files with a `.t27` extension. **A parser cannot be improved into
+reading prose; the remaining number is a statement about the corpus, not the
+compiler.**
+
+**190d. Corollary (duplication is found by the corpus, not by review).** *Where a
+grammar is implemented n times, each copy diverges on the constructs its own call
+sites never exercise, so the defect surfaces only when a construct crosses from
+one position to another.* No amount of reading `parse_fn_decl` would have shown
+the return-type copy was wrong — it was correct for everything that had ever
+reached it. The signal is always the same shape: **this construct works over
+there and not here.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

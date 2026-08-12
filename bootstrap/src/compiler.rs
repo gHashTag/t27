@@ -1256,6 +1256,19 @@ impl Parser {
                         self.advance();
                     }
                 }
+                // Prop. 190: a namespaced module name, `module a::b {`.
+                while self.current.kind == TokenKind::Colon
+                    && self.peek.kind == TokenKind::Colon
+                {
+                    mod_name.push_str("::");
+                    self.advance();
+                    self.advance();
+                    if self.current.kind == TokenKind::Ident {
+                        mod_name.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+
                 // Consume hyphenated parts: - ident - ident ...
                 while self.current.kind == TokenKind::Minus {
                     mod_name.push('-');
@@ -1388,6 +1401,15 @@ impl Parser {
                 use_node.name = import_name; // e.g. "types" or alias
                 use_node.value = full_path; // e.g. "base::types" or alias
                 module.children.push(use_node);
+                continue;
+            }
+
+            // Prop. 190: a lone `;` at top level, left by `pub const X =
+            // struct { ... };`. It terminates the declaration before it and is
+            // not the start of anything -- 23 recovery events came from
+            // treating it as an unexpected declaration.
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
                 continue;
             }
 
@@ -2082,91 +2104,33 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
-            let mut rt = self.current.lexeme.clone();
-            self.advance();
-            if self.current.kind == TokenKind::Lt {
-                rt.push('<');
-                let mut gt_depth = 1;
-                self.advance();
-                while gt_depth > 0 && self.current.kind != TokenKind::Eof {
-                    if self.current.kind == TokenKind::Lt {
-                        gt_depth += 1;
-                    } else if self.current.kind == TokenKind::Gt {
-                        gt_depth -= 1;
-                        if gt_depth == 0 {
-                            break;
-                        }
-                    }
-                    rt.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                if self.current.kind == TokenKind::Gt {
-                    rt.push('>');
-                    self.advance();
-                }
-            }
-            decl.extra_return_type = rt;
-        } else if self.current.kind == TokenKind::LBracket {
-            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type, [[f64; 8]; 8]
-            let mut rt = String::new();
-            while self.current.kind == TokenKind::LBracket {
-                rt.push('[');
-                self.advance(); // consume [
-                let mut depth: usize = 1;
-                while depth > 0 && self.current.kind != TokenKind::Eof {
-                    match self.current.kind {
-                        TokenKind::LBracket => {
-                            depth += 1;
-                            rt.push('[');
-                            self.advance();
-                        }
-                        TokenKind::RBracket => {
-                            depth -= 1;
-                            rt.push(']');
-                            self.advance();
-                        }
-                        _ => {
-                            rt.push_str(&self.current.lexeme);
-                            self.advance();
-                        }
-                    }
-                }
-            }
-            // Handle 'const' qualifier in return type: []const u8
-            if self.current.kind == TokenKind::KwConst {
-                rt.push_str("const ");
-                self.advance();
-            }
-            // Handle pointer prefix: *Type
-            if self.current.kind == TokenKind::Star {
-                rt.push('*');
-                self.advance();
-            }
-            if self.current.kind == TokenKind::Ident {
-                rt.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            decl.extra_return_type = rt;
-        } else if self.current.kind == TokenKind::KwVoid {
-            decl.extra_return_type = "void".to_string();
-            self.advance();
-        } else if self.current.kind == TokenKind::Star {
-            // Pointer return type: *Type
-            self.advance(); // consume *
-            if self.current.kind == TokenKind::KwConst {
-                self.advance(); // consume const
-            }
-            if self.current.kind == TokenKind::Ident {
-                decl.extra_return_type = format!("*{}", self.current.lexeme);
-                self.advance();
-            }
+        // Return type.
+        //
+        // Prop. 190: this was a THIRD inline copy of type parsing -- it handled
+        // an identifier, a generic list and bracket prefixes, and not `(`, so a
+        // tuple return `-> (Lexer, Token)` failed while the same type parsed in
+        // a parameter. Prop. 184 removed the second copy from parse_const_decl
+        // for exactly this reason. Two parsers for one grammar diverge; three
+        // diverge twice.
+        if self.current.kind != TokenKind::LBrace
+            && self.current.kind != TokenKind::Semicolon
+        {
+            decl.extra_return_type = self.parse_type_annotation();
         }
 
         // Skip optional 'const' qualifier before the body
         if self.current.kind == TokenKind::KwConst {
             self.advance();
+        }
+
+        // Prop. 190: a function DECLARATION with no body, `pub fn f(a: T) -> U;`.
+        // 46 recovery events came from demanding a body -- the corpus uses
+        // signature-only declarations for interface and FFI contracts. A `;` in
+        // place of the body IS the whole construct.
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+            decl.extra_kind = "declaration".to_string();
+            return Ok(decl);
         }
 
         // Parse body: real expressions
@@ -3384,6 +3348,33 @@ impl Parser {
         if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
             self.advance();
+        }
+
+        // Prop. 190: a TUPLE struct, `struct AccountID(str);`. 42 recovery
+        // events came from demanding a brace body. The field list is captured
+        // as text -- this parser does not model tuple positions -- and the
+        // trailing `;` ends the declaration.
+        if self.current.kind == TokenKind::LParen {
+            let mut fields = String::new();
+            let mut depth = 0i32;
+            loop {
+                match self.current.kind {
+                    TokenKind::LParen => depth += 1,
+                    TokenKind::RParen => depth -= 1,
+                    TokenKind::Eof => break,
+                    _ => {}
+                }
+                fields.push_str(&self.current.lexeme);
+                self.advance();
+                if depth == 0 {
+                    break;
+                }
+            }
+            decl.extra_field = fields;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(decl);
         }
 
         self.expect(TokenKind::LBrace)?;

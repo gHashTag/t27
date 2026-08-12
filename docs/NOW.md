@@ -29,6 +29,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 691 — a third copy of the type parser
+
+**384 -> 161 recovery events**, specs recovering 130 -> 73, declarations captured
+6244 -> **6475**, 1213 tests pass.
+
+The largest single cause was duplication again: the RETURN type in
+`parse_fn_decl` had its own inline parser -- identifier, generics, brackets, and
+not `(` -- so `-> (Lexer, Token)` failed while the same type parsed fine in a
+parameter. Delegating it was worth 88 events in one change. Prop. 184 removed the
+second copy for exactly this reason. **Two parsers for one grammar diverge; three
+diverge twice.**
+
+Also: signature-only declarations (`pub fn f() -> U;`), tuple structs
+(`struct AccountID(str);`), a stray top-level `;`, and namespaced module names.
+
+**What remains is not parser work.** Of 161 events, 96 are prose -- 56 bare
+identifiers and 40 Markdown bullets, all in documentation files with a `.t27`
+extension. *A parser cannot be improved into reading prose.*
+
+*Corollary: where a grammar is implemented n times, each copy diverges on the
+constructs its own call sites never exercise -- so the defect surfaces only when
+a construct crosses from one position to another. The signal is always "this
+works over there and not here."*
+
 ## Wave 690 — the corpus reaches zero on every parse metric
 
 **Four more corrupted sites (Prop. 188)**, in a const-with-initialiser shape the
