@@ -11,7 +11,7 @@ module TriCircularBuffer;
     // ═══════════════════════════════════════════════════════════
 
     pub const CircularBuffer = struct {
-        data : [[]I64",
+        data : [[]I64],
         head : "usize",
         tail : "usize",
         capacity : "usize",

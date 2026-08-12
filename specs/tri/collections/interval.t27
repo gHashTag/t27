@@ -17,7 +17,7 @@ module TriInterval;
     };
 
     pub const IntervalSet = struct {
-        intervals : [[]Interval",
+        intervals : [[]Interval],
     };
 
     // ═══════════════════════════════════════════════════════════

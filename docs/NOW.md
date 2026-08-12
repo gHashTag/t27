@@ -27,6 +27,31 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 689 — 107 corrupted field types, hidden behind a runaway string
+
+The 33 remaining zero-capture specs were **not a parser gap**. Every one carried
+`bits : [[]Usize",` -- a stray `"` where `]` belongs, opening a string literal
+that consumes the rest of the file. All at line 14 or 15, all from one commit.
+
+**Bracket balance decided the repair where no uncorrupted example existed**:
+`[[]Usize` has exactly one unclosed `[`, so `]` is the unique character that
+balances it. 107 sites repaired across 73 specs, **0 skipped** -- the oracle
+decided every case.
+
+Specs declaring but capturing nothing: **34 -> 1**. Recovery events 426 -> 384,
+captured 6004 -> **6244**, 0 hard failures, 1213 tests pass.
+
+One real parser defect too: a keyword-style test block at the end of a module ran
+the skip to EOF and ate the module's closing brace. *A scanner must never consume
+a terminator it did not open* -- second place that rule was missing.
+
+**Theorem: if a lexical error causes the rest of a file to be consumed rather
+than reported, the symptom appears at the consumer and carries no information
+about the cause's location.** Six waves searched the parser for a defect that was
+one character of data. What broke it was the file-level metric added this wave --
+the inside-the-machine counter had reached 0 and stayed there.
+
 ## Wave 688 — swallowed declarations reach zero, and the metric's blind spot
 
 **788 -> 0.** The last four were all in one file and the cause was duplication:

@@ -11,8 +11,8 @@ module TriGraphDfs;
     // ═══════════════════════════════════════════════════════════
 
     pub const DFSResult = struct {
-        preorder : [[]Usize",
-        postorder : [[]Usize",
+        preorder : [[]Usize],
+        postorder : [[]Usize],
         allocator : "std.mem.Allocator",
     };
 

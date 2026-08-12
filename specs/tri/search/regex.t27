@@ -11,7 +11,7 @@ module TriRegex;
     // ═══════════════════════════════════════════════════════════
 
     pub const Regex = struct {
-        pattern : [[]Const u8",
+        pattern : [[]Const u8],
         compiled : "bool",
     };
 

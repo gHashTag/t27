@@ -11,7 +11,7 @@ module TriBoyerMoore;
     // ═══════════════════════════════════════════════════════════
 
     pub const BMBadChar = struct {
-        table : [[256]Usize",
+        table : [[256]Usize],
         pattern_len : "usize",
     };
 

@@ -11,8 +11,8 @@ module TriBTree;
     // ═══════════════════════════════════════════════════════════
 
     pub const BTreeNode = struct {
-        keys : [[]Usize",
-        children : [[]?*BTreeNode",
+        keys : [[]Usize],
+        children : [[]?*BTreeNode],
         leaf : "bool",
         count : "usize",
     };

@@ -11,7 +11,7 @@ module TriBloomFilter;
     // ═══════════════════════════════════════════════════════════
 
     pub const BloomFilter = struct {
-        bits : [[]Bool",
+        bits : [[]Bool],
         hash_count : "usize",
         size : "usize",
     };

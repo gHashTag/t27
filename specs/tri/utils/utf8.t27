@@ -15,7 +15,7 @@ module TriUtf8;
     };
 
     pub const Rune = struct {
-        bytes : [[4]U8",
+        bytes : [[4]U8],
         len : "u8",
     };
 

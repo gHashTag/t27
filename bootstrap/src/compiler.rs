@@ -1167,6 +1167,17 @@ impl Parser {
                 _ => {}
                 }
             }
+            // Prop. 186: an unmatched `}` ends the ENCLOSING block, not this
+            // skip. A keyword-style `test ... given ... when ... then` block at
+            // the end of a module has no following top-level keyword, so this
+            // loop ran to EOF and ate the MODULE's closing brace -- 33 specs
+            // captured zero declarations for exactly that reason. Same rule as
+            // Prop. 166d, one function over: a scanner must never consume a
+            // terminator it did not open.
+            if self.current.kind == TokenKind::RBrace {
+                break;
+            }
+
             // Handle brace groups by using skip_brace_body
             if self.current.kind == TokenKind::LBrace {
                 self.advance();

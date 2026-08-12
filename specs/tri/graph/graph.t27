@@ -11,12 +11,12 @@ module TriGraph;
     // ═══════════════════════════════════════════════════════════
 
     pub const Graph(T) = struct {
-        nodes : [std.HashMap(T, []T)",
+        nodes : [std.HashMap(T, []T)],
         directed : "bool",
     };
 
     pub const GraphPath = struct {
-        nodes : [[]T",
+        nodes : [[]T],
         cost : "f64",
     };
 

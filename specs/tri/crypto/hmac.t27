@@ -11,7 +11,7 @@ module TriHmac;
     // ═══════════════════════════════════════════════════════════
 
     pub const HMAC = struct {
-        opad : [[64]U8",
+        opad : [[64]U8],
         inner : "SHA256",
     };
 

@@ -11,7 +11,7 @@ module TriBytes;
     // ═══════════════════════════════════════════════════════════
 
     pub const Bytes = struct {
-        data : [[]U8",
+        data : [[]U8],
         owned : bool,
     };
 

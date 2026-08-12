@@ -75,7 +75,21 @@ def measure():
             return None, (f"no 'declarations-swallowed:' line from t27c on "
                           f"{s.relative_to(ROOT)} -- the gate cannot see what "
                           f"recovery discarded")
-        out[str(s.relative_to(ROOT))] = (int(m.group(1)), int(sw.group(1)))
+
+        # Prop. 186: the swallowed counter lives INSIDE the recovery skip, so a
+        # spec whose preamble fails never reaches it and reports 0 while
+        # capturing nothing -- 34 specs do exactly that. The third component is
+        # the coarse outside-the-machine check: does a file that declares
+        # something public capture ANY declaration at all? It needs no parser
+        # knowledge and cannot be fooled by scope, which is what made every
+        # regex-based attempt at this wrong (Props. 149, 185c).
+        text = s.read_text(errors="ignore")
+        declares = bool(re.search(
+            r"^\s{0,4}(?:pub|export)\s+(?:fn|const|struct|enum)\s+\w", text, re.M))
+        captured = len(re.findall(
+            r"kind: (?:ConstDecl|FnDecl|StructDecl|EnumDecl)", r.stdout))
+        blind = 1 if (declares and captured == 0) else 0
+        out[str(s.relative_to(ROOT))] = (int(m.group(1)), int(sw.group(1)), blind)
     return out, None
 
 
@@ -97,12 +111,14 @@ def main():
 
     total = sum(v[0] for v in now.values())
     lost = sum(v[1] for v in now.values())
+    blind = sum(v[2] for v in now.values())
     dirty = sum(1 for v in now.values() if v[0])
     print(f"spec parse gate: {len(now)} specs, {dirty} recovering, "
-          f"{total} recovery events, {lost} declarations swallowed")
+          f"{total} recovery events, {lost} declarations swallowed, "
+          f"{blind} specs declaring but capturing nothing")
 
     if not BASELINE.exists():
-        BASELINE.write_text("".join(f"{v[0]}\t{v[1]}\t{k}\n"
+        BASELINE.write_text("".join(f"{v[0]}\t{v[1]}\t{v[2]}\t{k}\n"
                                     for k, v in sorted(now.items())))
         print(f"spec parse gate: baseline written to {BASELINE.name} "
               f"({total} discarded)")
@@ -112,13 +128,15 @@ def main():
     for line in BASELINE.read_text().splitlines():
         if not line.strip():
             continue
-        a, b, k = line.split("\t", 2)
-        was[k] = (int(a), int(b))
+        a, b, c, k = line.split("\t", 3)
+        was[k] = (int(a), int(b), int(c))
 
     old_total = sum(v[0] for v in was.values())
     old_lost = sum(v[1] for v in was.values())
-    regressions = [(k, was.get(k, (0, 0)), v) for k, v in sorted(now.items())
-                   if v[0] > was.get(k, (0, 0))[0] or v[1] > was.get(k, (0, 0))[1]]
+    regressions = [(k, was.get(k, (0, 0, 0)), v) for k, v in sorted(now.items())
+                   if v[0] > was.get(k, (0, 0, 0))[0]
+                   or v[1] > was.get(k, (0, 0, 0))[1]
+                   or v[2] > was.get(k, (0, 0, 0))[2]]
     if regressions:
         print(f"::error::spec parse gate: {len(regressions)} spec(s) under "
               f"specs/ recover more or swallow more than the baseline -- a spec "

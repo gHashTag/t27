@@ -11,7 +11,7 @@ module TriBitvector;
     // ═══════════════════════════════════════════════════════════
 
     pub const BitVector = struct {
-        bits : [[]Usize",
+        bits : [[]Usize],
         length : usize,
     };
 

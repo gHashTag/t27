@@ -11,8 +11,8 @@ module TriDijkstra;
     // ═══════════════════════════════════════════════════════════
 
     pub const DijkstraResult = struct {
-        distance : [[]F64",
-        parent : [[]?Usize",
+        distance : [[]F64],
+        parent : [[]?Usize],
         allocator : "std.mem.Allocator",
     };
 

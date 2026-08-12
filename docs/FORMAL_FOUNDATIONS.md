@@ -9781,6 +9781,64 @@ count would imply a single fix.
 
 ---
 
+### Prop. 186 — 107 corrupted field types, hidden behind a runaway string — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**186a. The 33 remaining zero-capture specs were not a parser gap.** Every one
+carried a struct field of the form `bits : [[]Usize",` — a stray `"` where `]`
+belongs, opening a **string literal that consumes the rest of the file**. All 33
+had it, all at line 14 or 15, all introduced by a single commit (`692ba5263`).
+A generator emitted the wrong character and nobody saw it, because the lexer
+swallowed everything after it in silence.
+
+**186b. Bracket balance is a decisive oracle where no uncorrupted example
+exists.** No `[[]T],` form appears anywhere in the corpus, so the intended text
+could not be copied from a sibling. But `[[]Usize` has **exactly one unclosed
+`[`**, and `]` is the unique character that balances it. The repair applies only
+where that balance holds and skips otherwise — **0 of 107 sites were skipped**,
+so the oracle decided every case.
+
+**186c. Measured.** 107 field types repaired across 73 specs. Specs declaring but
+capturing nothing: **34 → 1**. Recovery events **426 → 384**; specs recovering
+172 → 130; declarations captured **6004 → 6244**; hard parse failures 0; 1213
+tests pass.
+
+**186d. And one parser defect was real.** A keyword-style
+`test ... given ... when ... then` block at the end of a module has no following
+top-level keyword, so the skip ran to EOF and consumed the **module's** closing
+brace. Fixed by stopping at an unmatched `}` — the same rule as Prop. 166d, one
+function over. *A scanner must never consume a terminator it did not open*, and
+this is the second place that rule was missing.
+
+**186e. Theorem (silent consumption inverts the search).** *If a lexical error
+causes the remainder of a file to be consumed rather than reported, then the
+observable symptom appears at the CONSUMER (a missing declaration, an unclosed
+block) and carries no information about the CAUSE's location.* Six waves of this
+campaign searched the parser for a defect that was one character of data. The
+diagnostic that broke it was not a parser measurement but a **file-level** one —
+"which files declare something and capture nothing" — which pointed at files
+rather than constructs.
+
+---
+
+### Prop. 187 — the counter that reads zero while 34 files capture nothing — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**187a.** `declarations-swallowed` lives inside the recovery skip, so a spec whose
+preamble fails never reaches it. It read **0** corpus-wide while 34 specs
+captured nothing at all. The ratchet now carries a third component — *does a file
+that declares something public capture any declaration?* — which needs no parser
+knowledge and cannot be fooled by scope.
+
+**187b. That component is what found Prop. 186.** The inside-the-machine counter
+had reached zero and stayed there; the outside-the-machine one was still 34 and
+pointed directly at the corrupted files. **Pair every counter that lives inside a
+mechanism with a coarse one that does not.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

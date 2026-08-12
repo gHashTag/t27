@@ -11,7 +11,7 @@ module TriPolynomial;
     // ═══════════════════════════════════════════════════════════
 
     pub const Polynomial = struct {
-        coeffs : [[]F64",
+        coeffs : [[]F64],
         allocator : "std.mem.Allocator",
     };
 

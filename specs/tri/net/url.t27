@@ -11,12 +11,12 @@ module TriUrl;
     // ═══════════════════════════════════════════════════════════
 
     pub const Url = struct {
-        scheme : [[]Const u8",
-        host : [[]Const u8",
+        scheme : [[]Const u8],
+        host : [[]Const u8],
         port : "?u16",
-        path : [[]Const u8",
-        query : [[]Const u8",
-        fragment : [[]Const u8",
+        path : [[]Const u8],
+        query : [[]Const u8],
+        fragment : [[]Const u8],
     };
 
     // ═══════════════════════════════════════════════════════════
