@@ -8362,6 +8362,119 @@ in Prop. 138 the analogous points did both, failing at `C ≥ 2` and passing at
 
 ---
 
+### Prop. 143 — 497 specs parse, and the parser discards 3292 declarations — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**143a. The wave began by writing a spec and finding it empty.** Prop. 140 had
+to settle a semantic question with no `.t27` spec to appeal to, so this wave
+wrote one. `t27c parse` returned exit 0 and an AST containing **none** of its
+identifiers — 16 nodes, an empty `Module`. Exit 0 over an empty set.
+
+**143b. The control located it in the corpus, not the file.** The repository's
+flagship spec, `gamma_conjecture.t27`, has 14 constant declarations in source
+and **3** in its AST. Across 43 specs: 676 written, 214 captured — **31%**.
+Across all 497: **3292 constants never reach any AST**, and every spec exits 0.
+
+**143c. The mechanism is four lines.** `parse_module_body` recovers from a
+failed declaration by calling `skip_to_next_top_level()` and continuing:
+
+```rust
+Err(_) => {
+    // On parse error, skip to next top-level declaration and continue
+    self.skip_to_next_top_level();
+}
+```
+
+Recovery is correct for a resilient parser. **Discarding the error is not.**
+No diagnostic, no counter, no effect on the exit code — so "496/496 specs
+parse" has always meant "the parser did not abort", never "the parser read the
+spec". This is Prop. 103's second shape, *a decline that is not counted*, in
+the compiler for the project's stated source of truth.
+
+**143d. The AST is consumed.** `codegen_python.rs`, `formula_eval.rs` and
+`compiler.rs` all read it, so whatever is dropped is dropped for every
+downstream consumer, silently.
+
+**143e. The fix is to make the silence audible, not to rewrite the parser.**
+`Parser::discarded` records each recovered error; `parse_ast_reporting` returns
+them; `t27c parse` prints `recovery-events: N` to stderr with the first five
+messages and their line numbers. The first one on `ternary_encoding.t27` is
+`Unexpected top-level token: Semicolon (';') at line 16:30` — a precise,
+actionable defect that had been invisible for the life of the repository.
+Rewriting the parser late in a session, to serve a measurement, is the change
+this campaign has twice recorded as the one not to make.
+
+**143f. Theorem (recovery hides loss monotonically).** *Let a parser `P` map
+source to an AST with an error-recovery relation that, on failure of
+declaration `d`, discards `d` and resumes at some later point. If `P`'s exit
+status is a function of only the returned AST's well-formedness, then for any
+source `s` and any prefix-preserving corruption `s'` of `s`, `P(s')` and `P(s)`
+are indistinguishable by exit status.* Corollary: **an exit code cannot report
+recovery, so any parser with silent recovery requires a second channel or it
+reports success on arbitrarily corrupted input.**
+
+---
+
+### Prop. 144 — recovery events are not the declarations they discard — `CORRECTED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**144a. I shipped the count under the wrong name.** The stderr line was
+`discarded-declarations: N`, and it counts **recovery events**. One call to
+`skip_to_next_top_level()` can swallow several declarations, so the two
+quantities differ.
+
+**144b. A planted regression exposed it, by not moving.** Three constants added
+to a spec left the "discarded-declarations" total at exactly 1741, so the gate
+built to catch regressions reported none. The constants-captured measurement
+moved 15 → 18 for that file. Had the label been believed, the gate would have
+been a ratchet on a number the regression could not touch.
+
+**144c. Both are now ratcheted, and neither is called the other.**
+`recovery-events` counts errors recovered; a separate figure counts constants
+written minus constants reaching the AST. The gate fails if either rises for
+any spec, and reports both totals every run.
+
+**144d. This is the campaign's most-repeated failure, committed again.** Not a
+wrong number — an unexamined label. `FAIL: 496` meant "binary not found".
+`58 empty/skipped` meant "object-shaped". `20 of 28` meant "including twelve
+ill-posed". Now `1741 discarded declarations` meant "1741 recovery events".
+Every instance was an accurate count of something other than what its word
+said, and every one survived until something forced the two apart.
+
+---
+
+### Prop. 145 — the requantizer boundary is now written down — `RECORDED`
+
+**Gate:** `formal-yosys.yml` → *Spec parse gate — "parses OK" must mean the parser read the spec*
+
+**145a.** `specs/numeric/requant_boundary.t27` records the inclusive threshold
+convention Prop. 140 had to adjudicate without a specification: the priority
+chain, the reason it is a chain rather than parallel comparisons, the
+verification record (26 configurations, boundary reached, `acc ∈ [-6, 81]`),
+the resolved finding, and the scope limits.
+
+**145b. Its `provenance` is `PRE_RULE`, and that matters.** The value was fixed
+before the spec existed, stated in the RTL and asserted by the module's own
+inline properties. **Recording it is a record, not independent evidence** — a
+spec that agrees with the artifact it was written from confirms nothing about
+the artifact.
+
+**145c. The open question is written as open.** Whether *inclusive* is the
+intended semantics or merely the implemented one is not settled by anything in
+this repository, and is marked `DO_NOT_GUESS` rather than resolved by the fact
+that the design does it.
+
+**145d. Its first draft did not parse, and that is how Prop. 143 was found.**
+The syntax recorded in the project's own spec-authoring guidance —
+`spec Name version X.Y.Z` with `rule { }` blocks — produces an empty AST. The
+form the compiler accepts is `module Name { }` with consts and functions. A
+documented syntax that the toolchain does not implement is the same shape as a
+documented command nobody has run.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -848,6 +848,9 @@ jobs:
       - name: Value sweep — engine arithmetic against a reference, across configurations
         run: python3 formal/value_sweep.py
 
+      - name: Spec parse gate — "parses OK" must mean the parser read the spec
+        run: python3 formal/spec_parse_gate.py
+
       # A property that references a signal which does not exist proves without
       # reading the design. `a_addr_ahead_of_data` did exactly that for four
       # waves via `dut.word_index`, which yosys implicitly declared as an

@@ -896,6 +896,15 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    /// Declarations this parser silently discarded during error recovery.
+    ///
+    /// Prop. 143: `parse_module_body` recovers from a failed declaration by
+    /// skipping to the next one and continuing, which is the right behaviour
+    /// for a resilient parser and was reported nowhere. Across specs/ that
+    /// silence discarded 462 of 676 constant declarations while every spec
+    /// reported "parses OK" -- a decline that is not counted, in the compiler
+    /// for the project's stated source of truth.
+    pub discarded: Vec<String>,
 }
 
 impl Parser {
@@ -906,6 +915,7 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            discarded: Vec::new(),
         }
     }
 
@@ -1188,8 +1198,10 @@ impl Parser {
                 Ok(decl) => {
                     module.children.push(decl);
                 }
-                Err(_) => {
-                    // On parse error, skip to next top-level declaration and continue
+                Err(e) => {
+                    // Recovery is deliberate; the SILENCE was not. Record what
+                    // was dropped so a caller can report it (Prop. 143).
+                    self.discarded.push(e);
                     self.skip_to_next_top_level();
                 }
             }
@@ -6177,6 +6189,20 @@ impl Compiler {
 
         let mut parser = Parser::new(lexer);
         parser.parse()
+    }
+
+    /// Parse, and also return every declaration error recovery discarded.
+    ///
+    /// Prop. 143: `parse_ast` cannot report this, because recovery makes the
+    /// overall result `Ok` no matter how much was dropped. Callers that want
+    /// to know whether the AST is a faithful reading of the source must ask
+    /// for the discards explicitly -- 496 specs reported "parses OK" while
+    /// 462 of 676 constants never reached any AST.
+    pub fn parse_ast_reporting(source: &str) -> (Result<Node, String>, Vec<String>) {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse();
+        (ast, parser.discarded)
     }
 
     /// Compile a single file as part of a project, resolving imports using the module map.

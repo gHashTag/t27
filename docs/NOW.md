@@ -7,6 +7,27 @@ Last updated: 2026-08-12
 
 
 
+
+## Wave 670 — 497 specs parse, and 3292 declarations never reach an AST
+
+Writing the requantizer spec Prop. 140 needed produced an AST with none of its
+identifiers in it. The control found the cause is not the file: the flagship
+`gamma_conjecture.t27` captures 3 of its 14 constants, and across all 497 specs
+**3292 constant declarations never reach any AST** — every one exiting 0.
+
+`parse_module_body` recovers from a failed declaration by skipping and
+continuing, and throws the error away. Recovery is right; the silence is not.
+"496/496 specs parse" has always meant "the parser did not abort".
+
+Fixed by making it audible rather than by rewriting the parser: `t27c parse`
+now prints `recovery-events: N` with the first five messages and line numbers.
+Gate 19 ratchets, and a planted regression is caught.
+
+Also corrected: I first shipped that count as `discarded-declarations`, which
+it is not — one recovery can swallow several declarations, and the planted
+regression moved constants-lost 15→18 while leaving recovery events at 2. The
+campaign's most-repeated failure, committed again: an unexamined label.
+
 ## Wave 669 — a boundary no vector had ever touched, and a corrected pass-rate
 
 **Values, at last (Prop. 140).** Every vector in this campaign was all-(+1)

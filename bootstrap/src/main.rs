@@ -2979,9 +2979,20 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    match compiler::Compiler::parse_ast(&source) {
+    let (ast, discarded) = compiler::Compiler::parse_ast_reporting(&source);
+    match ast {
         Ok(ast) => println!("{:#?}", ast),
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    // Prop. 143: error recovery is deliberate; reporting nothing was not.
+    // Printed to stderr so existing consumers of the AST dump are unaffected.
+    // Prop. 143: this counts RECOVERY EVENTS, not declarations. One call to
+    // skip_to_next_top_level can swallow several declarations, so the two
+    // numbers differ and conflating them overstates precision -- the exact
+    // unexamined-label failure this campaign keeps finding.
+    eprintln!("recovery-events: {}", discarded.len());
+    for d in discarded.iter().take(5) {
+        eprintln!("  discarded: {}", d);
     }
     Ok(())
 }

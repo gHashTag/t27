@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e56d2fd9562d7ae65f070029b190be8f404b58e59b9cf36220cd65e23b875cb5",
+  "gen_hash_rust": "sha256:e80297421741eb54946151122fc4fbb7ce8fb56ed1cd03d1a834ef18de5a7bb2",
+  "gen_hash_verilog": "sha256:70610ff725cfde177195d753fa6062d9bb8267f3fa588ec0ffccf92b485b70a9",
+  "gen_hash_zig": "sha256:aee566e857b0eb42dc14fe4e7138e2e411941ee5c8c6200cb3365d402cb85ce3",
+  "module": "RequantBoundary",
+  "ring": 12,
+  "sealed_at": "2026-08-12T00:56:57Z",
+  "spec_hash": "sha256:a9e2950b301cb6c2c79d59dde0d0449facf15e4b900e5ec7b599795797c7f0f0",
+  "spec_path": "specs/numeric/requant_boundary.t27"
+}
