@@ -2,6 +2,52 @@
 
 Last updated: 2026-08-12
 
+## Auditing every by-name exemption (Closes #2134)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2134
+- PR: (direct commit)
+
+### What landed
+
+Prop. 197's failure mode -- a general justification coded as a literal -- is
+mechanical, so it can be audited. **13 exemption sets across 10 gates**, 8 naming
+literal files. Two were wrong, in opposite directions.
+
+**One too narrow:** `spec_parse_gate.EXCUSED_DOC` re-derived as the structural
+document property, shared with gate 28 so the two cannot drift.
+
+**Three simply false, and mine:** `coverage_gate.EXEMPT` excused four scripts as
+"not checking scripts". Re-deriving that property (never returns failure, emits no
+`::error::`) refutes three:
+
+| script | exempt because | actually |
+|---|---|---|
+| `bench.py` | "makes no finding" | `::error::arm exited nonzero` -- fails CI |
+| `mutate.py` | "is the subject of a check" | `::error::self-test found no RTL` -- fails CI |
+| `scale_probe.py` | "a probe" | has a `return 1` path |
+| `trace_reader.py` | "parses a counterexample" | correct -- the only one |
+
+Narrowed to the one entry the property holds for. All 20 gates green, 1213 tests
+pass.
+
+### Honesty limits (BINDING)
+
+- **The EXCUSED_DOC fix has a measured effect of ZERO today.** `blind` is 0 either
+  way, because no spec currently both declares something public and captures
+  nothing. It is a correctness change with no numeric improvement, and is recorded
+  as such rather than presented as one.
+- **The other 9 exemptions were enumerated, not re-derived.** Only two were tested
+  against their stated property. The remaining ones are listed, not cleared -- an
+  audit that names its scope, not a clean bill.
+- **Narrowing EXEMPT did not add denominators**; it moved three scripts into the
+  ratcheted baseline, where lacking one is recorded rather than hidden. 25 of 32
+  scripts still publish no denominator.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169).
+
+
 ## 36% of the parser backlog is Markdown (Closes #2133)
 
 - Branch: `feat/wave-547/host-heapsort`

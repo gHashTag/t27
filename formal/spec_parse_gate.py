@@ -96,9 +96,24 @@ def measure():
         # in the file. Whether it should be renamed is a decision about the
         # corpus, not a parser defect, so it is excused by name with the reason
         # rather than left as an unexplained 1 in the count.
-        EXCUSED_DOC = {"specs/api/c_api_contract.t27"}
-        rel = str(s.relative_to(ROOT))
-        blind = 1 if (declares and captured == 0 and rel not in EXCUSED_DOC) else 0
+        # Prop. 198: this was `EXCUSED_DOC = {"specs/api/c_api_contract.t27"}` --
+        # a general justification ("documentation wearing a .t27 extension")
+        # coded as one literal path. Prop. 197 then found 15 siblings: 16 of 497
+        # specs are Markdown documents and account for 36% of this gate's own
+        # headline number. An exemption granted by name cannot notice it has a
+        # class. Re-derived as the structural property, shared with gate 28 so
+        # the two cannot drift apart.
+        #
+        # MEASURED EFFECT TODAY: none. `blind` is 0 either way, because no spec
+        # currently both declares something public and captures nothing. This is
+        # recorded as a correctness change with a zero-sized effect, not sold as
+        # an improvement -- the point is that the next such file is excused for
+        # the reason actually written down, rather than not at all.
+        head = text[:4000]
+        is_doc = (len([l for l in head.splitlines()
+                       if re.match(r"^#{1,6} \S", l)]) >= 2
+                  or text.count("```") // 2 >= 2)
+        blind = 1 if (declares and captured == 0 and not is_doc) else 0
         out[str(s.relative_to(ROOT))] = (int(m.group(1)), int(sw.group(1)), blind)
     return out, None
 

@@ -1,4 +1,5 @@
 absence_sweep.py
+bench.py
 bound_scan.py
 claims_check.py
 comment_scan.py
@@ -12,9 +13,11 @@ guard_scan.py
 identity_scan.py
 init_zero_scan.py
 mirror_check.py
+mutate.py
 orphan_scan.py
 phantom_scan.py
 restatement_scan.py
+scale_probe.py
 spec_parse_gate.py
 vacuity_gate.py
 vacuity_sweep.py

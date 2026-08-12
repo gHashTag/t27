@@ -10345,6 +10345,75 @@ entries from the baseline makes it name them and exit 1.
 
 ---
 
+### Prop. 198 — auditing every by-name exemption found one too narrow and three simply false — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Coverage gate — a gate reporting only its numerator is not coverage*
+
+Prop. 197 found an exemption whose written justification was general
+(*"documentation wearing a .t27 extension"*) and whose code was one literal path,
+so it could not notice fifteen siblings. That failure mode is mechanical, so it
+can be audited: **enumerate every hardcoded exemption in the 28 gates, re-derive
+the property each one claims, and count the class.**
+
+Enumerated: **13 exemption sets across 10 gates**, of which 8 name literal files
+or paths. Two were wrong, in opposite directions.
+
+**One too narrow** — `spec_parse_gate.EXCUSED_DOC`, Prop. 197's case, now
+re-derived as the structural document property and shared with gate 28 so the two
+cannot drift. *Measured effect today: none.* `blind` is 0 either way, because no
+spec currently both declares something public and captures nothing. It is recorded
+as a zero-effect correctness change rather than sold as an improvement.
+
+**Three simply false** — and these were mine. `coverage_gate.EXEMPT` excused four
+scripts as *"not checking scripts, so coverage is not a question they answer"*.
+Re-deriving that property — never returns a failure status, emits no `::error::` —
+and counting:
+
+| script | stated exempt because | actually |
+|---|---|---|
+| `bench.py` | "makes no finding" | `::error::arm '{label}' exited nonzero` — **fails CI** |
+| `mutate.py` | "is the subject of a check" | `::error::mutate self-test found no RTL` — **fails CI** |
+| `scale_probe.py` | "a probe" | has a `return 1` failure path |
+| `trace_reader.py` | "parses a counterexample" | correct — the only one |
+
+**Three scripts that can fail the build were excused from stating a denominator by
+a sentence that is not true of them.** This is not Prop. 197's shape — the
+exemption was not too narrow, it was simply wrong, and it survived because a
+justification written in prose is never checked against the code beneath it.
+
+**Theorem (exemption drift).** An exemption is a pair `(J, S)`: a justification
+`J`, which is a predicate over the corpus, and a set `S` of literals. Soundness
+requires `S = {x : J(x)}`. Nothing enforces it, and the two fail apart in both
+directions independently:
+
+```
+S ⊊ {x : J(x)}   under-exemption -- siblings unnoticed  (Prop. 197)
+S ⊋ {x : J(x)}   over-exemption  -- checks silently disabled  (this prop)
+```
+
+Over-exemption is the more dangerous half, because under-exemption produces
+*visible* noise while over-exemption produces **silence** — the exempted artefact
+is simply absent from every count, and the count still looks complete.
+
+**Corollary — every prose justification in a checker is an unchecked claim.** The
+campaign has spent 30 waves on the principle that an unrun check proves nothing
+(Prop. 169), an unbounded search establishes nothing (Prop. 193), and an
+unpublished denominator means nothing (Prop. 194). A `# reason:` comment beside an
+exemption is all three at once, and there are **13 of them here**. The only remedy
+found so far is what this wave did by hand: write the property as executable code,
+run it, and compare the two sets.
+
+Narrowed to the one entry its property holds for; the other three fall into the
+ratcheted baseline, where being undeclared is recorded rather than hidden behind a
+false reason.
+
+Three bars: **TRUE** — all 20 gates green, 1213 tests pass. **ALIVE** — 13
+exemptions enumerated, 8 by literal name, 4 corrected; not a vacuous audit.
+**BITING** — the property test itself refutes 3 of 4 entries in a set I wrote two
+waves ago.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

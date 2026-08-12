@@ -52,13 +52,24 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FORMAL = ROOT / "formal"
 
-# Not checking scripts: they produce inputs or read outputs for other steps, so
-# "what fraction of the artefact did you examine" is not a question they answer.
+# Prop. 198: this set was written from a general justification -- "not checking
+# scripts, so coverage is not a question they answer" -- and then coded as four
+# literal filenames. Re-deriving the property it claims ("never returns a failure
+# status and emits no ::error::") and counting the class refutes three of the four:
+#
+#   bench.py       ::error::arm '{label}' exited nonzero -- it CAN fail the build
+#   mutate.py      ::error::mutate self-test found no RTL -- so can this
+#   scale_probe.py returns 1 on a failure path
+#   trace_reader.py  the only one that matches the stated property
+#
+# The exemption was not too narrow (Prop. 197's shape) but simply WRONG: three
+# scripts that gate CI were excused from stating a denominator by a sentence that
+# was not true of them. Narrowed to the one entry the property holds for; the
+# other three fall into the ratcheted baseline, where being undeclared is
+# recorded rather than hidden behind a false reason.
 EXEMPT = {
-    "bench.py":        "times a command; reports a measurement, makes no finding",
-    "mutate.py":       "generates mutants; it is the subject of a check, not one",
-    "trace_reader.py": "parses a counterexample another gate produced",
-    "scale_probe.py":  "reports which properties survive a larger bound; a probe",
+    "trace_reader.py": "parses a counterexample another gate produced; it has no "
+                       "failure path and emits no ::error::",
 }
 
 
