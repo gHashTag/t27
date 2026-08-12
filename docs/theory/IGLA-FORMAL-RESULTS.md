@@ -2832,6 +2832,94 @@ the old one did not.
 
 ---
 
+### T52 (W642) — Five artefacts, one shape: the empty case renders identically to the verified case
+
+**Triaging the 31 Icarus failures that nine waves reported as zero** gives five
+classes:
+
+| n | class |
+|---:|---|
+| 16 | `iverilog rejected generated Verilog` — a real backend defect |
+| 9 | Verilog generation error, parse error at module level (T42's discard class) |
+| 3 | Verilog generation error in a fn — includes deliberate `*_negative_*` fixtures |
+| **2** | **output does not match baseline** |
+| 1 | Icarus reported a genuine test failure |
+
+**The 2 baseline mismatches are the interesting ones, and they are good news
+wearing a failure's clothes.** `w373_struct_field_keyword`'s baseline is:
+
+```json
+{ "lines": [] }
+```
+
+Its generated Verilog now contains a real check:
+
+```verilog
+if (!((sum_word(item) == 7))) begin
+    $display("[TEST] w373_struct_field_keyword_sum : FAILED");
+end
+```
+
+**The spec improved and the golden file never caught up.** The "failure" is the
+oracle being stale, not the code being wrong.
+
+**And the population is large.** Of 282 Icarus baseline files:
+
+| | count |
+|---|---:|
+| record **no expected output at all** | **152 (54%)** |
+| record something | 130 |
+| **are not valid JSON** | **5** |
+
+**A baseline of `{"lines": []}` passes exactly when the simulation produces
+nothing.** Recorded — under T31's bless-on-absence, now closed — at a moment
+when the spec produced nothing, it has been "passing" ever since by asserting
+nothing. Sampling 45 of them, **6 (13%) belong to specs whose Verilog now emits
+`[TEST]`/`[BENCH]`**: the oracle says *expect silence* and the artefact speaks.
+
+---
+
+**Statement, and it is the shape this entire session has been circling.** Let a
+reporting channel `R` render an outcome, and let `∅` denote *"the thing was not
+done"*. In each of the following, `R(∅) = R(verified)`:
+
+| wave | artefact | the empty case | rendered as |
+|---|---|---|---|
+| **T43** | `gen` invariant | body discarded, nothing lowered | `verified (no statements)` |
+| **T45** | `gen-verilog` test | no statements in the block | `[TEST] X : PASSED` |
+| **T48** | `gen-c` runner | authored-empty test counted | `All 2 tests passed` |
+| **T51** | suite summary | phase never ran | `Icarus simulation fails: 0` |
+| **T52** | Icarus baseline | nothing was ever recorded | `{"lines": []}` — matches silence |
+
+**Five independent artefacts, written by different code, over different
+media — source comments, simulation prints, a C runner, a summary field, a JSON
+oracle — all collapsing the same two states.** Not one is a typo; each is the
+natural rendering of "nothing happened" in a vocabulary designed for "something
+succeeded".
+
+**Why it recurs.** Success vocabularies are *absorbing*: `0` is the identity for
+failure counts, the empty set matches any empty observation, "passed" is what you
+print when no assertion fired, and an empty golden file diffs clean against empty
+output. **In every case the empty case is the fixed point of the success
+encoding**, so a system that says nothing about emptiness will report it as
+success by construction. **The defect is not carelessness; it is that the honest
+value has no natural representation unless one is deliberately reserved.**
+
+**Corollary — the remedy is a reserved symbol, not more care.** Each fix in this
+session was the same move: introduce a value that *cannot* be produced by
+success. `NOT CHECKED -- body was not lowered`; `NOT CHECKED (empty body)`;
+`(%d empty, NOT CHECKED)`; `SKIPPED (not run)`. **Four sites, one edit, applied
+four times.** The fifth — an empty baseline — is unfixed, and its reserved symbol
+would be a baseline that records *"this spec is expected to emit no test
+output"* as a distinct state from *"no baseline content"*.
+
+*Falsification condition:* a sixth reporting channel in this repository where
+the empty case is already distinguishable from success without a reserved
+symbol — which would show the collapse is avoidable by ordinary design rather
+than by explicit reservation.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

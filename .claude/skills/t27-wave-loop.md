@@ -5707,6 +5707,40 @@ These cost a wave each. Follow them before step 1.
      a fourth place. Budget for it, and do not read a suite summary as covering
      Icarus unless the flag was passed.
 
+271. **THE SHAPE THIS WHOLE SESSION WAS CIRCLING: the empty case renders
+     identically to the verified case.** Five independent artefacts, different
+     code, different media, same collapse:
+       T43  invariant body discarded  -> `verified (no statements)`
+       T45  test block with no stmts  -> `[TEST] X : PASSED`
+       T48  authored-empty test       -> `All 2 tests passed`
+       T51  phase never ran           -> `Icarus simulation fails: 0`
+       T52  nothing ever recorded     -> baseline `{"lines": []}`, matches silence
+     Success vocabularies are ABSORBING: 0 is the identity for failure counts,
+     the empty set matches any empty observation, "passed" is what you print
+     when no assertion fired, and an empty golden file diffs clean against empty
+     output. **The empty case is the fixed point of the success encoding.**
+
+272. **The remedy is a RESERVED SYMBOL, not more care.** Every fix this session
+     was the same move -- introduce a value success cannot produce:
+     `NOT CHECKED -- body was not lowered`, `NOT CHECKED (empty body)`,
+     `(%d empty, NOT CHECKED)`, `SKIPPED (not run)`. When you add a reporting
+     channel, ask what it prints when NOTHING HAPPENED, and reserve a symbol
+     for it before you need one.
+
+273. **152 of 282 Icarus baselines (54%) record NO expected output**, and 5 are
+     not valid JSON. `{"lines": []}` passes exactly when the simulation produces
+     nothing -- recorded under T31's bless-on-absence at a moment when the spec
+     produced nothing. Sampling 45, **6 (13%) belong to specs whose Verilog now
+     emits [TEST]/[BENCH]**: the oracle says expect silence and the artefact
+     speaks. An empty golden file is not a baseline; it is the absence of one.
+
+274. **The 31 Icarus failures triage to: 16 iverilog rejections (a real backend
+     defect), 9 module-level parse errors (T42's class), 3 in-fn parse errors
+     including deliberate negative fixtures, 2 stale-baseline mismatches, 1
+     genuine simulation failure.** The 2 mismatches are GOOD NEWS in a
+     failure's clothes -- the specs improved and the golden files never caught
+     up. Always check whether a baseline mismatch means the code got better.
+
 ### How to update this tracker
 
 After closing a wave:
