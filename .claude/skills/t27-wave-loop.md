@@ -5281,6 +5281,20 @@ These cost a wave each. Follow them before step 1.
      `cmd_icarus_simulate_with_baseline`, which does both in one path and
      therefore cannot fail on a new item (lesson 201, T31).
 
+210. **Build a THROWAWAY repo to test repo-wide tooling.** A four-spec tree
+     (`specs/mini/{ok_one,ok_two,broken_one}.t27` + one scratch file) runs the
+     entire `t27c suite` in SECONDS, against ~70 minutes on the real corpus.
+     That made a six-scenario end-to-end ratchet test affordable: no ledger /
+     unchanged / new break / blessed-break-fixed / expired / over-cap, each
+     with its exit code. **Never verify repo-wide tooling only on the repo** --
+     you cannot afford the iterations, and the contrast is itself T24 restated
+     (cost tracks the glob, not the artefact).
+
+211. **The strongest demonstration of an exact ledger is a CLEAN tree that
+     still fails.** Scenario 4: fix the one blessed break, `observed
+     (primary): 0`, and the run exits 1 with UNEXPECTED PASS. If a zero-defect
+     tree passes, the ledger is permissive and will rot.
+
 ### How to update this tracker
 
 After closing a wave:
