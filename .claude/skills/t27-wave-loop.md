@@ -5653,6 +5653,38 @@ These cost a wave each. Follow them before step 1.
      conditions correctly by construction -- a backend that produced no output
      is skipped, because the question is undefined there.
 
+263. **Fix bless-on-absence BEFORE regenerating any oracle.** T31's
+     self-blessing path makes a re-bless unaudited: a missing golden file
+     writes itself and returns Ok. `--bless-baselines` is now the only
+     acquisition mode and verification with no oracle is a hard failure. This
+     is a precondition, not a follow-up. (W640.)
+
+264. **Verilog vacuous PASSED: 3,429 (28%) -> 754 (6%) by emitting
+     `NOT CHECKED (empty body)` when the block has no lowered statements.**
+     Yield 78%. And the fix RESTORES DISCRIMINATING POWER to the Icarus
+     baselines: `normalize_icarus_output` keeps only `[TEST]` lines, so a
+     passing test recorded `starting`+`PASSED` -- previously identical to a
+     vacuous block. `NOT CHECKED` is also a `[TEST]` line, so the golden files
+     can now tell them apart.
+
+265. **The residue of a repair IS the next cause.** The 754 that survived are
+     not noise: their bodies hold 631 `x = x;`, 475 `x = x + x;`, 83 clock
+     waits -- **setup lowered, assertion did not**. Neither authored-empty nor
+     discarded; a third cause, only observable once the dominant one stopped
+     masking it. Always characterise the residue's SHAPE, not just its size.
+     (T50.)
+
+266. **I could have forecast the 78% and did not.** `children.is_empty()` is a
+     per-item classifier, so by T44's own test the split was measurable before
+     the fix. I applied that rule in the wave that stated it and not in the wave
+     after. **Before any repair, ask: is my classifier per-item? If yes,
+     forecast the yield and write it down.**
+
+267. **Do not commit oracles you have not read.** `--bless-baselines` created 22
+     new Icarus baselines; I left them uncommitted for review rather than
+     landing 22 unreviewed golden files. The T31 discipline applies to your own
+     output too.
+
 ### How to update this tracker
 
 After closing a wave:
