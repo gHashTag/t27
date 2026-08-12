@@ -10947,7 +10947,14 @@ impl VerilogCodegen {
                             .first()
                             .and_then(|i| self.expr_width_signed(i))
                             .unwrap_or((64, false));
-                        let name = stmt.name.clone();
+                        // W644: T53 predicted "a third unescaped emit site is
+                        // the way to bet", and the artefact gate found it on its
+                        // first corpus run: `let input = …` emitted
+                        // `reg [63:0] input;` -- `input` is a Verilog keyword.
+                        // 171 specs, against the 4 iverilog had surfaced, because
+                        // simulation only sees the specs it reaches (T21) while
+                        // the artefact check is total (T54).
+                        let name = Self::verilog_safe_identifier(&stmt.name);
                         self.write_indent();
                         self.write_line(&format!(
                             "{} {}; // t27#1948 let binding",

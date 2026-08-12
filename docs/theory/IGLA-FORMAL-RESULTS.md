@@ -3040,6 +3040,33 @@ recurrence: *"the obligation is spread over a set nobody can list"*. Both have
 the same remedy shape — **stop relying on the author to remember, and put the
 check where the evidence is total.**
 
+**And it paid on its first corpus run — T53's bet, collected.** T53 predicted
+*"a third unescaped emit site is the way to bet"*. The gate found it immediately:
+
+```
+Verilog keyword decls: 438 clean, 171 with a bare keyword
+```
+
+**171 specs, against the 4 iverilog had surfaced.** The site was the `let`
+binding declaration (`t27#1948`), emitting `reg [63:0] input;` — and `input` is
+a Verilog keyword far likelier to appear as a spec variable name than `buf`.
+
+**The 171-versus-4 gap is T21 and T54 in one number.** Simulation sees only the
+specs it reaches — the Icarus regression set, actually run, actually simulated.
+The artefact check is total over the corpus. **Same defect class, two orders of
+visibility.**
+
+One `verilog_safe_identifier` call later:
+
+```
+Verilog keyword decls: 609 clean, 0 with a bare keyword
+```
+
+with the ratchet still CLEAN at 332/332 — **no bless required, because the fix
+landed in the same wave as the detection.** That is the intended shape: a gate
+that finds a whole class at once and a repair that empties it before the ledger
+ever grows.
+
 *Falsification condition:* an unescaped identifier that reaches valid Verilog
 without appearing in a declaration this gate parses — for instance one emitted
 only in expression position, where the existing escape already runs, or inside a
