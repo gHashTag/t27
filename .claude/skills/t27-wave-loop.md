@@ -5685,6 +5685,28 @@ These cost a wave each. Follow them before step 1.
      landing 22 unreviewed golden files. The T31 discipline applies to your own
      output too.
 
+268. **A SKIPPED phase was reported as a passing one for nine waves.**
+     `let mut p3d_fail = 0usize;` assigned only inside
+     `if opts.icarus_simulate`, then printed unconditionally. Every summary
+     said `Icarus simulation fails: 0`; with the flag it is **31** (124 passed,
+     31 failed, 6113 s). Zero is the identity for "failures", so ABSENCE of a
+     measurement is indistinguishable from a measurement of zero. Both Icarus
+     and Cocotb are opt-in -- treat their 0 as SKIPPED unless you passed the
+     flag. (T51.)
+
+269. **A summary that reports skipped and clean identically gives a CORRECT
+     TOTAL and a FALSE INVENTORY.** A skipped phase contributes 0 to the sum
+     either way -- which is exactly why the error stayed invisible -- but the
+     inventory is what anyone reads to decide what to work on. W626's
+     "2614 decomposes into five measured facts" was wrong: two were never
+     measured.
+
+270. **`--icarus-simulate` takes ~100 minutes and finds real failures.** 31 of
+     155, including Verilog generation errors on the giant scratch benchmarks
+     (`parse error at module level near line 46058`) -- the T42 discard class in
+     a fourth place. Budget for it, and do not read a suite summary as covering
+     Icarus unless the flag was passed.
+
 ### How to update this tracker
 
 After closing a wave:
