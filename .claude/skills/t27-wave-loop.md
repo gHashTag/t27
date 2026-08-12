@@ -5524,6 +5524,20 @@ These cost a wave each. Follow them before step 1.
      and ~400 are strings, slices and structs. **A full `forall` implementation
      cannot reach 100%, and any plan that promises it is already refuted.**
 
+244. **A new phase that adds ZERO ledger entries can still be the result.**
+     `no-vacuous-invariant` reported 0 primary / 100 blocked: every spec with a
+     vacuous invariant was already failing `parse-no-discard`. Verified
+     directly -- the vacuous set is a strict subset (100 of 130). **The two are
+     one defect at two stages**: the discard that eats the clause body IS what
+     makes the invariant vacuous. Attribution proving subsumption is a stronger
+     statement than 100 duplicate entries would have been.
+
+245. **Attribution pays off in a direction nobody designs for.** T30 was built
+     to stop one defect being counted six times across gated phases. It also
+     stopped a NEWLY ADDED detector from double-reporting a population that was
+     already named. When adding a phase, check whether its failures are
+     `blocked` before assuming you found something new.
+
 ### How to update this tracker
 
 After closing a wave:
