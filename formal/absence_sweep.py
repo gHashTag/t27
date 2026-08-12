@@ -35,6 +35,13 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    "Coq build scan — a Qed in a file nobody compiles is not a proof":
+        "its subject is coq/, trios-coq/ and proofs/, not build/rtl -- starving "
+        "the RTL cannot make it fail, and demanding that it does would be "
+        "over-detection. Its own absence case is internal and enforced: with no "
+        "proof trees present, or no .v files under them, it exits 1 naming the "
+        "missing directory rather than reporting a clean ratchet (Prop. 154).",
+
     'Spec parse gate — "parses OK" must mean the parser read the spec':
         "its subject is specs/, not build/rtl -- starving the RTL cannot make "
         "it fail, and demanding that it does would be over-detection. Its own "

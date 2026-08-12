@@ -21,8 +21,9 @@ Neither is a judgement about the mathematics. The gate exists so that a file
 cannot sit in a proof directory, contribute to a published count, and be
 type-checked by nothing, without that being written down where a reader looks.
 
-ARTIFACTS. Reads `coq/**/*.v`, `trios-coq/**/*.v` and each tree's `_CoqProject`.
-Writes nothing.
+ARTIFACTS. Reads `coq/**/*.v`, `trios-coq/**/*.v`, `proofs/**/*.v` and each
+tree's `_CoqProject`. WRITES `formal/coq_build_baseline.txt` -- the ratcheted
+set of files that are neither built nor self-declared. Nothing else.
 
 Prop. 154.
 """
