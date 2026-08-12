@@ -1535,18 +1535,38 @@ suite say so. Every spec-walking phase now records *which* files failed; a
 failure on a file that already failed an earlier, gating phase is classified
 **BLOCKED**, not *failed*:
 
+**Measured, by the tool itself, over the full 1064-file population** (4112 s):
+
 ```
 --- Population split (W627) ---
 phase              corpus  scratch   blocked
 parse                 206       43         0
 typecheck               0        0       249
 gen-zig                 0        0       249
-…
+gen-rust                0        0       249
+gen-verilog             0        0       249
+gen-c                   0        0       249
+seal-verify           395      412       249
+
 PRIMARY (corpus):        206
-PRIMARY (scratch):        43
-BLOCKED (gated upstream): …
-DISTINCT FAILING SPECS:  …
+PRIMARY (scratch):       43
+BLOCKED (gated upstream):1494
+DISTINCT FAILING SPECS:  1056
+  of them, corpus:       206
 ```
+
+**Every downstream phase reports zero primary failures.** T27 established the
+identity by re-running five subcommands over 609 non-scratch specs and diffing
+with `comm -3`; the production tool now reproduces it over all 1064, and
+`BLOCKED = 1494` is exactly T27's "one fact counted six times". **There is not a
+single genuine codegen-only defect in the corpus** — every failure downstream of
+`parse` is a file that never parsed.
+
+**Two facts that only the split makes visible.** Seal staleness divides
+395 corpus / 412 scratch / 249 unparseable, so **601 of 609 corpus specs and all
+455 scratch specs carry a stale or unverifiable seal**. And
+`DISTINCT FAILING SPECS: 1056` against 1064 total means **exactly 8 specs in the
+repository pass every phase of the suite.**
 
 **Statement.** Let `E` be an expectation ledger keyed by *(item, phase)*. If
 downstream phases are gated, a single primary defect enters `E` once per phase,
@@ -1563,7 +1583,17 @@ set. Without it, the same information costs ~1236 entries.
 
 *Falsification condition:* a downstream phase whose failure set is not a subset
 of the union of upstream failure sets — i.e. a genuine codegen-only defect,
-which the implementation deliberately still classifies as PRIMARY.
+which the implementation deliberately still classifies as PRIMARY. **Executed:
+zero such defects exist today.** The condition is live, not vacuous — the
+classifier would report one as PRIMARY the moment it appeared, which is the
+regression signal this suite has never had.
+
+> **Where the corpus actually stands, once the multiplicity is removed.**
+> `TOTAL FAILURES: 2614` decomposes into **206** hand-written specs that do not
+> parse, **43** generator fixtures that do not parse, **1494** downstream
+> re-reports of those same 249, **807** stale seals on files that do parse, and
+> **64** smoke/FPGA/GF16. Five facts, and only the first is a defect population
+> anyone can act on.
 
 ---
 

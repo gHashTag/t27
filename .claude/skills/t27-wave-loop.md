@@ -5238,6 +5238,18 @@ These cost a wave each. Follow them before step 1.
      `[ Skip ]`) are NOT this mechanism -- the item never runs, so a fix can
      never be detected. (T32.)
 
+204. **Measured with attribution: 2614 = 206 corpus parse + 43 scratch parse +
+     1494 blocked + 807 stale seals on files that parse + 64 smoke/FPGA/GF16.**
+     Every downstream phase reports ZERO primary failures -- there is not one
+     genuine codegen-only defect; everything after `parse` is a file that never
+     parsed. **206 is the whole actionable population.** Do not plan work
+     against `TOTAL FAILURES`; plan it against `PRIMARY (corpus)`.
+
+205. **Exactly 8 of 1064 specs pass every phase** (DISTINCT FAILING SPECS 1056).
+     601 of 609 corpus specs and all 455 scratch specs carry a stale or
+     unverifiable seal. When a number this extreme appears, print the
+     complement -- "8 pass" lands where "1056 fail" does not.
+
 ### How to update this tracker
 
 After closing a wave:
