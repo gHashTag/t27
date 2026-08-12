@@ -8930,7 +8930,10 @@ impl VerilogCodegen {
         var: &str,
         indices: &[String],
     ) {
-        self.write(var);
+        // W643: the init path wrote the name raw while every expression path
+        // escaped it, so a local array named after a Verilog keyword was
+        // declared and initialised unescaped. See T53.
+        self.write(&Self::verilog_safe_identifier(var));
         for idx in indices {
             self.write("[");
             self.write(idx);
@@ -11629,9 +11632,19 @@ impl VerilogCodegen {
                 .collect::<String>();
             if phase != LocalEmitPhase::Init {
                 self.write_indent();
+                // W643: this site emitted `node.name` RAW while every expression
+                // path already went through `verilog_safe_identifier`. A local
+                // array named `buf` -- a Verilog primitive gate -- produced
+                // `reg [15:0] buf[0:3];`, which iverilog rejects with a bare
+                // "syntax error". Four of the ten real Icarus rejections are
+                // this one unescaped site. See T53.
                 self.write_line(&format!(
                     "reg {}{}[{}:0] {}{};",
-                    signed_str, "", elem_w - 1, node.name, dims_str
+                    signed_str,
+                    "",
+                    elem_w - 1,
+                    Self::verilog_safe_identifier(&node.name),
+                    dims_str
                 ));
             }
             if phase != LocalEmitPhase::Decl && child.is_some() {
@@ -33359,6 +33372,42 @@ mod tests_w458 {
     // six-position probe found three more, of which two are real Zig errors
     // (`let` with a declared type, and a struct-literal field) and one is not
     // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W643: a function-LOCAL array named after a Verilog keyword. Every
+    // expression path already escaped through `verilog_safe_identifier`; the
+    // declaration and the initialiser did not, so `buf` emitted
+    // `reg [15:0] buf[0:3];` and iverilog rejected it with a bare
+    // "syntax error". Four of the ten real Icarus rejections. T53.
+    #[test]
+    fn local_array_named_after_a_verilog_keyword_is_escaped() {
+        let src = "module M
+
+fn read_it() -> u16 {
+                       let buf : [4]u16 = [11, 22, 33, 44];
+                       return buf[1];
+}
+
+                   test reads when v = read_it() then v == 22
+";
+        let v = Compiler::compile_verilog_for_simulation(src)
+            .expect("keyword-named local must still compile");
+        assert!(
+            v.contains("reg [15:0] \\buf [0:3];"),
+            "the DECLARATION must be escaped:\n{}",
+            v
+        );
+        assert!(
+            v.contains("\\buf [0] ="),
+            "the INITIALISER must be escaped too -- escaping one and not the \
+             other is what produced the original defect:\n{}",
+            v
+        );
+        assert!(
+            !v.contains(" buf["),
+            "no unescaped use may survive:\n{}",
+            v
+        );
+    }
+
     // W630: `use a::b::{X, Y};` -- sugar for N single imports, lowered to
     // exactly that so `use_resolve` sees the shape it already understands. T38.
     #[test]

@@ -5741,6 +5741,35 @@ These cost a wave each. Follow them before step 1.
      failure's clothes -- the specs improved and the golden files never caught
      up. Always check whether a baseline mismatch means the code got better.
 
+275. **The FIRST purely-correctness defect since T18: the backend emits
+     Verilog iverilog refuses.** Everything between T43 and T52 was about what
+     artefacts CLAIM. It took running the phase those reports had been printing
+     `0` for (T51) to find it. **A red gate nobody runs hides real defects, not
+     just reporting ones.**
+
+276. **Group iverilog failures by the REJECTED CONSTRUCT, never by its message**
+     -- six of ten said only "syntax error". Read the offending line. The ten
+     real rejections are: 4 local array named `buf`, 2 function referenced but
+     not emitted, 2 undeclared `for` loop variable, 1 declaration with NO
+     identifier (`reg [31:0] ;`), 1 array-returning call in an assignment.
+     And 6 of the original 16 were deliberate `*_negative_*` fixtures -- always
+     split those out before counting. (T53.)
+
+277. **An escaping mechanism is only as good as its WORST emit site.** t27 has
+     `verilog_keywords()` containing `buf`, a `verilog_safe_identifier()` that
+     emits `\name `, and three specs testing it. It was called at every
+     expression site and both module-level array declarations -- and NOT at the
+     two sites emitting a function-LOCAL array (decl + initialiser). Correctness
+     is a CONJUNCTIVE obligation over a set that grows with every new emit site,
+     so `esc` being present, tested, and right at |S|-2 sites is zero evidence
+     about the other two. **Nothing in the codebase makes S enumerable** --
+     grep for the emit sites yourself before trusting an escape.
+
+278. **Fixing the keyword class took real rejections 10 -> 6, exactly the four
+     identified**, and moved `w386_for_local_array_param` from "syntax error" to
+     ``register `i' unknown`` -- T19's unmasking, live. The keyword defect was
+     hiding an undeclared-loop-variable defect in the same file.
+
 ### How to update this tracker
 
 After closing a wave:

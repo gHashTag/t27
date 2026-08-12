@@ -2920,6 +2920,67 @@ than by explicit reservation.
 
 ---
 
+### T53 (W643) — An escape applied at four sites and omitted at two: the first purely-correctness defect in twenty waves
+
+**The 31 Icarus failures triage to 16 `iverilog rejected generated Verilog`, and
+6 of those 16 are deliberate `*_negative_*` fixtures.** Ten are real. Grouping
+them by the **rejected construct** rather than by iverilog's message — six of
+the ten say only *"syntax error"*, which is exactly T37's warning — gives:
+
+| n | construct | iverilog's message |
+|---:|---|---|
+| **4** | a local array named `buf` | `syntax error` |
+| 2 | a function referenced but not emitted | `No function named 'sum_param'` |
+| 2 | an undeclared `for` loop variable | ``register `c' unknown`` |
+| 1 | a declaration with **no identifier at all** — `reg [31:0] ;` | `syntax error` |
+| 1 | array-returning call in an assignment | `cannot be implicitly cast` |
+
+**`buf` is a Verilog primitive gate.** The repository already knows this: it has
+a `verilog_keywords()` table containing `buf`, a `verilog_safe_identifier()`
+that emits the `\name ` escape, and three corpus specs
+(`w371_verilog_keyword`, `w372_local_keyword`, `w374_module_keyword`) that test
+it. **The mechanism was correct and complete. It was called at every expression
+site and at both module-level array declarations — and not at the two sites that
+emit a function-LOCAL array**, its declaration and its initialiser.
+
+```verilog
+reg [15:0] buf[0:3];     // before -- iverilog: syntax error
+reg [15:0] \buf [0:3];   // after
+```
+
+**Statement.** Let `esc` be an escaping function that must be applied at every
+site emitting an identifier, and let `S` be those sites. Correctness requires
+`∀s ∈ S. esc` — a *conjunctive* obligation over a set that grows whenever a new
+emit site is added. **The presence of `esc`, its test suite, and its correct
+application at `|S| − 2` sites is no evidence at all about the remaining two**,
+because the property is not compositional: a single unescaped site reproduces
+the full defect. **An escaping mechanism is only as good as its worst emit
+site, and nothing in the codebase makes the set `S` enumerable.**
+
+**Measured.** Fixing the two sites:
+
+| | before | after |
+|---|---:|---:|
+| real (non-fixture) iverilog rejections | 10 | **6** |
+
+**Exactly the four identified as the keyword class**, and one further spec —
+`w386_for_local_array_param` — **moved from `syntax error` to
+``register `i' unknown``**: T19's unmasking, observed live. The keyword defect
+was hiding an undeclared-loop-variable defect on the same file.
+
+**Why this one is different from everything else in this session.** T43, T45,
+T48, T51 and T52 are all about what an artefact *claims*. **This is the first
+defect since T18 where the output is simply wrong** — the backend emits Verilog
+that its own simulator refuses, and no amount of honest reporting improves it.
+Twenty waves of auditing reports found a great deal; it took running the phase
+those reports had been printing `0` for (**T51**) to find this.
+
+*Falsification condition:* a third unescaped emit site, which would mean the fix
+is incomplete rather than the enumeration being the hard part — and which the
+absence of any enumeration mechanism makes likely.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
