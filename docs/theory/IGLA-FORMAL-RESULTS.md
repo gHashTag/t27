@@ -2551,6 +2551,87 @@ exist, and which the next `take(N)` will create.
 
 ---
 
+### T48 (W638) — Five backends over one AST give three distinct dishonesties, and the third is silence
+
+**W636 checked one backend of four — the first one tried — and found T45. This
+finishes the audit.** One probe spec carrying an authored-empty test, a test with
+a real assertion, a `forall` invariant and a plain-predicate invariant, run
+through all five backends:
+
+| backend | what it does with a spec's checks |
+|---|---|
+| `gen` (Zig) | `test "authored_empty" {}` — empty, claims nothing; `// invariant: X NOT CHECKED` |
+| `gen-c` | `void test_authored_empty(void) { /* TODO: implement test */ }`, then `printf("All %d tests passed.\n", 2)` |
+| `gen-verilog` | `$display("[TEST] authored_empty : PASSED")` — **no check** |
+| `gen-rust` | **nothing.** No test, no invariant, no notice |
+| `gen-verilog-hir` | **nothing** |
+
+**Measured over 120 non-scratch specs** (a stated sample, 1 142 tests and 840
+invariants declared), counting how many appear by name in each output:
+
+| backend | tests present | invariants present |
+|---|---:|---:|
+| `gen` (Zig) | 730 (64%) | 575 (68%) |
+| `gen-c` | 730 (64%) | 575 (68%) |
+| `gen-verilog` | 730 (64%) | 574 (68%) |
+| **`gen-rust`** | **54 (5%)** | **214 (25%)** |
+| **`gen-verilog-hir`** | **55 (5%)** | **174 (21%)** |
+
+**Bimodal, and the gap is not a naming artefact.** Over 80 corpus specs that
+declare tests, `gen-rust` output contained `#[test]` or `#[cfg(test)]`
+**zero times.**
+
+**Three distinct failure modes, and they must not be lumped:**
+
+1. **False claim — `gen-verilog`.** `PASSED` printed with no check. 3 429 of
+   12 067 blocks (28%). The claim is *unsound*: a reader of the simulation log
+   is told a check succeeded that never ran.
+2. **Inflated count — `gen-c`.** `printf("All %d tests passed.\n", 2)` counts an
+   empty test. But the emitted assertions are `assert(...)`, which traps, so the
+   `printf` is only *reached* when nothing failed. **The claim is sound; the
+   count is overstated.** Sound-with-a-wrong-denominator is a different defect
+   from unsound, and calling both "lying" would lose the distinction.
+3. **Silence — `gen-rust`, `gen-verilog-hir`.** No claim, no refusal, no trace.
+   A reader comparing backends sees a file with no tests and **no way to
+   distinguish "by design" from "dropped".**
+
+**Statement.** Let backends `{Bᵢ}` lower a common AST. Their reports partition
+into *assertive* (claims a property), *refusing* (names what it declined and
+why), and *silent* (emits neither). Assertive-and-wrong is detectable by
+checking the claim. Refusing is self-documenting. **Silent is the only mode with
+no local evidence at all** — it is indistinguishable from "the source had
+nothing to lower", and can therefore only be caught by *differential*
+comparison against a backend that is not silent. **A silent backend is invisible
+to every check except the one this wave ran.**
+
+**And `gen-c` is the counter-example that proves the taxonomy is doing work.**
+Its invariant handling is *refusing*, and it is exemplary:
+
+```c
+/* invariant plain_predicate is not a C constant expression: (add(1, 1) == 2) */
+```
+
+Same backend, same file: refusing on invariants, inflated on the test count.
+**The mode is a property of the emit site, not of the backend**, so an audit
+must enumerate sites, not components.
+
+**Fixed for `gen-rust`.** The header now declares the omission:
+
+```rust
+// NOT LOWERED BY THIS BACKEND: 340 test(s), 137 invariant(s).
+// This backend emits declarations only. The spec's checks live in
+// the Zig and Verilog outputs; do not read this file as verified.
+```
+
+on `ternary_mac.t27`. This is **T44 applied**: emitting library code without
+tests is a defensible policy; emitting it silently is the defect. The policy is
+unchanged — only the report.
+
+*Falsification condition:* a `gen-rust` output that does lower a test, which
+would make the header's blanket statement false.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

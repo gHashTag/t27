@@ -5602,6 +5602,35 @@ These cost a wave each. Follow them before step 1.
      written to close T46. **Assume your next classifier has this bug and
      budget a manual read of its hits.**
 
+256. **Five backends over one AST give THREE distinct dishonesties. Do not
+     lump them.**
+       * FALSE CLAIM -- `gen-verilog` prints `PASSED` with no check
+         (3,429 of 12,067 blocks). Unsound.
+       * INFLATED COUNT -- `gen-c` prints "All N tests passed" counting empty
+         tests, but its `assert(...)` traps, so the printf is only REACHED when
+         nothing failed. **Sound claim, wrong denominator** -- a different
+         defect from unsound.
+       * SILENCE -- `gen-rust` and `gen-verilog-hir` emit no test, no
+         invariant, no notice. Measured: `#[test]` appears in gen-rust output
+         for **0 of 80** specs that declare tests. (T48.)
+
+257. **Silence is the only mode with no local evidence.** Assertive-and-wrong
+     is caught by checking the claim; refusing is self-documenting; silent is
+     indistinguishable from "the source had nothing to lower" and can ONLY be
+     caught by differential comparison against a non-silent backend. Coverage
+     by backend, over a 120-spec sample: zig/c/verilog 64% tests & 68%
+     invariants; rust 5% & 25%; verilog-hir 5% & 21%.
+
+258. **The mode is a property of the EMIT SITE, not of the backend.** `gen-c`
+     is exemplary-refusing on invariants (`/* invariant X is not a C constant
+     expression: ... */`) and inflated-counting on tests, in the same file. An
+     audit must enumerate sites, not components.
+
+259. **Fix the REPORT, not the policy, when the policy is defensible.** The Rust
+     backend header now says `NOT LOWERED BY THIS BACKEND: 340 test(s), 137
+     invariant(s)` and tells the reader where the checks do live. Emitting
+     library code without tests is fine; emitting it silently is the defect.
+
 ### How to update this tracker
 
 After closing a wave:
