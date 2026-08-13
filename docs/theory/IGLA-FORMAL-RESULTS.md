@@ -7056,4 +7056,94 @@ One finding, correct, with the source named. Clean state returns `OK` and exit 0
 
 ---
 
+### T101 (W657) — the φ alphabet trades ALL of its gain freedom, and the price has a number
+
+T97's standing limit: *"this compares area at equal structure, it does NOT compare
+accuracy."* Accuracy needs training. **The representational question underneath it
+does not**, and it is exact.
+
+| | gain after `k` layers | degrees of freedom |
+|---|---|---:|
+| unit `{−1,0,+1}` + learned `α_ℓ` | `α₁·α₂·…·α_k`, **any** positive real | **k** |
+| φ `{−φ,0,+φ}` | `φ^k`, **one** value per depth | **0** |
+
+> **T101.** **The φ alphabet trades all of its gain freedom for the multiplier.**
+> No earlier note in this project stated that as a count, and the article's
+> framing — *"the φ alphabet carries the scale the unit alphabet must learn"* —
+> is true while omitting that it carries **one specific** scale, not an arbitrary
+> one.
+
+**The price is bounded.** Snapping a required gain `G` to the nearest `φ^k` costs
+at most half a φ-step in log space: `√φ = 1.2720`, i.e. **+27.2% / −21.4%**. For
+powers of two the same worst case is `√2 = 1.4142` → **+41.4%**, so the φ lattice
+is finer by `log2/logφ = 1.4404` — **exactly the density figure the article
+reports**.
+
+#### Why it may not matter, and precisely where it does
+
+One layer computes `scale · Σ(wᵢxᵢ)` with `w ∈ {−1,0,+1}`, so the representable
+set is `scale · {integers in [−N,N]}`. **The two alphabets therefore have the same
+representable set up to a scale factor**, and a fixed φ can be absorbed by the
+*next* layer's integer sum — but only to a relative resolution of
+
+$$\frac{1}{|m|} \qquad \text{where } m \text{ is the ACHIEVED sum, not the fan-in}$$
+
+| achieved `m` | 512 | 256 | 64 | 16 | 4 | 1 |
+|---|---:|---:|---:|---:|---:|---:|
+| step | 0.20% | 0.39% | 1.56% | 6.25% | 25.0% | **100%** |
+
+**Absorption is good where activations are large and fails at zero.** The
+crossover — where `1/|m|` exceeds the 27.2% snap error — sits at **`m = 3`**.
+
+> **Corollary.** A ternary network is **sparse by design**: most weights are
+> zero, so achieved sums are small, and the regime where the fixed φ scale
+> *cannot* be absorbed is **not exotic — it is the operating point.**
+
+**What this does not settle.** Whether a real network spends its time above or
+below `m = 3` is an empirical question, and nothing here measures it. **That is
+the experiment, and it is not this one.** `phi_gain_freedom.t27`: 17/17 in Zig,
+17 PASSED under iverilog.
+
+---
+
+### T102 (W657) — the 618 are a head, not a tail, and T63's prediction was wrong
+
+T63 grouped 62 iverilog rejections by cause and predicted the residue would be
+*"many small causes; a flat histogram is a legitimate result."* Applied to the
+full population of non-compiling specs, the prediction is **refuted**:
+
+```
+618 specs whose generated Verilog does not compile   (236 compile)
+
+  undeclared identifier        489    79.1%
+  syntax error                  90    14.6%
+  duplicate declaration         16     2.6%
+  uncategorised                 11     1.8%
+  elaboration                    5     0.8%
+  unknown function               5     0.8%
+  unbound parameter              2     0.3%
+```
+
+**One cause is four fifths of the population.** The top two are 93.7%.
+
+> **T102.** A cause histogram taken on a *sample* and one taken on the
+> *population* can have opposite shapes, and the sample gives no warning. T63's
+> 62 specs were the ones that reached iverilog at all — a set already filtered by
+> surviving generation — and within that survivor set the causes were diverse.
+> **The filter that made the sample tractable was the same filter that removed
+> the dominant cause**, because a spec whose identifiers are undeclared fails
+> earlier and in bulk.
+
+**The example names the family.** `Could not find variable 'result_last_exec_ms'`
+— the same shape as T75, where the declaration hoist sat behind a flag the CLI
+path did not set. **489 specs is a single lever**, and it is the largest one this
+project has measured.
+
+**The uncategorised tail names itself too:** 9 of 11 are
+`Enable of unknown task '_t27_call_tmp_...'` — the call-temporary machinery from
+T78, emitting a *task enable* for a temporary that was never declared as a task.
+**The tail is not a tail; it is the head's sibling.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
