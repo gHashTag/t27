@@ -6366,6 +6366,52 @@ These cost a wave each. Follow them before step 1.
      header, where the reference table was computed before any implementation
      existed.
 
+367. **An uncommitted file is a file that will vanish mid-experiment.** The
+     parameterised multiplier miter disappeared between two measurement runs
+     because it was never committed -- lesson 354 of this same tracker, walked
+     into during the session that wrote it. **Commit the instrument BEFORE
+     measuring with it**, not after the measurement is interesting.
+
+368. **`timeout` does not exist on macOS.** A shell loop wrapping every run in
+     `timeout 300` returned `rc=127` for every width in 0.0 s -- yosys never ran,
+     and only the exit-code check distinguished that from six instant successes.
+     Use a language with a real timeout primitive, and treat a suspiciously fast
+     sweep as absent tooling until proven otherwise. Lesson 353, again.
+
+369. **Problem size is not the cost model; the multiplier is.** The whole MVP
+     classifier miter is 14,050 variables and solves in 0.56 s. A single 12x12
+     multiplier miter is 3,980 variables and takes 191.71 s -- 3.5x fewer
+     variables, 342x the time. Never estimate proof cost from CNF size. T113.
+
+370. **When measuring a multiplier, sweep the two operand widths SEPARATELY.**
+     A square sweep hides the result. Weight width fixed at 2 bits: sixteen-fold
+     growth in activation width costs 3.3x. Activation fixed at 64: three extra
+     bits of weight costs 750x and a fourth crosses the wall. The asymmetric
+     measurement is the one that says something about neural networks. T117.
+
+371. **Say TRANSLATION VALIDATION, not "we verified the compiler".** Proving each
+     output correct per build (Pnueli, Siegel & Singerman, TACAS 1998; all
+     commercial LEC) is a different and weaker claim than proving the compiler
+     correct for all inputs (Vericert, CompCert). Conflating them loses a
+     qualified reviewer immediately; naming it correctly turns the apparent
+     weakness into the industry-standard answer. T116.
+
+372. **A bounded proof can be sound for a reason nobody wrote down.** `sat -seq 2`
+     is bounded model checking to depth 2. T1 survives it only because `acc_in`
+     is an input PORT with no path from `acc_out` back into the logic. Close that
+     loop and the proof silently degrades while its wording still claims "for
+     all". **Record the structural property a proof depends on, or a refactor
+     will quietly invalidate it.** T115.
+
+373. **Check a correction as hard as the claim it corrects.** A competitive study
+     refuted the phi alphabet with "multiplication by 2^k is a wire permutation
+     costing ZERO logic". That refutation is itself refuted by measurement:
+     Przewlocka-Rus et al. (tinyML 2022) measured APoT 4x8 at 55 LUT against
+     uniform 4x8 at 46, and Saha et al. (ICECS 2024) an APoT shift core at 118
+     LUT against 41 for a full 8x8 multiplier. A variable shift is a multiplexer.
+     **Section 6 of the path document has now been rewritten three times; that is
+     the process working, not failing.**
+
 ### How to update this tracker
 
 After closing a wave:

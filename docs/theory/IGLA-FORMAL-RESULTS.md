@@ -7496,4 +7496,71 @@ the source instead of the operator that survives to the netlist.**
 
 ---
 
+### T117 (W658) — the SAT wall is set by the WEIGHT width, and low-bit weights sit on the good side of it
+
+T113 measured the wall on square multipliers. The asymmetric measurement is
+sharper, because a neural network never multiplies two equally wide numbers: it
+multiplies a **wide activation** by a **narrow weight**.
+
+**Weight fixed at 2 bits, activation swept — time is LINEAR:**
+
+```
+   a  x  b     vars     time
+   8  x  2      448    0.10 s
+  16  x  2      912    0.07 s
+  32  x  2    1,840    0.09 s
+  64  x  2    3,696    0.16 s
+ 128  x  2    7,408    0.33 s
+```
+
+**Activation fixed at 64, weight width swept — time EXPLODES:**
+
+```
+  64  x  2    3,696      0.16 s   PROVED
+  64  x  3    5,717      0.58 s   PROVED
+  64  x  4    7,732      4.41 s   PROVED
+  64  x  5    9,741    119.92 s   PROVED
+  64  x  6        -       >120 s  NOT PROVED
+```
+
+> **T117.** Sixteen-fold growth in the **activation** width costs **3.3×** in
+> solve time. Three bits of extra **weight** width costs **750×**, and one more
+> crosses the wall entirely. **The tractability of formal equivalence for
+> neural arithmetic is governed by the weight alphabet and is nearly independent
+> of the activation width.**
+
+**Why this matters more than every area argument in this document.** T97, T111
+and T112 established that area, DSP count and power do **not** separate a
+ternary design from an ordinary one — the compiler removes the multiplier from
+both, and the multiplying reference can even be the *larger* design.
+Verifiability does separate them, and by a wall rather than a margin:
+
+| network | multiplication | provable? |
+|---|---|---|
+| ternary / binary weights | 64 × **2** | **yes, 0.16 s** |
+| int8 weights | 32 × **8** | **no** (>120 s, and the curve is exponential) |
+
+**The honest scope of the claim.** This is a property of **narrow weights**, not
+of `φ` and not of ternary specifically. A 1-bit binary weight gets it too, and
+more cheaply; BitNet's `{−1,0,+1}` is also two bits and gets exactly the same
+benefit. **It does not differentiate this project from BitNet.** What it does
+separate is the entire low-bit family from int8 — and that separation is
+categorical, not incremental.
+
+**And it is the only surviving technical advantage.** Area does not separate the
+alphabets (T97, T111). Power does not — 5 W against Syntiant's sub-milliwatt.
+Novelty does not — LogicNets (FPL 2020) published zero-DSP inference first.
+Accuracy is unmeasured. **Verifiability is measured, and it separates.** It also
+lands on the one buyer a competitive survey found who is compelled to pay for
+machine-checked evidence: DO-254 DAL-A and IEC 61508 SIL 3 both want proof of a
+numeric datapath, and T117 says **you can only produce that proof if your weights
+are narrow.**
+
+**Refutation condition.** A SAT or SMT encoding, or an algebraic method
+(Gröbner-basis multiplier verification), that discharges 64 × 8 in minutes. The
+wall measured here is empirical and solver-specific; the literature's algebraic
+methods target exactly this case and were not tried.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
