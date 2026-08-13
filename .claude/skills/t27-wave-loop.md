@@ -6526,6 +6526,26 @@ These cost a wave each. Follow them before step 1.
      of the new code. Check the binary's hash against the snapshot, or check the
      BEHAVIOUR, before believing a fast build did anything.
 
+391. **Classify parse failures by the OFFENDING TOKEN, not by the message
+     text.** Normalising truncated messages collapsed 173 failures into a
+     handful of indistinguishable "parse error at module level near line N"
+     rows. Extracting the token from `Unexpected token in expression: <TOK>`
+     gave 40 clean classes with a 27-spec leader. **The discriminating
+     information is usually in the part a fixed-width display cuts off.** T122.
+
+392. **The biggest class in a parse-failure map may be a MISSING FEATURE, not a
+     bug.** 27 specs -- every generic container in the tree -- fail on
+     `pub const Maybe(T) = struct {...}`, a parameterised type definition the
+     parser never supported. No amount of defect-fixing reaches them; they are
+     waiting on one language decision. Read a member of the class before
+     planning any repair. T122.
+
+393. **Check a long sweep's ELAPSED time before calling it stuck.** A background
+     depth sweep looked hung -- 12 bytes of output, parent at 0.0% CPU -- and
+     had been running two minutes. The parent polls while children work, and the
+     progress print only fires on specs that reach the end of the loop body.
+     `ps -o etime=` and a look at the child process answer this in one command.
+
 ### How to update this tracker
 
 After closing a wave:

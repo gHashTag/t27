@@ -722,3 +722,163 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     println!("  Diagnostic counts are deliberately not reported: see T119.");
     Ok(())
 }
+
+/// Normalise one iverilog diagnostic into a CLASS.
+///
+/// Strips the file:line prefix and replaces every backquoted identifier with a
+/// placeholder, so `No function named `forward' found` and `No function named
+/// `init' found` collapse to one class. Two diagnostics of the same class are
+/// evidence of one defect; two of different classes are evidence of two.
+///
+/// This is a PROXY and is labelled as one wherever it is reported. Two errors
+/// of one class can still need separate fixes, and two classes can share a root.
+/// It is used because the alternative -- reading every spec -- does not scale to
+/// 617, and because T120 showed that the metric it replaces (frequency of the
+/// FIRST error) ranks causes in an order that predicts nothing.
+fn error_class(line: &str) -> String {
+    let after = match line.find(": ") {
+        Some(i) => &line[i + 2..],
+        None => line,
+    };
+    let mut out = String::new();
+    let mut in_tick = false;
+    for c in after.chars() {
+        match c {
+            '`' if !in_tick => {
+                in_tick = true;
+                out.push_str("`X`");
+            }
+            '\'' if in_tick => in_tick = false,
+            _ if in_tick => {}
+            _ => out.push(c),
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(72).collect()
+}
+
+/// `t27c depth` -- how many DISTINCT defect classes stand between each spec and
+/// a clean compile.
+///
+/// T120 (W660) is why this exists. Removing the single most frequent cause --
+/// 435 scaffold call sites across 140 specs, 133 of all iverilog failures --
+/// moved the count of compiling specs from 151 to 151, because 132 of those 140
+/// specs carry four or more distinct classes. A first-error histogram ranks by
+/// EARLIEST occurrence and therefore cannot rank blocking power.
+///
+/// The specs worth fixing are the ones ONE class deep. This finds them.
+///
+/// It also separates the population T121 identified: a spec whose every
+/// diagnostic is `No function named ...` is not broken, it is UNWRITTEN -- 159
+/// specs and 667 bodiless functions -- and no compiler fix will repair it.
+pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Result<()> {
+    let me = std::env::current_exe()?;
+    let tmp = std::env::temp_dir().join("t27-depth");
+    std::fs::create_dir_all(&tmp)?;
+
+    let mut specs: Vec<PathBuf> = Vec::new();
+    let mut stack = vec![repo_root.join(specs_dir)];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if p.file_name().map(|n| n == "scratch").unwrap_or(false) { continue; }
+                stack.push(p);
+            } else if p.extension().map(|x| x == "t27").unwrap_or(false) {
+                specs.push(p);
+            }
+        }
+    }
+    specs.sort();
+    if limit > 0 && specs.len() > limit { specs.truncate(limit); }
+
+    let mut clean = 0usize;
+    let mut no_gen = 0usize;
+    // (depth, spec, the one class) for defect specs
+    let mut by_depth: Vec<(usize, String, String)> = Vec::new();
+    let mut unwritten = 0usize;
+    let mut class_hist: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for (i, p) in specs.iter().enumerate() {
+        let sp = p.to_string_lossy().to_string();
+        let Some((c, text)) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15) else {
+            no_gen += 1;
+            continue;
+        };
+        if text == "__TIMEOUT__" || c != Some(0) || text.trim().is_empty() {
+            no_gen += 1;
+            continue;
+        }
+        let vp = tmp.join("d.v");
+        if std::fs::write(&vp, &text).is_err() { no_gen += 1; continue; }
+        let Some((vc, vt)) = run_timed(
+            Command::new("iverilog").args(["-g2012", "-o", "/dev/null", &vp.to_string_lossy()]), 30)
+        else { no_gen += 1; continue };
+        if vt == "__TIMEOUT__" { no_gen += 1; continue; }
+        if vc == Some(0) { clean += 1; continue; }
+
+        let classes: std::collections::BTreeSet<String> = vt
+            .lines()
+            .filter(|l| l.contains("error"))
+            .map(error_class)
+            .collect();
+        if classes.is_empty() { continue; }
+
+        // A spec whose every class is a missing function is UNWRITTEN (T121),
+        // not miscompiled. Counting it as a defect inflates the backlog by a
+        // factor of two and has done so for several waves.
+        let all_missing_fn = classes.iter().all(|c| c.starts_with("No function named"));
+        if all_missing_fn {
+            unwritten += 1;
+            continue;
+        }
+
+        let rel = p.strip_prefix(repo_root).unwrap_or(p).to_string_lossy().to_string();
+        let one = classes.iter().next().cloned().unwrap_or_default();
+        for c in &classes { *class_hist.entry(c.clone()).or_insert(0) += 1; }
+        by_depth.push((classes.len(), rel, one));
+
+        if i % 100 == 0 { eprintln!("  ... {}/{}", i + 1, specs.len()); }
+    }
+
+    by_depth.sort();
+    let depth_of = |d: usize| by_depth.iter().filter(|(n, _, _)| *n == d).count();
+
+    println!();
+    println!("  {} specs under {specs_dir}", specs.len());
+    println!("  {}", "-".repeat(64));
+    println!("  {:<34} {:>5}", "iverilog accepts", clean);
+    println!("  {:<34} {:>5}", "does not generate Verilog", no_gen);
+    println!("  {:<34} {:>5}", "UNWRITTEN (all errors are missing fns)", unwritten);
+    println!("  {:<34} {:>5}   <- the real defect backlog", "DEFECT specs", by_depth.len());
+    println!();
+    println!("  depth distribution of the defect backlog");
+    for d in 1..=5 {
+        let n = depth_of(d);
+        let bar = "#".repeat(n.min(60));
+        println!("    {d}{} class(es) {:>4}  {bar}", if d == 5 { "+" } else { " " },
+                 if d == 5 { by_depth.iter().filter(|(n,_,_)| *n >= 5).count() } else { n });
+    }
+
+    println!();
+    println!("  DEPTH-1 SPECS -- the only ones a single fix can move:");
+    let d1: Vec<_> = by_depth.iter().filter(|(n, _, _)| *n == 1).collect();
+    if d1.is_empty() {
+        println!("    none. No single compiler fix can raise the compiling count.");
+    } else {
+        let mut h: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for (_, _, c) in &d1 { *h.entry(c.as_str()).or_insert(0) += 1; }
+        let mut hv: Vec<_> = h.into_iter().collect();
+        hv.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        for (c, n) in hv.iter().take(10) {
+            println!("    {n:>3}  {c}");
+        }
+        println!();
+        for (_, s, _) in d1.iter().take(12) { println!("      {s}"); }
+    }
+
+    println!();
+    println!("  Depth is a PROXY: distinct normalised diagnostics, not verified");
+    println!("  independent fixes. See T120 for why frequency is worse.");
+    Ok(())
+}

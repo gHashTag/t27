@@ -7832,4 +7832,53 @@ number is wrong before it is made.
 
 ---
 
+### T122 (W661) — the 173 non-parsing specs, mapped: 40 classes, and the largest is a missing language feature
+
+T121 split the corpus into three populations and left the largest — **173 specs
+that do not parse at all** — unexamined. Classified by the offending token
+rather than by the truncated message text:
+
+| count | class | example |
+|---:|---|---|
+| 35 | `token Ident` | `c_api_contract.t27` |
+| **27** | **`token KwStruct`** | `array.t27` |
+| 11 | `token Colon` | `asp_solver.t27` |
+| 9 | `Expected LBrace, got Semicolon` | `knowledge_graph.t27` |
+| 8 | `token RBracket` | `paths.t27` |
+| 7 | `Expected LBrace, got Number` | `ternary_encoding.t27` |
+| 6 | `Expected LBrace, got LParen` | `repo.t27` |
+| 5 each | `Equals`, `KwModule`, `KwIn`, `LBrace` | |
+| … | 29 further classes | |
+
+**40 distinct classes; the top 16 cover 140 of 173.**
+
+**The `KwStruct` class is one missing feature, not 27 defects.** Every member is
+a generic container — `array`, `list`, `set`, `btree`, `lru`, `maybe` — and they
+all use the same Zig-style parameterised type definition:
+
+```
+pub const Maybe(T) = struct {
+    computed : bool,
+    value : T,
+};
+```
+
+The parser accepts `const NAME = expr` and `const NAME : TYPE = expr`, but not
+the parameterised form.
+
+> **T122.** The largest single class among the non-parsing specs is **generic
+> type definitions**, and it is a **language feature that was never implemented**
+> — not a bug and not a spec error. Twenty-seven specs are waiting on one
+> decision about the language, and no amount of defect-fixing reaches them.
+
+**And the tail is long.** Twenty-nine classes hold 33 specs between them — an
+average of barely one spec each. **There is no second lever here**: after
+generics, the 173 do not decompose into further large classes, and the remaining
+work is per-spec.
+
+**The `Expected LBrace, got LParen` class (6 specs) is a second, smaller missing
+feature** — tuple/newtype structs, `struct AccountID(str);`.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

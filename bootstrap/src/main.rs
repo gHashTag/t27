@@ -127,6 +127,21 @@ enum Commands {
         json: bool,
     },
 
+    /// THE SERVICE: how many DISTINCT defect classes stand between each spec
+    /// and a clean compile. T120 measured why frequency cannot answer this:
+    /// removing the single most frequent cause (435 sites, 140 specs, 133 of
+    /// all failures) moved the compiling count 151 -> 151, because 94% of those
+    /// specs were four or more classes deep. Also separates UNWRITTEN specs,
+    /// whose every diagnostic is a missing function, from real defects.
+    Backlog {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Stop after N specs (0 = all)
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+    },
+
     /// THE SERVICE: report the Digilent cables attached RIGHT NOW, with each
     /// board's IDCODE read from the silicon. All three cables in this project
     /// share one serial, so bus position is the only handle -- and it changes
@@ -10195,6 +10210,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::Backlog { specs_dir, limit } => {
+            service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
+        }
         Commands::Corpus { specs_dir, limit, json } => {
             service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
         }
@@ -10546,6 +10564,9 @@ fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::Backlog { specs_dir, limit } => {
+            service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
+        }
         Commands::Corpus { specs_dir, limit, json } => {
             service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
         }
