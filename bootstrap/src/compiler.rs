@@ -7313,6 +7313,11 @@ pub struct VerilogCodegen {
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
+    /// W653 (T74): how many failure checks the CURRENT test block actually
+    /// emitted. The block's final verdict must depend on this, not on a flag
+    /// set once at construction -- a block can hold statements and still lower
+    /// zero checks, which is T45's shape reached by a different route.
+    verilog_checks_emitted: usize,
     // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
     probe_counter: usize,
     // W539: per-test-block probe metadata: (probe_name, width_bits, is_signed).
@@ -7373,6 +7378,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: std::collections::HashMap::new(),
             local_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
+            verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
             call_array_tmp_names: std::collections::HashMap::new(),
@@ -8751,6 +8757,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
             local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
+            verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
             call_array_tmp_names: self.call_array_tmp_names.clone(),
@@ -8966,6 +8973,7 @@ impl VerilogCodegen {
                     module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
                     local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
+                    verilog_checks_emitted: 0,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
                     call_array_tmp_names: self.call_array_tmp_names.clone(),
@@ -11070,7 +11078,18 @@ impl VerilogCodegen {
         self.call_array_tmp_names.clear();
         self.call_array_tmp_info.clear();
         self.call_array_tmp_materialized.clear();
-        if self.emit_test_assertions {
+        // W653 (T75): this hoist WAS gated on `emit_test_assertions`, which
+        // `VerilogCodegen::new()` sets to **false** -- and `main.rs:4858`, the
+        // CLI `gen-verilog` path, calls `new()`. So every CLI-generated module
+        // emitted the assertion bodies (those come from an ungated path) while
+        // emitting NO declarations for the names they read. `given v = f()`
+        // produced `v = f();` with `v` undeclared, and iverilog answered
+        // "Could not find variable `v'" -- 87 errors on a 29-test spec.
+        //
+        // The two halves of one feature sat behind different conditions. A reg
+        // declaration is harmless when unused, so the declaration half is now
+        // unconditional; only the *checks* remain a choice.
+        {
             self.predeclare_call_array_tmps(node, block_name);
             // t27#1894: named test-block bindings (`h = f(...);`) parse as
             // StmtAssign, not StmtLocal, so they never got a reg declaration
@@ -11330,7 +11349,21 @@ impl VerilogCodegen {
             safe_test_name
         ));
         self.indent();
+        // W653 (T74): a test block printed PASSED **unconditionally**, after any
+        // number of failing assertions. The emitted shape was
+        //     if (!(cond)) begin $display("... FAILED"); end
+        //     $display("... PASSED");
+        // so a failing test printed FAILED *and* PASSED, and any log scraper
+        // counting PASSED counted it as a success. W640 fixed the EMPTY-body
+        // case (T45) and left this one -- the third instance of T52's shape in
+        // this one emitter. A block-scoped flag makes the final verdict depend
+        // on what actually happened.
+        self.write_indent();
+        self.write_line("reg t27_failed;");
+        self.verilog_checks_emitted = 0;
         let block_locals = self.gen_verilog_probe_prelude(node, &node.name);
+        self.write_indent();
+        self.write_line("t27_failed = 1'b0;");
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
         self.with_call_array_temps_enabled(|this| {
@@ -11353,8 +11386,20 @@ impl VerilogCodegen {
                 "$display(\"[TEST] {} : NOT CHECKED (empty body)\");",
                 node.name
             ));
+        } else if self.verilog_checks_emitted == 0 {
+            // W653: when assertion emission is off, `gen_verilog_test_stmt`
+            // lowers nothing, so the block has statements but checks nothing.
+            // That is the T45 case reached by a different route, and it must
+            // report the reserved symbol rather than a verdict.
+            self.write_line(&format!(
+                "$display(\"[TEST] {} : NOT CHECKED (no checks lowered)\");",
+                node.name
+            ));
         } else {
-            self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
+            self.write_line(&format!(
+                "if (t27_failed) $display(\"[TEST] {} : FAILED\"); else $display(\"[TEST] {} : PASSED\");",
+                node.name, node.name
+            ));
         }
         self.dedent();
         self.write_indent();
@@ -11449,6 +11494,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write("$display(\"  expected %0d, got %0d\", (");
                             self.gen_verilog_expr(&expr.children[1]);
@@ -11482,6 +11532,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"  assert failed: {}\");",
@@ -11541,6 +11596,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.dedent();
                             self.write_indent();
                             self.write_line("end");
@@ -11557,15 +11617,25 @@ impl VerilogCodegen {
                                 .unwrap_or_default();
                             self.materialize_call_array_tmps_in_expr(node);
                             self.write_indent();
-                            self.write("if (!(");
+                            // W653 (T76): `if (!(cond))` is FALSE when cond is
+                            // x, so an assertion on an unknown value skipped the
+                            // failure branch and the block printed PASSED. Case
+                            // inequality `!== 1'b1` treats x as not-true, so an
+                            // unknown now FAILS. Unknown is not verified.
+                            self.write("if ((");
                             self.gen_verilog_expr(&expr.children[0]);
-                            self.write_line(")) begin");
+                            self.write_line(") !== 1'b1) begin");
                             self.indent();
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"  assert failed: {}\");",

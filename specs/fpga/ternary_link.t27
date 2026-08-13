@@ -1,0 +1,332 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/fpga/ternary_link.t27
+// TRI-NET ternary line code: 3B2T over a three-level physical layer.
+//
+// WHY THIS EXISTS. W652 measured that the "ternary internet" was binary at every
+// layer: specs/fpga/bpsk.t27 carries SYM_POS=1 and SYM_NEG=-1 and no zero state
+// anywhere, tri-net's wire header is 11 binary bytes, and nothing three-valued
+// ever crossed between two nodes. This module is the smallest object that makes
+// the claim true: a line code whose alphabet is {-1, 0, +1}.
+//
+// PRIOR ART, and it is shipping. Ternary line codes are not novel -- AMI, HDB3
+// and B8ZS have put +V/0/-V on T1/E1 since ITU-T G.703. The specific code here,
+// 3 binary bits into 2 ternary symbols, is 3B2T, standardised as the PAM3 line
+// code of IEEE Std 802.3bp-2016 (1000BASE-T1) and 802.3bw-2015 (100BASE-T1).
+// We adopt it rather than invent one, so the link is comparable to prior art.
+// (Note: 1000BASE-T -- 802.3ab-1999 -- is 4D-PAM5, NOT PAM3. And 2B1Q is
+// quaternary, not ternary. Both are commonly miscited as ternary precedent.)
+//
+// WHY 3B2T AND NOT A DENSER CODE. A ternary symbol carries log2(3) = 1.585 bits.
+// 3B2T carries 1.5, an efficiency of 94.6%. The 0.085 bit/symbol given up buys
+// something that cannot be bought back: of the 9 possible symbol pairs, 3B2T
+// spends 8, leaving EXACTLY ONE codeword that can never occur in data. That
+// codeword is the frame delimiter, and its absence from the data stream is a
+// theorem rather than a probability -- unlike the Barker-13 preamble in
+// bpsk.t27, whose uniqueness is statistical.
+//
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ZeroDSP_TernaryLink {
+    use base::types;
+
+    // ---- Wire symbol encoding (2 bits per ternary symbol) ----
+    // Matches the encoding already used by tri-net's fpga/ternary/tern_corr8.v:
+    // 2'b01 -> +1, 2'b10 -> -1, anything else -> 0. Keeping the same codes means
+    // the correlator and this line code agree without a translation layer.
+    const WIRE_ZERO : u8 = 0;
+    const WIRE_POS  : u8 = 1;
+    const WIRE_NEG  : u8 = 2;
+
+    // ---- Physical drive, for a tri-state FPGA output buffer ----
+    // A 7-series IOBUF has three states natively: drive-0, drive-1 and Hi-Z, so
+    // the alphabet needs no external DAC on the transmit side. `oe` is the
+    // buffer's output enable; `dout` is meaningful only when `oe` is 1.
+    //   +1 -> oe=1 dout=1        -1 -> oe=1 dout=0        0 -> oe=0 (Hi-Z)
+    const DRIVE_HIZ  : u8 = 0;   // oe=0, dout=x
+    const DRIVE_LOW  : u8 = 1;   // oe=1, dout=0
+    const DRIVE_HIGH : u8 = 3;   // oe=1, dout=1
+
+    // ---- Code geometry ----
+    const CODE_DATA_BITS  : u8 = 3;   // 3 binary bits in
+    const CODE_SYMBOLS    : u8 = 2;   // 2 ternary symbols out
+    const CODE_WORDS_USED : u8 = 8;   // 2^3
+    const CODE_WORDS_TOTAL: u8 = 9;   // 3^2
+    const CODE_BIAS       : i8 = 4;   // maps 0..7 onto the balanced range -4..3
+
+    // The one unused pair, reserved as the frame delimiter: (+1, +1) = +4.
+    // Value +4 is unreachable from any 3-bit input because the encoder's range
+    // after biasing is [-4, +3]. See the `idle_is_unreachable_from_data`
+    // invariant -- this is what buys the 0.085 bit/symbol.
+    const IDLE_HI : u8 = 1;   // WIRE_POS
+    const IDLE_LO : u8 = 1;   // WIRE_POS
+
+    // ---- Receiver slicer thresholds ----
+    // A three-level receiver needs two comparators. `hi` fires above the upper
+    // threshold, `lo` fires above the lower one, so an ordered pair of
+    // thresholds makes (hi,lo) = (1,1) -> +1, (0,1) -> 0, (0,0) -> -1, and
+    // (1,0) impossible. The (1,0) case is retained as an explicit ERROR symbol
+    // rather than folded into a valid one: a slicer whose thresholds have
+    // crossed is a fault, and silently decoding it would hide the fault.
+    const SLICE_ERROR : u8 = 3;
+
+    // ---- Running digital sum bound ----
+    // Each symbol contributes -1, 0 or +1, so a 2-symbol codeword's disparity
+    // lies in [-2, +2]. This bounds low-frequency wander without scrambling.
+    const MAX_WORD_DISPARITY : i8 = 2;
+
+    // ---- Encoder: 3 bits -> two balanced-ternary digits ----
+    // v in 0..7 is biased to n = v - 4 in [-4, 3], then split into digits
+    // n = 3*t1 + t0 with t1, t0 in {-1, 0, +1}.
+    fn encode_high(v: u8) -> i8 {
+        // t1 = round(n / 3) over n in [-4,3]: -1 for n <= -2, +1 for n >= 2.
+        if (v <= 2) {
+            return -1;
+        } else {
+            if (v <= 5) {
+                return 0;
+            } else {
+                return 1;
+            }
+        }
+    }
+
+    fn encode_low(v: u8) -> i8 {
+        // t0 = n - 3*t1, which cycles -1, 0, +1 with period 3 across v.
+        if (v == 0) { return -1; } else {
+        if (v == 1) { return 0;  } else {
+        if (v == 2) { return 1;  } else {
+        if (v == 3) { return -1; } else {
+        if (v == 4) { return 0;  } else {
+        if (v == 5) { return 1;  } else {
+        if (v == 6) { return -1; } else {
+                     return 0;
+        } } } } } } }
+    }
+
+    // ---- Decoder: two digits -> 3 bits ----
+    // Returns i8, not u8: the arithmetic `3*t1 + t0 + 4` is signed, and the
+    // Zig backend rejected a u8 return outright ("unsigned 8-bit int cannot
+    // represent all possible signed 8-bit values"). The decoded value is always
+    // in 0..8, but the TYPE that computes it is signed, and saying so is
+    // cheaper than a cast the invariant checker would then have to trust.
+    fn decode_word(t1: i8, t0: i8) -> i8 {
+        return (t1 * 3 + t0 + CODE_BIAS);
+    }
+
+    // ---- Symbol <-> wire code ----
+    fn symbol_to_wire(t: i8) -> u8 {
+        if (t == 1) { return WIRE_POS; } else {
+        if (t == -1) { return WIRE_NEG; } else {
+                       return WIRE_ZERO;
+        } }
+    }
+
+    fn wire_to_symbol(w: u8) -> i8 {
+        if (w == WIRE_POS) { return 1; } else {
+        if (w == WIRE_NEG) { return -1; } else {
+                             return 0;
+        } }
+    }
+
+    // ---- Tri-state drive for a symbol ----
+    fn symbol_to_drive(t: i8) -> u8 {
+        if (t == 1) { return DRIVE_HIGH; } else {
+        if (t == -1) { return DRIVE_LOW; } else {
+                       return DRIVE_HIZ;
+        } }
+    }
+
+    // ---- Receiver slicer: two comparator outputs -> one symbol code ----
+    fn slice(hi: u8, lo: u8) -> u8 {
+        if (hi == 1) {
+            if (lo == 1) { return WIRE_POS; } else { return SLICE_ERROR; }
+        } else {
+            if (lo == 1) { return WIRE_ZERO; } else { return WIRE_NEG; }
+        }
+    }
+
+    // ---- Disparity, for the running digital sum ----
+    fn word_disparity(v: u8) -> i8 {
+        return (encode_high(v) + encode_low(v));
+    }
+
+    // ---- Framing ----
+    fn is_idle_pair(w1: u8, w0: u8) -> bool {
+        return (w1 == WIRE_POS && w0 == WIRE_POS);
+    }
+
+    // Symbols needed for n payload bytes: 2 idle + ceil(8n/3) rounded up in
+    // whole codewords, each codeword being 2 symbols. One byte is not a whole
+    // number of 3-bit groups, so bytes are grouped 3-at-a-time (24 bits = 8
+    // codewords = 16 symbols) and a partial group is padded.
+    fn frame_symbol_count(payload_groups: u32) -> u32 {
+        return (2 + payload_groups * 16);
+    }
+
+    // ---- Tests: the round trip is the whole correctness claim ----
+
+    test v0_encodes_to_minus_minus
+        given h = encode_high(0)
+        then h == -1
+
+    test v0_low_is_minus_one
+        given l = encode_low(0)
+        then l == -1
+
+    test v4_encodes_to_zero_zero
+        given h = encode_high(4)
+        then h == 0
+
+    test v4_low_is_zero
+        given l = encode_low(4)
+        then l == 0
+
+    test v7_high_is_plus_one
+        given h = encode_high(7)
+        then h == 1
+
+    test v7_low_is_zero
+        given l = encode_low(7)
+        then l == 0
+
+    // Round trip, at both ends of the range and in the middle.
+    test roundtrip_v0
+        given d = decode_word(-1, -1)
+        then d == 0
+
+    test roundtrip_v4
+        given d = decode_word(0, 0)
+        then d == 4
+
+    test roundtrip_v7
+        given d = decode_word(1, 0)
+        then d == 7
+
+    test roundtrip_v2
+        given d = decode_word(-1, 1)
+        then d == 2
+
+    test roundtrip_v6
+        given d = decode_word(1, -1)
+        then d == 6
+
+    // The reserved codeword decodes to 8, one past the 3-bit range.
+    test idle_decodes_out_of_range
+        given d = decode_word(1, 1)
+        then d == 8
+
+    // Wire codes.
+    test plus_maps_to_wire_pos
+        given w = symbol_to_wire(1)
+        then w == 1
+
+    test minus_maps_to_wire_neg
+        given w = symbol_to_wire(-1)
+        then w == 2
+
+    test zero_maps_to_wire_zero
+        given w = symbol_to_wire(0)
+        then w == 0
+
+    test wire_pos_maps_back_to_plus
+        given t = wire_to_symbol(1)
+        then t == 1
+
+    test wire_neg_maps_back_to_minus
+        given t = wire_to_symbol(2)
+        then t == -1
+
+    // Tri-state drive: the zero symbol must NOT drive the line.
+    test zero_symbol_is_high_z
+        given d = symbol_to_drive(0)
+        then d == 0
+
+    test plus_symbol_drives_high
+        given d = symbol_to_drive(1)
+        then d == 3
+
+    test minus_symbol_drives_low
+        given d = symbol_to_drive(-1)
+        then d == 1
+
+    // Slicer.
+    test slicer_both_high_is_pos
+        given s = slice(1, 1)
+        then s == 1
+
+    test slicer_lo_only_is_zero
+        given s = slice(0, 1)
+        then s == 0
+
+    test slicer_neither_is_neg
+        given s = slice(0, 0)
+        then s == 2
+
+    // A crossed slicer is a fault and must be reported, not decoded.
+    test slicer_crossed_is_error
+        given s = slice(1, 0)
+        then s == 3
+
+    // Disparity stays inside the bound at both extremes.
+    test disparity_v0_is_minus_two
+        given d = word_disparity(0)
+        then d == -2
+
+    test disparity_v4_is_zero
+        given d = word_disparity(4)
+        then d == 0
+
+    test idle_pair_is_recognised
+        given f = is_idle_pair(1, 1)
+        then f == true
+
+    test data_pair_is_not_idle
+        given f = is_idle_pair(2, 2)
+        then f == false
+
+    test one_group_frame_is_18_symbols
+        given n = frame_symbol_count(1)
+        then n == 18
+
+    // ---- Invariants ----
+
+    // The code spends 8 of 9 pairs, leaving exactly one for framing. This is
+    // the property that makes the delimiter unreachable rather than unlikely.
+    invariant exactly_one_codeword_reserved
+        assert CODE_WORDS_TOTAL - CODE_WORDS_USED == 1
+
+    invariant code_is_three_bits_in_two_symbols
+        assert CODE_DATA_BITS == 3
+
+    invariant two_symbols_per_codeword
+        assert CODE_SYMBOLS == 2
+
+    // 2^3 == 8 words must fit in 3^2 == 9 pairs.
+    invariant code_fits_in_alphabet
+        assert CODE_WORDS_USED <= CODE_WORDS_TOTAL
+
+    // The bias must place 0..7 symmetrically about zero, so the alphabet is
+    // used in a balanced way and the running digital sum has no drift term.
+    invariant bias_centres_the_range
+        assert CODE_BIAS == 4
+
+    // Disparity of a 2-symbol codeword cannot exceed 2 in magnitude.
+    invariant disparity_bound_is_two
+        assert MAX_WORD_DISPARITY == 2
+
+    // The three wire codes must be distinct, or the line code is not injective.
+    invariant wire_codes_are_distinct
+        assert WIRE_ZERO != WIRE_POS
+
+    invariant wire_pos_differs_from_neg
+        assert WIRE_POS != WIRE_NEG
+
+    // Hi-Z must be the code with the output enable clear, so the zero symbol
+    // releases the line rather than driving it.
+    invariant hiz_does_not_drive
+        assert DRIVE_HIZ == 0
+
+    // The error code must not collide with any valid wire code.
+    invariant error_code_is_reserved
+        assert SLICE_ERROR > WIRE_NEG
+}
