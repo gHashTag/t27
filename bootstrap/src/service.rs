@@ -367,8 +367,36 @@ pub fn run_prove(repo_root: &Path, spec: &str, mutate: bool) -> anyhow::Result<(
         .unwrap_or("")
         .trim()
         .to_string();
-    let proved = log.contains("no model found");
-    let refuted = log.contains("model found: FAIL");
+    // Yosys reports the verdict differently depending on the proof mode, and
+    // reading only one form silently inverts the result. Measured strings:
+    //
+    //   bounded (-seq N)     PASS  "SAT proof finished - no model found: SUCCESS!"
+    //                        FAIL  "SAT proof finished - model found: FAIL!"
+    //   induction (-tempinduct)
+    //                        PASS  "Induction step proven: SUCCESS!"
+    //                        FAIL  "SAT temporal induction proof finished -
+    //                               model found for base case: FAIL!"
+    //
+    // Switching the scripts from -seq to -tempinduct broke BOTH branches of the
+    // old check at once: a passing proof was reported NOT PROVED, and a failing
+    // one was reported as a mutation that did not fail. The `--mutate` path is
+    // what surfaced it, which is the entire argument for having that flag.
+    //
+    // The exit code is the primary signal (`-verify` makes yosys exit non-zero
+    // on a failed proof) and the strings only confirm it. When the two disagree,
+    // or neither string appears, the answer is NO VERDICT -- never a guess.
+    let says_proved = log.contains("Induction step proven") || log.contains("no model found");
+    let says_refuted = log.contains("proof did fail")
+        || log.contains("model found for base case")
+        || log.contains("model found: FAIL");
+    let proved = code == Some(0) && says_proved && !says_refuted;
+    let refuted = code != Some(0) && says_refuted;
+    if !proved && !refuted {
+        println!("  NO VERDICT -- rc {code:?}, and yosys printed neither a proof nor a");
+        println!("  refutation in a form this tool recognises. The miter probably did not");
+        println!("  build. Read the log before believing anything about this design.");
+        std::process::exit(1);
+    }
 
     println!("  script   {}", script.display());
     println!("  {solved}");

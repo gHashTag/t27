@@ -6412,6 +6412,50 @@ These cost a wave each. Follow them before step 1.
      **Section 6 of the path document has now been rewritten three times; that is
      the process working, not failing.**
 
+374. **A successful Edit is not a durable Edit.** T113-T116 were written, the
+     tool reported success, something outside the session overwrote the file, and
+     the NEXT edit landed on the reverted content -- so a commit shipped a
+     message describing four theorems the tree did not contain. The harness DID
+     warn ("the file had been modified on disk ... the edit applied cleanly, but
+     the file contains other changes not in your context") and the warning was
+     read as benign. **It means your earlier content may already be gone.
+     Re-grep for the anchor after editing a file that warning has fired on.**
+
+375. **Prefer -tempinduct to -seq N always; it is not slower.** Bounded model
+     checking to depth N is sound only while some unstated structural property
+     holds (here: the accumulator threaded through a PORT, not a feedback loop).
+     Temporal induction quantifies over all reachable states and cost 0.27 s
+     against the bounded run's comparable time. There was no trade-off to make.
+     T115.
+
+376. **Check whether the repository already has the stronger method.**
+     `prove_demo_core.ys` has used -tempinduct since T3 -- whose heading is
+     literally "Unbounded accumulator invariant by temporal induction" -- while
+     the newer `prove_ternary_mac.ys` used a bounded check. **Capability drift:
+     a repo can hold a strong method and a weak one side by side with nothing
+     that notices.** Grep the repo for the technique before inventing it. T115a.
+
+377. **Changing a tool's input can blind the tool's output parser.** Switching
+     the proof scripts from -seq to -tempinduct broke BOTH branches of the
+     verdict check at once -- yosys prints "Induction step proven: SUCCESS!"
+     rather than "no model found", and "model found for base case: FAIL!" rather
+     than "model found: FAIL!". A passing proof was reported NOT PROVED and a
+     failing one as a mutation that did not fail. **The --mutate flag is what
+     surfaced it**, which is the whole argument for having it. Make the exit code
+     primary, strings confirmatory, and emit NO VERDICT when they disagree.
+
+378. **Bryant 1991 is an OBDD lower bound, not a SAT one.** Do not cite it as
+     proof that SAT cannot verify multipliers. What is established is that the
+     field ABANDONED bit-level SAT for algebraic methods (Ciesielski DAC 2015,
+     Sayed-Ahmed DATE 2016, Kaufmann/Biere/Kauers FMCAD 2019). Our wall is
+     empirical and solver-specific, and those methods were not tried. T113.
+
+379. **At three levels, the alphabets coincide.** INQ at 2 bits IS ternary --
+     {-2^p, 0, +2^p} -- and APoT's own text states Q(alpha,2) can only be
+     {+/-alpha, 0}. Any "phi vs PoT vs APoT" comparison at three levels is
+     comparing the same set to itself. Check the level count before quoting any
+     cross-alphabet error figure.
+
 ### How to update this tracker
 
 After closing a wave:

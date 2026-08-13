@@ -44,6 +44,12 @@ hierarchy -top miter_mvp
 prep -top miter_mvp
 async2sync
 
-# The design is purely combinational -- `assign result = on_comb(x)` on one side
-# and a function call on the other -- so one transition is the whole behaviour.
-sat -verify -prove-asserts -seq 1 -set-init-zero -show-inputs -show-outputs miter_mvp
+# -tempinduct, not -seq N.  The design here is purely combinational
+# (`assign result = on_comb(x)`), so a single frame would already be exhaustive
+# -- but writing `-seq 1` makes the proof's validity depend on a structural
+# property of the design that nothing checks.  Add one register with feedback
+# and a bounded check silently stops meaning what its heading claims, while
+# still printing SUCCESS.  Temporal induction quantifies over ALL reachable
+# states and costs the same 0.3 s here, so there is no reason to take the risk.
+# See T115 in docs/theory/IGLA-FORMAL-RESULTS.md.
+sat -verify -prove-asserts -tempinduct -set-init-zero -show-inputs -show-outputs miter_mvp

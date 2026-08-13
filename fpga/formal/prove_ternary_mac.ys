@@ -21,6 +21,11 @@ hierarchy -top miter_mac
 prep -top miter_mac
 async2sync
 
-# -seq 2 unrolls two transitions so the reset behaviour and the enabled
-# accumulate step are both covered.
-sat -verify -prove-asserts -seq 2 -set-init-zero -show-inputs -show-outputs miter_mac
+# -tempinduct, not -seq N.  This design is sound under a bounded check only
+# because `acc_in` is an input PORT with no path from `acc_out` back into the
+# logic, so one enabled frame is already exhaustive -- a structural property
+# nothing in the flow verifies.  Close that loop in a refactor and a bounded
+# check keeps printing SUCCESS while proving strictly less than the theorem
+# above claims.  Temporal induction quantifies over ALL reachable states and
+# discharges in 0.27 s.  See T115 in docs/theory/IGLA-FORMAL-RESULTS.md.
+sat -verify -prove-asserts -tempinduct -set-init-zero -show-inputs -show-outputs miter_mac
