@@ -10835,6 +10835,67 @@ silent one.
 
 ---
 
+### Prop. 206 — a `finally` does not survive `SIGKILL`, so the restore must run at startup — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 205 recorded an outage rather than fixing it: `absence_sweep` moves its
+subjects aside — `build/rtl` entirely, and **every non-`.py` file under
+`formal/`**, which is the 15 property files *and every ratchet baseline* — then
+restores them in a `finally`. A harness timeout sends `SIGKILL`, and a `finally`
+does not survive it.
+
+Consequences when it happened, measured: **23 of 44 gates failed, none for a
+reason connected to what they check.** Diagnosis took most of a wave because the
+failures were spread across unrelated gates and read as a code regression.
+Recovery needed regenerating `build/rtl` from its generator and `git checkout` of
+15 tracked property files — **and the stash directory was deleted before its
+contents were understood**, which would have been unrecoverable had those files
+not been tracked.
+
+**Theorem (cleanup placement).** For a process holding external state `S` with
+restore `R`, in-process cleanup establishes only
+
+```
+terminated normally  ⇒  R ran
+```
+
+and says nothing under abnormal termination — which is precisely the case where
+`S` is left corrupted. Since a signal can arrive at any instant, **no in-process
+handler is sufficient**; the only placement that is total is *the next run, before
+anything else*. Recovery must be idempotent and driven by the presence of the
+stash, not by the memory of having created it.
+
+Implemented: `recover()` runs first in `main()`, restores from the stash, and
+**never overwrites a destination that already exists** — a present file means
+someone restored or regenerated it, and clobbering that turns a recovery into a
+second outage. It reports what it kept.
+
+**Measured, by simulating the failure:** three RTL files and two property files
+moved into the stash by hand, then the sweep run. `recovered a stash from an
+interrupted run -- 5 file(s) restored, 0 already present`. Counts back to 13 and
+15, stash cleaned, sweep completes: **60 steps, 43 diagnosed, 17 exempt, exit 0.**
+
+**Corollary — this class hides inside pipe operators too.** The verification of
+this fix was nearly broken by `python3 formal/absence_sweep.py | head -2`, which
+closes the pipe and can `SIGPIPE` the sweep mid-run: the same interruption,
+introduced by the command used to *observe* it. Long-running destructive commands
+must be run to completion into a file, never through a truncating pipe.
+
+**And a second observation, kept because it is not a defect.** `bench.py
+--self-test` failed once during this wave with *"the machine was contended
+(load > 6.0 on 8 cores). No comparison is printed."* That is the correct refusal —
+a timing taken under load is not a measurement — but it means `run_all`'s verdict
+is **machine-state-dependent**, and a red from it must be read before it is
+believed.
+
+Three bars: **TRUE** — 44 python gates pass, absence sweep exit 0, 1213 tests
+pass. **ALIVE** — recovery restored exactly the 5 files planted and reported 0
+kept, so it is not a no-op. **BITING** — without it, the same simulated
+interruption leaves 10 of 13 RTL files and 13 of 15 property files missing.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -2,6 +2,44 @@
 
 Last updated: 2026-08-13
 
+## A finally does not survive SIGKILL (Closes #2142)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2142
+- PR: (direct commit)
+
+### What landed
+
+Prop. 205 recorded last wave's outage rather than fixing it. `absence_sweep`
+moves `build/rtl` and every non-`.py` file under `formal/` aside -- the 15
+property files **and every ratchet baseline** -- and restores them in a
+`finally`, which `SIGKILL` does not run.
+
+`recover()` now runs **first in `main()`**, restores from the stash, and never
+overwrites a destination that already exists. Verified by simulating the failure:
+3 RTL + 2 property files stashed by hand, then the sweep run --
+"5 file(s) restored, 0 already present". Counts back to 13 and 15, stash cleaned,
+sweep completes: 60 steps, 43 diagnosed, 17 exempt, exit 0.
+
+44 python gates pass, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **This fixes recovery, not prevention.** An interrupted sweep still leaves the
+  tree starved until the NEXT run of that same gate. Any other gate run in
+  between still measures a starved tree and reports nonsense confidently.
+- **Recovery is deliberately non-destructive**, so a partially restored tree
+  (someone regenerated one file by hand) is left mixed rather than forced to the
+  stash's version. It reports what it kept.
+- **`run_all`'s verdict is machine-state-dependent.** `bench.py --self-test`
+  refused once during this wave with "the machine was contended (load > 6.0 on 8
+  cores)" -- the correct refusal, but it means a red from `run_all` must be read
+  before it is believed.
+- Verifying this was nearly broken by `... | head -2`, which can `SIGPIPE` the
+  sweep mid-run: the same interruption, introduced by the observing command.
+- No RTL, spec, or proof content changed this wave.
+
+
 ## The unresolved 26% was the instrument, not the tree (Closes #2141)
 
 - Branch: `feat/wave-547/host-heapsort`

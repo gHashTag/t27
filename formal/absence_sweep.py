@@ -231,8 +231,66 @@ def positive_arm(root, steps, only=None):
     return 1 if bad else 0
 
 
+def recover(root):
+    """Restore a stash left behind by a previous run that was killed.
+
+    Prop. 206. This sweep moves its subjects aside -- `build/rtl` entirely, and
+    every non-`.py` file under `formal/`, which includes the property files AND
+    every ratchet baseline. It restores them in a `finally`. A `finally` does
+    not survive `SIGKILL`, and a harness timeout sends exactly that.
+
+    Measured when it happened: 23 of 44 gates failed on the next run, none of
+    them for a reason connected to what they check. Diagnosis took most of a
+    wave, because the failures were spread across unrelated gates and looked
+    like a code regression. Recovery needed regenerating `build/rtl` from its
+    generator and `git checkout` of 15 tracked property files -- and the stash
+    was deleted before its contents were understood, which would have been
+    unrecoverable had those files not been tracked.
+
+    So the restore cannot live only at the end of a run. It runs at STARTUP,
+    where it survives any way the previous process died. It never overwrites a
+    file that already exists: a destination present means someone restored or
+    regenerated it, and clobbering that would turn a recovery into a second
+    outage.
+    """
+    bak = root / "build" / "_absence_bak"
+    if not bak.exists():
+        return
+    restored, skipped = 0, []
+    src = bak / "build_rtl"
+    dst = root / "build" / "rtl"
+    if src.exists():
+        dst.mkdir(parents=True, exist_ok=True)
+        for f in sorted(src.iterdir()):
+            target = dst / f.name
+            if target.exists():
+                skipped.append(str(target.relative_to(root)))
+            else:
+                shutil.move(str(f), str(target))
+                restored += 1
+    fbak = bak / "formal_subjects"
+    if fbak.exists():
+        for f in sorted(fbak.iterdir()):
+            target = root / "formal" / f.name
+            if target.exists():
+                skipped.append(str(target.relative_to(root)))
+            else:
+                shutil.move(str(f), str(target))
+                restored += 1
+    print(f"absence sweep: recovered a stash from an interrupted run -- "
+          f"{restored} file(s) restored, {len(skipped)} already present and "
+          f"left alone")
+    for k in skipped[:6]:
+        print(f"  kept existing: {k}")
+    shutil.rmtree(bak, ignore_errors=True)
+
+
 def main(argv):
     root = pathlib.Path(__file__).resolve().parent.parent
+    # Prop. 206: before anything else. A previous run may have died holding the
+    # subjects; every check below would then measure a starved tree and report
+    # nonsense with full confidence.
+    recover(root)
     positive = "--positive" in argv
     argv = [a for a in argv if a != "--positive"]
     paths = argv[1:] or [str(root / w) for w in DEFAULT_WORKFLOWS]
