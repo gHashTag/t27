@@ -7417,6 +7417,26 @@ impl VerilogCodegen {
             "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
             "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
             "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+            // W650: the list above is Verilog-2001, but every Icarus invocation
+            // in this repository passes `-g2012`, where these are ALSO reserved.
+            // 8 corpus specs declare identifiers named `priority`, `logic`,
+            // `string` and friends, and iverilog rejects them with a bare
+            // "syntax error". The keyword table was for the wrong language
+            // VERSION -- a totality claim (T55) about the wrong universe. T63.
+            "alias", "always_comb", "always_ff", "always_latch", "assert", "assume", "before",
+            "bind", "bins", "binsof", "bit", "break", "byte", "chandle", "class", "clocking",
+            "const", "constraint", "context", "continue", "cover", "covergroup", "coverpoint",
+            "cross", "dist", "do", "endclass", "endclocking", "endgroup", "endinterface",
+            "endpackage", "endprogram", "endproperty", "endsequence", "enum", "expect",
+            "export", "extends", "extern", "final", "first_match", "foreach", "forkjoin",
+            "iff", "ignore_bins", "illegal_bins", "import", "inside", "int", "interface",
+            "intersect", "join_any", "join_none", "local", "logic", "longint", "matches",
+            "modport", "new", "null", "package", "packed", "priority", "program", "property",
+            "protected", "pure", "rand", "randc", "randcase", "randsequence", "ref", "return",
+            "sequence", "shortint", "shortreal", "solve", "static", "string", "struct",
+            "super", "tagged", "this", "throughout", "timeprecision", "timeunit", "type",
+            "typedef", "union", "unique", "var", "virtual", "void", "wait_order", "wildcard",
+            "with", "within",
         ]
     }
 
@@ -9456,6 +9476,11 @@ impl VerilogCodegen {
         for (name, w, signed) in &input_ports {
             let range = Self::range_decl(*w);
             let signed_str = if *signed { "signed " } else { "" };
+            // W650: the FOURTH unescaped emit site, and the one T53 predicted.
+            // A spec parameter named `priority` produced `input [31:0] priority;`
+            // -- reserved under `-g2012`, which is how every Icarus run in this
+            // repository invokes iverilog. See T63.
+            let name = Self::verilog_safe_identifier(name);
             self.write_indent();
             if range.is_empty() {
                 self.write_line(&format!("input  wire {}{},", signed_str, name));

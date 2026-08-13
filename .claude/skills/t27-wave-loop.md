@@ -5946,6 +5946,38 @@ These cost a wave each. Follow them before step 1.
      The guard skips a boilerplate port the spec itself declares -- check this
      first when a testbench spec fails with a redeclaration error.
 
+304. **Message-grouping over-aggregates AND shape-grouping over-fragments.**
+     Over the same 62 iverilog `syntax error`s: **1 message class, 55 source
+     shapes, 5 CAUSES.** Shape-grouping split `::` leakage across five shapes
+     (`x = x::x(x)`, `-x::x`, `PHI = x::PHI`, ...) because the normalisation
+     that makes shapes comparable destroys what they have in common. T37 was
+     right that messages over-aggregate and WRONG that shapes are the answer --
+     the step from shape to cause is irreducibly semantic. (T63.)
+
+305. **The 62 corpus syntax errors are 5 causes:** 23 `::` path syntax leaked
+     into Verilog, 23 uncategorised, 8 SystemVerilog-2012 keyword as identifier,
+     5 Zig builtin `@...` leaked into Verilog, 3 malformed sized literal
+     (`{8'd, 1'(success)}`).
+
+306. **`verilog_keywords()` is the Verilog-2001 list and every Icarus run passes
+     `-g2012`.** `priority`, `logic`, `bit`, `string`, `int`, `unique` and ~90
+     others are reserved there and were absent. **A totality claim about the
+     wrong universe** -- complete for the language it names, incomplete for the
+     one being compiled, and no audit of the TABLE would reveal it. Check which
+     language version your tool is actually invoked with. (T64.)
+
+307. **Fourth unescaped emit site: the module PORT emitter.** After expression
+     sites, local arrays (T53) and `let` bindings (W644). T53's bet was "a third
+     is the way to bet"; this is the fourth, found the same way -- by a
+     measurement that had nothing to do with escaping.
+
+308. **Yield 0 of 8, and that is the honest report.** Escaping `priority` fixed
+     a real defect and moved the corpus build count not at all: every one of the
+     8 carries a second defect (bus/schema's error moved from line 173 to 200,
+     a malformed literal). **"A real defect fixed, no measurable progress" is
+     what a conjunctive obligation over multi-defect files produces** -- the
+     count is the wrong success metric for it.
+
 ### How to update this tracker
 
 After closing a wave:

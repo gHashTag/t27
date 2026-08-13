@@ -3476,6 +3476,95 @@ port something depends on.
 
 ---
 
+### T63 (W650) — Shape-grouping over-fragments as badly as message-grouping over-aggregates: 1, then 55, then 5
+
+**T37 established that grouping failures by *diagnostic message* over-aggregates
+— 25 message classes against 147 source-shape classes over the same 178 parse
+failures — and prescribed grouping by the failing source line instead.** W650
+applies that prescription to the 62 corpus specs iverilog rejects with
+`syntax error`, and finds the prescription is also wrong, in the opposite
+direction.
+
+| grouping | classes over the same 62 | top-10 coverage |
+|---|---:|---:|
+| by iverilog's message | **1** (`syntax error`) | 100% — and useless |
+| by **source shape**, normalised | **55** | 17 of 62 (27%) |
+| by **cause** | **5** | 62 of 62 (100%) |
+
+The five:
+
+| n | cause |
+|---:|---|
+| **23** | `::` path syntax leaked into Verilog — `vsa::ops::dot_product(a, b, dim);` |
+| 23 | other (uncategorised) |
+| **8** | a SystemVerilog-2012 keyword used as an identifier — `input [31:0] priority;` |
+| 5 | a Zig builtin leaked into Verilog — `@intFromEnum(a)`, `@setEvalBranchQuota(10000)` |
+| 3 | malformed sized literal — `{8'd, 1'(success)}` |
+
+**Shape-grouping split one cause across five shapes.** `x = x::x(x);`,
+`-x::x;`, `PHI = x::PHI;`, `x = x::x::x(x, x, x);` and `x = x::x(N'x);` are all
+*"`::` reached the Verilog backend"* — the normalisation that makes shapes
+comparable is precisely what destroys the thing they have in common.
+
+**Statement.** Let `m` be a diagnostic, `s` a normalised source shape, and `c`
+the cause. Both `m` and `s` are *projections* of `c`, and they fail in opposite
+directions: `m` is too coarse (`|m-classes| ≪ |c-classes|`), `s` is too fine
+(`|s-classes| ≫ |c-classes|`). **Neither is a proxy for the other and neither is
+a proxy for `c`.** Cause-grouping requires reading the line *and* deciding what
+it means — an act no normalisation performs, because normalisation is exactly
+the discarding of meaning that makes two texts comparable.
+
+**T37 was right that messages over-aggregate and wrong that shapes are the
+answer.** The correction is not another mechanical grouping; it is that the
+step from shape to cause is irreducibly semantic.
+
+---
+
+### T64 (W650) — The keyword table was for the wrong language version, and the fourth unescaped site was where T53 said it would be
+
+**8 of the 62 declare an identifier that is a keyword — under `-g2012`.**
+`verilog_keywords()` is the **Verilog-2001** list, and every Icarus invocation in
+this repository passes `-g2012`, where `priority`, `logic`, `bit`, `string`,
+`int`, `unique` and ~90 others are also reserved.
+
+**A totality claim (T55) about the wrong universe.** The table was complete for
+the language it named and incomplete for the language actually being compiled —
+which no amount of auditing *the table* would reveal, because the defect is in
+the choice of language version, not in the enumeration.
+
+**And escaping them was not enough.** The port emitter wrote
+
+```rust
+self.write_line(&format!("input  wire {}{},", signed_str, name));
+```
+
+with `name` **raw** — the **fourth** unescaped emit site, after expression sites,
+local arrays (T53) and `let` bindings (W644). **T53's falsification condition was
+"a third unescaped emit site is the way to bet"; this is the fourth**, and it was
+found by the same route as the third: a measurement that had nothing to do with
+escaping.
+
+Fixed. The port now emits `input [31:0] \priority ;` and iverilog accepts it.
+
+**Yield: zero.** The corpus build count is unchanged at 19:
+
+| | before | after |
+|---|---:|---:|
+| corpus `[BENCH]` specs compiling | 19 | **19** |
+
+**All 8 carry a second defect.** `specs/bus/schema.t27`'s error moved from line
+173 to line 200 — `event_result_create = {8'd, 1'(success)};`, the malformed-
+literal cause. **T38 measured again, on a class where the yield is 0 of 8**, and
+the honest report of this repair is *"a real defect fixed, no measurable
+progress"* — which is what a conjunctive obligation over multi-defect files
+produces, and why the count is the wrong success metric for it.
+
+*Falsification condition:* a fifth unescaped emit site, which the absence of any
+enumeration of `S` (T53) continues to make likely — and which
+`verilog-no-keyword-decl` will now catch, since it checks the artefact.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
