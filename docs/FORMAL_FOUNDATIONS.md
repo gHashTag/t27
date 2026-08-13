@@ -10718,6 +10718,71 @@ gate 29 detected the flag flip unprompted and named the retired entry.
 
 ---
 
+### Prop. 204 — a lower-bound theorem whose lower bound is an axiom — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Assumption scan — ask Coq what each theorem actually rests on*
+
+Prop. 203 closed the Coq build at 28 of 28 and stated the limit in the same
+breath: *files compiling is not proofs being meaningful*. This makes that limit
+measurable, using **Coq's own answer** rather than a scan of the text.
+`Print Assumptions` reports what a theorem transitively depends on, which no
+regex over `Axiom` lines can reconstruct — an `Admitted` lemma does not declare
+itself as an axiom of anything, but it appears in the assumptions of everything
+that uses it.
+
+The first query answered the question it was built for:
+
+```
+Print Assumptions avs_efficiency_lower_bound.
+Axioms:
+  ClassicalDedekindReals.sig_forall_dec      <- standard, comes with Reals
+  isscc_pi_2024_measured_bound               <- DOMAIN: asserts the bound
+```
+
+`avs_efficiency_lower_bound` is not a proof that the design exceeds an efficiency
+floor. **It rests on an axiom asserting that floor.** The theorem restates its own
+hypothesis, and the `Qed` is entirely correct — the derivation is valid; the
+premise was assumed.
+
+**Theorem (`Qed` is about derivation, not truth).** For a theorem `T` proved from
+assumption set `A`, `Qed` certifies `A ⊢ T` and says nothing about `⊨ A`. A count
+of `Qed` therefore measures derivations, and two theorems with identical `Qed`
+status can differ completely in what they establish:
+
+```
+∅ ⊢ T                    unconditional
+{T'} ⊢ T,  T' ≈ T        a restatement
+```
+
+**These are indistinguishable in every artefact this repository publishes** — the
+README's `Qed` count, `coq_build_scan`'s built/unbuilt split, and the file's own
+text all treat them identically. This is Prop. 194's numerator fallacy carried
+into the logic: the denominator here is the assumption set, and it was never
+published.
+
+Measured across trios-coq: **136 `Axiom`/`Parameter`/`Hypothesis`/`Admitted`
+declarations in 13 files**, of which **32 are `Admitted.`** — incomplete proofs
+accepted as true, each capable of appearing beneath a downstream `Qed`.
+
+**460 theorem names in 30 modules, 340 resolved, 12 resting on a domain axiom, 41
+distinct dependencies.** The 120 unresolved — **26%** — are the honest residue and
+are counted rather than dropped, so "12 conditional" is a statement about the 340
+and a lower bound on the tree.
+
+**The gate does not forbid domain axioms.** A measured efficiency legitimately
+enters a model as one; whether a particular constant *should* be assumed is a
+modelling decision and not a scanner's (Prop. 189). It ratchets the set of
+(theorem, axiom) pairs, so a proof cannot **acquire** an assumption silently —
+which is the property that was missing.
+
+Three bars: **TRUE** — 44 python gates pass, absence sweep 0, 1213 tests pass.
+**ALIVE** — 340 of 460 resolved and the known case reproduces exactly; the gate
+fails loudly if it resolves zero, so a tree that does not load cannot report a
+clean sweep. **BITING** — alone in an empty tree it exits 1 naming the missing
+`trios-coq`.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

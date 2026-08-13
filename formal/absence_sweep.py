@@ -42,6 +42,11 @@ EXEMPT = {
     # build/rtl -- and each absence case below was MEASURED by copying the
     # script alone into an empty tree and running it, not asserted.
 
+    "Assumption scan — ask Coq what each theorem actually rests on":
+        "its subject is trios-coq and coqc, not build/rtl -- starving the RTL "
+        "cannot make it fail. Absence case measured: alone in an empty tree it "
+        "exits 1 naming the missing trios-coq directory (Prop. 204).",
+
     "Suspension scan — a suspended check must name what would end it":
         "its subject is .github/workflows, not build/rtl -- starving the RTL "
         "cannot make it fail. Absence case measured: alone in an empty tree it "

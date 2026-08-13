@@ -2,6 +2,53 @@
 
 Last updated: 2026-08-13
 
+## A lower-bound theorem whose lower bound is an axiom (Closes #2140)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2140
+- PR: (direct commit)
+
+### What landed
+
+`formal/assumption_scan.py` (gate 30) and Prop. 204. Prop. 203 closed the Coq
+build at 28/28 and stated the limit -- files compiling is not proofs being
+meaningful. This measures that limit with **Coq's own answer**:
+
+```
+Print Assumptions avs_efficiency_lower_bound.
+Axioms:
+  ClassicalDedekindReals.sig_forall_dec      <- standard
+  isscc_pi_2024_measured_bound               <- DOMAIN: asserts the bound
+```
+
+The theorem rests on an axiom asserting the floor it claims. The `Qed` is
+correct; the premise was assumed.
+
+Measured: **136 Axiom/Parameter/Hypothesis/Admitted in 13 files, 32 of them
+`Admitted.`** -- incomplete proofs able to sit beneath a downstream `Qed`.
+**460 theorem names, 340 resolved, 12 resting on a domain axiom, 41 distinct
+dependencies.**
+
+44 python gates pass, absence sweep 0, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **120 of 460 theorem names (26%) did not resolve.** A module whose probe fails
+  to load contributes nothing. "12 conditional theorems" is a statement about the
+  340 and a **lower bound** on the tree, not a census of it.
+- **Nothing was repaired.** No axiom was discharged, no theorem strengthened. The
+  gate ratchets the (theorem, axiom) set so a proof cannot ACQUIRE an assumption
+  silently; the existing 41 dependencies stand.
+- **The gate does not judge whether an axiom is legitimate.** A measured
+  efficiency entering a model as an axiom is normal practice. What was missing was
+  that this is nowhere visible in the counts the repo publishes -- and it still is
+  not, outside this gate's output.
+- Covers `trios-coq` only. `coq/` and `proofs/` have their own roots and are
+  unscanned; `proofs/trinity/Bounds_LeptonMasses.v` contains `Admitted.` and is
+  not covered here.
+- Requires the tree BUILT. Measured with Rocq 9.2 on this host.
+
+
 ## Suspension closed: trios-coq builds 28/28 (Closes #2139)
 
 - Branch: `feat/wave-547/host-heapsort`
