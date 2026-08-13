@@ -7146,4 +7146,86 @@ T78, emitting a *task enable* for a temporary that was never declared as a task.
 
 ---
 
+### T103 (W657) — a map read at nine sites and populated at one
+
+`param_types` decides whether `base.field` can take the **packed** path —
+`base[off +: w]` against the `input [W-1:0] base` that is actually declared — or
+falls through to the **flatten** fallback, which emits `base_field`, a name
+declared nowhere.
+
+It is read at **nine** sites. It was written at **one**: `gen_verilog_clocked_fn`,
+the `on_clock` sequential path. `gen_verilog_fn` — every ordinary function —
+**cleared it and never filled it.**
+
+> **T103.** This is T75's and T78's shape a third time. In all three a feature's
+> halves sat in different branches, and in all three nothing in the type system
+> constrained the divergence to the concern the branch was named for. **A field
+> read at nine sites and written at one is not a cache; it is a cache in one
+> branch and a constant `None` in the others**, and the difference is invisible
+> at every read.
+
+---
+
+### T104 (W657) — `pub` on a struct field silently produced a struct with no fields
+
+`parse_struct_body` tested for `TokenKind::Ident` at a field boundary. `pub` lexes
+as `KwPub`. So:
+
+```
+pub struct P { a: u64, b: u64, c: bool }        -> input [128:0] p;   p[0 +: 64]
+pub struct P { pub a: u64, pub b: u64, ... }    -> input  [31:0] p;   p_a
+```
+
+The second parses to a `StructDecl` with **no children**. `struct_decls` then
+holds an empty field list, `packed_width` falls through to its 32-bit default, the
+lowerable-scalar-struct predicate fails, and every `p.a` is emitted flattened.
+
+**T60's shape a fourth time:** the obligation met on the spelling *without* the
+modifier and missed on the one *with* it. Both spellings now emit byte-identical
+Verilog apart from the module name; `specs/base/debounce.t27` goes 8 errors → 6.
+
+---
+
+### T105 (W657) — I generalised from one case in the same wave I proved you cannot
+
+**The previous message claimed T104 was the root cause of the 489-spec
+`undeclared identifier` class.** It is not. Only **5** specs put `pub` on struct
+fields.
+
+The claim came from reading one spec — `debounce.t27` — carrying its defect to a
+cause, and **assuming the cause scaled**. The population was never counted before
+the conclusion was published.
+
+> **T105.** T102, written in this same wave, states that a cause histogram on a
+> *sample* and on the *population* can have opposite shapes and that the sample
+> gives no warning. **T105 is T102's own author violating it with a sample of
+> one, four hours later.** The lesson did not fail to be written, and it did not
+> fail to be remembered — it failed to be *connected to the case in front of me*,
+> which is exactly the failure mode T91 already named.
+
+**Three instances now, of the same shape, in one session:**
+
+| | lesson | violated by |
+|---|---|---|
+| T90 | a query returning its limit reports the limit | its own author, twice, before writing it (T91) |
+| T98 | kill the source, not the symptom | its own check, which flagged the source as a symptom (T100) |
+| T102 | a sample can have the opposite shape to the population | its own author, with a sample of one (T105) |
+
+> **The pattern is not carelessness.** In all three the author held the correct
+> general statement and did not recognise the instance as a member of it.
+> **Recognition, not recall, is the failing step** — and a check runs without
+> needing to recognise anything, which is why T94's argument holds and why the
+> two checks written this session are worth more than the 349 lessons beside
+> them.
+
+**Method correction, applied rather than promised.** The forecast registered
+before the work (236 compiling → 380 ± 60) belonged to the refuted mechanism and
+is **withdrawn rather than scored**: grading a result against a forecast made for
+a different cause is fitting, not measurement. The real 489 are being diagnosed
+now by a **random sample of fifteen**, each carried to the name of its
+unresolved identifier — because one case produced a wrong root cause and the only
+defence is a sample large enough to disagree with itself.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

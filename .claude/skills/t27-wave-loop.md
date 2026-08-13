@@ -6202,6 +6202,39 @@ These cost a wave each. Follow them before step 1.
      worse than none.** The marker makes the population countable without
      deciding it. T96.
 
+341. **Recognition, not recall, is the failing step.** Three lessons written
+     this session were violated by their own author within hours: T90 (a query
+     returning its limit reports the limit) twice before it was written; T98
+     (kill the source not the symptom) by the very check written to enforce it;
+     T102 (a sample can have the opposite shape to the population) by a
+     conclusion drawn from a sample of ONE. In none of the three was the general
+     statement forgotten -- it was **not connected to the case in front of me**.
+     A check runs without needing to recognise anything, which is why the two
+     scripts written this session are worth more than the 340 lessons beside
+     them. T105.
+
+342. **Withdraw a forecast whose mechanism was refuted; do not score it.**
+     A forecast of "236 compiling -> 380 +/- 60" was registered before a fix, the
+     hypothesised cause turned out to be wrong, and grading the eventual number
+     against that forecast would be fitting rather than measurement. T105.
+
+343. **A field read at nine sites and written at one is not a cache.** It is a
+     cache in one branch and a constant `None` in every other, and the difference
+     is invisible at every read. `param_types` was populated only in
+     `gen_verilog_clocked_fn`; every ordinary function cleared it and left it
+     empty, so every struct-typed parameter fell to the flatten fallback. T103.
+
+344. **A modifier can silently empty a declaration.** `parse_struct_body` tested
+     for `Ident` at a field boundary and `pub` lexes as `KwPub`, so
+     `pub struct P { pub a: u64 }` parsed to a StructDecl with NO CHILDREN --
+     empty field list, default 32-bit width, flattened field access, undeclared
+     names. The same struct without `pub` on its fields lowered correctly. T104.
+
+345. **Never read `head -N` or `tail -N` output as a count.** Three times this
+     session: a build reported rc=0 because the exit code came from `tail`; an
+     iverilog error count of "6" was the argument to `head`; a sweep looked hung
+     because `tail` buffers to EOF. **Redirect to a file and count the file.**
+
 ### How to update this tracker
 
 After closing a wave:
