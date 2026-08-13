@@ -7333,4 +7333,84 @@ forecast, and it is the half usually skipped.**
 
 ---
 
+### T108 (W657) — a complete ternary network is 83 LUT and no multiplier
+
+The MVP is not a kernel. It is a **layer**: 8 binary inputs → 3 class scores →
+argmax, 24 ternary weights in `{−φ, 0, +φ}`, fifteen of them non-zero. The same
+operation a BitNet layer performs, at a size where every expected value fits in
+the file header.
+
+```
+LUT           83   (4 LUT2, 4 LUT3, 49 LUT4, 2 LUT5, 24 LUT6)
+CARRY4        37
+DSP48E1        0
+share of XC7A200T          0.06 %
+zig test                   31/31
+iverilog + vvp             31 PASSED, 0 compile errors
+place and route            28 warnings, 0 errors, 5,174 FASM lines
+loaded, three boards       Done 0x0 -> 0x1 on 0:4, 0:7, 0:10
+```
+
+> **T108.** A ternary network needs **no multiplier at any layer**, and the cost
+> of proving it is 83 LUT. Because every activation is `0` or `1` and enters
+> `Z[φ]` as the pair `(x, 0)`, applying a weight yields `(0, ±x)`: the layer
+> accumulates in the `b` component alone and the score is an **exact integer**.
+> No rounding, no normalisation, no scale. The closure argument is not a
+> property of large designs — it is visible at 24 weights.
+
+**What is proven and what is not.** The bitstream was built end to end locally
+and produced the `Done 0 → 1` transition on all three boards, obtained by first
+forcing `Done = 0` with a wrong-part bitstream. That proves **configuration**.
+**It does not prove function**: nothing was read back, and `Done 0x1` reads the
+same before and after any load. The three boards carry the *same* network —
+**replication, not distribution.**
+
+---
+
+### T109 (W657) — the interconnect is 77× slower than the compute it feeds
+
+Capacity says how many boards a model needs. Bandwidth says whether those boards
+help.
+
+| | value |
+|---|---:|
+| XC7A200T BRAM | 365 × 36 Kb = **1.60 MB** |
+| weights on-chip @ 2 bits | **6.73 M** |
+| MAC units at 66 LUT each | **2,039** |
+| throughput @ 100 MHz | **204 GMAC/s**, zero DSP |
+| 3B2T on one LVCMOS33 wire @ 100 MSym/s | 150 Mbit/s |
+
+```
+layer 576×576 = 331,776 MAC on 2,039 units @100 MHz   =    1.6 µs
+activations for that layer, seq=128, one wire         = 3932 µs
+                                    32 wires          =  123 µs
+```
+
+> **T109.** Splitting a model across Artix-7 boards leaves the fabric idle **99%
+> of the time**: it computes a layer in 1.6 µs and then waits 123 µs for the
+> result to cross, even on thirty-two wires. **A network of FPGAs is
+> bandwidth-bound, not capacity-bound**, and the capacity table — 21 boards for
+> SmolLM2-135M — answers a question that is not the binding one.
+
+**One regime inverts it.** At `seq = 1` — token-by-token generation — only 576
+activations cross: **30.7 µs on one wire, 1.0 µs on thirty-two**, against 1.6 µs
+of compute. **Layer-splitting works for generation and fails for batch.**
+
+> **Corollary — the topology the numbers imply.** A useful multi-FPGA system is
+> not one model cut into slices; it is **many nodes, each holding a model of up
+> to 6.7 M weights, communicating rarely**. That is a mesh, not a cluster — and
+> it is why a ternary line code whose frame delimiter is *unreachable from data*
+> (T79) is the right primitive rather than an ornament. **The bandwidth
+> measurement and the number-theoretic result point at the same architecture,
+> from opposite ends.**
+
+**And the honest limit on all of it.** No inter-board link exists. The only pin
+map in the repository is for a **different board** (`XC7A100T-CSG324` against the
+measured `XC7A200T-FGG676`) and contradicts its neighbour: `T14`/`T15` are named
+UART in one file and JTAG in the other. **Reading and writing all three CP2102
+bridges returned silence — which proves only that the currently loaded design
+cannot speak, and says nothing about the wiring.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
