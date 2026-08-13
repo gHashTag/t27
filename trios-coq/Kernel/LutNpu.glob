@@ -1,4 +1,4 @@
-DIGEST ba5e3749ff137bd2f198bb2fab8183bb
+DIGEST 91c331c4c4aea99905d78637e5ffe7b5
 FTriosCoq.Kernel.LutNpu
 R816:832 Stdlib.ZArith.ZArith <> <> lib
 R850:867 Stdlib.Arith.PeanoNat <> <> lib
@@ -262,7 +262,313 @@ R5441:5441 TriosCoq.Kernel.LutNpu <> a:45 var
 R5444:5444 TriosCoq.Kernel.LutNpu <> b:46 var
 R5447:5447 TriosCoq.Kernel.LutNpu <> c:47 var
 R5450:5450 TriosCoq.Kernel.LutNpu <> d:48 var
-prf 5489:5504 <> all_trit4_length
-R5524:5526 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R5508:5513 Corelib.Init.Datatypes <> length def
-R5515:5523 TriosCoq.Kernel.LutNpu <> all_trit4 def
+prf 5680:5695 <> all_trit4_length
+R5715:5717 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5699:5704 Corelib.Init.Datatypes <> length def
+R5706:5714 TriosCoq.Kernel.LutNpu <> all_trit4 def
+def 5980:5991 <> is_canonical
+R5998:6002 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 5994:5994 <> v:49
+R6007:6010 Corelib.Init.Datatypes <> bool ind
+R6023:6035 TriosCoq.Kernel.LutNpu <> first_nonzero def
+R6037:6037 TriosCoq.Kernel.LutNpu <> v:49 var
+R6048:6051 Corelib.Init.Datatypes <> None constr
+R6064:6067 Corelib.Init.Datatypes <> true constr
+R6118:6121 Corelib.Init.Datatypes <> Some constr
+R6123:6126 TriosCoq.Kernel.LutNpu <> Tpos constr
+R6134:6137 Corelib.Init.Datatypes <> true constr
+R6178:6181 Corelib.Init.Datatypes <> Some constr
+R6183:6186 TriosCoq.Kernel.LutNpu <> Tneg constr
+R6194:6198 Corelib.Init.Datatypes <> false constr
+R6246:6249 Corelib.Init.Datatypes <> Some constr
+R6251:6255 TriosCoq.Kernel.LutNpu <> Tzero constr
+R6262:6266 Corelib.Init.Datatypes <> false constr
+def 6328:6342 <> canonical_trit4
+R6346:6349 Corelib.Init.Datatypes <> list ind
+R6351:6355 TriosCoq.Kernel.LutNpu <> Trit4 def
+R6362:6367 Stdlib.Lists.List <> filter def
+R6382:6390 TriosCoq.Kernel.LutNpu <> all_trit4 def
+R6369:6380 TriosCoq.Kernel.LutNpu <> is_canonical def
+prf 6707:6728 <> lut_npu_class_count_41
+R6756:6758 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6734:6739 Corelib.Init.Datatypes <> length def
+R6741:6755 TriosCoq.Kernel.LutNpu <> canonical_trit4 def
+prf 7183:7197 <> lut_npu_no_star
+R7203:7203 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7258:7264 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7217:7221 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 7211:7211 <> a:50
+binder 7213:7213 <> w:51
+R7238:7240 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7224:7233 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R7235:7235 TriosCoq.Kernel.LutNpu <> a:50 var
+R7237:7237 TriosCoq.Kernel.LutNpu <> w:51 var
+R7241:7253 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R7255:7255 TriosCoq.Kernel.LutNpu <> a:50 var
+R7257:7257 TriosCoq.Kernel.LutNpu <> w:51 var
+R7291:7293 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7265:7279 TriosCoq.Kernel.LutNpu <> uses_multiplier def
+R7281:7290 TriosCoq.Kernel.LutNpu <> OP_LUT_NPU constr
+R7294:7298 Corelib.Init.Datatypes <> false constr
+R7340:7349 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+prf 7700:7721 <> lut_npu_tom_orthogonal
+R7740:7744 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 7734:7734 <> a:52
+binder 7736:7736 <> w:53
+R7761:7763 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7747:7756 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R7758:7758 TriosCoq.Kernel.LutNpu <> w:53 var
+R7760:7760 TriosCoq.Kernel.LutNpu <> a:52 var
+R7764:7769 TriosCoq.Kernel.LutNpu <> op_tom def
+R7771:7771 TriosCoq.Kernel.LutNpu <> a:52 var
+R7773:7773 TriosCoq.Kernel.LutNpu <> w:53 var
+R7806:7815 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R7818:7823 TriosCoq.Kernel.LutNpu <> op_tom def
+R7826:7838 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R7841:7852 TriosCoq.Kernel.LutNpu <> trit_product def
+prf 8253:8270 <> lut_npu_energy_8fJ
+R8300:8303 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8276:8288 TriosCoq.Kernel.LutNpu <> energy_fJ_10x def
+R8290:8299 TriosCoq.Kernel.LutNpu <> OP_LUT_NPU constr
+prf 8711:8732 <> lut_npu_class_complete
+R8749:8753 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 8745:8745 <> v:54
+R8777:8780 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R8770:8772 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8756:8767 TriosCoq.Kernel.LutNpu <> is_canonical def
+R8769:8769 TriosCoq.Kernel.LutNpu <> v:54 var
+R8773:8776 Corelib.Init.Datatypes <> true constr
+R8781:8782 Stdlib.Lists.List <> In def
+R8786:8800 TriosCoq.Kernel.LutNpu <> canonical_trit4 def
+R8784:8784 TriosCoq.Kernel.LutNpu <> v:54 var
+R8836:8850 TriosCoq.Kernel.LutNpu <> canonical_trit4 def
+R8861:8869 Stdlib.Lists.List <> filter_In thm
+R8920:8928 TriosCoq.Kernel.LutNpu <> all_trit4 def
+R8931:8939 TriosCoq.Kernel.LutNpu <> all_trits def
+R8985:8995 Stdlib.Lists.List <> in_flat_map thm
+R9062:9072 Stdlib.Lists.List <> in_flat_map thm
+R9145:9155 Stdlib.Lists.List <> in_flat_map thm
+R9236:9245 Stdlib.Lists.List <> in_map_iff thm
+prf 9754:9775 <> lut_npu_class_disjoint
+R9794:9798 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 9788:9788 <> a:55
+binder 9790:9790 <> b:56
+R9823:9827 Corelib.Init.Logic <> ::type_scope:x_'<->'_x not
+R9805:9818 TriosCoq.Kernel.LutNpu <> trit4_z3_equiv def
+R9820:9820 TriosCoq.Kernel.LutNpu <> a:55 var
+R9822:9822 TriosCoq.Kernel.LutNpu <> b:56 var
+R9841:9843 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9828:9838 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R9840:9840 TriosCoq.Kernel.LutNpu <> a:55 var
+R9844:9854 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R9856:9856 TriosCoq.Kernel.LutNpu <> b:56 var
+R9889:9902 TriosCoq.Kernel.LutNpu <> trit4_z3_equiv def
+prf 10232:10254 <> lut_npu_sign_invariance
+R10273:10277 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 10267:10267 <> a:57
+binder 10269:10269 <> w:58
+R10316:10318 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10284:10296 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R10299:10310 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R10312:10312 TriosCoq.Kernel.LutNpu <> a:57 var
+R10315:10315 TriosCoq.Kernel.LutNpu <> w:58 var
+R10319:10320 Stdlib.ZArith.BinInt <> ::Z_scope:'-'_x not
+R10321:10333 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R10335:10335 TriosCoq.Kernel.LutNpu <> a:57 var
+R10337:10337 TriosCoq.Kernel.LutNpu <> w:58 var
+R10370:10382 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R10385:10396 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R10399:10410 TriosCoq.Kernel.LutNpu <> trit_product def
+R10413:10421 TriosCoq.Kernel.LutNpu <> trit_to_Z def
+R10424:10431 TriosCoq.Kernel.LutNpu <> trit_neg def
+def 11026:11039 <> trit4_all_zero
+R11046:11050 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 11042:11042 <> v:59
+R11055:11058 Corelib.Init.Datatypes <> bool ind
+R11086:11086 TriosCoq.Kernel.LutNpu <> v:59 var
+R11070:11070 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11072:11073 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11075:11076 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11078:11079 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11081:11081 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11119:11123 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11126:11130 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11133:11137 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11140:11144 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11149:11152 Corelib.Init.Datatypes <> true constr
+R11188:11192 Corelib.Init.Datatypes <> false constr
+prf 11208:11229 <> lut_npu_zero_dominance
+R11246:11250 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 11242:11242 <> w:65
+R11301:11303 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11257:11269 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R11271:11271 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11277:11278 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11284:11285 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11291:11292 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11298:11298 Corelib.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R11272:11276 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11279:11283 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11286:11290 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11293:11297 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11300:11300 TriosCoq.Kernel.LutNpu <> w:65 var
+R11335:11347 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R11350:11361 TriosCoq.Kernel.LutNpu <> trit_product def
+R11364:11372 TriosCoq.Kernel.LutNpu <> trit_to_Z def
+prf 11502:11523 <> trit_product_zero_left
+R11540:11543 TriosCoq.Kernel.LutNpu <> trit ind
+binder 11536:11536 <> w:66
+R11566:11568 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11546:11557 TriosCoq.Kernel.LutNpu <> trit_product def
+R11559:11563 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11565:11565 TriosCoq.Kernel.LutNpu <> w:66 var
+R11598:11609 TriosCoq.Kernel.LutNpu <> trit_product def
+R11612:11620 TriosCoq.Kernel.LutNpu <> trit_to_Z def
+prf 11648:11670 <> trit_product_zero_right
+R11687:11690 TriosCoq.Kernel.LutNpu <> trit ind
+binder 11683:11683 <> a:67
+R11713:11715 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11693:11704 TriosCoq.Kernel.LutNpu <> trit_product def
+R11706:11706 TriosCoq.Kernel.LutNpu <> a:67 var
+R11708:11712 TriosCoq.Kernel.LutNpu <> Tzero constr
+R11745:11756 TriosCoq.Kernel.LutNpu <> trit_product def
+R11759:11767 TriosCoq.Kernel.LutNpu <> trit_to_Z def
+prf 12115:12138 <> lut_npu_bird_correctness
+R12157:12161 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 12151:12151 <> a:68
+binder 12153:12153 <> w:69
+R12182:12184 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12168:12177 TriosCoq.Kernel.LutNpu <> bird_stage def
+R12179:12179 TriosCoq.Kernel.LutNpu <> a:68 var
+R12181:12181 TriosCoq.Kernel.LutNpu <> w:69 var
+R12185:12197 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R12199:12199 TriosCoq.Kernel.LutNpu <> a:68 var
+R12201:12201 TriosCoq.Kernel.LutNpu <> w:69 var
+R12234:12243 TriosCoq.Kernel.LutNpu <> bird_stage def
+R12246:12255 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+prf 12348:12362 <> dotprod_bounded
+R12381:12385 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 12375:12375 <> a:70
+binder 12377:12377 <> w:71
+R12394:12397 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<='_x not
+R12415:12418 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<='_x not
+R12398:12410 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R12412:12412 TriosCoq.Kernel.LutNpu <> a:70 var
+R12414:12414 TriosCoq.Kernel.LutNpu <> w:71 var
+R12452:12464 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R12467:12478 TriosCoq.Kernel.LutNpu <> trit_product def
+R12481:12489 TriosCoq.Kernel.LutNpu <> trit_to_Z def
+prf 13002:13021 <> lut_npu_chain_to_tom
+R13040:13044 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 13034:13034 <> a:72
+binder 13036:13036 <> w:73
+R13076:13078 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13051:13071 TriosCoq.Kernel.LutNpu <> pipeline_lut_then_tom def
+R13073:13073 TriosCoq.Kernel.LutNpu <> a:72 var
+R13075:13075 TriosCoq.Kernel.LutNpu <> w:73 var
+R13080:13082 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R13083:13095 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R13097:13097 TriosCoq.Kernel.LutNpu <> a:72 var
+R13099:13099 TriosCoq.Kernel.LutNpu <> w:73 var
+R13132:13152 TriosCoq.Kernel.LutNpu <> pipeline_lut_then_tom def
+R13155:13164 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R13167:13172 TriosCoq.Kernel.LutNpu <> op_tom def
+R13175:13187 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R13190:13201 TriosCoq.Kernel.LutNpu <> trit_product def
+prf 13348:13366 <> chain_no_multiplier
+R13406:13411 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R13398:13400 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13372:13386 TriosCoq.Kernel.LutNpu <> uses_multiplier def
+R13388:13397 TriosCoq.Kernel.LutNpu <> OP_LUT_NPU constr
+R13401:13405 Corelib.Init.Datatypes <> false constr
+R13441:13443 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13412:13426 TriosCoq.Kernel.LutNpu <> uses_multiplier def
+R13428:13440 TriosCoq.Kernel.LutNpu <> OP_TOM_LOOKUP constr
+R13444:13448 Corelib.Init.Datatypes <> false constr
+prf 13585:13606 <> trit4_canon_idempotent
+R13623:13627 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 13619:13619 <> v:74
+R13657:13659 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13630:13640 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R13643:13653 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R13655:13655 TriosCoq.Kernel.LutNpu <> v:74 var
+R13660:13670 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R13672:13672 TriosCoq.Kernel.LutNpu <> v:74 var
+R13703:13713 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R13716:13727 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R13730:13742 TriosCoq.Kernel.LutNpu <> first_nonzero def
+R13745:13752 TriosCoq.Kernel.LutNpu <> trit_neg def
+prf 13899:13917 <> trit_neg_involutive
+R13932:13935 TriosCoq.Kernel.LutNpu <> trit ind
+binder 13928:13928 <> t:75
+R13959:13961 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13938:13945 TriosCoq.Kernel.LutNpu <> trit_neg def
+R13948:13955 TriosCoq.Kernel.LutNpu <> trit_neg def
+R13957:13957 TriosCoq.Kernel.LutNpu <> t:75 var
+R13962:13962 TriosCoq.Kernel.LutNpu <> t:75 var
+prf 14019:14041 <> trit4_negate_involutive
+R14056:14060 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 14052:14052 <> v:76
+R14092:14094 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14063:14074 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R14077:14088 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R14090:14090 TriosCoq.Kernel.LutNpu <> v:76 var
+R14095:14095 TriosCoq.Kernel.LutNpu <> v:76 var
+R14126:14137 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R14182:14200 TriosCoq.Kernel.LutNpu <> trit_neg_involutive thm
+prf 14303:14324 <> trit4_canon_neg_stable
+R14341:14345 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 14337:14337 <> v:77
+R14376:14378 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14348:14358 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R14361:14372 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R14374:14374 TriosCoq.Kernel.LutNpu <> v:77 var
+R14379:14389 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R14391:14391 TriosCoq.Kernel.LutNpu <> v:77 var
+R14422:14432 TriosCoq.Kernel.LutNpu <> trit4_canon def
+R14435:14446 TriosCoq.Kernel.LutNpu <> trit4_negate def
+R14449:14461 TriosCoq.Kernel.LutNpu <> first_nonzero def
+R14464:14471 TriosCoq.Kernel.LutNpu <> trit_neg def
+prf 14635:14657 <> dotprod_naive_symmetric
+R14676:14680 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 14670:14670 <> a:78
+binder 14672:14672 <> w:79
+R14700:14702 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14683:14695 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R14697:14697 TriosCoq.Kernel.LutNpu <> a:78 var
+R14699:14699 TriosCoq.Kernel.LutNpu <> w:79 var
+R14703:14715 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R14717:14717 TriosCoq.Kernel.LutNpu <> w:79 var
+R14719:14719 TriosCoq.Kernel.LutNpu <> a:78 var
+R14752:14764 TriosCoq.Kernel.LutNpu <> dotprod_naive def
+R14767:14778 TriosCoq.Kernel.LutNpu <> trit_product def
+prf 14934:14953 <> op_lut_npu_eq_op_tom
+R14972:14976 TriosCoq.Kernel.LutNpu <> Trit4 def
+binder 14966:14966 <> a:80
+binder 14968:14968 <> w:81
+R14993:14995 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14979:14988 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R14990:14990 TriosCoq.Kernel.LutNpu <> a:80 var
+R14992:14992 TriosCoq.Kernel.LutNpu <> w:81 var
+R14996:15001 TriosCoq.Kernel.LutNpu <> op_tom def
+R15003:15003 TriosCoq.Kernel.LutNpu <> w:81 var
+R15005:15005 TriosCoq.Kernel.LutNpu <> a:80 var
+R15038:15047 TriosCoq.Kernel.LutNpu <> op_lut_npu def
+R15050:15055 TriosCoq.Kernel.LutNpu <> op_tom def
+R15066:15088 TriosCoq.Kernel.LutNpu <> dotprod_naive_symmetric thm
+prf 15184:15205 <> class_count_covers_all
+R15236:15239 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R15227:15229 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R15211:15216 Corelib.Init.Datatypes <> length def
+R15218:15226 TriosCoq.Kernel.LutNpu <> all_trit4 def
+R15262:15264 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R15240:15245 Corelib.Init.Datatypes <> length def
+R15247:15261 TriosCoq.Kernel.LutNpu <> canonical_trit4 def
+prf 15372:15393 <> lut_npu_most_efficient
+R15411:15415 TriosCoq.Kernel.LutNpu <> hw_op ind
+binder 15406:15407 <> op:82
+R15446:15449 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R15422:15434 TriosCoq.Kernel.LutNpu <> energy_fJ_10x def
+R15436:15445 TriosCoq.Kernel.LutNpu <> OP_LUT_NPU constr
+R15450:15462 TriosCoq.Kernel.LutNpu <> energy_fJ_10x def
+R15464:15465 TriosCoq.Kernel.LutNpu <> op:82 var

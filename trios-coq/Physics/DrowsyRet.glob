@@ -1,0 +1,197 @@
+DIGEST 94022be74f1ac48a9456bce7dadd6902
+FTriosCoq.Physics.DrowsyRet
+R608:624 Stdlib.ZArith.ZArith <> <> lib
+R642:658 Stdlib.micromega.Lia <> <> lib
+def 757:769 <> OP_DROWSY_RET
+def 930:941 <> OP_SPEC_EXIT
+def 1017:1026 <> OP_NULL_PE
+def 1104:1117 <> OP_STOCH_ROUND
+def 1161:1174 <> OP_SPARSE_SKIP
+def 1218:1228 <> OP_DFS_GATE
+def 1275:1288 <> OP_HOLO_MUX_X4
+def 1334:1345 <> OP_SUBTH_CLK
+def 1391:1403 <> OP_AVS_RECONF
+def 1448:1457 <> OP_LUT_NPU
+def 1505:1510 <> OP_TOM
+def 1562:1569 <> OP_TENET
+prf 1835:1867 <> drowsy_op_distinct_from_spec_exit
+R1885:1888 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1872:1884 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R1889:1900 TriosCoq.Physics.DrowsyRet <> OP_SPEC_EXIT def
+R1917:1929 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R1932:1943 TriosCoq.Physics.DrowsyRet <> OP_SPEC_EXIT def
+prf 1963:1993 <> drowsy_op_distinct_from_null_pe
+R2013:2016 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2000:2012 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2017:2026 TriosCoq.Physics.DrowsyRet <> OP_NULL_PE def
+R2043:2055 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2058:2067 TriosCoq.Physics.DrowsyRet <> OP_NULL_PE def
+prf 2087:2115 <> drowsy_op_distinct_from_stoch
+R2137:2140 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2124:2136 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2141:2154 TriosCoq.Physics.DrowsyRet <> OP_STOCH_ROUND def
+R2171:2183 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2186:2199 TriosCoq.Physics.DrowsyRet <> OP_STOCH_ROUND def
+prf 2219:2248 <> drowsy_op_distinct_from_sparse
+R2269:2272 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2256:2268 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2273:2286 TriosCoq.Physics.DrowsyRet <> OP_SPARSE_SKIP def
+R2303:2315 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2318:2331 TriosCoq.Physics.DrowsyRet <> OP_SPARSE_SKIP def
+prf 2351:2377 <> drowsy_op_distinct_from_dfs
+R2401:2404 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2388:2400 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2405:2415 TriosCoq.Physics.DrowsyRet <> OP_DFS_GATE def
+R2432:2444 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2447:2457 TriosCoq.Physics.DrowsyRet <> OP_DFS_GATE def
+prf 2477:2508 <> drowsy_op_distinct_from_holo_mux
+R2527:2530 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2514:2526 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2531:2544 TriosCoq.Physics.DrowsyRet <> OP_HOLO_MUX_X4 def
+R2561:2573 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2576:2589 TriosCoq.Physics.DrowsyRet <> OP_HOLO_MUX_X4 def
+prf 2609:2637 <> drowsy_op_distinct_from_subth
+R2659:2662 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2646:2658 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2663:2674 TriosCoq.Physics.DrowsyRet <> OP_SUBTH_CLK def
+R2691:2703 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2706:2717 TriosCoq.Physics.DrowsyRet <> OP_SUBTH_CLK def
+prf 2737:2770 <> drowsy_op_distinct_from_avs_reconf
+R2787:2790 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2774:2786 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2791:2803 TriosCoq.Physics.DrowsyRet <> OP_AVS_RECONF def
+R2820:2832 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2835:2847 TriosCoq.Physics.DrowsyRet <> OP_AVS_RECONF def
+prf 2867:2897 <> drowsy_op_distinct_from_lut_npu
+R2917:2920 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2904:2916 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2921:2930 TriosCoq.Physics.DrowsyRet <> OP_LUT_NPU def
+R2947:2959 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R2962:2971 TriosCoq.Physics.DrowsyRet <> OP_LUT_NPU def
+prf 2991:3017 <> drowsy_op_distinct_from_tom
+R3041:3044 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3028:3040 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R3045:3050 TriosCoq.Physics.DrowsyRet <> OP_TOM def
+R3067:3079 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R3082:3087 TriosCoq.Physics.DrowsyRet <> OP_TOM def
+prf 3180:3208 <> drowsy_op_distinct_from_tenet
+R3230:3233 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3217:3229 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R3234:3241 TriosCoq.Physics.DrowsyRet <> OP_TENET def
+R3258:3270 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R3273:3280 TriosCoq.Physics.DrowsyRet <> OP_TENET def
+def 3795:3801 <> V_DD_mV
+def 3868:3875 <> V_RET_mV
+def 3948:3958 <> V_DRV_FLOOR
+def 4036:4046 <> P_ACTIVE_uW
+def 4115:4125 <> P_DROWSY_uW
+def 4203:4212 <> T_WAKE_CYC
+def 4278:4290 <> RETENTION_BPS
+prf 4448:4466 <> drv_floor_respected
+R4478:4481 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R4470:4477 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R4482:4492 TriosCoq.Physics.DrowsyRet <> V_DRV_FLOOR def
+R4509:4516 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R4519:4529 TriosCoq.Physics.DrowsyRet <> V_DRV_FLOOR def
+prf 4614:4627 <> vret_below_vdd
+R4639:4641 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4631:4638 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R4642:4648 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+R4665:4672 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R4675:4681 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+prf 4785:4818 <> drowsy_leakage_geq_30pct_reduction
+R4840:4843 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R4826:4828 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4829:4839 TriosCoq.Physics.DrowsyRet <> P_DROWSY_uW def
+R4845:4847 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4848:4858 TriosCoq.Physics.DrowsyRet <> P_ACTIVE_uW def
+R4875:4885 TriosCoq.Physics.DrowsyRet <> P_DROWSY_uW def
+R4888:4898 TriosCoq.Physics.DrowsyRet <> P_ACTIVE_uW def
+prf 4971:4990 <> wake_latency_bounded
+R5004:5007 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R4994:5003 TriosCoq.Physics.DrowsyRet <> T_WAKE_CYC def
+R5025:5034 TriosCoq.Physics.DrowsyRet <> T_WAKE_CYC def
+prf 5098:5122 <> retention_fidelity_geq_99
+R5139:5142 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R5126:5138 TriosCoq.Physics.DrowsyRet <> RETENTION_BPS def
+R5163:5175 TriosCoq.Physics.DrowsyRet <> RETENTION_BPS def
+prf 5352:5378 <> vret_matches_gamma_within_5
+R5416:5421 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5399:5402 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5388:5390 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5391:5398 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R5406:5408 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5409:5415 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+R5437:5440 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R5426:5428 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5429:5436 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R5444:5446 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5447:5453 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+R5470:5477 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R5480:5486 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+def 5947:5964 <> drowsy_w43_witness
+R6007:6012 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5991:5994 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5978:5990 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R5995:6006 TriosCoq.Physics.DrowsyRet <> OP_SPEC_EXIT def
+R6040:6045 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6026:6029 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6013:6025 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6030:6039 TriosCoq.Physics.DrowsyRet <> OP_NULL_PE def
+R6077:6082 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6059:6062 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6046:6058 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6063:6076 TriosCoq.Physics.DrowsyRet <> OP_STOCH_ROUND def
+R6114:6119 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6096:6099 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6083:6095 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6100:6113 TriosCoq.Physics.DrowsyRet <> OP_SPARSE_SKIP def
+R6148:6153 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6133:6136 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6120:6132 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6137:6147 TriosCoq.Physics.DrowsyRet <> OP_DFS_GATE def
+R6185:6190 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6167:6170 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6154:6166 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6171:6184 TriosCoq.Physics.DrowsyRet <> OP_HOLO_MUX_X4 def
+R6220:6225 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6204:6207 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6191:6203 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6208:6219 TriosCoq.Physics.DrowsyRet <> OP_SUBTH_CLK def
+R6249:6254 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6234:6237 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R6226:6233 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R6238:6248 TriosCoq.Physics.DrowsyRet <> V_DRV_FLOOR def
+R6273:6278 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6263:6265 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6255:6262 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R6266:6272 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+R6314:6319 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6295:6298 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6281:6283 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6284:6294 TriosCoq.Physics.DrowsyRet <> P_DROWSY_uW def
+R6300:6302 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6303:6313 TriosCoq.Physics.DrowsyRet <> P_ACTIVE_uW def
+R6335:6340 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6330:6333 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6320:6329 TriosCoq.Physics.DrowsyRet <> T_WAKE_CYC def
+R6354:6357 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R6341:6353 TriosCoq.Physics.DrowsyRet <> RETENTION_BPS def
+prf 6373:6397 <> drowsy_w43_witness_proved
+R6401:6418 TriosCoq.Physics.DrowsyRet <> drowsy_w43_witness def
+R6437:6454 TriosCoq.Physics.DrowsyRet <> drowsy_w43_witness def
+R6457:6469 TriosCoq.Physics.DrowsyRet <> OP_DROWSY_RET def
+R6472:6483 TriosCoq.Physics.DrowsyRet <> OP_SPEC_EXIT def
+R6486:6495 TriosCoq.Physics.DrowsyRet <> OP_NULL_PE def
+R6498:6511 TriosCoq.Physics.DrowsyRet <> OP_STOCH_ROUND def
+R6523:6536 TriosCoq.Physics.DrowsyRet <> OP_SPARSE_SKIP def
+R6539:6549 TriosCoq.Physics.DrowsyRet <> OP_DFS_GATE def
+R6552:6565 TriosCoq.Physics.DrowsyRet <> OP_HOLO_MUX_X4 def
+R6568:6579 TriosCoq.Physics.DrowsyRet <> OP_SUBTH_CLK def
+R6591:6598 TriosCoq.Physics.DrowsyRet <> V_RET_mV def
+R6601:6611 TriosCoq.Physics.DrowsyRet <> V_DRV_FLOOR def
+R6614:6620 TriosCoq.Physics.DrowsyRet <> V_DD_mV def
+R6623:6633 TriosCoq.Physics.DrowsyRet <> P_DROWSY_uW def
+R6636:6646 TriosCoq.Physics.DrowsyRet <> P_ACTIVE_uW def
+R6658:6667 TriosCoq.Physics.DrowsyRet <> T_WAKE_CYC def
+R6670:6682 TriosCoq.Physics.DrowsyRet <> RETENTION_BPS def

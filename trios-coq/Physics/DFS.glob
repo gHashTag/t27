@@ -1,0 +1,94 @@
+DIGEST d469506160024d5f8fa84b426f8fe2d4
+FTriosCoq.Physics.DFS
+R231:247 Stdlib.ZArith.ZArith <> <> lib
+R265:281 Stdlib.micromega.Lia <> <> lib
+def 316:331 <> op_dfs_gate_byte
+R335:335 Corelib.Numbers.BinNums <> Z ind
+def 367:385 <> op_holo_mux_x4_byte
+R389:389 Corelib.Numbers.BinNums <> Z ind
+def 421:437 <> op_subth_clk_byte
+R441:441 Corelib.Numbers.BinNums <> Z ind
+def 473:490 <> op_avs_reconf_byte
+R494:494 Corelib.Numbers.BinNums <> Z ind
+def 526:540 <> op_lut_npu_byte
+R544:544 Corelib.Numbers.BinNums <> Z ind
+def 576:586 <> op_tom_byte
+R590:590 Corelib.Numbers.BinNums <> Z ind
+def 622:634 <> op_tenet_byte
+R638:638 Corelib.Numbers.BinNums <> Z ind
+def 670:685 <> op_w_bitrom_byte
+R689:689 Corelib.Numbers.BinNums <> Z ind
+def 721:733 <> op_v_lut_byte
+R737:737 Corelib.Numbers.BinNums <> Z ind
+def 769:783 <> op_c_prime_byte
+R787:787 Corelib.Numbers.BinNums <> Z ind
+prf 815:839 <> dfs_op_distinct_from_holo
+R859:862 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R843:858 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R863:881 TriosCoq.Physics.DFS <> op_holo_mux_x4_byte def
+R898:913 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R916:934 TriosCoq.Physics.DFS <> op_holo_mux_x4_byte def
+prf 954:979 <> dfs_op_distinct_from_subth
+R999:1002 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R983:998 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1003:1019 TriosCoq.Physics.DFS <> op_subth_clk_byte def
+R1036:1051 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1054:1070 TriosCoq.Physics.DFS <> op_subth_clk_byte def
+prf 1090:1113 <> dfs_op_distinct_from_avs
+R1133:1136 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1117:1132 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1137:1154 TriosCoq.Physics.DFS <> op_avs_reconf_byte def
+R1171:1186 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1189:1206 TriosCoq.Physics.DFS <> op_avs_reconf_byte def
+prf 1226:1253 <> dfs_op_distinct_from_lut_npu
+R1273:1276 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1257:1272 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1277:1291 TriosCoq.Physics.DFS <> op_lut_npu_byte def
+R1308:1323 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1326:1340 TriosCoq.Physics.DFS <> op_lut_npu_byte def
+prf 1360:1383 <> dfs_op_distinct_from_tom
+R1403:1406 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1387:1402 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1407:1417 TriosCoq.Physics.DFS <> op_tom_byte def
+R1434:1449 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1452:1462 TriosCoq.Physics.DFS <> op_tom_byte def
+prf 1482:1507 <> dfs_op_distinct_from_tenet
+R1527:1530 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1511:1526 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1531:1543 TriosCoq.Physics.DFS <> op_tenet_byte def
+R1560:1575 TriosCoq.Physics.DFS <> op_dfs_gate_byte def
+R1578:1590 TriosCoq.Physics.DFS <> op_tenet_byte def
+def 1797:1802 <> f_of_v
+R1813:1813 Corelib.Numbers.BinNums <> Z ind
+binder 1805:1809 <> vcode:1
+R1818:1818 Corelib.Numbers.BinNums <> Z ind
+R1823:1827 TriosCoq.Physics.DFS <> vcode:1 var
+prf 1888:1904 <> dfs_freq_monotone
+binder 1915:1916 <> v1:2
+binder 1918:1919 <> v2:3
+R1930:1933 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R1924:1927 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R1922:1923 TriosCoq.Physics.DFS <> v1:2 var
+R1928:1929 TriosCoq.Physics.DFS <> v2:3 var
+R1943:1946 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R1934:1939 TriosCoq.Physics.DFS <> f_of_v def
+R1941:1942 TriosCoq.Physics.DFS <> v1:2 var
+R1947:1952 TriosCoq.Physics.DFS <> f_of_v def
+R1954:1955 TriosCoq.Physics.DFS <> v2:3 var
+R1980:1985 TriosCoq.Physics.DFS <> f_of_v def
+def 2163:2175 <> energy_per_op
+R2182:2182 Corelib.Numbers.BinNums <> Z ind
+binder 2178:2178 <> v:4
+R2187:2187 Corelib.Numbers.BinNums <> Z ind
+R2193:2195 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2192:2192 TriosCoq.Physics.DFS <> v:4 var
+R2196:2196 TriosCoq.Physics.DFS <> v:4 var
+prf 2206:2238 <> dfs_cubic_energy_law_non_negative
+binder 2249:2249 <> v:5
+R2258:2261 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2253:2256 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2257:2257 TriosCoq.Physics.DFS <> v:5 var
+R2263:2266 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2267:2279 TriosCoq.Physics.DFS <> energy_per_op def
+R2281:2281 TriosCoq.Physics.DFS <> v:5 var
+R2306:2318 TriosCoq.Physics.DFS <> energy_per_op def

@@ -150,6 +150,10 @@ Proof.
   apply Rge_le in Heta.
   assert (Hmono : tops_per_watt 0.93 <= tops_per_watt (efficiency_avs 48)).
   { apply tops_per_watt_mono. exact Heta. }
-  assert (Hfloor : tops_per_watt 0.93 >= 297) := tops_per_watt_floor.
+  (* Prop. 202: `assert (H : P) := term.` is not Coq syntax. The `by exact`
+     form keeps the statement written here AND fails loudly if the axiom at
+     line 47 ever stops matching it -- which `pose proof ... as Hfloor` would
+     not. *)
+  assert (Hfloor : tops_per_watt 0.93 >= 297) by exact tops_per_watt_floor.
   lra.
 Qed.

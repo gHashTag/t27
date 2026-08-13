@@ -1,0 +1,25 @@
+# Prop. 202. Each line: workflow<TAB>step. The prose below each records what
+# would END the suspension -- the promise a bare `continue-on-error: true`
+# makes and never keeps.
+#
+# coq-kernel.yml / Build trios-coq:
+#   ENDS WHEN the trios-coq build exits 0. Measured 2026-08-13: 25 of 28
+#   _CoqProject files produce a .vo, up from 10, after five mechanical repairs
+#   (missing List import x3; bare numerals in nat position under Z_ and R_scope;
+#   invalid `assert (H : P) := t` syntax; `&&` outside bool_scope). It still
+#   fails: Physics/StochSkipSafe.v gives "Tactic failure: Cannot find witness",
+#   which is a proof obligation, not bookkeeping, and was not guessed at.
+#
+# formal-yosys.yml / Workflow reachable scan:
+#   ENDS WHEN formal-yosys.yml and formal-mutation.yml exist on the default
+#   branch. Blocked on the branch decision (Prop. 169), open ~60 waves.
+#
+# The remaining three are infrastructure, not checks: an artifact upload, a
+# status sync, and a matrix generator. They are ratcheted with the rest because
+# this gate cannot tell a check from a side effect by parsing YAML, and guessing
+# would be classification-by-name (Prop. 197).
+coq-kernel.yml	Build trios-coq/ (depends on coq/) -- non-blocking until observed green
+formal-yosys.yml	Workflow reachable scan — a cited workflow must exist on the default branch (non-blocking, see Prop. 169)
+fpga-build.yml	Upload bitstream + flashing guide
+notebook-sync.yml	Update sync status as commit (best-effort)
+rings-rust.yml	Generate matrix

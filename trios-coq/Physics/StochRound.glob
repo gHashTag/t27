@@ -1,0 +1,75 @@
+DIGEST ba3251356340e8780d34a317b878ab83
+FTriosCoq.Physics.StochRound
+R492:508 Stdlib.ZArith.ZArith <> <> lib
+R526:542 Stdlib.micromega.Lia <> <> lib
+def 642:655 <> OP_STOCH_ROUND
+def 737:750 <> OP_SPARSE_SKIP
+def 794:804 <> OP_DFS_GATE
+def 851:864 <> OP_HOLO_MUX_X4
+def 899:910 <> OP_SUBTH_CLK
+def 947:959 <> OP_AVS_RECONF
+def 995:1004 <> OP_LUT_NPU
+def 1043:1048 <> OP_TOM
+def 1091:1098 <> OP_TENET
+prf 1283:1311 <> stoch_op_distinct_from_sparse
+R1329:1332 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1315:1328 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1333:1346 TriosCoq.Physics.StochRound <> OP_SPARSE_SKIP def
+R1363:1376 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1379:1392 TriosCoq.Physics.StochRound <> OP_SPARSE_SKIP def
+prf 1484:1509 <> stoch_op_distinct_from_dfs
+R1527:1530 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1513:1526 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1531:1541 TriosCoq.Physics.StochRound <> OP_DFS_GATE def
+R1558:1571 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1574:1584 TriosCoq.Physics.StochRound <> OP_DFS_GATE def
+prf 1679:1709 <> stoch_op_distinct_from_holo_mux
+R1727:1730 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1713:1726 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1731:1744 TriosCoq.Physics.StochRound <> OP_HOLO_MUX_X4 def
+R1761:1774 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1777:1790 TriosCoq.Physics.StochRound <> OP_HOLO_MUX_X4 def
+prf 1883:1910 <> stoch_op_distinct_from_subth
+R1928:1931 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1914:1927 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1932:1943 TriosCoq.Physics.StochRound <> OP_SUBTH_CLK def
+R1960:1973 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R1976:1987 TriosCoq.Physics.StochRound <> OP_SUBTH_CLK def
+prf 2081:2113 <> stoch_op_distinct_from_avs_reconf
+R2131:2134 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2117:2130 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2135:2147 TriosCoq.Physics.StochRound <> OP_AVS_RECONF def
+R2164:2177 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2180:2192 TriosCoq.Physics.StochRound <> OP_AVS_RECONF def
+prf 2283:2312 <> stoch_op_distinct_from_lut_npu
+R2330:2333 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2316:2329 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2334:2343 TriosCoq.Physics.StochRound <> OP_LUT_NPU def
+R2360:2373 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2376:2385 TriosCoq.Physics.StochRound <> OP_LUT_NPU def
+prf 2472:2497 <> stoch_op_distinct_from_tom
+R2515:2518 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2501:2514 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2519:2524 TriosCoq.Physics.StochRound <> OP_TOM def
+R2541:2554 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2557:2562 TriosCoq.Physics.StochRound <> OP_TOM def
+prf 2651:2678 <> stoch_op_distinct_from_tenet
+R2696:2699 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2682:2695 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2700:2707 TriosCoq.Physics.StochRound <> OP_TENET def
+R2724:2737 TriosCoq.Physics.StochRound <> OP_STOCH_ROUND def
+R2740:2747 TriosCoq.Physics.StochRound <> OP_TENET def
+R3205:3219 Stdlib.Arith.Arith <> <> lib
+prf 3251:3270 <> stoch_unbiased_count
+R3286:3288 Corelib.Init.Datatypes <> nat ind
+binder 3281:3282 <> xf:1
+R3299:3302 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R3293:3296 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R3291:3292 TriosCoq.Physics.StochRound <> xf:1 var
+R3303:3303 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3318:3321 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3306:3309 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R3317:3317 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R3304:3305 TriosCoq.Physics.StochRound <> xf:1 var
+R3312:3314 Corelib.Init.Peano <> ::nat_scope:x_'-'_x not
+R3315:3316 TriosCoq.Physics.StochRound <> xf:1 var

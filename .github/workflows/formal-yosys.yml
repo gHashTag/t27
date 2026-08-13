@@ -866,6 +866,9 @@ jobs:
       - name: Spec class scan — prose in a .t27 file is not a parser backlog
         run: python3 formal/spec_class_scan.py
 
+      - name: Suspension scan — a suspended check must name what would end it
+        run: python3 formal/suspension_scan.py
+
       - name: Coq build scan — a Qed in a file nobody compiles is not a proof
         run: python3 formal/coq_build_scan.py
 

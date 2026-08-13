@@ -1,0 +1,95 @@
+DIGEST b7ee6f95857bc75841d40bee9cf9d5d9
+FTriosCoq.Physics.MoeRouter
+R187:204 Stdlib.Arith.PeanoNat <> <> lib
+R222:236 Stdlib.Arith.Arith <> <> lib
+R254:270 Stdlib.micromega.Lia <> <> lib
+R288:300 Stdlib.Bool.Bool <> <> lib
+def 608:618 <> op_moe_uses
+R626:628 Corelib.Init.Datatypes <> nat ind
+binder 621:622 <> op:1
+R633:636 Corelib.Init.Datatypes <> bool ind
+R643:645 Corelib.Init.Datatypes <> orb def
+R662:665 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'=?'_x not
+R660:661 TriosCoq.Physics.MoeRouter <> op:1 var
+R650:653 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'=?'_x not
+R648:649 TriosCoq.Physics.MoeRouter <> op:1 var
+prf 679:695 <> moe_no_new_opcode
+binder 706:707 <> op:2
+R733:737 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R758:758 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R726:728 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R712:722 TriosCoq.Physics.MoeRouter <> op_moe_uses def
+R724:725 TriosCoq.Physics.MoeRouter <> op:2 var
+R729:732 Corelib.Init.Datatypes <> true constr
+R746:749 Corelib.Init.Logic <> ::type_scope:x_'\/'_x not
+R740:742 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R738:739 TriosCoq.Physics.MoeRouter <> op:2 var
+R752:754 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R750:751 TriosCoq.Physics.MoeRouter <> op:2 var
+R777:787 TriosCoq.Physics.MoeRouter <> op_moe_uses def
+R811:822 Stdlib.Bool.Bool <> orb_true_iff thm
+R877:886 Stdlib.Arith.PeanoNat Nat eqb_eq thm
+def 1139:1143 <> moe_k
+R1147:1149 Corelib.Init.Datatypes <> nat ind
+def 1168:1172 <> moe_N
+R1176:1178 Corelib.Init.Datatypes <> nat ind
+prf 1193:1202 <> moe_k_le_N
+R1211:1214 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R1206:1210 TriosCoq.Physics.MoeRouter <> moe_k def
+R1215:1219 TriosCoq.Physics.MoeRouter <> moe_N def
+R1236:1240 TriosCoq.Physics.MoeRouter <> moe_k def
+R1243:1247 TriosCoq.Physics.MoeRouter <> moe_N def
+prf 1267:1275 <> moe_k_pos
+R1284:1286 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R1279:1283 TriosCoq.Physics.MoeRouter <> moe_k def
+R1304:1308 TriosCoq.Physics.MoeRouter <> moe_k def
+def 1627:1646 <> k_moe_sparsity_milli
+R1650:1652 Corelib.Init.Datatypes <> nat ind
+def 1673:1689 <> top_k_ratio_milli
+R1693:1695 Corelib.Init.Datatypes <> nat ind
+prf 1712:1729 <> moe_sparsity_close
+R1742:1745 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R1736:1738 Corelib.Init.Peano <> ::nat_scope:x_'-'_x not
+def 1999:2021 <> imbalance_ceiling_milli
+R2025:2027 Corelib.Init.Datatypes <> nat ind
+prf 2044:2064 <> moe_imbalance_bounded
+binder 2075:2075 <> i:3
+R2088:2091 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2081:2084 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R2080:2080 TriosCoq.Physics.MoeRouter <> i:3 var
+R2093:2096 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R2092:2092 TriosCoq.Physics.MoeRouter <> i:3 var
+R2097:2119 TriosCoq.Physics.MoeRouter <> imbalance_ceiling_milli def
+R2136:2158 TriosCoq.Physics.MoeRouter <> imbalance_ceiling_milli def
+def 2485:2499 <> cache_amp_milli
+R2503:2505 Corelib.Init.Datatypes <> nat ind
+prf 2523:2535 <> cache_amp_min
+R2554:2557 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R2539:2553 TriosCoq.Physics.MoeRouter <> cache_amp_milli def
+R2578:2592 TriosCoq.Physics.MoeRouter <> cache_amp_milli def
+def 2837:2850 <> eta_gate_milli
+R2854:2856 Corelib.Init.Datatypes <> nat ind
+prf 2873:2886 <> eta_gate_floor
+R2904:2907 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R2890:2903 TriosCoq.Physics.MoeRouter <> eta_gate_milli def
+R2927:2940 TriosCoq.Physics.MoeRouter <> eta_gate_milli def
+def 3185:3194 <> tops_w_w41
+R3198:3200 Corelib.Init.Datatypes <> nat ind
+def 3221:3230 <> tops_w_w42
+R3234:3236 Corelib.Init.Datatypes <> nat ind
+prf 3253:3267 <> tops_w_increase
+R3281:3283 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R3271:3280 TriosCoq.Physics.MoeRouter <> tops_w_w42 def
+R3284:3293 TriosCoq.Physics.MoeRouter <> tops_w_w41 def
+R3310:3319 TriosCoq.Physics.MoeRouter <> tops_w_w42 def
+R3322:3331 TriosCoq.Physics.MoeRouter <> tops_w_w41 def
+prf 3351:3371 <> tops_w_within_witness
+R3385:3388 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3378:3381 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R3392:3395 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+def 3664:3681 <> sacred_chain_depth
+R3685:3687 Corelib.Init.Datatypes <> nat ind
+prf 3703:3717 <> r15_byte_stable
+R3739:3741 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3721:3738 TriosCoq.Physics.MoeRouter <> sacred_chain_depth def
+R3760:3777 TriosCoq.Physics.MoeRouter <> sacred_chain_depth def

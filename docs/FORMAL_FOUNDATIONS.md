@@ -10589,6 +10589,70 @@ repair moved the Coq build forward by three files.
 
 ---
 
+### Prop. 202 — one suspended check hid five defect classes, and 10 of 28 proofs became 25 — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Suspension scan — a suspended check must name what would end it*
+
+Prop. 201 found a `continue-on-error: true` step reading *"non-blocking until
+observed green"* that had never been green, and repaired one defect class behind
+it. Continuing until the class boundary:
+
+| # | class | files | fix |
+|---|---|---|---|
+| 1 | `Forall` used with no `List` import | 3 | add the import |
+| 2 | bare numeral in `nat` position under `Open Scope Z_scope` | 1 (3 sites) | `81%nat` |
+| 3 | `assert (H : P) := term.` — not Coq syntax | 1 | `by exact term` |
+| 4 | same as 2, under `R_scope` | 1 | `100%nat` |
+| 5 | `&&` outside `bool_scope` | 1 | `(...)%bool` |
+
+**`.vo` files produced: 10 → 25 of 28.** One repair unblocked seven dependents at
+once, because a build stops at its first error and every file downstream is
+reported by nothing at all.
+
+**Five classes, all mechanical, none related.** They accumulated because the flag
+made the build's exit status invisible: nothing distinguishes one defect from five
+when the observable is "workflow passed".
+
+**Stopped at the class boundary.** The build now fails on
+`Physics/StochSkipSafe.v` with `Tactic failure: Cannot find witness`. That is a
+proof obligation, not bookkeeping, and it was not guessed at. **The flag is not
+flipped.**
+
+**My own scanner reproduced the campaign's oldest mistake.** The scan for class 4
+skipped any line already containing `%nat`, to avoid re-reporting fixed sites. The
+defect was on a line reading
+
+```coq
+Nat.gcd 400 (Nat.gcd 300 200) = 100 /\ (400+300+200 = 900)%nat /\ (30^2 = 900)%nat
+```
+
+— **two conjuncts annotated, one not.** A per-line exclusion hides *partially*
+corrected lines, which is exactly where a half-finished repair lives. Stated
+generally: **an exclusion whose granularity is coarser than the defect's cannot
+see a partial fix**, and partial fixes are the most likely state of any file
+someone has already touched.
+
+**Theorem (suspension bookkeeping).** A suspension `(step, flag, promise)` is
+sound only if the promise is checkable. Running the suspended check on every
+invocation is the direct test and is often prohibitive — here it means rebuilding
+a Coq tree. The cheap sound alternative is to make the *set* of suspensions
+ratcheted: a new one fails the build until recorded, and a removed one shows as a
+baseline entry with no step. That does not prove any suspended check is still
+failing; it guarantees no suspension is ever *undocumented*, which is the property
+that was actually missing.
+
+Gate 29 does that. It deliberately does not classify a suspended step as check or
+infrastructure — YAML cannot distinguish them, and guessing would be
+classification-by-name (Prop. 197) — so all 5 are ratcheted and the baseline
+carries the distinction in prose, together with what would end each one.
+
+Three bars: **TRUE** — 43 python gates pass, absence sweep exits 0, 1213 tests
+pass. **ALIVE** — 5 suspensions found across 26 workflow files, and the Coq
+measurement moved 10 → 25, so neither count is degenerate. **BITING** — the gate
+alone in an empty tree exits 1 naming the missing workflows directory.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

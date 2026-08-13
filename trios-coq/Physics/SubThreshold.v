@@ -161,7 +161,11 @@ Qed.
 
 (** *** 8. Three-frequency Trinity: gcd(400,300,200)=100; sum=900=30² *)
 Lemma subth_three_freq_trinity :
-  Nat.gcd 400 (Nat.gcd 300 200) = 100 /\ (400 + 300 + 200 = 900)%nat /\ (30^2 = 900)%nat.
+  (* Prop. 202: two of the three conjuncts carry %nat and the first did not,
+     so under R_scope its numeral was an R. A scan that skipped any line
+     already mentioning %nat could not see it -- a per-line exclusion hides
+     PARTIALLY annotated lines, which is where this class actually lives. *)
+  Nat.gcd 400 (Nat.gcd 300 200) = 100%nat /\ (400 + 300 + 200 = 900)%nat /\ (30^2 = 900)%nat.
 Proof.
   repeat split; reflexivity.
 Qed.

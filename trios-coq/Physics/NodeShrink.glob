@@ -1,0 +1,236 @@
+DIGEST 8d68e3d9f219d054ac538b530b6912ec
+FTriosCoq.Physics.NodeShrink
+R157:174 Stdlib.Arith.PeanoNat <> <> lib
+R192:206 Stdlib.Arith.Arith <> <> lib
+R224:240 Stdlib.micromega.Lia <> <> lib
+def 292:310 <> op_node_shrink_byte
+R314:316 Corelib.Init.Datatypes <> nat ind
+def 385:397 <> op_tenet_byte
+R407:409 Corelib.Init.Datatypes <> nat ind
+def 442:452 <> op_tom_byte
+R464:466 Corelib.Init.Datatypes <> nat ind
+def 499:513 <> op_lut_npu_byte
+R521:523 Corelib.Init.Datatypes <> nat ind
+def 556:573 <> op_avs_reconf_byte
+R578:580 Corelib.Init.Datatypes <> nat ind
+def 613:629 <> op_subth_clk_byte
+R635:637 Corelib.Init.Datatypes <> nat ind
+def 670:685 <> op_holo_mux_byte
+R692:694 Corelib.Init.Datatypes <> nat ind
+def 727:737 <> op_dfs_byte
+R749:751 Corelib.Init.Datatypes <> nat ind
+def 784:802 <> op_sparse_skip_byte
+R806:808 Corelib.Init.Datatypes <> nat ind
+def 841:859 <> op_stoch_round_byte
+R863:865 Corelib.Init.Datatypes <> nat ind
+def 898:912 <> op_null_pe_byte
+R920:922 Corelib.Init.Datatypes <> nat ind
+def 955:971 <> op_spec_exit_byte
+R977:979 Corelib.Init.Datatypes <> nat ind
+def 1012:1029 <> op_drowsy_ret_byte
+R1034:1036 Corelib.Init.Datatypes <> nat ind
+def 1069:1087 <> op_sparse_mask_byte
+R1091:1093 Corelib.Init.Datatypes <> nat ind
+def 1126:1136 <> op_fbb_byte
+R1148:1150 Corelib.Init.Datatypes <> nat ind
+prf 1232:1260 <> node_shrink_opcode_byte_eq_EF
+R1285:1287 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1266:1284 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1309:1327 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+prf 1415:1443 <> node_shrink_distinct_from_fbb
+R1468:1471 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1449:1467 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1472:1482 TriosCoq.Physics.NodeShrink <> op_fbb_byte def
+R1501:1519 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1522:1532 TriosCoq.Physics.NodeShrink <> op_fbb_byte def
+prf 1628:1664 <> node_shrink_distinct_from_sparse_mask
+R1689:1692 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1670:1688 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1693:1711 TriosCoq.Physics.NodeShrink <> op_sparse_mask_byte def
+R1730:1748 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1751:1769 TriosCoq.Physics.NodeShrink <> op_sparse_mask_byte def
+prf 1864:1899 <> node_shrink_distinct_from_drowsy_ret
+R1924:1927 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1905:1923 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1928:1945 TriosCoq.Physics.NodeShrink <> op_drowsy_ret_byte def
+R1964:1982 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R1985:2002 TriosCoq.Physics.NodeShrink <> op_drowsy_ret_byte def
+prf 2096:2130 <> node_shrink_distinct_from_spec_exit
+R2155:2158 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2136:2154 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2159:2175 TriosCoq.Physics.NodeShrink <> op_spec_exit_byte def
+R2194:2212 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2215:2231 TriosCoq.Physics.NodeShrink <> op_spec_exit_byte def
+prf 2323:2355 <> node_shrink_distinct_from_null_pe
+R2380:2383 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2361:2379 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2384:2398 TriosCoq.Physics.NodeShrink <> op_null_pe_byte def
+R2417:2435 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2438:2452 TriosCoq.Physics.NodeShrink <> op_null_pe_byte def
+prf 2548:2584 <> node_shrink_distinct_from_stoch_round
+R2609:2612 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2590:2608 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2613:2631 TriosCoq.Physics.NodeShrink <> op_stoch_round_byte def
+R2650:2668 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2671:2689 TriosCoq.Physics.NodeShrink <> op_stoch_round_byte def
+prf 2785:2821 <> node_shrink_distinct_from_sparse_skip
+R2846:2849 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2827:2845 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2850:2868 TriosCoq.Physics.NodeShrink <> op_sparse_skip_byte def
+R2887:2905 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R2908:2926 TriosCoq.Physics.NodeShrink <> op_sparse_skip_byte def
+prf 3014:3042 <> node_shrink_distinct_from_dfs
+R3067:3070 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3048:3066 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3071:3081 TriosCoq.Physics.NodeShrink <> op_dfs_byte def
+R3100:3118 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3121:3131 TriosCoq.Physics.NodeShrink <> op_dfs_byte def
+prf 3224:3257 <> node_shrink_distinct_from_holo_mux
+R3282:3285 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3263:3281 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3286:3301 TriosCoq.Physics.NodeShrink <> op_holo_mux_byte def
+R3320:3338 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3341:3356 TriosCoq.Physics.NodeShrink <> op_holo_mux_byte def
+prf 3450:3484 <> node_shrink_distinct_from_subth_clk
+R3509:3512 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3490:3508 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3513:3529 TriosCoq.Physics.NodeShrink <> op_subth_clk_byte def
+R3548:3566 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3569:3585 TriosCoq.Physics.NodeShrink <> op_subth_clk_byte def
+prf 3680:3715 <> node_shrink_distinct_from_avs_reconf
+R3740:3743 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3721:3739 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3744:3761 TriosCoq.Physics.NodeShrink <> op_avs_reconf_byte def
+R3780:3798 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3801:3818 TriosCoq.Physics.NodeShrink <> op_avs_reconf_byte def
+prf 3910:3942 <> node_shrink_distinct_from_lut_npu
+R3967:3970 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3948:3966 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R3971:3985 TriosCoq.Physics.NodeShrink <> op_lut_npu_byte def
+R4004:4022 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R4025:4039 TriosCoq.Physics.NodeShrink <> op_lut_npu_byte def
+prf 4127:4155 <> node_shrink_distinct_from_tom
+R4180:4183 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4161:4179 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R4184:4194 TriosCoq.Physics.NodeShrink <> op_tom_byte def
+R4213:4231 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R4234:4244 TriosCoq.Physics.NodeShrink <> op_tom_byte def
+prf 4334:4364 <> node_shrink_distinct_from_tenet
+R4389:4392 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4370:4388 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R4393:4405 TriosCoq.Physics.NodeShrink <> op_tenet_byte def
+R4424:4442 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R4445:4457 TriosCoq.Physics.NodeShrink <> op_tenet_byte def
+def 4970:4979 <> vdd_w40_mv
+R4983:4985 Corelib.Init.Datatypes <> nat ind
+def 5007:5016 <> vdd_w41_mv
+R5020:5022 Corelib.Init.Datatypes <> nat ind
+prf 5039:5062 <> vdd_ratio_sq_lower_bound
+R5097:5100 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R5091:5093 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5078:5080 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5068:5077 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5081:5090 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5104:5107 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5131:5131 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5118:5120 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5108:5117 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5121:5130 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5150:5159 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5162:5171 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+prf 5191:5214 <> vdd_ratio_sq_upper_bound
+R5249:5252 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R5243:5245 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5230:5232 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5220:5229 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5233:5242 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5256:5259 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5283:5283 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5270:5272 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5260:5269 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5273:5282 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5302:5311 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5314:5323 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+prf 5396:5419 <> vdd_ratio_sq_within_5pct
+R5489:5494 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5456:5459 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R5428:5431 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5455:5455 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5442:5444 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5432:5441 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5445:5454 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5483:5485 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5470:5472 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5460:5469 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5473:5482 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5524:5527 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R5518:5520 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5505:5507 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5495:5504 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5508:5517 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5531:5534 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5558:5558 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5545:5547 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R5535:5544 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5548:5557 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+R5577:5586 TriosCoq.Physics.NodeShrink <> vdd_w40_mv def
+R5589:5598 TriosCoq.Physics.NodeShrink <> vdd_w41_mv def
+def 5793:5804 <> eta_port_nat
+R5808:5810 Corelib.Init.Datatypes <> nat ind
+def 5830:5847 <> eta_port_threshold
+R5851:5853 Corelib.Init.Datatypes <> nat ind
+prf 5869:5888 <> eta_port_lower_bound
+R5906:5909 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R5894:5905 TriosCoq.Physics.NodeShrink <> eta_port_nat def
+R5910:5927 TriosCoq.Physics.NodeShrink <> eta_port_threshold def
+R5946:5957 TriosCoq.Physics.NodeShrink <> eta_port_nat def
+R5960:5977 TriosCoq.Physics.NodeShrink <> eta_port_threshold def
+def 6365:6379 <> k_vdd_shrink_fp
+R6383:6385 Corelib.Init.Datatypes <> nat ind
+prf 6403:6426 <> k_vdd_shrink_lower_bound
+R6447:6450 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R6432:6446 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+R6473:6487 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+prf 6507:6530 <> k_vdd_shrink_upper_bound
+R6551:6554 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R6536:6550 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+R6577:6591 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+prf 6684:6704 <> k_vdd_shrink_in_range
+R6733:6736 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6714:6717 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R6718:6732 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+R6752:6755 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R6737:6751 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+R6778:6792 TriosCoq.Physics.NodeShrink <> k_vdd_shrink_fp def
+def 6967:6984 <> sacred_chain_first
+R6988:6990 Corelib.Init.Datatypes <> nat ind
+def 7023:7040 <> sacred_chain_final
+R7044:7046 Corelib.Init.Datatypes <> nat ind
+prf 7075:7095 <> sacred_chain_depth_32
+R7144:7146 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7140:7142 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R7119:7121 Corelib.Init.Peano <> ::nat_scope:x_'-'_x not
+R7101:7118 TriosCoq.Physics.NodeShrink <> sacred_chain_final def
+R7122:7139 TriosCoq.Physics.NodeShrink <> sacred_chain_first def
+R7167:7184 TriosCoq.Physics.NodeShrink <> sacred_chain_final def
+R7187:7204 TriosCoq.Physics.NodeShrink <> sacred_chain_first def
+def 7344:7363 <> sacred_isofunctional
+R7371:7373 Corelib.Init.Datatypes <> nat ind
+binder 7366:7367 <> op:1
+R7378:7381 Corelib.Init.Datatypes <> bool ind
+R7564:7564 Corelib.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7579:7584 Corelib.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7599:7599 Corelib.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7565:7571 Stdlib.Arith.PeanoNat Nat leb def
+R7577:7578 TriosCoq.Physics.NodeShrink <> op:1 var
+R7585:7591 Stdlib.Arith.PeanoNat Nat leb def
+R7593:7594 TriosCoq.Physics.NodeShrink <> op:1 var
+R7622:7626 Corelib.Init.Datatypes <> false constr
+R7612:7615 Corelib.Init.Datatypes <> true constr
+prf 7636:7660 <> node_shrink_isofunctional
+R7706:7708 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7666:7685 TriosCoq.Physics.NodeShrink <> sacred_isofunctional def
+R7687:7705 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def
+R7709:7712 Corelib.Init.Datatypes <> true constr
+R7731:7750 TriosCoq.Physics.NodeShrink <> sacred_isofunctional def
+R7753:7771 TriosCoq.Physics.NodeShrink <> op_node_shrink_byte def

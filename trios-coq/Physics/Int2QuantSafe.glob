@@ -1,0 +1,85 @@
+DIGEST c10baae4e28a6cc404f21e277ca9b68b
+FTriosCoq.Physics.Int2QuantSafe
+R543:557 Stdlib.Reals.Reals <> <> lib
+R575:586 Corelib.Init.Nat <> <> lib
+R604:617 Stdlib.Lists.List <> <> lib
+R635:651 Stdlib.micromega.Lra <> <> lib
+R661:673 Stdlib.Lists.List ListNotations <> mod
+mod 704:716 <> Int2QuantSafe
+ax 946:952 Int2QuantSafe phi_inv
+R956:956 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 965:975 Int2QuantSafe phi_inv_pos
+R986:988 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>'_x not
+R979:985 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+ax 998:1009 Int2QuantSafe phi_inv_lt_1
+R1020:1022 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R1013:1019 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+def 1183:1190 Int2QuantSafe codebook
+R1194:1197 Corelib.Init.Datatypes <> list ind
+R1199:1199 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1204:1204 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1207:1208 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1210:1211 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1219:1220 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1222:1222 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1212:1218 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+def 1450:1459 Int2QuantSafe col13_gate
+R1468:1468 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 1462:1464 <> act:7
+R1473:1473 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1483:1489 Stdlib.Reals.RIneq <> Rle_dec thm
+R1491:1493 TriosCoq.Physics.Int2QuantSafe <> act:7 var
+R1498:1498 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1520:1526 Stdlib.Reals.RIneq <> Rle_dec thm
+R1528:1530 TriosCoq.Physics.Int2QuantSafe <> act:7 var
+R1540:1542 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1533:1539 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+R1563:1569 Stdlib.Reals.RIneq <> Rle_dec thm
+R1571:1573 TriosCoq.Physics.Int2QuantSafe <> act:7 var
+R1576:1576 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1588:1591 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R1584:1586 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R1577:1583 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+R1600:1606 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+prf 1771:1787 Int2QuantSafe codebook_length_4
+R1806:1808 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1791:1796 Corelib.Init.Datatypes <> length def
+R1798:1805 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+R1830:1837 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+prf 1945:1966 Int2QuantSafe codebook_rom_traceable
+R1970:1971 Stdlib.Lists.List <> In def
+R1981:1988 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+R1973:1979 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+R2005:2012 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+prf 2140:2161 Int2QuantSafe codebook_contains_zero
+R2165:2166 Stdlib.Lists.List <> In def
+R2170:2177 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+R2194:2201 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+prf 2322:2342 Int2QuantSafe codebook_contains_one
+R2346:2347 Stdlib.Lists.List <> In def
+R2351:2358 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+R2375:2382 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+prf 2517:2541 Int2QuantSafe codebook_contains_neg_one
+R2545:2546 Stdlib.Lists.List <> In def
+R2553:2560 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+R2577:2584 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe codebook def
+prf 2769:2783 Int2QuantSafe col13_gate_zero
+R2799:2801 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2787:2796 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe col13_gate def
+R2821:2830 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe col13_gate def
+R2845:2851 Stdlib.Reals.RIneq <> Rle_dec thm
+R2858:2858 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2900:2906 Stdlib.Reals.RIneq <> Rle_dec thm
+R2918:2920 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2911:2917 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+R3000:3010 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv_pos prfax
+prf 3190:3205 Int2QuantSafe density_doubling
+R3220:3222 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3209:3209 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3215:3218 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3214:3214 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+prf 3323:3338 Int2QuantSafe phi_inv_positive
+R3349:3351 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>'_x not
+R3342:3348 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv prfax
+R3368:3378 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe phi_inv_pos prfax
+R3391:3403 TriosCoq.Physics.Int2QuantSafe Int2QuantSafe <> mod

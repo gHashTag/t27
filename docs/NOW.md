@@ -2,6 +2,52 @@
 
 Last updated: 2026-08-13
 
+## One suspended check hid five defect classes (Closes #2138)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2138
+- PR: (direct commit)
+
+### What landed
+
+Repairing behind the one `continue-on-error` step that read "non-blocking until
+observed green":
+
+| # | class | files |
+|---|---|---|
+| 1 | `Forall` with no `List` import | 3 |
+| 2 | bare numeral in `nat` position under `Z_scope` | 1 (3 sites) |
+| 3 | `assert (H : P) := term.` -- not Coq syntax | 1 |
+| 4 | same as 2, under `R_scope` | 1 |
+| 5 | `&&` outside `bool_scope` | 1 |
+
+**`.vo` files: 10 -> 25 of 28.** One repair unblocked seven dependents.
+
+`formal/suspension_scan.py` (gate 29) ratchets the SET of suspensions: a new
+`continue-on-error` fails the build until recorded, and the baseline carries what
+would end each one.
+
+43 python gates pass, absence sweep exits 0, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **The trios-coq build STILL FAILS and the flag is NOT flipped.** It now stops at
+  `Physics/StochSkipSafe.v`: `Tactic failure: Cannot find witness`. That is a
+  proof obligation, not bookkeeping, and was not guessed at. 3 of 28 files remain
+  unbuilt.
+- **Gate 29 does not prove any suspended check is still failing.** It guarantees no
+  suspension is undocumented. Running the suspended checks would mean rebuilding a
+  Coq tree per invocation.
+- **It does not classify a suspended step as check or infrastructure.** All 5 are
+  ratcheted; 2 are checks and 3 are an upload, a sync and a matrix generator, and
+  that distinction lives in the baseline as prose, not as code.
+- Measured with Rocq 9.2 on this host. Classes 1-5 fail on any version (missing
+  imports, wrong scopes, invalid syntax); the remaining proof failure has not been
+  checked against CI's Coq version.
+- **README's absence-swept count stays at 43**, not 44: the new step is exempt, so
+  it does not raise the swept count. Prop. 200's lesson, immediately.
+
+
 ## continue-on-error is a red check reported as success (Closes #2137)
 
 - Branch: `feat/wave-547/host-heapsort`

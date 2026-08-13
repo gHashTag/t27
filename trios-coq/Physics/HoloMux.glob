@@ -1,0 +1,65 @@
+DIGEST 8f862a5ebc17b49789dda35116841c6a
+FTriosCoq.Physics.HoloMux
+R401:417 Stdlib.micromega.Lia <> <> lib
+R435:451 Stdlib.ZArith.ZArith <> <> lib
+def 760:778 <> op_holo_mux_x4_byte
+R782:784 Corelib.Init.Datatypes <> nat ind
+def 907:923 <> op_subth_clk_byte
+R929:931 Corelib.Init.Datatypes <> nat ind
+def 1048:1065 <> op_avs_reconf_byte
+R1070:1072 Corelib.Init.Datatypes <> nat ind
+def 1171:1185 <> op_lut_npu_byte
+R1193:1195 Corelib.Init.Datatypes <> nat ind
+def 1301:1311 <> op_tom_byte
+R1323:1325 Corelib.Init.Datatypes <> nat ind
+def 1443:1455 <> op_tenet_byte
+R1465:1467 Corelib.Init.Datatypes <> nat ind
+def 1757:1775 <> holo_mux_throughput
+R1782:1784 Corelib.Init.Datatypes <> nat ind
+binder 1778:1778 <> n:1
+R1789:1791 Corelib.Init.Datatypes <> nat ind
+R1797:1799 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R1800:1800 TriosCoq.Physics.HoloMux <> n:1 var
+def 1814:1831 <> lut_npu_throughput
+R1839:1841 Corelib.Init.Datatypes <> nat ind
+binder 1835:1835 <> n:2
+R1846:1848 Corelib.Init.Datatypes <> nat ind
+R1853:1853 TriosCoq.Physics.HoloMux <> n:2 var
+prf 2072:2102 <> holo_mux_op_distinct_from_subth
+R2127:2130 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2108:2126 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2131:2147 TriosCoq.Physics.HoloMux <> op_subth_clk_byte def
+R2164:2182 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2185:2201 TriosCoq.Physics.HoloMux <> op_subth_clk_byte def
+prf 2251:2286 <> holo_mux_op_distinct_from_avs_reconf
+R2311:2314 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2292:2310 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2315:2332 TriosCoq.Physics.HoloMux <> op_avs_reconf_byte def
+R2349:2367 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2370:2387 TriosCoq.Physics.HoloMux <> op_avs_reconf_byte def
+prf 2437:2469 <> holo_mux_op_distinct_from_lut_npu
+R2494:2497 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2475:2493 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2498:2512 TriosCoq.Physics.HoloMux <> op_lut_npu_byte def
+R2529:2547 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2550:2564 TriosCoq.Physics.HoloMux <> op_lut_npu_byte def
+prf 2614:2642 <> holo_mux_op_distinct_from_tom
+R2667:2670 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2648:2666 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2671:2681 TriosCoq.Physics.HoloMux <> op_tom_byte def
+R2698:2716 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2719:2729 TriosCoq.Physics.HoloMux <> op_tom_byte def
+prf 2779:2809 <> holo_mux_op_distinct_from_tenet
+R2834:2837 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2815:2833 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2838:2850 TriosCoq.Physics.HoloMux <> op_tenet_byte def
+R2867:2885 TriosCoq.Physics.HoloMux <> op_holo_mux_x4_byte def
+R2888:2900 TriosCoq.Physics.HoloMux <> op_tenet_byte def
+prf 3094:3124 <> holo_mux_throughput_4x_per_addr
+binder 3137:3137 <> n:3
+R3161:3163 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3140:3158 TriosCoq.Physics.HoloMux <> holo_mux_throughput def
+R3160:3160 TriosCoq.Physics.HoloMux <> n:3 var
+R3165:3167 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R3168:3185 TriosCoq.Physics.HoloMux <> lut_npu_throughput def
+R3187:3187 TriosCoq.Physics.HoloMux <> n:3 var

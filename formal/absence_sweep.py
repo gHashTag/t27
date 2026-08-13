@@ -42,6 +42,11 @@ EXEMPT = {
     # build/rtl -- and each absence case below was MEASURED by copying the
     # script alone into an empty tree and running it, not asserted.
 
+    "Suspension scan — a suspended check must name what would end it":
+        "its subject is .github/workflows, not build/rtl -- starving the RTL "
+        "cannot make it fail. Absence case measured: alone in an empty tree it "
+        "exits 1 naming the missing workflows directory (Prop. 202).",
+
     "Delimiter balance scan — a spec whose delimiters cannot close":
         "its subject is specs/, not build/rtl -- starving the RTL cannot make "
         "it fail. Absence case measured: alone in an empty tree it exits 1 "

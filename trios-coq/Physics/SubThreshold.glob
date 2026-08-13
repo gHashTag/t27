@@ -1,0 +1,172 @@
+DIGEST e21f9e86055b47cba96d6dddd49a7639
+FTriosCoq.Physics.SubThreshold
+R776:780 Stdlib.Reals.Reals <> <> lib
+R798:800 Stdlib.micromega.Lia <> <> lib
+R818:820 Stdlib.micromega.Lra <> <> lib
+ax 1066:1073 <> V_thresh
+R1077:1077 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 1090:1092 <> phi
+R1101:1101 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 1188:1192 <> f_max
+R1200:1203 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R1199:1199 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1204:1204 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 1301:1319 <> tops_per_watt_subth
+R1324:1327 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R1323:1323 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1328:1328 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 1432:1454 <> op_subth_clk_star_count
+R1458:1460 Corelib.Init.Datatypes <> nat ind
+def 1617:1633 <> op_subth_clk_byte
+R1637:1639 Corelib.Init.Datatypes <> nat ind
+def 1673:1690 <> op_avs_reconf_byte
+R1694:1696 Corelib.Init.Datatypes <> nat ind
+ax 1826:1850 <> lut_npu_chain_sound_subth
+ax 1870:1890 <> avs_chain_sound_subth
+ax 2000:2014 <> body_bias_modes
+R2018:2020 Corelib.Init.Datatypes <> nat ind
+ax 2097:2108 <> strand_count
+R2112:2114 Corelib.Init.Datatypes <> nat ind
+ax 2211:2237 <> body_bias_strands_bijective
+ax 2376:2386 <> v_thresh_lo
+R2398:2401 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R2390:2397 TriosCoq.Physics.SubThreshold <> V_thresh defax
+ax 2414:2424 <> v_thresh_hi
+R2436:2439 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R2428:2435 TriosCoq.Physics.SubThreshold <> V_thresh defax
+ax 2512:2520 <> phi_sq_lo
+R2533:2535 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>'_x not
+R2527:2529 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2524:2526 TriosCoq.Physics.SubThreshold <> phi defax
+R2530:2532 TriosCoq.Physics.SubThreshold <> phi defax
+ax 2545:2553 <> phi_sq_hi
+R2566:2569 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R2560:2562 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2557:2559 TriosCoq.Physics.SubThreshold <> phi defax
+R2563:2565 TriosCoq.Physics.SubThreshold <> phi defax
+ax 2711:2727 <> v_thresh_phi_inv2
+R2755:2757 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2741:2744 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2754:2754 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2733:2740 TriosCoq.Physics.SubThreshold <> V_thresh defax
+R2748:2750 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2745:2747 TriosCoq.Physics.SubThreshold <> phi defax
+R2751:2753 TriosCoq.Physics.SubThreshold <> phi defax
+ax 2928:2937 <> f_max_mono
+R2956:2956 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 2948:2949 <> v1:31
+binder 2951:2952 <> v2:32
+R2967:2970 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2961:2964 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R2959:2960 TriosCoq.Physics.SubThreshold <> v1:31 var
+R2965:2966 TriosCoq.Physics.SubThreshold <> v2:32 var
+R2979:2982 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R2971:2975 TriosCoq.Physics.SubThreshold <> f_max defax
+R2977:2978 TriosCoq.Physics.SubThreshold <> v1:31 var
+R2983:2987 TriosCoq.Physics.SubThreshold <> f_max defax
+R2989:2990 TriosCoq.Physics.SubThreshold <> v2:32 var
+ax 2999:3015 <> f_max_derating_2x
+R3035:3038 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R3031:3033 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3021:3025 TriosCoq.Physics.SubThreshold <> f_max defax
+R3039:3043 TriosCoq.Physics.SubThreshold <> f_max defax
+ax 3132:3147 <> tops_subth_floor
+R3177:3180 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R3153:3171 TriosCoq.Physics.SubThreshold <> tops_per_watt_subth defax
+ax 3240:3255 <> op_subth_no_star
+R3284:3286 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3261:3283 TriosCoq.Physics.SubThreshold <> op_subth_clk_star_count defax
+ax 3364:3382 <> lut_npu_chain_holds
+R3386:3410 TriosCoq.Physics.SubThreshold <> lut_npu_chain_sound_subth defax
+ax 3419:3433 <> avs_chain_holds
+R3441:3461 TriosCoq.Physics.SubThreshold <> avs_chain_sound_subth defax
+ax 3542:3558 <> body_bias_modes_3
+R3577:3579 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3562:3576 TriosCoq.Physics.SubThreshold <> body_bias_modes defax
+ax 3593:3606 <> strand_count_3
+R3625:3627 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3613:3624 TriosCoq.Physics.SubThreshold <> strand_count defax
+ax 3641:3665 <> body_bias_bijective_holds
+R3669:3695 TriosCoq.Physics.SubThreshold <> body_bias_strands_bijective defax
+prf 3907:3937 <> subth_quadratic_dynamic_savings
+R3972:3974 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3943:3943 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3955:3959 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3971:3971 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R3948:3950 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R3964:3966 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R3976:3978 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+prf 4072:4099 <> subth_freq_derating_factor_2
+R4119:4122 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R4115:4117 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4105:4109 TriosCoq.Physics.SubThreshold <> f_max defax
+R4123:4127 TriosCoq.Physics.SubThreshold <> f_max defax
+R4150:4166 TriosCoq.Physics.SubThreshold <> f_max_derating_2x prfax
+prf 4222:4237 <> subth_tops_w_350
+R4267:4270 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R4243:4261 TriosCoq.Physics.SubThreshold <> tops_per_watt_subth defax
+R4291:4306 TriosCoq.Physics.SubThreshold <> tops_subth_floor prfax
+prf 4379:4399 <> subth_trinity_voltage
+R4427:4429 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4413:4416 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4426:4426 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4405:4412 TriosCoq.Physics.SubThreshold <> V_thresh defax
+R4420:4422 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4417:4419 TriosCoq.Physics.SubThreshold <> phi defax
+R4423:4425 TriosCoq.Physics.SubThreshold <> phi defax
+R4451:4467 TriosCoq.Physics.SubThreshold <> v_thresh_phi_inv2 prfax
+prf 4528:4546 <> subth_pe_count_1296
+R4572:4575 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4560:4562 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4555:4557 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R4580:4582 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4578:4578 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'^'_x not
+prf 4682:4694 <> subth_no_star
+R4723:4725 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4700:4722 TriosCoq.Physics.SubThreshold <> op_subth_clk_star_count defax
+R4748:4763 TriosCoq.Physics.SubThreshold <> op_subth_no_star prfax
+prf 4837:4859 <> subth_opcode_byte_eq_E5
+R4882:4884 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4865:4881 TriosCoq.Physics.SubThreshold <> op_subth_clk_byte def
+prf 5009:5034 <> subth_op_distinct_from_avs
+R5057:5060 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5040:5056 TriosCoq.Physics.SubThreshold <> op_subth_clk_byte def
+R5061:5078 TriosCoq.Physics.SubThreshold <> op_avs_reconf_byte def
+R5097:5113 TriosCoq.Physics.SubThreshold <> op_subth_clk_byte def
+R5116:5133 TriosCoq.Physics.SubThreshold <> op_avs_reconf_byte def
+prf 5239:5260 <> subth_chain_to_lut_npu
+R5291:5294 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5266:5290 TriosCoq.Physics.SubThreshold <> lut_npu_chain_sound_subth defax
+R5295:5315 TriosCoq.Physics.SubThreshold <> avs_chain_sound_subth defax
+R5344:5362 TriosCoq.Physics.SubThreshold <> lut_npu_chain_holds prfax
+R5375:5389 TriosCoq.Physics.SubThreshold <> avs_chain_holds prfax
+prf 5478:5501 <> subth_three_freq_trinity
+R5849:5852 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5839:5841 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5810:5816 Stdlib.Arith.PeanoNat Nat gcd def
+R5823:5829 Stdlib.Arith.PeanoNat Nat gcd def
+R5880:5883 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5869:5871 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5863:5865 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R5857:5859 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R5889:5891 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5887:5887 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'^'_x not
+prf 6018:6049 <> subth_body_bias_strand_alignment
+R6085:6088 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6070:6072 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6055:6069 TriosCoq.Physics.SubThreshold <> body_bias_modes defax
+R6073:6084 TriosCoq.Physics.SubThreshold <> strand_count defax
+R6089:6115 TriosCoq.Physics.SubThreshold <> body_bias_strands_bijective defax
+R6146:6162 TriosCoq.Physics.SubThreshold <> body_bias_modes_3 prfax
+R6165:6178 TriosCoq.Physics.SubThreshold <> strand_count_3 prfax
+R6204:6228 TriosCoq.Physics.SubThreshold <> body_bias_bijective_holds prfax
+prf 6329:6348 <> subth_w104_c_witness
+R6385:6390 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6378:6381 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R6354:6372 TriosCoq.Physics.SubThreshold <> tops_per_watt_subth defax
+R6416:6421 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6391:6415 TriosCoq.Physics.SubThreshold <> lut_npu_chain_sound_subth defax
+R6422:6442 TriosCoq.Physics.SubThreshold <> avs_chain_sound_subth defax
+R6478:6493 TriosCoq.Physics.SubThreshold <> tops_subth_floor prfax
+R6506:6524 TriosCoq.Physics.SubThreshold <> lut_npu_chain_holds prfax
+R6537:6551 TriosCoq.Physics.SubThreshold <> avs_chain_holds prfax

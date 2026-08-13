@@ -1,0 +1,173 @@
+DIGEST 6e39e8edb66806e11d6172d0dc945cfb
+FTriosCoq.Physics.AvsStacking
+R295:299 Stdlib.Reals.Reals <> <> lib
+R317:319 Stdlib.micromega.Lia <> <> lib
+R337:339 Stdlib.micromega.Lra <> <> lib
+ax 697:708 <> ir_drop_loss
+R715:718 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R712:714 Corelib.Init.Datatypes <> nat ind
+R720:723 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R719:719 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R725:728 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R724:724 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R729:729 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 815:828 <> efficiency_avs
+R835:838 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R832:834 Corelib.Init.Datatypes <> nat ind
+R839:839 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 985:997 <> tops_per_watt
+R1002:1005 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R1001:1001 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R1006:1006 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+ax 1104:1122 <> uses_multiplier_avs
+R1126:1129 Corelib.Init.Datatypes <> bool ind
+ax 1207:1225 <> lut_npu_chain_sound
+ax 1464:1491 <> isscc_pi_2024_measured_bound
+R1514:1517 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R1497:1510 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+ax 1613:1629 <> avs_no_mult_axiom
+R1654:1656 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1635:1653 TriosCoq.Physics.AvsStacking <> uses_multiplier_avs defax
+R1657:1661 Corelib.Init.Datatypes <> false constr
+ax 1780:1798 <> tops_per_watt_floor
+R1822:1825 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R1804:1816 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+ax 1838:1855 <> tops_per_watt_mono
+R1878:1878 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 1868:1870 <> η1:17
+binder 1872:1874 <> η2:18
+R1891:1894 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R1884:1887 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R1881:1883 TriosCoq.Physics.AvsStacking <> η1:17 var
+R1888:1890 TriosCoq.Physics.AvsStacking <> η2:18 var
+R1912:1915 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R1895:1907 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R1909:1911 TriosCoq.Physics.AvsStacking <> η1:17 var
+R1916:1928 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R1930:1932 TriosCoq.Physics.AvsStacking <> η2:18 var
+ax 2072:2086 <> ir_drop_scaling
+R2104:2106 Corelib.Init.Datatypes <> nat ind
+binder 2100:2100 <> N:21
+R2122:2122 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 2110:2112 <> Vdd:22
+binder 2114:2118 <> Iload:23
+R2141:2148 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2132:2134 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R2131:2131 TriosCoq.Physics.AvsStacking <> N:21 var
+R2173:2181 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2149:2160 TriosCoq.Physics.AvsStacking <> ir_drop_loss defax
+R2162:2162 TriosCoq.Physics.AvsStacking <> N:21 var
+R2164:2166 TriosCoq.Physics.AvsStacking <> Vdd:22 var
+R2168:2172 TriosCoq.Physics.AvsStacking <> Iload:23 var
+R2210:2213 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2227:2227 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2182:2193 TriosCoq.Physics.AvsStacking <> ir_drop_loss defax
+R2201:2203 TriosCoq.Physics.AvsStacking <> Vdd:22 var
+R2205:2209 TriosCoq.Physics.AvsStacking <> Iload:23 var
+R2219:2221 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2214:2216 Stdlib.Reals.Raxioms <> INR def
+R2218:2218 TriosCoq.Physics.AvsStacking <> N:21 var
+R2222:2224 Stdlib.Reals.Raxioms <> INR def
+R2226:2226 TriosCoq.Physics.AvsStacking <> N:21 var
+ax 2291:2312 <> lut_npu_chain_sound_ax
+R2316:2334 TriosCoq.Physics.AvsStacking <> lut_npu_chain_sound defax
+ax 2482:2504 <> avs_lut_npu_joint_bound
+R2533:2533 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 2517:2522 <> η_avs:28
+binder 2524:2529 <> η_lut:29
+R2554:2561 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2546:2549 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R2540:2545 TriosCoq.Physics.AvsStacking <> η_avs:28 var
+R2576:2583 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2568:2571 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R2562:2567 TriosCoq.Physics.AvsStacking <> η_lut:29 var
+R2639:2646 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2615:2618 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R2584:2596 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R2605:2607 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2599:2604 TriosCoq.Physics.AvsStacking <> η_avs:28 var
+R2608:2613 TriosCoq.Physics.AvsStacking <> η_lut:29 var
+R2619:2631 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R2633:2638 TriosCoq.Physics.AvsStacking <> η_avs:28 var
+R2667:2670 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R2647:2659 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R2661:2666 TriosCoq.Physics.AvsStacking <> η_avs:28 var
+R2671:2683 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+prf 2757:2785 <> avs_ir_drop_quadratic_savings
+R2803:2805 Corelib.Init.Datatypes <> nat ind
+binder 2799:2799 <> N:32
+R2821:2821 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 2809:2811 <> Vdd:33
+binder 2813:2817 <> Iload:34
+R2840:2847 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2831:2833 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R2830:2830 TriosCoq.Physics.AvsStacking <> N:32 var
+R2872:2880 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2848:2859 TriosCoq.Physics.AvsStacking <> ir_drop_loss defax
+R2861:2861 TriosCoq.Physics.AvsStacking <> N:32 var
+R2863:2865 TriosCoq.Physics.AvsStacking <> Vdd:33 var
+R2867:2871 TriosCoq.Physics.AvsStacking <> Iload:34 var
+R2909:2912 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2926:2926 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R2881:2892 TriosCoq.Physics.AvsStacking <> ir_drop_loss defax
+R2900:2902 TriosCoq.Physics.AvsStacking <> Vdd:33 var
+R2904:2908 TriosCoq.Physics.AvsStacking <> Iload:34 var
+R2918:2920 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R2913:2915 Stdlib.Reals.Raxioms <> INR def
+R2917:2917 TriosCoq.Physics.AvsStacking <> N:32 var
+R2921:2923 Stdlib.Reals.Raxioms <> INR def
+R2925:2925 TriosCoq.Physics.AvsStacking <> N:32 var
+R2969:2983 TriosCoq.Physics.AvsStacking <> ir_drop_scaling prfax
+prf 3209:3235 <> avs_island_count_48_optimum
+R3258:3261 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3244:3246 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3248:3250 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R3280:3283 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3271:3273 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3265:3269 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R3294:3296 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3287:3291 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+prf 3432:3457 <> avs_efficiency_lower_bound
+R3480:3483 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R3463:3476 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+R3505:3532 TriosCoq.Physics.AvsStacking <> isscc_pi_2024_measured_bound prfax
+prf 3610:3633 <> avs_trinity_divisibility
+R3648:3650 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3642:3646 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+prf 3864:3883 <> avs_sacred_alignment
+R3892:3894 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3897:3899 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+prf 4009:4031 <> avs_no_multiplier_synth
+R4056:4058 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4037:4055 TriosCoq.Physics.AvsStacking <> uses_multiplier_avs defax
+R4059:4063 Corelib.Init.Datatypes <> false constr
+R4081:4097 TriosCoq.Physics.AvsStacking <> avs_no_mult_axiom prfax
+prf 4345:4364 <> avs_chain_to_lut_npu
+R4389:4394 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4370:4388 TriosCoq.Physics.AvsStacking <> lut_npu_chain_sound defax
+R4422:4427 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4414:4416 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4395:4413 TriosCoq.Physics.AvsStacking <> uses_multiplier_avs defax
+R4417:4421 Corelib.Init.Datatypes <> false constr
+R4445:4448 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R4428:4441 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+R4481:4502 TriosCoq.Physics.AvsStacking <> lut_npu_chain_sound_ax prfax
+R4528:4544 TriosCoq.Physics.AvsStacking <> avs_no_mult_axiom prfax
+R4559:4586 TriosCoq.Physics.AvsStacking <> isscc_pi_2024_measured_bound prfax
+prf 4884:4901 <> avs_w104_b_witness
+R4932:4937 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R4924:4927 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R4907:4920 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+R4971:4974 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R4938:4950 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R4953:4966 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+R5009:5014 Stdlib.Reals.RIneq <> Rle_ge thm
+R5025:5030 Stdlib.Reals.RIneq <> Rge_le thm
+R5077:5080 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<='_x not
+R5059:5071 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R5081:5093 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R5096:5109 TriosCoq.Physics.AvsStacking <> efficiency_avs defax
+R5127:5144 TriosCoq.Physics.AvsStacking <> tops_per_watt_mono prfax
+R5441:5444 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'>='_x not
+R5423:5435 TriosCoq.Physics.AvsStacking <> tops_per_watt defax
+R5459:5477 TriosCoq.Physics.AvsStacking <> tops_per_watt_floor prfax

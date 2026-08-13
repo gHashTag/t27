@@ -1,0 +1,377 @@
+DIGEST 7f6098d62e3fdd86391a936d0c35be46
+FTriosCoq.Physics.WLBoost
+R1052:1068 Stdlib.ZArith.ZArith <> <> lib
+R1086:1102 Stdlib.micromega.Lia <> <> lib
+def 1343:1353 <> OP_WL_BOOST
+def 1480:1485 <> OP_FBB
+def 1537:1550 <> OP_SPARSE_MASK
+def 1611:1623 <> OP_DROWSY_RET
+def 1668:1679 <> OP_SPEC_EXIT
+def 1741:1750 <> OP_NULL_PE
+def 1814:1827 <> OP_STOCH_ROUND
+def 1871:1884 <> OP_SPARSE_SKIP
+def 1928:1938 <> OP_DFS_GATE
+def 1985:1998 <> OP_HOLO_MUX_X4
+def 2044:2055 <> OP_SUBTH_CLK
+def 2101:2113 <> OP_AVS_RECONF
+def 2158:2167 <> OP_LUT_NPU
+def 2215:2220 <> OP_TOM
+def 2272:2279 <> OP_TENET
+prf 2625:2648 <> wlb_op_distinct_from_fbb
+R2671:2674 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2660:2670 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2675:2680 TriosCoq.Physics.WLBoost <> OP_FBB def
+R2697:2707 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2710:2715 TriosCoq.Physics.WLBoost <> OP_FBB def
+prf 2735:2766 <> wlb_op_distinct_from_sparse_mask
+R2781:2784 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2770:2780 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2785:2798 TriosCoq.Physics.WLBoost <> OP_SPARSE_MASK def
+R2815:2825 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2828:2841 TriosCoq.Physics.WLBoost <> OP_SPARSE_MASK def
+prf 2861:2891 <> wlb_op_distinct_from_drowsy_ret
+R2907:2910 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2896:2906 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2911:2923 TriosCoq.Physics.WLBoost <> OP_DROWSY_RET def
+R2940:2950 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R2953:2965 TriosCoq.Physics.WLBoost <> OP_DROWSY_RET def
+prf 2985:3014 <> wlb_op_distinct_from_spec_exit
+R3031:3034 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3020:3030 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3035:3046 TriosCoq.Physics.WLBoost <> OP_SPEC_EXIT def
+R3063:3073 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3076:3087 TriosCoq.Physics.WLBoost <> OP_SPEC_EXIT def
+prf 3107:3134 <> wlb_op_distinct_from_null_pe
+R3153:3156 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3142:3152 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3157:3166 TriosCoq.Physics.WLBoost <> OP_NULL_PE def
+R3183:3193 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3196:3205 TriosCoq.Physics.WLBoost <> OP_NULL_PE def
+prf 3225:3256 <> wlb_op_distinct_from_stoch_round
+R3271:3274 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3260:3270 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3275:3288 TriosCoq.Physics.WLBoost <> OP_STOCH_ROUND def
+R3305:3315 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3318:3331 TriosCoq.Physics.WLBoost <> OP_STOCH_ROUND def
+prf 3351:3382 <> wlb_op_distinct_from_sparse_skip
+R3397:3400 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3386:3396 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3401:3414 TriosCoq.Physics.WLBoost <> OP_SPARSE_SKIP def
+R3431:3441 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3444:3457 TriosCoq.Physics.WLBoost <> OP_SPARSE_SKIP def
+prf 3477:3505 <> wlb_op_distinct_from_dfs_gate
+R3523:3526 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3512:3522 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3527:3537 TriosCoq.Physics.WLBoost <> OP_DFS_GATE def
+R3554:3564 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3567:3577 TriosCoq.Physics.WLBoost <> OP_DFS_GATE def
+prf 3597:3625 <> wlb_op_distinct_from_holo_mux
+R3643:3646 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3632:3642 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3647:3660 TriosCoq.Physics.WLBoost <> OP_HOLO_MUX_X4 def
+R3677:3687 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3690:3703 TriosCoq.Physics.WLBoost <> OP_HOLO_MUX_X4 def
+prf 3723:3748 <> wlb_op_distinct_from_subth
+R3769:3772 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3758:3768 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3773:3784 TriosCoq.Physics.WLBoost <> OP_SUBTH_CLK def
+R3801:3811 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3814:3825 TriosCoq.Physics.WLBoost <> OP_SUBTH_CLK def
+prf 3845:3875 <> wlb_op_distinct_from_avs_reconf
+R3891:3894 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3880:3890 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3895:3907 TriosCoq.Physics.WLBoost <> OP_AVS_RECONF def
+R3924:3934 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R3937:3949 TriosCoq.Physics.WLBoost <> OP_AVS_RECONF def
+prf 3969:3996 <> wlb_op_distinct_from_lut_npu
+R4015:4018 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4004:4014 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4019:4028 TriosCoq.Physics.WLBoost <> OP_LUT_NPU def
+R4045:4055 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4058:4067 TriosCoq.Physics.WLBoost <> OP_LUT_NPU def
+prf 4087:4110 <> wlb_op_distinct_from_tom
+R4133:4136 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4122:4132 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4137:4142 TriosCoq.Physics.WLBoost <> OP_TOM def
+R4159:4169 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4172:4177 TriosCoq.Physics.WLBoost <> OP_TOM def
+prf 4197:4222 <> wlb_op_distinct_from_tenet
+R4243:4246 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4232:4242 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4247:4254 TriosCoq.Physics.WLBoost <> OP_TENET def
+R4271:4281 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R4284:4291 TriosCoq.Physics.WLBoost <> OP_TENET def
+def 5022:5031 <> GAMMA2_BPS
+R5042:5042 Corelib.Numbers.BinNums <> Z ind
+def 5094:5107 <> GAMMA2_TOL_BPS
+R5114:5114 Corelib.Numbers.BinNums <> Z ind
+def 5174:5189 <> GAMMA2_EXACT_BPS
+R5194:5194 Corelib.Numbers.BinNums <> Z ind
+def 5328:5334 <> V_DD_mV
+R5348:5348 Corelib.Numbers.BinNums <> Z ind
+def 5587:5593 <> V_WL_mV
+R5607:5607 Corelib.Numbers.BinNums <> Z ind
+def 5811:5821 <> V_DD_NEW_mV
+R5831:5831 Corelib.Numbers.BinNums <> Z ind
+def 5952:5962 <> V_WL_MAX_mV
+R5972:5972 Corelib.Numbers.BinNums <> Z ind
+def 6087:6101 <> V_DD_NEW_MIN_mV
+R6107:6107 Corelib.Numbers.BinNums <> Z ind
+def 6281:6294 <> READ_MARGIN_mV
+R6301:6301 Corelib.Numbers.BinNums <> Z ind
+def 6349:6366 <> READ_MARGIN_MIN_mV
+R6369:6369 Corelib.Numbers.BinNums <> Z ind
+def 6432:6449 <> READ_MARGIN_MAX_mV
+R6452:6452 Corelib.Numbers.BinNums <> Z ind
+def 6598:6614 <> GAMMA_BODY_LO_Q15
+R6618:6618 Corelib.Numbers.BinNums <> Z ind
+def 6665:6681 <> GAMMA_BODY_HI_Q15
+R6685:6685 Corelib.Numbers.BinNums <> Z ind
+def 6732:6749 <> GAMMA_BODY_TYP_Q15
+R6752:6752 Corelib.Numbers.BinNums <> Z ind
+def 6957:6969 <> P_SAVE_LO_BPS
+R6977:6977 Corelib.Numbers.BinNums <> Z ind
+def 7015:7027 <> P_SAVE_HI_BPS
+R7035:7035 Corelib.Numbers.BinNums <> Z ind
+def 7073:7086 <> P_SAVE_OBS_BPS
+R7093:7093 Corelib.Numbers.BinNums <> Z ind
+def 7276:7294 <> WL_DRV_OVERHEAD_BPS
+R7301:7301 Corelib.Numbers.BinNums <> Z ind
+def 7333:7355 <> WL_DRV_OVERHEAD_MAX_BPS
+R7358:7358 Corelib.Numbers.BinNums <> Z ind
+def 7407:7421 <> NET_BENEFIT_BPS
+R7432:7432 Corelib.Numbers.BinNums <> Z ind
+def 7517:7530 <> TOPS_W_W44_PRE
+R7541:7541 Corelib.Numbers.BinNums <> Z ind
+def 7591:7605 <> TOPS_W_W45_POST
+R7615:7615 Corelib.Numbers.BinNums <> Z ind
+prf 7853:7873 <> wlb_voltage_below_max
+R7884:7887 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R7877:7883 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R7888:7898 TriosCoq.Physics.WLBoost <> V_WL_MAX_mV def
+R7915:7921 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R7924:7934 TriosCoq.Physics.WLBoost <> V_WL_MAX_mV def
+prf 7954:7974 <> wlb_voltage_above_vdd
+R7985:7988 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R7978:7984 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R7989:7995 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R8012:8018 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R8021:8027 TriosCoq.Physics.WLBoost <> V_DD_mV def
+prf 8047:8063 <> vdd_new_above_min
+R8078:8081 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R8067:8077 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8082:8096 TriosCoq.Physics.WLBoost <> V_DD_NEW_MIN_mV def
+R8113:8123 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8126:8140 TriosCoq.Physics.WLBoost <> V_DD_NEW_MIN_mV def
+prf 8160:8176 <> vdd_new_below_vdd
+R8191:8194 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8180:8190 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8195:8201 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R8218:8228 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8231:8237 TriosCoq.Physics.WLBoost <> V_DD_mV def
+prf 8257:8277 <> wlb_voltage_pair_safe
+R8313:8318 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8298:8301 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8283:8297 TriosCoq.Physics.WLBoost <> V_DD_NEW_MIN_mV def
+R8302:8312 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8341:8346 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8330:8333 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8319:8329 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8334:8340 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R8365:8370 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8354:8357 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8347:8353 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R8358:8364 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R8378:8381 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8371:8377 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R8382:8392 TriosCoq.Physics.WLBoost <> V_WL_MAX_mV def
+R8411:8425 TriosCoq.Physics.WLBoost <> V_DD_NEW_MIN_mV def
+R8428:8438 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R8441:8447 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R8450:8456 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R8459:8469 TriosCoq.Physics.WLBoost <> V_WL_MAX_mV def
+prf 8718:8733 <> wlb_gamma2_match
+R8776:8779 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8739:8743 Stdlib.ZArith.BinInt Z abs def
+R8756:8758 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R8746:8755 TriosCoq.Physics.WLBoost <> GAMMA2_BPS def
+R8759:8774 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+R8780:8793 TriosCoq.Physics.WLBoost <> GAMMA2_TOL_BPS def
+R8812:8821 TriosCoq.Physics.WLBoost <> GAMMA2_BPS def
+R8824:8839 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+R8842:8855 TriosCoq.Physics.WLBoost <> GAMMA2_TOL_BPS def
+prf 9009:9046 <> wlb_gamma2_relative_drift_half_percent
+R9095:9098 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9055:9057 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R9058:9062 Stdlib.ZArith.BinInt Z abs def
+R9075:9077 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R9065:9074 TriosCoq.Physics.WLBoost <> GAMMA2_BPS def
+R9078:9093 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+R9099:9114 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+R9133:9142 TriosCoq.Physics.WLBoost <> GAMMA2_BPS def
+R9145:9160 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+prf 9478:9498 <> wlb_read_margin_value
+R9525:9527 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9511:9513 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R9504:9510 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R9514:9524 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R9528:9541 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R9560:9566 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R9569:9579 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R9582:9595 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+prf 9615:9637 <> wlb_read_margin_in_band
+R9679:9684 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9661:9664 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9643:9660 TriosCoq.Physics.WLBoost <> READ_MARGIN_MIN_mV def
+R9665:9678 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R9699:9702 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9685:9698 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R9703:9720 TriosCoq.Physics.WLBoost <> READ_MARGIN_MAX_mV def
+R9739:9756 TriosCoq.Physics.WLBoost <> READ_MARGIN_MIN_mV def
+R9759:9772 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R9775:9792 TriosCoq.Physics.WLBoost <> READ_MARGIN_MAX_mV def
+prf 9812:9844 <> wlb_read_margin_strictly_positive
+R9857:9859 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R9850:9856 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R9860:9870 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R9887:9893 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R9896:9906 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+prf 10148:10176 <> wlb_body_coefficient_in_range
+R10221:10226 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10199:10202 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10182:10198 TriosCoq.Physics.WLBoost <> GAMMA_BODY_LO_Q15 def
+R10203:10220 TriosCoq.Physics.WLBoost <> GAMMA_BODY_TYP_Q15 def
+R10245:10248 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10227:10244 TriosCoq.Physics.WLBoost <> GAMMA_BODY_TYP_Q15 def
+R10249:10265 TriosCoq.Physics.WLBoost <> GAMMA_BODY_HI_Q15 def
+R10284:10300 TriosCoq.Physics.WLBoost <> GAMMA_BODY_LO_Q15 def
+R10303:10320 TriosCoq.Physics.WLBoost <> GAMMA_BODY_TYP_Q15 def
+R10323:10339 TriosCoq.Physics.WLBoost <> GAMMA_BODY_HI_Q15 def
+prf 10544:10571 <> wlb_power_saving_within_band
+R10608:10611 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10590:10593 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10577:10589 TriosCoq.Physics.WLBoost <> P_SAVE_LO_BPS def
+R10594:10607 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R10626:10629 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10612:10625 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R10630:10642 TriosCoq.Physics.WLBoost <> P_SAVE_HI_BPS def
+R10661:10673 TriosCoq.Physics.WLBoost <> P_SAVE_LO_BPS def
+R10676:10689 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R10692:10704 TriosCoq.Physics.WLBoost <> P_SAVE_HI_BPS def
+prf 10724:10757 <> wlb_power_saving_strictly_positive
+R10777:10779 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R10763:10776 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R10797:10810 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+prf 10830:10859 <> wlb_wl_driver_overhead_bounded
+R10884:10887 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10865:10883 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_BPS def
+R10888:10910 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_MAX_BPS def
+R10929:10947 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_BPS def
+R10950:10972 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_MAX_BPS def
+prf 10992:11015 <> wlb_net_benefit_positive
+R11036:11038 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11021:11035 TriosCoq.Physics.WLBoost <> NET_BENEFIT_BPS def
+R11056:11070 TriosCoq.Physics.WLBoost <> NET_BENEFIT_BPS def
+prf 11090:11118 <> wlb_net_benefit_at_least_7pct
+R11139:11142 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11124:11138 TriosCoq.Physics.WLBoost <> NET_BENEFIT_BPS def
+R11162:11176 TriosCoq.Physics.WLBoost <> NET_BENEFIT_BPS def
+prf 11373:11396 <> wlb_tops_w_lift_positive
+R11417:11419 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11402:11416 TriosCoq.Physics.WLBoost <> TOPS_W_W45_POST def
+R11420:11433 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+R11450:11464 TriosCoq.Physics.WLBoost <> TOPS_W_W45_POST def
+R11467:11480 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+prf 11500:11528 <> wlb_tops_w_lift_at_least_5pct
+R11574:11577 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11537:11540 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11573:11573 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11556:11558 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11541:11555 TriosCoq.Physics.WLBoost <> TOPS_W_W45_POST def
+R11559:11572 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+R11579:11581 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11582:11595 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+R11614:11628 TriosCoq.Physics.WLBoost <> TOPS_W_W45_POST def
+R11631:11644 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+prf 12092:12109 <> wl_boost_composite
+R12139:12144 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12129:12132 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R12118:12128 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R12133:12138 TriosCoq.Physics.WLBoost <> OP_FBB def
+R12174:12179 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12156:12159 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R12145:12155 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R12160:12173 TriosCoq.Physics.WLBoost <> OP_SPARSE_MASK def
+R12208:12213 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12191:12194 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R12180:12190 TriosCoq.Physics.WLBoost <> OP_WL_BOOST def
+R12195:12207 TriosCoq.Physics.WLBoost <> OP_DROWSY_RET def
+R12236:12241 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12221:12224 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12214:12220 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R12225:12235 TriosCoq.Physics.WLBoost <> V_WL_MAX_mV def
+R12260:12265 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12249:12252 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R12242:12248 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R12253:12259 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R12296:12301 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12277:12280 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R12266:12276 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R12281:12295 TriosCoq.Physics.WLBoost <> V_DD_NEW_MIN_mV def
+R12324:12329 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12313:12316 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12302:12312 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R12317:12323 TriosCoq.Physics.WLBoost <> V_DD_mV def
+R12385:12390 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12367:12370 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12330:12334 Stdlib.ZArith.BinInt Z abs def
+R12347:12349 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R12337:12346 TriosCoq.Physics.WLBoost <> GAMMA2_BPS def
+R12350:12365 TriosCoq.Physics.WLBoost <> GAMMA2_EXACT_BPS def
+R12371:12384 TriosCoq.Physics.WLBoost <> GAMMA2_TOL_BPS def
+R12429:12434 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12412:12414 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12398:12400 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R12391:12397 TriosCoq.Physics.WLBoost <> V_WL_mV def
+R12401:12411 TriosCoq.Physics.WLBoost <> V_DD_NEW_mV def
+R12415:12428 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R12471:12476 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12453:12456 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12435:12452 TriosCoq.Physics.WLBoost <> READ_MARGIN_MIN_mV def
+R12457:12470 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R12513:12518 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12491:12494 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12477:12490 TriosCoq.Physics.WLBoost <> READ_MARGIN_mV def
+R12495:12512 TriosCoq.Physics.WLBoost <> READ_MARGIN_MAX_mV def
+R12550:12555 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12532:12535 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12519:12531 TriosCoq.Physics.WLBoost <> P_SAVE_LO_BPS def
+R12536:12549 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R12587:12592 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12570:12573 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12556:12569 TriosCoq.Physics.WLBoost <> P_SAVE_OBS_BPS def
+R12574:12586 TriosCoq.Physics.WLBoost <> P_SAVE_HI_BPS def
+R12639:12644 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12612:12615 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12593:12611 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_BPS def
+R12616:12638 TriosCoq.Physics.WLBoost <> WL_DRV_OVERHEAD_MAX_BPS def
+R12664:12669 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12660:12662 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R12645:12659 TriosCoq.Physics.WLBoost <> NET_BENEFIT_BPS def
+R12685:12687 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R12670:12684 TriosCoq.Physics.WLBoost <> TOPS_W_W45_POST def
+R12688:12701 TriosCoq.Physics.WLBoost <> TOPS_W_W44_PRE def
+R12741:12764 TriosCoq.Physics.WLBoost <> wlb_op_distinct_from_fbb thm
+R12781:12812 TriosCoq.Physics.WLBoost <> wlb_op_distinct_from_sparse_mask thm
+R12829:12859 TriosCoq.Physics.WLBoost <> wlb_op_distinct_from_drowsy_ret thm
+R12876:12896 TriosCoq.Physics.WLBoost <> wlb_voltage_below_max thm
+R12913:12933 TriosCoq.Physics.WLBoost <> wlb_voltage_above_vdd thm
+R12950:12966 TriosCoq.Physics.WLBoost <> vdd_new_above_min thm
+R12983:12999 TriosCoq.Physics.WLBoost <> vdd_new_below_vdd thm
+R13016:13031 TriosCoq.Physics.WLBoost <> wlb_gamma2_match thm
+R13048:13068 TriosCoq.Physics.WLBoost <> wlb_read_margin_value thm
+R13086:13108 TriosCoq.Physics.WLBoost <> wlb_read_margin_in_band thm
+R13127:13154 TriosCoq.Physics.WLBoost <> wlb_power_saving_within_band thm
+R13172:13201 TriosCoq.Physics.WLBoost <> wlb_wl_driver_overhead_bounded thm
+R13218:13241 TriosCoq.Physics.WLBoost <> wlb_net_benefit_positive thm
+R13258:13281 TriosCoq.Physics.WLBoost <> wlb_tops_w_lift_positive thm

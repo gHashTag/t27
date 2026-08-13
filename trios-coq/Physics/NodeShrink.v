@@ -216,7 +216,10 @@ Qed.
 (** * Lemma 7: Iso-functionality
     sacred_isofunctional returns true for OP_NODE_SHRINK (239 ∈ [224, 239]). *)
 Definition sacred_isofunctional (op : nat) : bool :=
-  if (Nat.leb 224 op) && (Nat.leb op 239) then true else false.
+  (* Prop. 202: `&&` lives in bool_scope, which an open numeric scope displaces.
+     Annotating the boolean expression is a scope fix; the predicate is
+     unchanged. *)
+  if ((Nat.leb 224 op) && (Nat.leb op 239))%bool then true else false.
 
 Lemma node_shrink_isofunctional :
   sacred_isofunctional op_node_shrink_byte = true.

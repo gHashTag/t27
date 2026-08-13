@@ -1,0 +1,481 @@
+DIGEST 93cf7b8f5bcf916b235f36560d5a32e5
+FTriosCoq.Physics.AdiabRC
+R1215:1231 Stdlib.ZArith.ZArith <> <> lib
+R1249:1265 Stdlib.micromega.Lia <> <> lib
+def 1557:1567 <> OP_ADIAB_RC
+def 1694:1704 <> OP_WL_BOOST
+def 1751:1756 <> OP_FBB
+def 1808:1821 <> OP_SPARSE_MASK
+def 1868:1880 <> OP_DROWSY_RET
+def 1925:1936 <> OP_SPEC_EXIT
+def 1984:1993 <> OP_NULL_PE
+def 2041:2054 <> OP_STOCH_ROUND
+def 2098:2111 <> OP_SPARSE_SKIP
+def 2155:2165 <> OP_DFS_GATE
+def 2212:2225 <> OP_HOLO_MUX_X4
+def 2271:2282 <> OP_SUBTH_CLK
+def 2328:2340 <> OP_AVS_RECONF
+def 2385:2394 <> OP_LUT_NPU
+def 2442:2447 <> OP_TOM
+def 2499:2506 <> OP_TENET
+prf 2852:2882 <> adiab_op_distinct_from_wl_boost
+R2901:2904 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2890:2900 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R2905:2915 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+R2932:2942 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R2945:2955 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+prf 2975:3000 <> adiab_op_distinct_from_fbb
+R3024:3027 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3013:3023 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3028:3033 TriosCoq.Physics.AdiabRC <> OP_FBB def
+R3050:3060 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3063:3068 TriosCoq.Physics.AdiabRC <> OP_FBB def
+prf 3088:3121 <> adiab_op_distinct_from_sparse_mask
+R3137:3140 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3126:3136 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3141:3154 TriosCoq.Physics.AdiabRC <> OP_SPARSE_MASK def
+R3171:3181 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3184:3197 TriosCoq.Physics.AdiabRC <> OP_SPARSE_MASK def
+prf 3217:3249 <> adiab_op_distinct_from_drowsy_ret
+R3266:3269 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3255:3265 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3270:3282 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+R3299:3309 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3312:3324 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+prf 3344:3375 <> adiab_op_distinct_from_spec_exit
+R3393:3396 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3382:3392 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3397:3408 TriosCoq.Physics.AdiabRC <> OP_SPEC_EXIT def
+R3425:3435 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3438:3449 TriosCoq.Physics.AdiabRC <> OP_SPEC_EXIT def
+prf 3469:3498 <> adiab_op_distinct_from_null_pe
+R3518:3521 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3507:3517 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3522:3531 TriosCoq.Physics.AdiabRC <> OP_NULL_PE def
+R3548:3558 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3561:3570 TriosCoq.Physics.AdiabRC <> OP_NULL_PE def
+prf 3590:3623 <> adiab_op_distinct_from_stoch_round
+R3639:3642 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3628:3638 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3643:3656 TriosCoq.Physics.AdiabRC <> OP_STOCH_ROUND def
+R3673:3683 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3686:3699 TriosCoq.Physics.AdiabRC <> OP_STOCH_ROUND def
+prf 3719:3752 <> adiab_op_distinct_from_sparse_skip
+R3768:3771 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3757:3767 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3772:3785 TriosCoq.Physics.AdiabRC <> OP_SPARSE_SKIP def
+R3802:3812 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3815:3828 TriosCoq.Physics.AdiabRC <> OP_SPARSE_SKIP def
+prf 3848:3878 <> adiab_op_distinct_from_dfs_gate
+R3897:3900 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3886:3896 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3901:3911 TriosCoq.Physics.AdiabRC <> OP_DFS_GATE def
+R3928:3938 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R3941:3951 TriosCoq.Physics.AdiabRC <> OP_DFS_GATE def
+prf 3971:4001 <> adiab_op_distinct_from_holo_mux
+R4020:4023 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4009:4019 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4024:4037 TriosCoq.Physics.AdiabRC <> OP_HOLO_MUX_X4 def
+R4054:4064 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4067:4080 TriosCoq.Physics.AdiabRC <> OP_HOLO_MUX_X4 def
+prf 4100:4127 <> adiab_op_distinct_from_subth
+R4149:4152 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4138:4148 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4153:4164 TriosCoq.Physics.AdiabRC <> OP_SUBTH_CLK def
+R4181:4191 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4194:4205 TriosCoq.Physics.AdiabRC <> OP_SUBTH_CLK def
+prf 4225:4257 <> adiab_op_distinct_from_avs_reconf
+R4274:4277 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4263:4273 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4278:4290 TriosCoq.Physics.AdiabRC <> OP_AVS_RECONF def
+R4307:4317 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4320:4332 TriosCoq.Physics.AdiabRC <> OP_AVS_RECONF def
+prf 4352:4381 <> adiab_op_distinct_from_lut_npu
+R4401:4404 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4390:4400 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4405:4414 TriosCoq.Physics.AdiabRC <> OP_LUT_NPU def
+R4431:4441 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4444:4453 TriosCoq.Physics.AdiabRC <> OP_LUT_NPU def
+prf 4473:4498 <> adiab_op_distinct_from_tom
+R4522:4525 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4511:4521 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4526:4531 TriosCoq.Physics.AdiabRC <> OP_TOM def
+R4548:4558 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4561:4566 TriosCoq.Physics.AdiabRC <> OP_TOM def
+prf 4586:4613 <> adiab_op_distinct_from_tenet
+R4635:4638 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4624:4634 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4639:4646 TriosCoq.Physics.AdiabRC <> OP_TENET def
+R4663:4673 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4676:4683 TriosCoq.Physics.AdiabRC <> OP_TENET def
+prf 4760:4780 <> adiab_op_value_is_240
+R4795:4797 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4784:4794 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4817:4827 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+prf 4920:4939 <> adiab_op_is_bank_max
+R4960:4963 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4954:4956 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4943:4953 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4975:4978 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R4964:4974 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R4998:5008 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+def 5667:5673 <> ETA_BPS
+R5687:5687 Corelib.Numbers.BinNums <> Z ind
+def 5734:5744 <> ETA_TOL_BPS
+R5754:5754 Corelib.Numbers.BinNums <> Z ind
+def 5814:5826 <> ETA_EXACT_BPS
+R5834:5834 Corelib.Numbers.BinNums <> Z ind
+def 5968:5974 <> V_DD_mV
+R5988:5988 Corelib.Numbers.BinNums <> Z ind
+def 6338:6347 <> V_SWING_mV
+R6358:6358 Corelib.Numbers.BinNums <> Z ind
+def 6547:6560 <> V_SWING_MAX_mV
+R6567:6567 Corelib.Numbers.BinNums <> Z ind
+def 6675:6688 <> V_SWING_MIN_mV
+R6695:6695 Corelib.Numbers.BinNums <> Z ind
+def 6833:6843 <> E_RATIO_BPS
+R6853:6853 Corelib.Numbers.BinNums <> Z ind
+def 6875:6889 <> E_RATIO_MAX_BPS
+R6895:6895 Corelib.Numbers.BinNums <> Z ind
+def 6918:6932 <> E_RATIO_MIN_BPS
+R6938:6938 Corelib.Numbers.BinNums <> Z ind
+def 7094:7106 <> P_SAVE_LO_BPS
+R7114:7114 Corelib.Numbers.BinNums <> Z ind
+def 7163:7175 <> P_SAVE_HI_BPS
+R7183:7183 Corelib.Numbers.BinNums <> Z ind
+def 7232:7245 <> P_SAVE_OBS_BPS
+R7252:7252 Corelib.Numbers.BinNums <> Z ind
+def 7371:7386 <> CLK_OVERHEAD_BPS
+R7394:7394 Corelib.Numbers.BinNums <> Z ind
+def 7430:7449 <> CLK_OVERHEAD_MAX_BPS
+R7453:7453 Corelib.Numbers.BinNums <> Z ind
+def 7568:7579 <> NET_SAVE_BPS
+R7591:7591 Corelib.Numbers.BinNums <> Z ind
+def 7632:7647 <> NET_SAVE_MIN_BPS
+R7655:7655 Corelib.Numbers.BinNums <> Z ind
+def 7791:7805 <> TOPS_W_W45_POST
+R7815:7815 Corelib.Numbers.BinNums <> Z ind
+def 7865:7879 <> TOPS_W_W46_POST
+R7889:7889 Corelib.Numbers.BinNums <> Z ind
+def 8142:8152 <> F_RATIO_BPS
+R8166:8166 Corelib.Numbers.BinNums <> Z ind
+def 8212:8226 <> F_RATIO_TOL_BPS
+R8236:8236 Corelib.Numbers.BinNums <> Z ind
+def 8344:8357 <> GAMMA2_W45_BPS
+R8368:8368 Corelib.Numbers.BinNums <> Z ind
+prf 8578:8598 <> adiab_swing_below_max
+R8612:8615 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8602:8611 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8616:8629 TriosCoq.Physics.AdiabRC <> V_SWING_MAX_mV def
+R8646:8655 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8658:8671 TriosCoq.Physics.AdiabRC <> V_SWING_MAX_mV def
+prf 8691:8711 <> adiab_swing_above_min
+R8725:8728 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R8715:8724 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8729:8742 TriosCoq.Physics.AdiabRC <> V_SWING_MIN_mV def
+R8759:8768 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8771:8784 TriosCoq.Physics.AdiabRC <> V_SWING_MIN_mV def
+prf 8804:8824 <> adiab_swing_below_vdd
+R8838:8841 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8828:8837 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8842:8848 TriosCoq.Physics.AdiabRC <> V_DD_mV def
+R8865:8874 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8877:8883 TriosCoq.Physics.AdiabRC <> V_DD_mV def
+prf 8903:8921 <> adiab_swing_in_band
+R8955:8960 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8941:8944 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8927:8940 TriosCoq.Physics.AdiabRC <> V_SWING_MIN_mV def
+R8945:8954 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8989:8994 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8971:8974 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8961:8970 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R8975:8988 TriosCoq.Physics.AdiabRC <> V_SWING_MAX_mV def
+R9005:9008 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8995:9004 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R9009:9015 TriosCoq.Physics.AdiabRC <> V_DD_mV def
+R9034:9047 TriosCoq.Physics.AdiabRC <> V_SWING_MIN_mV def
+R9050:9059 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R9062:9075 TriosCoq.Physics.AdiabRC <> V_SWING_MAX_mV def
+R9078:9084 TriosCoq.Physics.AdiabRC <> V_DD_mV def
+prf 9325:9339 <> adiab_eta_match
+R9376:9379 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9345:9349 Stdlib.ZArith.BinInt Z abs def
+R9359:9361 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R9352:9358 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9362:9374 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+R9380:9390 TriosCoq.Physics.AdiabRC <> ETA_TOL_BPS def
+R9409:9415 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9418:9430 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+R9433:9443 TriosCoq.Physics.AdiabRC <> ETA_TOL_BPS def
+prf 9512:9534 <> adiab_eta_equals_gamma2
+R9545:9547 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9538:9544 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9548:9561 TriosCoq.Physics.AdiabRC <> GAMMA2_W45_BPS def
+R9578:9584 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9587:9600 TriosCoq.Physics.AdiabRC <> GAMMA2_W45_BPS def
+prf 9752:9788 <> adiab_eta_relative_drift_half_percent
+R9831:9834 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9797:9799 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R9800:9804 Stdlib.ZArith.BinInt Z abs def
+R9814:9816 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R9807:9813 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9817:9829 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+R9835:9847 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+R9866:9872 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R9875:9887 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+prf 10164:10187 <> adiab_energy_ratio_value
+R10214:10216 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10204:10206 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10193:10203 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10207:10213 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R10217:10231 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+R10250:10260 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10263:10269 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R10272:10286 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+prf 10306:10331 <> adiab_energy_ratio_in_band
+R10367:10372 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10352:10355 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10337:10351 TriosCoq.Physics.AdiabRC <> E_RATIO_MIN_BPS def
+R10356:10366 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10384:10387 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10373:10383 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10388:10402 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+R10421:10435 TriosCoq.Physics.AdiabRC <> E_RATIO_MIN_BPS def
+R10438:10448 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10451:10465 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+prf 10485:10524 <> adiab_energy_strictly_less_than_baseline
+R10541:10543 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10530:10540 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10544:10558 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+R10575:10585 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R10588:10602 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+prf 10807:10836 <> adiab_power_saving_within_band
+R10873:10876 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10855:10858 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10842:10854 TriosCoq.Physics.AdiabRC <> P_SAVE_LO_BPS def
+R10859:10872 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R10891:10894 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10877:10890 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R10895:10907 TriosCoq.Physics.AdiabRC <> P_SAVE_HI_BPS def
+R10926:10938 TriosCoq.Physics.AdiabRC <> P_SAVE_LO_BPS def
+R10941:10954 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R10957:10969 TriosCoq.Physics.AdiabRC <> P_SAVE_HI_BPS def
+prf 10989:11024 <> adiab_power_saving_strictly_positive
+R11044:11046 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11030:11043 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R11064:11077 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+prf 11097:11128 <> adiab_power_saving_at_least_5pct
+R11148:11151 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11134:11147 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R11171:11184 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+prf 11204:11231 <> adiab_clock_overhead_bounded
+R11253:11256 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R11237:11252 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R11257:11276 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_MAX_BPS def
+R11295:11310 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R11313:11332 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_MAX_BPS def
+prf 11352:11384 <> adiab_clock_overhead_at_most_2pct
+R11406:11409 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R11390:11405 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R11429:11444 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+prf 11464:11486 <> adiab_net_save_positive
+R11504:11506 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11492:11503 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R11524:11535 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+prf 11555:11582 <> adiab_net_save_at_least_4pct
+R11600:11603 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11588:11599 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R11604:11619 TriosCoq.Physics.AdiabRC <> NET_SAVE_MIN_BPS def
+R11636:11647 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R11650:11665 TriosCoq.Physics.AdiabRC <> NET_SAVE_MIN_BPS def
+prf 11685:11719 <> adiab_net_save_equals_eta_minus_clk
+R11737:11739 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11725:11736 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R11754:11756 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11740:11753 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R11757:11772 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R11791:11802 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R11805:11818 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R11821:11836 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+prf 12042:12067 <> adiab_clock_freq_invariant
+R12100:12103 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R12073:12077 Stdlib.ZArith.BinInt Z abs def
+R12091:12093 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R12080:12090 TriosCoq.Physics.AdiabRC <> F_RATIO_BPS def
+R12104:12118 TriosCoq.Physics.AdiabRC <> F_RATIO_TOL_BPS def
+R12137:12147 TriosCoq.Physics.AdiabRC <> F_RATIO_BPS def
+R12150:12164 TriosCoq.Physics.AdiabRC <> F_RATIO_TOL_BPS def
+prf 12191:12218 <> adiab_clock_freq_exactly_one
+R12235:12237 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12224:12234 TriosCoq.Physics.AdiabRC <> F_RATIO_BPS def
+R12259:12269 TriosCoq.Physics.AdiabRC <> F_RATIO_BPS def
+prf 12474:12499 <> adiab_tops_w_lift_positive
+R12520:12522 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R12505:12519 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R12523:12537 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R12554:12568 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R12571:12585 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+prf 12605:12635 <> adiab_tops_w_lift_at_least_3pct
+R12683:12686 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R12645:12648 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R12682:12682 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R12664:12666 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R12649:12663 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R12667:12681 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R12689:12691 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R12692:12706 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R12725:12739 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R12742:12756 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+prf 13131:13168 <> adiab_distinct_from_wl_boost_mechanism
+R13200:13205 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R13185:13188 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R13174:13184 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13189:13199 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+R13217:13219 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R13206:13216 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13220:13230 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+R13249:13259 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13262:13272 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+prf 13292:13324 <> adiab_distinct_from_fbb_mechanism
+R13351:13356 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R13341:13344 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R13330:13340 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13345:13350 TriosCoq.Physics.AdiabRC <> OP_FBB def
+R13368:13370 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R13357:13367 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13371:13376 TriosCoq.Physics.AdiabRC <> OP_FBB def
+R13395:13405 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13408:13413 TriosCoq.Physics.AdiabRC <> OP_FBB def
+prf 13433:13468 <> adiab_distinct_from_drowsy_mechanism
+R13502:13507 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R13485:13488 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R13474:13484 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13489:13501 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+R13519:13521 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R13508:13518 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13522:13534 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+R13553:13563 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R13566:13578 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+prf 14128:14145 <> adiab_rc_composite
+R14180:14185 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14165:14168 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R14154:14164 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R14169:14179 TriosCoq.Physics.AdiabRC <> OP_WL_BOOST def
+R14207:14212 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14197:14200 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R14186:14196 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R14201:14206 TriosCoq.Physics.AdiabRC <> OP_FBB def
+R14241:14246 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14224:14227 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R14213:14223 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R14228:14240 TriosCoq.Physics.AdiabRC <> OP_DROWSY_RET def
+R14264:14269 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14258:14260 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14247:14257 TriosCoq.Physics.AdiabRC <> OP_ADIAB_RC def
+R14298:14303 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14280:14283 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14270:14279 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R14284:14297 TriosCoq.Physics.AdiabRC <> V_SWING_MAX_mV def
+R14332:14337 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14314:14317 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R14304:14313 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R14318:14331 TriosCoq.Physics.AdiabRC <> V_SWING_MIN_mV def
+R14359:14364 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14348:14351 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14338:14347 TriosCoq.Physics.AdiabRC <> V_SWING_mV def
+R14352:14358 TriosCoq.Physics.AdiabRC <> V_DD_mV def
+R14411:14416 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14396:14399 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14365:14369 Stdlib.ZArith.BinInt Z abs def
+R14379:14381 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R14372:14378 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R14382:14394 TriosCoq.Physics.AdiabRC <> ETA_EXACT_BPS def
+R14400:14410 TriosCoq.Physics.AdiabRC <> ETA_TOL_BPS def
+R14441:14446 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14424:14426 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14417:14423 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R14427:14440 TriosCoq.Physics.AdiabRC <> GAMMA2_W45_BPS def
+R14486:14491 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14468:14470 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14458:14460 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R14447:14457 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R14461:14467 TriosCoq.Physics.AdiabRC <> ETA_BPS def
+R14471:14485 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+R14522:14527 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14507:14510 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14492:14506 TriosCoq.Physics.AdiabRC <> E_RATIO_MIN_BPS def
+R14511:14521 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R14558:14563 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14539:14542 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14528:14538 TriosCoq.Physics.AdiabRC <> E_RATIO_BPS def
+R14543:14557 TriosCoq.Physics.AdiabRC <> E_RATIO_MAX_BPS def
+R14595:14600 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14577:14580 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14564:14576 TriosCoq.Physics.AdiabRC <> P_SAVE_LO_BPS def
+R14581:14594 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R14632:14637 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14615:14618 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14601:14614 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R14619:14631 TriosCoq.Physics.AdiabRC <> P_SAVE_HI_BPS def
+R14659:14664 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14652:14655 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R14638:14651 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R14705:14710 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14681:14684 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14665:14680 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R14685:14704 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_MAX_BPS def
+R14734:14739 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14727:14730 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14711:14726 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R14756:14761 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14752:14754 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R14740:14751 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R14794:14799 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14774:14777 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R14762:14773 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R14778:14793 TriosCoq.Physics.AdiabRC <> NET_SAVE_MIN_BPS def
+R14848:14853 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14812:14814 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R14800:14811 TriosCoq.Physics.AdiabRC <> NET_SAVE_BPS def
+R14829:14831 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R14815:14828 TriosCoq.Physics.AdiabRC <> P_SAVE_OBS_BPS def
+R14832:14847 TriosCoq.Physics.AdiabRC <> CLK_OVERHEAD_BPS def
+R14900:14905 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14881:14884 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R14854:14858 Stdlib.ZArith.BinInt Z abs def
+R14872:14874 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R14861:14871 TriosCoq.Physics.AdiabRC <> F_RATIO_BPS def
+R14885:14899 TriosCoq.Physics.AdiabRC <> F_RATIO_TOL_BPS def
+R14939:14944 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R14921:14923 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R14906:14920 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R14924:14938 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R14987:14990 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R14949:14952 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R14986:14986 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R14968:14970 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R14953:14967 TriosCoq.Physics.AdiabRC <> TOPS_W_W46_POST def
+R14971:14985 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R14993:14995 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R14996:15010 TriosCoq.Physics.AdiabRC <> TOPS_W_W45_POST def
+R15050:15080 TriosCoq.Physics.AdiabRC <> adiab_op_distinct_from_wl_boost thm
+R15097:15122 TriosCoq.Physics.AdiabRC <> adiab_op_distinct_from_fbb thm
+R15139:15171 TriosCoq.Physics.AdiabRC <> adiab_op_distinct_from_drowsy_ret thm
+R15188:15208 TriosCoq.Physics.AdiabRC <> adiab_op_value_is_240 thm
+R15225:15245 TriosCoq.Physics.AdiabRC <> adiab_swing_below_max thm
+R15262:15282 TriosCoq.Physics.AdiabRC <> adiab_swing_above_min thm
+R15299:15319 TriosCoq.Physics.AdiabRC <> adiab_swing_below_vdd thm
+R15336:15350 TriosCoq.Physics.AdiabRC <> adiab_eta_match thm
+R15367:15389 TriosCoq.Physics.AdiabRC <> adiab_eta_equals_gamma2 thm
+R15406:15429 TriosCoq.Physics.AdiabRC <> adiab_energy_ratio_value thm
+R15447:15472 TriosCoq.Physics.AdiabRC <> adiab_energy_ratio_in_band thm
+R15491:15520 TriosCoq.Physics.AdiabRC <> adiab_power_saving_within_band thm
+R15538:15569 TriosCoq.Physics.AdiabRC <> adiab_power_saving_at_least_5pct thm
+R15586:15613 TriosCoq.Physics.AdiabRC <> adiab_clock_overhead_bounded thm
+R15630:15662 TriosCoq.Physics.AdiabRC <> adiab_clock_overhead_at_most_2pct thm
+R15679:15701 TriosCoq.Physics.AdiabRC <> adiab_net_save_positive thm
+R15718:15745 TriosCoq.Physics.AdiabRC <> adiab_net_save_at_least_4pct thm
+R15762:15796 TriosCoq.Physics.AdiabRC <> adiab_net_save_equals_eta_minus_clk thm
+R15813:15838 TriosCoq.Physics.AdiabRC <> adiab_clock_freq_invariant thm
+R15855:15880 TriosCoq.Physics.AdiabRC <> adiab_tops_w_lift_positive thm
+R15897:15927 TriosCoq.Physics.AdiabRC <> adiab_tops_w_lift_at_least_3pct thm

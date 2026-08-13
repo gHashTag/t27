@@ -1,0 +1,69 @@
+DIGEST 7ef96697efac888357a6493859d91e40
+FTriosCoq.Physics.SparseGate
+R407:423 Stdlib.ZArith.ZArith <> <> lib
+R441:457 Stdlib.micromega.Lia <> <> lib
+def 557:570 <> OP_SPARSE_SKIP
+def 649:659 <> OP_DFS_GATE
+def 705:718 <> OP_HOLO_MUX_X4
+def 752:763 <> OP_SUBTH_CLK
+def 799:811 <> OP_AVS_RECONF
+def 846:855 <> OP_LUT_NPU
+def 893:898 <> OP_TOM
+def 941:948 <> OP_TENET
+prf 1057:1083 <> sparse_op_distinct_from_dfs
+R1101:1104 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1087:1100 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1105:1115 TriosCoq.Physics.SparseGate <> OP_DFS_GATE def
+R1132:1145 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1148:1158 TriosCoq.Physics.SparseGate <> OP_DFS_GATE def
+prf 1253:1284 <> sparse_op_distinct_from_holo_mux
+R1302:1305 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1288:1301 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1306:1319 TriosCoq.Physics.SparseGate <> OP_HOLO_MUX_X4 def
+R1336:1349 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1352:1365 TriosCoq.Physics.SparseGate <> OP_HOLO_MUX_X4 def
+prf 1458:1486 <> sparse_op_distinct_from_subth
+R1504:1507 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1490:1503 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1508:1519 TriosCoq.Physics.SparseGate <> OP_SUBTH_CLK def
+R1536:1549 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1552:1563 TriosCoq.Physics.SparseGate <> OP_SUBTH_CLK def
+prf 1657:1690 <> sparse_op_distinct_from_avs_reconf
+R1708:1711 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1694:1707 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1712:1724 TriosCoq.Physics.SparseGate <> OP_AVS_RECONF def
+R1741:1754 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1757:1769 TriosCoq.Physics.SparseGate <> OP_AVS_RECONF def
+prf 1860:1890 <> sparse_op_distinct_from_lut_npu
+R1908:1911 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R1894:1907 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1912:1921 TriosCoq.Physics.SparseGate <> OP_LUT_NPU def
+R1938:1951 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R1954:1963 TriosCoq.Physics.SparseGate <> OP_LUT_NPU def
+prf 2050:2076 <> sparse_op_distinct_from_tom
+R2094:2097 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2080:2093 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R2098:2103 TriosCoq.Physics.SparseGate <> OP_TOM def
+R2120:2133 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R2136:2141 TriosCoq.Physics.SparseGate <> OP_TOM def
+prf 2230:2258 <> sparse_op_distinct_from_tenet
+R2276:2279 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2262:2275 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R2280:2287 TriosCoq.Physics.SparseGate <> OP_TENET def
+R2304:2317 TriosCoq.Physics.SparseGate <> OP_SPARSE_SKIP def
+R2320:2327 TriosCoq.Physics.SparseGate <> OP_TENET def
+R2609:2623 Stdlib.Arith.Arith <> <> lib
+prf 2655:2675 <> sparse_skip_power_law
+R2691:2693 Corelib.Init.Datatypes <> nat ind
+binder 2687:2687 <> s:1
+R2705:2708 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R2698:2701 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R2697:2697 TriosCoq.Physics.SparseGate <> s:1 var
+R2735:2738 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R2712:2715 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R2734:2734 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R2719:2721 Corelib.Init.Peano <> ::nat_scope:x_'-'_x not
+R2728:2730 Stdlib.Arith.PeanoNat <> ::nat_scope:x_'/'_x not
+R2723:2725 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R2722:2722 TriosCoq.Physics.SparseGate <> s:1 var
+R2742:2744 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not

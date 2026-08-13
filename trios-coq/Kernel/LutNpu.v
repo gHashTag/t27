@@ -178,7 +178,10 @@ Definition all_trit4 : list Trit4 :=
     ts)
   ts.
 
-Lemma all_trit4_length : length all_trit4 = 81.
+(* Prop. 202: `Open Scope Z_scope` at line 27 makes a bare numeral a Z, but
+   `length` is nat. The annotation is a scope fix, not a change to what the
+   lemma says: 3^4 = 81 either way. *)
+Lemma all_trit4_length : length all_trit4 = 81%nat.
 Proof. reflexivity. Qed.
 
 (* ===== Canonical class list ===== *)
@@ -202,7 +205,7 @@ Definition canonical_trit4 : list Trit4 :=
 (*  Cardinality of Trit4 / Z₃ sign+0 invariance = 41                    *)
 (* ===================================================================== *)
 Lemma lut_npu_class_count_41 :
-  length canonical_trit4 = 41.
+  length canonical_trit4 = 41%nat.
 Proof.
   reflexivity.
 Qed.
@@ -452,7 +455,7 @@ Qed.
 
 (* 81 total Trit4 inputs, 41 classes: each class has on average ~1.98 members *)
 Lemma class_count_covers_all :
-  length all_trit4 = 81 /\ length canonical_trit4 = 41.
+  length all_trit4 = 81%nat /\ length canonical_trit4 = 41%nat.
 Proof.
   split; reflexivity.
 Qed.
