@@ -5810,6 +5810,31 @@ These cost a wave each. Follow them before step 1.
      initialisers. Write the gate's own coverage limits into its doc comment
      the moment you write the gate.
 
+285. **A totality claim is itself a claim.** T54 argued artefact checks beat
+     site audits BECAUSE they are total -- and W644's scanner covered `reg`,
+     `wire`, `integer`: **2 of the 7 forms the backend emits, plus one (`wire`)
+     it never emits**. Enumerate the forms by RUNNING the backend and counting
+     leading keywords in its output; do not list the ones you remember. Measured:
+     reg 965, input 59, function 17, integer 14, localparam 12, task 5,
+     output 3. (T55.)
+
+286. **Write a checker's coverage LIMITS into its doc comment as you write it.**
+     `verilog_declared_names` now records that multi-name declarations
+     (`reg a, b;`) yield only the first name and that split-line declarations
+     are invisible -- neither occurs in this backend today, and the comment is
+     the record of what stops being true if that changes.
+
+287. **Every detector I wrote this session was wrong on first measurement, the
+     same way.** T47's truncation scanner (50% false), W636's ledger scrape (2
+     short), T49's coverage table (pooled), and W645's declaration scanner
+     (`localparam real ZERO` -> reported `real`, the TYPE, as the name). Always
+     a syntactic discriminator standing in for a semantic one. **Read the hits
+     before quoting the count -- every time, not when you feel unsure.**
+
+288. **The qualifier skip-list for a Verilog declaration needs TYPE keywords,
+     not just sign and storage:** signed, unsigned, reg, wire, integer, real,
+     realtime, time, logic, bit, byte, int, shortint, longint.
+
 ### How to update this tracker
 
 After closing a wave:

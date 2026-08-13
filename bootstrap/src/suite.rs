@@ -579,36 +579,10 @@ fn cmd_verilog_declares_no_keyword(repo: &Path, rel: &str) -> anyhow::Result<()>
     };
     let mut bad: Vec<String> = Vec::new();
     for (i, line) in v.lines().enumerate() {
-        let t = line.trim();
-        // Declarations the backend emits: `reg …  NAME…`, `wire … NAME…`,
-        // `integer NAME`, and the loop-variable form `for (NAME = …`.
-        let after = if let Some(r) = t.strip_prefix("reg ") {
-            r
-        } else if let Some(r) = t.strip_prefix("wire ") {
-            r
-        } else if let Some(r) = t.strip_prefix("integer ") {
-            r
-        } else {
-            continue;
-        };
-        // Skip the width/sign prefix: `signed`, `[15:0]`, whitespace.
-        let name = after
-            .split_whitespace()
-            .find(|w| !w.starts_with('[') && *w != "signed" && *w != "unsigned")
-            .unwrap_or("");
-        // `uf ` -- already escaped, and the escape is the whole point.
-        if name.starts_with('\\') {
-            continue;
-        }
-        let ident: String = name
-            .chars()
-            .take_while(|c| c.is_alphanumeric() || *c == '_')
-            .collect();
-        if ident.is_empty() {
-            continue;
-        }
-        if crate::compiler::Compiler::is_verilog_keyword(&ident) {
-            bad.push(format!("line {}: `{}` declared unescaped", i + 1, ident));
+        for ident in verilog_declared_names(line.trim()) {
+            if crate::compiler::Compiler::is_verilog_keyword(&ident) {
+                bad.push(format!("line {}: `{}` declared unescaped", i + 1, ident));
+            }
         }
     }
     if bad.is_empty() {
@@ -619,6 +593,89 @@ fn cmd_verilog_declares_no_keyword(repo: &Path, rel: &str) -> anyhow::Result<()>
         bad.len(),
         bad.join("; ")
     )
+}
+
+/// W645: the declaration forms this backend actually emits, ENUMERATED FROM ITS
+/// OUTPUT rather than guessed. Over three representative specs:
+///
+/// ```text
+///   965 reg      59 input     17 function    14 integer
+///    12 localparam  5 task     3 output
+/// ```
+///
+/// The W644 scanner parsed `reg`/`wire`/`integer` -- two of the seven forms in
+/// use, plus one (`wire`) the backend never emits. A checker that claims
+/// totality and covers 2 of 7 is T43's shape applied to the checker, which is
+/// why the coverage is now derived from the artefact and written down here.
+///
+/// **Known limits**, stated rather than implied: multi-name declarations
+/// (`reg a, b;`) yield only the first name, and a declaration split across
+/// lines is not seen. Both are absent from this backend's output today; if it
+/// starts emitting them this comment is the record of what stopped being true.
+fn verilog_declared_names(t: &str) -> Vec<String> {
+    const FORMS: [&str; 7] = [
+        "reg", "wire", "integer", "input", "output", "localparam", "genvar",
+    ];
+    // `function [63:0] name;` and `task name;` put the name last before `;`.
+    for kw in ["function", "task"] {
+        if let Some(rest) = t.strip_prefix(kw).and_then(|r| r.strip_prefix(' ')) {
+            let head = rest.split(';').next().unwrap_or("");
+            if let Some(n) = head.split_whitespace().last() {
+                return vec_of_ident(n);
+            }
+            return Vec::new();
+        }
+    }
+    for kw in FORMS {
+        let Some(rest) = t.strip_prefix(kw).and_then(|r| r.strip_prefix(' ')) else {
+            continue;
+        };
+        // Skip width/sign/direction qualifiers to reach the identifier.
+        // W645: the qualifier set must include TYPE keywords, not just sign
+        // and storage. `localparam real ZERO = 0.0;` declares `ZERO`; the
+        // first draft read `real` as the identifier and reported 49 false
+        // positives -- the third detector this session to need its precision
+        // checked before its count was believed (cf. T47).
+        let name = rest.split_whitespace().find(|w| {
+            !w.starts_with('[')
+                && !matches!(
+                    *w,
+                    "signed"
+                        | "unsigned"
+                        | "reg"
+                        | "wire"
+                        | "integer"
+                        | "real"
+                        | "realtime"
+                        | "time"
+                        | "logic"
+                        | "bit"
+                        | "byte"
+                        | "int"
+                        | "shortint"
+                        | "longint"
+                )
+        });
+        return name.map(vec_of_ident).unwrap_or_default();
+    }
+    Vec::new()
+}
+
+/// `\buf ` is the escape and is exactly what this gate wants to see, so an
+/// escaped name yields nothing to complain about.
+fn vec_of_ident(tok: &str) -> Vec<String> {
+    if tok.starts_with('\\') {
+        return Vec::new();
+    }
+    let id: String = tok
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if id.is_empty() {
+        Vec::new()
+    } else {
+        vec![id]
+    }
 }
 
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
@@ -2744,6 +2801,52 @@ mod tests {
     // local variables and never calls anything under test -- which is why
     // `total_failures` could sit unassigned at 0 for a run printing 2614 with
     // a green test suite. See T31.
+    // ---- W645: the widened declaration scanner. These call the production
+    // extractor -- listing cases in a table without running them is exactly
+    // T29's defect, and I nearly shipped it again this wave. ---------------
+    fn names(line: &str) -> Vec<String> {
+        super::verilog_declared_names(line.trim())
+    }
+
+    #[test]
+    fn scanner_covers_every_declaration_form_the_backend_emits() {
+        // Enumerated from the backend's OUTPUT, not guessed: reg 965,
+        // input 59, function 17, integer 14, localparam 12, task 5, output 3.
+        assert_eq!(names("reg [7:0] buf;"), vec!["buf"]);
+        assert_eq!(names("integer time;"), vec!["time"]);
+        assert_eq!(names("input wire [7:0] event,"), vec!["event"]);
+        assert_eq!(names("output reg [7:0] table,"), vec!["table"]);
+        assert_eq!(names("localparam force = 3;"), vec!["force"]);
+        assert_eq!(names("function [63:0] disable;"), vec!["disable"]);
+        assert_eq!(names("task release;"), vec!["release"]);
+        assert_eq!(names("genvar small;"), vec!["small"]);
+    }
+
+    #[test]
+    fn scanner_skips_type_qualifiers_and_reads_the_real_name() {
+        // The W645 false positive: `real` is the TYPE, `ZERO` is the name.
+        assert_eq!(names("localparam real ZERO = 0.0;"), vec!["ZERO"]);
+        assert_eq!(names("reg signed [7:0] acc;"), vec!["acc"]);
+        assert_eq!(names("input wire [7:0] clk,"), vec!["clk"]);
+        assert_eq!(names("localparam integer WIDTH = 8;"), vec!["WIDTH"]);
+    }
+
+    #[test]
+    fn scanner_ignores_an_already_escaped_name() {
+        // `\\buf ` is the escape and is precisely what the gate wants to see.
+        assert!(names("reg [7:0] \\buf ;").is_empty());
+        assert!(names("input [7:0] \\event ;").is_empty());
+    }
+
+    #[test]
+    fn scanner_does_not_fire_on_ordinary_identifiers() {
+        assert_eq!(names("reg [7:0] counter;"), vec!["counter"]);
+        assert!(!super::super::compiler::Compiler::is_verilog_keyword("counter"));
+        // and a non-declaration line yields nothing at all
+        assert!(names("counter = counter + 1;").is_empty());
+        assert!(names("$display(\"hello\");").is_empty());
+    }
+
     // ---- W628: the ratchet. These call the production comparator. ---------
     fn mk_exp(pairs: &[(&str, &str)], expires: &str, cap: usize) -> super::SuiteExpectations {
         super::SuiteExpectations {

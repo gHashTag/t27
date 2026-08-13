@@ -3074,6 +3074,83 @@ construct whose declaration syntax the scanner does not model.
 
 ---
 
+### T55 (W645) — A totality claim is itself a claim, and this one covered 2 of 7
+
+**T54 argued that checking the artefact is strictly stronger than auditing the
+producers, *because the artefact check is total*.** That argument is only as good
+as the totality, and W644's scanner parsed `reg`, `wire` and `integer`.
+
+**Enumerating the declaration forms from the backend's own output** — three
+representative specs, counting emitted leading keywords rather than guessing:
+
+| form | occurrences | covered by W644's gate |
+|---|---:|---|
+| `reg` | 965 | yes |
+| `input` | 59 | **no** |
+| `function` | 17 | **no** |
+| `integer` | 14 | yes |
+| `localparam` | 12 | **no** |
+| `task` | 5 | **no** |
+| `output` | 3 | **no** |
+| `wire` | **0** | yes — for a form never emitted |
+
+**Two of seven forms in use, plus one that does not exist.** A gate whose entire
+argument is totality, covering 29% of the population it claims to be total over.
+
+**Statement.** Let a checker `C` justify itself by a totality claim `T(C)`.
+Then `T(C)` is a *proposition about `C`*, with the same evidential status as any
+other — and it is not established by `C`'s design intent, its name, or the
+soundness of the argument that motivated it. **The reasoning "artefact checks are
+total, therefore this artefact check is total" is an instance of the
+composition fallacy**, and this document has now recorded it in a checker
+written *specifically to embody* the principle it violates.
+
+**Corollary — the coverage must be derived from the artefact, not from the
+checker's author.** The forms above were obtained by running the backend and
+counting what it emitted. That method is available to anyone writing such a gate
+and takes one command; the alternative — listing the forms one remembers — is
+what produced 2-of-7.
+
+**Widened, with the limits written into the code.** The scanner now covers
+`reg`, `wire`, `integer`, `input`, `output`, `localparam`, `genvar`, `function`
+and `task`, and its doc comment records what it still cannot see:
+multi-name declarations (`reg a, b;`) yield only the first name, and a
+declaration split across lines is invisible. **Neither appears in this backend's
+output today, and the comment is the record of what stops being true if that
+changes.**
+
+**And the tests call the extractor.** I first wrote the nine cases into a table
+and printed it — which asserts nothing, and is precisely **T29**'s defect, in the
+wave whose subject is checkers that do not check. Three unit tests now invoke
+`verilog_declared_names` directly, including the negative cases (an
+already-escaped name, an ordinary identifier, a non-declaration line).
+
+**And the widened gate's first count was 49 false positives.** It reported 49
+bare keywords; the first one read is
+
+```verilog
+localparam real ZERO = 0.0;
+```
+
+**`real` is the *type*; `ZERO` is the name.** The qualifier skip-list held
+`signed`, `unsigned`, `reg`, `wire`, `integer` — storage and sign, not *type*.
+**The third detector in this session whose count needed checking before it was
+believed** (T47's was 50% false; W636's ledger scrape was two short). Fixed, with
+the case pinned by a test that asserts `localparam real ZERO = 0.0` yields
+`ZERO`.
+
+**The pattern is now regular enough to state as a rule.** Every detector written
+in this session — T47's truncation scanner, W636's ledger scrape, T49's coverage
+table, and this — was wrong on first measurement, in the same direction: a
+*syntactic* discriminator standing in for a *semantic* one. **Assume the next
+one has it, and read its hits before quoting its count.**
+
+*Falsification condition:* a declaration form this backend emits that the nine
+do not cover — obtainable by re-running the enumeration after any backend
+change, which is the point.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
