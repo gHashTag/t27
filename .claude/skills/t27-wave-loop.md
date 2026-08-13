@@ -6572,6 +6572,30 @@ These cost a wave each. Follow them before step 1.
      error histogram's top entry. They surfaced only as the sole depth-1 class in
      the corpus.
 
+398. **Never poll `try_wait()` on an undrained pipe.** A pipe holds ~64 KiB; a
+     child whose output exceeds that blocks on the write and never exits, so the
+     timeout fires and reports a HANG. `tri corpus` reported 29 hangs; exactly 29
+     specs generate more than 65,536 bytes of Verilog (largest 479,261). There
+     were no hangs. Redirect to a FILE, or use a reader thread per stream. T124.
+
+399. **A timeout that fires on the observer's own back-pressure looks exactly
+     like a real hang in the output**, and it fires on the LARGEST inputs -- so
+     it reads as diligence while silently undercounting. Cross-check any
+     hang count against an independent harness before believing it.
+
+400. **A filter written for noise will eventually remove signal.**
+     `grep -vE '^\s+\.\.\.'` stripped progress lines AND the two indented
+     result rows `... and Zig accepts it` / `... and iverilog accepts`, so the
+     first reading of the corpus table showed neither acceptance count. Prefer
+     an anchored `grep -A9 'corpus:'` over a negative filter when reading a
+     tool's own output.
+
+401. **Do not commit a "no regression" claim before the regression run finishes.**
+     W661 was committed on the strength of the parse count (444 -> 444) while the
+     full corpus sweep was still running. The sweep then showed 151 -> 155, which
+     was better than claimed -- but the claim was made without evidence, and the
+     next one might not be lucky.
+
 ### How to update this tracker
 
 After closing a wave:

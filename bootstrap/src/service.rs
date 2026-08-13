@@ -579,10 +579,35 @@ fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
     // std::process has no timeout, so spawn and poll. A wait_with_output() would
     // block forever on the hanging testbenches this corpus is known to contain
     // (four orphaned vvp processes at 98% CPU were found this way in W659).
-    use std::io::Read;
+    //
+    // W661: OUTPUT GOES TO FILES, NOT PIPES.
+    //
+    // The first version of this function piped stdout and stderr and polled
+    // try_wait(). A pipe holds about 64 KiB; a child whose output exceeds that
+    // BLOCKS on the write, because nothing drains the pipe until after the child
+    // exits -- and it never exits. try_wait() returns None forever and the
+    // timeout fires.
+    //
+    // The corpus reported exactly 29 "hangs". Measured independently: exactly 29
+    // specs generate more than 65,536 bytes of Verilog, the largest 479,261. The
+    // match is not a coincidence -- there were no hangs. This function
+    // manufactured them, and it undercounted `generates Verilog` by the same 29
+    // (415 reported against 444 real).
+    //
+    // A file has no buffer limit, so the child never blocks and the timeout once
+    // again means what it says.
+    let dir = std::env::temp_dir().join("t27-runtimed");
+    let _ = std::fs::create_dir_all(&dir);
+    let pid = std::process::id();
+    let op = dir.join(format!("{pid}.out"));
+    let ep = dir.join(format!("{pid}.err"));
+    let (Ok(of), Ok(ef)) = (std::fs::File::create(&op), std::fs::File::create(&ep)) else {
+        return None;
+    };
+
     let mut child = match cmd
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::from(of))
+        .stderr(std::process::Stdio::from(ef))
         .spawn()
     {
         Ok(c) => c,
@@ -592,14 +617,8 @@ fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let mut out = String::new();
-                if let Some(mut s) = child.stdout.take() {
-                    let _ = s.read_to_string(&mut out);
-                }
-                let mut err = String::new();
-                if let Some(mut s) = child.stderr.take() {
-                    let _ = s.read_to_string(&mut err);
-                }
+                let out = std::fs::read_to_string(&op).unwrap_or_default();
+                let err = std::fs::read_to_string(&ep).unwrap_or_default();
                 return Some((status.code(), format!("{out}{err}")));
             }
             Ok(None) => {

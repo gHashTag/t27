@@ -7962,4 +7962,48 @@ the population label is not.
 
 ---
 
+### T124 (W661) — the measurement tool built to be trustworthy manufactured 29 hangs
+
+`tri corpus` exists because T119 showed diagnostic counts lie. Its first
+production run reported:
+
+```
+  generates Verilog     415
+  timed out (hang)       29
+```
+
+An independent sweep of the same tree, run with Python's `capture_output`,
+reported **444** generating and no hangs. The gap is exactly 29.
+
+The cause is in `run_timed`, the helper written this wave to put a timeout on
+every pipeline step. It piped the child's stdout and polled `try_wait()`. **A
+pipe holds about 64 KiB.** A child whose output exceeds that blocks on the
+write, because nothing drains the pipe until after the child exits — and it
+never exits. `try_wait()` returns `None` forever and the timeout fires.
+
+Measured independently: **exactly 29 specs generate more than 65,536 bytes of
+Verilog**, the largest 479,261.
+
+> **T124.** The tool built to stop the project trusting bad measurements
+> produced a bad measurement of its own, and did so in the direction that looks
+> like diligence: it reported the 29 **largest** specs as hangs. **A timeout
+> that fires on the observer's own back-pressure is indistinguishable, in the
+> output, from a timeout that fires on a real hang.**
+
+**Fixed by redirecting child output to files rather than pipes.** A file has no
+buffer limit, the child never blocks, and the timeout means what it says again.
+
+**The general rule.** Any harness that (a) imposes a timeout and (b) captures
+output through a pipe it does not drain concurrently will convert *large* into
+*hung*. The two remedies are a file, or a reader thread per stream; polling
+`try_wait()` with an undrained pipe is never correct.
+
+**And a second-order lesson.** The corrected corpus figure was hidden a second
+time by a `grep -vE '^\s+\.\.\.'` intended to strip progress lines — the two
+result rows are indented continuations reading `... and Zig accepts it` and
+`... and iverilog accepts`. **A filter written for noise removed the signal**,
+and the first reading of the table showed neither acceptance count.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
