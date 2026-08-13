@@ -5827,4 +5827,69 @@ quotes this transition as more than it is.
 
 ---
 
+### T74–T76 (W653) — three stacked defects, and no CLI-generated Verilog test ever evaluated its assertion
+
+Writing `specs/fpga/ternary_link.t27` — the first genuinely three-valued object
+in this repository — required verifying it. The verification found that the
+verifier had never worked.
+
+**T74. The verdict did not depend on the outcome.** The emitted shape was
+
+```verilog
+if (!(cond)) begin $display("[TEST] x : FAILED"); end
+$display("[TEST] x : PASSED");
+```
+
+A failing test printed **FAILED and then PASSED**, and any log scraper counting
+`PASSED` counted it as a success. **W640 fixed the empty-body case (T45) and left
+this one — T52's shape, third instance in a single emitter.**
+
+**T75. Two halves of one feature sat behind different conditions.** The hoist
+that declares `given` bindings was gated on `emit_test_assertions`;
+`VerilogCodegen::new()` sets that to **false**, and `main.rs:4858` — the CLI
+`gen-verilog` path — calls `new()`. The assertion *bodies* come from an ungated
+path. So every CLI-generated module emitted checks that read names it had not
+declared: **87 iverilog errors on a 29-test spec.**
+
+> A feature whose halves are gated separately is not one feature with a switch;
+> it is two features that agree only when the switch happens to align them.
+
+**T76. And the check itself was against an unknown.** With declarations
+restored, the negative control *still* passed a deliberately false test:
+
+```verilog
+reg signed [7:0] v;
+reg signed [7:0] _t27_call_tmp_..._0;      // declared
+v = _t27_call_tmp_..._0;                    // NEVER ASSIGNED -- two() is not called
+if (!((v == 99))) begin ... end             // (x == 99) is x; !(x) is x
+```
+
+**`if (x)` is FALSE in Verilog**, so the failure branch was unreachable.
+
+> **T76.** In a three-valued logic, `if (!cond)` and `if (cond == false)` are not
+> the same predicate: the first is false for unknown, the second is too, and
+> **neither can report unknown**. A test harness written in a logic with an
+> unknown value must use *case* equality, or it silently converts "I could not
+> tell" into "it passed."
+
+Changed to `(cond) !== 1'b1`, which treats unknown as not-true. The negative
+control now reports **FAILED for both** tests in the probe — including the true
+one — **which is correct, because both compare against `x`.**
+
+> **The composite result.** Every `[TEST] … PASSED` line this project has emitted
+> from CLI-generated Verilog is uninformative: the operands were undeclared or
+> unknown, and the verdict was printed regardless. The 265 committed Icarus
+> baselines record that state, so T65's staleness problem is larger than
+> measured — those oracles do not merely freeze a formatting bug, they freeze a
+> harness that could not fail.
+
+**Why three fixes were needed and each one alone was not enough.** T74 made the
+verdict depend on the flag; the flag was never set because T75 meant the block
+did not compile; when it compiled, T76 meant the condition could not be true.
+**Each defect hid the next**, and each was only exposed by a negative control run
+after the previous fix — which is T44's discipline applied three times in one
+sitting, and the only reason the third was found at all.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
