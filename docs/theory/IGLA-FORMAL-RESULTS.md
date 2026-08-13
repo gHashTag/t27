@@ -5938,4 +5938,67 @@ that the corpus is verified, and no wave report should quote it as one.
 
 ---
 
+### T78 (W654) — the root cause of T76 was the same asymmetry as T75, one arm further down
+
+T76 established that every Verilog assertion was evaluated against `x` because
+the call temporary was declared and never assigned. The cause:
+
+```rust
+// gen_verilog_test_stmt
+if self.emit_test_assertions {
+    NodeKind::StmtAssign => {
+        self.materialize_call_array_tmps_in_expr(node);   // <-- present
+        self.gen_verilog_stmt(node);
+    }
+} else {
+    NodeKind::StmtAssign => {
+        self.gen_verilog_stmt(node);                      // <-- ABSENT
+    }
+}
+```
+
+`VerilogCodegen::new()` sets `emit_test_assertions = false` and the CLI calls
+`new()`, so the CLI took the arm without materialization. `given v = two()`
+emitted a read of a temporary that nothing ever wrote.
+
+> **T78.** A flag named for one concern silently gated a second. `emit_test_
+> assertions` was read as "should I emit checks"; it also decided "should I
+> compute the values the checks read". **T75 was this same defect one arm
+> earlier** — the same flag gating the *declarations* — and fixing T75 exposed
+> T78 rather than resolving it, because the two arms diverge in more than one
+> way and each divergence must be found separately.
+
+**The generalisation, which is the reusable part.** When a boolean gates two
+branches of a `match`, the branches are free to differ in *any* respect, and
+nothing in the type system or the flag's name constrains the divergence to the
+concern the flag is about. **Every such pair is an unaudited difference table.**
+The remedy is not care; it is to make the branches share their common work and
+let the flag control only the difference it names.
+
+**The decisive control, which had failed three times before this fix:**
+
+```
+[TEST] this_one_is_true                : PASSED
+[TEST] this_one_is_deliberately_false  : FAILED
+```
+
+**This is the first time in the project's history that a CLI-generated Verilog
+test has distinguished a true assertion from a false one.** Every prior
+`[TEST] … PASSED` was printed by a harness that could not have printed anything
+else.
+
+**And the ternary link now verifies in two backends independently:**
+
+```
+zig test        29/29 passed
+iverilog + vvp  29 PASSED, 0 FAILED, 0 NOT CHECKED, 0 compile errors
+```
+
+Cross-backend agreement on a spec is only evidence when both backends are capable
+of disagreeing. Before T74–T78, the Verilog half of that agreement was
+unconditional and therefore carried no information — the same defect T52 names,
+sitting underneath a cross-backend oracle that looked sound.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -11657,6 +11657,8 @@ impl VerilogCodegen {
                 NodeKind::StmtLocal => {
                     // Regs are declared up front (typed: emit_local(Decl);
                     // untyped: the t27#1948 pass); emit only the assignment.
+                    // W653 (T78): materialize first -- see the StmtAssign arm.
+                    self.materialize_call_array_tmps_in_expr(node);
                     if !node.children.is_empty() {
                         self.emit_local(node, LocalEmitPhase::Init);
                     }
@@ -11665,6 +11667,17 @@ impl VerilogCodegen {
                     // t27#1894 declared the target regs; the assignment itself
                     // was still emitted COMMENTED OUT, so every binding built
                     // from a call (`array = create(...)`) stayed X in the TB.
+                    //
+                    // W653 (T78): and this arm never MATERIALIZED the call
+                    // temporary, while the `emit_test_assertions == true` arm
+                    // (above) always did. So `given v = two()` emitted
+                    //     reg v; reg _t27_call_tmp_..._0;   // declared
+                    //     v = _t27_call_tmp_..._0;          // never assigned
+                    // and every assertion downstream compared against X. In
+                    // Verilog `if (!(x))` is FALSE, so no test could fail --
+                    // T76's root cause. The flag is named for assertions and was
+                    // silently gating materialization too, exactly as in T75.
+                    self.materialize_call_array_tmps_in_expr(node);
                     self.gen_verilog_stmt(node);
                 }
                 _ => {
