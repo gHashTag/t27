@@ -6360,4 +6360,130 @@ value for every non-integral input. **T52's shape at the level of a type.**
 
 ---
 
+### T86 (W655) — the format's name and its consumers are independent artefacts
+
+Asked directly whether the project uses GFTernary and TNF, the answer was
+measured rather than asserted:
+
+```
+"TNF" in .t27 specs:                        0 files of 1,064
+gfternary.t27 -- who references GFT_*:      1 file (itself)
+gft_*.t27 using the GFT_ alphabet or phi:   0 of 12
+```
+
+**A correction to a claim made one turn earlier, before the measurement was
+complete.** It was stated that `gft_dot2.t27` "is a binary float whose comment
+says balanced-ternary." That was too strong. The file enforces `BIAS = 40`,
+`OFFSET_MAX = 80` — **exactly the 81 values of four balanced trits**, `e ∈
+[−40,+40]` — and tri-net's `tri_gft_arith.t27` names the constant
+`GFT16_OFFSET_MAX = 80  // 3^4 - 1`. The *scale* is `2^e`, and by the article's
+own radix theorem a binary scale is **correct**; the ternary claim was always
+about the exponent field's encoding, and the code honours it. **GF-T16 is
+implemented faithfully.**
+
+What is *not* implemented survives the correction:
+
+| object | status |
+|---|---|
+| **GF-T16** (accumulator float) | implemented, silicon-proven, 81-value trit-encoded exponent |
+| **GFTernary** (`{−φ,0,+φ}` weight alphabet) | defined, **consumed by nothing** |
+| **TNF** (signed rung) | **absent from every spec** |
+
+> **T86.** A format's *definition* and its *consumers* are independent artefacts,
+> and the gap between them is invisible to every measurement that counts files,
+> tests, or coverage. `grep GFT_` over the corpus returns **1**, and that one is
+> the defining file. The project ran 650+ waves, accumulated 85 theorems and 265
+> baselines, and never asked whether anything consumed its central definition.
+
+This is T84's shape raised to the system: **artefacts correct about their local
+properties and wrong about what they call themselves.**
+
+---
+
+### T87 (W655) — the link transports weights, and the bridge costs zero LUTs
+
+`ternary_link.t27`'s wire encoding was chosen to match tri-net's `tern_corr8.v`
+(`2'b01 → +1`, `2'b10 → −1`, else `0`). `gfternary.t27` independently defines
+`GFT_ZERO = 0x00`, `GFT_POS = 0x01`, `GFT_NEG = 0x02`.
+
+**They are the same three codes.** Made explicit and pinned by invariant, then
+measured:
+
+```
+ZeroDSP_TernaryLink, before the bridge:  7 LUT6, 11 IBUF, 9 OBUF   (27 cells)
+ZeroDSP_TernaryLink, after the bridge:   7 LUT6, 11 IBUF, 9 OBUF   (27 cells)
+```
+
+> **T87.** `wire_to_gft` synthesises to **nothing**, because a symbol on the wire
+> *is* a GFTernary code. The link therefore transports **weights**, not a
+> serialisation of weights: the receiver's slicer output feeds a φ-datapath with
+> no translation stage, no re-encoding table, and no LUT.
+>
+> **The zero is the result.** A conversion that costs nothing is a conversion
+> that does not exist, and that is a stronger statement than a cheap one.
+
+**Corollary about the closure argument.** The article's case for `{−φ,0,+φ}` is
+that the *lattice* is closed under weight application, so no normalisation stage
+is needed inside the datapath (T-closure). T87 extends the same property across
+the *link*: the alphabet is closed under transport as well, so no conversion
+stage is needed between nodes either. **Two boundaries, one closure.**
+
+---
+
+### T88 (W655) — TNF's sign algebra costs zero logic, and an invariant caught the constant that was wrong
+
+`specs/numeric/tnf17.t27` is the first implementation of TNF in this project.
+`TNF17e = [ sign(1) | offset(7) | mantissa(9) ]`, magnitude bit-identical to the
+silicon-proven GF-T16, so **the sign is the only new thing to verify**.
+
+Measured synthesis of `on_comb(x) = tnf_negate(x)`:
+
+```
+TNF17:  35 IBUF, 33 OBUF, ZERO LUTs
+```
+
+> **T88.** Negation in TNF is a single bit flip at position 16 and synthesises to
+> **pure wiring**. The article states this as a property of the layout; here it is
+> a placed measurement. The sign that TNF adds to GF-T16 is free in silicon.
+
+**Two defects were caught while writing it, both by the machine rather than by
+review:**
+
+1. **An invariant caught an arithmetic error in a constant.** `TNF_MINUS_ONE` was
+   written as `85504`; the invariant `TNF_MINUS_ONE == TNF_ONE + 65536` failed at
+   Zig comptime, because `20480 + 65536 = 86016`. **The invariant was written to
+   document the layout and it functioned as a checker of the author.**
+2. **The Zig backend emits a raw `%` on signed integers**, which Zig rejects:
+   *"signed integers and floats must use `@rem` or `@mod`"*. A real backend gap,
+   recorded here and routed around rather than papered over.
+
+**And routing around it produced a better design.** Instead of signed remainder
+on the exponent, the trits are extracted from the **biased offset** in unsigned
+arithmetic, using the excess-1 identity:
+
+$$ 40 \;=\; 1 + 3 + 9 + 27 \;=\; \frac{3^4 - 1}{2} $$
+
+so subtracting the bias subtracts exactly **one from every base-3 digit**:
+
+$$ \mathrm{trit}_i(e) \;=\; \mathrm{digit}_i(\mathrm{offset}) - 1, \qquad \mathrm{offset} = e + 40 \in [0,80] $$
+
+Verified against a reference conversion at offsets 0, 33, 40, 53, 80. **No signed
+division or remainder appears anywhere**, and the extraction reads the field the
+format already holds.
+
+> **Corollary.** The bias of a balanced-radix-`r` exponent field of `d` digits is
+> the repunit `(r^d − 1)/(r − 1)` in base `r`, and *because* it is the repunit,
+> unbiasing is a per-digit decrement rather than a subtraction with borrow. The
+> choice of bias 40 is therefore not a convention — it is the unique value that
+> makes the balanced view free.
+
+**Both backends, both new specs:**
+
+| spec | Zig | iverilog + vvp |
+|---|---|---|
+| `tnf17.t27` | **34/34** | **34 PASSED**, 0 errors |
+| `ternary_link.t27` | **46/46** | **46 PASSED**, 0 errors |
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

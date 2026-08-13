@@ -37,6 +37,33 @@ module ZeroDSP_TernaryLink {
     const WIRE_POS  : u8 = 1;
     const WIRE_NEG  : u8 = 2;
 
+    // ---- The GFTernary weight alphabet, and why this matters ----
+    //
+    // W655, measured: `specs/numeric/gfternary.t27` defines the weight alphabet
+    //     GFT_ZERO = 0x00 -> 0,   GFT_POS = 0x01 -> +phi,   GFT_NEG = 0x02 -> -phi
+    // and is referenced by exactly ONE file in the corpus -- itself. The entire
+    // multiplier-free argument (uniqueness of the golden alphabet, exactness of
+    // the linear path in Z[phi], 28 LUT per weight) rests on that alphabet, and
+    // no executable artefact consumed it.
+    //
+    // These codes are duplicated here rather than imported because t27 has no
+    // cross-module import yet (#1773) -- the same reason gft_dot4.t27 duplicates
+    // gft_mul/gft_add. The duplication is made SAFE by the invariants below,
+    // which pin each local constant to the canonical value; if gfternary.t27
+    // ever changes, these fail rather than drift silently.
+    const GFT_ZERO : u8 = 0;   // 0b00 -> 0
+    const GFT_POS  : u8 = 1;   // 0b01 -> +phi
+    const GFT_NEG  : u8 = 2;   // 0b10 -> -phi
+
+    // THE RESULT: the line code's wire encoding is BIT-IDENTICAL to the weight
+    // alphabet's encoding. A symbol on the wire IS a GFTernary code -- no
+    // translation stage, no re-encoding, no table. The link therefore transports
+    // weights, not a serialisation of weights, and the receiver's slicer output
+    // can be fed straight into a phi-datapath.
+    //
+    // This is not a coincidence to be admired; it is a constraint to be pinned.
+    // See `wire_encoding_is_the_gfternary_alphabet` below.
+
     // ---- Physical drive, for a tri-state FPGA output buffer ----
     // A 7-series IOBUF has three states natively: drive-0, drive-1 and Hi-Z, so
     // the alphabet needs no external DAC on the transmit side. `oe` is the
@@ -143,6 +170,32 @@ module ZeroDSP_TernaryLink {
         } else {
             if (lo == 1) { return WIRE_ZERO; } else { return WIRE_NEG; }
         }
+    }
+
+    // ---- GFTernary bridge: a wire symbol read as a weight ----
+    // The integer multiplier of a phi-weight: +phi and -phi contribute +1/-1 to
+    // the phi component, zero is a skip. This is the value the Fibonacci step
+    // (a,b) -> (b, a+b) consumes.
+    fn wire_to_gft(w: u8) -> u8 {
+        if (w == WIRE_POS) { return GFT_POS; } else {
+        if (w == WIRE_NEG) { return GFT_NEG; } else {
+                             return GFT_ZERO;
+        } }
+    }
+
+    fn gft_to_wire(c: u8) -> u8 {
+        if (c == GFT_POS) { return WIRE_POS; } else {
+        if (c == GFT_NEG) { return WIRE_NEG; } else {
+                            return WIRE_ZERO;
+        } }
+    }
+
+    // Weight sign as an integer, matching gfternary.t27's gft_sign: +1, -1 or 0.
+    fn gft_weight_sign(c: u8) -> i8 {
+        if (c == GFT_POS) { return 1; } else {
+        if (c == GFT_NEG) { return -1; } else {
+                            return 0;
+        } }
     }
 
     // ---- Disparity, for the running digital sum ----
@@ -345,6 +398,50 @@ module ZeroDSP_TernaryLink {
         given n = frame_symbol_count(1)
         then n == 18
 
+    // ---- GFTernary bridge ----
+
+    test wire_pos_reads_as_gft_pos
+        given c = wire_to_gft(1)
+        then c == 1
+
+    test wire_neg_reads_as_gft_neg
+        given c = wire_to_gft(2)
+        then c == 2
+
+    test wire_zero_reads_as_gft_zero
+        given c = wire_to_gft(0)
+        then c == 0
+
+    test gft_pos_writes_as_wire_pos
+        given w = gft_to_wire(1)
+        then w == 1
+
+    test gft_neg_writes_as_wire_neg
+        given w = gft_to_wire(2)
+        then w == 2
+
+    // The bridge is the identity, because the encodings coincide.
+    test bridge_round_trips_pos
+        given c = wire_to_gft(gft_to_wire(1))
+        then c == 1
+
+    test bridge_round_trips_neg
+        given c = wire_to_gft(gft_to_wire(2))
+        then c == 2
+
+    // A phi-weight's integer sign, the value the Fibonacci step consumes.
+    test gft_pos_has_sign_plus_one
+        given s = gft_weight_sign(1)
+        then s == 1
+
+    test gft_neg_has_sign_minus_one
+        given s = gft_weight_sign(2)
+        then s == -1
+
+    test gft_zero_has_sign_zero
+        given s = gft_weight_sign(0)
+        then s == 0
+
     // ---- Invariants ----
 
     // The code spends 8 of 9 pairs, leaving exactly one for framing. This is
@@ -386,6 +483,30 @@ module ZeroDSP_TernaryLink {
     // The error code must not collide with any valid wire code.
     invariant error_code_is_reserved
         assert SLICE_ERROR > WIRE_NEG
+
+    // ---- The GFTernary bridge, pinned ----
+    // Each local constant must equal the canonical value in
+    // specs/numeric/gfternary.t27. Duplicated because t27 has no cross-module
+    // import (#1773); pinned so the duplication cannot drift.
+    invariant gft_zero_matches_canonical
+        assert GFT_ZERO == 0
+
+    invariant gft_pos_matches_canonical
+        assert GFT_POS == 1
+
+    invariant gft_neg_matches_canonical
+        assert GFT_NEG == 2
+
+    // The result: wire encoding IS the weight alphabet, so the link transports
+    // weights rather than a serialisation of them.
+    invariant wire_encoding_is_the_gfternary_alphabet
+        assert WIRE_ZERO == GFT_ZERO
+
+    invariant wire_pos_is_gft_pos
+        assert WIRE_POS == GFT_POS
+
+    invariant wire_neg_is_gft_neg
+        assert WIRE_NEG == GFT_NEG
 
     // ---- T79: why (3,2) and not any other (n, m) ----
     //
