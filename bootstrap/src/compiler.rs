@@ -12557,6 +12557,55 @@ impl VerilogCodegen {
                     return;
                 }
 
+                // W663: Zig builtins must not reach Verilog.
+                //
+                // `CCodegen` has handled these since its own wave (see the
+                // `@compileAssert` / `@setEvalBranchQuota` arms around line
+                // 14520); the Verilog backend never did, and emitted them raw:
+                //
+                //     @setEvalBranchQuota(10000);
+                //     base = @as(f64, @floatFromInt(timing[0 +: 64]));
+                //
+                // Measured across the 444 specs that generate Verilog: 21 carry
+                // a leaked builtin, 12 of them carry ONLY the quota hint. By
+                // occurrence: @setEvalBranchQuota 83, @as 27, @floatFromInt 18,
+                // @intFromEnum 14, @enumFromInt 5, @intFromFloat 4, @intCast 4.
+                //
+                // Two shapes, both mechanical:
+                //   * a comptime HINT with no runtime meaning -> a comment, as
+                //     the C backend already does;
+                //   * an identity-shaped CONVERSION -> its value operand, since
+                //     Verilog is untyped at this level and the conversion is a
+                //     no-op once the width is fixed by the declaration.
+                //
+                // Anything else `@`-prefixed is left alone deliberately: it will
+                // still fail loudly rather than be silently mistranslated.
+                if node.name.starts_with('@') {
+                    match node.name.as_str() {
+                        // Comptime hint: no value, no runtime effect.
+                        "@setEvalBranchQuota" => {
+                            self.write("/* ");
+                            self.write(&node.name);
+                            self.write(" */");
+                            return;
+                        }
+                        // `@as(T, x)` -- the value is the SECOND operand.
+                        "@as" if node.children.len() == 2 => {
+                            self.gen_verilog_expr(&node.children[1]);
+                            return;
+                        }
+                        // Identity-shaped conversions: pass the value through.
+                        "@intCast" | "@intFromEnum" | "@enumFromInt" | "@intFromFloat"
+                        | "@floatFromInt" | "@truncate" | "@bitCast"
+                            if node.children.len() == 1 =>
+                        {
+                            self.gen_verilog_expr(&node.children[0]);
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+
                 // W557: inside test/bench blocks, reference a pre-declared temporary
                 // for pure calls instead of re-invoking them. The temporary was
                 // assigned earlier in the block by materialize_call_array_tmp.

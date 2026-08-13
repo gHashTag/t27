@@ -8105,4 +8105,70 @@ own label is read at a glance, and the glance is wrong.
 
 ---
 
+### T126 (W663) — a fix moves the compiling count if and only if it clears the LAST class in a spec
+
+Four fixes this session, each correctly diagnosed, each verified to have removed
+what it targeted:
+
+| wave | fix | specs repaired | measured depth of those specs | **compiling count** |
+|---|---|---:|---|---:|
+| W659 | escape-last, `\cross _data_width` | 13 | >1 | 151 → **151** |
+| W660 | Verilog scaffold `default_input()` | 140 | 94% at 4+ | 151 → **151** |
+| **W661** | **`#` is a comment (phantom fields)** | **4** | **all at depth 1** | **151 → 155** |
+| W663 | Zig builtins leaked to Verilog | 17 | >1 | 155 → **155** |
+
+The three that moved nothing removed **170 specs' worth** of real defects
+between them. The one that moved the number touched **four** specs.
+
+> **T126.** The compiling count rises by exactly the number of specs whose
+> **last** remaining class the fix clears, and by nothing else. **Cause size does
+> not predict yield; depth does — and only depth-1 has any yield at all.** Three
+> independent confirmations at depth > 1 (13, 140, 17 specs) all yielded zero;
+> the single depth-1 fix yielded exactly its spec count.
+
+**This is T120 generalised and confirmed three times.** T120 observed it once, on
+the scaffold, and proposed depth as the predictor. It has now been tested twice
+more without exception.
+
+**The operational consequence.** Any plan of the form "fix the biggest cause" is
+a plan to produce correct, verified, measurable repairs that leave the headline
+number unchanged. **The only plan that moves the number is: find the specs at
+depth 1, and clear their one class.** After W661 there are none, which is why
+W663 could not have succeeded no matter which cause it chose.
+
+---
+
+### T127 (W663) — "syntax error" is not a class, and depth measured on it is understated
+
+The largest pair among depth-2 specs was `Malformed statement` + `syntax error`,
+30 members — apparently one lever. Sampled rather than assumed:
+
+```
+phi_timing.t27   base = @as(f64, @floatFromInt(timing[0 +: 64]));   Zig builtin
+schema.t27       for (i = 0; i < (0 .. @min(a, b)); i = i + 1)      range syntax
+diagnostics.t27  is_error = (d_severity == Severity::Error)         :: path
+ops.t27          bind = result;  unbind = bind(...)                 keyword escape
+```
+
+**Four members, four different emitter gaps.**
+
+> **T127.** Normalised diagnostics group by **symptom name**, and `syntax error`
+> is the least specific symptom a parser emits. A "class" built on it merges
+> unrelated defects, so **depth computed from such classes is a LOWER BOUND on
+> the number of independent fixes** — the true depth of those 30 specs is higher
+> than 2. The depth metric of T123/T125 is sound in its ordering and optimistic
+> in its magnitude, and it must be quoted that way.
+
+Measured, across the 444 specs that generate Verilog, the untranslated
+constructs behind that symptom:
+
+| construct | specs |
+|---|---:|
+| `Path::Item` namespaced enum paths | **23** |
+| leaked Zig builtins (`@as`, `@intFromEnum`, …) | **21** → 3 after W663 |
+| `range ..` in a for-loop condition | **5** |
+| escaped-declaration function used unescaped (`bind`) | **2** |
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

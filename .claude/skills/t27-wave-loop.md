@@ -6631,6 +6631,28 @@ These cost a wave each. Follow them before step 1.
      the count of five-or-more -- 45 specs behind an 8-wide bar. A chart is read
      at a glance, so a disagreeing bar is worse than no chart.
 
+408. **A fix raises the compiling count by exactly the number of specs whose
+     LAST class it clears, and by nothing else.** Four fixes this session, all
+     correctly diagnosed and all verified to have removed what they targeted:
+     escape-last (13 specs, depth>1) -> +0; Verilog scaffold (140 specs, 94% at
+     depth 4+) -> +0; Zig builtins (17 specs, depth>1) -> +0; `#` as a comment
+     (4 specs, ALL at depth 1) -> +4. **Cause size predicts nothing; depth
+     predicts everything.** T126.
+
+409. **`syntax error` is not a class.** The largest depth-2 pair
+     (`Malformed statement` + `syntax error`, 30 specs) looked like one lever.
+     Sampled: four members, four unrelated emitter gaps -- a leaked Zig builtin,
+     `range ..` in a for condition, a `Path::Item` enum path, and a Verilog
+     keyword used unescaped. **Depth computed on normalised diagnostics is a
+     LOWER BOUND on independent fixes**, because the least specific symptom
+     merges unrelated causes. Quote the depth metric as optimistic. T127.
+
+410. **Check which BACKEND a handler lives in before concluding it exists.**
+     `@setEvalBranchQuota` had been handled since an earlier wave -- in
+     `CCodegen`. The Verilog backend emitted it raw into 83 sites. A grep that
+     finds the symbol proves the symbol is handled SOMEWHERE, not that it is
+     handled where you are looking.
+
 ### How to update this tracker
 
 After closing a wave:
