@@ -3624,6 +3624,111 @@ baselines were not uniformly recorded before the fix.
 
 ---
 
+### T66 (W651) — Investigating a compile defect found a correctness defect underneath it: 98 constants silently carry the wrong value
+
+**The wave set out to fix the 23 `::` leakages into Verilog. It found something
+that outranks them.**
+
+```t27
+pub const A : u8 = constants::COMPLEXITY_HIGH;
+```
+
+**All four backends, before this wave:**
+
+```
+gen (Zig)    pub const A: u8 = constants;
+gen-rust     pub const A: u8 = constants;
+gen-c        static const uint8_t A = constants;
+gen-verilog  parameter [7:0] A = constants;
+```
+
+**Four backends, four silently wrong values, no error and no warning.** The
+*same path inside a function body* keeps both segments — Zig emits
+`return constants.COMPLEXITY_HIGH;` correctly. Only the module-level const
+initialiser truncates.
+
+**98 such initialisers across 29 specs.**
+
+**The parser site** (`parse_const_decl`) takes only the first lexeme:
+
+```rust
+let name = self.current.lexeme.clone();
+if self.peek.kind == TokenKind::LBrace || self.peek.kind == TokenKind::LParen {
+    let lit = self.parse_expr()?;      // handles `::` correctly
+} else {
+    val_node.name = name;              // FIRST SEGMENT ONLY
+    self.advance();                    // `::COMPLEXITY_HIGH` is then skipped
+}
+```
+
+**And the asymmetry is T60's shape, for the fourth time.**
+`constants::make(5)` **already worked** — the `(` selected the `parse_expr`
+branch, which concatenates path segments correctly. Only the bare-path spelling
+took the truncating branch. **The obligation was met on the path that happens to
+have a delimiter and missed on the one that does not.**
+
+**Statement.** A defect that produces a *wrong value* is invisible to every check
+that asks whether the artefact is *well formed* — and `A = constants` is
+perfectly well formed in all four target languages. **This session built nine
+gates, and not one of them could see this**, because they check shapes,
+declarations, escaping and emptiness. **The only signal was that a compile
+defect being investigated for an unrelated reason sat one layer above it.**
+
+**Corollary — a wrong value is a strictly worse outcome than a compile error,
+and the repair makes things "worse" by the naive metric.** After the fix, C and
+Verilog emit `constants::COMPLEXITY_HIGH`, which they cannot compile — **a
+visible error replacing a silent falsehood.** Zig and Rust now emit the correct
+reference. **Any metric that counts compile failures will score this repair as a
+regression, and it is the most valuable change in the last ten waves.**
+
+*Falsification condition:* a consumer for which `A = constants` was the intended
+value — i.e. the truncation was a deliberate coercion rather than a parser gap.
+
+---
+
+### T67 (W651) — The forecast was 0, pre-registered, and the reason is that `::` is the outermost of four to six stacked defects
+
+**Following T44's discipline, the yield was forecast before any fix and
+committed to a number: 0 of 24.** Not a range.
+
+**The method was to simulate the most generous plausible fix** — regenerate all
+24 and rewrite every `::` to `_` — and compile:
+`total=24 pass=0 still_syntax=10`. Fourteen trade their syntax error for an
+elaboration error; ten keep a syntax error **on a line that never contained
+`::`** (`++` string concat, `@as(...)`, `reg [31:0] ;`, `.len(1'b0)`, two-arg
+`assert`).
+
+**The tell is in the smallest residuals.** `jones_topology_decision_gate` drops
+to a *single* error, and that error is not `::` — it is
+`Unable to bind parameter 'jones_topology_filter'`, **the truncated-const-
+initialiser defect of T66**. Neutralise that too and the file jumps to 12+
+errors. `pellis-formulas` goes from 1 error to 4 × `No function named 'abs'`.
+
+> **`::` is the outermost of four to six stacked defects, and clearing it only
+> reveals the next.** iverilog aborts at the first failing stage, so every
+> residual count is a *floor*.
+
+**And the root cause is one line of wiring.** `run_gen_verilog_for_simulation`
+**never calls `use_resolve::resolve`** — while Zig (`main.rs:3669`),
+C (`4530`) and Rust (`4547`) all do. The Verilog path alone compiles the raw
+source.
+
+**The cross-backend oracle returned its most useful possible answer: no backend
+handles it correctly.** Zig *looks* clean — `zig_ident` splits `::` and joins
+with `.`, and `grep '::'` finds zero hits in Zig output for all 24 — but
+`constants::PHI` becomes `constants.PHI`, **the same dangling reference,
+invisible to a `::` grep**. `zig ast-check` fails on 23 of 24, 17 of them with
+`use of undeclared identifier` naming the module qualifiers themselves.
+
+**A grep for the symptom in one backend's spelling is not a measurement of the
+defect.** T45's differential oracle worked here by *disagreeing* with the naive
+reading, not by confirming it.
+
+*Falsification condition:* the forecast itself — if a `::` fix makes any of the
+24 compile, T67 is wrong, and that is exactly what pre-registering it is for.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

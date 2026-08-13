@@ -6002,6 +6002,42 @@ These cost a wave each. Follow them before step 1.
      command. Do this in the SAME wave as the fix, or the staleness becomes
      someone else's mystery failure.
 
+312. **A qualified path in a module-level const initialiser was TRUNCATED to
+     its first segment.** `const A : u8 = constants::COMPLEXITY_HIGH;` emitted
+     `A = constants` in ALL FOUR backends -- a silently wrong VALUE, no error,
+     no warning. **98 initialisers across 29 specs.** The same path inside a fn
+     body kept both segments. `parse_const_decl` took only
+     `self.current.lexeme` and advanced one token; `constants::make(5)` already
+     worked because `(` routed it through `parse_expr`. **T60's shape a fourth
+     time** -- met on the path with a delimiter, missed on the one without.
+     (T66.)
+
+313. **A wrong VALUE is invisible to every gate that checks WELL-FORMEDNESS.**
+     `A = constants` is perfectly well formed in Zig, Rust, C and Verilog. Nine
+     gates were built this session and not one could see it. The only signal was
+     a compile defect being investigated for an unrelated reason sitting one
+     layer above it. **Repairing it makes the naive metric WORSE** -- C and
+     Verilog now emit a visible error where they emitted a silent falsehood --
+     and it is still the most valuable change in ten waves.
+
+314. **`run_gen_verilog_for_simulation` never calls `use_resolve::resolve`,**
+     while Zig (main.rs:3669), C (4530) and Rust (4547) all do. The Verilog path
+     alone compiles raw source. That is the root of the `::` leak, and it is one
+     line of wiring -- but see the next lesson before spending a wave on it.
+
+315. **Pre-registered forecast, method, and why it was 0.** Simulate the most
+     generous plausible fix and MEASURE, rather than reasoning: rewriting every
+     `::` to `_` across all 24 gave `pass=0`. Fourteen trade a syntax error for
+     an elaboration error; ten keep a syntax error on a line that never had
+     `::`. **`::` is the outermost of 4-6 stacked defects**, and iverilog aborts
+     at the first failing stage, so every residual count is a FLOOR.
+
+316. **Zig looks clean on `::` and is not.** `zig_ident` splits `::` and joins
+     with `.`, so `grep '::'` finds zero hits in Zig output -- while
+     `constants::PHI` became `constants.PHI`, the same dangling reference.
+     `zig ast-check` fails on 23 of 24. **A grep for the symptom in one
+     backend's spelling is not a measurement of the defect.**
+
 ### How to update this tracker
 
 After closing a wave:

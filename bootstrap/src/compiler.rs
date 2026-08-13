@@ -1770,7 +1770,24 @@ impl Parser {
                 // Plain identifiers stay as `ExprIdentifier` for type aliases and
                 // cross-const references.
                 let name = self.current.lexeme.clone();
-                if self.peek.kind == TokenKind::LBrace || self.peek.kind == TokenKind::LParen {
+                // W651: a QUALIFIED path must go through `parse_expr` too.
+                // `parse_expr_primary` concatenates `a::b` into one flat name
+                // (compiler.rs ~3620); this branch took only
+                // `self.current.lexeme` and advanced ONE token, so
+                // `const A : u8 = constants::COMPLEXITY_HIGH;` became
+                // `A = constants` -- a silently WRONG VALUE, in all four
+                // backends, with no error and no warning. 98 such initialisers
+                // across 29 specs.
+                //
+                // The asymmetry is T60's shape exactly: `constants::make(5)`
+                // already worked, because `(` routed it through `parse_expr`.
+                // Only the bare-path spelling took the truncating branch.
+                let qualified =
+                    self.peek.kind == TokenKind::Colon;
+                if self.peek.kind == TokenKind::LBrace
+                    || self.peek.kind == TokenKind::LParen
+                    || qualified
+                {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
                 } else {
@@ -33493,6 +33510,36 @@ mod tests_w458 {
     // six-position probe found three more, of which two are real Zig errors
     // (`let` with a declared type, and a struct-literal field) and one is not
     // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W651: a qualified path in a module-level const initialiser was truncated
+    // to its first segment -- `const A = constants::COMPLEXITY_HIGH` became
+    // `A = constants`, a silently WRONG VALUE in all four backends with no
+    // error and no warning. 98 such initialisers across 29 specs. T66.
+    #[test]
+    fn qualified_path_in_a_const_initialiser_keeps_every_segment() {
+        let src = "module M\n\npub const A : u8 = constants::COMPLEXITY_HIGH;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("constants.COMPLEXITY_HIGH"),
+            "Zig must keep both segments (it spells `::` as `.`):\n{}",
+            z
+        );
+        assert!(
+            !z.contains("= constants;"),
+            "the truncated form must not survive:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn the_call_spelling_that_already_worked_still_works() {
+        // `constants::make(5)` routed through parse_expr before this fix
+        // because `(` selected that branch; the bare-path spelling did not.
+        // Pin both so the asymmetry cannot come back.
+        let src = "module M\n\npub const B : u8 = constants::make(5);\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("constants") && z.contains("make"), "{}", z);
+    }
+
     // W643: a function-LOCAL array named after a Verilog keyword. Every
     // expression path already escaped through `verilog_safe_identifier`; the
     // declaration and the initialiser did not, so `buf` emitted
