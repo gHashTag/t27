@@ -5558,4 +5558,123 @@ wrong, and the only part with a real consumer.
 
 ---
 
+### T68 (W652) — T66 was the narrow case: every binary operator in a const initialiser was discarded, in all five backends
+
+**T66 recorded that a *qualified path* in a module-level const initialiser was
+truncated to its first segment. The class is far wider than a path.**
+`parse_const_decl` carries fast paths that take a bare `Number` or `Ident` and
+advance **exactly one token**. Everything after that primary was dropped:
+
+```
+const DIV : u32 = A / B;      ->  DIV = A
+const SHL : u32 = A << 2;     ->  SHL = A
+const CMP : bool = A > 5;     ->  CMP = A
+const DOT : u32 = Cfg.width;  ->  DOT = Cfg
+const LIT : u32 = 100 / 7;    ->  LIT = 100
+```
+
+No error, no warning, in Zig, Rust, C and Verilog. **The C backend rendered each
+as `typedef A DIV;` — a constant silently became a TYPE.**
+
+**Two shapes were not truncated but erased.** `const NEG : i32 = -A;` consumed
+the minus, found no `Number`, and pushed **no child at all**: Zig emitted
+`const NEG: i32;` — not valid Zig — and Verilog emitted `localparam NEG = 0`.
+`const P : u32 = (A + 1) * 2;` reached no branch and vanished the same way.
+
+> **T68.** When a parser dispatches on the *next token's identity* rather than on
+> *whether the expression continues*, the set of correct spellings is exactly the
+> set whose second token happens to appear in the dispatch table. Correctness is
+> then a property of punctuation, not of meaning.
+
+**The control that proves it: `const CALL : u32 = f(A) + 1;` was correct all
+along** — the `(` routed it through `parse_expr`, which then parsed the whole
+binary expression. Same operator, same operands, opposite outcome, decided by a
+delimiter three tokens earlier.
+
+**A named, load-bearing instance.** `specs/fpga/uart.t27:14` reads
+
+```
+const UART_BIT_PERIOD : u32 = UART_CLOCK_HZ / UART_BAUD_RATE;   // 868
+```
+
+and emitted `UART_BIT_PERIOD = UART_CLOCK_HZ` — **100,000,000**. A UART whose bit
+period is off by a factor of 115,200 is not a slow UART; it is not a UART. And it
+was found not by any of the nine gates built this session but by generating the
+module for an unrelated reason and reading its ports.
+
+**The same generation exposed a second, independent defect:** that module's port
+list is `(clk, rst_n, en, ready)` — **the boilerplate header and nothing else.**
+A UART with no `tx` and no `rx`. The spec names a serial peripheral; the emitted
+module cannot carry a bit off the die.
+
+---
+
+### T69 (W652) — The blast-radius number moved three times, and every move was the same defect in the instrument
+
+The corpus-wide count of affected initialisers was measured three times, by
+three successively less naive scanners, and reported **893**, then **285**, then
+**248** — before being abandoned as an upper bound.
+
+| # | selector | count | what was wrong |
+|---|---|---:|---|
+| 1 | line starts with `const ` | **893** | counted **function-local** consts, which take a different code path entirely |
+| 2 | + brace-depth ≤ 1 | **285** | split the initialiser at the **last** `;`, so a trailing `// phi^2 = phi + 1` comment registered as an operator |
+| 3 | + first `;`, strip `//`, exclude `-<literal>` | **248** | still counts `&[_]T{}` and `if … else …`, which are different constructs |
+
+> **T69.** A measurement of a defect class made by a *syntactic* scanner inherits
+> that defect class. Each refinement of the scanner is itself a syntactic
+> selector standing in for a semantic one — the very pattern being counted — so
+> the sequence converges only from above and never certifies its own limit.
+
+**The escape is not a fourth scanner.** It is a *different route*: build the
+pre-fix compiler in a separate worktree, regenerate the corpus with both, and
+diff the artefacts. The differential does not ask what the source looks like; it
+observes what the compiler did.
+
+**Corollary.** Report such counts as bounds with the direction named. "248" is
+not the answer; "**at most 248, at least the 5 shapes proved by the repro, and
+the differential is the only thing that can close it**" is.
+
+---
+
+### T70 (W652) — The tool was present, the database was present, and neither could be used with the other
+
+Local synthesis was blocked, and the shape of the block was mis-stated twice
+before it was measured correctly.
+
+| claim | route | verdict |
+|---|---|---|
+| "no 200T database exists on this machine" | `/opt/homebrew/share/himbaechel/` only | **wrong** — the repo's `build/` has a 332 MB one |
+| "the blocker is the missing binary; install openXC7 and the existing database works" | inferred from formats | **wrong** — the built binary rejects it |
+
+The actual state, after building `nextpnr-xilinx` from the fork:
+
+```
+$ nextpnr-xilinx --chipdb build/fpga/openxc7/xc7a200tfbg676-1.bin --test
+Assertion failure: The internal IDs of nextpnr are inconsistent with the
+supplied chip database. This is usually the case, when the chip database was
+generated with an older version of nextpnr.
+```
+
+So the machine holds **a P&R binary that cannot read its database, and a database
+no installed binary can read** — plus a *himbaechel* chipdb for the **wrong
+part**. Three artefacts, no two of them compatible.
+
+> **T70.** A toolchain's availability is not the conjunction of its components'
+> presence. Each component carries a version identity, and the composition is
+> usable only if those identities agree — a condition invisible to any inventory
+> that checks for existence.
+
+**Consequence for planning.** "Install the missing tool" was a one-wave estimate
+derived from a component inventory. The measured task is **regenerate a 980 MB
+`.bba` from prjxray-db with the binary that will consume it** — a different
+order of work, discovered only by building the binary and asking it.
+
+**And note what did NOT block.** All three boards were configured from a
+**pre-built** bitstream (`ternary_mac_demo_top_200t.bit`, 9.7 MB, `done 1` on
+each). Synthesis gates *new* logic, not *any* logic — a distinction worth keeping
+because it decides whether the hardware programme stalls or merely narrows.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1749,20 +1749,50 @@ impl Parser {
                     self.advance();
                 }
                 return Ok(decl);
+            } else if self.current.kind == TokenKind::LParen {
+                // W652: a PARENTHESISED initialiser -- `const P : u32 = (A + 1) * 2;`
+                // reached none of the branches below and fell through to the
+                // trailing default, which pushed no child at all. Verilog then
+                // emitted `localparam P = 0` and Zig emitted `const P: u32;`
+                // with no initialiser -- not even valid Zig.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
             } else if self.current.kind == TokenKind::Minus {
                 // [BUG 10 FIX] Negative number: -1 or expression
-                self.advance(); // consume -
-                if self.current.kind == TokenKind::Number {
+                // W652: `-<Number>` with nothing after it keeps the cheap path.
+                // Anything else -- `-A`, `-A - 1` -- must go through parse_expr.
+                // Previously `-A` consumed the `-`, found no Number, and pushed
+                // NOTHING: an initialiser silently vanished.
+                let simple_negative_literal = self.peek.kind == TokenKind::Number;
+                if simple_negative_literal {
+                    let save = self.save_state();
+                    self.advance(); // consume -
+                    let lexeme = self.current.lexeme.clone();
+                    self.advance(); // consume the number
+                    if Self::token_continues_expr(self.current.kind) {
+                        self.restore_state(save);
+                        let lit = self.parse_expr()?;
+                        decl.children.push(lit);
+                    } else {
+                        let mut val_node = Node::new(NodeKind::ExprLiteral);
+                        val_node.value = format!("-{}", lexeme);
+                        decl.children.push(val_node);
+                    }
+                } else {
+                    let lit = self.parse_expr()?;
+                    decl.children.push(lit);
+                }
+            } else if self.current.kind == TokenKind::Number {
+                // W652: `const LIT : u32 = 100 / 7;` used to emit `LIT = 100`.
+                if Self::token_continues_expr(self.peek.kind) {
+                    let lit = self.parse_expr()?;
+                    decl.children.push(lit);
+                } else {
                     let mut val_node = Node::new(NodeKind::ExprLiteral);
-                    val_node.value = format!("-{}", self.current.lexeme);
+                    val_node.value = self.current.lexeme.clone();
                     decl.children.push(val_node);
                     self.advance();
                 }
-            } else if self.current.kind == TokenKind::Number {
-                let mut val_node = Node::new(NodeKind::ExprLiteral);
-                val_node.value = self.current.lexeme.clone();
-                decl.children.push(val_node);
-                self.advance();
             } else if self.current.kind == TokenKind::Ident {
                 // W533/W543: a scalar struct literal initializer `const x : T = T{...}`
                 // or a function-call initializer `const x : T = make(5)` is parsed as
@@ -1782,11 +1812,20 @@ impl Parser {
                 // The asymmetry is T60's shape exactly: `constants::make(5)`
                 // already worked, because `(` routed it through `parse_expr`.
                 // Only the bare-path spelling took the truncating branch.
+                //
+                // W652: the same hole, one operator wider. `const DIV : u32 =
+                // A / B;` emitted `DIV = A` -- the divisor was DISCARDED, in
+                // all five backends, silently. `A > 5` emitted `A`; `Cfg.width`
+                // emitted `Cfg`. The C backend turned each into a `typedef`,
+                // so a constant became a TYPE. `f(A) + 1` was correct all
+                // along, because `(` routed it through `parse_expr` -- the
+                // delimiter, not the meaning, decided correctness.
                 let qualified =
                     self.peek.kind == TokenKind::Colon;
                 if self.peek.kind == TokenKind::LBrace
                     || self.peek.kind == TokenKind::LParen
                     || qualified
+                    || Self::token_continues_expr(self.peek.kind)
                 {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
@@ -4316,6 +4355,49 @@ impl Parser {
     /// deliberately narrower than `is_block_boundary`: callers pair it with a
     /// "starts its own line" test, because `const` and `struct` also appear
     /// mid-type (`[]const u8`, `= struct {`).
+    /// W652: does this token mean the const initialiser CONTINUES past the
+    /// primary we just looked at?
+    ///
+    /// `parse_const_decl` has fast paths that take a bare `Number` or `Ident`
+    /// and advance exactly one token. Any binary operator sitting after that
+    /// primary was therefore DISCARDED, silently, in all five backends:
+    /// `const DIV : u32 = A / B;` emitted `DIV = A`. `100 / 7` emitted `100`.
+    /// The only spellings that survived were the ones a delimiter happened to
+    /// route through `parse_expr` -- `f(A) + 1` was correct because `(` did it.
+    ///
+    /// This predicate is the semantic test the fast paths were missing: it asks
+    /// "is there more expression here", not "does the next token look like a
+    /// delimiter I recognise".
+    fn token_continues_expr(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Amp
+                | TokenKind::Pipe
+                | TokenKind::Caret
+                | TokenKind::Lt
+                | TokenKind::Gt
+                | TokenKind::Lte
+                | TokenKind::Gte
+                | TokenKind::Eq
+                | TokenKind::Neq
+                | TokenKind::ShiftLeft
+                | TokenKind::ShiftRight
+                | TokenKind::Power
+                | TokenKind::PlusPlus
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
+                | TokenKind::StarPercent
+                | TokenKind::KwAnd
+                | TokenKind::KwOr
+                | TokenKind::Dot
+        )
+    }
+
     fn opens_declaration(kind: TokenKind) -> bool {
         matches!(
             kind,
@@ -33528,6 +33610,60 @@ mod tests_w458 {
             "the truncated form must not survive:\n{}",
             z
         );
+    }
+
+    // W652: T66 one operator wider. `parse_const_decl`'s fast paths took a bare
+    // `Number` or `Ident` and advanced exactly ONE token, so every binary
+    // operator after the primary was discarded: `const DIV : u32 = A / B;`
+    // emitted `DIV = A` in all five backends, with no error. The C backend
+    // rendered each as `typedef A DIV;` -- a constant became a TYPE. T68.
+    #[test]
+    fn every_operand_of_a_const_initialiser_survives() {
+        let src = "module M\n\nconst A : u32 = 100;\nconst B : u32 = 7;\n\
+                   const DIV : u32 = A / B;\nconst SHL : u32 = A << 2;\n\
+                   const LIT : u32 = 100 / 7;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        for (name, rhs) in [("DIV", "A / B"), ("SHL", "A << 2"), ("LIT", "100 / 7")] {
+            assert!(
+                z.contains(rhs),
+                "{} lost an operand -- expected `{}` in:\n{}",
+                name,
+                rhs,
+                z
+            );
+        }
+        assert!(
+            !z.contains("DIV: u32 = A;"),
+            "the truncated form must not survive:\n{}",
+            z
+        );
+    }
+
+    // W652: `-A` consumed the minus, found no Number, and pushed NO child at
+    // all -- Zig emitted `const NEG: i32;`, which is not even valid Zig, and
+    // Verilog emitted `localparam NEG = 0`. A parenthesised initialiser reached
+    // no branch and vanished the same way.
+    #[test]
+    fn unary_and_parenthesised_const_initialisers_are_not_dropped() {
+        let src = "module M\n\nconst A : u32 = 100;\nconst NEG : i32 = -A;\n\
+                   const PAREN : u32 = (A + 1) * 2;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("-A"), "unary minus was dropped:\n{}", z);
+        assert!(z.contains("(A + 1)"), "parenthesised init was dropped:\n{}", z);
+        assert!(
+            !z.contains("NEG: i32;"),
+            "an initialiser-less const is invalid Zig:\n{}",
+            z
+        );
+    }
+
+    // W652: the bare `-1` spelling must keep its cheap path -- the fix must not
+    // route a plain negative literal through parse_expr and change its shape.
+    #[test]
+    fn a_plain_negative_literal_keeps_its_form() {
+        let src = "module M\n\nconst T : i8 = -1;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("-1"), "{}", z);
     }
 
     #[test]
