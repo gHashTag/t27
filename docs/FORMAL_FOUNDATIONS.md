@@ -10472,6 +10472,64 @@ against a non-empty `allknown` computation on a real corpus. **BITING** — a pl
 
 ---
 
+### Prop. 200 — the strongest check in the suite had been red for six waves, and a hand-curated "full set" hid it — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 194 concluded that a gate suite is a single object and editing one member
+can falsify another's contract, so **the whole set must be re-run**. Six waves
+have since ended with the line *"all 20 gates green"*. The suite has **58 steps**.
+The 20 were a list I typed by hand, and `absence_sweep` — the strongest check
+here, which deletes the subject and asks what still passes — was not on it.
+
+Running it: **red, and red since wave 694.** Four gates added in waves 694–700
+pass with no RTL and no properties and were never exempted.
+
+**The README number was the symptom, read as growth.** `claims_check` derives
+"absence-swept steps" from `absence_sweep` as *steps not exempt*. Each new
+unexempted step therefore **raised** it — 44, 45, 46, 47 — and I incremented the
+prose to match every wave. Adding the four exemptions this wave drops it to
+**43**. The count rose precisely because the sweep was broken; a green
+`claims_check` and a red `absence_sweep` together made the defect look like
+progress.
+
+**The exemptions were measured, not asserted.** Each entry claims *"its subject is
+specs/ or formal/, not build/rtl, and its absence case is internal and enforced"*.
+Prop. 198's rule is that a prose justification is an unchecked claim, so each was
+run: copy the script alone into an empty tree, execute it, read the exit code.
+
+| gate | starved exit | |
+|---|---|---|
+| `delimiter_balance_scan` | 1 | names the missing `specs/` |
+| `capture_density_scan` | 1 | names the missing binary |
+| `spec_class_scan` | 1 | names the missing `specs/` |
+| `coverage_gate` | **0** | **found one script — itself — and declared it compliant** |
+
+**One of the four failed.** `coverage_gate`'s subject is `formal/*.py`, so a
+directory containing only the scanner satisfies every count it makes. *"The corpus
+is present"* is not *"the corpus is the right corpus"*. Fixed by resolving which
+scripts the workflows actually run and requiring those to be present — the same
+rule as Props. 162/165, that coverage is an invocation's **output** rather than the
+flag that requested it — plus a decline path for a tree with no workflow steps at
+all. It now exits 1 when starved.
+
+**Theorem (self-referential blindness).** Let `S` be a suite and `A ∈ S` the check
+that validates membership in `S`. If the operator runs a subset `R ⊆ S` chosen by
+hand, then `A ∉ R` is unobservable from inside `R`: every member of `R` passes, and
+`A`'s absence removes the only signal that `R ≠ S`. **A suite's completeness check
+must be run by construction, never by recall** — because the failure mode of recall
+is silence, and the thing forgotten is disproportionately the expensive one to run.
+
+Corollary, measured here: the four gates I forgot were the four I had **written**,
+each landing with its own proposition claiming the whole set was green.
+
+Three bars: **TRUE** — 58 steps, 44 diagnosed, 14 exempt, sweep exits 0; 1213 tests
+pass. **ALIVE** — the sweep found four real omissions and `faith_check` and
+`claims_check` each caught further drift from this wave's own edits. **BITING** —
+`coverage_gate` starved returned 0 before the fix and 1 after, measured both ways.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -40,13 +40,15 @@ beneath it -- a gate can satisfy this with a false denominator, and this gate
 cannot tell. Helper modules that perform no checking (`bench`, `mutate`,
 `trace_reader`, `scale_probe`) are exempted BY NAME below, with the reason.
 
-ARTIFACTS. Reads `formal/*.py`. WRITES `formal/coverage_baseline.txt` when no
-baseline exists. Nothing else.
+ARTIFACTS. Reads `formal/*.py` and `.github/workflows/*.yml` (Prop. 200: to
+resolve which scripts CI actually runs). WRITES `formal/coverage_baseline.txt`
+when no baseline exists. Nothing else.
 
 Prop. 194.
 """
 import ast
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -82,6 +84,37 @@ def main():
     if not files:
         print("::error::coverage gate: found no .py files under formal/ -- "
               "nothing was scanned")
+        return 1
+
+    # Prop. 200: ALIVE bar. Copied alone into an empty tree, this gate found one
+    # script (itself), declared it compliant and exited 0 -- the absence sweep
+    # caught it. "The corpus is present" is not "the corpus is non-empty": a
+    # directory holding only the scanner satisfies every count it makes. Resolve
+    # what the workflows actually run and require those to be here, rather than
+    # trusting the glob (the same rule as Prop. 162/165: coverage is an
+    # invocation's OUTPUT, not the flag that requested it).
+    wf_dir = ROOT / ".github" / "workflows"
+    cited = set()
+    if wf_dir.exists():
+        for y in wf_dir.glob("*.yml"):
+            cited.update(re.findall(r"python3 formal/(\w+\.py)",
+                                    y.read_text(errors="ignore")))
+    if not cited:
+        print("::error::coverage gate: found no `python3 formal/*.py` step in "
+              "any workflow -- there is nothing to check the scanned corpus "
+              "against, so this gate can establish nothing. A decline must exit "
+              "nonzero naming what is missing, not pass quietly (Prop. 103)")
+        return 1
+
+    present = {p.name for p in files}
+    absent = sorted(cited - present)
+    if absent:
+        print(f"::error::coverage gate: {len(absent)} script(s) the workflows "
+              f"run are not present under formal/ -- the corpus this gate "
+              f"measured is not the corpus CI executes, so its verdict is about "
+              f"the wrong set (Prop. 200)")
+        for a in absent[:8]:
+            print(f"  formal/{a}")
         return 1
 
     missing, ok, exempt = [], 0, 0

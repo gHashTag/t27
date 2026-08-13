@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-13
 
+## The strongest check had been red for six waves (Closes #2136)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2136
+- PR: (direct commit)
+
+### What landed
+
+Six waves ended "all 20 gates green". The suite has **58 steps**; the 20 were a
+hand-typed list, and `absence_sweep` -- which deletes the subject and asks what
+still passes -- was not on it. It has been **red since wave 694**: four gates
+added in waves 694-700 pass with no RTL and no properties, unexempted.
+
+The README's absence-swept count rose 44 -> 47 *because* those steps were
+unexempted. Adding the exemptions drops it to **43**. The defect read as growth.
+
+Each exemption was measured, not asserted -- script copied alone into an empty
+tree and run. Three exited 1. **`coverage_gate` exited 0**, having found one
+script (itself) and declared it compliant. Fixed by resolving which scripts the
+workflows actually run and requiring them present, plus a decline path when no
+workflow step exists.
+
+`faith_check` and `claims_check` each then caught further drift from this wave's
+own edits. Sweep green, 20 gates green, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **This fixes the sweep's bookkeeping, not any RTL or spec.** Nothing about the
+  design changed; four steps were correctly classified as not-RTL-subject.
+- **43 is lower than 47 and that is the correct direction.** The earlier number
+  was inflated by steps the sweep could not account for. Do not read the drop as
+  a regression, and do not read the earlier rises as progress.
+- **`workflow_reachable_scan` still exits 1** on this tree: `formal-yosys.yml`
+  AND `formal-mutation.yml` both exist only on this branch, so Prop. 200's own
+  gate has never run either (Prop. 169).
+- **11 of 13 exemptions remain un-re-derived.** This wave measured 4 entries in
+  one of them.
+- Every baseline was checked for staleness in both directions -- entries no
+  longer firing, and entries naming deleted paths -- and **0 of 118 were stale**.
+  Nothing enforces that; it is a measurement, not a guarantee.
+
+
 ## An expected refutation that stops firing is silent (Closes #2135)
 
 - Branch: `feat/wave-547/host-heapsort`

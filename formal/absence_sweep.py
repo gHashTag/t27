@@ -35,6 +35,35 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    # Prop. 200: these four landed in waves 694-700 and were never added here,
+    # so the sweep has been RED for six waves while a hand-curated list of 20
+    # gates was being run and called "the full set". Each is exempt for the same
+    # reason as the scans below -- its subject is specs/ or formal/, not
+    # build/rtl -- and each absence case below was MEASURED by copying the
+    # script alone into an empty tree and running it, not asserted.
+
+    "Delimiter balance scan — a spec whose delimiters cannot close":
+        "its subject is specs/, not build/rtl -- starving the RTL cannot make "
+        "it fail. Absence case measured: alone in an empty tree it exits 1 "
+        "naming the missing specs/ directory (Prop. 193).",
+
+    "Coverage gate — a gate reporting only its numerator is not coverage":
+        "its subject is formal/*.py, not build/rtl. Absence case measured -- and "
+        "it FAILED the first measurement: copied alone into an empty tree it "
+        "found one script (itself), declared it compliant and exited 0. Fixed by "
+        "resolving what the workflows actually run and requiring those scripts "
+        "to be present; it now exits 1 (Props. 194, 200).",
+
+    "Capture density scan — if the output does not grow with the file, nothing was read":
+        "its subject is specs/ and the built t27c, not build/rtl. Absence case "
+        "measured: alone in an empty tree it exits 1 naming the missing binary "
+        "(Prop. 195).",
+
+    "Spec class scan — prose in a .t27 file is not a parser backlog":
+        "its subject is specs/, not build/rtl. Absence case measured: alone in "
+        "an empty tree it exits 1 naming the missing specs/ directory "
+        "(Prop. 197).",
+
     "Runaway string scan — an odd quote swallows the rest of its file":
         "its subject is specs/, not build/rtl -- starving the RTL cannot make "
         "it fail. Its absence case is internal and enforced: with no specs/ "
