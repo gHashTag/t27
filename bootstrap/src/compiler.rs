@@ -1962,6 +1962,21 @@ impl Parser {
     fn parse_struct_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of a struct. Parse field: Type pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // W657 (T104): a field may carry `pub`. The loop tested only for
+            // `Ident`, and `pub` lexes as `KwPub`, so `pub struct P { pub a: u64 }`
+            // parsed to a StructDecl with NO CHILDREN. `struct_decls` then held an
+            // empty field list, `packed_width` fell through to its 32-bit default,
+            // the lowerable-scalar-struct predicate failed, and every `p.a` was
+            // emitted as the flattened `p_a` -- a name declared nowhere.
+            //
+            //   pub struct P { a: u64, ... }      -> input [128:0] p;  p[0 +: 64]
+            //   pub struct P { pub a: u64, ... }  -> input  [31:0] p;  p_a
+            //
+            // Same shape as T60: the obligation met on the spelling without the
+            // modifier and missed on the one with it.
+            if self.current.kind == TokenKind::KwPub {
+                self.advance();
+            }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
                 self.advance();
@@ -10712,6 +10727,30 @@ impl VerilogCodegen {
         self.local_types.clear();
         self.param_types.clear();
         self.local_packed_primitive_arrays.clear();
+        // W657 (T103): register this function's PARAMETER types.
+        //
+        // `param_types` is read at nine sites to decide whether a `base.field`
+        // access can take the PACKED path -- `base[off +: w]` against the
+        // `input [W-1:0] base` that is actually declared. It was populated in
+        // `gen_verilog_clocked_fn` and NOT here, so every ordinary function
+        // cleared the map and left it empty. Every struct-typed parameter then
+        // fell through to the flatten fallback and emitted `base_field`, a name
+        // declared NOWHERE:
+        //
+        //     input [31:0] debouncer;            <- declared PACKED
+        //     ...
+        //     result_last_exec_ms = ...;         <- emitted FLATTENED
+        //
+        // iverilog: "Could not find variable `result_last_exec_ms'". Measured as
+        // 489 of 618 non-compiling specs -- 79.1%, the largest single cause in
+        // the corpus (T102).
+        //
+        // This is T75's and T78's shape a third time: two branches of one
+        // feature, one populated and one not, with nothing in the type system
+        // constraining the divergence to the concern the branch is named for.
+        for (pname, ptype) in &node.params {
+            self.param_types.insert(pname.clone(), ptype.clone());
+        }
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
