@@ -6587,4 +6587,87 @@ zero consumers in the corpus (T86).
 
 ---
 
+### T91 (W655) — I wrote T90 after committing T90's error, twice, without noticing
+
+T90 states: *a paginated query that returns exactly its limit has not answered the
+question; it has reported the limit.* It was written in W655.
+
+**The same session had already made that error, and went on to make it again.**
+
+```
+$ gh repo list gHashTag --limit 100  | count  ->  100     <- reported as "100 repos"
+$ gh repo list gHashTag --limit 200  | count  ->  200     <- the recon's own command
+$ gh repo list gHashTag --limit 1000 | count  ->  219     <- the answer
+```
+
+Early in this session the `--limit 100` form was run, printed `total: 100`, and
+**"100 repositories" was reported to the user and repeated in later summaries.**
+The reconnaissance brief then supplied `--limit 200`, which truncated at exactly
+200 and hid 19 repositories. Only the recon agent's own re-run at `--limit 1000`
+found the real number.
+
+> **T91.** Writing a lesson down does not confer immunity to it. T90 was derived
+> from *someone else's* truncation while an identical truncation sat unexamined
+> in the same session's own output — because the lesson was filed under "how to
+> read a tool's response" and the error was filed under "a number I already
+> reported."
+>
+> **A recorded lesson protects only the measurements taken after it, and only
+> those the author connects to it.** Neither condition held.
+
+**This is the tenth-plus instance of the session's meta-defect** — a syntactic
+selector standing in for a semantic one — and the first where the selector was
+*a number I had already published*. Every previous instance was caught by
+re-measuring through a different route; **this one was caught by an agent
+re-running a command I had run.**
+
+**Corollary, and it is the operational one.** The remedy for a class of error is
+not a lesson file; it is a **check that runs**. `--limit N` returning exactly `N`
+is machine-detectable in one line:
+
+```bash
+n=$(gh repo list "$OWNER" --limit "$L" --json name | jq length)
+[ "$n" -eq "$L" ] && echo "TRUNCATED at $L -- re-run larger"
+```
+
+A second correction, same source: **`gHashTag` is a User account, not an
+Organization** (`gh api users/gHashTag --jq .type` -> `User`). Reports in this
+session, including `ISSUE-REGISTRY.md` as committed, called it an organisation.
+Both are corrected in place.
+
+---
+
+### T92 (W655) — one codebase, two live heads, and neither can see the other
+
+Verified here by a route the reconnaissance did not use — cross-probing each
+repository's HEAD against the other's history rather than checking 100 commits
+back:
+
+```
+shared root       bfd4d06ada47  2026-01-31T06:54:10Z
+                  "Initial release: Trinity VSA library v0.1.0"
+
+trinity      HEAD fa66dcf70850  ->  in trinity-fpga:  HTTP 422 "No commit found"
+trinity-fpga HEAD f4e361a3da1d  ->  in trinity:       HTTP 422 "No commit found"
+
+commits           trinity 5,801         trinity-fpga 6,771
+last push         2026-08-13 13:25      2026-08-13 10:02
+```
+
+**Both are still receiving pushes today**, and `trinity-fpga` carries ~970 more
+commits while being ~10 MB smaller on disk.
+
+> **T92.** A fork that keeps its root commit and loses every descendant is not a
+> fork; it is **the same project asserting two incompatible definitions of
+> itself**. The condition is invisible to anything that inspects a single
+> repository, and it compounds daily: the cost of reconciliation is a function of
+> time since divergence, and nothing in either repository reports that time.
+
+**Consequence for the mission.** A unification that began before this is resolved
+would silently pick one head and discard the other's ~970 commits. **The first
+step of building the ecosystem monorepo is therefore not a migration** — it is
+deciding which of two live definitions of `trinity` is the project.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

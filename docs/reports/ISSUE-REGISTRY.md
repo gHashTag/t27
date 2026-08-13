@@ -1,5 +1,5 @@
-# Related GitHub issues — registry across the gHashTag organisation
-**Generated:** 2026-08-13 (W655) · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
+# Related GitHub issues — registry across the gHashTag account
+**Generated:** 2026-08-13 (W655) · **Corrected:** `gHashTag` is a **User account, not an Organization** (`gh api users/gHashTag --jq .type` -> `User`); an earlier line here said "organisation". · **Issue:** [#1959](https://github.com/gHashTag/t27/issues/1959)
 **Anchor:** phi^2 + phi^-2 = 3 | TRINITY
 
 ---
