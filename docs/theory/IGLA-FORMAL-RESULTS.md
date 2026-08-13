@@ -6827,4 +6827,83 @@ were synthesizing arithmetic that computed the wrong answer.**
 
 ---
 
+### T97 (W656) — the control refuted the headline at inference, and located where the claim actually lives
+
+T93 measured the φ node at **zero DSPs** and stated, in the same breath, the
+condition that would refute it:
+
+> *"If a `{−1,0,+1}` node with a per-layer scale synthesised to zero DSPs at
+> comparable accuracy, the closure argument would be decorative rather than
+> load-bearing. That comparison has **not** been run here."*
+
+**It has now been run, and it did.**
+
+`specs/igla/race/unit_weights_node.t27` is the control: same slicer, same
+accumulator width, same fault handling, same interface. The only difference is
+the one the argument is about — weights in `{−1,0,+1}` whose layer gain is `1`,
+so the magnitude comes from a learned per-layer scale `α_ℓ`.
+
+**Both synthesised, same compiler, same flags:**
+
+| resource | φ node | unit node |
+|---|---:|---:|
+| LUT2 | 32 | **63** |
+| LUT5 | 32 | 32 |
+| LUT6 | 2 | 2 |
+| CARRY4 | 24 | **33** |
+| IBUF | **115** | 83 |
+| OBUF | 33 | 33 |
+| **DSP48E1** | **0** | **0** |
+| total cells | 246 | **245** |
+
+**Both are zero DSPs. Total area is within one cell.** The claim as stated does
+not discriminate.
+
+#### Why — and this is the part worth keeping
+
+`ALPHA_TRAINED = 352 = 2⁸ + 2⁶ + 2⁵`. **A trained `α` is a constant at inference,
+and a constant multiply strength-reduces to shifts and adds.** The synthesiser
+never needs a multiplier because there is no multiply left to build.
+
+Probed directly, with `α` made a runtime input instead of a constant:
+
+```verilog
+assign result = (acc * alpha) >>> 8;    // alpha is an INPUT
+```
+```
+3 DSP48E1, 64 IBUF, 32 OBUF
+```
+
+> **T97.** The zero-DSP figure separates the two alphabets **wherever `α` varies**
+> — during training, or under per-sample or dynamic scaling — where the unit
+> alphabet costs **3 DSP48E1** and the φ alphabet costs zero. It does **not**
+> separate them at inference with a frozen `α`, because constant multiplication
+> is strength-reduced and the multiplier the argument is about never exists.
+
+**The headline as previously stated was over-claimed**, and the over-claim was
+found by building the control the same theorem said had not been built.
+
+#### What survives, restated so it is checkable
+
+- **At inference with frozen weights and a frozen `α`: no advantage measured.**
+  246 cells against 245, both at zero DSPs.
+- **Wherever `α` is not constant: 3 DSP48E1 against 0.** That is the whole of the
+  measured difference, and it is real.
+- **The φ node pays for its two-component accumulator**: 115 IBUF against 83,
+  because `(a,b)` is two integers where the unit node carries one plus a scale.
+  **Z[φ] exactness is not free in pin count**, and no earlier note said so.
+
+> **Corollary — the general form.** A cost that a compiler can constant-fold is
+> not a cost of the *architecture*; it is a cost of the *deployment mode*. An
+> area argument must therefore name the mode it holds in. "Zero DSPs" is true of
+> both alphabets at inference and true of only one during training, and a claim
+> that does not say which is not a claim about hardware.
+
+**And a limit that stands, unchanged and now more important.** This compares
+**area at equal structure**, not accuracy. A unit-alphabet network with a trained
+`α` may reach accuracy a φ network does not, or the reverse. **An area comparison
+at unequal accuracy is not a verdict**, and nothing here measures accuracy.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
