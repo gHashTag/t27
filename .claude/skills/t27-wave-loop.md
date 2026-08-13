@@ -5835,6 +5835,30 @@ These cost a wave each. Follow them before step 1.
      not just sign and storage:** signed, unsigned, reg, wire, integer, real,
      realtime, time, logic, bit, byte, int, shortint, longint.
 
+289. **Applying T55 to the session's own gates: the first one audited was
+     measuring one of three channels.** `parse-no-discard` counted drops in
+     `skip_to_next_top_level` only. The parser has FOUR walk-past functions;
+     instrumenting `skip_brace_body` and `recover_to_stmt_boundary` moved the
+     figure from **55,563 tokens / 130 specs to 68,039 / 132** (+22%). A gate
+     that counts a phenomenon by instrumenting one producer reports
+     |phenomenon AND that producer|, and the gap is invisible from inside the
+     gate -- the count stays consistent, monotone and reproducible. (T56.)
+
+290. **`%%` is NOT an escape in Rust's `format!`** -- only `{{` and `}}` are.
+     `"$display(\"[BENCH] {} : %%0d cycles\", {})"` reached Verilog verbatim,
+     and `$display` printed the literal `%0d cycles` then the value in default
+     form. **439 lines across 144 specs.** Verified with a four-line probe
+     through `iverilog` + `vvp`:
+       `"%%0d cycles", n` -> `a : %0d cycles         42`
+       `"%0d cycles",  n` -> `b : 42 cycles`
+     (T57.)
+
+291. **Static checks stratify: shape, type, and OUTPUT.** T57's defect is
+     well-formed Rust, well-formed Verilog, compiles and runs in both, and is
+     wrong only when a human reads what it printed. No gate this session built
+     could catch it -- they all live in the shape/type strata. **When a
+     generator emits a format string, run it.**
+
 ### How to update this tracker
 
 After closing a wave:

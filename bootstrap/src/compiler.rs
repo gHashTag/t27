@@ -1034,6 +1034,11 @@ impl Parser {
                     return Ok(());
                 }
             }
+            // W646: this body is being SKIPPED, so every token in it is
+            // discarded. T42's counter lived only in `skip_to_next_top_level`,
+            // making 55,563 a lower bound over one of four discard channels.
+            // See T56.
+            self.dropped_top_level_tokens += 1;
             self.advance();
         }
         Ok(())
@@ -2468,6 +2473,11 @@ impl Parser {
     fn recover_to_stmt_boundary(&mut self) {
         let mut brace_depth: i32 = 0;
         loop {
+            // W646: statement-level recovery is the second discard channel.
+            // Everything it walks past is a statement the AST never sees.
+            if self.current.kind != TokenKind::Eof {
+                self.dropped_top_level_tokens += 1;
+            }
             match self.current.kind {
                 TokenKind::Eof => break,
                 TokenKind::Semicolon if brace_depth == 0 => {
@@ -9734,7 +9744,15 @@ impl VerilogCodegen {
                 }
                 self.write_indent();
                 self.write_line(&format!(
-                    "$display(\"[BENCH] {} : %%0d cycles\", {});",
+                    // W646: `%%` is not an escape in Rust's `format!` -- only
+                    // `{{`/`}}` are -- so `%%0d` reached Verilog verbatim and
+                    // `$display` printed the literal text `%0d cycles` followed
+                    // by the value in default format. Verified against iverilog:
+                    //   "%%0d cycles", n  ->  `%0d cycles         42`
+                    //   "%0d cycles",  n  ->  `42 cycles`
+                    // Every [BENCH] cycle line in generated Verilog was
+                    // malformed. See T57.
+                    "$display(\"[BENCH] {} : %0d cycles\", {});",
                     b.name, counter
                 ));
                 self.write_indent();

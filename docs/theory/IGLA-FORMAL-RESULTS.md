@@ -3151,6 +3151,85 @@ change, which is the point.
 
 ---
 
+### T56 (W646) — Applying T55 to the session's own gates: the first one audited had its measurement over one of three channels
+
+**T55 says a totality claim needs evidence. Six gates written this session carry
+one and none had been audited.** Starting with the load-bearing one.
+
+**`parse-no-discard`** counts tokens dropped by `skip_to_next_top_level`. The
+parser has **four** functions that walk past tokens:
+
+| discard path | `advance()` calls | counted |
+|---|---:|---|
+| `skip_to_next_top_level` | 7 | **1** |
+| `skip_brace_body` | 7 | **0** |
+| `recover_to_stmt_boundary` | 4 | **0** |
+| `restore_bdd_fallback` | 2 | **0** |
+
+**Instrumenting the two that discard content** (`skip_brace_body` walks a body
+nobody parses; `recover_to_stmt_boundary` walks past a statement the AST never
+sees) and re-measuring the same 609 specs:
+
+| | T42's figure | corrected |
+|---|---:|---:|
+| specs discarding | 130 | **132** |
+| **tokens discarded** | **55 563** | **68 039** |
+
+**+12 476 tokens, +22%**, from channels the gate did not model. T42 stated 55 563
+as a measurement; it was a measurement *over one of three channels*.
+
+**Statement.** A gate that counts instances of a phenomenon by instrumenting one
+of its producers reports `|φ ∩ P₁|`, not `|φ|`. **The gap is invisible from
+inside the gate** — the count is internally consistent, monotone, and
+reproducible — and is only exposed by enumerating the producers, which is the
+same move T55 required for declaration forms. **T55 generalises: every gate's
+totality claim is a claim about a producer enumeration, and producer
+enumerations are exactly what this codebase does not maintain.**
+
+---
+
+### T57 (W646) — `%%` is not an escape in Rust's `format!`, and 439 benchmark lines said so
+
+**Found while auditing gate 3's coverage of `[BENCH]` blocks.** The emitter:
+
+```rust
+"$display(\"[BENCH] {} : %%0d cycles\", {});"
+```
+
+**Rust's `format!` escapes `{{` and `}}`. It does not escape `%`.** So `%%0d`
+reaches Verilog verbatim, and `$display` treats `%%` as a literal percent.
+Measured against iverilog:
+
+```
+"%%0d cycles", n   ->   [BENCH] a : %0d cycles         42
+"%0d cycles",  n   ->   [BENCH] b : 42 cycles
+```
+
+**The cycle count was never formatted into the sentence.** It was printed
+afterwards in default form, after the literal text `%0d cycles`.
+
+**439 such lines across 144 specs.**
+
+**Statement.** An escape convention borrowed from the wrong language is
+invisible to every check that does not *execute the output*. The string is
+well-formed Rust, well-formed Verilog, and compiles and runs in both — it is
+only wrong when a human reads what it printed. **No type system, linter, or
+artefact-shape gate in this repository could have caught it**; it took running
+`vvp` on a four-line probe.
+
+**Corollary — this is the complement of T54.** T54 said: when a property is
+decidable on the artefact, check the artefact rather than the producers. **T57 is
+the case where the property is decidable only on the artefact's *behaviour*.**
+Static checks stratify: shape (parse), type (compile), and *output* (run). This
+defect lives in the third stratum, and this session built gates in the first
+two.
+
+*Falsification condition:* a static check that distinguishes `%%0d` from `%0d`
+in an emitted format string without executing it — which would require the
+checker to model `$display`'s format grammar, i.e. to be a Verilog interpreter.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
