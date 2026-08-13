@@ -7000,4 +7000,60 @@ is executed, not merely asserted.
 
 ---
 
+### T100 (W657) — the detector built to discharge T98 had T98's own shape, and a negative control found it
+
+T98 ended by naming its own gap: *"T98's predicate is equally mechanical and is
+**not yet a script**. Until it is, T98 is a lesson, and by T94's own argument that
+means it will recur."* `scripts/check-runaway-processes.sh` closes it.
+
+**And the first draft was wrong in a way that only a negative control could
+show.** Run against a synthetic runaway — a Python parent blocked on a
+never-terminating Python child — it reported three findings where there was one:
+
+```
+RUNAWAY  pid=649    3280m   0.0%  Xcode Python     <- idle for two days, not a runaway
+  SOURCE pid=1              0.1%  launchd          <- init named as the source of a loop
+RUNAWAY  pid=67681     0m   0.0%  Python           <- this IS the blocked parent
+  SOURCE pid=1              0.1%  launchd
+RUNAWAY  pid=67683     0m  99.3%  Python           <- the only real one
+  SOURCE pid=67681          0.0%  Python           <- correct
+```
+
+**The draft flagged any watched process past the wall-clock threshold regardless
+of its own CPU.** A runaway *burns a core*; a blocked parent is at 0.0% **by
+definition** — so the check reported the parent as a runaway and then went
+looking for *its* parent, arriving at `launchd`.
+
+> **T100.** The detector reproduced the defect it was written to detect: **half a
+> signature applied as if it were whole.** T98's finding is that neither
+> "child at 99%" nor "parent at 0%" is diagnostic alone; the draft encoded the
+> wall-clock half and dropped the CPU half, and the result was a check that
+> named `init` as the source of a hang.
+>
+> **A check is not immune to the class it checks for.** It is only better than a
+> lesson because it has a failure mode you can *run* — and running it is what
+> found this.
+
+**Fixed:** a flagged process must also exceed a CPU floor (default 50%), and
+`launchd`/`pid 1` can never be named as a SOURCE — a child reparented to init is
+**orphaned**, not driven by a loop, and the two need different remedies.
+
+**After the fix, on the same synthetic pair:**
+
+```
+RUNAWAY  pid=67830   100.0%  Python
+  SOURCE pid=67828     0.0%  Python
+```
+
+One finding, correct, with the source named. Clean state returns `OK` and exit 0.
+
+> **Corollary — what a negative control is for.** It is not to confirm the check
+> fires; it is to make the check *fire wrongly* where wrongness is observable.
+> This one was run at threshold 0 against a process pair whose correct
+> classification was known in advance, and **the two false positives were visible
+> only because the right answer was known before the output was read.** A control
+> whose expected result is unknown is a second measurement, not a control.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
