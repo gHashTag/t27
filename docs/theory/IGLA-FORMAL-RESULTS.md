@@ -6906,4 +6906,98 @@ at unequal accuracy is not a verdict**, and nothing here measures accuracy.
 
 ---
 
+### T98 (W657) — killing a runaway child of an unbounded loop only advances the loop to its next hang
+
+T83 found a `vvp` running 5h47m at 88% CPU, terminated it, and recorded the
+lesson that a timeout on *some* pipeline steps is not a timeout on the pipeline.
+**The self-healing was incomplete, and the incompleteness reappeared three hours
+later.**
+
+```
+PID 91632   03:00:50   99.1%   vvp
+PID  8942   08:49:07    0.0%   Python   <- the parent, BLOCKED, waiting on it
+```
+
+`8942` is the same parent as T83's runaway. It is a sweep that has been alive for
+**8h49m**, sitting at 0% CPU because it is blocked in `subprocess.run` on a `vvp`
+call that carries no `timeout=`. **Killing the child in T83 let the loop advance
+to the next spec and hang again** — the three-hour process was the *successor* of
+the one that was killed.
+
+> **T98.** A runaway child of an unbounded loop is a **symptom whose removal is
+> indistinguishable from a cure**: the loop resumes, reports nothing, and
+> produces an identical runaway on the next iteration. The observable — one
+> process at 99% CPU — is the same before and after the intervention, so the
+> intervention cannot be evaluated by looking at it.
+>
+> **Kill the source. Identify it by finding the process that is blocked at 0% CPU
+> while its child burns a core** — that pairing is the signature, and neither
+> half is diagnostic alone.
+
+**Terminated: both.** Their harness tasks then reported at last — one with exit
+code **143**, which is the `SIGTERM` this wave sent, and both with empty output.
+**The sweep had produced nothing in nearly nine hours**, and nothing downstream
+was waiting on a result that was never coming.
+
+**Corollary about the check that T94 built.** `check-pagination-truncation.sh`
+discharged T91 because truncation has a *machine-detectable predicate*
+(`n == limit`). T98's predicate is equally mechanical — *a process at ~0% CPU
+whose child exceeds a wall-clock bound* — and is **not yet a script**. Until it
+is, T98 is a lesson, and by T94's own argument that means it will recur.
+
+---
+
+### T99 (W657) — fan-in and depth are different questions, and only one of them is logarithmic
+
+T93 stated its limit: *"fan-in, depth, and the accumulator width needed to keep
+`(a,b)` exact over many steps are NOT measured here."* The article reports that
+*"component widths grow logarithmically, reaching eight bits at these 512
+terms."* **A careless reading takes that to cover both axes. It does not.**
+
+**Fan-in — logarithmic.** An 8-bit activation `x` enters as `(x, 0)`; applying
+`+φ` gives `(0, x)`, applying `−φ` gives `(0, −x)`, a zero weight is a skip. So
+in one layer **every contribution lands in `b` only and `a` stays zero**:
+
+$$|b| \le N \cdot 255, \qquad \mathrm{width}(b) = 8 + \lceil \log_2 N \rceil$$
+
+| fan-in | 8 | 32 | 128 | 512 | 4096 |
+|---|---:|---:|---:|---:|---:|
+| bits | 11 | 13 | 15 | **17** | 20 |
+
+**Depth — Fibonacci, which is exponential.** `φ^k` applied to `(x,0)` gives
+`(F_{k−1}·x, F_k·x)`, and `F_k ~ φ^k/√5`, so
+
+$$\mathrm{width} \approx 8 + k\log_2\varphi = 8 + 0.694\,k$$
+
+| depth `k` | 1 | 5 | 10 | 20 | 30 |
+|---|---:|---:|---:|---:|---:|
+| bits | 8 | 11 | 14 | 21 | **28** |
+
+Predicted `8 + 0.694k` gives 8.7, 11.5, 14.9, 21.9, 28.8 — **measured 8, 11, 14,
+21, 28.**
+
+> **T99.** **Doubling the fan-in costs one bit; adding fourteen layers costs
+> ten.** Depth 30 needs 28 bits where fan-in 512 needs 17. A design that sizes
+> its accumulator from the fan-in figure and then stacks layers **will
+> overflow** — and `Z[φ]` has neither saturation nor rounding, so **the
+> exactness that makes the datapath free is exactly what makes the overflow
+> invisible.**
+
+**And a regime the article does not name.** The figures above are **worst case**:
+every weight non-zero, every sign aligned. Under random signs the sum
+concentrates, `|b| ~ 255·√N`, and the growth is **half** — 4.5 bits at fan-in 512
+rather than 9. The article's "eight bits" sits between the two.
+
+> **Corollary.** An accumulator sized from the typical figure is **correct almost
+> always**, which is the worst property a width can have: the failure is
+> data-dependent, silent, and appears first on the inputs that matter most —
+> the ones where many weights agree.
+
+`specs/igla/race/phi_accumulator_growth.t27`: 20/20 in Zig, 20 PASSED under
+iverilog, zero compile errors. The Fibonacci pair is checked to depth 5 by
+unrolled composition — `(1,1) → (1,2) → (2,3) → (3,5)` — so the exponential claim
+is executed, not merely asserted.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
