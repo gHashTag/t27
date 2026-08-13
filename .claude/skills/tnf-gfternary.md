@@ -353,17 +353,47 @@ open flow; **not** a multi-corner characterisation, and an ASIC mapping differs.
 | Yosys | 0.65 | **0.63** | close, probably fine |
 | Icarus | 13.0 | 13.0 | ✅ |
 | Python | 3.14 | 3.14.6 | ✅ |
-| nextpnr-xilinx | 1743d0f | **absent** | ❌ |
+| nextpnr-xilinx | 1743d0f | **absent from PATH** | ❌ |
 | nextpnr-himbaechel | — | present, `--list-uarch` → **xilinx** | ⚠️ |
-| chipdb | xc7a200t | **`chipdb-xc7a100t.bin` only** | ❌ **wrong part** |
+| himbaechel chipdb | — | `chipdb-xc7a100t.bin` only — **wrong part** | ❌ |
+| **openXC7 chipdb** | xc7a200t | `build/fpga/openxc7/xc7a200tfbg676-1.bin` — **332 MB, exists** | ⚠️ |
+| prjxray-db | xc7a200t | `build/fpga/openxc7/prjxray-db/artix7/xc7a200tfbg676-1` — present | ✅ |
 
-The P&R engine is here and speaks Xilinx; the **device database is for the wrong
-chip**. Our boards are XC7A200T (idcode `0x3636093`). Until an `xc7a200t` chipdb
-exists locally, **no new bitstream can be built on this machine** — which gates
-every hardware claim downstream of it.
+**The blocker is the binary, not the database.** A first pass looked only in
+`/opt/homebrew/share/himbaechel/`, found `chipdb-xc7a100t.bin`, and concluded no
+200T database existed anywhere. That was a **single-route measurement published as
+a totality claim** — the repo's own build tree carries a 332 MB
+`xc7a200tfbg676-1.bin` (and a 980 MB `.bba`) built 2026-08-09, plus the matching
+prjxray-db part.
+
+But it is in the **old `nextpnr-xilinx` format**, and the installed engine rejects it:
+
+```
+$ nextpnr-himbaechel --device xc7a200tfbg676-1 \
+      --chipdb build/fpga/openxc7/xc7a200tfbg676-1.bin --test
+Info: Using uarch 'xilinx' for device 'xc7a200tfbg676-1'
+ERROR: chipdb ... does not look like a valid himbächel database!
+```
+
+So there are two routes back to a buildable bitstream, and they are not equal cost:
+
+- **(a) install `nextpnr-xilinx` (openXC7 fork)** → consumes the existing 332 MB
+  database directly. The expensive artefact is already built.
+- **(b) regenerate a himbaechel-format chipdb for xc7a200t** from the prjxray-db
+  that is present → uses the engine already installed, but repeats the generation
+  that produced a 980 MB `.bba`.
+
+**(a) is the cheap route.** Do not plan around (b) without measuring the generation
+cost first.
 
 Per the SSOT: `xc7a200tfbg676-1` and `xc7a200tfgg676-1` share die and BGA-676
 pinout, so the prjxray-db `fbg676` entry is pinout-correct for our board.
+
+**Also on disk already:** `fpga/verilog/ternary_mac_demo_top_200t.bit` (9.7 MB — a
+200T-sized bitstream, vs ~3.8 MB for 100T), with `.fasm` and `.frames` beside
+other designs. The flow *has* run on this machine. `README.md:61` claims
+`FPGA | E2E bitstream | GREEN`; that claim is **not currently reproducible from a
+clean PATH**, and the README's board row still says XC7A100T.
 
 ---
 
