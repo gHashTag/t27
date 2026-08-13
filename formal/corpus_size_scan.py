@@ -59,11 +59,29 @@ POPULATIONS = [
 ]
 
 
+def code_lines(path):
+    """Non-blank, non-comment lines. `//` and `#` cover every language here."""
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return 0
+    return sum(1 for l in text.splitlines()
+               if l.strip() and not l.strip().startswith(("//", "#", "(*")))
+
+
 def measure():
     out = {}
     for name, rel, pat in POPULATIONS:
         d = ROOT / rel
-        out[name] = len(list(d.rglob(pat))) if d.exists() else 0
+        files = sorted(d.rglob(pat)) if d.exists() else []
+        out[name] = len(files)
+        # Prop. 210: counting FILES misses a file that still exists and has been
+        # emptied. Measured: with 249 of 497 specs replaced by a one-line
+        # comment, every finding ratchet reported "holds" -- 154 events -> 95,
+        # 21 imbalances -> 9, 16 documents -> 9 -- and this gate, counting
+        # files, saw 497 and agreed. A hollowed corpus is the deletion case
+        # (Prop. 209) with the evidence of deletion removed.
+        out[name + "-lines"] = sum(code_lines(f) for f in files)
     wf = ROOT / ".github" / "workflows"
     n = 0
     if wf.exists():

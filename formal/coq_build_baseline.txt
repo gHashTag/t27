@@ -1,7 +1,0 @@
-coq/Kernel/PhiAttractor.v
-proofs/gravity/dl_bounds.v
-proofs/sacred/dl_bounds.v
-proofs/sacred/gamma_phi3.v
-proofs/sacred/l5_identity.v
-proofs/sacred/strong_cp.v
-trios-coq/Physics/PurkinjeThermal.v

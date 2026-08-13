@@ -2,6 +2,48 @@
 
 Last updated: 2026-08-13
 
+## A hollowed corpus defeats a file-count guard (Closes #2146)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2146
+- PR: (direct commit)
+
+### What landed
+
+249 of 497 specs replaced by a single comment line -- **every file still
+present**:
+
+| gate | full | hollowed |
+|---|---|---|
+| `spec_parse_gate` | 154 events | **95**, `ratchet holds` |
+| `delimiter_balance_scan` | 21 | **9**, `ratchet holds` |
+| `spec_class_scan` | 16 | **9**, `ratchet holds` |
+| `corpus_size_scan` (last wave) | 497 specs | **497**, agreed |
+
+The gate written last wave to catch exactly this class counted 497 and passed --
+as its own `COVERAGE.` paragraph had predicted.
+
+Fix: ratchet total content lines alongside file count. After:
+`specs-lines: 76092 -> 38522 (37570 missing)` with `specs=497` unchanged, exit 1.
+
+1213 tests pass; meta-gates green.
+
+### Honesty limits (BINDING)
+
+- **The other gates are still not fixed.** They report a hollowed corpus as
+  improvement; gate 32 fails alongside them.
+- **Content REPLACED rather than removed is undetected** -- same line count,
+  different meaning. That is now this gate's own stated residue.
+- The measure is non-blank non-comment lines with `//`, `#`, `(*` markers. It is
+  a proxy for content, not a semantic one.
+- **Prop. 207's residual window occurred live during this wave**: a hand-run
+  `claims_check` failed with `FileNotFoundError: formal/witnesses.sv` because a
+  background sweep held the subjects. Not a defect -- the documented open case,
+  observed.
+- The hollowed half was every second file by sort order, one draw, not a sample.
+- No RTL, spec, or proof content changed.
+
+
 ## Deleting half the corpus reads as a 38% improvement (Closes #2145)
 
 - Branch: `feat/wave-547/host-heapsort`

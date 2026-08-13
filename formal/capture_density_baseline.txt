@@ -1,1 +1,0 @@
-specs/ar/ternary_logic.t27	317

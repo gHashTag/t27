@@ -1,6 +1,11 @@
 coq-sources	30
-gate-invocations	46
+coq-sources-lines	3328
+gate-invocations	47
 gate-scripts	37
-generated-rtl	13
+gate-scripts-lines	5768
+generated-rtl	0
+generated-rtl-lines	0
 specs	497
+specs-lines	76092
 workflows	38
+workflows-lines	3848

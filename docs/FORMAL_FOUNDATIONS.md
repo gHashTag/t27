@@ -11069,6 +11069,57 @@ exits 1 naming three shrunk populations; alone in an empty tree it exits 1.
 
 ---
 
+### Prop. 210 — a hollowed corpus is a deletion with the evidence of deletion removed — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Corpus size scan — a finding ratchet improves when you delete the subject*
+
+Prop. 209 made deletion loud by ratcheting population **size**. The next case is a
+file that still exists and has been emptied. Measured, with 249 of 497 specs
+replaced by a single comment line — **every file still present**:
+
+| gate | full | hollowed | verdict |
+|---|---|---|---|
+| `spec_parse_gate` | 154 events | **95** | `ratchet holds` |
+| `delimiter_balance_scan` | 21 imbalances | **9** | `ratchet holds` |
+| `spec_class_scan` | 16 documents | **9** | `ratchet holds` |
+| `corpus_size_scan` (Prop. 209) | 497 specs | **497 specs** | **agreed** |
+
+The gate written *last wave specifically to catch this class of loss* counted 497
+and passed. Its own `COVERAGE.` paragraph had said so — *"It counts FILES, not
+content: a spec emptied to zero bytes is not detected here"* — which is the
+paragraph doing its job and is exactly why Prop. 194 requires it.
+
+**Theorem (hollowing).** Let `C` be a corpus and `‖·‖` any content measure with
+`‖∅‖ = 0`. Deletion moves both `|C|` and `Σ‖c‖`; hollowing moves only the second.
+A guard on cardinality is therefore **complete for deletion and empty for
+hollowing**, and the two are indistinguishable in every finding count, because a
+finding requires content to be found in. Hollowing is strictly the harder case:
+it produces the same drop in every downstream metric while leaving the evidence
+of the change *outside* everything those metrics measure.
+
+The fix is one line of arithmetic — ratchet `Σ‖c‖` alongside `|C|`. Measured
+after: `specs-lines: 76092 -> 38522 (37570 missing)` with `specs=497` unchanged.
+Exit 1, naming the population and the amount.
+
+**Corollary — a `COVERAGE.` paragraph is a work-list, not a disclaimer.** Prop.
+209's residue was stated honestly and then sat for exactly one wave before the
+case it named was demonstrated. Every such paragraph in this repository is a
+prediction that something will eventually be found there. Reading them as
+admissions is a mistake; reading them as a queue is the correct use, and this
+wave is the first time the campaign has done so deliberately.
+
+**Scope of the content measure.** Non-blank, non-comment lines, with `//`, `#` and
+`(*` covering every language in the tree. It does not detect a file whose content
+was *replaced* rather than removed — same line count, different meaning — and that
+case is now this gate's own stated residue.
+
+Three bars: **TRUE** — full tree exit 0, all meta-gates green, 1213 tests pass.
+**ALIVE** — twelve measures across six populations, none zero. **BITING** — the
+hollowed corpus exits 1 naming `specs-lines` and the 37,570 missing lines; alone
+in an empty tree, exit 1.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted
