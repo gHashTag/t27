@@ -6547,4 +6547,44 @@ structure checkable rather than decorative.
 
 ---
 
+### T90 (W655) — a tool that returns exactly the limit is reporting the limit
+
+Two independent sweeps of the organisation's issue trackers disagreed by roughly
+a factor of two:
+
+| route | open issues |
+|---|---:|
+| org-wide `gh search issues --owner gHashTag` | **240** |
+| per-repo `gh issue list` over 13 repositories | **468** |
+
+The per-repo sweep found the cause: `gh issue list --limit 100 --state all`
+returned **exactly 100 rows** for `t27`, `trinity`, `trinity-fpga` and `trios`.
+
+> **T90.** A paginated query that returns exactly its limit has not answered the
+> question; it has reported the limit. The two are indistinguishable in the
+> response, and the only way to tell them apart is to **ask again with a larger
+> limit and see whether the number moves**. A count that equals a round number
+> you supplied is a boundary artefact until proven otherwise.
+
+**The same shape as T46**, where a ledger was built from a `take(25)` list and
+came out 328 against an observed 330. Both are cases of an instrument's own
+bound being read as a property of the population.
+
+**Deduplicated across both routes: 429 unique issues, 313 open, 116 closed**,
+recorded in `docs/reports/ISSUE-REGISTRY.md`.
+
+**And the registry's own headline is an absence.** `TNF` appears as a theme
+**zero** times — 0 title matches across all 429, 0 org-wide in bodies, 0
+`in:comments`. A concept with a 2,353-line article, a dedicated skill and an
+erratum had no tracked work anywhere. `GFTernary` has 30 issues and, until W655,
+zero consumers in the corpus (T86).
+
+> **Corollary.** An issue tracker measures *attention*, not *importance*. The two
+> objects this project's entire numeric argument rests on are the two with the
+> least tracked work — and that is discoverable only by counting themes against a
+> list of what the project claims to be about, never by reading the tracker on
+> its own terms.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
