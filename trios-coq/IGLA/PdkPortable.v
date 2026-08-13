@@ -3,6 +3,11 @@
 
 (* HoloOp alphabet lives in coq/IGLA/RMarker.v (Lane X, commit 5758b53c).
    Import via the T27 logical path registered in coq/_CoqProject. *)
+(* Prop. 201: `Forall` lives in Coq.Lists.List, which nothing here imported.
+   The trios-coq build has failed on this since the file landed, behind a
+   `continue-on-error: true` step noted "non-blocking until observed green". *)
+From Coq Require Import List.
+Import ListNotations.
 From T27.IGLA Require Import RMarker.
 
 (* The merged Lane V/W/V'/S oplist must remain rtl_uses_star=false

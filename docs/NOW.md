@@ -2,6 +2,45 @@
 
 Last updated: 2026-08-13
 
+## continue-on-error is a red check reported as success (Closes #2137)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2137
+- PR: (direct commit)
+
+### What landed
+
+`formal/run_all.py` -- enumerates every `python3 formal/*.py` invocation from the
+workflow files and runs all of them. **43 invocations of 30 scripts.** No list to
+forget (Prop. 200). First full run: 42 pass, 1 fails.
+
+It reads `continue-on-error` from the enclosing step and reports those separately,
+as **red checks the workflow ignores, not passes**. 5 steps carry the flag; 2 are
+checks. One -- "Build trios-coq/, non-blocking **until observed green**" -- has
+been red since it landed: three files use `Forall` while importing only
+`RMarker`, and `Forall` lives in `Coq.Lists.List`. Fixed in `Sparsity24.v`,
+`Timing400.v`, `PdkPortable.v`.
+
+All 43 python gates re-run, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **The trios-coq build still fails.** It advances past the three import defects
+  and stops on a different class: a type error in `Kernel/LutNpu.v` (`81 : Z`
+  where `nat` is expected). That is proof content, not bookkeeping, and is left
+  rather than guessed at. **The `continue-on-error` flag is NOT flipped off.**
+- **10 of 28 files in `_CoqProject` currently produce a `.vo`.** The build is
+  further along, not finished.
+- **`run_all` covers 43 of 58 workflow steps.** The other 15 are yosys proofs,
+  cargo builds and shell. It establishes "every python gate the workflows run
+  passes", never "CI would pass".
+- Verified on Rocq 9.2 on this host. The missing import fails on every version, so
+  that conclusion does not depend on the toolchain; the *remaining* type error has
+  not been checked against CI's Coq version.
+- `workflow_reachable_scan` still exits 1: both workflows exist only on this
+  branch and have never run (Prop. 169).
+
+
 ## The strongest check had been red for six waves (Closes #2136)
 
 - Branch: `feat/wave-547/host-heapsort`

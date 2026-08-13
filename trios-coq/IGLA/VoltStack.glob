@@ -1,0 +1,161 @@
+DIGEST 21da85c6ba4d0f8e6a50078358415164
+FTriosCoq.IGLA.VoltStack
+R1312:1319 Stdlib.Arith.PeanoNat <> <> lib
+R1356:1358 Stdlib.micromega.Lia <> <> lib
+R1391:1394 Stdlib.Lists.List <> <> lib
+R1404:1416 Stdlib.Lists.List ListNotations <> mod
+R1448:1454 T27.IGLA.RMarker <> <> lib
+def 1744:1753 <> w36_oplist
+R1757:1760 Corelib.Init.Datatypes <> list ind
+R1762:1768 T27.IGLA.RMarker <> holo_op ind
+R1788:1793 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1775:1787 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R1808:1813 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1794:1807 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R1828:1833 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1814:1827 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R1848:1853 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1834:1847 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R1869:1874 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1854:1868 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr
+R1885:1890 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1875:1884 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R1904:1909 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1891:1903 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R1910:1912 Corelib.Init.Datatypes <> nil constr
+ind 2176:2184 <> volt_tier
+constr 2199:2207 <> T_NearRet
+constr 2256:2263 <> T_Cruise
+constr 2313:2320 <> T_Active
+scheme 2176:2184 <> volt_tier_rect
+scheme 2176:2184 <> volt_tier_ind
+scheme 2176:2184 <> volt_tier_rec
+scheme 2176:2184 <> volt_tier_sind
+def 2430:2436 <> tier_mv
+R2443:2451 TriosCoq.IGLA.VoltStack <> volt_tier ind
+binder 2439:2439 <> t:3
+R2456:2458 Corelib.Init.Datatypes <> nat ind
+R2471:2471 TriosCoq.IGLA.VoltStack <> t:3 var
+R2482:2490 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+R2503:2510 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+R2524:2531 TriosCoq.IGLA.VoltStack <> T_Active constr
+prf 2556:2571 <> tier_mv_near_ret
+R2592:2594 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2575:2581 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2583:2591 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+prf 2632:2645 <> tier_mv_cruise
+R2665:2667 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2649:2655 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2657:2664 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+prf 2705:2718 <> tier_mv_active
+R2738:2740 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2722:2728 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2730:2737 TriosCoq.IGLA.VoltStack <> T_Active constr
+prf 2829:2845 <> tier_mv_strict_lo
+R2866:2868 Corelib.Init.Peano <> ::nat_scope:x_'<'_x not
+R2849:2855 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2857:2865 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+R2869:2875 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2877:2884 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+prf 2918:2934 <> tier_mv_strict_hi
+R2954:2956 Corelib.Init.Peano <> ::nat_scope:x_'<'_x not
+R2938:2944 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2946:2953 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+R2957:2963 TriosCoq.IGLA.VoltStack <> tier_mv def
+R2965:2972 TriosCoq.IGLA.VoltStack <> T_Active constr
+prf 3006:3024 <> tier_mv_strict_full
+R3045:3047 Corelib.Init.Peano <> ::nat_scope:x_'<'_x not
+R3028:3034 TriosCoq.IGLA.VoltStack <> tier_mv def
+R3036:3044 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+R3048:3054 TriosCoq.IGLA.VoltStack <> tier_mv def
+R3056:3063 TriosCoq.IGLA.VoltStack <> T_Active constr
+prf 3142:3166 <> tier_distinct_near_cruise
+R3179:3182 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3170:3178 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+R3183:3190 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+prf 3226:3250 <> tier_distinct_near_active
+R3263:3266 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3254:3262 TriosCoq.IGLA.VoltStack <> T_NearRet constr
+R3267:3274 TriosCoq.IGLA.VoltStack <> T_Active constr
+prf 3310:3336 <> tier_distinct_cruise_active
+R3348:3351 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3340:3347 TriosCoq.IGLA.VoltStack <> T_Cruise constr
+R3352:3359 TriosCoq.IGLA.VoltStack <> T_Active constr
+def 3632:3643 <> island_banks
+R3647:3649 Corelib.Init.Datatypes <> nat ind
+def 3668:3683 <> islands_per_bank
+R3687:3689 Corelib.Init.Datatypes <> nat ind
+def 3709:3721 <> total_islands
+R3725:3727 Corelib.Init.Datatypes <> nat ind
+R3744:3746 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R3732:3743 TriosCoq.IGLA.VoltStack <> island_banks def
+R3747:3762 TriosCoq.IGLA.VoltStack <> islands_per_bank def
+prf 3822:3840 <> total_islands_value
+R3857:3859 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3844:3856 TriosCoq.IGLA.VoltStack <> total_islands def
+prf 3958:3981 <> volt_stack_grows_islands
+R3998:4000 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R3985:3997 TriosCoq.IGLA.VoltStack <> total_islands def
+R4019:4031 TriosCoq.IGLA.VoltStack <> total_islands def
+R4034:4045 TriosCoq.IGLA.VoltStack <> island_banks def
+R4048:4063 TriosCoq.IGLA.VoltStack <> islands_per_bank def
+def 4320:4328 <> wakeup_ns
+R4332:4334 Corelib.Init.Datatypes <> nat ind
+def 4408:4423 <> wakeup_budget_ns
+R4427:4429 Corelib.Init.Datatypes <> nat ind
+prf 4445:4464 <> wakeup_within_budget
+R4477:4479 Corelib.Init.Peano <> ::nat_scope:x_'<'_x not
+R4468:4476 TriosCoq.IGLA.VoltStack <> wakeup_ns def
+R4480:4495 TriosCoq.IGLA.VoltStack <> wakeup_budget_ns def
+R4512:4520 TriosCoq.IGLA.VoltStack <> wakeup_ns def
+R4523:4538 TriosCoq.IGLA.VoltStack <> wakeup_budget_ns def
+prf 4558:4573 <> wakeup_le_budget
+R4586:4589 Corelib.Init.Peano <> ::nat_scope:x_'<='_x not
+R4577:4585 TriosCoq.IGLA.VoltStack <> wakeup_ns def
+R4590:4605 TriosCoq.IGLA.VoltStack <> wakeup_budget_ns def
+R4622:4630 TriosCoq.IGLA.VoltStack <> wakeup_ns def
+R4633:4648 TriosCoq.IGLA.VoltStack <> wakeup_budget_ns def
+def 5136:5157 <> leakage_floor_permille
+R5161:5163 Corelib.Init.Datatypes <> nat ind
+def 5183:5207 <> leakage_observed_permille
+R5211:5213 Corelib.Init.Datatypes <> nat ind
+prf 5254:5272 <> leakage_floor_value
+R5298:5300 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5276:5297 TriosCoq.IGLA.VoltStack <> leakage_floor_permille def
+prf 5337:5364 <> leakage_observed_above_floor
+R5395:5398 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R5370:5394 TriosCoq.IGLA.VoltStack <> leakage_observed_permille def
+R5399:5420 TriosCoq.IGLA.VoltStack <> leakage_floor_permille def
+R5437:5461 TriosCoq.IGLA.VoltStack <> leakage_observed_permille def
+R5464:5485 TriosCoq.IGLA.VoltStack <> leakage_floor_permille def
+prf 5725:5747 <> volt_stack_passes_w105a
+R5778:5781 Corelib.Init.Peano <> ::nat_scope:x_'>='_x not
+R5753:5777 TriosCoq.IGLA.VoltStack <> leakage_observed_permille def
+R5782:5803 TriosCoq.IGLA.VoltStack <> leakage_floor_permille def
+R5819:5846 TriosCoq.IGLA.VoltStack <> leakage_observed_above_floor thm
+prf 6152:6173 <> volt_stack_op_in_chain
+R6177:6178 Stdlib.Lists.List <> In def
+R6194:6203 TriosCoq.IGLA.VoltStack <> w36_oplist def
+R6180:6192 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R6220:6229 TriosCoq.IGLA.VoltStack <> w36_oplist def
+prf 6385:6405 <> volt_stack_op_no_star
+R6436:6438 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6409:6421 T27.IGLA.RMarker <> rtl_uses_star def
+R6423:6435 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R6439:6443 Corelib.Init.Datatypes <> false constr
+R6459:6476 T27.IGLA.RMarker <> avs_reconf_no_star thm
+prf 6562:6583 <> volt_stack_chain_depth
+R6604:6606 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6587:6592 Corelib.Init.Datatypes <> length def
+R6594:6603 TriosCoq.IGLA.VoltStack <> w36_oplist def
+prf 6795:6815 <> volt_stack_safe_chain
+binder 6828:6829 <> op:5
+R6848:6851 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R6832:6833 Stdlib.Lists.List <> In def
+R6838:6847 TriosCoq.IGLA.VoltStack <> w36_oplist def
+R6835:6836 TriosCoq.IGLA.VoltStack <> op:5 var
+R6868:6870 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6852:6864 T27.IGLA.RMarker <> rtl_uses_star def
+R6866:6867 TriosCoq.IGLA.VoltStack <> op:5 var
+R6871:6875 Corelib.Init.Datatypes <> false constr
+R6904:6922 T27.IGLA.RMarker <> holographic_no_star thm

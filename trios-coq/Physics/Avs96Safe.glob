@@ -1,0 +1,26 @@
+DIGEST 4e87bd552997cfb298831be1b305a5d0
+FTrios_coq.Physics.Avs96Safe
+R238:249 Corelib.Init.Nat <> <> lib
+R267:281 Stdlib.Arith.Arith <> <> lib
+mod 292:300 <> Avs96Safe
+def 315:325 Avs96Safe avs96_steps
+R329:331 Corelib.Init.Datatypes <> nat ind
+def 351:368 Avs96Safe avs96_bin_width_uv
+R372:374 Corelib.Init.Datatypes <> nat ind
+def 427:444 Avs96Safe avs48_bin_width_uv
+R448:450 Corelib.Init.Datatypes <> nat ind
+def 493:507 Avs96Safe step_gate_input
+R526:528 Corelib.Init.Datatypes <> nat ind
+binder 510:522 <> occupancy_bin:1
+R533:535 Corelib.Init.Datatypes <> nat ind
+R545:551 Stdlib.Arith.PeanoNat Nat ltb def
+R553:565 Trios_coq.Physics.Avs96Safe <> occupancy_bin:1 var
+R567:577 Trios_coq.Physics.Avs96Safe Avs96Safe avs96_steps def
+R584:596 Trios_coq.Physics.Avs96Safe <> occupancy_bin:1 var
+prf 649:664 Avs96Safe avs96_step_count
+R679:681 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R668:678 Trios_coq.Physics.Avs96Safe Avs96Safe avs96_steps def
+prf 757:780 Avs96Safe avs96_bin_width_positive
+R802:804 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R784:801 Trios_coq.Physics.Avs96Safe Avs96Safe avs96_bin_width_uv def
+R824:841 Trios_coq.Physics.Avs96Safe Avs96Safe avs96_bin_width_uv def

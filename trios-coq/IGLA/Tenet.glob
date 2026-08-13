@@ -1,0 +1,36 @@
+DIGEST 0609720a4af0a5933f0484c6fc92faae
+FTriosCoq.IGLA.Tenet
+R321:324 Stdlib.Lists.List <> <> lib
+R334:346 Stdlib.Lists.List ListNotations <> mod
+R378:384 T27.IGLA.RMarker <> <> lib
+def 832:843 <> tenet_oplist
+R847:850 Corelib.Init.Datatypes <> list ind
+R852:858 T27.IGLA.RMarker <> holo_op ind
+R878:883 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R865:877 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R898:903 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R884:897 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R918:923 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R904:917 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R938:943 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R924:937 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R959:964 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R944:958 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr
+R965:967 Corelib.Init.Datatypes <> nil constr
+prf 1122:1131 <> tenet_safe
+R1137:1142 Corelib.Lists.ListDef <> Forall ind
+R1179:1190 TriosCoq.IGLA.Tenet <> tenet_oplist def
+binder 1149:1149 <> o:1
+R1169:1171 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1154:1166 T27.IGLA.RMarker <> rtl_uses_star def
+R1168:1168 TriosCoq.IGLA.Tenet <> o:1 var
+R1172:1176 Corelib.Init.Datatypes <> false constr
+R1216:1226 Corelib.Lists.ListDef <> Forall_cons constr
+R1236:1254 T27.IGLA.RMarker <> holographic_no_star thm
+R1268:1277 Corelib.Lists.ListDef <> Forall_nil constr
+prf 1375:1399 <> tenet_sparse_skip_no_star
+R1431:1433 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1403:1415 T27.IGLA.RMarker <> rtl_uses_star def
+R1417:1430 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R1434:1438 Corelib.Init.Datatypes <> false constr
+R1454:1472 T27.IGLA.RMarker <> holographic_no_star thm

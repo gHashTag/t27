@@ -10530,6 +10530,65 @@ pass. **ALIVE** — the sweep found four real omissions and `faith_check` and
 
 ---
 
+### Prop. 201 — `continue-on-error` is a red check reported as success, and one had been red since it landed — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 200's fix cannot be discipline, because the failure mode of recall is
+silence. `formal/run_all.py` enumerates every `python3 formal/*.py` invocation
+from the workflow files and runs all of them — **43 invocations of 30 scripts** —
+so there is no list to forget. First full run: **42 pass, 1 fails.**
+
+**The runner disagreed with CI, and that is its own finding.** The one failure is
+`workflow_reachable_scan`, whose step carries `continue-on-error: true`. A runner
+that ignores the flag disagrees with the thing it simulates; but reporting it as a
+hard failure is not safe either, because it trains the operator to expect one red
+and wave it through — which is how a *second* red gets missed. `run_all` now reads
+the flag from the enclosing step and reports those separately, under the heading
+that they are **red checks the workflow ignores, not passes**.
+
+**Enumerated: 5 steps carry `continue-on-error`, of which 2 are checks.** The other
+three are an artifact upload, a status sync and a matrix generator — infrastructure.
+The two checks are the interesting population:
+
+| step | note in the workflow | measured |
+|---|---|---|
+| Workflow reachable scan | "flip it off the moment a PR can satisfy it" | red — Prop. 169, both workflows exist only on this branch |
+| Build `trios-coq/` | "non-blocking **until observed green**" | **red, and it has never been green** |
+
+Building `trios-coq` locally (Rocq 9.2): `Error: The reference Forall was not found`.
+`Forall` lives in `Coq.Lists.List`, and **three files use it while importing only
+`RMarker`** — `Sparsity24.v`, `Timing400.v`, `PdkPortable.v`. A missing import
+fails on every Coq version, so this is not a toolchain artifact. Fixed; the build
+advances past all three and then stops on a *different* defect class, a type error
+in `Kernel/LutNpu.v` (`81 : Z` where `nat` is expected). That is proof content, not
+bookkeeping, and is left rather than guessed at.
+
+**Theorem (the suspended check).** A step with `continue-on-error: true` and a
+justification of the form *"non-blocking until observed green"* is a promise to
+re-check. Nothing schedules that re-check, and the step emits no signal
+distinguishing *"green, safe to enforce"* from *"red for a year"* — both render as
+a passing workflow. So the flag converts a failing check into an indefinitely
+suspended one, and the suspension is invisible at exactly the moment it should end.
+
+This is Prop. 199's refutation-liveness with the polarity reversed. There, a
+suppression entry rotted when the defect was **fixed**. Here, a suspension rots
+when the defect is **not** fixed. Both are unobservable because the mechanism that
+would report the change is the one that was switched off.
+
+Corollary: **every `continue-on-error` needs an expiry probe** — a check that the
+suspended step *still* fails, so that the day it starts passing is the day the
+build tells you to flip the flag. A suspension without one is a deletion with
+better manners.
+
+Three bars: **TRUE** — 42 of 43 python gates pass; 1213 tests pass. **ALIVE** —
+`run_all` enumerates 43 invocations across 2 workflow files and reports the 2
+scripts no workflow runs, so it is not measuring an empty set. **BITING** — it
+found a red check that CI has reported as success since the file landed, and the
+repair moved the Coq build forward by three files.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

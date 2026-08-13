@@ -1,0 +1,26 @@
+DIGEST 742a02ae3ec94261b5dc371ce1d94719
+FTriosCoq.IGLA.PdkPortable
+R537:540 Stdlib.Lists.List <> <> lib
+R550:562 Stdlib.Lists.List ListNotations <> mod
+R594:600 T27.IGLA.RMarker <> <> lib
+def 744:762 <> pdk_portable_oplist
+R766:769 Corelib.Init.Datatypes <> list ind
+R771:777 T27.IGLA.RMarker <> holo_op ind
+R797:800 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R784:796 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R815:818 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R801:814 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R833:836 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R819:832 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R837:839 Corelib.Init.Datatypes <> nil constr
+prf 851:867 <> pdk_portable_safe
+R873:878 Corelib.Lists.ListDef <> Forall ind
+R915:933 TriosCoq.IGLA.PdkPortable <> pdk_portable_oplist def
+binder 885:885 <> o:1
+R905:907 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R890:902 T27.IGLA.RMarker <> rtl_uses_star def
+R904:904 TriosCoq.IGLA.PdkPortable <> o:1 var
+R908:912 Corelib.Init.Datatypes <> false constr
+R959:969 Corelib.Lists.ListDef <> Forall_cons constr
+R979:997 T27.IGLA.RMarker <> holographic_no_star thm
+R1011:1020 Corelib.Lists.ListDef <> Forall_nil constr

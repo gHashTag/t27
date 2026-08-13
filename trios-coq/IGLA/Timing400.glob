@@ -1,0 +1,26 @@
+DIGEST 76d606c2af8353802f5d4a090893bb97
+FTriosCoq.IGLA.Timing400
+R532:535 Stdlib.Lists.List <> <> lib
+R545:557 Stdlib.Lists.List ListNotations <> mod
+R589:595 T27.IGLA.RMarker <> <> lib
+def 726:745 <> timing_400mhz_oplist
+R749:752 Corelib.Init.Datatypes <> list ind
+R754:760 T27.IGLA.RMarker <> holo_op ind
+R780:783 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R767:779 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R798:801 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R784:797 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R816:819 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R802:815 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R820:822 Corelib.Init.Datatypes <> nil constr
+prf 834:851 <> timing_400mhz_safe
+R857:862 Corelib.Lists.ListDef <> Forall ind
+R899:918 TriosCoq.IGLA.Timing400 <> timing_400mhz_oplist def
+binder 869:869 <> o:1
+R889:891 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R874:886 T27.IGLA.RMarker <> rtl_uses_star def
+R888:888 TriosCoq.IGLA.Timing400 <> o:1 var
+R892:896 Corelib.Init.Datatypes <> false constr
+R944:954 Corelib.Lists.ListDef <> Forall_cons constr
+R964:982 T27.IGLA.RMarker <> holographic_no_star thm
+R996:1005 Corelib.Lists.ListDef <> Forall_nil constr

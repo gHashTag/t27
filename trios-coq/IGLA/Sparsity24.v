@@ -3,6 +3,12 @@
 
 (* HoloOp alphabet lives in coq/IGLA/RMarker.v (Lane X, commit 5758b53c).
    Import via the T27 logical path registered in coq/_CoqProject. *)
+(* Prop. 201: `Forall` is used four times below and lives in Coq.Lists.List,
+   which nothing here imported. The build has failed on this since the file
+   landed; the workflow step carries `continue-on-error: true` with the note
+   "non-blocking until observed green", so CI reported success throughout. *)
+From Coq Require Import List.
+Import ListNotations.
 From T27.IGLA Require Import RMarker.
 
 (* A 2:4 sparsity mask is a 4-bit vector with exactly 2 bits set *)

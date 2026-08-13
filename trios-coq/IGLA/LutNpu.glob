@@ -1,0 +1,108 @@
+DIGEST d5b26347d17599c2c2aaac89b44de169
+FTriosCoq.IGLA.LutNpu
+R338:341 Stdlib.Lists.List <> <> lib
+R351:363 Stdlib.Lists.List ListNotations <> mod
+R395:401 T27.IGLA.RMarker <> <> lib
+def 1035:1048 <> lut_npu_oplist
+R1052:1055 Corelib.Init.Datatypes <> list ind
+R1057:1063 T27.IGLA.RMarker <> holo_op ind
+R1083:1088 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1070:1082 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R1103:1108 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1089:1102 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R1123:1128 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1109:1122 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R1143:1148 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1129:1142 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R1164:1169 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1149:1163 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr
+R1180:1185 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1170:1179 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R1186:1188 Corelib.Init.Datatypes <> nil constr
+prf 1345:1356 <> lut_npu_safe
+R1362:1367 Corelib.Lists.ListDef <> Forall ind
+R1404:1417 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+binder 1374:1374 <> o:1
+R1394:1396 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1379:1391 T27.IGLA.RMarker <> rtl_uses_star def
+R1393:1393 TriosCoq.IGLA.LutNpu <> o:1 var
+R1397:1401 Corelib.Init.Datatypes <> false constr
+R1443:1453 Corelib.Lists.ListDef <> Forall_cons constr
+R1463:1481 T27.IGLA.RMarker <> holographic_no_star thm
+R1495:1504 Corelib.Lists.ListDef <> Forall_nil constr
+prf 1602:1619 <> lut_npu_op_no_star
+R1647:1649 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1623:1635 T27.IGLA.RMarker <> rtl_uses_star def
+R1637:1646 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R1650:1654 Corelib.Init.Datatypes <> false constr
+R1670:1688 T27.IGLA.RMarker <> holographic_no_star thm
+prf 1774:1794 <> lut_npu_oplist_length
+R1819:1821 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1798:1803 Corelib.Init.Datatypes <> length def
+R1805:1818 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+prf 1934:1952 <> lut_npu_oplist_head
+R1984:1986 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1956:1957 Stdlib.Lists.List <> hd def
+R1970:1983 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R1959:1968 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R1987:1999 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+prf 2175:2193 <> lut_npu_oplist_last
+R2230:2232 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2197:2200 Stdlib.Lists.List <> last def
+R2217:2229 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R2202:2215 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R2233:2242 T27.IGLA.RMarker <> OP_LUT_NPU constr
+prf 2398:2425 <> lut_npu_oplist_in_lut_lookup
+R2429:2430 Stdlib.Lists.List <> In def
+R2446:2459 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R2432:2444 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+prf 2494:2522 <> lut_npu_oplist_in_bitrom_read
+R2526:2527 Stdlib.Lists.List <> In def
+R2544:2557 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R2529:2542 T27.IGLA.RMarker <> OP_BITROM_READ constr
+prf 2592:2620 <> lut_npu_oplist_in_sparse_skip
+R2624:2625 Stdlib.Lists.List <> In def
+R2642:2655 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R2627:2640 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+prf 2690:2714 <> lut_npu_oplist_in_lut_npu
+R2718:2719 Stdlib.Lists.List <> In def
+R2732:2745 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R2721:2730 T27.IGLA.RMarker <> OP_LUT_NPU constr
+prf 3098:3131 <> lut_npu_oplist_excludes_phys_const
+R3137:3138 Corelib.Init.Logic <> ::type_scope:'~'_x not
+R3139:3140 Stdlib.Lists.List <> In def
+R3164:3177 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R3142:3162 T27.IGLA.RMarker <> OP_LOAD_PHYSICS_CONST constr
+prf 3461:3483 <> lut_npu_oplist_all_safe
+binder 3496:3497 <> op:2
+R3520:3523 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R3500:3501 Stdlib.Lists.List <> In def
+R3506:3519 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R3503:3504 TriosCoq.IGLA.LutNpu <> op:2 var
+R3540:3542 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3524:3536 T27.IGLA.RMarker <> rtl_uses_star def
+R3538:3539 TriosCoq.IGLA.LutNpu <> op:2 var
+R3543:3547 Corelib.Init.Datatypes <> false constr
+R3580:3598 T27.IGLA.RMarker <> holographic_no_star thm
+prf 3863:3883 <> lut_npu_extends_tenet
+R3889:3895 Corelib.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R3898:3899 Corelib.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 3896:3897 <> xs:3
+R3914:3916 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3900:3913 TriosCoq.IGLA.LutNpu <> lut_npu_oplist def
+R3919:3922 Corelib.Init.Datatypes <> ::list_scope:x_'++'_x not
+R3917:3918 TriosCoq.IGLA.LutNpu <> xs:3 var
+R3923:3923 Stdlib.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3934:3934 Stdlib.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3924:3933 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R3953:3953 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R3967:3968 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R3983:3984 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R3999:4000 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R4015:4016 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R4032:4032 Stdlib.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R3954:3966 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R3969:3982 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R3985:3998 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R4001:4014 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R4017:4031 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr

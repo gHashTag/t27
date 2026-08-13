@@ -1,0 +1,121 @@
+DIGEST fbfeca8bcff3094e06055fa3e55736ad
+FTriosCoq.IGLA.Avs
+R351:354 Stdlib.Lists.List <> <> lib
+R364:376 Stdlib.Lists.List ListNotations <> mod
+R408:414 T27.IGLA.RMarker <> <> lib
+def 1238:1247 <> avs_oplist
+R1251:1254 Corelib.Init.Datatypes <> list ind
+R1256:1262 T27.IGLA.RMarker <> holo_op ind
+R1282:1287 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1269:1281 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R1302:1307 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1288:1301 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R1322:1327 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1308:1321 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R1342:1347 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1328:1341 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R1363:1368 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1348:1362 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr
+R1379:1384 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1369:1378 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R1398:1403 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1385:1397 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R1404:1406 Corelib.Init.Datatypes <> nil constr
+prf 1559:1566 <> avs_safe
+R1572:1577 Corelib.Lists.ListDef <> Forall ind
+R1614:1623 TriosCoq.IGLA.Avs <> avs_oplist def
+binder 1584:1584 <> o:1
+R1604:1606 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1589:1601 T27.IGLA.RMarker <> rtl_uses_star def
+R1603:1603 TriosCoq.IGLA.Avs <> o:1 var
+R1607:1611 Corelib.Init.Datatypes <> false constr
+R1649:1659 Corelib.Lists.ListDef <> Forall_cons constr
+R1669:1687 T27.IGLA.RMarker <> holographic_no_star thm
+R1701:1710 Corelib.Lists.ListDef <> Forall_nil constr
+prf 1804:1817 <> avs_op_no_star
+R1848:1850 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1821:1833 T27.IGLA.RMarker <> rtl_uses_star def
+R1835:1847 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R1851:1855 Corelib.Init.Datatypes <> false constr
+R1871:1888 T27.IGLA.RMarker <> avs_reconf_no_star thm
+prf 1963:1979 <> avs_oplist_length
+R2000:2002 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1983:1988 Corelib.Init.Datatypes <> length def
+R1990:1999 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 2093:2107 <> avs_oplist_head
+R2138:2140 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2111:2112 Stdlib.Lists.List <> hd def
+R2128:2137 TriosCoq.IGLA.Avs <> avs_oplist def
+R2114:2126 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R2141:2153 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+prf 2264:2278 <> avs_oplist_last
+R2311:2313 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2282:2285 Stdlib.Lists.List <> last def
+R2298:2310 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R2287:2296 TriosCoq.IGLA.Avs <> avs_oplist def
+R2314:2326 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+prf 2430:2453 <> avs_oplist_in_lut_lookup
+R2457:2458 Stdlib.Lists.List <> In def
+R2474:2483 TriosCoq.IGLA.Avs <> avs_oplist def
+R2460:2472 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R2500:2509 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 2550:2574 <> avs_oplist_in_bitrom_read
+R2578:2579 Stdlib.Lists.List <> In def
+R2596:2605 TriosCoq.IGLA.Avs <> avs_oplist def
+R2581:2594 T27.IGLA.RMarker <> OP_BITROM_READ constr
+R2622:2631 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 2679:2703 <> avs_oplist_in_sparse_skip
+R2707:2708 Stdlib.Lists.List <> In def
+R2725:2734 TriosCoq.IGLA.Avs <> avs_oplist def
+R2710:2723 T27.IGLA.RMarker <> OP_SPARSE_SKIP constr
+R2751:2760 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 2815:2839 <> avs_oplist_in_noc_forward
+R2843:2844 Stdlib.Lists.List <> In def
+R2861:2870 TriosCoq.IGLA.Avs <> avs_oplist def
+R2846:2859 T27.IGLA.RMarker <> OP_NOC_FORWARD constr
+R2887:2896 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 2958:2979 <> avs_oplist_in_holo_mux
+R2983:2984 Stdlib.Lists.List <> In def
+R3002:3011 TriosCoq.IGLA.Avs <> avs_oplist def
+R2986:3000 T27.IGLA.RMarker <> OP_HOLO_MUX_1X2 constr
+R3028:3037 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 3106:3126 <> avs_oplist_in_lut_npu
+R3130:3131 Stdlib.Lists.List <> In def
+R3144:3153 TriosCoq.IGLA.Avs <> avs_oplist def
+R3133:3142 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R3170:3179 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 3255:3278 <> avs_oplist_in_avs_reconf
+R3282:3283 Stdlib.Lists.List <> In def
+R3299:3308 TriosCoq.IGLA.Avs <> avs_oplist def
+R3285:3297 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R3325:3334 TriosCoq.IGLA.Avs <> avs_oplist def
+prf 3584:3613 <> avs_oplist_excludes_phys_const
+R3619:3620 Corelib.Init.Logic <> ::type_scope:'~'_x not
+R3621:3622 Stdlib.Lists.List <> In def
+R3646:3655 TriosCoq.IGLA.Avs <> avs_oplist def
+R3624:3644 T27.IGLA.RMarker <> OP_LOAD_PHYSICS_CONST constr
+prf 3831:3849 <> avs_oplist_all_safe
+binder 3862:3863 <> op:2
+R3882:3885 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R3866:3867 Stdlib.Lists.List <> In def
+R3872:3881 TriosCoq.IGLA.Avs <> avs_oplist def
+R3869:3870 TriosCoq.IGLA.Avs <> op:2 var
+R3902:3904 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3886:3898 T27.IGLA.RMarker <> rtl_uses_star def
+R3900:3901 TriosCoq.IGLA.Avs <> op:2 var
+R3905:3909 Corelib.Init.Datatypes <> false constr
+R3940:3958 T27.IGLA.RMarker <> holographic_no_star thm
+prf 4115:4133 <> avs_extends_lut_npu
+R4163:4166 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4139:4140 Stdlib.Lists.List <> In def
+R4153:4162 TriosCoq.IGLA.Avs <> avs_oplist def
+R4142:4151 T27.IGLA.RMarker <> OP_LUT_NPU constr
+R4167:4168 Stdlib.Lists.List <> In def
+R4184:4193 TriosCoq.IGLA.Avs <> avs_oplist def
+R4170:4182 T27.IGLA.RMarker <> OP_AVS_RECONF constr
+R4222:4242 TriosCoq.IGLA.Avs <> avs_oplist_in_lut_npu thm
+R4255:4278 TriosCoq.IGLA.Avs <> avs_oplist_in_avs_reconf thm
+prf 4440:4460 <> avs_chain_depth_seven
+R4481:4483 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4464:4469 Corelib.Init.Datatypes <> length def
+R4471:4480 TriosCoq.IGLA.Avs <> avs_oplist def

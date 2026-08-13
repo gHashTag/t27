@@ -1,0 +1,56 @@
+DIGEST 5c5932f7d5c4fa33a9ebb8d2abe8c5ef
+FTriosCoq.IGLA.Sparsity24
+R615:618 Stdlib.Lists.List <> <> lib
+R628:640 Stdlib.Lists.List ListNotations <> mod
+R672:678 T27.IGLA.RMarker <> <> lib
+def 761:769 <> popcount4
+R786:789 Corelib.Init.Datatypes <> bool ind
+binder 772:773 <> b0:1
+binder 775:776 <> b1:2
+binder 778:779 <> b2:3
+binder 781:782 <> b3:4
+R794:796 Corelib.Init.Datatypes <> nat ind
+R874:877 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R897:897 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R848:853 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R873:873 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R803:803 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R823:827 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R847:847 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R807:808 TriosCoq.IGLA.Sparsity24 <> b0:1 var
+R831:832 TriosCoq.IGLA.Sparsity24 <> b1:2 var
+R857:858 TriosCoq.IGLA.Sparsity24 <> b2:3 var
+R881:882 TriosCoq.IGLA.Sparsity24 <> b3:4 var
+def 912:933 <> sparsity_mask_24_valid
+R950:953 Corelib.Init.Datatypes <> bool ind
+binder 936:937 <> b0:5
+binder 939:940 <> b1:6
+binder 942:943 <> b2:7
+binder 945:946 <> b3:8
+R989:991 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R968:976 TriosCoq.IGLA.Sparsity24 <> popcount4 def
+R978:979 TriosCoq.IGLA.Sparsity24 <> b0:5 var
+R981:982 TriosCoq.IGLA.Sparsity24 <> b1:6 var
+R984:985 TriosCoq.IGLA.Sparsity24 <> b2:7 var
+R987:988 TriosCoq.IGLA.Sparsity24 <> b3:8 var
+def 1160:1185 <> sparsity_24_decoder_oplist
+R1189:1192 Corelib.Init.Datatypes <> list ind
+R1194:1200 T27.IGLA.RMarker <> holo_op ind
+R1220:1223 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1207:1219 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R1237:1240 Corelib.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1224:1236 T27.IGLA.RMarker <> OP_LUT_LOOKUP constr
+R1241:1243 Corelib.Init.Datatypes <> nil constr
+prf 1334:1349 <> sparsity_24_safe
+R1355:1360 Corelib.Lists.ListDef <> Forall ind
+R1397:1422 TriosCoq.IGLA.Sparsity24 <> sparsity_24_decoder_oplist def
+binder 1367:1367 <> o:9
+R1387:1389 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1372:1384 T27.IGLA.RMarker <> rtl_uses_star def
+R1386:1386 TriosCoq.IGLA.Sparsity24 <> o:9 var
+R1390:1394 Corelib.Init.Datatypes <> false constr
+R1440:1450 Corelib.Lists.ListDef <> Forall_cons constr
+R1463:1481 T27.IGLA.RMarker <> holographic_no_star thm
+R1494:1504 Corelib.Lists.ListDef <> Forall_cons constr
+R1519:1537 T27.IGLA.RMarker <> holographic_no_star thm
+R1552:1561 Corelib.Lists.ListDef <> Forall_nil constr
