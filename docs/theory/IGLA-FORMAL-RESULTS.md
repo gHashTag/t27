@@ -5746,4 +5746,85 @@ the plan built on it passed before the work existed.
 
 ---
 
+### T72 (W653) — the toolchain was blocked by two appended lines, and the tool's own advice was the expensive route
+
+Three artefacts were present, no two compatible (T70). The binary built from the
+openXC7 fork rejected the 332 MB database with the tool's own recommendation:
+*"We recommend regenerating the chip database with this version of nextpnr."*
+That regeneration costs ~1.3 GB on a disk measured at **98% full**.
+
+**The diff between the two `constids.inc` files was two appended lines:**
+
+```
+785,786d784
+< X(GE)
+< X(BUFR)
+```
+
+`constids` are **ordinal** — each `X(name)` claims the next integer — so the
+784-line file is a strict **prefix** of the 786-line one and every ID in the old
+database already carried the correct value. The assertion fired only because the
+chipdb's extra-constids block begins at index 784 while the binary had 786 baked
+in. `X(GE)` is unused; `X(BUFR)` had exactly one use, made dynamic with
+`ctx->id("BUFR")`.
+
+**Two lines and one rebuild replaced a 1.3 GB regeneration, and place-and-route
+then succeeded on the first attempt** (`22 warnings, 0 errors`).
+
+> **T72.** A version-compatibility assertion reports that two artefacts disagree,
+> never *how much*. The remedy it recommends is sized for the worst case, because
+> the assertion cannot see the distance it is measuring. **Diff the artefacts
+> before accepting the remedy** — the failure is binary, the disagreement is not.
+
+**Corollary, and it generalises past this tool.** `--test` (archcheck) still
+fails on this database (`Assert bel == bel2`) while real place-and-route,
+FASM emission, frame generation and bitstream packing all succeed. **A
+self-consistency check is not a use-case check**, and gating on the stricter one
+would have preserved the block after it was gone.
+
+---
+
+### T73 (W653) — the load path accepted a corrupted bitstream and reported success; only the envelope is checked
+
+W652's T71 established that `done 1` cannot distinguish a load from the flash
+boot. W653 asked the sharper question — *can the observable distinguish a **valid**
+load from an **invalid** one?* — by deliberately corrupting 4,096 bytes at the
+midpoint of a freshly built bitstream and loading it.
+
+| loaded | loader | `STAT` |
+|---|---|---|
+| nothing (resting) | — | `0x401079fc`, `Done 0x1` |
+| valid 200T bitstream | `done 1` | `0x401079fc`, `Done 0x1` |
+| **4 KB of payload XOR-inverted** | **`done 1`** | **`0x401079fc`, `No CRC error`** |
+| bitstream for the wrong part | — | `0x5000890c`, **`Done 0x0`, `ID Error`** |
+
+> **T73.** The configuration path validates the **envelope** — the IDCODE in the
+> bitstream header — and reports nothing about the **contents**. A corrupted
+> payload is therefore indistinguishable from a correct one at every observable
+> the loader exposes, while a wrong-part load is caught immediately. **The check
+> that exists is the one that was cheap to implement, not the one that answers
+> the question being asked of it.**
+
+**What this makes possible, which is the useful half.** Because the wrong-part
+case *does* drive `Done` to `0x0`, it can be used as a **pre-conditioning step**:
+force the board into a state where the acceptance criterion is able to fail, then
+load the artefact under test and require the **transition**.
+
+```
+0:4    before Done 0x0  ->  after Done 0x1, No ID error
+0:7    before Done 0x0  ->  after Done 0x1, No ID error
+0:10   before Done 0x0  ->  after Done 0x1, No ID error
+```
+
+**This is T71's corollary made operational**: an acceptance criterion must be
+falsifiable by the status quo, and when the status quo is already green, the
+correct move is to *break it deliberately first*.
+
+**It still does not identify the resident design.** It proves *a valid bitstream
+for this part* configured the device. Design identity needs a readback or a
+self-reporting design, and the blinky is neither — recorded so no later wave
+quotes this transition as more than it is.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
