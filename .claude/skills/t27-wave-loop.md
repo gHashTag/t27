@@ -6456,6 +6456,40 @@ These cost a wave each. Follow them before step 1.
      comparing the same set to itself. Check the level count before quoting any
      cross-alphabet error figure.
 
+380. **Escape LAST, never on a fragment.** An escaped Verilog identifier is
+     `\\name<space>` and the trailing space is part of the token, so escaping a
+     prefix and concatenating a suffix puts a space inside the name. 87 broken
+     escapes across 13 of 617 specs came from one such site. The flattened name
+     is the only string whose keyword-ness matters. T118.
+
+381. **A parser error COUNT is not a defect count.** Two broken escapes in
+     arch.t27 were worth 1,865 reported errors -- a bad identifier desynchronises
+     the parser and everything after it is reported. Fixing it dropped the corpus
+     total 13,066 -> 3,765 (-71%) while moving ZERO specs from broken to clean,
+     and made three specs LOOK worse because iverilog now parses far enough to
+     find defects the earlier bail-out masked. **Only compiles/does-not-compile
+     is stable.** T119.
+
+382. **When a build fails, the measurement that follows ran on the OLD binary.**
+     Editing compiler.rs trips the FROZEN_HASH seal; the build panicked, the
+     sweep ran anyway, and every number came back byte-identical to the baseline
+     -- which is exactly what an unchanged binary produces. **Identical numbers
+     after a change are evidence of a failed build, not of a no-op fix.** Reseal:
+     sha256 of bootstrap/src/compiler.rs into bootstrap/stage0/FROZEN_HASH.
+
+383. **Runaway `vvp` returns; check for it at the START of a wave, not the end.**
+     Four orphaned vvp processes (parent = launchd) had been burning ~98% of four
+     cores for 38 minutes before the loop invariant caught them. They came from
+     `t27c icarus-cocotb`, not from `tri path`. T83/T98 is a recurring class, and
+     the check script earns its place every time.
+
+384. **A Russian document violates LANG-EN and needs Architect approval, not a
+     self-granted exception.** docs/theory/PATH_TO_HARDWARE_RU.md and
+     docs/theory/TNF_ARTICLE_RU.md both emit build warnings and neither is listed
+     in docs/.legacy-non-english-docs, whose header says "Do not add entries
+     without Architect approval". **Report the conflict; do not resolve it by
+     editing the list.**
+
 ### How to update this tracker
 
 After closing a wave:

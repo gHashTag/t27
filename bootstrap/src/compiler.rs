@@ -12695,19 +12695,33 @@ impl VerilogCodegen {
                         }
                     }
 
+                    // W659: FLATTEN FIRST, ESCAPE LAST.  An escaped Verilog
+                    // identifier is `\name<space>` and the trailing space is
+                    // part of the token -- so escaping a PREFIX and then
+                    // concatenating a suffix puts that space in the middle of
+                    // the name.  A field access on a parameter called `cross`
+                    // (a SystemVerilog keyword) emitted
+                    //     \cross _data_width
+                    // which iverilog reads as the identifier `\cross` followed
+                    // by a stray `_data_width`: "Malformed statement".
+                    //
+                    // The flattened name is what actually appears in the
+                    // netlist, so it is the only string whose keyword-ness
+                    // matters -- and `cross_data_width` is not a keyword, so
+                    // the correct output carries no escape at all.
+                    //
+                    // Measured before the fix: 87 broken escapes across 13 of
+                    // 617 specs, `systolic_ternary.t27` among them.
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
-                            NodeKind::ExprIdentifier => {
-                                Self::verilog_safe_identifier(&child.children[0].name)
-                            }
+                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
                         self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&Self::verilog_safe_identifier(&child.name));
-                        self.write("_");
-                        self.write(&node.name);
+                        let flat_name = format!("{}_{}", child.name, node.name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else {
                         self.gen_verilog_expr(child);
                         self.write("_");

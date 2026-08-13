@@ -7685,4 +7685,71 @@ methods target exactly this case and were not tried.
 
 ---
 
+### T118 (W659) — escape LAST: a keyword escape applied to a prefix splits the name
+
+An escaped Verilog identifier is `\name<space>`, and **the trailing space is part
+of the token**. `gen_verilog_expr` escaped the *base* of a flattened struct access
+and then concatenated the field suffix, so a parameter named `cross` — a
+SystemVerilog keyword — produced
+
+```
+\cross _data_width
+```
+
+which iverilog reads as the identifier `\cross` followed by a stray
+`_data_width`: *Malformed statement*.
+
+> **T118.** Keyword escaping must be applied **once, to the final emitted name**,
+> never to a fragment that will be concatenated. The flattened name is what
+> reaches the netlist, so it is the only string whose keyword-ness matters — and
+> `cross_data_width` is not a keyword, so **the correct output carries no escape
+> at all.**
+
+Measured across 617 specs: **87 broken escapes in 13 specs → 0.** No spec outside
+the 13 changed; `systolic_ternary.t27` was among them.
+
+---
+
+### T119 (W659) — a parser's error COUNT is not a defect count, and moves three orders of magnitude
+
+The forecast registered before the fix predicted the total error count would fall
+by **less than 2%**. Measured:
+
+| spec | before | after | Δ |
+|---|---:|---:|---:|
+| `arch.t27` | 1,873 | **8** | −1,865 |
+| `benchmark.t27` | 3,902 | **41** | −3,861 |
+| `eval.t27` | 2,026 | **13** | −2,013 |
+| `systolic_ternary.t27` | 1,512 | **29** | −1,483 |
+| `clock_domain.t27` | 4 | **12** | **+8** |
+| `schema.t27` | 22 | **27** | **+5** |
+| **total** | **13,066** | **3,765** | **−71%** |
+
+**Two escapes in `arch.t27` were worth 1,865 reported errors.** A broken
+identifier desynchronises the parser and every following construct is reported.
+And the effect runs **both ways**: three specs got *worse*, because iverilog now
+parses far enough to find defects the earlier bail-out had masked.
+
+> **T119.** A parser error count measures **how early the parser gave up**, not
+> how many defects exist. It can move by three orders of magnitude from a single
+> character and can rise when a real defect is fixed. **The only stable metric is
+> the binary one — does the spec compile.** By that metric this fix moved
+> **0 → 0 of 13**, and the honest headline is "87 broken escapes removed", not
+> "71% fewer errors".
+
+**Forecast scoring (T44).**
+
+| quantity | forecast | measured | verdict |
+|---|---|---:|---|
+| broken escapes remaining | 0 | **0** | hit |
+| specs newly clean | 1 ± 1 | **0** | hit (edge of band) |
+| total error drop | < 2% | **71%** | **MISS, by 35×** |
+
+The one quantity I got right is the one that means something. **The miss came
+from assuming parser errors are independent events; they are a cascade.** The
+same assumption, in the other direction, is what made 489 `undeclared identifier`
+look like one class for three waves.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
