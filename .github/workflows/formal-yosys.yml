@@ -58,8 +58,6 @@ jobs:
       - name: Starve guard — refuse to trust results while a sweep's stash exists
         run: python3 formal/starve_guard.py
 
-      - name: Corpus size scan — a finding ratchet improves when you delete the subject
-        run: python3 formal/corpus_size_scan.py
 
       - name: Install Yosys
         run: sudo apt-get update && sudo apt-get install -y yosys
@@ -98,6 +96,14 @@ jobs:
       # "all properties hold" from "there are no properties", and this repo has
       # already shipped three CI jobs that were a bare `echo`. Counting $check
       # cells makes the difference observable. sv2v output would score 0 here.
+
+      # Prop. 211: this MUST run after the RTL is emitted. It counted
+      # generated-rtl=13 from a dirty local worktree while sitting BEFORE
+      # the generator, and build/ is gitignored -- so on a clean clone it
+      # read 0 and failed the job at step 2. The fix is the order, not a
+      # zeroed baseline: zeroing would keep the population unratcheted.
+      - name: Corpus size scan — a finding ratchet improves when you delete the subject
+        run: python3 formal/corpus_size_scan.py
       - name: Assert the property set is non-empty
         run: |
           set -euo pipefail
