@@ -104,6 +104,40 @@ pub fn spec_body_counts(source: &str) -> (usize, usize) {
     (fns.iter().filter(|n| is_empty_fn(n)).count(), fns.len())
 }
 
+/// One spec's status, as one word, for scripts and censuses.
+///
+/// W665: three separate waves have written a regex to answer this question and
+/// all three got a different number -- the last attempt reported 192 UNWRITTEN
+/// against this module's 159, because a body containing only
+/// `// TODO: Implement from .tri spec` is empty to the AST and non-empty to a
+/// `\{\s*\}` pattern, and because a regex cannot tell a spec that does not
+/// parse from one whose functions are all stubs.
+///
+/// Lesson 404 says classify from the AST. This exposes the AST answer so that
+/// following it does not require reimplementing it.
+pub fn spec_status(source: &str) -> &'static str {
+    let ast = match Compiler::parse_ast(source) {
+        Ok(a) => a,
+        Err(_) => return "NOPARSE",
+    };
+    let fns: Vec<&Node> = ast
+        .children
+        .iter()
+        .filter(|c| c.kind == NodeKind::FnDecl)
+        .collect();
+    if fns.is_empty() {
+        return "NOFN";
+    }
+    let empty = fns.iter().filter(|n| is_empty_fn(n)).count();
+    if empty == fns.len() {
+        "UNWRITTEN"
+    } else if empty > 0 {
+        "PARTIAL"
+    } else {
+        "IMPLEMENTED"
+    }
+}
+
 pub fn run(specs_root: &Path, include_scratch: bool) -> Report {
     let mut r = Report::default();
     for f in spec_files(specs_root, include_scratch) {

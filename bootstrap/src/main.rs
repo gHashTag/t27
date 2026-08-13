@@ -142,6 +142,15 @@ enum Commands {
         limit: usize,
     },
 
+    /// One spec's status as one word: IMPLEMENTED, PARTIAL, UNWRITTEN,
+    /// NOPARSE or NOFN. Exposes the AST answer `impl-status` already computes,
+    /// so a census does not have to reimplement it with a regex -- three waves
+    /// tried and all three got a different number.
+    SpecStatus {
+        /// The .t27 spec to classify
+        input: String,
+    },
+
     /// THE SERVICE: report the Digilent cables attached RIGHT NOW, with each
     /// board's IDCODE read from the silicon. All three cables in this project
     /// share one serial, so bus position is the only handle -- and it changes
@@ -10210,6 +10219,10 @@ async fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::SpecStatus { input } => {
+            let src = std::fs::read_to_string(&input)?;
+            println!("{}", impl_status::spec_status(&src));
+        }
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }
@@ -10564,6 +10577,10 @@ fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::SpecStatus { input } => {
+            let src = std::fs::read_to_string(&input)?;
+            println!("{}", impl_status::spec_status(&src));
+        }
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }

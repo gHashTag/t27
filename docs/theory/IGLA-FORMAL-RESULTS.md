@@ -8227,4 +8227,85 @@ not a forecast**; this one lost, and the loss is the result of the wave.
 
 ---
 
+### T129 (W665) — the largest defect class, diagnosed: the declaration flattens by TYPE, the use flattens by VARIABLE
+
+A census over the population `spec-status` validates as **IMPLEMENTED** — 218
+specs, of which 97 compile and **121 do not**:
+
+| first diagnostic | specs |
+|---|---:|
+| **`Unable to bind wire/reg/memory \`X\` in \`Y\``** | **41** |
+| `syntax error` | 29 |
+| `User function 'X' is being called as a task` | 7 |
+| `Could not find variable` | 4 |
+| `Unable to bind parameter` | 4 |
+| 34 further classes | 36 |
+
+The leader is one cause, and it is exact:
+
+```
+spec:      fn brain_state_phi_coherence(state: BrainState) -> f64 {
+               return state.phi_coherence;
+           }
+declared:  reg signed [63:0] brainstate_phi_coherence;   // BrainState.phi_coherence
+used:                        state_phi_coherence
+```
+
+> **T129.** Struct-field flattening uses **two different keys**. The declaration
+> is named after the **type** (`BrainState.phi_coherence` →
+> `brainstate_phi_coherence`); the use site is named after the **variable**
+> (`state.phi_coherence` → `state_phi_coherence`). **They cannot agree**, and no
+> spec that reads a field of a struct-typed parameter can ever bind.
+
+Sampled across five independent specs before the class was named (T105):
+
+| spec | unbound | declared as |
+|---|---|---|
+| `hir.t27` | `result_assign_count` | `Port.name` |
+| `axi4.t27` | `cfg_kind` | `AxiBusConfig.name` |
+| `bootrom.t27` | `cfg_rom_base` | `BootStage.name` |
+| `cts.t27` | `b_fanout` | `PllConfig.name` |
+| `unified_state.t27` | `state_phi_coherence` | `BrainState.phi_coherence` |
+
+**The fix is a design choice, not a substitution.** Renaming uses to the
+type-based key would alias two variables of the same type in one scope, which is
+worse than the current failure. The correct direction is to declare **per
+variable**: every struct-typed parameter gets its own flattened set.
+
+**This is very likely the `undeclared identifier` family** that the mission
+context has carried as open and undiagnosed for many waves. That class was
+counted at 489 against a corpus figure since shown to be inflated 3.8× (T125);
+against the honest denominator it is **41 of 121**.
+
+---
+
+### T130 (W665) — clustering by construct and clustering by diagnostic have OPPOSITE biases
+
+T128 established that measured depth bounds nothing. W665 shows why, by running
+both censuses over the same population:
+
+| clustered by | leader | what it did wrong |
+|---|---|---|
+| **construct at the error line** | `id = id(\id);` — 122 | merged 122 specs that differ, and hid `Unable to bind` across **eight** separate construct rows |
+| **first diagnostic** | `Unable to bind` — 41 | correct here, but `syntax error` (29) merges unrelated causes (T127) |
+
+> **T130.** Clustering by **symptom** merges unrelated causes; clustering by
+> **construct** splits one cause across many rows. Neither is a root-cause
+> census on its own, and a target chosen from either alone is chosen from a
+> distorted map. **Run both, and trust only what appears in both.**
+
+**And a filter that was wrong for the third time.** The construct census above was
+contaminated because its population filter was a regex — `fn ... { }` — which a
+body containing only `// TODO: Implement from .tri spec` defeats. It reported
+192 UNWRITTEN against this repository's 159. Three separate waves have now
+written such a regex and all three produced a different number.
+
+`t27c spec-status <file>` now exposes the AST answer directly, validated against
+`impl-status`: **PARTIAL 6, NOPARSE 173, UNWRITTEN 159, IMPLEMENTED 218,
+NOFN 61 — and 218 + 61 = 279**, exactly `impl-status`'s "fully implemented".
+**Lesson 404 said classify from the AST; it took a fourth violation to make that
+possible without reimplementing it.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -6677,6 +6677,34 @@ These cost a wave each. Follow them before step 1.
      through that helper. Re-measure after a "single point" fix; if the count is
      not zero, there is a second point.
 
+415. **Run BOTH censuses and trust only the overlap.** Clustering by the
+     DIAGNOSTIC merges unrelated causes (`syntax error`, 29 specs); clustering by
+     the CONSTRUCT at the error line splits one cause across eight rows
+     (`Unable to bind` was invisible as a leader). Neither is a root-cause census
+     alone, and a target picked from one is picked from a distorted map. T130.
+
+416. **The fourth regex reimplementation of an AST predicate was the last one.**
+     A population filter written as `fn ... \{\s*\}` reported 192 UNWRITTEN
+     against the repository's 159, because a body holding only
+     `// TODO: Implement from .tri spec` is empty to the AST and non-empty to the
+     regex. `t27c spec-status <file>` now prints the AST answer -- validated:
+     PARTIAL 6, NOPARSE 173, UNWRITTEN 159, IMPLEMENTED 218, NOFN 61, and
+     218+61 = 279 = impl-status's "fully implemented". **If you find yourself
+     writing the regex, add the command instead.**
+
+417. **Two flatteners with different keys can never agree.** Struct fields are
+     declared under the TYPE name (`BrainState.phi_coherence` ->
+     `brainstate_phi_coherence`) and used under the VARIABLE name
+     (`state.phi_coherence` -> `state_phi_coherence`). 41 of 121 defect specs.
+     Verified on five independent specs before naming the class. The fix is a
+     design choice -- declare per variable -- not a substitution: renaming uses
+     to the type key would ALIAS two variables of one type. T129.
+
+418. **A validated denominator changes what a long-standing number means.** The
+     `undeclared identifier` family, carried as "489 specs" for many waves, is
+     41 of 121 against the honest population. The class was real; its size was
+     measured against a corpus figure inflated 3.8x.
+
 ### How to update this tracker
 
 After closing a wave:
