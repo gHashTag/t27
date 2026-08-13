@@ -9649,6 +9649,29 @@ impl VerilogCodegen {
         }
         self.dedent();
         self.write_line(");");
+        // W655 (T96): a module whose header is ONLY the boilerplate
+        // `(clk, rst_n, en, ready)` has no way to move a value across its own
+        // boundary, so synthesis optimises the entire design away. Measured
+        // across the corpus: 800 of 849 generated modules (94.2%) are in this
+        // state, and the 49 that are not are all `specs/ternary/gft_*` -- the
+        // difference is one naming convention, a function called `on_comb`.
+        //
+        // We do NOT guess a default. Picking, say, the last `pub fn` would
+        // silently promote an internal helper to a public boundary, and a wrong
+        // boundary is worse than none. Following T52's remedy, the ABSENCE gets
+        // a reserved symbol instead: loud, greppable, and countable.
+        if input_ports.is_empty() && exposed_ports.is_empty() && comb_result.is_none() {
+            self.write_line(
+                "// NO DATA PORTS -- this module cannot move a value across its boundary.",
+            );
+            self.write_line(
+                "// Synthesis will optimise it to nothing. Add `fn on_comb(...) -> T` to give",
+            );
+            self.write_line(
+                "// it a combinational surface: parameters become inputs, the return becomes",
+            );
+            self.write_line("// `result`. See T81.");
+        }
         self.write_line("");
 
         self.indent();
