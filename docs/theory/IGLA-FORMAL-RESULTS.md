@@ -5892,4 +5892,50 @@ sitting, and the only reason the third was found at all.
 
 ---
 
+### T77 (W653) — the ratchet returned CLEAN across every wave in which the harness could not fail
+
+The T74–T76 fixes were run against the ratchet, and the verdict was **FAIL with
+0 unexpected failures and 6 unexpected passes**:
+
+```
+ledger:              332 / 332 cap
+observed (primary):  326
+UNEXPECTED FAILURES: 0
+UNEXPECTED PASSES  : 6
+  - specs/base/seed.t27  [no-vacuous-verilog-test]  (fixed -- remove from the ledger)
+  ... 5 more
+```
+
+That is the XPASS-strict design behaving correctly, and the ledger was reduced
+332 → 326 with the cap moved monotonically downward.
+
+**But the informative part is what the ratchet did NOT say.** A change that
+converted every Verilog test in the corpus from *"prints PASSED regardless"* to
+*"reports its actual verdict"* produced **zero unexpected failures**.
+
+The reason is structural: the suite's `no-vacuous-verilog-test` phase is a
+**static** check on the emitted text, and the Icarus **simulation** phase is
+opt-in (T51) and was not run. So the gate asks *"does this block claim a verdict
+it did not earn?"* and never asks *"is the verdict true?"*
+
+> **T77.** A gate that inspects the artefact cannot detect a defect in the
+> artefact's *behaviour*. The ratchet has returned CLEAN in every wave of this
+> session while the Verilog test harness was incapable of reporting a failure,
+> and it would have kept returning CLEAN indefinitely. **A green ratchet bounds
+> regression in what it measures and says nothing about what it does not.**
+
+**And the six XPASSes show the same boundary from the other side.** Those specs
+were flagged as vacuous because they printed `PASSED` without checking; they now
+print `NOT CHECKED (no checks lowered)` and the gate is satisfied. **The test
+blocks still check nothing** — five in `specs/base/seed.t27` alone. What changed
+is that they now *say so*. The gate was measuring the honesty of the label, which
+is exactly what it should measure, and exactly why it cannot be the thing that
+tells you the tests work.
+
+**Consequence for the ledger's meaning.** "RATCHET CLEAN, 326/326" should be read
+as: *no spec changed its status in the phases that are run*. It is not a claim
+that the corpus is verified, and no wave report should quote it as one.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
