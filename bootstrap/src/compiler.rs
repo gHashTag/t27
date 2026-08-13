@@ -4398,6 +4398,16 @@ impl Parser {
         )
     }
 
+    /// W655 (T95): is this a floating type? Verilog's synthesizable subset has
+    /// no float, and lowering `f32` to an integer vector produced a value that
+    /// COMPILES, SYNTHESIZES, RUNS and is wrong for every non-integral input
+    /// (T84/T85). Verilog `real` is IEEE double and is correct in simulation;
+    /// synthesis rejects it, which is truthful because `f32` arithmetic was
+    /// never synthesizable.
+    fn type_is_float(ty: &str) -> bool {
+        matches!(ty.trim(), "f32" | "f64")
+    }
+
     fn opens_declaration(kind: TokenKind) -> bool {
         matches!(
             kind,
@@ -10728,12 +10738,25 @@ impl VerilogCodegen {
             false
         };
 
-        let signed_str = if ret_signed { "signed " } else { "" };
-        let range = Self::range_decl(ret_width);
-        let range_str = if range.is_empty() {
-            String::new()
+        // W655 (T95): a float return becomes Verilog `real`, not an integer
+        // vector. See `type_is_float`.
+        let ret_is_float = Self::type_is_float(&node.extra_return_type);
+        let signed_str = if ret_is_float {
+            ""
+        } else if ret_signed {
+            "signed "
         } else {
-            format!("{} ", range)
+            ""
+        };
+        let range_str = if ret_is_float {
+            "real ".to_string()
+        } else {
+            let range = Self::range_decl(ret_width);
+            if range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", range)
+            }
         };
 
         let fn_name = Self::verilog_safe_identifier(&node.name);
@@ -10773,14 +10796,21 @@ impl VerilogCodegen {
                 }
             }
             self.write_indent();
+            // W655 (T95): a float parameter becomes `real` too, or the
+            // argument is narrowed at the boundary and the sign is lost.
+            let p_is_float = Self::type_is_float(ptype);
             let pw = self.packed_width(ptype);
             let ps = self.packed_signed(ptype);
-            let ps_str = if ps { "signed " } else { "" };
-            let pr = Self::range_decl(pw);
-            let pr_str = if pr.is_empty() {
-                String::new()
+            let ps_str = if p_is_float || !ps { "" } else { "signed " };
+            let pr_str = if p_is_float {
+                "real ".to_string()
             } else {
-                format!("{} ", pr)
+                let pr = Self::range_decl(pw);
+                if pr.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", pr)
+                }
             };
             let safe_pname = Self::verilog_safe_identifier(pname);
             self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));

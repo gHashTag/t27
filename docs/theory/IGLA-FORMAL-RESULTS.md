@@ -6773,4 +6773,58 @@ organisation" wrong in three committed documents.
 
 ---
 
+### T95 (W655) — the third option was the honest one, and it cost nothing
+
+T85 laid out three ways to lower `f32` in the Verilog backend and named the one
+that must not continue:
+
+1. **`real`** — correct in simulation, rejected by synthesis, truthful because
+   `f32` arithmetic was never synthesizable
+2. **a diagnostic** — refuse `f32` and say so
+3. **a signed integer vector** — what existed: compiles, synthesizes, runs, and
+   computes the wrong value for every non-integral input
+
+Option 1 is now implemented: a float return emits `function real f;` and a float
+parameter emits `input real x;`.
+
+**The confirming measurement was specified in advance** (W654 Option 1:
+*"`w375_early_return_exp` passes in Verilog, and the other 16 do not regress"*)
+and both halves hold:
+
+| | before | after |
+|---|---:|---:|
+| f32/f64 specs that compile | 17 | **17** |
+| that do not compile | 128 | **128** |
+| tests PASSED | 4 | **5** |
+| tests **FAILED** | **2** | **0** |
+
+**Zero regressions. Both failures fixed.**
+
+> **T95.** The risk that argued against `real` — that it cannot be bit-selected or
+> concatenated, so packed uses would break — **did not materialise on a single
+> spec**. The estimate that produced that risk was a crude scan for a function
+> name near a bracket, and it over-counted: naming a hazard is not measuring it,
+> and a hazard measured by proxy is a hazard whose size is unknown in **both**
+> directions.
+
+**The general form is about the shape of the choice, not about floats.** Options
+1 and 2 both make the failure *visible*; option 3 makes it *invisible*. The
+project had option 3 for its entire history because option 3 is the one that
+never produces an error message — **the option that looks like it is working is
+selected by exactly the property that makes it wrong.**
+
+> **Corollary.** Where a target language cannot represent a source type, the
+> lowering has three choices and only one of them is silent. **Prefer the loud
+> one even when it fails more**, because a lowering that fails is a lowering you
+> can count, and `t27` now counts 617 non-compiling specs it could not see
+> before (T84).
+
+**What this does not do.** `real` is not synthesizable, so any spec using `f32`
+in a path intended for hardware now fails at synthesis rather than producing a
+wrong bitstream. That is the intended trade and it is stated here so no later
+wave reads the failure as a regression: **the specs that "synthesized" before
+were synthesizing arithmetic that computed the wrong answer.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
