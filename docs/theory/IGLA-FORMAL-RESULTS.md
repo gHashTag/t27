@@ -7903,6 +7903,31 @@ T120 said to measure depth rather than frequency. Measured, over all 617 specs:
 > is no lever in this corpus** — after these four, every further compiling spec
 > must be bought individually or by adding a language feature.
 
+**Re-measured after T124.** The distribution above was produced by the tool whose
+pipe deadlock T124 documents, which classified the 29 largest specs as hangs and
+excluded them. Re-run on the corrected tool:
+
+| | broken tool | corrected tool | why |
+|---|---:|---:|---|
+| iverilog accepts | 151 | **155** | the four depth-1 repairs |
+| does not generate Verilog | 202 | **173** | −29, the deadlock's phantom hangs |
+| DEFECT specs | 264 | **289** | +29 restored, −4 now compiling |
+| **depth 1** | 4 | **0** | **the four were fixed this wave** |
+| depth 2 | 46 | 48 | |
+| depth 3 | 39 | 39 | |
+| depth 4 | 39 | 40 | |
+| depth 5+ | 136 | 162 | |
+
+`202 − 173 = 29` and `264 + 29 − 4 = 289`: the arithmetic closes exactly, which
+is the check that the correction is coherent rather than a second error.
+
+> **T123b — the lever is now spent.** Depth-1 is **zero**. Every one of the 289
+> remaining defect specs needs at least two independent repairs, and 162 of them
+> need five or more. **No single compiler fix can raise the compiling count
+> again.** The next spec to compile must be bought individually, or by
+> implementing a language feature (T122: generic types, 27 specs), or by writing
+> the function bodies 667 declarations are missing (T121).
+
 **Forecast scoring (T44).** Registered before the sweep: 10–35 specs at depth 1.
 **Measured: 4. MISS, low by 2.5×.** The prediction assumed defects distribute
 independently; they do not — a spec broken in one way is overwhelmingly broken

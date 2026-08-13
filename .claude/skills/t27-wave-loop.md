@@ -6596,6 +6596,19 @@ These cost a wave each. Follow them before step 1.
      was better than claimed -- but the claim was made without evidence, and the
      next one might not be lucky.
 
+402. **Check that a correction's arithmetic CLOSES.** Re-running the depth
+     sweep on the fixed tool moved `does not generate` 202 -> 173 and `DEFECT`
+     264 -> 289. 202-173 = 29 (the deadlock's phantom hangs) and 264+29-4 = 289
+     (the same 29 restored, minus the four specs repaired this wave). When the
+     books balance, the correction is coherent; when they do not, you have a
+     second error rather than a fix. T123.
+
+403. **A lever, once used, is gone.** Depth-1 went 4 -> 0 because those four were
+     repaired. Every one of the 289 remaining defect specs now needs two or more
+     independent fixes and 162 need five or more. **No single compiler fix can
+     raise the compiling count again** -- the next spec is bought individually,
+     by a language feature, or by writing missing function bodies. T123b.
+
 ### How to update this tracker
 
 After closing a wave:
