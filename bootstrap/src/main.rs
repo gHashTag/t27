@@ -109,6 +109,24 @@ enum Commands {
         nextpnr_src: Option<String>,
     },
 
+    /// THE SERVICE: the only corpus metric that does not lie. For every spec,
+    /// does it GENERATE and does the generated artefact COMPILE -- binary
+    /// outcomes per backend, no diagnostic counts. A parser error count moves
+    /// three orders of magnitude from one character and RISES when a real defect
+    /// is fixed (T119); the gap between "generates" and "compiles" is the real
+    /// backlog. Every step is separately timed out.
+    Corpus {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Stop after N specs (0 = all). Use for a quick check.
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+        /// Emit one JSON line instead of the table, for wave-to-wave comparison
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
     /// THE SERVICE: report the Digilent cables attached RIGHT NOW, with each
     /// board's IDCODE read from the silicon. All three cables in this project
     /// share one serial, so bus position is the only handle -- and it changes
@@ -10177,6 +10195,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::Corpus { specs_dir, limit, json } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
+        }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
@@ -10525,6 +10546,9 @@ fn main() -> anyhow::Result<()> {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
         Commands::Boards => service::run_boards()?,
+        Commands::Corpus { specs_dir, limit, json } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
+        }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }

@@ -12492,6 +12492,38 @@ impl VerilogCodegen {
                 self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
+                // W660: `default_input()` / `valid_input()` are TEMPLATE SCAFFOLD,
+                // not functions. 571 generated tests are shaped
+                //
+                //     test f_basic_case
+                //         given input = default_input()
+                //         when result = f(input)
+                //         then result != undefined
+                //
+                // and neither helper is defined anywhere. The Zig backend has
+                // resolved them since W585 (see collect_scaffold_locals, which
+                // recovers the type from the consumer's declared parameter and
+                // emits `std.mem.zeroes(T)`). The VERILOG backend never did, so
+                // every one of these specs died at
+                //
+                //     error: No function named `default_input' found
+                //
+                // Measured before this fix: 141 of the 444 specs that generate
+                // Verilog carried a scaffold call -- 32% -- and it was the single
+                // largest cause in a 60-spec sample, 15 of 46 failures.
+                //
+                // Verilog needs no type recovery: the binding is already declared
+                // as a `reg` of the right width by the local emitter, so the zero
+                // value is the literal 0 and the width follows the declaration.
+                // The tests using these bindings assert only `result != undefined`,
+                // so a defined default is exactly what they want.
+                if matches!(node.name.as_str(), "default_input" | "valid_input")
+                    && node.children.is_empty()
+                {
+                    self.write("0");
+                    return;
+                }
+
                 // W557: inside test/bench blocks, reference a pre-declared temporary
                 // for pure calls instead of re-invoking them. The temporary was
                 // assigned earlier in the block by materialize_call_array_tmp.

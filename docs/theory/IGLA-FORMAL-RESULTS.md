@@ -7752,4 +7752,84 @@ look like one class for three waves.
 
 ---
 
+### T120 (W660) — a first-error histogram ranks causes by EARLIEST, not by blocking power
+
+`default_input()` / `valid_input()` are template scaffold that no spec defines.
+The Zig backend has resolved them since W585; the Verilog backend never did, so
+every affected spec died at `No function named 'default_input' found`. It was
+the single largest cause in a 60-spec sample — 15 of 46 failures — and the
+corpus-wide measurement agreed:
+
+| | before | after |
+|---|---:|---:|
+| specs generating Verilog | 444 | 444 |
+| specs containing a scaffold **call** | 140 | **0** |
+| call sites | 435 | **0** |
+| iverilog failures naming the scaffold | 133 | **0** |
+| **specs iverilog accepts** | **151** | **151** |
+
+**The largest cause was eliminated completely and the number of compiling specs
+moved by ZERO.**
+
+Because the specs beneath it are not one fix deep:
+
+```
+distinct error classes per affected spec
+   2 classes .....   7 specs
+   3 classes .....   1 spec
+   4+ classes ..... 132 specs      <- 94%
+```
+
+> **T120.** A first-error histogram can only ever show the EARLIEST failure, so
+> its top entry is the most *frequent* cause and not the most *blocking* one.
+> Removing it reveals the next layer and buys nothing. **When defects are
+> stacked, "fix the biggest cause" is the wrong strategy; the specs worth fixing
+> are the ones that are ONE class deep, and finding them requires measuring
+> DEPTH, not frequency.**
+
+**Where T107 differs, and why it worked.** That wave repaired 313 specs with one
+fix because the defect was in the *emitter's harness* and applied uniformly to
+every spec — a shared cause with depth one. The scaffold is also a shared cause,
+but the specs carrying it have four private defects each. **Shared cause is not
+the same as shallow stack**, and only the second predicts a repair.
+
+**Forecast scoring (T44).** Registered before the fix: scaffold call sites
+141 → 0 (**hit**, measured 140 specs / 435 sites → 0); newly compiling specs
+**+60 to +115** (**MISS — measured +0**). The miss is the theorem.
+
+---
+
+### T121 (W660) — the backlog is three populations, and only one of them is a defect backlog
+
+`t27c impl-status`, run over the same 617 specs:
+
+```
+specs fully implemented   279      functions declared   3,491
+specs PARTLY written        6      functions with NO BODY 667
+specs entirely UNWRITTEN  159
+specs that do not parse   173
+```
+
+Cross-referenced against the binary corpus metric — 444 generate Verilog, **151**
+iverilog accepts:
+
+| population | count | what it needs |
+|---|---:|---|
+| implemented **and** accepted | **151** | nothing |
+| implemented but rejected | **~128** | **compiler or spec defects — the real backlog** |
+| unwritten / partial | 165 | **function bodies**, not fixes |
+| does not parse | 173 | parser features or spec repair |
+
+> **T121.** "466 specs fail" is not a defect count. **Roughly 128 of them are the
+> actual compiler-defect backlog — a quarter of the headline** — while 165 are
+> specifications nobody has written and 173 do not parse at all. Reporting these
+> as one number has, for several waves, made an unwritten spec and a miscompiled
+> one look like the same problem.
+
+**And it re-scopes every future forecast.** The denominator for "how many specs
+can a compiler fix repair" is **128**, not 466. Any prediction against the larger
+number is wrong before it is made.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

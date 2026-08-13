@@ -6490,6 +6490,42 @@ These cost a wave each. Follow them before step 1.
      without Architect approval". **Report the conflict; do not resolve it by
      editing the list.**
 
+385. **A first-error histogram cannot rank blocking power.** Removing the top
+     cause -- 435 scaffold call sites across 140 specs, 133 of the iverilog
+     failures -- moved the compiling-spec count from 151 to 151. 132 of those
+     140 specs carry FOUR OR MORE distinct error classes. **Measure DEPTH, not
+     frequency; the specs worth fixing are the ones one class deep.** T120.
+
+386. **Shared cause is not the same as shallow stack.** T107 repaired 313 specs
+     with one fix because the defect was in the emitter's harness and applied
+     uniformly at depth one. The scaffold is equally shared and bought nothing,
+     because each spec had four private defects underneath. Only depth predicts
+     a repair.
+
+387. **Never size a class by substring.** "141 specs contain a scaffold call"
+     was measured by grepping for `valid_input` -- which matches the TEST NAME
+     `cordic_top_invalid_input`. Third occurrence this session of a substring
+     search reporting something that is not there (after the DSP48E1 log count
+     and the iverilog error count). Use a call pattern with a word boundary, or
+     better, use the TOOL'S OWN ERROR as the signal.
+
+388. **Split the backlog before forecasting against it.** `t27c impl-status`
+     over the same 617 specs: 279 implemented, 6 partial, 159 UNWRITTEN, 173 do
+     not parse; 667 of 3,491 declared functions have no body. Against 151
+     iverilog-clean, the real compiler-defect backlog is ~128 specs -- a QUARTER
+     of the "466 failing" headline. An unwritten spec is not a broken one, and a
+     forecast against the larger denominator is wrong before it is made. T121.
+
+389. **Do not rebuild while a sweep is running.** `run_corpus` spawns
+     `current_exe()` per spec, so `cargo build` mid-sweep swaps the binary under
+     the measurement. Snapshot the binary (`cp target/release/t27c ...`) before
+     touching the source, and measure "before" against the snapshot.
+
+390. **Two `cargo build` invocations in one command: the FIRST one builds.**
+     The second reports "Finished in 0.44s" and that reads as a completed build
+     of the new code. Check the binary's hash against the snapshot, or check the
+     BEHAVIOUR, before believing a fast build did anything.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -544,3 +544,181 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
         std::process::exit(1);
     }
 }
+
+// ---------------------------------------------------------------------------
+// `t27c corpus` -- the ONLY corpus metric that does not lie.
+//
+// T119 (W659) measured why this command exists. A parser error count moves by
+// three orders of magnitude from a single character -- two broken identifiers
+// in arch.t27 were worth 1,865 reported errors -- and it RISES when a real
+// defect is fixed, because the tool then parses far enough to find what the
+// earlier bail-out masked. Across the 13 specs repaired in W659 the corpus
+// error total fell 13,066 -> 3,765 while the number of specs that actually
+// compile moved 0 -> 0.
+//
+// So this reports BINARY outcomes only: for each spec and each backend, does it
+// generate, and does the generated artefact compile. Counts of diagnostics are
+// deliberately absent from the headline; they are a measure of how early a tool
+// gave up, not of how much is wrong.
+//
+// Every step carries its own timeout. A step that cannot be spawned is reported
+// as ABSENT, never folded into "failed" -- the failure that reads as instant
+// success has cost this project four separate false results.
+// ---------------------------------------------------------------------------
+
+#[derive(Default, Clone)]
+struct SpecOutcome {
+    zig_gen: bool,
+    zig_build: bool,
+    v_gen: bool,
+    v_build: bool,
+    timed_out: bool,
+}
+
+fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
+    // std::process has no timeout, so spawn and poll. A wait_with_output() would
+    // block forever on the hanging testbenches this corpus is known to contain
+    // (four orphaned vvp processes at 98% CPU were found this way in W659).
+    use std::io::Read;
+    let mut child = match cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let mut out = String::new();
+                if let Some(mut s) = child.stdout.take() {
+                    let _ = s.read_to_string(&mut out);
+                }
+                let mut err = String::new();
+                if let Some(mut s) = child.stderr.take() {
+                    let _ = s.read_to_string(&mut err);
+                }
+                return Some((status.code(), format!("{out}{err}")));
+            }
+            Ok(None) => {
+                if start.elapsed().as_secs() >= secs {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Some((None, String::from("__TIMEOUT__")));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
+pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -> anyhow::Result<()> {
+    let me = std::env::current_exe()?;
+    let tmp = std::env::temp_dir().join("t27-corpus");
+    std::fs::create_dir_all(&tmp)?;
+
+    let mut specs: Vec<PathBuf> = Vec::new();
+    let mut stack = vec![repo_root.join(specs_dir)];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().map(|x| x == "t27").unwrap_or(false) {
+                specs.push(p);
+            }
+        }
+    }
+    specs.sort();
+    if limit > 0 && specs.len() > limit {
+        specs.truncate(limit);
+    }
+
+    let mut out: Vec<(String, SpecOutcome)> = Vec::new();
+    for (i, p) in specs.iter().enumerate() {
+        let mut o = SpecOutcome::default();
+        let sp = p.to_string_lossy().to_string();
+
+        // ---- Zig ----
+        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen", &sp]), 15) {
+            if text == "__TIMEOUT__" {
+                o.timed_out = true;
+            } else if c == Some(0) && !text.trim().is_empty() {
+                o.zig_gen = true;
+                let zp = tmp.join("c.zig");
+                if std::fs::write(&zp, &text).is_ok() {
+                    if let Some((zc, zt)) =
+                        run_timed(Command::new("zig").args(["build-obj", "-fno-emit-bin",
+                                                            &zp.to_string_lossy()]), 30)
+                    {
+                        if zt == "__TIMEOUT__" { o.timed_out = true; }
+                        o.zig_build = zc == Some(0);
+                    }
+                }
+            }
+        }
+
+        // ---- Verilog ----
+        if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15) {
+            if text == "__TIMEOUT__" {
+                o.timed_out = true;
+            } else if c == Some(0) && !text.trim().is_empty() {
+                o.v_gen = true;
+                let vp = tmp.join("c.v");
+                if std::fs::write(&vp, &text).is_ok() {
+                    if let Some((vc, vt)) = run_timed(
+                        Command::new("iverilog").args(["-g2012", "-o", "/dev/null",
+                                                       &vp.to_string_lossy()]), 30)
+                    {
+                        if vt == "__TIMEOUT__" { o.timed_out = true; }
+                        o.v_build = vc == Some(0);
+                    }
+                }
+            }
+        }
+
+        if !json && (i % 50 == 0 || i + 1 == specs.len()) {
+            eprintln!("  ... {}/{}", i + 1, specs.len());
+        }
+        let rel = p.strip_prefix(repo_root).unwrap_or(p).to_string_lossy().to_string();
+        out.push((rel, o));
+    }
+
+    let n = out.len();
+    let c = |f: fn(&SpecOutcome) -> bool| out.iter().filter(|(_, o)| f(o)).count();
+    let zg = c(|o| o.zig_gen);
+    let zb = c(|o| o.zig_build);
+    let vg = c(|o| o.v_gen);
+    let vb = c(|o| o.v_build);
+    let both = out.iter().filter(|(_, o)| o.zig_build && o.v_build).count();
+    let to = c(|o| o.timed_out);
+
+    if json {
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"both_build\":{both},\"timed_out\":{to}}}");
+        return Ok(());
+    }
+
+    let pct = |x: usize| if n == 0 { 0.0 } else { 100.0 * x as f64 / n as f64 };
+    println!();
+    println!("  corpus: {n} specs under {specs_dir}");
+    println!("  {}", "-".repeat(52));
+    println!("  {:<26} {:>5}  {:>6}", "generates Zig", zg, format!("{:.1}%", pct(zg)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... and Zig accepts it", zb, format!("{:.1}%", pct(zb)));
+    println!("  {:<26} {:>5}  {:>6}", "generates Verilog", vg, format!("{:.1}%", pct(vg)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... and iverilog accepts", vb, format!("{:.1}%", pct(vb)));
+    println!("  {:<26} {:>5}  {:>6}", "BOTH backends accept", both, format!("{:.1}%", pct(both)));
+    if to > 0 {
+        println!("  {:<26} {:>5}", "timed out (hang)", to);
+    }
+    println!();
+    println!("  The gap between 'generates' and 'accepts' is the real backlog.");
+    println!("  Diagnostic counts are deliberately not reported: see T119.");
+    Ok(())
+}
