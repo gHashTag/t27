@@ -7496,6 +7496,128 @@ the source instead of the operator that survives to the netlist.**
 
 ---
 
+### T113 (W658) — CNF size does not predict solve time; the multiplier does
+
+Two miters, same machine, same solver:
+
+| miter | variables | clauses | time |
+|---|---:|---:|---:|
+| **whole MVP classifier** (24 weights, 3 adder trees, argmax) | 14,050 | 39,277 | **0.56 s** |
+| **one 12×12 multiplier** (`__mul_noop` vs `*`) | 3,980 | 11,272 | **191.71 s** |
+
+> **T113.** The multiplier miter has **3.5× fewer variables and 342× more solve
+> time.** Problem size is not the cost model. **The presence of a multiplier is.**
+
+Square-width scaling, 300 s timeout:
+
+```
+ W     vars   clauses      time
+ 4      412     1,136     0.07 s
+ 6      956     2,674     0.04 s
+ 8    1,732     4,876     0.23 s
+10    2,740     7,742     8.16 s
+12    3,980    11,272   191.71 s
+```
+
+CNF grows quadratically (≈27·W² variables); time grows ≈5.5× per bit.
+
+**Do not call this a proven lower bound.** Bryant (IEEE TC 40(2), 1991) is an
+**OBDD** lower bound for multiplier middle bits, *not* a SAT/resolution one. What
+is established is the field's response: bit-level SAT was abandoned for
+algebraic methods (Ciesielski et al., DAC 2015; Sayed-Ahmed et al., DATE 2016;
+Kaufmann, Biere & Kauers, FMCAD 2019). **The wall measured here is empirical and
+solver-specific.**
+
+---
+
+### T114 (W658) — the corpus multiplier is verified on 12 of its 64 bits
+
+`__mul_noop` is the shift-and-add multiplier t27c emits into **every** generated
+Verilog module in place of `*` ([`compiler.rs:9734`](../../bootstrap/src/compiler.rs)).
+Measured: **130 of 200 specs emit it**, and nothing tests it directly — the Zig
+backend does not share this lowering, so the cross-backend disagreement that
+catches most defects is **blind here by construction**.
+
+Proven correct — no counterexample — at W = 4, 6, 8, 10, 12.
+
+> **T114.** The shipped helper is **64-bit**. On the measured 5.5×/bit curve,
+> W=16 is roughly a day and W=64 is unreachable. **Two thirds of the corpus emit
+> a function whose correctness is established on 12 of its 64 bits**, and no
+> larger timeout changes that.
+
+**What it bounds.** "Prove the corpus" cannot mean "prove every multiplication".
+It can only mean "prove every design whose multiplications are narrow enough" —
+making operand width, not spec count, the metric that decides coverage.
+
+---
+
+### T115 (W658) — a bounded proof can be sound for a reason nobody wrote down
+
+`prove_ternary_mac.ys` used `sat -verify -prove-asserts -seq 2`: **bounded model
+checking to depth 2**, which in general says nothing about states reachable at
+step 3 or later.
+
+The proof was nevertheless sound, for a reason no file recorded. In
+`ternary_mac_synth.v`, `acc_in` is an **input port** and
+
+```
+acc_out <= acc_in + {{23{prod[8]}}, prod};
+```
+
+has **no path from `acc_out` back into the logic** — the single register's next
+value is a pure function of the current inputs, so one frame is exhaustive.
+
+> **T115.** The soundness of T1 rested on the accumulator being threaded through
+> a **port** rather than a **feedback loop**. **Had anyone closed that loop, the
+> proof would have degraded silently to a depth-2 check while its wording still
+> claimed "for all".** A proof whose validity depends on an unstated structural
+> property of the design is a defect waiting for a refactor.
+
+**Closed, not merely documented.** Both scripts now use `-tempinduct`, which
+quantifies over **all reachable states**:
+
+```
+prove_ternary_mac.ys      6,506 vars, 18,039 clauses   Induction step proven: SUCCESS!   0.27 s
+prove_mvp_classifier.ys                                Induction step proven: SUCCESS!   1.30 s
+```
+
+The stronger mode costs 0.27 s against the bounded one. **There was never a
+trade-off to make.**
+
+> **T115a — capability drift.** The project already knew this.
+> `prove_demo_core.ys` has used `-tempinduct` since **T3**, whose heading reads
+> *"Unbounded accumulator invariant by temporal induction"*. The stronger method
+> was one file away and simply was not applied to the newer proof. **The defect
+> is not ignorance; it is the absence of any check that the best available method
+> is the one in use.** T1 was written after T3 and was weaker than it.
+
+---
+
+### T116 (W658) — the correct name for what this project does is TRANSLATION VALIDATION
+
+| approach | what is proven | examples |
+|---|---|---|
+| **compiler verification** | the compiler is correct for **all** inputs, once | Vericert (OOPSLA 2021), Lutsig (CPP 2021), Kami (ICFP 2017), Kôika (PLDI 2020), CompCert |
+| **translation validation** | **this output** refines **this input**, per build | Pnueli, Siegel & Singerman (TACAS 1998); Leung, Bounov & Lerner (MEMOCODE 2015); all commercial LEC |
+
+> **T116.** t27 does **translation validation**, not compiler verification, and
+> should say so first rather than be caught at it. The paradigm is 28 years old
+> and is what every production hardware flow already does (Koelbl et al., DATE
+> 2009). **Naming it correctly converts an apparent weakness — "you did not
+> verify your compiler" — into the industry-standard answer.**
+
+**Every deployed generator flow is in the same position.** Chisel (DAC 2012),
+FIRRTL (ICCAD 2017) and CIRCT have **no correctness proof** and rely on
+downstream checking. t27 is not behind the field here; it is in it.
+
+**And the mechanism decides what can scale.** CEC is tractable because of
+**structural similarity** — SAT sweeping finds internal equivalence points and
+cuts the miter into small pieces (Mishchenko et al., ICCAD 2006). A shift-and-add
+array and a `*` operator **share no internal equivalence points at all**, which
+is exactly what T113 measures.
+
+---
+
 ### T117 (W658) — the SAT wall is set by the WEIGHT width, and low-bit weights sit on the good side of it
 
 T113 measured the wall on square multipliers. The asymmetric measurement is
