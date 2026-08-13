@@ -6038,6 +6038,98 @@ These cost a wave each. Follow them before step 1.
      `zig ast-check` fails on 23 of 24. **A grep for the symptom in one
      backend's spelling is not a measurement of the defect.**
 
+317. **`done 1` is true whether or not the load happened.** All three boards
+     read `STAT 0x401079fc` before AND after an SRAM load -- they boot from
+     Master-SPI flash and assert DONE unaided. The acceptance criterion must be
+     **falsifiable by the status quo**: run it BEFORE the change, and if it
+     passes, it is not a criterion. When the status quo is already green, break
+     it deliberately first -- a wrong-part bitstream drives `Done` to `0x0`, and
+     the `0 -> 1` transition is what proves the artefact took effect. T71/T73.
+
+318. **The load path checks the envelope, not the contents.** 4,096 bytes of a
+     freshly built bitstream were XOR-inverted at its midpoint; the loader still
+     printed `done 1` and STAT still read `No CRC error`. Only a wrong-PART
+     bitstream is caught, via the IDCODE in the header. T73.
+
+319. **A version-compatibility assertion reports THAT two artefacts disagree,
+     never HOW MUCH.** nextpnr rejected a 332 MB chipdb and recommended
+     regenerating it (~1.3 GB, on a 98%-full disk). The actual diff was **two
+     appended lines** of `constids.inc`, which are ordinal, so the shorter file
+     was a strict PREFIX and every ID already had the right value. Two lines and
+     one rebuild replaced the remedy the tool advised. **Diff before accepting
+     the remedy.** T72.
+
+320. **A self-consistency check is not a use-case check.** `nextpnr --test`
+     (archcheck) still fails on that database while real place-and-route, FASM
+     emission, frame generation and bitstream packing all succeed. Gating on the
+     stricter one would have preserved the block after it was gone. T72.
+
+321. **`if (!cond)` cannot report unknown.** In Verilog `if (x)` is FALSE, so an
+     assertion on an unknown value skipped its failure branch and the block
+     printed PASSED. A test harness written in a logic with an unknown value must
+     use **case** equality (`!== 1'b1`), or it silently converts "I could not
+     tell" into "it passed." T76.
+
+322. **A flag named for one concern silently gated a second.** `emit_test_
+     assertions` was read as "should I emit checks"; it also decided whether to
+     DECLARE the names the checks read (T75) and whether to COMPUTE the values
+     they read (T78). Fixing the first exposed the second rather than resolving
+     it. **When a boolean gates two branches of a `match`, every such pair is an
+     unaudited difference table** -- make the branches share their common work
+     and let the flag control only the difference it names.
+
+323. **Count a backend's vote only after checking it can vote "no".** Two
+     backends agreeing is evidence only if each could have disagreed. Before
+     T74-T78 the Verilog half of every cross-backend agreement was
+     unconditional and contributed nothing -- while raising confidence most in
+     exactly the cases where the other backend was doing all the work. T82.
+
+324. **Expressibility and synthesisability are independent.** 800 of 849
+     generated modules (94.2%) have only the boilerplate `(clk, rst_n, en,
+     ready)` header and no data ports, so they synthesize -- to nothing. The 49
+     that differ are all `specs/ternary/gft_*`, and the difference is one naming
+     convention: a function called **`on_comb`**, whose parameters become input
+     ports and whose return becomes `result`. Neither "170+ specs parse" nor
+     "5/5 modules synthesize" measures this. T81.
+
+325. **A timeout on some steps of a pipeline is not a timeout on the pipeline.**
+     A sweep whose `gen-verilog` and `iverilog` calls had `timeout=` and whose
+     `vvp` call did not left a simulation running for 5h47m at 88% CPU, *after*
+     the enclosing job reported completion. Combined with a 27-hour runaway
+     `t27c parse`, 33 CPU-hours were being taxed against every timing figure
+     taken afterwards. **Check `ps -axo pid,etime,pcpu` before quoting any
+     wall-clock.** T83.
+
+326. **A test can be correct about its subject and wrong about its substrate.**
+     `w375_early_return.t27` pins a control-flow property (early-return
+     chaining) using `f32`, which the Verilog backend lowered to an unsigned
+     vector. It reported PASSED in Verilog since it was written, guarding a
+     property it never checked, on a backend where the property is false. Only
+     an oracle that can fail distinguishes the two. T84.
+
+327. **A partial fix to a mixed failure class redefines what the remaining
+     failures mean.** Making floats signed fixed the sign inversion
+     (`f(-1.0)`: 4294967295 -> -1) and cannot fix the fraction class
+     (`f(0.5) = 1`), because the second is a representability failure, not an
+     encoding one. The survivors now look like the same bug getting less bad.
+     **Measure the blast radius before choosing the design** -- 194 specs
+     mention `f32`/`f64` but only 17 compile, which is small enough to evaluate
+     exhaustively. T85.
+
+328. **Reserving a symbol makes a defect representable; it does not find it.**
+     A test chaining four `and` bindings ran in Zig (33/33) and lowered NOTHING
+     in Verilog. Pre-W640 both would have printed PASSED and the disagreement
+     would have read as AGREEMENT. This was the first time in the session that
+     the reserved symbol paid off on NEW work rather than an audit of old work.
+     T82.
+
+329. **A green ratchet bounds regression in what it measures and says nothing
+     about what it does not.** A change that converted every Verilog test in the
+     corpus from "prints PASSED regardless" to "reports its actual verdict"
+     produced ZERO unexpected failures, because the phase is a STATIC check on
+     emitted text and the simulation phase is opt-in. Read "RATCHET CLEAN
+     326/326" as *no spec changed status in the phases that are run*. T77.
+
 ### How to update this tracker
 
 After closing a wave:
