@@ -10414,6 +10414,64 @@ waves ago.
 
 ---
 
+### Prop. 199 — an expected refutation that stops firing is silent, and this one had been silent for waves — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *No port is driven by a signal naming a different quantity*
+
+Prop. 198 audited 2 of 13 exemptions and named the rest unexamined. Continuing,
+`units_scan.KNOWN_OPEN` carries its own contract in a comment:
+
+> *"a known finding is listed with its reason, and anything NOT on this list fails
+> the build. Removing an entry here must coincide with fixing the defect, or the
+> gate goes red — which is the point."*
+
+That guards one direction. **The reverse direction had no signal at all.** Its
+single entry recorded Prop. 122a — a neuron count passed to a byte-count DMA
+length — as *"Real, unfixed"*. Measured:
+
+```
+build/rtl/bitnet_engine_top.sv:361   .length({21'd0, chunks_per_neuron, 3'b000})
+```
+
+The defect is **fixed**. The gate has printed `0 known-open` and exited 0 every
+wave since, and nothing said the entry had stopped firing. A stale
+expected-refutation suppresses a check that no longer needs suppressing, and
+states a falsehood exactly where a reader looks for live defects.
+
+**Theorem (refutation liveness).** An expected-refutation entry `e` asserts
+`fires(e)`. A gate that only checks `¬fires(e) ⇒ e ∈ KNOWN` is half a contract;
+soundness needs `e ∈ KNOWN ⇒ fires(e)` as well. The missing half is unobservable
+by construction — a non-firing entry produces **no output**, so the failure looks
+exactly like success. This is Prop. 198's over-exemption at the level of an
+individual entry rather than a set, and it decays the same way: the world is
+repaired, the record is not, and nothing connects them.
+
+Corollary: **every suppression list needs an expiry check.** `KNOWN_OPEN`,
+`EXPECTED_VACUOUS`, `EXCUSED`, guard lists, xfail markers — each asserts a live
+defect, and each rots silently when the defect is fixed. The liveness check added
+here is four lines and makes a stale entry fail the build.
+
+**And a near-miss worth recording.** Chasing why the entry stopped firing showed
+`build/narrow/bitnet_engine_top.sv` still holds the pre-fix `.length(reg_neurons)`,
+and that `units_scan` reads only `build/rtl` — 13 of 158 `.sv` files under
+`build/`, **8%**. That was one step from a published claim that 92% of the RTL is
+unscanned. It is false: `build/` is **entirely gitignored**, the five sibling trees
+are untracked derived copies (`build/mut` is a `copytree` of `build/rtl` for
+mutation testing), and the file in question is a stale snapshot, not a live defect.
+Checking the tracking status before reporting the ratio is the only thing that
+stopped it.
+
+What *does* survive from that chase, and is now in the gate's `COVERAGE.`
+paragraph: **the subject tree is generated and gitignored, so this gate's result is
+not reproducible from the repository alone.** A denominator can be published and
+still not be versioned.
+
+Three bars: **TRUE** — 20 gates green, 1213 tests pass. **ALIVE** — the check runs
+against a non-empty `allknown` computation on a real corpus. **BITING** — a planted
+`KNOWN_OPEN` entry that cannot fire returns exit 1 naming it; removing it returns 0.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

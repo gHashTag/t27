@@ -1,6 +1,45 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
+
+## An expected refutation that stops firing is silent (Closes #2135)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2135
+- PR: (direct commit)
+
+### What landed
+
+Continuing Prop. 198's exemption audit. `units_scan.KNOWN_OPEN` guards one
+direction by contract -- removing an entry without fixing the defect goes red --
+and had **no signal for the reverse**. Its single entry recorded Prop. 122a as
+"Real, unfixed"; the RTL now reads
+`.length({21'd0, chunks_per_neuron, 3'b000})`. Fixed. The gate printed
+`0 known-open` and exited 0 every wave since, silently.
+
+Four lines make a non-firing entry fail the build, and the stale entry is gone.
+
+### Honesty limits (BINDING)
+
+- **A near-miss is recorded here on purpose.** Chasing this found
+  `build/narrow/bitnet_engine_top.sv` still holding the pre-fix
+  `.length(reg_neurons)`, and that `units_scan` reads only `build/rtl` -- 13 of
+  158 `.sv` files under `build/`, 8%. That was one step from publishing "92% of
+  the RTL is unscanned". **It is false.** `build/` is entirely gitignored, the
+  five sibling trees are untracked derived copies (`build/mut` is a `copytree` of
+  `build/rtl` for mutation testing), and that file is a stale snapshot, not a live
+  defect.
+- What survives: **the subject tree is generated and gitignored, so this gate's
+  result is not reproducible from the repository alone.** Now in its `COVERAGE.`
+  paragraph. A denominator can be published and still not be versioned.
+- **11 of 13 exemptions remain un-re-derived.** Two waves have tested three.
+- Removing the entry does not fix anything in the design; the defect it named was
+  already repaired by someone else, and this wave only stopped the record from
+  asserting otherwise.
+- No RTL, synthesis or hardware measurement was touched.
+- `formal-yosys.yml` still exists only on this branch and **has never run**
+  (Prop. 169).
+
 
 ## Auditing every by-name exemption (Closes #2134)
 

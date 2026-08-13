@@ -38,6 +38,15 @@ connections whose names we recognise", and nothing more. Widening `FAMILIES` is 
 shape search (Prop. 193) and cannot bound this residue -- only a design-side
 convention that names quantities, or a type annotation, could.
 
+A residue the first version of this paragraph missed, and it is a different kind:
+the subject tree `build/rtl` is **generated and gitignored**, so this gate's result
+is not reproducible from the repository alone -- it depends on whatever the build
+step last produced. Five sibling trees (`build/narrow`, `half`, `head`, `base`,
+`mut`) hold 65 more `.sv` files, all untracked derived copies, all unscanned. One
+still carries the pre-fix `.length(reg_neurons)`; that is a stale snapshot, not a
+live defect, and checking before reporting it is the only reason this paragraph
+does not claim 92% of the RTL is unscanned (Prop. 199).
+
 """
 
 import pathlib
@@ -79,11 +88,12 @@ KEYWORDS = {"else", "if", "begin", "end", "always", "assign", "wire", "reg",
 # anything NOT on this list fails the build. Removing an entry here must
 # coincide with fixing the defect, or the gate goes red -- which is the point.
 KNOWN_OPEN = {
-    ("bitnet_engine_top.sv", "dma_controller", "length", "reg_neurons"):
-        "Prop. 122a: the engine passes a neuron count to a byte-count DMA "
-        "length. Real, unfixed; the repair is a design decision recorded in "
-        "issue #2092.",
+    # Prop. 199: emptied. The single entry recorded Prop. 122a -- a neuron count
+    # passed to a byte-count DMA length -- as "Real, unfixed". It has been fixed
+    # in the scanned tree, and the liveness check below now makes a stale entry
+    # fail the build rather than sit here asserting something untrue.
 }
+
 
 INST = re.compile(r"^\s*(\w+)\s+(\w+)\s*\((.*?)\);", re.M | re.S)
 CONN = re.compile(r"\.(\w+)\s*\(\s*([^)]*?)\s*\)")
@@ -182,6 +192,26 @@ def scan(root):
         skipped += s
     for k in allknown:
         print(f"::warning::known-open {k}")
+
+    # Prop. 199: an expected refutation that STOPS FIRING must be an error.
+    # KNOWN_OPEN's own contract says "removing an entry must coincide with
+    # fixing the defect, or the gate goes red -- which is the point". The
+    # reverse direction had no signal at all: the Prop. 122a entry read "Real,
+    # unfixed", the defect was repaired in build/rtl (`.length(reg_neurons)`
+    # became `.length({21'd0, chunks_per_neuron, 3'b000})`), and this gate
+    # printed `0 known-open` and exited 0 for every wave since. A stale
+    # expected-refutation suppresses a check that no longer needs suppressing,
+    # and documents a falsehood where a reader looks for live defects.
+    missing = [k for k in KNOWN_OPEN if k not in allknown]
+    if missing:
+        print(f"::error::units scan: {len(missing)} KNOWN_OPEN entr(y/ies) did "
+              f"not fire. Either the defect was fixed -- in which case delete "
+              f"the entry, because it now documents a falsehood -- or this gate "
+              f"stopped SEEING it, which is worse. Silence is not agreement "
+              f"(Prop. 199)")
+        for k in missing:
+            print(f"  {k}")
+        return 1
     for b in bad:
         print(f"::error::{b}")
     # Silence must be measurable: a vocabulary that recognised nothing would
