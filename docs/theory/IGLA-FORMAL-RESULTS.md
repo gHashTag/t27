@@ -6102,4 +6102,130 @@ unrelated layers of the same system.
 
 ---
 
+### T81 (W654) — 94.2% of generated modules cannot carry a signal across their own boundary
+
+Synthesising `ternary_link.t27` produced nothing: the module optimised away
+entirely. Its generated header was `(clk, rst_n, en, ready)` — the boilerplate
+and no data ports — so every function in it was unreachable from the outside and
+dead. **The same shape T68 found in `uart.t27`**, whose "UART" had no `tx` and no
+`rx`.
+
+**Measured across the corpus** (all 1,064 specs, `gen-verilog`, module header
+parsed):
+
+```
+specs with a generated module:                849
+  ONLY boilerplate ports (clk/rst_n/en/ready): 800   (94.2%)
+  with REAL data ports:                         49   ( 5.8%)
+  no module emitted:                           216
+```
+
+**And the 49 are not a random 6%.** Every one is `specs/ternary/gft_*` — the
+GFTernary datapath family. The difference is a single naming convention: a
+function named **`on_comb`**, whose parameters become input ports and whose
+return becomes `result`.
+
+> **T81.** A spec language can be expressive and its backend still emit modules
+> with no boundary. **Expressibility and synthesisability are independent
+> properties**, and a corpus can score arbitrarily well on the first while 94% of
+> it is incapable of the second. Nothing in "170+ specs parse" or "5/5 modules
+> synthesize" measures this, because a module with no ports *does* synthesize —
+> to nothing.
+
+**This explains the hardware history.** Every bitstream in the repository came
+from hand-written Verilog under `fpga/`, and the spec-first path has never
+produced one. Not because the flow was broken — W653 proved the flow works — but
+because the artefacts it was asked to build had no surface to attach pins to.
+
+**The remedy is one function, and the cost is now measured.** Adding
+`fn on_comb(v: u8) -> u8` to `ternary_link.t27` gave it
+`input [7:0] v` / `output [7:0] result`, and the encoder synthesises to:
+
+| resource | count |
+|---|---:|
+| **LUT6** | **7** |
+| IBUF | 11 |
+| OBUF | 9 |
+| total cells | 27 |
+
+**Seven LUT6 for a complete 3B2T ternary line encoder on Artix-7** — the first
+silicon figure for a three-valued object in this project, and small enough that
+the encoder is not the cost of a ternary link. The receiver's two comparators are.
+
+---
+
+### T82 (W654) — a cross-backend disagreement was visible only because a symbol was reserved for "nothing happened"
+
+The first draft of the delimiter-unreachability test chained four bindings:
+
+```t27
+test comb_surface_never_emits_the_delimiter
+    given a = on_comb(0)
+    and b = on_comb(1)
+    and c = on_comb(2)
+    and d = on_comb(3)
+    then a != 5
+```
+
+**Zig ran it and reported 33/33 passed. The Verilog backend lowered nothing** and
+reported `NOT CHECKED (empty body)`.
+
+> **T82.** Under the pre-W640 emitter this block would have printed `PASSED` in
+> both backends and the disagreement would have been *invisible* — indeed it
+> would have read as **agreement**, and a cross-backend oracle would have counted
+> it as corroboration. The reserved symbol did not find the defect; it made the
+> defect *representable*, which is the entire content of T52's remedy.
+
+**This is the first time in this session that the reserved symbol paid off on new
+work rather than on an audit of old work.** T45 and T52 argued for it from
+five historical artefacts; T82 is the first case where it caught something as it
+was being written.
+
+**Corollary about cross-backend agreement.** Two backends agreeing is evidence
+only if each could have disagreed. A backend that reports success unconditionally
+raises the *appearance* of corroboration while contributing none — and worse, it
+raises confidence in exactly the cases where the other backend is doing all the
+work. **Count a backend's vote only after checking it can vote "no".**
+
+---
+
+### T83 (W654) — two runaway processes had consumed 33 CPU-hours, and one was mine
+
+Investigating why three measurements were running slowly:
+
+```
+PID 3592   ELAPSED 01-03:19:09   %CPU 74-89   t27c parse .../specs/tri/agent/handoff.t27
+PID 9297   ELAPSED    05:47:40   %CPU 74-91   vvp .../scratchpad/s.out
+```
+
+**27 hours and 5h47m, each pinning most of a core.** Both terminated.
+
+**The `vvp` was mine.** It came from a bench-simulation sweep I wrote earlier in
+this session whose `subprocess.run(["vvp", …])` call carried **no `timeout=`**,
+unlike the `gen-verilog` and `iverilog` calls in the same loop. A generated
+testbench that does not terminate therefore ran unbounded, and the sweep that
+spawned it had long since been reported as finished.
+
+> **T83.** A timeout applied to *some* steps of a pipeline is not a timeout on
+> the pipeline. The unbounded step is the one that will hang, and it will hang
+> *after* the enclosing job reports completion — so the cost is invisible at the
+> place where it is incurred and shows up as unexplained slowness elsewhere,
+> hours later.
+
+**The 27-hour `t27c parse` could not be reproduced.** A fresh invocation of both
+the current and the older binary on the same file completes in seconds, and
+truncating the file to 13 different prefixes produced no hang. **The cause is
+unknown and is recorded as unknown** — a non-terminating parse that occurred once
+and consumed a core for over a day is a real event whether or not its trigger can
+be recovered, and inventing a mechanism for it would be worse than leaving it
+open.
+
+**Operational consequence.** Every long-running measurement in this project
+should be preceded by a check for stale compute, because a background process
+from a *previous session* silently taxes every timing figure taken afterwards —
+including the 744 s and 923 s ratchet wall-clocks quoted in earlier reports,
+which were measured while at least one of these was running.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

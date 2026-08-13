@@ -163,7 +163,64 @@ module ZeroDSP_TernaryLink {
         return (2 + payload_groups * 16);
     }
 
+    // ---- Combinational port surface ----
+    // W654: a spec whose datapath lives only in `fn`s generates a module with
+    // the boilerplate `(clk, rst_n, en, ready)` header and NOTHING else, so
+    // synthesis optimises the whole design away -- measured across the corpus:
+    // 800 of 849 generated modules (94.2%) have no data ports at all, and the
+    // 49 that do are all `specs/ternary/gft_*`. The difference is a function
+    // named `on_comb`, whose parameters become input ports and whose return
+    // becomes `result`.
+    //
+    // This is the encoder's silicon surface: one 3-bit data word in, one
+    // 4-bit ternary codeword out, packed [high symbol : low symbol] with each
+    // symbol in the 2-bit wire encoding.
+    fn on_comb(v: u8) -> u8 {
+        return ((symbol_to_wire(encode_high(v)) << 2) | symbol_to_wire(encode_low(v)));
+    }
+
     // ---- Tests: the round trip is the whole correctness claim ----
+
+    // v=0 -> (-1,-1) -> wire (2,2) -> 0b1010 = 10
+    test comb_surface_encodes_v0
+        given w = on_comb(0)
+        then w == 10
+
+    // v=4 -> (0,0) -> wire (0,0) -> 0b0000 = 0
+    test comb_surface_encodes_v4
+        given w = on_comb(4)
+        then w == 0
+
+    // v=7 -> (+1,0) -> wire (1,0) -> 0b0100 = 4
+    test comb_surface_encodes_v7
+        given w = on_comb(7)
+        then w == 4
+
+    // The reserved codeword (+1,+1) -> wire (1,1) -> 0b0101 = 5 must NOT be
+    // producible by any 3-bit input. This is T79 made executable, one input per
+    // test.
+    //
+    // W654: the first draft chained four `and` bindings in one test. Zig ran it
+    // (33/33) and the VERILOG backend lowered NOTHING, reporting
+    // `NOT CHECKED (empty body)` -- a cross-backend disagreement that was only
+    // visible because W640 reserved a symbol for "nothing happened". Under the
+    // old emitter it would have printed PASSED in both and looked like
+    // agreement. Split into single-binding tests, which lower in both.
+    test delimiter_unreachable_from_v0
+        given a = on_comb(0)
+        then a != 5
+
+    test delimiter_unreachable_from_v3
+        given a = on_comb(3)
+        then a != 5
+
+    test delimiter_unreachable_from_v5
+        given a = on_comb(5)
+        then a != 5
+
+    test delimiter_unreachable_from_v7
+        given a = on_comb(7)
+        then a != 5
 
     test v0_encodes_to_minus_minus
         given h = encode_high(0)
