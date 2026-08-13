@@ -5895,6 +5895,35 @@ These cost a wave each. Follow them before step 1.
      Build it, but do not expect breadth from it yet -- and my own W646
      recommendation preferred it over the gate audit BEFORE either was measured.
 
+297. **Violations concentrate on the RAREST path, by construction.** Third
+     instance in six waves of one shape: an obligation met on the path usually
+     taken and missed on the one that is not.
+       T53  escape a keyword -> met at expression sites, missed at local arrays
+       W644 the same escape  -> met everywhere else, missed at `let` bindings
+       T60  declare what you reference -> met on the UNROLLED loop path, missed
+            on the real-`for` path (a constant bound unrolls and needs no
+            variable; only a parameter bound emits `for`)
+     **"It works in the common case" is not weak evidence about the rare case;
+     it is the REASON the rare case is broken.** (T60.)
+
+298. **The declaration was in the COMMENT and not in the code:**
+     `// Emit: integer iter_var; for (...)` followed by only the `for`. When a
+     comment describes emitted output, diff the comment against what is
+     actually written.
+
+299. **My own prediction crossed two populations.** T59 said repairing iverilog
+     rejections widens the output stratum; W648 repaired two and the stratum
+     stayed at 3/144 -- **all 16 rejections are in `specs/scratch/`, the 144
+     [BENCH] specs are corpus.** Fifth population error of the session, and the
+     first in a PREDICTION rather than a measurement -- the variant that
+     survives longest, because nobody checks a prediction until they act on it.
+
+300. **What actually bounds the corpus build rate: 62 syntax errors (unread),
+     24 x `'clk' has already been declared`, and a tail of 4-8.** The 24 are one
+     cause: `clk` emitted as a module PORT (`input wire clk,`) and again as a
+     testbench REG (`reg clk;`) in the same scope. That is the repair that would
+     widen the output stratum.
+
 ### How to update this tracker
 
 After closing a wave:

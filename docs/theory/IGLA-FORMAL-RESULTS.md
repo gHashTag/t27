@@ -3327,6 +3327,90 @@ value on this corpus rather than in principle.
 
 ---
 
+### T60 (W648) — The obligation was met on the path usually taken and missed on the one that is not, for the third time
+
+**Two of the six remaining iverilog rejections were `register 'i' unknown`.**
+The generated function emits a real `for` loop and **never declares its loop
+variable**.
+
+**And the comment at the emit site records the intent:**
+
+```rust
+// Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; ...)
+self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
+```
+
+**The declaration is in the comment and not in the code.**
+
+**Why it stayed invisible for so long.** A loop with a *constant* bound is
+**unrolled** — `buf[0] = …; buf[1] = …;` — and needs no variable at all. Only a
+loop over a *parameter* emits a real `for`. `w386_for_local_array` passes;
+`w386_for_local_array_param` does not. **The two differ in exactly the property
+that decides whether the missing declaration matters.**
+
+**This is the third instance of one shape in six waves:**
+
+| wave | obligation | met on | missed on |
+|---|---|---|---|
+| **T53** | escape a keyword identifier | expression sites, module-level arrays | function-local arrays |
+| **W644** | the same escape | everywhere else | `let`-binding declarations |
+| **T60** | declare what you reference | the unrolled path | the real-`for` path |
+
+**Statement.** Let an obligation `O` apply on paths `p₁ … pₙ` and let `pᵢ` be
+taken with frequency `fᵢ`. The probability that a violation on `pⱼ` is observed
+is proportional to `fⱼ` — so **violations concentrate, by construction, on the
+rarest paths**, and the rarest paths are exactly the ones a test corpus
+under-samples and an author under-remembers. **"It works in the common case" is
+not weak evidence about the rare one; it is the *reason* the rare one is broken.**
+
+**Fixed** by hoisting loop variables into the function body's declaration block,
+where the local `reg`s already go — Verilog forbids a declaration after a
+procedural statement, so the existing hoist was the right home. Real
+(non-fixture) iverilog rejections: **6 → 4.**
+
+---
+
+### T61 (W648) — My own prediction crossed two populations, and the measurement said so
+
+**T59 concluded that the output stratum's value is "back-loaded": its coverage
+grows as rejections are repaired.** W648 repaired two. The measurement:
+
+| | before | after |
+|---|---:|---:|
+| corpus specs emitting `[BENCH]` | 144 | 144 |
+| of those, compiling under `iverilog` | **3** | **3** |
+
+**No change.** All sixteen iverilog rejections are in `specs/scratch/`; the 144
+`[BENCH]`-emitting specs are corpus. **The repaired population and the measured
+population are disjoint.**
+
+**Fifth population error of this session, and it is in a prediction rather than
+a measurement** — which is the variant that survives longest, because a
+prediction is not checked until someone acts on it.
+
+**The corrected statement.** The output stratum's reach is bounded by the
+*corpus* build rate, and what bounds *that* is:
+
+| n | why the corpus `[BENCH]` specs fail to compile |
+|---:|---|
+| **62** | `syntax error` (unread — T37 says read the line, not the message) |
+| **24** | ``'clk' has already been declared in this scope`` |
+| 2 | concatenation operand of indefinite width |
+| 2 | method-name nesting unsupported by iverilog |
+| 4 | unable to bind a wire/reg/memory |
+| 141 | total |
+
+**The 24 are one cause.** `clk` is emitted as a module **port**
+(`input wire clk,`) and again as a testbench **reg** (`reg clk;`) in the same
+scope. **That is the repair that would actually widen the stratum** — and it is
+in the corpus, where T59's argument applies.
+
+*Falsification condition:* a repair to `specs/scratch/` that moves the corpus
+`[BENCH]` compile count — which would mean the two populations interact after
+all.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

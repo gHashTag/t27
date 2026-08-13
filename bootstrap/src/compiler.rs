@@ -10655,6 +10655,14 @@ impl VerilogCodegen {
             for d in decls {
                 self.emit_local(d, LocalEmitPhase::Decl);
             }
+            // W648: loop variables, hoisted the same way and for the same
+            // reason. See T60.
+            let mut loop_vars: Vec<String> = Vec::new();
+            Self::collect_fn_loop_vars(&node.children, &mut loop_vars);
+            for v in &loop_vars {
+                self.write_indent();
+                self.write_line(&format!("integer {};", v));
+            }
             // Early-return guard (t27#1948): a `return` sets it and every
             // remaining statement region is wrapped in `if (!__t27_ret)`.
             self.write_indent();
@@ -10765,6 +10773,45 @@ impl VerilogCodegen {
     /// nesting depth) so its `reg` declaration can be hoisted to the top of the
     /// body block. Deduped by binding name (tuple-pattern locals by their
     /// comma-joined field list) so a name declared once is emitted once.
+    /// W648: every `for` a function body emits needs its loop variable
+    /// declared, and neither `gen_verilog_for_stmt` nor
+    /// `gen_verilog_for_range_stmt` did it -- the comment at the first site
+    /// even reads "Emit: integer iter_var; for (...)", so the intent was
+    /// recorded and only the `for` was written.
+    ///
+    /// It stayed invisible because a constant-bound loop is UNROLLED and needs
+    /// no variable; only a loop over a parameter emits a real `for`. Same
+    /// conjunctive shape as T53: the obligation was met on the path that is
+    /// usually taken and missed on the one that is not. See T60.
+    ///
+    /// Verilog forbids a declaration after a procedural statement, so these
+    /// hoist to the top of the function body alongside the local `reg`s.
+    fn collect_fn_loop_vars(stmts: &[Node], out: &mut Vec<String>) {
+        for s in stmts {
+            match s.kind {
+                NodeKind::StmtFor => {
+                    let v = if !s.params.is_empty() {
+                        s.params[0].0.clone()
+                    } else {
+                        "__i".to_string()
+                    };
+                    let v = Self::verilog_safe_identifier(&v);
+                    if !out.contains(&v) {
+                        out.push(v);
+                    }
+                }
+                NodeKind::StmtForRange => {
+                    let v = Self::verilog_safe_identifier(&s.name);
+                    if !out.contains(&v) {
+                        out.push(v);
+                    }
+                }
+                _ => {}
+            }
+            Self::collect_fn_loop_vars(&s.children, out);
+        }
+    }
+
     fn collect_fn_local_decls<'a>(
         stmts: &'a [Node],
         out: &mut Vec<&'a Node>,
