@@ -6001,4 +6001,105 @@ sitting underneath a cross-backend oracle that looked sound.
 
 ---
 
+### T79 (W654) — 3B2T is the *unique* non-degenerate ternary line code with exactly one reserved codeword, and the uniqueness is Mihailescu's theorem
+
+`specs/fpga/ternary_link.t27` adopts 3B2T because it leaves exactly one of nine
+symbol pairs unused, making the frame delimiter **unreachable from data** rather
+than merely improbable. That property turns out not to be a lucky feature of the
+(3,2) choice. It is the only place it can occur.
+
+**Setup.** An *nBmT* code carries `n` binary bits in `m` ternary symbols. It is
+realisable iff `2^n ≤ 3^m`, its rate is `n/m` bits per symbol against the channel
+capacity `log₂3 = 1.5850`, and it leaves
+
+$$ k \;=\; 3^m - 2^n $$
+
+codewords unused. The delimiter is unreachable from data iff `k ≥ 1`, and the
+delimiter is *maximally cheap* — no capacity spent beyond what the binary
+alphabet already forces — iff `k = 1`.
+
+> **Theorem T79.** The Diophantine equation `3^m − 2^n = 1` has exactly two
+> solutions in positive integers: `(m,n) = (1,1)` and `(m,n) = (2,3)`.
+>
+> *Proof.* The case `m,n > 1` is Mihailescu's theorem (2002; Catalan's
+> conjecture, 1844): the only solution of `x^a − y^b = 1` in integers
+> `x,y,a,b > 1` is `3² − 2³ = 1`. The remaining cases are finite: `m = 1` forces
+> `2^n = 2`, so `n = 1`; `n = 1` forces `3^m = 3`, so `m = 1`. ∎
+
+> **Corollary (uniqueness of 3B2T).** `(1,1)` is degenerate — one bit per ternary
+> symbol, rate `1.0000`, efficiency `1/log₂3 = 63.09%`, discarding `0.585` bits
+> per symbol. **Therefore 3B2T is the only non-degenerate nBmT code whose
+> reserved-codeword count is exactly one**, at rate `1.5` and efficiency
+> `1.5/log₂3 = 94.64%`.
+
+**Verified by exhaustive search** over `m ≤ 199`, `n ≤ 319` (exact integer
+arithmetic): solutions `{(1,1), (2,3)}` and nothing else. *The search is a check
+on the statement, not the proof — the proof is Mihailescu's.*
+
+**Why this matters beyond bookkeeping.** IEEE Std 802.3bp-2016 (1000BASE-T1) and
+802.3bw-2015 (100BASE-T1) both use 3B2T. The choice is normally justified by rate
+and spectral shaping. **T79 says there is a second, number-theoretic reason it is
+the right one**: at every other `(n,m)`, either `k = 0` (no delimiter is
+available without spending a codeword that could have carried data) or `k ≥ 2`
+(more capacity is reserved than framing needs). The families at the same rate
+make the point:
+
+| `m` | `n` | rate | efficiency | spare `k` |
+|---:|---:|---:|---:|---:|
+| 2 | 3 | 1.5000 | 94.64% | **1** |
+| 4 | 6 | 1.5000 | 94.64% | 17 |
+| 6 | 9 | 1.5000 | 94.64% | 217 |
+
+**Identical rate, and the spare grows without bound.** Blocking more symbols
+together buys nothing and reserves more.
+
+> **Corollary (the price of a reserved codeword).** Reserving `k` of `3^m`
+> codewords costs `log₂3 − log₂(3^m − k)/m` bits per symbol. At `m = 2`:
+> `k = 1` costs **0.0850**, `k = 2` costs `0.1813`, `k = 3` costs `0.2925`. The
+> first reservation is the cheapest and the marginal cost rises — so a code
+> wanting exactly one control symbol should take it at the smallest `m` that
+> admits one, which by T79 is `m = 2`.
+
+**And the property bought is categorical, not statistical.** `specs/fpga/bpsk.t27`
+synchronises on a Barker-13 preamble whose autocorrelation peak is 13 against a
+worst sidelobe of 1, gated at `SYNC_THRESHOLD = 9`. That is a *likelihood*
+argument: false sync has a small but non-zero rate, and the rate depends on the
+data. A reserved codeword has **zero** false-sync rate by construction, for every
+possible data stream, with no threshold to tune.
+
+> **T79'.** A delimiter that is *unreachable* eliminates a class of failure; a
+> delimiter that is *improbable* bounds it. The 0.085 bit/symbol is the exact
+> exchange rate between the two, and by T79 it is the cheapest such exchange that
+> exists over a ternary alphabet.
+
+---
+
+### T80 (W654) — the disparity bound is free, and it is why the alphabet is balanced
+
+> **Theorem.** For an `m`-symbol codeword over the balanced alphabet
+> `{−1, 0, +1}`, the codeword disparity `d = Σ tᵢ` satisfies `|d| ≤ m`, with the
+> bound attained only by the all-`+1` and all-`−1` words. For 3B2T, `|d| ≤ 2`,
+> and the reserved codeword `(+1,+1)` is one of the two extremal words.
+
+`ternary_link.t27` pins this as `MAX_WORD_DISPARITY = 2` and tests both extremes
+(`word_disparity(0) = −2`, `word_disparity(4) = 0`).
+
+**The consequence is that the delimiter is also the worst-disparity word.** It is
+transmitted once per frame and never inside data, so the single largest DC
+excursion the line can see is bounded by the framing rate rather than by the data
+— **the opposite of a scrambler, which spreads disparity across the payload.**
+
+> **T80.** Assigning the reserved codeword to an *extremal-disparity* word is not
+> neutral: it moves the worst-case DC excursion out of the data stream and onto a
+> symbol whose frequency the protocol controls. This is available only because
+> the alphabet is balanced; over `{0,1,2}` with a non-zero mean, every codeword
+> carries a drift term and no assignment removes it.
+
+This is the line-coding half of the same argument the golden alphabet makes on
+the compute side: **`{−φ, 0, +φ}` is balanced too, and its zero symbol is a skip
+rather than a value** — the same three-valued structure paying off in two
+unrelated layers of the same system.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

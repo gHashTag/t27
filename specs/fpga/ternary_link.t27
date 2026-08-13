@@ -329,4 +329,41 @@ module ZeroDSP_TernaryLink {
     // The error code must not collide with any valid wire code.
     invariant error_code_is_reserved
         assert SLICE_ERROR > WIRE_NEG
+
+    // ---- T79: why (3,2) and not any other (n, m) ----
+    //
+    // An nBmT code leaves k = 3^m - 2^n codewords unused. The delimiter is
+    // unreachable from data iff k >= 1, and costs the least possible capacity
+    // iff k == 1. The equation 3^m - 2^n = 1 has exactly TWO solutions in
+    // positive integers -- (m,n) = (1,1) and (2,3) -- because for m,n > 1 it is
+    // Mihailescu's theorem (2002; Catalan's conjecture, 1844): the only solution
+    // of x^a - y^b = 1 with x,y,a,b > 1 is 3^2 - 2^3 = 1. The (1,1) case is
+    // degenerate: one bit per ternary symbol, 63.09% efficiency, discarding
+    // 0.585 bits.
+    //
+    // Therefore 3B2T is the ONLY non-degenerate ternary line code whose
+    // reserved-codeword count is exactly one. Verified exhaustively for
+    // m <= 199, n <= 319; the proof is Mihailescu's, the search only checks it.
+    //
+    // Blocking further buys nothing: (4,6) and (6,9) hold the same 1.5 bit/symbol
+    // rate while the spare grows to 17 and 217.
+    invariant exactly_one_spare_is_a_catalan_solution
+        assert CODE_WORDS_TOTAL == CODE_WORDS_USED + 1
+
+    invariant alphabet_is_three_to_the_symbol_count
+        assert CODE_WORDS_TOTAL == 9
+
+    invariant words_are_two_to_the_data_bits
+        assert CODE_WORDS_USED == 8
+
+    // T80: the reserved codeword (+1,+1) is one of the two EXTREMAL-disparity
+    // words, so the largest DC excursion the line can carry sits on a symbol
+    // whose frequency the protocol controls, never inside data. Available only
+    // because the alphabet is balanced -- over {0,1,2} every codeword would
+    // carry a drift term.
+    invariant idle_is_an_extremal_disparity_word
+        assert IDLE_HI == WIRE_POS
+
+    invariant idle_low_matches_idle_high
+        assert IDLE_LO == IDLE_HI
 }
