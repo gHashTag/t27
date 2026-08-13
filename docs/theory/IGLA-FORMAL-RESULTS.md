@@ -7284,4 +7284,53 @@ without its score is a prediction, not a method.*
 
 ---
 
+### T107 (W657) — the forecast was registered, the fix landed, and the number was inside the band
+
+T44 asks for a yield forecast **before** the work, committed to a number. T105
+recorded a forecast being *withdrawn* because its mechanism was refuted — the
+right response, but not a score. This is the first forecast in this session that
+was registered, kept, and **scored**.
+
+**Registered before the fix**, derived from the fifteen-spec sample's 11/15 = 73%:
+
+```
+compiling            236  ->  590 ± 60
+undeclared identifier 488  ->  130 ± 60
+```
+
+**Measured after:**
+
+| | before | forecast | measured | inside band |
+|---|---:|---:|---:|:---:|
+| compiling | 236 | 590 ± 60 | **549** | ✅ |
+| non-compiling | 618 | — | **306** | |
+| undeclared identifier | 488 | 130 ± 60 | **175** | ✅ |
+| syntax error | 90 | — | 90 | unchanged |
+| duplicate declaration | 16 | — | 16 | unchanged |
+
+**313 specs repaired by one fix** — the largest single repair this project has
+measured, and it was the repair of a regression the same session introduced
+(T106).
+
+> **T107.** The forecast worked because it was derived from a **measured
+> proportion on a random sample**, not from an estimate of the class. The
+> sample said 73%; the class was 488; the product is 356; the observed repair
+> was 313, which is 64% of the class — inside the band because the band was
+> drawn wide enough to hold the difference between "the sample's proportion"
+> and "the proportion that also has no second defect."
+
+**The shortfall is itself informative and predicted by T67**: 356 forecast minus
+313 observed = 43 specs that carried `t27_failed` *and something else*. T67 said
+iverilog aborts at the first failing stage, so a repair's yield is bounded by
+the specs whose *first* remaining error was the one repaired. **The gap between
+forecast and outcome is the multi-defect population, and here it is 12%.**
+
+**Both untouched classes stayed exactly still** — `syntax error` 90 → 90,
+`duplicate declaration` 16 → 16. A repair that moves only its own class is a
+repair whose scope was understood; one that moves others has side effects nobody
+predicted. **Checking the classes that should NOT move is half of scoring a
+forecast, and it is the half usually skipped.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
