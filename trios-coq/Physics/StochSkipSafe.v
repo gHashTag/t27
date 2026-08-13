@@ -6,6 +6,9 @@
    Author: Dmitrii Vasilev <admin@t27.ai> ORCID 0009-0008-4294-6159 *)
 
 Require Import Coq.Init.Nat.
+(* Prop. 203: PeanoNat supplies Nat.lt_0_succ and Nat.neq_succ_0, the structural
+   lemmas the two positivity proofs below need. Coq.Init.Nat alone does not. *)
+Require Import Coq.Arith.PeanoNat.
 Require Import Coq.Bool.Bool.
 Require Import Coq.micromega.Lia.
 
@@ -44,7 +47,14 @@ Proof. unfold theta_freq_hz. reflexivity. Qed.
 (* Lemma 2: theta period is positive                                   *)
 (* ------------------------------------------------------------------ *)
 Lemma theta_period_positive : theta_period_ps > 0.
-Proof. unfold theta_period_ps. lia. Qed.
+(* Prop. 203: `lia` fails on this goal and the warning at line 22 says why --
+   a nat literal this large is kept abstract (`of_num_uint`) to avoid stack
+   overflow, so lia cannot get it into its arithmetic and reports "Cannot
+   find witness". The structural lemma never looks at the value; it only
+   needs the term to be a successor. Measured against a control: lia proves
+   the same goal for n = 7 and fails for n = 142857143. Same statement, same
+   type, different tactic. *)
+Proof. unfold theta_period_ps. apply Nat.lt_0_succ. Qed.
 
 (* ------------------------------------------------------------------ *)
 (* Lemma 3: skip predicate fires when both conditions hold             *)
@@ -85,7 +95,14 @@ Proof. unfold active_ratio_percent, skip_ratio_percent. lia. Qed.
 (* Lemma 8: theta period is nonzero                                    *)
 (* ------------------------------------------------------------------ *)
 Lemma theta_period_ne_zero : theta_period_ps <> 0.
-Proof. unfold theta_period_ps. lia. Qed.
+(* Prop. 203: `lia` fails on this goal and the warning at line 22 says why --
+   a nat literal this large is kept abstract (`of_num_uint`) to avoid stack
+   overflow, so lia cannot get it into its arithmetic and reports "Cannot
+   find witness". The structural lemma never looks at the value; it only
+   needs the term to be a successor. Measured against a control: lia proves
+   the same goal for n = 7 and fails for n = 142857143. Same statement, same
+   type, different tactic. *)
+Proof. unfold theta_period_ps. apply Nat.neq_succ_0. Qed.
 
 (* ------------------------------------------------------------------ *)
 (* Lemma 9: cosine threshold denominator is nonzero                    *)

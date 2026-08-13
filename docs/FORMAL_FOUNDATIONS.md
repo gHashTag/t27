@@ -10653,6 +10653,71 @@ alone in an empty tree exits 1 naming the missing workflows directory.
 
 ---
 
+### Prop. 203 — the suspension is closed: 28 of 28, and `lia` was the whole obstacle — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Suspension scan — a suspended check must name what would end it*
+
+Prop. 202 stopped at `Physics/StochSkipSafe.v` — `Tactic failure: Cannot find
+witness` — and called it a proof obligation rather than bookkeeping. That
+classification was wrong, and the evidence for the correction was three lines
+away, in a compiler warning the build had been printing all along:
+
+```
+line 22: To avoid stack overflow, large numbers in nat are interpreted as
+         applications of of_num_uint. [abstract-large-number]
+```
+
+`theta_period_ps : nat := 142857143`. A `nat` literal that large is kept
+**abstract**, so `lia` cannot lift it into its arithmetic and reports a missing
+witness — which reads exactly like an unprovable goal. Measured against a control:
+
+| goal | `lia` | structural lemma |
+|---|---|---|
+| `x > 0`, x = 7 | **OK** | — |
+| `x > 0`, x = 142857143 | fails | `Nat.lt_0_succ` — **OK** |
+| `x <> 0`, x = 142857143 | fails | `Nat.neq_succ_0` — **OK** |
+
+Same statement, same type, different tactic. `lia` evaluates; `Nat.lt_0_succ :
+0 < S n` never looks at the value. The lemma was true and provable the whole
+time.
+
+**`.vo`: 25 → 28 of 28. `make` exits 0. The `continue-on-error: true` flag on
+that step is now OFF**, which its own comment named as the deliverable — *"flip it
+off once it is observed green; that flip is the deliverable, not this step."*
+Gate 29 reported the removal on the next run, which is the mechanism Prop. 202
+built working as specified.
+
+**Theorem (tactic failure is not proof failure).** A decision procedure reports
+`⊥` for two different reasons — *the goal is false or unprovable*, and *the goal
+left my fragment*. These are not distinguishable from the message. A large `nat`
+literal, a non-linear term, an opaque definition: each leaves the fragment while
+the goal stays trivially true. **So "the prover failed" is evidence about the
+prover's fragment, never about the proposition** — the same relation as Prop.
+194's numerator and Prop. 169's unrun check, at the level of a tactic.
+
+Corollary, and it is why this cost a wave: a tactic failure is the most
+authoritative-looking negative result in the repository. Prop. 202 wrote *"a proof
+obligation, not bookkeeping, and was not guessed at"* — correct not to guess, and
+wrong about the category. **The warning naming the cause had been in the build log
+the entire time**, above the error, unread.
+
+**Six mechanical classes in total** cleared across Props. 201–203, none related:
+missing `List` import ×3, bare `nat` numerals under `Z_scope` and `R_scope`,
+`assert (H : P) := t` (invalid syntax), `&&` outside `bool_scope`, `lia` on an
+abstract literal, and a missing `PeanoNat` import.
+
+**Caveat, stated rather than hidden.** Green was measured with Rocq 9.2 on one
+host. If CI resolves a different Coq version, enforcing this step is how that gets
+discovered — which is the point of enforcing it. And the workflow has still never
+run (Prop. 169), so the flip changes what CI *would* do, not what it has done.
+
+Three bars: **TRUE** — 28/28, make exit 0; 43 python gates pass; absence sweep 0;
+1213 tests pass. **ALIVE** — the control (`lia` on n=7) passes, so the failing
+measurements are about the literal and not about a broken harness. **BITING** —
+gate 29 detected the flag flip unprompted and named the retired entry.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

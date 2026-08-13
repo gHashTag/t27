@@ -1,0 +1,338 @@
+DIGEST c08d7aa1d9c6242c37abc03399f10f17
+FTriosCoq.Physics.FBBActive2
+R2378:2394 Stdlib.ZArith.ZArith <> <> lib
+R2412:2428 Stdlib.micromega.Lia <> <> lib
+def 2695:2707 <> OP_FBB_ACTIVE
+def 2846:2851 <> OP_RBB
+def 2903:2913 <> OP_ADIAB_RC
+def 2960:2970 <> OP_WL_BOOST
+def 3017:3022 <> OP_FBB
+def 3107:3120 <> OP_SPARSE_MASK
+def 3155:3167 <> OP_DROWSY_RET
+def 3203:3214 <> OP_SPEC_EXIT
+def 3251:3260 <> OP_NULL_PE
+def 3299:3312 <> OP_STOCH_ROUND
+def 3347:3360 <> OP_SPARSE_SKIP
+def 3395:3405 <> OP_DFS_GATE
+def 3443:3456 <> OP_HOLO_MUX_X4
+def 3491:3502 <> OP_SUBTH_CLK
+def 3539:3551 <> OP_AVS_RECONF
+def 3587:3596 <> OP_LUT_NPU
+def 3635:3640 <> OP_TOM
+def 3683:3690 <> OP_TENET
+def 3798:3811 <> SACRED_BANK_LO
+def 3846:3859 <> SACRED_BANK_HI
+def 3894:3909 <> SACRED_BANK_SIZE
+prf 4157:4184 <> fbb_active_distinct_from_rbb
+R4209:4212 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4196:4208 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4213:4218 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+R4235:4247 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4250:4255 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+prf 4275:4307 <> fbb_active_distinct_from_adiab_rc
+R4327:4330 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4314:4326 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4331:4341 TriosCoq.Physics.FBBActive2 <> OP_ADIAB_RC def
+R4358:4370 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4373:4383 TriosCoq.Physics.FBBActive2 <> OP_ADIAB_RC def
+prf 4403:4435 <> fbb_active_distinct_from_wl_boost
+R4455:4458 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4442:4454 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4459:4469 TriosCoq.Physics.FBBActive2 <> OP_WL_BOOST def
+R4486:4498 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4501:4511 TriosCoq.Physics.FBBActive2 <> OP_WL_BOOST def
+prf 4531:4565 <> fbb_active_distinct_from_fbb_static
+R4583:4586 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4570:4582 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4587:4592 TriosCoq.Physics.FBBActive2 <> OP_FBB def
+R4609:4621 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4624:4629 TriosCoq.Physics.FBBActive2 <> OP_FBB def
+prf 4649:4684 <> fbb_active_distinct_from_sparse_mask
+R4701:4704 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4688:4700 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4705:4718 TriosCoq.Physics.FBBActive2 <> OP_SPARSE_MASK def
+R4735:4747 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4750:4763 TriosCoq.Physics.FBBActive2 <> OP_SPARSE_MASK def
+prf 4783:4817 <> fbb_active_distinct_from_drowsy_ret
+R4835:4838 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4822:4834 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4839:4851 TriosCoq.Physics.FBBActive2 <> OP_DROWSY_RET def
+R4868:4880 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4883:4895 TriosCoq.Physics.FBBActive2 <> OP_DROWSY_RET def
+prf 4915:4948 <> fbb_active_distinct_from_spec_exit
+R4967:4970 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4954:4966 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R4971:4982 TriosCoq.Physics.FBBActive2 <> OP_SPEC_EXIT def
+R4999:5011 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5014:5025 TriosCoq.Physics.FBBActive2 <> OP_SPEC_EXIT def
+prf 5045:5076 <> fbb_active_distinct_from_null_pe
+R5097:5100 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5084:5096 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5101:5110 TriosCoq.Physics.FBBActive2 <> OP_NULL_PE def
+R5127:5139 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5142:5151 TriosCoq.Physics.FBBActive2 <> OP_NULL_PE def
+prf 5171:5206 <> fbb_active_distinct_from_stoch_round
+R5223:5226 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5210:5222 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5227:5240 TriosCoq.Physics.FBBActive2 <> OP_STOCH_ROUND def
+R5257:5269 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5272:5285 TriosCoq.Physics.FBBActive2 <> OP_STOCH_ROUND def
+prf 5305:5340 <> fbb_active_distinct_from_sparse_skip
+R5357:5360 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5344:5356 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5361:5374 TriosCoq.Physics.FBBActive2 <> OP_SPARSE_SKIP def
+R5391:5403 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5406:5419 TriosCoq.Physics.FBBActive2 <> OP_SPARSE_SKIP def
+prf 5439:5471 <> fbb_active_distinct_from_dfs_gate
+R5491:5494 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5478:5490 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5495:5505 TriosCoq.Physics.FBBActive2 <> OP_DFS_GATE def
+R5522:5534 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5537:5547 TriosCoq.Physics.FBBActive2 <> OP_DFS_GATE def
+prf 5567:5599 <> fbb_active_distinct_from_holo_mux
+R5619:5622 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5606:5618 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5623:5636 TriosCoq.Physics.FBBActive2 <> OP_HOLO_MUX_X4 def
+R5653:5665 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5668:5681 TriosCoq.Physics.FBBActive2 <> OP_HOLO_MUX_X4 def
+prf 5701:5730 <> fbb_active_distinct_from_subth
+R5753:5756 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5740:5752 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5757:5768 TriosCoq.Physics.FBBActive2 <> OP_SUBTH_CLK def
+R5785:5797 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5800:5811 TriosCoq.Physics.FBBActive2 <> OP_SUBTH_CLK def
+prf 5831:5865 <> fbb_active_distinct_from_avs_reconf
+R5883:5886 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5870:5882 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5887:5899 TriosCoq.Physics.FBBActive2 <> OP_AVS_RECONF def
+R5916:5928 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R5931:5943 TriosCoq.Physics.FBBActive2 <> OP_AVS_RECONF def
+prf 5963:5994 <> fbb_active_distinct_from_lut_npu
+R6015:6018 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6002:6014 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6019:6028 TriosCoq.Physics.FBBActive2 <> OP_LUT_NPU def
+R6045:6057 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6060:6069 TriosCoq.Physics.FBBActive2 <> OP_LUT_NPU def
+prf 6089:6116 <> fbb_active_distinct_from_tom
+R6141:6144 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6128:6140 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6145:6150 TriosCoq.Physics.FBBActive2 <> OP_TOM def
+R6167:6179 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6182:6187 TriosCoq.Physics.FBBActive2 <> OP_TOM def
+prf 6207:6236 <> fbb_active_distinct_from_tenet
+R6259:6262 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6246:6258 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6263:6270 TriosCoq.Physics.FBBActive2 <> OP_TENET def
+R6287:6299 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6302:6309 TriosCoq.Physics.FBBActive2 <> OP_TENET def
+prf 6560:6586 <> fbb_active_in_extended_bank
+R6623:6626 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6606:6609 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6592:6605 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_LO def
+R6610:6622 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6640:6643 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6627:6639 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6644:6657 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_HI def
+R6674:6687 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_LO def
+R6690:6702 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6705:6718 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_HI def
+prf 6738:6756 <> sacred_bank_size_32
+R6776:6778 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6760:6775 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+R6797:6812 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+prf 6840:6866 <> rbb_and_fbb_active_adjacent
+R6883:6885 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6870:6882 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6892:6894 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6886:6891 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+R6912:6924 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R6927:6932 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+def 7237:7246 <> GAMMA4_BPS
+R7250:7250 Corelib.Numbers.BinNums <> Z ind
+def 7347:7364 <> V_BS_ACTIVE_DECIMV
+R7368:7368 Corelib.Numbers.BinNums <> Z ind
+def 7452:7470 <> V_BS_MAG_MIN_DECIMV
+R7474:7474 Corelib.Numbers.BinNums <> Z ind
+def 7494:7512 <> V_BS_MAG_MAX_DECIMV
+R7516:7516 Corelib.Numbers.BinNums <> Z ind
+def 7612:7631 <> DELAY_RED_CENTER_BPS
+R7635:7635 Corelib.Numbers.BinNums <> Z ind
+def 7657:7672 <> DELAY_RED_LO_BPS
+R7680:7680 Corelib.Numbers.BinNums <> Z ind
+def 7701:7716 <> DELAY_RED_HI_BPS
+R7724:7724 Corelib.Numbers.BinNums <> Z ind
+def 7789:7804 <> LEAK_OVH_MAX_BPS
+R7808:7808 Corelib.Numbers.BinNums <> Z ind
+def 7877:7898 <> NET_DELAY_SAVE_MIN_BPS
+R7902:7902 Corelib.Numbers.BinNums <> Z ind
+def 7964:7981 <> FCLK_SCALE_MAX_BPS
+R7985:7985 Corelib.Numbers.BinNums <> Z ind
+def 8030:8044 <> TOPS_W_W47_POST
+R8048:8048 Corelib.Numbers.BinNums <> Z ind
+def 8070:8084 <> TOPS_W_W48_POST
+R8088:8088 Corelib.Numbers.BinNums <> Z ind
+def 8110:8131 <> TOPS_W_LIFT_MIN_TENTHS
+R8135:8135 Corelib.Numbers.BinNums <> Z ind
+prf 8471:8494 <> fbb_active_v_bs_positive
+R8516:8518 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8498:8515 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R8536:8553 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+prf 8631:8653 <> fbb_active_v_bs_in_band
+R8700:8705 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8678:8681 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8659:8677 TriosCoq.Physics.FBBActive2 <> V_BS_MAG_MIN_DECIMV def
+R8682:8699 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R8724:8727 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8706:8723 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R8728:8746 TriosCoq.Physics.FBBActive2 <> V_BS_MAG_MAX_DECIMV def
+R8763:8781 TriosCoq.Physics.FBBActive2 <> V_BS_MAG_MIN_DECIMV def
+R8784:8801 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R8804:8822 TriosCoq.Physics.FBBActive2 <> V_BS_MAG_MAX_DECIMV def
+prf 8893:8918 <> fbb_active_gamma4_encoding
+R8938:8941 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8924:8927 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8928:8937 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+R8952:8955 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8942:8951 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+R8974:8983 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+prf 9057:9080 <> fbb_active_delay_in_band
+R9126:9131 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9102:9105 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9086:9101 TriosCoq.Physics.FBBActive2 <> DELAY_RED_LO_BPS def
+R9106:9125 TriosCoq.Physics.FBBActive2 <> DELAY_RED_CENTER_BPS def
+R9152:9155 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9132:9151 TriosCoq.Physics.FBBActive2 <> DELAY_RED_CENTER_BPS def
+R9156:9171 TriosCoq.Physics.FBBActive2 <> DELAY_RED_HI_BPS def
+R9188:9203 TriosCoq.Physics.FBBActive2 <> DELAY_RED_LO_BPS def
+R9206:9225 TriosCoq.Physics.FBBActive2 <> DELAY_RED_CENTER_BPS def
+R9228:9243 TriosCoq.Physics.FBBActive2 <> DELAY_RED_HI_BPS def
+prf 9311:9337 <> fbb_active_delay_band_check
+R9355:9355 Corelib.Numbers.BinNums <> Z ind
+binder 9340:9351 <> observed_bps:1
+R9394:9399 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9378:9381 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9362:9377 TriosCoq.Physics.FBBActive2 <> DELAY_RED_LO_BPS def
+R9382:9393 TriosCoq.Physics.FBBActive2 <> observed_bps:1 var
+R9432:9437 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9412:9415 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9400:9411 TriosCoq.Physics.FBBActive2 <> observed_bps:1 var
+R9416:9431 TriosCoq.Physics.FBBActive2 <> DELAY_RED_HI_BPS def
+R9457:9460 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9450:9453 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9438:9449 TriosCoq.Physics.FBBActive2 <> observed_bps:1 var
+R9473:9476 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9461:9472 TriosCoq.Physics.FBBActive2 <> observed_bps:1 var
+R9497:9512 TriosCoq.Physics.FBBActive2 <> DELAY_RED_LO_BPS def
+R9515:9530 TriosCoq.Physics.FBBActive2 <> DELAY_RED_HI_BPS def
+prf 9581:9608 <> fbb_active_leak_overhead_cap
+R9626:9626 Corelib.Numbers.BinNums <> Z ind
+binder 9611:9622 <> observed_bps:2
+R9665:9670 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9645:9648 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9633:9644 TriosCoq.Physics.FBBActive2 <> observed_bps:2 var
+R9649:9664 TriosCoq.Physics.FBBActive2 <> LEAK_OVH_MAX_BPS def
+R9683:9686 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9671:9682 TriosCoq.Physics.FBBActive2 <> observed_bps:2 var
+R9706:9721 TriosCoq.Physics.FBBActive2 <> LEAK_OVH_MAX_BPS def
+prf 9791:9821 <> fbb_active_net_delay_save_floor
+R9834:9834 Corelib.Numbers.BinNums <> Z ind
+binder 9824:9830 <> net_bps:3
+R9874:9879 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9848:9851 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9841:9847 TriosCoq.Physics.FBBActive2 <> net_bps:3 var
+R9852:9873 TriosCoq.Physics.FBBActive2 <> NET_DELAY_SAVE_MIN_BPS def
+R9887:9890 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9880:9886 TriosCoq.Physics.FBBActive2 <> net_bps:3 var
+R9910:9931 TriosCoq.Physics.FBBActive2 <> NET_DELAY_SAVE_MIN_BPS def
+prf 9979:10003 <> fbb_active_fclk_scale_cap
+R10018:10018 Corelib.Numbers.BinNums <> Z ind
+binder 10006:10014 <> scale_bps:4
+R10056:10061 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R10034:10037 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10025:10033 TriosCoq.Physics.FBBActive2 <> scale_bps:4 var
+R10038:10055 TriosCoq.Physics.FBBActive2 <> FCLK_SCALE_MAX_BPS def
+R10071:10074 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10062:10070 TriosCoq.Physics.FBBActive2 <> scale_bps:4 var
+R10094:10111 TriosCoq.Physics.FBBActive2 <> FCLK_SCALE_MAX_BPS def
+prf 10168:10206 <> fbb_active_tops_w_lift_at_least_1pt5pct
+R10254:10257 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R10216:10219 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10253:10253 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10235:10237 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R10220:10234 TriosCoq.Physics.FBBActive2 <> TOPS_W_W48_POST def
+R10238:10252 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R10260:10262 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10263:10277 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R10294:10308 TriosCoq.Physics.FBBActive2 <> TOPS_W_W48_POST def
+R10311:10325 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+prf 10402:10421 <> fbb_active_bank_size
+R10441:10443 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10425:10440 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+R10462:10477 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+prf 10798:10817 <> fbb_active_composite
+R10842:10847 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10836:10838 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10823:10835 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R10870:10875 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10866:10868 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R10848:10865 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R10899:10904 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10894:10896 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10876:10893 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R10920:10925 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10915:10917 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10905:10914 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+R10953:10958 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10946:10948 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10926:10945 TriosCoq.Physics.FBBActive2 <> DELAY_RED_CENTER_BPS def
+R10981:10986 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10975:10977 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10959:10974 TriosCoq.Physics.FBBActive2 <> LEAK_OVH_MAX_BPS def
+R11015:11020 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11009:11011 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10987:11008 TriosCoq.Physics.FBBActive2 <> NET_DELAY_SAVE_MIN_BPS def
+R11045:11050 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11039:11041 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11021:11038 TriosCoq.Physics.FBBActive2 <> FCLK_SCALE_MAX_BPS def
+R11084:11089 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11066:11068 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11051:11065 TriosCoq.Physics.FBBActive2 <> TOPS_W_W48_POST def
+R11069:11083 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R11156:11161 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11132:11135 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11094:11097 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11131:11131 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11113:11115 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11098:11112 TriosCoq.Physics.FBBActive2 <> TOPS_W_W48_POST def
+R11116:11130 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R11138:11140 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11141:11155 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R11183:11188 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11178:11180 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11162:11177 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+R11202:11204 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11189:11201 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R11211:11213 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11205:11210 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+R11240:11252 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R11284:11301 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R11325:11342 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R11374:11383 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+R11415:11434 TriosCoq.Physics.FBBActive2 <> DELAY_RED_CENTER_BPS def
+R11466:11481 TriosCoq.Physics.FBBActive2 <> LEAK_OVH_MAX_BPS def
+R11513:11534 TriosCoq.Physics.FBBActive2 <> NET_DELAY_SAVE_MIN_BPS def
+R11566:11583 TriosCoq.Physics.FBBActive2 <> FCLK_SCALE_MAX_BPS def
+R11615:11629 TriosCoq.Physics.FBBActive2 <> TOPS_W_W48_POST def
+R11632:11646 TriosCoq.Physics.FBBActive2 <> TOPS_W_W47_POST def
+R11669:11707 TriosCoq.Physics.FBBActive2 <> fbb_active_tops_w_lift_at_least_1pt5pct thm
+R11726:11741 TriosCoq.Physics.FBBActive2 <> SACRED_BANK_SIZE def
+R11766:11778 TriosCoq.Physics.FBBActive2 <> OP_FBB_ACTIVE def
+R11781:11786 TriosCoq.Physics.FBBActive2 <> OP_RBB def
+prf 12115:12146 <> fbb_active_dual_of_rbb_magnitude
+R12170:12172 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12152:12169 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+R12191:12208 TriosCoq.Physics.FBBActive2 <> V_BS_ACTIVE_DECIMV def
+prf 12291:12314 <> fbb_active_gamma4_reused
+R12328:12330 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12318:12327 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def
+R12349:12358 TriosCoq.Physics.FBBActive2 <> GAMMA4_BPS def

@@ -47,13 +47,19 @@ jobs:
       # project one wave earlier. It depends on coq/ being built first, which
       # the step above now guarantees.
       # NON-BLOCKING on arrival. This tree has never been built by CI, so its
-      # 30 files have never been type-checked together; Flocq is unavailable on
-      # the machine that added this step, so it could not be verified locally.
-      # A step that lands red walls off every PR and gets disabled rather than
-      # fixed (Prop. 26). Flip `continue-on-error` off once it is observed
-      # green -- that flip is the deliverable, not this step.
-      - name: Build trios-coq/ (depends on coq/) -- non-blocking until observed green
-        continue-on-error: true
+      # Prop. 203: OBSERVED GREEN, and the flag is now off -- that flip was the
+      # deliverable this step was waiting on. Measured 2026-08-13 with Rocq 9.2:
+      # `coq_makefile -f _CoqProject && make` produces 28 of 28 .vo and exits 0,
+      # after six mechanical defect classes were cleared (Props. 201-203).
+      #
+      # It was suspended for so long because a suspended check reports success
+      # whether it is green or has been red for a year (Prop. 201), so nothing
+      # ever said the condition had become satisfiable.
+      #
+      # CAVEAT, stated rather than hidden: green was measured on Rocq 9.2 on one
+      # host. If CI resolves a different Coq version, enforcing this step is how
+      # that gets discovered -- which is the point of enforcing it.
+      - name: Build trios-coq/ (depends on coq/)
         run: |
           eval $(opam env)
           cd trios-coq

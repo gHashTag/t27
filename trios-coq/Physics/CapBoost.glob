@@ -1,0 +1,403 @@
+DIGEST ac96007f14574147be9a9ccbb908e200
+FTriosCoq.Physics.CapBoost
+R2092:2108 Stdlib.ZArith.ZArith <> <> lib
+R2126:2142 Stdlib.micromega.Lia <> <> lib
+def 2409:2420 <> OP_CAP_BOOST
+def 2559:2571 <> OP_FBB_ACTIVE
+def 2616:2621 <> OP_RBB
+def 2673:2683 <> OP_ADIAB_RC
+def 2730:2740 <> OP_WL_BOOST
+def 2787:2792 <> OP_FBB
+def 2857:2870 <> OP_SPARSE_MASK
+def 2905:2917 <> OP_DROWSY_RET
+def 2953:2964 <> OP_SPEC_EXIT
+def 3001:3010 <> OP_NULL_PE
+def 3049:3062 <> OP_STOCH_ROUND
+def 3097:3110 <> OP_SPARSE_SKIP
+def 3145:3155 <> OP_DFS_GATE
+def 3193:3206 <> OP_HOLO_MUX_X4
+def 3241:3252 <> OP_SUBTH_CLK
+def 3289:3301 <> OP_AVS_RECONF
+def 3337:3346 <> OP_LUT_NPU
+def 3385:3390 <> OP_TOM
+def 3433:3440 <> OP_TENET
+def 3548:3561 <> SACRED_BANK_LO
+def 3596:3609 <> SACRED_BANK_HI
+def 3644:3659 <> SACRED_BANK_SIZE
+prf 3907:3940 <> cap_boost_distinct_from_fbb_active
+R3958:3961 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3946:3957 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R3962:3974 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R3991:4002 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4005:4017 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+prf 4037:4063 <> cap_boost_distinct_from_rbb
+R4088:4091 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4076:4087 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4092:4097 TriosCoq.Physics.CapBoost <> OP_RBB def
+R4114:4125 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4128:4133 TriosCoq.Physics.CapBoost <> OP_RBB def
+prf 4153:4184 <> cap_boost_distinct_from_adiab_rc
+R4204:4207 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4192:4203 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4208:4218 TriosCoq.Physics.CapBoost <> OP_ADIAB_RC def
+R4235:4246 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4249:4259 TriosCoq.Physics.CapBoost <> OP_ADIAB_RC def
+prf 4279:4310 <> cap_boost_distinct_from_wl_boost
+R4330:4333 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4318:4329 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4334:4344 TriosCoq.Physics.CapBoost <> OP_WL_BOOST def
+R4361:4372 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4375:4385 TriosCoq.Physics.CapBoost <> OP_WL_BOOST def
+prf 4405:4438 <> cap_boost_distinct_from_fbb_static
+R4456:4459 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4444:4455 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4460:4465 TriosCoq.Physics.CapBoost <> OP_FBB def
+R4482:4493 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4496:4501 TriosCoq.Physics.CapBoost <> OP_FBB def
+prf 4521:4555 <> cap_boost_distinct_from_sparse_mask
+R4572:4575 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4560:4571 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4576:4589 TriosCoq.Physics.CapBoost <> OP_SPARSE_MASK def
+R4606:4617 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4620:4633 TriosCoq.Physics.CapBoost <> OP_SPARSE_MASK def
+prf 4653:4686 <> cap_boost_distinct_from_drowsy_ret
+R4704:4707 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4692:4703 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4708:4720 TriosCoq.Physics.CapBoost <> OP_DROWSY_RET def
+R4737:4748 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4751:4763 TriosCoq.Physics.CapBoost <> OP_DROWSY_RET def
+prf 4783:4815 <> cap_boost_distinct_from_spec_exit
+R4834:4837 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4822:4833 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4838:4849 TriosCoq.Physics.CapBoost <> OP_SPEC_EXIT def
+R4866:4877 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4880:4891 TriosCoq.Physics.CapBoost <> OP_SPEC_EXIT def
+prf 4911:4941 <> cap_boost_distinct_from_null_pe
+R4962:4965 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4950:4961 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R4966:4975 TriosCoq.Physics.CapBoost <> OP_NULL_PE def
+R4992:5003 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5006:5015 TriosCoq.Physics.CapBoost <> OP_NULL_PE def
+prf 5035:5069 <> cap_boost_distinct_from_stoch_round
+R5086:5089 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5074:5085 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5090:5103 TriosCoq.Physics.CapBoost <> OP_STOCH_ROUND def
+R5120:5131 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5134:5147 TriosCoq.Physics.CapBoost <> OP_STOCH_ROUND def
+prf 5167:5201 <> cap_boost_distinct_from_sparse_skip
+R5218:5221 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5206:5217 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5222:5235 TriosCoq.Physics.CapBoost <> OP_SPARSE_SKIP def
+R5252:5263 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5266:5279 TriosCoq.Physics.CapBoost <> OP_SPARSE_SKIP def
+prf 5299:5330 <> cap_boost_distinct_from_dfs_gate
+R5350:5353 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5338:5349 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5354:5364 TriosCoq.Physics.CapBoost <> OP_DFS_GATE def
+R5381:5392 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5395:5405 TriosCoq.Physics.CapBoost <> OP_DFS_GATE def
+prf 5425:5456 <> cap_boost_distinct_from_holo_mux
+R5476:5479 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5464:5475 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5480:5493 TriosCoq.Physics.CapBoost <> OP_HOLO_MUX_X4 def
+R5510:5521 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5524:5537 TriosCoq.Physics.CapBoost <> OP_HOLO_MUX_X4 def
+prf 5557:5585 <> cap_boost_distinct_from_subth
+R5608:5611 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5596:5607 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5612:5623 TriosCoq.Physics.CapBoost <> OP_SUBTH_CLK def
+R5640:5651 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5654:5665 TriosCoq.Physics.CapBoost <> OP_SUBTH_CLK def
+prf 5685:5718 <> cap_boost_distinct_from_avs_reconf
+R5736:5739 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5724:5735 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5740:5752 TriosCoq.Physics.CapBoost <> OP_AVS_RECONF def
+R5769:5780 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5783:5795 TriosCoq.Physics.CapBoost <> OP_AVS_RECONF def
+prf 5815:5845 <> cap_boost_distinct_from_lut_npu
+R5866:5869 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5854:5865 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5870:5879 TriosCoq.Physics.CapBoost <> OP_LUT_NPU def
+R5896:5907 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5910:5919 TriosCoq.Physics.CapBoost <> OP_LUT_NPU def
+prf 5939:5965 <> cap_boost_distinct_from_tom
+R5990:5993 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5978:5989 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R5994:5999 TriosCoq.Physics.CapBoost <> OP_TOM def
+R6016:6027 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6030:6035 TriosCoq.Physics.CapBoost <> OP_TOM def
+prf 6055:6083 <> cap_boost_distinct_from_tenet
+R6106:6109 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R6094:6105 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6110:6117 TriosCoq.Physics.CapBoost <> OP_TENET def
+R6134:6145 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6148:6155 TriosCoq.Physics.CapBoost <> OP_TENET def
+prf 6406:6431 <> cap_boost_in_extended_bank
+R6467:6470 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6451:6454 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6437:6450 TriosCoq.Physics.CapBoost <> SACRED_BANK_LO def
+R6455:6466 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6483:6486 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6471:6482 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6487:6500 TriosCoq.Physics.CapBoost <> SACRED_BANK_HI def
+R6517:6530 TriosCoq.Physics.CapBoost <> SACRED_BANK_LO def
+R6533:6544 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6547:6560 TriosCoq.Physics.CapBoost <> SACRED_BANK_HI def
+prf 6580:6602 <> sacred_bank_size_32_w49
+R6622:6624 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6606:6621 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+R6643:6658 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+prf 6686:6718 <> fbb_active_and_cap_boost_adjacent
+R6734:6736 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6722:6733 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6750:6752 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6737:6749 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R6770:6781 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6784:6796 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+prf 6816:6840 <> triple_decker_consecutive
+R6871:6874 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6858:6860 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6846:6857 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6867:6869 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6861:6866 TriosCoq.Physics.CapBoost <> OP_RBB def
+R6888:6890 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6875:6887 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R6897:6899 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6891:6896 TriosCoq.Physics.CapBoost <> OP_RBB def
+R6930:6941 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R6944:6949 TriosCoq.Physics.CapBoost <> OP_RBB def
+R6968:6980 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R6983:6988 TriosCoq.Physics.CapBoost <> OP_RBB def
+def 7388:7397 <> GAMMA3_BPS
+R7401:7401 Corelib.Numbers.BinNums <> Z ind
+def 7491:7505 <> DELTA_C_DEC_BPS
+R7509:7509 Corelib.Numbers.BinNums <> Z ind
+def 7587:7599 <> C_DEC_BASE_PF
+R7603:7603 Corelib.Numbers.BinNums <> Z ind
+def 7673:7688 <> CAP_AREA_MAX_BPS
+R7692:7692 Corelib.Numbers.BinNums <> Z ind
+def 7783:7804 <> DIDT_MARGIN_CENTER_BPS
+R7808:7808 Corelib.Numbers.BinNums <> Z ind
+def 7829:7846 <> DIDT_MARGIN_LO_BPS
+R7854:7854 Corelib.Numbers.BinNums <> Z ind
+def 7875:7892 <> DIDT_MARGIN_HI_BPS
+R7900:7900 Corelib.Numbers.BinNums <> Z ind
+def 7996:8016 <> DROOP_SUPP_CENTER_BPS
+R8020:8020 Corelib.Numbers.BinNums <> Z ind
+def 8041:8057 <> DROOP_SUPP_LO_BPS
+R8065:8065 Corelib.Numbers.BinNums <> Z ind
+def 8086:8102 <> DROOP_SUPP_HI_BPS
+R8110:8110 Corelib.Numbers.BinNums <> Z ind
+def 8170:8188 <> FCLK_IMPACT_MAX_BPS
+R8192:8192 Corelib.Numbers.BinNums <> Z ind
+def 8237:8251 <> TOPS_W_W48_POST
+R8255:8255 Corelib.Numbers.BinNums <> Z ind
+def 8277:8291 <> TOPS_W_W49_POST
+R8295:8295 Corelib.Numbers.BinNums <> Z ind
+def 8317:8338 <> TOPS_W_LIFT_MIN_TENTHS
+R8342:8342 Corelib.Numbers.BinNums <> Z ind
+prf 8670:8695 <> cap_boost_delta_c_positive
+R8714:8716 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8699:8713 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R8734:8748 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+prf 8848:8872 <> cap_boost_delta_c_in_band
+R8899:8902 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8880:8883 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8884:8898 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R8918:8921 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8903:8917 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R8941:8955 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+prf 9027:9051 <> cap_boost_gamma3_encoding
+R9072:9075 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9058:9061 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9062:9071 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+R9086:9089 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9076:9085 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+R9109:9118 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+prf 9206:9223 <> cap_boost_area_cap
+R9241:9241 Corelib.Numbers.BinNums <> Z ind
+binder 9226:9237 <> observed_bps:1
+R9280:9285 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9260:9263 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9248:9259 TriosCoq.Physics.CapBoost <> observed_bps:1 var
+R9264:9279 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def
+R9298:9301 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9286:9297 TriosCoq.Physics.CapBoost <> observed_bps:1 var
+R9320:9335 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def
+prf 9406:9427 <> cap_boost_didt_in_band
+R9477:9482 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9451:9454 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9433:9450 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_LO_BPS def
+R9455:9476 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_CENTER_BPS def
+R9505:9508 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9483:9504 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_CENTER_BPS def
+R9509:9526 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_HI_BPS def
+R9543:9560 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_LO_BPS def
+R9563:9584 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_CENTER_BPS def
+R9587:9604 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_HI_BPS def
+prf 9672:9696 <> cap_boost_didt_band_check
+R9714:9714 Corelib.Numbers.BinNums <> Z ind
+binder 9699:9710 <> observed_bps:2
+R9755:9760 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9739:9742 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9721:9738 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_LO_BPS def
+R9743:9754 TriosCoq.Physics.CapBoost <> observed_bps:2 var
+R9795:9800 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R9773:9776 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9761:9772 TriosCoq.Physics.CapBoost <> observed_bps:2 var
+R9777:9794 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_HI_BPS def
+R9820:9823 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9813:9816 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9801:9812 TriosCoq.Physics.CapBoost <> observed_bps:2 var
+R9836:9839 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9824:9835 TriosCoq.Physics.CapBoost <> observed_bps:2 var
+R9860:9877 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_LO_BPS def
+R9880:9897 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_HI_BPS def
+prf 9960:9982 <> cap_boost_droop_in_band
+R10030:10035 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10005:10008 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R9988:10004 TriosCoq.Physics.CapBoost <> DROOP_SUPP_LO_BPS def
+R10009:10029 TriosCoq.Physics.CapBoost <> DROOP_SUPP_CENTER_BPS def
+R10057:10060 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10036:10056 TriosCoq.Physics.CapBoost <> DROOP_SUPP_CENTER_BPS def
+R10061:10077 TriosCoq.Physics.CapBoost <> DROOP_SUPP_HI_BPS def
+R10094:10110 TriosCoq.Physics.CapBoost <> DROOP_SUPP_LO_BPS def
+R10113:10133 TriosCoq.Physics.CapBoost <> DROOP_SUPP_CENTER_BPS def
+R10136:10152 TriosCoq.Physics.CapBoost <> DROOP_SUPP_HI_BPS def
+prf 10212:10237 <> cap_boost_droop_band_check
+R10255:10255 Corelib.Numbers.BinNums <> Z ind
+binder 10240:10251 <> observed_bps:3
+R10295:10300 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R10279:10282 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10262:10278 TriosCoq.Physics.CapBoost <> DROOP_SUPP_LO_BPS def
+R10283:10294 TriosCoq.Physics.CapBoost <> observed_bps:3 var
+R10334:10339 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R10313:10316 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10301:10312 TriosCoq.Physics.CapBoost <> observed_bps:3 var
+R10317:10333 TriosCoq.Physics.CapBoost <> DROOP_SUPP_HI_BPS def
+R10359:10362 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10352:10355 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R10340:10351 TriosCoq.Physics.CapBoost <> observed_bps:3 var
+R10375:10378 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10363:10374 TriosCoq.Physics.CapBoost <> observed_bps:3 var
+R10398:10414 TriosCoq.Physics.CapBoost <> DROOP_SUPP_LO_BPS def
+R10417:10433 TriosCoq.Physics.CapBoost <> DROOP_SUPP_HI_BPS def
+prf 10480:10504 <> cap_boost_fclk_impact_cap
+R10520:10520 Corelib.Numbers.BinNums <> Z ind
+binder 10507:10516 <> impact_bps:4
+R10560:10565 Corelib.Init.Notations <> ::type_scope:x_'->'_x not
+R10537:10540 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10527:10536 TriosCoq.Physics.CapBoost <> impact_bps:4 var
+R10541:10559 TriosCoq.Physics.CapBoost <> FCLK_IMPACT_MAX_BPS def
+R10576:10579 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10566:10575 TriosCoq.Physics.CapBoost <> impact_bps:4 var
+R10599:10617 TriosCoq.Physics.CapBoost <> FCLK_IMPACT_MAX_BPS def
+prf 10675:10712 <> cap_boost_tops_w_lift_at_least_0pt7pct
+R10760:10763 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R10722:10725 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10759:10759 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10741:10743 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R10726:10740 TriosCoq.Physics.CapBoost <> TOPS_W_W49_POST def
+R10744:10758 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R10765:10767 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10768:10782 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R10799:10813 TriosCoq.Physics.CapBoost <> TOPS_W_W49_POST def
+R10816:10830 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+prf 10907:10925 <> cap_boost_bank_size
+R10945:10947 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10929:10944 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+R10966:10981 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+prf 11040:11068 <> cap_boost_c_dec_base_positive
+R11085:11087 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11072:11084 TriosCoq.Physics.CapBoost <> C_DEC_BASE_PF def
+R11105:11117 TriosCoq.Physics.CapBoost <> C_DEC_BASE_PF def
+prf 11430:11448 <> cap_boost_composite
+R11472:11477 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11466:11468 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11454:11465 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R11497:11502 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11493:11495 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11478:11492 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R11523:11528 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11518:11520 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11503:11517 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R11545:11550 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11539:11541 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11529:11538 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+R11570:11575 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11564:11566 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11551:11563 TriosCoq.Physics.CapBoost <> C_DEC_BASE_PF def
+R11597:11602 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11592:11594 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11576:11591 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def
+R11631:11636 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11625:11627 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11603:11624 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_CENTER_BPS def
+R11664:11669 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11658:11660 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11637:11657 TriosCoq.Physics.CapBoost <> DROOP_SUPP_CENTER_BPS def
+R11695:11700 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11689:11691 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11670:11688 TriosCoq.Physics.CapBoost <> FCLK_IMPACT_MAX_BPS def
+R11734:11739 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11716:11718 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11701:11715 TriosCoq.Physics.CapBoost <> TOPS_W_W49_POST def
+R11719:11733 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R11805:11810 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11782:11785 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R11744:11747 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11781:11781 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11763:11765 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11748:11762 TriosCoq.Physics.CapBoost <> TOPS_W_W49_POST def
+R11766:11780 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R11787:11789 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11790:11804 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R11832:11837 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11827:11829 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11811:11826 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+R11870:11875 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11850:11852 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11838:11849 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R11866:11868 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11853:11865 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R11888:11890 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11876:11887 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R11897:11899 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11891:11896 TriosCoq.Physics.CapBoost <> OP_RBB def
+R11926:11937 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R11969:11983 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R12007:12021 TriosCoq.Physics.CapBoost <> DELTA_C_DEC_BPS def
+R12053:12062 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+R12094:12106 TriosCoq.Physics.CapBoost <> C_DEC_BASE_PF def
+R12138:12153 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def
+R12185:12206 TriosCoq.Physics.CapBoost <> DIDT_MARGIN_CENTER_BPS def
+R12238:12258 TriosCoq.Physics.CapBoost <> DROOP_SUPP_CENTER_BPS def
+R12290:12308 TriosCoq.Physics.CapBoost <> FCLK_IMPACT_MAX_BPS def
+R12340:12354 TriosCoq.Physics.CapBoost <> TOPS_W_W49_POST def
+R12357:12371 TriosCoq.Physics.CapBoost <> TOPS_W_W48_POST def
+R12394:12431 TriosCoq.Physics.CapBoost <> cap_boost_tops_w_lift_at_least_0pt7pct thm
+R12450:12465 TriosCoq.Physics.CapBoost <> SACRED_BANK_SIZE def
+R12497:12508 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R12511:12523 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R12540:12551 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R12554:12559 TriosCoq.Physics.CapBoost <> OP_RBB def
+prf 12869:12893 <> triple_decker_w47_w48_w49
+R12911:12914 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12905:12907 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12899:12904 TriosCoq.Physics.CapBoost <> OP_RBB def
+R12934:12937 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R12928:12930 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12915:12927 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R12950:12952 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R12938:12949 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+R12981:12986 TriosCoq.Physics.CapBoost <> OP_RBB def
+R13018:13030 TriosCoq.Physics.CapBoost <> OP_FBB_ACTIVE def
+R13055:13066 TriosCoq.Physics.CapBoost <> OP_CAP_BOOST def
+prf 13163:13185 <> cap_boost_gamma3_reused
+R13199:13201 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R13189:13198 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+R13221:13230 TriosCoq.Physics.CapBoost <> GAMMA3_BPS def
+prf 13316:13333 <> cap_boost_iso_area
+R13353:13355 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R13337:13352 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def
+R13375:13390 TriosCoq.Physics.CapBoost <> CAP_AREA_MAX_BPS def

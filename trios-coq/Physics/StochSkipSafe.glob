@@ -1,35 +1,88 @@
-DIGEST 5b9c0df26986a4ddc1bda218918c4cca
+DIGEST 42742bbb8de7404c66a121d3424cab15
 FTriosCoq.Physics.StochSkipSafe
 R360:371 Corelib.Init.Nat <> <> lib
-R389:401 Stdlib.Bool.Bool <> <> lib
-R419:435 Stdlib.micromega.Lia <> <> lib
-mod 446:458 <> StochSkipSafe
-def 732:744 StochSkipSafe theta_freq_hz
-R748:750 Corelib.Init.Datatypes <> nat ind
-def 830:844 StochSkipSafe theta_period_ps
-R848:850 Corelib.Init.Datatypes <> nat ind
-def 951:971 StochSkipSafe cos_sim_threshold_num
-R975:977 Corelib.Init.Datatypes <> nat ind
-def 997:1017 StochSkipSafe cos_sim_threshold_den
-R1021:1023 Corelib.Init.Datatypes <> nat ind
-def 1101:1118 StochSkipSafe skip_ratio_percent
-R1125:1127 Corelib.Init.Datatypes <> nat ind
-def 1147:1166 StochSkipSafe active_ratio_percent
+R550:567 Stdlib.Arith.PeanoNat <> <> lib
+R585:597 Stdlib.Bool.Bool <> <> lib
+R615:631 Stdlib.micromega.Lia <> <> lib
+mod 642:654 <> StochSkipSafe
+def 928:940 StochSkipSafe theta_freq_hz
+R944:946 Corelib.Init.Datatypes <> nat ind
+def 1026:1040 StochSkipSafe theta_period_ps
+R1044:1046 Corelib.Init.Datatypes <> nat ind
+def 1147:1167 StochSkipSafe cos_sim_threshold_num
 R1171:1173 Corelib.Init.Datatypes <> nat ind
-def 1323:1336 StochSkipSafe skip_predicate
-R1350:1353 Corelib.Init.Datatypes <> bool ind
-binder 1339:1346 <> cos_high:1
-R1369:1372 Corelib.Init.Datatypes <> bool ind
-binder 1357:1365 <> theta_off:2
-R1377:1380 Corelib.Init.Datatypes <> bool ind
-R1387:1390 Corelib.Init.Datatypes <> andb def
-R1401:1409 TriosCoq.Physics.StochSkipSafe <> theta_off:2 var
-R1392:1399 TriosCoq.Physics.StochSkipSafe <> cos_high:1 var
-prf 1639:1657 StochSkipSafe theta_freq_is_seven
-R1674:1676 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R1661:1673 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_freq_hz def
-R1694:1706 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_freq_hz def
-prf 1954:1974 StochSkipSafe theta_period_positive
-R1993:1995 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
-R1978:1992 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
-R2013:2027 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
+def 1193:1213 StochSkipSafe cos_sim_threshold_den
+R1217:1219 Corelib.Init.Datatypes <> nat ind
+def 1297:1314 StochSkipSafe skip_ratio_percent
+R1321:1323 Corelib.Init.Datatypes <> nat ind
+def 1343:1362 StochSkipSafe active_ratio_percent
+R1367:1369 Corelib.Init.Datatypes <> nat ind
+def 1519:1532 StochSkipSafe skip_predicate
+R1546:1549 Corelib.Init.Datatypes <> bool ind
+binder 1535:1542 <> cos_high:1
+R1565:1568 Corelib.Init.Datatypes <> bool ind
+binder 1553:1561 <> theta_off:2
+R1573:1576 Corelib.Init.Datatypes <> bool ind
+R1583:1586 Corelib.Init.Datatypes <> andb def
+R1597:1605 TriosCoq.Physics.StochSkipSafe <> theta_off:2 var
+R1588:1595 TriosCoq.Physics.StochSkipSafe <> cos_high:1 var
+prf 1835:1853 StochSkipSafe theta_freq_is_seven
+R1870:1872 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1857:1869 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_freq_hz def
+R1890:1902 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_freq_hz def
+prf 2150:2170 StochSkipSafe theta_period_positive
+R2189:2191 Corelib.Init.Peano <> ::nat_scope:x_'>'_x not
+R2174:2188 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
+R2693:2707 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
+R2716:2728 Stdlib.Arith.PeanoNat Nat lt_0_succ thm
+prf 2963:2996 StochSkipSafe skip_predicate_true_when_both_true
+R3026:3028 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3002:3015 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+R3017:3020 Corelib.Init.Datatypes <> true constr
+R3022:3025 Corelib.Init.Datatypes <> true constr
+R3029:3032 Corelib.Init.Datatypes <> true constr
+R3049:3062 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+prf 3317:3349 StochSkipSafe skip_predicate_false_when_cos_low
+R3380:3382 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3355:3368 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+R3370:3374 Corelib.Init.Datatypes <> false constr
+R3376:3379 Corelib.Init.Datatypes <> true constr
+R3383:3387 Corelib.Init.Datatypes <> false constr
+R3404:3417 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+prf 3672:3705 StochSkipSafe skip_predicate_false_when_on_phase
+R3736:3738 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3711:3724 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+R3726:3729 Corelib.Init.Datatypes <> true constr
+R3731:3735 Corelib.Init.Datatypes <> false constr
+R3739:3743 Corelib.Init.Datatypes <> false constr
+R3760:3773 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+prf 4028:4063 StochSkipSafe skip_predicate_false_when_both_false
+R4095:4097 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4069:4082 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+R4084:4088 Corelib.Init.Datatypes <> false constr
+R4090:4094 Corelib.Init.Datatypes <> false constr
+R4098:4102 Corelib.Init.Datatypes <> false constr
+R4119:4132 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_predicate def
+prf 4388:4405 StochSkipSafe cycle_saving_ratio
+R4452:4454 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4431:4433 Corelib.Init.Nat <> ::nat_scope:x_'+'_x not
+R4411:4430 TriosCoq.Physics.StochSkipSafe StochSkipSafe active_ratio_percent def
+R4434:4451 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_ratio_percent def
+R4474:4493 TriosCoq.Physics.StochSkipSafe StochSkipSafe active_ratio_percent def
+R4496:4513 TriosCoq.Physics.StochSkipSafe StochSkipSafe skip_ratio_percent def
+prf 4753:4772 StochSkipSafe theta_period_ne_zero
+R4791:4794 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4776:4790 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
+R5296:5310 TriosCoq.Physics.StochSkipSafe StochSkipSafe theta_period_ps def
+R5319:5332 Stdlib.Arith.PeanoNat Nat neq_succ_0 thm
+prf 5567:5591 StochSkipSafe cos_threshold_den_ne_zero
+R5616:5619 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R5595:5615 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_den def
+R5637:5657 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_den def
+prf 5896:5915 StochSkipSafe cos_threshold_lt_den
+R5942:5944 Corelib.Init.Peano <> ::nat_scope:x_'<'_x not
+R5921:5941 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_num def
+R5945:5965 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_den def
+R5982:6002 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_num def
+R6005:6025 TriosCoq.Physics.StochSkipSafe StochSkipSafe cos_sim_threshold_den def
+R6043:6055 TriosCoq.Physics.StochSkipSafe StochSkipSafe <> mod

@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-13
 
+## Suspension closed: trios-coq builds 28/28 (Closes #2139)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2139
+- PR: (direct commit)
+
+### What landed
+
+Prop. 202 stopped at `StochSkipSafe.v` (`Cannot find witness`) and called it a
+proof obligation. **That was wrong**, and the evidence was in a warning the build
+had been printing all along: a `nat` literal of 142,857,143 is kept **abstract**,
+so `lia` cannot lift it into its arithmetic. Against a control:
+
+| goal | `lia` | structural lemma |
+|---|---|---|
+| `x > 0`, x = 7 | OK | -- |
+| `x > 0`, x = 142857143 | fails | `Nat.lt_0_succ` -- OK |
+| `x <> 0`, x = 142857143 | fails | `Nat.neq_succ_0` -- OK |
+
+**`.vo`: 25 -> 28 of 28. `make` exits 0.** The `continue-on-error: true` flag on
+"Build trios-coq" is **OFF** -- which its own comment named as the deliverable.
+Gate 29 detected the removal on the next run, unprompted.
+
+43 python gates pass, absence sweep 0, 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **Green was measured with Rocq 9.2 on one host.** If CI resolves a different
+  Coq version, enforcing this step is how that gets discovered -- which is the
+  point of enforcing it, but it means "CI will pass" is NOT established here.
+- **The workflow has still never run** (Prop. 169). The flip changes what CI
+  *would* do, not what it has done. `coq-kernel.yml` does exist on master, unlike
+  the two formal workflows, so this one is not inert -- but that has not been
+  observed either.
+- **28/28 is files compiling, not proofs being meaningful.** `coq_build_scan`
+  still reports 42 Qed unbuilt across the wider tree, and several lemmas here rest
+  on `Axiom` declarations that assert rather than prove.
+- Prop. 202's classification of this as "a proof obligation, not bookkeeping" is
+  **corrected, not deleted** -- it is recorded in Prop. 203 as the mistake it was.
+
+
 ## One suspended check hid five defect classes (Closes #2138)
 
 - Branch: `feat/wave-547/host-heapsort`
