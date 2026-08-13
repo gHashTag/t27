@@ -78,8 +78,25 @@ def theorem_names():
         src = re.sub(r"\(\*.*?\*\)", "", f.read_text(errors="ignore"), flags=re.S)
         rel = f.relative_to(TREE).with_suffix("")
         mod = "TriosCoq." + str(rel).replace("/", ".")
-        for m in re.finditer(r"^\s*(?:Lemma|Theorem|Corollary)\s+(\w+)", src, re.M):
-            out.setdefault(mod, []).append(m.group(1))
+        # Prop. 205: a `Module X.` inside a file qualifies every name under it,
+        # so `Print Assumptions foo` fails with "reference not found" -- which
+        # is indistinguishable in the summary from "the module did not load".
+        # Three files here use one. Sections do NOT qualify (their variables are
+        # discharged but the lemma stays at the enclosing level), so only Module
+        # is tracked.
+        stack = []
+        for line in src.splitlines():
+            mm = re.match(r"\s*Module\s+(?!Type\b)(\w+)\s*\.", line)
+            if mm:
+                stack.append(mm.group(1))
+                continue
+            if re.match(r"\s*End\s+(\w+)\s*\.", line) and stack:
+                if re.match(r"\s*End\s+" + re.escape(stack[-1]) + r"\s*\.", line):
+                    stack.pop()
+                continue
+            lm = re.match(r"\s*(?:Lemma|Theorem|Corollary)\s+(\w+)", line)
+            if lm:
+                out.setdefault(mod, []).append(".".join(stack + [lm.group(1)]))
     return out
 
 
@@ -99,6 +116,28 @@ def main():
               "coq_makefile + make first; nothing was scanned")
         return 1
 
+    # Prop. 205: the first version hardcoded `-R . TriosCoq`, and 120 of 460
+    # names (26%) failed with "Cannot load T27.IGLA.RMarker: no physical path".
+    # The project declares TWO roots -- `-R . TriosCoq` and `-R ../coq T27` --
+    # so half the tree could not load and the gate reported an unresolved
+    # fraction rather than a wrong load path. Resolve the flags from
+    # _CoqProject; do not restate them (Props. 162, 165, 168: read the
+    # construct, do not match it).
+    proj = TREE / "_CoqProject"
+    loadpath = []
+    if proj.exists():
+        for line in proj.read_text().splitlines():
+            parts = line.split()
+            if parts and parts[0] in ("-R", "-Q") and len(parts) >= 3:
+                loadpath += parts[:3]
+            elif parts and parts[0] == "-I" and len(parts) >= 2:
+                loadpath += parts[:2]
+    if not loadpath:
+        print("::error::assumption scan: trios-coq/_CoqProject declares no -R/-Q "
+              "load path -- coqc would resolve no module, so every count would "
+              "be about an empty set")
+        return 1
+
     total = sum(len(v) for v in mods.values())
     pairs, resolved = [], 0
     with tempfile.TemporaryDirectory() as td:
@@ -106,7 +145,7 @@ def main():
             probe = pathlib.Path(td) / "probe.v"
             probe.write_text(f"Require Import {mod}.\n" +
                              "".join(f"Print Assumptions {n}.\n" for n in names))
-            r = subprocess.run(["coqc", "-R", ".", "TriosCoq", str(probe)],
+            r = subprocess.run(["coqc"] + loadpath + [str(probe)],
                                cwd=str(TREE), capture_output=True, text=True)
             out = r.stdout + r.stderr
             if "Error" in out and "Assumptions" not in out:

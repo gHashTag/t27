@@ -10783,6 +10783,58 @@ clean sweep. **BITING** — alone in an empty tree it exits 1 naming the missing
 
 ---
 
+### Prop. 205 — the unresolved 26% was the instrument, not the tree; and an interrupted sweep leaves the subject starved — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Assumption scan — ask Coq what each theorem actually rests on*
+
+Prop. 204 reported 340 of 460 theorem names resolved and called the 26% residue
+"the honest residue". It was honest and it was **entirely the instrument's**:
+
+| cause | fix | resolved |
+|---|---|---|
+| probe hardcoded `-R . TriosCoq` | read the roots from `_CoqProject` (it declares **two**) | 340 → 393 |
+| `Module X.` qualifies every name beneath it | track the module stack | 393 → **419** |
+| two `.v` files in no `_CoqProject` | one missing import + one `lia`-on-abstract-literal | +1 file built |
+
+The second is worth stating on its own: a `Print Assumptions` on an unqualified
+name fails with *"reference not found"*, which in a summary line is
+**indistinguishable from "the module did not load"**. Two different failures, one
+number. That is Prop. 194's numerator fallacy inside a residue count.
+
+**Visible domain-axiom dependencies went 12 → 19 theorems, 41 → 50 pairs — and
+none were acquired.** They were always there; the scanner could not see them. The
+baseline records that in prose, because this gate exists precisely to detect
+*acquired* assumptions and a coverage improvement reads identically.
+
+**Corollary (residue attribution).** An unresolved fraction has two possible
+owners — the artefact and the instrument — and reporting it without attributing it
+implies the first. Prop. 204's `COVERAGE.` paragraph said the residue was "a lower
+bound on the tree"; it was a lower bound on **the scanner**. Before publishing a
+residue, try to resolve it once: on this evidence the instrument owned 100% of it.
+
+**And Prop. 203's "28 of 28" counted the project listing, not the directory.**
+There are **30** `.v` files in `trios-coq`; 28 were listed. One is now fixed and
+added (29/29 build); `PurkinjeThermal.v` fails on a genuine `andb`-associativity
+unification and is left.
+
+**An operational finding, recorded because it cost this wave.** `absence_sweep`
+starves the subject by moving `build/rtl` and `formal/*.sv` aside. Killed by a
+timeout mid-run, it leaves them moved: 23 of 44 gates then failed for a reason
+that has nothing to do with any of them. Recovery required regenerating
+`build/rtl` from `t27c gen-bitnet-bundle` and `git checkout` of 15 tracked
+property files — and the stash directory was deleted before its contents were
+understood, which would have been unrecoverable had those files not been tracked.
+**A destructive check needs a restore that survives its own death**, and this one
+does not have one.
+
+Three bars: **TRUE** — 44 python gates pass, 1213 tests pass, Coq 29/29.
+**ALIVE** — resolution moved 340 → 419 of 460 by three independent instrument
+repairs. **BITING** — the ratchet fired on the 9 newly-visible dependencies, which
+is the correct behaviour and required a documented re-baseline rather than a
+silent one.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

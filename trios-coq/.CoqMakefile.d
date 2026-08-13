@@ -54,3 +54,5 @@ Physics/SparsityMask.vo Physics/SparsityMask.glob Physics/SparsityMask.v.beautif
 Physics/SparsityMask.vos Physics/SparsityMask.vok Physics/SparsityMask.required_vos: Physics/SparsityMask.v /opt/homebrew/lib/ocaml/rocq-runtime/rocqworker
 Physics/SpeculativeExit.vo Physics/SpeculativeExit.glob Physics/SpeculativeExit.v.beautified Physics/SpeculativeExit.required_vo: Physics/SpeculativeExit.v /opt/homebrew/lib/ocaml/rocq-runtime/rocqworker
 Physics/SpeculativeExit.vos Physics/SpeculativeExit.vok Physics/SpeculativeExit.required_vos: Physics/SpeculativeExit.v /opt/homebrew/lib/ocaml/rocq-runtime/rocqworker
+Physics/Avs96Safe.vo Physics/Avs96Safe.glob Physics/Avs96Safe.v.beautified Physics/Avs96Safe.required_vo: Physics/Avs96Safe.v /opt/homebrew/lib/ocaml/rocq-runtime/rocqworker
+Physics/Avs96Safe.vos Physics/Avs96Safe.vok Physics/Avs96Safe.required_vos: Physics/Avs96Safe.v /opt/homebrew/lib/ocaml/rocq-runtime/rocqworker

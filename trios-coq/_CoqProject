@@ -29,3 +29,4 @@ Physics/CapBoost.v
 Physics/NullorReversible.v
 Physics/SparsityMask.v
 Physics/SpeculativeExit.v
+Physics/Avs96Safe.v

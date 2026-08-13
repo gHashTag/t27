@@ -2,6 +2,44 @@
 
 Last updated: 2026-08-13
 
+## The unresolved 26% was the instrument, not the tree (Closes #2141)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2141
+- PR: (direct commit)
+
+### What landed
+
+Prop. 204's 26% unresolved residue was entirely the scanner's:
+
+| cause | fix | resolved |
+|---|---|---|
+| probe hardcoded one root | read both from `_CoqProject` | 340 -> 393 |
+| `Module X.` qualifies names beneath it | track the module stack | 393 -> **419** |
+| 2 `.v` files in no `_CoqProject` | missing import + lia-on-abstract-literal | +1 built |
+
+Visible domain-axiom dependencies 12 -> 19 theorems, 41 -> 50 pairs -- **none
+acquired**; the scanner could not see them. Re-baselined with that in prose.
+
+Coq: 29/29 (`_CoqProject` now lists 29 of 30 files). 44 python gates pass, 1213
+tests pass.
+
+### Honesty limits (BINDING)
+
+- **41 of 460 names (9%) still unresolved.** Down from 120, not gone.
+- **Prop. 203's "28 of 28" counted the project listing, not the directory** -- 30
+  `.v` files exist. `PurkinjeThermal.v` fails on a real `andb`-associativity
+  unification and is NOT fixed.
+- **The 12 -> 19 jump is instrument coverage, not regression.** Read as acquired
+  assumptions it would be exactly the wrong conclusion.
+- **`absence_sweep` was killed by a timeout mid-run and left the subject
+  starved** -- `build/rtl` emptied and 15 `formal/*.sv` moved aside; 23 gates
+  failed for unrelated reasons until restored. The stash was deleted before its
+  contents were understood, and only git tracking made that recoverable. **A
+  destructive check needs a restore that survives its own death; this one has
+  none.** Not fixed this wave.
+
+
 ## A lower-bound theorem whose lower bound is an axiom (Closes #2140)
 
 - Branch: `feat/wave-547/host-heapsort`

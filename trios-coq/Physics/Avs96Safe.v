@@ -9,6 +9,13 @@
 
 Require Import Coq.Init.Nat.
 Require Import Coq.Arith.Arith.
+(* Prop. 205: `lia` is used below and lives in Coq.micromega.Lia, which nothing
+   here imported. This file is in no _CoqProject, so no build has ever reported
+   it -- the same relation as Prop. 195's unread specs, one level up: a file
+   outside the project is not compiled, and "28 of 28 built" counted the project
+   listing rather than the directory (30 .v files). *)
+Require Import Coq.micromega.Lia.
+Require Import Coq.Arith.PeanoNat.
 
 Module Avs96Safe.
 
@@ -27,7 +34,10 @@ Qed.
 (* Lemma 2: bin width is positive *)
 Lemma avs96_bin_width_positive : avs96_bin_width_uv > 0.
 Proof.
-  unfold avs96_bin_width_uv. lia.
+  (* Prop. 205: same class as Prop. 203 -- a nat literal large enough to be
+     kept abstract leaves lia's fragment, and the structural lemma does not
+     look at the value. *)
+  unfold avs96_bin_width_uv. apply Nat.lt_0_succ.
 Qed.
 
 (* Lemma 3: AVS-96 bin width is half of AVS-48 (W36 baseline) *)
