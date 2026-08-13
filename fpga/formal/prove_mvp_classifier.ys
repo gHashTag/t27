@@ -1,0 +1,49 @@
+# Machine-checked equivalence proof for the IGLA RACE MVP ternary classifier.
+#
+# Theorem: for ALL 256 8-bit inputs x, the generated multiplier-free RTL
+# (IglaMvpTernaryClassifier, emitted by t27c from
+# specs/igla/race/mvp_ternary_classifier.t27) produces exactly the same class as
+# a golden model that computes every contribution with a real `*` operator and
+# resolves argmax with real signed comparisons.
+#
+# WHY THIS IS STRONGER THAN THE ON-SILICON SWEEP.  The self-check loaded on the
+# boards compares ten inputs against a table and checks a range invariant on the
+# other 246.  This proof compares the FULL function against a multiplying
+# reference, symbolically, over the entire input space at once -- and it does so
+# on the artefact that is actually synthesised.
+#
+# WHY IT IS STRONGER THAN prove_ternary_mac.ys.  That proof covers one MAC of
+# hand-written RTL.  This one covers a whole generated datapath: 24 weight
+# decodes, three adder trees, and an argmax whose tie rule is a stated part of
+# the specification.  It is therefore a statement about the COMPILER's lowering,
+# not about one module a human wrote.
+#
+# Method: combinational miter over the two designs, SAT asked to find ANY input
+# assignment where the outputs differ.  "no model found" == no such input exists.
+#
+# The DUT is regenerated from the spec rather than committed, so the proof can
+# never drift from the specification it claims to be about:
+#
+#   ./target/release/t27c gen-verilog specs/igla/race/mvp_ternary_classifier.t27 \
+#       > fpga/formal/mvp_classifier_dut.v
+#   cd fpga/formal && yosys prove_mvp_classifier.ys
+#
+# -DSIMULATION excludes the generated test harness: the emitted `initial` blocks
+# and `$display` calls are guarded by `ifndef SIMULATION` and become `$print`
+# cells that have no BEL and no meaning in a miter.
+#
+# Refs #1959
+
+read_verilog -DSIMULATION mvp_classifier_dut.v
+read_verilog mvp_classifier_golden.v
+
+prep
+
+miter -equiv -flatten -make_assert IglaMvpTernaryClassifier mvp_classifier_golden miter_mvp
+hierarchy -top miter_mvp
+prep -top miter_mvp
+async2sync
+
+# The design is purely combinational -- `assign result = on_comb(x)` on one side
+# and a function call on the other -- so one transition is the whole behaviour.
+sat -verify -prove-asserts -seq 1 -set-init-zero -show-inputs -show-outputs miter_mvp

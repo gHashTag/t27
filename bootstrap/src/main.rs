@@ -38,6 +38,7 @@ mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod behavior_sva_v2;
+mod service;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -87,6 +88,46 @@ enum Commands {
     },
 
     /// Generate Zig code from .t27 file
+    /// THE SERVICE: run the whole path from a spec to gates, judging every
+    /// stage by its exit code and its artefact -- never by elapsed time.
+    /// A stage that "finished" in 0.0 s did not finish; it did not start.
+    Path {
+        /// The .t27 spec to carry to hardware
+        input: String,
+        /// Continue past the two software backends into synthesis
+        #[arg(long, default_value_t = false)]
+        synth: bool,
+    },
+
+    /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
+    /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
+    /// agreement, that the nextpnr source is the openXC7 fork and not the
+    /// vendored copy, and that every downstream tool is on PATH.
+    Preflight {
+        /// Path to the openXC7 nextpnr-xilinx clone
+        #[arg(long)]
+        nextpnr_src: Option<String>,
+    },
+
+    /// THE SERVICE: report the Digilent cables attached RIGHT NOW, with each
+    /// board's IDCODE read from the silicon. All three cables in this project
+    /// share one serial, so bus position is the only handle -- and it changes
+    /// on replug. Never hardcode what this prints.
+    Boards,
+
+    /// THE SERVICE: discharge the equivalence miter between the generated
+    /// multiplier-free RTL and a golden model containing a real `*`.
+    /// Proves the whole input space at once, where a test proves the points
+    /// it lists.
+    Prove {
+        /// The .t27 spec whose generated RTL is the DUT
+        input: String,
+        /// Perturb the golden and REQUIRE the proof to fail. A proof that
+        /// cannot fail is not evidence.
+        #[arg(long, default_value_t = false)]
+        mutate: bool,
+    },
+
     /// Run the lexer conformance table: each input against the exact token
     /// sequence it must produce
     LexConform,
@@ -10129,6 +10170,16 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Path { input, synth } => {
+            service::run_path(&std::env::current_dir()?, &input, synth)?
+        }
+        Commands::Preflight { nextpnr_src } => {
+            service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
+        }
+        Commands::Boards => service::run_boards()?,
+        Commands::Prove { input, mutate } => {
+            service::run_prove(&std::env::current_dir()?, &input, mutate)?
+        }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
@@ -10467,6 +10518,16 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Path { input, synth } => {
+            service::run_path(&std::env::current_dir()?, &input, synth)?
+        }
+        Commands::Preflight { nextpnr_src } => {
+            service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
+        }
+        Commands::Boards => service::run_boards()?,
+        Commands::Prove { input, mutate } => {
+            service::run_prove(&std::env::current_dir()?, &input, mutate)?
+        }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?

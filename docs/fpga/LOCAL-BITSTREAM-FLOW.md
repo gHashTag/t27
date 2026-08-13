@@ -49,7 +49,7 @@ binary has 786 baked in.
 ### Before anything else — run the preflight
 
 ```bash
-./scripts/check-fpga-toolchain.sh
+./scripts/tri preflight
 ```
 
 **Added 2026-08-14 (W657) because this section was read and applied backwards.**

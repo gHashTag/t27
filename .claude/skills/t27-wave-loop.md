@@ -6309,7 +6309,7 @@ These cost a wave each. Follow them before step 1.
      applied BACKWARDS — two lines appended instead of the reference file copied
      in — costing a ten-minute rebuild in the wrong direction. Knowledge that
      must be remembered will eventually not be. **Convert recipes into scripts
-     that refuse to proceed** (`scripts/check-fpga-toolchain.sh`). W657.
+     that refuse to proceed** (`tri preflight`). W657.
 
 358. **Word-boundary every identifier replace.** Replacing `id_BUFR` by substring
      also hit `id_BUFR_BUFR`, a different and legitimate constid, producing
@@ -6334,6 +6334,37 @@ These cost a wave each. Follow them before step 1.
      the board `XC7A100T-FGG676`, IDCODE `0x13631093`; measurement on all three
      boards gives `0x13636093`, `artix a7 200t`, and `fpga/HARDWARE_SSOT.md` has
      said 200T since 2026-07-03. **Verify the pointer, not just the target.** W657.
+
+362. **Reason about the operator that survives to the netlist, not the one in the
+     source.** Three of six W657 forecast quantities missed, all from this one
+     error. The golden model contains a real `*` and was predicted to need a
+     DSP; it synthesised to **zero** DSP because its weights are localparams and
+     a constant multiply strength-reduces. Measured contrast: the SAME `*` gives
+     **3 DSP48E1** with a runtime weight port and **0** with a constant. T111.
+
+363. **"Zero DSP" at frozen weights proves nothing, and area proves less than
+     nothing.** The multiplying golden costs **423 LUT** against **249 LUT** for
+     the multiplier-free DUT it references — area ranks the multiplying model as
+     the more expensive one. Only EQUIVALENCE says something true here. T112.
+
+364. **A `--mutate` flag that does not mutate is the purest form of the bug this
+     project keeps finding.** The first version asked whether the UNMUTATED proof
+     failed — a check that can never fire, inside the command whose only purpose
+     is to prove checks fire. Caught on the first run. **When you add a
+     falsifiability check, run it once expecting FAIL before trusting a PASS.**
+
+365. **A miter must be shown to fail on a perturbed reference before a passing
+     run means anything** — the same rule as a test harness, applied to a proof.
+     Two independent perturbations are better than one: a flipped weight tests
+     the datapath, and `>=` weakened to `>` tests the tie rule, which is the
+     subtlest clause in the spec and the one a reference and an implementation
+     most easily disagree on while both look correct. T110.
+
+366. **Write the golden from the SPECIFICATION, never from the generated code.**
+     Reading the compiler's output to write its reference proves only that the
+     compiler agrees with itself. The MVP golden was transcribed from the spec
+     header, where the reference table was computed before any implementation
+     existed.
 
 ### How to update this tracker
 

@@ -7413,4 +7413,87 @@ cannot speak, and says nothing about the wiring.**
 
 ---
 
+### T110 (W657) — the whole classifier is proven equivalent to a multiplying model
+
+`prove_ternary_mac.ys` covered one MAC of hand-written RTL. `prove_mvp_classifier.ys`
+covers the **generated** datapath of the complete MVP: 24 weight decodes, three
+adder trees, and an argmax whose tie rule is a stated part of the specification.
+
+```
+golden:  every contribution computed with a real `*`, argmax by signed compare
+         -- written from the SPEC HEADER, never from the generated Verilog
+DUT:     t27c gen-verilog specs/igla/race/mvp_ternary_classifier.t27
+method:  combinational miter, SAT
+result:  14,050 variables, 39,277 clauses
+         "SAT proof finished - no model found: SUCCESS!"   in 0.56 s
+```
+
+> **T110.** The multiplier-free lowering emitted by the compiler computes
+> **exactly** the integer correlation the specification describes, for **all 256
+> inputs simultaneously**, including the tie case. This is a statement about the
+> **compiler's lowering**, not about a module a human wrote.
+
+**And it can fail.** Two independent perturbations of the golden — one flipped
+trit in `W_B`, and `>=` weakened to `>` in the argmax — both produce
+`model found: FAIL`. The tie-rule mutation matters most: it is the subtlest
+clause in the spec, and the miter is sensitive to it.
+
+---
+
+### T111 (W657) — "zero DSP" measures the weight's BINDING TIME, not the architecture
+
+T97 found the effect on one design and attributed it to constant-folding. It
+reproduces on a second, unrelated design, and the contrast is exact:
+
+| model | weight source | LUT | CARRY4 | **DSP48E1** |
+|---|---|---:|---:|---:|
+| `ternary_mac_golden` | **runtime input** `w_code` | 6 | 0 | **3** |
+| `ternary_mac_top` (multiplier-free) | — | 96 | 33 | **0** |
+| `mvp_classifier_golden` | **localparam template** | 423 | 147 | **0** |
+| `IglaMvpTernaryClassifier` (multiplier-free) | — | 249 | 111 | **0** |
+
+The **same `*` operator** yields 3 DSP48E1 when the weight is a port and **0**
+when it is a constant.
+
+> **T111.** No zero-DSP measurement taken with frozen weights can distinguish a
+> multiplier-free architecture from an ordinary one, because **the compiler
+> removes the multiplier from both.** The figure separates the designs only
+> where the weight varies at run time.
+
+---
+
+### T112 (W657) — the multiplier-free property cannot be shown by area, only by equivalence
+
+The consequence of T111 is sharper than it first appears. A golden model that
+**does** multiply, synthesised with frozen weights, costs **423 LUT** — against
+**249 LUT** for the multiplier-free DUT it is the reference for.
+
+> **T112.** Area comparison at frozen weights ranks the *multiplying* model as
+> the **more expensive** one. Any argument of the form "our design is cheaper,
+> therefore it has no multiplier" is therefore unsound in both directions. The
+> SAT miter, which compares **function** rather than area, is the only method
+> here that establishes anything true about the absence of the multiplier.
+
+**Forecast scoring (T44).** Registered before the work:
+
+| quantity | forecast | measured | verdict |
+|---|---|---:|---|
+| SAT variables | 40k – 250k | **14,050** | **MISS**, below band |
+| SAT clauses | 110k – 700k | **39,277** | **MISS**, below band |
+| solve time | < 5 min | 0.56 s | hit |
+| verdict | SUCCESS | SUCCESS | hit |
+| DSP in DUT | 0 | 0 | hit |
+| DSP in golden | **≥ 1** | **0** | **MISS** |
+
+Three of six missed. The cause of the first two is a single wrong assumption:
+I estimated the classifier at 6–40× the logic of one MAC. It is **2.6×** — one
+MAC with a *runtime* weight and a 32-bit accumulator is nearly as expensive as
+an entire 24-weight layer with frozen weights. The third miss is T111 itself:
+I predicted the golden would need a multiplier, and constant-folding removed it.
+
+**All three misses have the same root — I reasoned about the operator written in
+the source instead of the operator that survives to the netlist.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
