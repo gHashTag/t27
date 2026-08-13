@@ -187,13 +187,32 @@ Load SRAM: [====...====] 100%   Done
 ir: 1 isc_done 1 isc_ena 0 init 1 done 1        (x3)
 ```
 
-**All three boards configured with a ternary-MAC design from this repository.**
+**RETRACTED — the evidence does not discriminate.** This was published as "all
+three boards configured with a ternary-MAC design from this repository, `done 1`
+on each." An adversarial review of the plan built on it forced a re-measurement:
 
-**What this does and does not prove.** It proves configuration: the bitstream is
-valid for the part and the chain accepts it, `done 1` on all three. It does **not**
-prove the ternary MAC computes correctly — `ternary_mac_demo_top.v` drives two
-LEDs from a ring oscillator and has **no readback path**. Functional verification
-needs a design with a UART, and there is not one yet.
+```
+$ openFPGALoader -c digilent_hs2 --busdev-num {0:4,0:7,0:10} --read-register STAT
+Register raw value: 0x401079fc      (identical on all three)
+MODE 0x1   EOS 0x1   INIT Complete 0x1   Release Done 0x1   Done 0x1
+```
+
+**`0x401079fc` is the same value the boards carried *before* the load.** They boot
+from Master-SPI flash and assert DONE by themselves. So `done 1` is true whether
+or not my bitstream is present — **I quoted a signal that cannot tell the two
+cases apart.**
+
+**T52's shape, committed by me:** a success symbol that is also the symbol for
+"nothing changed."
+
+What survives: the load command ran to `100%` and reported completion, so a load
+did occur. What does **not** survive: any claim about *what the boards are running
+now*. Nobody read a bitstream back. The honest statement is **"three boards are
+reachable over JTAG, accept a 200T bitstream, and are configured — by something."**
+
+Establishing which design is resident needs either a readback (`--read-back`) or a
+design that reports its own identity through a channel that can be observed — and
+§6's demo has no such channel.
 
 ---
 

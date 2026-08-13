@@ -5677,4 +5677,44 @@ because it decides whether the hardware programme stalls or merely narrows.
 
 ---
 
+### T71 (W652) — I published a non-discriminating signal as proof, in the session whose central result is that signals absorb
+
+W651 reported: *"all three boards configured with a ternary-MAC design from this
+repository, `done 1` on each."* An adversarial review forced a re-measurement:
+
+```
+$ openFPGALoader -c digilent_hs2 --busdev-num {0:4,0:7,0:10} --read-register STAT
+Register raw value: 0x401079fc          (identical on all three)
+MODE 0x1   EOS 0x1   Release Done 0x1   Done 0x1
+```
+
+**`0x401079fc` is the value the boards already carried.** They boot from
+Master-SPI flash and assert DONE unaided.
+
+> **T71.** `done 1` is true whether or not the load occurred, so it cannot
+> distinguish the two cases — and it was quoted as proof of one of them. This is
+> **T52's shape (`R(nothing was done) = R(verified)`) committed by the author of
+> T52**, four waves after stating that the remedy is a reserved symbol rather
+> than more care.
+
+**The general form is sharper than the instance.** T52 said success vocabularies
+absorb the empty case. T71 adds: *the absorbing symbol is often the one the tool
+prints most prominently*, because a tool reports the state it can observe, not
+the state you were trying to change. `done` is a property of the **device**; "my
+bitstream is resident" is a property of the **transaction**. No amount of reading
+the device answers a question about the transaction.
+
+**The discriminating measurement was available and not run.** A readback compares
+what is on the fabric against what was sent. It costs one command. **The reason it
+was skipped is that the non-discriminating signal was already green** — which is
+exactly the failure mode, since a green absorbing symbol is indistinguishable from
+success by construction.
+
+**Corollary (what to demand of an acceptance criterion).** An acceptance
+criterion must be *falsifiable by the status quo*: run it **before** the change.
+If it passes, it is not a criterion. Both `done 1` here and `STAT | grep Done` in
+the plan built on it passed before the work existed.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
