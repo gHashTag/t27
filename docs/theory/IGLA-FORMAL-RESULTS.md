@@ -7993,6 +7993,25 @@ Verilog**, the largest 479,261.
 **Fixed by redirecting child output to files rather than pipes.** A file has no
 buffer limit, the child never blocks, and the timeout means what it says again.
 
+**Cross-validated.** The corrected tool and the independent Python sweep now
+agree exactly:
+
+| | broken tool | corrected tool | independent sweep |
+|---|---:|---:|---:|
+| generates Zig | 417 | **444** | — |
+| … Zig accepts | 193 | **196** | — |
+| generates Verilog | 415 | **444** | **444** |
+| … iverilog accepts | 155 | **155** | — |
+| both accept | 64 | **64** | — |
+| hangs | 29 | **0** | 0 |
+
+**The deadlock corrupted the GENERATION counts and left the ACCEPTANCE counts
+intact**, because all 29 oversized specs fail `iverilog` either way. So the
+`151 → 155` improvement attributed to T123's four depth-1 repairs survives the
+correction unchanged — the one number the broken tool got right was the one
+being used to claim a result. **That is luck, not method**: the claim was made
+from a run that was wrong in three of its five figures.
+
 **The general rule.** Any harness that (a) imposes a timeout and (b) captures
 output through a pipe it does not drain concurrently will convert *large* into
 *hung*. The two remedies are a file, or a reader thread per stream; polling
