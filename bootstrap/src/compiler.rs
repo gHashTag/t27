@@ -9937,7 +9937,19 @@ impl VerilogCodegen {
                     Self::sanitize_identifier(&b.name)
                 ));
                 self.indent();
+                // W657 (T106): a BENCH block reaches the SAME statement emitter
+                // as a test block, and that emitter sets `t27_failed` at every
+                // failure site (T74). The test-block emitter declares the flag;
+                // this one did not, so every bench carrying an assertion emitted
+                //     t27_failed = 1'b1;
+                // against a name declared NOWHERE. Measured on a random sample of
+                // fifteen specs in the undeclared-identifier class: ELEVEN failed
+                // on exactly this -- a regression introduced by T74's own fix.
+                self.write_indent();
+                self.write_line("reg t27_failed;");
                 let block_locals = self.gen_verilog_probe_prelude(b, &b.name);
+                self.write_indent();
+                self.write_line("t27_failed = 1'b0;");
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
@@ -9965,8 +9977,14 @@ impl VerilogCodegen {
                     "$display(\"[BENCH] {} : %0d cycles\", {});",
                     b.name, counter
                 ));
+                // W657 (T106): the bench verdict was UNCONDITIONAL -- the same
+                // defect T74 fixed for test blocks and left here. A bench that
+                // printed FAILED then printed PASSED immediately after.
                 self.write_indent();
-                self.write_line(&format!("$display(\"[BENCH] {} : PASSED\");", b.name));
+                self.write_line(&format!(
+                    "if (t27_failed) $display(\"[BENCH] {} : FAILED\"); else $display(\"[BENCH] {} : PASSED\");",
+                    b.name, b.name
+                ));
                 self.dedent();
                 self.write_indent();
                 self.write_line("end");

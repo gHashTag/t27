@@ -7228,4 +7228,60 @@ defence is a sample large enough to disagree with itself.
 
 ---
 
+### T106 (W657) — the sample that was supposed to find the cause found me
+
+A random sample of fifteen specs in the `undeclared identifier` class was carried
+individually to the **name** of the unresolved identifier. The result:
+
+```
+11 / 15    t27_failed
+ 3 / 15    undefined
+ 1 / 15    a flattened base_field  (T103/T104's family)
+```
+
+**`t27_failed` is the flag I introduced in T74.**
+
+A BENCH block reaches the **same statement emitter** as a test block, and that
+emitter sets `t27_failed` at every failure site. The *test*-block emitter declares
+the flag. **The bench-block emitter did not.** So every bench carrying an
+assertion emitted
+
+```verilog
+t27_failed = 1'b1;
+```
+
+against a name declared nowhere — and the bench verdict was still
+**unconditional**, printing `PASSED` after `FAILED`, which is precisely the defect
+T74 fixed for tests and left here.
+
+> **T106.** The fix for T74 was applied to the emitter whose *name matched the
+> defect* — `gen_verilog_test_block` — and not to the one that shares its
+> statement lowering. **A defect described in terms of one construct is repaired
+> in terms of that construct**, and the sibling that reuses the broken machinery
+> is not searched for, because nothing in the description points at it.
+>
+> This is T103's shape from the other side: T103 is a feature split across two
+> branches with one populated; T106 is a **fix** split across two branches with
+> one applied. The asymmetry that creates the defect and the asymmetry that
+> preserves it are the same asymmetry.
+
+**And the sample was the only thing that could have found it.** The class was
+measured at 489 in T84 and re-measured at 488 here — *after* T74 shipped — so the
+regression was inside the number the whole time, indistinguishable from the
+pre-existing population. **One case gave a wrong root cause (T105); fifteen gave
+the right one, and it was mine.**
+
+**Forecast, registered before the fix and scored after:** the class falls
+`488 → 130 ± 60`, compiling rises `236 → 590 ± 60`. Derived from the sample's
+11/15 = 73%, applied to the class. *Scored in the wave report; a forecast quoted
+without its score is a prediction, not a method.*
+
+> **Corollary — what a sample is for.** T102 said a sample and a population can
+> have opposite shapes. T106 adds the other direction: **a sample large enough to
+> disagree with itself is the only instrument that can find a defect the measurer
+> introduced**, because every aggregate the measurer trusts already contains it.
+> Fifteen was enough. One was not, and one was what I used the first time.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
