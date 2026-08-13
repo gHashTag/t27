@@ -81,6 +81,29 @@ pub fn spec_is_unwritten(source: &str) -> bool {
     !fns.is_empty() && fns.iter().all(|n| is_empty_fn(n))
 }
 
+/// (empty, total) function-declaration counts for one spec source.
+///
+/// W662: `spec_is_unwritten` answers only the all-or-nothing question, and the
+/// corpus is not all-or-nothing -- T121 counted 159 entirely unwritten specs
+/// against 667 bodiless functions spread over more. A spec with three written
+/// functions and one stub generates a module that fails to compile for a reason
+/// no compiler fix can repair, and counting it as a DEFECT inflates the backlog.
+///
+/// Returns (0, 0) when the source does not parse, so callers can distinguish
+/// "no bodies missing" from "could not be asked".
+pub fn spec_body_counts(source: &str) -> (usize, usize) {
+    let ast = match Compiler::parse_ast(source) {
+        Ok(a) => a,
+        Err(_) => return (0, 0),
+    };
+    let fns: Vec<&Node> = ast
+        .children
+        .iter()
+        .filter(|c| c.kind == NodeKind::FnDecl)
+        .collect();
+    (fns.iter().filter(|n| is_empty_fn(n)).count(), fns.len())
+}
+
 pub fn run(specs_root: &Path, include_scratch: bool) -> Report {
     let mut r = Report::default();
     for f in spec_files(specs_root, include_scratch) {

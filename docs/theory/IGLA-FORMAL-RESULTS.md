@@ -8050,4 +8050,59 @@ and the first reading of the table showed neither acceptance count.
 
 ---
 
+### T125 (W662) — the backlog is 124 specs, and the books close exactly
+
+T121 split the corpus into populations by counting; T123 tried to reproduce that
+split from **diagnostics** and reported `UNWRITTEN = 0` against T121's 159,
+because a missing function BODY is invisible at the diagnostic level — only its
+downstream symptom is visible, and that symptom is drowned out by whatever else
+the module got wrong.
+
+Reclassified from the **AST**, using the same predicate `impl_status` uses (an
+`FnDecl` with no statements — exactly what the Zig backend turns into
+`@compileError("not yet implemented")`):
+
+| population | count | cross-check against `impl-status` |
+|---|---:|---|
+| `iverilog` accepts | **155** | — |
+| does not generate Verilog | **173** | "specs that do not parse" = **173** ✅ |
+| UNWRITTEN (every body empty) | **159** | "specs entirely UNWRITTEN" = **159** ✅ |
+| PARTIAL (some bodies empty) | **6** | "specs PARTLY written" = **6** ✅ |
+| **DEFECT** | **124** | — |
+| | **617** | 155+173+159+6+124 = **617** ✅ |
+
+> **T125.** **The compiler-defect backlog is 124 specs.** Two independent code
+> paths — a diagnostics-driven sweep and an AST predicate — agree on every
+> population label, and the five populations sum to the corpus exactly. The
+> figure this project has been quoting, in one form or another, for several
+> waves — "466 failing", later "289 defect specs" — was inflated **3.8× and
+> 2.3×** by counting unwritten specifications as broken ones.
+
+**Forecast scoring (T44).** Registered before the measurement: 100–170 specs in
+the true defect population. **Measured 124. HIT.**
+
+### Depth of the true defect population
+
+```
+    1  class      0
+    2  classes   38   ######################################
+    3  classes   32   ################################
+    4  classes    9   #########
+    5+ classes   45   #############################################
+```
+
+**Depth-1 remains zero** — T123b's conclusion survives the population
+correction, and now survives it against a clean denominator. **But the shape
+changed where it matters**: against the contaminated 289 the two-class row held
+48 and the 5+ row 162; against the true 124 it is **38 and 45**. The backlog is
+both smaller and shallower than the contaminated measurement implied, and the
+**38 two-class specs are now the largest addressable population in the corpus.**
+
+**A defect in the chart itself, found and fixed here.** The `5+` row built its
+bar from the count of *exactly* five while printing the count of *five or more*
+beside it — 45 specs behind an 8-wide bar. A chart whose bar disagrees with its
+own label is read at a glance, and the glance is wrong.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

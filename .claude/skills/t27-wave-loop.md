@@ -6609,6 +6609,28 @@ These cost a wave each. Follow them before step 1.
      raise the compiling count again** -- the next spec is bought individually,
      by a language feature, or by writing missing function bodies. T123b.
 
+404. **Classify a population from the AST, never from the diagnostics.** A
+     missing function BODY is invisible at the diagnostic level -- only its
+     downstream symptom is, and that symptom is drowned out by whatever else the
+     module got wrong. The diagnostic-shaped test reported UNWRITTEN = 0 against
+     a true 159. The AST predicate (`FnDecl` with no statements) reproduced
+     `impl-status` exactly on all three labels. T125.
+
+405. **Make the populations SUM to the corpus, and say so.** 155 + 173 + 159 + 6
+     + 124 = 617. When the books close and two independent code paths agree on
+     every label, the split is trustworthy; when they do not, one of them is
+     wrong and you do not yet know which. T125.
+
+406. **The headline backlog was inflated 3.8x by counting unwritten specs as
+     broken.** "466 failing" -> "289 defect specs" -> the true 124. Every plan
+     built on the larger numbers was planning against a population that did not
+     exist. Re-derive the denominator before forecasting against it.
+
+407. **A chart's bar and its label must come from the same number.** The depth
+     histogram built the `5+` bar from the count of EXACTLY five while printing
+     the count of five-or-more -- 45 specs behind an 8-wide bar. A chart is read
+     at a glance, so a disagreeing bar is worse than no chart.
+
 ### How to update this tracker
 
 After closing a wave:

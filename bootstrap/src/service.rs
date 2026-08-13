@@ -816,6 +816,7 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
     // (depth, spec, the one class) for defect specs
     let mut by_depth: Vec<(usize, String, String)> = Vec::new();
     let mut unwritten = 0usize;
+    let mut partial = 0usize;
     let mut class_hist: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for (i, p) in specs.iter().enumerate() {
@@ -843,12 +844,27 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
             .collect();
         if classes.is_empty() { continue; }
 
-        // A spec whose every class is a missing function is UNWRITTEN (T121),
-        // not miscompiled. Counting it as a defect inflates the backlog by a
-        // factor of two and has done so for several waves.
-        let all_missing_fn = classes.iter().all(|c| c.starts_with("No function named"));
-        if all_missing_fn {
+        // W662: classify UNWRITTEN from the AST, not from the diagnostics.
+        //
+        // The previous rule -- "every diagnostic is `No function named ...`" --
+        // reported UNWRITTEN = 0 against T121's count of 159, because after the
+        // W660 scaffold fix these specs still emit other malformed constructs
+        // alongside the missing bodies. A diagnostic-shaped test cannot see a
+        // missing function BODY; it can only see the downstream symptom, and the
+        // symptom is drowned out by whatever else the module got wrong.
+        //
+        // `impl_status` already owns the real signal -- an FnDecl with no
+        // statements, which is exactly what the Zig backend turns into
+        // `@compileError("not yet implemented")` -- so the same function decides
+        // it here. Both commands then agree on what "unwritten" means.
+        let src = std::fs::read_to_string(p).unwrap_or_default();
+        let (empty_fns, total_fns) = crate::impl_status::spec_body_counts(&src);
+        if total_fns > 0 && empty_fns == total_fns {
             unwritten += 1;
+            continue;
+        }
+        if empty_fns > 0 {
+            partial += 1;
             continue;
         }
 
@@ -868,15 +884,24 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
     println!("  {}", "-".repeat(64));
     println!("  {:<34} {:>5}", "iverilog accepts", clean);
     println!("  {:<34} {:>5}", "does not generate Verilog", no_gen);
-    println!("  {:<34} {:>5}", "UNWRITTEN (all errors are missing fns)", unwritten);
+    println!("  {:<34} {:>5}", "UNWRITTEN (every fn body empty)", unwritten);
+    println!("  {:<34} {:>5}", "PARTIAL (some fn bodies empty)", partial);
     println!("  {:<34} {:>5}   <- the real defect backlog", "DEFECT specs", by_depth.len());
     println!();
     println!("  depth distribution of the defect backlog");
     for d in 1..=5 {
-        let n = depth_of(d);
+        // W662: the count and the bar must come from the SAME number. The first
+        // version built the bar from `depth_of(5)` while printing the `>= 5`
+        // total beside it, so the deepest row showed 45 specs behind an 8-wide
+        // bar. A chart whose bar disagrees with its own label is worse than no
+        // chart -- it is read at a glance and the glance is wrong.
+        let n = if d == 5 {
+            by_depth.iter().filter(|(k, _, _)| *k >= 5).count()
+        } else {
+            depth_of(d)
+        };
         let bar = "#".repeat(n.min(60));
-        println!("    {d}{} class(es) {:>4}  {bar}", if d == 5 { "+" } else { " " },
-                 if d == 5 { by_depth.iter().filter(|(n,_,_)| *n >= 5).count() } else { n });
+        println!("    {d}{} class(es) {n:>4}  {bar}", if d == 5 { "+" } else { " " });
     }
 
     println!();
