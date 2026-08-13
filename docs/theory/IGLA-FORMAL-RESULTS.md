@@ -3411,6 +3411,71 @@ all.
 
 ---
 
+### T62 (W649) — The obvious reading of the error would have made a driven signal undrivable
+
+**24 corpus specs failed with ``'clk' has already been declared in this scope``.**
+The generated module:
+
+```verilog
+module APB_Bridge_Testbench (
+    input  wire        clk,      // <- line 11
+    …
+);
+    reg clk;                      // <- line 24
+    initial begin clk = 1'b0; end
+```
+
+**The obvious repair is to drop the `reg`** — the error names the second
+declaration, and removing a duplicate is what one does with a duplicate.
+**It would have been wrong.** The spec says:
+
+```t27
+var clk : bool = false;
+…
+clk = false;
+clk = true;
+```
+
+**The spec declares the signal and drives it.** A Verilog module port cannot be
+assigned from an `initial` block, so dropping the `reg` converts a driven signal
+into an undrivable input and the testbench stops working — silently, because the
+Verilog would still compile.
+
+**The port was the error.** `gen_verilog` emitted a boilerplate
+`(clk, rst_n, en)` header **unconditionally** for every module, including the
+144 specs whose whole purpose is to declare and drive those signals themselves.
+
+**Statement.** When two declarations conflict, the diagnostic names the *second*
+— it is where the checker noticed — and that is **not evidence about which is
+wrong**. Deciding requires the *intent*, which lives in the source the generator
+consumed, not in either emitted declaration. **A duplicate-definition error is a
+report about position, not about authorship.**
+
+**This is the concrete case for a rule this session recorded three times and had
+not yet been forced to apply:** read the emitter before editing. The naive fix
+was one line, plausible, and would have broken 24 testbenches in a way no gate
+in this repository could see — the artefact compiles, the simulation runs, and
+the clock never toggles.
+
+**Measured — and it is T59's back-loading, on the right population this time:**
+
+| | before | after |
+|---|---:|---:|
+| corpus specs emitting `[BENCH]` | 144 | 144 |
+| of those, compiling under `iverilog` | **3** | **19** |
+| of those, printing a `[BENCH]` line | **3** | **15** |
+
+**The output stratum's reach went from 2% to 13% on a single repair.** T61
+corrected T59's prediction by observing that scratch repairs do not move the
+corpus figure; **W649 is the same prediction tested where it applies, and it
+holds** — 6.3× coverage from one guard.
+
+*Falsification condition:* a module that legitimately needs the boilerplate
+`clk` port *and* declares `var clk` — which would mean the guard suppresses a
+port something depends on.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

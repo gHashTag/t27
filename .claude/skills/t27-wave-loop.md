@@ -5924,6 +5924,28 @@ These cost a wave each. Follow them before step 1.
      testbench REG (`reg clk;`) in the same scope. That is the repair that would
      widen the output stratum.
 
+301. **A duplicate-definition error names the SECOND declaration -- where the
+     checker noticed -- which is NOT evidence about which one is wrong.**
+     24 corpus specs failed with `'clk' has already been declared`. The obvious
+     fix (drop the `reg`) would have converted a driven signal into an
+     undrivable input: a Verilog port cannot be assigned from an `initial`
+     block, so the testbench would compile, run, and never toggle its clock.
+     **The PORT was the error** -- `gen_verilog` emitted a boilerplate
+     `(clk, rst_n, en)` header unconditionally. Decide from the SOURCE's intent
+     (`var clk : bool = false;` then `clk = true;`), not from either emitted
+     declaration. (T62.)
+
+302. **T59's back-loading, confirmed on the right population:** one guard took
+     the corpus [BENCH] specs from **3 compiling / 3 printing to 19 / 15** --
+     the output stratum's reach from 2% to 13%, 6.3x from a single repair. T61
+     had corrected the prediction by noting scratch repairs do not move the
+     corpus figure; W649 tested it where it applies and it held.
+
+303. **`gen_verilog` emits a boilerplate `(clk, rst_n, en)` port header for
+     EVERY module.** Any spec declaring `var clk`/`var rst_n`/`var en` collides.
+     The guard skips a boilerplate port the spec itself declares -- check this
+     first when a testbench spec fails with a redeclaration error.
+
 ### How to update this tracker
 
 After closing a wave:

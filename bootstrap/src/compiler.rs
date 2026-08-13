@@ -9208,6 +9208,9 @@ impl VerilogCodegen {
         // W458: bare module-level statements (e.g. calls to functions that take
         // array parameters). Emitted inside an always @(*) block.
         let mut module_stmts: Vec<&Node> = Vec::new();
+        // W649: module-level `var` names, so the boilerplate port header can
+        // avoid colliding with a signal the spec declares and drives.
+        let mut module_regs: Vec<String> = Vec::new();
 
         for decl in &ast.children {
             match decl.kind {
@@ -9218,6 +9221,7 @@ impl VerilogCodegen {
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
+                NodeKind::StmtLocal => module_regs.push(decl.name.clone()),
                 NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
                 _ => {}
             }
@@ -9427,14 +9431,28 @@ impl VerilogCodegen {
                 (w, signed, params)
             });
 
+        // W649: the boilerplate `(clk, rst_n, en)` header was emitted
+        // UNCONDITIONALLY, so a spec that declares `var clk : bool = false` --
+        // every testbench does, and drives it -- got `clk` as an input PORT and
+        // again as `reg clk;` in the same scope. iverilog:
+        // "'clk' has already been declared in this scope". 24 corpus specs.
+        //
+        // The spec's intent is unambiguous: it declares the signal and assigns
+        // it, so the `reg` is right and the PORT is wrong. Dropping the reg --
+        // the obvious reading of the error -- would have made a driven signal an
+        // undrivable input. See T62.
+        let declares = |n: &str| {
+            consts.iter().any(|c| c.name == n) || module_regs.iter().any(|r| r == n)
+        };
         self.write_line(&format!("module {} (", mod_name));
         self.indent();
-        self.write_indent();
-        self.write_line("input  wire        clk,");
-        self.write_indent();
-        self.write_line("input  wire        rst_n,");
-        self.write_indent();
-        self.write_line("input  wire        en,");
+        for p in ["clk", "rst_n", "en"] {
+            if declares(p) {
+                continue;
+            }
+            self.write_indent();
+            self.write_line(&format!("input  wire        {},", p));
+        }
         for (name, w, signed) in &input_ports {
             let range = Self::range_decl(*w);
             let signed_str = if *signed { "signed " } else { "" };
