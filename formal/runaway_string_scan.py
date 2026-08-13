@@ -24,8 +24,8 @@ in Prop. 192 is NOT total: it matches field declarations of the form
 `delimiter_balance_scan` is the question-shaped replacement for it and subsumes
 it; this one is kept as the regression test for the 107 sites of Prop. 186.
 
-ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/unbalanced_fields_baseline.txt`
-when no baseline exists (Prop. 192). Nothing else.
+ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/unbalanced_fields_baseline.txt`,
+and only when `--init` is passed (Props. 192, 211). Nothing else.
 
 Prop. 188.
 """
@@ -143,6 +143,21 @@ def main():
     ub_baseline = ROOT / "formal" / "unbalanced_fields_baseline.txt"
     ub_now = sorted(f"{p}:{n}" for p, n, _ in unbalanced)
     if not ub_baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::runaway string scan: {ub_baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/runaway_string_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         ub_baseline.write_text("\n".join(ub_now) + ("\n" if ub_now else ""))
         print(f"runaway string scan: unbalanced-field baseline written "
               f"({len(ub_now)} entries)")

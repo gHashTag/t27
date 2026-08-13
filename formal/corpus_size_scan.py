@@ -33,8 +33,8 @@ detected here, and neither is a population this list does not name. It says
 nothing about whether any file is correct.
 
 ARTIFACTS. Reads `specs/`, `formal/`, `build/rtl/`, `trios-coq/`,
-`.github/workflows/`. WRITES `formal/corpus_size_baseline.txt` when no baseline
-exists. Nothing else.
+`.github/workflows/`. WRITES `formal/corpus_size_baseline.txt`, and only when
+`--init` is passed. Nothing else.
 
 Prop. 209.
 """
@@ -129,6 +129,21 @@ def main():
           ", ".join(f"{k}={v}" for k, v in sorted(now.items())))
 
     if not BASELINE.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::corpus size scan: {BASELINE.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/corpus_size_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         BASELINE.write_text("".join(f"{k}\t{v}\n" for k, v in sorted(now.items())))
         print(f"corpus size scan: baseline written to {BASELINE.name}")
         return 0

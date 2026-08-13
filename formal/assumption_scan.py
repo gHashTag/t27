@@ -44,8 +44,8 @@ nothing and is counted, not silently dropped. So "12 conditional theorems" is a
 statement about the 340, and a lower bound on the tree.
 
 ARTIFACTS. Reads `trios-coq/**/*.v`, runs `coqc` on a generated probe file in a
-temporary directory. WRITES `formal/assumption_baseline.txt` when no baseline
-exists. Nothing else.
+temporary directory. WRITES `formal/assumption_baseline.txt`, and only when
+`--init` is passed. Nothing else.
 
 Prop. 204.
 """
@@ -170,6 +170,21 @@ def main():
         return 1
 
     if not BASELINE.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::assumption scan: {BASELINE.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/assumption_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         BASELINE.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"assumption scan: baseline written to {BASELINE.name} "
               f"({len(now)} dependencies)")

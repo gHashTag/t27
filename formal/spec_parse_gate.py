@@ -21,7 +21,7 @@ in one wave and a gate that lands red gets disabled rather than obeyed
 protected set regress.
 
 ARTIFACTS. Reads `specs/**/*.t27` and runs `./target/release/t27c`. WRITES
-`formal/spec_parse_baseline.txt` when no baseline exists. Nothing else.
+`formal/spec_parse_baseline.txt`, and only when `--init` is passed. Nothing else.
 
 Prop. 143.
 """
@@ -143,6 +143,21 @@ def main():
           f"{blind} specs declaring but capturing nothing")
 
     if not BASELINE.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::spec parse gate: {BASELINE.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/spec_parse_gate.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         BASELINE.write_text("".join(f"{v[0]}\t{v[1]}\t{v[2]}\t{k}\n"
                                     for k, v in sorted(now.items())))
         print(f"spec parse gate: baseline written to {BASELINE.name} "

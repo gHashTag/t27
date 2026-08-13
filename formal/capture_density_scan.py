@@ -52,7 +52,7 @@ corrupted field types are exactly that case. This gate bounds how much was read,
 never whether what was read is right.
 
 ARTIFACTS. Reads `specs/**/*.t27`, runs `./target/release/t27c`. WRITES
-`formal/capture_density_baseline.txt` when no baseline exists. Nothing else.
+`formal/capture_density_baseline.txt`, and only when `--init` is passed. Nothing else.
 
 Prop. 195.
 """
@@ -119,6 +119,21 @@ def main():
 
     now = sorted(f"{p}\t{n}" for _, p, n in low)
     if not BASELINE.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::capture density scan: {BASELINE.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/capture_density_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         BASELINE.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"capture density scan: baseline written to {BASELINE.name} "
               f"({len(now)} shells)")

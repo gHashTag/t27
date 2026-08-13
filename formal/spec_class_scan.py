@@ -37,8 +37,8 @@ printed with the run so it can be argued with; it is not derived from anything. 
 classifies FILES, never claims, and says nothing about whether any spec's content
 is correct.
 
-ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/spec_class_baseline.txt` when no
-baseline exists. Nothing else.
+ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/spec_class_baseline.txt`, and only when
+`--init` is passed. Nothing else.
 
 Prop. 197.
 """
@@ -82,6 +82,21 @@ def main():
     baseline = ROOT / "formal" / "spec_class_baseline.txt"
     now = sorted(docs)
     if not baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::spec class scan: {baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/spec_class_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         baseline.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"spec class scan: baseline written to {baseline.name} "
               f"({len(now)} documents)")

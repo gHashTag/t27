@@ -31,8 +31,8 @@ therefore RATCHETED, not repaired, and the baseline is a set of file+class+delta
 triples rather than a count -- so a file that swaps one defect for another still
 fails.
 
-ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/delimiter_balance_baseline.txt`
-when no baseline exists. Nothing else.
+ARTIFACTS. Reads `specs/**/*.t27`. WRITES `formal/delimiter_balance_baseline.txt`,
+and only when `--init` is passed. Nothing else.
 
 Prop. 193.
 """
@@ -107,6 +107,21 @@ def main():
 
     baseline = ROOT / "formal" / "delimiter_balance_baseline.txt"
     if not baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::delimiter balance scan: {baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/delimiter_balance_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         baseline.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"delimiter balance scan: baseline written to {baseline.name} "
               f"({len(now)} entries)")

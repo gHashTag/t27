@@ -24,14 +24,28 @@ someone runs this or the sweep. Closing it fully would mean a guard inside every
 one of the 32 scripts; that is not done, and the residual gap is stated rather
 than implied away.
 
-Enumerates `python3 formal/<name>.py` invocations across all workflow
-files -- 43 distinct invocations of 30 scripts, out of 58 total workflow steps.
-The residue is explicit and large: the other 15 steps are yosys proofs, cargo
-builds and shell, and this tool does not run them. It therefore establishes "every
-PYTHON gate the workflows run passes", never "CI would pass". Two scripts under
-formal/ are invoked by no workflow (`scale_probe.py`, `trace_reader.py`); both are
-the non-checking helpers named in `coverage_gate.EXEMPT`, and that is reported
-rather than assumed.
+Enumerates `python3 formal/<name>.py` invocations across all workflow files. The
+residue is explicit and large: the remaining workflow steps are yosys proofs,
+cargo builds and shell, and this tool does not run them. It therefore establishes
+"every PYTHON gate the workflows run passes", never "CI would pass".
+
+The counts that used to stand in this paragraph -- "43 distinct invocations of 30
+scripts, out of 58 total workflow steps", and "two scripts under formal/ are
+invoked by no workflow (`scale_probe.py`, `trace_reader.py`); both are the
+non-checking helpers named in `coverage_gate.EXEMPT`" -- had drifted to 47 and
+34, the uninvoked set had grown to FOUR, and the EXEMPT claim was false for
+`scale_probe.py` on the day it was written (`coverage_gate.EXEMPT` names
+`trace_reader.py` alone). A number in a docstring has no gate; it is exactly the
+Prop. 73 shape -- a correct instrument with a wrong caption -- so the numbers are
+withdrawn from the prose and left where they are computed. The uninvoked set is
+printed by name at run time, every run.
+
+Two of the four uninvoked scripts are non-checking helpers (`scale_probe.py`,
+`trace_reader.py`). The other two are deliberate: `replacement_scan.py` and
+`index_drift_scan.py` measure disagreements between disk, the index and HEAD, and
+`actions/checkout` makes those three identical by construction, so on a runner
+they are vacuous by the nature of the subject rather than by any defect. They are
+operator tools, as this one is.
 
 ARTIFACTS. Reads `.github/workflows/*.yml` and executes `formal/*.py`. Writes
 nothing itself; the gates it runs write their own baselines as they always do.

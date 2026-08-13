@@ -41,8 +41,8 @@ cannot tell. Helper modules that perform no checking (`bench`, `mutate`,
 `trace_reader`, `scale_probe`) are exempted BY NAME below, with the reason.
 
 ARTIFACTS. Reads `formal/*.py` and `.github/workflows/*.yml` (Prop. 200: to
-resolve which scripts CI actually runs). WRITES `formal/coverage_baseline.txt`
-when no baseline exists. Nothing else.
+resolve which scripts CI actually runs). WRITES `formal/coverage_baseline.txt`,
+and only when `--init` is passed. Nothing else.
 
 Prop. 194.
 """
@@ -139,6 +139,21 @@ def main():
     baseline = FORMAL / "coverage_baseline.txt"
     now = sorted(missing)
     if not baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::coverage gate: {baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/coverage_gate.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         baseline.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"coverage gate: baseline written to {baseline.name} "
               f"({len(now)} without a denominator)")

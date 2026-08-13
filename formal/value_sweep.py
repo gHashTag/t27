@@ -16,7 +16,8 @@ this campaign has never been able to see.
 
 ARTIFACTS. Reads `build/rtl/*.sv` and `sim/tb_data_check.v`. WRITES
 `formal/value_sweep_baseline.txt` -- the locked-in set of configurations that
-match, which is how a regression is told from a known-open configuration.
+match, which is how a regression is told from a known-open configuration --
+and only when `--init` is passed.
 Everything else stays inside a temporary directory; `build/rtl` and `sim/` are
 left exactly as found.
 
@@ -163,6 +164,21 @@ def main():
     now = sorted(f"C={c} N={n} L={l} S={s} {results[(c, n, l, s)][0]}"
                  for (c, n, l, s) in results)
     if not baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::value sweep: {baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/value_sweep.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         baseline.write_text("\n".join(now) + "\n")
         print(f"value sweep: baseline written to {baseline.name} "
               f"({matched}/{len(GRID)} matching)")

@@ -23,7 +23,8 @@ type-checked by nothing, without that being written down where a reader looks.
 
 ARTIFACTS. Reads `coq/**/*.v`, `trios-coq/**/*.v`, `proofs/**/*.v` and each
 tree's `_CoqProject`. WRITES `formal/coq_build_baseline.txt` -- the ratcheted
-set of files that are neither built nor self-declared. Nothing else.
+set of files that are neither built nor self-declared -- and only when
+`--init` is passed. Nothing else.
 
 Prop. 154.
 """
@@ -148,6 +149,21 @@ def main():
     baseline = ROOT / "formal" / "coq_build_baseline.txt"
     now = sorted(f for _, f in undeclared)
     if not baseline.exists():
+        # Prop. 211c: writing a baseline is an explicit act, never a fallback.
+        # `if not exists(): write(now); return 0` resets the ratchet on one
+        # `rm`, and on a clone that never had the file it rubber-stamps the tree
+        # it was handed and exits 0. Measured before f66561f33: 8 of the 13
+        # baselines in this suite were on disk and in no commit, and 8 of the 13
+        # gates owning them re-baseline a possibly-broken tree and pass.
+        if "--init" not in sys.argv[1:]:
+            print(f"::error::coq build scan: {baseline.name} does not exist and "
+                  f"--init was not given. Writing one here would record "
+                  f"whatever this tree contains as the accepted state -- on a "
+                  f"fresh clone that is a green run which checked nothing. "
+                  f"Genuine first run: `python3 formal/coq_build_scan.py --init`. "
+                  f"Otherwise the baseline was lost and belongs in the commit "
+                  f"that lost it (Prop. 211)")
+            return 1
         baseline.write_text("\n".join(now) + ("\n" if now else ""))
         print(f"coq build scan: baseline written to {baseline.name} "
               f"({len(now)} undeclared)")
