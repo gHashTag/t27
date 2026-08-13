@@ -5859,6 +5859,15 @@ These cost a wave each. Follow them before step 1.
      could catch it -- they all live in the shape/type strata. **When a
      generator emits a format string, run it.**
 
+292. **`(path, phase)` as the ledger identity makes a PHASE MIGRATION
+     visible.** Instrumenting new discard channels moved two specs from
+     `backends-declare-omissions` to `parse-no-discard`, and the ratchet showed
+     it as 2 unexpected failures AND 2 unexpected passes -- same files,
+     different phase. **A path-keyed ledger would have seen nothing** (the file
+     fails before and after) and a count would have seen nothing. When a
+     migration appears, update the entry's phase; do not treat it as a
+     regression or a fix.
+
 ### How to update this tracker
 
 After closing a wave:

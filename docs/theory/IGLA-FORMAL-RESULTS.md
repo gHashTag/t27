@@ -3178,6 +3178,24 @@ sees) and re-measuring the same 609 specs:
 **+12 476 tokens, +22%**, from channels the gate did not model. T42 stated 55 563
 as a measurement; it was a measurement *over one of three channels*.
 
+**And the ledger showed the consequence as a *migration*, not a regression.**
+Re-running the gate reported, for the same two `spec X { }` dialect files:
+
+```
+UNEXPECTED FAILURES: 2   + specs/ar/coa_planning.t27 [parse-no-discard]
+                         + specs/ar/restraint.t27    [parse-no-discard]
+UNEXPECTED PASSES  : 2   - specs/ar/coa_planning.t27 [backends-declare-omissions]
+                         - specs/ar/restraint.t27    [backends-declare-omissions]
+```
+
+**One failure and one pass per file, at different phases.** The instrumentation
+changed *which* phase first attributes the defect, and nothing else. **This is
+T33's identity choice paying off:** had the ledger been keyed by `path` alone,
+the migration would have been silent — the file fails before and after, so a
+path-keyed ledger sees no change. **Keying on `(path, phase)` makes a change of
+*attribution* observable, which a count cannot be and a coarser identity would
+not be.**
+
 **Statement.** A gate that counts instances of a phenomenon by instrumenting one
 of its producers reports `|φ ∩ P₁|`, not `|φ|`. **The gap is invisible from
 inside the gate** — the count is internally consistent, monotone, and

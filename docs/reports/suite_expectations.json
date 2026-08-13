@@ -47,8 +47,8 @@
     },
     {
       "path": "specs/ar/coa_planning.t27",
-      "phase": "backends-declare-omissions",
-      "reason": "`spec X { }` dialect: parses, all backends emit output, and 100% of declared tests/invariants are silently dropped (T35 dialect, T49 gate)",
+      "phase": "parse-no-discard",
+      "reason": "`spec X { }` dialect: the newly instrumented discard channels (skip_brace_body, recover_to_stmt_boundary) now attribute it to parse-no-discard rather than backends-declare-omissions (T56)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -82,8 +82,8 @@
     },
     {
       "path": "specs/ar/restraint.t27",
-      "phase": "backends-declare-omissions",
-      "reason": "`spec X { }` dialect: parses, all backends emit output, and 100% of declared tests/invariants are silently dropped (T35 dialect, T49 gate)",
+      "phase": "parse-no-discard",
+      "reason": "`spec X { }` dialect: the newly instrumented discard channels (skip_brace_body, recover_to_stmt_boundary) now attribute it to parse-no-discard rather than backends-declare-omissions (T56)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
