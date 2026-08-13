@@ -2,6 +2,50 @@
 
 Last updated: 2026-08-13
 
+## A scanner that matches its own source (Closes #2144)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2144
+- PR: (direct commit)
+
+### What landed
+
+Prop. 207 showed the starved-pass/starved-fail partition is arbitrary. This makes
+it **designed**: all 16 exempt python gates had their absence case *executed* --
+each script copied alone into an empty tree and run.
+
+| result | gates |
+|---|---|
+| exit 1 | 13 |
+| exit 2 (declines) | `bench` |
+| exit 0, correct | `starve_guard` |
+| exit 0, **wrong** | `comment_scan` |
+
+`comment_scan` found one file alone in an empty tree -- itself -- and its own
+`READS_VERILOG` regex literal makes that file match the pattern it searches for.
+The `scoped == 0` floor, written precisely to stop a silent clean sweep, was
+satisfied by **self-matching**. Fixed by excluding the scanner from its own
+population and requiring the workflow-run scripts to be present. Starved: now
+exit 1.
+
+45 gates pass, sweep exit 0 (61 steps, 45 diagnosed, 17 exempt), 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **Two exempt steps run no python script** (`Compiler tests`, `Behavior-DSL
+  subset`) and were NOT measured this way. Their absence cases are cargo's own
+  and an in-step assertion count. 16 of 19 exempt entries are now measured.
+- **This measures each gate ALONE in an empty tree**, which is a stronger
+  starvation than the sweep applies. A gate could still mis-handle a partially
+  present subject, and that is untested.
+- **Nothing outside `formal/` was checked.** The 45 non-exempt steps are covered
+  by the sweep as before; this wave only re-derived the exemptions.
+- `comment_scan`'s real-tree numbers changed (29 gates / 19 Verilog-reading ->
+  35 / 18) because the population changed: new gates were added and the scanner
+  now excludes itself. Not a regression.
+- No RTL, spec, or proof content changed.
+
+
 ## 21 of 44 gates passed on a starved tree (Closes #2143)
 
 - Branch: `feat/wave-547/host-heapsort`

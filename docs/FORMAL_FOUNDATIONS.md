@@ -10954,6 +10954,66 @@ stash and enumerates the files it holds. **BITING** — a planted stash returns 
 
 ---
 
+### Prop. 208 — a scanner that matches its own source satisfies its own liveness floor — `MEASURED`
+
+**Gate:** `formal-mutation.yml` → *No gate passes when its subject is absent*
+
+Prop. 207 proved the partition *"passes while starved / fails while starved"* is a
+property of the implementations, not the subject, and therefore arbitrary. This
+wave makes it **designed**: every exempt gate's absence case was executed rather
+than asserted — each script copied **alone into an empty tree** and run.
+
+| result | gates |
+|---|---|
+| exit 1 — names what is missing | 13 |
+| exit 2 — declines, nonzero | `bench` |
+| exit 0 — **correct**, no stash is a genuine pass | `starve_guard` |
+| exit 0 — **wrong** | `comment_scan` |
+
+**15 of 16 held. The sixteenth had a defect no reading of the code had caught in
+over a hundred waves**, and its shape is worth the proposition:
+
+`comment_scan`'s subject is `formal/*.py` — it checks whether gates that read
+Verilog with a regex first strip comments. It already carried a liveness floor
+written for exactly this danger: *"a scan that found nothing in scope reports
+clean"*, so `scoped == 0` returns 1. Alone in an empty tree it found **one** file
+— itself — and
+
+```python
+READS_VERILOG = re.compile(r"\.sv\b|build/rtl|glob\(['\"]\*\.sv")
+```
+
+**that line makes the file match its own pattern.** `scoped` became 1, the floor
+was satisfied, and the gate reported a clean sweep of an empty corpus.
+
+**Theorem (self-matching liveness).** A liveness floor of the form *"the scan must
+have found ≥1 item in scope"* is sound only if the scanner is excluded from the
+population it scans. Otherwise, for any scanner whose implementation must
+**mention** the pattern it searches for, `scoped ≥ 1` holds identically — the
+floor is a tautology, and it is tautologous in exactly the case it was written to
+detect. The more precisely a scanner is written, the more literally its source
+contains its own pattern, so **the defect grows with the quality of the scanner.**
+
+Fixed two ways, because either alone leaves a hole: exclude the scanner from its
+own population, and require the scripts the workflows actually run to be present
+— the same repair `coverage_gate` needed in Prop. 200, for the same underlying
+reason. Measured after: real tree exit 0 (35 gates, 18 reading Verilog), starved
+exit **1**.
+
+**What this closes and what it does not.** The exempt set is now a *measured*
+partition: 16 python gates, each with an executed absence case recorded in the
+list itself. Two exempt steps run no python (`Compiler tests`, `Behavior-DSL
+subset`) and were **not** measured this way; their absence cases are cargo's own
+and an in-step assertion count, and that is stated rather than folded into the
+count.
+
+Three bars: **TRUE** — 45 gates pass, sweep exit 0 (61 steps, 45 diagnosed, 17
+exempt), 1213 tests pass. **ALIVE** — the audit ran all 16 and returned four
+distinct outcomes, so it is not reporting a constant. **BITING** — it found a
+false exemption that had been in the list, believed, for its entire life.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -82,6 +82,39 @@ def check(root):
     if not gates:
         print(f"::error::comment_scan found no gates under {root}/formal")
         return 1
+
+    # Prop. 208: this gate PASSED when starved. Copied alone into an empty tree
+    # it found one file -- itself -- and that file matches READS_VERILOG,
+    # because the pattern `\.sv\b` occurs in this very source as a regex
+    # literal. **A scanner that satisfies its own liveness floor by matching its
+    # own source cannot detect an empty corpus.** The floor below (`scoped == 0`)
+    # was written precisely to stop a silent clean sweep, and self-matching
+    # walked around it.
+    #
+    # Two independent fixes, because either alone leaves a hole:
+    #   1. a scanner is not a subject -- exclude this file from the population;
+    #   2. require the scripts the workflows actually run to be present, the
+    #      same repair coverage_gate needed for the same reason (Prop. 200).
+    gates = [g for g in gates if g.name != pathlib.Path(__file__).name]
+    wf_dir = root / ".github" / "workflows"
+    cited = set()
+    if wf_dir.exists():
+        for y in wf_dir.glob("*.yml"):
+            cited.update(re.findall(r"python3 formal/(\w+\.py)",
+                                    y.read_text(errors="ignore")))
+    if not cited:
+        print(f"::error::comment_scan found no `python3 formal/*.py` step in "
+              f"any workflow -- there is nothing to check the scanned corpus "
+              f"against, so this gate can establish nothing")
+        return 1
+    absent = sorted(cited - {g.name for g in gates} - {pathlib.Path(__file__).name})
+    if absent:
+        print(f"::error::comment_scan: {len(absent)} script(s) the workflows "
+              f"run are absent from formal/ -- the corpus scanned is not the "
+              f"corpus CI executes (Prop. 208)")
+        for a in absent[:8]:
+            print(f"  formal/{a}")
+        return 1
     bad, scoped = [], 0
     for g in gates:
         finding, in_scope = check_file(g)

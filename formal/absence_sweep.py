@@ -35,6 +35,26 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    # Prop. 208: MEASURED, all 16 exempt python gates, not asserted. Each script
+    # was copied ALONE into an empty tree and run; every entry below claims "its
+    # absence case is internal and enforced", and this is that claim executed:
+    #
+    #   exit 1  assumption_scan, capture_density_scan, coq_build_scan,
+    #           coverage_gate, crate_coverage_scan, delimiter_balance_scan,
+    #           doc_gate, faith_check, runaway_string_scan, spec_class_scan,
+    #           spec_parse_gate, suspension_scan, workflow_reachable_scan
+    #   exit 2  bench -- declines, nonzero, fine
+    #   exit 0  starve_guard -- CORRECT: no stash is a genuine pass
+    #   exit 0  comment_scan -- **WRONG, and fixed in this wave.** Alone in an
+    #           empty tree it found one file, itself, and that file MATCHES the
+    #           pattern it searches for (`\.sv\b` occurs in its own source as a
+    #           regex literal), so it satisfied its own `scoped == 0` liveness
+    #           floor by self-matching. 15 of 16 correct; the sixteenth was the
+    #           one whose defect no reading of the code had caught in 100 waves.
+    #
+    # Two steps in this list run no python script (`Compiler tests`,
+    # `Behavior-DSL subset`) and were NOT measured this way; their absence cases
+    # are cargo's own and an in-step assertion count respectively.
     # Prop. 207: this gate's subject is the stash itself.
     "Starve guard — refuse to trust results while a sweep's stash exists":
         "its subject is the existence of build/_absence_bak, which this sweep "
