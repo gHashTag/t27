@@ -237,7 +237,50 @@ open flow: **Yosys 0.65, nextpnr-xilinx 1743d0f, Icarus Verilog 13.0, Python 3.1
 | ternary neuron | **28 LUT per weight, ZERO DSPs at any fan-in** |
 | TNF64 | 7,479 LUT @ 48.20 MHz |
 | BNF | 97 LUT @ 388.35 MHz (isolated-decoder bench) |
-| GFTernary throughput/area | **+10.2%** over runner-up, **6.1×** over posit32, among 20 self-ranged formats |
+| ~~GFTernary throughput/area~~ | **RETRACTED 2026-08-13 — see §9a** |
+
+### 9a. The throughput-per-area claim is RETRACTED (erratum, W652)
+
+**Do not quote "+10.2% over the runner-up, 6.1× over posit32, first among 20
+self-ranged formats." It is withdrawn.** Three independent problems, all
+provable from the article's own table:
+
+| claimed | table says |
+|---|---|
+| +10.2% over next | `0.1584/0.1429 = 1.1085` → **+10.85%** (no row yields 10.2%) |
+| 6.1× over posit32 | `0.1584/0.0302 = ` **5.245×** (no row yields 6.1×) |
+| 20 formats, 8 ours | **24** data rows, **12** bolded as ours |
+
+**And the decisive one: `int8` on the same bench is 0.1736 MHz/LUT against
+GFTernary's 0.1584 — `int8` wins by 9.60% — and it is excluded from the
+ranking.** The stated grounds for exclusion (int8 needs an external learnable
+scale) concern the format's *role in a system*, not the quantity the column
+measures, which is MHz per LUT.
+
+**The metric is confounded with input width, and the article proves it before it
+presents the ranking.** Its own Truncation Proposition: a decoder with `n` input
+bits has at most `2^n` distinct outputs, downstream logic specialises to that
+image, so "comparison across different `n` mixes format design with format width;
+only comparison within one `n` isolates design." **GFTernary is `n = 2`. Every
+competitor is `n = 8…32`.** The article even reports GFTernary decoding at 66 LUT
+where a bare wire costs 112, conceding "a format cannot be cheaper than a wire."
+
+**Say this instead** — it is a design claim, checkable within one `n`, and `int8`
+does not refute it:
+
+> Among formats of equal input width, GFTernary is the only one whose lattice is
+> closed under weight application, and therefore the only one whose linear path
+> is exact without a normalisation stage.
+
+**Everything in §3–§8 stands.** Nothing there rests on the ranking: the golden-
+alphabet uniqueness theorem, the `Z[φ]` exactness theorem (16,000 vectors, 30
+depths, zero mismatches, half machine-checked in Coq), the closure corollary, the
+normalisation-threshold theorem, the precision law and its taper diagnostics, the
+multiplier-free scale hierarchy, and the 28 LUT/weight zero-DSP datapath
+measurement — which is a datapath measurement, not a format ranking.
+
+**This is the eleventh retraction in this work and the first not found by its
+authors.**
 
 > **Theorem (area and precision are commensurable).** With `λ = dA/dM` the marginal
 > area of a significand bit, a mode codec costing `C` LUT equals `C/λ` significand

@@ -5631,6 +5631,35 @@ pre-fix compiler in a separate worktree, regenerate the corpus with both, and
 diff the artefacts. The differential does not ask what the source looks like; it
 observes what the compiler did.
 
+**MEASURED (W652, the differential completed).** Both binaries generated all
+1,064 specs, zero timeouts:
+
+```
+files whose generated Verilog CHANGED:              17
+'// type alias:' lines        BEFORE: 42  AFTER: 30
+const declarations REPAIRED (alias -> real value):  12
+changed const/localparam lines, summed:            ~32
+```
+
+**The scanner's converged estimate of 248 initialisers in 75 files was high by
+roughly 4.4x in files and ~8x in lines.** The sequence 893 -> 285 -> 248 was not
+approaching 17; it was approaching a different quantity entirely — *source lines
+that look like the defect* rather than *emissions that were the defect*.
+
+**Why the gap is so large, and it is the interesting part.** The `LBracket`
+branch of `parse_const_decl` ends in a **text collector that runs to the
+semicolon**, preserving the initialiser verbatim. Any const whose value started
+with `[` therefore kept its whole expression — accidentally correct, by a path
+that has nothing to do with expression parsing. **A large fraction of the
+scanner's hits were never broken**, and no amount of refining a source-side
+selector could have discovered that, because the information is not in the
+source. It is in which branch the parser took.
+
+> **T69'.** The distance between a syntactic estimate and the truth is not noise
+> to be reduced by a better pattern; it is the measure of how much of the
+> behaviour lives in the *implementation's* control flow rather than in the
+> text. Only an instrument that observes the implementation can report it.
+
 **Corollary.** Report such counts as bounds with the direction named. "248" is
 not the answer; "**at most 248, at least the 5 shapes proved by the repro, and
 the differential is the only thing that can close it**" is.
