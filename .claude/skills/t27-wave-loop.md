@@ -6130,6 +6130,78 @@ These cost a wave each. Follow them before step 1.
      emitted text and the simulation phase is opt-in. Read "RATCHET CLEAN
      326/326" as *no spec changed status in the phases that are run*. T77.
 
+330. **A format's definition and its consumers are independent artefacts.**
+     `grep GFT_` over 1,064 specs returned **1** -- the defining file itself --
+     while the entire multiplier-free argument rested on that alphabet. `TNF`
+     appeared in **0** specs despite a 2,353-line article, a skill and an
+     erratum. The gap is invisible to any measurement that counts files, tests or
+     coverage. **Count consumers, not definitions.** T86.
+
+331. **The codes were already right; only the interpretation was missing.**
+     RACE stored weights as `0=zero, 1=+1, 2=-1` -- bit-identical to
+     `GFT_ZERO/POS/NEG` -- and read `1` as `+1` rather than `+phi`. With
+     `{-1,0,+1}` the layer gain is 1, carries no information, and needs a learned
+     real `alpha_L` whose application **puts the multiplier back**. Two bits
+     either way; the phi alphabet carries the scale the unit alphabet must learn
+     and then pay for. T89.
+
+332. **A conversion that costs nothing is a conversion that does not exist.**
+     The link's wire codes and the weight alphabet coincide, so `wire_to_gft`
+     synthesises to **zero LUTs** and the module measures identically before and
+     after the bridge. The zero **is** the result -- a stronger statement than a
+     cheap conversion. T87.
+
+333. **An invariant written to document a layout functioned as a checker of its
+     author.** `TNF_MINUS_ONE` was written 85504; the invariant
+     `== TNF_ONE + 65536` failed at Zig comptime because the answer is 86016.
+     **Write the redundant invariant even when it looks like a restatement.** T88.
+
+334. **The bias of a balanced-radix field is the repunit, and that is why
+     unbiasing is free.** `40 = 1+3+9+27 = (3^4-1)/2`, so subtracting the bias
+     decrements every base-3 digit: `trit_i(e) = digit_i(offset) - 1`, with no
+     signed division or remainder anywhere. Routing around a backend gap (Zig
+     rejects a raw `%` on signed ints) produced the better design. T88.
+
+335. **Of three ways to lower a type the target cannot represent, only one is
+     silent -- and it is the one that gets selected.** `f32` as a signed integer
+     vector compiles, synthesizes, runs and is wrong for every non-integral
+     input; `real` and a diagnostic both fail loudly. **The option that looks
+     like it is working is selected by exactly the property that makes it
+     wrong.** T95.
+
+336. **Naming a hazard is not measuring it.** The risk that argued against
+     `real` -- packed uses breaking -- did not materialise on a single spec, and
+     the estimate behind it was a crude proxy scan. **A hazard measured by proxy
+     has unknown size in BOTH directions.** T95.
+
+337. **A paginated query returning exactly its limit is reporting the limit.**
+     `--limit 100` -> 100, `--limit 200` -> 200, `--limit 1000` -> **219**. This
+     session reported "100 repos" and then wrote the lesson about it without
+     noticing it had made the error. **A recorded lesson protects only
+     measurements taken after it, and only those the author connects to it.**
+     T90/T91.
+
+338. **A lesson is a claim about a future reader; a check is a claim about a
+     future run.** Only the second has an observable failure mode.
+     `scripts/check-pagination-truncation.sh` is the discharge, with a negative
+     control on a second owner so it discriminates rather than always crying
+     truncation. **These 300+ lessons are a record, not a mechanism** -- the ones
+     that stopped a recurrence became gates, ledgers or scripts. T94.
+
+339. **A fork that keeps its root and loses every descendant is one project
+     asserting two incompatible definitions of itself.** `trinity` and
+     `trinity-fpga` share root `bfd4d06ada47`; each HEAD returns
+     `HTTP 422 "No commit found"` in the other; both are still being pushed to.
+     The condition is invisible to anything inspecting a single repository and
+     compounds daily. T92.
+
+340. **When you cannot represent something, reserve a symbol for its absence
+     rather than guessing a default.** 799 of 852 generated modules have no data
+     ports; the fix is one `on_comb`, but **picking a default would silently
+     promote an internal helper to a public boundary, and a wrong boundary is
+     worse than none.** The marker makes the population countable without
+     deciding it. T96.
+
 ### How to update this tracker
 
 After closing a wave:
