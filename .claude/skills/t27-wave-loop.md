@@ -5978,6 +5978,30 @@ These cost a wave each. Follow them before step 1.
      what a conjunctive obligation over multi-defect files produces** -- the
      count is the wrong success metric for it.
 
+309. **Repairing a generator SILENTLY invalidates every oracle recorded from
+     it.** W646's one-character `%%0d` -> `%0d` fix invalidated **45 of 265
+     committed Icarus baselines**, which record
+     `[BENCH] x : %0d cycles          2` where the generator now emits
+     `[BENCH] x : 2 cycles`. Nothing reported it: the checker is `--icarus-
+     simulate`, which is opt-in (T51), so the invalidation is invisible twice
+     over. **The set of oracles a change invalidates is not derivable from the
+     change** -- the dependency runs through the generated artefact. Golden
+     files need a PROVENANCE STAMP (which generator version recorded them) so
+     staleness is decidable rather than discovered. (T65.)
+
+310. **The 22 baselines W640 left unreviewed were stale on arrival** -- they
+     predate the W640 NOT-CHECKED marker, the W646 format fix and the W649 port
+     guard, and one froze `%0d cycles          3` as EXPECTED output.
+     Discarded, not committed. **"Do not commit an oracle you have not read"
+     earned its keep on the first artefact it was applied to** -- and the review
+     is what proved the deferral was right, not a hunch.
+
+311. **When you fix a generator, immediately ask which oracles it just
+     invalidated.** Grep the golden files for the old output shape:
+     `grep -l '%0d cycles' .trinity/icarus-baselines/**/*.json` found 45 in one
+     command. Do this in the SAME wave as the fix, or the staleness becomes
+     someone else's mystery failure.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -3565,6 +3565,65 @@ enumeration of `S` (T53) continues to make likely — and which
 
 ---
 
+### T65 (W651) — Repairing a generator silently invalidates every oracle recorded from it, and 45 committed baselines froze a bug
+
+**W640 acquired 22 Icarus baselines under `--bless-baselines` and I deliberately
+left them uncommitted, unreviewed** — on the grounds that landing 22 unread
+golden files would contradict the discipline the same wave had built. Reviewing
+them now settles what that discipline was worth.
+
+**All 22 record output; none is empty. Sixteen contain no check. And one records
+this:**
+
+```
+[BENCH] matrix_local_bench : %0d cycles          3
+```
+
+**That is T57's malformed format string, frozen as *expected output*.** The
+baselines were acquired before W646 fixed the generator, so they encode the
+defect as the specification of correct behaviour.
+
+**And it is not confined to my 22.** Of the 265 committed Icarus baselines,
+**45 carry the frozen bug**:
+
+| | |
+|---|---|
+| baseline records | `[BENCH] wide_struct_assign_bench : %0d cycles          2` |
+| generator now emits | `[BENCH] wide_struct_assign_bench : 2 cycles` |
+
+**W646's one-character repair invalidated 45 committed oracles**, and nothing
+reported it. The phase that would notice is `--icarus-simulate`, which is
+**opt-in** — so the invalidation is invisible twice over: once because a
+generator fix does not notify its oracles, and once because the checker that
+compares them does not run (**T51**).
+
+**Statement.** An oracle recorded from a generator is a *memo of that
+generator's behaviour at a point in time*, not of the specification. Every
+repair to the generator therefore partitions its oracles into *still-valid* and
+*silently-stale*, with no local signal distinguishing them — the stale ones
+remain well-formed, parse cleanly, and continue to be compared. **The set of
+oracles a change invalidates is not derivable from the change**, because the
+dependency runs through the generated artefact rather than through the source.
+
+**Corollary — golden files and generator repairs are in tension by
+construction.** The more faithfully an oracle records output, the more of it a
+repair breaks. This is not an argument against golden files; it is the reason
+they need a *provenance stamp* — which generator version recorded them — so
+staleness is decidable rather than discovered.
+
+**The 22 were discarded, not committed.** They predate three separate fixes
+(W640's `NOT CHECKED` marker, W646's format repair, W649's port guard) and would
+have frozen all three defects. **Leaving them unreviewed for nine waves was the
+right call, and the review is what proved it** — the discipline that says "do
+not commit an oracle you have not read" earned its keep on the first artefact it
+was applied to.
+
+*Falsification condition:* one of the 45 whose recorded `%0d` line matches the
+current generator output — which would mean the invalidation is partial and the
+baselines were not uniformly recorded before the fix.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition
