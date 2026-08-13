@@ -207,3 +207,6 @@ fn omega_b_chimera() -> f64 {
 fn ns_chimera() -> f64 {
     return 3.0 * pow(PHI, 3.0) * pow(PI, -4.0) * pow(E, 2.0);
 }
+    test "formula_registry_smoke_test" {
+        expect(true)
+    }

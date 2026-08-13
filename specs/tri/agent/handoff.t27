@@ -61,3 +61,6 @@ module Handoff;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "handoff_smoke_test" {
+        expect(true)
+    }

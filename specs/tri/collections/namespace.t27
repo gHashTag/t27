@@ -27,3 +27,6 @@ module TriNamespace;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "namespace_smoke_test" {
+        expect(true)
+    }

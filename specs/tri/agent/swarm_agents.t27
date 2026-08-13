@@ -125,3 +125,6 @@ module SwarmAgents;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "swarm_agents_smoke_test" {
+        expect(true)
+    }

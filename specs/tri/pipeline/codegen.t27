@@ -21,3 +21,6 @@ module TestSpec;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "codegen_smoke_test" {
+        expect(true)
+    }

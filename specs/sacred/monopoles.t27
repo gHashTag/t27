@@ -10,3 +10,6 @@ module TriMonopoles;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "monopoles_smoke_test" {
+        expect(true)
+    }

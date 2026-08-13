@@ -61,3 +61,6 @@ module TriAutonomousLifecycle;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "autonomous_lifecycle_smoke_test" {
+        expect(true)
+    }

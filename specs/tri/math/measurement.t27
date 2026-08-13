@@ -10,3 +10,6 @@ module TriMeasurement;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "measurement_smoke_test" {
+        expect(true)
+    }

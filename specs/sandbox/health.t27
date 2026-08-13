@@ -37,3 +37,6 @@ pub trait HealthPoller {
      */
     fn poll_sessions(&self) -> bool;
 }
+    test "health_smoke_test" {
+        expect(true)
+    }

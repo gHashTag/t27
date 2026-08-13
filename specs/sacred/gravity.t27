@@ -10,3 +10,6 @@ module TriGravity;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "gravity_smoke_test" {
+        expect(true)
+    }

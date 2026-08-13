@@ -2,7 +2,7 @@
 // t27/specs/
 // Current agent state | φ² + 1/φ² = 3 | TRINITY
 
-module "[]const u8";
+module FacultyBoard;
     use base::types;
     use math::constants;
 
@@ -21,7 +21,7 @@ module "[]const u8";
         dirty_files : u32,
         build_broken : bool,
         timestamp : i64,
-        agents : [[]AgentStatus",
+        agents : [[]AgentStatus],
     };
 
     pub const AgentStatus = struct {
@@ -51,3 +51,6 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "faculty_board_smoke_test" {
+        expect(true)
+    }

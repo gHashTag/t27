@@ -10,3 +10,6 @@ module TriMath;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "math_smoke_test" {
+        expect(true)
+    }

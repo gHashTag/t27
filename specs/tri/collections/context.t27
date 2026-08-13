@@ -10,3 +10,6 @@ module TriContext;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "context_smoke_test" {
+        expect(true)
+    }

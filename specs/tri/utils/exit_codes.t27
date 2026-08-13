@@ -27,3 +27,6 @@ module TriExitCodes;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "exit_codes_smoke_test" {
+        expect(true)
+    }

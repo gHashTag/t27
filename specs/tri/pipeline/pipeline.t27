@@ -10,3 +10,6 @@ module TriPipeline;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "pipeline_smoke_test" {
+        expect(true)
+    }

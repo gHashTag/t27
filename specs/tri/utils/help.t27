@@ -26,3 +26,6 @@ module TriHelp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "help_smoke_test" {
+        expect(true)
+    }

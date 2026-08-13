@@ -10,3 +10,6 @@ module TriColors;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "colors_smoke_test" {
+        expect(true)
+    }

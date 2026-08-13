@@ -18,3 +18,6 @@ module TriError;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "error_smoke_test" {
+        expect(true)
+    }

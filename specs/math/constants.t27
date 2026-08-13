@@ -298,7 +298,7 @@ module Constants {
         assert |PHI_INV - (PHI - 1.0)| < 1e-15
 
     invariant phi_golden_conjugate
-        assert |PHI + PHI_INV - 1.0/PHI_INV| < 1e-12
+        assert |PHI - PHI_INV - 1.0| < 1e-12
 
     invariant phi_fibonacci_convergence
         assert lim(n->inf) Fib(n+1)/Fib(n) = PHI

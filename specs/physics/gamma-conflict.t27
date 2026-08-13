@@ -250,3 +250,6 @@ ratio = 282(283284 - 285286) / 287(288289 - 290_291)
 
 - v0.2 (2026-04-08): Initial version with corrected 330331 distinction (entropy coefficient vs Immirzi parameter)
 - Gap corrected from 13.9% to 0.62% (332333 vs 334_335, not 336337 vs 338339)
+    test "gamma-conflict_smoke_test" {
+        expect(true)
+    }

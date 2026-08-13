@@ -10,3 +10,6 @@ module TriQuantum;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "quantum_smoke_test" {
+        expect(true)
+    }

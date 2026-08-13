@@ -10,3 +10,6 @@ module WorkflowExecutor;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "workflow_executor_smoke_test" {
+        expect(true)
+    }

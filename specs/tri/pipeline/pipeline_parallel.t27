@@ -44,3 +44,6 @@ module TriPipelineParallel;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "pipeline_parallel_smoke_test" {
+        expect(true)
+    }

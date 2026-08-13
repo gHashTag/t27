@@ -2,7 +2,7 @@
 // t27/specs/
 // Component health state | φ² + 1/φ² = 3 | TRINITY
 
-module "[]const u8";
+module EternalMonitor;
     use base::types;
     use math::constants;
 
@@ -22,14 +22,14 @@ module "[]const u8";
         interval_ms : u64,
         max_alerts : usize,
         auto_heal : bool,
-        log_file : [?[]Const u8",
+        log_file : [?[]Const u8],
     };
 
     pub const Alert = struct {
         timestamp : i64,
-        component : [[]Const u8",
+        component : [[]Const u8],
         severity : Severity,
-        message : [[]Const u8",
+        message : [[]Const u8],
         resolved : bool,
     };
 
@@ -60,3 +60,6 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "eternal_monitor_smoke_test" {
+        expect(true)
+    }

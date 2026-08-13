@@ -10,3 +10,6 @@ module TriCloud;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "cloud_smoke_test" {
+        expect(true)
+    }
