@@ -6670,4 +6670,107 @@ deciding which of two live definitions of `trinity` is the project.
 
 ---
 
+### T93 (W655) — the three closures compose, and the composition is measurable
+
+Three specs were built and verified independently, each closing one boundary:
+
+| spec | boundary | what disappears |
+|---|---|---|
+| `specs/fpga/ternary_link.t27` | between nodes | the **conversion** stage (T87) |
+| `specs/igla/race/phi_weights.t27` | inside the datapath | the **normalisation** stage (T89) |
+| `specs/numeric/tnf17.t27` | the accumulator | the **sign** cost (T88) |
+
+`specs/igla/race/ternary_node.t27` is the claim that they compose **without
+glue**, and the suite that makes the claim falsifiable. The whole node is four
+composed functions:
+
+```
+rx_slice(hi, lo)  ->  symbol_as_weight(sym)  ->  weighted_{a,b}(sym, a, b)  ->  acc_{a,b}
+```
+
+**`symbol_as_weight` is the identity.** It exists to be *named*, not to compute —
+naming it lets an invariant assert the identity and lets synthesis measure that
+it costs nothing.
+
+**Measured, both backends and silicon:**
+
+```
+zig test                26/26
+iverilog + vvp          26 PASSED, 0 FAILED, 0 compile errors
+synth_xilinx (xc7)      32 LUT2, 32 LUT5, 2 LUT6, 24 CARRY4, ZERO DSPs
+```
+
+> **T93.** One algebraic fact, `φ² = φ + 1`, removes a stage at **every** boundary
+> the system has, and at each one the saving takes the same form: **not a stage
+> made cheap, but a stage that does not exist.**
+>
+> - between nodes, because a wire symbol **is** a GFTernary code — identical
+>   2-bit encodings, so the conversion synthesises to zero LUTs;
+> - inside the datapath, because `Z[φ]` is a **ring** — weight application is
+>   `(a,b) ↦ (b, a+b)`, one integer addition, and nothing leaves the lattice;
+> - between layers, because the gain is `φ^k = F_k·φ + F_{k−1}`, a **pair of
+>   integers**, read rather than multiplied.
+
+**The falsifiable content is the zero-DSP figure.** A ternary node built on the
+unit alphabet `{−1,0,+1}` cannot reach it: its layer gain is `1` and carries no
+information, so it needs a learned real `α_ℓ` whose application is a multiply,
+and a multiply on this fabric is a DSP48 or a LUT-built multiplier. **The 24
+CARRY4 cells are adders. There is no multiplier anywhere in the node.**
+
+> **Corollary — what would refute this.** If a `{−1,0,+1}` node with a per-layer
+> scale synthesised to zero DSPs at comparable accuracy, the closure argument
+> would be decorative rather than load-bearing. That comparison has **not** been
+> run here, and until it is, T93 is a measurement of one side only.
+
+**And a limit, stated because the composition invites overreading.** The node is
+verified for a *single* MAC step. Fan-in, depth, and the accumulator width needed
+to keep `(a,b)` exact over many steps are **not** measured here. The article
+reports component widths growing logarithmically, reaching eight bits at fan-in
+512; that is a claim this spec does not yet test.
+
+---
+
+### T94 (W655) — a lesson becomes protective only when it becomes a command
+
+T91 recorded that writing a lesson down conferred no immunity: the `--limit`
+truncation was committed before T90 was written and again by T90's own author.
+Its corollary named the remedy — *not a lesson file, a check that runs* — and
+`scripts/check-pagination-truncation.sh` discharges it.
+
+The check probes with a doubling limit until the returned count is **strictly
+less** than the limit, and only then reports a population:
+
+```
+$ scripts/check-pagination-truncation.sh gHashTag 100
+TRUNCATED  --limit 100 -> 100   (n == limit; this is the limit, not the answer)
+TRUNCATED  --limit 200 -> 200   (n == limit; this is the limit, not the answer)
+OK         --limit 400 -> 219   (n < limit, so this is the population)
+    account type : User
+    public_repos : 188
+```
+
+**Negative control on a different owner**, to show the check discriminates rather
+than always printing "truncated":
+
+```
+$ scripts/check-pagination-truncation.sh openXC7 10
+TRUNCATED  --limit 10 -> 10
+OK         --limit 20 -> 19
+    account type : Organization
+```
+
+> **T94.** A lesson is a claim about what a future reader will remember; a check
+> is a claim about what a future *run* will do. Only the second has a failure
+> mode you can observe. **The 329 lessons in `t27-wave-loop.md` are a record of
+> what went wrong, not a mechanism preventing it** — and the ones that have
+> actually stopped a recurrence in this session are exactly those that became
+> gates, ledgers or scripts.
+
+**The check also carries the second correction as data rather than prose.** It
+prints the account type, because `User` and `Organization` differ in `--owner`
+semantics and org-scoped endpoints — the distinction that made "the gHashTag
+organisation" wrong in three committed documents.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
