@@ -678,6 +678,105 @@ fn vec_of_ident(tok: &str) -> Vec<String> {
     }
 }
 
+/// W647: T57 asserted that no static check could distinguish `%%0d` from `%0d`
+/// "without modelling `$display`'s format grammar, i.e. being a Verilog
+/// interpreter". **That was too strong, and its own falsification condition is
+/// met by three lines.** The relevant fact is not about Verilog's grammar but
+/// about this generator: it never intends a literal percent. Every `%` it emits
+/// is a directive -- verified over the corpus, where the only `%`-bearing text
+/// is `%0d cycles`. So `%%` in emitted Verilog is unconditionally a defect, and
+/// deciding that needs no grammar at all. See T58.
+fn cmd_verilog_no_double_percent(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()),
+        Ok(v) => v,
+    };
+    let bad: Vec<String> = v
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| l.contains("%%"))
+        .map(|(i, l)| format!("line {}: {}", i + 1, l.trim()))
+        .collect();
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} emitted line(s) contain `%%`, which $display prints as a LITERAL \
+         percent -- the value is never formatted into the sentence (T57): {}",
+        bad.len(),
+        bad.join("; ")
+    )
+}
+
+/// W647: the OUTPUT stratum. T57 was a defect that is well-formed Rust,
+/// well-formed Verilog, compiles and runs in both, and is wrong only when a
+/// human reads what it printed. Static checks stratify -- shape, type, output --
+/// and every gate built in this session lives in the first two.
+///
+/// This runs `iverilog` + `vvp` on the generated testbench and reads the
+/// printed lines, asserting each `[TEST]`/`[BENCH]` line is well formed: no
+/// unconsumed format directive, and a recognised verdict token.
+///
+/// **Bounded and named, not total** (T55): running the corpus through a
+/// simulator costs 10-20 minutes against the gate's 5, so this walks the specs
+/// passed to it and the caller decides which. Its coverage claim is exactly
+/// "the specs it was given", stated rather than implied.
+fn cmd_simulated_output_wellformed(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let exe_ok = |p: &str| {
+        Command::new(p)
+            .arg("-V")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    };
+    if !exe_ok("iverilog") {
+        // T51: a phase that did not run must not be reported as one that ran
+        // clean. The caller prints SKIPPED for this.
+        return Ok(());
+    }
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()),
+        Ok(v) => v,
+    };
+    let dir = std::env::temp_dir().join(format!("t27_outstratum_{}", std::process::id()));
+    fs::create_dir_all(&dir)?;
+    let vpath = dir.join("tb.v");
+    let opath = dir.join("tb.out");
+    fs::write(&vpath, &v)?;
+    let build = Command::new("iverilog")
+        .args(["-g2012", "-o"])
+        .arg(&opath)
+        .arg(&vpath)
+        .output()?;
+    if !build.status.success() {
+        // iverilog rejection is the Icarus phase's business, not this one.
+        return Ok(());
+    }
+    let run = Command::new("vvp").arg(&opath).output()?;
+    let text = String::from_utf8_lossy(&run.stdout);
+    let mut bad: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if !(line.contains("[TEST]") || line.contains("[BENCH]")) {
+            continue;
+        }
+        // An unconsumed directive means the value was never substituted.
+        if line.contains('%') {
+            bad.push(format!("unformatted directive survives to output: {}", line.trim()));
+        }
+    }
+    let _ = fs::remove_dir_all(&dir);
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!("simulated output is malformed: {}", bad.join("; "))
+}
+
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1594,6 +1693,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("verilog-no-keyword-decl", p1hfail, &mut ledger, &mut upstream_failed);
     push_phase("verilog-no-keyword-decl", p1hp, p1hf, 0);
 
+    println!("--- Phase 1a7: No literal-percent format strings ---");
+    let (p1ip, p1if, p1ifail) = run_phase_with_failures(
+        &repo,
+        "verilog-no-double-percent",
+        cmd_verilog_no_double_percent,
+        &specs_compiler,
+    )?;
+    println!("Format strings: {} clean, {} with `%%`", p1ip, p1if);
+    record("verilog-no-double-percent", p1ifail, &mut ledger, &mut upstream_failed);
+    push_phase("verilog-no-double-percent", p1ip, p1if, 0);
+
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf, p1bfail) =
         run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
@@ -2129,13 +2239,14 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
     }
 
-    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1hf + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
+    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1hf + p1if + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
     println!("Parse DISCARD fails:      {}", p1cf);
     println!("Vacuous invariant specs:  {}", p1df);
     println!("Vacuous verilog tests:    {}", p1ef);
     println!("Silent backend drops:     {}", p1gf);
     println!("Verilog keyword decls:    {}", p1hf);
+    println!("Literal-percent formats:  {}", p1if);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);

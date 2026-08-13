@@ -3248,6 +3248,85 @@ checker to model `$display`'s format grammar, i.e. to be a Verilog interpreter.
 
 ---
 
+### T58 (W647) — T57's falsification condition was satisfiable, and I wrote it too strongly
+
+**T57 ended:** *"Falsification condition: a static check that distinguishes
+`%%0d` from `%0d` in an emitted format string without executing it — which would
+require the checker to model `$display`'s format grammar, i.e. to be a Verilog
+interpreter."*
+
+**Three lines meet it.** The relevant fact is not about Verilog's grammar but
+about *this generator*: it never intends a literal percent. Over the corpus, the
+only `%`-bearing text it emits is `%0d cycles`. **So `%%` in emitted Verilog is
+unconditionally a defect, and deciding that requires no grammar at all.**
+
+Implemented as `verilog-no-double-percent`, and verified by reintroducing the
+bug:
+
+```
+FAIL verilog-no-double-percent (specs/mini/ternary_mac.t27):
+  3 emitted line(s) contain `%%` … line 4858: $display("[BENCH] … : %%0d cycles" …
+```
+
+**Statement.** A claim of the form *"detecting `P` requires capability `C`"* is a
+claim about the *general* case. When the artefact under test is produced by a
+*known generator*, the generator's own invariants — here, *"never emits a literal
+percent"* — collapse the problem, and the required capability is whatever
+decides that invariant, not whatever decides `P` in general. **Impossibility
+arguments transfer from the general setting to a generated one only if the
+generator is adversarial**, and this one is not: it is the thing being audited.
+
+**This is the second theorem this session whose falsification condition I met
+myself within one wave** (T53's third-site bet was collected by T54's gate). Both
+times the condition was stated as a bet against my own next move. **A
+falsification condition that the author can satisfy in the next wave was not a
+prediction; it was an unfinished task with a question mark.**
+
+---
+
+### T59 (W647) — The strata are incomparable, and the output stratum sees 3 of 144
+
+**W646 concluded that static checks stratify into shape, type and *output*, and
+recommended building the output stratum because T57 lived there.** Both gates
+now exist, so the comparison is measurable rather than assumed:
+
+| | static (`%%` in emitted text) | output (run it, read the print) |
+|---|---:|---:|
+| specs emitting `[BENCH]` | **144** | 144 |
+| of those, compile under `iverilog` | — | **3** |
+| of those, actually print a `[BENCH]` line | — | **3** |
+| **coverage of the defect population** | **144 / 144** | **3 / 144 (2%)** |
+
+**The output stratum is 48× narrower**, because it is conditioned on the artefact
+*compiling and executing* — and 141 of the 144 do not compile.
+
+**Statement.** Execution-level checking is not a *strengthening* of static
+checking; the two are **incomparable**. Static analysis sees code that is
+generated and never run; execution sees behaviour that no static shape reveals.
+`cov(static) ⊄ cov(dynamic)` and `cov(dynamic) ⊄ cov(static)`, and in a corpus
+where most artefacts do not build, **the dynamic stratum's coverage is bounded by
+the build rate, which is exactly T21's reachability conditioning one level out.**
+
+**And this corrects my own recommendation.** W646 recommended the output stratum
+over finishing the gate audit, on the reasoning that it "closes a stratum no
+current gate reaches". That is true and was worth building — it is the only
+place a wrong-value-printed defect can be caught — but **the specific defect that
+motivated it is caught 48× more broadly by three lines of static check.**
+The recommendation was made before either was measured.
+
+**What the output stratum is actually for.** Not breadth. It is the only stratum
+that can observe a value being *wrong* rather than a shape being *malformed* —
+and its 3-spec reach is a statement about this corpus's build rate, not about the
+technique. **Its coverage will grow exactly as the 173 parse failures and the
+iverilog rejections are repaired**, which makes it a gate whose value is
+back-loaded.
+
+*Falsification condition:* a defect class detected by the output stratum and not
+by any static check — which would establish the dynamic stratum's independent
+value on this corpus rather than in principle.
+
+---
+
 ## 2. Measured propositions
 
 Each carries a method, a number, and what would falsify it. Where a proposition

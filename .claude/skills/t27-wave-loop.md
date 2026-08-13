@@ -5868,6 +5868,33 @@ These cost a wave each. Follow them before step 1.
      migration appears, update the entry's phase; do not treat it as a
      regression or a fix.
 
+293. **An impossibility argument does not transfer from the general case to a
+     GENERATED one.** T57 claimed detecting `%%0d` statically "would require
+     modelling $display's grammar". Three lines meet it: the generator never
+     intends a literal percent, so `%%` in its output is unconditionally a
+     defect. **The generator's own invariants collapse the problem** -- and the
+     generator is not adversarial, it is the thing being audited. (T58.)
+
+294. **A falsification condition the author can satisfy next wave was not a
+     prediction; it was an unfinished task with a question mark.** Twice this
+     session: T53's "a third unescaped site is the way to bet" (collected by
+     T54's gate) and T57's "no static check could" (met by T58). If you can see
+     how to satisfy it, do that instead of writing it down as a bet.
+
+295. **Static and dynamic checking are INCOMPARABLE, not ordered.** Measured:
+     the `%%` static check covers 144/144 specs emitting [BENCH]; the
+     execution stratum covers **3/144 (2%)**, because 141 do not compile.
+     Static sees code generated and never run; execution sees values no shape
+     reveals. In a corpus where most artefacts do not build, the dynamic
+     stratum's coverage is bounded by the BUILD RATE -- T21's reachability
+     conditioning, one level out. (T59.)
+
+296. **The output stratum's value is back-loaded.** Its 3-spec reach is a
+     statement about this corpus's build rate, not about the technique; it grows
+     exactly as the 173 parse failures and the iverilog rejections are repaired.
+     Build it, but do not expect breadth from it yet -- and my own W646
+     recommendation preferred it over the gate audit BEFORE either was measured.
+
 ### How to update this tracker
 
 After closing a wave:
