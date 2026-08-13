@@ -7881,4 +7881,85 @@ feature** — tuple/newtype structs, `struct AccountID(str);`.
 
 ---
 
+### T123 (W661) — the corpus has exactly one lever, it is worth four specs, and its symptom pointed at the wrong file
+
+T120 said to measure depth rather than frequency. Measured, over all 617 specs:
+
+```
+  iverilog accepts                 151
+  does not generate Verilog        202
+  DEFECT specs                     264
+
+  depth distribution of the defect backlog
+    1 class      4   ####
+    2 classes   46   ##############################################
+    3 classes   39   #######################################
+    4 classes   39   #######################################
+    5+ classes 136   ######################################################
+```
+
+> **T123.** **Four specs of 264 are one class deep.** Everything else needs two
+> or more independent repairs, and half the backlog needs five or more. **There
+> is no lever in this corpus** — after these four, every further compiling spec
+> must be bought individually or by adding a language feature.
+
+**Forecast scoring (T44).** Registered before the sweep: 10–35 specs at depth 1.
+**Measured: 4. MISS, low by 2.5×.** The prediction assumed defects distribute
+independently; they do not — a spec broken in one way is overwhelmingly broken
+in several.
+
+### And the four share one class, whose symptom named the wrong file
+
+```
+'helpoptions_default' has already been declared in this scope
+```
+
+reads as a missing dedup in the Verilog emitter — the same field declared three
+times. The emitter was faithful. The **lexer** was not: `#` was not a comment,
+so
+
+```
+category : ?CommandCategory  # default: null,
+search   : ?[]const U8       # default: null,
+verbose  : Bool              # default: false,
+```
+
+parsed as six fields, three of them named `default`. Every struct carrying these
+annotations grew one phantom member per annotated field, all with the same name.
+
+> **T123a.** A duplicate-declaration diagnostic in generated code is a statement
+> about the **input to the emitter**, not about the emitter. Deduplicating the
+> output would have hidden a lexer defect and left the phantom fields in the
+> AST, where nothing else would ever have looked.
+
+`#` carries no meaning in this language — `pragma` is a keyword — and the
+measurement before the change found 42 occurrences in struct-field position
+across 8 specs, plus one file with a `.t27` extension whose contents are
+Markdown headings. Both are comments in intent. The rule runs after string and
+char literals are lexed, so `"# nextpnr-compatible XDC"` and `'#'` are untouched.
+
+**Measured on the four:**
+
+| spec | iverilog errors before | after |
+|---|---:|---:|
+| `help.t27` | 2 | **0** |
+| `governance_agent.t27` | 1 | **0** |
+| `swarm_agents.t27` | 1 | **0** |
+| `pipeline_parallel.t27` | 1 | **0** |
+
+Specs generating Verilog is unchanged at 444 — this was a **semantic** defect,
+not a parse failure, and it was invisible to every metric except depth.
+
+### A limitation of the measurement, stated
+
+The sweep reports **UNWRITTEN = 0**, against T121's count of 159 unwritten specs.
+The separator requires that *every* diagnostic be `No function named ...`; after
+the W660 scaffold fix these specs still emit other malformed constructs
+alongside the missing bodies. **The unwritten population does not separate
+cleanly at the iverilog level**, and the 264 "defect specs" therefore still
+contain an unknown number of unwritten ones. The depth distribution is sound;
+the population label is not.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

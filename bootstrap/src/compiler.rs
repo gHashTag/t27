@@ -313,6 +313,39 @@ impl Lexer {
                 continue; // loop back to skip more whitespace/comments
             }
 
+            // W661: `#` starts a line comment.
+            //
+            // Specs annotate struct fields with their source-language defaults:
+            //
+            //     category : ?CommandCategory  # default: null,
+            //     search   : ?[]const U8       # default: null,
+            //     verbose  : Bool              # default: false,
+            //
+            // `#` was not a comment, so the field parser read `# default: null,`
+            // as a FIELD, and every struct with these annotations grew a phantom
+            // `default` member -- one per annotated field, all with the same
+            // name. The symptom is three identical declarations in the emitted
+            // Verilog and `'helpoptions_default' has already been declared`,
+            // which reads as a missing dedup in the emitter. It is not: the
+            // emitter is faithfully lowering fields that should never have been
+            // parsed.
+            //
+            // `#` is not a pragma marker here -- `pragma` is a keyword
+            // (TokenKind::KwPragma) -- and it carries no other meaning in the
+            // language. Measured over the spec tree: 42 occurrences in struct
+            // field positions across 8 specs, plus a file with a `.t27`
+            // extension whose contents are Markdown headings. Both become
+            // comments, which is what they always were in intent.
+            //
+            // This runs AFTER string and char literals are lexed, so a `#`
+            // inside `"# nextpnr-compatible XDC"` or `'#'` is untouched.
+            if self.pos < self.source.len() && self.source[self.pos] == b'#' {
+                while self.pos < self.source.len() && self.peek() != b'\n' {
+                    self.advance();
+                }
+                continue;
+            }
+
             // Skip /* ... */ block comments
             if self.pos + 1 < self.source.len()
                 && self.source[self.pos] == b'/'

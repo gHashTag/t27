@@ -6546,6 +6546,32 @@ These cost a wave each. Follow them before step 1.
      progress print only fires on specs that reach the end of the loop body.
      `ps -o etime=` and a look at the child process answer this in one command.
 
+394. **A duplicate-declaration error in GENERATED code is a statement about
+     the emitter's INPUT.** `'helpoptions_default' has already been declared`
+     looked like a missing dedup in the Verilog emitter. The emitter was
+     faithful; the LEXER did not treat `#` as a comment, so
+     `verbose : Bool  # default: false,` parsed as TWO fields and every
+     annotated struct grew a phantom `default` member per field. Deduplicating
+     the output would have hidden the real defect and left phantom fields in the
+     AST where nothing else would look. T123a.
+
+395. **Defects do not distribute independently.** Forecast: 10-35 specs at depth
+     1. Measured: 4 of 264. A spec broken in one way is overwhelmingly broken in
+     several -- half the backlog is five or more classes deep. **Assume
+     correlation, not independence, when forecasting repair yield.** T123.
+
+396. **A synthetic reproduction can mislead where the real specs do not.** My
+     minimal case mixed an annotated field with an unannotated one, which broke
+     differently from every real spec (where ALL fields are annotated and the
+     parser accepts newline separation). The synthetic said the fix was wrong;
+     the four real specs went 2/1/1/1 errors -> 0/0/0/0. **Measure the fix on
+     the population it targets before believing a toy.**
+
+397. **A semantic defect is invisible to every metric except depth.** The phantom
+     fields never changed the parse count (444 -> 444) and never changed a first-
+     error histogram's top entry. They surfaced only as the sole depth-1 class in
+     the corpus.
+
 ### How to update this tracker
 
 After closing a wave:
