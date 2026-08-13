@@ -6235,6 +6235,49 @@ These cost a wave each. Follow them before step 1.
      iverilog error count of "6" was the argument to `head`; a sweep looked hung
      because `tail` buffers to EOF. **Redirect to a file and count the file.**
 
+346. **A cost a compiler can constant-fold is not a cost of the ARCHITECTURE;
+     it is a cost of the DEPLOYMENT MODE.** The zero-DSP figure does not separate
+     the phi alphabet from `{-1,0,+1}` at inference, because a trained per-layer
+     alpha is a CONSTANT and `acc * 352` strength-reduces to shifts. With alpha as
+     a runtime input it is 3 DSP48E1 against 0. **An area argument must name the
+     mode it holds in.** T97.
+
+347. **Build the control your own theorem says has not been built.** T93 stated
+     the condition that would refute it; building that control refuted it. The
+     over-claim was found by the author, in the same session, by doing the work
+     the theorem named. **A stated limit is a task, not a disclaimer.** T97.
+
+348. **Fan-in and depth are different questions and only one is logarithmic.**
+     Doubling the fan-in costs one bit; fourteen layers cost ten. A design sized
+     from the fan-in figure and then deepened WILL overflow -- and `Z[phi]` has
+     neither saturation nor rounding, so **the exactness that makes the datapath
+     free is what makes the overflow invisible.** T99.
+
+349. **Derive a forecast from a measured proportion on a random sample, not from
+     an estimate of the class.** Fifteen specs gave 11/15 = 73%; the class was
+     488; the forecast band held, and the shortfall (356 forecast, 313 observed)
+     WAS the multi-defect population at 12%, exactly as T67 predicts. **And check
+     the classes that should NOT move** -- that is half of scoring a forecast and
+     the half usually skipped. T107.
+
+350. **The largest single repair in the corpus was a regression I introduced.**
+     T74's `t27_failed` flag was declared in the test emitter and not the bench
+     emitter, which shares its statement lowering. 313 specs. **A defect described
+     in terms of one construct is repaired in terms of that construct**, and the
+     sibling reusing the broken machinery is never searched for, because nothing
+     in the description points at it. T106.
+
+351. **A sample large enough to disagree with itself is the only instrument that
+     finds a defect the measurer introduced** -- every aggregate the measurer
+     trusts already contains it. The class read 489 before the regression and 488
+     after; it was invisible in the number. T106.
+
+352. **Verify a model on hardware by making the acceptance criterion falsifiable
+     FIRST.** `Done 0x1` reads the same before and after any load, and a
+     deliberately corrupted bitstream produced identical signals. Force `Done` to
+     0 with a wrong-part bitstream, then load, and require the TRANSITION.
+     Configuration proven is not function proven. T73/T108.
+
 ### How to update this tracker
 
 After closing a wave:
