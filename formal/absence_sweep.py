@@ -70,6 +70,16 @@ EXEMPT = {
     # build/rtl -- and each absence case below was MEASURED by copying the
     # script alone into an empty tree and running it, not asserted.
 
+    "Corpus size scan — a finding ratchet improves when you delete the subject":
+        "it is the ONLY gate here whose subject is population SIZE, so starving "
+        "build/rtl is a case it must survive by design -- it reports "
+        "generated-rtl shrinking and fails, which is the correct answer to the "
+        "sweep's question and not an exemption from it. Exempt because the "
+        "sweep starves build/rtl for every step, and a gate that correctly "
+        "detects that would otherwise be recorded as failing-for-the-wrong-"
+        "reason. Absence case measured: alone in an empty tree it exits 1 "
+        "naming every population as empty (Prop. 209).",
+
     "Assumption scan — ask Coq what each theorem actually rests on":
         "its subject is trios-coq and coqc, not build/rtl -- starving the RTL "
         "cannot make it fail. Absence case measured: alone in an empty tree it "

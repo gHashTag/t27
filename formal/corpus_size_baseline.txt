@@ -1,0 +1,6 @@
+coq-sources	30
+gate-invocations	46
+gate-scripts	37
+generated-rtl	13
+specs	497
+workflows	38

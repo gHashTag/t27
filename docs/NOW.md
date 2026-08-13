@@ -2,6 +2,50 @@
 
 Last updated: 2026-08-13
 
+## Deleting half the corpus reads as a 38% improvement (Closes #2145)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2145
+- PR: (direct commit)
+
+### What landed
+
+Every absence case so far starved a gate **completely**. Starving one *partly* --
+249 of 497 specs removed:
+
+| gate | full | half | verdict |
+|---|---|---|---|
+| `spec_parse_gate` | 154 events | **95** | `ratchet holds` -- 38% "better" |
+| `delimiter_balance_scan` | 21 | **6** | `ratchet holds` -- 71% "better" |
+| `spec_class_scan` | 16 | **11** | `ratchet holds` |
+| `capture_density_scan` | 1 | 1 | `ratchet holds` |
+
+All four exit 0. `formal/corpus_size_scan.py` (gate 32) ratchets population SIZE,
+so a deletion is as loud as a regression.
+
+**Prop. 208's defect reproduced one wave later**: the first liveness check was
+`all(v == 0)`, and it exited 0 alone in an empty tree because `gate-scripts`
+counted this file. Fixed the same way `coverage_gate` and `comment_scan` were --
+resolve what CI runs, do not glob.
+
+45 gates pass, sweep exit 0 (62 steps, 45 diagnosed), 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **Gate 32 counts FILES, not content.** A spec emptied to zero bytes is not
+  detected, and neither is a population its list does not name (six are named).
+- **The existing gates are NOT fixed.** They still improve when their subject
+  shrinks; gate 32 fails alongside them rather than repairing them. A run of one
+  of those gates ALONE still reports a deletion as progress.
+- **The half-corpus experiment removed the first half by sort order**, not a
+  random sample, so the specific numbers (95, 6, 11) are one draw and not a
+  distribution.
+- `comment_scan` then flagged the new gate for globbing `*.sv` without stripping
+  comments. It never reads Verilog content, and that is recorded with the
+  `# comment-scan:` marker rather than silenced.
+- No RTL, spec, or proof content changed.
+
+
 ## A scanner that matches its own source (Closes #2144)
 
 - Branch: `feat/wave-547/host-heapsort`

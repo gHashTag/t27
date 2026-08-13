@@ -11014,6 +11014,61 @@ false exemption that had been in the list, believed, for its entire life.
 
 ---
 
+### Prop. 209 — deleting half the corpus reads as a 38% improvement in every ratchet — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Corpus size scan — a finding ratchet improves when you delete the subject*
+
+Every absence case measured so far starves a gate **completely**. The untested
+middle is a subject that is *partly* there. Measured, with 249 of 497 specs
+removed:
+
+| gate | full corpus | half corpus | verdict |
+|---|---|---|---|
+| `spec_parse_gate` | 154 events | **95** | `ratchet holds` — reads as 38% better |
+| `delimiter_balance_scan` | 21 imbalances | **6** | `ratchet holds` — 71% better |
+| `spec_class_scan` | 16 documents | **11** | `ratchet holds` |
+| `capture_density_scan` | 1 shell | 1 | `ratchet holds` |
+
+**All four exit 0.** Deleting half the subject is not merely undetected — in three
+of them it is indistinguishable from *progress*.
+
+**Theorem (ratchet monotonicity).** For a finding count `M(C) = |{x ∈ C : P(x)}|`
+and any `C' ⊆ C`, `M(C') ≤ M(C)`. A ratchet asserting `M(now) ≤ M(baseline)` is
+therefore **satisfied by every deletion**, and the class of changes it accepts
+includes the complete removal of its own subject. A finding ratchet is a
+*one-sided* instrument: it constrains the numerator and is unbounded below in the
+denominator.
+
+Prop. 194 required gates to **publish** a denominator, and they do — `spec parse
+gate: 497 specs, ...` appears on every run. **Publishing is not ratcheting**, and
+nothing had ever checked that the 497 stayed 497. Gate 32 ratchets the sizes, so a
+deletion is exactly as loud as a regression. It does not forbid removing files; it
+forbids doing so silently while another gate reports the drop as an improvement.
+
+**And I reproduced Prop. 208's defect while writing this, one wave later.** The
+first version's liveness check was `all(v == 0 for v in populations)`. Alone in an
+empty tree it exited **0** — because `gate-scripts` counted **this file**. The
+scanner was a member of its own population, so "everything is empty" was never
+true.
+
+That is worth more than the gate. Prop. 208 recorded self-matching as a fact about
+a *regex* mentioning its own pattern; the general form is **any scanner that
+appears in the population it measures**, and recording the narrow version is why
+the lesson did not transfer eleven days — one wave — later. Fixed with the same
+repair `coverage_gate` (Prop. 200) and `comment_scan` (Prop. 208) both needed:
+resolve which scripts CI runs and require them present. Starved: now exit **1**.
+
+**Corollary.** Three gates have now needed the identical fix. *"Resolve the
+reference set from the pipeline instead of globbing the directory"* is not a
+per-gate repair; it is the default any scanner over its own tooling should be
+written with.
+
+Three bars: **TRUE** — full tree exit 0, sweep exit 0 (62 steps, 45 diagnosed).
+**ALIVE** — six populations counted, none zero. **BITING** — on the half corpus it
+exits 1 naming three shrunk populations; alone in an empty tree it exits 1.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

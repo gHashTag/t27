@@ -58,6 +58,9 @@ jobs:
       - name: Starve guard — refuse to trust results while a sweep's stash exists
         run: python3 formal/starve_guard.py
 
+      - name: Corpus size scan — a finding ratchet improves when you delete the subject
+        run: python3 formal/corpus_size_scan.py
+
       - name: Install Yosys
         run: sudo apt-get update && sudo apt-get install -y yosys
 
