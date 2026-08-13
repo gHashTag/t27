@@ -6705,6 +6705,24 @@ These cost a wave each. Follow them before step 1.
      41 of 121 against the honest population. The class was real; its size was
      measured against a corpus figure inflated 3.8x.
 
+419. **Trace a class to the PREDICATE, not to the symptom.** T129 named the
+     symptom (declaration keyed by type, use keyed by variable). The cause is one
+     `all()` in `is_lowerable_scalar_struct` that admits only primitive fields, so
+     a single enum field disables packed lowering for the whole struct and drops
+     it into an unsound fallback. 242 of 444 generating specs carry the marker.
+     T131.
+
+420. **Verify the good path works before assuming it is broken.** A minimal
+     two-`u8` struct lowers correctly as a packed vector in BOTH declaration
+     syntaxes. The packed path has no bug -- it is switched off. Ten minutes on a
+     minimal case saved rewriting a working emitter.
+
+421. **Do not half-land a fix that would trade a loud failure for a quiet one.**
+     Extending the lowerability predicate needs a recursion guard, an enum width
+     rule, and a decision on arrays of non-primitives. Shipping it partially would
+     turn `Unable to bind` into silent aliasing between two variables of one
+     type. A failure you can see is worth more than a wrong answer you cannot.
+
 ### How to update this tracker
 
 After closing a wave:

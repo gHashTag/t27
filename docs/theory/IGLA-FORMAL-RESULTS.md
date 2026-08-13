@@ -8308,4 +8308,59 @@ possible without reimplementing it.**
 
 ---
 
+### T131 (W666) — T129 traced to its predicate: one non-primitive field disables the whole struct
+
+T129 named the symptom — declarations keyed by TYPE, uses keyed by VARIABLE.
+W666 traced it to the decision that produces the inconsistent pair.
+
+**The packed path exists and works.** A minimal struct of two `u8` fields lowers
+correctly in both declaration syntaxes:
+
+```
+// struct P lowered as packed vector (16 bits)
+```
+
+and `p.b` becomes a part-select against the packed input. There is no bug here.
+
+**It is switched off by one predicate.** `is_lowerable_scalar_struct` requires
+**every** field to satisfy `is_primitive_scalar_type`. A single field whose type
+is an enum or a nested struct fails the `all()`, and the struct falls to the
+per-field fallback — which declares `reg <typename>_<field>` at module level
+while every use site emits `<varname>_<field>`. **Those two names can never
+agree, and the fallback is unsound anyway**: per-type registers are module
+globals, so two variables of one type would alias if they ever did bind.
+
+```
+BrainState { arousal: ArousalLevel, phi_coherence: f64, ... }
+                      ^^^^^^^^^^^^ an enum -> whole struct not lowerable
+```
+
+Measured over the 444 specs that generate Verilog:
+
+| | specs |
+|---|---:|
+| at least one struct marked `UNSUPPORTED_ICARUS: non-lowerable fields` | **242** |
+| at least one struct lowered as a packed vector | 85 |
+
+> **T131.** The largest defect class in the corpus is produced by an `all()` over
+> field types that admits only primitives. **An enum is an integer and a nested
+> lowerable struct is a packed vector — both have known widths**, so the
+> predicate excludes cases it could accept. Extending it is the repair; the
+> per-type fallback should then become unreachable rather than merely correct.
+
+**Not attempted this wave, deliberately.** The extension needs a recursion guard
+(a struct containing itself), a width rule for enums, and a decision about arrays
+of non-primitives. Landing it half-done would convert a loud, well-understood
+failure into a quiet aliasing bug — which is exactly the trade T124 warns
+against. It gets its own wave and its own registered forecast.
+
+**What this closes.** The mission context has carried "489 `undeclared
+identifier`, NOT diagnosed" as the oldest open item. It is now traced end to end:
+symptom (T129) → mechanism (two flattening keys) → cause (T131, one predicate) →
+population (41 of 121 defect specs; 242 of 444 carry the disabling marker). The
+"489" figure itself was measured against a denominator since shown inflated 3.8×
+(T125).
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
