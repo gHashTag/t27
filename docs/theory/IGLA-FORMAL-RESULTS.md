@@ -6228,4 +6228,77 @@ which were measured while at least one of these was running.
 
 ---
 
+### T84 (W654) — the first corpus-wide measurement of Verilog test outcomes, and the first real defect it caught
+
+With the harness repaired (T74–T78), the question "do the corpus's Verilog tests
+pass?" became answerable for the first time. All 1,065 specs, generated,
+compiled and run:
+
+```
+gen_fail       216      no Verilog emitted at all
+iv_error       617      emitted Verilog does NOT compile   <-- 72.7% of those that emit
+compiles       231
+run_timeout      4      simulations that do not terminate
+
+  PASSED      476
+  FAILED       34
+  NOT CHECKED  46
+```
+
+**Before this session the same command would have reported `556 PASSED, 0 FAILED`.**
+The 34 failures and 46 unchecked were always there; nothing could express them.
+
+**Only 9 specs carry a failure**, six of them under `specs/fpga/testbench/`. The
+smallest is a two-test regression spec, and it is the interesting one.
+
+#### The defect: `f32` lowers to an *unsigned* vector, and every sign test inverts
+
+`specs/scratch/w375_early_return.t27` passes in Zig (2/2) and fails in Verilog.
+The generated function:
+
+```verilog
+function [31:0] exp_approx_short;   // <- f32 becomes an UNSIGNED 32-bit vector
+    input [31:0] x;
+    if ((x == 0.0)) ... else if ((x < 0.0)) ...   // <- literals stay REAL
+```
+
+**Measured directly, not inferred** — a five-line iverilog probe:
+
+```
+f(-1.0)      = 4294967295     the real -1.0, narrowed to [31:0]
+(-1.0 < 0.0) = 1              the real comparison is correct
+f(-1.0)<0.0  = 0              after narrowing, the sign is GONE
+```
+
+> **T84.** The `f32` type is lowered to an unsigned bit vector while float
+> *literals* are emitted as Verilog reals. Every negative value therefore becomes
+> ≈4.29 × 10⁹ at the function boundary, and **every comparison against zero
+> inverts**. The function returns the wrong branch, silently, for the entire
+> negative half of its domain.
+
+**This spec is a W375 regression test.** It has been reporting `PASSED` in Verilog
+since it was written, guarding a property it never checked, on a backend where
+the property is false.
+
+> **The general form.** A regression test pinned a *control-flow* property
+> (early-return chaining) and was written using a *type* the backend cannot
+> represent. It then passed for the wrong reason. **A test can be correct about
+> its subject and wrong about its substrate**, and only an oracle that can fail
+> distinguishes the two.
+
+#### What the numbers mean, stated as bounds
+
+- **617 iverilog errors is a floor on the work, not a count of defects.** iverilog
+  stops at the first failing stage (T67), so one spec may hide several.
+- **4 non-terminating simulations** are the T83 hazard reproduced inside a bounded
+  harness; they were killed by the sweep's own timeout rather than surviving it.
+- **476 PASSED is now informative and was not before.** That is the whole value of
+  T74–T78: not that the number moved, but that it acquired content.
+
+**Ratchet immediately after these changes: CLEAN, 326/326, 0 unexpected in either
+direction** — and by T77 that verdict says nothing about any of the above, because
+the phases it runs are static and the simulation phase is opt-in.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
