@@ -6486,4 +6486,65 @@ format already holds.
 
 ---
 
+### T89 (W655) — IGLA RACE already had the codes and was missing only the interpretation
+
+`specs/igla/race/ternary_inference.t27:20` states:
+
+```
+/// Weights are stored as ternary codes (0=zero, 1=+1, 2=-1) in a WeightBank.
+```
+
+`specs/numeric/gfternary.t27:20-22` states:
+
+```
+GFT_ZERO = 0x00 -> 0     GFT_POS = 0x01 -> +phi     GFT_NEG = 0x02 -> -phi
+```
+
+**The codes are identical. Only the interpretation differs, and the difference is
+the whole argument**: RACE reads code `1` as `+1`, not as `+φ`.
+
+> **T89.** With the unit alphabet `{−1,0,+1}` the gain of a layer is `1` and
+> carries no information, so every published ternary method hangs a **learned
+> real scale `α_ℓ`** on each layer — and multiplying by `α_ℓ` **puts the
+> multiplier back**. With `{−φ,0,+φ}` the inter-layer gain is `φ^k = F_k·φ +
+> F_{k−1}`, a **pair of integers**, and is therefore *read* rather than
+> multiplied. Storage is two bits either way; symbol count is three either way.
+> **The φ alphabet carries the scale that the unit alphabet must learn and then
+> pay for.**
+
+`specs/igla/race/phi_weights.t27` supplies the missing interpretation. A value is
+an integer pair `(a,b)` meaning `a + bφ`; because `φ² = φ + 1`,
+
+$$\varphi\,(a + b\varphi) = a\varphi + b(\varphi+1) = b + (a+b)\varphi$$
+
+so **applying a weight is `(a,b) ↦ (b, a+b)`** — one integer addition, no shift.
+Negation flips both components. A zero weight is a **skip**, not a multiply by
+zero. Accumulation is componentwise integer addition, and `Z[φ]` is a ring, so
+the entire linear path is exact.
+
+**Measured, and it is the article's headline claim reproduced on a spec-first
+artefact:**
+
+```
+IglaRacePhiWeights:   3 LUT6, 11 IBUF, 33 OBUF, ZERO DSPs
+```
+
+**Verified in both backends:** `zig test` 29/29; `iverilog + vvp` 29 PASSED, 0
+compile errors — and by T78 the Verilog half of that can now fail, so it counts.
+
+**The depth identity is pinned against the article's own figure.** `φ^30`'s pair
+is `(F_29, F_30) = (514229, 832040)`; computed independently and matched exactly,
+with the invariant `GAIN30_B − GAIN30_A == 317811 = F_28` making the Fibonacci
+structure checkable rather than decorative.
+
+> **Corollary — three boundaries, one closure.** The article's closure argument
+> removes the normalisation stage **inside the datapath**. T87 removed the
+> conversion stage **between nodes**, because a wire symbol *is* a GFTernary
+> code. T89 removes the learned scale **between layers**, because the gain is a
+> pair of integers. **The same algebraic fact — `φ² = φ + 1` — pays off at every
+> boundary the system has**, and at each one the saving takes the same form:
+> a stage that does not exist rather than a stage made cheap.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
