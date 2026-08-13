@@ -46,10 +46,49 @@ old database already has the correct numeric value. The assertion fires only
 because the chipdb's own extra-constids block starts at index 784 while the
 binary has 786 baked in.
 
+### Before anything else — run the preflight
+
+```bash
+./scripts/check-fpga-toolchain.sh
+```
+
+**Added 2026-08-14 (W657) because this section was read and applied backwards.**
+The diagnosis below was correct and already written down; what happened anyway
+was: two lines were *appended* instead of the reference file being *copied in*,
+a vendored copy was mistaken for the fork, and a ten-minute rebuild was spent
+moving away from the target. A recipe that has to be remembered will eventually
+not be. The preflight refuses to start P&R when any of it is wrong, and prints
+the exact `cp`/`cmake` command that fixes it.
+
+Two traps it also closes:
+
+- **`build/fpga/openxc7/nextpnr-xilinx` is a vendored copy inside the t27
+  repo** (763 constids, `git remote` reports `gHashTag/t27`). It builds and
+  runs. Copying the reference constids into it makes the assertion pass — and
+  it then fails with `Unable to constrain IO 'led_t23', device does not have a
+  pin named ''`, **on a known-good design with a known-good XDC**. The pin
+  tables are a different vintage. Diagnosed only by running a control design
+  through it: when a design that worked yesterday fails identically, the
+  variable that changed is the tool, not the design.
+- **Never build the toolchain under a session scratchpad.** It is deleted on
+  session restart, and the missing binary then reports as a stage that finished
+  in **0.0 s** — which reads as success to anything timing stages instead of
+  checking exit codes. Clone to
+  `/Users/playom/t27/build/fpga/openxc7/nextpnr-openxc7`.
+
+```bash
+git clone --depth 1 -b stable-backports \
+    https://github.com/openXC7/nextpnr-xilinx.git nextpnr-openxc7
+```
+
 ### The fix — two lines, one rebuild, zero disk
 
 ```bash
 # 1. use the constids the database was generated with
+#    NOTE: copy the file IN. Do not append lines to the fork's own file --
+#    the 784-line reference differs from the 786-line fork file by two lines
+#    at the END, but from the vendored 763-line file by ORDER (X(PAD) vs
+#    X(OPAD) at line 134), and constids are ordinal.
 cp build/fpga/openxc7/constids.inc <nextpnr-xilinx>/xilinx/constids.inc
 
 # 2. X(GE) is unused; X(BUFR) has exactly one use -- make it dynamic
@@ -57,6 +96,24 @@ cp build/fpga/openxc7/constids.inc <nextpnr-xilinx>/xilinx/constids.inc
 -  } else if (ci->type == id_BUFR) {
 +  } else if (ci->type == ctx->id("BUFR")) {
 ```
+
+> **Match on a word boundary.** `pack_clocking_xc7.cc` contains the substring
+> `id_BUFR` **twice**, and the second one is `id_BUFR_BUFR` — a different,
+> legitimate constid (the BEL type) that IS present in the 784-line file. A
+> plain substring replace produces `ctx->id("BUFR")_BUFR` and the build fails.
+> Verify before building — every `id_*` in the tree must resolve:
+>
+> ```bash
+> python3 - <<'EOF'
+> import re, glob
+> ids = {l.strip()[2:-1] for l in open('xilinx/constids.inc')
+>        if l.strip().startswith('X(') and l.strip().endswith(')')}
+> bad = {m.group(1) for f in glob.glob('xilinx/**/*.[ch]*', recursive=True)
+>        for m in re.finditer(r'\bid_([A-Za-z0-9_]+)', open(f, errors='ignore').read())
+>        if m.group(1) not in ids}
+> print(sorted(bad) if bad else 'all id_* resolve')
+> EOF
+> ```
 
 `ctx->id("BUFR")` interns the string at runtime and compares identically.
 

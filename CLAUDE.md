@@ -128,8 +128,12 @@ Load these skills when their functionality matches the task.
 for the FPGA board, JTAG cable, host toolchain, and program/flash path. Read it
 before touching anything under `fpga/`. Non-negotiables:
 
-- Target board is **QMTech Wukong V1 / XC7A100T-FGG676** (`xc7a100tfgg676-1`),
-  IDCODE `0x13631093`. Not the Arty A7 (`csg324`).
+- Target board is **QMTech Wukong V1 / XC7A200T-FGG676** (`xc7a200tfgg676-1`),
+  IDCODE `0x03636093`. Not the Arty A7 (`csg324`), and **not the 100T** — this
+  file said `XC7A100T` / `0x13631093` until 2026-08-14, contradicting the SSOT
+  it points to. Measured on all three attached boards: `idcode 0x3636093`,
+  `family artix a7 200t`. For place-and-route use the `fbg676` chipdb
+  (`xc7a200tfbg676-1`) — same die and pinout, per HARDWARE_SSOT.md §2026-07-05.
 - Flash via the in-repo Rust driver **`cli/dlc10`** (`dlc10 idcode|sram|flash|reload`).
   **Do not use `openFPGALoader`** — it cannot drive the `0x03FD` Xilinx cable.
 - No native macOS Vivado exists. Synthesis is Vivado-in-Docker or OpenXC7 only.

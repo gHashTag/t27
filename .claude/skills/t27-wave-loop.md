@@ -6278,6 +6278,63 @@ These cost a wave each. Follow them before step 1.
      0 with a wrong-part bitstream, then load, and require the TRANSITION.
      Configuration proven is not function proven. T73/T108.
 
+353. **A stage that "finished in 0.0 s" did not finish — it did not start.**
+     `nextpnr` returned in 0.0 s on a 332 MB database and the pipeline reported
+     "8.5 s from spec to board". The binary was gone (`rc=127`); FASM was never
+     written, frames came out zero-length, and the 9.7 MB bitstream was built
+     from nothing, because bitstream SIZE IS SET BY THE DIE, NOT THE CONTENT.
+     Time is not a result. **Check the exit code and the artefact size.** W657.
+
+354. **Never build a toolchain under a session scratchpad.** It is deleted on
+     restart, and the missing binary then presents as lesson 353. Clone to a
+     persistent path. Same for anything a bitstream needs: `mvp_top.v` lived
+     only in scratch, so the previous wave's measured result was not
+     reproducible from git. **If it is not in git, it did not happen.** W657.
+
+355. **`--busdev-num` is not an identity.** All three Digilent cables share
+     serial `210512180081`, so bus position is the only handle — and it changes
+     on replug (`0:4,0:7,0:10` became `1:4,1:6,1:8`). A hardcoded address flashes
+     the wrong board, or silently nothing. **Re-scan before every session.** W657.
+
+356. **When yesterday's working design fails today, the variable is the tool.**
+     A constids mismatch was fixed, and P&R then failed with `Unable to constrain
+     IO 'led_t23', device does not have a pin named ''` — which reads as a bad
+     XDC. The XDC was correct. Running a KNOWN-GOOD design through the same path
+     reproduced it exactly. Root cause: `build/fpga/openxc7/nextpnr-xilinx` is a
+     VENDORED COPY inside t27 (`git remote` → gHashTag/t27), not the openXC7
+     fork. **A control experiment is cheaper than debugging a correct file.** W657.
+
+357. **A written recipe is not a working recipe.** `LOCAL-BITSTREAM-FLOW.md`
+     recorded the constids diagnosis and fix correctly the day before, and it was
+     applied BACKWARDS — two lines appended instead of the reference file copied
+     in — costing a ten-minute rebuild in the wrong direction. Knowledge that
+     must be remembered will eventually not be. **Convert recipes into scripts
+     that refuse to proceed** (`scripts/check-fpga-toolchain.sh`). W657.
+
+358. **Word-boundary every identifier replace.** Replacing `id_BUFR` by substring
+     also hit `id_BUFR_BUFR`, a different and legitimate constid, producing
+     `ctx->id("BUFR")_BUFR`. Before building, assert every `id_*` in the tree
+     resolves against `constids.inc`. W657.
+
+359. **A self-check driven by its own test vectors specialises the circuit it
+     certifies.** Ten reference vectors on the input let synthesis constant-fold
+     the classifier: network + checker measured the SAME 83 LUT the network alone
+     costs with a free input — only possible if the network shrank. Sweeping all
+     256 inputs gave **182 LUT**. The LED must attest to the general circuit, not
+     to a lookup table synthesised from the test. **Drive the full input space,
+     and check an invariant on the inputs that have no reference value.** W657.
+
+360. **A verdict lamp must be sticky, and the stickiness must be tested.** Phase
+     3 of the harness removes the injected fault and requires the failure lamp to
+     STAY lit. A verdict that recovers would blink cheerfully through an
+     intermittent wrong answer. Test that the harness can FAIL before trusting
+     that it PASSED. W657.
+
+361. **The file that declares the SSOT can itself be stale.** `CLAUDE.md` named
+     the board `XC7A100T-FGG676`, IDCODE `0x13631093`; measurement on all three
+     boards gives `0x13636093`, `artix a7 200t`, and `fpga/HARDWARE_SSOT.md` has
+     said 200T since 2026-07-03. **Verify the pointer, not just the target.** W657.
+
 ### How to update this tracker
 
 After closing a wave:
