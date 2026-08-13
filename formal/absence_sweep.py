@@ -35,6 +35,14 @@ BUILDERS = {"Install Yosys", "Build t27c", "Emit the BitNet RTL bundle"}
 # the only way a step escapes the sweep, and a wrong entry here is how the
 # sweep would come to pass while checking less than it claims.
 EXEMPT = {
+    # Prop. 207: this gate's subject is the stash itself.
+    "Starve guard — refuse to trust results while a sweep's stash exists":
+        "its subject is the existence of build/_absence_bak, which this sweep "
+        "itself creates -- so during a sweep it is TRUE by construction and "
+        "starving build/rtl cannot change that. Absence case measured: with no "
+        "stash it exits 0 and with one it exits 1 naming the held files "
+        "(Prop. 207).",
+
     # Prop. 200: these four landed in waves 694-700 and were never added here,
     # so the sweep has been RED for six waves while a hand-curated list of 20
     # gates was being run and called "the full set". Each is exempt for the same

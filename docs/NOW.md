@@ -2,6 +2,47 @@
 
 Last updated: 2026-08-13
 
+## 21 of 44 gates passed on a starved tree (Closes #2143)
+
+- Branch: `feat/wave-547/host-heapsort`
+- Issue: #2143
+- PR: (direct commit)
+
+### What landed
+
+`formal/starve_guard.py` (gate 31), placed **first** in the workflow, and stash
+recovery at the start of `run_all`.
+
+The measurement comes from the outage two waves ago: on one identically starved
+tree, **23 of 44 gates failed and 21 passed**. Both groups saw the same absent
+subjects. Which group a gate landed in was a property of how it was written, not
+of the tree -- and the 21 passes looked exactly like a healthy run.
+
+Gate 31 turns that cascade into one line naming the cause. It **does not
+restore** (a gate that silently repaired the tree would hide the outage again)
+and it tells the reader not to delete the stash.
+
+45 gates pass on a quiet machine, absence sweep exit 0 (61 steps, 44 diagnosed,
+17 exempt), 1213 tests pass.
+
+### Honesty limits (BINDING)
+
+- **The window is not fully closed.** CI: closed. `run_all`: closed. A single
+  gate invoked BY HAND while a stash exists: still open. Closing that means a
+  guard inside all 32 scripts, and it is not done.
+- **Gate 31 checks one condition** -- the stash directory exists. A subject
+  deleted by anything else is not detected, and neither is a partially restored
+  tree. It guards one known, previously-observed failure mode; it is not a health
+  check.
+- **`run_all`'s verdict is not a pure function of the repository.** `bench.py
+  --self-test` failed in BOTH full-suite runs this wave with "the machine was
+  contended (load > 6.0 on 8 cores)" and passes at load 5.3. The refusal is
+  correct; the consequence is that a red must be read before it is believed.
+- The 23/21 split is from the earlier outage, not re-measured this wave -- it is
+  quoted from Prop. 205's incident, not a fresh experiment.
+- No RTL, spec, or proof content changed.
+
+
 ## A finally does not survive SIGKILL (Closes #2142)
 
 - Branch: `feat/wave-547/host-heapsort`

@@ -10896,6 +10896,64 @@ interruption leaves 10 of 13 RTL files and 13 of 15 property files missing.
 
 ---
 
+### Prop. 207 — 21 of 44 gates passed on an identically starved tree, and which ones was a property of the gates — `MEASURED`
+
+**Gate:** `formal-yosys.yml` → *Starve guard — refuse to trust results while a sweep's stash exists*
+
+Prop. 206 moved `absence_sweep`'s restore to its own startup, closing the window
+for the next run of **that** gate. This is the other half: every other gate run in
+between still measures a starved tree, and **cannot tell**.
+
+The measurement already exists, from the outage itself. On one identically starved
+tree: **23 of 44 gates failed and 21 passed.** Both groups saw the same absent
+subjects. Whether a gate reported *"found no property files"* or *"0
+disagreements"* was not a fact about the tree — it was a fact about **how that
+gate happened to be written**. The 21 passes established nothing whatsoever, and
+looked exactly like the 21 passes of a healthy run.
+
+**Theorem (absence is not a value).** For a check `C` over subject `S`, `C(∅)` is
+defined but carries no information about `C`'s question. A suite therefore
+partitions on `S = ∅` into
+
+```
+gates that treat ∅ as a failure     gates that treat ∅ as a clean result
+```
+
+and that partition is a property of the **implementations**, not of the subject —
+so a suite's aggregate verdict on an absent subject is arbitrary. This is why
+`absence_sweep` exists at all, and Prop. 207 is its converse: the sweep asks
+*which gates survive starvation*, and the answer is exactly the set whose results
+are worthless when starvation happens accidentally.
+
+**Gate 31 is placed FIRST in the workflow** and fails if `build/_absence_bak`
+exists. That converts a suite-wide cascade of unrelated reds — the shape that cost
+most of a wave to diagnose — into one line naming the cause. `run_all` recovers
+the stash before enumerating anything.
+
+**It deliberately does not restore.** A gate that silently repaired the tree would
+make the outage invisible again, which is the failure this whole chain is about.
+It also tells the reader **not to delete the stash**, because that is what was
+done last time and it may hold the only copy.
+
+**Residual gap, stated rather than implied away.** A gate invoked *by hand* while
+a stash exists still measures a starved tree. Closing that fully means a guard
+inside all 32 scripts; it is not done. The window is now: CI — closed; `run_all` —
+closed; a single gate run manually — open.
+
+**A second machine-state finding, confirmed twice.** `bench.py --self-test` failed
+in both full-suite runs this wave with *"the machine was contended (load > 6.0 on
+8 cores). No comparison is printed"* — and passes at load 5.3. That is the correct
+refusal, and it means **`run_all`'s verdict is not a pure function of the
+repository.** A red must be read before it is believed, which is uncomfortable for
+a suite runner and is recorded here rather than smoothed over.
+
+Three bars: **TRUE** — 45 gates pass on a quiet machine, absence sweep exit 0 (61
+steps, 44 diagnosed, 17 exempt), 1213 tests pass. **ALIVE** — the guard sees the
+stash and enumerates the files it holds. **BITING** — a planted stash returns exit
+1 naming the file; `run_all` then recovers it and the guard returns 0.
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

@@ -51,6 +51,13 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-formal-${{ hashFiles('**/Cargo.lock') }}
 
+      # Prop. 207: FIRST. If a destructive sweep died holding the subjects,
+      # every step below measures a starved tree and reports a pass or a
+      # failure according to how it happens to be written. One line here beats
+      # a cascade of unrelated reds.
+      - name: Starve guard — refuse to trust results while a sweep's stash exists
+        run: python3 formal/starve_guard.py
+
       - name: Install Yosys
         run: sudo apt-get update && sudo apt-get install -y yosys
 

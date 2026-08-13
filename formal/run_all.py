@@ -17,7 +17,14 @@ sweep -- which is the class of bookkeeping that produced Prop. 200 in the first
 place. It is an operator tool, and its own correctness rests on one property that
 IS checked: if it enumerates zero steps, it fails.
 
-COVERAGE. Enumerates `python3 formal/<name>.py` invocations across all workflow
+COVERAGE. Recovers an interrupted destructive run before doing anything
+(Prop. 207) -- but only for gates it launches. **A gate invoked by hand while a
+stash exists still measures a starved tree**, and that window is open until
+someone runs this or the sweep. Closing it fully would mean a guard inside every
+one of the 32 scripts; that is not done, and the residual gap is stated rather
+than implied away.
+
+Enumerates `python3 formal/<name>.py` invocations across all workflow
 files -- 43 distinct invocations of 30 scripts, out of 58 total workflow steps.
 The residue is explicit and large: the other 15 steps are yosys proofs, cargo
 builds and shell, and this tool does not run them. It therefore establishes "every
@@ -71,7 +78,39 @@ def invocations():
     return out
 
 
+def recover_stash():
+    """Restore an interrupted destructive run before enumerating anything.
+
+    Prop. 207. Prop. 206 put recovery at the START of `absence_sweep`, which
+    closes the window only for the next run of THAT gate. Every other gate run in
+    between still measures a starved tree -- and reports its result with complete
+    confidence, because a gate cannot tell "my subject is absent" from "my
+    subject is clean" unless it was written to (which is the whole point of the
+    sweep, and is why exactly 17 of 60 steps are exempt from it).
+
+    This runner is the enumerated entry point, so it recovers first. That does
+    not close the window for a gate invoked by hand; see COVERAGE.
+    """
+    bak = ROOT / "build" / "_absence_bak"
+    if not bak.exists():
+        return 0
+    sys.path.insert(0, str(ROOT / "formal"))
+    try:
+        import absence_sweep
+        absence_sweep.recover(ROOT)
+    except Exception as exc:
+        print(f"::error::run_all: a stash from an interrupted destructive run "
+              f"exists at build/_absence_bak and could not be restored "
+              f"({type(exc).__name__}: {exc}). Every gate below would measure a "
+              f"starved tree and report it as a finding -- refusing rather than "
+              f"running (Prop. 207)")
+        return 1
+    return 0
+
+
 def main():
+    if recover_stash():
+        return 1
     steps = invocations()
     if steps is None:
         print("::error::run_all: no .github/workflows directory -- there is "
