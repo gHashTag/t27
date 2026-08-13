@@ -7608,10 +7608,30 @@ impl VerilogCodegen {
     /// original name. The trailing space is part of the escaped identifier
     /// syntax and must be preserved wherever the identifier is emitted.
     fn verilog_safe_identifier(name: &str) -> String {
-        if Self::verilog_keywords().contains(&name) {
+        // W664: a namespaced path reaches here as ONE identifier -- the parser
+        // stores `Severity::Error` as a single `ExprIdentifier` whose name
+        // contains `::`. The enum DECLARATION is already lowered correctly:
+        //
+        //     localparam ErrorCode_ParseError = 1000;
+        //
+        // but every USE site emitted `ErrorCode::ParseError`, which is not
+        // Verilog and produced `syntax error` in 23 of the 444 specs that
+        // generate. Declaration and use only ever disagreed on the separator.
+        //
+        // Done here rather than at the expression emitter because this is the
+        // single chokepoint every identifier passes through -- the same reason
+        // T118 moved keyword escaping to the final name. `::` cannot occur in a
+        // legal Verilog identifier, so the substitution can never collide with
+        // something that was already correct.
+        let name = if name.contains("::") {
+            std::borrow::Cow::Owned(name.replace("::", "_"))
+        } else {
+            std::borrow::Cow::Borrowed(name)
+        };
+        if Self::verilog_keywords().contains(&name.as_ref()) {
             format!("\\{} ", name)
         } else {
-            name.to_string()
+            name.into_owned()
         }
     }
 
@@ -12617,7 +12637,12 @@ impl VerilogCodegen {
                         return;
                     }
                 }
-                self.write(&node.name);
+                // W664: a namespaced path in CALL position -- `TernaryWeight::minus(x)`
+                // -- reaches here as the call's name and never passes through
+                // `verilog_safe_identifier`, so the `::` substitution applied
+                // there missed it. Two specs, eleven sites, after the identifier
+                // path fixed twenty-one specs.
+                self.write(&Self::verilog_safe_identifier(&node.name));
                 self.write("(");
                 // W458: drop module-level array arguments from the emitted
                 // Verilog argument list. The function body references the bound

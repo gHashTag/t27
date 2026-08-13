@@ -8171,4 +8171,60 @@ constructs behind that symptom:
 
 ---
 
+### T128 (W664) — measured depth is not a bound in EITHER direction, and T126 as stated is refuted
+
+W664 lowered namespaced paths. The enum **declaration** had always been correct —
+`localparam ErrorCode_ParseError = 1000;` — and only the **use** site disagreed,
+emitting `ErrorCode::ParseError`. One substitution at
+`verilog_safe_identifier`, plus the same at the call-name site, closed it:
+
+```
+Path:: sites   478 -> 0        specs carrying one   23 -> 0
+compiling      155 -> 156      regressions            0
+```
+
+**The forecast, registered before the work, said the compiling count would not
+move, and said explicitly that movement would refute T126. It moved.**
+
+The spec that changed is `specs/server/api.t27`. Its diagnostics before the fix:
+
+```
+:106: syntax error
+:107: Syntax in assignment statement l-value.
+:106: error: Malformed conditional expression.
+```
+
+**Three distinct normalised classes — measured depth 3 — repaired by ONE fix**,
+because one root cause produced all three symptoms. Verified against the W663
+binary as well: identical errors, so no earlier fix had promoted it.
+
+> **T128.** Measured depth is not a bound in either direction.
+> **Downward (T127):** one class name merges unrelated causes — `syntax error`
+> is the least specific symptom a parser emits — so depth **understates** the
+> number of fixes. **Upward (here):** one cause emits several class names, so
+> depth **overstates** it. `api.t27` measured 3 and needed 1.
+
+**T126 must therefore be restated, and weakened.** Its mechanism is right — the
+count rises only when a spec's **last remaining cause** is cleared — but *cause*
+is not *class*, and nothing in the tooling counts causes. **The depth metric
+cannot predict yield.** The four data points remain true as history:
+
+| wave | specs repaired | measured depth | yield |
+|---|---:|---|---:|
+| W659 escape-last | 13 | >1 | 0 |
+| W660 scaffold | 140 | 94% at 4+ | 0 |
+| W661 `#` comment | 4 | 1 | **+4** |
+| W663 builtins | 17 | >1 | 0 |
+| **W664 `Path::`** | **23** | **3 for the one that moved** | **+1** |
+
+but the *rule* drawn from the first four — "only depth-1 yields" — is now known
+to be an artefact of those four. **Yield is measurable only after the fact**, and
+the honest procedure is to state an expected yield, do the work, and score it.
+
+**Which is what happened here.** The prediction was zero, the outcome was one,
+and the theorem it was built on is the casualty. **A forecast that cannot lose is
+not a forecast**; this one lost, and the loss is the result of the wave.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

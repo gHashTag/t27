@@ -6653,6 +6653,30 @@ These cost a wave each. Follow them before step 1.
      finds the symbol proves the symbol is handled SOMEWHERE, not that it is
      handled where you are looking.
 
+411. **Measured depth bounds nothing.** One class name merges unrelated causes
+     (depth understates); one cause emits several class names (depth
+     overstates). `specs/server/api.t27` showed THREE normalised classes --
+     `syntax error`, `Syntax in assignment l-value`, `Malformed conditional
+     expression` -- all from ONE root cause, and one fix cleared it. T128.
+
+412. **T126 as stated is refuted, by a forecast written to be able to lose.**
+     "Only depth-1 specs yield" was drawn from four data points and held until
+     the fifth. Its MECHANISM survives -- the count rises when a spec's last
+     remaining CAUSE is cleared -- but cause is not class and nothing counts
+     causes, so yield is measurable only after the fact. **State an expected
+     yield, do the work, score it; do not plan on the metric.**
+
+413. **When a declaration and its use disagree, check which one is right.**
+     The enum declaration had always emitted `localparam ErrorCode_ParseError`;
+     only the use site wrote `ErrorCode::ParseError`. The lowering existed --
+     the two halves had merely never been compared. 478 sites across 23 specs.
+
+414. **One chokepoint is not always the only chokepoint.** Substituting `::` in
+     `verilog_safe_identifier` fixed 21 of 23 specs. The remaining two used a
+     path in CALL position, whose name is written directly and never passes
+     through that helper. Re-measure after a "single point" fix; if the count is
+     not zero, there is a second point.
+
 ### How to update this tracker
 
 After closing a wave:
