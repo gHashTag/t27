@@ -6723,6 +6723,24 @@ These cost a wave each. Follow them before step 1.
      turn `Unable to bind` into silent aliasing between two variables of one
      type. A failure you can see is worth more than a wrong answer you cannot.
 
+422. **Write the safety test BEFORE the fix, and let it change the plan.** The
+     aliasing test promised in W666 earned its place twice: it showed the
+     motivating example (an enum field) pointed at the SMALLEST blocker of five
+     -- 46 of 2,857 -- and it caught the first draft lowering a nested struct at
+     72 bits instead of 56, because field offsets size an unknown type at the
+     default 32 and never consult the nested struct's own packed width. T132.
+
+423. **Apply a safety rule to every case or to none.** Floats were rejected
+     because a packed slice of a `real` is silently wrong. Nested structs fail
+     for the same reason with different arithmetic. Waiving the rule for one
+     while enforcing it for the other would be incoherent -- both were rejected
+     and only the provably safe part shipped.
+
+424. **Measure the blocker distribution before choosing which one to fix.** The
+     example in hand is not evidence about the population: enums 46, nested 133,
+     usize/isize 173, floats 212, other 2,339. Choosing from the example would
+     have bought three structs; choosing from the measurement bought twenty-five.
+
 ### How to update this tracker
 
 After closing a wave:

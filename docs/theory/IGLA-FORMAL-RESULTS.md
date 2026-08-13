@@ -8363,4 +8363,75 @@ population (41 of 121 defect specs; 242 of 444 carry the disabling marker). The
 
 ---
 
+### T132 (W667) — the safety test caught a defect in the fix, before the fix was measured
+
+W666 ended by promising an aliasing test **before** the measurement. It earned
+its place twice.
+
+**First, it invalidated the plan.** The example that motivated T131 was
+`BrainState { arousal: ArousalLevel, … }`, so the obvious extension was to accept
+enum fields. Measured across **1,138 structs**, enums are the *smallest* blocker
+there is:
+
+```
+other 2339 | f32/f64 212 | usize/isize 173 | nested struct 133 | enum 46
+```
+
+Structs that would become lowerable, by extension:
+
+| extension | structs | taken |
+|---|---:|:---:|
+| `usize` / `isize` | **25** | **yes** |
+| nested lowerable struct | 18 | **no** |
+| `f32` / `f64` | 55 | **no** |
+
+**Building the fix around enums would have been generalising from one case for
+the second time in this project** (T105), and would have been worth three structs.
+
+**Second, it caught silent wrongness in the fix as first written.** Accepting
+nested structs made
+
+```
+struct Inner { lo: u8, hi: u8 }                       // 16 bits
+struct Cfg { width: usize, depth: u8, inner: Inner }
+```
+
+lower as **72** bits rather than 56, because `struct_field_offset` and
+`element_width` size an unknown field type with `type_to_width`'s default of 32
+and never consult the nested struct's own packed width. Every field after the
+nested one would be sliced from the wrong offset.
+
+> **T132.** The rule that rejected floats — *a silently wrong value is worse than
+> a loud failure* (T124) — applies identically to nested structs, and applying it
+> to one while waiving it for the other would be incoherent. **Both were
+> rejected, and the fix shipped is the part that is provably safe.**
+
+**What shipped, and its safety argument.** `usize`/`isize` are integers whose
+width `type_to_width` already agrees on (32). Aliasing is structurally
+impossible because a slice is taken against the *parameter*, and parameters are
+already distinct inputs:
+
+```
+struct Cfg { width: usize, depth: u8 }        ->  packed vector (40 bits)   [32+8, correct]
+    input [39:0] a;
+    input [39:0] b;
+    pick = (a[32 +: 8] + b[32 +: 8]);         <- distinct slices, distinct inputs
+```
+
+**Measured over the corpus, and both registered bands hit:**
+
+| | before | after | forecast |
+|---|---:|---:|---|
+| specs with `UNSUPPORTED_ICARUS` | 242 | **227** | 215–240 ✅ |
+| structs lowered as packed vectors | 85 | **105** | — |
+| specs `iverilog` accepts | 156 | **156** | 156–162 ✅ |
+| specs failing on `Unable to bind` | 207 | 206 | — |
+
+Fifteen specs lost the marker and twenty more structs lower correctly, while the
+compiling count did not move — the fifth consecutive confirmation that **yield is
+not predictable from the size of a repair** (T126, T128), and the first wave in
+several where **both** registered quantities landed inside their bands.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

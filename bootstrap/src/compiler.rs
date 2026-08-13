@@ -9109,17 +9109,72 @@ impl VerilogCodegen {
         name: &str,
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
     ) -> bool {
+        Self::is_lowerable_scalar_struct_d(name, structs, 0)
+    }
+
+    /// W667: the same predicate with a recursion depth, so a struct may contain
+    /// another lowerable struct.
+    ///
+    /// WHY THIS WIDENED, AND ONLY THIS FAR. T131 traced the corpus' largest
+    /// defect class to this `all()`: one field it rejects drops the whole struct
+    /// into a per-field fallback that declares `reg <TypeName>_<field>` at module
+    /// level while every use emits `<varname>_<field>`, names that can never
+    /// agree.
+    ///
+    /// The blocking field types were then MEASURED across 1,138 structs, because
+    /// the example that motivated the work (`BrainState { arousal: ArousalLevel }`)
+    /// pointed at enums and enums are the smallest blocker there is:
+    ///
+    ///     other 2339 | f32/f64 212 | usize/isize 173 | nested struct 133 | enum 46
+    ///
+    /// Structs that become lowerable, by extension:
+    ///
+    ///     + usize/isize ............ 25
+    ///     + nested lowerable struct  18
+    ///     + f32/f64 ................ 55   <- NOT TAKEN
+    ///
+    /// **Floats are deliberately still rejected.** `type_to_width` would give
+    /// them 32 or 64 bits and the packed path would slice them as raw bits, while
+    /// the function that reads the field returns Verilog `real`. That is a
+    /// silently wrong value in place of a loud failure -- the trade T124 exists
+    /// to forbid. Accepting them is worth 55 structs and is not worth that.
+    ///
+    /// `usize`/`isize` are safe because they are integers of a fixed width that
+    /// `type_to_width` already agrees on (32).
+    ///
+    /// **NESTED STRUCTS ARE ALSO REJECTED, and the reason was found by the test
+    /// written before this change was measured.** Accepting them made
+    ///
+    ///     struct Inner { lo: u8, hi: u8 }              // 16 bits
+    ///     struct Cfg { width: usize, depth: u8, inner: Inner }
+    ///
+    /// lower as **72** bits rather than 56, because `struct_field_offset` and
+    /// `element_width` size an unknown field type with `type_to_width`'s default
+    /// of 32 and do not consult the nested struct's own packed width. Every field
+    /// after the nested one would then be sliced from the wrong offset, and
+    /// `a.inner.lo` from the wrong bits entirely.
+    ///
+    /// That is silent wrongness in place of a loud failure -- the same trade
+    /// refused above for floats, and refusing it for floats while accepting it
+    /// here would be incoherent. Nested structs are worth 18 more structs and
+    /// need the width computation fixed first; they get their own wave.
+    fn is_lowerable_scalar_struct_d(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        _depth: u32,
+    ) -> bool {
         let Some(fields) = structs.get(name) else {
             return false;
         };
         !fields.is_empty()
             && fields.iter().all(|(_, t)| {
                 let trimmed = t.trim();
-                if let Some(end) = trimmed.find(']') {
-                    let base = trimmed[end + 1..].trim();
-                    return Self::is_primitive_scalar_type(base);
-                }
-                Self::is_primitive_scalar_type(trimmed)
+                let base = if let Some(end) = trimmed.find(']') {
+                    trimmed[end + 1..].trim()
+                } else {
+                    trimmed
+                };
+                Self::is_primitive_scalar_type(base) || matches!(base, "usize" | "isize")
             })
     }
 
