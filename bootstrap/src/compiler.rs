@@ -7595,13 +7595,25 @@ impl VerilogCodegen {
             "u32" | "i32" => 32,
             "u64" | "i64" => 64,
             "usize" => 32,
+            // W655 (T85): `f64` fell through to the 32-bit default and silently
+            // narrowed to half its width. Named explicitly so the width is a
+            // decision rather than a fallthrough.
+            "f32" => 32,
+            "f64" => 64,
             _ => 32, // default width
         }
     }
 
     /// Map t27 type to Verilog signedness
     fn type_is_signed(ty: &str) -> bool {
-        matches!(ty, "i8" | "i16" | "i32" | "i64")
+        // W655 (T85): `f32`/`f64` were absent here, so a float lowered to an
+        // UNSIGNED vector and every comparison against zero inverted. Measured:
+        //   f(-1.0)      = 4294967295      the real -1.0 narrowed to [31:0]
+        //   (-1.0 < 0.0) = 1               the real comparison is correct
+        //   f(-1.0)<0.0  = 0               after narrowing, the sign is GONE
+        // A float is signed; saying so removes the inversion. It does NOT make
+        // the lowering float arithmetic -- see `f32` in `type_to_width`.
+        matches!(ty, "i8" | "i16" | "i32" | "i64" | "f32" | "f64")
     }
 
     /// W532: total bit width of a scalar-struct field that may be a bare scalar

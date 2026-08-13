@@ -6301,4 +6301,63 @@ the phases it runs are static and the simulation phase is opt-in.
 
 ---
 
+### T85 (W655) — the sign was recoverable, the fraction is not, and the two must not be conflated
+
+T84 measured that `f32` lowers to an unsigned `[31:0]` and every comparison
+against zero inverts. The cause was two lines:
+
+```rust
+fn type_is_signed(ty: &str) -> bool {
+    matches!(ty, "i8" | "i16" | "i32" | "i64")   // no f32, no f64
+}
+fn type_to_width(ty: &str) -> u32 {
+    ...  "usize" => 32,  _ => 32,                // f64 fell through -> 32 bits
+}
+```
+
+**`f64` was silently narrowing to half its width** by falling through the
+default — a second defect living in the same pair of functions, found only
+because the first was being fixed.
+
+**The sign fix is verified and strict:**
+
+```
+before:  f(-1.0) = 4294967295      f(-1.0) < 0.0 = 0
+after:   f(-1.0) =         -1      f(-1.0) < 0.0 = 1
+```
+
+**And it is not sufficient**, which is the part worth recording:
+
+```
+f(0.5)        = 1        an integer vector cannot hold one half
+f(0.5) == 0.5 = 0
+```
+
+> **T85.** Lowering a float to a signed integer vector fixes the *sign* class and
+> cannot fix the *fraction* class, because the second is a representability
+> failure rather than an encoding one. Fixing the first makes the remaining
+> failures **look like the same bug getting less bad**, when they are a different
+> bug that was previously masked. **A partial fix to a mixed failure class
+> silently redefines what the remaining failures mean.**
+
+**Blast radius, measured before choosing what to do next.** 194 specs mention
+`f32`/`f64`; **17 of them compile under iverilog** (128 do not) and of the 17 that
+run, 4 tests pass and 2 fail. So any change to the float representation touches at
+most 17 artefacts — small enough to evaluate exhaustively, which is the reason to
+measure the radius before the design and not after.
+
+**The open design question, stated rather than decided.** Verilog's synthesizable
+subset has no float. Two honest options:
+
+- **`real`** — correct in simulation (iverilog implements IEEE double), and
+  *rejected by synthesis*, which is truthful because `f32` arithmetic was never
+  synthesizable.
+- **a diagnostic** — refuse `f32` in the Verilog backend and say so.
+
+**What must not continue is the third option, which is what exists today:** a
+signed integer vector that compiles, synthesizes, runs, and computes the wrong
+value for every non-integral input. **T52's shape at the level of a type.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
