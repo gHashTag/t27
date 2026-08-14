@@ -6960,6 +6960,18 @@ These cost a wave each. Follow them before step 1.
      being scaled to 64x8. When `&polyn` then failed the same 8x8, the fault was
      immediately locatable in the setup rather than the result.
 
+463. **A tool insensitive to problem size is failing before it starts.**
+     `&polyn` timed out at exactly 240 s on 8x8, 16x16, 64x4 and 64x8 alike,
+     while every other engine varied by three orders of magnitude across that
+     range. Flat timing across a size sweep is the signature of a SETUP fault,
+     not a complexity wall -- and it is a cheaper diagnostic than reading the
+     tool's source. T143a.
+
+464. **Read the background job's FINAL output, not the partial one you committed
+     from.** W679 was committed with "—" in two cells because the sweep was still
+     running. The complete data did not change the verdict but made the diagnosis
+     stronger. Check completed jobs before the wave closes, not after.
+
 ### How to update this tracker
 
 After closing a wave:

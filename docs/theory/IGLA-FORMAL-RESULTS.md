@@ -8992,11 +8992,11 @@ from AIG" and is the Gröbner-family tool the condition meant.
 
 | a × b | yosys `sat` | Z3 SMT | ABC `cec` | ABC `&polyn` |
 |---|---:|---:|---:|---:|
-| 8 × 8 | **0.23 s** ✅ | 0.45 s ✅ | 1.40 s ✅ | **TIMEOUT 240 s** |
+| 8 × 8 | **0.23 s** ✅ | 0.45 s ✅ | 1.40 s ✅ | **timeout 240 s** |
 | 12 × 12 | **191.71 s** ✅ | timeout | timeout 300 s | — |
-| 16 × 16 | — | timeout | timeout 300 s | timeout |
-| 64 × 4 | 4.41 s ✅ | 6.13 s ✅ | **2.67 s** ✅ | — |
-| **64 × 8** | — | **timeout** | **timeout 300 s** | **timeout** |
+| 16 × 16 | — | timeout | timeout 300 s | **timeout 240 s** |
+| 64 × 4 | 4.41 s ✅ | 6.13 s ✅ | **2.67 s** ✅ | **timeout 240 s** |
+| **64 × 8** | — | **timeout** | **timeout 300 s** | **timeout 240 s** |
 
 > **T143.** **No method named in T117's own refutation condition discharges
 > 64 × 8.** Three independent engines, three different encodings — bit-blasted
@@ -9013,12 +9013,20 @@ from AIG" and is the Gröbner-family tool the condition meant.
 than a bit-blasted one**, and the project's default tool is, on this shape, the
 best of the four.
 
-**And `&polyn` failed on 8 × 8** — a case the other three prove in under 1.5 s.
-That is almost certainly **my usage, not the tool**: `&polyn` derives a polynomial
-from an AIG whose arithmetic structure is *recognisable*, and the AIG here was
-produced by `abc -g AND`, which flattens exactly that structure away. **The
-algebraic method has therefore been tried and not fairly tried**, and T117 must
-be quoted accordingly:
+**And `&polyn` failed on every case, at the same 240 s** — including `64 × 4`,
+which `cec` proves in 2.7 s and `sat` in 4.4 s.
+
+> **T143a.** `&polyn` shows **no width dependence whatsoever**: 8 × 8 and
+> 64 × 8 fail identically. Every other engine's time varies by three orders of
+> magnitude across that range. **A tool that is insensitive to problem size is
+> not solving the problem** — it is failing before it starts, which is the
+> signature of a setup fault rather than a complexity wall.
+
+The cause is almost certainly **my usage, not the tool**: `&polyn` derives a
+polynomial from an AIG whose arithmetic structure is *recognisable*, and the AIG
+here was produced by `abc -g AND`, which flattens exactly that structure away.
+**The algebraic method has therefore been tried and not fairly tried**, and T117
+must be quoted accordingly:
 
 > *survives SAT and SMT outright; the algebraic method was run and failed on a
 > case the others prove trivially, which indicts the setup rather than the
