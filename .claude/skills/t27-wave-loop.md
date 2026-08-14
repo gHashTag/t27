@@ -8934,6 +8934,40 @@ Both times it silently produced blank fields and a plausible-looking table.
 **Write the arguments out, or use a function with named locals** — a shell
 construct that fails quietly has no place in a measurement pipeline.
 
+### Lessons 811-815 (W752) — a shape is not a network, and the output stage is not free
+
+**811. "Our network runs on the FPGA" needs an export path to be true.** Four
+waves of silicon results — placed, routed, read back, cross-die verified — ran
+weights from `random.Random(seed)`, because no trainer→Verilog path existed.
+They proved **transport**, not **computation**. **Ask of every silicon claim:
+which artefact produced the numbers in the bitstream?** If the answer is a seed,
+the claim is about a shape.
+
+**812. Count the output stage.** Every area figure this project published came
+from a generator that emits `m` hidden neurons and **no decision neuron** — which
+turned out to cost **87 LUT, more than either hidden layer.** Hidden-layer area
+was reported as system area for five waves. **A "system" number must include the
+stage that produces the answer.**
+
+**813. The six-bit rule governs the FORM, not just the fan-in.** A neuron reading
+32 bits is a 4-billion-entry table; the generator hung rather than lied, which was
+luck. **Wide layers earn the table trick because 2 LUT/neuron multiplies by the
+width; a single decision neuron must be an adder tree.**
+
+**814. When a path fails, find the inputs it is invariant under.** All-zeros and
+all-ones matched the model exactly while every real row disagreed on 10 of 16
+neurons. Those two cases are exactly the inputs insensitive to bit ORDER —
+**which localised the defect to ordering and exonerated the shift count, the
+truth tables and the export in one step.** Then stop: forward order, reverse
+order and ±1 offsets were tested and refuted, and further guessing is not
+diagnosis.
+
+**815. Distinguish "the old result was wrong" from "the new capability is."** The
+forecast said a row-level failure would condemn the earlier 8-word cross-die
+results. It did not: those used the **single-pass** register, which still works
+here. **The new multi-pass path is what is broken** — and separating the two was
+worth more than the forecast that prompted the check.
+
 ### How to update this tracker
 
 After closing a wave:
