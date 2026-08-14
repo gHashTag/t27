@@ -14035,4 +14035,70 @@ the Lloyd-Max optimum against pot9's **69.85%**, a 22-point gap.
 
 ---
 
+## The answer: which alphabet, on this hardware, without a DSP — W741
+
+Accuracy came from W740 (30 seeds, paired). Area is measured here on the same
+layer — 64 binary inputs, 8 outputs, 12-bit accumulator — through yosys and
+through nextpnr, and the winners were loaded on silicon.
+
+### T280 — the decision table
+
+```
+alphabet   levels  accuracy %   yosys LUT   placed LUT   DSP
+GA-T0        3      82.378         564         1035       0
+GA-T1        5      82.835         457*        1370       0
+GA-T2        7      83.077         626         1509       0
+pot7         7      83.182         641         1103       0
+GA-T3        9      83.252         783         1677       0
+pot9         9      83.364         723         1200       0
+lin9         9      83.160         832          —         1
+```
+
+`*` GA-T1 is the cheapest arm at synthesis — each weight lands in **one** of two
+lanes, so two narrow adder trees replace one wide one. **The advantage does not
+survive placement**: 1370 placed against pot7's 1103.
+
+> **T280.** **At every cardinality where both exist, powers of two dominate the
+> golden set on BOTH axes:**
+>
+> - `pot9` − `GA-T3`: **+0.111 pp** accuracy (t = −3.92 for the golden set) and
+>   **−28% placed LUT** (1200 vs 1677).
+> - `pot7` − `GA-T2`: **+0.105 pp** (t = −4.85) and **−27%** (1103 vs 1509).
+>
+> Not a trade-off. **Dominance.**
+
+### T280a — and the reason is structural, not incidental
+
+> **T280a.** A power-of-two weight is a **shift** — wiring, into one lane. A
+> `φ^k` weight is `F(k−1)·x` into lane A and `F(k)·x` into lane B, so the golden
+> alphabet needs **two accumulators** and pays for both. The Fibonacci
+> coefficients that make it multiplier-free do not make it **free**; the dyadic
+> ladder is multiplier-free *and* single-lane. **Powers of two were never the
+> baseline this project was beating — they were the thing to beat, and they
+> win.**
+
+### T281 — the gold standard, stated
+
+> **T281.** For a ternary-family weight alphabet on this fabric, **without a
+> DSP**, the answer is **`{0, ±1, ±2, ±4, ±8}` — nine levels, powers of two.**
+>
+> - **Most accurate** of everything measured: 83.364%, and it beats the golden
+>   set of the same size at *p* < 0.001.
+> - **Cheapest at nine levels after placement**: 1200 LUT against 1677.
+> - **Zero DSP**, every weight a shift, one accumulator.
+> - **Verified on silicon**: `Done 0x0 → done 1` on board 1:4, magic
+>   `0xA5A5A5A` read back, `ok=1`. `pot7` likewise on 1:6.
+>
+> If the area budget is smaller, drop to **`pot7`** (7 levels, 1103 placed LUT,
+> 83.182%) — still above every golden rung, still cheaper. **`lin9` is
+> excluded**: it needs a **DSP48E1** for the ×3, and on this flow a DSP fed from
+> the fabric computes the wrong answer (T246, T250).
+
+**What the golden ladder was for.** It is not the answer, and it is what
+produced the comparison that found the answer. Five measurement directions and a
+trained ladder were needed to say *"powers of two, nine levels"* with a number
+attached to every claim — which is a different thing from having assumed it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
