@@ -8754,6 +8754,46 @@ good in code — stable, greppable — and **inexcusable in prose**. The fix is 
 to rename the identifier (in a seal-hashed spec repo that is a regeneration);
 it is a mapping comment in the code and the full set written out in the text.
 
+### Lessons 784-789 (W747) — the row, the validity flag, and a mechanism that pointed backwards
+
+**784. Write the comparison row before optimising anything inside it.** T161 and
+T174 named the refutation condition — an accuracy-bearing result under 89 LUT on
+UNSW-NB15 — waves ago, and it was never attempted. Written now it reads
+**54,914 LUT at 83.4% against the field's 89 LUT at 92%**: 617× the area at nine
+points less accuracy. **Seven waves of alphabet work sat inside an architecture
+three orders of magnitude off the pace.** The row is cheap; not writing it is what
+was expensive.
+
+**785. An instrument without a validity flag cannot report that it failed.** The
+frozen fingerprint read `sig = 0` on a board that never reached the freeze —
+indistinguishable from a genuine measurement of zero. Adding one `frozen` bit
+turned a silent false success into a visible open question. **Every readback needs
+a bit that says "this value was actually produced."**
+
+**786. Startup logic must be gated on EOS, or the design fingerprints the
+startup.** Identical bitstream, identical board, `sig = 1` then `sig = 0`. The
+registers were not gated, so the CFGMCLK edges seen before leaving GSR vary per
+configuration. Same class as W716's own defect, one level deeper, and it survived
+because the earlier test **re-read one configuration instead of reloading**.
+**To test reproducibility, reload — do not re-read.**
+
+**787. A mechanism that predicts the sign backwards is worse than none.** The
+zero-cost forecast reasoned that UNSW's 593 irrelevant features make zero most
+valuable there. UNSW is where zero-free won hardest (t = −8.31). **A plausible
+mechanism attached to a wrong prediction would have been believed** — register the
+mechanism with the forecast so both die together.
+
+**788. Bitstream size is fixed by the part and proves nothing.** `fasm2frames`
+died on a missing module, produced **0 frames**, and `xc7frames2bit` emitted
+9,730,898 bytes anyway — the same size as a good one. **Guard on the frames
+count, never on the artefact size**, and delete the old artefact before rebuilding.
+
+**789. Ask whether the thing you are pricing generates any hardware at all.** The
+zero *level* of an alphabet emits no adder input — a zero weight simply has no
+term — so `nz8` and `pot9` measured **737 = 737 LUT**, identical to the digit.
+Zero's price is a **code**, i.e. weight memory, not datapath. **Half a day of
+area measurement can be replaced by one question about what the generator emits.**
+
 ### How to update this tracker
 
 After closing a wave:
