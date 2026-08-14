@@ -64,3 +64,44 @@ python3 tools/jtag/read_verdict.py --chain 3     # expect a5a5a5aa
 ```
 
 Harness: `fpga/verilog/gft_kat_jtag.v`.
+
+---
+
+## Layer separation (W725)
+
+The synthesised netlist was written out and gate-level simulated against
+**yosys's own `xilinx/cells_sim.v` DSP48E1 model**, with tri-net's KAT:
+
+| netlist | DSP48E1 cells | φ² | 1.5×1.5 |
+|---|---:|:--:|:--:|
+| `synth_xilinx -family xc7` | 1 | pass | **pass** |
+| `synth_xilinx … -nodsp` | 0 | pass | pass |
+
+**The DSP netlist is functionally correct.** The bitstream built from that same
+netlist is wrong on three dice. **The fault is downstream of synthesis** —
+nextpnr-xilinx FASM emission or prjxray's DSP48E1 frame model. yosys and the RTL
+are both cleared.
+
+### The obvious hypothesis, refuted
+
+That the operating mode never reaches the bitstream would explain why only the
+nonzero-product vector fails. It does not hold:
+
+```
+              set in FASM   in prjxray segbits_dsp_r.db
+OPMODE             3                 20
+ALUMODE            2                 22
+INMODE             3                 36
+AREG/BREG          2/2                6/6
+MREG/PREG/ADREG    1/1/1              2/2/2
+              21 non-GND DSP lines
+```
+
+FASM lists only set bits, so a partial list is expected. Separating nextpnr from
+prjxray needs a reference bitstream (Vivado, or a DSP48E1 unit test with known
+frames). Not attempted; naming one without it would be a guess.
+
+### Practical consequence
+
+`-nodsp` costs **3 LUT** (56 → 53) and makes both vectors pass. **On this flow
+the DSP is not a saving.**

@@ -12812,6 +12812,11 @@ the wider word gave `a5a5a5aa`, isolating the failure to vector 1 immediately.
 
 ### T247 — measured, while preparing a rename
 
+> ⚠ **Two counts in this section are WRONG and are corrected in T248 (W725):**
+> "564 unsealed" and "1207 orphans" came from a regex that matched module
+> names, not from `t27c seal --verify`. The authoritative figure is **26**
+> unsealed. The seal-verify finding itself stands, and W627 measured it first.
+
 Renaming `triformat-gfternary` to `ga_ternary` (T244's deferred half) requires
 re-sealing, so the seal was inspected first. `t27c seal --verify` on it:
 
@@ -12860,6 +12865,119 @@ seal files on disk          1715
 — or does it skip the 564 unsealed specs and pass? A suite run started for this
 wave produced no output in 25 minutes and was not waited out; the answer is one
 timed run away and belongs to whoever takes it.
+
+---
+
+## The seal question, answered — and it was answered in 2026 already — W725
+
+### T248 — the authoritative census, and a correction to T247
+
+`t27c seal --verify` run over **every one of the 1072 specs**:
+
+```
+928   STALE, spec_hash MATCHES      the spec did not change; the generated code did
+118   STALE, spec_hash DIFFERS      the spec changed too
+ 26   no seal at all
+  0   VERIFY                        not one spec in the corpus verifies
+```
+
+> **T248.** **T247's "564 unsealed" and "1207 orphans" are withdrawn.** They came
+> from a regex matching `module X;` against seal filenames — a **second
+> implementation of a check the tool already performs**, and it was wrong by a
+> factor of twenty. The authoritative count is **26**. Lesson 713 warned about
+> exactly this one wave earlier and I did it anyway: I *ran* the tool to confirm
+> the direction and then *published my regex's numbers*.
+
+### T248a — the question was already answered, in a comment, by W627
+
+`bootstrap/src/suite.rs`, above the seal phase:
+
+> *"W627: seal staleness is golden-file drift, not a defect population — 1056 of
+> 1064 are stale and ~940 have an UNCHANGED spec_hash. It is recorded in the
+> ledger for visibility and excluded from the corpus defect count below, because
+> listing it as expected failure is debt."*
+
+And the ratchet ledger confirms the policy: **326 entries, of which `seal-verify`
+accounts for zero** — 173 `parse`, 132 `parse-no-discard`, 21
+`no-vacuous-verilog-test`.
+
+> **T248a.** The phase **runs**, its failure is **known**, **measured more
+> thoroughly than T247 measured it**, and **deliberately excluded with the reason
+> written down**. Today's numbers — 1046 sealed, all stale, 928 with an unchanged
+> spec_hash — are W627's, moved by two waves of compiler work. **Third
+> rediscovery in one session**, after tri-net's GF-T (T243) and the spec header
+> (T244a). Every one was answerable by reading something already in the tree.
+
+### T248b — the deferral was right, the reason was wrong
+
+T247a refused to re-seal the renamed module because "the seal state is not
+understood". It **was** understood — by W627, in writing.
+
+> **T248b.** The correct reason is narrower and survives: **a fresh seal on one
+> module carries no more meaning than the 1046 stale ones around it**, because
+> the mechanism is a golden-file record whose files are stale *by accepted
+> policy*, not a gate. So the rename is **unblocked** — it simply gains nothing
+> from re-sealing, and the write-up must not claim that it does. **"I do not
+> understand this" and "this is understood and deliberately tolerated" call for
+> the same action here and for opposite reasons, and only one of them is true.**
+
+---
+
+## The DSP defect, localised — W725
+
+### T249 — yosys is exonerated by gate-level simulation
+
+The synthesised netlist was written out and simulated against **yosys's own
+`xilinx/cells_sim.v` DSP48E1 behavioural model**, using tri-net's KAT:
+
+```
+netlist                        DSP48E1 cells   phi^2   1.5x1.5
+synth_xilinx -family xc7             1          pass     pass
+synth_xilinx ... -nodsp              0          pass     pass
+
+the SAME DSP netlist, as a bitstream, on three dice:            FAIL
+```
+
+> **T249.** **The DSP-mapped netlist is functionally correct.** yosys infers the
+> DSP48E1 and the result simulates right; the bitstream built from that netlist
+> is wrong on silicon. **The fault is downstream of synthesis** — in
+> nextpnr-xilinx's FASM emission or prjxray's DSP48E1 frame model — and the RTL
+> and the synthesiser are both cleared.
+
+### T249a — the obvious next hypothesis, and its refutation
+
+The natural guess was that the DSP's operating mode never reaches the bitstream,
+which would explain why the failing vector is precisely the one with a **nonzero
+product** — a mis-configured DSP yielding zero would pass `φ¹·φ¹ → (42,0)` and
+fail `1.5 × 1.5 → (43,64)`. The FASM says otherwise:
+
+```
+              set in FASM   present in prjxray segbits_dsp_r.db
+OPMODE             3                    20
+ALUMODE            2                    22
+INMODE             3                    36
+AREG / BREG        2 / 2                 6 / 6
+MREG/PREG/ADREG    1 / 1 / 1             2 / 2 / 2
+                   21 non-GND DSP lines total
+```
+
+> **T249a. Refuted.** The mode **is** configured, prjxray **does** model the
+> tile, and FASM lists only bits that are set — so a partial list is expected,
+> not evidence. **The hypothesis fitted the failure pattern exactly and was still
+> wrong**, which is why it was checked instead of reported.
+
+**Localisation stops here, deliberately.** Separating nextpnr's emission from
+prjxray's frame model needs a reference bitstream for the same netlist — Vivado,
+or a targeted DSP48E1 unit test with known frames. Naming one of the two now
+would be the guess T246 already declined to make.
+
+### T249b — what this means for anyone building GF-T
+
+> **T249b.** tri-net's RTL is correct and its area figures reproduce exactly
+> (T245). **But a GF-T multiplier built through the openXC7 flow with DSP
+> inference enabled produces a bitstream that computes the wrong answer**, and
+> `-nodsp` costs **3 LUT** (56 → 53) to avoid it. For this flow the DSP is not
+> a saving; it is a defect with a rounding-error price to sidestep.
 
 ---
 

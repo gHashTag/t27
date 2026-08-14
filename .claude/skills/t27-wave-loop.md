@@ -8337,6 +8337,30 @@ These cost a wave each. Follow them before step 1.
      might not have: an ad-hoc reimplementation of a check is a SECOND
      implementation, with all the risk that carries.
 
+714. **GATE-LEVEL SIMULATE THE NETLIST TO SPLIT SYNTHESIS FROM THE BITSTREAM
+     PATH.** yosys ships `xilinx/cells_sim.v` with a DSP48E1 model; the
+     DSP-mapped netlist PASSES it while its own bitstream fails on three dice.
+     One command exonerated the synthesiser and moved the defect downstream --
+     no Vivado, no second board, no guesswork.
+
+715. **A hypothesis that fits the failure pattern exactly can still be wrong.**
+     "The DSP mode never reaches the bitstream" explained perfectly why only the
+     nonzero-product vector failed. The FASM has OPMODE, ALUMODE, INMODE and the
+     register controls, and prjxray models the tile. **Checked, refuted, and
+     that is why it was checked instead of reported.**
+
+716. **I ran the authoritative tool and then published my regex's numbers.**
+     T247 said 564 unsealed and 1207 orphans; `t27c seal --verify` over all 1072
+     specs says **26**. Lesson 713 -- written ONE WAVE EARLIER -- warns about
+     exactly this. Running the real check and then quoting the ad-hoc one is
+     worse than never running it.
+
+717. **THIRD REDISCOVERY IN ONE SESSION.** tri-net's GF-T (T243), the spec
+     header that already stated T209's result (T244a), and now W627's comment
+     in `suite.rs` that had measured the seal staleness more thoroughly than
+     T247 did. **Every one was answerable by reading something already in the
+     tree.** Before measuring, grep for the answer.
+
 ### How to update this tracker
 
 After closing a wave:
