@@ -10293,4 +10293,58 @@ rule one line below it treats zero checks as failure.
 
 ---
 
+## W693 — the instrument was inside the measurement again, one wave after naming it
+
+### T179 — "how many specs does nextpnr place" is not a question about the corpus
+
+W692 closed by recommending a measurement: the figure *"at most 56 specs produce
+genuinely synthesizable Verilog"* was a `$display` proxy, and the proxy was gone,
+so the real number should be measured. A corpus-wide run was started:
+`gen-verilog` → `yosys` → `nextpnr`, per spec.
+
+**After 116 specs it had placed zero.** Not one. The failures were not about
+logic:
+
+```
+47  ERROR: port <name> has no IOSTANDARD property
+ 1  ERROR: Unexpected IOBUF BEL OPAD_X0Y15/PAD
+```
+
+A module with ports needs an XDC assigning a package pin and an I/O standard to
+each. **This repository has no XDC for the FGG676 part** — the only one present
+targets CSG324 (T170a, W690). Measured over the first 120 specs:
+
+```
+generated Verilog       76
+  ... with ports        76
+  ... port-less          0
+```
+
+> **T179.** **"Does nextpnr place it" measures "does the module have zero ports",
+> and across this corpus the answer is essentially never.** It is not a property
+> of the specification, the compiler, or the corpus — it is a property of the
+> **board pin map this project does not have**. The MVP itself fails identically;
+> only the deliberately port-less wrapper W690 wrote for the JTAG readback places
+> at all. **Refuted by:** an XDC for FGG676, after which the question becomes
+> answerable and interesting.
+
+> **T179a — and this is the fourth instance, one wave after naming the shape.**
+> T178b listed three: `run` reported a spawn failure as instant success;
+> `run_timed` manufactured 29 hangs from its own pipe; `gen-verilog` measured its
+> own testbench. **This makes four, and I built it the day after writing the
+> lesson.** Naming a failure mode does not confer immunity to it. The check that
+> would have caught it costs one command — *generate one spec and count its
+> ports* — and it was not run because the measurement felt like a continuation of
+> the previous one rather than a new instrument.
+
+**The honest replacement is `yosys` success**, which asks whether the generated
+Verilog *synthesizes* without also demanding a pin map. That run replaced the
+first and is the number this wave reports.
+
+*The standing mission note "799 of 852 modules have no data ports" is a
+different measurement and must not be conflated: it counts modules whose ports
+are clock and reset only. Here every module has at least one port declaration.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

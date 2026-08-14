@@ -7419,6 +7419,27 @@ These cost a wave each. Follow them before step 1.
      vvp and counts PASSED. `prove`, `corpus`, `depth` and `silicon` all want the
      synthesizable output and now get it.
 
+547. **"Does nextpnr place it" measures "does the module have zero ports".**
+     Across 120 specs, 76 of 76 that generate have ports, and a module with ports
+     needs an XDC assigning a pin and an IOSTANDARD to each -- which this repo has
+     only for CSG324, not our FGG676. A corpus-wide placement run placed ZERO in
+     116 specs, all failing on `port X has no IOSTANDARD property`. T179.
+
+548. **FOURTH instance of the instrument being inside the measurement, and I
+     built it the day after writing lesson 544 about the first three.** Naming a
+     failure mode does not confer immunity. The check that would have caught it
+     was one command -- generate one spec, count its ports -- and it went unrun
+     because the measurement FELT like a continuation of the previous one rather
+     than a new instrument. T179a.
+
+549. **Before a corpus-wide run, run the instrument on ONE item and read the
+     output by hand.** Fifty minutes of compute produced a column of zeros that a
+     single spec would have predicted in five seconds.
+
+550. **`yosys` success is the honest "synthesizable" metric**, because it does not
+     also demand a board pin map. Placement is a question about the BOARD, not
+     about the corpus.
+
 ### How to update this tracker
 
 After closing a wave:
