@@ -7673,6 +7673,25 @@ These cost a wave each. Follow them before step 1.
      goal is unmet. That is a legitimate wave outcome; claiming the goal would
      not be.
 
+597. **ZERO LUT CAN BE THE CORRECT ANSWER.** `acc = a+a+a+a` is `a << 2` --
+     pure routing, no LUTs. T192 measured a constant-folder doing its job and
+     called it a compiler defect. Before treating 0 as a failure, ask whether the
+     body's result depends on an INPUT. T194.
+
+598. **Six controls, five of them null.** Named vs flat block, declarations
+     before vs inside `begin`, loop form -- all irrelevant. The only variable that
+     mattered was input-dependence: the SAME structure gives 0 with a foldable
+     body and 957 LUT with a real one.
+
+599. **The W700 transform works: bitnet_neuron 0 -> 4,275 LUT.** The numbers that
+     condemned it were taken BEFORE the undeclared-counter repair, from a build
+     both iverilog and yosys rejected. T194a.
+
+600. **RE-MEASURE AFTER EVERY REPAIR IN THE CHAIN, NOT ONLY THE LAST.** W700 fixed
+     the counter and then reported figures gathered before that fix, writing up a
+     working transform as a failure. The conclusion was one command out of date.
+     T194b.
+
 ### How to update this tracker
 
 After closing a wave:

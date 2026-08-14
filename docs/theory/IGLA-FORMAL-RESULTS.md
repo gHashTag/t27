@@ -10984,4 +10984,66 @@ is possible, and **an explicitly unfinished diagnosis**.
 
 ---
 
+## W701 — T192 is retracted, and the W700 transform works
+
+### T194 — a `while` body does NOT vanish. My test case reduced to wiring.
+
+T192 stated: *"A `while` body lowers to zero logic even when its bound is a
+compile-time constant."* It rested on this trial:
+
+```
+while (i < 4) { acc = acc + a; i = i + 1; }      0 LUT
+```
+
+**Zero was the correct answer.** `acc = a + a + a + a = 4·a = a << 2` — a
+constant shift is **pure routing and costs no LUTs**. The synthesiser was right
+and the measurement was meaningless.
+
+Four controls, each differing from the next by one thing:
+
+| | structure | LUT |
+|---|---|---:|
+| A | loop in a **named** block | 0 |
+| B | loop **flat**, counter in the body | 0 |
+| D | declarations **before** `begin`, unnamed block — `__mul_noop`'s exact shape | 0 |
+| E | declarations **inside** `begin : f_body` — the compiler's shape | 0 |
+| **C** | `__mul_noop` itself, body depends on an **input** | **13,563** |
+| **F** | **E's structure**, body depends on an **input** | **957** |
+
+> **T194.** **The block nesting, the declaration position and the loop form are
+> all irrelevant.** The only thing that mattered was whether the body's result
+> depends on an input. **T192 is retracted**: it measured a constant-folder doing
+> its job and called it a compiler defect. **Refuted by:** a body that depends on
+> an input and still yields zero.
+
+### T194a — and the W700 transform does work; the measurement preceded the fix
+
+W700 concluded *"correct and insufficient — the cause is still unfound"*, on
+numbers taken **before** the undeclared-counter repair, when the emitted Verilog
+was rejected outright by both tools.
+
+Re-measured on valid output:
+
+```
+bitnet_neuron          0  ->  4,275 LUT     unrolled, no refusal
+ternary_mac                     951 LUT     (no `while` at all)
+bitnet_neuron_nchunk            0 LUT       unrolled AND a runtime-bound `while` refused
+bitnet_layer                    0 LUT       same
+```
+
+> **T194a.** **`bitnet_neuron` went from zero to 4,275 LUT.** The transform was
+> right the whole time; it needed the declared counter, and the number that
+> condemned it was taken from a build that did not compile. **The two that remain
+> at zero carry a second `while` whose bound is a runtime port** — refused loudly,
+> exactly as W700-F1's second clause predicted. **Refuted by:** a spec with only
+> literal-bounded `while`s that still yields zero.
+
+> **T194b — the rule this earns.** *Re-measure after every repair in the chain,
+> not only after the last one.* W700 fixed the undeclared counter and then
+> reported LUT figures gathered before that fix, so a working transform was
+> written up as a failure and a correct diagnosis was abandoned. **The wave's
+> conclusion was one command out of date.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
