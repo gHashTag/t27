@@ -11219,4 +11219,63 @@ two fail at base on defects W703 has since fixed one of.
 
 ---
 
+## W705 — two spellings of void, and two predicates that disagreed
+
+### T198 — `fn tick()` was emitted as a function and called as a task
+
+`specs/fpga/testbench/fifo_tb.t27` declares `fn tick() { … }` — no parameters, no
+return. The compiler emitted
+
+```verilog
+function [31:0] tick;   // -> auto
+…
+tick(1'b0);             // in statement position, with an invented argument
+```
+
+The task/function choice tested `extra_return_type == "void"`. **`fn f() -> void`
+sets that field to `"void"`; `fn f()` with no arrow leaves it EMPTY**, and the
+display path a few lines below prints the empty string as `"auto"`. **Two
+spellings of void, and the predicate tested one.**
+
+> **T198.** **28 specs are in this shape**, every one a testbench declaring
+> `fn tick()`. `specs/fpga/testbench/fifo_tb.t27` now synthesises; FAIL 12 → 11.
+> **Refuted by:** a spec whose returnless `fn` still lowers to a `function`.
+
+### T198a — and the header and the closer used different predicates
+
+The first repair fixed the opening keyword and produced
+
+```verilog
+task tick;
+    …
+endfunction
+```
+
+`yosys: syntax error, unexpected TOK_ENDFUNCTION`.
+
+> **T198a.** The two sites were written apart and tested apart: one accepted an
+> empty return type after the fix, the other did not. **A construct with an
+> opening and a closing form has TWO predicates, and they must be the same
+> expression, not the same intention.**
+
+### T198b — the divergence that hid it for the corpus's whole history
+
+```
+iverilog:  warning: User function 'tick' is being called as a task.     ACCEPTS
+yosys:     ERROR: Can't resolve task name `\tick'.                      REJECTS
+```
+
+> **T198b.** **`corpus` compiles with `iverilog`, so a construct that only yosys
+> rejects is invisible to it.** The headline metric has never been able to see
+> this class, and 28 specs carried it while the number said they were fine.
+> This is the same shape as T167a — *"156 iverilog-clean measures acceptance of
+> testbench code by a simulator"* — one layer down: **a metric cannot report a
+> defect its own tool tolerates.**
+
+**The corpus figures are unchanged — 327 / 75 / 175 — which was the forecast's
+refutation condition:** a fall would have meant the `task` form forbids something
+the `function` form allowed. It does not.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

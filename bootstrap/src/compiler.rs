@@ -11289,7 +11289,29 @@ impl VerilogCodegen {
         let fn_name = Self::verilog_safe_identifier(&node.name);
 
         // void functions → task; others → function
-        if node.extra_return_type == "void" {
+        //
+        // W705: THERE ARE TWO SPELLINGS OF VOID AND THIS TESTED ONE.
+        //
+        // `fn f() -> void` sets the field to "void"; `fn f()` with no arrow
+        // leaves it EMPTY, and the display path a few lines below prints that
+        // empty string as "auto". So a parameterless, returnless `fn tick()`
+        // was emitted as
+        //
+        //     function [31:0] tick;   // -> auto
+        //
+        // and called in statement position as `tick(1'b0);` -- a task enable
+        // naming a function, with an argument invented for a function that
+        // takes none.
+        //
+        // iverilog ACCEPTS this, with a warning:
+        //     User function 'tick' is being called as a task.
+        // yosys does not:
+        //     ERROR: Can't resolve task name `\tick'.
+        //
+        // That divergence is why it survived: the corpus metric compiles with
+        // iverilog, so a construct only yosys rejects is invisible to it. 28
+        // specs are in this shape, every one a testbench declaring `fn tick()`.
+        if node.extra_return_type == "void" || node.extra_return_type.is_empty() {
             self.write_indent();
             self.write_line(&format!("task {};", fn_name));
         } else {
@@ -11398,7 +11420,10 @@ impl VerilogCodegen {
 
         self.dedent();
 
-        if node.extra_return_type == "void" {
+        // W705: the SAME predicate as the header, or the two disagree and the
+        // output is `task tick; ... endfunction`. They were written apart and
+        // tested apart; one accepted an empty return type and the other did not.
+        if node.extra_return_type == "void" || node.extra_return_type.is_empty() {
             self.write_indent();
             self.write_line("endtask");
         } else {

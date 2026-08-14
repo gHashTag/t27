@@ -7754,6 +7754,22 @@ These cost a wave each. Follow them before step 1.
      -- and only 2 of those reach real logic end to end. The mechanical population
      is smaller than any single filter suggests.
 
+612. **There are TWO spellings of void and the predicate tested one.**
+     `fn f() -> void` sets extra_return_type to "void"; `fn f()` with no arrow
+     leaves it EMPTY, displayed as "auto". 28 specs -- every testbench's
+     `fn tick()` -- were emitted as `function [31:0] tick;` and called in
+     statement position with an invented argument. T198.
+
+613. **A construct with an opening and a closing form has TWO predicates.** The
+     first repair fixed only the header and produced `task tick; ... endfunction`
+     -- `yosys: unexpected TOK_ENDFUNCTION`. They must be the same EXPRESSION,
+     not the same intention. T198a.
+
+614. **A metric cannot report a defect its own tool tolerates.** iverilog accepts
+     a function called as a task WITH A WARNING; yosys rejects it. `corpus`
+     compiles with iverilog, so 28 specs carried this while the headline said
+     they were fine. Same shape as T167a, one layer down. T198b.
+
 ### How to update this tracker
 
 After closing a wave:
