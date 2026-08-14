@@ -6895,6 +6895,28 @@ These cost a wave each. Follow them before step 1.
      Each wave's claim got weaker and each wave's evidence got stronger -- which
      is the correct direction, and the only reason a false result never shipped.
 
+451. **Ask the narrowest question the tool can answer.** Three waves refuted the
+     BSCANE2 readback without finding why. Feeding fasm2frames ONE FASM line at
+     a time and counting non-zero frames localised it in one run: the chain
+     select sets bits, and all six routing entries -- SHIFT, CAPTURE, SEL, DRCK,
+     TDI, TDO -- set none. T141.
+
+452. **`rc = 0` with no warning is not the same as "it worked".** fasm2frames
+     accepted six routing lines, emitted zero configuration bits for them, and
+     said nothing. The primitive ends up selected and unconnected. Check that a
+     translation PRODUCED something, not merely that it did not complain.
+
+453. **A negative result that names its layer closes a door; one that does not
+     leaves it ajar.** "BSCANE2 does not work" invites another attempt. "The open
+     flow expresses only the chain-select bit and drops all six routing PIPs, in
+     prjxray's database, upstream of us" stops the attempt and redirects it --
+     UART on a discovered pin, or a Vivado bitstream.
+
+454. **The hypothesis you never tested may have been untestable.** W674 named the
+     TDO clock edge as the last candidate and W675 skipped it for a stronger
+     experiment. W676 showed TDO was never wired at all -- so that test could
+     only ever have failed for the wrong reason.
+
 ### How to update this tracker
 
 After closing a wave:

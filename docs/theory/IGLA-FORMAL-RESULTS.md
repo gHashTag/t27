@@ -8870,4 +8870,57 @@ the only thing that said so.
 
 ---
 
+### T141 (W676) — root cause: the open flow selects BSCAN and routes none of it, silently
+
+Three waves refuted the readback without finding why. W676 asked the narrowest
+possible question: **feed `fasm2frames` one BSCAN FASM line at a time and count
+the frames it sets.**
+
+```
+empty FASM                                   ->  0 non-zero frames  (baseline)
+
+BSCAN.JTAG_CHAIN_1                           ->  BITS SET
+CFG_CENTER_LOGIC_OUTS_B16_3.…BSCAN1_SHIFT    ->  no bits
+CFG_CENTER_LOGIC_OUTS_B22_2.…BSCAN1_CAPTURE  ->  no bits
+CFG_CENTER_LOGIC_OUTS_B14_2.…BSCAN1_SEL      ->  no bits
+CFG_CENTER_LOGIC_OUTS_B20_2.…BSCAN1_DRCK     ->  no bits
+CFG_CENTER_BSCAN1_TDO.CFG_CENTER_IMUX33_3    ->  no bits
+CFG_CENTER_LOGIC_OUTS_B12_3.…BSCAN1_TDI      ->  no bits
+```
+
+> **T141.** The chain-select bit is the **only** part of BSCAN that the open
+> bitstream flow can express. All six routing entries — `SHIFT`, `CAPTURE`,
+> `SEL`, `DRCK`, `TDI`, `TDO` — produce **zero configuration bits**, and
+> `fasm2frames` reports `rc = 0` with no warning about any of them. **The
+> primitive is selected and none of its signals is connected.**
+
+**This is a defect of the toolchain, not of the design.** No edit to the Verilog
+can reach it: `nextpnr-openxc7` emits well-formed FASM, `prjxray`'s database
+carries no bits for those PIPs, and the translator drops them without a word.
+The `TDO` edge hypothesis of W674 was never testable, because `TDO` was never
+wired.
+
+**What it closes.** BSCANE2 readback is **unavailable through OpenXC7** on this
+part, and no further wave should spend effort on it without first fixing
+`prjxray`'s CFG_CENTER routing database — which is upstream work, not project
+work. A machine-readable verdict needs a different channel: a UART on a pin
+discovered from the board, or a Vivado-generated bitstream.
+
+**And it completes a chain of four escalating refutations.**
+
+| wave | claim tested | refuted by | strength |
+|---|---|---|---|
+| W673 | the verdict reads `0b0111` | one control read | a single comparison |
+| W674 | the alternation is `beat` | ten reads per bitstream | a distribution |
+| W675 | the register is in the scan path | a 28-bit magic | one unforgeable read |
+| **W676** | **why** | **per-line FASM bit count** | **root cause** |
+
+**Each wave's control was the only thing that stopped a false claim shipping**,
+and the last one turned "we do not know" into "we know, and it is not ours to
+fix". **A negative result that names the layer it lives in is worth as much as a
+positive one** — it is the difference between an open question and a closed
+door with a sign on it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

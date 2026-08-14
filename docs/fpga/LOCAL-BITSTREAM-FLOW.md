@@ -242,3 +242,26 @@ channel. The blinky has neither.
 - **`--test` (archcheck) fails** and is not a valid gate; see §1.
 
 **φ² + φ⁻² = 3 | TRINITY**
+
+## BSCANE2 does not work through this flow (W676)
+
+Measured by feeding `fasm2frames` one line at a time and counting the frames each
+sets:
+
+```
+BSCAN.JTAG_CHAIN_1                           ->  BITS SET
+CFG_CENTER_LOGIC_OUTS_*.CFG_CENTER_BSCAN1_*  ->  NO BITS   (all six)
+CFG_CENTER_BSCAN1_TDO.CFG_CENTER_IMUX33_3    ->  NO BITS
+```
+
+`nextpnr-openxc7` places the primitive and emits well-formed FASM for its
+routing; `prjxray`'s database has no bits for those PIPs; `fasm2frames` drops
+them and returns **rc 0 with no warning**. The result is a bitstream in which
+BSCAN is selected and none of `SHIFT`, `CAPTURE`, `SEL`, `DRCK`, `TDI` or `TDO`
+is connected — verified on hardware: a 28-bit magic constant shifted from a
+USER1 register comes back as zeros.
+
+**Do not spend another wave on JTAG readback through OpenXC7.** Fixing it means
+adding CFG_CENTER routing bits to prjxray, which is upstream work. For a
+machine-readable channel use a UART on a pin discovered from the board, or a
+Vivado-generated bitstream.
