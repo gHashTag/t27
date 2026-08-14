@@ -104,7 +104,7 @@ The table below is kept as the *size* census it actually is.
 | `trinity-clara*` | 2 | **1** | trinity-clara, trinity-claraParameter |
 | `trinity-railway*` | 2 | **1** | trinity-railway, trinity-railway-agent |
 
-> **`zig-half` is eight repositories and every one is empty**, with near-identical
+> **`zig-half` WAS eight repositories (six deleted 2026-08-14) and six of the eight were empty; `zig-half` and `zig-half-rs` hold commits and remain**, with near-identical
 > descriptions — *"f16/bf16 ML ops for Rust — ternary pack/unpack"*. `go-half` adds
 > three more. `GoldenFloat.jl` and `GoldenFloats.jl` differ by one letter.
 >
@@ -114,7 +114,14 @@ The table below is kept as the *size* census it actually is.
 
 ---
 
-## The real candidates: 28 non-empty repositories
+## The 28 LARGEST candidates
+
+**W689: this heading said "the real candidates: 28 non-empty repositories".**
+The retraction three sections above already showed the non-empty count is
+**46** (28 never-suspect + 18 that hold commits despite <= 64 KB). A retraction
+that does not propagate into the tables it invalidates leaves the document
+self-contradicting -- which is what this file did for one wave.
+
 
 | repo | MB | open issues | language | description |
 |---|---:|---:|---|---|

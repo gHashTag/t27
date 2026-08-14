@@ -37,7 +37,9 @@ Three successive corrections of a number this project had been quoting:
 |---|---|
 | "466 specs fail" | 173 do not parse · 159 unwritten · 6 partial |
 | "289 defect specs" | contaminated by unwritten specs — inflated 2.3× |
-| **124 defect specs** | populations sum to **617** exactly, two code paths agree |
+| **124 defect specs** | **FIVE** populations sum to 617 (W689 correction: the four
+named here sum to **462**; the identity needs `iverilog accepts` 155 as its fifth term,
+and closes only at 155 — at 156 the defect count is 123) |
 
 ```
 iverilog accepts 155 | does not generate 173 | UNWRITTEN 159 | PARTIAL 6 | DEFECT 124

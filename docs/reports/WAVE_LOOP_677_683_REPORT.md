@@ -16,7 +16,8 @@ THE CLAIM, attacked on its own terms
   T142  SMT tried: the refutation condition is not met, and the asymmetry is
         solver-independent
   T143  the algebraic method tried; T143a a diagnosis...
-  T144  ...which W680 then refuted. The condition is closed against all three.
+  T144  ...which W680 then refuted. SMT and both ABC engines were RUN at 64x8
+        and all timed out; yosys sat was NOT run there (W689 correction).
 
 THE STRUCT-LOWERING THREAD, ended with a measurement
   T145  two depth guards drifted; the gap was a silent wrong width
@@ -47,7 +48,13 @@ uniform timeouts indicted the *setup* (`abc -g AND` flattening the arithmetic
 structure). W680 tested the tool against a circuit that is *definitionally* a
 multiplier — `assign y = a * b` — and it failed identically at 8 × 8. **The
 diagnosis was refuted by the golden's own failure**, and with it the caveat it
-had produced. The condition is closed against all three named methods.
+had produced.
+
+**W689 correction.** "Closed against all three named methods" overstates the
+table printed above it: the `64 × 8` row shows `yosys sat` as `—`. **It was
+never run there.** SMT and both ABC engines were run at 64 × 8 and all timed
+out; the SAT term is closed by *inference* from the 64 × 6 result plus
+monotonicity in weight width, not by a run.
 
 **And the oldest tool won.** `yosys sat` proved 12 × 12 where Z3, `cec` and
 `&polyn` all failed. A symbolic encoding is not automatically stronger than a
@@ -90,7 +97,7 @@ annotation warning about it**.
 | fundamental — string · unsized slice · float | **700 · 602 · 212** |
 | **fixable — enum · sized array** | **44 · 34** |
 
-> **78 of 3,229 occurrences — 2.4% — are reachable by widening the predicate at
+> **78 of 4,229 occurrences — 1.8% — are reachable by widening the predicate at
 > all.** 1,519 are fundamentally unpackable. The capability ceiling has been
 > reached; further predicate work cannot repay a wave.
 

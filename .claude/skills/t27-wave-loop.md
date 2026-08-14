@@ -7200,6 +7200,63 @@ These cost a wave each. Follow them before step 1.
      NOPARSE population. The gap was never a disagreement; it was two different
      denominators.
 
+504. **An absence measured through a mechanism that produces absence when
+     working is not evidence.** W676 fed fasm2frames one FASM line at a time, saw
+     `NO BITS` for all six BSCAN routing entries, and concluded the flow could not
+     express them. Those entries are PSEUDO-PIPS -- `always` type, zero
+     configuration bits BY CONSTRUCTION, `tile_segbits.py` returns early for them.
+     Zero bits is what a WORKING pseudo-pip looks like. T163/T163a.
+
+505. **The BSCANE2 readback works on silicon, and we proved it ourselves three
+     days before re-deriving the wrong answer.** openXC7/nextpnr-xilinx#126 was
+     filed by this project 2026-08-10 and WITHDRAWN by this project 2026-08-13
+     with an A/B and a nine-read A/B/A on hardware. The cause was a stale
+     prjxray-db checkout (f4pga 0a0adde ships no ppips file) while .gitmodules
+     declares the openXC7 fork. CHECK YOUR OWN CLOSED ISSUES before re-opening a
+     line of investigation. T163.
+
+506. **A pure {-phi,0,+phi} network IS a ternary network times phi^k.** phi
+     factors out of every layer. The alphabet adds ZERO expressive power, so the
+     MVP's `contrib` returning +/-x was never the shortfall it was recorded as.
+     The defensible claim is the FIVE-level alphabet {0,+/-1,+/-phi}, which does
+     not factor. T158/T158a.
+
+507. **phi^-1 = phi - 1 gives (a,b) -> (b-a, a): one subtraction, exact.** Depth
+     growth is unavoidable only if you decline to divide. T99 presents it as a
+     hard cost; it is a cost of not using the free inverse. T160.
+
+508. **83 LUT is not a number until it has a denominator.** 83/24 = 3.46 LUT per
+     ternary MAC; FINN measured 3.66 LUT per binary MAC in 2017, with weight
+     memory included, on a harder problem, WITH an accuracy figure. Parity with
+     2017, not a result. T161.
+
+509. **What this project does is called TRANSLATION VALIDATION** (Pnueli, Siegel
+     & Singerman, TACAS 1998), and seL4 made the same trade. Adopt the name. But
+     Google XLS does a stronger version automatically per compile, so the
+     methodological novelty claim is gone -- what remains is the ternary domain.
+     T162/T162a.
+
+510. **A miter proves DUT == GOLDEN, not DUT |= SPEC.** Our golden is hand-written
+     from the spec header by the same author as the spec; Knight & Leveson (1986)
+     showed co-authored versions fail together. Fix the QUANTIFIER: emit the
+     golden from the spec by a second deliberately naive lowering. T162b.
+
+511. **Re-add every table you quote.** Four arithmetic errors -- T149's 5.5 vs
+     3.71 GiB, T147's 3,229 vs 4,229 (a dropped row), a four-term sum that gives
+     462 not 617, and "closed against all three" when one cell was never run --
+     were all found by re-adding tables this project had already published. None
+     required new work. T165.
+
+512. **`cargo:` directives are read from a build script's STDOUT only.** The
+     Markdown language check used `eprintln!("cargo:warning=...")`, so for its
+     entire life it found violations and reported them to nobody -- and lesson 384
+     asserted the opposite. Ten warnings appeared the moment it became `println!`.
+
+513. **One broken cron is 35% of the organization's open issues.** 314 of 893 are
+     a SKY130 nightly bot firing ~4/day since 2026-05-16 across four repos, body
+     always identical. And 63% of t27's own 235 issues are sequential "Wave Loop
+     N" journal entries. Classify by SUBJECT and you measure the bot. T164/T164a.
+
 ### How to update this tracker
 
 After closing a wave:

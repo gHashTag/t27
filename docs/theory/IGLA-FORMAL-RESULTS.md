@@ -9228,7 +9228,12 @@ tree, how many are rejected for a reason a predicate extension could fix?
 | **fixable — enum** | 44 |
 | **fixable — sized array** | 34 |
 
-> **T147.** **Seventy-eight occurrences out of 3,229 — 2.4% — are reachable by
+> **T147.** *(W689 correction: the classification table above sums to **4,229**,
+> not 3,229 — the `sized array of non-primitive | 5` row was dropped when the
+> table was copied into the wave report. The correct shares are **1.8%**
+> reachable and **39%** — not 51% — waiting on the type-alias decision. T148's
+> recommendation leaned on the 51% figure.)*
+> **Seventy-eight occurrences out of 4,229 — 1.8% — are reachable by
 > widening the lowerability predicate at all**, and the larger half of those
 > needs an enum registry that does not exist. **1,519 are fundamentally
 > unpackable** and 955 carry type names the compiler cannot resolve. The
@@ -9351,7 +9356,11 @@ differ by one letter.
 > training data, eleven copies of one library is eleven times the same sample.
 
 **What this makes concrete.** The real merge candidates are the **28 non-empty
-repositories**, of which four hold 5.5 GiB between them: `trios` (1.82 GB),
+repositories**, of which four hold 3.71 GiB of the 5.55 GiB total (**W689
+correction: this line said "5.5 GiB between them"; 1820.6 + 707.0 + 696.7 +
+574.3 MiB = 3.71 GiB, and 5.55 GiB is the total across all 56, not these four.
+"the other 24 are small" is also wrong: `tri-net` 553.3 MB, `trinity-papers-ru`
+444.8 MB, `phi-paper` 242.8 MB, `ghashtag.github.io` 157.2 MB): `trios` (1.82 GB),
 `trinity` (707 MB), `trinity-fpga` (697 MB), `zig-physics` (574 MB). The other
 24 are small, and `trinity`/`trinity-fpga` are the two live heads of **one
 codebase** the inventory already flagged as critical.
@@ -9635,6 +9644,228 @@ hundred waves.
 
 Two tests now pin it: a fn-less source must classify `NOFN`, and the five
 verdicts must partition.
+
+---
+
+## W689 — the literature answers, and three of our own claims fall
+
+Twelve agents, 1.04 M tokens. **The most valuable results are the refutations.**
+
+### T158 — a pure {−φ, 0, +φ} network IS a plain ternary network, exactly
+
+Every layer computes `Σᵢ(±φ)xᵢ = φ·Σᵢ(±1)xᵢ`. **φ factors out of the layer.** A
+depth-*k* pure-φ network equals `φᵏ` times the corresponding Ternary Weight
+Network — verified by exact simulation at depths 1, 2, 3, 5.
+
+> **T158.** For the strict alphabet {−φ, 0, +φ} the golden ratio carries **zero
+> additional expressive power** over {−1, 0, +1}. "Exact and multiplication-free"
+> is true and *vacuous*: it is inherited from ternary, not conferred by φ.
+> **Refuted by:** any task on which a pure-φ net and its TWN image differ after
+> a per-layer rescale.
+
+**Two consequences, one relieving and one costly.**
+
+*Relieving:* the MVP's `contrib` returning `±x` has been recorded for many waves
+as a shortfall — "the MVP does not implement Z[φ]". **It is not a shortfall.**
+For the pure-φ alphabet, `±x` *is* the correct lowering up to the global `φᵏ`.
+The gap between the spec's claim and the implementation was never in the
+implementation.
+
+*Costly:* BitNet b1.58's quantiser is `RoundClip(W/(γ+ε), −1, 1)` with
+`γ = mean|W|`, so **its effective alphabet is already {−γ, 0, +γ} for a fitted
+real γ**. {−φ, 0, +φ} is that with γ pinned to 1.618 instead of learned — a
+*restriction* of a 2016 result (TWN, Li et al.), not an extension. TTQ (Zhu,
+Han, Mao, Dally, ICLR 2017) goes further still and learns the two nonzero levels
+*asymmetrically*.
+
+> **T158a — the defensible claim is a different one.** A **five**-level alphabet
+> {0, ±1, ±φ} does *not* factor: its outputs have irrational ratios and the
+> isomorphism breaks. It costs one add and one two-word register. **That is the
+> claim worth making**, and it is the one nobody has published.
+
+### T159 — the growth bound is tight, and it is a conservation law
+
+Applying `φᵏ` to `(x,0)` gives `(F_{k−1}x, F_k x)`, and `F_k ~ φᵏ/√5`:
+
+```
+width = input_bits + k·log₂φ = input_bits + 0.6942·k bits
+```
+
+The project already had this. **What it had wrong is the word "worst case".**
+
+> **T159.** Growth is `Θ(φᵏ)` for **every** nonzero integer start `(a,b)`, not
+> merely for aligned signs — the contracting eigendirection has irrational slope
+> and no integer point lies on it. Depth growth is **deterministic and
+> data-independent**; the `√N` concentration corollary applies to the **fan-in**
+> axis only. **Refuted by:** an integer start whose coefficients stay bounded.
+
+> **T159a — no free lunch, from Dirichlet and Kronecker.** In a real quadratic
+> field the only roots of unity are ±1 and the unit rank is 1, so every unit
+> `u ≠ ±1` has `|u| ≠ 1`. **A free add-only multiplier of magnitude ≠ 1 cannot
+> exist without geometric coefficient growth.** Imaginary quadratic rings (`Z[i]`,
+> Eisenstein) *do* give growth-free multipliers — and no useful scaling. The
+> trade is structural, not an artefact of our encoding.
+
+### T160 — the inverse is free too, and we never used it
+
+`φ⁻¹ = φ − 1`, so `(a + bφ)/φ = (b − a) + aφ` — the step `(a,b) ↦ (b−a, a)`:
+**one integer subtraction, exact in Z**, verified to invert the forward step.
+
+> **T160.** When every path through a layer applies the same number of φ factors,
+> renormalising by `φ⁻¹` per layer holds width **constant forever**. T99 presents
+> depth growth as an unavoidable cost; **it is unavoidable only if you decline to
+> divide.** The same problem was solved in 2000 for Koblitz-curve τ-adic
+> expansions (Solinas) by reduction modulo `τⁿ − 1`. **Refuted by:** a layer
+> structure where path φ-counts differ and cannot be equalised.
+
+### T161 — 83 LUT has no denominator
+
+FINN (Umuroglu et al., FPGA 2017) measures **1.83 LUT per binary synaptic
+operation** at 2 operations per synapse = **3.66 LUT per binary MAC**, including
+weight-memory addressing.
+
+```
+MVP:   83 LUT / 24 ternary weights = 3.46 LUT per MAC
+FINN:                                3.66 LUT per binary MAC (2017)
+```
+
+> **T161.** The MVP's 83 LUT is **parity with 2017**, obtained on a *smaller and
+> easier* problem and carrying **no accuracy figure at all**. The number is not
+> remarkable; it is not even a number until it has a denominator. The field's
+> comparable row is *Accuracy / LUT / FF / DSP / BRAM / Fmax / Latency / LUT·ns*
+> on MNIST, jet-substructure tagging, or UNSW-NB15. **Refuted by:** an
+> accuracy-bearing result on one of those benchmarks that beats
+> PolyLUT-Add's 3,336 LUT / 92% floor.
+
+**And T109's scaling model is worse than it looks.** It assumes **66 LUT per
+ternary MAC** — 18× FINN's 1-bit figure and 1.65× FINN's own estimate for a full
+**8-bit** multiply-accumulate. If 66 is real, the ternary datapath is being
+built the expensive way.
+
+### T162 — what we do has a name, and a stronger version ships in production
+
+> **T162.** `fpga/formal/` performs **translation validation** — Pnueli, Siegel &
+> Singerman, TACAS 1998. Not compiler verification. seL4 chose the same trade
+> (Sewell, Myreen, Klein, PLDI 2013), so it is a respectable position with an
+> industrial pedigree, **and adopting the name is a strict upgrade over the
+> current framing.**
+
+> **T162a — but the novelty claim is superseded.** Google **XLS** lowers DSLX to
+> Verilog and uses **Z3** to prove IR-vs-netlist equivalence *automatically, per
+> compile, on every design*. "We prove our generated Verilog equivalent to a
+> reference over the whole input space" has shipped for years. **Vericert**
+> (OOPSLA 2021) is strictly stronger still: it proves the *compiler*, for every
+> program it accepts.
+
+> **T162b — and the one criticism that lands.** A miter proves `DUT == GOLDEN`.
+> It does **not** prove `DUT ⊨ SPEC`. Our golden is hand-written from the spec
+> header *by the same author as the spec*, and Knight & Leveson (IEEE TSE 1986)
+> showed experimentally that independently written versions fail together far
+> more often than independence predicts. **If the header is misread, the lowering
+> and the golden inherit the same misreading and SAT reports SUCCESS.**
+> **The fix is a quantifier change, not a technique change:** emit the golden
+> from the spec via a *second, deliberately naive* lowering in `t27c` (real `*`,
+> signed compares, no ternary tricks), so the two paths share no author.
+
+### T163 — T141 IS RETRACTED. BSCANE2 works on silicon.
+
+W676 fed `fasm2frames` one FASM line at a time, saw `NO BITS` for all six BSCAN
+routing entries, and concluded the open flow could not express them. **T141
+inverted the meaning of its own measurement.**
+
+```
+$ grep -n CFG_CENTER_LOGIC_OUTS_B22_2 build/fpga/openxc7/prjxray-db/artix7/ppips_cfg_center_mid.db
+1:CFG_CENTER_MID.CFG_CENTER_LOGIC_OUTS_B22_2.CFG_CENTER_BSCAN1_CAPTURE always
+```
+
+**285 entries, 44 of them BSCAN, all type `always`.** They are **pseudo-pips** —
+always-on routing that *requires no configuration bits by construction*.
+`prjxray/tile_segbits.py` returns early for any feature in `ppips`. **Zero bits
+is what a working pseudo-pip looks like.**
+
+> **T163.** T141's "the open flow expresses only the chain-select bit and drops
+> all six routing PIPs" is **false**. The pips are documented and present, in the
+> **artix7** database this project actually uses. The original failure was a
+> **stale prjxray-db checkout** (f4pga `0a0adde`, 2021-12-14, which ships no
+> `ppips_cfg_center_*.db`) where `.gitmodules` declares the openXC7 fork.
+
+**This was already established by this project on 2026-08-13** — the upstream
+issue `openXC7/nextpnr-xilinx#126` was filed by us on 08-10 and **withdrawn by us
+on 08-13 with an A/B and hardware proof**:
+
+| db root | `fasm2frames` |
+|---|---|
+| openXC7 @ `399a099b` | exit 0, frames written |
+| f4pga @ `0a0adde` | the reported error, exit 1, 0-byte output |
+
+```
+control (no BSCANE2)   drscan -> 00000000  00000000
+BSCANE2 design         drscan -> a5a51234  a5a51234  a5a51234
+control reloaded       drscan -> 00000000  00000000
+BSCANE2 reloaded       drscan -> a5a51234  a5a51234
+```
+
+**Full A/B/A, nine reads, a magic constant.** On xc7z020, not our part — so the
+transfer to XC7A200T is *supported by the artix7 database being present*, not yet
+by a read. **Refuted by:** a BSCANE2 build on the XC7A200T that still fails.
+
+> **T163a — the general shape, and it is the costliest one this project has
+> made.** *An absence measured through a mechanism that produces absence when
+> working is not evidence.* Four waves refuted the readback; the fifth found the
+> root cause upstream; **the sixth found the root cause was a submodule in our
+> own tree, and that the "missing" bits were never supposed to exist.**
+
+### T164 — the issue census is 893, and the 80% claim is refuted
+
+Four independent counts reconcile to **893** open issues (not 863):
+`gh search issues --owner` = 893; `search/issues` total_count = 893; REST
+`open_issues_count` 1,282 − 389 open PRs = 893.
+
+> **T164.** T148a's "**689 of 863 — 80% — touch no mission topic**" does not
+> reproduce. Today's classification gives **243 of 893 off-theme — 27.2%** — and
+> **650 on-theme**. **Refuted by:** a stated, reproducible classifier under which
+> 80% recurs.
+
+**But the on-theme figure is machine noise.** **314 of the 893 — 35.2% of every
+open issue in the organisation — are one broken cron**, a SKY130 nightly
+regression bot firing ~4/day since 2026-05-16 across four `tt-trinity-*` repos,
+body always the same literal string. **And 146 of t27's own 235 issues are
+sequential "Wave Loop N" journal entries**, plus 59 `formal: (Prop. N)` entries —
+**63% of our backlog is a work journal, not a defect list.**
+
+> **T164a.** Both the 80% figure and its replacement measure *subject matter*,
+> and subject matter is the wrong axis when one cron writes a third of the
+> corpus. **The honest denominator is human-filed issues**, and nobody has
+> counted those.
+
+### T165 — four arithmetic errors in our own record
+
+| where | claim | actual |
+|---|---|---|
+| T149 | "four hold **5.5 GiB**" | **3.71 GiB** of the 5.55 GiB total |
+| T147 | table sums to **3,229** | sums to **4,229** → 2.4% is **1.8%**, 51% is **39%** |
+| W664 report | "159 + 6 + 173 + 124 sum to 617" | **462**. Five populations are needed |
+| W678 report | "closed against all three named methods" | `yosys sat` **was never run at 64×8** — the cell is `—` |
+
+> **T165.** Every one of the four was found by re-adding a table this project had
+> already published. **None required new work.** The T147 error propagated into
+> T148's recommendation, which leaned on "51% waiting on a decision" — the figure
+> is **39%**.
+
+### T166 — the training database is not viable as stated
+
+> **T166.** **218** specs are usable positive examples — not 279, and not 617.
+> Of the rest: 61 declare no function, 159 are entirely unwritten, 6 partial, 173
+> do not parse. Include them and **47% of the training examples demonstrate a
+> declaration followed by `{ }`** (T156). **And there is no `gen/zig` backend**,
+> so the 129 `.zig` of `trinity-training` and 55 of `zig-golden-float` cannot be
+> paired with their specs at all — the spec→implementation pairs a code model
+> most needs are the ones that do not exist. **Refuted by:** a `gen/zig` backend
+> plus a paired corpus above 1,000 verified spec/implementation pairs.
+
+**Three live leaked credentials** (`trinity#601`, `trios-dwagent#1`,
+`trios-railway#124`) make this a hard gate: **a history-derived corpus embeds
+them permanently.** Rotation is not a step in the plan; it is the precondition.
 
 ---
 
