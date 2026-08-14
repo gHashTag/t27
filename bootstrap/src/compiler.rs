@@ -10071,7 +10071,28 @@ impl VerilogCodegen {
         }
 
         // Section: Tests → assertions (SystemVerilog-style)
-        if !tests.is_empty() {
+        //
+        // W692: GATED ON `emit_test_assertions`, and it should always have been.
+        //
+        // `t27c gen-verilog --help` says "Generate SYNTHESIZABLE Verilog", and a
+        // sibling command `gen-verilog-for-simulation` already exists to carry the
+        // testbench. The switch that separates them -- `emit_test_assertions` --
+        // has existed since the two entry points were written, and it wrapped
+        // only the `$dumpfile`/`$dumpvars` pair. The test blocks below were
+        // emitted UNCONDITIONALLY, which is why the two commands differed by
+        // exactly four lines.
+        //
+        // Measured before this change (T167): 387 of 444 generating specs -- 87.2%
+        // -- emitted `$display`, 43,053 calls corpus-wide, 124 in the MVP alone.
+        // yosys turns each into a `$print` cell and nextpnr cannot place one:
+        //
+        //     ERROR: Unable to place cell '...$display$...', no BELs remaining
+        //            to implement cell type '$print'
+        //
+        // So the command whose entire purpose is synthesis produced output that
+        // could not be placed, for seven specs in eight. `t27c silicon` worked
+        // around it with `delete t:$print`; this removes the need.
+        if !tests.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
@@ -10104,7 +10125,10 @@ impl VerilogCodegen {
         }
 
         // Section: Invariants → parameter assertions
-        if !invariants.is_empty() {
+        //
+        // W692: same gate. An invariant lowers to a procedural assertion, which
+        // is a simulation construct exactly as a test is.
+        if !invariants.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
@@ -10124,7 +10148,9 @@ impl VerilogCodegen {
         // `integer x = 0;` between `initial begin` and `end`). We therefore
         // hoist each bench's cycle counter to module scope using a unique
         // sanitized name, and reset/increment it inside the initial block.
-        if !benches.is_empty() {
+        // W692: same gate. The section header already called these
+        // "simulation only" -- and emitted them into the synthesis output anyway.
+        if !benches.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();

@@ -7391,6 +7391,34 @@ These cost a wave each. Follow them before step 1.
      bodies interpolate runId and sha, so every issue is textually unique. Key
      bulk operations on the label or a title PREFIX. T177b.
 
+542. **THE CORPUS MORE THAN DOUBLED BY EMITTING LESS: 156 -> 326.** `gen-verilog`
+     emitted the spec's `test`/`invariant`/`bench` blocks into output its own help
+     calls synthesizable. The switch `emit_test_assertions` already existed and
+     wrapped only `$dumpfile`/`$dumpvars`; the test loop ran unconditionally.
+     Gating three sections on the flag moved `iverilog accepts` +170 and BOTH
+     backends +110, with `generates` unchanged at 444. T178.
+
+543. **Twenty waves moved that number by five. One deletion moved it by 170.**
+     What iverilog had been rejecting was the generated TESTBENCH, not the
+     generated design. Every wave that called the generates/accepts gap "the real
+     backlog" was in large part measuring the test-block lowering. T178a.
+
+544. **Third instance of the instrument being inside the measurement.** `run`
+     reported a spawn failure as instant success; `run_timed` manufactured 29
+     hangs from its own pipe; `gen-verilog` measured its own testbench. Before
+     trusting a corpus figure, ask what the COMMAND contributes to it. T178b.
+
+545. **Register the refutation condition in the direction you do NOT expect.**
+     The forecast said `iverilog accepts` would rise or stay, and named FALLING as
+     the refutation -- which forced the reasoning to be explicit about what
+     `corpus` actually runs (iverilog only, never vvp). That is why the +170 was a
+     confirmation and not a surprise.
+
+546. **Move only the call site that needs it.** Five places call `gen-verilog`;
+     exactly one (`run_path`) needed `gen-verilog-for-simulation`, because it runs
+     vvp and counts PASSED. `prove`, `corpus`, `depth` and `silicon` all want the
+     synthesizable output and now get it.
+
 ### How to update this tracker
 
 After closing a wave:

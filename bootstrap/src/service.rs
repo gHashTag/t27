@@ -472,7 +472,17 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
     // ---- spec -> Verilog ----
     let v_path = tmp.join(format!("{stem}.v"));
     let t = Instant::now();
-    let (c, out, _) = run(Command::new(&me).args(["gen-verilog", spec]));
+    // W692: `gen-verilog-for-simulation`, not `gen-verilog`. The next stage runs
+    // iverilog + vvp and counts PASSED -- and after W692 the synthesis command no
+    // longer emits a testbench, because emitting one into "synthesizable" output
+    // was the defect (T167). Asking the synthesis output to report test results
+    // would report zero, and the rule three lines below treats zero checks as
+    // failure: a harness that reports nothing could not have failed.
+    //
+    // The other four call sites in this file KEEP `gen-verilog` deliberately:
+    // `prove` miters the synthesizable RTL, `corpus` measures it, `depth`
+    // diagnoses it, `silicon` places it.
+    let (c, out, _) = run(Command::new(&me).args(["gen-verilog-for-simulation", spec]));
     if c == Some(0) {
         std::fs::write(&v_path, out)?;
     }

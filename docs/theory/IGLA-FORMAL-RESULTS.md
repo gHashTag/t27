@@ -10235,4 +10235,62 @@ its own failure.** The package needs to be **built and pushed**, not made public
 
 ---
 
+### T178 — the corpus more than doubled by emitting LESS
+
+`gen-verilog --help` says *"Generate **synthesizable** Verilog"*. A sibling
+command `gen-verilog-for-simulation` already existed to carry the testbench. The
+switch that separates them — `emit_test_assertions` — **has existed since both
+entry points were written**, and it wrapped only the `$dumpfile`/`$dumpvars`
+pair. The `for t in &tests { … }` loop ran **unconditionally**, which is exactly
+why the two commands differed by four lines (T167).
+
+**Forecast registered before the change** (T44), five terms:
+
+| term | forecast | outcome |
+|---|---|---|
+| `$display` in `gen-verilog` | **0** | **0** ✅ |
+| `gen-verilog-for-simulation` | unchanged at 124 | **124** ✅ |
+| `generates Verilog` | stays 444 | **444** ✅ |
+| **`iverilog accepts`** | **rises or stays** — *falling would refute my model of what `corpus` measures* | **156 → 326** ✅ |
+| `t27c path` | breaks unless moved to the simulation command | moved; **31 PASSED** ✅ |
+
+```
+iverilog accepts    156  ->  326     +170    25.3%  ->  52.8%
+BOTH backends        64  ->  174     +110    10.4%  ->  28.2%
+generates Verilog   444  ->  444     unchanged
+generates Zig       444  ->  444     unchanged
+Zig accepts         196  ->  196     unchanged
+```
+
+> **T178.** **Twenty waves moved this number from 151 to 156. One change moved it
+> +170.** And it added no capability whatever — it stopped emitting simulation
+> constructs into synthesis output. **What `iverilog` had been rejecting for the
+> whole history of this metric was the generated TESTBENCH, not the generated
+> design.** **Refuted by:** a spec that compiled before and does not now.
+
+> **T178a — and it reinterprets twenty waves.** Every wave that chased "the gap
+> between *generates* and *accepts* is the real backlog" was measuring, in large
+> part, defects in the **test-block lowering** — a code path that has no business
+> being in synthesizable output at all. The design lowering was never the size of
+> the problem it appeared to be. **T126's law survives** (a fix moves the count
+> iff it clears a spec's last class); what changes is that one whole *class* was
+> an artefact of the command's own scope.
+
+> **T178b — the shape, and it is the third time.** `run` returned a spawn failure
+> as instant success; `run_timed` manufactured 29 hangs from its own pipe;
+> `gen-verilog` measured its own testbench. **Each time the instrument was inside
+> the measurement.** The corpus figure is not a property of the corpus alone —
+> it is a property of the corpus *and the command that reads it*.
+
+**Corpus-wide `$display` in synthesis output: 387 specs → 1.** That one is
+`specs/igla/coder/eval.t27`, where `$display` appears inside **quoted Verilog
+string literals** — the spec generates testbenches as data. Not a defect.
+
+**Four call sites deliberately keep `gen-verilog`:** `prove` miters the
+synthesizable RTL, `corpus` measures it, `depth` diagnoses it, `silicon` places
+it. Only `run_path` moved, because it runs `vvp` and counts `PASSED` — and the
+rule one line below it treats zero checks as failure.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
