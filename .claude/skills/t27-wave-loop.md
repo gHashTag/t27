@@ -7921,6 +7921,26 @@ These cost a wave each. Follow them before step 1.
      block re-issued without it. Re-derive from `yosys -h synth_xilinx` after any
      yosys upgrade; do not assume the block.
 
+645. **THIRTY SEEDS: phi adds nothing (+0.025 pp, t=0.67) and FIVE LEVELS DO
+     NOT BEAT FOUR (+0.059 pp, t=1.00).** Both 4- and 5-level beat ternary at
+     t>3.3, so cardinality above three IS real -- but {0,+-1,+-phi} costs 2.3333
+     bits/weight against 2.0 and buys nothing measurable. T207.
+
+646. **T158a is RETRACTED.** It named {0,+-1,+-phi} "the defensible restatement...
+     what the project should claim". It beats ternary, but a plain 2-bit set
+     beats ternary by the same margin at less cost. The defensible claim, measured,
+     is "cardinality 4 beats cardinality 3" -- a statement about counting, not
+     about the golden ratio. T207a.
+
+647. **A null effect SHRINKS as n grows.** phi-ternary went +0.116 (n=4) ->
+     +0.006 (n=21) -> +0.025 (n=30). A real effect holds its size and gains t.
+     Watch the trajectory, not just the final p.
+
+648. **State what the experiment does NOT test in the same paragraph as the
+     result.** This one collapses phi to a real scalar per layer -- the cheap
+     branch, and the one the hardware implements. It says nothing about the
+     Z[phi] PAIR-PROPAGATING datapath, and it runs 7 pp below the published SOTA.
+
 ### How to update this tracker
 
 After closing a wave:

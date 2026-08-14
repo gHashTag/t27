@@ -11653,4 +11653,55 @@ has 7 and ran 21.
 
 ---
 
+### T207 — thirty seeds: φ adds nothing, and five levels do not earn their cost
+
+W710 measured four seeds and could not separate `{0,±1,±φ}` from a plain 2-bit
+set — the comparison that decides whether the five-level alphabet earns its
+**+16.7% weight memory**. Thirty seeds, paired, `t_crit(0.05, 29) = 2.045`:
+
+| comparison | Δ (pp) | sd | t | verdict |
+|---|---:|---:|---:|---|
+| `{−φ,0,+φ}` − `{−1,0,+1}` | **+0.025** | 0.204 | **0.67** | **not significant** |
+| `{0,±1,±φ}` − `{−1,0,+1}` | +0.280 | 0.314 | **4.89** | significant |
+| `{−2,−1,0,+1}` − `{−1,0,+1}` | +0.222 | 0.366 | **3.32** | significant |
+| **`{0,±1,±φ}` − `{−2,−1,0,+1}`** | **+0.059** | 0.322 | **1.00** | **NOT significant** |
+
+> **T207.** **Three findings, and the third is a refutation of this project's last
+> surviving alphabet claim.**
+>
+> **(a) φ contributes nothing.** +0.025 pp at t = 0.67. The effect *shrank* as n
+> grew — +0.116 at n=4, +0.006 at n=21, +0.025 at n=30 — which is what a null
+> looks like. **T158's algebra and T205's four seeds are now confirmed at thirty.**
+>
+> **(b) Cardinality above three is real.** Both the four- and the five-level set
+> beat ternary at t > 3.3. More levels do help.
+>
+> **(c) But five do not beat four.** +0.059 pp, t = 1.00. **`{0,±1,±φ}` costs
+> 2.3333 bits/weight against 2.0 — +16.7% — and buys nothing measurable.**
+>
+> **Refuted by:** a paired design at n ≥ 30 in which `{0,±1,±φ}` beats
+> `{−2,−1,0,+1}` at t > 2.045.
+
+> **T207a — T158a is retracted.** T158a named `{0, ±1, ±φ}` as *"the defensible
+> restatement… genuinely richer than 3-level ternary… That is what the project
+> should claim."* It **is** richer than ternary — (b) — but **a plain 2-bit set is
+> richer by the same margin at less cost**, so φ's presence in the alphabet
+> contributes nothing there either. **The defensible claim, measured, is
+> "cardinality 4 beats cardinality 3" — which is a statement about counting, not
+> about the golden ratio, and which the 2-bit quantisation literature has held
+> since 2018.**
+
+**What this does NOT test, stated so the result is not over-read:** the
+Z[φ] **pair-propagating** datapath, where un-collapsed `(a, b)` coordinates carry
+across layers — T183a's second branch, which costs 3W LUT/MAC and reinstates
+Fibonacci coefficient growth. This experiment collapses φ to a real scalar at
+every layer, which is the cheap branch and the one the project's hardware
+implements. **It also runs at 85.5% mean accuracy against a 92–93% published
+state of the art**, so it establishes relative order among alphabets under
+identical conditions and nothing about competitiveness.
+
+Thirty runs, four arms, one seed list, in `experiments/phi-alphabet/results_30seeds.json`.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
