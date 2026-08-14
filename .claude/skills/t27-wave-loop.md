@@ -8207,6 +8207,40 @@ These cost a wave each. Follow them before step 1.
      and symbol validity together, with **no golden model to co-author**
      (Knight & Leveson 1986). Verified on three dice.
 
+692. **A TEST THAT CANNOT DISTINGUISH ITS TWO OUTCOMES IS NOT A TEST.** The
+     decoder replied 0 both for "no preimage" and for "recovered v = 0", so the
+     delimiter run returned exactly what a legitimate zero returns. The RTL had
+     a `nomatch` signal; it simply never reached the wire. **Before running a
+     test, ask what the FAILING answer would look like -- if it looks like the
+     passing one, there is nothing to run.**
+
+693. **Shift-DR -> Exit1-DR CLOCKS ONE MORE BIT.** Six waves of read-only JTAG
+     never met this because TDO presents sr[0] before each clock, so captures
+     come back aligned. The moment you WRITE, UPDATE latches the word shifted
+     right by one. Pre-shift the command left by one.
+
+694. **Measure a transfer function, not a failing value.** The encoder answered
+     `ENC[cmd >> 1]` for ALL EIGHT commands, which named the defect instantly.
+     One failing value would have read as a broken die or a bad bitstream, and
+     the next hour would have gone into rebuilding hardware that was correct.
+
+695. **Invert an implementation WITH that implementation.** The decoder sweeps
+     its own encoder instance rather than carrying a hand-written inverse, so
+     there is exactly one implementation of the code on the bus. It cannot
+     disagree with the encoder about the code -- only about whether a preimage
+     exists, which is the question actually worth asking (Knight & Leveson 1986).
+
+696. **Eliminate variables until none is left, then say the fit is the
+     problem.** The E_t sign survived package, flags, routing stage, yosys
+     version AND arm set -- 45 351 subsets, one negative, 0.0%. **Only after
+     every reachable variable is measured is "the published number is wrong" a
+     finding rather than an accusation.**
+
+697. **Pull the image the CI actually uses before blaming version skew.**
+     `regymm/openxc7` runs yosys 0.62 against a local 0.63; on a shared arm they
+     differ by 4.6%. Version skew was the last standing hypothesis and it was
+     off by two orders of magnitude from what it needed to explain.
+
 ### How to update this tracker
 
 After closing a wave:

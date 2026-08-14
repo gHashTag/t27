@@ -12473,4 +12473,120 @@ network, not three independent proofs of a line code.
 
 ---
 
+## A symbol crosses, and the E_t question closes — W720
+
+### T236 — a value made on one die, decoded on another
+
+Three cables reach the host and nothing else, so there is no wire between the
+boards; the host is the transport. What had never happened is the rest: a value
+produced by the fabric of **one** die, read out, delivered into the fabric of
+**another**, and decoded there — with **no host arithmetic on the payload** and
+**no second implementation of the code anywhere in the path**.
+
+`link_node` exposes a **bidirectional** BSCANE2 register: CAPTURE loads
+`{28'hA5A5A5A, reply}`, SHIFT walks it out while the next command walks in,
+UPDATE latches the low nibble. One DR pass is a request *and* the previous
+response.
+
+```
+board 1:4  ROLE=0 encoder   38 LUT synthesised,  38 placed
+board 1:6  ROLE=1 decoder   44 LUT synthesised,  58 placed
+both bracketed Done 0 -> 1; both BSCAN chain 3, matching the FASM
+
+ v   A: codeword   expected   B: recovered
+ 0          10          10             0
+ 1           8           8             1
+ 2           9           9             2
+ 3           2           2             3
+ 4           0           0             4
+ 5           1           1             5
+ 6           6           6             6
+ 7           4           4             7
+```
+
+> **T236.** **Eight of eight words crossed intact.** The decoder inverts by
+> sweeping **its own** `ZeroDSP_TernaryLink` instance, so it cannot disagree
+> with the encoder about the code — only about whether a preimage exists. That
+> removes the co-authored golden model (Knight & Leveson 1986) from the loop
+> entirely: there is exactly one implementation of 3B2T on the bus, and it is
+> the generated one.
+
+### T236a — the delimiter has no preimage, confirmed across the boundary
+
+```
+codeword 5 = (+1,+1)  ->  decoder replies 8  =  nomatch 1, v 0
+codeword 10           ->  decoder replies 0  =  nomatch 0, v 0
+```
+
+> **T236a.** T235 proved the delimiter unreachable *within* one die. Sending it
+> **across** asks a harder question — whether a searching decoder can be fooled
+> — and the answer is no. **This test was worthless until one bit was added.**
+> The first build reported `nomatch` only internally, so "no preimage" and
+> "recovered v = 0" were the **same reply**, and the delimiter run returned 0
+> exactly as a legitimate zero would. Routing `nomatch` to reply bit 3 is what
+> made the run evidence instead of a coincidence.
+
+### T237 — the JTAG write path, and the extra shift nobody had hit
+
+The project had only ever **read** from a die. Writing exposed a defect in the
+host, not the fabric: `Shift-DR → Exit1-DR` **clocks one more bit**, so UPDATE
+latches the word shifted right by one.
+
+> **T237.** Measured, not guessed: the encoder answered `ENC[cmd >> 1]` for all
+> eight commands — a transfer function, which named the bug immediately where a
+> single failing value would have suggested a broken die. Pre-shifting the
+> command left by one corrects it. **The read path is unaffected**: TDO presents
+> `sr[0]` before each clock, so a capture comes back aligned — which is why six
+> waves of read-only work never met this.
+
+### T238 — the `E_t` sign: every variable eliminated
+
+W718 narrowed the disagreement to the yosys version inside `regymm/openxc7`.
+That image was pulled and run:
+
+```
+                                        E_t
+published (post-route, M <= 25)      -197.1
+CI image yosys 0.62, pre-route        +84.3     <- the article's own image
+local 0.63, post-route, CI flags      +85.7
+local 0.63, pre-route (corrected)    +127.5
+local 0.63, post-route, plain flags  +145.6
+```
+
+The CI image runs **yosys 0.62** against the local **0.63**, and on a shared arm
+the two differ by **4.6%** — nowhere near a sign change. Restricting to the
+published domain does not help either:
+
+```
+all 20 arms                        E_t = +84.3
+M <= 25 (the published restriction) E_t = +71.8
+M <= 25 and E_t <= 4                E_t = +112.4
+only the TNF16 rows                 E_t = +62.6
+only E_t = 2, 3                     E_t = +207.7
+
+45 351 subsets sampled -> NEGATIVE E_t in 1 of them (0.0%)
+```
+
+> **T238.** **Not the package (T230), not the flags (T231), not the routing
+> stage, not the yosys version, and not the arm set.** Five independent
+> measurements span +62.6 to +207.7 and every one is positive. A negative
+> coefficient would say more exponent cells *reduce* logic, which no datapath
+> argument supports. **The published −197.1 is not reproducible on this
+> hardware by any means available**, and the remaining explanations lie in the
+> original fit itself, not in the flow.
+
+### T239 — and the quadratic vanishes entirely under the article's own image
+
+```
+CI image, all 20 arms:  m2 = +0.014   quadratic R² 0.9507   linear R² 0.9507
+```
+
+> **T239.** Under the article's own synthesis image the `M²` term buys **nothing
+> to four decimal places** — the two models are indistinguishable. With T222
+> (pre-route, −0.057), T227 (post-route plain, −3.283) and T233 (post-route CI,
+> −0.338), the quadratic has now failed in **four independent flows including
+> the one the article uses**. **Q2 is closed.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

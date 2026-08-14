@@ -254,3 +254,45 @@ E_t = 2…6. Positive at every exponent width.
 Not the package, not the flags (which reproduce `m1` to 2%), not collinearity.
 What remains is the **yosys version** inside `regymm/openxc7`, the nextpnr
 build, or the arm set of the original fit. **Not resolvable from this host.**
+
+---
+
+# ADDENDUM 3 — the article's own image, and the E_t question closed
+
+`regymm/openxc7` was pulled and run. It carries **yosys 0.62**; the local
+toolchain is **0.63**, and on a shared arm they differ by **4.6%**.
+
+| flow | E_t |
+|---|---:|
+| **published** (post-route, M≤25) | **−197.1** |
+| **CI image yosys 0.62**, pre-route | **+84.3** |
+| local 0.63, post-route, CI flags | +85.7 |
+| local 0.63, pre-route (corrected ÷4) | +127.5 |
+| local 0.63, post-route, plain flags | +145.6 |
+
+Restricting to the published domain does not change the sign:
+
+| subset | n | E_t |
+|---|---:|---:|
+| all 20 arms | 20 | +84.3 |
+| **M ≤ 25** (the published restriction) | 16 | **+71.8** |
+| M ≤ 25 and E_t ≤ 4 | 12 | +112.4 |
+| only the TNF16 rows | 10 | +62.6 |
+| only E_t = 2, 3 | 14 | +207.7 |
+
+**45 351 subsets were sampled; exactly one gives a negative `E_t` (0.0%).**
+
+**Every variable is now eliminated** — package, synthesis flags, routing stage,
+yosys version, and arm set. The published −197.1 is not reproducible on this
+hardware by any means available here. A negative coefficient would say that more
+exponent cells *reduce* logic, which no datapath argument supports. The
+remaining explanation lies in the original fit, not in the flow.
+
+## Q2 under the article's own image
+
+`m2 = +0.014`, quadratic R² **0.9507**, linear R² **0.9507** — indistinguishable
+to four decimals. With −0.057 (pre-route), −3.283 (post-route plain) and −0.338
+(post-route CI), the quadratic term has now failed in **four independent flows,
+including the one the article uses.**
+
+Raw: `2026-08-14-ci-image-yosys062.txt`.
