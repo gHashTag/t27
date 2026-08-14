@@ -12808,4 +12808,59 @@ the wider word gave `a5a5a5aa`, isolating the failure to vector 1 immediately.
 
 ---
 
+## The seals are raising an alarm nobody hears — W724
+
+### T247 — measured, while preparing a rename
+
+Renaming `triformat-gfternary` to `ga_ternary` (T244's deferred half) requires
+re-sealing, so the seal was inspected first. `t27c seal --verify` on it:
+
+```
+spec_hash:        MATCH
+gen_hash_zig:     MISMATCH
+gen_hash_verilog: MISMATCH
+gen_hash_c:       MISMATCH
+gen_hash_rust:    MISMATCH
+VERIFICATION FAILED
+```
+
+**The spec text is unchanged and all four generated artefacts have moved.** That
+is not a broken seal — **it is exactly the event a seal exists to detect**, and
+it has been true at HEAD for some time.
+
+The corpus around it:
+
+```
+specs                       1072
+  with a seal                508
+  with NO seal               564      53% of the corpus is unsealed
+seal files on disk          1715
+  matching no live module   1207      70% of the seals are orphans
+```
+
+> **T247.** A seal answers one question: *did the generated code change while
+> the specification did not?* Here it answers **yes**, for every backend, on a
+> module whose spec hash matches — and the answer has been sitting on disk
+> unread. **Half the corpus cannot ask the question at all**, and two thirds of
+> the seal files describe modules that no longer exist. The mechanism is intact;
+> what has failed is that nothing acts on its verdict.
+
+### T247a — and why the rename was NOT done
+
+> **T247a.** Re-sealing `triformat-gfternary` tonight would have made one module
+> verify inside a system where 53% of specs are unsealed and every seal checked
+> fails. That is a **green check that does not test what it claims** — the exact
+> defect W714 fixed in `tri preflight` and lesson 653 recorded. **The rename is
+> deferred until the seal state is understood**, because a rename that repairs
+> its own evidence is worse than no rename. What blocks it is not difficulty; it
+> is that the result would not mean anything.
+
+**The open question, stated so it can be answered rather than assumed:** does
+`t27c suite`'s `seal-verify` phase currently fail, and is that failure tolerated
+— or does it skip the 564 unsealed specs and pass? A suite run started for this
+wave produced no output in 25 minutes and was not waited out; the answer is one
+timed run away and belongs to whoever takes it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

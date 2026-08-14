@@ -8315,6 +8315,28 @@ These cost a wave each. Follow them before step 1.
      cannot be debugged** -- decide what distinguishes the failure cases before
      the run, not after it fails.
 
+710. **A SEAL THAT FAILS AND IS NOT ACTED ON IS NOT A SEAL.** `t27c seal
+     --verify` on `triformat-gfternary`: spec_hash MATCH, all four gen hashes
+     MISMATCH -- the exact event a seal exists to detect, sitting unread at
+     HEAD. Corpus: 1072 specs, 508 sealed, **564 unsealed**; 1715 seal files,
+     **1207 matching no live module**.
+
+711. **INSPECT THE EVIDENCE SYSTEM BEFORE RELYING ON IT FOR A REFACTOR.** The
+     rename was planned around "preserving the seal". The seal was already
+     failing. Ten minutes of checking changed the plan from a refactor into a
+     finding.
+
+712. **REFUSE THE TASK WHEN COMPLETING IT WOULD FORGE ITS OWN EVIDENCE.**
+     Re-sealing one module inside a corpus where every checked seal fails makes
+     that module verify and proves nothing. Deferring is the correct output --
+     and the report has to say WHY, or the next wave just does it.
+
+713. **My ad-hoc hash comparison agreed with the authoritative tool -- check
+     anyway.** I compared stored vs computed hashes by hand and got "11 of 11
+     mismatch", then ran `t27c seal --verify` before reporting. It agreed. It
+     might not have: an ad-hoc reimplementation of a check is a SECOND
+     implementation, with all the risk that carries.
+
 ### How to update this tracker
 
 After closing a wave:
