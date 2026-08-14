@@ -7596,6 +7596,32 @@ These cost a wave each. Follow them before step 1.
      need a decision (122 ambiguous, 13 wide) or a body (235 no-candidate). The
      mechanical work is finished. T189b.
 
+583. **A PREDICATE MAY BE WIDENED ONLY AS FAR AS THE BACKEND CAN FOLLOW.**
+     `[8]u64` is 512 bits and the arithmetic is right, so the entry-point
+     predicate was extended to accept sized arrays. The port emitter wrote
+     `input wire [31:0]` -- the 32-bit packed_width default, 16x too narrow --
+     and EVERY check passed: banner gone, census counted them, corpus column
+     moved by exactly the forecast amount, yosys 0 LUT with no warning. T190a.
+
+584. **This is T145's shape on a different path.** T145's repair said the
+     ACCEPTING side must be the stricter, so anything accepted can be sized. I
+     broke that rule in the same repository one path over. A guard that accepts
+     what it cannot size does not fail -- it produces a number, and the number is
+     wrong. T190b.
+
+585. **Retract in the same wave.** Four insertions removed, the acceptance
+     reverted, HAS_ENTRY back to 74 and the corpus column to 70, with two tests
+     pinning the refusal so it cannot drift back unnoticed. The deliverable is
+     the named defect, not the reverted change.
+
+586. **`f64` is 64 bits and still not derivable.** Whether a float port carries
+     raw IEEE bits or a fixed-point encoding is a DESIGN decision. Width alone
+     does not make a type lowerable.
+
+587. **A data port is necessary but NOT sufficient for logic.** `ternary_mac`
+     with plain u64 parameters synthesises to 951 LUT; a ported module whose
+     parameter was silently narrowed gives 0.
+
 ### How to update this tracker
 
 After closing a wave:

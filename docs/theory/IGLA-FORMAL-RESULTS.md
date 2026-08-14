@@ -10790,4 +10790,71 @@ matches.
 
 ---
 
+## W698 — a widening added and retracted in the same wave, and the defect it found
+
+### T190 — the blockers named: 13 forced-but-wide specs, and what stops each
+
+`t27c entry-points` now reports **which type** blocks each forced-but-wide spec:
+
+| blocker | occurrences | has a width? |
+|---|---:|---|
+| named struct or alias | 16 | needs `packed_struct_width` |
+| **sized array `[8]u64`** | **13** | **yes — 512 bits** |
+| slice `[]T` | 3 | **no** — no length in the type |
+
+`f64` appears three times and is deliberately in neither column: it is 64 bits,
+but the Verilog backend has no float, so whether a float port carries raw IEEE
+bits or a fixed-point encoding is a **design decision**, and this module makes
+none.
+
+### T190a — I widened the predicate to accept `[N]T`, and the backend did not follow
+
+`[8]u64` is 8 × 64 = 512 bits. The arithmetic is not in dispute, so
+`has_derivable_width` was extended to accept sized arrays, four BitNet specs
+took an entry point, and every downstream signal agreed:
+
+```
+banner `NO DATA PORTS`        gone
+HAS_ENTRY                     74 -> 78
+corpus data-port column       70 -> 74      (forecast: exactly this)
+25 port lines in the module
+yosys                         0 LUT, no warning
+```
+
+**Then the port itself:**
+
+```verilog
+input  wire [31:0] acts,      // for a parameter declared [8]u64
+```
+
+> **T190a.** **Thirty-two bits for a five-hundred-and-twelve-bit value** — the
+> `packed_width` default, silently 16× too narrow. **Every check in the pipeline
+> passed.** The banner was gone, the census counted them, the corpus column moved
+> by exactly the forecast amount, and yosys reported zero LUTs without
+> complaining. **A predicate may be widened only as far as the backend can
+> follow; this one was widened past it.**
+
+**Retracted in the same wave.** The four insertions were removed, the `[N]T`
+acceptance reverted, and `HAS_ENTRY` is back at **74** with the corpus column at
+**70**. Two tests now pin the refusal so it cannot drift back in unnoticed.
+
+> **T190b — and this is T145's shape, one path over.** T145 recorded two depth
+> guards on the struct-packing path drifting out of agreement and shipping a
+> silent wrong width, and the repair there was explicitly *"the accepting side is
+> deliberately the stricter, so anything accepted can be sized."* **I violated
+> that rule on a different path in the same repository.** A guard that accepts
+> what it cannot size does not fail — it produces a number, and the number is
+> wrong.
+
+**The real deliverable is the defect, now named:** the entry-point port emitter
+lowers a `[N]T` parameter to 32 bits. Re-enabling the widening requires fixing
+that first, and the comment in `entry_points.rs` says so at the site.
+
+**Necessary is not sufficient**, either: `ternary_mac` (plain `u64` parameters)
+synthesises to **951 LUT**, while a ported module whose parameter was silently
+narrowed gives **0**. A data port is required for logic to survive; it does not
+guarantee it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

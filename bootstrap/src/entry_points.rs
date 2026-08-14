@@ -88,6 +88,48 @@ fn is_sized_primitive(t: &str) -> bool {
     )
 }
 
+/// W698: a type whose width is DERIVABLE, extending `is_sized_primitive` to
+/// sized arrays of sized things: `[8]u64` is 512 bits and nothing about that is
+/// a decision.
+///
+/// Deliberately NOT included, and each for a reason:
+///
+///   `[]T`      a slice has no length in the type. Choosing one is a decision.
+///   `f64`      64 bits, but the Verilog backend has no float. Whether a float
+///              port carries raw IEEE bits or a fixed-point encoding is a
+///              DESIGN choice, and this module makes none.
+///   `Struct`   `packed_struct_width` exists and could answer, but it needs the
+///              struct declarations from the same AST, and T145 recorded two
+///              depth guards on that path drifting out of agreement and shipping
+///              a silent wrong width. Reported as its own population instead.
+fn has_derivable_width(t: &str) -> bool {
+    let t = t.trim();
+    if is_sized_primitive(t) {
+        return true;
+    }
+    // `[N]T` -- RETRACTED IN THE SAME WAVE THAT ADDED IT.
+    //
+    // `[8]u64` is 512 bits and the arithmetic is not in dispute. But the port
+    // emitter does not follow: with the parameter accepted, `gen-verilog` wrote
+    //
+    //     input  wire [31:0] acts,        // for a parameter declared [8]u64
+    //
+    // -- the 32-bit `packed_width` default, silently 16x too narrow. Four
+    // BitNet specs took that port before it was noticed, and every downstream
+    // check passed: the banner was gone, the census counted them, `corpus`'s
+    // data-port column rose 70 -> 74, and yosys reported 0 LUT without a warning.
+    //
+    // A predicate may be widened only as far as the BACKEND can follow. This one
+    // was widened past it, which is the shape T145 recorded on the struct-packing
+    // path: a guard that accepts something it cannot size correctly ships a
+    // silent wrong width, and a silent wrong width is worse than a refusal.
+    //
+    // Re-enable this together with a port emitter that lowers `[N]T` to N*width(T)
+    // bits, and not before. The test below pins the refusal so it cannot drift
+    // back in unnoticed.
+    false
+}
+
 fn is_void(t: &str) -> bool {
     let t = t.trim();
     t.is_empty() || t == "void" || t == "()"
@@ -153,8 +195,8 @@ pub fn classify(source: &str) -> Verdict {
 }
 
 fn sized(f: &Node) -> bool {
-    is_sized_primitive(&f.extra_return_type)
-        && f.params.iter().all(|(_, ty)| is_sized_primitive(ty))
+    has_derivable_width(&f.extra_return_type)
+        && f.params.iter().all(|(_, ty)| has_derivable_width(ty))
 }
 
 /// Does any function OTHER than `name` call `name`, anywhere in its body?
@@ -176,6 +218,39 @@ fn called_by_other_fn(fns: &[&Node], name: &str) -> bool {
     fns.iter()
         .filter(|f| f.name != name)
         .any(|f| f.children.iter().any(|c| mentions_call(c, name)))
+}
+
+/// Like `forced_signature` but WITHOUT the sizedness filter -- used only to
+/// report which type blocks a forced-but-wide spec. Never used to emit code.
+pub fn signature_of_forced_any(source: &str) -> Option<(String, Vec<(String, String)>, String)> {
+    let ast = Compiler::parse_ast(source).ok()?;
+    let fns: Vec<&Node> = ast
+        .children
+        .iter()
+        .filter(|c| c.kind == NodeKind::FnDecl)
+        .collect();
+    if fns.iter().any(|f| f.name == "on_comb" || f.name == "on_clock") {
+        return None;
+    }
+    let candidates: Vec<&&Node> = fns
+        .iter()
+        .filter(|f| {
+            !f.params.is_empty() && !is_void(&f.extra_return_type) && !f.children.is_empty()
+        })
+        .collect();
+    let f = match candidates.len() {
+        0 => return None,
+        1 => candidates[0],
+        _ => {
+            let roots: Vec<&&&Node> = candidates
+                .iter()
+                .filter(|c| !called_by_other_fn(&fns, &c.name))
+                .collect();
+            if roots.len() != 1 { return None; }
+            roots[0]
+        }
+    };
+    Some((f.name.clone(), f.params.clone(), f.extra_return_type.clone()))
 }
 
 /// The one candidate, when the choice is forced. `None` otherwise -- including
@@ -260,6 +335,29 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
         }
     }
 
+    // W698: which TYPE blocks each forced-but-wide spec. Naming the blocker is
+    // the measurement that decides whether widening the predicate is possible
+    // without a decision -- a sized array has a width, a slice does not.
+    let mut wide_blockers: Vec<(String, Vec<String>)> = Vec::new();
+    for f in spec_files(specs_root, false) {
+        let Ok(src) = std::fs::read_to_string(&f) else { continue };
+        let v = classify(&src);
+        if v != Verdict::ForcedWide && v != Verdict::ForcedRootWide {
+            continue;
+        }
+        if let Some((_, params, ret)) = signature_of_forced_any(&src) {
+            let mut bad: Vec<String> = params
+                .iter()
+                .map(|(_, t)| t.clone())
+                .filter(|t| !has_derivable_width(t))
+                .collect();
+            if !has_derivable_width(&ret) {
+                bad.push(format!("-> {ret}"));
+            }
+            wide_blockers.push((f.to_string_lossy().to_string(), bad));
+        }
+    }
+
     let total: usize = counts.values().sum();
     println!("--- entry points ---");
     println!("  T187: a spec has a data port IFF it declares `on_comb` or `on_clock`.");
@@ -279,6 +377,32 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
     println!("  cannot become a port without a decision, and this command makes none.");
     println!("  AMBIGUOUS is left alone on purpose -- picking wrong does not fail");
     println!("  loudly, it produces a module that computes something nobody asked for.");
+
+    if !wide_blockers.is_empty() {
+        println!();
+        println!("  --- FORCED but WIDE: the choice is forced, the TYPE is the blocker ---");
+        let mut kinds: std::collections::BTreeMap<String, usize> = Default::default();
+        for (path, bad) in &wide_blockers {
+            println!("  {path}");
+            println!("      {}", bad.join(", "));
+            for b in bad {
+                let k = if b.trim_start_matches("-> ").starts_with("[]") {
+                    "slice (no width)"
+                } else if b.trim_start_matches("-> ").starts_with('[') {
+                    "sized array (HAS a width)"
+                } else if b.contains("str") || b.contains("String") {
+                    "string (no width)"
+                } else {
+                    "named type (struct or alias)"
+                };
+                *kinds.entry(k.to_string()).or_default() += 1;
+            }
+        }
+        println!();
+        for (k, n) in &kinds {
+            println!("  {k:<28} {n:>3}");
+        }
+    }
 
     if verbose {
         println!();
@@ -361,6 +485,34 @@ mod tests {
             Verdict::ForcedRoot,
             "a test calling `top` must not turn `top` into a non-root"
         );
+    }
+
+    /// W698: `[8]u64` is 512 bits and that is arithmetic, not a decision.
+    #[test]
+    fn a_sized_array_of_primitives_has_a_derivable_width() {
+        // W698 RETRACTION: the arithmetic is right and the emitter cannot follow
+        // it -- a [8]u64 parameter became a 32-bit port. Refused until the port
+        // emitter lowers N*width(T).
+        assert!(!has_derivable_width("[8]u64"), "retracted: the emitter writes 32 bits");
+        assert!(!has_derivable_width("[2][4]u8"), "retracted with it");
+        assert!(!has_derivable_width("[]u8"), "a slice has no length in the type");
+        assert!(!has_derivable_width("[N]u8"), "a symbolic count is not a number");
+        assert!(!has_derivable_width("f64"), "the Verilog backend has no float");
+        assert!(!has_derivable_width("BrainState"), "a struct needs its declaration");
+    }
+
+    /// W698: a sized array is refused, because accepting it produced a 32-bit
+    /// port for a 512-bit value and nothing in the pipeline complained.
+    #[test]
+    fn a_spec_taking_a_sized_array_stays_wide() {
+        let src = "module m\n\nfn dot(a: [8]u64, b: [8]u64) -> u8 { return 1; }\n";
+        assert_eq!(classify(src), Verdict::ForcedWide);
+    }
+
+    #[test]
+    fn a_spec_taking_a_slice_stays_wide() {
+        let src = "module m\n\nfn dot(a: []u64) -> u8 { return 1; }\n";
+        assert_eq!(classify(src), Verdict::ForcedWide);
     }
 
     #[test]
