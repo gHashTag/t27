@@ -8700,4 +8700,69 @@ open question.
 
 ---
 
+### T138 (W673) — the transport is proven, the readback is not, and the control that says so was the point
+
+T137 named the missing piece: an FTDI transport beneath `dlc10`'s existing JTAG
+primitives. W673 built it, through `libftdi1` via `ctypes`, so the question could
+be answered before any Rust was written.
+
+**The transport is proven, by a known answer.**
+
+```
+raw=93606313   IDCODE=0x13636093   expected 0x13636093 (XC7A200T)   MATCH
+```
+
+Thirty-two bits, independently known from `openFPGALoader` on all three boards.
+A transport that returns those cannot be returning noise. **And the named risk —
+that claiming the cable through `rusb`/`libftdi` would break the loading path —
+was checked immediately afterwards: `openFPGALoader` still reads the cable.**
+
+**The USER1 readback is NOT proven, and the control is what says so.**
+
+The design shifts four bits — `ok`, `beat`, a constant `1`, a constant `0` — so
+that an all-zero or all-one chain, the two silent failure modes, cannot fake a
+plausible verdict. First read of the BSCANE2 bitstream:
+
+```
+USER1 = 0b0111   ok=1 beat=1 const1=1 const0=0   -> "chain alive"
+```
+
+Then the control: **load a bitstream with no BSCANE2 at all and read again.**
+
+```
+without BSCANE2:  USER1 = 0b0101   const1=1 const0=0   -> "chain alive"   <-- REFUTED
+with BSCANE2:     USER1 = 0b0101   (not the 0b0111 of the first read)
+```
+
+> **T138.** A design containing **no user register** produced the constant
+> pattern the protocol relies on. The bits are therefore coming from the JTAG
+> chain itself — BYPASS, most likely — and not from the shift register in the
+> design. **The discriminator did not discriminate**, and the first reading,
+> which looked exactly like the expected answer, was an artefact.
+
+**What survives and what does not.**
+
+| claim | status |
+|---|---|
+| FTDI MPSSE transport works on these cables | **proven** — 32-bit known answer |
+| claiming the cable does not break `openFPGALoader` | **proven** — verified after |
+| BSCANE2 design synthesises, routes, loads | **proven** (T137) |
+| the IR sequence selects USER1 | **refuted by control** |
+| the silicon's verdict has been machine-read | **NO** |
+
+**Why this is the right outcome to report.** The protocol was designed to make a
+dead channel visible, the control was run because the design being tested is the
+one that makes claims about hardware, and it caught a false positive that reads
+identically to success. **Had the control not been run, this wave would have
+reported the central result of the session as achieved.** The rule that saved it
+is the same one that gives `Done 0→1` its meaning, applied to a second channel.
+
+**The remaining defect is one sequence.** The 6-bit IR shift mixes
+`CLK_BITS_OUT_NEG` for five bits with a TMS-command carrying the sixth, and the
+DR that follows behaves like BYPASS. That is a bounded, testable next step with
+its own known answer available: a correct USER1 selection must make the two
+bitstreams read **differently**.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -6832,6 +6832,29 @@ These cost a wave each. Follow them before step 1.
      XADC and the status register. The gap is one FTDI transport, and NAMING it
      that precisely is the difference between a blocked wave and a scoped task.
 
+440. **Run the control against a design that CANNOT produce the answer.** A
+     four-bit USER1 verdict with two constant bits looked alive -- and a
+     bitstream containing no BSCANE2 at all returned the same constant pattern.
+     The bits were coming from the JTAG chain, not from the design. The
+     discriminator did not discriminate, and the first read looked exactly like
+     success. T138.
+
+441. **A readback protocol needs a control, not just a checksum.** Constant bits
+     inside the payload prove nothing if the payload never came from your
+     register. The only test that works is: load something that cannot answer,
+     and require a DIFFERENT reading.
+
+442. **Prove the transport separately from the thing it carries.** IDCODE is a
+     32-bit answer known independently from another tool, so a matching read
+     proves MPSSE works even though the USER1 layer above it is broken. Two
+     claims, two verifications -- one survived and one did not, and neither
+     contaminated the other.
+
+443. **State the collateral risk and check it the same wave.** Claiming an FTDI
+     cable through libftdi could have left it unusable by openFPGALoader, which
+     every load in this project depends on. Named before the work, verified
+     immediately after: the cable still enumerates and reads.
+
 ### How to update this tracker
 
 After closing a wave:
