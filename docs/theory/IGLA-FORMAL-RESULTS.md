@@ -8765,4 +8765,51 @@ bitstreams read **differently**.
 
 ---
 
+### T139 (W674) — every layer verified independently, and the last one still fails
+
+W673 left one bounded defect: the IR sequence appeared not to select USER1.
+W674 verified each layer against a known answer, and the failure survived all of
+them.
+
+| layer | verification | result |
+|---|---|---|
+| `shift_dr_read(4)` | low nibble of IDCODE after TLR | `0b0011` ✅ |
+| `shift_ir(0x09)` = IDCODE | DR32 must be the IDCODE | `0x13636093` ✅ |
+| `shift_ir(0x3F)` = BYPASS | DR32 must be zeros | `0x00000000` ✅ |
+| BSCAN in the bitstream | FASM + P&R log | `BSCAN.JTAG_CHAIN_1`, `BSCAN1_SHIFT`, `BSCAN1_CAPTURE`; nextpnr constrained `bscan` to `BSCAN_X0Y0/BSCAN` ✅ |
+| **USER1 reaches the design's register** | **control** | **❌** |
+
+**The control, strengthened from one read to ten.** W673 compared a single read of
+each bitstream. W674 read each ten times:
+
+```
+without BSCANE2:  {0b…0101: 4,  0b…0111: 6}
+with BSCANE2:     {0b…0111: 5,  0b…0101: 5}
+```
+
+**Identical distributions.** A design containing no `BSCANE2` at all produces the
+same two values in the same proportions.
+
+> **T139.** The alternation between `0b0101` and `0b0111` is exactly the two
+> legal states of the design's register — `{0, 1, beat, ok}` with `ok = 1` — and
+> **that resemblance is a coincidence.** The same alternation appears in a design
+> that exports no `beat` signal. A hypothesis that explains the data perfectly is
+> not thereby true; **the control is what separates the two, and only repetition
+> exposed that a single read could not.**
+
+**What this localises.** IR shifting works, DR reading works, and the primitive is
+physically in the bitstream and placed. The remaining candidate is the last one:
+the shift register's `TDO` path. `always @(posedge drck) sr <= {tdi, sr[3:1]}`
+with `assign tdo = sr[0]` may present the wrong bit at the edge the TAP samples —
+BSCANE2's `TDO` is expected to be valid *before* the rising `DRCK`, so a
+register clocked on that same edge is one cycle late.
+
+**Two waves, two refutations, and the same rule doing the work.** W673's control
+caught a false positive; W674's stronger control caught the same false positive
+wearing a better disguise — a plausible mechanism (`beat` toggling) that fitted
+every observation. **Load something that cannot answer, and require a different
+reading.** It has now overturned the session's central claim twice.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

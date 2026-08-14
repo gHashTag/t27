@@ -6855,6 +6855,28 @@ These cost a wave each. Follow them before step 1.
      every load in this project depends on. Named before the work, verified
      immediately after: the cable still enumerates and reads.
 
+444. **A hypothesis that fits every observation is not thereby true.** The
+     USER1 reads alternated between exactly the two legal states of the design's
+     register, and "that is the heartbeat toggling" explained it perfectly. Ten
+     reads of a bitstream WITHOUT the register produced the same two values in
+     the same proportions. The resemblance was a coincidence. T139.
+
+445. **Repeat the control; one read cannot see a distribution.** W673 compared a
+     single read of each bitstream and drew a conclusion. W674 read each ten
+     times and the conclusion changed shape -- same verdict, far stronger
+     evidence, and the mechanism it refuted was invisible at n=1.
+
+446. **Verify each layer against its own known answer before blaming the top
+     one.** shift_dr_read(4) -> low nibble of IDCODE; shift_ir(0x09) -> IDCODE;
+     shift_ir(0x3F) -> zeros; FASM and the P&R log for the primitive itself.
+     Four independent checks passed and localised the defect to the one layer
+     that had none available.
+
+447. **A register clocked on the same edge the TAP samples is one cycle late.**
+     BSCANE2 expects TDO valid BEFORE the rising DRCK; `always @(posedge drck)`
+     driving `assign tdo = sr[0]` presents the previous value. Named as the
+     remaining candidate, not yet tested.
+
 ### How to update this tracker
 
 After closing a wave:
