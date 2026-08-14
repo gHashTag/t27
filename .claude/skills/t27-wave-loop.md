@@ -7133,6 +7133,51 @@ These cost a wave each. Follow them before step 1.
      Report the scope-refresh command to the owner rather than acquiring the
      scope.
 
+492. **Glob the corpus and you measure the scratch directory.** `find specs -name
+     '*.t27'` returns 1,072 files and 585 MiB; the real corpus is 617 files and
+     6.58 MiB. The 455-file difference is `specs/scratch`, machine-generated
+     benchmark specs up to 36.77 MiB each, TRACKED BY GIT. Exclude it explicitly
+     in every measurement, or say which number you are quoting. T153.
+
+493. **A spec's name is not evidence its content exists.** `heap_sort.t27`,
+     `insertion_sort.t27`, `selection_sort.t27` and `shell_sort.t27` contain the
+     SAME empty `fn sort(values: []i64) -> void { }`. Twenty-five other specs --
+     including `sacred/quantum_gravity` and `tri/math/math` -- have a body of
+     exactly 47 characters: the module line and two imports. T154.
+
+494. **Match braces, do not regex, when counting empty bodies.** A regex asking
+     for "a letter before the first `}`" calls `fn f() -> i64 { 5 }` empty. The
+     brace-matched count is 85 no-fn / 194 all-empty / 12 partial / 326 complete,
+     and it SUMS TO 617 -- the check that the crude version cannot pass. T155.
+
+495. **When your number and the recorded number differ by 40%, do not pick one.**
+     Recorded: 159 unwritten, 667 bodiless declarations. Measured: 279 specs with
+     an empty body, 919 empty declarations. Both differ in the same direction.
+     The resolution is to read the other measurement's PREDICATE, not to assume
+     drift or to assume error. T155.
+
+496. **The training-corpus question has a number now, and it is 1.25 M tokens**
+     across 326 implemented specs. Reported fine-tuning sets for a new language
+     run 1-10 M. Include the empty specs and 47% of the examples demonstrate a
+     declaration followed by `{ }`. T156.
+
+497. **Three sources give three wave numbers.** scratch filenames and the skill
+     say W889; commits and the theorem file say W688; report filenames say W677.
+     The counters are 201 apart. The commit counter is the live one -- but the
+     loop invariant currently points at the report filenames, which are the most
+     stale of the three. T156a.
+
+498. **A destructive action that frees zero bytes is a control on the criterion
+     that selected it.** Ten repositories deleted, org total unchanged at
+     17.97 GiB. That corroborates emptiness; it does NOT vindicate the proxy,
+     because the proxy is what reports the total. Say which one you proved. T152.
+
+499. **Pass Workflow `args` as a JSON value, not a JSON string.** A stringified
+     object arrives as a string, `args.slices` is undefined, and the script dies
+     at line 1 having spent zero agents. Cheap failure, but it costs a launch --
+     add `typeof args === 'string' ? JSON.parse(args) : args` and it cannot
+     happen again.
+
 ### How to update this tracker
 
 After closing a wave:

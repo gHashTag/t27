@@ -9441,4 +9441,133 @@ credential this loop runs under cannot delete a repository even by mistake.
 
 ---
 
+## W689 — the corpus measured as a corpus
+
+### T152 — deleting ten empty repositories freed zero bytes
+
+The ten repositories T151 identified by branch count were deleted. The
+organisation's total `diskUsage` before and after:
+
+```
+17.97 GiB  ->  17.97 GiB        freed: 0.0 MiB
+```
+
+> **T152.** The deletion is a *post-hoc control* on T151's method. Had the
+> branch-count criterion been wrong in the direction that matters — had any of
+> the ten held content — the total would have fallen. It did not move at all.
+> **Refuted by:** any nonzero delta.
+
+Note what this does *not* prove: it cannot vindicate the `diskUsage` proxy,
+because the proxy is what reports the total. It confirms only that the ten were
+empty by the same measure the proxy uses — which is exactly the measure T151 had
+already shown to be unreliable in the *other* direction (calling non-empty
+repositories empty). **The branch count remains the sound criterion; this is
+corroboration, not proof.**
+
+### T153 — 99% of the `.t27` corpus is machine-generated stress tests, committed
+
+A glob for `.t27` under `specs/` returns **1,072** files totalling **585 MiB**,
+mean size 571 KB. The project's own records say **617** specs.
+
+```
+1072 - 455 = 617          specs/scratch/ holds 455 generated benchmark specs
+                          largest single file: 36.77 MiB
+                          319 files > 100 KB account for 99.0% of all bytes
+                          the other 753 files total 5.92 MiB (median 3,125 B)
+```
+
+They are nested-array stress cases — `[2][2][2]…[2]Pt` to fifteen levels — and
+they are **tracked by git**: `git ls-files specs/scratch | wc -l` = 455.
+
+> **T153.** The accounting is *consistent* — 617 is exactly the non-scratch
+> count — but the separation lives only in the convention that tools exclude
+> `specs/scratch`. **Any tool that globs `specs/**/*.t27` measures a corpus that
+> is 99% synthetic by volume.** **Refuted by:** a `.gitignore` entry or a build
+> rule that makes the exclusion mechanical rather than conventional.
+
+### T154 — twenty-nine specs are template clones, and four sorts share one body
+
+Normalising each spec (strip comments, rename the module to `M`, collapse
+whitespace) collapses **617 files to 588 distinct bodies**.
+
+| group | size | body |
+|---|---:|---|
+| headers only | **25** | `module M; use base::types; use math::constants;` — **47 characters** |
+| sorts | **4** | `fn sort(values: []i64) -> void { }` — `heap_sort`, `insertion_sort`, `selection_sort`, `shell_sort` |
+| sorts, allocator variant | 2 | `counting_sort`, `tim_sort` |
+| perceptrons | 2 | `gft_xorpercep3`, `gft_xorpercep4` — 4,967 chars, genuinely near-identical |
+
+The twenty-five include `sacred/quantum_gravity.t27`, `sacred/dark_matter.t27`,
+`tri/agent/memory.t27` and `tri/math/math.t27`. **They differ from one another
+only in the filename.**
+
+> **T154.** Four files named for four different sorting algorithms contain the
+> same empty function. A spec's *name* is not evidence that its *content*
+> exists, and a corpus count that treats each file as one specification
+> overstates the corpus by every clone it contains. **Refuted by:** a
+> normalisation under which these files differ.
+
+### T155 — 47% of the corpus has no implementation, measured by brace matching
+
+Not by regex — by matching braces from each `fn NAME(` to its closing brace:
+
+| population | specs | share |
+|---|---:|---:|
+| no `fn` at all | 85 | 13.8% |
+| every `fn` body is `{ }` | **194** | **31.4%** |
+| some bodies empty | 12 | 1.9% |
+| every `fn` has a body | **326** | **52.8%** |
+| **total** | **617** | **100%** |
+
+**919 of 5,346 `fn` declarations — 17.2% — are empty.** And the emptiness is not
+scattered: **twenty-two directories contain not one implemented spec**, among
+them the whole of `tri/` (collections 29, utils 19, trees 13, sort 10, search 10,
+crypto 9, graph 8, encoding 8, io 7, net 7, math 8, agent 11, pipeline 11) and
+the whole of `ml/` (activation 10, layers 10, optimizer 9, rl 8, recurrent 8,
+loss 6) — **219 files**.
+
+> **T155.** The recorded figures are *159 unwritten specs* and *667 bodiless
+> declarations*. The brace-matched measurement gives **279** specs carrying at
+> least one empty body and **919** empty declarations. Both differ, in the same
+> direction, by roughly 40%. **Either `impl-status` applies a narrower criterion
+> than "the body is empty", or the figures have drifted.** **Refuted by:**
+> reading `impl-status`'s predicate and finding it measures something else on
+> purpose — in which case the two numbers must stop being quoted as if they
+> answered the same question.
+
+### T156 — the trainable corpus is 1.25 M tokens, and 47% of it demonstrates absence
+
+Restricting to the 326 specs where every function has a body:
+
+```
+326 files | 5.28 MiB | 1,254,339 tokens
+```
+
+For scale: The Stack v2 is ~900 billion tokens of code; reported fine-tuning
+sets for teaching a model a *new* language run 1–10 M tokens. This corpus is
+**1.25 M** — at the very bottom of that band, and only if the empty specs are
+excluded.
+
+> **T156.** If the full 617 are used, **47% of the training examples are a
+> declaration followed by `{ }`**, and twenty-five of them are the same 47-byte
+> header. The dominant pattern available to learn is *"emit a header and an
+> empty body"* — the corpus teaches the surface syntax of `.t27` and, by
+> construction, cannot teach its semantics. **Refuted by:** a fine-tune on the
+> full corpus whose generated specs contain non-empty bodies at a rate
+> materially above the corpus's own 53%.
+
+### T156a — and the wave counter has forked
+
+`specs/scratch` filenames run `w368` … **`w889`**, and `.claude/skills/t27-wave-loop.md`
+cites W889. Commit messages and `IGLA-FORMAL-RESULTS.md` run to **W688**. All 455
+scratch files carry one mtime (Aug 9 00:47), so they arrived by checkout, not by
+incremental generation.
+
+> **T156a.** **Two independent wave counters exist, 201 apart.** The loop
+> invariant "wave number = max(WAVE_LOOP_*) + 1" reads a *third* source — the
+> report filenames, which stop at 677. Three sources, three answers. The commit
+> counter is the live one; the invariant should name it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
