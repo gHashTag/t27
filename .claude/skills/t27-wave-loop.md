@@ -7876,6 +7876,27 @@ These cost a wave each. Follow them before step 1.
      cap under load is recorded as NOT SYNTHESISING -- a wrong result, not a slow
      one. Saying the run is blocked beats a number that must be retracted. T204b.
 
+636. **THE FIRST TRAINED MODEL IN {-phi,0,+phi} EXISTS, AND phi ADDS NOTHING.**
+     Paired t-test, 4 seeds, UNSW-NB15, 593->64->1 with a FIXED threshold so phi
+     cannot factor out: phi-ternary +0.116 pp t=1.12 NOT significant;
+     five-level-ternary +0.623 pp t=3.83 SIGNIFICANT; five-level minus two-bit
+     +0.139 pp t=1.16 not significant. Cardinality helps, phi is not the reason,
+     and five levels do not beat four. T205.
+
+637. **Build the experiment so it CAN fail.** With sign(Wx) and no threshold any
+     positive scalar factors out and every arm is identical BY CONSTRUCTION -- a
+     tautology dressed as a result. The fixed integer threshold the project's own
+     hardware uses is what makes phi testable.
+
+638. **PAIR THE SEEDS.** Between-seed spread is 1.0-1.3 pp, ten times the phi
+     effect; the raw arm ordering changed in three of four runs. Unpaired, this
+     experiment reports noise and would be read as "no alphabet matters" -- the
+     wrong conclusion for the wrong reason. T205b.
+
+639. **State the limits in the same breath as the result.** 4 seeds, 12 epochs,
+     one architecture, 86.2% against a 92-93% published SOTA. This establishes
+     RELATIVE ORDER among alphabets under identical conditions and nothing more.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -11535,4 +11535,66 @@ Load average **8.17 on 8 cores**, 13 agent processes live.
 
 ---
 
+## W710 — THE FIRST TRAINED MODEL IN {−φ, 0, +φ}, AND WHAT IT SAYS
+
+Until this wave the project's central claim rested on algebra and on nothing
+else. **There was no trained model in this alphabet — not in the literature
+(verified null across arXiv, DBLP, OpenAlex and Semantic Scholar) and not in this
+repository.** There is now.
+
+**Setup.** UNSW-NB15 binarised (Zenodo 4519767, the artefact every paper in the
+LUT-network line uses): 593 binary inputs, 175,341 train, 82,332 test. A
+593→64→1 MLP, straight-through estimator, pure NumPy so the quantiser is
+auditable. **Four arms, one seed each, identical in everything but the weight
+alphabet.** Four seeds: 27, 7, 42, 137.
+
+**The design point that makes it an experiment rather than a tautology.** With
+`sign(Wx)` and no threshold, *any* positive scalar factors out and every arm is
+identical by construction. The project's own hardware uses a **fixed integer
+threshold** (`quantize(v, threshold)`), and against a fixed threshold φ does not
+factor out. The net is built that way.
+
+### T205 — φ adds nothing. Cardinality does. Neither beats two bits.
+
+Paired t-test over the four seeds, 3 degrees of freedom, `t_crit(0.05) = 3.182`:
+
+| comparison | Δ (pp) | sd | t | verdict |
+|---|---:|---:|---:|---|
+| `{−φ,0,+φ}` − `{−1,0,+1}` | **+0.116** | 0.207 | **1.12** | **not significant** |
+| `{0,±1,±φ}` − `{−1,0,+1}` | **+0.623** | 0.325 | **3.83** | **SIGNIFICANT** |
+| `{−2,−1,0,+1}` − `{−1,0,+1}` | +0.483 | 0.497 | 1.94 | not significant |
+| `{0,±1,±φ}` − `{−2,−1,0,+1}` | **+0.139** | 0.239 | **1.16** | **not significant** |
+
+> **T205.** **The golden ratio contributes nothing measurable.** T158 proved that
+> algebraically for the pure alphabet; this is the empirical companion, and it
+> holds even with the fixed threshold that was supposed to break the
+> factorisation. **What does help is CARDINALITY: five levels beat three,
+> significantly.** But **five levels do not beat four by a detectable margin**,
+> and cost **2.3333 bits/weight against 2.0 — +16.7%**, or **+45.8%** against
+> packed ternary's 1.6000. **Refuted by:** a paired design at n ≥ 8 in which
+> `{0,±1,±φ}` beats `{−2,−1,0,+1}` at t > 2.4.
+
+> **T205a — this is exactly what T182 predicted from the literature, now
+> measured.** APoT's own 2-bit weight set is ternary and beats every 4-level
+> method on CIFAR-10; LQ-Nets already admits irrational levels; and the defensible
+> claim was never "φ" but "cardinality 5". **The measurement says cardinality 5 is
+> real and φ is not the reason for it.**
+
+> **T205b — and the unpaired view would have said nothing at all.** Between-seed
+> spread is σ ≈ 1.0–1.3 pp, ten times the φ effect and twice the five-level
+> effect; the raw ordering of arms **changes across all four seeds** — three
+> distinct orderings in four runs. **Sharing the seed is what makes a 0.6 pp
+> effect visible.** An unpaired comparison at this n reports noise and would have
+> been read as "no alphabet matters", which is the wrong conclusion for the wrong
+> reason.
+
+**Stated limits, because they bound what this can carry:** four seeds, twelve
+epochs, one architecture, one dataset, and **86.2% mean accuracy against the
+92–93% published state of the art** on this benchmark. The measurement
+establishes *relative order among alphabets under identical conditions*; it is
+not a competitive result and is not offered as one. The code and every run are
+in `experiments/phi-alphabet/`.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
