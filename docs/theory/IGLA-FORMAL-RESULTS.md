@@ -8593,4 +8593,61 @@ before it could happen again.
 
 ---
 
+### T136 (W671) — the prerequisite is fixed and verified; the estimate that justified it was conditional on something that does not exist
+
+W667 accepted nested structs, its own safety test caught the widths being wrong,
+and it reverted within the wave, naming the width computation as the
+prerequisite (T132). W671 supplies it.
+
+**`field_type_width` / `packed_struct_width`** size a field by consulting
+`struct_decls` rather than falling through to `type_to_width`'s default of 32,
+recursively, with a depth bound that returns **0** — not a plausible number —
+for a type with no finite packed width.
+
+**The criterion stated in W667, met exactly:**
+
+```
+struct Inner { lo: u8, hi: u8 }                       -> 16 bits
+struct Cfg { width: usize, depth: u8, inner: Inner }  -> 56 bits   (was 72)
+pick = (a[32 +: 8] + b[32 +: 8])                      distinct slices preserved
+```
+
+**Full safety battery, all four passing:**
+
+| check | result |
+|---|---|
+| unsized slice still rejected (T134) | 2 × `UNSUPPORTED_ICARUS` ✅ |
+| array of a lowerable struct now accepted | `Holder2` = 4×40 + 8 = **168 bits** ✅ |
+| self-referential struct | `UNSUPPORTED`, no loop ✅ |
+| sized arrays unchanged | 40 and 136 bits ✅ |
+
+**And the corpus barely moved:**
+
+| | after W669 | after W671 |
+|---|---:|---:|
+| specs with `UNSUPPORTED_ICARUS` | 238 | **236** |
+| structs lowered as packed vectors | 91 | **91** |
+| specs `iverilog` accepts | 156 | **156** |
+| regressed clean → broken | — | **0** |
+
+> **T136.** W667 estimated nested-struct support at **+18 structs**. That figure
+> was computed as the increment *given that enum fields were also accepted* —
+> and they are not. **A conditional estimate quoted unconditionally overstates
+> its own case**, and the real corpus effect of the same change is two specs,
+> because a struct with a nested-struct field almost always carries a string or
+> float field as well.
+
+**The prerequisite was still worth building.** It converts a wrong width into a
+right one wherever the packed path runs, and it removes the reason W667 had to
+be conservative. But the wave's honest headline is *"the arithmetic is now
+correct"*, not *"eighteen structs unlocked"*.
+
+**A process failure recorded.** No binary snapshot was taken before this wave's
+edits, so the first comparison ran against the pre-W669 binary and conflated two
+waves. The W671 delta above is reconstructed from W669's recorded measurement
+rather than measured directly — **weaker evidence than every other number in this
+document, and labelled as such.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

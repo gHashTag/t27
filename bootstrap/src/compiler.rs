@@ -8438,38 +8438,66 @@ impl VerilogCodegen {
         trimmed.to_string()
     }
 
+    /// W671: width of one field's type, consulting `struct_decls` for a nested
+    /// struct instead of falling back to `type_to_width`'s default of 32.
+    ///
+    /// W667 accepted nested structs and the safety test caught the consequence
+    /// immediately: `struct Cfg { width: usize, depth: u8, inner: Inner }` was
+    /// reported as **72** bits rather than 56, because `Inner` (a real 16 bits)
+    /// was sized at the unknown-type default. Every field after the nested one
+    /// would then be sliced from the wrong offset. The acceptance was reverted
+    /// and the width computation named as the prerequisite (T132).
+    ///
+    /// This is that prerequisite. `depth` bounds the walk so a struct that
+    /// transitively contains itself cannot loop; such a type has no finite
+    /// packed width and 0 is returned, which the callers surface as a width of
+    /// zero rather than a plausible wrong number.
+    fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
+        if depth > 8 {
+            return 0;
+        }
+        let t = ty.trim();
+        if let Some(close) = t.find(']') {
+            let inner = t[1..close].trim();
+            // Unsized slices are rejected by `is_lowerable_scalar_struct`
+            // (T134); if one reaches here the width is genuinely unknown.
+            let Ok(count) = inner.parse::<u32>() else {
+                return 0;
+            };
+            let base = t[close + 1..].trim();
+            return count * self.field_type_width(base, depth + 1);
+        }
+        if self.struct_decls.contains_key(t) {
+            return self.packed_struct_width(t, depth + 1);
+        }
+        Self::type_to_width(t)
+    }
+
+    /// W671: total packed width of a struct, summing `field_type_width`.
+    fn packed_struct_width(&self, name: &str, depth: u32) -> u32 {
+        if depth > 8 {
+            return 0;
+        }
+        let Some(fields) = self.struct_decls.get(name) else {
+            return 0;
+        };
+        fields
+            .iter()
+            .map(|(_, ft)| self.field_type_width(ft, depth))
+            .sum()
+    }
+
     /// W527: total bit width of a scalar struct element, or of a primitive
     /// element type. Fixed-size scalar-array fields are counted as
     /// `width * count`.
     fn element_width(&self,
         elem_type: &str,
     ) -> u32 {
-        if let Some(fields) = self.struct_decls.get(elem_type) {
-            let mut w = 0u32;
-            for (_, ft) in fields {
-                let trimmed = ft.trim();
-                if let Some(close) = trimmed.find(']') {
-                    let inner = trimmed[1..close].trim();
-                    // W670: `unwrap_or(1)` here is sound ONLY because
-                    // `is_lowerable_scalar_struct` rejects a field whose brackets
-                    // are empty, so no unsized slice reaches this arithmetic.
-                    // Verified: `struct Bad { data: []u8, n: u8 }` and a holder
-                    // containing `[4]Bad` are both marked UNSUPPORTED_ICARUS.
-                    //
-                    // If that predicate is ever widened, THIS LINE SILENTLY
-                    // SIZES AN UNSIZED ARRAY AS ONE ELEMENT and every field
-                    // after it is read from the wrong bits (T134). A proof whose
-                    // validity rests on an unstated property of another function
-                    // is a defect waiting for a refactor (T115) -- so the
-                    // property is stated here.
-                    let count: u32 = inner.parse().unwrap_or(1);
-                    let base = trimmed[close + 1..].trim();
-                    w += count * Self::type_to_width(base);
-                } else {
-                    w += Self::type_to_width(trimmed);
-                }
-            }
-            return w.max(1);
+        // W671: delegated so a nested struct field is sized by its own packed
+        // width rather than type_to_width's default of 32. The inline loop this
+        // replaces produced 72 bits for a 56-bit struct (T132).
+        if self.struct_decls.contains_key(elem_type) {
+            return self.packed_struct_width(elem_type, 0);
         }
         Self::type_to_width(elem_type)
     }
@@ -8480,27 +8508,14 @@ impl VerilogCodegen {
         struct_name: &str,
         field_name: &str,
     ) -> Option<(u32, u32)> {
+        // W671: every field is sized by `field_type_width`, which consults
+        // `struct_decls` for a nested struct instead of taking type_to_width's
+        // default of 32. Before this, a struct containing a 16-bit nested struct
+        // reported its successor fields at offsets 16 bits too high (T132).
         let fields = self.struct_decls.get(struct_name)?;
         let mut offset = 0u32;
         for (name, ftype) in fields {
-            let trimmed = ftype.trim();
-            let fw = if let Some(close) = trimmed.find(']') {
-                let inner = trimmed[1..close].trim();
-                // W670: sound ONLY because `is_lowerable_scalar_struct` rejects a
-                // field with EMPTY brackets, so no unsized slice reaches this
-                // arithmetic. Verified: `struct Bad { data: []u8, n: u8 }` and a
-                // holder containing `[4]Bad` are both UNSUPPORTED_ICARUS.
-                // Widen that predicate and this line silently sizes an unsized
-                // array as ONE element, moving every later field (T134). The
-                // property is stated here because a soundness argument that
-                // lives only in another function is a refactor away from being
-                // wrong (T115).
-                let count: u32 = inner.parse().unwrap_or(1);
-                let base = trimmed[close + 1..].trim();
-                count * Self::type_to_width(base)
-            } else {
-                Self::type_to_width(trimmed)
-            };
+            let fw = self.field_type_width(ftype, 0);
             if name == field_name {
                 return Some((offset, fw));
             }
@@ -9191,8 +9206,11 @@ impl VerilogCodegen {
     fn is_lowerable_scalar_struct_d(
         name: &str,
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
-        _depth: u32,
+        depth: u32,
     ) -> bool {
+        if depth > 8 {
+            return false;
+        }
         let Some(fields) = structs.get(name) else {
             return false;
         };
@@ -9231,7 +9249,21 @@ impl VerilogCodegen {
                 } else {
                     trimmed
                 };
-                Self::is_primitive_scalar_type(base) || matches!(base, "usize" | "isize")
+                Self::is_primitive_scalar_type(base)
+                    || matches!(base, "usize" | "isize")
+                    // W671: a nested struct is admissible now that
+                    // `field_type_width` sizes it by its own packed width rather
+                    // than type_to_width's default of 32. W667 accepted this and
+                    // reverted within the wave because the width was wrong --
+                    // `Cfg { width: usize, depth: u8, inner: Inner }` reported 72
+                    // bits for a 56-bit struct (T132). The prerequisite is now
+                    // in place and verified by that same test.
+                    //
+                    // `base != name` blocks the direct self-reference; the depth
+                    // bound in `field_type_width` blocks an indirect cycle, and
+                    // returns width 0 rather than a plausible wrong number.
+                    || (base != name
+                        && Self::is_lowerable_scalar_struct_d(base, structs, depth + 1))
             })
     }
 

@@ -6797,6 +6797,25 @@ These cost a wave each. Follow them before step 1.
      a real result, and calling it that in advance stops it from looking like a
      failure afterwards.
 
+434. **A conditional estimate quoted unconditionally overstates its own case.**
+     W667 measured nested-struct support at "+18 structs" -- an increment given
+     that ENUM fields were also accepted, which they are not. The real corpus
+     effect was two specs, because a struct with a nested field almost always
+     carries a string or float field too. Re-derive an estimate under the
+     conditions that actually hold before spending a wave on it. T136.
+
+435. **Snapshot the binary before the FIRST edit of a wave, not before the
+     measurement.** W671 rebuilt three times and no pre-wave snapshot existed, so
+     the comparison ran against the pre-W669 binary and conflated two waves. The
+     delta had to be reconstructed from a recorded number -- weaker evidence than
+     a direct measurement, and it must be labelled that way.
+
+436. **Build the prerequisite even when the payoff shrinks.** The width
+     computation converts a wrong number into a right one wherever the packed
+     path runs, and removes the reason an earlier wave had to stay conservative.
+     "The arithmetic is now correct" is a smaller headline than "eighteen
+     structs unlocked" and it is the true one.
+
 ### How to update this tracker
 
 After closing a wave:
