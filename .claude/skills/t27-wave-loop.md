@@ -7525,6 +7525,25 @@ These cost a wave each. Follow them before step 1.
      are not "slow" -- they are the end of the run, and every spec after them is
      unmeasured. macOS has no `timeout(1)`; use a spawn-and-poll loop.
 
+568. **A spec has a data port IFF it declares `fn on_comb` or `fn on_clock`** --
+     57 <=> 57 over 617 specs, zero exceptions on both off-diagonals. The
+     addressable population is 387: specs that generate Verilog and cannot move a
+     value across their boundary. T187.
+
+569. **`cmd | grep -q MARKER || echo "has it"` is wrong when cmd can output
+     NOTHING.** On empty output grep finds no marker and the `||` fires, so five
+     NOGEN specs were recorded as having data ports. Absence of a marker is
+     EITHER the thing the marker denies OR no output at all. Check that
+     generation SUCCEEDED before interpreting its content. T187a/T187b.
+
+570. **`echo -` emits an empty field.** A cross-tab keyed on it counted only the
+     57 rows with a literal label and printed 0 in every other cell -- 560 of 617
+     rows dropped, and the table looked clean.
+
+571. **When two of your own measurements disagree, assume NEITHER is right.**
+     One was wrong about five specs, the other about 560. The truth was in the
+     raw rows, which were on disk the whole time. T187c.
+
 ### How to update this tracker
 
 After closing a wave:

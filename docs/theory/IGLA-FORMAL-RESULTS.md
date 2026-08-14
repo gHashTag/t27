@@ -10600,4 +10600,64 @@ than a flag — the same reason `run_timed` is hand-rolled in Rust.
 
 ---
 
+## W695 — the data-port population is an exact iff, and my own two measurements disagreed first
+
+### T187 — a spec has a data port **iff** it declares `fn on_comb` or `fn on_clock`
+
+Over all 617 specs, cross-tabulating the spec text against the generated Verilog:
+
+| | declares entry | no entry |
+|---|---:|---:|
+| **has a data port** | **57** | **0** |
+| generates, no data port | 0 | **387** |
+| generates nothing | 0 | 173 |
+| **total** | **57** | **560** |
+
+> **T187.** The implication holds in **both** directions with **zero** exceptions.
+> `on_comb`/`on_clock` is not *a* way to get ports; it is **the** way, and the
+> compiler's own banner — `NO DATA PORTS -- this module cannot move a value
+> across its boundary` — appears on exactly the complement. **The addressable
+> population is 387: specs that generate Verilog and cannot move a value.**
+> **Refuted by:** one spec on either off-diagonal.
+
+**The 57 is a coincidence, not an identity.** `corpus` reports 57 for
+`iverilog accepts AND has a data port`; this table reports 57 for *has a data
+port* over the whole corpus. **They are different sets that happen to have the
+same size** — and the second contains the first only if every ported spec also
+compiles. Not asserted here.
+
+### T187a — and my first measurement of this said the opposite
+
+An earlier pass in the same wave reported five specs *"with a port and no entry
+point"* — `ternary/bigint`, `ternary/hybrid_bigint`, `ternary/packed_trit`,
+`ternary/hybrid_arithmetic`, `pins/parser`. **All five are `NOGEN`: they generate
+no Verilog at all.**
+
+```
+t27c gen-verilog spec | grep -q 'NO DATA PORTS' || echo "has a port"
+```
+
+**On empty output `grep` finds no banner, so the `||` fires.** A spec that
+produced *nothing* was recorded as having a data port.
+
+> **T187b.** This is the same shape as T179 and T163, a third time in one week:
+> **absence of a marker read as presence of the thing the marker denies.** The
+> banner means "this module has no data port". Its absence means "no banner" —
+> which is *either* a port *or* no module at all, and the script could not tell
+> them apart because it never checked that generation succeeded.
+
+**And the summary that corrected it was itself broken.** The replacement script
+wrote its no-entry marker with `echo -`, which emitted an empty field, so the
+cross-tab counted only the 57 rows carrying a literal `ENTRY` and printed `0` in
+every other cell — **560 of 617 rows silently dropped, and the table looked
+clean.** It was caught only because its "clean" answer contradicted the earlier
+"five counterexamples", and *both* were wrong.
+
+> **T187c — the general rule this wave earns.** *When two of your own
+> measurements disagree, the probability that neither is right is not small.* The
+> first was wrong about the five; the second was wrong about all 560. The truth
+> required reading the raw rows, and the raw rows were on disk the whole time.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
