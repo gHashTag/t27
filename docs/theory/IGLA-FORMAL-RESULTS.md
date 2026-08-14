@@ -8493,4 +8493,59 @@ mismatch.
 
 ---
 
+### T134 (W669) — an unsized slice was silently packed as one element, and the census that missed it was mine
+
+W668 recommended checking arrays of primitives, on the grounds that the predicate
+ought to accept them and the census said otherwise. It accepts them. **The census
+was wrong** — it reimplemented the compiler's rule and mishandled the `[]` prefix,
+so 268 `[]u8` occurrences were filed as blockers that were never blocked. **Fourth
+reimplementation of a compiler predicate in this project, fourth different
+answer** (T130, lesson 416).
+
+**But looking found something worse than the miscount.** Measured against the
+sized forms:
+
+```
+[]u8    ->  16 bits,  n at s[8 +: 8]      <- array counted as ONE element
+[4]u8   ->  40 bits,  n at s[32 +: 8]     correct
+[16]u8  -> 136 bits,  n at s[128 +: 8]    correct
+```
+
+`struct_field_offset` sizes an array as `inner.parse().unwrap_or(1)`. For `[]u8`
+the brackets are empty, the parse fails, and **the field becomes one element**.
+Every field after an unsized slice is then read from the wrong bits, and the
+slice itself yields only its first.
+
+```
+183 structs carry one | 306 such fields | 344 fields sit after one | 58 specs
+```
+
+> **T134.** This is the **silent-wrongness trade that W667 refused twice** — for
+> floats, and for nested structs whose widths would have been wrong (T132) — and
+> it was already shipping. An unsized slice has no packed width; **rejecting the
+> struct converts a wrong answer into a loud one**, which is the whole of T124.
+
+**Scored against a forecast that predicted its own metrics would get worse:**
+
+| | before | after | forecast |
+|---|---:|---:|---|
+| specs with `UNSUPPORTED_ICARUS` | 227 | **238** | 240–275 — **miss, low by 2** |
+| structs lowered as packed vectors | 105 | **91** | — |
+| specs `iverilog` accepts | 156 | **156** | 148–156 ✅ |
+| **specs regressed from clean to broken** | — | **0** | — |
+
+**Zero regressions is the load-bearing number.** None of the 156 compiling specs
+depended on the wrong offsets, so making the failure loud cost nothing and bought
+correctness for 183 structs. Eleven specs stopped *looking* supported; none
+stopped working.
+
+**The general form.** A fallback of the shape `parse().unwrap_or(<plausible
+default>)` converts a parse failure into a confident wrong answer. It is the same
+shape as `type_to_width`'s `_ => 32` (T132) and as the substring DSP count
+(W660): **a default that is never obviously wrong is the hardest kind of defect
+to see**, and each of the three was found only by comparing against a case where
+the right answer was known independently.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

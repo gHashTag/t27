@@ -6758,6 +6758,25 @@ These cost a wave each. Follow them before step 1.
      loop, and counting them as defects has inflated the backlog figure twice
      now (T121, T125, and again here).
 
+428. **`parse().unwrap_or(<plausible default>)` turns a parse failure into a
+     confident wrong answer.** `[]u8` has empty brackets, the count parse fails,
+     and the field silently becomes ONE element -- so every field after an
+     unsized slice is read from the wrong bits. 183 structs, 306 fields, 58
+     specs. Same shape as `type_to_width`'s `_ => 32` and as the substring DSP
+     count: **a default that is never obviously wrong is the hardest defect to
+     see.** T134.
+
+429. **Compare against a case whose answer you know independently.** `[]u8` at 16
+     bits looks fine alone. Beside `[4]u8` at 40 and `[16]u8` at 136 it is
+     obviously wrong. All three of this project's silent-default defects were
+     found this way and by no other means.
+
+430. **A fix may correctly make your own metrics worse.** Rejecting unsized
+     slices moved 11 specs into UNSUPPORTED and 14 structs out of "packed". The
+     forecast SAID so before the work. **Zero specs regressed from clean to
+     broken** -- that is the number that decides whether making a failure loud
+     cost anything, and it should be measured explicitly, not inferred.
+
 ### How to update this tracker
 
 After closing a wave:

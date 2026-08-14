@@ -9170,6 +9170,33 @@ impl VerilogCodegen {
             && fields.iter().all(|(_, t)| {
                 let trimmed = t.trim();
                 let base = if let Some(end) = trimmed.find(']') {
+                    // W669: an UNSIZED slice has no packed width, and accepting
+                    // one is worse than rejecting the struct.
+                    //
+                    // `struct_field_offset` sizes an array as
+                    // `inner.parse().unwrap_or(1)`. For `[]u8` the brackets are
+                    // empty, the parse fails, and the field silently becomes ONE
+                    // element -- so `struct S { data: []u8, n: u8 }` lowered as
+                    // 16 bits with `n` at offset 8. Measured against the sized
+                    // forms, which are correct:
+                    //
+                    //     []u8    -> 16 bits,  n at s[8 +: 8]     <- WRONG
+                    //     [4]u8   -> 40 bits,  n at s[32 +: 8]    correct
+                    //     [16]u8  -> 136 bits, n at s[128 +: 8]   correct
+                    //
+                    // Every field after an unsized slice is therefore read from
+                    // the wrong bits, and the slice itself yields only its first
+                    // element. Measured across the tree: 183 structs, 306 such
+                    // fields, 344 fields positioned after one, 58 specs.
+                    //
+                    // This is the silent-wrongness trade that W667 refused for
+                    // floats and for nested structs (T132). It was already
+                    // shipping here. Rejecting the struct converts a wrong answer
+                    // into a loud one, which is the whole of T124.
+                    let inner = trimmed[1..end].trim();
+                    if inner.is_empty() {
+                        return false;
+                    }
                     trimmed[end + 1..].trim()
                 } else {
                     trimmed
