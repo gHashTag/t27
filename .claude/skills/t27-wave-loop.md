@@ -6990,6 +6990,33 @@ These cost a wave each. Follow them before step 1.
      was the best reading of the evidence then available, and each was recorded
      with what it rested on -- which is what made the next correction cheap.
 
+468. **Check whether your own recommended work is still needed.** W680
+     recommended nested-struct arrays; W681 opened with one command and found
+     W671 had already done it -- correct widths, correct offsets, three levels
+     deep. Verify the gap exists before planning to fill it, exactly as you would
+     verify a tool supports a primitive before writing RTL for it.
+
+469. **Two guards on the same invariant will drift, and the gap is a defect.**
+     `field_type_width` and `packed_struct_width` recurse once EACH per nesting
+     level; the lowerability predicate counted once. A struct the predicate
+     accepted could be one the width function refused to size, and the refusal
+     was a `return 0` that `sum()` swallowed -- a five-level chain reported 2,728
+     bits where the arithmetic gives 10,920. Share the constant, and make the
+     ACCEPTING side the stricter one. T145.
+
+470. **Third instance of one shape, and the shape now has a name.** W669:
+     `parse().unwrap_or(1)` for an unsized slice. W671: `type_to_width`'s default
+     32 for a nested struct. W681: a depth guard returning 0. **Every one is a
+     plausible-looking number standing in for "I cannot answer"**, and every one
+     was caught by a case whose right answer was known independently -- never by
+     reading the code.
+
+471. **When the recommended work is already done, go looking for the boundary.**
+     Probing what does NOT work -- arrays of arrays, self-reference, mutual
+     recursion, zero-length arrays, very large arrays, deep nesting -- found a
+     real defect in six lines of test input. A wave with nothing to fix is a wave
+     free to find out what breaks.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -9087,4 +9087,61 @@ exercised.
 
 ---
 
+### T145 (W681) — two depth guards drifted apart, and the gap between them was a silent wrong width
+
+The wave began by checking whether its own recommended work was still needed. It
+was not: arrays of nested structs, and structs containing structs containing
+arrays, already lower correctly after W671.
+
+```
+Good   = [4]u8 + u8    = 40 bits    f = h[160 +: 8]
+Holder = [4]Good + u8  = 168 bits   g = d[168 +: 8]
+Deep   = Holder + u8   = 176 bits
+```
+
+**One command settled it**, which is the same discipline as checking a tool
+supports a primitive before writing RTL for it (lesson 437) — applied to my own
+backlog.
+
+**So the wave went looking for the real boundary instead**, and found one:
+
+| nesting | expected | measured **before** |
+|---:|---:|---|
+| 1 | 40 | 40 ✅ |
+| 2 | 168 | 168 ✅ |
+| 3 | 680 | 680 ✅ |
+| 4 | 2,728 | 2,728 ✅ |
+| **5** | **10,920** | **2,728 — silently wrong** |
+
+> **T145.** `field_type_width` and `packed_struct_width` recurse **once each per
+> nesting level**, so a cap of 8 admits four levels; `is_lowerable_scalar_struct_d`
+> counted **one** per level and admitted eight. **A struct the predicate accepted
+> could be one the width computation refused to size** — and that refusal was a
+> `return 0` that `sum()` swallowed, producing a plausible width that is wrong by
+> a factor of four.
+
+**The repair is not a larger cap.** Both guards now share `DEPTH_CAP`, and the
+predicate is deliberately the stricter of the two — it counts `depth * 2` — so
+**anything it accepts can be sized**. Level 5 is now `UNSUPPORTED_ICARUS`: a loud
+failure in place of a wrong number, which is the whole of T124.
+
+**Measured, and the forecast held:**
+
+| | before | after | forecast |
+|---|---:|---:|---|
+| nesting levels 1–4 | correct | correct | unchanged ✅ |
+| nesting level 5 | 2,728 (wrong) | **UNSUPPORTED** | loud ✅ |
+| specs with `UNSUPPORTED_ICARUS` | 236 | **236** | 238 ± 3 ✅ |
+| specs `iverilog` accepts | 156 | **156** | 156 ✅ |
+| regressed clean → broken | — | **0** | 0 ✅ |
+| W671 safety battery | 4/4 | **4/4** | unchanged ✅ |
+
+**The third instance of one shape.** W669 found `parse().unwrap_or(1)` sizing an
+unsized slice as one element; W671 found `type_to_width`'s default of 32 sizing a
+nested struct; W681 finds a depth guard returning 0. **Every one is a
+plausible-looking number standing in for "I cannot answer"** — and every one was
+found by comparing against a case whose right answer was known independently.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

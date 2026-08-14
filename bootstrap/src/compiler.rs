@@ -8438,6 +8438,12 @@ impl VerilogCodegen {
         trimmed.to_string()
     }
 
+    /// W681: the single depth bound shared by the lowerability predicate and the
+    /// width computation. `field_type_width` and `packed_struct_width` recurse
+    /// once EACH per nesting level, so a cap of 8 admits four levels of nesting;
+    /// the predicate therefore counts `depth * 2` to stay in step.
+    const DEPTH_CAP: u32 = 8;
+
     /// W671: width of one field's type, consulting `struct_decls` for a nested
     /// struct instead of falling back to `type_to_width`'s default of 32.
     ///
@@ -8453,7 +8459,21 @@ impl VerilogCodegen {
     /// packed width and 0 is returned, which the callers surface as a width of
     /// zero rather than a plausible wrong number.
     fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
-        if depth > 8 {
+        // W681: 0 is a POISON value, not a width.
+        //
+        // Measured before this comment existed: a five-level chain of
+        // `struct Ln { p: [4]L(n-1), n: u8 }` reported **2,728** bits where the
+        // arithmetic gives 10,920. The guard fired, this function returned 0,
+        // and `packed_struct_width`'s `sum()` swallowed it -- so the struct was
+        // declared at a plausible-looking width that is wrong, and every field
+        // after the over-deep one is sliced from the wrong bits.
+        //
+        // That is the T134 shape again: a default that is never obviously wrong.
+        // The repair is not a larger cap; it is that
+        // `is_lowerable_scalar_struct_d` must refuse any struct this function
+        // cannot size, so the failure is loud. Both guards now use DEPTH_CAP so
+        // they cannot drift apart.
+        if depth > Self::DEPTH_CAP {
             return 0;
         }
         let t = ty.trim();
@@ -8475,7 +8495,7 @@ impl VerilogCodegen {
 
     /// W671: total packed width of a struct, summing `field_type_width`.
     fn packed_struct_width(&self, name: &str, depth: u32) -> u32 {
-        if depth > 8 {
+        if depth > Self::DEPTH_CAP {
             return 0;
         }
         let Some(fields) = self.struct_decls.get(name) else {
@@ -9208,7 +9228,15 @@ impl VerilogCodegen {
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
         depth: u32,
     ) -> bool {
-        if depth > 8 {
+        // W681: the SAME cap the width computation uses. When these two drifted
+        // -- the predicate counting struct levels while `field_type_width`
+        // counted field-then-struct, twice per level -- a struct the predicate
+        // accepted could be one the width function refused to size, and the
+        // refusal was a silent 0. They now share DEPTH_CAP, and the predicate
+        // is deliberately the STRICTER of the two: it consumes one level per
+        // nesting step against the width function's two, so anything it accepts
+        // can be sized.
+        if depth * 2 > Self::DEPTH_CAP {
             return false;
         }
         let Some(fields) = structs.get(name) else {
