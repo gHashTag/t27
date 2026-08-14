@@ -7440,6 +7440,72 @@ These cost a wave each. Follow them before step 1.
      also demand a board pin map. Placement is a question about the BOARD, not
      about the corpus.
 
+551. **A METRIC COMPUTED BY THE SYSTEM UNDER TEST CANNOT DETECT A CHANGE TO THE
+     SYSTEM UNDER TEST.** `corpus` calls `gen-verilog`; changing `gen-verilog`
+     moved the reading 156 -> 326 without changing the thing read. 135 of the 170
+     flips had a pre-change FIRST error naming a function the DESIGN failed to
+     lower; the design sections are BYTE-IDENTICAL across the change (0 additions,
+     0 modifications over 444 specs). The specs did not get fixed -- they stopped
+     being observable. Honest movement: +9. T180.
+
+552. **Measure the PROPERTY, not the metric.** `accepts AND no TODO stub`
+     139 -> 148. `accepts AND has a data port` 57 -> 57. Add a column the
+     instrument does not control before believing a jump. T180.
+
+553. **The compiler already writes `NO DATA PORTS -- this module cannot move a
+     value across its boundary`** into the Verilog it generates. 170 of 170
+     newly-accepted specs carry it. The generator knew; nothing read it.
+
+554. **My "76 of 76 have ports" was true only by counting clk/rst_n/en/ready**,
+     which the generator emits in EVERY module header. The DATA-port split is
+     1 with, 75 without. T180a.
+
+555. **W691's guard caught a regression W692 caused, and W692 never ran it.** The
+     compiler change moved BSCANE2 from site 3 to site 2; `t27c silicon` failed
+     `BSCAN chain == site`. If you add a guard, add its command to the next wave's
+     forecast. T181.
+
+556. **Derive the chain, never retype it.** Place once, read the site from the
+     FASM, rebuild with `chparam -set JTAG_CHAIN_N <site>`, place again; the
+     reader takes `--chain` from the same source. A wrong chain reads ALL ZERO,
+     which is indistinguishable from a design that is not on the board. T181a.
+
+557. **`chparam` must run BEFORE any hierarchy pass.** An explicit
+     `hierarchy -top X` ahead of it elaborates the top before its children are
+     known and dies with "Module ... is not part of the design". `synth_xilinx`
+     runs hierarchy itself, in the right order.
+
+558. **`read_verilog` WITHOUT `-sv` inflates the failure count.** A corpus sweep
+     reported 98 yosys failures; with `-sv` it is 77, and the top error was
+     `Static cast is only supported in SystemVerilog mode`. service.rs already
+     used `-sv`; my measurement script did not.
+
+559. **{0,+/-1,+/-phi} is NOT APoT** -- APoT levels are dyadic rationals and the
+     rationality is constitutive (shift-add multipliers). **But LQ-Nets (2018)
+     admits irrational levels**: v = [(1+phi)/2, (phi-1)/2] gives {+/-1,+/-phi}
+     exactly. "Irrational quantization levels" is NOT a novel claim. Five escapes
+     only because 5 is not a power of two. {0,+/-1,+/-phi,+/-phi^2} IS a 3-bit
+     LQ-Nets codebook -- any 7-level golden variant is prior art. T182/T182a.
+
+560. **phi is fungible.** The output is A + c*B for disjoint integer ternary sums,
+     so ANY real c gives the identical circuit. phi's one-add property is
+     exercised only if un-collapsed Z[phi] PAIRS propagate, costing 3W LUT/MAC --
+     6x the ternary mux -- and reinstating Fibonacci growth. T183a.
+
+561. **Five levels cost +45.8% weight memory over packed ternary** (2.3333 vs
+     1.6000 bits/weight) and need a divide-by-5 unpacker. The real competitor is
+     8 levels at exactly 3 bits, not 4 levels at 2 bits. T182b.
+
+562. **trinity-fpga cannot be built by anyone today**, merge or no merge: a
+     submodule pointing at a commit that does not exist (422/404, absent from 47
+     branches), a literal forty-question-mark package hash, and an import of a
+     page present at zero paths. T184.
+
+563. **`rtl-check.yml` is not two versions of one file** -- trinity holds the
+     `workflow_call` DEFINITION, trinity-fpga a 999-byte CALLER. Resolving it by
+     file identity would silently stop checking two chips behind a green file.
+     T184a.
+
 ### How to update this tracker
 
 After closing a wave:

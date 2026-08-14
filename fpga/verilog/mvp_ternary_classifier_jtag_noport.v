@@ -37,7 +37,20 @@
 //
 // Target: QMTech Wukong V1 / XC7A200T-FGG676 via OpenXC7.
 // Refs #1959
-module mvp_ternary_classifier_jtag_noport;
+module mvp_ternary_classifier_jtag_noport #(
+    // W693: THE CHAIN NUMBER IS NOT A LITERAL ANY MORE.
+    //
+    // W690 wrote `.JTAG_CHAIN(3)` because that build happened to place BSCANE2
+    // at site 3. A compiler change one wave later (W692, gen-verilog stopped
+    // emitting test blocks) changed the netlist, nextpnr moved the cell to site
+    // 2, and the literal became wrong -- silently. A wrong chain reads ALL ZERO,
+    // which is indistinguishable from a design that is not on the board at all.
+    //
+    // `t27c silicon` now reads the site out of the FASM and passes it in, so the
+    // parameter cannot drift from the placement. Setting it by hand is exactly
+    // how this failed the first time.
+    parameter integer JTAG_CHAIN_N = 3
+);
 
     wire cfgmclk;
     STARTUPE2 #(
@@ -100,7 +113,7 @@ module mvp_ternary_classifier_jtag_noport;
     //
     // The register therefore answers on USER3 (IR = 0x22), not USER1.
     BSCANE2 #(
-        .JTAG_CHAIN(3)
+        .JTAG_CHAIN(JTAG_CHAIN_N)
     ) bscan (
         .CAPTURE(capture),
         .DRCK(drck),

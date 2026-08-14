@@ -987,21 +987,28 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
 // recorded as success.
 // ---------------------------------------------------------------------------
 
+/// The run of decimal digits at the start of `s`, or `None`.
+fn leading_number(s: &str) -> Option<u32> {
+    let d: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if d.is_empty() { None } else { d.parse().ok() }
+}
+
 /// Extract `(chain, site)` from a FASM file: the enabled JTAG chain and the
 /// BSCAN site whose signals are actually routed. They must be equal.
 fn fasm_bscan_chain_and_site(fasm: &str) -> (Option<u32>, Vec<u32>) {
     let mut chain = None;
     let mut sites: Vec<u32> = Vec::new();
     for line in fasm.lines() {
+        // W693: take ALL leading digits, not the first one. A single
+        // `chars().next()` reads site 12 as site 1 and reports "agree" -- a
+        // false PASS on the one guard this project says nothing else checks.
         if let Some(i) = line.find("BSCAN.JTAG_CHAIN_") {
-            let rest = &line[i + "BSCAN.JTAG_CHAIN_".len()..];
-            if let Some(n) = rest.chars().next().and_then(|c| c.to_digit(10)) {
+            if let Some(n) = leading_number(&line[i + "BSCAN.JTAG_CHAIN_".len()..]) {
                 chain = Some(n);
             }
         }
         if let Some(i) = line.find("CFG_CENTER_BSCAN") {
-            let rest = &line[i + "CFG_CENTER_BSCAN".len()..];
-            if let Some(n) = rest.chars().next().and_then(|c| c.to_digit(10)) {
+            if let Some(n) = leading_number(&line[i + "CFG_CENTER_BSCAN".len()..]) {
                 if !sites.contains(&n) {
                     sites.push(n);
                 }
@@ -1051,10 +1058,15 @@ fn load_bitstream(bit: &Path, busdev: &str) -> (Option<i32>, Option<u8>, String)
 /// SET lets the caller do the honest thing: watch which index loses the magic
 /// when a known board is reprogrammed, and thereby DERIVE the mapping instead of
 /// assuming one.
-fn read_verdict(repo_root: &Path) -> (Vec<usize>, Option<u32>, String) {
+fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, String) {
     let script = repo_root.join("tools/jtag/read_verdict.py");
+    // W693: the chain is DERIVED from the FASM, never assumed. A wrong chain
+    // reads all-zero, which is indistinguishable from a design that is not
+    // there -- so guessing it turns a hardware fault and a software fault into
+    // the same output.
     let (_, out, err) = run(Command::new("python3")
         .arg(&script)
+        .args(["--chain", &chain.to_string()])
         .current_dir(repo_root));
     let log = format!("{out}{err}");
     let mut idxs = Vec::new();
@@ -1136,89 +1148,131 @@ pub fn run_silicon(
         note: format!("{displays} $display (T167: stripped below, not synthesizable)"),
     });
 
-    // ---- yosys ----
+    // ---- yosys, then nextpnr, then the guard -- up to TWICE ----
+    //
+    // W693: THE CHAIN NUMBER IS DERIVED, NOT TYPED.
+    //
+    // W690 hardcoded `.JTAG_CHAIN(3)` because that build placed BSCANE2 at site
+    // 3. W692's compiler change altered the netlist, nextpnr moved the cell to
+    // site 2, and `t27c silicon` began failing its own guard -- correctly. The
+    // guard caught a regression the wave that caused it did not look for.
+    //
+    // Retyping the constant is the wrong repair twice over: it would drift again
+    // on the next netlist change, and a WRONG chain reads all-zero, which is
+    // indistinguishable from a design that is not on the board. So: place once,
+    // read the site out of the FASM, and if it disagrees with the parameter,
+    // rebuild with `chparam` and place again. Two attempts, then fail.
     let json_path = tmp.join(format!("{stem}.json"));
+    let fasm_path = tmp.join(format!("{stem}.fasm"));
     let mut sources = vec![v_path.to_string_lossy().to_string()];
     sources.extend(tops.iter().cloned());
     let top_name = tops
         .last()
         .and_then(|p| Path::new(p).file_stem().map(|s| s.to_string_lossy().to_string()))
         .unwrap_or_else(|| stem.clone());
-    let t = Instant::now();
-    let script = format!(
-        "read_verilog {}; synth_xilinx -family xc7 -top {} -flatten; \
-         delete t:$print; delete t:$scopeinfo; write_json {}",
-        sources.join(" "),
-        top_name,
-        json_path.display()
-    );
-    let (c, out, err) = run(Command::new("yosys").args(["-p", &script]));
-    let log = format!("{out}{err}");
-    // Read the INSTANCE count from the statistics block, never a substring count
-    // of the log -- the cell library mentions BSCANE2 whether or not one is
-    // instantiated, which is the exact misreading `cell_census` exists to prevent.
-    let bscan = log
-        .rfind("Printing statistics")
-        .map(|i| &log[i..])
-        .and_then(|b| {
-            b.lines().find_map(|l| {
-                let f: Vec<&str> = l.split_whitespace().collect();
-                (f.len() == 2 && f[1] == "BSCANE2").then(|| f[0].parse::<u64>().ok())?
+
+    let mut chain_override: Option<u32> = None;
+    let mut yosys_stage: Option<Stage> = None;
+    let mut pnr_stage: Option<Stage> = None;
+    let mut guard_stage: Option<Stage> = None;
+    let mut derived_chain: Option<u32> = None;
+
+    for attempt in 0..2u32 {
+        let t = Instant::now();
+        let chparam = match chain_override {
+            Some(n) => format!("chparam -set JTAG_CHAIN_N {n} {top_name}; "),
+            None => String::new(),
+        };
+        // `chparam` must run BEFORE any hierarchy pass -- an explicit
+        // `hierarchy -top` here elaborates the top before its children are
+        // known and dies with "Module ... is not part of the design".
+        // `synth_xilinx` runs hierarchy itself, in the right order.
+        let script = format!(
+            "read_verilog {}; {}synth_xilinx -family xc7 -top {} -flatten; \
+             delete t:$print; delete t:$scopeinfo; write_json {}",
+            sources.join(" "),
+            chparam,
+            top_name,
+            json_path.display()
+        );
+        let (c, out, err) = run(Command::new("yosys").args(["-p", &script]));
+        let log = format!("{out}{err}");
+        let bscan = log
+            .rfind("Printing statistics")
+            .map(|i| &log[i..])
+            .and_then(|b| {
+                b.lines().find_map(|l| {
+                    let f: Vec<&str> = l.split_whitespace().collect();
+                    (f.len() == 2 && f[1] == "BSCANE2").then(|| f[0].parse::<u64>().ok())?
+                })
             })
-        })
-        .unwrap_or(0);
-    stages.push(Stage {
-        name: "yosys",
-        secs: t.elapsed().as_secs_f64(),
-        code: c,
-        artefact: file_len(&json_path),
-        note: format!("{} | BSCANE2 x{bscan}", cell_census(&log)),
-    });
-
-    // ---- nextpnr, no XDC: the top drives no package pin ----
-    let fasm_path = tmp.join(format!("{stem}.fasm"));
-    let t = Instant::now();
-    let (c, _, err) = run(Command::new(&pnr).args([
-        "--chipdb", &chipdb.to_string_lossy(),
-        "--json", &json_path.to_string_lossy(),
-        "--fasm", &fasm_path.to_string_lossy(),
-    ]));
-    let first_err = err
-        .lines()
-        .find(|l| l.starts_with("ERROR"))
-        .unwrap_or("")
-        .to_string();
-    stages.push(Stage {
-        name: "nextpnr (no XDC)",
-        secs: t.elapsed().as_secs_f64(),
-        code: c,
-        artefact: file_len(&fasm_path),
-        note: first_err,
-    });
-
-    // ---- THE GUARD: chain and site must be the same number ----
-    let fasm = std::fs::read_to_string(&fasm_path).unwrap_or_default();
-    let (chain, sites) = fasm_bscan_chain_and_site(&fasm);
-    let agree = match (chain, sites.as_slice()) {
-        (Some(ch), [s]) => ch == *s,
-        // No BSCAN at all is not a mismatch -- it is a design without a readback.
-        (None, []) => true,
-        _ => false,
-    };
-    stages.push(Stage {
-        name: "BSCAN chain == site",
-        secs: 0.0,
-        code: if agree { Some(0) } else { Some(1) },
-        artefact: None,
-        note: match (chain, sites.as_slice()) {
-            (Some(ch), [s]) if ch == *s => format!("JTAG_CHAIN({ch}) at BSCAN{s} -- agree"),
-            (Some(ch), [s]) => format!(
-                "MISMATCH: JTAG_CHAIN({ch}) enabled, BSCAN{s} wired -- set .JTAG_CHAIN({s})"
+            .unwrap_or(0);
+        yosys_stage = Some(Stage {
+            name: "yosys",
+            secs: t.elapsed().as_secs_f64(),
+            code: c,
+            artefact: file_len(&json_path),
+            note: format!(
+                "{} | BSCANE2 x{bscan}{}",
+                cell_census(&log),
+                match chain_override { Some(n) => format!(" | chain forced to {n}"), None => String::new() }
             ),
-            (None, []) => "no BSCANE2 in this design".into(),
-            (ch, ss) => format!("ambiguous: chain={ch:?} sites={ss:?}"),
-        },
-    });
+        });
+        if c != Some(0) {
+            break;
+        }
+
+        let t = Instant::now();
+        let (c, _, err) = run(Command::new(&pnr).args([
+            "--chipdb", &chipdb.to_string_lossy(),
+            "--json", &json_path.to_string_lossy(),
+            "--fasm", &fasm_path.to_string_lossy(),
+        ]));
+        pnr_stage = Some(Stage {
+            name: "nextpnr (no XDC)",
+            secs: t.elapsed().as_secs_f64(),
+            code: c,
+            artefact: file_len(&fasm_path),
+            note: err.lines().find(|l| l.starts_with("ERROR")).unwrap_or("").to_string(),
+        });
+        if c != Some(0) {
+            break;
+        }
+
+        let fasm = std::fs::read_to_string(&fasm_path).unwrap_or_default();
+        let (chain, sites) = fasm_bscan_chain_and_site(&fasm);
+        let agree = match (chain, sites.as_slice()) {
+            (Some(ch), [s]) => ch == *s,
+            (None, []) => true,
+            _ => false,
+        };
+        derived_chain = chain;
+        guard_stage = Some(Stage {
+            name: "BSCAN chain == site",
+            secs: 0.0,
+            code: if agree { Some(0) } else { Some(1) },
+            artefact: None,
+            note: match (chain, sites.as_slice()) {
+                (Some(ch), [s]) if ch == *s => format!("JTAG_CHAIN({ch}) at BSCAN{s} -- agree"),
+                (Some(ch), [s]) => format!("JTAG_CHAIN({ch}) enabled, BSCAN{s} wired -- rebuilding at {s}"),
+                (None, []) => "no BSCANE2 in this design".into(),
+                (ch, ss) => format!("ambiguous: chain={ch:?} sites={ss:?}"),
+            },
+        });
+        if agree {
+            break;
+        }
+        // Disagreed. Adopt the SITE nextpnr chose and place once more.
+        match sites.as_slice() {
+            [s] if attempt == 0 => chain_override = Some(*s),
+            _ => break,
+        }
+    }
+
+    if let Some(st) = yosys_stage { stages.push(st); }
+    if let Some(st) = pnr_stage { stages.push(st); }
+    if let Some(st) = guard_stage { stages.push(st); }
+
 
     // ---- fasm2frames ----
     let frames_path = tmp.join(format!("{stem}.frames"));
@@ -1301,7 +1355,9 @@ pub fn run_silicon(
     println!("  {} B1 our bitstream   Done {:?}  (must be 1)",
              if ok { "OK  " } else { "FAIL" }, done);
 
-    let (before, word, _) = read_verdict(repo_root);
+    let chain = derived_chain.unwrap_or(3);
+    println!("  reading USER{chain}, derived from the FASM");
+    let (before, word, _) = read_verdict(repo_root, chain);
     let ok = !before.is_empty();
     hw_ok &= ok;
     match word {
@@ -1318,7 +1374,7 @@ pub fn run_silicon(
         // magic IS the libftdi handle for this --busdev-num, derived rather than
         // assumed.
         let (_, _, _) = load_bitstream(Path::new(nb), &busdev);
-        let (during, _, _) = read_verdict(repo_root);
+        let (during, _, _) = read_verdict(repo_root, chain);
         let lost: Vec<usize> = before.iter().copied().filter(|i| !during.contains(i)).collect();
         let ok = lost.len() == 1;
         hw_ok &= ok;
@@ -1331,7 +1387,7 @@ pub fn run_silicon(
         }
 
         let (_, _, _) = load_bitstream(&bit_path, &busdev);
-        let (after, _, _) = read_verdict(repo_root);
+        let (after, _, _) = read_verdict(repo_root, chain);
         let returned = lost.iter().all(|i| after.contains(i));
         hw_ok &= returned;
         println!(
@@ -1347,5 +1403,37 @@ pub fn run_silicon(
     } else {
         println!("FAIL -- see the line above. A read without its control is not a result.");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod w693_bscan_parser {
+    use super::*;
+
+    /// W693: `chars().next()` read site 12 as site 1 and called it agreement.
+    #[test]
+    fn a_two_digit_site_is_not_read_as_one_digit() {
+        let fasm = "TILE.BSCAN.JTAG_CHAIN_1\nTILE.X.CFG_CENTER_BSCAN12_TDI\n";
+        let (chain, sites) = fasm_bscan_chain_and_site(fasm);
+        assert_eq!(chain, Some(1));
+        assert_eq!(sites, vec![12], "site 12 must not collapse to 1");
+    }
+
+    #[test]
+    fn agreement_and_mismatch_are_distinguished() {
+        let ok = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN3_TDI\nC.CFG_CENTER_BSCAN3_TDO\n";
+        let (c, s) = fasm_bscan_chain_and_site(ok);
+        assert_eq!((c, s.as_slice()), (Some(3), [3].as_slice()));
+
+        let bad = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN2_TDI\n";
+        let (c, s) = fasm_bscan_chain_and_site(bad);
+        assert_eq!((c, s.as_slice()), (Some(3), [2].as_slice()));
+    }
+
+    #[test]
+    fn a_design_with_no_bscan_is_not_a_mismatch() {
+        let (c, s) = fasm_bscan_chain_and_site("SOME.OTHER.FEATURE\n");
+        assert_eq!(c, None);
+        assert!(s.is_empty());
     }
 }

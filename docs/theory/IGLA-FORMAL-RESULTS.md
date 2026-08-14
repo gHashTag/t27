@@ -10347,4 +10347,194 @@ are clock and reset only. Here every module has at least one port declaration.*
 
 ---
 
+### T180 — T178's MEASUREMENT stands. T178's STORY is retracted.
+
+An adversarial audit swept all 617 specs through the pre-change binary and HEAD,
+classified the first error of every flip, and byte-diffed the design sections.
+
+**The number is real and reproduces**: 156 → 326, +170, zero regressions, `corpus
+--json` at HEAD = `{verilog_gen 444, verilog_build 326, zig_build 196, both_build
+174, timed_out 0}`.
+
+**The story is false.** Of the 170 newly-accepted specs:
+
+| property | count | share |
+|---|---:|---:|
+| pre-change **first** error named a function the **DESIGN** failed to lower | **135** | 79.4% |
+| still emit `// TODO: implement` | 161 | 94.7% |
+| missing at least one declared `fn` | 142 | 83.5% |
+| carry the generator's own banner **`NO DATA PORTS`** | **170** | **100%** |
+
+And the design section is **byte-identical across the change** — over 444 specs:
+47 identical, 397 deletions-only, **0 additions, 0 modifications**.
+
+Measured on the *property* instead of the metric:
+
+```
+accepts AND no TODO stub        139 -> 148     (+9)
+accepts AND has a data port      57 ->  57     (+0)
+design rejected OR stubbed      305 -> 296     (-9)
+```
+
+> **T180.** T178 wrote *"what iverilog had been rejecting was the generated
+> TESTBENCH, not the generated design."* **Refuted.** The design errors were
+> real: 135 of 170 first errors named a function the design section did not
+> lower. Removing the test blocks removed the code that *referenced* those
+> functions, so the compiler stopped **reporting** them. **The specs did not get
+> fixed; they stopped being observable.** The honest movement is **+9**.
+> **Refuted by:** fewer than 85 of the 170 pre-change first errors naming an
+> identifier declared in the spec's own design section.
+
+> **T180a — and T179 falls with it.** My *"76 of 76 generating specs have ports"*
+> is true only if `clk`, `rst_n`, `en` and `ready` count — and the generator emits
+> those in **every** module header. The **data**-port split is **1 with, 75
+> without**, and 75 of that same 76 carry the `NO DATA PORTS -- this module cannot
+> move a value across its boundary` banner **the compiler writes itself**.
+
+> **T180b — the only part of T178 that survives is the part about instruments.**
+> T178b said the instrument was inside the measurement for the third time. It was
+> right, and it was describing *itself*: `corpus` calls `gen-verilog`, so changing
+> `gen-verilog` changed the reading without changing the thing read. **T179, the
+> entry written to name that pattern, committed the fourth instance while doing
+> so. This is the fifth.**
+
+**The lesson is not "measure more carefully". It is that a metric computed by the
+system under test cannot detect a change to the system under test.** The fix is
+a property the instrument does not control: **`accepts AND has a data port`**,
+which moved **+0**.
+
+### T181 — and W692 broke two things it did not check
+
+**(a) The honesty gate.** `suite.rs` fails a spec when a backend drops a declared
+`test`/`invariant` without printing `NOT LOWERED BY THIS BACKEND`. It was not in
+W692's four-call-site enumeration, but it reaches the compiler in-process:
+
+```
+before   614 declared,   3 silent
+after    242 declared, 375 silent      all 375 naming gen-verilog
+```
+
+**+372 failures in the one gate whose stated purpose is catching exactly this.**
+
+**(b) Silicon.** The netlist change moved the BSCANE2 placement from site 3 to
+site 2 under identical commands, so `t27c silicon` began failing its own guard —
+`MISMATCH: JTAG_CHAIN(3) enabled, BSCAN2 wired`. **W692's five-term forecast
+contained no silicon term and the pipeline was not re-run.**
+
+> **T181.** *"It added no capability whatever"* is false in two measured
+> directions. **The guard built in W691 caught a regression caused in W692** — it
+> worked exactly as designed, and the wave that caused the regression did not run
+> it. **Refuted by:** a suite run reporting ≤3 silent omissions, or a `silicon`
+> run exiting 0 without a chain edit.
+
+**Repaired in W693, and not by retyping the constant.**
+
+```
+OK   yosys                 246 LUT | BSCANE2 x1 | chain forced to 2
+OK   BSCAN chain == site   JTAG_CHAIN(2) at BSCAN2 -- agree
+     reading USER2, derived from the FASM
+OK   B2 read               0xa5a5a5a7  magic, ok=1 beat=1
+OK   C  control            index [] still answer; lost [2]
+OK   A' reload             index [2] answer
+PASS -- the silicon answered, and its answer is ok=1.
+```
+
+> **T181a.** The chain is now **derived**: place once, read the site out of the
+> FASM, and if it disagrees rebuild with `chparam -set JTAG_CHAIN_N <site>` and
+> place again. The reader takes `--chain` from the same source. **Retyping the
+> literal would have drifted again on the next netlist change** — and a wrong
+> chain reads all-zero, which is indistinguishable from a design that is not on
+> the board.
+
+**Two more defects found and fixed:** the FASM parser took **one digit** after
+the prefix, so site 12 read as site 1 and reported *agree* — **a false PASS on
+the only guard the project says nothing else checks**. And `delete t:$print`
+removed 125 cells before W692 and **0** after, while the stage note and
+`--help` still claimed `gen-verilog` emits `$display`.
+
+### T182 — the five-level alphabet escapes APoT, but *irrational levels* are 2018 prior art
+
+> **T182.** **{0, ±1, ±φ} is not an APoT level set for any (k, n, b, α).** APoT's
+> levels are γ times a sum of powers of two, so every level is γ·(dyadic
+> rational) and every level **ratio** is rational; φ/1 is irrational. And the
+> rationality is **constitutive**, not incidental — APoT's whole payoff is that an
+> m-bit activation times a kn-bit weight costs mn shift-adds, which no irrational
+> level admits.
+
+> **T182a — but LQ-Nets already admits irrational levels.** LQ-Nets (ECCV 2018)
+> learns a **floating-point** basis `v ∈ R^K` and emits `2^K` sign-symmetric
+> levels. **`v = [(1+φ)/2, (φ−1)/2]` reproduces {±1, ±φ} exactly** as a 2-bit
+> codebook. **"Irrational quantization levels" is not a novel claim and must not
+> be made.** The five-level set escapes only because **5 is not a power of two**
+> and LQ-Nets' symmetry forbids it. Free corollary: **{0, ±1, ±φ, ±φ²} IS exactly
+> a 3-bit LQ-Nets codebook — any seven-level golden variant is prior art.**
+
+> **T182b — and there is no evidence that more levels help.** APoT's own 2-bit
+> **weight** set is ternary `{0, ±α}`, and on CIFAR-10 ResNet-20 it scores **91.0**
+> against every 4-level 2-bit method (PACT+SAWB 90.5, LQ-Net 90.2, PACT 89.7,
+> DoReFa 88.2). **But that row confounds level count with APoT's RCF and weight
+> normalisation**, so the defensible statement is *"no published evidence that 4
+> beats 3 at equal cost"* — **not** *"evidence that it does not"*. **Nobody has
+> run the clean ablation.**
+
+**And the real competitor is not 4 levels.** Five levels pack 3-in-7 = **2.3333
+bits/weight** against ternary's 5-in-8 = **1.6000** — a **+45.8%** weight-memory
+penalty needing a divide-by-5 unpacker. The profitable move below 4 bits is
+**8 levels at exactly 3 bits**, which is a plain APoT or LQ-Nets configuration.
+
+### T183 — the LUT cost is identical per MAC, and φ is fungible
+
+With integer activations and compile-time weights, `Σⱼ wᵢⱼxⱼ = Aᵢ + φ·Bᵢ` where
+`A` and `B` are integer ternary dot products over **disjoint** index sets fixed at
+compile time. Multiplying an integer by φ in Z[φ] is `(x,0) ↦ (0,x)` — **pure
+routing**. Two adder trees of sizes `N₁ + N₂ = N` cost `N(W+2)`, identical to one
+tree of size `N`.
+
+> **T183.** **(W+2) LUT/MAC for BOTH alphabets** — 3.00 at W=1 against FINN's
+> measured 2.94 LUT/bit, a 2% match that calibrates the model. **The cost moves to
+> the NEURON**, and there the MVP is in the worst regime: a CSD constant multiply
+> by φ is ~130 LUT/neuron, which is 0.5 LUT/MAC at fan-in 256 but **5.4 LUT/MAC at
+> the MVP's 24 weights — taking 3.46 to ~8.9 and voiding T161's FINN-parity
+> claim.** The escape is a threshold activation (~11 LUT/neuron), but it must be
+> built that way deliberately.
+
+> **T183a — φ is not special.** The output is `A + c·B` for disjoint integer
+> ternary sums, so **any real c — 1.5, π, a learned float — yields the identical
+> circuit.** φ's one-add-per-multiply property is exercised **only if
+> un-collapsed Z[φ] pairs propagate across layers**, which costs **3W LUT/MAC**
+> (6× the standalone ternary mux) and reinstates T159a's Fibonacci growth.
+> **There is no third branch:** either the network is two ternary subnetworks
+> joined by one scalar — in which case a *learned* c dominates φ and the
+> construction is LQ-Nets — or pairs propagate and the 6× is paid.
+
+> **T183b — and exactness has a boundary.** Deciding `sign(a + φb)` exactly needs
+> ~`2·log₂M` fractional bits, because **φ is the worst-approximable irrational**:
+> measured min `|a + φb|` is 5.57e-2 at M=2⁴, 3.11e-3 at 2⁸, 2.80e-4 at 2¹².
+> Quadratic in coefficient magnitude. **"Exact integer arithmetic" is true of the
+> MACs and false at the activation boundary** unless the datapath is scoped.
+
+*Every LUT figure in T183 is **analytic** and marked UNCERTAIN by its author.
+None has been through yosys or nextpnr.*
+
+### T184 — the merge is blocked by three defects that predate it
+
+> **T184.** `trinity-fpga` at HEAD cannot be built by anyone, merge or no merge:
+> **(1)** `external/zig-golden-float` points at `c7af4bbe`, which **does not exist**
+> in that repository — commits API 422, git-data 404, absent from all 47 branches
+> and 114 refs — so `git submodule update --init --recursive` fails today;
+> trinity's `1923572c` resolves cleanly. **(2)** `build.zig.zon` declares `zig-hdc`
+> with a **literal forty-question-mark hash**. **(3)** `apps/website/src/main.tsx`
+> imports `Domovoy` from `./pages/Domovoy`, which exists at **zero paths in either
+> tree**. **Refuted by:** all three succeeding unmodified in a fresh recursive
+> clone.
+
+> **T184a — and one "conflict" must not be resolved by file identity.**
+> `.github/workflows/rtl-check.yml` is **not two versions of one file**: trinity
+> holds the `workflow_call` **definition** (14,458 B), `trinity-fpga` holds a
+> **999-byte caller** that invokes it for `tt_um_qbrain_mini` and
+> `tt_um_qbrain_holo`. **Overwriting the caller with the definition would silently
+> stop checking both chips while leaving a green-looking file in place.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -36,7 +36,16 @@ import sys
 sys.path.insert(0, "tools/jtag")
 from mpsse_jtag import Mpsse, CLK_BITS_OUT_NEG, CLK_TMS_OUT_NEG  # noqa: E402
 
-USER3 = 0x22   # chain 3 -- see the header of mvp_ternary_classifier_jtag_noport.v
+# 7-series user instruction opcodes, indexed by JTAG_CHAIN number.
+#
+# W693: this used to be a constant `USER3 = 0x22`, because W690's build happened
+# to place BSCANE2 at site 3. A compiler change in W692 moved the placement to
+# site 2 and the constant became wrong -- silently, because a wrong chain reads
+# all-zero, which is indistinguishable from a design that is not there.
+#
+# The chain is a property of THIS BUILD, not of the project. `t27c silicon`
+# derives it from the FASM and passes it in.
+USER_OPCODE = {1: 0x02, 2: 0x03, 3: 0x22, 4: 0x23}
 MAGIC = 0xA5A5A5A
 
 
@@ -48,13 +57,13 @@ def shift_ir(m, val):
     m.tms([1, 0])                                              # Update-IR, Run-Test/Idle
 
 
-def read_word(idx):
-    """One 32-bit USER3 read from the cable at libftdi index `idx`."""
+def read_word(idx, chain=3):
+    """One 32-bit read of USER<chain> from the cable at libftdi index `idx`."""
     m = Mpsse(idx)
     try:
         m.tms([1, 1, 1, 1, 1])          # Test-Logic-Reset
         m.tms([0])                      # Run-Test/Idle
-        shift_ir(m, USER3)
+        shift_ir(m, USER_OPCODE[chain])
         m.tms([1, 0, 0])                # Select-DR, Capture-DR, Shift-DR
         raw = m.shift_dr_read(32)
         m.tms([1, 1, 0])                # Exit1-DR, Update-DR, RTI
@@ -65,11 +74,11 @@ def read_word(idx):
         m.close()
 
 
-def report(idx, reads=5):
+def report(idx, reads=5, chain=3):
     words = []
     for _ in range(reads):
         try:
-            words.append(read_word(idx))
+            words.append(read_word(idx, chain))
         except SystemExit as e:
             print(f"  index {idx}: cannot open -- {e}")
             return None
@@ -106,9 +115,16 @@ def report(idx, reads=5):
 
 
 if __name__ == "__main__":
-    idxs = [int(a) for a in sys.argv[1:]] or [0, 1, 2]
-    print(f"reading USER3, magic 0x{MAGIC:07X}, {len(idxs)} cable(s)")
-    hits = [i for i in idxs if report(i) is not None]
+    # usage: read_verdict.py [--chain N] [idx ...]
+    argv = sys.argv[1:]
+    chain = 3
+    if "--chain" in argv:
+        k = argv.index("--chain")
+        chain = int(argv[k + 1])
+        del argv[k:k + 2]
+    idxs = [int(a) for a in argv] or [0, 1, 2]
+    print(f"reading USER{chain} (IR=0x{USER_OPCODE[chain]:02x}), magic 0x{MAGIC:07X}, {len(idxs)} cable(s)")
+    hits = [i for i in idxs if report(i, chain=chain) is not None]
     print()
     print(f"cables carrying the magic: {len(hits)} of {len(idxs)}  {hits}")
     sys.exit(0 if hits else 1)
