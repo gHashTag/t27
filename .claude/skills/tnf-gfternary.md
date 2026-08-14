@@ -1,9 +1,9 @@
 ---
 name: tnf-gfternary
-description: The TNF (Ternary Network Float) and GFTernary number formats — their definitions, theorems, silicon costs, retracted claims, and what this means for IGLA CODER / IGLA RACE. Load before touching any numeric format, accumulator width, or weight alphabet in t27.
+description: The TNF (Ternary Network Float) and GA-T number formats — their definitions, theorems, silicon costs, retracted claims, and what this means for IGLA CODER / IGLA RACE. Load before touching any numeric format, accumulator width, or weight alphabet in t27.
 ---
 
-# TNF & GFTernary — working knowledge
+# TNF & GA-T — working knowledge
 
 **Source of truth:** [`docs/theory/TNF_ARTICLE_RU.md`](../../docs/theory/TNF_ARTICLE_RU.md)
 (2353 lines, Russian). This skill is the distillation. When they disagree, the
@@ -25,7 +25,7 @@ exactly **one** of them:
 
 So the design problem is not "which format" but **which two objects to close**:
 
-- **weight → GFTernary**, the 2-bit alphabet `{−φ, 0, +φ}`
+- **weight → GA-T**, the 2-bit alphabet `{−φ, 0, +φ}`
 - **accumulator → TNF**, `sign · (1 + M/2^(M−2)) · 2^e` with `e` a balanced-ternary exponent
 
 These were derived independently and turned out complementary. Published ternary
@@ -68,7 +68,7 @@ table are deliberately kept apart. Do not quote a spec row as a silicon row.
 
 ---
 
-## 3. GFTernary — and why φ is forced
+## 3. GA-T — and why φ is forced
 
 > **Theorem (the golden alphabet is unique).** Let the weight alphabet be
 > `{−r, 0, +r}`, `r > 1`, and require the product of two weights to be
@@ -137,34 +137,34 @@ larger than the whole closed accumulation, and pipelining does not save it:
 
 ---
 
-## 3a. The GFTernary **line** — the rungs, and their measured price
+## 3a. The GA-T **line** — the rungs, and their measured price
 
 Named W714. Do not confuse with §8: that ladder indexes *degree* (`r^d = r+1`,
 which scale is multiplier-free); this one indexes *power* (which powers of the
 one scale φ are in the alphabet).
 
-> **GFT_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}**, cardinality **2n+3**.
+> **GA-T_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}**, cardinality **2n+3**.
 > Because `φ^k = F(k−1) + F(k)·φ`, weight `φ^k` on input `x` adds `F(k−1)·x` to
 > lane A and `F(k)·x` to lane B of a Z[φ] pair. **Integer Fibonacci
 > coefficients — no multiplier at any rung.**
 
 | rung | alphabet | levels | bits/weight packed | measured LUT¹ |
 |---|---|---:|---:|---:|
-| **GFT₀** | `{0,±1}` | 3 | 1.6000 | 1692 |
-| **GFT₁** | `{0,±1,±φ}` | 5 | 2.3333 | **1371** |
-| **GFT₂** | `{0,±1,±φ,±φ²}` | 7 | 2.8182 | 1878 |
-| **GFT₃** | `… ±φ³` | 9 | 3.1818 | 2349 |
-| **GFT₄** | `… ±φ⁴` | 11 | 3.5000 | 2796 |
+| **GA-T0** | `{0,±1}` | 3 | 1.6000 | 1692 |
+| **GA-T1** | `{0,±1,±φ}` | 5 | 2.3333 | **1371** |
+| **GA-T2** | `{0,±1,±φ,±φ²}` | 7 | 2.8182 | 1878 |
+| **GA-T3** | `… ±φ³` | 9 | 3.1818 | 2349 |
+| **GA-T4** | `… ±φ⁴` | 11 | 3.5000 | 2796 |
 
 ¹ yosys 0.63 `synth_xilinx -family xc7`, one layer, N=64 binary in, M=8 out,
 12-bit accumulator, one shared zero mask. **DSP48 = 0 at every rung.**
 
 **Three things this table settles, and one it kills:**
 
-1. **The historical GFTernary `{−φ,0,+φ}` is NOT a rung.** It is `φ·GFT₀`.
+1. **The historical GA-T `{−φ,0,+φ}` is NOT a rung.** It is `φ·GA-T0`.
    That is the structural reason T158 found φ factors out — not an accident of
    the experiment.
-2. **GFT₁ is 19% cheaper in LUT than plain ternary** with five levels instead
+2. **GA-T1 is 19% cheaper in LUT than plain ternary** with five levels instead
    of three: each weight lands in one lane, so two narrow trees beat one wide
    one. This is the only place in the whole programme where φ buys something a
    tool can see.
@@ -285,7 +285,7 @@ open flow: **Yosys 0.65, nextpnr-xilinx 1743d0f, Icarus Verilog 13.0, Python 3.1
 | ternary neuron | **28 LUT per weight, ZERO DSPs at any fan-in** |
 | TNF64 | 7,479 LUT @ 48.20 MHz |
 | BNF | 97 LUT @ 388.35 MHz (isolated-decoder bench) |
-| ~~GFTernary throughput/area~~ | **RETRACTED 2026-08-13 — see §9a** |
+| ~~GA-T throughput/area~~ | **RETRACTED 2026-08-13 — see §9a** |
 
 ### 9a. The throughput-per-area claim is RETRACTED (erratum, W652)
 
@@ -300,7 +300,7 @@ provable from the article's own table:
 | 20 formats, 8 ours | **24** data rows, **12** bolded as ours |
 
 **And the decisive one: `int8` on the same bench is 0.1736 MHz/LUT against
-GFTernary's 0.1584 — `int8` wins by 9.60% — and it is excluded from the
+GA-T's 0.1584 — `int8` wins by 9.60% — and it is excluded from the
 ranking.** The stated grounds for exclusion (int8 needs an external learnable
 scale) concern the format's *role in a system*, not the quantity the column
 measures, which is MHz per LUT.
@@ -309,14 +309,14 @@ measures, which is MHz per LUT.
 presents the ranking.** Its own Truncation Proposition: a decoder with `n` input
 bits has at most `2^n` distinct outputs, downstream logic specialises to that
 image, so "comparison across different `n` mixes format design with format width;
-only comparison within one `n` isolates design." **GFTernary is `n = 2`. Every
-competitor is `n = 8…32`.** The article even reports GFTernary decoding at 66 LUT
+only comparison within one `n` isolates design." **GA-T is `n = 2`. Every
+competitor is `n = 8…32`.** The article even reports GA-T decoding at 66 LUT
 where a bare wire costs 112, conceding "a format cannot be cheaper than a wire."
 
 **Say this instead** — it is a design claim, checkable within one `n`, and `int8`
 does not refute it:
 
-> Among formats of equal input width, GFTernary is the only one whose lattice is
+> Among formats of equal input width, GA-T is the only one whose lattice is
 > closed under weight application, and therefore the only one whose linear path
 > is exact without a normalisation stage.
 
@@ -414,7 +414,7 @@ The article retracts **ten** of its own claims *in place*. The four that matter 
 
 Direct, actionable consequences:
 
-- **IGLA RACE's weight path should be GFTernary `{−φ,0,+φ}` as an integer pair
+- **IGLA RACE's weight path should be GA-T `{−φ,0,+φ}` as an integer pair
   `(a,b)`** — not `{−1,0,+1}` with a learned per-layer scale, because that scale
   reintroduces the multiplier the whole design exists to remove.
 - **The accumulator is where a format belongs**, and TNF16 (`s | 4 trits | 11 bits`)

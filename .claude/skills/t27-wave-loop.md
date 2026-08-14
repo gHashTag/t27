@@ -8005,8 +8005,8 @@ These cost a wave each. Follow them before step 1.
      1..24 would have shown "ternary wins" and hidden *why*.
 
 659. **The line explains the null the experiment only reported.** `{−φ,0,+φ}`
-     is `φ·GFT₀` — rung zero scaled by a unit, not a rung. Thirty seeds showed
-     φ factors out; the GFTernary line shows it *had to*. **When an empirical
+     is `φ·GA-T0` — rung zero scaled by a unit, not a rung. Thirty seeds showed
+     φ factors out; the GA-T line shows it *had to*. **When an empirical
      null survives, look for the structure that makes it necessary — that is
      the publishable half.**
 
@@ -8057,7 +8057,7 @@ These cost a wave each. Follow them before step 1.
 
 667. **A readback that changes between two reads of the SAME bitstream carries
      no information.** The rung harness exposed `ok = ^acc` on a free-running
-     accumulator; GFT1 answered 1 then 0. I had already written "the parity
+     accumulator; GA-T1 answered 1 then 0. I had already written "the parity
      differs by rung, so the die computes different things" — it differed by
      READ TIME. Freeze the signature at a fixed clock, then re-read twice and
      require equality before believing any of it.
@@ -8090,7 +8090,7 @@ These cost a wave each. Follow them before step 1.
      but the comparison is pre-route against post-route on another package, so
      the finding is "run the other arm", not "the coefficient is wrong".
 
-673. **Placed LUT ran 28–39% below the yosys estimate at every GFTernary rung.**
+673. **Placed LUT ran 28–39% below the yosys estimate at every GA-T rung.**
      The ORDERING survived P&R; the magnitudes did not. Never quote a pre-route
      cell count as an area, including in this repository's own theorem numbers.
 
@@ -8262,10 +8262,31 @@ These cost a wave each. Follow them before step 1.
      Six waves of ladder work here never looked. The user had to say it.
 
 701. **Two ladders, one anchor, almost one name.** tri-net's GF-T indexes the
-     WIDTH of a floating format (4/8/16/32); this project's GFTernary indexes
-     the CARDINALITY of a weight alphabet (GFT0..GFT4). In an ecosystem meant
+     WIDTH of a floating format (4/8/16/32); this project's GA-T indexes
+     the CARDINALITY of a weight alphabet (GA-T0..GA-T4). In an ecosystem meant
      to merge, a collision this close reads as one thing to everyone outside
      it. **Name the collision before either object is published.**
+
+702. **A RENAME THAT BREAKS A SEAL IS A REGENERATION.** `GFTernary` -> `GA-T`
+     was applied to prose only. The spec module `triformat-gfternary`, its
+     `GFT_*` constants and its path stay: `.trinity/seals/` hashes the
+     GENERATED C, Rust, Verilog and Zig, so renaming an identifier changes
+     those artefacts. Check for a seal before planning a rename, and split the
+     prose pass from the regeneration pass.
+
+703. **Classify every occurrence before a global substitution.** Vocabulary
+     around a token is not enough -- `docs/theory/TNF_ARTICLE_RU.md` scored
+     "float-heavy" and its 28 `GFTernary` hits were all the ALPHABET, while its
+     `GF-T8`/`GF-T16` hits were the format. Dump the actual matched TOKENS per
+     file; the one survivor of this pass, `GFT16_OFFSET_MAX`, is a float
+     identifier and correctly untouched.
+
+704. **READ THE SPEC HEADER BEFORE CLAIMING ITS CONTENT AS A RESULT.** T209
+     announced that `{-phi,0,+phi}` is `phi * GA-T0` and not a rung.
+     `specs/numeric/gfternary.t27` line 4 has said exactly that, with TWN and
+     BitNet cited, since it was written. Second rediscovery in two waves after
+     tri-net's GF-T (T243). **The contribution was the consequence, not the
+     observation, and the write-up has to say which.**
 
 ### How to update this tracker
 

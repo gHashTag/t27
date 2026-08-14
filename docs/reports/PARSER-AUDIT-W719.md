@@ -7,8 +7,8 @@ run**, so no table ever looked internally inconsistent.
 
 | wave | what | tables | factor |
 |---|---|---:|---:|
-| W714 | GFTernary rungs | 3 | **3.00×** |
-| W716 | GFTernary rungs, harnessed | 2 | **2.00×** |
+| W714 | GA-T rungs | 3 | **3.00×** |
+| W716 | GA-T rungs, harnessed | 2 | **2.00×** |
 | W716 | TNF sweep, 104 arms | 4 | **4.00×** |
 | W717 | TNF post-route, plain flags | 2 | **2.00×** |
 | W718 | TNF post-route, CI flags | 2 | **2.00×** |
@@ -23,7 +23,7 @@ is one multiplicative constant per run:
   `m2 = −0.384`, `m1 = +65.15`, `E_t = +127.5`.
 - **T231–T233** — untouched. Those fits used **placed** LUT from
   `Info: SLICE_LUTX: N/M`, which was parsed correctly all along.
-- **GFTernary ordering** — GFT1 remains the cheapest rung.
+- **GA-T ordering** — GA-T1 remains the cheapest rung.
 
 ## What does not
 
@@ -32,11 +32,11 @@ placed number.
 
 | | yosys reported | yosys CORRECT | placed | placed vs yosys |
 |---|---:|---:|---:|---:|
-| GFT0 | 1500 | 750 | 1035 | **+38.0%** |
-| GFT1 | 1746 | 873 | 1370 | **+56.9%** |
-| GFT2 | 2116 | 1058 | 1509 | **+42.6%** |
-| GFT3 | 2374 | 1187 | 1677 | **+41.3%** |
-| GFT4 | 2578 | 1289 | 1757 | **+36.3%** |
+| GA-T0 | 1500 | 750 | 1035 | **+38.0%** |
+| GA-T1 | 1746 | 873 | 1370 | **+56.9%** |
+| GA-T2 | 2116 | 1058 | 1509 | **+42.6%** |
+| GA-T3 | 2374 | 1187 | 1677 | **+41.3%** |
+| GA-T4 | 2578 | 1289 | 1757 | **+36.3%** |
 | TNF arms (10) | — | 607–1168 | 1163–2187 | **+74.7% … +98.1%** |
 
 **T219 and T228 claimed placed LUT runs BELOW the yosys count. It runs above**,

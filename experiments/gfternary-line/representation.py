@@ -1,4 +1,4 @@
-"""W715: what each GFTernary rung can REPRESENT, measured exactly.
+"""W715: what each GA-T rung can REPRESENT, measured exactly.
 
 WHY THIS AND NOT TRAINING. The question "does the seventh level earn its cost"
 was going to be answered by thirty training seeds. Training answers it through
@@ -11,7 +11,7 @@ paper assumes, how much of the achievable accuracy does each alphabet capture?
 This is the standard object in the quantisation literature -- APoT (Li et al.,
 ICLR 2020) and LQ-Nets (Zhang et al., ECCV 2018) are both, at bottom, arguments
 about which fixed level set best fits a bell-shaped weight distribution. It is
-measured here for the GFTernary line against dyadic sets of EQUAL CARDINALITY
+measured here for the GA-T line against dyadic sets of EQUAL CARDINALITY
 and against the Lloyd-Max optimum, which no fixed alphabet can beat.
 
 Every alphabet gets its own optimal scale, chosen by minimising the same
@@ -24,20 +24,20 @@ PHI = (1 + 5 ** 0.5) / 2
 # Symmetric alphabets, given by their POSITIVE levels; 0 and the negatives are
 # added automatically, so cardinality is 2*len(pos)+1.
 ALPHABETS = {
-    3: [("GFT0  {0,+-1}",          [1.0])],
-    5: [("GFT1  {0,+-1,+-phi}",    [1.0, PHI]),
+    3: [("GA-T0  {0,+-1}",          [1.0])],
+    5: [("GA-T1  {0,+-1,+-phi}",    [1.0, PHI]),
         ("lin5  {0,+-1,+-2}",      [1.0, 2.0]),
         ("pot5  {0,+-1,+-2}",      [1.0, 2.0])],
-    7: [("GFT2  {0,+-1,+-phi,+-phi^2}", [1.0, PHI, PHI ** 2]),
+    7: [("GA-T2  {0,+-1,+-phi,+-phi^2}", [1.0, PHI, PHI ** 2]),
         ("lin7  {0,+-1,+-2,+-3}",       [1.0, 2.0, 3.0]),
         ("pot7  {0,+-1,+-2,+-4}",       [1.0, 2.0, 4.0])],
-    9: [("GFT3  {0,..,+-phi^3}",    [1.0, PHI, PHI ** 2, PHI ** 3]),
+    9: [("GA-T3  {0,..,+-phi^3}",    [1.0, PHI, PHI ** 2, PHI ** 3]),
         ("lin9  {0,+-1,..,+-4}",    [1.0, 2.0, 3.0, 4.0]),
         ("pot9  {0,+-1,+-2,+-4,+-8}", [1.0, 2.0, 4.0, 8.0])],
-    11: [("GFT4  {0,..,+-phi^4}",   [1.0, PHI, PHI ** 2, PHI ** 3, PHI ** 4]),
+    11: [("GA-T4  {0,..,+-phi^4}",   [1.0, PHI, PHI ** 2, PHI ** 3, PHI ** 4]),
          ("lin11 {0,+-1,..,+-5}",   [1.0, 2.0, 3.0, 4.0, 5.0]),
          ("pot11 {0,+-1,+-2,..,+-16}", [1.0, 2.0, 4.0, 8.0, 16.0])],
-    13: [("GFT5  {0,..,+-phi^5}",   [1.0, PHI, PHI**2, PHI**3, PHI**4, PHI**5]),
+    13: [("GA-T5  {0,..,+-phi^5}",   [1.0, PHI, PHI**2, PHI**3, PHI**4, PHI**5]),
          ("lin13 {0,+-1,..,+-6}",   [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
          ("pot13 {0,+-1,..,+-32}",  [1.0, 2.0, 4.0, 8.0, 16.0, 32.0])],
 }

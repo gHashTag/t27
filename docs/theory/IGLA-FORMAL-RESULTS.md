@@ -6121,7 +6121,7 @@ specs with a generated module:                849
 ```
 
 **And the 49 are not a random 6%.** Every one is `specs/ternary/gft_*` — the
-GFTernary datapath family. The difference is a single naming convention: a
+GA-T datapath family. The difference is a single naming convention: a
 function named **`on_comb`**, whose parameters become input ports and whose
 return becomes `result`.
 
@@ -6362,7 +6362,7 @@ value for every non-integral input. **T52's shape at the level of a type.**
 
 ### T86 (W655) — the format's name and its consumers are independent artefacts
 
-Asked directly whether the project uses GFTernary and TNF, the answer was
+Asked directly whether the project uses GA-T and TNF, the answer was
 measured rather than asserted:
 
 ```
@@ -6386,7 +6386,7 @@ What is *not* implemented survives the correction:
 | object | status |
 |---|---|
 | **GF-T16** (accumulator float) | implemented, silicon-proven, 81-value trit-encoded exponent |
-| **GFTernary** (`{−φ,0,+φ}` weight alphabet) | defined, **consumed by nothing** |
+| **GA-T** (`{−φ,0,+φ}` weight alphabet) | defined, **consumed by nothing** |
 | **TNF** (signed rung) | **absent from every spec** |
 
 > **T86.** A format's *definition* and its *consumers* are independent artefacts,
@@ -6415,7 +6415,7 @@ ZeroDSP_TernaryLink, after the bridge:   7 LUT6, 11 IBUF, 9 OBUF   (27 cells)
 ```
 
 > **T87.** `wire_to_gft` synthesises to **nothing**, because a symbol on the wire
-> *is* a GFTernary code. The link therefore transports **weights**, not a
+> *is* a GA-T code. The link therefore transports **weights**, not a
 > serialisation of weights: the receiver's slicer output feeds a φ-datapath with
 > no translation stage, no re-encoding table, and no LUT.
 >
@@ -6539,7 +6539,7 @@ structure checkable rather than decorative.
 
 > **Corollary — three boundaries, one closure.** The article's closure argument
 > removes the normalisation stage **inside the datapath**. T87 removed the
-> conversion stage **between nodes**, because a wire symbol *is* a GFTernary
+> conversion stage **between nodes**, because a wire symbol *is* a GA-T
 > code. T89 removes the learned scale **between layers**, because the gain is a
 > pair of integers. **The same algebraic fact — `φ² = φ + 1` — pays off at every
 > boundary the system has**, and at each one the saving takes the same form:
@@ -6576,7 +6576,7 @@ recorded in `docs/reports/ISSUE-REGISTRY.md`.
 **And the registry's own headline is an absence.** `TNF` appears as a theme
 **zero** times — 0 title matches across all 429, 0 org-wide in bodies, 0
 `in:comments`. A concept with a 2,353-line article, a dedicated skill and an
-erratum had no tracked work anywhere. `GFTernary` has 30 issues and, until W655,
+erratum had no tracked work anywhere. `GA-T` has 30 issues and, until W655,
 zero consumers in the corpus (T86).
 
 > **Corollary.** An issue tracker measures *attention*, not *importance*. The two
@@ -6704,7 +6704,7 @@ synth_xilinx (xc7)      32 LUT2, 32 LUT5, 2 LUT6, 24 CARRY4, ZERO DSPs
 > the system has, and at each one the saving takes the same form: **not a stage
 > made cheap, but a stage that does not exist.**
 >
-> - between nodes, because a wire symbol **is** a GFTernary code — identical
+> - between nodes, because a wire symbol **is** a GA-T code — identical
 >   2-bit encodings, so the conversion synthesises to zero LUTs;
 > - inside the datapath, because `Z[φ]` is a **ring** — weight application is
 >   `(a,b) ↦ (b, a+b)`, one integer addition, and nothing leaves the lattice;
@@ -9289,7 +9289,7 @@ registry: 313  ->  undercount 2.8x
 | IGLA CODER/RACE | 45 | 7 |
 | FPGA / hardware | 44 | 8 |
 | t27 language | 29 | 8 |
-| **TNF / GFTernary** | **14** | **10** |
+| **TNF / GA-T** | **14** | **10** |
 | ternary / trit | 11 | 2 |
 | φ / golden ratio | 1 | 1 |
 | **off-theme** | **689** | — |
@@ -11762,7 +11762,7 @@ layer 3  13.2 bits      layer 6   23.2 bits
 
 ---
 
-## The GFTernary line — W714
+## The GA-T line — W714
 
 **The first φ hardware claim ever put through a tool.** Every LUT figure below
 came out of yosys 0.63 `synth_xilinx -family xc7`, one dense layer, 64 binary
@@ -11772,22 +11772,22 @@ T183's numbers were analytic and are superseded by these.
 
 ### T209 — the line, and why the founding alphabet is not on it
 
-> **T209 (definition).** The **GFTernary line** is
-> `GFT_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, of cardinality **2n+3**. Since
+> **T209 (definition).** The **GA-T line** is
+> `GA-T_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, of cardinality **2n+3**. Since
 > `φ^k = F(k−1) + F(k)·φ`, applying weight `φ^k` to `x` adds `F(k−1)·x` to the
 > `A` lane and `F(k)·x` to the `B` lane of a Z[φ] pair — **integer Fibonacci
 > coefficients, no multiplier at any rung.**
 
 | rung | alphabet | levels | (A,B) coefficients added |
 |---|---|---:|---|
-| **GFT₀** | `{0,±1}` | 3 | (1,0) — balanced ternary, Setun 1958 |
-| **GFT₁** | `{0,±1,±φ}` | 5 | +(0,1) |
-| **GFT₂** | `{0,±1,±φ,±φ²}` | 7 | +(1,1) |
-| **GFT₃** | `… ±φ³` | 9 | +(1,2) |
-| **GFT₄** | `… ±φ⁴` | 11 | +(2,3) |
+| **GA-T0** | `{0,±1}` | 3 | (1,0) — balanced ternary, Setun 1958 |
+| **GA-T1** | `{0,±1,±φ}` | 5 | +(0,1) |
+| **GA-T2** | `{0,±1,±φ,±φ²}` | 7 | +(1,1) |
+| **GA-T3** | `… ±φ³` | 9 | +(1,2) |
+| **GA-T4** | `… ±φ⁴` | 11 | +(2,3) |
 
-**The historical GFTernary `{−φ,0,+φ}` is not a rung of its own line.** It is
-`φ·GFT₀` — rung zero scaled by a unit. **That is exactly why T158 found φ
+**The historical GA-T `{−φ,0,+φ}` is not a rung of its own line.** It is
+`φ·GA-T0` — rung zero scaled by a unit. **That is exactly why T158 found φ
 factors out**, and the line explains the founding null structurally rather than
 empirically: a set built from one power of a unit cannot be anything but a
 scaled copy of the set built from none.
@@ -11803,31 +11803,31 @@ One layer, N=64, M=8, 12-bit accumulator, `synth_xilinx -family xc7`:
 
 ```
 rung   levels    LUT   CARRY4   DSP48
-GFT₀        3   1692       90       0
+GA-T0        3   1692       90       0
 {0,±1,±2}   5   1962       93       0      (dyadic control)
-GFT₁        5   1371      180       0
-GFT₂        7   1878      177       0
-GFT₃        9   2349      168       0
-GFT₄       11   2796      201       0
+GA-T1        5   1371      180       0
+GA-T2        7   1878      177       0
+GA-T3        9   2349      168       0
+GA-T4       11   2796      201       0
 ```
 
 > **T210.** **Zero DSP at every rung** — the multiplier-free claim survives
-> contact with the tool. **GFT₁ costs 19% FEWER LUT than plain ternary** while
+> contact with the tool. **GA-T1 costs 19% FEWER LUT than plain ternary** while
 > carrying five levels instead of three, because each weight lands in exactly
-> one lane, so two narrow adder trees replace one wide one. Above GFT₁ the cost
+> one lane, so two narrow adder trees replace one wide one. Above GA-T1 the cost
 > rises by **≈470 LUT per rung**, driven by the expected number of nonzero lane
 > coefficients per weight (1.00, 1.33, 1.50, 1.60), not by any multiplier.
 
 ### T210a — a registered forecast, refuted
 
 **Registered before measuring (T44):** since `φ^k` has Fibonacci coefficients
-and `F(k) ≤ 1` for `k ≤ 2`, GFT₀…GFT₂ should be **pure wiring at flat cost**,
-with the first step at GFT₃ where the coefficient 2 forces a shift.
+and `F(k) ≤ 1` for `k ≤ 2`, GA-T0…GA-T2 should be **pure wiring at flat cost**,
+with the first step at GA-T3 where the coefficient 2 forces a shift.
 
 > **T210a.** **Refuted.** Increments are 507, 471, 447 LUT — **monotone and
-> smooth, with no discontinuity at GFT₃.** The cost of a rung is not set by
+> smooth, with no discontinuity at GA-T3.** The cost of a rung is not set by
 > whether its coefficients exceed one; it is set by **how many lanes each weight
-> touches.** GFT₂'s `(1,1)` is free of multipliers and still the most expensive
+> touches.** GA-T2's `(1,1)` is free of multipliers and still the most expensive
 > single addition in the line, because it is the first level that pays in both
 > lanes at once.
 
@@ -11857,7 +11857,7 @@ shift-add 55/34                     396       15       0    0.024%
 Scalar ternary re-binarises each layer, so its width is constant and its
 collapse is free. A propagating pair pays no collapse until the output but
 widens **3.3 bits per layer** (T208b). Measured slope: **23.55 LUT per
-accumulator bit** for GFT₁, **18.0** for GFT₀.
+accumulator bit** for GA-T1, **18.0** for GA-T0.
 
 > **T212.** Cost is `L·1371 + 38.85·L(L−1) + 840` against `L·1692`. The
 > break-even quadratic has discriminant **−50 957**: **no real root.** Pair
@@ -11898,7 +11898,7 @@ prior art**, and any paper claiming it as new will be refuted in ten minutes.
 > family whose rung index is the power of the fundamental unit of Z[φ], whose
 > realisation is integer-Fibonacci and multiplier-free at every rung, and whose
 > measured LUT cost rises ≈470 per rung with zero DSP throughout. LQ-Nets learns
-> an unstructured float basis and has no such gradient. **GFT₂ is a member of a
+> an unstructured float basis and has no such gradient. **GA-T2 is a member of a
 > named ladder, not a discovery of a set** — and the ladder, not the set, is the
 > contribution.
 
@@ -11925,19 +11925,19 @@ golden-section. `% opt` = Lloyd–Max MSE ÷ this MSE.
 
 ```
  K  alphabet                          MSE     SQNR dB   % opt
- 3  GFT0  {0,±1}                  0.190174     7.208   100.00
- 5  GFT1  {0,±1,±φ}               0.098050    10.086    81.53
+ 3  GA-T0  {0,±1}                  0.190174     7.208   100.00
+ 5  GA-T1  {0,±1,±φ}               0.098050    10.086    81.53
  5  lin5  {0,±1,±2}               0.082178    10.852    97.28
- 7  GFT2  {0,±1,±φ,±φ²}           0.050766    12.944    86.67
+ 7  GA-T2  {0,±1,±φ,±φ²}           0.050766    12.944    86.67
  7  lin7  {0,±1,±2,±3}            0.046860    13.292    93.90
  7  pot7  {0,±1,±2,±4}            0.047560    13.228    92.52
- 9  GFT3                          0.030336    15.180    91.82
+ 9  GA-T3                          0.030336    15.180    91.82
  9  lin9  {0,±1,…,±4}             0.030696    15.129    90.74
  9  pot9  {0,±1,±2,±4,±8}         0.039875    13.993    69.85
-11  GFT4                          0.022656    16.448    84.83
+11  GA-T4                          0.022656    16.448    84.83
 11  lin11                         0.021856    16.604    87.94
 11  pot11                         0.038603    14.134    49.79
-13  GFT5                          0.020055    16.978    70.13
+13  GA-T5                          0.020055    16.978    70.13
 13  lin13                         0.016453    17.838    85.48
 13  pot13                         0.037856    14.219    37.15
 ```
@@ -11952,12 +11952,12 @@ geometric sets suit heavy tails and the Gaussian is light-tailed, so **a linear
 set of equal cardinality should beat every GFT rung.**
 
 > **T215a.** **Confirmed at K = 5, 7, 11, 13. Refuted at K = 9**, where
-> **GFT₃ (91.82%) beats lin9 (90.74%)** — the single rung at which the golden
+> **GA-T3 (91.82%) beats lin9 (90.74%)** — the single rung at which the golden
 > ladder is the best equal-size alphabet measured. A forecast that survives four
 > of five cases and fails on the fifth has located something; one that survives
 > all five would only have restated the prior.
 
-### T216 — the golden ladder is non-monotone and peaks at GFT₃
+### T216 — the golden ladder is non-monotone and peaks at GA-T3
 
 ```
 GFT   81.53 → 86.67 → 91.82 → 84.83 → 70.13     peak at K=9
@@ -11969,21 +11969,21 @@ lin   97.28 → 93.90 → 90.74 → 87.94 → 85.48     slow monotone decline
 > the Gaussian tail and collapses to 37% by K=13** — that collapse is the entire
 > motivation of APoT (Li et al., ICLR 2020), here quantified. The golden ladder's
 > ratio φ = 1.618 is the *gentlest* multiplier-free geometric progression, so it
-> overshoots later and **peaks at GFT₃**, where its span (φ³ = 4.236σ·s) matches
+> overshoots later and **peaks at GA-T3**, where its span (φ³ = 4.236σ·s) matches
 > the useful range of a Gaussian. Below that it under-covers; above it, overshoots.
 
 ### T217 — where φ actually pays, stated against the project's own claim
 
 > **T217.** Among multiplier-free alphabets the comparison at each size is
 > golden against powers-of-two:
-> - **K=7: pot7 92.52% beats GFT₂ 86.67%.** The seven-level set claimed as the
+> - **K=7: pot7 92.52% beats GA-T2 86.67%.** The seven-level set claimed as the
 >   discovery is **outperformed by plain powers of two at equal cardinality and
 >   equal (zero) multiplier cost.**
-> - **K=9: GFT₃ 91.82% beats pot9 69.85%** — a 22-point margin, the largest in
+> - **K=9: GA-T3 91.82% beats pot9 69.85%** — a 22-point margin, the largest in
 >   the table.
 >
-> **The rung at which the golden ratio earns its place is GFT₃, not GFT₂.** By
-> T210 that costs 2349 LUT against GFT₂'s 1878 (+25%) — so the case for φ, if
+> **The rung at which the golden ratio earns its place is GA-T3, not GA-T2.** By
+> T210 that costs 2349 LUT against GA-T2's 1878 (+25%) — so the case for φ, if
 > there is one, is nine levels and a quarter more logic, and it must be made
 > there or not at all.
 
@@ -12030,11 +12030,11 @@ LFSR-driven so nothing folds away:
 
 ```
 rung   yosys LUT   placed LUT   CARRY4   FF   Fmax MHz*   bitstream SHA-256
-GFT0        1500         1035       44  155      1100.1   1ab78a06813a05a8…
-GFT1        1746         1370       71  155      1273.9   b049fb3b2e15242f…
-GFT2        2116         1509       71  155      1048.2   47988846f3ac3a8a…
-GFT3        2374         1677       69  155      1142.9   ba63992840260086…
-GFT4        2578         1757       69  155      1087.0   af6e4c946475808e…
+GA-T0        1500         1035       44  155      1100.1   1ab78a06813a05a8…
+GA-T1        1746         1370       71  155      1273.9   b049fb3b2e15242f…
+GA-T2        2116         1509       71  155      1048.2   47988846f3ac3a8a…
+GA-T3        2374         1677       69  155      1142.9   ba63992840260086…
+GA-T4        2578         1757       69  155      1087.0   af6e4c946475808e…
 ```
 
 `*` unconstrained — no XDC, so this is nextpnr's estimate, not a closed timing
@@ -12049,7 +12049,7 @@ result. **Five distinct bitstreams**, each bracketed: wrong-part bitstream drove
 ### T219a — a signature that measured the clock, not the rung
 
 The harness first exposed `ok = ^acc` on a free-running accumulator. Two reads
-of the **same** bitstream returned different bits (`GFT1`: 1 then 0). The bit
+of the **same** bitstream returned different bits (`GA-T1`: 1 then 0). The bit
 sampled a counter.
 
 > **T219a.** A readback that varies between two reads of one bitstream carries
@@ -12167,7 +12167,7 @@ query in W717 returns two works that the null's framing does not survive:
 > established since 2008 in converters, and **Fibonacci-based weight
 > quantisation with measured area and power savings was published nine months
 > before this session** — in precisely the territory the project keeps as its
-> surviving hardware claim. Any GFTernary write-up must cite both, and must not
+> surviving hardware claim. Any GA-T write-up must cite both, and must not
 > describe φ in quantisation as unexplored.
 
 ### T225a — how the null was nearly re-confirmed by a broken query
@@ -12243,7 +12243,7 @@ yosys -abc9 -nocarry (W716)   M=29 4596   M=33 4840   up
 
 
 **Registered before running (T44):** post-route would land 28–39% below yosys,
-the band T219 measured on the GFTernary rungs.
+the band T219 measured on the GA-T rungs.
 
 ```
 measured drop over 10 TNF arms:  1.0% .. 12.7%   mean 6.6%
@@ -12378,8 +12378,8 @@ adding each table again. The inflation factor equals the number of tables and is
 
 ```
 wave  what                          tables  factor
-W714  GFTernary rungs                    3   3.00x
-W716  GFTernary rungs (harnessed)        2   2.00x
+W714  GA-T rungs                    3   3.00x
+W716  GA-T rungs (harnessed)        2   2.00x
 W716  TNF sweep, 104 arms                4   4.00x
 W717  TNF post-route, plain flags        2   2.00x
 W718  TNF post-route, CI flags           2   2.00x
@@ -12389,12 +12389,12 @@ W718  TNF post-route, CI flags           2   2.00x
 
 ```
 rung          reported   CORRECT
-GFT0              1692       564
+GA-T0              1692       564
 {0,±1,±2}         1962       654
-GFT1              1371       457
-GFT2              1878       626
-GFT3              2349       783
-GFT4              2796       932
+GA-T1              1371       457
+GA-T2              1878       626
+GA-T3              2349       783
+GA-T4              2796       932
 ```
 
 **T220–T223 corrected** — every sweep coefficient is exactly the old one ÷ 4:
@@ -12405,7 +12405,7 @@ GFT4              2796       932
 > **T234.** **Every conclusion drawn from a RATIO, a DIFFERENCE or a SIGN
 > survives**, because the error is one multiplicative constant per run: Q1's
 > reconciliation, Q2's non-surviving quadratic, the positive `E_t`, the
-> GFTernary ordering, and the whole of T231–T233 (which used placed LUT, parsed
+> GA-T ordering, and the whole of T231–T233 (which used placed LUT, parsed
 > correctly). **Every absolute LUT count is wrong**, and every comparison
 > between a yosys number and a placed number is worse than wrong.
 
@@ -12417,12 +12417,12 @@ the design. Both compared a **quadruple- or double-counted** yosys number
 against a correctly-parsed placed number.
 
 ```
-GFTernary rungs   yosys CORRECT   placed   placed vs yosys
-GFT0                        750     1035          +38.0%
-GFT1                        873     1370          +56.9%
-GFT2                       1058     1509          +42.6%
-GFT3                       1187     1677          +41.3%
-GFT4                       1289     1757          +36.3%
+GA-T rungs   yosys CORRECT   placed   placed vs yosys
+GA-T0                        750     1035          +38.0%
+GA-T1                        873     1370          +56.9%
+GA-T2                       1058     1509          +42.6%
+GA-T3                       1187     1677          +41.3%
+GA-T4                       1289     1757          +36.3%
 
 TNF arms (ten)        607..1168  1163..2187    +74.7% .. +98.1%
 ```
@@ -12665,8 +12665,8 @@ codeword  symbols  legal  relay
 
 > **T243.** **The two ladders are different objects with almost the same name.**
 > tri-net's **GF-T** indexes the *width of a floating format* (GF-T4/8/16/32);
-> this project's **GFTernary** indexes the *cardinality of a weight alphabet*
-> (GFT₀…GFT₄ = `{0} ∪ ±φ^k`). Both are φ-anchored ladders in one ecosystem that
+> this project's **GA-T** indexes the *cardinality of a weight alphabet*
+> (GA-T0…GA-T4 = `{0} ∪ ±φ^k`). Both are φ-anchored ladders in one ecosystem that
 > is meant to become one project, and **a collision this close will be read as
 > the same thing by anyone outside it.** Naming this is cheaper now than after
 > either is published.
@@ -12687,6 +12687,43 @@ conventional stack carrying ternary payloads.
 > this proves a ternary *wire format*. The overlap is the anchor, not the
 > object — and tri-net's honest gap list (trained-model accuracy, energy, Fmax)
 > is the same list W711/W712 and W716 met from the other side.
+
+---
+
+## The ladder is renamed, and the spec had said it first — W722
+
+### T244 — GA-T, and the boundary of the rename
+
+The two φ-anchored ladders are settled: **GF-T** (GoldenFloat, Ternary) indexes
+the *width of a floating format* and stays with tri-net; **GA-T** (Golden
+Alphabet, Ternary) indexes the *rung of a weight alphabet* and is this
+project's. `GA-T_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, `2n+3` levels, rungs
+**GA-T0 … GA-T4**.
+
+> **T244.** Every theorem from T209 onward is restated in the new name. The
+> rename is **prose only**. The spec module `triformat-gfternary`, its constants
+> `GFT_ZERO/POS/NEG` and the path `specs/numeric/gfternary.t27` are untouched,
+> because `.trinity/seals/numeric_triformat-gfternary.json` seals the generated
+> C, Rust, Verilog and Zig **by hash** — renaming an identifier changes those
+> artefacts and invalidates the seal. **A rename that breaks a seal is not a
+> rename, it is a regeneration**, and it gets its own wave.
+
+### T244a — T209 announced what the spec already stated
+
+T209 presented as a structural discovery that the historical alphabet
+`{−φ, 0, +φ}` is `φ · GA-T0` rather than a rung of its own line.
+
+`specs/numeric/gfternary.t27`, line 4, written long before:
+
+> *"The phi-scaled limit of the ternary-weight family: GFTernary = phi \* {-1,0,+1}
+> (a ternary-weight quantizer, cf. TWN / BitNet, with the scale fixed at phi)."*
+
+> **T244a.** **The spec said it first, in one line, with the prior art named.**
+> T209's contribution is not the observation but its consequence — that a set
+> built from one power of a unit *cannot* be anything but a scaled copy, which
+> is why T158's null was structural rather than empirical. **Read the spec
+> header before claiming its content as a result**; this is the second time in
+> two waves that work already done elsewhere was rediscovered (T243).
 
 ---
 
