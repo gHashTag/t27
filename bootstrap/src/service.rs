@@ -582,6 +582,21 @@ struct SpecOutcome {
     zig_build: bool,
     v_gen: bool,
     v_build: bool,
+    /// W693: does the generated module have a port that can carry a VALUE?
+    ///
+    /// T180 refuted the story W692 told about its own headline. `corpus` calls
+    /// `gen-verilog`, so a change to `gen-verilog` moved this command's reading
+    /// 156 -> 326 without changing a single design section -- 444 specs, 0
+    /// additions, 0 modifications, byte-identical. All 170 newly-accepted specs
+    /// carry the banner the compiler writes ITSELF:
+    ///
+    ///     // NO DATA PORTS -- this module cannot move a value across its boundary.
+    ///
+    /// A metric computed by the system under test cannot detect a change to the
+    /// system under test. This column is the one the instrument does not
+    /// control: it moved 57 -> 57 across the change that moved the headline by
+    /// +170, and it is the number to quote.
+    v_data_port: bool,
     timed_out: bool,
 }
 
@@ -696,6 +711,10 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
 
         // ---- Verilog ----
         if let Some((c, text)) = run_timed(Command::new(&me).args(["gen-verilog", &sp]), 15) {
+            // The compiler emits this banner itself when the module it wrote has
+            // no port that can move a value. Reading its own verdict is cheaper
+            // and more honest than re-deriving one.
+            o.v_data_port = c == Some(0) && !text.contains("NO DATA PORTS");
             if text == "__TIMEOUT__" {
                 o.timed_out = true;
             } else if c == Some(0) && !text.trim().is_empty() {
@@ -726,11 +745,13 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     let zb = c(|o| o.zig_build);
     let vg = c(|o| o.v_gen);
     let vb = c(|o| o.v_build);
+    // T180: the column the instrument does not control.
+    let vdp = out.iter().filter(|(_, o)| o.v_build && o.v_data_port).count();
     let both = out.iter().filter(|(_, o)| o.zig_build && o.v_build).count();
     let to = c(|o| o.timed_out);
 
     if json {
-        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"both_build\":{both},\"timed_out\":{to}}}");
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"both_build\":{both},\"timed_out\":{to}}}");
         return Ok(());
     }
 
@@ -742,6 +763,7 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     println!("  {:<26} {:>5}  {:>6}", "  ... and Zig accepts it", zb, format!("{:.1}%", pct(zb)));
     println!("  {:<26} {:>5}  {:>6}", "generates Verilog", vg, format!("{:.1}%", pct(vg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and iverilog accepts", vb, format!("{:.1}%", pct(vb)));
+    println!("  {:<26} {:>5}  {:>6}", "  ... AND has a data port", vdp, format!("{:.1}%", pct(vdp)));
     println!("  {:<26} {:>5}  {:>6}", "BOTH backends accept", both, format!("{:.1}%", pct(both)));
     if to > 0 {
         println!("  {:<26} {:>5}", "timed out (hang)", to);
@@ -749,6 +771,14 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     println!();
     println!("  The gap between 'generates' and 'accepts' is the real backlog.");
     println!("  Diagnostic counts are deliberately not reported: see T119.");
+    println!();
+    println!("  W693/T180: QUOTE THE DATA-PORT LINE, not the iverilog line.");
+    println!("  `corpus` calls `gen-verilog`, so a change to `gen-verilog` moves");
+    println!("  the iverilog reading without changing a single design section --");
+    println!("  measured: 156 -> 326 across 444 specs with 0 additions and 0");
+    println!("  modifications to any design, while this line moved 57 -> 57.");
+    println!("  A module with no data port cannot move a value across its");
+    println!("  boundary; the compiler says so itself in the Verilog it writes.");
     Ok(())
 }
 
