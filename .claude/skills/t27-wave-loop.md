@@ -8534,6 +8534,29 @@ These cost a wave each. Follow them before step 1.
      clear error for a wrong type. When a rewrite rule has an exception, encode
      the exception, do not hope the input avoids it.
 
+749. **A THIRD OF THE PARSE FAILURES ARE FILES THAT ARE NOT CODE.** Fourteen
+     `.t27` files are Markdown documents (`# TITLE`, `## Specification`, prose);
+     eight open with `spec X {` instead of `module`; eleven are neither. **34 of
+     618 non-scratch files, 5.5%.** Every corpus ratio this project quotes uses
+     618 as the denominator when 584 is the honest one.
+
+750. **UNIFORMITY IN AN ERROR MESSAGE IS THE CLUE.** Eleven specs failed with
+     the same message at MODULE LEVEL NEAR LINE 6. That is not eleven bugs --
+     it is one shape: a Markdown heading block whose prose starts at line 6.
+     When a message repeats with the same line number across unrelated files,
+     look at the FILES, not the parser.
+
+751. **THE GRAMMAR LAGS ITS OWN CORPUS.** Six roots in the parse class, every
+     one a construct the specs use and the parser never implemented: newtype
+     `struct X(T);`, `for x in collection`, `while (c) : (step)`, `-> &str`,
+     `module a::b`, open slices `arr[i..]`. **Not broken specs, not compiler
+     bugs -- a language surface smaller than the corpus written against it.**
+
+752. **NOTHING IN THE PIPELINE ASKS "IS THIS FILE SOURCE?"** A `.t27` extension
+     is taken as a type declaration, so a document and a broken spec produce
+     the same red. `impl-status` separates UNWRITTEN; nobody separates NOT-CODE.
+     **Classify before parsing, or spend waves on the wrong population.**
+
 ### How to update this tracker
 
 After closing a wave:

@@ -13528,4 +13528,82 @@ diff.t27       ... of 'diff_text'
 
 ---
 
+## The parse class, decomposed — and a third of it is not code — W733
+
+T261 found parse errors to be the largest blocked class (45 of 127). The
+standing brief's method — read ten to fifteen to root cause before naming the
+class — was applied to it.
+
+### T264 — the class has at least six roots, and none is a parser bug
+
+Reading the offending source lines rather than counting the error strings:
+
+```
+struct AccountID(str);              newtype / tuple struct
+for fact in db.facts {              for over a COLLECTION (parser wants a range a..b)
+while (i < k) : (i += 1) {          while with a continue-expression
+fn severity_str(sev: i8) -> &str    reference return type
+module automation::wrapup {         scoped module name
+return normalized[last_sep + 1..];  open-ended slice
+```
+
+**Registered before running:** three to five roots, and the largest would be a
+**syntax the parser never supported** rather than a parser defect, *"because a
+parser bug would have been noticed by whoever wrote the spec."*
+
+> **T264. Confirmed, and the count was low: at least six.** Every root is a
+> **language-surface gap** — the corpus was authored against a larger t27 than
+> the compiler implements. Not broken specs, not compiler bugs: a **grammar
+> that lags its own corpus.**
+
+### T265 — and a third of the class is not source code at all
+
+Eighteen specs shared one message, `unexpected token after expression
+statement`, eleven of them at **module level near line 6**. The uniformity was
+the clue:
+
+```
+// SPDX-License-Identifier: Apache-2.0
+# C API CONTRACT 0 Trinity VSA FFI Bridge
+
+## Specification
+
+Zig-backed FFI bridge for Trinity VSA core.       <-- line 6
+```
+
+**These are Markdown documents with a `.t27` extension.** Others open with
+`spec TernaryLogic {` — a different top-level keyword the parser does not know.
+
+Measured across **all 618 non-scratch `.t27` files**:
+
+```
+  module ...            584   94.5%   ordinary specs
+  MARKDOWN document      14    2.3%   prose, no code
+  neither/nor            11    1.8%
+  spec X { ... }          8    1.3%   alternative top-level syntax
+  markdown + fn           1    0.2%
+                     -------
+  NOT ordinary source    34    5.5%
+```
+
+> **T265.** **Thirty of the parse failures in the sample are code; seventeen —
+> thirty percent — are files that are not code.** Every corpus metric this
+> project quotes counts documents and alternative-syntax files in the
+> denominator, so the corpus has been measured against **618 when 584 is the
+> honest figure**. This does not make the compiler better; it makes the reported
+> ratio wrong in a knowable direction.
+
+### T265a — why this went unseen for so long
+
+> **T265a.** A `.t27` extension was treated as a type declaration. Nothing in
+> the pipeline asks *"is this file source?"* — `parse` simply fails, `corpus`
+> records a failure, and the ratchet accepts it as expected. **A file that
+> cannot be code produces the same red as a file that is broken**, and this
+> programme has spent waves on the second while counting the first. The fix is
+> not a parser change: it is a **classification step before the parser**, which
+> is exactly what `impl-status` does for UNWRITTEN and nobody did for
+> NOT-CODE.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
