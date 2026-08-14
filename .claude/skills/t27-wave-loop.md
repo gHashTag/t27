@@ -8433,6 +8433,35 @@ These cost a wave each. Follow them before step 1.
      downstream comparison would silently succeed. `link_dead() -> bool` plus a
      finite `link_etx()` loses nothing and fabricates nothing.
 
+731. **PUT THE LESSON IN THE TOOL, NOT ONLY IN THE SKILL.** `t27c yostat`
+     now reads the LAST section of the LAST stat block and REFUSES when there
+     is no stat block. That defect cost five waves (3x/2x/4x inflations, T234)
+     and recurred a sixth time in W726. A lesson in a skill file is advice; a
+     lesson in the tool is a floor.
+
+732. **AN EMPTY RESULT IS NOT A FINDING -- THIRD TIME THIS SESSION.** Four
+     specs "dropped" their type alias from the Zig output. They fail at the
+     PARSER, so codegen never ran and there was no output to drop it from. A
+     class of five was a class of one (T102: sample and population can have
+     opposite shapes).
+
+733. **FIXING THE FIRST ERROR TELLS YOU THE SECOND EXISTS.** Forecast: the
+     type-alias fix unblocks 1 of 5. Measured 0 of 5 -- gfternary still fails,
+     now on `pointless discard of local variable`. One blocker masked another.
+     Never report a fix as an unblock without re-running the gate.
+
+734. **"HARMLESS EXTRA USE" IS A CLAIM, AND THIS ONE IS FALSE.**
+     `compiler.rs:6489` emits `_ = &name;` for every `var` and calls it
+     harmless. It is what makes a later `_ = name;` a POINTLESS DISCARD, which
+     Zig rejects outright. Comments asserting harmlessness deserve the same
+     scepticism as comments asserting correctness.
+
+735. **EDITING `bootstrap/src/compiler.rs` REQUIRES THE FREEZE CEREMONY.**
+     `build.rs` refuses to build until `bootstrap/stage0/FROZEN_HASH` carries
+     the new digest -- `<sha256>  bootstrap/src/compiler.rs`. It caught the
+     omission on the first rebuild, which is the seal working exactly as
+     intended, and worth contrasting with the 1046 stale seals of T248.
+
 ### How to update this tracker
 
 After closing a wave:

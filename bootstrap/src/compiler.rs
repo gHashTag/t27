@@ -5338,6 +5338,32 @@ impl Codegen {
             self.write("pub ");
         }
 
+        // W729: `pub const GFTernary = u8;` is a TYPE ALIAS, and the identifier
+        // on the right is the builtin type, not a name to look up. `zig_ident`
+        // escapes primitives as `@"u8"` -- correct for something NAMED u8,
+        // fatal here: Zig reports `use of undeclared identifier 'u8'` and the
+        // whole spec stops compiling, so its 18 test blocks had never run.
+        // The C backend has detected this pattern since it was written
+        // (`typedef uint8_t GFTernary;`); the Zig backend never did.
+        if node.children.len() == 1
+            && node.children[0].kind == NodeKind::ExprIdentifier
+            && {
+                // Same predicate `zig_ident` uses to decide something is a
+                // builtin type name -- uN/iN/fN plus the named primitives.
+                let n = &node.children[0].name;
+                matches!(
+                    n.as_str(),
+                    "bool" | "void" | "type" | "usize" | "isize"
+                        | "comptime_int" | "comptime_float"
+                ) || (n.len() >= 2
+                    && (n.starts_with('u') || n.starts_with('i') || n.starts_with('f'))
+                    && n[1..].chars().all(|c| c.is_ascii_digit()))
+            }
+        {
+            self.write_line(&format!("const {} = {};", node.name, node.children[0].name));
+            return;
+        }
+
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {

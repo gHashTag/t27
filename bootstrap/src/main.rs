@@ -219,6 +219,19 @@ enum Commands {
     /// on replug. Never hardcode what this prints.
     Boards,
 
+    /// THE SERVICE: read cell counts out of a yosys log WITHOUT re-inventing the
+    /// parser. `stat` prints ONE TABLE PER MODULE and then the design-wide
+    /// total; summing `findall` over the whole log adds every table again.
+    /// W719 audited 3x, 2x and 4x inflations across five waves from exactly
+    /// that, and W726 hit it a sixth time reading nextpnr output. This reads
+    /// the LAST section of the LAST stat block and refuses to answer when there
+    /// is no stat block at all -- because an empty log and an empty design look
+    /// identical to a regex, and only one of them is a result.
+    Yostat {
+        /// The yosys log file (`yosys -l <file>`).
+        log: String,
+    },
+
     /// THE SERVICE: discharge the equivalence miter between the generated
     /// multiplier-free RTL and a golden model containing a real `*`.
     /// Proves the whole input space at once, where a test proves the points
@@ -10171,6 +10184,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
@@ -10547,6 +10561,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
@@ -10894,5 +10909,43 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Read cell counts from a yosys log, from the LAST section of the LAST stat
+/// block only. See the `Yostat` doc comment for why this exists.
+fn run_yostat(log: &str) -> anyhow::Result<()> {
+    let text = std::fs::read_to_string(log)
+        .map_err(|e| anyhow::anyhow!("cannot read {log}: {e}"))?;
+    let blocks: Vec<&str> = text.split("Printing statistics").collect();
+    if blocks.len() < 2 {
+        println!("  NO STAT BLOCK in {log}");
+        println!("  An empty log and an empty design look identical to a regex.");
+        println!("  This is the first, not the second -- yosys never got that far.");
+        std::process::exit(1);
+    }
+    let last = blocks[blocks.len() - 1];
+    // Sections inside one stat block are separated by `=== <module> ===`; the
+    // design-wide total is the last of them.
+    let section = last.rsplit_once("\n=== ").map(|(_, rest)| rest).unwrap_or(last);
+    let count = |name: &str| -> u64 {
+        section
+            .lines()
+            .filter_map(|l| {
+                let t = l.trim();
+                let (n, rest) = t.split_once(char::is_whitespace)?;
+                if rest.trim() == name { n.parse::<u64>().ok() } else { None }
+            })
+            .sum()
+    };
+    let lut: u64 = (1..=6).map(|k| count(&format!("LUT{k}"))).sum();
+    let ff = count("FDRE") + count("FDSE") + count("FDCE") + count("FDPE");
+    println!("  stat blocks in log : {}", blocks.len() - 1);
+    println!("  LUT (LUT1..LUT6)   : {lut}");
+    println!("  CARRY4             : {}", count("CARRY4"));
+    println!("  DSP48E1            : {}", count("DSP48E1"));
+    println!("  MUXF7 / MUXF8      : {} / {}", count("MUXF7"), count("MUXF8"));
+    println!("  FF (FDRE/SE/CE/PE) : {ff}");
+    println!("  BSCANE2            : {}", count("BSCANE2"));
     Ok(())
 }

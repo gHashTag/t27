@@ -13221,4 +13221,84 @@ never touch.
 
 ---
 
+## A type alias that never compiled, and a class of one — W729
+
+### T255 — the Zig backend escaped a builtin type as an identifier
+
+`specs/numeric/gfternary.t27` line 29 is `pub const GFTernary = u8;` — a type
+alias. The Zig backend emitted:
+
+```zig
+pub const GFTernary = @"u8";     // use of undeclared identifier 'u8'
+```
+
+`@"..."` is Zig's escape for identifiers that collide with keywords, and
+`zig_ident` applies it to every primitive type name. That is right for something
+*named* `u8` and fatal when `u8` **is** the type.
+
+> **T255.** The spec has **18 test blocks and they had never run** — the file
+> stopped compiling before any of them existed as code. The **C backend has
+> detected this pattern since it was written** (`typedef uint8_t GFTernary;`);
+> the Zig backend never did. Fixed by emitting the alias bare. Editing
+> `compiler.rs` also required the freeze ceremony — `bootstrap/stage0/FROZEN_HASH`
+> updated, which `build.rs` enforces and which caught the omission immediately.
+
+### T255a — a "class of five" that was a class of one
+
+The survey found six specs declaring a primitive type alias and reported that
+**all five checked were BLOCKED**, four with the alias "dropped" from the Zig
+output and one mis-emitted. That framing was wrong.
+
+```
+specs/numeric/gf16.t27      BLOCKED  parse error in fn 'gf16_exp' line 824
+specs/base/types.t27        BLOCKED  parse error in fn 'pack_trit' line 172
+specs/numeric/gfternary.t27 BLOCKED  the type-alias escape   <-- the only one
+```
+
+> **T255a.** The other specs fail **at the parser**, so codegen never ran and
+> there was no Zig output for the alias to appear in. **"Dropped" was an
+> artefact of a build that never happened** — the third time this session an
+> empty result was read as a finding. The type-alias defect is a **class of
+> one**, and this repository's own T102 says exactly this: a sample and its
+> population can have opposite shapes.
+
+### T255b — the fix revealed the next blocker, which is a second defect
+
+With the alias correct, `gfternary.t27` still does not compile:
+
+```zig
+var result: f64 = 0.0;
+_ = &result;          // emitted for every `var` (compiler.rs:6489)
+for (0 .. 1000) |_| { result = gat_to_f64(code); }
+_ = result;           // error: pointless discard of local variable
+```
+
+> **T255b.** The comment at `compiler.rs:6489` calls `_ = &name;` *"a harmless
+> extra use on genuinely mutated paths"*. **It is not harmless** — it is exactly
+> what makes the later `_ = result;` pointless, and Zig rejects the file.
+> Registered forecast was "1 of 5 unblocked"; measured **0 of 5**, because one
+> blocker masked another. **Fixing the first error in a file tells you the
+> second one exists, not that the file works.**
+
+### T256 — the lesson that cost five waves is now a command
+
+`t27c yostat <log>` reads cell counts from the **last section of the last stat
+block**, and **refuses to answer when there is no stat block at all**.
+
+```
+$ t27c yostat gft2.yosys          $ t27c yostat empty.log
+  stat blocks in log : 2            NO STAT BLOCK in empty.log
+  LUT (LUT1..LUT6)   : 626          An empty log and an empty design look
+  CARRY4             : 59           identical to a regex. This is the first.
+  DSP48E1            : 0
+```
+
+> **T256.** 626 is the corrected T210 figure, so the command reproduces the
+> audited number rather than the inflated one. **The defect it encodes cost
+> five waves** (T234: 3×, 2×, 4× inflations) **and recurred a sixth time in
+> W726** while reading nextpnr output. A lesson written in a skill file is
+> advice; a lesson written in the tool is a floor.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
