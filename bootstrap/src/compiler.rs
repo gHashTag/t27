@@ -7327,6 +7327,11 @@ impl Codegen {
 pub struct VerilogCodegen {
     output: String,
     indent: u32,
+    /// W700: makes each unrolled `while`'s fuel variable unique within a module.
+    /// Two loops in one function would otherwise both declare `__t27_fuel`, and
+    /// Verilog rejects the redeclaration -- turning a synthesis repair into a
+    /// compile failure.
+    while_fuel_counter: u32,
     module_name: String,
     current_fn_name: String,
     current_fn_return_type: String,
@@ -7419,6 +7424,7 @@ impl VerilogCodegen {
 
     pub fn with_options(emit_test_assertions: bool) -> Self {
         Self {
+            while_fuel_counter: 0,
             output: String::new(),
             indent: 0,
             module_name: String::new(),
@@ -8934,6 +8940,7 @@ impl VerilogCodegen {
         let mut tmp = VerilogCodegen {
             output: String::new(),
             indent: 0,
+            while_fuel_counter: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
@@ -9148,6 +9155,7 @@ impl VerilogCodegen {
             };
             for sub in outer.iter().take(current_dim) {
                 let mut tmp = VerilogCodegen {
+                    while_fuel_counter: 0,
                     output: String::new(),
                     indent: 0,
                     module_name: String::new(),
@@ -12744,7 +12752,108 @@ impl VerilogCodegen {
         }
     }
 
+    /// W700: a `while` with a LITERAL bound becomes a bounded `for`.
+    ///
+    /// T192 measured it: a `while` body lowers to ZERO LOGIC, even when its
+    /// bound is a compile-time constant.
+    ///
+    ///     if (a > b) return 1;                    132 LUT
+    ///     return a + b;                            96 LUT
+    ///     while (i < 4) { acc = acc + a; ... }       0 LUT
+    ///
+    /// `ternary_mac` reaches 951 LUT and contains no `while` at all. yosys
+    /// elaborates a `while` inside a combinational `function` by discarding it:
+    /// there is no static trip count, so there is nothing to unroll, and the
+    /// whole body disappears without a warning.
+    ///
+    /// The transform is the standard fuel bound, and it preserves semantics for
+    /// any loop that terminates within N iterations:
+    ///
+    ///     for (fuel = 0; fuel < N; fuel = fuel + 1)
+    ///         if (<cond>) begin <body> end
+    ///
+    /// N is taken from the condition when it is `expr < LITERAL` or
+    /// `expr <= LITERAL`. **When the bound is not a literal the loop is left
+    /// alone and SAID SO**, because a runtime trip count cannot be unrolled by
+    /// anything -- and a silently-vanishing body is what this repair exists to
+    /// remove. Same discipline as W699's port width: derive it or refuse it,
+    /// never default it.
+    fn while_literal_bound(node: &Node) -> Option<u64> {
+        let cond = node.children.first()?;
+        if cond.kind != NodeKind::ExprBinary {
+            return None;
+        }
+        let op = cond.extra_op.trim();
+        if op != "<" && op != "<=" {
+            return None;
+        }
+        let rhs = cond.children.get(1)?;
+        if rhs.kind != NodeKind::ExprLiteral {
+            return None;
+        }
+        let n: u64 = rhs.value.trim().parse().ok()?;
+        // `<=` runs one more time than `<`.
+        Some(if op == "<=" { n.saturating_add(1) } else { n })
+    }
+
     fn gen_verilog_while_stmt(&mut self, node: &Node) {
+        if let Some(bound) = Self::while_literal_bound(node) {
+            let n = self.while_fuel_counter;
+            self.while_fuel_counter += 1;
+            let fuel = format!("__t27_fuel_{n}");
+            let blk = format!("__t27_loop_{n}");
+            self.write_indent();
+            self.write_line(&format!(
+                "// W700: bounded `while` unrolled to a static trip count of {bound}."
+            ));
+            // The counter MUST be declared, and Verilog allows a declaration only
+            // at the start of a NAMED block -- so the loop gets one. The first
+            // version of this transform emitted the `for` with an undeclared
+            // variable, which turned a silently-empty module into a hard error:
+            //   iverilog: register `__t27_fuel_0' unknown
+            //   yosys:    Left hand side of 1st expression of procedural
+            //             for-loop is not a register!
+            // Louder, and still broken. The named block fixes both.
+            self.write_indent();
+            self.write_line(&format!("begin : {blk}"));
+            self.indent();
+            self.write_indent();
+            self.write_line(&format!("integer {fuel};"));
+            self.write_indent();
+            self.write_line(&format!("for ({fuel} = 0; {fuel} < {bound}; {fuel} = {fuel} + 1) begin"));
+            self.indent();
+            self.write_indent();
+            self.write("if (");
+            if !node.children.is_empty() {
+                self.gen_verilog_expr(&node.children[0]);
+            }
+            self.write_line(") begin");
+            self.indent();
+            if node.children.len() > 1 {
+                for stmt in &node.children[1].children {
+                    self.gen_verilog_stmt(stmt);
+                }
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            return;
+        }
+
+        self.write_indent();
+        self.write_line(
+            "// W700: NOT UNROLLED -- the bound is not a literal, so there is no static",
+        );
+        self.write_indent();
+        self.write_line(
+            "// trip count. yosys discards this loop and the body synthesises to nothing.",
+        );
         self.write_indent();
         self.write("while (");
         if !node.children.is_empty() {

@@ -7649,6 +7649,30 @@ These cost a wave each. Follow them before step 1.
      that survives synthesis (T192). "Necessary but not sufficient" twice in
      succession on the same four specs. T192a.
 
+593. **A bounded `while` now lowers to a bounded `for` with a fuel counter, and
+     the LUT is STILL zero.** The transform is correct -- iverilog accepts it,
+     the counter is declared, literal bounds unroll, runtime bounds refuse
+     loudly -- and yosys's statistics block comes back empty. `arith` reaches 96
+     LUT through identical scaffolding, so the scaffolding is not the cause.
+     T193.
+
+594. **The first version of the transform was WORSE than what it replaced.** It
+     emitted the `for` with an undeclared counter: iverilog "register unknown",
+     yosys "Left hand side ... is not a register!". A silently-empty module
+     became a hard error. Verilog permits a declaration only at the start of a
+     NAMED block.
+
+595. **A hypothesis whose test was malformed has not survived.** The named-block
+     nesting is the one structural difference from `__mul_noop`, whose `for` does
+     synthesise -- but the hand-edit meant to test it left an unbalanced `end`
+     and produced a syntax error. Record the hypothesis as UNTESTED, not as
+     likely. T193a.
+
+596. **Ship a correct-but-insufficient change as NEUTRAL, and say so.** Every
+     corpus figure unchanged, path and prove green, the lowering is right and the
+     goal is unmet. That is a legitimate wave outcome; claiming the goal would
+     not be.
+
 ### How to update this tracker
 
 After closing a wave:

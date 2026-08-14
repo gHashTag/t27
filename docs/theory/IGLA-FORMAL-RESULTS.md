@@ -10923,4 +10923,65 @@ constant-bound trial refuted it:
 
 ---
 
+## W700 — the `while` transform is correct, and it does not work
+
+### T193 — a bounded `while` now lowers to a bounded `for`, and the LUT is still zero
+
+T192 measured that a `while` body synthesises to nothing even with a
+compile-time-constant bound. The repair emits the standard fuel form, which
+preserves semantics for any loop terminating within N iterations:
+
+```verilog
+begin : __t27_loop_0
+    integer __t27_fuel_0;
+    for (__t27_fuel_0 = 0; __t27_fuel_0 < 4; __t27_fuel_0 = __t27_fuel_0 + 1) begin
+        if ((i < 4)) begin
+            acc = (acc + a);
+            i = (i + 1);
+        end
+    end
+end
+```
+
+N is taken from the condition when it is `expr < LITERAL` or `expr <= LITERAL`.
+**When the bound is not a literal the loop is left alone and says so** — a
+runtime trip count cannot be unrolled by anything, and the point of the repair is
+to stop bodies vanishing silently.
+
+**Forecast W700-F1 said `whileonly` would give non-zero LUT. It gives zero.**
+
+> **T193.** The transform is **correct and insufficient**. `iverilog` accepts the
+> output, the fuel variable is properly declared, the unroll fires on literal
+> bounds and refuses loudly otherwise — and yosys's statistics block comes back
+> **empty**. `arith` (`return a + b`) reaches 96 LUT through the identical module
+> scaffolding, so the scaffolding is not the problem. **The cause is still
+> unfound.** **Refuted by:** any change that makes a `while`-bodied spec yield
+> non-zero LUT.
+
+**And the first version of the transform was worse than what it replaced.** It
+emitted the `for` with an *undeclared* counter:
+
+```
+iverilog: register `__t27_fuel_0' unknown
+yosys:    Left hand side of 1st expression of procedural for-loop is not a register!
+```
+
+A silently-empty module became a hard error — louder, and still broken. Verilog
+permits a declaration only at the start of a **named** block, which is why the
+loop now has one.
+
+> **T193a — the leading hypothesis is UNTESTED, and I am recording that rather
+> than the hypothesis.** The named block wrapping the loop is the one structural
+> difference from `__mul_noop`, whose `for` sits directly in the function body and
+> does synthesise. **The experiment to test it produced a syntax error from an
+> unbalanced `end` in a hand-edited file, so it proved nothing.** A hypothesis
+> that survived only because its test was malformed has not survived.
+
+**Committed as neutral.** Every corpus figure is unchanged — `iverilog accepts`
+326, data-port 74, BOTH 174 — `path` is 31/31 and 31 PASSED, `prove` still
+PROVED. The wave's deliverable is a correct lowering, a loud refusal where none
+is possible, and **an explicitly unfinished diagnosis**.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
