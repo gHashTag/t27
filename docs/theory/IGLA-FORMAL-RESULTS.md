@@ -11375,4 +11375,41 @@ is the real gap, and it is not a timeout.
 
 ---
 
+### T201 — synthesisability is measurable now, and the two tools disagree in BOTH directions
+
+T200 named the real gap: **nothing measured whether the corpus synthesises.**
+`corpus --synth` now does, running `yosys synth_xilinx` per spec behind a flag —
+off by default because synthesis time is quadratic (T199a) and **the flag's
+documentation says to run it alone**, because the first sweeps to try measured
+machine load instead (T199b).
+
+First sample, 40 specs:
+
+```
+generates Verilog          16   40.0%
+  ... and iverilog accepts  7   17.5%
+  ... AND has a data port   0    0.0%
+  ... AND yosys SYNTHESISES 13   32.5%
+```
+
+> **T201.** **Thirteen synthesise where seven compile.** yosys accepts *more*
+> than iverilog on this sample — **the opposite direction from T198b**, where a
+> function called as a task passed iverilog with a warning and failed yosys
+> outright. **Both are true: the two acceptance sets are not nested, and neither
+> tool is a superset of the other.** **Refuted by:** a full-corpus run in which
+> every synthesising spec also compiles.
+
+> **T201a — and this reframes the headline.** The project has quoted an
+> `iverilog` number as its corpus figure since the metric existed. **That number
+> is not a lower bound on synthesisable specs, and not an upper bound either.**
+> It measures one tool's tolerance, and the tolerances differ in both
+> directions. **A single-tool metric on a two-backend project reports neither
+> backend.**
+
+*The sample is the first 40 specs alphabetically, not a random draw, and 40 of
+617 is 6%. The direction of the disagreement is what this establishes; the
+magnitude needs the full run, which must be done alone.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -169,6 +169,19 @@ enum Commands {
         /// Emit one JSON line instead of the table, for wave-to-wave comparison
         #[arg(long, default_value_t = false)]
         json: bool,
+        /// W707: also run `yosys synth_xilinx` on each generated module.
+        ///
+        /// Nothing measured this before: `corpus` compiles with `iverilog`, and
+        /// iverilog ACCEPTS constructs yosys rejects (T198b), so the headline has
+        /// never been a statement about hardware. RUN THIS ALONE -- synthesis
+        /// time is quadratic in design size (T199a), and the first sweeps to try
+        /// it measured machine load rather than the specs (T199b).
+        #[arg(long, default_value_t = false)]
+        synth: bool,
+        /// Per-spec cap for the synthesis stage, in seconds. Measured: the
+        /// corpus's largest members take 10-352 s alone (T199).
+        #[arg(long, default_value_t = 420)]
+        synth_secs: u64,
     },
 
     /// THE SERVICE: how many DISTINCT defect classes stand between each spec
@@ -10299,8 +10312,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }
-        Commands::Corpus { specs_dir, limit, json } => {
-            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
         }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
@@ -10676,8 +10689,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Backlog { specs_dir, limit } => {
             service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
         }
-        Commands::Corpus { specs_dir, limit, json } => {
-            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json)?
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
         }
         Commands::Prove { input, mutate } => {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?

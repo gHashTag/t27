@@ -7807,6 +7807,20 @@ These cost a wave each. Follow them before step 1.
      sweeps that tried to measure synthesis were the ones whose caps measured
      machine load (T199). That is the real gap, and it is not a timeout.
 
+622. **`corpus --synth` measures synthesisability at last** -- off by default,
+     because synthesis time is quadratic, and its own help says RUN IT ALONE
+     after T199b. First 40-spec sample: 16 generate, 7 compile under iverilog,
+     13 SYNTHESISE under yosys. T201.
+
+623. **THE TWO TOOLS DISAGREE IN BOTH DIRECTIONS.** T198b found iverilog
+     accepting a function-called-as-task that yosys rejects; this sample finds
+     yosys accepting 13 where iverilog accepts 7. Neither acceptance set is a
+     superset of the other. A single-tool metric on a two-backend project reports
+     NEITHER backend. T201a.
+
+624. **The corpus headline has been an iverilog number since the metric existed**
+     -- not a lower bound on synthesisable specs and not an upper bound either.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -582,6 +582,18 @@ struct SpecOutcome {
     zig_build: bool,
     v_gen: bool,
     v_build: bool,
+    /// W707: does `yosys synth_xilinx` accept it?
+    ///
+    /// Nothing measured this before. `corpus` compiles with `iverilog`, which
+    /// ACCEPTS constructs yosys rejects -- a function called as a task warns and
+    /// passes (T198b) -- so 327 has never been a statement about hardware.
+    ///
+    /// Off by default and for a reason: synthesis time is QUADRATIC in design
+    /// size (T199a, exponent ~2), so the corpus's largest members take minutes
+    /// each. `--synth` must be run ALONE: the sweeps that first tried this
+    /// measured machine load rather than the specs, because they shared the
+    /// machine with a five-agent fan-out (T199b).
+    v_synth: bool,
     /// W693: does the generated module have a port that can carry a VALUE?
     ///
     /// T180 refuted the story W692 told about its own headline. `corpus` calls
@@ -659,7 +671,14 @@ fn run_timed(cmd: &mut Command, secs: u64) -> Option<(Option<i32>, String)> {
     }
 }
 
-pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -> anyhow::Result<()> {
+pub fn run_corpus(
+    repo_root: &Path,
+    specs_dir: &str,
+    limit: usize,
+    json: bool,
+    synth: bool,
+    synth_secs: u64,
+) -> anyhow::Result<()> {
     let me = std::env::current_exe()?;
     let tmp = std::env::temp_dir().join("t27-corpus");
     std::fs::create_dir_all(&tmp)?;
@@ -715,6 +734,30 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
             // no port that can move a value. Reading its own verdict is cheaper
             // and more honest than re-deriving one.
             o.v_data_port = c == Some(0) && !text.contains("NO DATA PORTS");
+            if synth && c == Some(0) && !text.is_empty() {
+                // The top module is the first one the generator emits.
+                let top = text
+                    .lines()
+                    .find_map(|l| l.strip_prefix("module ").map(|r| {
+                        r.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect::<String>()
+                    }))
+                    .unwrap_or_default();
+                if !top.is_empty() {
+                    let vp2 = std::env::temp_dir().join(format!("t27-synth-{}.v", std::process::id()));
+                    if std::fs::write(&vp2, &text).is_ok() {
+                        let script = format!(
+                            "read_verilog -sv {}; synth_xilinx -family xc7 -top {} -flatten",
+                            vp2.display(),
+                            top
+                        );
+                        if let Some((yc, _)) =
+                            run_timed(Command::new("yosys").args(["-p", &script]), synth_secs)
+                        {
+                            o.v_synth = yc == Some(0);
+                        }
+                    }
+                }
+            }
             if text == "__TIMEOUT__" {
                 o.timed_out = true;
             } else if c == Some(0) && !text.trim().is_empty() {
@@ -747,11 +790,12 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     let vb = c(|o| o.v_build);
     // T180: the column the instrument does not control.
     let vdp = out.iter().filter(|(_, o)| o.v_build && o.v_data_port).count();
+    let vsy = out.iter().filter(|(_, o)| o.v_synth).count();
     let both = out.iter().filter(|(_, o)| o.zig_build && o.v_build).count();
     let to = c(|o| o.timed_out);
 
     if json {
-        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"both_build\":{both},\"timed_out\":{to}}}");
+        println!("{{\"specs\":{n},\"zig_gen\":{zg},\"zig_build\":{zb},\"verilog_gen\":{vg},\"verilog_build\":{vb},\"verilog_build_with_data_port\":{vdp},\"verilog_synth\":{vsy},\"both_build\":{both},\"timed_out\":{to}}}");
         return Ok(());
     }
 
@@ -764,6 +808,9 @@ pub fn run_corpus(repo_root: &Path, specs_dir: &str, limit: usize, json: bool) -
     println!("  {:<26} {:>5}  {:>6}", "generates Verilog", vg, format!("{:.1}%", pct(vg)));
     println!("  {:<26} {:>5}  {:>6}", "  ... and iverilog accepts", vb, format!("{:.1}%", pct(vb)));
     println!("  {:<26} {:>5}  {:>6}", "  ... AND has a data port", vdp, format!("{:.1}%", pct(vdp)));
+    if synth {
+        println!("  {:<26} {:>5}  {:>6}", "  ... AND yosys SYNTHESISES", vsy, format!("{:.1}%", pct(vsy)));
+    }
     println!("  {:<26} {:>5}  {:>6}", "BOTH backends accept", both, format!("{:.1}%", pct(both)));
     if to > 0 {
         println!("  {:<26} {:>5}", "timed out (hang)", to);
