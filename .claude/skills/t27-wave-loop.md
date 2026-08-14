@@ -6816,6 +6816,22 @@ These cost a wave each. Follow them before step 1.
      "The arithmetic is now correct" is a smaller headline than "eighteen
      structs unlocked" and it is the true one.
 
+437. **Check the tool supports the primitive BEFORE writing the RTL.** The
+     BSCANE2 risk had been carried as "unverified" since W656. One grep of
+     `pack_io_xc7.cc` and `constids.inc` settled it in a minute, and the design
+     then placed with rc 0 and zero errors on the first attempt. T137.
+
+438. **Design a readback so a dead channel cannot fake a pass.** USER1 shifts
+     `ok`, `beat`, then a constant 1 and a constant 0. An all-zeroes or all-ones
+     chain -- the two silent failure modes -- cannot produce `x1` in bits 3:2.
+     Same rule as the wrong-part bitstream that gives `Done 0->1` its meaning.
+
+439. **Two halves of a capability can live in two tools and neither be usable.**
+     `dlc10` has shift_ir/shift_dr and speaks USER1, but is hardcoded to VID
+     0x03FD; `openFPGALoader` drives our 0x0403 cables and exposes only DNA,
+     XADC and the status register. The gap is one FTDI transport, and NAMING it
+     that precisely is the difference between a blocked wave and a scoped task.
+
 ### How to update this tracker
 
 After closing a wave:

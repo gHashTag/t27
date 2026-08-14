@@ -8650,4 +8650,54 @@ document, and labelled as such.**
 
 ---
 
+### T137 (W672) — the readback path exists on the die and is missing from the host
+
+Every result this project has put on silicon rests on `led_r23`. The miter proves
+the arithmetic for all inputs (T110) and the on-chip sweep re-checks all 256 of
+them, but the only channel out of the die is a lamp that no machine reads.
+
+**The risk carried since W656 — "BSCANE2 support in the open flow is
+unverified" — is resolved, positively.** Checked before writing any RTL:
+`nextpnr-openxc7` maps `id_BSCANE2` to `id_BSCAN` in `pack_io_xc7.cc:1236`, and
+`X(BSCANE2)` is in its constids.
+
+**The design builds and loads:**
+
+| stage | result |
+|---|---|
+| yosys | 1 × `BSCANE2`, 96 LUT, 57 CARRY4, **0 DSP** |
+| nextpnr | **rc 0, 0 errors**, 5,580 FASM lines |
+| bitstream | 9,730,891 B, sha `5527171ef1fb…` |
+| three boards | wrong-part `Done 0x0` → own `Done 0x1`, all of 1:4, 1:6, 1:8 |
+
+**The protocol is designed to fail loudly.** USER1 shifts four bits: `ok`,
+`beat`, and then a constant `1` and a constant `0`. A dead JTAG chain returns all
+zeroes or all ones — the two ways a readback fails silently — and neither can
+produce `x1` in bits 3:2. **A correct-looking verdict cannot be manufactured by a
+chain that is not there**, which is the same rule as the wrong-part bitstream
+that makes `Done 0→1` mean something.
+
+**And the host cannot read it.** Measured, not assumed:
+
+| tool | cable | user register |
+|---|---|---|
+| `cli/dlc10` | **VID 0x03FD** (Xilinx Platform Cable) — hardcoded | has `shift_ir` / `shift_dr`, already speaks `USER1` |
+| `openFPGALoader` | **0x0403:0x6014** — our three cables | DNA, XADC, status register only — **no user register** |
+
+> **T137.** The two halves of the readback exist in different tools. The driver
+> that can shift `USER1` cannot open our cable; the driver that opens our cable
+> cannot shift `USER1`. **The missing piece is exactly one adapter** — an FTDI
+> MPSSE transport beneath `dlc10`'s existing JTAG primitives — and until it
+> exists the verdict is machine-readable *on the die* and human-readable *only*
+> off it.
+
+**What this changes about the project's central claim.** "A ternary network runs
+on three FPGAs" is now supported by: a proof over all inputs, a bitstream that
+configures against a discriminating test, and an on-chip checker whose failure
+mode is sticky. It is still **not** supported by any machine-read observation of
+the computation. That gap is now one named, scoped piece of work rather than an
+open question.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
