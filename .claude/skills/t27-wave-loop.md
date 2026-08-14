@@ -8055,6 +8055,45 @@ These cost a wave each. Follow them before step 1.
      rung where φ's span matches a Gaussian. The exception located the peak;
      four confirmations alone would have located nothing.
 
+667. **A readback that changes between two reads of the SAME bitstream carries
+     no information.** The rung harness exposed `ok = ^acc` on a free-running
+     accumulator; GFT1 answered 1 then 0. I had already written "the parity
+     differs by rung, so the die computes different things" — it differed by
+     READ TIME. Freeze the signature at a fixed clock, then re-read twice and
+     require equality before believing any of it.
+
+668. **The DONE bit is printed by the LOAD, not by `--detect`.** In
+     openFPGALoader 1.1.1 `--detect` prints idcode, family, model, irlength and
+     no status word, so a bracket built on it returns `?` for both halves and
+     the acceptance criterion silently evaporates. Parse the loader's own
+     output for `done 1` / `Done            0x0`.
+
+669. **`fasm2frames.py` needs the openXC7 venv, not the system python.**
+     `ModuleNotFoundError: No module named 'fasm'` after a 690 KB FASM had been
+     produced reads as a broken P&R. P&R was fine. The interpreter was wrong.
+
+670. **A blocked task is blocked on a MACHINE, not on a fact.** The TNF handoff
+     marked the cost sweep unrunnable — "no yosys, nextpnr or docker in the
+     sandbox". On this host all three exist and 104 arms ran with zero failures.
+     Re-test an inherited blocker against the machine you are actually on before
+     planning around it.
+
+671. **Check whether a term is needed before defending where it fails.** The
+     hunt was whether `M²` survives past M=25. It does not — but the decisive
+     number is that BELOW M=25, where the published fit lives, the quadratic
+     buys **0.0009 of R²** over a linear model. The term was never supported in
+     its own domain, and asking only about extrapolation would have missed that.
+
+672. **Rule out collinearity before reporting a sign disagreement, and report it
+     anyway as a question.** `E_t` came out +393 against a published −197.
+     `corr(M, E_t) = -0.08` on this grid, so it is not a fitting artefact here —
+     but the comparison is pre-route against post-route on another package, so
+     the finding is "run the other arm", not "the coefficient is wrong".
+
+673. **Placed LUT ran 28–39% below the yosys estimate at every GFTernary rung.**
+     The ORDERING survived P&R; the magnitudes did not. Never quote a pre-route
+     cell count as an area, including in this repository's own theorem numbers.
+
 ### How to update this tracker
 
 After closing a wave:

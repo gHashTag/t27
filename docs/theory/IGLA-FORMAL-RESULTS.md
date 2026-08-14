@@ -12010,4 +12010,124 @@ equal to the placed site.
 
 ---
 
+## The line reaches silicon, and the TNF sweep runs — W716
+
+### T219 — every rung placed, routed and loaded
+
+`synth_xilinx` → `nextpnr-xilinx` → `fasm2frames` → `xc7frames2bit` →
+`openFPGALoader`, board **1:4**, port-less BSCANE2 harness (no XDC, no pinout),
+LFSR-driven so nothing folds away:
+
+```
+rung   yosys LUT   placed LUT   CARRY4   FF   Fmax MHz*   bitstream SHA-256
+GFT0        1500         1035       44  155      1100.1   1ab78a06813a05a8…
+GFT1        1746         1370       71  155      1273.9   b049fb3b2e15242f…
+GFT2        2116         1509       71  155      1048.2   47988846f3ac3a8a…
+GFT3        2374         1677       69  155      1142.9   ba63992840260086…
+GFT4        2578         1757       69  155      1087.0   af6e4c946475808e…
+```
+
+`*` unconstrained — no XDC, so this is nextpnr's estimate, not a closed timing
+result. **Five distinct bitstreams**, each bracketed: wrong-part bitstream drove
+`Done → 0`, ours raised it to `1`, and `0xA5A5A5A` came back off the die.
+
+> **T219.** The ladder's LUT costs, analytic in T183 and pre-route in T210, are
+> now **placed**: 1035 / 1370 / 1509 / 1677 / 1757. Placed LUT runs **28–39%
+> below** the yosys estimate at every rung, so **T210's ordering survives P&R
+> while its magnitudes do not** — a pre-route cell count is not an area.
+
+### T219a — a signature that measured the clock, not the rung
+
+The harness first exposed `ok = ^acc` on a free-running accumulator. Two reads
+of the **same** bitstream returned different bits (`GFT1`: 1 then 0). The bit
+sampled a counter.
+
+> **T219a.** A readback that varies between two reads of one bitstream carries
+> no information about the design. Freezing the parity at a fixed clock made it
+> reproduce exactly — `0,0,1,1,1` across both runs, while `beat` continued to
+> vary, which is its purpose. **A one-bit fingerprint proves determinism, not
+> identity**: five rungs cannot be separated by two values, and the claim here
+> is only that each bitstream computes something stable and its own.
+
+### T220 — the TNF cost sweep, run
+
+104 arms over 52 `(E_t, M)` points, **zero failures**, yosys 0.63, the byte-
+identical command from `tnf-cost-sweep.yml`. The handoff document of 2026-08-13
+lists this run as the main open item and marks it blocked for want of yosys,
+nextpnr and docker.
+
+> **T220.** `[измерено — программно]`, pre-route. The published model is fitted
+> post-route on a different package and a different yosys, so what follows
+> compares **shapes**, never two numbers.
+
+### T221 — Q1: the two TNF16 rows reconcile
+
+Δ LUT from `M=9` to `M=11`, per mantissa bit: **192, 160, 186, 214, 322** across
+E_t = 2…6.
+
+> **T221.** Positive and of one magnitude across five independent exponent
+> widths. **Nothing reproduces the mutual inconsistency the article records** —
+> on this flow the earlier result looks like a flow artefact, which is precisely
+> the contingency the sweep was written to detect. Post-route confirmation is
+> still owed before any wording changes.
+
+### T222 — Q2: the quadratic does not survive, and was never needed
+
+First differences in LUT per 4 mantissa bits, adder arms:
+
+```
+E_t=2   628  624  800  244      <- 29->33 falls by 3.3x
+E_t=3   672  632 1128  540      <- 29->33 falls by 2.1x
+```
+
+| subset | quadratic R² | linear R² |
+|---|---:|---:|
+| M ≤ 25 | 0.9679 | **0.9670** |
+| M ≥ 25 | 0.9558 | 0.9335 |
+
+Refit including `M = 29, 33` gives **m2 = −0.057**.
+
+> **T222.** A surviving quadratic makes first differences grow; both rows that
+> reach `M = 33` see them **fall**. And below `M = 25` — where the published fit
+> lives — **the `M²` term buys 0.0009 of R² over a purely linear model.** The
+> quadratic is a local fit at best and unsupported at worst.
+
+### T223 — an unplanned finding: the sign of the `E_t` coefficient
+
+Published **−197.1**; measured here **+330.0** (M ≤ 25), **+393.2** (all M). A
+negative coefficient says more exponent cells *reduce* logic, which no datapath
+argument supports. Collinearity is ruled out **on this grid**:
+
+```
+corr(M, E_t)     = -0.0813        near-orthogonal by design
+corr(E_t, b)     = +0.9934        collinear BY CONSTRUCTION
+LUT ~ M + E_t      coef +393.5    R2 0.9628
+LUT ~ M + b        coef +259.2    R2 0.9616
+```
+
+> **T223.** `E_t` and its binary width `b = ⌈E_t log₂3⌉` are interchangeable
+> regressors — R² differs by 0.0012, so the fit cannot separate them — but
+> **both come out positive.** The disagreement is not a fitting artefact on this
+> side. It is a reason to run the post-route arm, not a reason to edit a
+> coefficient.
+
+### T224 — the multiplier arm draws DSPs, and no claim covers it
+
+```
+mul arms 52    DSP48E1 total 372    arms with at least one DSP: 47 of 52
+add arms 52    DSP48E1 total   0
+```
+
+> **T224.** Every TNF cost claim in the article is an **adder** claim. The
+> multiplier path puts hard macros on 47 of 52 points. **An area argument that
+> counts LUT while a DSP does the work is not an area argument** — the same
+> error this repository made in T161 and retracted in W652.
+
+**Not run:** post-route on the article's part. This host has the
+`xc7a200tfbg676-1` chipdb (QMTech); the article's part is `xc7a200tfbg484-2`
+(ALINX AX7203). Same die, different package. Nothing here touched that board,
+and no number here is `[измерено на железе]`.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
