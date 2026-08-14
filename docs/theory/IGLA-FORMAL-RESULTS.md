@@ -11332,4 +11332,47 @@ and 352 seconds, and the corpus tools cap at 15.
 
 ---
 
+### T200 — my own recommendation rested on a false premise, and one command voided it
+
+W706 closed by recommending: *"bring the tool timeouts in line with the
+measured — `corpus` caps at 15 seconds while real specs need up to 352."*
+
+**`corpus` does not measure synthesis at all.**
+
+```
+run_timed(["gen", spec], 15)              Zig generation
+run_timed(["zig","build-obj",...], 30)    Zig compile
+run_timed(["gen-verilog", spec], 15)      Verilog generation
+run_timed(["iverilog",...], 30)           Verilog compile
+                                          yosys: ZERO occurrences in run_corpus
+```
+
+The 352 seconds I measured is `synth_xilinx` time. The 15-second cap is on **code
+generation**, which takes milliseconds. **The two numbers have nothing to do with
+each other**, and the recommendation joined them because both were called "a
+timeout".
+
+```json
+{"specs":617, "verilog_build":327, "verilog_build_with_data_port":75, "timed_out":0}
+```
+
+> **T200.** **`timed_out` is 0.** No cap fires on any of the 617 specs, in either
+> backend. The recommendation was to repair something that has never once
+> occurred. **Refuted by:** a corpus run reporting `timed_out` above zero.
+
+> **T200a — and the shape is one this project has now hit at four levels.** A
+> word that names two different things gets used as though it names one:
+> *"timeout"* here; *"void"* in T198, where `""` and `"void"` were two spellings
+> and one was tested; *"0 LUT"* in T195a, where success-with-no-logic and
+> failure shared a value; *"empty"* in T187a, where no-banner and no-output were
+> read alike. **The defect is never in the measurement — it is in the noun.**
+
+**The correct question, which the false one displaced:** the corpus figure of
+**327** is `iverilog`-clean, and W705 established that iverilog *accepts* things
+yosys rejects. **Nothing measures synthesisability across the corpus at all** —
+the sweeps that tried were the ones whose caps measured machine load (T199). That
+is the real gap, and it is not a timeout.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

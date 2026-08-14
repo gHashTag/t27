@@ -7790,6 +7790,23 @@ These cost a wave each. Follow them before step 1.
 618. **Of nine specs recorded as hanging, at most one or two genuinely exceed a
      generous cap.** The rest run 10-352 s, and the corpus tools cap at 15.
 
+619. **VERIFY THE PREMISE OF YOUR OWN RECOMMENDATION BEFORE ACTING ON IT.**
+     W706 recommended raising corpus timeouts "because real specs need 352 s".
+     corpus does not measure synthesis at all -- its caps are on code GENERATION
+     (15 s) and iverilog (30 s), and `yosys` appears zero times in run_corpus.
+     `timed_out` is 0 across all 617 specs: no cap has ever fired. T200.
+
+620. **A word that names two things gets used as though it names one.** Fourth
+     level of the same shape: "timeout" (generation vs synthesis, W707), "void"
+     ("" vs "void", T198), "0 LUT" (no logic vs yosys error, T195a), "empty"
+     (no banner vs no output, T187a). The defect is never in the measurement --
+     it is in the NOUN. T200a.
+
+621. **Nothing measures synthesisability across the corpus.** 327 is
+     iverilog-clean, and iverilog accepts constructs yosys rejects (T198b). The
+     sweeps that tried to measure synthesis were the ones whose caps measured
+     machine load (T199). That is the real gap, and it is not a timeout.
+
 ### How to update this tracker
 
 After closing a wave:
