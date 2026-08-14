@@ -80,11 +80,27 @@ module mvp_ternary_classifier_jtag (
         .TDO(tdo)
     );
 
-    reg [3:0] sr = 4'b0100;
+    // W675: a 32-bit register whose upper 28 bits are a MAGIC constant.
+    //
+    // The four-bit version of this could not be told apart from a JTAG artefact:
+    // ten reads of a bitstream containing NO BSCANE2 returned the same two
+    // values in the same proportions as the real design (T139). Two constant
+    // bits are simply not enough entropy to prove provenance.
+    //
+    // 0xA5A5A5A_ cannot be produced by a TAP that is not shifting this register.
+    // If the magic comes back, the bits below it came from here and nowhere
+    // else; if it does not, `ok` means nothing regardless of its value.
+    //
+    //   [31:4] 28-bit magic 0xA5A5A5A
+    //   [3]    constant 0
+    //   [2]    constant 1
+    //   [1]    beat
+    //   [0]    ok
+    reg [31:0] sr = 32'hA5A5A5A4;
     always @(posedge drck) begin
         if (sel) begin
-            if (capture)     sr <= {1'b0, 1'b1, beat, ok};
-            else if (shift)  sr <= {tdi, sr[3:1]};
+            if (capture)     sr <= {28'hA5A5A5A, 1'b0, 1'b1, beat, ok};
+            else if (shift)  sr <= {tdi, sr[31:1]};
         end
     end
     assign tdo = sr[0];

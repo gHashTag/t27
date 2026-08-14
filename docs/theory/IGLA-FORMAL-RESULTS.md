@@ -8812,4 +8812,62 @@ reading.** It has now overturned the session's central claim twice.
 
 ---
 
+### T140 (W675) — a 28-bit magic settled in one read what two bits could not settle in twenty
+
+W674 left one candidate: the `TDO` edge. W675 did not test it, because a better
+experiment removes the ambiguity regardless of which cause is right — **put
+enough entropy in the register that no artefact can imitate it.**
+
+The four-bit verdict became thirty-two: a 28-bit magic `0xA5A5A5A` above the
+`0`, `1`, `beat`, `ok` bits. A TAP that is not shifting this register cannot
+produce that constant.
+
+```
+built:  yosys rc 0 (1 x BSCANE2) | nextpnr rc 0, 0 errors | bitstream 9,730,892 B
+read:   0x00000007  x4      magic ABSENT
+        0x00000005  x2      magic ABSENT
+```
+
+**Twenty-nine leading zeros and three familiar low bits.** The register is not in
+the scan path at all; what comes back is consistent with a **one-bit DR** —
+BYPASS — with the low bits an artefact of TDI settling.
+
+> **T140.** Two constant bits could not distinguish the design's register from a
+> JTAG artefact, and ten repetitions per bitstream (T139) only established *that*
+> they could not. **Twenty-eight bits of magic answered it in a single read.**
+> When a control is inconclusive, the cheapest fix is usually more entropy in the
+> payload, not more repetitions of the measurement.
+
+### And a claim of mine, retracted
+
+W672 recorded the risk carried since W656 — *"BSCANE2 support in the open flow is
+unverified"* — as **resolved**, on the evidence that yosys instantiated the cell
+and nextpnr placed and routed it with zero errors.
+
+> **T140a.** **A primitive that places is not a primitive that works.** The
+> bitstream contains `BSCAN.JTAG_CHAIN_1` and six routing entries for `SHIFT`,
+> `CAPTURE`, `SEL`, `DRCK`, `TDI` and `TDO`; `fasm2frames` emits no warning about
+> any of them; and the register is still unreachable from the TAP. **P&R
+> acceptance is evidence about the placer, not about the silicon** — the same
+> distinction as `Done 0x1` versus a computed result, one layer lower.
+
+**What is now known, and what is not.**
+
+| | |
+|---|---|
+| FTDI MPSSE transport | **proven** — IDCODE, a 32-bit known answer (T138) |
+| `shift_ir` | **proven** — IDCODE and BYPASS opcodes both behave (T139) |
+| `shift_dr_read` | **proven** — low nibble of IDCODE (T139) |
+| BSCANE2 placed and in FASM | **proven** — `BSCAN_X0Y0`, 7 FASM lines |
+| **the register is in the scan path** | **refuted** — 28-bit magic absent |
+| where the connection is lost | **unknown** — prjxray's `segbits` carry only the four `JTAG_CHAIN_*` bits; whether the six routing entries reach the frames was not established |
+
+**Three waves, three refutations, each stronger than the last.** W673 refuted a
+single read; W674 refuted the distribution behind it; W675 refuted the whole
+channel with a payload no artefact can forge. **The claim that the silicon's
+verdict has been machine-read has never been true**, and each wave's control was
+the only thing that said so.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

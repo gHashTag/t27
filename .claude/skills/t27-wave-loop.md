@@ -6877,6 +6877,24 @@ These cost a wave each. Follow them before step 1.
      driving `assign tdo = sr[0]` presents the previous value. Named as the
      remaining candidate, not yet tested.
 
+448. **When a control is inconclusive, add ENTROPY to the payload, not
+     repetitions to the measurement.** Two constant bits could not tell the
+     design's register from a JTAG artefact, and ten reads per bitstream only
+     established that they could not. A 28-bit magic answered it in ONE read:
+     0xA5A5A5A came back as twenty-nine zeros. T140.
+
+449. **A primitive that PLACES is not a primitive that WORKS.** W672 recorded the
+     BSCANE2 risk as resolved because yosys instantiated the cell and nextpnr
+     routed it with zero errors. The bitstream carries BSCAN.JTAG_CHAIN_1 and six
+     routing entries, fasm2frames warns about none of them, and the register is
+     still unreachable. P&R acceptance is evidence about the PLACER. Same
+     distinction as `Done 0x1` versus a computed result, one layer lower. T140a.
+
+450. **Escalate the control, not the conclusion.** W673 refuted a single read;
+     W674 refuted the distribution behind it; W675 refuted the whole channel.
+     Each wave's claim got weaker and each wave's evidence got stronger -- which
+     is the correct direction, and the only reason a false result never shipped.
+
 ### How to update this tracker
 
 After closing a wave:
