@@ -14982,4 +14982,97 @@ hidden, 60 epochs, step schedule, early stopping at patience 8, five seeds:
 
 ---
 
+## W750 — one system, and a network that lives on two dice
+
+### T321 — the single-configuration row this project never had
+
+T319b admitted we quoted two configurations as if they were one system. Sparse
+truth tables + inter-layer normalisation + full training budget, combined for the
+first time, 5 seeds, full 157,807-row training set:
+
+| system | LUT | accuracy | note |
+|---|---:|---:|---|
+| TreeLUT (II) | **89** | **92.0%** | one system |
+| NeuraLUT-Assemble | 91 | 93.0% | one system |
+| **ours, fan-in 6, MI-proportional** | **128** | **81.11 ± 0.53%** | **one system** |
+| ours, fan-in 12 | 3,344 | 81.50 ± 0.45% | — |
+| ours, dense, full training | ~200,000 | 86.66% | — |
+
+> **T321. 128 LUT at 81.11%: 1.44× the field's area, 10.9 points behind.** The
+> registered forecast — *81–84% at fan-in 6, gap 8–11 points, area within 5× of
+> 89 LUT* — **lands on all three counts, the third in a row.** For the first time
+> the comparison is between two single systems and not between our best area and
+> our best accuracy quoted together.
+
+### T322 — fan-in is the sharpest cost cliff in the design
+
+| fan-in | LUT | LUT/neuron | accuracy |
+|---|---:|---:|---:|
+| **6** | **128** | **2.00** | 81.11% |
+| 12 | 3,344 | **52.25** | 81.50% |
+
+> **T322. Twenty-six times the area for +0.39 pp.** The forecast said 6× for
+> +2 pp; the direction was right and the magnitude badly wrong in our favour.
+> **The cliff is at F = 6 and it is a property of the silicon, not of the task**:
+> a function of ≤6 bits is one LUT6, and a function of 12 bits is 2¹² entries that
+> must be cascaded. **Any fan-in above six should be assumed to cost two orders of
+> magnitude until measured.**
+
+> **T322a. An anomaly, examined and dismissed.** `F6_top` returned **76.58% with
+> zero variance across five seeds.** With all neurons restricted to the same six
+> binary features there are only 64 distinct inputs, so every seed's network
+> converges to the same function of them. **Explained, not a defect** — but zero
+> variance across seeds is otherwise the signature of a broken seed loop and was
+> checked before being believed.
+
+### T323 — a ternary network running on two dice, verified bit for bit
+
+Die A: 31-bit input over JTAG → 16 sparse ternary neurons → 32-bit symbol vector.
+Die B: that symbol vector → 8 ternary decisions. **The host shifts bits and does
+no arithmetic on the payload.** Both roles are truth tables, so neither die holds
+an adder.
+
+| | LUT | DSP | Fmax (tck) | acceptance |
+|---|---:|---:|---:|---|
+| die A | **58** | 0 | 432.3 MHz | 0→1 |
+| die B | **71** | 0 | 416.5 MHz | 0→1 |
+
+```
+       input   A silicon    A model   B silicon    B model
+  0x00000000  0x153D3333 0x153D3333  0xA5A5C031 0x0000C031   OK
+  0x7FFFFFFF  0x3F171115 0x3F171115  0xA5A54013 0x00004013   OK
+  ...
+  8 of 8 words crossed two dice intact
+```
+
+> **T323.** Every previous silicon result in this repository computed on a
+> free-running LFSR and reported a frozen parity — **nothing had ever carried a
+> value another die produced.** This does, and the reference model is generated
+> from the same seed as the Verilog, so agreement means the silicon matches the
+> specification rather than that two networks happened to be compared.
+
+### T324 — the payload is 31 bits, and it took silicon to find out
+
+> **T324.** The W720 pre-shift-left-by-one that compensates the extra Exit1-DR
+> clock **truncates bit 31**. `link_relay` never saw it because its payload was
+> four bits inside a 32-bit word. Here the whole word is payload, and the symptom
+> was exact: **input `0x00000000` matched the model perfectly while `0xFFFFFFFF`
+> differed in precisely the symbol that reads input bit 31.** One matching case
+> and one failing case localised the defect faster than eight failing cases would
+> have. **The usable payload of this JTAG register is 31 bits.**
+
+### T325 — the anomaly that nearly became a wrong conclusion
+
+> **T325.** The first cross-die run reported **0 of 8** and a constant
+> `0xA5A5A5A3` from "die A" — which is the **W749 design's fingerprint**, still
+> resident. Cable index 0 is not busdev `1:4`: the mapping is not the load order.
+> **A design that loaded correctly onto the wrong board reports `done 1` and
+> passes the 0→1 acceptance criterion.** The acceptance criterion proves *a*
+> bitstream took; it does not prove *which*. The fix is what the probe does now —
+> **identify each die by a behaviour only that design has** (die A changes with
+> input and carries no magic; die B carries `0xA5A5` in the high half), never by
+> the order it was loaded in.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
