@@ -39,6 +39,13 @@ pub enum Verdict {
     HasEntry,
     /// Exactly one candidate, and every type is a sized primitive.
     ForcedScalar,
+    /// W697: several candidates, but exactly ONE is not called by any other
+    /// function in the spec -- the root of the call graph -- and its types are
+    /// all sized. The choice is forced by the call structure rather than by
+    /// count, and forwarding to it still invents nothing.
+    ForcedRoot,
+    /// The call graph has a unique root, but one of its types has no width.
+    ForcedRootWide,
     /// Exactly one candidate, but some type has no known width.
     ForcedWide,
     /// More than one function could be the entry point. NOT a decision to make
@@ -56,6 +63,8 @@ impl Verdict {
         match self {
             Verdict::HasEntry => "HAS_ENTRY".into(),
             Verdict::ForcedScalar => "FORCED_SCALAR".into(),
+            Verdict::ForcedRoot => "FORCED_ROOT".into(),
+            Verdict::ForcedRootWide => "FORCED_ROOT_WIDE".into(),
             Verdict::ForcedWide => "FORCED_WIDE".into(),
             Verdict::Ambiguous(n) => format!("AMBIGUOUS_{n}"),
             Verdict::NoCandidate => "NO_CANDIDATE".into(),
@@ -114,16 +123,59 @@ pub fn classify(source: &str) -> Verdict {
         0 => Verdict::NoCandidate,
         1 => {
             let f = candidates[0];
-            let all_sized = is_sized_primitive(&f.extra_return_type)
-                && f.params.iter().all(|(_, ty)| is_sized_primitive(ty));
-            if all_sized {
-                Verdict::ForcedScalar
-            } else {
-                Verdict::ForcedWide
+            if sized(f) { Verdict::ForcedScalar } else { Verdict::ForcedWide }
+        }
+        n => {
+            // W697: count is not the only thing that can force the choice.
+            //
+            // If exactly one candidate is called by NO OTHER FUNCTION, it is the
+            // root of the spec's call graph and everything else is a helper it
+            // reaches. Forwarding to the root still invents nothing.
+            //
+            // THE CALL GRAPH IS BUILT FROM FUNCTION BODIES ONLY. A first attempt
+            // scanned the whole source and found ZERO uncalled functions in every
+            // spec sampled -- because every function is called by its own `test`
+            // block. Including tests makes the rule vacuous: it would report no
+            // roots, always.
+            let roots: Vec<&&Node> = candidates
+                .iter()
+                .filter(|c| !called_by_other_fn(&fns, &c.name))
+                .copied()
+                .collect();
+            match roots.len() {
+                1 => {
+                    if sized(roots[0]) { Verdict::ForcedRoot } else { Verdict::ForcedRootWide }
+                }
+                _ => Verdict::Ambiguous(n),
             }
         }
-        n => Verdict::Ambiguous(n),
     }
+}
+
+fn sized(f: &Node) -> bool {
+    is_sized_primitive(&f.extra_return_type)
+        && f.params.iter().all(|(_, ty)| is_sized_primitive(ty))
+}
+
+/// Does any function OTHER than `name` call `name`, anywhere in its body?
+///
+/// Only `FnDecl` bodies are walked. `test`, `invariant` and `bench` blocks are
+/// deliberately excluded: they exercise the functions, so counting them as
+/// callers makes every function look reachable and the root rule vacuous.
+fn called_by_other_fn(fns: &[&Node], name: &str) -> bool {
+    fn mentions_call(n: &Node, name: &str) -> bool {
+        if n.kind == NodeKind::ExprCall && n.name == name {
+            return true;
+        }
+        // Some call sites carry the callee in `value` rather than `name`.
+        if n.kind == NodeKind::ExprCall && n.value == name {
+            return true;
+        }
+        n.children.iter().any(|c| mentions_call(c, name))
+    }
+    fns.iter()
+        .filter(|f| f.name != name)
+        .any(|f| f.children.iter().any(|c| mentions_call(c, name)))
 }
 
 /// The one candidate, when the choice is forced. `None` otherwise -- including
@@ -139,13 +191,27 @@ pub fn forced_signature(source: &str) -> Option<(String, Vec<(String, String)>, 
     if fns.iter().any(|f| f.name == "on_comb" || f.name == "on_clock") {
         return None;
     }
-    let mut it = fns.iter().filter(|f| {
-        !f.params.is_empty() && !is_void(&f.extra_return_type) && !f.children.is_empty()
-    });
-    let f = it.next()?;
-    if it.next().is_some() {
-        return None; // ambiguous
-    }
+    let candidates: Vec<&&Node> = fns
+        .iter()
+        .filter(|f| {
+            !f.params.is_empty() && !is_void(&f.extra_return_type) && !f.children.is_empty()
+        })
+        .collect();
+    let f = match candidates.len() {
+        0 => return None,
+        1 => candidates[0],
+        _ => {
+            // W697: the unique call-graph root, if there is exactly one.
+            let roots: Vec<&&&Node> = candidates
+                .iter()
+                .filter(|c| !called_by_other_fn(&fns, &c.name))
+                .collect();
+            if roots.len() != 1 {
+                return None;
+            }
+            roots[0]
+        }
+    };
     Some((f.name.clone(), f.params.clone(), f.extra_return_type.clone()))
 }
 
@@ -178,7 +244,7 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
         let Ok(src) = std::fs::read_to_string(&f) else { continue };
         let v = classify(&src);
         *counts.entry(v.label()).or_default() += 1;
-        if v == Verdict::ForcedScalar {
+        if v == Verdict::ForcedScalar || v == Verdict::ForcedRoot {
             if let Some((name, params, ret)) = forced_signature(&src) {
                 let sig = format!(
                     "fn on_comb({}) -> {ret} {{ return {name}({}); }}",
@@ -261,6 +327,39 @@ mod tests {
         assert_eq!(
             classify("module m\n\nfn go(a: u8) -> void { let x = a; }\n"),
             Verdict::NoCandidate
+        );
+    }
+
+    /// W697: the root rule is worthless unless call detection actually fires.
+    /// If `called_by_other_fn` never returned true, every candidate would be a
+    /// "root", the root count would equal the candidate count, and the rule
+    /// would silently decline to resolve anything -- conservative, vacuous, and
+    /// indistinguishable from working.
+    #[test]
+    fn a_helper_called_from_another_function_is_not_a_root() {
+        let src = "module m\n\n                   fn helper(a: u8) -> u8 { return a + 1; }\n                   fn top(a: u8) -> u8 { return helper(a); }\n";
+        assert_eq!(classify(src), Verdict::ForcedRoot);
+        let (name, _, _) = forced_signature(src).expect("a unique root must yield a signature");
+        assert_eq!(name, "top", "the root is the caller, not the helper");
+    }
+
+    /// Two independent functions have two roots -- that is a library, not a
+    /// module with an entry point, and it must stay ambiguous.
+    #[test]
+    fn two_independent_functions_have_two_roots_and_stay_ambiguous() {
+        let src = "module m\n\n                   fn a(x: u8) -> u8 { return x + 1; }\n                   fn b(x: u8) -> u8 { return x - 1; }\n";
+        assert_eq!(classify(src), Verdict::Ambiguous(2));
+        assert!(forced_signature(src).is_none());
+    }
+
+    /// A test block calling every function must NOT make them all look reachable.
+    #[test]
+    fn a_test_block_is_not_a_caller() {
+        let src = "module m\n\n                   fn helper(a: u8) -> u8 { return a + 1; }\n                   fn top(a: u8) -> u8 { return helper(a); }\n                   test t1 { assert_eq(top(1), 2); }\n                   test t2 { assert_eq(helper(1), 2); }\n";
+        assert_eq!(
+            classify(src),
+            Verdict::ForcedRoot,
+            "a test calling `top` must not turn `top` into a non-root"
         );
     }
 

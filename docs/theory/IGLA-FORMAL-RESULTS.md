@@ -10720,4 +10720,74 @@ that survives.
 
 ---
 
+## W697 — the call graph forces 14 more, and one script produced both of its own failure modes
+
+### T189 — the root rule resolves **14 of 136**, and the forecast was too optimistic
+
+W696 left 136 specs `AMBIGUOUS` — two or more functions take a parameter, return
+a value and have a body. A second rule can force some of them without guessing:
+**if exactly one candidate is called by no other function, it is the root of the
+call graph and every other candidate is a helper it reaches.**
+
+**The call graph must be built from function bodies ONLY.** A first attempt
+scanned the whole source and found **zero** uncalled functions in every spec
+sampled — because every function is called by its own `test` block. **Counting
+tests as callers makes the rule vacuous: it reports no roots, always.**
+
+| | before | after |
+|---|---:|---:|
+| `AMBIGUOUS` | 136 | **122** |
+| `FORCED_ROOT` (sized types) | — | **6** |
+| `FORCED_ROOT_WIDE` | — | **8** |
+
+> **T189.** **14 of 136 resolved; 6 are actionable.** The forecast said 30–80 and
+> was **not** confirmed — the miss is in the conservative direction, and the
+> reason is structural: most ambiguous specs are **libraries of independent
+> functions**, which have several roots and correctly stay ambiguous. One spec
+> has 135 candidates. **Refuted by:** a spec classified `FORCED_ROOT` in which a
+> second candidate is also uncalled.
+
+**A rule that never fires is indistinguishable from a rule that works**, so three
+tests pin the detector: a helper called from another function is not a root; two
+independent functions stay ambiguous; and a `test` block calling both does not
+turn either into a non-root.
+
+### T189a — the same script produced both of its failure modes, one wave apart
+
+**W696** anchored the insertion on `endmodule`. **Nine of eleven specs do not have
+one**, so it skipped them and reported success for two.
+
+**W697** corrected that by appending at end-of-file. **Five of six specs DO have
+`endmodule`**, so the function landed *after* it — outside the module. The file
+still parses and `spec-status` still says `IMPLEMENTED`; the function is simply
+not part of the module, and `HAS_ENTRY` rose by **one instead of six**.
+
+> **T189a.** **One script, both extremes, two waves running.** The correct rule is
+> *before `endmodule` if present, else at end of file* — which is what neither
+> attempt did. It was caught both times by re-running the census rather than
+> trusting the edit's own report, and **that is the only reason either was
+> caught**: the compiler accepted both broken placements without complaint.
+
+### T189b — seventeen boundaries derived, none guessed
+
+Across W696 and W697:
+
+```
+entry points derived      11 (count rule) + 6 (root rule) = 17
+HAS_ENTRY                 57 -> 74
+corpus data-port column   57 -> 70        (+13)
+```
+
+**The shortfall of four is pre-existing `iverilog` failures**, not regressions —
+each verified by regenerating the spec with the added function stripped and
+observing the same error. `path` 31/31 and 31 PASSED, `prove` PROVED, seal
+matches.
+
+> **T189b.** Of 387 port-less specs, **17 admitted a boundary that could be
+> derived rather than chosen — 4.4%.** The remaining 370 need either a decision
+> (122 ambiguous, 13 wide) or a body (235 with no candidate at all). **The
+> mechanical work is done; what is left is not mechanical.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -68,4 +68,22 @@ test add_3_1 { assert_eq(add2(2, 2, 2, 0), 32); }
 test add_3_3 { assert_eq(add2(2, 2, 2, 2), 40); }
 // 2 + 1 = 011 (a=10,b=01): a0=N,a1=P,b0=P,b1=N -> s0=P, s1=P, c=N -> 2|(2<<2)|0=10
 test add_2_1 { assert_eq(add2(0, 2, 2, 0), 10); }
+// W697: the hardware boundary, derived from the CALL GRAPH.
+//
+// This spec has several functions that take a parameter and return a value,
+// so W696's count rule left it AMBIGUOUS. But exactly ONE of them is called
+// by no other function -- it is the root, and every other candidate is a
+// helper it reaches. With one root the choice is forced by structure rather
+// than by count, and forwarding to it still invents nothing.
+//
+// The call graph is built from FUNCTION BODIES ONLY. Counting `test` blocks
+// as callers makes the rule vacuous -- every function is called by its own
+// test, so nothing is ever a root.
+//
+// Measured: the rule resolved 14 of 136 ambiguous specs, 6 of them with
+// types that can cross a module boundary. It is narrow because most of the
+// rest are libraries of INDEPENDENT functions, which have several roots and
+// correctly stay ambiguous.
+fn on_comb(a0: u8, a1: u8, b0: u8, b1: u8) -> u8 { return add2(a0, a1, b0, b1); }
+
 endmodule

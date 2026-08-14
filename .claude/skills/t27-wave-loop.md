@@ -7567,6 +7567,35 @@ These cost a wave each. Follow them before step 1.
      silently skipped 9 of 11 files and reported success for 2. Check the anchor
      matched before counting the edit as done.
 
+577. **Build a call graph from FUNCTION BODIES ONLY.** Including `test` blocks
+     makes every function look reachable -- a first attempt found ZERO uncalled
+     functions in every spec sampled, because each is called by its own test. The
+     rule would have reported no roots, always, and looked merely conservative.
+     T189.
+
+578. **A rule that never fires is indistinguishable from a rule that works.**
+     Pin the detector with a test that PROVES it fires: a helper called from
+     another function must not be a root. Without it, `FORCED_ROOT = 0` reads as
+     "nothing qualified" rather than "the detector is broken".
+
+579. **The root rule resolved 14 of 136, not the 30-80 forecast.** Most ambiguous
+     specs are libraries of INDEPENDENT functions, which have several roots and
+     correctly stay ambiguous. The miss was conservative and structural. T189.
+
+580. **ONE SCRIPT PRODUCED BOTH OF ITS FAILURE MODES, ONE WAVE APART.** W696
+     anchored on `endmodule` and skipped the 9 specs without one; W697 appended at
+     EOF and put the function OUTSIDE the module in the 5 specs with one. The file
+     still parses and spec-status still says IMPLEMENTED. Correct rule: before
+     `endmodule` if present, else at EOF. T189a.
+
+581. **Both were caught only by re-running the census, never by the edit's own
+     report.** The compiler accepted both broken placements without complaint.
+     After a bulk edit, re-measure the property the edit was supposed to change.
+
+582. **17 of 387 port-less specs admitted a DERIVED boundary -- 4.4%.** The rest
+     need a decision (122 ambiguous, 13 wide) or a body (235 no-candidate). The
+     mechanical work is finished. T189b.
+
 ### How to update this tracker
 
 After closing a wave:

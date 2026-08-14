@@ -801,3 +801,21 @@ module QueenLotus {
         measure: nanoseconds to record_episode_(true)
         target: < 5000ns
 }
+
+// W697: the hardware boundary, derived from the CALL GRAPH.
+//
+// This spec has several functions that take a parameter and return a value,
+// so W696's count rule left it AMBIGUOUS. But exactly ONE of them is called
+// by no other function -- it is the root, and every other candidate is a
+// helper it reaches. With one root the choice is forced by structure rather
+// than by count, and forwarding to it still invents nothing.
+//
+// The call graph is built from FUNCTION BODIES ONLY. Counting `test` blocks
+// as callers makes the rule vacuous -- every function is called by its own
+// test, so nothing is ever a root.
+//
+// Measured: the rule resolved 14 of 136 ambiguous specs, 6 of them with
+// types that can cross a module boundary. It is narrow because most of the
+// rest are libraries of INDEPENDENT functions, which have several roots and
+// correctly stay ambiguous.
+fn on_comb(agent_type: u8, count: u8) -> bool { return lotus_spawn(agent_type, count); }

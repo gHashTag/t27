@@ -57,4 +57,22 @@ test xor_p_p { assert_eq(ternary_xor(2, 2), 0); }
 test xor_p_n { assert_eq(ternary_xor(2, 0), 2); }
 test xor_n_p { assert_eq(ternary_xor(0, 2), 2); }
 test xor_n_n { assert_eq(ternary_xor(0, 0), 0); }
+// W697: the hardware boundary, derived from the CALL GRAPH.
+//
+// This spec has several functions that take a parameter and return a value,
+// so W696's count rule left it AMBIGUOUS. But exactly ONE of them is called
+// by no other function -- it is the root, and every other candidate is a
+// helper it reaches. With one root the choice is forced by structure rather
+// than by count, and forwarding to it still invents nothing.
+//
+// The call graph is built from FUNCTION BODIES ONLY. Counting `test` blocks
+// as callers makes the rule vacuous -- every function is called by its own
+// test, so nothing is ever a root.
+//
+// Measured: the rule resolved 14 of 136 ambiguous specs, 6 of them with
+// types that can cross a module boundary. It is narrow because most of the
+// rest are libraries of INDEPENDENT functions, which have several roots and
+// correctly stay ambiguous.
+fn on_comb(a: u8, b: u8) -> u8 { return ternary_xor(a, b); }
+
 endmodule
