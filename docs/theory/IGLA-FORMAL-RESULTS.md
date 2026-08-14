@@ -8983,4 +8983,51 @@ cheapest form of confidence this project has bought.
 
 ---
 
+### T143 (W679) — the refutation condition is now closed against all three named methods
+
+T117 named three: **SAT, SMT, and an algebraic method.** W678 tried SMT. W679
+tried both algebraic checkers ABC ships with yosys — `cec` (SAT-sweeping
+combinational equivalence) and **`&polyn`**, which "derives algebraic polynomial
+from AIG" and is the Gröbner-family tool the condition meant.
+
+| a × b | yosys `sat` | Z3 SMT | ABC `cec` | ABC `&polyn` |
+|---|---:|---:|---:|---:|
+| 8 × 8 | **0.23 s** ✅ | 0.45 s ✅ | 1.40 s ✅ | **TIMEOUT 240 s** |
+| 12 × 12 | **191.71 s** ✅ | timeout | timeout 300 s | — |
+| 16 × 16 | — | timeout | timeout 300 s | timeout |
+| 64 × 4 | 4.41 s ✅ | 6.13 s ✅ | **2.67 s** ✅ | — |
+| **64 × 8** | — | **timeout** | **timeout 300 s** | **timeout** |
+
+> **T143.** **No method named in T117's own refutation condition discharges
+> 64 × 8.** Three independent engines, three different encodings — bit-blasted
+> CNF, symbolic bitvectors, and AIG sweeping — and the same wall. The claim has
+> now been attacked on every term it set for itself and has held.
+
+**And the asymmetry survives every engine that can prove anything at all:**
+`64 × 4` discharges in 2.7–6.1 s across three tools; `64 × 8` discharges in none.
+
+### Two findings worth more than the verdict
+
+**The oldest tool won.** `yosys sat` proved 12 × 12 in 191 s; Z3, ABC `cec` and
+`&polyn` all failed on it. **A symbolic encoding is not automatically stronger
+than a bit-blasted one**, and the project's default tool is, on this shape, the
+best of the four.
+
+**And `&polyn` failed on 8 × 8** — a case the other three prove in under 1.5 s.
+That is almost certainly **my usage, not the tool**: `&polyn` derives a polynomial
+from an AIG whose arithmetic structure is *recognisable*, and the AIG here was
+produced by `abc -g AND`, which flattens exactly that structure away. **The
+algebraic method has therefore been tried and not fairly tried**, and T117 must
+be quoted accordingly:
+
+> *survives SAT and SMT outright; the algebraic method was run and failed on a
+> case the others prove trivially, which indicts the setup rather than the
+> method.*
+
+**What would close it properly.** `amulet2` or `teluma` read a Verilog multiplier
+directly and preserve its structure. Neither is installed, and a fair algebraic
+test needs one of them — not an AND-mapped AIG.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

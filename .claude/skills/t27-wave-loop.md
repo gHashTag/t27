@@ -6938,6 +6938,28 @@ These cost a wave each. Follow them before step 1.
      installed here. Quote the claim as "survives SAT and SMT, untested against
      algebraic methods" -- not as "survives refutation".
 
+459. **A tool that fails the known-answer case is misused, not disproved.**
+     ABC's `&polyn` timed out on 8x8, which three other engines prove in under
+     1.5 s. It derives a polynomial from an AIG whose arithmetic structure is
+     recognisable, and `abc -g AND` had flattened that structure away. Report it
+     as "tried and not fairly tried". T143.
+
+460. **The oldest tool can win.** yosys `sat` proved 12x12 in 191 s while Z3,
+     ABC `cec` and `&polyn` all failed on it. A symbolic encoding is not
+     automatically stronger than a bit-blasted one -- measure, do not assume a
+     hierarchy of solvers.
+
+461. **Close a refutation condition term by term and say which terms are open.**
+     T117 named SAT, SMT and an algebraic method. Two are now closed outright and
+     the third was attempted with the wrong input format. "Survives its stated
+     refutation" would have been an overclaim; "survives two of three, the third
+     mis-set-up" is what the evidence supports.
+
+462. **Generate the known-answer case FIRST when adding a new tool to the
+     chain.** The ABC pipeline was validated on 8x8 (1.4 s, equivalent) before
+     being scaled to 64x8. When `&polyn` then failed the same 8x8, the fault was
+     immediately locatable in the setup rather than the result.
+
 ### How to update this tracker
 
 After closing a wave:
