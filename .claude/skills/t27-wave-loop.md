@@ -8861,6 +8861,44 @@ that is both small and accurate**, and every table must say so. The field's
 89 LUT at 92% is one system — that is the entire remaining gap, and stating it
 that way turns five confounded problems into one well-posed engineering problem.
 
+### Lessons 800-805 (W750) — the acceptance criterion proves *a* bitstream, not *which*
+
+**800. `done 1` and a 0→1 transition do not identify the design.** The first
+cross-die run reported 0 of 8 and a constant `0xA5A5A5A3` — the *previous* wave's
+fingerprint, still resident, on a board that had just passed the acceptance
+criterion. **Cable index is not busdev order.** Identify every die by a behaviour
+only that design has (does the output change with the input? does it carry that
+design's magic?), never by the order you loaded it in.
+
+**801. One passing case beats eight failing ones for localisation.** Input
+`0x00000000` matched the model exactly while `0xFFFFFFFF` differed in **precisely
+the symbol that reads input bit 31**. That pair named the defect — the pre-shift
+truncates the top bit, so the payload is 31 bits — in one step. **When a test
+fails everywhere, find the input where it succeeds.**
+
+**802. Quote one system or say plainly that you are not.** For five waves this
+project reported its best area and its best accuracy from different
+configurations. Combining them gave **128 LUT at 81.11%** against the field's
+**89 LUT at 92%** — worse than either number suggested and the only honest
+comparison available. **A table row must be one build.**
+
+**803. Assume any fan-in above six costs two orders of magnitude.** Fan-in 6:
+2.00 LUT/neuron. Fan-in 12: **52.25** — 26× the area for +0.39 pp. The cliff is
+silicon, not task: ≤6 bits is one LUT6; 12 bits is 2¹² entries cascaded.
+**Design to the LUT width or pay for it.**
+
+**804. Measure the shift before naming it.** The UNSW val/test gap looked like
+overfitting. Per-feature marginal drift is mean 0.019 with **not one of 593
+features past 0.10**, while the label prior moves **68.06% → 55.06%**. It is
+prior shift, which is fixable, and nothing in the features moved at all.
+**"Distribution shift" is four different problems; the data says which.**
+
+**805. Separate the honest fix from the oracle, in the same run.** Class
+reweighting uses no test information and may be kept. Threshold-tuning on the
+test set leaks and may only bound what calibration could buy. **Report both, label
+which is which, and never let the oracle become the headline** — it is an upper
+bound, not a result.
+
 ### How to update this tracker
 
 After closing a wave:
