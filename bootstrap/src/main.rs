@@ -219,6 +219,27 @@ enum Commands {
     /// on replug. Never hardcode what this prints.
     Boards,
 
+    /// THE SERVICE: answer "is this file source?" BEFORE the parser is asked.
+    /// A `.t27` extension is a filename, not a type declaration. W733 measured
+    /// 34 of 618 non-scratch files that are not ordinary source -- 14 Markdown
+    /// documents (`# TITLE`, `## Specification`, prose), 8 opening with
+    /// `spec X {` instead of `module`, 11 neither -- and every one of them
+    /// produces the same red as a genuinely broken spec. Thirty percent of the
+    /// sampled parse failures came from files that cannot be code, and every
+    /// corpus ratio this project quotes used 618 as the denominator where 584
+    /// is honest. `impl-status` separates UNWRITTEN; this separates NOT-CODE.
+    Classify {
+        /// Directory to walk (default: specs).
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch/, which is generated and normally excluded.
+        #[arg(long)]
+        include_scratch: bool,
+        /// List every file under each heading instead of only the counts.
+        #[arg(long)]
+        verbose: bool,
+    },
+
     /// THE SERVICE: read cell counts out of a yosys log WITHOUT re-inventing the
     /// parser. `stat` prints ONE TABLE PER MODULE and then the design-wide
     /// total; summing `findall` over the whole log adds every table again.
@@ -10183,6 +10204,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
@@ -10561,6 +10583,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
@@ -10947,5 +10970,84 @@ fn run_yostat(log: &str) -> anyhow::Result<()> {
     println!("  MUXF7 / MUXF8      : {} / {}", count("MUXF7"), count("MUXF8"));
     println!("  FF (FDRE/SE/CE/PE) : {ff}");
     println!("  BSCANE2            : {}", count("BSCANE2"));
+    Ok(())
+}
+
+/// Classify every `.t27` file by whether it is ordinary source. See the
+/// `Classify` doc comment for why this must run before the parser.
+fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        if let Ok(rd) = std::fs::read_dir(dir) {
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, out);
+                } else if p.extension().map(|x| x == "t27").unwrap_or(false) {
+                    out.push(p);
+                }
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(std::path::Path::new(specs_dir), &mut files);
+    files.retain(|p| include_scratch || !p.to_string_lossy().contains("/scratch/"));
+    files.sort();
+
+    let mut buckets: std::collections::BTreeMap<&str, Vec<String>> = Default::default();
+    for p in &files {
+        let t = std::fs::read_to_string(p).unwrap_or_default();
+        let has_module = t.lines().any(|l| {
+            let l = l.trim_start().trim_start_matches("pub ").trim_start();
+            l.starts_with("module ") && (l.ends_with(';') || l.contains('{'))
+        });
+        let has_spec = t
+            .lines()
+            .any(|l| l.trim_start().starts_with("spec ") && l.contains('{'));
+        // A Markdown heading in the first 40 lines, `# ` or `## `, with no `fn`.
+        let head: Vec<&str> = t.lines().take(40).collect();
+        let md = head.iter().any(|l| {
+            let l = l.trim_start();
+            (l.starts_with("# ") || l.starts_with("## ") || l.starts_with("### "))
+                && l.len() > 3
+        });
+        let has_fn = t
+            .lines()
+            .any(|l| l.trim_start().trim_start_matches("pub ").starts_with("fn "));
+        let k = if has_module {
+            "SOURCE          module ..."
+        } else if has_spec {
+            "ALT-SYNTAX      spec X { ... }"
+        } else if md && !has_fn {
+            "NOT-CODE        Markdown document"
+        } else if md {
+            "MIXED           Markdown + fn"
+        } else {
+            "UNCLASSIFIED    neither module, spec nor Markdown"
+        };
+        buckets.entry(k).or_default().push(p.display().to_string());
+    }
+    let total = files.len();
+    println!();
+    println!("  {:<48}{:>7}{:>8}", "class", "files", "share");
+    println!("  {}", "-".repeat(63));
+    let mut source = 0usize;
+    for (k, v) in &buckets {
+        if k.starts_with("SOURCE") {
+            source = v.len();
+        }
+        println!("  {:<48}{:>7}{:>7.1}%", k, v.len(), 100.0 * v.len() as f64 / total as f64);
+        if verbose {
+            for f in v.iter().take(if v.len() > 40 { 40 } else { v.len() }) {
+                println!("      {f}");
+            }
+        }
+    }
+    println!("  {}", "-".repeat(63));
+    println!("  {:<48}{:>7}", "total .t27 files", total);
+    println!("  {:<48}{:>7}", "HONEST DENOMINATOR (source only)", source);
+    println!();
+    println!("  A .t27 extension is a filename, not a type declaration. Anything");
+    println!("  outside SOURCE cannot parse, and counting it as a failing spec");
+    println!("  inflates every corpus ratio in a knowable direction.");
     Ok(())
 }

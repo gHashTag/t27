@@ -3122,7 +3122,44 @@ impl Parser {
         let mut node = Node::new(NodeKind::StmtForRange);
         node.name = var_name;
 
-        let start = self.parse_range_bound()?;
+        // W734: a range BOUND is not a general expression -- `parse_range_bound`
+        // stops at `db` in `db.facts` and the error lands on the dot. A
+        // collection needs the full expression grammar, and `..` terminates an
+        // expression, so parsing an expression first serves both forms.
+        let start = self.parse_expr()?;
+
+        // W733/W734: `for x in a..b` is a RANGE; `for fact in db.facts` is a
+        // loop over a COLLECTION, which five specs use and the parser answered
+        // with "Expected DotDot, got Dot". The grammar simply lagged its own
+        // corpus. When no `..` follows, the bound just parsed IS the iterable,
+        // and the node becomes the same StmtFor the parenthesised form builds --
+        // one iterable, one capture -- so no backend needs a new shape.
+        if self.current.kind != TokenKind::DotDot {
+            let mut coll = Node::new(NodeKind::StmtFor);
+            coll.children.push(start);
+            coll.name = node.name.clone();
+            // Captures live in `params`, exactly as the parenthesised
+            // `for (xs) |x| { ... }` form stores them.
+            coll.params.push((node.name.clone(), String::new()));
+            self.expect(TokenKind::LBrace)?;
+            let mut body_block = Node::new(NodeKind::Module);
+            body_block.name = "body".to_string();
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                match self.parse_body_stmt() {
+                    Ok(st) => body_block.children.push(st),
+                    Err(e) => {
+                        return Err(format!(
+                            "parse error near line {}: {}",
+                            self.current.line, e
+                        ))
+                    }
+                }
+            }
+            self.expect(TokenKind::RBrace)?;
+            coll.children.push(body_block);
+            return Ok(coll);
+        }
+
         node.children.push(start);
 
         self.expect(TokenKind::DotDot)?;

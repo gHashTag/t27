@@ -8557,6 +8557,28 @@ These cost a wave each. Follow them before step 1.
      the same red. `impl-status` separates UNWRITTEN; nobody separates NOT-CODE.
      **Classify before parsing, or spend waves on the wrong population.**
 
+753. **FIFTH TIME: THE TOOL DISAGREED WITH MY SCRIPT.** `t27c classify` reports
+     590 SOURCE where my Python said 584 -- the Rust check accepts `pub module`
+     and `module X {`. Every ad-hoc measurement this session that had a tool
+     available was wrong. **Write the tool, then quote the tool.**
+
+754. **A RANGE BOUND IS NOT A GENERAL EXPRESSION.** Adding the
+     `for x in collection` branch was not enough: `parse_range_bound` stops at
+     `db` in `db.facts`, so the error moved onto the dot and looked like a new
+     defect. Parse the start with `parse_expr` -- `..` terminates an expression,
+     so one call serves both the range and the collection form.
+
+755. **PREDICT THE PARTIAL UNBLOCK BEFORE MEASURING IT.** Forecast: the root
+     closes and most specs meet their next blocker. Measured: 4 of 5 parse, the
+     fifth advanced 63 lines to `if cond {` without parens. Fourth wave running
+     where root and gate diverge -- and the first where it was predicted.
+
+756. **A BACKLOG ENTRY NAMES THE FIX; A SURPRISE NAMES NOTHING.** The shadow
+     class is four specs, each naming a parameter after a FUNCTION in the same
+     module -- fanout, clock_cfg, slack, diff_text. Recorded with the four
+     colliding functions and the shape of the fix, rather than attempted as a
+     fourth compiler change in one wave.
+
 ### How to update this tracker
 
 After closing a wave:

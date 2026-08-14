@@ -13606,4 +13606,77 @@ Measured across **all 618 non-scratch `.t27` files**:
 
 ---
 
+## Classification before parsing, and one grammar gap closed — W734
+
+### T266 — `t27c classify` answers "is this file source?" first
+
+W733 measured that 5.5% of `.t27` files are not ordinary source and that this
+inflates every corpus ratio. That measurement was an ad-hoc script; it is now a
+command.
+
+```
+  class                                             files   share
+  SOURCE          module ...                          590   95.5%
+  NOT-CODE        Markdown document                    14    2.3%
+  ALT-SYNTAX      spec X { ... }                        8    1.3%
+  UNCLASSIFIED    neither module, spec nor Markdown      5    0.8%
+  MIXED           Markdown + fn                         1    0.2%
+  total .t27 files                                    618
+  HONEST DENOMINATOR (source only)                    590
+```
+
+> **T266.** **The tool disagrees with my script: 590 source, not 584.** The Rust
+> check accepts `pub module` and `module X {`, which the Python one missed —
+> **the fifth time this session an ad-hoc measurement differed from the tool
+> that could have answered.** The honest denominator is **590**, and it is now
+> reproducible instead of remembered.
+
+### T267 — `for x in collection` was a grammar gap, and it is closed
+
+`parse_for_stmt` sent every `for IDENT in ...` to `parse_for_range`, which
+demanded `..`. Five specs loop over collections and got *"Expected DotDot, got
+Dot"*.
+
+Two changes, and the second was needed because the first was not enough:
+
+1. When no `..` follows, the parsed expression **is** the iterable; build the
+   same `StmtFor` the parenthesised `for (xs) |x|` form builds, captures in
+   `params`, so no backend needs a new shape.
+2. **A range bound is not a general expression.** `parse_range_bound` stops at
+   `db` in `db.facts`, so the error simply moved onto the dot. Parsing the start
+   with `parse_expr` serves both forms, since `..` terminates an expression.
+
+```
+  before:  0 of 5 parse
+  after:   4 of 5 parse     datalog_engine now fails on `if cond {` without parens
+  regression: 145 tests unchanged
+```
+
+> **T267.** **Registered forecast: the root closes and most specs meet their next
+> blocker. Both halves confirmed** — four specs parse, and the fifth advanced 63
+> lines to a different construct. Fourth wave running where a root and a gate
+> are different measurements, and the first where that was predicted rather than
+> discovered.
+
+### T268 — the shadow class is one root and it is uniform
+
+All four "function parameter shadows declaration" specs name a parameter after a
+**function in the same module**:
+
+```
+router.t27      parameter 'fanout'      vs  fn fanout(signal: &str, count: u32)
+testbench.t27   parameter 'clock_cfg'   vs  fn clock_cfg(period: u32)
+timing.t27      parameter 'slack'       vs  fn slack(delay_ps: u32, ...)
+diff.t27        parameter 'diff_text'   vs  fn diff_text(cwd: str, ref: str)
+```
+
+> **T268.** **t27 permits it, Zig forbids it**, and the fix is mechanical:
+> rename the parameter at the signature **and every reference in the body**.
+> Diagnosed and left — a body-rewriting change is the fourth alteration to a
+> sealed compiler in one wave, and the difference between a backlog entry and a
+> surprise is that this one names the four specs, the four colliding functions,
+> and the shape of the fix.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
