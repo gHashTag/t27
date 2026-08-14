@@ -345,6 +345,26 @@ if [[ ! -x "$T27C" ]]; then
   echo "tri: local commands still work -- see 'tri help'" >&2
   exit 1
 fi
+# Loop helpers live in scripts/tri_loop/ as Python, and are dispatched before
+# anything is forwarded to t27c. They are separate from the compiler on purpose:
+# they measure and report on the repository, they do not compile it, and none of
+# them mutates anything. Keeping them out of t27c means a broken helper cannot
+# take the compiler's CLI down with it.
+cmd="${1:-}"
+LOOP_DIR="$SCRIPT_DIR/tri_loop"
+if [[ "$cmd" == "loop-help" ]]; then
+  echo "tri loop helpers (report only, never mutate):"
+  for f in "$LOOP_DIR"/*.py; do
+    [[ -e "$f" ]] || continue
+    name="$(basename "$f" .py)"
+    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^"""tri [a-z-]* -- //p' "$f")"
+  done
+  exit 0
+fi
+if [[ -n "$cmd" && -f "$LOOP_DIR/${cmd//-/_}.py" ]]; then
+  exec python3 "$LOOP_DIR/${cmd//-/_}.py" "${@:2}"
+fi
+
 # `t27c suite` is the only subcommand that accepts --repo-root.
 # Map `tri test` to the suite subcommand; pass other commands through unchanged.
 if [[ "$cmd" == "test" || "$cmd" == "suite" ]]; then
