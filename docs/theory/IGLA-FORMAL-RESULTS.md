@@ -13679,4 +13679,62 @@ diff.t27        parameter 'diff_text'   vs  fn diff_text(cwd: str, ref: str)
 
 ---
 
+## Parameter shadowing, closed — W735
+
+### T269 — the obvious mechanism was ruled out before the working one was built
+
+t27 permits a parameter to share its name with a module-level declaration; Zig
+does not. The compiler already had a rename for **mutable** parameters —
+`<name>_arg` in the signature, then `var <name> = <name>_arg;` opening the body,
+so no body reference changes.
+
+Reusing it failed, and the failure was informative:
+
+```
+function parameter shadows declaration of 'fanout'    ->  the rename applied
+local variable   shadows declaration of 'fanout'      ->  the RE-BINDING recreated it
+```
+
+> **T269.** **The re-binding is the whole point of the mutable mechanism and
+> exactly what the shadow case cannot have.** A shadowing parameter must be
+> renamed **all the way through** — signature *and* every body reference — which
+> is one line at the single `ExprIdentifier` emission site plus a per-function
+> rename map. **Ruling out the cheap fix cost one build and named why no cheaper
+> one exists.**
+
+### T270 — three of four specs run, and 59 tests appear
+
+```
+spec              before                                    after
+router.t27        parameter shadows 'fanout'                19 tests pass
+testbench.t27     parameter shadows 'clock_cfg'             16 tests pass
+timing.t27        parameter shadows 'slack'                 24 tests pass
+diff.t27          parameter shadows 'diff_text'             LOCAL shadows 'diff_text'
+
+regression        145 tests                                 145 tests
+corpus (sources)  31 of 131 run  23.7%                      35 of 131  26.7%
+```
+
+**Registered forecast: 0–2 of the four would run.** Measured **three**, and the
+corpus share moved **23.7% → 26.7%** on the honest denominator of T266.
+
+> **T270.** **59 tests that had never executed now do.** The fourth spec exposed
+> a *fifth* root in the same family: a **local variable**, not a parameter,
+> shadowing a module declaration — `let diff_text` beside `fn diff_text`. Same
+> remedy, different node, and named rather than swept in.
+
+### T270a — the rename had a tail, and the compiler found it
+
+The first build passed three specs and failed the fourth with **"unused function
+parameter"**: the discard emitted for an unused parameter still printed the
+**old** name, so Zig saw the renamed one declared and never used.
+
+> **T270a.** A rename is not one site. **The signature, the body references and
+> the unused-parameter discard are three, and missing any one turns a fix into a
+> new error wearing a different message.** The compiler named it immediately —
+> which is the argument for changing the generator and re-running the gate
+> rather than reasoning about what the change should do.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

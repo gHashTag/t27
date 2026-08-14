@@ -8579,6 +8579,26 @@ These cost a wave each. Follow them before step 1.
      colliding functions and the shape of the fix, rather than attempted as a
      fourth compiler change in one wave.
 
+757. **RULE OUT THE CHEAP FIX BY BUILDING IT.** The mutable-parameter rename
+     (`_arg` + `var name = name_arg;`) looked like it would serve the shadow
+     case. It cannot: the RE-BINDING recreates the collision as a local. One
+     build proved it and named why no cheaper fix exists.
+
+758. **A RENAME IS THREE SITES, NOT ONE.** Signature, body references, and the
+     unused-parameter discard. Missing the third turned a working fix into
+     "unused function parameter" -- a new error wearing a different message.
+     The compiler found it in one run.
+
+759. **59 TESTS THAT HAD NEVER EXECUTED NOW DO**, and the corpus share of
+     running specs moved 23.7% -> 26.7% on the honest denominator. Forecast was
+     0-2 of four specs; measured three. **State the forecast even when you beat
+     it -- an unrecorded prediction teaches nothing either way.**
+
+760. **The fourth spec exposed a FIFTH root in the same family:** a LOCAL
+     variable shadowing a module declaration (`let diff_text` beside
+     `fn diff_text`), not a parameter. Same remedy, different node. Name the
+     new root rather than widening the old fix to cover it blind.
+
 ### How to update this tracker
 
 After closing a wave:

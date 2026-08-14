@@ -4638,6 +4638,16 @@ pub struct Codegen {
     /// later bare `_ = name;` is a "pointless discard of local variable" and the
     /// file stops compiling. W730 measured 9 of 130 generating specs hitting it.
     discarded_by_ref: std::collections::HashSet<String>,
+    /// Names the enclosing Zig CONTAINER declares. A Zig parameter may not
+    /// shadow one; t27 permits it (W734: fanout, clock_cfg, slack, diff_text
+    /// each name a parameter after a FUNCTION in the same module).
+    module_decl_names: std::collections::HashSet<String>,
+    /// Parameter renames in force for the function being emitted. The `_arg`
+    /// re-binding used for MUTABLE parameters cannot serve the shadow case --
+    /// `var fanout = fanout_arg;` recreates the very collision it was meant to
+    /// remove ("local variable shadows declaration"). So a shadowing parameter
+    /// is renamed all the way through: signature AND every body reference.
+    param_renames: std::collections::HashMap<String, String>,
     /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
     /// to Zig builtins ONLY when absent from this set, so a spec that defines
     /// its own `fn max(...)` still calls its own.
@@ -4705,6 +4715,8 @@ impl Codegen {
             indent: 0,
             mut_names: std::collections::HashSet::new(),
             discarded_by_ref: std::collections::HashSet::new(),
+            module_decl_names: std::collections::HashSet::new(),
+            param_renames: std::collections::HashMap::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
@@ -5263,6 +5275,9 @@ impl Codegen {
             self.write_line("");
         }
 
+        // W735: know the container's declarations BEFORE emitting any function.
+        self.collect_module_decl_names(&ast.children);
+
         // Emit other declarations
         for decl in &ast.children {
             if decl.kind != NodeKind::UseDecl {
@@ -5360,6 +5375,21 @@ impl Codegen {
 
     pub fn into_string(self) -> String {
         self.output
+    }
+
+    /// Collect the names the Zig container will declare, so a parameter cannot
+    /// silently shadow one. Called once per module walk.
+    fn collect_module_decl_names(&mut self, decls: &[Node]) {
+        self.module_decl_names.clear();
+        for d in decls {
+            if matches!(
+                d.kind,
+                NodeKind::FnDecl | NodeKind::ConstDecl | NodeKind::StructDecl | NodeKind::EnumDecl
+            ) && !d.name.is_empty()
+            {
+                self.module_decl_names.insert(d.name.clone());
+            }
+        }
     }
 
     fn gen_decl(&mut self, node: &Node) {
@@ -5884,6 +5914,20 @@ impl Codegen {
             .map(|(pname, _)| pname.clone())
             .collect();
 
+        // W735: a parameter shadowing a container declaration is renamed all the
+        // way -- signature and body -- because the `_arg` RE-BINDING used for
+        // mutable parameters would recreate the collision as a local.
+        self.param_renames.clear();
+        for (pname, _) in node.params.iter() {
+            if pname != "self"
+                && !shadowed.contains(pname)
+                && self.module_decl_names.contains(pname.as_str())
+            {
+                self.param_renames
+                    .insert(pname.clone(), format!("{}_arg", pname));
+            }
+        }
+
         self.write(&format!("fn {}(", node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
@@ -5891,6 +5935,8 @@ impl Codegen {
             }
             let arg_name = if shadowed.contains(pname) {
                 format!("{}_arg", pname)
+            } else if let Some(r) = self.param_renames.get(pname) {
+                r.clone()
             } else {
                 pname.clone()
             };
@@ -5997,7 +6043,15 @@ impl Codegen {
         for (pname, _) in &node.params {
             if pname != "self" && !param_referenced(&node.children, pname) {
                 self.write_indent();
-                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(pname)));
+                // W735: an unused parameter that was RENAMED must be discarded
+                // under its new name, or Zig reports "unused function
+                // parameter" for the one it actually declared.
+                let dn = self
+                    .param_renames
+                    .get(pname)
+                    .cloned()
+                    .unwrap_or_else(|| pname.clone());
+                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(&dn)));
             }
         }
 
@@ -6829,7 +6883,15 @@ impl Codegen {
                     self.write(&node.value);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&Self::zig_ident(&node.name)),
+            NodeKind::ExprIdentifier => {
+                // W735: a shadowing parameter carries its rename into the body.
+                let nm = self
+                    .param_renames
+                    .get(&node.name)
+                    .cloned()
+                    .unwrap_or_else(|| node.name.clone());
+                self.write(&Self::zig_ident(&nm));
+            }
             NodeKind::ExprEnumValue => {
                 self.write(".");
                 self.write(&node.name);
