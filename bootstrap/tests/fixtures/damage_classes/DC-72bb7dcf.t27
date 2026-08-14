@@ -1,0 +1,15 @@
+// damage class DC-72bb7dcf
+// shape:    [[]X [,
+// lines:    10 in the corpus, across 3 file(s)
+// origin:   specs/tri/pipeline/spec_writer.t27:23
+// snapshot: 1b5a37b7a89efb782db7efd2ca7af728d4ed48b1c13ac2a35088c7926b16afd9
+//
+// The damage: the opening quote of the type string was replaced by '['.
+// candidate: NONE -- substituting the delimiter yields '"[]Const [,',
+//            which is not a closed string. The type text was truncated as well,
+//            so the element type is gone and a repair would have to invent it.
+// expected:  needs-human-language-decision
+
+pub const DamageCase = struct {
+    steps : [[]Const [,
+};

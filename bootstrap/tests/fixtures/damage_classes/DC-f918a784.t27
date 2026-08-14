@@ -1,0 +1,15 @@
+// damage class DC-f918a784
+// shape:    [[9]?*X",
+// lines:    1 in the corpus, across 1 file(s)
+// origin:   specs/tri/search/aho_corasick.t27:14
+// snapshot: 1b5a37b7a89efb782db7efd2ca7af728d4ed48b1c13ac2a35088c7926b16afd9
+//
+// The damage: the opening quote of the type string was replaced by '['.
+// candidate: replace the leading [ with a quote  ->  "[256]?*ACTrieNode",
+
+
+// expected:  parse-restored
+
+pub const DamageCase = struct {
+    children : [[256]?*ACTrieNode",
+};

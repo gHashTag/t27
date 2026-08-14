@@ -34,8 +34,10 @@ REQUIRED_TOOLS=(
   "scripts/tri_loop/cost.py"
   "scripts/tri_loop/diffbin.py"
   "scripts/tri_loop/damage.py"
+  "scripts/tri_loop/damage_freeze.py"
+  "scripts/tri_loop/damage_repair.py"
 )
-REQUIRED_SUBCOMMANDS=(triage cost diffbin damage)
+REQUIRED_SUBCOMMANDS=(triage cost diffbin damage damage-freeze damage-repair)
 
 fail=0
 note() { printf '  %s\n' "$1"; }

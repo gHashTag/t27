@@ -1,0 +1,15 @@
+// damage class DC-b8514836
+// shape:    [[]X X",
+// lines:    37 in the corpus, across 17 file(s)
+// origin:   specs/tri/pipeline/spec_writer.t27:14
+// snapshot: 1b5a37b7a89efb782db7efd2ca7af728d4ed48b1c13ac2a35088c7926b16afd9
+//
+// The damage: the opening quote of the type string was replaced by '['.
+// candidate: replace the leading [ with a quote  ->  "[]Const u8",
+
+
+// expected:  parse-restored
+
+pub const DamageCase = struct {
+    field_type : [[]Const u8",
+};

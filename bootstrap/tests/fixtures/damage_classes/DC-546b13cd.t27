@@ -1,0 +1,15 @@
+// damage class DC-546b13cd
+// shape:    [[]?*X",
+// lines:    1 in the corpus, across 1 file(s)
+// origin:   specs/tri/trees/b_tree.t27:15
+// snapshot: 1b5a37b7a89efb782db7efd2ca7af728d4ed48b1c13ac2a35088c7926b16afd9
+//
+// The damage: the opening quote of the type string was replaced by '['.
+// candidate: replace the leading [ with a quote  ->  "[]?*BTreeNode",
+
+
+// expected:  parse-restored
+
+pub const DamageCase = struct {
+    children : [[]?*BTreeNode",
+};

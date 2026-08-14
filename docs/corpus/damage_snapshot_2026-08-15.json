@@ -1,0 +1,3045 @@
+{
+ "class_index": [
+  {
+   "class_id": "DC-d9efbc31",
+   "count": 52,
+   "files": [
+    "specs/tri/agent/faculty_board.t27",
+    "specs/tri/collections/bitmap.t27",
+    "specs/tri/collections/bitset.t27",
+    "specs/tri/collections/bitvector.t27",
+    "specs/tri/collections/btree.t27",
+    "specs/tri/collections/circular_buffer.t27",
+    "specs/tri/collections/deque.t27",
+    "specs/tri/collections/interval.t27",
+    "specs/tri/collections/lru.t27",
+    "specs/tri/collections/map.t27",
+    "specs/tri/collections/priority_queue.t27",
+    "specs/tri/collections/queue.t27",
+    "specs/tri/collections/ring_buffer.t27",
+    "specs/tri/collections/stack.t27",
+    "specs/tri/crypto/crypto.t27",
+    "specs/tri/encoding/csv.t27",
+    "specs/tri/encoding/html.t27",
+    "specs/tri/encoding/json.t27",
+    "specs/tri/encoding/markup.t27",
+    "specs/tri/encoding/msgpack.t27",
+    "specs/tri/encoding/xml.t27",
+    "specs/tri/graph/dijkstra.t27",
+    "specs/tri/graph/disjoint_set.t27",
+    "specs/tri/graph/graph.t27",
+    "specs/tri/graph/graph_bfs.t27",
+    "specs/tri/graph/graph_dfs.t27",
+    "specs/tri/graph/prims_mst.t27",
+    "specs/tri/graph/topological_sort.t27",
+    "specs/tri/io/compress.t27",
+    "specs/tri/math/bezier.t27",
+    "specs/tri/math/matrix.t27",
+    "specs/tri/math/polynomial.t27",
+    "specs/tri/pipeline/builder.t27",
+    "specs/tri/search/bloom_filter.t27",
+    "specs/tri/search/knuth_morris_pratt.t27",
+    "specs/tri/trees/b_tree.t27",
+    "specs/tri/trees/fenwick_tree.t27",
+    "specs/tri/trees/kd_tree.t27",
+    "specs/tri/trees/rtree.t27",
+    "specs/tri/trees/segment_tree.t27",
+    "specs/tri/trees/suffix_array.t27",
+    "specs/tri/utils/bytes.t27",
+    "specs/tri/utils/logger.t27",
+    "specs/tri/utils/template.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "count": 37,
+   "files": [
+    "specs/tri/agent/eternal_monitor.t27",
+    "specs/tri/collections/variant.t27",
+    "specs/tri/crypto/base32.t27",
+    "specs/tri/crypto/base64.t27",
+    "specs/tri/encoding/html.t27",
+    "specs/tri/encoding/markup.t27",
+    "specs/tri/encoding/mime.t27",
+    "specs/tri/encoding/msgpack.t27",
+    "specs/tri/encoding/xml.t27",
+    "specs/tri/net/url.t27",
+    "specs/tri/pipeline/spec_writer.t27",
+    "specs/tri/pipeline/workflow.t27",
+    "specs/tri/search/knuth_morris_pratt.t27",
+    "specs/tri/search/regex.t27",
+    "specs/tri/utils/logger.t27",
+    "specs/tri/utils/template.t27",
+    "specs/tri/utils/version.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "count": 10,
+   "files": [
+    "specs/tri/agent/handoff.t27",
+    "specs/tri/pipeline/spec_writer.t27",
+    "specs/tri/pipeline/workflow.t27"
+   ],
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "count": 7,
+   "files": [
+    "specs/tri/encoding/mime.t27",
+    "specs/tri/graph/graph_bfs.t27",
+    "specs/tri/io/fs.t27",
+    "specs/tri/search/aho_corasick.t27",
+    "specs/tri/search/regex.t27",
+    "specs/tri/search/regex_advanced.t27"
+   ],
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "count": 5,
+   "files": [
+    "specs/tri/crypto/hmac.t27",
+    "specs/tri/crypto/sha256.t27",
+    "specs/tri/search/boyer_moore.t27",
+    "specs/tri/utils/utf8.t27"
+   ],
+   "reasons": [
+    "odd-quote"
+   ],
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-774471d4",
+   "count": 3,
+   "files": [
+    "specs/tri/agent/eternal_monitor.t27",
+    "specs/tri/pipeline/spec_writer.t27",
+    "specs/tri/pipeline/workflow.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[?[]X X\","
+  },
+  {
+   "class_id": "DC-550ec752",
+   "count": 2,
+   "files": [
+    "specs/tri/encoding/html.t27",
+    "specs/tri/encoding/xml.t27"
+   ],
+   "reasons": [
+    "odd-quote"
+   ],
+   "shape": "[X.X([]X X)\","
+  },
+  {
+   "class_id": "DC-c349b5d1",
+   "count": 2,
+   "files": [
+    "specs/tri/trees/octree.t27",
+    "specs/tri/trees/quadtree.t27"
+   ],
+   "reasons": [
+    "odd-quote"
+   ],
+   "shape": "[[9]?X\","
+  },
+  {
+   "class_id": "DC-06dafedd",
+   "count": 1,
+   "files": [
+    "specs/tri/graph/dijkstra.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]?X\","
+  },
+  {
+   "class_id": "DC-546b13cd",
+   "count": 1,
+   "files": [
+    "specs/tri/trees/b_tree.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]?*X\","
+  },
+  {
+   "class_id": "DC-73be92fd",
+   "count": 1,
+   "files": [
+    "specs/tri/collections/btree.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]X(X, X)\","
+  },
+  {
+   "class_id": "DC-801c2390",
+   "count": 1,
+   "files": [
+    "specs/tri/trees/quadtree.t27"
+   ],
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "shape": "[[][9,"
+  },
+  {
+   "class_id": "DC-ab5c5903",
+   "count": 1,
+   "files": [
+    "specs/tri/collections/skip_list.t27"
+   ],
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "shape": "[[]?X(X)\","
+  },
+  {
+   "class_id": "DC-c580e907",
+   "count": 1,
+   "files": [
+    "specs/tri/graph/graph.t27"
+   ],
+   "reasons": [
+    "odd-quote"
+   ],
+   "shape": "[X.X(X, []X)\","
+  },
+  {
+   "class_id": "DC-f918a784",
+   "count": 1,
+   "files": [
+    "specs/tri/search/aho_corasick.t27"
+   ],
+   "reasons": [
+    "odd-quote"
+   ],
+   "shape": "[[9]?*X\","
+  }
+ ],
+ "classes": 15,
+ "corpus": "specs",
+ "corpus_sha256": "1b5a37b7a89efb782db7efd2ca7af728d4ed48b1c13ac2a35088c7926b16afd9",
+ "file_sha256": {
+  "specs/tri/agent/eternal_monitor.t27": "b5afb6170a5befb94ac33558fa795f236dd6075d9e05f6a0dd2e673d05aba069",
+  "specs/tri/agent/faculty_board.t27": "9e12c1f5268143af7f4026346e22ae9fcd63218aefbebbfe503316e9e295c32e",
+  "specs/tri/agent/handoff.t27": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+  "specs/tri/collections/bitmap.t27": "afd5d67ecd9d8c1810b896e0d522f3ef6fbbad00717a26b19edbf7d3b766e31d",
+  "specs/tri/collections/bitset.t27": "f6e28351c3de17a876cbe077207413866dafddb5b1251c5e6b54f1ed9d3bcb11",
+  "specs/tri/collections/bitvector.t27": "435342ddd91e9a68767defaeab6d9b67279c50dd763056187d89210081b4026e",
+  "specs/tri/collections/btree.t27": "0539a5ff094636b4c10db13d2246f53c1bf80f62a74e468107969e6f9f28020c",
+  "specs/tri/collections/circular_buffer.t27": "089c5a092639f361684384a25291fbecdee0b3ba5476d25cd1fc62c2456fabd5",
+  "specs/tri/collections/deque.t27": "57170d1f89805ebf6a9516326884d6d969770839fe4bc1c39193fbc4d0c50a07",
+  "specs/tri/collections/interval.t27": "b259aff814f1812bbee828b05567a71fdd57c7be838d4a85bd092b7b7c5a9e40",
+  "specs/tri/collections/lru.t27": "00755caba914623ad212f422ad2225f2de28144d0bb190788580e14ee87959ab",
+  "specs/tri/collections/map.t27": "7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
+  "specs/tri/collections/priority_queue.t27": "9bab098fcc7065874c346143e85bec43b9966b0669b6647871e573c7a90ed6c9",
+  "specs/tri/collections/queue.t27": "3175c9ed4dcef7978d7d871df08836c40c88965cb9c45b83d6d9c53fa8a9d463",
+  "specs/tri/collections/ring_buffer.t27": "87c586fbef0a7b22b2f6e5f6741a345695bfd9ca5e36a7e510561632b37b7348",
+  "specs/tri/collections/skip_list.t27": "3cfdb7e154b5a0ec8d0a825f265b1f5e165af4ae3c19b5c499efc9f5a61a170b",
+  "specs/tri/collections/stack.t27": "d9c36841edfb5e75ee74a6e948fccf724656ad0d6bebc169bddd6dc3fbdc7f65",
+  "specs/tri/collections/variant.t27": "1280493ead77ca373c85b07e35b10a460fb7ad6f387b0820d9925ac38d4f1167",
+  "specs/tri/crypto/base32.t27": "088cbb8893f0019cef2ff3626aef421d06417126099cd17051ad591cff0d9c0d",
+  "specs/tri/crypto/base64.t27": "570efb578996b026b3572669478b17ce90e70aee9b0f304f2fce1a5f241ad84e",
+  "specs/tri/crypto/crypto.t27": "6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
+  "specs/tri/crypto/hmac.t27": "357ef72e7b4d971cc3711e664fe4fded7b6ab4514247831507baa0641e3d1eed",
+  "specs/tri/crypto/sha256.t27": "6433411437aec985707e377addd8284b33da7093824baba08d0ffaf31c3b14d8",
+  "specs/tri/encoding/csv.t27": "42da022525b9f341740cd36a50413176069c2afb5c31e63f4dcacf06fd6f400f",
+  "specs/tri/encoding/html.t27": "d483f9ea30569515431de6016f687dfae767aa8b47c211ed8910e46a7aa004f6",
+  "specs/tri/encoding/json.t27": "4d0a9fa0e6ec79369479b8add40308d46b32a438d2f255858abe8687ecb51574",
+  "specs/tri/encoding/markup.t27": "f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
+  "specs/tri/encoding/mime.t27": "c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+  "specs/tri/encoding/msgpack.t27": "3c5439b5f1e8cc7f55ea6684770f6e2213008609c07390f017a2fae37a5611e4",
+  "specs/tri/encoding/xml.t27": "1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+  "specs/tri/graph/dijkstra.t27": "44044c9787eb731200c48f4bdcd52daf48854b92a7273fba511aa5316ee88ad0",
+  "specs/tri/graph/disjoint_set.t27": "8d9a61646cad919fc95990648024ba90faa9ac2cd644cffc180bbe9222626a31",
+  "specs/tri/graph/graph.t27": "8f72ef2f6711c80cfc323ea331747896aa0fb996af8ed2d8585a65fc45619d82",
+  "specs/tri/graph/graph_bfs.t27": "5d0df89b1a1bde5f8d5fa4733b3ad09250d5600bd1d0d8f9c31966a2f1db3827",
+  "specs/tri/graph/graph_dfs.t27": "09b5968ba0895ab7842bfce9087e1733c4a0e4cef7d02ba04021aea8e776434e",
+  "specs/tri/graph/prims_mst.t27": "642d11214c510192057a915200d03aa793e184955d215b1c8a0152b627e1f8da",
+  "specs/tri/graph/topological_sort.t27": "618fcd45d00e8ffa4efbd5d1be35ae3a641b317f50f6344407e918064fa7f7bc",
+  "specs/tri/io/compress.t27": "9b0ebfbac8cbf32eb4c63fa1d8744577ec72d6f46fbfb0cd9dd369f4e44a1fd9",
+  "specs/tri/io/fs.t27": "c3a47ae15cf04f1ca3fb372da482d3fff460b1e2b6b544ede2d15f87c0ac6402",
+  "specs/tri/math/bezier.t27": "4f0ae1c180bc369bd06c7f4535ef6a201c37798184ff864bfef6ef436ee95562",
+  "specs/tri/math/matrix.t27": "d7cfa970509a60bdda062871dcd0abf5880616d6688656c59706fddc9e92c7fd",
+  "specs/tri/math/polynomial.t27": "12f3f821850c7aa6ffb4eb00599f8f0adeb53f0017808197e363d8a71014a288",
+  "specs/tri/net/url.t27": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+  "specs/tri/pipeline/builder.t27": "18d79f751cfe6da5030c5dad9c7c58c1313c1e9074355cceb2cf5398f69e71cf",
+  "specs/tri/pipeline/spec_writer.t27": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+  "specs/tri/pipeline/workflow.t27": "80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
+  "specs/tri/search/aho_corasick.t27": "366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
+  "specs/tri/search/bloom_filter.t27": "e88d868bf244cdbf0a0312f6afcdd769f8cb119851c811e8fe4131db2f58b776",
+  "specs/tri/search/boyer_moore.t27": "baf22f7136a669ca3528ffa121bfb755ce02221a4ede00c7811e49500542dfbb",
+  "specs/tri/search/knuth_morris_pratt.t27": "fa851daf9a4c4b0e8cfb4a215dc741378e0756711cb98986e2f2c8000266a4e8",
+  "specs/tri/search/regex.t27": "4e0b80ad075dac6274040a5327d17244dc1e1206368598cccc5883d96de30ccb",
+  "specs/tri/search/regex_advanced.t27": "e8cdd8c7cc567ec42e6d72b5264bcabc59a1460a07e8957c36cdcf6f14edf837",
+  "specs/tri/trees/b_tree.t27": "421fe9ec4300007ac244ce16b0b57ef39b3401e494e08082defe73bb797997bc",
+  "specs/tri/trees/fenwick_tree.t27": "689d3e8dfffa09bc98609a75404dcfcb83cecbc18087b05b8a5a94e0bfe77ae0",
+  "specs/tri/trees/kd_tree.t27": "ac3052b6c5dab2c3ee103ce3f0cc6941865cd766c1fd12a1c4cc712c283b7c32",
+  "specs/tri/trees/octree.t27": "d2cf6df1b58bd432a6a45baf815781216cfad662bbbbb64e090248d8d00c80f3",
+  "specs/tri/trees/quadtree.t27": "0b9a0c9e250bda8456bac8e3609bd8a3294e0d902dad9c91dc10fd569f554b03",
+  "specs/tri/trees/rtree.t27": "ff560d230e72de0accc0dfc8ed0cfb464934225c77ed13e6cae4aa0ec303e68e",
+  "specs/tri/trees/segment_tree.t27": "dd8ebf2929c0c7d105676201c2afd5fac1315064085a50029c8472d3436934d8",
+  "specs/tri/trees/suffix_array.t27": "f9a84a52ce9586dd5e0ba1bc9a768a0e942871ab1cc63b61712304e9c48dfc55",
+  "specs/tri/utils/bytes.t27": "53bbef23b5864bc8ac792977e15c4f55f1c4db021acdb360b2c3a5005bdd5a60",
+  "specs/tri/utils/logger.t27": "58c449a8aac8f2fbae73fa7c67532d9f4cded68e794aa154862031f3e2893da1",
+  "specs/tri/utils/template.t27": "d0d82d46597a79fe8374c729404485f5c7933868c035726234c1d3d8cbcd22d2",
+  "specs/tri/utils/utf8.t27": "f478a091aadf9aa5cb78ce6aef9f4b1847c734db395a74151cab5f69b864b4b1",
+  "specs/tri/utils/version.t27": "18088d7e682e849ca9b7fe9827bc5d7927ab4f0a2332833c1999f4fec193caff"
+ },
+ "files": 65,
+ "lines": 125,
+ "rows": [
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        capacity : usize,",
+    "        len : usize,"
+   ],
+   "context_before": [
+    "",
+    "    pub const Builder(T) = struct {"
+   ],
+   "field": "items",
+   "file": "specs/tri/pipeline/builder.t27",
+   "file_sha256": "18d79f751cfe6da5030c5dad9c7c58c1313c1e9074355cceb2cf5398f69e71cf",
+   "line": 14,
+   "raw_line": "        items : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "",
+    "    pub const SpecField = struct {"
+   ],
+   "field": "field_type",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 14,
+   "raw_line": "        field_type : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        output : [[]Const u8\",",
+    "        steps : [[]Const [,"
+   ],
+   "context_before": [
+    "",
+    "    pub const SpecBehavior = struct {"
+   ],
+   "field": "inputs",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 21,
+   "raw_line": "        inputs : [[]Const SpecField\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const SpecField\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        steps : [[]Const [,",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const SpecBehavior = struct {",
+    "        inputs : [[]Const SpecField\","
+   ],
+   "field": "output",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 22,
+   "raw_line": "        output : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        inputs : [[]Const SpecField\",",
+    "        output : [[]Const u8\","
+   ],
+   "field": "steps",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 23,
+   "raw_line": "        steps : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        types : [[]Const SpecType\",",
+    "        behaviors : [[]Const SpecBehavior\","
+   ],
+   "context_before": [
+    "",
+    "    pub const SpecTemplate = struct {"
+   ],
+   "field": "module_name",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 27,
+   "raw_line": "        module_name : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        behaviors : [[]Const SpecBehavior\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const SpecTemplate = struct {",
+    "        module_name : [[]Const u8\","
+   ],
+   "field": "types",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 28,
+   "raw_line": "        types : [[]Const SpecType\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const SpecType\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        module_name : [[]Const u8\",",
+    "        types : [[]Const SpecType\","
+   ],
+   "field": "behaviors",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 29,
+   "raw_line": "        behaviors : [[]Const SpecBehavior\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const SpecBehavior\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        generated_path : [[]Const u8\",",
+    "        compile_ok : \"bool\","
+   ],
+   "context_before": [
+    "",
+    "    pub const WriteResult = struct {"
+   ],
+   "field": "spec_path",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 33,
+   "raw_line": "        spec_path : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        compile_ok : \"bool\",",
+    "        error_msg : [?[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const WriteResult = struct {",
+    "        spec_path : [[]Const u8\","
+   ],
+   "field": "generated_path",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 34,
+   "raw_line": "        generated_path : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-774471d4",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        generated_path : [[]Const u8\",",
+    "        compile_ok : \"bool\","
+   ],
+   "field": "error_msg",
+   "file": "specs/tri/pipeline/spec_writer.t27",
+   "file_sha256": "2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
+   "line": 36,
+   "raw_line": "        error_msg : [?[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[?[]Const u8\",",
+   "shape": "[?[]X X\","
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        condition : [?[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const WorkflowStep = struct {",
+    "        command : String,"
+   ],
+   "field": "depends_on",
+   "file": "specs/tri/pipeline/workflow.t27",
+   "file_sha256": "80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
+   "line": 15,
+   "raw_line": "        depends_on : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-774471d4",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        command : String,",
+    "        depends_on : [[]Const [,"
+   ],
+   "field": "condition",
+   "file": "specs/tri/pipeline/workflow.t27",
+   "file_sha256": "80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
+   "line": 16,
+   "raw_line": "        condition : [?[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[?[]Const u8\",",
+   "shape": "[?[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const Workflow = struct {",
+    "        version : String,"
+   ],
+   "field": "steps",
+   "file": "specs/tri/pipeline/workflow.t27",
+   "file_sha256": "80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
+   "line": 21,
+   "raw_line": "        steps : [[]Const WorkflowStep\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const WorkflowStep\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        rows : [[]CsvRow\",",
+    "        delimiter : \"u8\","
+   ],
+   "context_before": [
+    "",
+    "    pub const CsvDocument = struct {"
+   ],
+   "field": "headers",
+   "file": "specs/tri/encoding/csv.t27",
+   "file_sha256": "42da022525b9f341740cd36a50413176069c2afb5c31e63f4dcacf06fd6f400f",
+   "line": 17,
+   "raw_line": "        headers : [[]CsvRow\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]CsvRow\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        delimiter : \"u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const CsvDocument = struct {",
+    "        headers : [[]CsvRow\","
+   ],
+   "field": "rows",
+   "file": "specs/tri/encoding/csv.t27",
+   "file_sha256": "42da022525b9f341740cd36a50413176069c2afb5c31e63f4dcacf06fd6f400f",
+   "line": 18,
+   "raw_line": "        rows : [[]CsvRow\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]CsvRow\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        attributes : [std.StringHashMap([]Const u8)\",",
+    "        children : [[]HtmlNode\","
+   ],
+   "context_before": [
+    "",
+    "    pub const HtmlNode = struct {"
+   ],
+   "field": "tag",
+   "file": "specs/tri/encoding/html.t27",
+   "file_sha256": "d483f9ea30569515431de6016f687dfae767aa8b47c211ed8910e46a7aa004f6",
+   "line": 14,
+   "raw_line": "        tag : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-550ec752",
+   "context_after": [
+    "        children : [[]HtmlNode\",",
+    "        inner_text : [[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const HtmlNode = struct {",
+    "        tag : [[]Const u8\","
+   ],
+   "field": "attributes",
+   "file": "specs/tri/encoding/html.t27",
+   "file_sha256": "d483f9ea30569515431de6016f687dfae767aa8b47c211ed8910e46a7aa004f6",
+   "line": 15,
+   "raw_line": "        attributes : [std.StringHashMap([]Const u8)\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[std.StringHashMap([]Const u8)\",",
+   "shape": "[X.X([]X X)\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        inner_text : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        tag : [[]Const u8\",",
+    "        attributes : [std.StringHashMap([]Const u8)\","
+   ],
+   "field": "children",
+   "file": "specs/tri/encoding/html.t27",
+   "file_sha256": "d483f9ea30569515431de6016f687dfae767aa8b47c211ed8910e46a7aa004f6",
+   "line": 16,
+   "raw_line": "        children : [[]HtmlNode\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]HtmlNode\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        attributes : [std.StringHashMap([]Const u8)\",",
+    "        children : [[]HtmlNode\","
+   ],
+   "field": "inner_text",
+   "file": "specs/tri/encoding/html.t27",
+   "file_sha256": "d483f9ea30569515431de6016f687dfae767aa8b47c211ed8910e46a7aa004f6",
+   "line": 17,
+   "raw_line": "        inner_text : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "",
+    "    pub const JsonArray = struct {"
+   ],
+   "field": "items",
+   "file": "specs/tri/encoding/json.t27",
+   "file_sha256": "4d0a9fa0e6ec79369479b8add40308d46b32a438d2f255858abe8687ecb51574",
+   "line": 23,
+   "raw_line": "        items : [[]JsonValue\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]JsonValue\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        content : [[]Const u8\",",
+    "        children : [[]MarkdownNode\","
+   ],
+   "context_before": [
+    "",
+    "    pub const MarkdownNode = struct {"
+   ],
+   "field": "type",
+   "file": "specs/tri/encoding/markup.t27",
+   "file_sha256": "f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
+   "line": 14,
+   "raw_line": "        type : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        children : [[]MarkdownNode\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const MarkdownNode = struct {",
+    "        type : [[]Const u8\","
+   ],
+   "field": "content",
+   "file": "specs/tri/encoding/markup.t27",
+   "file_sha256": "f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
+   "line": 15,
+   "raw_line": "        content : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        type : [[]Const u8\",",
+    "        content : [[]Const u8\","
+   ],
+   "field": "children",
+   "file": "specs/tri/encoding/markup.t27",
+   "file_sha256": "f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
+   "line": 16,
+   "raw_line": "        children : [[]MarkdownNode\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]MarkdownNode\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        to : [[][,",
+    "        subject : [[]Const u8\","
+   ],
+   "context_before": [
+    "",
+    "    pub const Email = struct {"
+   ],
+   "field": "from",
+   "file": "specs/tri/encoding/mime.t27",
+   "file_sha256": "c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+   "line": 14,
+   "raw_line": "        from : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        subject : [[]Const u8\",",
+    "        body : [[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const Email = struct {",
+    "        from : [[]Const u8\","
+   ],
+   "field": "to",
+   "file": "specs/tri/encoding/mime.t27",
+   "file_sha256": "c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+   "line": 15,
+   "raw_line": "        to : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        body : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        from : [[]Const u8\",",
+    "        to : [[][,"
+   ],
+   "field": "subject",
+   "file": "specs/tri/encoding/mime.t27",
+   "file_sha256": "c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+   "line": 16,
+   "raw_line": "        subject : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        to : [[][,",
+    "        subject : [[]Const u8\","
+   ],
+   "field": "body",
+   "file": "specs/tri/encoding/mime.t27",
+   "file_sha256": "c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+   "line": 17,
+   "raw_line": "        body : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        bin_value : [[]Const u8\",",
+    "        array_value : [[]MsgPackValue\","
+   ],
+   "context_before": [
+    "        uint_value : \"u64\",",
+    "        float_value : \"f64\","
+   ],
+   "field": "str_value",
+   "file": "specs/tri/encoding/msgpack.t27",
+   "file_sha256": "3c5439b5f1e8cc7f55ea6684770f6e2213008609c07390f017a2fae37a5611e4",
+   "line": 22,
+   "raw_line": "        str_value : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        array_value : [[]MsgPackValue\",",
+    "        map_value : \"std.StringHashMap(MsgPackValue)\","
+   ],
+   "context_before": [
+    "        float_value : \"f64\",",
+    "        str_value : [[]Const u8\","
+   ],
+   "field": "bin_value",
+   "file": "specs/tri/encoding/msgpack.t27",
+   "file_sha256": "3c5439b5f1e8cc7f55ea6684770f6e2213008609c07390f017a2fae37a5611e4",
+   "line": 23,
+   "raw_line": "        bin_value : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        map_value : \"std.StringHashMap(MsgPackValue)\",",
+    "    };"
+   ],
+   "context_before": [
+    "        str_value : [[]Const u8\",",
+    "        bin_value : [[]Const u8\","
+   ],
+   "field": "array_value",
+   "file": "specs/tri/encoding/msgpack.t27",
+   "file_sha256": "3c5439b5f1e8cc7f55ea6684770f6e2213008609c07390f017a2fae37a5611e4",
+   "line": 24,
+   "raw_line": "        array_value : [[]MsgPackValue\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]MsgPackValue\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        attributes : [std.StringHashMap([]Const u8)\",",
+    "        children : [[]XmlNode\","
+   ],
+   "context_before": [
+    "",
+    "    pub const XmlNode = struct {"
+   ],
+   "field": "tag",
+   "file": "specs/tri/encoding/xml.t27",
+   "file_sha256": "1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+   "line": 14,
+   "raw_line": "        tag : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-550ec752",
+   "context_after": [
+    "        children : [[]XmlNode\",",
+    "        text : [[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const XmlNode = struct {",
+    "        tag : [[]Const u8\","
+   ],
+   "field": "attributes",
+   "file": "specs/tri/encoding/xml.t27",
+   "file_sha256": "1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+   "line": 15,
+   "raw_line": "        attributes : [std.StringHashMap([]Const u8)\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[std.StringHashMap([]Const u8)\",",
+   "shape": "[X.X([]X X)\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        text : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        tag : [[]Const u8\",",
+    "        attributes : [std.StringHashMap([]Const u8)\","
+   ],
+   "field": "children",
+   "file": "specs/tri/encoding/xml.t27",
+   "file_sha256": "1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+   "line": 16,
+   "raw_line": "        children : [[]XmlNode\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]XmlNode\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        attributes : [std.StringHashMap([]Const u8)\",",
+    "        children : [[]XmlNode\","
+   ],
+   "field": "text",
+   "file": "specs/tri/encoding/xml.t27",
+   "file_sha256": "1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+   "line": 17,
+   "raw_line": "        text : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        host : [[]Const u8\",",
+    "        port : \"?u16\","
+   ],
+   "context_before": [
+    "",
+    "    pub const Url = struct {"
+   ],
+   "field": "scheme",
+   "file": "specs/tri/net/url.t27",
+   "file_sha256": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+   "line": 14,
+   "raw_line": "        scheme : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        port : \"?u16\",",
+    "        path : [[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const Url = struct {",
+    "        scheme : [[]Const u8\","
+   ],
+   "field": "host",
+   "file": "specs/tri/net/url.t27",
+   "file_sha256": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+   "line": 15,
+   "raw_line": "        host : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        query : [[]Const u8\",",
+    "        fragment : [[]Const u8\","
+   ],
+   "context_before": [
+    "        host : [[]Const u8\",",
+    "        port : \"?u16\","
+   ],
+   "field": "path",
+   "file": "specs/tri/net/url.t27",
+   "file_sha256": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+   "line": 17,
+   "raw_line": "        path : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        fragment : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        port : \"?u16\",",
+    "        path : [[]Const u8\","
+   ],
+   "field": "query",
+   "file": "specs/tri/net/url.t27",
+   "file_sha256": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+   "line": 18,
+   "raw_line": "        query : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        path : [[]Const u8\",",
+    "        query : [[]Const u8\","
+   ],
+   "field": "fragment",
+   "file": "specs/tri/net/url.t27",
+   "file_sha256": "6752afaf3b5a4c3b07b5cffcb548b67ae1681ffc5f1a4f9abddf97b509139aee",
+   "line": 19,
+   "raw_line": "        fragment : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        original_len : \"usize\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Compressed = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/io/compress.t27",
+   "file_sha256": "9b0ebfbac8cbf32eb4c63fa1d8744577ec72d6f46fbfb0cd9dd369f4e44a1fd9",
+   "line": 14,
+   "raw_line": "        data : [[]U8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]U8\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        absolute : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Path = struct {"
+   ],
+   "field": "parts",
+   "file": "specs/tri/io/fs.t27",
+   "file_sha256": "c3a47ae15cf04f1ca3fb372da482d3fff460b1e2b6b544ede2d15f87c0ac6402",
+   "line": 14,
+   "raw_line": "        parts : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        padding : bool,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Base32 = struct {"
+   ],
+   "field": "alphabet",
+   "file": "specs/tri/crypto/base32.t27",
+   "file_sha256": "088cbb8893f0019cef2ff3626aef421d06417126099cd17051ad591cff0d9c0d",
+   "line": 14,
+   "raw_line": "        alphabet : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        padding : bool,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Base64 = struct {"
+   ],
+   "field": "alphabet",
+   "file": "specs/tri/crypto/base64.t27",
+   "file_sha256": "570efb578996b026b3572669478b17ce90e70aee9b0f304f2fce1a5f241ad84e",
+   "line": 14,
+   "raw_line": "        alphabet : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        private_key : [[]U8\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const KeyPair = struct {"
+   ],
+   "field": "public_key",
+   "file": "specs/tri/crypto/crypto.t27",
+   "file_sha256": "6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
+   "line": 14,
+   "raw_line": "        public_key : [[]U8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]U8\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const KeyPair = struct {",
+    "        public_key : [[]U8\","
+   ],
+   "field": "private_key",
+   "file": "specs/tri/crypto/crypto.t27",
+   "file_sha256": "6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
+   "line": 15,
+   "raw_line": "        private_key : [[]U8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]U8\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "context_after": [
+    "        inner : \"SHA256\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const HMAC = struct {"
+   ],
+   "field": "opad",
+   "file": "specs/tri/crypto/hmac.t27",
+   "file_sha256": "357ef72e7b4d971cc3711e664fe4fded7b6ab4514247831507baa0641e3d1eed",
+   "line": 14,
+   "raw_line": "        opad : [[64]U8\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[64]U8\",",
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "context_after": [
+    "        buffer : [[64]U8\",",
+    "        count : \"u64\","
+   ],
+   "context_before": [
+    "",
+    "    pub const SHA256 = struct {"
+   ],
+   "field": "state",
+   "file": "specs/tri/crypto/sha256.t27",
+   "file_sha256": "6433411437aec985707e377addd8284b33da7093824baba08d0ffaf31c3b14d8",
+   "line": 14,
+   "raw_line": "        state : [[8]U32\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[8]U32\",",
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "context_after": [
+    "        count : \"u64\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const SHA256 = struct {",
+    "        state : [[8]U32\","
+   ],
+   "field": "buffer",
+   "file": "specs/tri/crypto/sha256.t27",
+   "file_sha256": "6433411437aec985707e377addd8284b33da7093824baba08d0ffaf31c3b14d8",
+   "line": 15,
+   "raw_line": "        buffer : [[64]U8\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[64]U8\",",
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        degree : \"usize\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const BezierCurve = struct {"
+   ],
+   "field": "control",
+   "file": "specs/tri/math/bezier.t27",
+   "file_sha256": "4f0ae1c180bc369bd06c7f4535ef6a201c37798184ff864bfef6ef436ee95562",
+   "line": 19,
+   "raw_line": "        control : [[]Point\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Point\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        rows : \"usize\",",
+    "        cols : \"usize\","
+   ],
+   "context_before": [
+    "",
+    "    pub const Matrix = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/math/matrix.t27",
+   "file_sha256": "d7cfa970509a60bdda062871dcd0abf5880616d6688656c59706fddc9e92c7fd",
+   "line": 14,
+   "raw_line": "        data : [[]F64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]F64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Polynomial = struct {"
+   ],
+   "field": "coeffs",
+   "file": "specs/tri/math/polynomial.t27",
+   "file_sha256": "12f3f821850c7aa6ffb4eb00599f8f0adeb53f0017808197e363d8a71014a288",
+   "line": 14,
+   "raw_line": "        coeffs : [[]F64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]F64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        parent : [[]?Usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const DijkstraResult = struct {"
+   ],
+   "field": "distance",
+   "file": "specs/tri/graph/dijkstra.t27",
+   "file_sha256": "44044c9787eb731200c48f4bdcd52daf48854b92a7273fba511aa5316ee88ad0",
+   "line": 14,
+   "raw_line": "        distance : [[]F64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]F64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-06dafedd",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const DijkstraResult = struct {",
+    "        distance : [[]F64\","
+   ],
+   "field": "parent",
+   "file": "specs/tri/graph/dijkstra.t27",
+   "file_sha256": "44044c9787eb731200c48f4bdcd52daf48854b92a7273fba511aa5316ee88ad0",
+   "line": 15,
+   "raw_line": "        parent : [[]?Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]?Usize\",",
+   "shape": "[[]?X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        rank : [[]Usize\",",
+    "        count : \"usize\","
+   ],
+   "context_before": [
+    "",
+    "    pub const DisjointSet = struct {"
+   ],
+   "field": "parent",
+   "file": "specs/tri/graph/disjoint_set.t27",
+   "file_sha256": "8d9a61646cad919fc95990648024ba90faa9ac2cd644cffc180bbe9222626a31",
+   "line": 14,
+   "raw_line": "        parent : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        count : \"usize\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const DisjointSet = struct {",
+    "        parent : [[]Usize\","
+   ],
+   "field": "rank",
+   "file": "specs/tri/graph/disjoint_set.t27",
+   "file_sha256": "8d9a61646cad919fc95990648024ba90faa9ac2cd644cffc180bbe9222626a31",
+   "line": 15,
+   "raw_line": "        rank : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-c580e907",
+   "context_after": [
+    "        directed : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Graph(T) = struct {"
+   ],
+   "field": "nodes",
+   "file": "specs/tri/graph/graph.t27",
+   "file_sha256": "8f72ef2f6711c80cfc323ea331747896aa0fb996af8ed2d8585a65fc45619d82",
+   "line": 14,
+   "raw_line": "        nodes : [std.HashMap(T, []T)\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[std.HashMap(T, []T)\",",
+   "shape": "[X.X(X, []X)\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        cost : \"f64\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const GraphPath = struct {"
+   ],
+   "field": "nodes",
+   "file": "specs/tri/graph/graph.t27",
+   "file_sha256": "8f72ef2f6711c80cfc323ea331747896aa0fb996af8ed2d8585a65fc45619d82",
+   "line": 19,
+   "raw_line": "        nodes : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Graph = struct {"
+   ],
+   "field": "adj",
+   "file": "specs/tri/graph/graph_bfs.t27",
+   "file_sha256": "5d0df89b1a1bde5f8d5fa4733b3ad09250d5600bd1d0d8f9c31966a2f1db3827",
+   "line": 14,
+   "raw_line": "        adj : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        distance : [[]Usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const BFSResult = struct {"
+   ],
+   "field": "order",
+   "file": "specs/tri/graph/graph_bfs.t27",
+   "file_sha256": "5d0df89b1a1bde5f8d5fa4733b3ad09250d5600bd1d0d8f9c31966a2f1db3827",
+   "line": 19,
+   "raw_line": "        order : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const BFSResult = struct {",
+    "        order : [[]Usize\","
+   ],
+   "field": "distance",
+   "file": "specs/tri/graph/graph_bfs.t27",
+   "file_sha256": "5d0df89b1a1bde5f8d5fa4733b3ad09250d5600bd1d0d8f9c31966a2f1db3827",
+   "line": 20,
+   "raw_line": "        distance : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        postorder : [[]Usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const DFSResult = struct {"
+   ],
+   "field": "preorder",
+   "file": "specs/tri/graph/graph_dfs.t27",
+   "file_sha256": "09b5968ba0895ab7842bfce9087e1733c4a0e4cef7d02ba04021aea8e776434e",
+   "line": 14,
+   "raw_line": "        preorder : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const DFSResult = struct {",
+    "        preorder : [[]Usize\","
+   ],
+   "field": "postorder",
+   "file": "specs/tri/graph/graph_dfs.t27",
+   "file_sha256": "09b5968ba0895ab7842bfce9087e1733c4a0e4cef7d02ba04021aea8e776434e",
+   "line": 15,
+   "raw_line": "        postorder : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        total_weight : \"i64\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const MSTResult = struct {"
+   ],
+   "field": "edges",
+   "file": "specs/tri/graph/prims_mst.t27",
+   "file_sha256": "642d11214c510192057a915200d03aa793e184955d215b1c8a0152b627e1f8da",
+   "line": 14,
+   "raw_line": "        edges : [[]Edge\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Edge\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        has_cycle : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const TopologicalSort = struct {"
+   ],
+   "field": "order",
+   "file": "specs/tri/graph/topological_sort.t27",
+   "file_sha256": "618fcd45d00e8ffa4efbd5d1be35ae3a641b317f50f6344407e918064fa7f7bc",
+   "line": 14,
+   "raw_line": "        order : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        children : [[]?*BTreeNode\",",
+    "        leaf : \"bool\","
+   ],
+   "context_before": [
+    "",
+    "    pub const BTreeNode = struct {"
+   ],
+   "field": "keys",
+   "file": "specs/tri/trees/b_tree.t27",
+   "file_sha256": "421fe9ec4300007ac244ce16b0b57ef39b3401e494e08082defe73bb797997bc",
+   "line": 14,
+   "raw_line": "        keys : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-546b13cd",
+   "context_after": [
+    "        leaf : \"bool\",",
+    "        count : \"usize\","
+   ],
+   "context_before": [
+    "    pub const BTreeNode = struct {",
+    "        keys : [[]Usize\","
+   ],
+   "field": "children",
+   "file": "specs/tri/trees/b_tree.t27",
+   "file_sha256": "421fe9ec4300007ac244ce16b0b57ef39b3401e494e08082defe73bb797997bc",
+   "line": 15,
+   "raw_line": "        children : [[]?*BTreeNode\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]?*BTreeNode\",",
+   "shape": "[[]?*X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        size : \"usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const FenwickTree = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/trees/fenwick_tree.t27",
+   "file_sha256": "689d3e8dfffa09bc98609a75404dcfcb83cecbc18087b05b8a5a94e0bfe77ae0",
+   "line": 14,
+   "raw_line": "        data : [[]I64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]I64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        axis : \"usize\",",
+    "        left : \"?KDNode\","
+   ],
+   "context_before": [
+    "",
+    "    pub const KDNode = struct {"
+   ],
+   "field": "point",
+   "file": "specs/tri/trees/kd_tree.t27",
+   "file_sha256": "ac3052b6c5dab2c3ee103ce3f0cc6941865cd766c1fd12a1c4cc712c283b7c32",
+   "line": 14,
+   "raw_line": "        point : [[]F64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]F64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-c349b5d1",
+   "context_after": [
+    "        data : \"?void\",",
+    "        divided : \"bool\","
+   ],
+   "context_before": [
+    "    pub const OctNode = struct {",
+    "        bounds : \"BBox\","
+   ],
+   "field": "children",
+   "file": "specs/tri/trees/octree.t27",
+   "file_sha256": "d2cf6df1b58bd432a6a45baf815781216cfad662bbbbb64e090248d8d00c80f3",
+   "line": 24,
+   "raw_line": "        children : [[8]?OctNode\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[8]?OctNode\",",
+   "shape": "[[9]?X\","
+  },
+  {
+   "class_id": "DC-c349b5d1",
+   "context_after": [
+    "        points : [[][2,",
+    "        divided : \"bool\","
+   ],
+   "context_before": [
+    "    pub const QuadNode = struct {",
+    "        boundary : \"Rect\","
+   ],
+   "field": "children",
+   "file": "specs/tri/trees/quadtree.t27",
+   "file_sha256": "0b9a0c9e250bda8456bac8e3609bd8a3294e0d902dad9c91dc10fd569f554b03",
+   "line": 22,
+   "raw_line": "        children : [[4]?QuadNode\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[4]?QuadNode\",",
+   "shape": "[[9]?X\","
+  },
+  {
+   "class_id": "DC-801c2390",
+   "context_after": [
+    "        divided : \"bool\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "        boundary : \"Rect\",",
+    "        children : [[4]?QuadNode\","
+   ],
+   "field": "points",
+   "file": "specs/tri/trees/quadtree.t27",
+   "file_sha256": "0b9a0c9e250bda8456bac8e3609bd8a3294e0d902dad9c91dc10fd569f554b03",
+   "line": 23,
+   "raw_line": "        points : [[][2,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][2,",
+   "shape": "[[][9,"
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        is_leaf : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const RTreeNode = struct {",
+    "        rect : \"Rect\","
+   ],
+   "field": "children",
+   "file": "specs/tri/trees/rtree.t27",
+   "file_sha256": "ff560d230e72de0accc0dfc8ed0cfb464934225c77ed13e6cae4aa0ec303e68e",
+   "line": 22,
+   "raw_line": "        children : [[]RTreeNode\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]RTreeNode\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        size : \"usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const SegmentTree = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/trees/segment_tree.t27",
+   "file_sha256": "dd8ebf2929c0c7d105676201c2afd5fac1315064085a50029c8472d3436934d8",
+   "line": 14,
+   "raw_line": "        data : [[]I64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]I64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const SuffixArray = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/trees/suffix_array.t27",
+   "file_sha256": "f9a84a52ce9586dd5e0ba1bc9a768a0e942871ab1cc63b61712304e9c48dfc55",
+   "line": 14,
+   "raw_line": "        data : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-f918a784",
+   "context_after": [
+    "        fail : \"*ACTrieNode\",",
+    "        output : [[][,"
+   ],
+   "context_before": [
+    "",
+    "    pub const ACTrieNode = struct {"
+   ],
+   "field": "children",
+   "file": "specs/tri/search/aho_corasick.t27",
+   "file_sha256": "366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
+   "line": 14,
+   "raw_line": "        children : [[256]?*ACTrieNode\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[256]?*ACTrieNode\",",
+   "shape": "[[9]?*X\","
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        char : \"u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        children : [[256]?*ACTrieNode\",",
+    "        fail : \"*ACTrieNode\","
+   ],
+   "field": "output",
+   "file": "specs/tri/search/aho_corasick.t27",
+   "file_sha256": "366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
+   "line": 16,
+   "raw_line": "        output : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        allocator : \"std.mem.Allocator\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const ACAutomaton = struct {",
+    "        root : \"*ACTrieNode\","
+   ],
+   "field": "patterns",
+   "file": "specs/tri/search/aho_corasick.t27",
+   "file_sha256": "366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
+   "line": 22,
+   "raw_line": "        patterns : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        hash_count : \"usize\",",
+    "        size : \"usize\","
+   ],
+   "context_before": [
+    "",
+    "    pub const BloomFilter = struct {"
+   ],
+   "field": "bits",
+   "file": "specs/tri/search/bloom_filter.t27",
+   "file_sha256": "e88d868bf244cdbf0a0312f6afcdd769f8cb119851c811e8fe4131db2f58b776",
+   "line": 14,
+   "raw_line": "        bits : [[]Bool\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Bool\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "context_after": [
+    "        pattern_len : \"usize\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const BMBadChar = struct {"
+   ],
+   "field": "table",
+   "file": "specs/tri/search/boyer_moore.t27",
+   "file_sha256": "baf22f7136a669ca3528ffa121bfb755ce02221a4ede00c7811e49500542dfbb",
+   "line": 14,
+   "raw_line": "        table : [[256]Usize\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[256]Usize\",",
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        pattern : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const KMPPrefix = struct {"
+   ],
+   "field": "table",
+   "file": "specs/tri/search/knuth_morris_pratt.t27",
+   "file_sha256": "fa851daf9a4c4b0e8cfb4a215dc741378e0756711cb98986e2f2c8000266a4e8",
+   "line": 14,
+   "raw_line": "        table : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const KMPPrefix = struct {",
+    "        table : [[]Usize\","
+   ],
+   "field": "pattern",
+   "file": "specs/tri/search/knuth_morris_pratt.t27",
+   "file_sha256": "fa851daf9a4c4b0e8cfb4a215dc741378e0756711cb98986e2f2c8000266a4e8",
+   "line": 15,
+   "raw_line": "        pattern : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        compiled : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Regex = struct {"
+   ],
+   "field": "pattern",
+   "file": "specs/tri/search/regex.t27",
+   "file_sha256": "4e0b80ad075dac6274040a5327d17244dc1e1206368598cccc5883d96de30ccb",
+   "line": 14,
+   "raw_line": "        pattern : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        start : \"usize\",",
+    "        end : \"usize\","
+   ],
+   "field": "groups",
+   "file": "specs/tri/search/regex.t27",
+   "file_sha256": "4e0b80ad075dac6274040a5327d17244dc1e1206368598cccc5883d96de30ccb",
+   "line": 21,
+   "raw_line": "        groups : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-83e0cb30",
+   "context_after": [
+    "        start : \"usize\",",
+    "        end : \"usize\","
+   ],
+   "context_before": [
+    "    pub const RegexMatch = struct {",
+    "        matched : \"bool\","
+   ],
+   "field": "groups",
+   "file": "specs/tri/search/regex_advanced.t27",
+   "file_sha256": "e8cdd8c7cc567ec42e6d72b5264bcabc59a1460a07e8957c36cdcf6f14edf837",
+   "line": 19,
+   "raw_line": "        groups : [[][,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[][,",
+   "shape": "[[][,"
+  },
+  {
+   "class_id": "DC-774471d4",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        max_alerts : usize,",
+    "        auto_heal : bool,"
+   ],
+   "field": "log_file",
+   "file": "specs/tri/agent/eternal_monitor.t27",
+   "file_sha256": "b5afb6170a5befb94ac33558fa795f236dd6075d9e05f6a0dd2e673d05aba069",
+   "line": 25,
+   "raw_line": "        log_file : [?[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[?[]Const u8\",",
+   "shape": "[?[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        severity : Severity,",
+    "        message : [[]Const u8\","
+   ],
+   "context_before": [
+    "    pub const Alert = struct {",
+    "        timestamp : i64,"
+   ],
+   "field": "component",
+   "file": "specs/tri/agent/eternal_monitor.t27",
+   "file_sha256": "b5afb6170a5befb94ac33558fa795f236dd6075d9e05f6a0dd2e673d05aba069",
+   "line": 30,
+   "raw_line": "        component : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        resolved : bool,",
+    "    };"
+   ],
+   "context_before": [
+    "        component : [[]Const u8\",",
+    "        severity : Severity,"
+   ],
+   "field": "message",
+   "file": "specs/tri/agent/eternal_monitor.t27",
+   "file_sha256": "b5afb6170a5befb94ac33558fa795f236dd6075d9e05f6a0dd2e673d05aba069",
+   "line": 32,
+   "raw_line": "        message : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        build_broken : bool,",
+    "        timestamp : i64,"
+   ],
+   "field": "agents",
+   "file": "specs/tri/agent/faculty_board.t27",
+   "file_sha256": "9e12c1f5268143af7f4026346e22ae9fcd63218aefbebbfe503316e9e295c32e",
+   "line": 24,
+   "raw_line": "        agents : [[]AgentStatus\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]AgentStatus\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        files : [[]Const [,",
+    "        approach : String,"
+   ],
+   "context_before": [
+    "    pub const PlannerOutput = struct {",
+    "        issue_number : UInt32,"
+   ],
+   "field": "subtasks",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 15,
+   "raw_line": "        subtasks : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        approach : String,",
+    "        spec_path : String,"
+   ],
+   "context_before": [
+    "        issue_number : UInt32,",
+    "        subtasks : [[]Const [,"
+   ],
+   "field": "files",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 16,
+   "raw_line": "        files : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        commits : [[]Const [,",
+    "        lines_added : UInt32,"
+   ],
+   "context_before": [
+    "        issue_number : UInt32,",
+    "        branch : String,"
+   ],
+   "field": "files_modified",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 28,
+   "raw_line": "        files_modified : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        lines_added : UInt32,",
+    "        lines_removed : UInt32,"
+   ],
+   "context_before": [
+    "        branch : String,",
+    "        files_modified : [[]Const [,"
+   ],
+   "field": "commits",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 29,
+   "raw_line": "        commits : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        iteration : UInt8,",
+    "        max_iterations : UInt8,"
+   ],
+   "context_before": [
+    "        issue_number : UInt32,",
+    "        approved : Bool,"
+   ],
+   "field": "feedback",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 41,
+   "raw_line": "        feedback : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        timestamp : Int64,",
+    "        cost_tokens_in : UInt64,"
+   ],
+   "context_before": [
+    "        iteration : UInt8,",
+    "        max_iterations : UInt8,"
+   ],
+   "field": "files_reviewed",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 44,
+   "raw_line": "        files_reviewed : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        regressions : [[]Const [,",
+    "        timestamp : Int64,"
+   ],
+   "context_before": [
+    "        tests_passed : UInt32,",
+    "        tests_total : UInt32,"
+   ],
+   "field": "benchmarks",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 55,
+   "raw_line": "        benchmarks : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-72bb7dcf",
+   "context_after": [
+    "        timestamp : Int64,",
+    "    };"
+   ],
+   "context_before": [
+    "        tests_total : UInt32,",
+    "        benchmarks : [[]Const [,"
+   ],
+   "field": "regressions",
+   "file": "specs/tri/agent/handoff.t27",
+   "file_sha256": "08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+   "line": 56,
+   "raw_line": "        regressions : [[]Const [,",
+   "reasons": [
+    "doubled-bracket"
+   ],
+   "rhs": "[[]Const [,",
+   "shape": "[[]X [,"
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        capacity : usize,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Bitmap = struct {"
+   ],
+   "field": "bits",
+   "file": "specs/tri/collections/bitmap.t27",
+   "file_sha256": "afd5d67ecd9d8c1810b896e0d522f3ef6fbbad00717a26b19edbf7d3b766e31d",
+   "line": 14,
+   "raw_line": "        bits : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        size : \"usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const Bitset = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/collections/bitset.t27",
+   "file_sha256": "f6e28351c3de17a876cbe077207413866dafddb5b1251c5e6b54f1ed9d3bcb11",
+   "line": 14,
+   "raw_line": "        data : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        length : usize,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const BitVector = struct {"
+   ],
+   "field": "bits",
+   "file": "specs/tri/collections/bitvector.t27",
+   "file_sha256": "435342ddd91e9a68767defaeab6d9b67279c50dd763056187d89210081b4026e",
+   "line": 14,
+   "raw_line": "        bits : [[]Usize\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Usize\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        values : [[]V\",",
+    "        children : [[]BTreeNode(K, V)\","
+   ],
+   "context_before": [
+    "",
+    "    pub const BTreeNode(K, V) = struct {"
+   ],
+   "field": "keys",
+   "file": "specs/tri/collections/btree.t27",
+   "file_sha256": "0539a5ff094636b4c10db13d2246f53c1bf80f62a74e468107969e6f9f28020c",
+   "line": 19,
+   "raw_line": "        keys : [[]K\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]K\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        children : [[]BTreeNode(K, V)\",",
+    "        leaf : \"bool\","
+   ],
+   "context_before": [
+    "    pub const BTreeNode(K, V) = struct {",
+    "        keys : [[]K\","
+   ],
+   "field": "values",
+   "file": "specs/tri/collections/btree.t27",
+   "file_sha256": "0539a5ff094636b4c10db13d2246f53c1bf80f62a74e468107969e6f9f28020c",
+   "line": 20,
+   "raw_line": "        values : [[]V\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]V\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-73be92fd",
+   "context_after": [
+    "        leaf : \"bool\",",
+    "    };"
+   ],
+   "context_before": [
+    "        keys : [[]K\",",
+    "        values : [[]V\","
+   ],
+   "field": "children",
+   "file": "specs/tri/collections/btree.t27",
+   "file_sha256": "0539a5ff094636b4c10db13d2246f53c1bf80f62a74e468107969e6f9f28020c",
+   "line": 21,
+   "raw_line": "        children : [[]BTreeNode(K, V)\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]BTreeNode(K, V)\",",
+   "shape": "[[]X(X, X)\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        head : \"usize\",",
+    "        tail : \"usize\","
+   ],
+   "context_before": [
+    "",
+    "    pub const CircularBuffer = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/collections/circular_buffer.t27",
+   "file_sha256": "089c5a092639f361684384a25291fbecdee0b3ba5476d25cd1fc62c2456fabd5",
+   "line": 14,
+   "raw_line": "        data : [[]I64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]I64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        front : \"usize\",",
+    "        back : \"usize\","
+   ],
+   "context_before": [
+    "",
+    "    pub const Deque = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/collections/deque.t27",
+   "file_sha256": "57170d1f89805ebf6a9516326884d6d969770839fe4bc1c39193fbc4d0c50a07",
+   "line": 14,
+   "raw_line": "        data : [[]I64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]I64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "",
+    "    pub const IntervalSet = struct {"
+   ],
+   "field": "intervals",
+   "file": "specs/tri/collections/interval.t27",
+   "file_sha256": "b259aff814f1812bbee828b05567a71fdd57c7be838d4a85bd092b7b7c5a9e40",
+   "line": 20,
+   "raw_line": "        intervals : [[]Interval\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Interval\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        capacity : \"usize\",",
+    "        entries : \"std.HashMap(K, V)\","
+   ],
+   "field": "access_list",
+   "file": "specs/tri/collections/lru.t27",
+   "file_sha256": "00755caba914623ad212f422ad2225f2de28144d0bb190788580e14ee87959ab",
+   "line": 16,
+   "raw_line": "        access_list : [[]K\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]K\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        values : [[]V\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Map(K, V) = struct {"
+   ],
+   "field": "keys",
+   "file": "specs/tri/collections/map.t27",
+   "file_sha256": "7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
+   "line": 14,
+   "raw_line": "        keys : [[]K\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]K\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const Map(K, V) = struct {",
+    "        keys : [[]K\","
+   ],
+   "field": "values",
+   "file": "specs/tri/collections/map.t27",
+   "file_sha256": "7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
+   "line": 15,
+   "raw_line": "        values : [[]V\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]V\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        size : \"usize\",",
+    "        allocator : \"std.mem.Allocator\","
+   ],
+   "context_before": [
+    "",
+    "    pub const PriorityQueue = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/collections/priority_queue.t27",
+   "file_sha256": "9bab098fcc7065874c346143e85bec43b9966b0669b6647871e573c7a90ed6c9",
+   "line": 14,
+   "raw_line": "        data : [[]I64\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]I64\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        back : [[]T\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Queue(T) = struct {"
+   ],
+   "field": "front",
+   "file": "specs/tri/collections/queue.t27",
+   "file_sha256": "3175c9ed4dcef7978d7d871df08836c40c88965cb9c45b83d6d9c53fa8a9d463",
+   "line": 14,
+   "raw_line": "        front : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const Queue(T) = struct {",
+    "        front : [[]T\","
+   ],
+   "field": "back",
+   "file": "specs/tri/collections/queue.t27",
+   "file_sha256": "3175c9ed4dcef7978d7d871df08836c40c88965cb9c45b83d6d9c53fa8a9d463",
+   "line": 15,
+   "raw_line": "        back : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        head : usize,",
+    "        tail : usize,"
+   ],
+   "context_before": [
+    "",
+    "    pub const Ring(T) = struct {"
+   ],
+   "field": "buffer",
+   "file": "specs/tri/collections/ring_buffer.t27",
+   "file_sha256": "87c586fbef0a7b22b2f6e5f6741a345695bfd9ca5e36a7e510561632b37b7348",
+   "line": 14,
+   "raw_line": "        buffer : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-ab5c5903",
+   "context_after": [
+    "        level : \"usize\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const SkipNode(T) = struct {",
+    "        value : \"T\","
+   ],
+   "field": "forward",
+   "file": "specs/tri/collections/skip_list.t27",
+   "file_sha256": "3cfdb7e154b5a0ec8d0a825f265b1f5e165af4ae3c19b5c499efc9f5a61a170b",
+   "line": 15,
+   "raw_line": "        forward : [[]?SkipNode(T)\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]?SkipNode(T)\",",
+   "shape": "[[]?X(X)\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "",
+    "    pub const Stack(T) = struct {"
+   ],
+   "field": "items",
+   "file": "specs/tri/collections/stack.t27",
+   "file_sha256": "d9c36841edfb5e75ee74a6e948fccf724656ad0d6bebc169bddd6dc3fbdc7f65",
+   "line": 14,
+   "raw_line": "        items : [[]T\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]T\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        value : T,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Variant(T) = struct {"
+   ],
+   "field": "tag",
+   "file": "specs/tri/collections/variant.t27",
+   "file_sha256": "1280493ead77ca373c85b07e35b10a460fb7ad6f387b0820d9925ac38d4f1167",
+   "line": 14,
+   "raw_line": "        tag : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "        owned : bool,",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Bytes = struct {"
+   ],
+   "field": "data",
+   "file": "specs/tri/utils/bytes.t27",
+   "file_sha256": "53bbef23b5864bc8ac792977e15c4f55f1c4db021acdb360b2c3a5005bdd5a60",
+   "line": 14,
+   "raw_line": "        data : [[]U8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]U8\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        timestamp : \"Instant\",",
+    "        level : \"Level\","
+   ],
+   "field": "message",
+   "file": "specs/tri/utils/logger.t27",
+   "file_sha256": "58c449a8aac8f2fbae73fa7c67532d9f4cded68e794aa154862031f3e2893da1",
+   "line": 20,
+   "raw_line": "        message : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "    pub const Logger = struct {",
+    "        min_level : \"Level\","
+   ],
+   "field": "writers",
+   "file": "specs/tri/utils/logger.t27",
+   "file_sha256": "58c449a8aac8f2fbae73fa7c67532d9f4cded68e794aa154862031f3e2893da1",
+   "line": 25,
+   "raw_line": "        writers : [[]LogWriter\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]LogWriter\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-d9efbc31",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "",
+    "    pub const Template = struct {"
+   ],
+   "field": "parts",
+   "file": "specs/tri/utils/template.t27",
+   "file_sha256": "d0d82d46597a79fe8374c729404485f5c7933868c035726234c1d3d8cbcd22d2",
+   "line": 14,
+   "raw_line": "        parts : [[]TemplatePart\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]TemplatePart\",",
+   "shape": "[[]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        variable : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "    pub const TemplatePart = struct {",
+    "        is_literal : \"bool\","
+   ],
+   "field": "text",
+   "file": "specs/tri/utils/template.t27",
+   "file_sha256": "d0d82d46597a79fe8374c729404485f5c7933868c035726234c1d3d8cbcd22d2",
+   "line": 19,
+   "raw_line": "        text : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        is_literal : \"bool\",",
+    "        text : [[]Const u8\","
+   ],
+   "field": "variable",
+   "file": "specs/tri/utils/template.t27",
+   "file_sha256": "d0d82d46597a79fe8374c729404485f5c7933868c035726234c1d3d8cbcd22d2",
+   "line": 20,
+   "raw_line": "        variable : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-7247f52e",
+   "context_after": [
+    "        len : \"u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "",
+    "    pub const Rune = struct {"
+   ],
+   "field": "bytes",
+   "file": "specs/tri/utils/utf8.t27",
+   "file_sha256": "f478a091aadf9aa5cb78ce6aef9f4b1847c734db395a74151cab5f69b864b4b1",
+   "line": 18,
+   "raw_line": "        bytes : [[4]U8\",",
+   "reasons": [
+    "odd-quote"
+   ],
+   "rhs": "[[4]U8\",",
+   "shape": "[[9]X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "        build : [[]Const u8\",",
+    "    };"
+   ],
+   "context_before": [
+    "        minor : \"usize\",",
+    "        patch : \"usize\","
+   ],
+   "field": "prerelease",
+   "file": "specs/tri/utils/version.t27",
+   "file_sha256": "18088d7e682e849ca9b7fe9827bc5d7927ab4f0a2332833c1999f4fec193caff",
+   "line": 17,
+   "raw_line": "        prerelease : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  },
+  {
+   "class_id": "DC-b8514836",
+   "context_after": [
+    "    };",
+    ""
+   ],
+   "context_before": [
+    "        patch : \"usize\",",
+    "        prerelease : [[]Const u8\","
+   ],
+   "field": "build",
+   "file": "specs/tri/utils/version.t27",
+   "file_sha256": "18088d7e682e849ca9b7fe9827bc5d7927ab4f0a2332833c1999f4fec193caff",
+   "line": 18,
+   "raw_line": "        build : [[]Const u8\",",
+   "reasons": [
+    "doubled-bracket",
+    "odd-quote"
+   ],
+   "rhs": "[[]Const u8\",",
+   "shape": "[[]X X\","
+  }
+ ],
+ "tool": "tri damage-freeze"
+}
