@@ -1,0 +1,63 @@
+# A loop tool that exists only in one working directory is not in the project.
+#
+# scripts/tri_loop/cost.py and diffbin.py were written, used to produce numbers
+# that were quoted in a pull request, and lost -- never committed, and the working
+# copy was later re-cloned. Every figure they had produced became unreproducible
+# at once. Six recovery routes came back empty (#2158).
+#
+# Nothing in CI could tell the difference between a tool that exists and a tool
+# that exists nowhere but one untracked directory. This gate is that difference.
+# It is deliberately cheap: no build, no compiler, no corpus run, so there is no
+# reason for it to be skipped or made optional.
+name: loop-tools-gate
+
+on:
+  pull_request:
+    paths:
+      - "scripts/tri"
+      - "scripts/tri_loop/**"
+      - "scripts/ci/loop-tools-tracked.sh"
+      - ".github/workflows/loop-tools-gate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "scripts/tri"
+      - "scripts/tri_loop/**"
+      - "scripts/ci/loop-tools-tracked.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  loop-tools-tracked:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check reads git index state, so it needs real history rather than
+          # a detached blob export.
+          fetch-depth: 1
+
+      - name: Every loop tool is present, tracked, and routed
+        run: bash scripts/ci/loop-tools-tracked.sh
+
+      - name: Each loop helper is syntactically loadable
+        # A tracked tool that cannot be imported is tracked and useless. This is
+        # a syntax check only and asserts nothing about behaviour.
+        run: |
+          for f in scripts/tri_loop/*.py; do
+            python3 -c "import py_compile,sys; py_compile.compile('$f', doraise=True)" \
+              && echo "ok       $f" \
+              || { echo "BROKEN   $f"; exit 1; }
+          done
+
+      - name: The dispatcher runs its helpers without a built compiler
+        # tri triage and tri damage read the tracker and the spec text and have no
+        # use for t27c. The dispatcher used to look for the binary first and
+        # refuse to run them on a machine with no build, so this step exists to
+        # keep that ordering from coming back. There is no compiler in this job,
+        # which is the whole point.
+        run: |
+          ./scripts/tri loop-help
+          ./scripts/tri damage specs >/dev/null || true
+          echo "ok       helpers dispatch with no t27c present"

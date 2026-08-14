@@ -1,3 +1,19 @@
+# NOW -- the loop tools are in the repository, and the differential now names the loss (2026-08-15)
+
+Last updated: 2026-08-15
+
+## tooling: restore tri cost and tri diffbin, and stop aggregating field loss to zero (Closes #2158)
+
+- **Two measurement tools were lost, and with them every number they had produced.** `scripts/tri_loop/cost.py` and `diffbin.py` were written, quoted in a pull request, and never committed; the working copy was later re-cloned. Six recovery routes came back empty: dangling git objects held only a `git stash` WIP with `triage.py`, the reflog records the clone rather than the content, shell history is absent, CI artifacts hold only FPGA outputs, no PR or issue comment carries the source, and the session snapshot preserves prose about the scripts instead of the scripts. They are reimplemented here from a written contract, not reconstructed from memory
+- **`tri diffbin` no longer produces a single verdict.** Five categories, matched in order: `unchanged`, `field-loss`, `strict-improvement`, `malformed-input-tradeoff`, `unknown`. `field-loss` is tested BEFORE `strict-improvement`, so a change that removes a phantom field and also drops a declared one is a loss and not an improvement, and it is never folded into another count
+- **The discrimination that the old aggregate missed: a removed field is a phantom only if its type text in the base was EMPTY.** That is the signature of an identifier lifted out of a type argument list; a removed field with a non-empty base type was declared by the author and its removal is a loss. Counting fields alone cannot tell the two apart
+- **Re-measured, same 634 specs, same two binaries: 616 unchanged, 13 field-loss, 1 strict-improvement, 4 malformed-input-tradeoff, 0 unknown.** The previous tool reported "0 regressions" over this identical corpus. `specs/tri/agent/handoff.t27` goes from 35 parsed fields to 12
+- **All 17 files whose field sets moved are inside the damaged set, and no well-formed spec changed at all.** 13 of 13 `field-loss` and 4 of 4 `malformed-input-tradeoff` are files that carry a mangled type annotation. `0 unknown` is the load-bearing number: no clean input changed behaviour
+- **`tri cost` reports per stratum and refuses a cross-family exponent.** n, median, p95, min-max ms/KB and coefficient of variation per spec family; alpha only at n >= 8, printed with its r2 and its KB range. A single exponent across strata is a metric of corpus composition rather than of the parser (#2133), so it is not printed at all -- a number gets quoted and its caveat does not travel with it
+- **`tri damage` classifies the corrupt annotations by shape instead of repairing them (#2154).** 125 lines in 65 files, 15 distinct shapes; one emitted fixture per shape. The first draft of the classifier reported 429 lines, of which 230 were `target : < 5000ns` -- a legitimate less-than bound. Two signals survive, `[[]` and an odd `"`, and the fix was deleting the bad signals rather than tuning a threshold
+- **`scripts/ci/loop-tools-tracked.sh` makes the loss impossible rather than regrettable.** It fails when a loop tool is missing, when it exists but git does not track it, when anything under `scripts/tri_loop/` is untracked, or when the generic dispatch line is gone. Verified to fail in exactly the pre-loss state
+- **The dispatcher looked for a built compiler before dispatching helpers that do not use one.** `tri triage` and `tri damage` read the tracker and the spec text; on a machine with no build they refused to run. Loop dispatch now precedes the binary lookup
+
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
 Last updated: 2026-08-09
