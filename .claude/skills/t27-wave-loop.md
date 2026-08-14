@@ -8599,6 +8599,28 @@ These cost a wave each. Follow them before step 1.
      `fn diff_text`), not a parameter. Same remedy, different node. Name the
      new root rather than widening the old fix to cover it blind.
 
+761. **AN INCONSISTENT EMITTED FILE IS WORSE THAN A REJECTED ONE.** Extending
+     the shadow rename to test blocks renamed REFERENCES while the binding site
+     kept its old name: three specs went from "local variable shadows
+     declaration" to "use of undeclared identifier". The first says the file is
+     consistent and Zig objects; the second says the generator contradicted
+     itself. **Revert rather than patch forward.**
+
+762. **THREE EDITS WITHOUT CONVERGENCE IS THE SIGNAL TO STOP.** Collector,
+     then test/bench population, then the binding site -- and the failure did
+     not move. Reverting to the last verified state kept memory.t27's 15 tests
+     and left nine specs on their ORIGINAL error, with nothing self-inflicted.
+
+763. **A TEST BLOCK'S FIRST ASSIGNMENT IS `StmtAssign`, NOT `StmtLocal`.** The
+     generator says so in its own comment, and it is why a fn-body fix does not
+     transfer. Nine of the ten specs in the class are `*_tb.t27`, so the shape
+     of the class -- not its size -- decided what was possible.
+
+764. **RECORD THE LIMIT IN THE CODE.** `collect_shadowing_locals` carries its
+     scope, the reverted attempt and the nine remaining specs in its doc
+     comment. A limitation that lives only in a wave report is one the next
+     wave rediscovers -- this session rediscovered four already.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -13737,4 +13737,59 @@ parameter"**: the discard emitted for an unused parameter still printed the
 
 ---
 
+## Local shadowing: one tenth fixed, and an attempt reverted — W736
+
+### T271 — the class is ten specs, not one
+
+T270 found a *local* variable shadowing a module declaration in `diff.t27` and
+called it a fifth root. Measured across the 131 sources:
+
+```
+memory.t27          'addr_width'      bridge_tb.t27      'rx_ready'
+dft_tb.t27          'test_mode'       fifo_tb.t27        'wr_en'
+formal_tb.t27       'cover_hit'       integration_tb.t27 'all_modules_idle'
+spi_tb.t27          'spi_start'       ternary_isa_tb.t27 'operand_a'
+vcd_trace_tb.t27    'timestamp_ps'    diff.t27           'stats'
+```
+
+**Registered forecast: 2–5 specs.** Measured **ten** — and **nine of them are
+`*_tb.t27` testbenches**, which is the shape that decided the wave.
+
+> **T271.** The W735 rename map extends to locals in a **function body** in four
+> lines, and `memory.t27` — the one spec whose collision is in a fn — now runs
+> **15 tests**. Regression: **145 unchanged**.
+
+### T271a — extending it to test blocks made three specs WORSE, and was reverted
+
+A test or bench block is a Zig function too, so the same treatment should serve.
+It does not, for a reason the generator states in its own comment: **inside a
+test block the first assignment parses as `StmtAssign`, not `StmtLocal`** — the
+binding is lowered to a `const` later.
+
+Two further edits followed, and the second undid the first's benefit:
+
+```
+after extending the collector to StmtAssign:
+   dft_tb, formal_tb, vcd_trace_tb   shadow error  ->  use of undeclared identifier
+```
+
+> **T271a.** **References were renamed while the binding site kept its old
+> name.** That is a strictly worse failure than the one it replaced: a shadow
+> error means the file is consistent and Zig objects; an undeclared identifier
+> means **the file the compiler emitted is internally inconsistent.** A third
+> patch to the binding site did not take, and rather than a fourth, the change
+> was **reverted to the verified state** — `memory.t27`'s 15 tests kept, nine
+> specs returned to their *original* error, nothing self-inflicted left behind.
+
+### T271b — the limit is recorded in the code, not only in the report
+
+> **T271b.** `collect_shadowing_locals` now carries the scope and the reason in
+> its doc comment: only `StmtLocal`, because the `StmtAssign` extension was
+> attempted and reverted, with the nine remaining specs named. **A limitation
+> that lives only in a wave report is a limitation the next wave rediscovers**
+> — this session has rediscovered four such things already (T243, T244a, T248a,
+> T252a).
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

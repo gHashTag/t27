@@ -5392,6 +5392,40 @@ impl Codegen {
         }
     }
 
+    /// Apply any rename in force for the function being emitted.
+    fn renamed(&self, n: &str) -> String {
+        self.param_renames.get(n).cloned().unwrap_or_else(|| n.to_string())
+    }
+
+    /// Local declarations in a FN BODY whose name collides with a container
+    /// declaration. W736 measured ten specs where Zig answers "local variable
+    /// shadows declaration of 'x'". Renaming every occurrence inside the
+    /// function is safe precisely BECAUSE Zig forbids the shadow: the spec
+    /// cannot also be calling the module-level name from here.
+    ///
+    /// SCOPE, and it is a real limit: only `StmtLocal` is collected. Inside a
+    /// test or bench block the same source line parses as `StmtAssign`, and
+    /// extending this to cover that was attempted and REVERTED -- it renamed
+    /// references while the binding site kept its old name, turning a shadow
+    /// error into "use of undeclared identifier", which is worse. Nine specs
+    /// still carry the defect and they are named in T271.
+    fn collect_shadowing_locals(
+        decls: &[Node],
+        module_names: &std::collections::HashSet<String>,
+        out: &mut Vec<String>,
+    ) {
+        for d in decls {
+            if matches!(d.kind, NodeKind::StmtLocal)
+                && !d.name.is_empty()
+                && module_names.contains(d.name.as_str())
+                && !out.contains(&d.name)
+            {
+                out.push(d.name.clone());
+            }
+            Self::collect_shadowing_locals(&d.children, module_names, out);
+        }
+    }
+
     fn gen_decl(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ConstDecl => self.gen_const_decl(node),
@@ -5926,6 +5960,14 @@ impl Codegen {
                 self.param_renames
                     .insert(pname.clone(), format!("{}_arg", pname));
             }
+        }
+
+        // W736: locals shadowing a container declaration are renamed with the
+        // same map and the same reference hook the parameters use.
+        let mut shadow_locals: Vec<String> = Vec::new();
+        Self::collect_shadowing_locals(&node.children, &self.module_decl_names, &mut shadow_locals);
+        for l in shadow_locals {
+            self.param_renames.entry(l.clone()).or_insert(format!("{}_lv", l));
         }
 
         self.write(&format!("fn {}(", node.name));
@@ -6510,7 +6552,7 @@ impl Codegen {
                     } else {
                         self.write("const ");
                     }
-                    self.write(&Self::zig_ident(&node.name));
+                    self.write(&Self::zig_ident(&self.renamed(&node.name)));
                     if !node.extra_type.is_empty() {
                         self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
                     } else if as_var {
@@ -6616,7 +6658,7 @@ impl Codegen {
                         // others. `_ = &name;` is the canonical silencer and is a
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
-                        self.write_line(&format!("_ = &{};", Self::zig_ident(&node.name)));
+                        self.write_line(&format!("_ = &{};", Self::zig_ident(&self.renamed(&node.name))));
                         self.discarded_by_ref.insert(node.name.clone());
                     }
                 }
