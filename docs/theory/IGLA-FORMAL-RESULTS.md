@@ -14470,6 +14470,87 @@ Fan-in sweep at five levels, zero DSP, m=8:
 > measurement.** Five seeds and a bare layer made the curve legible; chasing the
 > non-monotonicity is what exposed T292.
 
+### T297 — `pot9` is not a format name; the format is PoT
+
+Dmitrii asked what `pot9` is. It is an **internal experiment tag** of this
+repository — `powers of two, 9 levels` — introduced in `train_ladder.py` and
+`gen_ladder.py` and never defined anywhere a reader could reach. It was then
+printed in a user-facing "top formats" table as if it were an established name.
+
+> **T297.** The established name is **power-of-two (PoT) quantisation**. The
+> abbreviation is coined in Li, Dong & Wang, *Additive Powers-of-Two
+> Quantization*, ICLR 2020 ([arXiv:1909.13144](https://arxiv.org/abs/1909.13144)),
+> Eq. (3). Priority belongs to Miyashita, Lee & Murmann,
+> [arXiv:1603.01025](https://arxiv.org/abs/1603.01025) (2016) — **a preprint with
+> no peer-reviewed venue; do not upgrade it** — and to Zhou et al., *Incremental
+> Network Quantization*, ICLR 2017
+> ([arXiv:1702.03044](https://arxiv.org/abs/1702.03044)), whose Eq. (1) defines
+> `P_l = {±2^n1, …, ±2^n2, 0}`; at `n1=3, n2=0` that is our set character for
+> character, up to one per-layer power-of-two scale.
+
+**The name covers the family, never the level count.** There is no agreed
+bit-width label for nine levels: INQ's arithmetic makes it 4-bit, APoT's Eq. (3)
+makes it 3-bit, Przewlocka-Rus excludes the sign. **Write the set out** —
+"PoT with a nine-level signed alphabet `W ∈ {0,±1,±2,±4,±8}`" — and declare the
+convention in one sentence. Near-misses that a reviewer will catch:
+
+| do **not** call it | because |
+|---|---|
+| **APoT** | APoT levels are *sums* of PoT terms; the paper exists to replace plain PoT |
+| **INQ** | names a *training procedure*, not an alphabet; `P_l` is unnamed in its source |
+| **ShiftCNN codebook** | cardinality is `2^B − 1 ∈ {1,3,7,15}` — **nine is unreachable** |
+| **LogQuant / logarithmic** | operator is *unsigned*, and its base is free — base-√2 is that paper's better configuration |
+| **DenseShift / shift network** | umbrella term, and DenseShift is deliberately **zero-free** |
+
+> **T297a.** `pot9` stays as a **code identifier** — it is stable, greppable and
+> now documented — and is removed from prose, tables and figures. Renaming
+> identifiers in a spec-first repo with seal hashes is a regeneration, not a
+> `sed`; the cost is real and the benefit is zero to a reader who has the mapping.
+
+### T298 — the fifth false null, and this time the answer was already ours
+
+Four verification agents reported "no evidence found" for golden-ratio
+quantisation. **This file has recorded the opposite since W717.** T225 lists
+*The Golden Ratio Encoder* ([arXiv:0809.1257](https://arxiv.org/abs/0809.1257),
+2008) — a β-encoder with β = φ — and *Fibbinary-Based Compression and
+Quantization* ([arXiv:2511.01921](https://arxiv.org/abs/2511.01921)), with a
+**standing instruction** that no GA-T write-up may describe φ in quantisation as
+unexplored. T225a records the mechanism: a field-prefix-less arXiv query returns
+the same zero a genuine null does.
+
+> **T298. Fifth occurrence of the false-null class**, after `yosys -q`, the
+> reversed `stat` field order, `awk END{print s+0}` and W717. What is new and
+> worse: **the correct answer was in our own theorem file, and thirty agents were
+> spawned to search the world instead.** The generalisation of "when a tool will
+> answer, do not write a regex" is **"when your own record will answer, do not
+> spawn a search"** — and the record must be searched *first*, not used to audit
+> the search afterwards.
+
+> **T298a.** The recurring control is one call and it was skipped again: **search
+> for something known to exist before believing a zero.**
+
+### T299 — the prior art that threatens the surviving claim was never searched
+
+> **T299.** The naming sweep searched what threatens the *withdrawn* φ claim and
+> not what threatens the *surviving* dyadic one. The UNSW-NB15 binarised
+> 593→64→1 benchmark is verbatim the LUT-network line: **LogicNets**
+> ([arXiv:2004.03021](https://arxiv.org/abs/2004.03021), FPL 2020), **PolyLUT**
+> ([arXiv:2309.02334](https://arxiv.org/abs/2309.02334), FPT 2023),
+> **PolyLUT-Add** ([arXiv:2406.04910](https://arxiv.org/abs/2406.04910)),
+> NeuraLUT, FINN. T161 already puts our 83 LUT against PolyLUT-Add's 3336 LUT.
+> **A negative result about φ needs the φ literature; a positive claim about area
+> needs the area literature.** Only the first was run.
+
+### T300 — the design question the naming hid
+
+> **T300.** Nine levels occupy 9 of 16 codes at four bits and waste seven.
+> DenseShift's finding is that **zero earns nothing at low bit-width**: drop it
+> and eight levels fit three bits exactly. Our own T291b points the same way from
+> the accuracy side — the separable task 0v1 gains **+0.02 pp** across the entire
+> ladder. **Whether ternary's zero pays for its code space is an open, measurable
+> question in this repository, and it was never asked** because the discussion
+> was about what to call the alphabet rather than what to put in it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
