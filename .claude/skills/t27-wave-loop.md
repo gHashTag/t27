@@ -7095,6 +7095,23 @@ These cost a wave each. Follow them before step 1.
      quoted them** -- a number in a prior artefact is a claim, not a measurement,
      until someone re-derives it.
 
+485. **A proxy that is fine for a claim is not fine in front of an irreversible
+     action.** `diskUsage <= 64 KB` was used to call eight repositories "empty";
+     counting branches showed TWO hold commits. Wrong in a measurement costs a
+     correction next wave; wrong before a deletion costs data no wave recovers.
+     T150/T150a.
+
+486. **Every number in this project has been a proxy, and five have now been
+     wrong the same way.** `Done 0x1` for "it computes"; diagnostic counts for
+     defect counts (T119); measured depth for independent fixes (T128); flat
+     timing for a setup fault (T143a); `diskUsage` for emptiness (T150). **Name
+     the question the proxy actually answers before quoting it.**
+
+487. **Verify the premise of a request before acting on it.** "Delete the eight
+     empty repos" contained a factual claim -- that all eight are empty -- which
+     one API call per repo refuted for two of them. Checking the premise is part
+     of doing the task, not a delay to it.
+
 ### How to update this tracker
 
 After closing a wave:

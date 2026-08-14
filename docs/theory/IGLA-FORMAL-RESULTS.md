@@ -9358,4 +9358,46 @@ codebase** the inventory already flagged as critical.
 
 ---
 
+### T150 (W687) — "all eight are empty" was two-eighths wrong, and the check cost one command
+
+W686 reported the `zig-half` family as *"eight repositories, every one of them
+empty"*, on the strength of GitHub's `diskUsage` being ≤ 64 KB. Asked to act on
+that, the branches were counted first:
+
+| repo | KB | commits | branches | stars | forks | issues |
+|---|---:|---:|---:|---:|---:|---:|
+| `zig-half` | **33** | **1** | **3** | 0 | 0 | 0 |
+| `zig-half-rs` | **4** | **1** | **2** | 0 | 0 | 0 |
+| `zig-half-base` | 0 | — | **0** | 0 | 0 | 0 |
+| `zig-half-f16` | 0 | — | **0** | 0 | 0 | 0 |
+| `zig-half-lib` | 0 | — | **0** | 0 | 0 | 0 |
+| `zig-half-lib-new` | 0 | — | **0** | 0 | 0 | 0 |
+| `zig-half-lib-v1` | 0 | — | **0** | 0 | 0 | 0 |
+| `zig-half-rust` | 0 | — | **0** | 0 | 0 | 0 |
+
+> **T150.** **Two of the eight hold commits.** `diskUsage ≤ 64 KB` is a proxy for
+> "empty" and it is wrong 25% of the time in this family. **Six have zero
+> branches** — no commit ever landed. The distinction cost one API call per
+> repository and it is the difference between removing six placeholders and
+> destroying two small libraries.
+
+**The general rule this instance illustrates.** Every measurement in this
+document has been a proxy for something: `Done 0x1` for "the fabric computes",
+diagnostic counts for defect counts (T119), measured depth for independent fixes
+(T128), a size sweep's flat timing for a setup fault (T143a). **Each was wrong in
+the same way — the proxy answered a different question than the one being
+asked.** `diskUsage` for "empty" is the fifth.
+
+> **T150a — and the cost of being wrong is not symmetric.** A wrong proxy in a
+> measurement produces a wrong number, which the next wave corrects. **A wrong
+> proxy in front of an irreversible action produces a loss that no wave
+> corrects.** The check before deletion is not the same kind of check as the
+> check before a claim, and it deserves a stricter standard.
+
+**Not deleted.** Removing a repository permanently destroys data, and that
+remains the account owner's action, not this loop's — the verified list and the
+exact commands are in the report instead.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
