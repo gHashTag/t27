@@ -137,6 +137,29 @@ larger than the whole closed accumulation, and pipelining does not save it:
 
 ---
 
+## 3. CLOSED (W743): size beats shape, tenfold
+
+**Three tasks, seven alphabets, 30 seeds each — 630 trained runs.**
+Inverse-variance pooled, Cochran's Q for heterogeneity:
+
+```
+alphabet SHAPE,  7 levels   +0.085 pp   z 5.67   Q 2.2   homogeneous
+alphabet SHAPE,  9 levels   +0.057 pp   z 3.46   Q 6.9   tasks DISAGREE
+alphabet SIZE,  3 -> 9      +0.844 pp   z 33.9   Q 59    direction never varies
+```
+
+**Quote this.** The shape of the alphabet is worth under a tenth of a point; its
+SIZE is worth ten times that. At seven levels the dyadic set is ahead on all
+three tasks (the one replicated shape effect); at nine the tasks disagree.
+
+**Engineering rule:** take the cardinality the area allows, then pick the
+alphabet by COST — at fixed cardinality accuracy is nearly a wash, and on a
+binary fabric the dyadic set is 27% cheaper placed (1103 vs 1509 LUT at K=7).
+
+`{−φ, 0, +φ}` is `φ · GA-T0` and not a rung at all (T209).
+
+---
+
 ## 3. CLOSED (W740): what the GA-T line is worth
 
 **Trained, 30 seeds, UNSW-NB15, fixed threshold, paired t-tests:**

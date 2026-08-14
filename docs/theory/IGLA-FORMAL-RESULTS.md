@@ -14180,4 +14180,67 @@ inference accelerators and can be realized on FPGAs **or ASICs**"*.
 
 ---
 
+## Three tasks, ninety runs, and the size/shape split — W743
+
+Fashion-MNIST binarised at pixel > 127, label *class ≥ 5*, the identical trainer
+and the identical seven alphabets. Three tasks × seven arms × 30 seeds.
+
+### T285 — the arbiter, and a forecast half refuted
+
+```
+comparison        UNSW-NB15        MNIST >= 5       Fashion >= 5
+pot9 - GA-T3    +0.111 t +3.92*   -0.304 t -1.07   +0.031 t +1.51
+pot7 - GA-T2    +0.104 t +4.85*   -0.101 t -0.50   +0.069 t +3.25*
+GA-T3 - GA-T0   +0.874 t+20.93*   +2.141 t+12.24*  +0.784 t+24.88*
+```
+
+**Registered forecast: Fashion patterns with MNIST — no powers-of-two
+advantage — leaving UNSW the exception.**
+
+> **T285. Half refuted.** At **nine** levels Fashion agrees with neither (small,
+> positive, not significant). At **seven** levels the powers-of-two advantage is
+> **significant on Fashion**, so it patterns with UNSW instead. **Two of three
+> tasks show it at K=7; one of three at K=9.** The exception is MNIST, not
+> UNSW — the opposite of what was predicted.
+
+### T286 — pooled: shape is real and small, size is real and ten times larger
+
+Inverse-variance meta-analysis across the three tasks, with Cochran's Q for
+heterogeneity (Q > 5.99 at df = 2 means the tasks measure different effects and
+pooling is unsafe):
+
+```
+effect                   pooled Δ     SE       z      Q
+alphabet SHAPE,  7 lv     +0.085    0.015    5.67    2.2   homogeneous
+alphabet SHAPE,  9 lv     +0.057    0.017    3.46    6.9   HETEROGENEOUS
+alphabet SIZE, 3->9 lv    +0.844    0.025   33.87   59.1   direction never varies
+```
+
+> **T286.** **The shape of the alphabet is worth ~0.085 pp; its size is worth
+> ~0.844 pp. Ten times more.** At seven levels the powers-of-two advantage is
+> **homogeneous across all three tasks** (Q = 2.2) and is the single replicated
+> shape effect this programme has. At nine levels it is significant but the
+> tasks disagree (Q = 6.9), so it must be quoted with that caveat or not at all.
+> Cardinality's Q of 59 says its *magnitude* is task-dependent; its **direction
+> never is** — 3 of 3, always positive, always significant.
+
+### T287 — the engineering consequence, and it is not the one we wanted
+
+> **T287.** **Choose the cardinality your area budget allows, then choose the
+> alphabet by cost, because at fixed cardinality accuracy is nearly a wash.**
+> Ninety runs put the shape effect at under a tenth of a point. On a binary
+> fabric the cheapest set is the dyadic one — 1103 placed LUT at seven levels
+> against GA-T2's 1509 (T283), a **27% area difference for 0.085 pp of
+> accuracy**. The area axis decides, and the area axis belongs to the substrate,
+> not to the alphabet.
+>
+> **What this project can claim, and it is not "our format is best":** a method
+> — five axes, three tasks, ninety trained runs, silicon with a 0→1 acceptance
+> bracket — that separates *what the levels are* from *how many there are* and
+> shows the second dominates the first by an order of magnitude. **That
+> separation is not in the literature**, and it is worth more than a format,
+> because it is what tells anyone which format to pick on their own substrate.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
