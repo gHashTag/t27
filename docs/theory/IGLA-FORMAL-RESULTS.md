@@ -15263,4 +15263,80 @@ the estimated prior lands within 3 points of the true 55.06%.*
 
 ---
 
+## W752 — the first trained network on silicon, and the area we never counted
+
+### T334 — every silicon result before this one ran random weights
+
+> **T334.** T219, T302, T323 and T329 placed, routed, loaded and read back
+> networks whose weights came from `random.Random(seed)`. They proved transport,
+> placement, the acceptance criterion and cross-die agreement. **They never
+> proved that a *trained* network computes on the die**, because **no export path
+> from the trainer to the Verilog existed** until `gen_trained.py`. The claim
+> "our network runs on the FPGA" was, until this wave, "a network of the same
+> shape runs on the FPGA."
+
+Trained 593→16→16→1, exported to integer levels, emitted as Verilog:
+
+| die | layer | LUT | DSP | acceptance |
+|---|---|---:|---:|---|
+| A | 593 features → 16 symbols | **78** | 0 | 0→1 |
+| R | 16 → 16 symbols | **67** | 0 | 0→1 |
+| B | 16 symbols → decision | **87** | 0 | 0→1 |
+| | **total** | **232** | **0** | 3/3 |
+
+Software accuracy of the exported integer network: **78.45%**.
+
+### T335 — the output layer was never counted, and it is not small
+
+> **T335.** The output neuron costs **87 LUT — more than either hidden layer.**
+> Every area figure this project has published — **128 LUT (T321), 770 LUT
+> (T331), 512 LUT, 1024 LUT** — was produced by `gen_sparse.py`, which emits a
+> layer of `m` neurons and **no output stage at all.** The decision neuron existed
+> only in the Python model. **Those numbers are hidden-layer areas presented as
+> system areas**, and the correction is roughly **+90 LUT to every one of them.**
+
+> **T335a. The six-bit rule decides the FORM, not only the fan-in.** The output
+> neuron reads 16 ternary symbols = **32 bits**, i.e. a truth table of **4.3
+> billion entries**. The generator hung, which is how this was found. A wide layer
+> earns the table trick because 2 LUT/neuron multiplies by the width; **a single
+> decision neuron must be an adder tree**, and at 87 LUT it is affordable exactly
+> once.
+
+### T336 — the multi-chunk input path is defective, and precisely so
+
+A 593-bit row does not fit the 31-bit payload (T324), so die A carries a 593-bit
+register loaded 31 bits per UPDATE, twenty passes per row.
+
+| input | silicon vs model |
+|---|---|
+| all zeros | **exact match** (`0x74301CC7`) |
+| all ones | **exact match** (`0xDC10344D`) |
+| any real UNSW row | **10 of 16 neurons disagree** |
+
+> **T336.** The two inputs that are invariant to bit ORDER match exactly, and
+> every input that is not, fails. **The defect is in the ordering of bits within
+> the shift register, not in the shift count, the truth tables, or the export** —
+> those are all confirmed by the two matching cases. Tested and refuted: chunk
+> order forward, chunk order reversed, and offsets of −1, 0 and +1 bits (0/6 rows
+> each). **Open, localised, and not guessed at further.**
+
+> **T336a. The forecast said what a failure would mean, and it was half right.**
+> *"If (1) fails on even one row, every earlier cross-die result was under-tested
+> rather than correct."* The earlier results used the **single-pass** 32-bit
+> register, which W751 verified on 8 words and which still works — dies R and B
+> agree here too. **It is the new multi-pass path that is wrong, so the earlier
+> conclusions stand and the new capability does not.** Distinguishing those two
+> was worth more than the forecast that prompted it.
+
+### T337 — what this wave did not reach
+
+> **T337.** Two of the three tracks the user asked for were **not done**: the
+> hand-rolled activation (T330a's last untested ceiling candidate) and isotonic
+> calibration before EM (T332's diagnosed fix). The trainer→silicon export
+> consumed the wave, including three self-inflicted generator defects — a nested
+> f-string quote, a negative Verilog literal (`-12'sd-4`), and the 2³² table.
+> **Stated here so the next wave starts from the truth rather than from the plan.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
