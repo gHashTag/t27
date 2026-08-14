@@ -8828,6 +8828,39 @@ the saturation rung (W745) — refuted. Zero prunes, so it pays most on UNSW
 alongside the forecast so both die together**, and treat a mechanism that feels
 explanatory as *more* suspect, not less: it is the one that will be believed.
 
+### Lessons 795-799 (W749) — control the bench before trusting five waves of it
+
+**795. An uncontrolled bench manufactures effects as well as inflating them.**
+39% of the alphabet-size effect was the alphabet being rewarded for making bigger
+sums against a *fixed* threshold. Worse: the raw bench reported the golden ladder
+significantly **worse** than dyadic at nine levels (t = −3.92) and with the scale
+pinned that vanishes to −0.008. **Ask of every comparison: is there a channel by
+which one arm wins for a reason unrelated to the hypothesis?** Here it was one
+line of scale normalisation.
+
+**796. Re-run the old conclusions on the fixed rig immediately, not eventually.**
+The fix landed in W748 and the re-run happened in W749 — one wave, deliberately,
+because five waves of results depended on it. **The cost was three background
+jobs; the alternative was building on an unverified bench indefinitely.**
+
+**797. `top` did not collapse, and that is the finding.** Sixty-four neurons all
+seeing the *same twelve features* beat sixty-four seeing different random ones.
+**Hidden-layer diversity contributes nothing in our architecture.** A refuted
+forecast whose refutation is more informative than the confirmation would have
+been is the best kind — **include the case you are sure will fail, precisely
+because you are sure.**
+
+**798. Never report an accuracy without its split.** Validation 94.9%, test 86.7%
+— 8.2 points apart on UNSW-NB15, because its official test set carries attack
+categories the training set under-represents. **A single number from that dataset
+is one of two very different quantities.**
+
+**799. Do not let two configurations be quoted as one system.** Our 86.66% is
+dense at ~200k LUT; our 128 LUT is sparse at 78.7%. **We have no configuration
+that is both small and accurate**, and every table must say so. The field's
+89 LUT at 92% is one system — that is the entire remaining gap, and stating it
+that way turns five confounded problems into one well-posed engineering problem.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -14925,6 +14925,61 @@ UNSW, 15 seeds, normalisation on in every arm:
 > controlled, **training budget is the only item left on the list** — which is why
 > `train_full.py` exists and why it should have existed first.
 
+### T319 — trained once properly: 8 of the 13 points were budget
+
+**Registered before the run:** *86–90% on UNSW-NB15.*
+
+Full training set (157,807 rows, not a 40k subsample), 10% validation fold, 256
+hidden, 60 epochs, step schedule, early stopping at patience 8, five seeds:
+
+| | accuracy |
+|---|---:|
+| probe, dense (all alphabet results) | 83.4% |
+| **full training, dense** | **86.66% ± 0.80** |
+| field (TreeLUT / NeuraLUT-Assemble) | 92.0–93.0% |
+
+> **T319. 86.66%, inside the predicted band — the second registered forecast in a
+> row to land.** Training budget alone is worth **+3.3 pp**, and with W748's
+> normalisation fix the total recovered from method rather than structure is
+> **+8 of the 13 points.** The residue is **5.3 pp**.
+
+> **T319a. The train/test gap is the story the accuracy number hides.**
+> Validation accuracy is **94.9%** against a test accuracy of **86.7%** — an
+> 8.2-point drop on data drawn from the *same* training file's split. UNSW-NB15's
+> official test set contains attack categories the training set under-represents,
+> so this is distribution shift, not overfitting in the ordinary sense.
+> **Anyone reporting a single UNSW number without saying which split it came from
+> is reporting one of two very different quantities**, and our 86.66% is the
+> harder one.
+
+> **T319b. Honest accounting of what is and is not comparable.** The 86.66% is
+> **dense** (593→256→1, ~200k LUT), while the 128 LUT figure of T309 is the
+> **sparse truth-table** layer that reaches 78.7%. **We do not have one
+> configuration that is simultaneously small and accurate**, and no line in this
+> file should be read as if we did. The field does: 89 LUT at 92%. **That is the
+> whole remaining gap, and it is now a single, well-posed engineering problem
+> rather than five confounded ones.**
+
+### T320 — what five waves of measurement actually established
+
+> **T320.** Ranked by measured effect on UNSW-NB15 accuracy, everything this
+> programme has controlled:
+>
+> | intervention | effect | status |
+> |---|---:|---|
+> | inter-layer normalisation (at depth 5) | **+29.15 pp** | W748 |
+> | training budget (full data, schedule, early stop) | **+3.3 pp** | W749 |
+> | dense → sparse truth tables | **−4.7 pp**, **429× area**, **3.6× Fmax** | W748/W749 |
+> | connectivity choice (MI-proportional) | +0.5 to +1.6 pp | W749 |
+> | alphabet **size**, 3→9 levels | **+0.735 pp** | W749, was +1.213 uncontrolled |
+> | alphabet **shape** at fixed size | +0.149 pp, 1/3 significant | W749 |
+>
+> **The alphabet — seven waves of work — is the smallest controlled effect in the
+> table, and 39% of what was originally claimed for it was an artefact of an
+> uncontrolled bench.** It is still real, still significant on three tasks, and
+> still the right choice to make on cost rather than accuracy. **It was never the
+> lever.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
