@@ -1,0 +1,28 @@
+name: Gate Topology
+
+# Checks the gates themselves rather than the code they guard.
+#
+# A gate with `branches: [master]` under `pull_request` does not run when a PR
+# targets any other base. On a stacked PR every such gate is absent and
+# `gh pr checks` prints a green list -- the green of a gate that never fired.
+# Observed in this repository on 2026-08-15 on three gates at once.
+#
+# This workflow deliberately carries NO `branches:` filter, since a branch filter
+# here would reproduce exactly the defect it exists to detect.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  gate-topology:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pyyaml
+        run: python3 -m pip install --quiet pyyaml
+
+      - name: Merge-critical workflows must not filter pull_request by branch
+        run: python3 scripts/ci/check_pr_branch_filters.py

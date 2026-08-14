@@ -1,7 +1,16 @@
 name: NOW Sync Gate
 on:
+  # No `branches:` filter on pull_request, deliberately. This gate is in the
+  # required-check set, and with the filter it did not run at all on a PR whose
+  # base was another branch -- `gh pr checks` then showed a green list on a
+  # stacked PR that no substantive gate had examined. A check that is absent is
+  # not a check that passed, and a reviewer reading the green list cannot tell
+  # the two apart. Measured on this repository: three gates (this one,
+  # issue-gate, seal-staleness-warn) were all silently skipped on stacked PRs.
+  #
+  # push keeps its filter: pushes to topic branches do not need the gate, only
+  # the protected branch does.
   pull_request:
-    branches: [master]
   push:
     branches: [master]
 
