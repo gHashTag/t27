@@ -11109,4 +11109,61 @@ them until this sweep.
 
 ---
 
+## W703 — two emitters, one of them wrong for as long as it existed
+
+### T196 — the radix conversion was written twice and only one copy was complete
+
+`gen_verilog_expr` has converted `0x`/`0b` literals to decimal since it was
+written. **The sized-literal path — reached from struct and array initializers —
+emitted the raw text**, so a spec constant `0x8000` became
+
+```verilog
+localparam [127:0] SYS_CONFIG = {32'd8, 32'd0x8000, 32'd115_200, ...};
+```
+
+and yosys answered `Invalid use of [a-fxz?] in decimal constant`.
+
+> **T196.** **Two emitters, one of them wrong for its whole life, and nothing in
+> the corpus distinguished them until a synthesis sweep did.** This is T53's shape
+> — an escape that exists, is tested, and is omitted at some of its sites —
+> which is why the repair is a **shared helper**, `literal_value`, rather than a
+> second copy of the conversion. **Refuted by:** a third emission site that still
+> writes a raw radix prefix.
+
+```
+before   localparam [127:0] SYS_CONFIG = {32'd8, 32'd0x8000, ...}
+after    localparam [127:0] SYS_CONFIG = {32'd8, 32'd32768, ...}
+```
+
+`specs/fpga/boards/qmtech_a100t_integration.t27` **now synthesises.** FAIL 13 → 12.
+
+### T196a — and the second literal is not a compiler defect at all
+
+`specs/fpga/testbench/bootrom_tb.t27` declares
+
+```
+const BOOT_MAGIC : u32 = 0xT27B007;
+```
+
+**`T` is not a hexadecimal digit.** The lexer stops at `0x` and emits `T27B007` as
+a separate identifier, which is where `syntax error, unexpected TOK_ID` comes
+from. The spelling reads as an attempt at "T27 BOOT" in the style of `0xDEADBEEF`,
+but it is not a number, and **only the author knows which value was meant.**
+
+> **T196a.** **Left alone deliberately.** A survey of the corpus found four specs
+> matching "hex followed by a non-hex letter" — and three are **type suffixes**
+> (`0x3u32`, `0xFFFF_u16`, `0x7FFFFFFF_i32`), a legitimate t27 spelling that the
+> lexer handles correctly. **Making the malformed case a hard lexer error would
+> break three working specs to catch two broken ones**, and substituting a value
+> would be guessing. The genuinely malformed pair is `bootrom_tb`'s `0xT27B007`
+> and `igla/race/backend.t27`'s `0xGG`.
+
+> **T196b — the measurement that stopped the fix.** The first instinct was to make
+> the lexer reject `0x` with no valid digits. The survey took one command and
+> showed the predicate would have caught three false positives against two true
+> ones. **A repair whose population is not measured first is a guess with a
+> compiler behind it.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

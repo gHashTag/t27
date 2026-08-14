@@ -7715,6 +7715,23 @@ These cost a wave each. Follow them before step 1.
      it. It is not synthesisable, and its bound is a function parameter. Nothing
      in the corpus distinguished the two claims. T195b.
 
+605. **The radix conversion was written TWICE and only one copy was complete.**
+     `gen_verilog_expr` converted `0x`/`0b`; the sized-literal path used by struct
+     and array initializers emitted raw text, giving `32'd0x8000` and
+     `Invalid use of [a-fxz?] in decimal constant`. Repaired with a SHARED helper,
+     not a second copy. T53's shape again. T196.
+
+606. **`0xT27B007` is not a number.** `T` is not a hex digit, so the lexer stops
+     at `0x` and emits `T27B007` as an identifier -- that is where
+     `unexpected TOK_ID` comes from. It is a SPEC defect, and only the author
+     knows the intended value.
+
+607. **The survey stopped the fix, and should have.** Making malformed hex a hard
+     lexer error would have broken THREE working specs (`0x3u32`, `0xFFFF_u16`,
+     `0x7FFFFFFF_i32` -- legitimate type suffixes) to catch TWO broken ones. A
+     repair whose population is not measured first is a guess with a compiler
+     behind it. T196b.
+
 ### How to update this tracker
 
 After closing a wave:

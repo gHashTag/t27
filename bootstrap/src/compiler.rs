@@ -7688,6 +7688,31 @@ impl VerilogCodegen {
         }
     }
 
+    /// W703: one place that knows how a t27 integer literal spells its radix.
+    ///
+    /// `0x`/`0X` hex, `0b`/`0B` binary, `_` separators, plain decimal. Returns
+    /// `None` for anything else -- including a malformed literal such as
+    /// `0xT27B007`, whose `T` is not a hex digit.
+    ///
+    /// It exists because the conversion had been written twice and only one copy
+    /// was complete: `gen_verilog_expr` converted, and the sized-literal path
+    /// used by struct and array initializers emitted the raw text, producing
+    /// `32'd0x8000`. Two emitters, one of them wrong, and nothing in the corpus
+    /// distinguished them until a synthesis sweep did.
+    fn literal_value(v: &str) -> Option<u128> {
+        let clean: String = v.chars().filter(|&c| c != '_').collect();
+        if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+            return u128::from_str_radix(hex, 16).ok();
+        }
+        if let Some(bin) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+            return u128::from_str_radix(bin, 2).ok();
+        }
+        if !clean.is_empty() && clean.chars().all(|c| c.is_ascii_digit()) {
+            return clean.parse::<u128>().ok();
+        }
+        None
+    }
+
     /// W699: the width of an entry-point port, or `None` -- never a default.
     ///
     /// `type_to_width` ends in `_ => 32`, which is right for a local register
@@ -7813,7 +7838,27 @@ impl VerilogCodegen {
                                 return format!("{}'sd{}", width, n.to_string());
                             }
                         }
+                        if let Some(n) = Self::literal_value(v) {
+                            return format!("{}'sd{}", width, n);
+                        }
                         return format!("{}'sd{}", width, v);
+                    }
+                    // W703: normalise the RADIX here too.
+                    //
+                    // This site wrote the literal verbatim, so a spec constant
+                    // `0x8000` inside a struct initializer became
+                    //
+                    //     localparam [127:0] SYS_CONFIG = {32'd8, 32'd0x8000, ...}
+                    //
+                    // and yosys answered `Invalid use of [a-fxz?] in decimal
+                    // constant`. The main literal path (`gen_verilog_expr`) has
+                    // converted hex and binary since it was written; this one --
+                    // reached only from sized contexts such as struct and array
+                    // initializers -- never did. One emitter fixed, its sibling
+                    // missed: the T53 shape, which is why the repair is a SHARED
+                    // helper rather than a second copy of the conversion.
+                    if let Some(n) = Self::literal_value(v) {
+                        return format!("{}'d{}", width, n);
                     }
                     return format!("{}'d{}", width, v);
                 }
