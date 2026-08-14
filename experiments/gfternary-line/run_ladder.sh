@@ -23,6 +23,13 @@ for arm in gft0 q4 gft1 gft2 gft3 gft4; do
   read lut car dsp mux <<< $(python3 - $W/log/$arm.yosys <<'PY'
 import sys,re
 txt=open(sys.argv[1]).read()
+    # yosys `stat` prints ONE TABLE PER MODULE and then the design-wide total.
+    # Summing findall over the whole log adds every table again -- W719 audited
+    # 3x, 2x and 4x inflations across five waves from exactly this. Parse the
+    # LAST section of the LAST stat block only.
+    _blocks = txt.split("Printing statistics")
+    _sec = re.split(r'\n=== .*? ===\n', _blocks[-1])[-1]
+    txt=_sec
 def cell(name):
     m=re.findall(r'^\s+(\d+)\s+%s\s*$'%re.escape(name), txt, re.M)
     return sum(int(x) for x in m) if m else 0

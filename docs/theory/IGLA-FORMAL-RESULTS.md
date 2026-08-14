@@ -11794,6 +11794,11 @@ scaled copy of the set built from none.
 
 ### T210 — the measured cost of each rung
 
+> ⚠ **The yosys LUT figures below are inflated — see T234 (W719).** Ratios
+> and signs survive; absolute counts and any yosys-versus-placed comparison do
+> not. T228 is **withdrawn**; its direction was backwards.
+
+
 One layer, N=64, M=8, 12-bit accumulator, `synth_xilinx -family xc7`:
 
 ```
@@ -12014,6 +12019,11 @@ equal to the placed site.
 
 ### T219 — every rung placed, routed and loaded
 
+> ⚠ **The yosys LUT figures below are inflated — see T234 (W719).** Ratios
+> and signs survive; absolute counts and any yosys-versus-placed comparison do
+> not. T228 is **withdrawn**; its direction was backwards.
+
+
 `synth_xilinx` → `nextpnr-xilinx` → `fasm2frames` → `xc7frames2bit` →
 `openFPGALoader`, board **1:4**, port-less BSCANE2 harness (no XDC, no pinout),
 LFSR-driven so nothing folds away:
@@ -12050,6 +12060,11 @@ sampled a counter.
 > is only that each bitstream computes something stable and its own.
 
 ### T220 — the TNF cost sweep, run
+
+> ⚠ **The yosys LUT figures below are inflated — see T234 (W719).** Ratios
+> and signs survive; absolute counts and any yosys-versus-placed comparison do
+> not. T228 is **withdrawn**; its direction was backwards.
+
 
 104 arms over 52 `(E_t, M)` points, **zero failures**, yosys 0.63, the byte-
 identical command from `tnf-cost-sweep.yml`. The handoff document of 2026-08-13
@@ -12222,6 +12237,11 @@ yosys -abc9 -nocarry (W716)   M=29 4596   M=33 4840   up
 
 ### T228 — the pre-route→post-route ratio is a property of the DESIGN
 
+> ⚠ **The yosys LUT figures below are inflated — see T234 (W719).** Ratios
+> and signs survive; absolute counts and any yosys-versus-placed comparison do
+> not. T228 is **withdrawn**; its direction was backwards.
+
+
 **Registered before running (T44):** post-route would land 28–39% below yosys,
 the band T219 measured on the GFTernary rungs.
 
@@ -12344,6 +12364,112 @@ published **−197.1**.
 > the yosys **version** inside `regymm/openxc7`, the nextpnr build, or the arm
 > set the original fit used. **A disagreement narrowed to one variable is worth
 > more than one explained away** — and it is not resolvable from this host.
+
+---
+
+## The parser was wrong in every wave — W719
+
+### T234 — a triple-counted `stat`, audited across five waves
+
+`yosys stat` prints **one table per module and then the design-wide total**.
+Every LUT count this programme reported summed `re.findall` over the WHOLE log,
+adding each table again. The inflation factor equals the number of tables and is
+**constant within a run**, which is why nothing looked wrong.
+
+```
+wave  what                          tables  factor
+W714  GFTernary rungs                    3   3.00x
+W716  GFTernary rungs (harnessed)        2   2.00x
+W716  TNF sweep, 104 arms                4   4.00x
+W717  TNF post-route, plain flags        2   2.00x
+W718  TNF post-route, CI flags           2   2.00x
+```
+
+**T210 corrected** — one layer, N=64, M=8, 12-bit accumulator:
+
+```
+rung          reported   CORRECT
+GFT0              1692       564
+{0,±1,±2}         1962       654
+GFT1              1371       457
+GFT2              1878       626
+GFT3              2349       783
+GFT4              2796       932
+```
+
+**T220–T223 corrected** — every sweep coefficient is exactly the old one ÷ 4:
+`m2 = −0.384`, `m1 = +65.15`, `E_t = +127.5`. Q1's Δ/bit becomes 48.0, 40.0,
+46.5, 53.5, 80.5; Q2's first differences become `157 156 200 61` and
+`168 158 282 135`.
+
+> **T234.** **Every conclusion drawn from a RATIO, a DIFFERENCE or a SIGN
+> survives**, because the error is one multiplicative constant per run: Q1's
+> reconciliation, Q2's non-surviving quadratic, the positive `E_t`, the
+> GFTernary ordering, and the whole of T231–T233 (which used placed LUT, parsed
+> correctly). **Every absolute LUT count is wrong**, and every comparison
+> between a yosys number and a placed number is worse than wrong.
+
+### T234a — T228 is withdrawn, and its direction was backwards
+
+T219 reported placed LUT running **28–39% below** yosys; T228 generalised this
+to 1.0–12.7% for pipelined datapaths and concluded the ratio is a property of
+the design. Both compared a **quadruple- or double-counted** yosys number
+against a correctly-parsed placed number.
+
+```
+GFTernary rungs   yosys CORRECT   placed   placed vs yosys
+GFT0                        750     1035          +38.0%
+GFT1                        873     1370          +56.9%
+GFT2                       1058     1509          +42.6%
+GFT3                       1187     1677          +41.3%
+GFT4                       1289     1757          +36.3%
+
+TNF arms (ten)        607..1168  1163..2187    +74.7% .. +98.1%
+```
+
+> **T234a.** **Placed LUT runs ABOVE the yosys count, not below** — 36–57% for
+> the combinational rungs and 75–98% for the pipelined TNF arms. This is what a
+> synthesis-to-placement flow should do: `SLICE_LUTX` counts LUT **sites**
+> occupied, including route-throughs and split LUT6 halves, so it can only
+> exceed a cell count. **T228's "no fixed factor converts a cell count into an
+> area" stands as advice and is void as a measurement.** The lesson I drew from
+> a defect was right for the wrong reason, which is the worst way to be right.
+
+### T235 — the 3B2T delimiter theorem, proved exhaustively on three dice
+
+`specs/fpga/ternary_link.t27` claims that of the nine ternary symbol pairs, the
+3B2T code spends eight, and the ninth — `(+1,+1)` — **cannot arise from data**,
+making the frame delimiter unique by construction rather than by probability.
+The input space is **eight words**, so this is decidable by exhaustion.
+
+The whole claim reduces to one 16-bit equality. Sweep `v = 0…7`, set one bit per
+codeword produced; the map must equal
+
+```
+{0,1,2,4,6,8,9,10} = 16'd1879
+```
+
+which certifies **three properties at once**: injectivity (eight bits set),
+delimiter absence (bit 5 clear) and symbol validity (bits 3, 7, 11–15 clear).
+There is no second implementation to co-author (Knight & Leveson 1986) — the
+constant comes from the ternary alphabet, not from a golden model.
+
+```
+board   A1 wrong part   B1 ours   magic        ok   placed
+1:4     Done 0          Done 1    0xA5A5A5A     1   130 LUT, 82 FF
+1:6     Done 0          Done 1    0xA5A5A5A     1   (same bitstream)
+1:8     Done 0          Done 1    0xA5A5A5A     1
+```
+
+> **T235.** **59 LUT synthesised, 130 placed, 0 DSP**, BSCANE2 at the chain the
+> FASM names. The theorem is verified **exhaustively over the entire input
+> space, on three separate dice**, each bracketed by a wrong-part bitstream.
+> This is the first property of the ternary *link* — as opposed to the ternary
+> *node* — ever checked on hardware in this project.
+
+**What it is not.** Three dice each proved a property of the code locally. **No
+symbol has yet crossed between two boards**, and the mission's claim is a
+network, not three independent proofs of a line code.
 
 ---
 

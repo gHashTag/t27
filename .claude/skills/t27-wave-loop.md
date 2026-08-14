@@ -8170,6 +8170,43 @@ These cost a wave each. Follow them before step 1.
      `trinity-fpga#199`**, which the sweep manifest names directly. The zero is
      a property of the term, not of the topic.
 
+686. **`yosys stat` PRINTS ONE TABLE PER MODULE AND THEN THE TOTAL.** Summing
+     `re.findall` over the whole log adds every table again. Audited across five
+     waves: **3x, 2x, 4x, 2x, 2x**. The factor is CONSTANT within a run, so no
+     table ever looked internally inconsistent and nothing caught it for four
+     waves. Parse the **last section of the last stat block**; never findall
+     across a log.
+
+687. **A constant multiplicative error is invisible to every sanity check that
+     compares like with like.** Ratios, first differences, orderings and fit
+     SIGNS all survived it untouched -- which is exactly why it lived so long.
+     What exposed it was a design with a KNOWN cell count: one BSCANE2 reported
+     as three.
+
+688. **The error only bites where two parsers meet.** Placed LUT came from
+     `Info: SLICE_LUTX: N/M` and was right all along. Every conclusion mixing
+     the two -- T219's "28-39% below", T228's whole thesis -- was comparing a
+     quadrupled number with a correct one. **Audit the seam between two
+     measurement paths before publishing their ratio.**
+
+689. **Placed LUT is ABOVE the cell count, always.** 36-57% for combinational
+     designs, 75-98% for pipelined ones. `SLICE_LUTX` counts LUT SITES --
+     route-throughs and split LUT6 halves included -- so it cannot be less than
+     the number of LUT cells. A measurement claiming otherwise is a parser bug,
+     and I should have known the sign before I read the number.
+
+690. **I drew the right lesson from a defect for the wrong reason.** T228 said
+     "no fixed factor converts a cell count into an area" -- true, and reached
+     by comparing a broken number with a good one. **Advice that happens to be
+     right does not make the measurement behind it real**, and the retraction
+     has to say which half is being kept.
+
+691. **An eight-value input space is decidable by exhaustion, so do not sample
+     it.** The 3B2T delimiter theorem became one 16-bit equality --
+     `{0,1,2,4,6,8,9,10} = 1879` -- certifying injectivity, delimiter absence
+     and symbol validity together, with **no golden model to co-author**
+     (Knight & Leveson 1986). Verified on three dice.
+
 ### How to update this tracker
 
 After closing a wave:
