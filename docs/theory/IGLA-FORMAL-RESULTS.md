@@ -11762,4 +11762,145 @@ layer 3  13.2 bits      layer 6   23.2 bits
 
 ---
 
+## The GFTernary line — W714
+
+**The first φ hardware claim ever put through a tool.** Every LUT figure below
+came out of yosys 0.63 `synth_xilinx -family xc7`, one dense layer, 64 binary
+inputs, 8 output neurons, an accumulator width held equal across arms, and **one
+zero mask shared by every arm** so sparsity cannot be confounded with alphabet.
+T183's numbers were analytic and are superseded by these.
+
+### T209 — the line, and why the founding alphabet is not on it
+
+> **T209 (definition).** The **GFTernary line** is
+> `GFT_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, of cardinality **2n+3**. Since
+> `φ^k = F(k−1) + F(k)·φ`, applying weight `φ^k` to `x` adds `F(k−1)·x` to the
+> `A` lane and `F(k)·x` to the `B` lane of a Z[φ] pair — **integer Fibonacci
+> coefficients, no multiplier at any rung.**
+
+| rung | alphabet | levels | (A,B) coefficients added |
+|---|---|---:|---|
+| **GFT₀** | `{0,±1}` | 3 | (1,0) — balanced ternary, Setun 1958 |
+| **GFT₁** | `{0,±1,±φ}` | 5 | +(0,1) |
+| **GFT₂** | `{0,±1,±φ,±φ²}` | 7 | +(1,1) |
+| **GFT₃** | `… ±φ³` | 9 | +(1,2) |
+| **GFT₄** | `… ±φ⁴` | 11 | +(2,3) |
+
+**The historical GFTernary `{−φ,0,+φ}` is not a rung of its own line.** It is
+`φ·GFT₀` — rung zero scaled by a unit. **That is exactly why T158 found φ
+factors out**, and the line explains the founding null structurally rather than
+empirically: a set built from one power of a unit cannot be anything but a
+scaled copy of the set built from none.
+
+### T210 — the measured cost of each rung
+
+One layer, N=64, M=8, 12-bit accumulator, `synth_xilinx -family xc7`:
+
+```
+rung   levels    LUT   CARRY4   DSP48
+GFT₀        3   1692       90       0
+{0,±1,±2}   5   1962       93       0      (dyadic control)
+GFT₁        5   1371      180       0
+GFT₂        7   1878      177       0
+GFT₃        9   2349      168       0
+GFT₄       11   2796      201       0
+```
+
+> **T210.** **Zero DSP at every rung** — the multiplier-free claim survives
+> contact with the tool. **GFT₁ costs 19% FEWER LUT than plain ternary** while
+> carrying five levels instead of three, because each weight lands in exactly
+> one lane, so two narrow adder trees replace one wide one. Above GFT₁ the cost
+> rises by **≈470 LUT per rung**, driven by the expected number of nonzero lane
+> coefficients per weight (1.00, 1.33, 1.50, 1.60), not by any multiplier.
+
+### T210a — a registered forecast, refuted
+
+**Registered before measuring (T44):** since `φ^k` has Fibonacci coefficients
+and `F(k) ≤ 1` for `k ≤ 2`, GFT₀…GFT₂ should be **pure wiring at flat cost**,
+with the first step at GFT₃ where the coefficient 2 forces a shift.
+
+> **T210a.** **Refuted.** Increments are 507, 471, 447 LUT — **monotone and
+> smooth, with no discontinuity at GFT₃.** The cost of a rung is not set by
+> whether its coefficients exceed one; it is set by **how many lanes each weight
+> touches.** GFT₂'s `(1,1)` is free of multipliers and still the most expensive
+> single addition in the line, because it is the first level that pays in both
+> lanes at once.
+
+### T211 — the multiplication does not vanish, it relocates
+
+Deciding `sign(A + B·φ)` is not free, and the accumulator's zero-DSP result says
+nothing about it. Measured, per output:
+
+```
+collapse                            LUT   CARRY4   DSP48   φ error
+MSB of a scalar accumulator           0        0       0    exact
+exact, u² vs 5v² (u=2A+B, v=B)      159       30       9    exact
+×414 >> 8                            42       12       3    0.043%
+shift-add 13/8                      105       15       0    0.431%
+shift-add 55/34                     396       15       0    0.024%
+```
+
+> **T211.** A ternary network's decision is **a wire** — the sign bit. A Z[φ]
+> pair's decision is **105 LUT** if approximated by shifts, **or 9 DSP48** if
+> kept exact. The pair form does not remove the multiplication from the network;
+> **it moves it from the weights, where there are N of them, to the output,
+> where there is one.** That is a genuine win in the count — and it is the whole
+> of the win, which no previous statement of the claim said.
+
+### T212 — pair propagation never breaks even on its own
+
+Scalar ternary re-binarises each layer, so its width is constant and its
+collapse is free. A propagating pair pays no collapse until the output but
+widens **3.3 bits per layer** (T208b). Measured slope: **23.55 LUT per
+accumulator bit** for GFT₁, **18.0** for GFT₀.
+
+> **T212.** Cost is `L·1371 + 38.85·L(L−1) + 840` against `L·1692`. The
+> break-even quadratic has discriminant **−50 957**: **no real root.** Pair
+> propagation is quadratic in depth where the saving is linear, so **it never
+> overtakes the scalar path at any depth whatever.** The exactness the pair form
+> exists to provide is, by itself, unaffordable.
+
+### T213 — T160 rescues it exactly to a tie
+
+`φ⁻¹ = φ − 1` makes renormalisation `(a,b) ↦ (b−a, a)`: one exact integer
+subtraction and a wire swap, holding width constant forever. **The project has
+never used it.** Measured for 8 neurons at 12 bits: **288 LUT, 72 CARRY4, 0
+DSP.**
+
+```
+depth    ternary   pair raw   pair+T160
+    1       1692       2211        2499
+    4       6768       6790        7476
+    8      13536      13984       14112
+   16      27072      32102       27384
+   24      40608      55193       40656
+```
+
+> **T213.** With renormalisation the break-even is `840/(1692−1371−288)` =
+> **depth 25.5**, and at depth 24 the two paths differ by **0.1%**. Across every
+> depth anyone would build, **the Z[φ] pair datapath and plain ternary cost the
+> same to within a few percent.** The φ neither pays nor costs. This is the
+> hardware counterpart of T205/T207/T208, reached independently and by a tool.
+
+### T214 — where this leaves the seven-level claim
+
+`{0,±1,±φ,±φ²}` is **exactly a 3-bit LQ-Nets (ECCV 2018) codebook**: with basis
+`v₁ = φ²/2`, `v₂ − v₃ = 0.309`, `v₁ = v₂ + v₃`, the eight sign combinations
+`±v₁±v₂±v₃` collapse to precisely those seven levels. **As a level set it is
+prior art**, and any paper claiming it as new will be refuted in ten minutes.
+
+> **T214.** What is unclaimed is not the set but **the line**: a cost-graded
+> family whose rung index is the power of the fundamental unit of Z[φ], whose
+> realisation is integer-Fibonacci and multiplier-free at every rung, and whose
+> measured LUT cost rises ≈470 per rung with zero DSP throughout. LQ-Nets learns
+> an unstructured float basis and has no such gradient. **GFT₂ is a member of a
+> named ladder, not a discovery of a set** — and the ladder, not the set, is the
+> contribution.
+
+**What none of this tests:** these are yosys cell counts, not placed-and-routed
+designs, and not silicon. On 2026-08-14 all three boards were on the bus by
+IOKit and invisible to libusb, so nothing here was loaded (W714-HW).
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

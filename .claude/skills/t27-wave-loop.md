@@ -7963,6 +7963,53 @@ These cost a wave each. Follow them before step 1.
      T159a's predicted 0.5*log2(N) + 0.694 = 3.69. Within 11%, from a different
      construction -- an independent confirmation of the formula. T208b.
 
+653. **A GREEN CHECK THAT DOES NOT TEST WHAT IT CLAIMS IS WORSE THAN NO
+     CHECK.** `tri preflight` printed "toolchain can produce AND LOAD a
+     bitstream" having proved only that `openFPGALoader` is on PATH. On
+     2026-08-14 it passed while libftdi answered `device not found` for all
+     three cables. Fixed W714: the gate now scans the bus and prints
+     "PASS (build only) -- NO CABLE, cannot load". **When a check's message
+     names a capability, the check must exercise that capability.**
+
+654. **IOKit and libusb can disagree about whether a device exists.** `ioreg`
+     listed three `Digilent USB Device`, idVendor 1027 (0x0403), idProduct
+     24596 (0x6014), serial 210512180081. `libusb_get_device_list` returned 7
+     devices and **none of them was 0403:6014** — it saw the three CP2102N
+     UARTs and four hubs on the same buses. **`ls /dev/cu.usbserial-*` proves
+     nothing about JTAG**: those nodes belonged to the UART bridges, not the
+     cables. Enumerate with the layer the tool actually uses.
+
+655. **`yosys -q` suppresses `stat` too.** Six arms reported 0 LUT, 0 CARRY4,
+     0 DSP — a table clean enough to publish. Use `-l <file>`, and make the
+     parser **refuse to report a count when the log has no stat block** rather
+     than let an empty file read as an empty design. Third repetition of this
+     class in one programme (T192, the `awk END{print s+0}` waves, this one).
+
+656. **Read the field order of a tool's own output before parsing it.** yosys
+     `stat` prints `<count>  <cellname>`; the regex expected the reverse and
+     matched nothing. The result was again six clean zeros — the SAME symptom
+     as 655 from an unrelated cause, which is why the symptom must never be
+     the diagnosis.
+
+657. **Implement the cheap variant of a claim before pricing it against a
+     rival.** The Z[φ] collapse was first written as `×414 >> 8`, which yosys
+     mapped to 3 DSP48, and the arm looked expensive next to a DSP-free
+     ternary path. As shifts (13/8) it is **105 LUT and 0 DSP**. The first
+     number would have been an honest measurement of a strawman.
+
+658. **A per-item saving against a per-layer cost is a race between a linear
+     and a quadratic.** Pair propagation saves one collapse per network and
+     pays 3.3 bits of width per layer; the break-even quadratic has
+     **discriminant −50 957 — no real root at any depth.** Compute the
+     break-even symbolically before running the sweep; a table of depths
+     1..24 would have shown "ternary wins" and hidden *why*.
+
+659. **The line explains the null the experiment only reported.** `{−φ,0,+φ}`
+     is `φ·GFT₀` — rung zero scaled by a unit, not a rung. Thirty seeds showed
+     φ factors out; the GFTernary line shows it *had to*. **When an empirical
+     null survives, look for the structure that makes it necessary — that is
+     the publishable half.**
+
 ### How to update this tracker
 
 After closing a wave:

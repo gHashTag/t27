@@ -137,6 +137,54 @@ larger than the whole closed accumulation, and pipelining does not save it:
 
 ---
 
+## 3a. The GFTernary **line** — the rungs, and their measured price
+
+Named W714. Do not confuse with §8: that ladder indexes *degree* (`r^d = r+1`,
+which scale is multiplier-free); this one indexes *power* (which powers of the
+one scale φ are in the alphabet).
+
+> **GFT_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}**, cardinality **2n+3**.
+> Because `φ^k = F(k−1) + F(k)·φ`, weight `φ^k` on input `x` adds `F(k−1)·x` to
+> lane A and `F(k)·x` to lane B of a Z[φ] pair. **Integer Fibonacci
+> coefficients — no multiplier at any rung.**
+
+| rung | alphabet | levels | bits/weight packed | measured LUT¹ |
+|---|---|---:|---:|---:|
+| **GFT₀** | `{0,±1}` | 3 | 1.6000 | 1692 |
+| **GFT₁** | `{0,±1,±φ}` | 5 | 2.3333 | **1371** |
+| **GFT₂** | `{0,±1,±φ,±φ²}` | 7 | 2.8182 | 1878 |
+| **GFT₃** | `… ±φ³` | 9 | 3.1818 | 2349 |
+| **GFT₄** | `… ±φ⁴` | 11 | 3.5000 | 2796 |
+
+¹ yosys 0.63 `synth_xilinx -family xc7`, one layer, N=64 binary in, M=8 out,
+12-bit accumulator, one shared zero mask. **DSP48 = 0 at every rung.**
+
+**Three things this table settles, and one it kills:**
+
+1. **The historical GFTernary `{−φ,0,+φ}` is NOT a rung.** It is `φ·GFT₀`.
+   That is the structural reason T158 found φ factors out — not an accident of
+   the experiment.
+2. **GFT₁ is 19% cheaper in LUT than plain ternary** with five levels instead
+   of three: each weight lands in one lane, so two narrow trees beat one wide
+   one. This is the only place in the whole programme where φ buys something a
+   tool can see.
+3. **The seven-level set is prior art** — exactly a 3-bit LQ-Nets (ECCV 2018)
+   codebook at `v₁ = φ²/2, v₁ = v₂+v₃`. **The line is not.** Quote the line,
+   never the set.
+4. **What it kills:** the decision is not free. `sign(A+Bφ)` costs **105 LUT**
+   by shift-add (φ≈13/8, 0.43% error) or **9 DSP48** exact, against **0 LUT —
+   a wire** for a scalar accumulator (T211). Multiplication is *relocated* from
+   N weights to 1 output, not removed.
+
+**Depth (T212/T213).** Propagating pairs widens 3.3 bit/layer and never breaks
+even — the break-even quadratic has **no real root**. Applying T160's
+`(a,b) ↦ (b−a, a)` each layer holds width constant for a measured **288 LUT** per
+8 neurons, moving break-even to **depth 25.5**. At every buildable depth the two
+datapaths are within a few percent. **Plan capacity, not advantage.**
+
+---
+
+
 ## 4. The precision law — the single most reusable result
 
 > **Theorem 1 (precision law).** For a format with constant M-bit significand

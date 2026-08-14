@@ -267,9 +267,34 @@ pub fn run_preflight(repo_root: &Path, nextpnr_src: Option<String>) -> anyhow::R
         ok(c.is_some(), format!("{tool} on PATH"));
     }
 
+    // A cable ON THE BUS, not a loader ON THE PATH. Until W714 this function
+    // printed "can produce AND LOAD a bitstream" having proved only that
+    // openFPGALoader exists. On 2026-08-14 all five PATH checks passed while
+    // libftdi answered `device not found` for every cable: IOKit listed three
+    // 0403:6014 with serial 210512180081 and libusb enumerated none of them.
+    // A green check that does not test what it claims is worse than no check.
+    let (sc, sout, _) = run(Command::new("openFPGALoader").arg("--scan-usb"));
+    let cables = if sc.is_some() {
+        sout.lines().filter(|l| l.contains("0x0403:0x6014")).count()
+    } else {
+        0
+    };
+    let loadable = cables > 0;
+    if loadable {
+        println!("  OK   {cables} Digilent cable(s) visible to libusb");
+    } else {
+        // NOT counted as a failure: building without boards attached is a
+        // legitimate use. What is not legitimate is claiming loading works.
+        println!("  --   no Digilent cable on the bus -- BUILD ONLY, cannot load");
+    }
+
     println!();
     if fails == 0 {
-        println!("PASS -- toolchain can produce and load a bitstream");
+        if loadable {
+            println!("PASS -- toolchain can produce and load a bitstream");
+        } else {
+            println!("PASS (build only) -- can produce a bitstream; NO CABLE, cannot load");
+        }
         Ok(())
     } else {
         println!("FAIL -- {fails} check(s) failed; do not trust a bitstream built now");
