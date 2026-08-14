@@ -13357,6 +13357,11 @@ Corpus search for a spec that names a field or variant after a primitive:
 
 ### T258b — what is NOT fixed, stated plainly
 
+> ⚠ **The count in this section is WRONG — corrected in T259 (W731).** "Six
+> double discards survive" came from intersecting `_ = &x;` and `_ = x;` name
+> sets **across a whole file**, where the two can sit in different functions and
+> both be legal. The compiler's own verdict is **one**.
+
 > **T258b.** **Six double discards survive** outside the bench path. They are
 > the same defect at a different emission site and they will block whatever
 > specs contain them. The count is reported here rather than rounded to "fixed"
@@ -13367,6 +13372,68 @@ Corpus search for a spec that names a field or variant after a primitive:
 and `bootstrap/stage0/FROZEN_HASH` was updated each time. `build.rs` refused the
 build on the first omission — **the one seal in this repository that is doing
 its job**, against the 1046 stale ones of T248.
+
+---
+
+## Three ad-hoc metrics, three wrong answers — W731
+
+### T259 — the compiler's verdict, against three of my own detectors
+
+W730 reported "six double discards survive". Chasing them produced two more
+measurements, each contradicting the last:
+
+```
+detector                                        answer
+name sets intersected across the whole FILE          6..8   W730
+same, but split by function (my own regex)               1
+`t27c test-report`, i.e. the Zig compiler                1   -- and a DIFFERENT one
+```
+
+The file-wide count was wrong because `_ = &items;` in one function and
+`_ = items;` in another are **different variables and both legal** — the eight
+flagged specs carry `_ = name; // unused by the spec body`, the discard for an
+unused **parameter** of a bodiless function, which has nothing to do with the
+defect. My function-splitting regex then flagged `has_changes`, whose body is
+four lines and contains no `_ = &items;` at all.
+
+> **T259.** **Three ad-hoc detectors, three wrong answers, one authoritative
+> tool that was available the whole time.** Lesson 713 said this in W725 and
+> lesson 716 said it again in W727; this is the third violation. **When a
+> compiler will answer the question, do not write a regex that approximates it.**
+
+### T259a — and the one real case is a different error entirely
+
+`specs/compiler/lexer.t27`, `fn scan_identifier`:
+
+```zig
+const start_line = lex.line;
+_ = start_line;   // dead after const-inlining     <-- generator's claim
+...
+var tok = make_token_from_source(l, TokenKind.Ident, start_pos, start_line, start_col);
+```
+
+> **T259a.** It is **"pointless discard of local CONSTANT"**, not the variable
+> case W730 fixed — a third distinct defect wearing a similar message. The
+> `dead after const-inlining` heuristic marks the three names dead **while they
+> are used in a call-argument list further down the same function**. Localised
+> and left unfixed: the root lies in a scan-window computation, and a fourth
+> unverified hypothesis at the end of this session would be worth less than the
+> honest boundary.
+
+### T260 — the corpus, measured by the compiler rather than estimated
+
+```
+140 specs checked (non-scratch), by `t27c test-report`:
+   31   run their tests
+  108   BLOCKED
+    1   of those on `pointless discard`
+```
+
+> **T260.** **22% of the sampled corpus executes its own tests.** This is the
+> first authoritative figure for that ratio in this session — every earlier
+> number came from a regex over generated text. The three compiler fixes of
+> W729–W730 moved specs into the 31; the remaining 108 are 107 causes plus one,
+> and **none of them is the discard defect that consumed this wave.**
 
 ---
 

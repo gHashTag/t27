@@ -8485,6 +8485,32 @@ These cost a wave each. Follow them before step 1.
      to "fixed" is how the next wave inherits a surprise -- which is precisely
      what happened to this one.
 
+740. **THIRD VIOLATION OF THE SAME RULE: I WROTE A REGEX WHERE A COMPILER WAS
+     AVAILABLE.** Three ad-hoc detectors for "double discard" gave 6-8, then 1,
+     then a different 1 -- and `t27c test-report` had the answer all along.
+     Lesson 713 (W725) and 716 (W727) said this already. **If a tool will answer
+     the question, the regex is not a shortcut; it is a second implementation
+     with none of the testing.**
+
+741. **A NAME COLLIDING ACROSS TWO FUNCTIONS IS NOT A COLLISION.** `_ = &items;`
+     in one function and `_ = items;` in another are different variables and
+     both legal. Intersecting name sets file-wide invented six defects that did
+     not exist.
+
+742. **`_ = name; // unused by the spec body` IS THE PARAMETER DISCARD**, emitted
+     for bodiless functions, and has nothing to do with the local-variable
+     defect. Two emissions with near-identical text and unrelated causes -- read
+     the trailing comment before counting.
+
+743. **"pointless discard of local CONSTANT" is a THIRD defect**, distinct from
+     the variable case: the `dead after const-inlining` heuristic marks names
+     dead while they are used in a call-argument list further down the same
+     function. Similar message, different root.
+
+744. **22% of the sampled corpus runs its own tests** -- 31 of 140, measured by
+     the compiler, not estimated from generated text. Quote this figure, not a
+     regex-derived one.
+
 ### How to update this tracker
 
 After closing a wave:
