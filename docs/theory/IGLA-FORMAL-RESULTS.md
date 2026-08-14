@@ -10133,4 +10133,106 @@ result incomparable with half the table.
 
 ---
 
+## W692 — three of the ecosystem's premises were wrong, including two of mine
+
+### T175 — `trinity` and `trinity-fpga` share 5,566 commits. "Zero shared" is retracted.
+
+W689 concluded from a 95% blob overlap with no GitHub fork link that
+`trinity-fpga` was a **manual clone**. Checked against the commit graph:
+
+```
+root       bfd4d06ada473b7b481f81de7806be9495e4de52   HTTP 200 in BOTH repos
+merge-base 65be0b55a39262eb063a18a36e889875828b139e   2026-04-18T17:38:49Z
+shared     5,566 commits at IDENTICAL SHA
+post-fork  trinity +245   trinity-fpga +1,204   (disjoint)
+```
+
+> **T175.** **They are one codebase with two heads**, branched 2026-04-18 and
+> pushed into a fresh empty repository — `trinity-fpga` was created
+> **2026-04-19T07:03**, thirteen hours after the last shared commit. That is the
+> signature of `git push` into a new repo, and it explains both the missing fork
+> link and the HTTP 422s **without any copy hypothesis**. W689's *measurement*
+> was sound; **the inference from it was not.** **Refuted by:** a SHA present in
+> one repo and absent in the other below the merge-base.
+
+> **T175a — and the merge is far cheaper than the framing implied.** A three-way
+> blob diff against the merge-base: trinity changed 1,573 paths, trinity-fpga
+> 7,275, **1,229 touched on both sides — of which 1,205 converged to identical
+> content, leaving 24 TRUE conflicts.** Eight are `.github/workflows`, two are
+> `build.zig*`. **Plus a 25th invisible to blob diffing:** submodules are tree
+> entries of type `commit`, and `external/zig-golden-float` points at different
+> SHAs on the two sides.
+
+> **T175b — direction, and a third repo.** `trinity-fpga` is the superset and the
+> live head (18,038 blobs vs 12,567; 1,204 post-fork commits vs 245), so the merge
+> runs **trinity → trinity-fpga**. And **`t27` is a genuinely unrelated third
+> repository** — root `9cb1f9b7`, 1,084 commits, **shares no commit with either**.
+> Any merge plan must say whether t27 is a target: the flashing driver and the
+> hardware SSOT live only in t27, all RTL and bitstreams only in trinity-fpga.
+
+> **T175c — the method caveat that invalidated a first answer.** GitHub's
+> `compare` endpoint caps `.files` at **300** and `.commits` at **250**, and
+> `?page=` does not paginate those arrays. A conflict surface computed from it
+> returned "23" from two truncated 300-file lists. **Use the trees API.** This is
+> the same pagination-truncation shape this project has now hit three times.
+
+### T176 — the credential count was 3; it is 2 credentials across 3 repos, and one issue is itself a leak
+
+| issue | status | credential |
+|---|---|---|
+| `trinity#601` | **OPEN, still on `main`** | DeepSeek API key, public since ~2026-01-31 |
+| `trios-dwagent#1` | OPEN | Neon PostgreSQL role password |
+| `trios-railway#124` | OPEN | **the same Neon password** |
+
+> **T176.** `trios-dwagent#1` and `trios-railway#124` are **one secret**, not two —
+> the literals extracted from `scripts/igla_race_worker.py@58f7510` and
+> `reset_queue.rs@07d3820` are identical. The ledger is **2 credentials / 3
+> repos**, and one rotation closes two issues.
+
+> **T176a — NEW, and worse than the thing it documents.** **`trios-railway#124`
+> republishes the password in cleartext in its own TITLE**, and repeats it as a
+> full connection URI in the body. **The remediation runbook is a second leak**,
+> and a more discoverable one than the code it describes. Rotate first; redact
+> second — GitHub retains edit history, so redaction is cosmetic until the
+> password is dead.
+
+> **T176b — and the real inventory is four times the issue count.** GitHub
+> secret-scanning is **accessible, not 403**: **12 open alerts** across the three
+> repos, `trinity` alone holding **9** — a DeepSeek API key, **three Telegram bot
+> tokens**, a GitHub token and more. **The blocking gate must be the alert
+> inventory, not the three issues somebody happened to file.**
+
+*Validity was deliberately not tested.* Confirming a live credential means
+transmitting it to a third party, which is itself misuse. **Rotate on the
+assumption of compromise.**
+
+### T177 — the SKY130 flood is one repo, not four, and fires once a day
+
+> **T177.** W689 recorded "~4 issues/day since 2026-05-16". The cron in all four
+> `sky130-nightly.yml` files is `0 2 * * *` — **one daily trigger**, and grouping
+> `createdAt` by day shows exactly one issue per day per repo. **Four per day was
+> an org-wide aggregate over four repos**, and it was only ever true while all
+> four were running.
+
+> **T177a — and three of the four are already dead.** `gh api …/actions/workflows`
+> reports `state=disabled_inactivity` for `tt-trinity-phi`, `-euler` and `-gf16`.
+> **Only `tt-trinity-gamma` is active.** The 314 are accumulated debt; the live
+> bleed is **one issue per day from one repo**. The three disabled workflows
+> resurrect on any push, so they still need fixing — **but not urgently, and
+> W689's urgency was a factor of four too high.**
+
+**The root cause, from the raw job log:**
+`docker pull ghcr.io/ghashtag/tt-trinity-gf16/sky130-toolchain:v25-frozen` →
+**`manifest unknown`**. The image does not exist. GHCR login *succeeds*
+immediately before, so **the workflow's own error message — "package is private
+or not granted to this repo, run `gh api … visibility public`" — misdiagnoses
+its own failure.** The package needs to be **built and pushed**, not made public.
+
+> **T177b.** And the bodies are **not** identical: the title interpolates
+> `${context.runId}` and the body `${context.sha}`, so **every issue is textually
+> unique.** Any bulk-close must key on the `sky130` label or a title prefix —
+> **never on exact equality**, which is what "identical body" would have invited.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

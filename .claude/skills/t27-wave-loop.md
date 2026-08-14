@@ -7342,6 +7342,55 @@ These cost a wave each. Follow them before step 1.
      830k OpenML set -- and recent papers report them as separate rows. Pick the
      wrong one and the result is incomparable with half the table.
 
+531. **95% blob overlap with no fork link is NOT evidence of a manual clone.**
+     trinity and trinity-fpga share 5,566 commits at IDENTICAL SHA from a common
+     root; they branched 2026-04-18 and were pushed into a fresh empty repo
+     thirteen hours later. That explains the missing fork link AND the 422s with
+     no copy hypothesis. The measurement was sound; the inference was not. T175.
+
+532. **The merge conflict surface is 24 files, not a 95%-overlap problem.** Of
+     1,229 paths touched on both sides since the merge-base, 1,205 converged to
+     identical content. Merge trinity -> trinity-fpga (the superset, 18,038 blobs
+     vs 12,567). T175a/T175b.
+
+533. **Submodules are invisible to a blob diff** -- they are tree entries of type
+     `commit`. external/zig-golden-float differs between the two heads and no
+     file-level comparison can see it. T175a.
+
+534. **GitHub's `compare` endpoint caps .files at 300 and .commits at 250, and
+     `?page=` does not paginate those arrays.** A conflict count computed from two
+     truncated 300-file lists returned a confident wrong answer. Use the trees
+     API. Third time this project has been bitten by pagination truncation. T175c.
+
+535. **Two of the three "leaked credentials" are ONE secret.** trios-dwagent#1 and
+     trios-railway#124 carry identical literals. The ledger is 2 credentials /
+     3 repos; one rotation closes two issues. T176.
+
+536. **A remediation runbook can be a second leak.** trios-railway#124 republishes
+     the Neon password in CLEARTEXT IN ITS OWN TITLE, more discoverable than the
+     code it documents. Rotate first, redact second -- edit history persists. T176a.
+
+537. **Secret scanning is accessible, and the real inventory is 12 open alerts,
+     not 3 issues.** trinity alone holds 9: a DeepSeek key, THREE Telegram bot
+     tokens, a GitHub token. Gate on the alert inventory, not on the issues
+     somebody happened to file. T176b.
+
+538. **Never validate a leaked credential to prove it is live.** Transmitting it
+     to the provider is itself misuse. Rotate on the assumption of compromise.
+
+539. **The SKY130 flood is 1 issue/day from ONE repo, not 4/day from four.** The
+     cron is `0 2 * * *` everywhere, and three of the four workflows are already
+     `disabled_inactivity`. W689's urgency was a factor of four too high. T177/T177a.
+
+540. **A workflow's own error message can misdiagnose its own failure.** The
+     SKY130 job fails on `manifest unknown` -- the image was never published --
+     while its inline handler blames package visibility and tells the owner to run
+     a `gh api ... visibility public` that would not help.
+
+541. **"Identical body" invited the wrong dedup key.** The SKY130 titles and
+     bodies interpolate runId and sha, so every issue is textually unique. Key
+     bulk operations on the label or a title PREFIX. T177b.
+
 ### How to update this tracker
 
 After closing a wave:
