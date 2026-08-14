@@ -105,3 +105,40 @@ frames). Not attempted; naming one without it would be a guess.
 
 `-nodsp` costs **3 LUT** (56 → 53) and makes both vectors pass. **On this flow
 the DSP is not a saving.**
+
+---
+
+## Minimal reproducer (W726) — it is not GF-T at all
+
+`-nodsp` blocks DSP *inference* but keeps an *explicit instance*, so one
+bitstream can carry a hand-instantiated DSP48E1 **and** a LUT-built reference of
+the same product, and the die compares them.
+
+| build | simulation | silicon | DSP48E1 |
+|---|:--:|:--:|:--:|
+| constant operands, `USE_DPORT("FALSE")` | pass | **PASS** | 1 |
+| constant operands, `USE_DPORT("TRUE")`, pre-adder | pass | **PASS** | 1 |
+| **live operands from an LFSR** | pass | **FAIL** | 1 |
+
+Reply `{dsp==lut, lut!=0, agree, done}`: `a5a5a5af` for both constant builds,
+**`a5a5a5a5`** for the live one. Five stable reads each, bracketed `Done 0 → 1`.
+
+**The static configuration is fine. Routing live signals into the DSP's data
+inputs is what breaks.**
+
+### Both earlier hypotheses are refuted
+
+- *"the operating mode never reaches the bitstream"* — no: OPMODE, ALUMODE,
+  INMODE and the register controls are all in the FASM.
+- *"the D-port pre-adder path is at fault"* — no: a probe with
+  `USE_DPORT("TRUE")` and `INMODE[2]=1` **passes**, duplicated `USE_DPORT[0]`
+  FASM line and all. **That duplicate is harmless.**
+
+The FASM diff that looked decisive compared two designs differing in more than
+one way.
+
+### What is left
+
+nextpnr-xilinx's routing into DSP48E1 input pins, or prjxray's model of those
+pips. Separating them needs a reference bitstream. The reproducer is now ~40
+lines of Verilog: `fpga/verilog/dsp_probe.v` and `dsp_probe_live.v`.

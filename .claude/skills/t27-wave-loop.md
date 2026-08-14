@@ -8361,6 +8361,34 @@ These cost a wave each. Follow them before step 1.
      T247 did. **Every one was answerable by reading something already in the
      tree.** Before measuring, grep for the answer.
 
+718. **`-nodsp` BLOCKS INFERENCE, NOT AN EXPLICIT INSTANCE.** That is what makes
+     a controlled DSP experiment possible: one bitstream carrying a
+     hand-instantiated DSP48E1 AND a LUT-built reference of the same product,
+     with the die comparing them. No Vivado, no second board, no licence.
+
+719. **CONSTANT OPERANDS HIDE A ROUTING DEFECT.** The DSP probe passed on
+     silicon with tied operands -- twice, including through the D-port
+     pre-adder -- and FAILED the moment an LFSR drove the inputs. A probe whose
+     operands nextpnr can tie off is not testing the data path.
+
+720. **A FASM DIFF BETWEEN TWO DESIGNS THAT DIFFER IN MORE THAN ONE WAY IS NOT
+     A DIAGNOSIS.** The working probe and the failing gft16_mul differed by
+     exactly three DSP lines -- `USE_DPORT[0]` TWICE and
+     `ZIS_INMODE_INVERTED[2]` -- which looked decisive. A probe built WITH
+     USE_DPORT and the duplicate line passes. **The duplicate is harmless.**
+
+721. **Two hypotheses, each fitting the evidence perfectly, both wrong.** "The
+     mode never reaches the bitstream" explained why only the nonzero-product
+     vector failed; "the D-port path is at fault" explained the FASM diff. Both
+     registered, both tested, both refuted. **The cost of testing them was two
+     builds; the cost of reporting either would have been a wrong upstream bug
+     report.**
+
+722. **Check your own configuration in simulation BEFORE the die.** The first
+     DSP probe gave `p_dsp = 0` -- my attributes, not the flow. Copying the
+     configuration from yosys's own working netlist fixed it. **A failing probe
+     proves nothing until the probe is known good.**
+
 ### How to update this tracker
 
 After closing a wave:

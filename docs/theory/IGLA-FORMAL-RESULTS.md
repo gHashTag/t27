@@ -12981,4 +12981,61 @@ would be the guess T246 already declined to make.
 
 ---
 
+## The DSP defect, isolated to a minimal reproducer — W726
+
+Vivado is not available on this host, so the layer separation was done with a
+**hand-instantiated DSP48E1** instead: `-nodsp` blocks *inference* but keeps an
+*explicit instance*, so one bitstream can carry a raw DSP primitive and a
+LUT-built reference of the same product, and the die compares them itself.
+
+### T250 — three controlled builds, and only one fails
+
+```
+build                                    sim    silicon   DSP48E1
+constant operands, USE_DPORT FALSE       pass    PASS        1
+constant operands, USE_DPORT TRUE        pass    PASS        1
+LIVE operands from an LFSR               pass    FAIL        1
+```
+
+Reply nibble `{dsp==lut, lut!=0, agree, done}`: `a5a5a5af` (1111) for both
+constant builds, **`a5a5a5a5` (0101)** for the live-operand build — five stable
+reads, each bracketed `Done 0 → 1`.
+
+> **T250.** **The DSP48E1's static configuration is not the problem — feeding it
+> live fabric signals is.** Constants work, including through the D-port
+> pre-adder. The moment the operands come from a net rather than a tie-off, the
+> product is wrong on silicon while remaining right in simulation. This is a
+> **minimal reproducer**: one DSP, one LFSR, one LUT reference, no GF-T and no
+> tri-net code.
+
+### T250a — two hypotheses, both registered, both refuted
+
+**First:** the operating mode never reaches the bitstream — which would explain
+why only the nonzero-product vector failed. **Refuted** in T249a: OPMODE,
+ALUMODE, INMODE and the register controls are all present.
+
+**Second:** the D-port pre-adder path is at fault. The FASM diff between the
+working probe and the failing `gft16_mul` was exactly three lines —
+`USE_DPORT[0]` **twice** and `ZIS_INMODE_INVERTED[2]` — and both concern the
+pre-adder.
+
+> **T250a. Also refuted.** A probe built with `USE_DPORT("TRUE")` and
+> `INMODE[2]=1` **passes on silicon**, duplicate FASM line and all. **The
+> duplicated `USE_DPORT[0]` is therefore harmless** — it appears in a design
+> that computes correctly. Two hypotheses that each fitted the evidence
+> perfectly, and the FASM diff that looked decisive was a coincidence of two
+> designs differing in more than one way.
+
+### T250b — where the address now points
+
+> **T250b.** Static DSP configuration is exonerated by construction: the same
+> configuration is correct with tied operands and wrong with routed ones. What
+> remains is **the routing of data into the DSP48E1's input pins** — nextpnr's
+> DSP input routing, or prjxray's model of those pips. Distinguishing those two
+> still needs a reference bitstream, and this host still has none. **But the
+> reproducer no longer requires GF-T, tri-net, or a 47-LUT multiplier — it is
+> forty lines of Verilog**, which is what makes it reportable upstream.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
