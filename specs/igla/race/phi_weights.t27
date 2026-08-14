@@ -7,7 +7,7 @@
 //   specs/igla/race/ternary_inference.t27:20
 //     "Weights are stored as ternary codes (0=zero, 1=+1, 2=-1)"
 //   specs/numeric/gfternary.t27:20-22
-//     GFT_ZERO = 0x00 -> 0,  GFT_POS = 0x01 -> +phi,  GFT_NEG = 0x02 -> -phi
+//     GAT_ZERO = 0x00 -> 0,  GAT_POS = 0x01 -> +phi,  GAT_NEG = 0x02 -> -phi
 //
 // The CODES already coincide. What RACE lacks is the INTERPRETATION: it reads
 // code 1 as +1, not as +phi. That single difference is the entire subject of the
@@ -35,7 +35,7 @@
 // stays in Z[phi] and is computed with ZERO rounding error.
 //
 // NOT CROSS-IMPORTED.  t27 has no cross-module import yet (#1773), the same
-// reason gft_dot4.t27 duplicates gft_mul/gft_add.  The GFT_ codes are duplicated
+// reason gft_dot4.t27 duplicates gft_mul/gft_add.  The GAT_ codes are duplicated
 // here and PINNED by invariant, so the duplication fails loudly rather than
 // drifting.
 //
@@ -45,9 +45,9 @@ module IglaRacePhiWeights {
     use base::types;
 
     // ---- The weight alphabet, pinned to specs/numeric/gfternary.t27 ----
-    const GFT_ZERO : u8 = 0;   // 0b00 ->  0
-    const GFT_POS  : u8 = 1;   // 0b01 -> +phi
-    const GFT_NEG  : u8 = 2;   // 0b10 -> -phi
+    const GAT_ZERO : u8 = 0;   // 0b00 ->  0
+    const GAT_POS  : u8 = 1;   // 0b01 -> +phi
+    const GAT_NEG  : u8 = 2;   // 0b10 -> -phi
 
     // RACE's own encoding, from ternary_inference.t27: 0=zero, 1=+1, 2=-1.
     // Identical codes -- see the `race_codes_are_the_gft_codes` invariants.
@@ -91,15 +91,15 @@ module IglaRacePhiWeights {
     // A zero weight is a SKIP: the accumulator is unchanged, which is why the
     // zero symbol costs nothing rather than costing a multiply by zero.
     fn weight_apply_a(code: u8, a: i32, b: i32) -> i32 {
-        if (code == GFT_POS) { return apply_phi_a(a, b); } else {
-        if (code == GFT_NEG) { return apply_neg_phi_a(a, b); } else {
+        if (code == GAT_POS) { return apply_phi_a(a, b); } else {
+        if (code == GAT_NEG) { return apply_neg_phi_a(a, b); } else {
                                return 0;
         } }
     }
 
     fn weight_apply_b(code: u8, a: i32, b: i32) -> i32 {
-        if (code == GFT_POS) { return apply_phi_b(a, b); } else {
-        if (code == GFT_NEG) { return apply_neg_phi_b(a, b); } else {
+        if (code == GAT_POS) { return apply_phi_b(a, b); } else {
+        if (code == GAT_NEG) { return apply_neg_phi_b(a, b); } else {
                                return 0;
         } }
     }
@@ -133,10 +133,10 @@ module IglaRacePhiWeights {
         return ((a + b) > 0);
     }
 
-    // ---- Sign of a weight, matching gfternary.t27's gft_sign ----
+    // ---- Sign of a weight, matching gfternary.t27's gat_sign ----
     fn weight_sign(code: u8) -> i8 {
-        if (code == GFT_POS) { return 1; } else {
-        if (code == GFT_NEG) { return -1; } else {
+        if (code == GAT_POS) { return 1; } else {
+        if (code == GAT_NEG) { return -1; } else {
                                return 0;
         } }
     }
@@ -277,7 +277,7 @@ module IglaRacePhiWeights {
 
     // ---- Port surface ----
 
-    // on_comb(GFT_POS) applies phi to phi = (0,1) -> b component 1
+    // on_comb(GAT_POS) applies phi to phi = (0,1) -> b component 1
     test comb_surface_applies_pos
         given r = on_comb(1)
         then r == 1
@@ -296,23 +296,23 @@ module IglaRacePhiWeights {
 
     // ---- The codes RACE already uses ARE the GFTernary codes ----
     invariant race_zero_is_gft_zero
-        assert RACE_ZERO == GFT_ZERO
+        assert RACE_ZERO == GAT_ZERO
 
     invariant race_pos_is_gft_pos
-        assert RACE_POS == GFT_POS
+        assert RACE_POS == GAT_POS
 
     invariant race_neg_is_gft_neg
-        assert RACE_NEG == GFT_NEG
+        assert RACE_NEG == GAT_NEG
 
     // ---- Pinned to specs/numeric/gfternary.t27 (no cross-import, #1773) ----
-    invariant gft_zero_matches_canonical
-        assert GFT_ZERO == 0
+    invariant gat_zero_matches_canonical
+        assert GAT_ZERO == 0
 
-    invariant gft_pos_matches_canonical
-        assert GFT_POS == 1
+    invariant gat_pos_matches_canonical
+        assert GAT_POS == 1
 
-    invariant gft_neg_matches_canonical
-        assert GFT_NEG == 2
+    invariant gat_neg_matches_canonical
+        assert GAT_NEG == 2
 
     // ---- phi^2 = phi + 1, as the pair identity that makes the step exact ----
     // phi is (0,1); phi^2 must be (1,1), i.e. 1 + 1*phi.

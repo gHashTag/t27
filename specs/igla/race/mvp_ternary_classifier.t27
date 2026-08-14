@@ -20,7 +20,7 @@
 //   class B  0 - + + + - 0 0     "middle"
 //   class C  0 0 0 - - + + +     "right"
 //
-// WEIGHTS ARE GFTernary.  Codes are GFT_ZERO=0, GFT_POS=1, GFT_NEG=2, identical
+// WEIGHTS ARE GFTernary.  Codes are GAT_ZERO=0, GAT_POS=1, GAT_NEG=2, identical
 // to specs/numeric/gfternary.t27 and to the codes RACE already stores (T89), and
 // identical to the wire encoding of specs/fpga/ternary_link.t27 (T87). The
 // alphabet is {-phi, 0, +phi}; because every input is 0 or 1 and enters as the
@@ -57,9 +57,9 @@ module IglaMvpTernaryClassifier {
     use base::types;
 
     // ---- The GFTernary alphabet, pinned to specs/numeric/gfternary.t27 ----
-    const GFT_ZERO : u8 = 0;
-    const GFT_POS  : u8 = 1;
-    const GFT_NEG  : u8 = 2;
+    const GAT_ZERO : u8 = 0;
+    const GAT_POS  : u8 = 1;
+    const GAT_NEG  : u8 = 2;
 
     const N_INPUTS  : u8 = 8;
     const N_CLASSES : u8 = 3;
@@ -88,8 +88,8 @@ module IglaMvpTernaryClassifier {
     // applying +phi gives (0, x) and -phi gives (0, -x), so only the b component
     // ever moves and the score is an exact integer. A zero weight is a SKIP.
     fn contrib(code: u8, x: u8) -> i32 {
-        if (code == GFT_POS) { return (x as i32); } else {
-        if (code == GFT_NEG) { return (0 - (x as i32)); } else {
+        if (code == GAT_POS) { return (x as i32); } else {
+        if (code == GAT_NEG) { return (0 - (x as i32)); } else {
                                return 0;
         } }
     }
@@ -276,14 +276,14 @@ module IglaMvpTernaryClassifier {
     // ========================================================================
 
     // ---- The alphabet, pinned to gfternary.t27 (no cross-import, #1773) ----
-    invariant gft_zero_matches_canonical
-        assert GFT_ZERO == 0
+    invariant gat_zero_matches_canonical
+        assert GAT_ZERO == 0
 
-    invariant gft_pos_matches_canonical
-        assert GFT_POS == 1
+    invariant gat_pos_matches_canonical
+        assert GAT_POS == 1
 
-    invariant gft_neg_matches_canonical
-        assert GFT_NEG == 2
+    invariant gat_neg_matches_canonical
+        assert GAT_NEG == 2
 
     // ---- Model geometry ----
     invariant weight_count_is_inputs_times_classes

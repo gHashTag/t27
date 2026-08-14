@@ -13177,4 +13177,48 @@ bit-identical to the Rust would need f32 throughout; this one is not, and says s
 
 ---
 
+## GA-T reaches the specs — W728b
+
+T244 renamed the alphabet in prose and left the specs, because a rename that
+breaks a seal is a regeneration. T248b removed that objection: **every seal in
+the corpus is stale by accepted policy**, so a fresh one carries no more meaning
+than the 1046 around it, and the rename gains nothing from re-sealing — but
+loses nothing either.
+
+### T254 — the identifiers move, and the tests hold
+
+```
+spec                                   identifiers   tests before   tests after
+specs/numeric/gfternary.t27                    109      BLOCKED       BLOCKED
+specs/fpga/ternary_link.t27                     40      46 / 0        46 / 0
+specs/igla/race/phi_weights.t27                 26      29 / 0        29 / 0
+specs/igla/race/mvp_ternary_classifier.t27      14      31 / 0        31 / 0
+specs/igla/race/ternary_node.t27                 3      26 / 0        26 / 0
+```
+
+`GFT_* → GAT_*`, `gft_* → gat_*`, `triformat-gfternary → triformat-gaternary`.
+**All 132 tests still pass; all five still parse.**
+
+> **T254.** The baseline is what makes this checkable, and it caught something
+> the rename did not cause: **`specs/numeric/gfternary.t27` was already
+> BLOCKED** — *"use of undeclared identifier 'u8'"* — so its **18 test blocks
+> have never run**. Measuring before touching separated a pre-existing defect
+> from a fresh one, and without it the rename would have been blamed.
+
+### T254a — and the rename damaged three comments
+
+A whole-word `gft_* → gat_*` substitution also renamed **references to other
+specs' filenames** in prose: `gft_dot4.t27`, `gft_mul`, `gft_add` live in
+`specs/ternary/` and belong to the **GF-T float** family, which this rename must
+never touch.
+
+> **T254a.** Three sites in two files, restored. **Lesson 703 — "classify every
+> occurrence before a global substitution" — was written by me six waves ago and
+> violated here anyway.** The prose pass in T244 did classify by token and got
+> it right; this pass used a regex on identifiers and did not, because
+> `gft_dot4` is a valid identifier *and* a filename. **A rule followed once is
+> not a rule learned.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

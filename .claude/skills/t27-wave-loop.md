@@ -8411,6 +8411,28 @@ These cost a wave each. Follow them before step 1.
      on a flow where that macro is broken the inference trades a working design
      for a wrong one at a rounding-error price.
 
+727. **A BASELINE SEPARATES YOUR DEFECT FROM THE ONE ALREADY THERE.**
+     `specs/numeric/gfternary.t27` was BLOCKED before the GA-T rename -- "use of
+     undeclared identifier 'u8'", so its 18 test blocks have never run. Without
+     the before-measurement the rename would have worn the blame.
+
+728. **I VIOLATED LESSON 703 SIX WAVES AFTER WRITING IT.** A whole-word
+     `gft_* -> gat_*` regex also renamed OTHER SPECS' FILENAMES in comments --
+     `gft_dot4.t27`, `gft_mul`, `gft_add` in `specs/ternary/`, which belong to
+     the GF-T FLOAT family. Three sites, restored. `gft_dot4` is both a valid
+     identifier and a filename, which is exactly the case 703 said to classify.
+     **A rule followed once is not a rule learned.**
+
+729. **EXTRACT PURE ARITHMETIC, VERIFY IT DIFFERENTIALLY, AND SAY WHICH
+     PREDICATE MUST BE EXACT.** tri-net's ETX became a spec agreeing to 3.8e-06
+     on the metric and EXACTLY on `link_dead` -- the bit a router acts on. When
+     porting, decide up front which outputs may drift and which may not.
+
+730. **Split an infinity, do not encode it.** Rust returns `f32::INFINITY` for a
+     dead link; a sentinel would put a number where an absence belongs and every
+     downstream comparison would silently succeed. `link_dead() -> bool` plus a
+     finite `link_etx()` loses nothing and fabricates nothing.
+
 ### How to update this tracker
 
 After closing a wave:

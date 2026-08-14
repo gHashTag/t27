@@ -37,7 +37,7 @@ module IglaRaceTernaryNode {
     use base::types;
 
     // ---- The one alphabet, three names, identical codes ----
-    // gfternary.t27 : GFT_ZERO=0x00, GFT_POS=0x01, GFT_NEG=0x02
+    // gfternary.t27 : GAT_ZERO=0x00, GAT_POS=0x01, GAT_NEG=0x02
     // ternary_link  : WIRE_ZERO=0,   WIRE_POS=1,   WIRE_NEG=2
     // RACE          : 0=zero,        1=+1,         2=-1
     const SYM_ZERO : u8 = 0;
