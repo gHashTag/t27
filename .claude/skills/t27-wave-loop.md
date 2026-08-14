@@ -8462,6 +8462,29 @@ These cost a wave each. Follow them before step 1.
      omission on the first rebuild, which is the seal working exactly as
      intended, and worth contrasting with the 1046 stale seals of T248.
 
+736. **A GREEN FIX AND A GREEN GATE ARE DIFFERENT CLAIMS.** Three blockers
+     stood in a chain in one spec, each invisible until the one in front was
+     removed: `@"u8"`, then a pointless discard, then `@"f64"`. Never report a
+     fix as an unblock without re-running the gate -- W729 forecast 1 of 5 and
+     measured 0 for exactly this reason.
+
+737. **THE SPEC WAS RIGHT AND THE GENERATOR WAS WRONG.** The spec writes
+     `_ = result;` by hand -- correct Zig for a var assigned in a loop and never
+     read. The generator adds `_ = &result;` and calls it "a harmless extra
+     use". Either alone compiles; both do not. **Suspect the generated line
+     before the authored one.**
+
+738. **AN ESCAPE THAT PROTECTS NOBODY.** `zig_ident` wrapped every primitive
+     type name as `@"u8"`. A corpus search found ZERO specs naming a field or
+     variant after a primitive, so the escape guarded nothing and broke 8 of 130
+     generating specs. **Before keeping a defensive transform, search for the
+     case it defends against.**
+
+739. **REPORT THE REMAINDER, NOT THE ROUND NUMBER.** Double discards went 9 -> 6:
+     the bench path is fixed, six survive at other emission sites. Rounding that
+     to "fixed" is how the next wave inherits a surprise -- which is precisely
+     what happened to this one.
+
 ### How to update this tracker
 
 After closing a wave:

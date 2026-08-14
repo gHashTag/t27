@@ -4597,6 +4597,10 @@ pub struct Codegen {
     /// never-mutated `var` -- so the choice must be inferred, exactly like the
     /// Rust backend's collect_mutable_names.
     mut_names: std::collections::HashSet<String>,
+    /// Names that already received `_ = &name;`. Zig treats that as a USE, so a
+    /// later bare `_ = name;` is a "pointless discard of local variable" and the
+    /// file stops compiling. W730 measured 9 of 130 generating specs hitting it.
+    discarded_by_ref: std::collections::HashSet<String>,
     /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
     /// to Zig builtins ONLY when absent from this set, so a spec that defines
     /// its own `fn max(...)` still calls its own.
@@ -4663,6 +4667,7 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            discarded_by_ref: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
@@ -5536,7 +5541,15 @@ impl Codegen {
                 | "switch" | "test" | "threadlocal" | "try" | "union"
                 | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
         );
-        if is_primitive || is_keyword {
+        // W730: primitives are NOT escaped. `@"f64"` and `@"u8"` are lookups of
+        // an identifier that does not exist, so `@as(@"f64", ...)` and
+        // `pub const X = @"u8";` both stop the file compiling -- measured on 8
+        // of 130 generating specs. Escaping would only be right for a spec that
+        // NAMES a field or variant after a primitive, and a corpus-wide search
+        // found none. Zig KEYWORDS still need it: `error` appears as an enum
+        // variant and as a struct field, and produced "expected '.', found '='".
+        let _ = is_primitive;
+        if is_keyword {
             format!("@\"{}\"", name)
         } else {
             name.to_string()
@@ -6162,6 +6175,18 @@ impl Codegen {
                 // 31 sites across 5 specs plus the bare `_ = x;` form. The
                 // discard spelling is the whole statement.
                 if stmt.children[0].name == "_" {
+                    // W730: the SPEC writes `_ = result;` by hand and it is
+                    // correct Zig for a var assigned in a loop and never read.
+                    // The generator then adds `_ = &result;` at the declaration
+                    // (compiler.rs, `as_var` path), and THAT makes the author's
+                    // line a "pointless discard of local variable". The spec is
+                    // not wrong; the extra discard is. Drop ours by dropping
+                    // theirs -- either one alone compiles, both do not.
+                    if stmt.children[1].kind == NodeKind::ExprIdentifier
+                        && self.discarded_by_ref.contains(&stmt.children[1].name)
+                    {
+                        continue;
+                    }
                     self.write("_ = ");
                 } else {
                     self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
@@ -6487,10 +6512,25 @@ impl Codegen {
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
                         self.write_line(&format!("_ = &{};", Self::zig_ident(&node.name)));
+                        self.discarded_by_ref.insert(node.name.clone());
                     }
                 }
             }
             NodeKind::StmtAssign => {
+                // W730: `_ = name;` after `_ = &name;` is a POINTLESS DISCARD and
+                // Zig rejects the file. The comment at the `_ = &name;` site called
+                // it "a harmless extra use"; it is not. Suppress the second one --
+                // the by-reference discard already satisfies the use check, and
+                // dropping it instead would resurrect "never mutated" on the
+                // branches that motivated it.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprIdentifier
+                    && node.children[0].name == "_"
+                    && node.children[1].kind == NodeKind::ExprIdentifier
+                    && self.discarded_by_ref.contains(&node.children[1].name)
+                {
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);

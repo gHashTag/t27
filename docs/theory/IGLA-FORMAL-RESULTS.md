@@ -13301,4 +13301,73 @@ $ t27c yostat gft2.yosys          $ t27c yostat empty.log
 
 ---
 
+## The alphabet's own spec finally runs — W730
+
+### T257 — three blockers in a chain, each hidden by the one in front
+
+`specs/numeric/gfternary.t27` is the SSOT of the GA-T codes and **had never
+compiled**. Each fix revealed the next:
+
+```
+1. pub const GFTernary = @"u8";        use of undeclared identifier 'u8'   (W729)
+2. _ = &result; ... _ = result;        pointless discard of local variable
+3. @as(@"f64", @floatFromInt(...))     use of undeclared identifier 'f64'
+```
+
+> **T257. 13 tests, 13 pass, 5 invariants proved at comptime.** The alphabet's
+> own specification now has executable verification for the first time. W729
+> forecast "1 of 5 unblocked" and measured 0, because blocker 1 masked blocker 2;
+> this wave met blocker 3 the same way. **A green fix and a green gate are
+> different claims, and only the second one is a result.**
+
+### T257a — the spec was right and the generator was wrong
+
+Blocker 2 looked like a spec defect. It is not: the spec writes `_ = result;`
+**by hand**, which is correct Zig for a `var` assigned in a loop and never read.
+The generator then adds `_ = &result;` at the declaration — commented *"a
+harmless extra use on genuinely mutated paths"* — and **that** is what makes the
+author's line illegal.
+
+> **T257a.** **Either line alone compiles; both together do not.** The comment
+> asserting harmlessness was load-bearing and false. Suppressing the generated
+> discard, rather than the author's, is the correct direction: dropping
+> `_ = &name;` would resurrect the "never mutated" errors on the branch-declared
+> names that motivated it.
+
+### T258 — primitives were escaped as identifiers, corpus-wide
+
+`zig_ident` wrapped every primitive type name in Zig's identifier escape, so
+`u8` became `@"u8"` — right for something *named* `u8`, fatal wherever `u8`
+**is** the type.
+
+```
+                          before   after
+specs emitting @"<prim>"       8       0     of 130 that generate
+double discard                 9       6     the bench path is fixed; six remain
+```
+
+Corpus search for a spec that names a field or variant after a primitive:
+**none**. The escape protected nobody and broke eight specs.
+
+> **T258.** Of five sampled casualties, **four now run their tests** —
+> `unified_state` 2, `phi_timing` 3, `cognitive_loop` 1, `bus` 1 — and one
+> remains blocked on an unrelated cause. **The 132 tests of W728 are unchanged
+> at 132**, so the removal cost nothing. Keywords are still escaped: `error`
+> genuinely appears as an enum variant and a struct field.
+
+### T258b — what is NOT fixed, stated plainly
+
+> **T258b.** **Six double discards survive** outside the bench path. They are
+> the same defect at a different emission site and they will block whatever
+> specs contain them. The count is reported here rather than rounded to "fixed"
+> because the *previous* wave's forecast failed for exactly the reason a partial
+> fix looks total: the first error hides the rest.
+
+**Freeze ceremony:** `bootstrap/src/compiler.rs` changed three times this wave
+and `bootstrap/stage0/FROZEN_HASH` was updated each time. `build.rs` refused the
+build on the first omission — **the one seal in this repository that is doing
+its job**, against the 1046 stale ones of T248.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
