@@ -13,7 +13,9 @@ import sys
 def wrap(arm, m, accw):
     outs = []
     conn = []
-    paired = arm != "gft0" and arm != "q4"
+    # W741: this was `arm != "gft0"`, so pot9 was wrapped as PAIRED, yosys errored
+    # and a stale bitstream of plausible size sat in the output. Ask the generator.
+    paired = arm.startswith("gft") and arm != "gft0"
     for j in range(m):
         outs.append(f"    wire signed [{accw-1}:0] a{j};")
         conn.append(f".a{j}(a{j})")

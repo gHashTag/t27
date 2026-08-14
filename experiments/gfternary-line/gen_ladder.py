@@ -28,6 +28,16 @@ LADDER = {
     "gft2": [(1, 0), (0, 1), (1, 1)],                  # +-phi^2          7 levels
     "gft3": [(1, 0), (0, 1), (1, 1), (1, 2)],          # +-phi^3          9 levels
     "gft4": [(1, 0), (0, 1), (1, 1), (1, 2), (2, 3)],  # +-phi^4         11 levels
+    # W746: the dyadic ladder, so the Nine-Rung Law gets a COST curve beside its
+    # accuracy curve. Every coefficient is a power of two -- one shift, one lane,
+    # no B lane at all -- so these are the cheapest alphabets of each cardinality
+    # and the correct baseline for "what does a rung actually cost?".
+    "pot3":  [(1, 0)],                                       #  3 levels
+    "pot5":  [(1, 0), (2, 0)],                               #  5
+    "pot7":  [(1, 0), (2, 0), (4, 0)],                       #  7
+    "pot9":  [(1, 0), (2, 0), (4, 0), (8, 0)],               #  9
+    "pot11": [(1, 0), (2, 0), (4, 0), (8, 0), (16, 0)],      # 11
+    "pot13": [(1, 0), (2, 0), (4, 0), (8, 0), (16, 0), (32, 0)],   # 13
 }
 PAIRED = {"gft1", "gft2", "gft3", "gft4"}
 

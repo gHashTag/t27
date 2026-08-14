@@ -14387,4 +14387,89 @@ confounded with data, five rungs, 20 seeds — **500 runs**:
 
 ---
 
+## W746 — the resolve, and the multiplier that came back
+
+### T292 — every LUT count we ever published for the ladder measured half a node
+
+> **T292.** A node must emit a ternary **symbol**, which means evaluating
+> `sign(a + bφ − θ)`. Every golden-ladder area figure in this repository —
+> T210, T219, T280, T283 and the W746 first pass — measured a layer that emits
+> the **pair** `(a,b)` and stops. **The half that was never in doubt is the half
+> we measured.** φ is irrational, so the pair must be resolved, and the resolve
+> is exactly where a multiplier can reappear. Calling the accumulate
+> "multiplier-free" is true and was never the question.
+
+Measured (`experiments/gfternary-line/resolve.py`, 5 seeds, n=64, m=8, acc=16):
+
+| rung | levels | layer only | **complete node** | DSP48E1 |
+|---|---|---|---|---|
+| pot5 | 5 | 646 | **698** | **0** |
+| GA-T1 | 5 | 425 | **571** | **8** |
+| pot9 | 9 | 733 | **779** | **0** |
+| GA-T3 | 9 | 782 | **912** | **8** |
+
+### T293 — the multiplier removed from the weight returns in the resolve
+
+> **T293.** With DSP inference left on, **every golden arm allocates 8–9
+> DSP48E1** and every dyadic arm allocates **zero, at every rung.** The
+> multiplier that φ deletes from weight application reappears, once per output
+> neuron, in the pair resolve. This is not an implementation accident: `a + bφ`
+> against an integer threshold is a genuine irrational comparison, and the
+> project's own `phi_accumulator_growth.t27` propagates pairs precisely because
+> it never resolves them.
+
+### T294 — under the project's own no-DSP law the golden node costs 4.7×
+
+Forbidding DSP (`synth_xilinx -nodsp`), which is the constraint the whole
+FPGA line is built on:
+
+| levels | GA-T | dyadic | dyadic cheaper by |
+|---|---|---|---|
+| 5 | 3299 | **698** | 78.8% |
+| 7 | 3499 | **707** | 79.8% |
+| 9 | 3657 | **780** | 78.7% |
+| 11 | 3976 | **739** | 81.4% |
+
+> **T294.** The resolve costs **≈2750 LUT**, i.e. ≈344 LUT per output — one
+> 16×18 constant multiply in fabric. It is a **fixed toll per output neuron**,
+> not per weight, and it does not vary with rung.
+
+### T295 — the toll amortises but never pays for itself
+
+Fan-in sweep at five levels, zero DSP, m=8:
+
+| n | GA-T1 | pot5 | ratio |
+|---|---|---|---|
+| 64 | 3782 | 670 | 5.64× |
+| 128 | 4369 | 1351 | 3.23× |
+| 256 | 5324 | 2961 | 1.80× |
+| 512 | 7789 | 5336 | **1.46×** |
+
+> **T295. The golden layer is genuinely cheaper and it does not matter.** Net of
+> the toll the GA-T1 layer is ≈5% below pot5 at n=512 (5039 vs 5286) — two
+> narrow accumulator trees beat one wide one, exactly as the Fibonacci pair
+> predicts. But recovering a fixed 2750 LUT at a 5% margin needs a layer above
+> **55 000 LUT**, i.e. fan-in ≈5000, which no one builds unfolded. **A real
+> advantage that is out-ranged by a fixed cost is not an advantage.**
+
+### T296 — the dyadic cost curve is flat, so the Nine-Rung Law is free to use
+
+> **T296.** Dyadic node cost by rung is **612, 698, 707, 780, 739, 718** for
+> 3…13 levels — flat within seed noise above five. **Once the shift is free,
+> levels are nearly free.** The accuracy law says stop by nine; the cost curve
+> says nine costs the same as thirteen. **The two curves do not trade off**, and
+> the binding constraint on rung choice is the accuracy ceiling alone.
+
+### T296a — the anomaly that produced all of this
+
+> **T296a.** The first pass reported dyadic cost `1169, 1236, 1238, 1358, 1291,
+> 1214` — **non-monotone**, with thirteen levels cheaper than nine. Two defects,
+> both mine: (1) ≈1000 LUT of BSCANE2 harness swamped the layer, and (2) each
+> arm draws a **different number of random values** (`rnd.randrange(len(levels))`),
+> so arms differ by weight draw as well as by alphabet. **One seed is not a
+> measurement.** Five seeds and a bare layer made the curve legible; chasing the
+> non-monotonicity is what exposed T292.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
