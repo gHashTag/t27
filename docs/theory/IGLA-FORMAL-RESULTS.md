@@ -9144,4 +9144,56 @@ found by comparing against a case whose right answer was known independently.
 
 ---
 
+### T146 (W682) — the shape audited by name: ZERO new instances, and the audit terminated
+
+T145 named the shape — *a sizing function returns a plausible number where it
+should refuse* — after finding it three times in three waves, each by accident.
+W682 searched for it deliberately, enumerating every function whose name carries
+`width`, `size`, `len`, `offset`, `count` or `bits`.
+
+**Forecast, registered first: 3–8 instances, 0–2 reachable. Measured: ZERO new
+instances.** A miss, low, and twice over — the first count was wrong too.
+
+**The first reading of this wave claimed a fourth instance in
+`scalar_field_width`. It is not new: W670 had already annotated that exact
+site**, and the grep that appeared to find a second code site had matched the
+prose *inside that annotation*. Corrected by counting annotated versus
+unannotated sites rather than raw matches.
+
+| function | can it refuse? | verdict |
+|---|---|---|
+| `expr_width_signed` | returns `Option` | **refuses properly** |
+| `parse_array_type` | returns `Option`, `None` on `[]T` | **refuses properly** |
+| `tuple_element_widths` | empty `Vec` on non-tuple | **refuses properly** |
+| `hw_width` | `HwType` enum, every variant explicit | no default path |
+| `packed_width` | delegates to guarded helpers | inherits their guards |
+| `scalar_field_width` | bare `u32`, `parse().unwrap_or(1)` | **known, annotated W670, guarded** |
+
+> **T146.** The shape is **not spread through the compiler**. Everywhere outside
+> the struct-packing path the code already returns `Option` or an empty
+> collection — it refuses properly. **And the population is smaller than the
+> history suggests: W671's rewrite of `element_width` and `struct_field_offset`
+> deleted two of the three original sites outright**, leaving one, guarded and
+> annotated.
+
+**Guard re-verified, not assumed:**
+
+```
+struct Sized   { v: [4]u8, n: u8 }  ->  packed vector (40 bits), f = s[32 +: 8]
+struct Unsized { v: []u8,  n: u8 }  ->  UNSUPPORTED_ICARUS, never reaches it
+```
+
+**What the audit was worth.** Three instances were found by accident over three
+waves. Naming the shape converted that into a search, and **the search
+terminated with "nothing further"** — which is the outcome an audit exists to
+produce and the one it can never produce by continuing to find things by luck.
+The cost was one wave; the result is that this class is closed.
+
+**And a smaller lesson, paid for twice in one wave.** `grep` for a code pattern
+matches the same pattern quoted in a comment about it. **Annotations written to
+prevent a defect become false positives when searching for that defect** — count
+by annotation status, not by raw match.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

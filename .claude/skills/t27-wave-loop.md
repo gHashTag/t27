@@ -7017,6 +7017,22 @@ These cost a wave each. Follow them before step 1.
      real defect in six lines of test input. A wave with nothing to fix is a wave
      free to find out what breaks.
 
+472. **An annotation written to prevent a defect becomes a false positive when
+     you grep for that defect.** W682 counted two `unwrap_or(1)` sites; one was
+     the pattern quoted inside the W670 comment warning about it. Count by
+     ANNOTATION STATUS, not by raw match. Paid for twice in one wave. T146.
+
+473. **A rewrite deletes instances a later audit would otherwise re-find.**
+     W671 replaced `element_width` and `struct_field_offset` with delegation, and
+     that removed two of the three known sites outright. The population an audit
+     faces is the CURRENT tree, not the history -- check before quoting a count
+     from earlier waves.
+
+474. **An audit's proper outcome is "nothing further", and only a named shape can
+     produce it.** Three instances were found by accident over three waves.
+     Naming the shape turned that into a search that TERMINATED. Luck can find
+     defects; only a search can establish there are no more.
+
 ### How to update this tracker
 
 After closing a wave:
