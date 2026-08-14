@@ -99,6 +99,34 @@ enum Commands {
         synth: bool,
     },
 
+    /// THE SERVICE: carry a spec all the way to a verdict READ BACK OFF THE DIE.
+    /// Strips the `$display` cells `gen-verilog` emits (T167), refuses to build a
+    /// bitstream from empty frames (T169), CHECKS THAT THE BSCAN CHAIN EQUALS THE
+    /// SITE nextpnr placed the cell at -- the mismatch that hid the readback for
+    /// six waves and that every other tool in the chain reports as success
+    /// (T172a) -- and brackets the read with a control bitstream, because a read
+    /// without its control is not a result.
+    Silicon {
+        /// The .t27 spec whose verdict should be read
+        input: String,
+        /// Verilog wrappers, in dependency order; the LAST one is the top module
+        #[arg(long)]
+        top: Vec<String>,
+        /// Which cable. All three share serial 210512180081, so this is the only
+        /// handle -- and it changes on replug. Take it from `t27c boards`.
+        #[arg(long, default_value = "1:4")]
+        busdev_num: String,
+        /// A bitstream for the WRONG PART, to force Done low before loading ours
+        #[arg(long)]
+        wrong_part: Option<String>,
+        /// A bitstream containing NO BSCANE2, to prove the magic can disappear
+        #[arg(long)]
+        control: Option<String>,
+        /// Build only; do not touch the boards
+        #[arg(long, default_value_t = false)]
+        skip_hardware: bool,
+    },
+
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
     /// agreement, that the nextpnr source is the openXC7 fork and not the
@@ -10225,6 +10253,22 @@ async fn main() -> anyhow::Result<()> {
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
         }
+        Commands::Silicon {
+            input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+        } => service::run_silicon(
+            &std::env::current_dir()?,
+            &input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+        )?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -10583,6 +10627,22 @@ fn main() -> anyhow::Result<()> {
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
         }
+        Commands::Silicon {
+            input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+        } => service::run_silicon(
+            &std::env::current_dir()?,
+            &input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+        )?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }

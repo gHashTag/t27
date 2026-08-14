@@ -10049,4 +10049,88 @@ be told from a JTAG artefact (T139). **It was needed, and it worked.**
 
 ---
 
+## W691 — the path is a command, and the benchmark bar is measured
+
+### T173 — `t27c silicon`, and the control that failed for the right reason
+
+W690's result lived in a scratch shell script. It is now one command, and every
+guard is a stage that can fail:
+
+```
+  stage                          time      rc      artefact  note
+  OK   spec -> Verilog          0.01s       0       30809 B  155 $display (stripped below)
+  OK   yosys                    5.64s       0     9729834 B  244 LUT, 114 CARRY4, 0 DSP48E1 | BSCANE2 x1
+  OK   nextpnr (no XDC)        10.12s       0      247414 B
+  OK   BSCAN chain == site      0.00s       0             -  JTAG_CHAIN(3) at BSCAN3 -- agree
+  OK   fasm2frames              1.81s       0    22698060 B
+  OK   frames -> bitstream      0.21s       0     9730834 B
+  OK   A1 wrong part      Done Some(0)
+  OK   B1 our bitstream   Done Some(1)
+  OK   B2 read            0xa5a5a5a5  magic, ok=1 beat=0  on index [0, 1, 2]
+  OK   C  control         index [0, 1] still answer; lost [2]
+       -> --busdev-num 1:4 is libftdi index 2
+  OK   A' reload          index [0, 1, 2] answer
+  PASS -- the silicon answered, and its answer is ok=1.
+```
+
+**The first run FAILED, and it was right to.** The control stage required the
+magic to vanish from *all* cables — but the control bitstream goes onto **one**
+board, and the other two still held the real design.
+
+> **T173.** `--busdev-num` (openFPGALoader) and libftdi index (this transport)
+> are **different enumerations with no mapping between them**, and W690's manual
+> run had concealed that by loading the control onto all three boards. The repair
+> is not to load everywhere: it is to require that **exactly one** cable falls
+> silent — **which derives the mapping instead of assuming it.** `1:4` is index
+> **2**. **Refuted by:** a run where zero or more than one index goes quiet.
+
+> **T173a.** The command found a defect in the experiment it was built from. That
+> is the argument for building it: **a result that lives in a shell script cannot
+> disagree with you.**
+
+**T173b — and a figure of my own is corrected.** W690 reported this design at
+**122 LUT**, read by eye from a yosys log. `cell_census` reads the **last**
+`Printing statistics` block, and the true cost is **244 LUT + 114 CARRY4, 0
+DSP48E1**. The 122 was an earlier, partial block. *The function written to stop
+exactly this mistake was present, and I did not use it.*
+
+### T174 — the benchmark bar, measured, and the MVP is not near it
+
+The literature has a fixed triple — MNIST, jet-substructure (JSC), UNSW-NB15
+(NID) — and every paper reports the same table shape.
+
+| benchmark | best area-efficient result | LUT | accuracy |
+|---|---|---:|---:|
+| **NID** | NeuraLUT-Assemble | **91** | **93.0%** |
+| **NID** | TreeLUT (II) | **89** | 92% |
+| JSC | DWN | **20** | 71.1% |
+| JSC | DWN | 110 | 74.0% |
+| MNIST | DWN (sm) | 692 | 97.1% |
+| MNIST | NeuraLUT-Assemble+aug | 5,037 | 98.6% |
+
+> **T174.** **The state of the art on UNSW-NB15 is 89–91 LUT at 92–93%
+> accuracy.** This project's MVP is **83 LUT with no accuracy figure at all**, and
+> the design just measured is **244 LUT**. "Small" was never the claim that
+> needed making: **the field already achieves this area *with* a number
+> attached.** **Refuted by:** an accuracy-bearing result under 89 LUT on NID.
+
+> **T174a — and the cheapest entry is already on disk.** The NID artefact every
+> paper uses (Zenodo 4519767) is **already binarised**: train `(175341, 594)`
+> uint8, test `(82332, 594)`, 593 input bits + 1 label. **Zero preprocessing.**
+> Of the three benchmarks it is the only one whose inputs are already binary —
+> which is exactly the shape a ternary datapath consumes. **JSC's 16 inputs are
+> continuous and must be quantised; MNIST's 784 are the largest.**
+
+> **T174b — the DSP claim is table stakes, not a distinction.** Every
+> area-efficient row in the modern tables reports **0 DSP and 0 BRAM**. The only
+> nonzero-DSP entries are two 2018–2020 hls4ml rows, cited as the old way. **"Zero
+> DSP" distinguishes nothing.**
+
+**And one caution the same search returned:** there are **two incompatible JSC
+datasets** in circulation (a 50k CERNBox file and the 830k OpenML set), and
+recent papers now report them as separate rows. Picking the wrong one makes a
+result incomparable with half the table.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

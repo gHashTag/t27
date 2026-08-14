@@ -926,3 +926,416 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
     println!("  independent fixes. See T120 for why frequency is worse.");
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// `t27c silicon` -- the whole path, spec to a verdict READ BACK OFF THE DIE.
+//
+// W690 walked this path by hand and it worked: the MVP's answer left the die
+// through JTAG USER3 and a machine read it, A/B/A, three boards, 27 reads. But
+// everything that made it work lived in a scratch shell script -- the two yosys
+// `delete` passes, the port-less top, the gate on the frames file, the
+// `--busdev-num` addressing, the chain/site agreement, and the control
+// bitstream on both sides of the read. A result that lives in /tmp is one
+// `rm -rf` from being a claim again, so this is that script as a command.
+//
+// WHAT EACH STAGE GUARDS, and the measurement behind it:
+//
+//   delete t:$print        `gen-verilog` emits the spec's `test` blocks into
+//                          what its own help calls synthesizable output -- 387
+//                          of 444 specs, 43,053 `$display` calls corpus-wide
+//                          (T167). yosys turns each into a `$print` cell and
+//                          nextpnr cannot place one.
+//   delete t:$scopeinfo    yosys 0.63 debug metadata; nextpnr-xilinx has no BEL
+//                          for it either.
+//   no --xdc               the only XDC in this tree targets CSG324, not our
+//                          FGG676. A port-less top drives no package pin, so it
+//                          needs no pin map at all.
+//   chain/site agreement   THE DEFECT THAT HID THE READBACK FOR SIX WAVES.
+//                          nextpnr places a lone BSCANE2 at site BSCAN3; a
+//                          design asking for JTAG_CHAIN(1) then emits
+//                          `BSCAN.JTAG_CHAIN_1` while routing
+//                          `CFG_CENTER_BSCAN3_*`. Chain 1 selects an unwired
+//                          site. EVERY TOOL RETURNS 0 (T172c) -- yosys, nextpnr,
+//                          fasm2frames, xc7frames2bit, openFPGALoader -- and the
+//                          mismatch is visible only in the read. This stage is
+//                          the only thing in existence that checks it.
+//   frames gate            `xc7frames2bit` turns a ZERO-BYTE frames file into a
+//                          9,730,899-byte bitstream and returns 0 -- one byte
+//                          from a real build (T169). `Stage::ok` fails an empty
+//                          artefact, so the pipeline stops here instead of
+//                          manufacturing a bitstream.
+//   A/B/A on hardware      `Done 0x1` proves nothing: the boards boot from SPI
+//                          flash and assert DONE unaided. Force it low with a
+//                          wrong-part bitstream first, and bracket the read with
+//                          a design containing no BSCANE2 at all.
+//
+// The verdict word is 32 bits: [31:4] magic 0xA5A5A5A, [3] 0, [2] 1, [1] beat,
+// [0] ok. The 28-bit magic is not decoration -- W675 added it because a 4-bit
+// read could not be told from a JTAG artefact (T139), and on this pipeline's
+// first mismatched build USER1 returned a perfect-looking `ok=1, const=01, beat`
+// with 28 zero bits above it (T172b). Without the magic that would have been
+// recorded as success.
+// ---------------------------------------------------------------------------
+
+/// Extract `(chain, site)` from a FASM file: the enabled JTAG chain and the
+/// BSCAN site whose signals are actually routed. They must be equal.
+fn fasm_bscan_chain_and_site(fasm: &str) -> (Option<u32>, Vec<u32>) {
+    let mut chain = None;
+    let mut sites: Vec<u32> = Vec::new();
+    for line in fasm.lines() {
+        if let Some(i) = line.find("BSCAN.JTAG_CHAIN_") {
+            let rest = &line[i + "BSCAN.JTAG_CHAIN_".len()..];
+            if let Some(n) = rest.chars().next().and_then(|c| c.to_digit(10)) {
+                chain = Some(n);
+            }
+        }
+        if let Some(i) = line.find("CFG_CENTER_BSCAN") {
+            let rest = &line[i + "CFG_CENTER_BSCAN".len()..];
+            if let Some(n) = rest.chars().next().and_then(|c| c.to_digit(10)) {
+                if !sites.contains(&n) {
+                    sites.push(n);
+                }
+            }
+        }
+    }
+    sites.sort_unstable();
+    (chain, sites)
+}
+
+/// One `openFPGALoader` load. Returns the DONE bit the loader reports.
+fn load_bitstream(bit: &Path, busdev: &str) -> (Option<i32>, Option<u8>, String) {
+    let (c, out, err) = run(Command::new("openFPGALoader").args([
+        "--cable",
+        "digilent_hs2",
+        "--busdev-num",
+        busdev,
+        &bit.to_string_lossy(),
+    ]));
+    let log = format!("{out}{err}");
+    // The loader prints `done 1` on success and a decoded status block --
+    // including `Done            0x0` -- when the part rejects the bitstream.
+    let done = if log.contains("Done            0x0") || log.contains("ID Error") {
+        Some(0u8)
+    } else if log.contains("done 1") {
+        Some(1u8)
+    } else {
+        None
+    };
+    (c, done, log)
+}
+
+/// Read the verdict word through JTAG. Returns (the libftdi indices whose cable
+/// answered with the magic, the first such word).
+///
+/// WHY THIS RETURNS A SET AND NOT A COUNT.
+///
+/// `--busdev-num` addresses a cable for openFPGALoader; libftdi index addresses
+/// it for this transport. **They are different enumerations and nothing maps
+/// between them.** The first version of this command loaded the control
+/// bitstream onto ONE board and then required the magic to vanish from ALL
+/// cables -- so the two boards still holding the real design failed the control,
+/// and the command reported FAIL on a working pipeline.
+///
+/// That was not a bug in the boards; it was a bug in the experiment, and W690's
+/// manual run had hidden it by loading the control onto all three. Returning the
+/// SET lets the caller do the honest thing: watch which index loses the magic
+/// when a known board is reprogrammed, and thereby DERIVE the mapping instead of
+/// assuming one.
+fn read_verdict(repo_root: &Path) -> (Vec<usize>, Option<u32>, String) {
+    let script = repo_root.join("tools/jtag/read_verdict.py");
+    let (_, out, err) = run(Command::new("python3")
+        .arg(&script)
+        .current_dir(repo_root));
+    let log = format!("{out}{err}");
+    let mut idxs = Vec::new();
+    let mut current: Option<usize> = None;
+    let mut word = None;
+    for line in log.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("index ") {
+            current = rest
+                .split(':')
+                .next()
+                .and_then(|n| n.trim().parse::<usize>().ok());
+            if word.is_none() {
+                word = t.split_whitespace().find_map(|w| {
+                    u32::from_str_radix(w, 16).ok().filter(|v| (v >> 4) == 0xA5A5A5A)
+                });
+            }
+        }
+        if t.starts_with("MAGIC PRESENT") {
+            if let Some(i) = current {
+                if !idxs.contains(&i) {
+                    idxs.push(i);
+                }
+            }
+        }
+    }
+    idxs.sort_unstable();
+    (idxs, word, log)
+}
+
+pub fn run_silicon(
+    repo_root: &Path,
+    spec: &str,
+    tops: Vec<String>,
+    busdev: String,
+    wrong_part: Option<String>,
+    no_bscan_control: Option<String>,
+    skip_hardware: bool,
+) -> anyhow::Result<()> {
+    let tmp = std::env::temp_dir().join("t27-silicon");
+    std::fs::create_dir_all(&tmp)?;
+    let stem = Path::new(spec)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "design".into());
+    let me = std::env::current_exe()?;
+    let mut stages: Vec<Stage> = Vec::new();
+
+    let db = repo_root.join("build/fpga/openxc7/prjxray-db/artix7");
+    let chipdb = repo_root.join("build/fpga/openxc7/xc7a200tfbg676-1.bin");
+    // These two live outside the worktree because they are multi-gigabyte
+    // checkouts shared across worktrees; `t27c preflight` is what verifies them.
+    let xr = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/prjxray");
+    let venv = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/venv/bin/python");
+    let pnr = PathBuf::from("/Users/playom/t27/build/fpga/openxc7/nextpnr-xilinx/build/nextpnr-xilinx");
+
+    println!("=== t27c silicon: {spec} ===");
+    for (what, p) in [("chipdb", &chipdb), ("prjxray-db", &db), ("nextpnr", &pnr)] {
+        if !p.exists() {
+            println!("  MISSING {what}: {}", p.display());
+            println!("  run `t27c preflight` first -- this path cannot be faked.");
+            std::process::exit(1);
+        }
+    }
+
+    // ---- spec -> Verilog ----
+    let v_path = tmp.join(format!("{stem}.v"));
+    let t = Instant::now();
+    let (c, out, _) = run(Command::new(&me).args(["gen-verilog", spec]));
+    let displays = out.matches("$display").count();
+    if c == Some(0) {
+        std::fs::write(&v_path, &out)?;
+    }
+    stages.push(Stage {
+        name: "spec -> Verilog",
+        secs: t.elapsed().as_secs_f64(),
+        code: c,
+        artefact: file_len(&v_path),
+        note: format!("{displays} $display (T167: stripped below, not synthesizable)"),
+    });
+
+    // ---- yosys ----
+    let json_path = tmp.join(format!("{stem}.json"));
+    let mut sources = vec![v_path.to_string_lossy().to_string()];
+    sources.extend(tops.iter().cloned());
+    let top_name = tops
+        .last()
+        .and_then(|p| Path::new(p).file_stem().map(|s| s.to_string_lossy().to_string()))
+        .unwrap_or_else(|| stem.clone());
+    let t = Instant::now();
+    let script = format!(
+        "read_verilog {}; synth_xilinx -family xc7 -top {} -flatten; \
+         delete t:$print; delete t:$scopeinfo; write_json {}",
+        sources.join(" "),
+        top_name,
+        json_path.display()
+    );
+    let (c, out, err) = run(Command::new("yosys").args(["-p", &script]));
+    let log = format!("{out}{err}");
+    // Read the INSTANCE count from the statistics block, never a substring count
+    // of the log -- the cell library mentions BSCANE2 whether or not one is
+    // instantiated, which is the exact misreading `cell_census` exists to prevent.
+    let bscan = log
+        .rfind("Printing statistics")
+        .map(|i| &log[i..])
+        .and_then(|b| {
+            b.lines().find_map(|l| {
+                let f: Vec<&str> = l.split_whitespace().collect();
+                (f.len() == 2 && f[1] == "BSCANE2").then(|| f[0].parse::<u64>().ok())?
+            })
+        })
+        .unwrap_or(0);
+    stages.push(Stage {
+        name: "yosys",
+        secs: t.elapsed().as_secs_f64(),
+        code: c,
+        artefact: file_len(&json_path),
+        note: format!("{} | BSCANE2 x{bscan}", cell_census(&log)),
+    });
+
+    // ---- nextpnr, no XDC: the top drives no package pin ----
+    let fasm_path = tmp.join(format!("{stem}.fasm"));
+    let t = Instant::now();
+    let (c, _, err) = run(Command::new(&pnr).args([
+        "--chipdb", &chipdb.to_string_lossy(),
+        "--json", &json_path.to_string_lossy(),
+        "--fasm", &fasm_path.to_string_lossy(),
+    ]));
+    let first_err = err
+        .lines()
+        .find(|l| l.starts_with("ERROR"))
+        .unwrap_or("")
+        .to_string();
+    stages.push(Stage {
+        name: "nextpnr (no XDC)",
+        secs: t.elapsed().as_secs_f64(),
+        code: c,
+        artefact: file_len(&fasm_path),
+        note: first_err,
+    });
+
+    // ---- THE GUARD: chain and site must be the same number ----
+    let fasm = std::fs::read_to_string(&fasm_path).unwrap_or_default();
+    let (chain, sites) = fasm_bscan_chain_and_site(&fasm);
+    let agree = match (chain, sites.as_slice()) {
+        (Some(ch), [s]) => ch == *s,
+        // No BSCAN at all is not a mismatch -- it is a design without a readback.
+        (None, []) => true,
+        _ => false,
+    };
+    stages.push(Stage {
+        name: "BSCAN chain == site",
+        secs: 0.0,
+        code: if agree { Some(0) } else { Some(1) },
+        artefact: None,
+        note: match (chain, sites.as_slice()) {
+            (Some(ch), [s]) if ch == *s => format!("JTAG_CHAIN({ch}) at BSCAN{s} -- agree"),
+            (Some(ch), [s]) => format!(
+                "MISMATCH: JTAG_CHAIN({ch}) enabled, BSCAN{s} wired -- set .JTAG_CHAIN({s})"
+            ),
+            (None, []) => "no BSCANE2 in this design".into(),
+            (ch, ss) => format!("ambiguous: chain={ch:?} sites={ss:?}"),
+        },
+    });
+
+    // ---- fasm2frames ----
+    let frames_path = tmp.join(format!("{stem}.frames"));
+    let t = Instant::now();
+    let (c, out, err) = run(
+        Command::new(&venv)
+            .env("PYTHONPATH", &xr)
+            .arg(xr.join("utils/fasm2frames.py"))
+            .args(["--db-root", &db.to_string_lossy(), "--part", "xc7a200tfbg676-1"])
+            .arg(&fasm_path),
+    );
+    if c == Some(0) {
+        std::fs::write(&frames_path, &out)?;
+    }
+    // The FIRST line of this traceback blames a circular import in fasm.parser;
+    // the real cause is on the LAST line, usually a missing input from a stage
+    // that already failed (T171).
+    let last = err.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
+    stages.push(Stage {
+        name: "fasm2frames",
+        secs: t.elapsed().as_secs_f64(),
+        code: c,
+        artefact: file_len(&frames_path),
+        note: if c == Some(0) { String::new() } else { last.chars().take(60).collect() },
+    });
+
+    // ---- bitstream, ONLY from non-empty frames ----
+    let bit_path = tmp.join(format!("{stem}.bit"));
+    let frames_ok = file_len(&frames_path).map(|(_, n)| n > 0).unwrap_or(false);
+    let t = Instant::now();
+    let c = if frames_ok {
+        let (c, _, _) = run(Command::new("xc7frames2bit").args([
+            "--part_file", &db.join("xc7a200tfbg676-1/part.yaml").to_string_lossy(),
+            "--part_name", "xc7a200tfbg676-1",
+            "--frm_file", &frames_path.to_string_lossy(),
+            "--output_file", &bit_path.to_string_lossy(),
+        ]));
+        c
+    } else {
+        Some(1)
+    };
+    stages.push(Stage {
+        name: "frames -> bitstream",
+        secs: t.elapsed().as_secs_f64(),
+        code: c,
+        artefact: file_len(&bit_path),
+        note: if frames_ok {
+            String::new()
+        } else {
+            "SKIPPED: empty frames would still yield a 9.7 MB .bit (T169)".into()
+        },
+    });
+
+    let build_ok = print_table(&stages);
+    if !build_ok {
+        println!("FAIL -- the build did not complete. Nothing was loaded.");
+        std::process::exit(1);
+    }
+
+    if skip_hardware {
+        println!("PASS (build only) -- rerun without --skip-hardware to load and read.");
+        return Ok(());
+    }
+
+    // ---- A/B/A on real silicon ----
+    println!("  --- hardware, board {busdev} ---");
+    let mut hw_ok = true;
+
+    if let Some(wp) = &wrong_part {
+        let (_, done, _) = load_bitstream(Path::new(wp), &busdev);
+        let ok = done == Some(0);
+        hw_ok &= ok;
+        println!("  {} A1 wrong part      Done {:?}  (must be 0 -- `done 1` alone proves nothing)",
+                 if ok { "OK  " } else { "FAIL" }, done);
+    }
+
+    let (_, done, _) = load_bitstream(&bit_path, &busdev);
+    let ok = done == Some(1);
+    hw_ok &= ok;
+    println!("  {} B1 our bitstream   Done {:?}  (must be 1)",
+             if ok { "OK  " } else { "FAIL" }, done);
+
+    let (before, word, _) = read_verdict(repo_root);
+    let ok = !before.is_empty();
+    hw_ok &= ok;
+    match word {
+        Some(w) => println!(
+            "  {} B2 read            0x{w:08x}  magic, ok={} beat={}  on index {before:?}",
+            if ok { "OK  " } else { "FAIL" }, w & 1, (w >> 1) & 1
+        ),
+        None => println!("  FAIL B2 read            no magic on any cable"),
+    }
+
+    if let Some(nb) = &no_bscan_control {
+        // The control goes onto ONE board, so require that exactly that board
+        // stops answering -- not that every board does. The index that loses the
+        // magic IS the libftdi handle for this --busdev-num, derived rather than
+        // assumed.
+        let (_, _, _) = load_bitstream(Path::new(nb), &busdev);
+        let (during, _, _) = read_verdict(repo_root);
+        let lost: Vec<usize> = before.iter().copied().filter(|i| !during.contains(i)).collect();
+        let ok = lost.len() == 1;
+        hw_ok &= ok;
+        println!(
+            "  {} C  control         index {during:?} still answer; lost {lost:?}  (exactly one must fall silent)",
+            if ok { "OK  " } else { "FAIL" }
+        );
+        if ok {
+            println!("       -> --busdev-num {busdev} is libftdi index {}", lost[0]);
+        }
+
+        let (_, _, _) = load_bitstream(&bit_path, &busdev);
+        let (after, _, _) = read_verdict(repo_root);
+        let returned = lost.iter().all(|i| after.contains(i));
+        hw_ok &= returned;
+        println!(
+            "  {} A\' reload          index {after:?} answer  (the silenced one must return)",
+            if returned { "OK  " } else { "FAIL" }
+        );
+    }
+
+    println!();
+    if hw_ok && word.map(|w| w & 1 == 1).unwrap_or(false) {
+        println!("PASS -- the silicon answered, and its answer is ok=1.");
+        Ok(())
+    } else {
+        println!("FAIL -- see the line above. A read without its control is not a result.");
+        std::process::exit(1);
+    }
+}

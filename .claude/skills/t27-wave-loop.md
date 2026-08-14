@@ -7309,6 +7309,39 @@ These cost a wave each. Follow them before step 1.
      ''` because the only XDC in the tree targets CSG324, not our FGG676. Drop the
      port list, keep the lamps as internal wires, and the pin map stops mattering.
 
+524. **`--busdev-num` and libftdi index are DIFFERENT enumerations with no
+     mapping.** Load a control onto one board and read all cables, and the two
+     boards still holding the real design fail the control. The fix is not to
+     load everywhere -- require that EXACTLY ONE cable falls silent, which
+     DERIVES the mapping. Measured: `1:4` is index 2. T173.
+
+525. **The command found a defect in the experiment it was built from.** W690's
+     manual A/B/A had loaded the control onto all three boards and so never
+     exposed the addressing gap. A result that lives in a shell script cannot
+     disagree with you. T173a.
+
+526. **I read 122 LUT off a yosys log by eye; the real figure is 244 LUT + 114
+     CARRY4.** `cell_census` exists to read the LAST `Printing statistics` block
+     for exactly this reason, and it was already in the file. Use the function
+     that was written to stop the mistake you are about to make. T173b.
+
+527. **The NID (UNSW-NB15) state of the art is 89-91 LUT at 92-93% accuracy.**
+     The MVP is 83 LUT with NO accuracy figure. "Small" was never the claim that
+     needed making -- the field already achieves this area WITH a number. T174.
+
+528. **The NID dataset is already binarised and already downloaded**: train
+     (175341, 594) uint8, test (82332, 594), 593 input bits + 1 label, Zenodo
+     4519767. Zero preprocessing, and the only one of the three benchmarks whose
+     inputs are already binary. T174a.
+
+529. **"Zero DSP" distinguishes nothing.** Every area-efficient row in the modern
+     LUT-network tables reports 0 DSP and 0 BRAM; the only nonzero-DSP entries are
+     two legacy hls4ml rows cited as the old way. T174b.
+
+530. **There are TWO incompatible JSC datasets** -- a 50k CERNBox file and the
+     830k OpenML set -- and recent papers report them as separate rows. Pick the
+     wrong one and the result is incomparable with half the table.
+
 ### How to update this tracker
 
 After closing a wave:
