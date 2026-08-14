@@ -5598,6 +5598,20 @@ impl Codegen {
                 }
             }
         }
+        // W732: t27 spells a slice `[T]`; Zig spells it `[]T`. The bare form was
+        // emitted VERBATIM into parameter and return positions, where Zig
+        // answers "expected type expression" -- 11 of the 12 specs in that
+        // class, measured by decomposing it rather than guessing: `[string]`,
+        // `[u8]`, `[BootStage]`, `[ConnEdge]`, `[TimingArc]`, `[str]`, `[Item]`.
+        // `[T; N]` (sized) and `[]T` (already Zig) are handled below and above.
+        if t.starts_with('[') && t.ends_with(']') && !t.contains(';') {
+            let inner = t[1..t.len() - 1].trim();
+            // `[str:str]` is a MAP in t27, not a slice; leave it alone rather
+            // than emit a slice of something that does not exist.
+            if !inner.is_empty() && !inner.contains(':') {
+                return format!("[]{}", Self::t27_array_type_to_zig(inner));
+            }
+        }
         if t.starts_with('[') && t.ends_with(']') && t.contains(';') {
             let inner = &t[1..t.len() - 1];
             if let Some(semi) = inner.rfind(';') {

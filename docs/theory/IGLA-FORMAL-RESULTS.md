@@ -13437,4 +13437,95 @@ var tok = make_token_from_source(l, TokenKind.Ident, start_pos, start_line, star
 
 ---
 
+## The blocked corpus, decomposed — W732
+
+The standing brief demands the honest path for a defect class: **work ten to
+fifteen specs to root cause, and only then name the class.** This is that,
+applied to the 127 blocked specs of T260.
+
+### T261 — the classification, and a refuted forecast
+
+160 non-scratch specs, classified by their **first** error as the compiler
+reports it:
+
+```
+  RUNS                                              33
+  BLOCKED                                          127
+    PARSE ERROR                                     45
+    zig: expected type expression                   12
+    UNWRITTEN (@compileError not yet implemented)   10
+    zig: use of undeclared identifier                3
+    zig: redeclaration of local variable 'i'         3
+    zig: expected expression                         3
+    ... 12 further classes of 2 or fewer
+```
+
+**Registered before running:** the largest class would be UNWRITTEN — specs
+never authored rather than broken.
+
+> **T261. Refuted.** UNWRITTEN is **10**, fourth by size. **Parse errors are 45**,
+> more than a third of everything blocked, and they never reach codegen at all.
+> The instinct that a corpus this incomplete must be mostly unwritten is wrong:
+> it is mostly **unparseable**, which is a different problem with a different
+> owner.
+
+### T262 — the second class had one root, and the sample showed it
+
+All twelve "expected type expression" specs, with the offending emitted line:
+
+```
+coa_planning  resources: [string],          operations  data: [u8]
+bootrom       stages: [BootStage]           router      edges: [ConnEdge]
+testbench     stimuli: [TbStimulus]         timing      arcs: [TimingArc]
+diff          files: [str]                  operations  args: [str]
+schema        env: [str:str]                status      items: [Item]
+publication   authors: [str]                linker_tb   align: u32     <-- not this root
+```
+
+> **T262.** **Eleven of twelve are one root: t27 spells a slice `[T]` and Zig
+> spells it `[]T`**, and the bare form went into parameter and return positions
+> verbatim. The twelfth is unrelated — `align` is a **Zig keyword** used as a
+> parameter name. **Reading the sample decided the class in one pass**; a
+> frequency count over error strings would have merged two roots under one
+> message.
+
+### T262a — the fix removes the class and unblocks one spec
+
+`t27_array_type_to_zig` already handled `[]T` and `[T; N]`; the bare `[T]` was
+missing. `[str:str]` is a **map**, not a slice, and is deliberately left alone.
+
+```
+class after the fix:   RUNS 1   BLOCKED 11     (was 0 / 12)
+regression:            145 tests unchanged      (132 of W728 + 13 of gfternary)
+```
+
+> **T262a.** The **error class is gone** — no spec now fails on a bare `[T]` —
+> and exactly **one spec runs** (`bootrom`, 12 tests). The other eleven moved to
+> their next blocker. **Removing a defect class and unblocking specs are
+> different measurements**, and this repository already knew it: T120 measured
+> that removing the single most frequent cause moved the compiling count
+> 151 → 151, because 94% of those specs were four or more classes deep.
+> **Third wave running in which "fixed the cause" and "the gate is green" came
+> apart.**
+
+### T263 — the next root, named and left
+
+Four of the eleven now fail identically:
+
+```
+router.t27     function parameter shadows declaration of 'fanout'
+testbench.t27  ... of 'clock_cfg'
+timing.t27     ... of 'slack'
+diff.t27       ... of 'diff_text'
+```
+
+> **T263.** **A t27 parameter may share its name with a module-level
+> declaration; a Zig parameter may not.** One root, four specs, and a real
+> language-level difference rather than a codegen slip. Fixing it means renaming
+> the parameter **and every reference to it in the body**, which is a larger
+> change than this wave should start — so it is named, measured and left, which
+> is the difference between a backlog and a surprise.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -8511,6 +8511,29 @@ These cost a wave each. Follow them before step 1.
      the compiler, not estimated from generated text. Quote this figure, not a
      regex-derived one.
 
+745. **THE CORPUS IS UNPARSEABLE, NOT UNWRITTEN.** Classified by first error:
+     45 PARSE ERROR, 12 `expected type expression`, only **10** UNWRITTEN. The
+     forecast that an incomplete corpus must be mostly unauthored was refuted by
+     a factor of four. Parse errors never reach codegen -- a different problem
+     with a different owner.
+
+746. **READ THE SAMPLE; DO NOT COUNT THE MESSAGE.** All twelve
+     `expected type expression` specs shared ONE message and TWO roots: eleven
+     were t27's bare slice `[T]` emitted where Zig needs `[]T`, and one was the
+     Zig keyword `align` used as a parameter name. A frequency table over error
+     strings would have merged them.
+
+747. **REMOVING A CLASS IS NOT UNBLOCKING SPECS -- THIRD WAVE IN A ROW.** The
+     `[T]` fix removed the entire error class and moved exactly ONE spec to
+     RUNS; the other eleven met their next blocker. T120 measured this in 2026:
+     removing the most frequent cause moved the compiling count 151 -> 151.
+     **Report both numbers or neither.**
+
+748. **`[str:str]` is a MAP, not a slice.** The bare-`[T]` conversion excludes
+     any inner type containing `:` -- emitting `[]str:str` would have traded a
+     clear error for a wrong type. When a rewrite rule has an exception, encode
+     the exception, do not hope the input avoids it.
+
 ### How to update this tracker
 
 After closing a wave:
