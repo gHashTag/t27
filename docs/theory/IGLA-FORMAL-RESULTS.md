@@ -14553,4 +14553,98 @@ the same zero a genuine null does.
 
 ---
 
+## W747 — the complete node on silicon, and the row we had never written
+
+### T301 — the row, finally, with both numbers in it
+
+T161 and T174 named the refutation condition: *an accuracy-bearing result under
+89 LUT on UNSW-NB15*. It has never been attempted. Here it is.
+
+| system | LUT | accuracy |
+|---|---:|---:|
+| TreeLUT (II) | **89** | 92.0% |
+| NeuraLUT-Assemble | **91** | 93.0% |
+| PolyLUT-Add | 3,336 | 92.0% |
+| **ours — PoT 9-level, 593→64 layer 1 only** | **54,914** | **83.4%** |
+
+Accuracy is 30 seeds of `ladder_30seeds.json` (best arm, 83.36 ± 0.66, best seed
+84.56). Area is yosys `-nodsp` on the real 593→64 layer, zero DSP48E1, layer 2
+and the resolve not yet counted.
+
+> **T301. We are not close, and the gap is not the alphabet.** **617× the area at
+> nine points less accuracy.** Every wave since W740 has been optimising the
+> weight alphabet of a network whose *architecture* is three orders of magnitude
+> off the pace. The alphabet effects are real — they are paired comparisons on one
+> trainer — but **their leverage is bounded by a choice nobody questioned.**
+
+> **T301a. Two honest qualifications, and neither rescues the number.** Our
+> trainer is a deliberate probe — 8 epochs, 40k subsample, 64 hidden, hand-rolled
+> STE — not a competitive model, so 83.4% is *this probe's* accuracy and not a
+> ceiling. And the comparison crosses architectural families: LogicNets, PolyLUT,
+> NeuraLUT and TreeLUT absorb a sparse neuron into a **truth table** and do no
+> arithmetic at all, while we build 37,952 dense MACs. **Both facts are true and
+> neither is an excuse:** the field's row is the field's row, and ours now exists
+> beside it.
+
+### T302 — the complete node runs on all three dice
+
+The node of T292 — layer, pair resolve, ternary threshold — placed, routed,
+loaded and read back. 822 LUT, **0 DSP48E1**, Fmax 56.8 MHz.
+
+| board | wrong part | ours | verdict |
+|---|---|---|---|
+| 1:4 | Done 0 | done 1 | **0→1** |
+| 1:6 | Done 0 | done 1 | **0→1** |
+| 1:8 | Done 0 | done 1 | **0→1** |
+
+> **T302.** First time a node that produces a **ternary symbol** — not an
+> unresolved `Z[φ]` pair — has been on this silicon. The magic `0xA5A5A5A` reads
+> back from all three dice.
+
+### T303 — the fingerprint was sampling startup, not the design
+
+W716 froze the accumulator parity so it would identify a *design* rather than a
+read time. On silicon it identified neither.
+
+> **T303.** Identical bitstream, identical board: `sig = 1`, then after a clean
+> reload `sig = 0`, three times running. **The freeze captured startup phase.**
+> The LFSR, accumulator and freeze counter were not gated on `EOS`, so the number
+> of `CFGMCLK` edges each register sees before leaving GSR varies from
+> configuration to configuration. **This is the same defect class as W716's own —
+> a bit that discriminates something other than the design — one level deeper,
+> and it survived because the earlier test only ever re-read one configuration.**
+
+### T304 — the fix, and what the fix immediately exposed
+
+Gating every startup register on a two-stage-synchronised `EOS`, and exposing
+`frozen` beside `sig`:
+
+| board | before | after — 4 reload cycles |
+|---|---|---|
+| 1:4-side | `sig=0` | **`frozen=0`** — never freezes, all 4 cycles |
+| others | `sig` unstable | **`frozen=1, sig=0`** — identical all 4 cycles |
+
+> **T304. The old harness would have called board 0 a successful readback.** An
+> unfrozen register reads `sig = 0`, which is indistinguishable from a genuine
+> measurement of zero. **A validity flag is not a nicety; without it the
+> instrument cannot report that it failed.** Reproducibility went from
+> "different every configuration" to **identical across four full
+> wrong-part→ours cycles on three boards.**
+
+> **T304a.** That one board never reaches the freeze is now a *visible* open
+> question rather than a silent zero. Candidates: `CFGMCLK` far below nominal, or
+> `EOS` not propagating on that die. **The instrument earned its keep by failing
+> loudly.**
+
+### T305 — the stale-bitstream trap, caught by its own lesson
+
+> **T305.** `fasm2frames` died on `ModuleNotFoundError: fasm` — the module lives
+> in the openXC7 venv and the driver called the system `python3`. Frames were **0
+> lines**, and `xc7frames2bit` produced a **9,730,898-byte bitstream anyway**.
+> That is exactly the W741 trap. **Bitstream size is fixed by the part and
+> therefore proves nothing** — the only honest guard is on the *frames* count, and
+> it is now in the driver: fewer than 100 lines refuses to build.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
