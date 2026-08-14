@@ -8434,4 +8434,63 @@ several where **both** registered quantities landed inside their bands.
 
 ---
 
+### T133 (W668) — the largest blocker category is not a compiler gap; it is 108 specs written in a dialect that was never implemented
+
+W667 measured five blocker categories and left the largest unexamined: **2,339
+"other" fields, eight times any other category**. Censused by the literal text of
+the field type — 693 distinct spellings across 2,659 occurrences:
+
+| count | type text | what it is |
+|---:|---|---|
+| 268 | `[]u8` | array of primitives |
+| 195 | `str` | string |
+| 136 | `&str` | string, **second** spelling |
+| 123 | `string` | string, **third** spelling |
+| 123 | `f32` | float |
+| 98 | `[]f32` | array of floats |
+| 89 | `f64` | float |
+| 77 | `[]gf16::GF16` | array of a namespaced type |
+| 69 | `[]const u8` | string, **fourth** spelling |
+| 60 | `String` | string, **fifth** spelling |
+| 50 | `Float` | float, capitalised |
+| 44 | `"usize"` | **a type written as a string literal** |
+| 34 | `Int` | integer, capitalised |
+| 23 | `Bool` | bool, capitalised |
+| 23 | `"f64"`, 23 `"std.mem.Allocator"` | more quoted types |
+
+**`Bool`, `Int`, `Float`, `String` and `Auto` are declared nowhere.** They are not
+language aliases; the compiler has no case for them. Verified end to end:
+
+```
+struct S { a: Bool, b: u8 }
+    -> Zig:  a: Bool,
+    -> zig:  error: use of undeclared identifier 'Bool'
+    -> Verilog: UNSUPPORTED_ICARUS: struct S contains non-lowerable fields
+```
+
+> **T133.** **108 specs use type spellings the compiler never implemented** —
+> 998 occurrences of `string`, `&str`, `[]const u8`, `String`, `Float`, `Bool`,
+> `Int`, `Auto` — and **both** backends reject them. No compiler fix reaches these
+> specs. They are not miscompiled; they are written against a language that does
+> not exist.
+
+**And they are the reason the "other" category is eight times the others.** Five
+spellings of *string* alone account for **714** occurrences. Widening the
+lowerability predicate — the work of W667 — cannot touch any of them, because a
+string has no fixed width in any of its spellings.
+
+**What this leaves as a decision, not a repair.** Either the language adopts the
+aliases (`Bool → bool`, `Int → i64`, `Float → f64`, and one canonical string
+type absorbing four spellings), or the 108 specs are edited. **Both are choices
+about what t27 is**, in the same class as generic types (T122), and neither is a
+compiler defect to be fixed autonomously.
+
+**Corpus accounting, updated.** Of 617 specs: 173 do not parse, 159 are unwritten,
+6 partial, and of the 218 implemented, **108 carry unimplemented type spellings**
+— overlapping the 121 that fail `iverilog`. The compiler-defect backlog is
+therefore **smaller than the 124 of T125**, and the balance is spec-language
+mismatch.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

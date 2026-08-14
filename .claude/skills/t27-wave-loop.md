@@ -6741,6 +6741,23 @@ These cost a wave each. Follow them before step 1.
      usize/isize 173, floats 212, other 2,339. Choosing from the example would
      have bought three structs; choosing from the measurement bought twenty-five.
 
+425. **Census the biggest bucket before fixing the small ones.** "other" was
+     eight times every other blocker category and had never been opened. Inside:
+     FIVE spellings of string (714 occurrences), capitalised aliases declared
+     nowhere, and types written as STRING LITERALS (`"usize"`, `"f64"`). T133.
+
+426. **A spelling the compiler has no case for is a SPEC error, not a compiler
+     gap.** `struct S { a: Bool }` emits `a: Bool,` into Zig, and zig answers
+     `use of undeclared identifier 'Bool'`. 108 specs, 998 occurrences, both
+     backends rejecting. No compiler fix reaches them -- widening a predicate
+     cannot give a string a fixed width in any of its four spellings.
+
+427. **Distinguish "defect" from "decision" in the backlog, out loud.** Adopting
+     `Bool -> bool` and one canonical string type is a choice about what the
+     language IS, like generic types (T122). Neither belongs to an autonomous
+     loop, and counting them as defects has inflated the backlog figure twice
+     now (T121, T125, and again here).
+
 ### How to update this tracker
 
 After closing a wave:
