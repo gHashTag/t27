@@ -17,6 +17,14 @@ no multiplier. This script measures whether the tool agrees.
 Every arm uses the SAME zero pattern and the SAME seed; only the distribution
 of nonzero levels changes. Anything else would confound alphabet with sparsity.
 """
+# NAMING (W746). `pot<N>` is THIS REPOSITORY'S TAG, not a format name: "powers of
+# two, N levels", e.g. pot9 = {0, +-1, +-2, +-4, +-8}. In the literature this is
+# POWER-OF-TWO (PoT) QUANTISATION -- Li, Dong & Wang, ICLR 2020, arXiv:1909.13144
+# Eq. 3 coins "PoT"; Zhou et al. ICLR 2017 (arXiv:1702.03044) Eq. 1 defines the
+# identical set as P_l. The literature name carries NO level count, so any prose
+# must write the set out. Do NOT call it APoT (that is sums of PoT terms), INQ
+# (a training procedure), or logarithmic quantisation (unsigned, free base).
+# The tag stays in code -- stable and greppable -- and stays OUT of prose.
 import argparse, random, sys
 
 # alphabet -> list of (A_coeff, B_coeff) for the POSITIVE levels; sign is added

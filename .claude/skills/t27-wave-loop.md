@@ -8707,6 +8707,53 @@ case is where a knob's *precondition* becomes visible: alphabet size only pays
 where the task has **headroom**. A sweep that omits the trivial end omits the
 statement of when the whole result applies.
 
+### Lessons 778-783 (W746) — half a node, and a search that ignored our own file
+
+**778. Measure the step that DECIDES, not the step that accumulates.** Every
+golden-ladder area figure this project published — five waves of them — measured
+a layer that emits the pair `(a,b)` and stops. A node must emit a **symbol**,
+which needs `sign(a + bφ − θ)`, and that resolve is where the multiplier comes
+back: **8 DSP48E1 per golden arm, zero for dyadic, at every rung.** Ask of any
+cost claim: *does this measurement reach the output the system actually needs?*
+The half that was never in doubt is the easy half to measure.
+
+**779. A fixed toll beats a proportional saving at every realistic size.** The
+golden layer genuinely is ~5% cheaper — two narrow accumulator trees beat one
+wide one, exactly as the Fibonacci pair predicts. It pays a fixed 2750 LUT to
+resolve. Recovering that at 5% needs a 55 000-LUT layer. **A real advantage
+out-ranged by a fixed cost is not an advantage**, and the way to find out is to
+sweep the scaling parameter (fan-in 64→512 moved the ratio 5.64× → 1.46× and
+never crossed).
+
+**780. One seed is not a curve.** The first cost sweep read `1169, 1236, 1238,
+1358, 1291, 1214` — non-monotone, thirteen levels cheaper than nine. Two
+defects: ~1000 LUT of harness swamping the layer, and **arms drawing different
+counts of random values** (`rnd.randrange(len(levels))`), so they differed by
+weight draw as well as by alphabet. Five seeds and a bare layer made it legible.
+**Chasing the non-monotonicity is what exposed lesson 778** — an impossible
+ordering is a gift, not noise to smooth.
+
+**781. Search your own record before searching the world.** Thirty agents were
+spawned to ask whether φ-quantisation is prior art. `IGLA-FORMAL-RESULTS.md` has
+recorded the answer since W717 (T225: *The Golden Ratio Encoder*, arXiv:0809.1257,
+2008) **with a standing instruction never to call it unexplored** — and four
+agents reported "no evidence found" anyway. **The generalisation of "when a tool
+will answer, don't write a regex" is "when your own record will answer, don't
+spawn a search."** Grep the theorem file first. It is one call.
+
+**782. Fifth false null of the programme; the control is still one call.** A
+malformed query returns the same zero a genuine null does. **Before believing a
+zero, search for something known to exist.** Recorded four times before this
+one and skipped again — so the control belongs in the *prompt* of any search
+agent, not in the reviewer's head.
+
+**783. Never print an internal tag where a reader will meet it.** `pot9` is this
+repo's shorthand and went into a user-facing "top formats" table as though it
+were a published name; Dmitrii caught it in one line. Internal identifiers are
+good in code — stable, greppable — and **inexcusable in prose**. The fix is not
+to rename the identifier (in a seal-hashed spec repo that is a regeneration);
+it is a mapping comment in the code and the full set written out in the text.
+
 ### How to update this tracker
 
 After closing a wave:
