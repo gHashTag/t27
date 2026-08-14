@@ -9570,4 +9570,72 @@ incremental generation.
 
 ---
 
+### T157 — the two censuses agree exactly, and the headline was 21% wrong
+
+W689 cross-tabulated a text measure (brace matching, comments stripped) against
+`impl-status`'s AST measure, spec by spec, over all 617:
+
+| my verdict | listed by `impl-status` | not listed |
+|---|---:|---:|
+| has a body | **0** | 326 |
+| all bodies empty | **159** | 35 |
+| some empty | **6** | 6 |
+| no functions | 0 | 85 |
+
+**Zero disagreements**, 159 = `UNWRITTEN` exactly, 6 = `PARTIAL` exactly, and the
+function counts matched on **165 of 165**. The apparent 40% gap was entirely
+explained by two effects, and the arithmetic closes:
+
+```
+NOPARSE 173 = 35 all-empty + 6 partial + 132 (bodied or fn-less) that do not parse
+implemented 279 = (326 + 85) - 132
+```
+
+*My first cross-tab reported three disagreements. They were an artefact of
+matching paths by basename — `tools/schema.t27` matched a different
+`schema.t27`. Exact-path matching gives zero. The defect was in my comparison,
+not in either measurement.*
+
+**Then the AST's own per-file verdict settled it.** Running `t27c spec-status`
+over all 617:
+
+```
+IMPLEMENTED 218 | NOPARSE 173 | UNWRITTEN 159 | NOFN 61 | PARTIAL 6   = 617
+                                                     218 + 61 = 279
+```
+
+> **T157.** [`impl_status.rs:160`](../../bootstrap/src/impl_status.rs) read
+> `if fns.is_empty() { r.implemented += 1 }`. **A spec that declares no function
+> was counted as fully implemented** — sound arithmetic (it has no *missing*
+> bodies) attached to a false label. Sixty-one specs entered the headline number
+> that way, **overstating it by 21%**: 279 reported, **218** actual. Among them
+> `sacred/dark_matter.t27`, `tri/math/math.t27` and `tri/agent/memory.t27`, each
+> 47 characters after comments are stripped, twenty-five of them byte-identical
+> (T154).
+
+**T157a — and the module already knew.** `spec_status`, twenty lines below in the
+same file, has returned `NOFN` as a distinct verdict since W665, and a previous
+wave recorded the decomposition 218 + 61 = 279. **The knowledge was never the
+missing piece; the repair was.** `run` kept merging, the printed report kept
+saying 279, and every census that read the report inherited the merge for a
+hundred waves.
+
+> **T157b.** Two functions in one module answering one question differently is
+> not a documentation problem. **The one that feeds the printed report is the one
+> that becomes true**, regardless of what the other returns.
+
+**Fixed in W689**, with the forecast registered first (T44):
+
+| forecast | outcome |
+|---|---|
+| `implemented` 279 → 218 | **218** ✓ |
+| a `NOFN` line appears at 61 | **61** ✓ |
+| buckets still sum to 617 | **617** ✓ |
+| **corpus does not move from 156** | **156 / 196 / 64 / 444 — unchanged** ✓ |
+
+Two tests now pin it: a fn-less source must classify `NOFN`, and the five
+verdicts must partition.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -7178,6 +7178,28 @@ These cost a wave each. Follow them before step 1.
      add `typeof args === 'string' ? JSON.parse(args) : args` and it cannot
      happen again.
 
+500. **A spec with no functions was counted as FULLY IMPLEMENTED.** `run` had
+     `if fns.is_empty() { r.implemented += 1 }` -- no MISSING bodies, so the
+     arithmetic was sound and the label was false. 61 specs, headline overstated
+     by 21%: 279 reported, 218 real. T157.
+
+501. **The module already knew and nobody repaired it.** `spec_status` twenty
+     lines below has returned NOFN since W665, and a past wave recorded
+     218 + 61 = 279. Knowledge was never the missing piece. **The function that
+     feeds the PRINTED report is the one that becomes true.** T157a/T157b.
+
+502. **Match paths exactly; a basename fallback manufactures disagreements.** My
+     first cross-tab showed three specs where the two measures conflicted. All
+     three were `schema.t27` matching a different `schema.t27`. Exact-path
+     matching gave ZERO disagreements over 617 files. Suspect the comparison
+     before you suspect the measurements.
+
+503. **When two measures of one thing differ, cross-tabulate -- do not argue.**
+     Text-vs-AST looked 40% apart. Tabulated file by file: 0 conflicts, 159=159,
+     6=6, function counts equal on 165 of 165, and the residue was exactly the
+     NOPARSE population. The gap was never a disagreement; it was two different
+     denominators.
+
 ### How to update this tracker
 
 After closing a wave:

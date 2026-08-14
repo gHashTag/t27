@@ -22,8 +22,20 @@ use std::path::{Path, PathBuf};
 
 #[derive(Default)]
 pub struct Report {
-    /// Specs that parse and whose functions all have bodies.
+    /// Specs that parse, declare at least one function, and whose functions all
+    /// have bodies.
     pub implemented: usize,
+    /// W689: specs that parse and declare NO function at all.
+    ///
+    /// These were counted as `implemented` for a hundred waves, on the reasoning
+    /// that a spec with no functions has no *missing* bodies. The arithmetic is
+    /// sound and the label is not: 61 of the 279 specs this command called
+    /// "fully implemented" contain nothing but a module line and two `use`s --
+    /// 47 characters after comments are stripped -- and twenty-five of those are
+    /// byte-identical to each other (T154). `spec_status` in this same module has
+    /// returned `NOFN` as a distinct verdict since W665; only `run` disagreed,
+    /// so every census that read the printed report inherited the merge.
+    pub bodiless: usize,
     /// Specs that parse and have at least one empty function body.
     pub partial: usize,
     /// Specs where EVERY function is empty.
@@ -158,7 +170,7 @@ pub fn run(specs_root: &Path, include_scratch: bool) -> Report {
             .filter(|c| c.kind == NodeKind::FnDecl)
             .collect();
         if fns.is_empty() {
-            r.implemented += 1;
+            r.bodiless += 1;
             continue;
         }
         let empty = fns.iter().filter(|n| is_empty_fn(n)).count();
@@ -204,5 +216,42 @@ mod tests {
             .find(|c| c.kind == NodeKind::FnDecl)
             .unwrap();
         assert!(!is_empty_fn(f));
+    }
+
+    /// W689: the shape that put 61 specs into the headline number.
+    ///
+    /// `run` used to add a spec with no functions to `implemented`, because it
+    /// has no *missing* bodies. `spec_status` has answered `NOFN` since W665.
+    /// Two functions in this module gave different answers to one question, and
+    /// the printed report inherited the wrong one. This test is the guard.
+    #[test]
+    fn a_spec_with_no_functions_is_not_implemented() {
+        let src = "module m\n\nuse base::types;\nuse math::constants;\n";
+        assert_eq!(spec_status(src), "NOFN");
+        let ast = Compiler::parse_ast(src).expect("the header alone must parse");
+        assert!(
+            !ast.children
+                .iter()
+                .any(|c| c.kind == NodeKind::FnDecl),
+            "the fixture must declare no function, or it tests nothing"
+        );
+    }
+
+    /// The five verdicts must partition: every spec lands in exactly one.
+    #[test]
+    fn the_five_verdicts_are_disjoint_and_total() {
+        let cases = [
+            ("module m\n\nfn a() -> u32 { return 1; }\n", "IMPLEMENTED"),
+            ("module m\n\nfn a() -> u32 {\n}\n", "UNWRITTEN"),
+            (
+                "module m\n\nfn a() -> u32 { return 1; }\nfn b() -> u32 {\n}\n",
+                "PARTIAL",
+            ),
+            ("module m\n\nuse base::types;\n", "NOFN"),
+            ("module m\n\nfn ( ) ) {{{\n", "NOPARSE"),
+        ];
+        for (src, want) in cases {
+            assert_eq!(spec_status(src), want, "for source: {src:?}");
+        }
     }
 }

@@ -3439,15 +3439,25 @@ fn run_impl_status(specs_dir: &str, include_scratch: bool, verbose: bool) -> any
     }
     println!("--- implementation status ---");
     println!("  specs fully implemented   {}", r.implemented);
+    println!("  specs with NO functions   {}", r.bodiless);
     println!("  specs PARTLY written      {}", r.partial);
     println!("  specs entirely UNWRITTEN  {}", r.unwritten);
     println!("  specs that do not parse   {}", r.unparsable);
+    let total = r.implemented + r.bodiless + r.partial + r.unwritten + r.unparsable;
+    println!("  ------------------------  ---");
+    println!("  specs total               {}", total);
     println!();
     println!("  functions declared        {}", r.total_fns);
     println!("  functions with NO BODY    {}", r.empty_fns);
     println!();
     println!("  An unwritten spec is not a broken one. Before W586 both were");
     println!("  reported as COMPILE_FAIL and counted together.");
+    println!();
+    println!("  W689: a spec with NO functions is counted separately. It used to");
+    println!("  be added to `fully implemented` -- it has no MISSING bodies, so");
+    println!("  the arithmetic was sound and the label was not. That merge put");
+    println!("  61 specs holding one module line and two `use`s into the headline");
+    println!("  number, overstating it by 21%.");
     Ok(())
 }
 

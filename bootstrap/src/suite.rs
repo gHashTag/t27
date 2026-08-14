@@ -2182,8 +2182,8 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
             if root.is_dir() {
                 let r = crate::impl_status::run(root, false);
                 println!(
-                    "  implementation: {} implemented, {} partial, {} UNWRITTEN, {} unparsable",
-                    r.implemented, r.partial, r.unwritten, r.unparsable
+                    "  implementation: {} implemented, {} NO-FN, {} partial, {} UNWRITTEN, {} unparsable",
+                    r.implemented, r.bodiless, r.partial, r.unwritten, r.unparsable
                 );
                 println!(
                     "    {} of {} declared functions have NO BODY",
