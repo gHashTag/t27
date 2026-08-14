@@ -9256,4 +9256,52 @@ and it is the only remaining item with a population large enough to matter.**
 
 ---
 
+### T148 (W685) — the issue registry undercounted by 2.8×, and 80% of the backlog is off-mission
+
+`ISSUE-REGISTRY.md` reported **313 open issues** and **"TNF theme = 0"**. Both are
+wrong, and the cause is stated in the registry's own text: *"per-repo
+`gh issue list` over **13 repos**"*. The ecosystem has **183 non-fork
+repositories**, 44 of which carry open issues.
+
+```
+220 repositories (--limit 1000, verified un-truncated)
+183 non-forks | 44 with open issues | 863 OPEN ISSUES
+
+registry: 313  ->  undercount 2.8x
+```
+
+> **T148.** This is **T90/T91 one level up**. That defect was reading a
+> `--limit N` result as a count; this one is enumerating a **sample** of the
+> population and reporting it as the population. **The fix in both cases is the
+> same — verify the enumeration is not bounded before quoting what it returned**
+> — and the second instance survived three waves after the first was written.
+
+**And the theme census, which the registry got backwards:**
+
+| theme | issues | repos |
+|---|---:|---:|
+| formal / proof | **67** | 4 |
+| IGLA CODER/RACE | 45 | 7 |
+| FPGA / hardware | 44 | 8 |
+| t27 language | 29 | 8 |
+| **TNF / GFTernary** | **14** | **10** |
+| ternary / trit | 11 | 2 |
+| φ / golden ratio | 1 | 1 |
+| **off-theme** | **689** | — |
+
+> **T148a.** **689 of 863 — 80% — touch no mission topic at all.** Roughly one
+> issue in five is on-theme, and those are spread across eight repositories with
+> no repository holding a coherent block. The registry's *"TNF theme = 0"* was an
+> artefact of enumerating 13 repositories: the fourteen TNF issues live in **ten**
+> repositories, and only three of those ten were in the sample.
+
+**What it means for the ecosystem plan.** The standing goal is to fold the
+ecosystem into one project and use it as training data. **The issue backlog is
+not evidence of a coherent ecosystem** — it is 863 issues of which 689 are
+unrelated to the work, spread over 44 repositories. `t27` alone holds 235, and
+the next largest block is four `tt-trinity-*` tapeout repositories with 336
+between them.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

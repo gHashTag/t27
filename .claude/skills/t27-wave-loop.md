@@ -7057,6 +7057,25 @@ These cost a wave each. Follow them before step 1.
      waves that produced them. A report is the artefact that outlives the
      conversation; its numbers must be current, not remembered.
 
+479. **Enumerating a SAMPLE and reporting it as the population is T90/T91 one
+     level up.** The issue registry queried 13 repositories of 183 non-forks and
+     reported 313 open issues; the real count is 863 across 44 repositories with
+     issues -- a 2.8x undercount. The first defect was reading a `--limit N`
+     result as a count; this one is a smaller enumeration than the population.
+     **Verify the enumeration is not bounded before quoting what it returned.**
+     T148.
+
+480. **A "zero" from a partial enumeration is the most dangerous number of all.**
+     The registry reported "TNF theme = 0". There are fourteen TNF issues, living
+     in TEN repositories, only three of which were in the 13-repo sample. A zero
+     invites the conclusion that a topic is absent; it usually means the search
+     was.
+
+481. **Count what you are NOT looking for.** 689 of 863 open issues touch no
+     mission topic -- 80%. Without that number the on-theme count of 174 reads as
+     a rich seam; with it, the ecosystem's backlog is mostly unrelated work and
+     the plan to treat it as one project needs to say so. T148a.
+
 ### How to update this tracker
 
 After closing a wave:
