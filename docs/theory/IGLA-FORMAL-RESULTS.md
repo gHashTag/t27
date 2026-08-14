@@ -14349,6 +14349,42 @@ alphabet:
 > applied and not pushed:** the handoff rule is that Dmitrii confirms before any
 > push or merge, and the `\title` block carries the canon plate.
 
+### T291 — the forecast was refuted and the law replicated
+
+**Registered before the run (W745):** *the saturation rung is set by task
+difficulty; the harder the task, the higher the rung — a monotone relation.*
+
+Five MNIST digit-pairs of graded difficulty, one dataset so difficulty cannot be
+confounded with data, five rungs, 20 seeds — **500 runs**:
+
+| task | ceiling | 3 | 5 | 7 | 9 | 11 | last significant |
+|---|---|---|---|---|---|---|---|
+| 0v1 | 99.87 | 99.85 | 99.87 | 99.87 | 99.87 | 99.87 | **none** |
+| 0v8 | 99.09 | 98.74 | 98.96 | 99.03 | 99.09 | 99.09 | 9 |
+| 7v9 | 95.25 | 94.43 | 94.84 | 94.98 | 95.21 | 95.25 | 9 |
+| 4v9 | 95.74 | 95.60 | 95.74 | 95.72 | 95.65 | 95.68 | 5 |
+| 3v5 | 95.20 | 94.77 | 94.99 | 95.10 | 95.15 | 95.20 | 7 |
+
+> **T291. The forecast is refuted.** Ordered easiest-first the rungs are
+> **3, 9, 5, 9, 7** — not monotone, and r(ceiling, rung) = −0.35 at n=5 needs
+> |r| > 0.878 to signify. **4v9 is the counterexample that kills it**: nearly the
+> hardest task by ceiling (95.74%), it saturates at *five*, below the easier 0v8.
+> Difficulty does not set the rung. **The mechanism remains unknown**, and this
+> is the second registered explanation to fail (W744 predicted 13–15).
+
+> **T291a. The law itself replicated on five independent tasks.** No step above
+> nine levels is significant on any of them. With UNSW-NB15, MNIST and
+> Fashion-MNIST that is **eight tasks, 1220 runs, and nine never breached.** A
+> ceiling that survives an experiment *designed to explain it away* is worth more
+> than one that was merely fitted: the Nine-Rung Law is now an empirical regularity
+> with **no proposed mechanism**, which is exactly how it should be stated.
+
+> **T291b. The degenerate end is instructive.** 0v1 gains **+0.02 pp** across the
+> whole ladder — balanced ternary already sits at its ceiling. A task that is
+> linearly separable buys nothing from any alphabet, and the levels are wasted
+> silicon. **Alphabet size is a knob that only pays where the task has headroom**,
+> and headroom is cheaper to measure than to argue about.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

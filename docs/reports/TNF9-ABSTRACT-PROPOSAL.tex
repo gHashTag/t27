@@ -48,11 +48,15 @@ fixed size is worth $+0.085$\,pp ($z=5.7$, homogeneous at seven levels,
 $Q=2.2$; heterogeneous at nine, $Q=6.9$).
 
 \item \textbf{The return saturates, and never later than the ninth rung.} Eight
-rungs, three tasks, $30$ seeds --- a further $720$ runs. No step above nine levels
-is significant on any task. The last significant rung is nine on UNSW-NB15 and
+rungs, three tasks, $30$ seeds --- a further $720$ runs --- then five
+same-dataset tasks of graded difficulty at five rungs and $20$ seeds, a further
+$500$. \textbf{Across eight tasks and $1220$ runs no step above nine levels is
+significant anywhere.} The last significant rung is nine on UNSW-NB15 and
 Fashion-MNIST and \emph{five} on MNIST: the ceiling is a constant, the rung is a
-property of the task. The first step, three levels to five, is the largest
-everywhere ($+0.547$, $+1.622$, $+0.511$\,pp).
+property of the task, and we cannot predict which: task difficulty was proposed
+as the mechanism and refuted ($r=-0.35$, $n=5$, non-monotone), so the ceiling is
+reported as an empirical regularity with no mechanism claimed. The first step,
+three levels to five, is the largest everywhere ($+0.547$, $+1.622$, $+0.511$\,pp).
 
 \item \textbf{Therefore the alphabet is chosen on cost, not on accuracy.} At
 equal cardinality the difference between alphabets is under a tenth of a point,
