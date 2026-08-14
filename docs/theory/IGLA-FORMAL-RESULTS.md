@@ -13112,4 +13112,69 @@ The standing brief asks which repositories can be rewritten as `.t27`.
 
 ---
 
+## The migration map, executed on its first module — W728
+
+`tri-net#62` recommends *"SELECTIVE extraction of pure logic into specs, not a
+wholesale rewrite"* and marks `routing.rs` **LIKELY**. This is that
+recommendation carried out and measured, rather than agreed with.
+
+### T253 — the ETX metric is now a spec, and it agrees with the original
+
+`specs/trinet/etx.t27`. What was extracted, verbatim from `src/routing.rs`:
+
+```
+alpha  = clamp(2 / (max(window,1) + 1), 0.3, 0.6)
+record : est = alpha*sample + (1-alpha)*est,   sample in {0,1}
+etx    : INFINITY if df < 0.15 or dr < 0.15 else 1/(df*dr)
+```
+
+What could NOT be carried across is the *shape*, exactly as #62 predicted:
+`impl DeliveryRatio` and `impl LinkStats` are methods with a `self` receiver, and
+t27 models behaviour as free functions.
+
+**Differential check against the original, 10 327 points:**
+
+```
+ewma_alpha   max |f32 - f64|   2.384e-08
+ewma_step    max |f32 - f64|   5.722e-08
+link_etx     max |f32 - f64|   3.815e-06
+link_dead vs f32::INFINITY     0 mismatches
+```
+
+> **T253.** **11 of 11 spec tests pass, 2 invariants are proved at comptime, the
+> generated Rust compiles under `rustc` with no errors, and the arithmetic
+> agrees with tri-net's f32 original to rounding.** The **decision** predicate —
+> which link is dead, the one value a router acts on — agrees **exactly**, at
+> every one of 10 000 sampled points. This is the first module of the migration
+> map executed end to end.
+
+### T253a — the one deviation, named rather than hidden
+
+Rust returns `f32::INFINITY` for a dead link. A spec that returned a large
+sentinel would put a number where an absence belongs, and every downstream
+comparison would silently succeed.
+
+> **T253a.** The infinity is **split**, not encoded: `link_dead(df,dr) -> bool`
+> answers the question the infinity carries, and `link_etx(df,dr) -> f64` is the
+> finite value that is meaningful only when the link is alive. **No information
+> is lost and none is fabricated** — and the zero-mismatch column above is what
+> makes that claim checkable rather than stylistic.
+
+**The second deviation, and it is a real one:** the spec computes in **f64**
+where tri-net uses **f32**. The differential table bounds the consequence at
+3.8e-06 on ETX itself, and at zero on the predicate. A spec that must be
+bit-identical to the Rust would need f32 throughout; this one is not, and says so.
+
+### T253b — what this is worth to IGLA CODER
+
+> **T253b.** The standing brief wants the ecosystem to become a training corpus.
+> This wave produced **one verified pair**: a Rust module and the `.t27` spec
+> that reproduces its arithmetic, with the agreement *measured* rather than
+> asserted. **A training pair whose equivalence is unverified teaches the model
+> to produce plausible specs**, which is the failure mode this whole programme
+> keeps rediscovering. One checked pair is worth more than a directory of
+> transcriptions.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
