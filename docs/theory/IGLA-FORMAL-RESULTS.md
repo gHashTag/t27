@@ -11704,4 +11704,62 @@ Thirty runs, four arms, one seed list, in `experiments/phi-alphabet/results_30se
 
 ---
 
+## W712 — the last branch closes: pairs compute the same function
+
+### T208 — Z[φ] pair propagation and scalar collapse are the same function
+
+T183a named this as φ's final branch: keep un-collapsed `(a, b)` coordinates
+meaning `a + bφ` across layers, so weight application is the Fibonacci step
+`(a,b) ↦ (b, a+b)` — one integer add, exact, no multiplier. T207 closed the
+scalar form. This is what was left.
+
+**The prediction was registered before measuring:** a pair `(a,b)` is an *exact
+representation* of the real number `a + bφ`, and the scalar path computes that
+same real number in float, so the two must agree to float precision — **and the
+experiment therefore tests the implementation, not the hypothesis.**
+
+Two layers, 64 → 48 → 32, integer inputs, weights drawn from
+`{−φ,−1,0,+1,+φ}`, 16,384 outputs:
+
+```
+max absolute difference    6.821e-13
+max relative difference    2.043e-12        float64 precision
+sign agreement             1.000000         every output
+```
+
+> **T208.** **They are the same function.** The pair form is an exact evaluation
+> of what the scalar form approximates in float; it is not a different model and
+> cannot express anything the collapse cannot. **T183a's second branch is a
+> statement about HARDWARE COST — exactness and multiplier-freedom — and not
+> about what the network computes.** **Refuted by:** a relative difference above
+> 1e-9 on integer inputs, which would indicate an implementation error in one
+> path.
+
+> **T208a — so the alphabet question is closed, and here is what survives.** φ
+> adds nothing in the scalar form (T207, thirty seeds, t = 0.67) and the pair
+> form computes the same thing (T208). **What φ still buys is precisely: exact
+> integer arithmetic and one add per weight application instead of a
+> multiplier.** That is a real hardware property and it was never in dispute —
+> it is simply not a claim about accuracy, expressiveness, or the alphabet.
+
+### T208b — and the width it costs, measured
+
+Coefficient growth through six layers at fan-in 64:
+
+```
+layer 1   6.8 bits      layer 4   16.3 bits
+layer 2   9.8 bits      layer 5   19.7 bits
+layer 3  13.2 bits      layer 6   23.2 bits
+```
+
+**≈3.3 bits per layer.**
+
+> **T208b.** T159a gave the composite as `0.5·log₂N + 0.694` bits per layer,
+> which at N = 64 predicts **3.69**. Measured: **3.3**, within 11%. **An
+> independent confirmation of the formula, from a different construction.** The
+> price of exactness is a third of a byte of accumulator width per layer, and at
+> depth 6 that is 23 bits where the inputs were 4.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

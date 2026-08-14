@@ -7941,6 +7941,28 @@ These cost a wave each. Follow them before step 1.
      branch, and the one the hardware implements. It says nothing about the
      Z[phi] PAIR-PROPAGATING datapath, and it runs 7 pp below the published SOTA.
 
+649. **Z[phi] PAIR PROPAGATION AND SCALAR COLLAPSE ARE THE SAME FUNCTION.**
+     Max relative difference 2.043e-12, sign agreement 1.000000 over 16,384
+     outputs. The pair form is an EXACT evaluation of what the scalar form
+     approximates in float -- not a different model. T183a's second branch is
+     about HARDWARE COST, not expressiveness. T208.
+
+650. **THE ALPHABET QUESTION IS CLOSED.** phi adds nothing in the scalar form
+     (T207, 30 seeds, t=0.67) and the pair form computes the same thing (T208).
+     What phi still buys is exact integer arithmetic and one add per weight
+     instead of a multiplier -- a real hardware property, and never a claim about
+     accuracy or expressiveness. T208a.
+
+651. **Register the prediction that makes an experiment a test OF THE
+     IMPLEMENTATION.** Before measuring, I stated that pairs and scalars must
+     agree because a pair EXACTLY represents the same real. That framing meant a
+     disagreement would have been my bug, not a discovery -- which is the only
+     honest reading of a null here.
+
+652. **Coefficient growth measured at 3.3 bits/layer at fan-in 64**, against
+     T159a's predicted 0.5*log2(N) + 0.694 = 3.69. Within 11%, from a different
+     construction -- an independent confirmation of the formula. T208b.
+
 ### How to update this tracker
 
 After closing a wave:
