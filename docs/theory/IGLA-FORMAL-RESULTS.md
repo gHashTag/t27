@@ -9304,4 +9304,58 @@ between them.
 
 ---
 
+### T149 (W686) — the merge-candidate set was never a set, and half of it is empty
+
+`ECOSYSTEM-INVENTORY.md` states *"Merge candidates: 39 repos, 4.38 GiB — verified
+by two independent scripts returning the same `n=39, KB=4,589,509`"* and **does
+not name one of them.** T148 had just shown what an unenumerated count is worth.
+
+Re-measured with an **explicit, stated rule** — non-fork, name or description
+matching the ternary/FPGA vocabulary, excluding `t27` itself and the eight
+`tt-trinity-*` tapeouts:
+
+| | inventory | measured |
+|---|---:|---:|
+| repositories | 219 | **220** |
+| non-forks | — | **183** |
+| merge candidates | **39** | **56** |
+| disk | 4.38 GiB | **5.55 GiB** |
+
+> **T149.** Two scripts agreeing on `n=39` agreed on a number, not a membership.
+> A different rule — stated in full, and reproducible — yields **56**. Neither
+> figure is *wrong*; **the inventory's is unfalsifiable**, because the rule that
+> produced it was never written down and the names were never listed.
+
+### And the list is a better finding than the count
+
+**Twenty-eight of the fifty-six — exactly half — hold 64 KB or less.** They are
+repositories in name only. And **forty-one of fifty-six sit in name families**:
+
+```
+10  trinity-*      (6 empty)     8  zig-half*      (8 empty -- ALL)
+ 6  trios-*        (1 empty)     5  zig-*          (3 empty)
+ 3  goldenfloat*   (2 empty)     3  go-half*       (2 empty)
+ 2  trios-railway* (1)           2  trinity-clara* (1)
+ 2  trinity-railway* (1)
+```
+
+**The `zig-half` family is eight repositories, every one of them empty**, with
+near-identical descriptions — *"f16/bf16 ML ops for Rust — ternary pack/unpack"*.
+`go-half` adds three more of the same. `GoldenFloat.jl` and `GoldenFloats.jl`
+differ by one letter.
+
+> **T149a.** The standing goal is to fold the ecosystem into **one project** and
+> use it as **training data**. Measured, the candidate set is **half empty
+> repositories and eleven near-duplicates of a single f16/bf16 library**. Merging
+> it is not an integration problem, it is a **deduplication** problem — and as
+> training data, eleven copies of one library is eleven times the same sample.
+
+**What this makes concrete.** The real merge candidates are the **28 non-empty
+repositories**, of which four hold 5.5 GiB between them: `trios` (1.82 GB),
+`trinity` (707 MB), `trinity-fpga` (697 MB), `zig-physics` (574 MB). The other
+24 are small, and `trinity`/`trinity-fpga` are the two live heads of **one
+codebase** the inventory already flagged as critical.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

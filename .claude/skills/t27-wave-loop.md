@@ -7076,6 +7076,25 @@ These cost a wave each. Follow them before step 1.
      a rich seam; with it, the ecosystem's backlog is mostly unrelated work and
      the plan to treat it as one project needs to say so. T148a.
 
+482. **A count without a membership is unfalsifiable.** "39 merge candidates,
+     verified by two independent scripts returning the same n=39" names none of
+     them and records no rule. A different rule, stated in full, yields 56.
+     Neither is wrong; only one can be checked. **Publish the list, or the number
+     is decoration.** T149.
+
+483. **Enumerate before integrating.** The candidate set is HALF empty
+     repositories (28 of 56 hold <=64 KB) and contains eleven near-duplicates of
+     one f16/bf16 library -- `zig-half` in eight variants, every one empty, plus
+     three `go-half`. The ecosystem merge is a deduplication problem, not an
+     integration problem, and as training data eleven copies of one library is
+     eleven times the same sample. T149a.
+
+484. **Two artefacts from earlier waves, two undercounts, same class.** W685
+     found the issue registry enumerating 13 repositories of 183; W686 found the
+     inventory publishing a count with no list. **Both survived every wave that
+     quoted them** -- a number in a prior artefact is a claim, not a measurement,
+     until someone re-derives it.
+
 ### How to update this tracker
 
 After closing a wave:
