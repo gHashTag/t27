@@ -1,8 +1,10 @@
 # Cost sweep, run locally — 2026-08-14
 
-**Status of every number here: `[измерено — программно]` (yosys stat).**
-Not `[measured CI-synth]`: nextpnr did not run on these arms. Not a hardware
-claim of any kind.
+**Status.** The 104-arm sweep in the body is `[измерено — программно]` (yosys
+stat, pre-route). The **addendum at the end adds twenty post-route arms**
+routed through nextpnr on `xc7a200tfbg676-1` — the article's part is
+`xc7a200tfbg484-2`, so they are not `[measured CI-synth]` in the article's
+sense either. **Nothing anywhere in this record is a hardware claim.**
 
 ## Why this record exists
 
@@ -133,9 +135,63 @@ while a hard macro does the work is not an area argument.
 
 ## What was NOT run
 
-- **nextpnr / post-route.** The chipdb on this host is `xc7a200tfbg676-1`
-  (QMTech Wukong). The article's part is `xc7a200tfbg484-2` (ALINX AX7203).
-  Same die, different package. Running post-route on the wrong package and
-  reporting it as the article's number would be worse than not running it.
+- **Post-route on the ARTICLE'S PART.** Twenty arms were routed (see the
+  addendum) but on `xc7a200tfbg676-1`, not `xc7a200tfbg484-2`. Same die,
+  different package. Building the article's chipdb costs ≈1.3 GB against 1.9 GB
+  free at 100% volume capacity, and was declined rather than run to the edge of
+  a full disk.
+- **The other 84 arms post-route.** Only the twenty points that answer Q1 and
+  Q2 were routed.
 - **Anything on hardware.** No UART transcript, no artefact SHA-256, no
   IDCODE `0x13636093`. Nothing here is `[измерено на железе]`.
+
+---
+
+# ADDENDUM — post-route, same day
+
+Twenty arms routed through `nextpnr-xilinx` on `xc7a200tfbg676-1`, each in a
+**port-less harness** (LFSR-driven, BSCANE2-observed) so no pin map is needed.
+The harness adds the same fixed overhead to every arm; Q1 and Q2 are questions
+about first differences, in which a constant cancels, and a constant shifts only
+the intercept of a fit, never `m2`.
+
+**Package deviation:** the article's part is `xc7a200tfbg484-2`. Building that
+chipdb costs ≈1.3 GB and the host had 1.9 GB free at 100% volume capacity, so it
+was declined. Same die, different package.
+
+## Q1 — confirmed after placement
+
+| E_t | pLUT M=9 | pLUT M=11 | Δ/bit | pre-route Δ/bit |
+|---:|---:|---:|---:|---:|
+| 2 | 1163 | 1290 | 63.5 | 192.0 |
+| 3 | 1252 | 1511 | 129.5 | 160.0 |
+| 4 | 1214 | 1345 | 65.5 | 186.0 |
+| 5 | 1422 | 1581 | 79.5 | 214.0 |
+| 6 | 1921 | 2187 | 133.0 | 322.0 |
+
+Positive at every exponent width. **The recorded inconsistency is not
+reproduced, pre-route or post-route.**
+
+## Q2 — the quadratic flips sign post-route
+
+First differences per 4 mantissa bits: `E_t=2: 724, 372, 836, −311` and
+`E_t=3: 349, 532, 397, 484`. Neither grows.
+
+| model | R² | m2 |
+|---|---:|---:|
+| quadratic | 0.9403 | **−3.283** |
+| linear | 0.9226 | — |
+| published (post-route, M≤25) | 0.9989 | +2.194 |
+
+## One point is a flow artefact and must not be smoothed
+
+`E_t = 2, M = 33` is smaller than `M = 29` — in both columns of this run, and
+**not** in the W716 sweep, which differed only in `-abc9 -nocarry`. It tracks the
+synthesis command. Two flows disagree about one point; a third is needed before
+either is called the truth.
+
+## The pre→post ratio is not a constant
+
+Measured over these ten arms: **1.0%–12.7%, mean 6.6%**, against the 28–39% this
+programme measured on combinational adder trees. **No fixed factor converts a
+yosys cell count into an area.**

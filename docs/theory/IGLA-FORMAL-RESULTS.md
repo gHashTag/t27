@@ -12130,4 +12130,123 @@ and no number here is `[измерено на железе]`.
 
 ---
 
+## Post-route, and a prior-art correction — W717
+
+### T225 — the prior art this project's own null missed
+
+W710 recorded a verified null: no trained model in the `{−φ, 0, +φ}` alphabet
+"across arXiv, DBLP, OpenAlex and Semantic Scholar". A correctly-formed arXiv
+query in W717 returns two works that the null's framing does not survive:
+
+- **The Golden Ratio Encoder**, [arXiv:0809.1257](https://arxiv.org/abs/0809.1257),
+  2008 — a Nyquist-rate A/D algorithm built on a **β-encoder with β = φ**,
+  exponentially accurate in bit-rate and robust to imprecise analog gain.
+- **Fibbinary-Based Compression and Quantization for Efficient Neural Radio
+  Receivers**, [arXiv:2511.01921](https://arxiv.org/abs/2511.01921), Nov 2025 —
+  **Fibonacci Codeword Quantization** of network weights, reporting **45%
+  multiplier power and 44% area** saved, plus lossless compression of the
+  Fibonacci-quantised parameters.
+
+> **T225.** The narrow null stands — neither work trains weights drawn from
+> `{0, ±φ^k}`. **The framing does not.** Golden-ratio *quantisation* is
+> established since 2008 in converters, and **Fibonacci-based weight
+> quantisation with measured area and power savings was published nine months
+> before this session** — in precisely the territory the project keeps as its
+> surviving hardware claim. Any GFTernary write-up must cite both, and must not
+> describe φ in quantisation as unexplored.
+
+### T225a — how the null was nearly re-confirmed by a broken query
+
+Three arXiv queries returned `total: 0`, including one about power-of-two
+quantisation, a field with at least 37 hits. The queries lacked a field prefix
+on each conjunct: `all:"x" AND y` searches `all:"x"` and then a bare `y`.
+
+> **T225a.** **A malformed query returns the same zero a genuine null does.**
+> Fourth occurrence of this class in one programme, after `yosys -q`, the
+> reversed `stat` field order, and `awk END{print s+0}`. The control that caught
+> it cost one call: search for something known to exist.
+
+### T226 — Q1 post-route: the rows reconcile
+
+Placed LUT, adder arms, port-less harness so nextpnr needs no pin map:
+
+```
+E_t   pLUT M=9   pLUT M=11   Δ    Δ/bit    (pre-route Δ/bit)
+ 2        1163        1290  127    63.5          192.0
+ 3        1252        1511  259   129.5          160.0
+ 4        1214        1345  131    65.5          186.0
+ 5        1422        1581  159    79.5          214.0
+ 6        1921        2187  266   133.0          322.0
+```
+
+> **T226.** Positive at every exponent width, spread 2.09× — the same spread the
+> pre-route rows showed. **Nothing post-route reproduces the mutual
+> inconsistency the article records for the two TNF16 rows** (T221 pre-route,
+> now confirmed after placement).
+
+### T227 — Q2 post-route: the quadratic does not survive, and flips sign
+
+First differences in placed LUT per 4 mantissa bits:
+
+```
+E_t=2    724   372   836   -311
+E_t=3    349   532   397    484
+```
+
+| model | R² | m2 |
+|---|---:|---:|
+| quadratic | 0.9403 | **−3.283** |
+| linear | 0.9226 | — |
+
+> **T227.** A surviving quadratic makes first differences grow; **neither row
+> grows**. The fitted `M²` coefficient is **−3.283 post-route** against a
+> published **+2.194**. A harness constant shifts only the intercept, so this
+> conclusion is unaffected by the wrapper. **The published quadratic is not
+> supported by these data at any M.**
+
+### T227a — one of the ten points is a flow artefact, and it is named
+
+`E_t = 2, M = 33` comes out **smaller** than `M = 29`:
+
+```
+placed                        M=29 3817   M=33 3506   DOWN
+yosys, this run               M=29 5538   M=33 4554   DOWN
+yosys -abc9 -nocarry (W716)   M=29 4596   M=33 4840   up
+```
+
+> **T227a.** The inversion is present in both columns of one run and **absent
+> from the W716 sweep, which differed only in `-abc9 -nocarry`.** It tracks the
+> synthesis command, not the design — the same shape of artefact Q1 was written
+> to detect, now caught in our own data. **Two flows disagree about one point,
+> and neither is entitled to be called the truth without a third.**
+
+### T228 — the pre-route→post-route ratio is a property of the DESIGN
+
+**Registered before running (T44):** post-route would land 28–39% below yosys,
+the band T219 measured on the GFTernary rungs.
+
+```
+measured drop over 10 TNF arms:  1.0% .. 12.7%   mean 6.6%
+```
+
+> **T228. Refuted.** T219's band came from **combinational adder trees**, where
+> LUT packing has wide freedom; these are **pipelined datapaths with registers
+> between stages**, and they shed almost nothing. **A pre-route cell count
+> cannot be converted to an area by any fixed factor** — not 6.6%, not 33%. The
+> factor is a property of the structure being synthesised.
+
+### T229 — what would settle the E_t sign, and why it was not run
+
+The disagreement (published −197.1, measured +330 pre-route) survives into
+post-route. Settling it needs the article's own part, `xc7a200tfbg484-2`.
+
+> **T229.** Building that chipdb costs ≈1.3 GB. The host had **1.9 GB free at
+> 100% volume capacity**. The run was declined rather than taken to the edge of
+> a full disk, and the arms were routed on `xc7a200tfbg676-1` — **same die,
+> different package**. Post-route LUT counts on one die are package-independent
+> to the extent that IO placement does not dominate, which a port-less harness
+> guarantees. **This is stated so it can be checked, not so it can be assumed.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

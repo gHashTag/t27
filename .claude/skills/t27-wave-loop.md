@@ -8094,6 +8094,44 @@ These cost a wave each. Follow them before step 1.
      The ORDERING survived P&R; the magnitudes did not. Never quote a pre-route
      cell count as an area, including in this repository's own theorem numbers.
 
+674. **A MALFORMED QUERY RETURNS THE SAME ZERO A GENUINE NULL DOES.** Three
+     arXiv searches returned `total: 0`, including one on power-of-two
+     quantisation -- a field with 37 hits. The conjuncts lacked field prefixes:
+     `all:"x" AND y` searches `all:"x"` and a bare `y`. **Fourth occurrence of
+     this class in one programme** after `yosys -q`, the reversed `stat` field
+     order, and `awk END{print s+0}`. Control cost one call: search for
+     something you KNOW exists before believing a zero.
+
+675. **The project's own verified null was too broadly framed.** W710 recorded
+     "no φ weights anywhere, verified across four indexes". Correct queries find
+     **The Golden Ratio Encoder (arXiv:0809.1257, 2008)** -- β-encoders with
+     β = φ for A/D -- and **Fibbinary/FCQ (arXiv:2511.01921, Nov 2025)**,
+     Fibonacci weight quantisation reporting **45% multiplier power and 44%
+     area**. The narrow null survives; the framing does not. **Re-run an
+     inherited null before quoting it, especially one that flatters you.**
+
+676. **The pre-route→post-route ratio is a property of the DESIGN, not the
+     fabric.** T219 measured 28-39% on combinational adder trees; ten pipelined
+     TNF datapaths dropped **1.0-12.7%, mean 6.6%**. Registered forecast of
+     28-39% refuted. **No fixed factor converts a cell count into an area** --
+     including a factor this repository measured itself last wave.
+
+677. **When two flows disagree about ONE point, name it; do not smooth it.**
+     `E_t=2, M=33` came out smaller than `M=29` in both columns of one run and
+     larger in the previous sweep, which differed only in `-abc9 -nocarry`. It
+     tracks the synthesis command, not the design. A single inverted point that
+     is silently averaged into a fit is how a flow artefact becomes a result.
+
+678. **A document that contradicts its own addendum is worse than either half.**
+     The cost-sweep record's header said "nextpnr did not run on these arms"
+     while the addendum reported twenty routed arms. Reconcile the header the
+     same commit the addendum lands, not the next one.
+
+679. **Decline the run that would fill the disk.** The chipdb for the article's
+     part costs ~1.3 GB; the host had 1.9 GB free at 100% capacity. Routing on
+     a same-die different-package chipdb and SAYING SO beats either a full disk
+     or a silent substitution.
+
 ### How to update this tracker
 
 After closing a wave:
