@@ -7849,6 +7849,33 @@ These cost a wave each. Follow them before step 1.
      processes live. Starting it would have repeated T199b exactly one wave after
      documenting it.
 
+630. **gft_layer3 finishes: 891 s, 39,819 LUT -- the largest design in the
+     corpus.** Of nine specs recorded as hanging across three waves, ZERO hang.
+     They run 10-891 s; the caps that condemned them were 60 and 90 seconds, set
+     while the machine carried a five-agent fan-out. T203.
+
+631. **The demotion printed nothing.** W708 said FORCED_ROOT would print "as a
+     suggestion" and no list existed. `--suggest` now emits it -- and rebuilding
+     that list OUTSIDE the compiler with a regex returned ZERO where the AST
+     returns five. Lesson 404 for the fifth time. T204.
+
+632. **Four of five root suggestions are wrong on review**, and the survivor is
+     unlowerable anyway. W704 estimated ~12% wrong; measured against the module's
+     subject it is 80%. The estimate was too generous. T204.
+
+633. **The test is one line of prose, not a predicate:** is the chosen function
+     the module's SUBJECT, or a thing the subject USES? FPGA_Bridge uses
+     buffer_write; E8LieAlgebra uses abs; QueenLotus uses lotus_spawn. Obvious
+     once the module name sits beside the pick -- so print both and ask. T204a.
+
+634. **`clk` and `rst_n` among a function's PARAMETERS mean the spec wants
+     sequential**, so `on_comb` is the wrong kind regardless of whether the
+     function is the subject. systolic_ternary_pe_reg is rejected on that alone.
+
+635. **Declining a measurement is part of the measurement.** A spec that hits the
+     cap under load is recorded as NOT SYNTHESISING -- a wrong result, not a slow
+     one. Saying the run is blocked beats a number that must be retracted. T204b.
+
 ### How to update this tracker
 
 After closing a wave:

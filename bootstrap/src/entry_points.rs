@@ -316,9 +316,19 @@ fn spec_files(root: &Path, include_scratch: bool) -> Vec<PathBuf> {
     files
 }
 
-pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
+pub fn run(specs_root: &Path, verbose: bool, suggest: bool) -> anyhow::Result<()> {
     let mut counts: std::collections::BTreeMap<String, usize> = Default::default();
     let mut forced: Vec<(String, String)> = Vec::new();
+    // W709: the SUGGESTIONS the demotion created and did not print.
+    //
+    // W708 removed `FORCED_ROOT` from the applicable list and said it would
+    // print "as a suggestion a human accepts" -- and then printed nothing. An
+    // attempt to reconstruct the list outside the compiler, with a regex over
+    // the source, returned ZERO where the AST returns five. That is lesson 404
+    // for the fifth time: a predicate reimplemented outside the AST gives a
+    // different answer. The list belongs here, next to the classifier that
+    // produces it.
+    let mut suggestions: Vec<(String, String, String)> = Vec::new();
 
     for f in spec_files(specs_root, false) {
         let Ok(src) = std::fs::read_to_string(&f) else { continue };
@@ -346,6 +356,20 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
         //
         // So the root rule stays, as a suggestion a human accepts. It is not
         // emitted for automatic application.
+        if suggest && (v == Verdict::ForcedRoot || v == Verdict::ForcedRootWide) {
+            if let Some((name, params, ret)) = signature_of_forced_any(&src) {
+                let module = Compiler::parse_ast(&src)
+                    .ok()
+                    .map(|a| a.name.clone())
+                    .unwrap_or_default();
+                let sig = format!(
+                    "fn on_comb({}) -> {ret} {{ return {name}({}); }}",
+                    params.iter().map(|(n, t)| format!("{n}: {t}")).collect::<Vec<_>>().join(", "),
+                    params.iter().map(|(n, _)| n.clone()).collect::<Vec<_>>().join(", ")
+                );
+                suggestions.push((f.to_string_lossy().to_string(), module, sig));
+            }
+        }
         if v == Verdict::ForcedScalar {
             if let Some((name, params, ret)) = forced_signature(&src) {
                 let sig = format!(
@@ -411,6 +435,26 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
     println!("  takes no parameters and so cannot be a candidate. The width filter does");
     println!("  not catch it: (u8, u8) -> bool is entirely scalar. Driver-versus-getter");
     println!("  is a SEMANTIC distinction and no predicate here draws it.");
+
+    if suggest {
+        println!();
+        println!("  --- SUGGESTIONS (FORCED_ROOT): review each against the module's SUBJECT ---");
+        println!("  The rule picks the one candidate nothing else calls. In queen/lotus.t27");
+        println!("  that was a spawn primitive while the module is a six-phase cycle whose");
+        println!("  driver takes no parameters (T202). Compare the module name to the chosen");
+        println!("  function: if the function is the module's subject, accept; if it is a");
+        println!("  thing the subject USES, reject. No predicate here draws that line.");
+        println!();
+        for (path, module, sig) in &suggestions {
+            println!("  {path}");
+            println!("      module {module}");
+            println!("      {sig}");
+        }
+        if suggestions.is_empty() {
+            println!("  (none)");
+        }
+        println!();
+    }
 
     if !wide_blockers.is_empty() {
         println!();

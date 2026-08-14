@@ -11476,4 +11476,63 @@ tests the shape of the code and this was a claim about its meaning.
 
 ---
 
+## W709 — the hang population is empty, and four of five suggestions are wrong
+
+### T203 — `gft_layer3` finishes. Nothing in the corpus hangs.
+
+Run alone with a one-hour cap:
+
+```
+gft_layer3   rc=0   891 s   39,819 LUT
+```
+
+> **T203.** **The last of the nine "hangs" completes in fifteen minutes and
+> produces the largest design in the corpus.** The population is now empty: of
+> nine specs recorded as hanging across three waves, **zero hang.** They run
+> 10 s to 891 s, and the caps that condemned them were 60 and 90 seconds — set
+> while the machine carried a five-agent fan-out. **Refuted by:** a spec that
+> exceeds 3,600 s alone.
+
+### T204 — the demotion printed nothing, and the review it enabled rejects 4 of 5
+
+W708 removed `FORCED_ROOT` from the applicable list and said it would print "as
+a suggestion a human accepts". **It printed nothing.** `--suggest` now emits the
+list — and the first attempt to reconstruct that list *outside* the compiler,
+with a regex over the source, returned **zero where the AST returns five**.
+**Lesson 404 for the fifth time in this project's history.**
+
+The review, with the module's own name beside the rule's pick:
+
+| spec | module | rule picked | verdict |
+|---|---|---|---|
+| `fpga/bridge.t27` | `FPGA_Bridge` | `buffer_write` | **reject** — a primitive, not the bridge |
+| `igla/race/systolic_array.t27` | systolic array | `systolic_gemm_2x2` | **subject correct** (type is wide) |
+| `igla/race/systolic_ternary.t27` | ternary PE | `systolic_ternary_pe_reg(clk, rst_n, …)` | **reject on KIND** — `clk` in the parameters means `on_clock` |
+| `math/e8_lie_algebra.t27` | `E8LieAlgebra` | `abs(x: f64)` | **reject** — the W704 agent's own example |
+| `queen/lotus.t27` | six-phase cycle | `lotus_spawn` | rejected in W708 |
+
+> **T204.** **Four of five rejected on review, and the one survivor is
+> unlowerable anyway.** W704's fan-out estimated the root rule wrong "around
+> 12%"; measured against the module's subject it is wrong **80%** of the time.
+> **The estimate was too generous, and the demotion is vindicated with margin.**
+> **Refuted by:** a reviewer who accepts three or more of the five.
+
+> **T204a — and the test is one line of prose, not a predicate.** *Is the chosen
+> function the module's subject, or a thing the subject uses?* `FPGA_Bridge` uses
+> `buffer_write`. `E8LieAlgebra` uses `abs`. `QueenLotus` uses `lotus_spawn`.
+> **Every rejection is obvious once the module's name sits next to the pick — and
+> no syntactic rule available here produces that comparison**, which is why the
+> command now prints both and asks.
+
+### T204b — and the full `--synth` run was declined again
+
+Load average **8.17 on 8 cores**, 13 agent processes live.
+
+> **T204b.** A spec that hits the cap under load is recorded as **not
+> synthesising** — a **wrong** result, not a slow one. **Declining is part of the
+> measurement.** The run stays blocked until the machine is idle, and saying so
+> is more useful than a number that would have to be retracted.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -113,6 +113,11 @@ enum Commands {
         /// List every forced-scalar spec and the signature it would get
         #[arg(long, default_value_t = false)]
         verbose: bool,
+        /// W709: print the FORCED_ROOT suggestions for human review. W708 demoted
+        /// the call-graph-root rule to a suggestion and then printed nothing;
+        /// this is the list that demotion was supposed to produce.
+        #[arg(long, default_value_t = false)]
+        suggest: bool,
     },
 
     /// THE SERVICE: carry a spec all the way to a verdict READ BACK OFF THE DIE.
@@ -10282,8 +10287,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
         }
-        Commands::EntryPoints { specs_dir, verbose } => {
-            entry_points::run(std::path::Path::new(&specs_dir), verbose)?
+        Commands::EntryPoints { specs_dir, verbose, suggest } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose, suggest)?
         }
         Commands::Silicon {
             input,
@@ -10659,8 +10664,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
         }
-        Commands::EntryPoints { specs_dir, verbose } => {
-            entry_points::run(std::path::Path::new(&specs_dir), verbose)?
+        Commands::EntryPoints { specs_dir, verbose, suggest } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose, suggest)?
         }
         Commands::Silicon {
             input,
