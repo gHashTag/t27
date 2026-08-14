@@ -8644,6 +8644,29 @@ These cost a wave each. Follow them before step 1.
      branch VALUE may legitimately be a struct literal, so the
      `no_struct_literal` guard broke working specs. Reverted.
 
+769. **THE SECOND-LARGEST DEFECT CLASS WAS NOT A DEFECT.** All 101 specs of
+     `unable to format type '@TypeOf(undefined)'` contain
+     `@compileError("not yet implemented")`. The scaffolding emitted for a
+     missing body cannot format `undefined`, and that error fires BEFORE the
+     compileError that would have said "unwritten". Zero genuine codegen
+     defects in the class.
+
+770. **CLASSIFY BY INTENT BEFORE CLASSIFYING BY SYMPTOM.** `t27c spec-status`
+     answers UNWRITTEN/PARTIAL/IMPLEMENTED/NOPARSE/NOFN and has all along --
+     667 bodiless functions of 3513. A census that groups 578 specs by compiler
+     error and never asks it will call missing implementations a defect class.
+     **Sixth rediscovery of an existing tool this session.**
+
+771. **THE HONEST CORPUS: 168, NOT 490.** Of the blocked specs -- 168
+     IMPLEMENTED (the real work), 154 UNWRITTEN, 144 NOPARSE, 18 NOFN, 6
+     PARTIAL. More than half of what this programme counted as broken has a
+     different owner and a different fix.
+
+772. **A DENOMINATOR IS A CLAIM, AND THIS ONE WAS WRONG THREE WAYS:** files
+     that are not source (T265), a sample taken by alphabetical prefix (T272),
+     and unwritten specs counted as broken (T274). Each was found by looking at
+     the population rather than at the number.
+
 ### How to update this tracker
 
 After closing a wave:

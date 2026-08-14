@@ -13863,4 +13863,83 @@ reference tests**.
 
 ---
 
+## The second-largest defect class is not a defect — W738
+
+### T274 — 101 of 101 are unwritten specs
+
+`unable to format type '@TypeOf(undefined)'` — the corpus's second-largest
+blocking class at 101 specs — carries **one message, byte for byte**. Reading
+the generated Zig rather than counting it:
+
+```zig
+fn forward(x: f32) void {
+    _ = x;
+    @compileError("not yet implemented");     <-- the spec is UNWRITTEN
+}
+test "forward_basic_case" {
+    const input = undefined;                  <-- scaffolding for a missing body
+    const result = forward(input);
+    if (!(result != undefined)) __t27_assert_fail("...{}...", .{result});
+}
+```
+
+```
+class size                                        101
+of which contain @compileError("not yet implemented")   101
+genuine codegen defects                             0
+```
+
+> **T274.** **The format error fires before the `@compileError` that would have
+> told the truth.** A hundred and one specs were counted as a Zig defect class
+> because the scaffolding emitted for a missing body cannot format `undefined`.
+> W737's census reported UNWRITTEN as **11**; the honest figure was hidden
+> behind a masking error one line earlier in the same file.
+
+### T274a — and `spec-status` knew all along
+
+```
+$ t27c spec-status specs/nn/elu_activation.t27
+UNWRITTEN
+```
+
+> **T274a.** **Sixth rediscovery in this session.** `impl-status` exists
+> precisely to separate UNWRITTEN from BROKEN — its own help text says so, and
+> it reports **667 bodiless functions of 3513 declared** corpus-wide. The census
+> of W737 classified 578 specs by compiler error and never asked the tool that
+> answers the prior question. **Classify by intent before classifying by
+> symptom.**
+
+### T275 — the honest corpus, at last
+
+Every one of the 490 blocked specs, crossed with its implementation status:
+
+```
+  IMPLEMENTED   168     written, and genuinely failing  <-- THE DEFECT POPULATION
+  UNWRITTEN     154     no bodies; blocking is correct
+  NOPARSE       144     does not parse
+  NOFN           18     no functions at all
+  PARTIAL         6
+```
+
+Together with the 88 that run, the 578 sources are:
+
+```
+   88  run their tests            1293 tests passing
+  168  written and failing        <-- the work
+  154  unwritten
+  144  unparseable
+   18  no functions
+    6  partial
+```
+
+> **T275.** **The real defect population is 168, not 490.** More than half of
+> what this programme has been counting as broken is either unwritten or
+> unparseable — categories with different owners and different fixes. Every
+> "blocked" figure quoted before this wave, including my own of two hours ago,
+> conflated three populations. **A denominator is a claim, and this one was
+> wrong three ways: not-source (T265), sampled by prefix (T272), and unwritten
+> counted as broken (T274).**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
