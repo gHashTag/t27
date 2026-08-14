@@ -8899,6 +8899,41 @@ test set leaks and may only bound what calibration could buy. **Report both, lab
 which is which, and never let the oracle become the headline** — it is an upper
 bound, not a result.
 
+### Lessons 806-810 (W751) — six bits per neuron, and a forecast that planned its own retraction
+
+**806. THE SIX-BIT RULE. Cost is set by total bits read, not by fan-in.** A
+binary input is one bit, a ternary input is two. Fan-in 6 on binary and fan-in 3
+on ternary both cost **2.00 LUT/neuron**; fan-in 6 on *ternary* costs **39.03** —
+twenty times more, because 12 bits will not fit one LUT6. **A depth sweep that
+ignored this cost 10,250 LUT while its headline implied 800.** Caught before
+publication by asking what the generator emits, the same question that saved
+W747.
+
+**807. Register in advance what a refuted forecast obliges you to do.** W751's
+depth forecast said *"if depth now helps, T314's flatness was a probe artefact
+and the conclusion needs restating."* Depth helped, and the retraction was
+already written — no argument with myself, no salvage attempt. **A forecast that
+names its own failure consequence converts a refutation from a defeat into a
+scheduled action.**
+
+**808. Re-run your own conclusions when the bench changes under them.** T314
+measured depth as flat with an 8-epoch probe; under full training with balancing
+it is monotone (82.13 → 84.23 → 84.64). **Three conclusions have now been
+overturned by fixing the bench rather than by new ideas** — normalisation (W748),
+alphabet magnitude (W749), depth (W751). **When a bench improves, the old
+conclusions are suspects, not assets.**
+
+**809. An oracle bounds what is recoverable, not what a method will recover.**
+The test-tuned threshold reached 91.99% and EM prior correction reached 87.66% —
+**+0.91 of the promised 2.1 pp**, with the prior estimate 7.8 points high. EM
+assumes a calibrated source conditional and a quantised net does not provide one.
+**Quote the oracle as a ceiling on the problem, never as a forecast for the fix.**
+
+**810. `set -- $var` inside a loop broke the same script twice in one wave.**
+Both times it silently produced blank fields and a plausible-looking table.
+**Write the arguments out, or use a function with named locals** — a shell
+construct that fails quietly has no place in a measurement pipeline.
+
 ### How to update this tracker
 
 After closing a wave:
