@@ -14300,4 +14300,55 @@ in bits per weight:         3.17      2.32       3.17
 
 ---
 
+## The Nine-Rung Law, named — W745
+
+### T290 — the name, and the one word that makes it true
+
+The finding is named **the Nine-Rung Law** / «Закон девяти ступеней», and the
+article becomes **TNF-9**.
+
+W744 withdrew "the ninth rung" because nine is not a constant: UNSW-NB15 and
+Fashion-MNIST saturate at nine, **MNIST at five**. The name survives on one
+change of word — from a **value** to a **ceiling**:
+
+> **The Nine-Rung Law.** Enlarging a weight alphabet stops buying significant
+> accuracy **no later than the ninth rung**. The exact rung is a property of the
+> task and never exceeds nine; most of the available gain is taken by the first
+> step, three levels to five.
+
+> **T290.** As a constant, nine is refuted by our own data. **As a ceiling it is
+> exact**: across three tasks, eight rungs and 720 runs, **no step above nine
+> levels was significant anywhere.** The distinction is one word and it is the
+> difference between a law and an overreach — the same distinction that cost
+> W741, W742 and W744 a claim each.
+
+### T290a — GA-T is reported as an instrument
+
+> **T290a.** The golden ladder is not the answer and is the reason there is one.
+> "Is φ special?" is unanswerable; **"how much does an alphabet's shape buy at
+> fixed size?"** is answerable, and only a **graded family** turns the first
+> question into the second. GA-T supplied the grading. It is reported in full —
+> named, defined by the powers of the fundamental unit of Z[φ], costed at every
+> rung, placed, routed and read back off three dice — **including the five
+> measurements that exclude it.** An instrument that eliminates itself has
+> worked; an instrument kept because it flatters its builder has not.
+
+### T290b — the abstract, rewritten and not applied
+
+`docs/reports/TNF9-ABSTRACT-PROPOSAL.tex` restates the paper's weight half under
+the law, keeps the accumulator half and the budget convention untouched, and
+raises the retraction count **20 → 23**, the three new ones all in the weight
+alphabet:
+
+1. that `{−φ, 0, +φ}` decides the multiplier question;
+2. that the ladder's representation efficiency predicts its trained accuracy;
+3. that a dyadic advantage measured on one task generalises.
+
+> **T290b. Each was refuted by the experiment proposed to confirm it** — which is
+> the only reason all three are in the paper rather than in a drawer. **Not
+> applied and not pushed:** the handoff rule is that Dmitrii confirms before any
+> push or merge, and the `\title` block carries the canon plate.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
