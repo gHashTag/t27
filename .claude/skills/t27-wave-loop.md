@@ -7050,6 +7050,13 @@ These cost a wave each. Follow them before step 1.
      UNSIZED; the sized form the feature would support appears zero times.
      Measure the exact form, not the family.
 
+478. **Verify every claim in a report before committing it.** W684's
+     consolidated report asserted the MVP passes both backends, both miters prove
+     under induction, `--mutate` still fails, and the W671 safety battery is 4/4.
+     All four were re-run against the report text rather than quoted from the
+     waves that produced them. A report is the artefact that outlives the
+     conversation; its numbers must be current, not remembered.
+
 ### How to update this tracker
 
 After closing a wave:
