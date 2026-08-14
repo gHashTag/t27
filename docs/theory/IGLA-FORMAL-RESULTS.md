@@ -10660,4 +10660,64 @@ clean.** It was caught only because its "clean" answer contradicted the earlier
 
 ---
 
+## W696 — the boundary derived eleven times, and a forecast I missed by my own warning
+
+### T188 — of 387 port-less specs, exactly **11** admit a forced entry point
+
+`t27c entry-points` classifies every spec from the **AST** — not a regex, per
+lesson 404 — asking only whether the choice of entry function is *forced*:
+
+| verdict | count |
+|---|---:|
+| `HAS_ENTRY` (already declares one) | 57 |
+| **`FORCED_SCALAR`** — one candidate, every type sized | **11** |
+| `FORCED_WIDE` — one candidate, a type with no width | 5 |
+| `AMBIGUOUS` — two or more candidates | **136** |
+| `NO_CANDIDATE` — nothing takes a parameter and returns a value | **235** |
+| `NOPARSE` | 173 |
+| **total** | **617** |
+
+A candidate must take a parameter, return a value, **and have a body** — the
+last is not decoration: 47% of this corpus declares functions with no statements
+(T155), and forwarding to an empty one produces a port that carries a constant.
+
+> **T188.** The standing rule is *"the cure is `on_comb`, but the default must
+> not be guessed."* **Measured, the population where no guess is needed is 11 of
+> 387.** One spec has **135** candidates. **Refuted by:** a spec classified
+> `FORCED_SCALAR` in which a second function also takes a parameter, returns a
+> value and has a body.
+
+**All eleven were applied**, each forwarding to the spec's single implemented
+function. `HAS_ENTRY` moved **57 → 68**.
+
+### T188a — T187 is causal, and the proof is 11 of 11
+
+> **T188a.** T187 measured an equivalence; this tested whether it is a **law**.
+> Adding an entry point produced a data port in **11 cases out of 11**, with no
+> exception. The compiler's `NO DATA PORTS` banner disappeared from every one.
+> **Refuted by:** one spec that declares `on_comb` and still carries the banner.
+
+### T188b — and the forecast missed, by the exact conflation I had just warned against
+
+The forecast said `corpus`'s data-port column would move **57 → 68**. It moved
+**57 → 65**.
+
+**The three that did not land had already failed `iverilog` before the edit** —
+same errors, `Enable of unknown task` and two syntax errors, verified by
+regenerating each spec with the added function stripped. **Nothing regressed.**
+
+> **T188b.** The column counts `iverilog accepts **AND** has a data port`. **T187
+> itself says, in its own text: *"the 57 is a coincidence, not an identity …
+> they are different sets that happen to have the same size."* I wrote that, and
+> one wave later forecast as though they were the same set.** The number was
+> wrong for a reason I had already published.
+
+**A forecast that fails against a distinction you drew yourself is worth more
+than one that succeeds**, because it locates the error in the reasoning rather
+than in the world. The corrected prediction — *the port count rises by 11, the
+intersection rises by 11 minus however many were already broken* — is the one
+that survives.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

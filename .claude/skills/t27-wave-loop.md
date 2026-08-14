@@ -7544,6 +7544,29 @@ These cost a wave each. Follow them before step 1.
      One was wrong about five specs, the other about 560. The truth was in the
      raw rows, which were on disk the whole time. T187c.
 
+572. **Of 387 port-less specs, exactly 11 admit a FORCED entry point.** 136 are
+     ambiguous (one has 135 candidates), 235 have no function that takes a
+     parameter and returns a value with a body. "The cure is on_comb" is
+     available without guessing for 11. T188.
+
+573. **A candidate must have a BODY.** Forwarding to an empty function produces a
+     port that carries a constant -- and 47% of this corpus declares functions
+     with no statements.
+
+574. **T187 is causal: 11 of 11 got a data port.** Adding `fn on_comb` removes
+     the compiler's own NO DATA PORTS banner without exception. T188a.
+
+575. **I missed a forecast by the exact conflation I had warned against ONE WAVE
+     EARLIER.** T187 says in its own text that "has a data port" and "iverilog
+     accepts AND has a data port" are different sets with the same size; I then
+     forecast 57 -> 68 on the intersection. It moved 57 -> 65, and the three
+     missing were already broken before the edit. A forecast that fails against a
+     distinction you drew yourself locates the error in the reasoning. T188b.
+
+576. **Not every spec ends with `endmodule`.** An append that anchors on it
+     silently skipped 9 of 11 files and reported success for 2. Check the anchor
+     matched before counting the edit as done.
+
 ### How to update this tracker
 
 After closing a wave:

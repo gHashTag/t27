@@ -15,6 +15,7 @@ mod compiler;
 mod use_resolve;
 mod check_calls;
 mod cc_gate;
+mod entry_points;
 mod impl_status;
 mod test_report;
 mod catalog_gate;
@@ -97,6 +98,21 @@ enum Commands {
         /// Continue past the two software backends into synthesis
         #[arg(long, default_value_t = false)]
         synth: bool,
+    },
+
+    /// THE SERVICE: for every spec WITHOUT a hardware boundary, is the entry
+    /// point FORCED? T187 measured an exact equivalence -- a module has a data
+    /// port iff the spec declares `on_comb` or `on_clock` -- leaving 387 specs
+    /// that generate Verilog and cannot move a value across their boundary. The
+    /// standing rule is that the default must NOT be guessed, so this reports
+    /// where no guess is needed and leaves everything else alone.
+    EntryPoints {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every forced-scalar spec and the signature it would get
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
     },
 
     /// THE SERVICE: carry a spec all the way to a verdict READ BACK OFF THE DIE.
@@ -10253,6 +10269,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
         }
+        Commands::EntryPoints { specs_dir, verbose } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose)?
+        }
         Commands::Silicon {
             input,
             top,
@@ -10626,6 +10645,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
+        }
+        Commands::EntryPoints { specs_dir, verbose } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose)?
         }
         Commands::Silicon {
             input,
