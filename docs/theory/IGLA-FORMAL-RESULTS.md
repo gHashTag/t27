@@ -15189,6 +15189,78 @@ taking 84.43% to 87–90%; depth stays flat, confirming T314.*
 > represent what a 593-input dot product can. **The second is not a defect; it is
 > what the architecture is.**
 
+### T331 — the SIX-BIT RULE, and T314 restated
+
+The cost of a sparse neuron is set by the **total bits it reads**, not by its
+fan-in:
+
+| layer | input encoding | fan-in | bits | LUT/neuron |
+|---|---|---:|---:|---:|
+| first | binary | 6 | 6 | **2.00** |
+| deeper | **ternary** | **3** | 6 | **2.00** |
+| deeper | ternary | 6 | **12** | **39.03** |
+
+> **T331. Six bits per neuron, whatever the encoding.** A ternary input costs two
+> bits, so a hidden layer's fan-in must be **three**, not six. The depth sweep
+> that reached 85.03% used fan-in 6 everywhere and therefore cost **10,250 LUT,
+> not the ~800 its headline implied.** Caught before publication by asking what
+> the generator emits — the same question that saved W747 (lesson 789).
+
+**Registered before the run:** *fan-in 3 on ternary layers keeps most of the depth
+gain; L=4 lands at 83.5–85.0%, within 1.5 pp of the expensive version, at ~800 LUT.*
+
+| config | test | oracle | LUT |
+|---|---:|---:|---:|
+| L=2, F_deep=3 | 82.13 | 83.73 | **258** |
+| L=3, F_deep=3 | 84.23 | 85.92 | **514** |
+| **L=4, F_deep=3** | **84.64** | 86.35 | **770** |
+| L=4, F_deep=6 | 85.03 | 87.24 | 10,250 |
+
+> **T331a. Correct on all three counts — the fifth registered forecast to land.**
+> **0.39 pp for 13× the area**: the expensive version is not worth building, and
+> the six-bit rule costs almost nothing.
+
+> **T331b. T314 is restated, as its own forecast required.** T314 measured depth
+> as *flat* (75.98 / 77.28 / 77.23 / 77.66) and W751's forecast said depth would
+> stay flat, **confirming** it. Under full training with class balancing depth is
+> **monotone**: 82.13 → 84.23 → 84.64. **T314's flatness was an artefact of the
+> 8-epoch probe**, exactly the failure mode W751 registered in advance as the
+> reason to re-run rather than assume. **The conclusion "depth does not help" is
+> withdrawn; the conclusion "depth without normalisation collapses" stands.**
+
+### T332 — EM prior correction works, and not as well as the oracle promised
+
+**Registered before the run:** *EM recovers 1.0–2.0 pp, landing at 91.0–92.0%;
+the estimated prior lands within 3 points of the true 55.06%.*
+
+| dense, plain training | test | **EM-corrected** | oracle | π̂ (true 55.06%) |
+|---|---:|---:|---:|---:|
+| | 86.75 | **87.66** | 91.99 | **62.87** |
+
+> **T332. Refuted on all three counts, and usefully.** EM buys **+0.91 pp**, just
+> under the predicted band; it lands at 87.66%, nowhere near 91–92%; and π̂ is
+> **7.8 points high**, not within 3. **The oracle's 2.1 pp is real but not
+> reachable by prior correction alone** — EM assumes the classifier's conditional
+> `p(y|x)` is calibrated in the source domain, and a quantised network with a
+> hand-fitted temperature is not. **The gap is calibration, but not only prior
+> calibration**, and T326a's framing was too optimistic about what one correction
+> could recover.
+
+### T333 — the row, W751
+
+| system | LUT | accuracy | one build? |
+|---|---:|---:|---|
+| TreeLUT (II) | **89** | **92.0%** | yes |
+| ours — sparse L=2, balanced | **128** | 82.98% | yes |
+| **ours — sparse L=4, six-bit rule** | **770** | **84.64%** | **yes** |
+| ours — dense, balanced + EM | ~200,000 | 89.94 / 87.66% | yes |
+| **ours — three dice, one layer each** | **220** | *(demonstration)* | **yes, on silicon** |
+
+> **T333.** Depth at the six-bit rule buys **+1.66 pp for 6× the area**; the field
+> is still **7.4 points ahead at 8.7× less area**. **Every structural knob this
+> project can turn is now measured**, and the ranking is stable: normalisation
+> ≫ training budget > depth > connectivity > alphabet.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

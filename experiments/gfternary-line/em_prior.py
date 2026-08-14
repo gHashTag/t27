@@ -51,16 +51,21 @@ if __name__=="__main__":
             W,_=PS.train(Xtr,ytr,Xva,yva,1000+s,balanced=bal)
             sc_va=PS.scores(W,Xva); sc_te=PS.scores(W,Xte)
             # calibrate a logistic on VALIDATION only -- source-domain probabilities
-            from math import exp
-            lo,hi=-10.0,10.0
-            for _ in range(60):                       # 1-D fit of a temperature
-                mid=(lo+hi)/2
-                p=1/(1+np.exp(-sc_va*np.exp(mid)))
-                if p.mean() > yva.mean(): hi=mid
-                else: lo=mid
-            T=np.exp((lo+hi)/2)
+            # Fit ONE temperature on validation by matching the mean predicted
+            # probability to the validation prior. Bisect in log-space over a
+            # RANGE THAT CANNOT OVERFLOW: sc is O(1..100), so exp(4) is ample and
+            # exp(10) was not -- the first version overflowed np.exp and the
+            # warning was the only sign anything was wrong.
+            sgn = np.clip(sc_va, -60, 60)
+            lo, hi = -6.0, 4.0
+            for _ in range(60):
+                mid = (lo+hi)/2
+                p = 1/(1+np.exp(-np.clip(sgn*np.exp(mid), -60, 60)))
+                if p.mean() > yva.mean(): hi = mid
+                else: lo = mid
+            T = float(np.exp((lo+hi)/2))
             pi_src=float(yva.mean())
-            p_te=1/(1+np.exp(-sc_te*T))
+            p_te=1/(1+np.exp(-np.clip(sc_te*T,-60,60)))
             pi_hat=em_prior(p_te,pi_src)
             # shifted decision rule: P_target(y=1|x) > 0.5
             r=(pi_hat/pi_src)*p_te
