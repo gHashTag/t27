@@ -13942,4 +13942,27 @@ Together with the 88 that run, the 578 sources are:
 
 ---
 
+## The masking operand, removed — W739
+
+### T276 — one operand hid a hundred and one specs
+
+The assert lowering prints the operands of a failing comparison (W599). For a
+scaffolded test the comparison is `result != undefined`, and the generator
+formatted **`undefined` itself** with `{any}`.
+
+```
+before:  error: unable to format type '@TypeOf(undefined)'    101 specs
+after:   error: not yet implemented                           101 specs
+reference tests: 145 unchanged
+```
+
+> **T276.** **Printing `undefined` says nothing — the value is the absence of a
+> value** — and formatting it produced an error that fired *before* the
+> `@compileError("not yet implemented")` in the body under test. One `continue`
+> in the operand loop moves 101 specs from the corpus's second-largest "codegen
+> defect class" to their true status. **The instrument now reports what is
+> actually wrong with them, which is nothing that a compiler can fix.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

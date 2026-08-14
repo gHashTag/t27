@@ -7072,6 +7072,18 @@ impl Codegen {
                                 if t.len() > 120 || shown.contains(&t) {
                                     continue;
                                 }
+                                // W739: `undefined` has no type, so `{any}` on it
+                                // is `unable to format type '@TypeOf(undefined)'`
+                                // -- and that error fires BEFORE the
+                                // `@compileError("not yet implemented")` in the
+                                // body it is testing. 101 unwritten specs were
+                                // counted as the corpus's second-largest CODEGEN
+                                // defect class because of this one operand
+                                // (T274). Printing it says nothing anyway: the
+                                // value is the absence of a value.
+                                if t.trim() == "undefined" {
+                                    continue;
+                                }
                                 fmt.push_str(&format!(
                                     "\\n    {} = {{any}}",
                                     Self::escape_for_fmt(&t)
