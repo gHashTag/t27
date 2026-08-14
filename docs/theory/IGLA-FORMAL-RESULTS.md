@@ -14768,6 +14768,37 @@ At **comparable area** — ours 128 LUT, the field 89 LUT:
 > later wave does not read its absence as a measurement. Fix: index in batches, or
 > fall back to the dense path when `F = n_in`.
 
+### T313 — the board that "never froze" was my own read, and T304a is withdrawn
+
+T304a offered two candidates for a die that never reached the freeze:
+`CFGMCLK` far below nominal, or `EOS` not propagating. **Both are wrong.**
+
+| | board 0 | board 1 | board 2 |
+|---|---|---|---|
+| freeze at 2^20, read immediately | `frozen=1 sig=1` | `frozen=1 sig=1` | `frozen=1 sig=1` |
+| freeze at 2^24, read immediately | **`frozen=0`** | `frozen=1 sig=0` | `frozen=1 sig=0` |
+| **same configuration, +30 s, nothing reloaded** | **`frozen=1 sig=0`** | `frozen=1 sig=0` | `frozen=1 sig=0` |
+
+> **T313. It was a race between the freeze counter and my readback**, not silicon
+> variation. The board had simply not finished counting when it was read; thirty
+> seconds later it agreed with the other two exactly. **All three dice are
+> identical and the fingerprint is fully reproducible.** T304a's two hypotheses
+> are withdrawn — I proposed a property of the hardware for a property of my test
+> sequence, which is the same error as T291's difficulty mechanism and T306's
+> pruning mechanism: **three waves running, the mechanism I liked was wrong.**
+
+> **T313a. The validity flag paid for itself in one wave.** Without `frozen` the
+> read would have returned `sig = 0` — a plausible value, matching one of the two
+> boards that *had* frozen — and the race would have entered the record as a
+> measurement. **`frozen=0` is the only reason anyone knew to wait thirty
+> seconds.** A measurement that cannot report "not ready" cannot be trusted when
+> it reports a number.
+
+> **T313b. The operational rule, so this does not recur.** A freeze period must be
+> shorter than the *shortest* load-to-read latency in the harness, or the readback
+> must poll `frozen` until it sets. 2^24 CFGMCLK cycles is not reliably complete
+> at immediate read; **2^20 is, and the readback now has no excuse not to poll.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
