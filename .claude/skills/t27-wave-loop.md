@@ -6917,6 +6917,27 @@ These cost a wave each. Follow them before step 1.
      experiment. W676 showed TDO was never wired at all -- so that test could
      only ever have failed for the wrong reason.
 
+455. **Test your own claim's refutation condition; it is the cheapest
+     confidence available.** T117 named "a SAT or SMT encoding that discharges
+     64x8 in minutes" as its refutation. SMT had never been tried. Z3 was
+     installed, the attempt cost one wave, and the claim held. T142.
+
+456. **A symbolic encoding is not automatically stronger.** Z3 with `bvmul`
+     timed out at 12x12, which yosys's bit-blasted SAT proved in 191 s. Assume
+     nothing about which solver wins a given shape -- measure both.
+
+457. **When a refutation fails, the value is that the effect is
+     SOLVER-INDEPENDENT.** The 4-to-6-bit weight wall appeared at the same place
+     under two different encodings. That converts "yosys cannot do it" into "the
+     problem is hard", which is a much stronger statement and the only one worth
+     quoting. T142a.
+
+458. **Name what is still untested when a refutation attempt fails.** The
+     condition listed three methods; two have been tried. Gröbner-basis
+     multiplier verification is designed for exactly this case and is not
+     installed here. Quote the claim as "survives SAT and SMT, untested against
+     algebraic methods" -- not as "survives refutation".
+
 ### How to update this tracker
 
 After closing a wave:

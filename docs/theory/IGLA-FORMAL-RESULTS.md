@@ -8923,4 +8923,64 @@ door with a sign on it.
 
 ---
 
+### T142 (W678) — T117's refutation condition tested with SMT: the wall is the problem's, not the solver's
+
+T117 stated its own refutation condition: *"A SAT or SMT encoding, or an
+algebraic method, that discharges 64 × 8 in minutes."* **SMT had never been
+tried.** Z3 4.16 is installed, so it was.
+
+The same equivalence — the compiler's shift-and-add against `bvmul`, truncated —
+written in SMT-LIB with `QF_BV`, so the solver can reason about multiplication
+**symbolically** rather than through a bit-blasted CNF:
+
+```
+   a x b      z3           yosys SAT (T117)
+   8 x 8      0.45 s unsat   0.23 s proved
+  12 x 12     TIMEOUT 120s   191.71 s proved
+  16 x 16     TIMEOUT        —
+  32 x 32     TIMEOUT        —
+  64 x 8      TIMEOUT        —          <- the refutation condition
+  64 x 16     TIMEOUT        —
+```
+
+> **T142.** **The refutation condition is not met by SMT.** 64 × 8 does not
+> discharge, and neither does 12 × 12 — which **yosys's bit-level SAT proved in
+> 191 s.** A symbolic `bvmul` did not help; on this problem the bit-blasted
+> encoding is the stronger of the two.
+
+### And the asymmetry is solver-independent
+
+The claim T117 actually rests on is not the wall's position but its **cause** —
+that the wall is set by the **weight** width. Re-measured with Z3, activation
+fixed at 64:
+
+| a × b | yosys SAT | **Z3 SMT** |
+|---|---:|---:|
+| 64 × 2 | 0.16 s | **0.01 s** |
+| 64 × 3 | 0.58 s | **0.24 s** |
+| 64 × 4 | 4.41 s | **6.13 s** |
+| 64 × 5 | 119.92 s ✅ | **timeout (90 s)** |
+| 64 × 6 | not proved | **timeout** |
+
+> **T142a.** **Two independent solvers, two different encodings, the same wall
+> between four and six bits of weight.** Z3 is faster at the narrow end and gives
+> up one bit earlier. The asymmetry T117 rests on is therefore a property of the
+> **problem**, not an artefact of yosys — which is what a refutation attempt is
+> supposed to establish when it fails.
+
+**What remains untested.** The condition named three methods and two have now
+been tried. **Algebraic verification — Gröbner-basis multiplier checking
+(Ciesielski et al., DAC 2015; Kaufmann, Biere & Kauers, FMCAD 2019) — is
+precisely designed for this case and is not installed here.** That is the honest
+remaining hole, and T117 should be quoted with it: *survives SAT and SMT,
+untested against algebraic methods.*
+
+**A note on what this exercise was.** The project's only surviving technical
+advantage was attacked with the best tool available, on its own stated terms, and
+it held. **A claim that has been attacked and survived is worth more than one
+that has only been asserted** — and the attempt cost one wave, which is the
+cheapest form of confidence this project has bought.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
