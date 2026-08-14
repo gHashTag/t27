@@ -7112,6 +7112,27 @@ These cost a wave each. Follow them before step 1.
      one API call per repo refuted for two of them. Checking the premise is part
      of doing the task, not a delay to it.
 
+488. **Extend a proxy's error check to the whole population before trusting the
+     rate.** T150 measured `diskUsage` wrong for 2 of 8 and called it 25%. Over
+     the other twenty it was wrong for SIXTEEN -- 80%. The overall count of truly
+     empty repositories fell from 28 to 10, and "half the candidate set is empty"
+     had to be retracted. T151.
+
+489. **`diskUsage` reports PACKED size and rounds to 0 in KB.** A repository with
+     one small commit is indistinguishable from one with none. The field cannot
+     answer "is this empty"; `branches?per_page=100 --jq length` can, at one API
+     call each.
+
+490. **Four of sixteen carried external traces the size figure could not show** --
+     an open issue, a FORK, a star. A deletion driven by the proxy would have
+     destroyed a repository somebody else had forked. Check stars, forks and
+     issues before any destructive operation, not only content.
+
+491. **A missing credential scope is a guard, not an obstacle.** The loop's `gh`
+     token lacks `delete_repo`, so it cannot delete a repository even by mistake.
+     Report the scope-refresh command to the owner rather than acquiring the
+     scope.
+
 ### How to update this tracker
 
 After closing a wave:

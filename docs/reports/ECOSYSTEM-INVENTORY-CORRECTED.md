@@ -33,7 +33,27 @@ check T90/T91 exists for.
 
 ---
 
-## Half the set is empty: 28 of 56
+## RETRACTED: the set is NOT half empty — 10 of 56 (see T151)
+
+**This section's premise was wrong.** `diskUsage ≤ 64 KB` was used as a proxy for
+"empty"; counting branches showed it wrong for **18 of the 28** it selected.
+
+| verdict | count |
+|---|---:|
+| truly empty (0 branches) | **10** |
+| has commits despite ≤ 64 KB | **18** |
+
+Truly empty: `go-half-lib`, `go-half-rust`, `trios-t27`, `zig-vsa`,
+`zig-half-base`, `zig-half-f16`, `zig-half-lib`, `zig-half-lib-new`,
+`zig-half-lib-v1`, `zig-half-rust`.
+
+Four of the eighteen carry external traces — `GoldenFloat.jl` and
+`arith2027-goldenfloat` have an open issue, `trinity-contracts` has a **fork**,
+`zig-knowledge-graph` has a **star and two issues**.
+
+The table below is kept as the *size* census it actually is.
+
+## Size census: 28 of 56 hold ≤ 64 KB
 
 **28 candidates hold 64 KB or less.** They are repositories in name only.
 

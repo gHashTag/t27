@@ -9400,4 +9400,45 @@ exact commands are in the report instead.
 
 ---
 
+### T151 (W688) — the proxy was wrong 64% of the time, and "half the set is empty" is retracted
+
+T150 found `diskUsage ≤ 64 KB` wrong for **2 of 8** in the `zig-half` family and
+called that a 25% error rate. Extending the branch count to the other twenty
+candidates that the size proxy had called empty:
+
+| verdict | count |
+|---|---:|
+| **truly empty** (0 branches) | **4** — `go-half-lib`, `go-half-rust`, `trios-t27`, `zig-vsa` |
+| **has commits** despite ≤ 64 KB | **16** |
+
+> **T151.** The proxy is wrong **16 of 20 — 80%** — in this population. Across all
+> 28 candidates the size figure called empty, only **10 are actually empty**: six
+> in the `zig-half` family and four here. **W686's finding that "half the
+> candidate set is empty" is retracted: it is 10 of 56, not 28 of 56.**
+
+**And four of the sixteen carry external traces** the size figure could never
+show: `GoldenFloat.jl` and `arith2027-goldenfloat` have an open issue each,
+`trinity-contracts` has a **fork**, `zig-knowledge-graph` has a **star and two
+issues**. A deletion driven by `diskUsage` would have destroyed a repository
+somebody else had forked.
+
+**The proxy's failure mode, named.** GitHub's `diskUsage` reports the *packed*
+size, and a repository with one small commit packs to under a kilobyte — it
+rounds to 0 in the API's KB units. **The field does not distinguish "no commits"
+from "one small commit"**, which is exactly the distinction a deletion decision
+turns on.
+
+> **T151a.** T150a argued that a wrong proxy before an irreversible action costs
+> what no wave recovers. **One wave later the same proxy proved four times worse
+> than measured, on a population four times larger.** The check that caught it —
+> counting branches — costs one API call per repository, and the ratio of that
+> cost to the loss it prevents is the entire argument for making it mandatory
+> before any destructive operation.
+
+**Nothing was deleted.** The scope error the account owner hit —
+`HTTP 403 … needs the "delete_repo" scope` — is itself a useful guard: the
+credential this loop runs under cannot delete a repository even by mistake.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
