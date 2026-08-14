@@ -15073,6 +15073,61 @@ an adder.
 > input and carries no magic; die B carries `0xA5A5` in the high half), never by
 > the order it was loaded in.
 
+### T326 — the UNSW gap is prior shift, and prior shift is fixable for free
+
+Measured before being named: we are on the **official Moustafa & Slay partition**
+(175,341 / 82,332, verified by shape). Per-feature marginal drift train→test is
+**mean 0.019, max 0.085, and not one of 593 features passes 0.10.** The label
+prior moves **68.06% → 55.06%**.
+
+| dense, 5 seeds | test | oracle threshold |
+|---|---:|---:|
+| plain | 86.75 ± 0.90 | 91.99 |
+| **class-balanced loss** | **89.94 ± 0.66** | 92.05 |
+
+> **T326. Class reweighting buys +3.19 pp and costs nothing in hardware** — it
+> changes the training loss, not the datapath. The registered forecast
+> (*balanced 2–5 pp, oracle 4–8 pp*) **lands on both, the fourth in a row.**
+
+> **T326a. The oracle lands on the field's number, and that is the finding.**
+> A threshold chosen on the test set reaches **91.99–92.05%** — TreeLUT's 92.0%.
+> **The dense model's scores already carry the information to match the field;
+> what was missing was calibration, not representation.** The oracle leaks the
+> test set and is *not a result* — it is an upper bound, and the bound says the
+> remaining dense gap is 2.1 points of calibration, not 5.3 points of capability.
+
+### T327 — the fix carries to the small system, and there it hits a ceiling
+
+| sparse, fan-in 6, **128 LUT**, 5 seeds | test | oracle threshold |
+|---|---:|---:|
+| plain | 80.92 ± 0.20 | 84.10 |
+| **class-balanced loss** | **82.98 ± 1.04** | **84.43** |
+
+> **T327. Balancing carries (+2.06 pp) but the sparse oracle stops at 84.43%.**
+> Where the dense model's scores support 92%, the 128-LUT model's support **84.4%
+> and no more.** **That difference is representational, not calibrational** — it
+> is the real price of collapsing 37,952 weights into 64 six-input truth tables,
+> and no threshold can recover it.
+
+### T328 — the row, final for this wave
+
+| system | LUT | accuracy | one build? |
+|---|---:|---:|---|
+| TreeLUT (II) | **89** | **92.0%** | yes |
+| NeuraLUT-Assemble | 91 | 93.0% | yes |
+| **ours — sparse, balanced** | **128** | **82.98%** | **yes** |
+| ours — dense, balanced | ~200,000 | 89.94% | yes |
+| *(ours — sparse, oracle-thresholded)* | *128* | *84.43%* | *leaks test* |
+
+> **T328.** At **1.44× the field's area we are 9.0 points behind**; at 1,500× the
+> area we are 2.1 behind, and that 2.1 is calibration. **The programme's position,
+> stated without decoration: our datapath is competitive on area and our
+> architecture is not competitive on accuracy-per-area.** The alphabet — seven
+> waves — contributes **+0.735 pp** to that picture. **Everything measured since
+> W748 has been worth more than everything measured before it**, and the reason
+> is that W748 was the first wave to ask what dominates instead of which variant
+> wins.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
