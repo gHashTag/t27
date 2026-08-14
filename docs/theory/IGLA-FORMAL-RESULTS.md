@@ -12249,4 +12249,102 @@ post-route. Settling it needs the article's own part, `xc7a200tfbg484-2`.
 
 ---
 
+## The flow was the variable — W718
+
+### T230 — the package cannot matter, and this is checkable
+
+W717 declined to build the article's `xc7a200tfbg484-2` chipdb for want of disk
+and routed on `xc7a200tfbg676-1` instead, calling it a stated deviation. With
+the disk freed, the deviation turns out **not to exist**:
+
+```
+prjxray-db/artix7/xc7a200tfbg676-1/   package_pins.csv  part.json  part.yaml
+prjxray-db/artix7/xc7a200t/           node_wires.json   tileconn.json  tilegrid.json
+bbaexport.py                          bba.str(si.package_pin)   -- a NAME on a site
+```
+
+> **T230.** The routing graph is built from the **die** directory; the package
+> directory holds pin data only, and `bbaexport` uses `package_pin` as a string
+> attribute of a site, never as an edge. **For a design with no ports, two
+> packages of one die produce the same placement and the same routing.** The
+> W717 post-route numbers therefore already are the article's-part numbers, and
+> building the second chipdb would have consumed 1.3 GB to reproduce them.
+
+### T231 — what actually differed was the synthesis command
+
+W717 routed with `synth_xilinx -family xc7 -flatten`. The article's CI uses
+`synth_xilinx -abc9 -nocarry -arch xc7`. Same twenty arms, both flows:
+
+```
+flow                             m2       m1      E_t      R2    linear R2
+published (post-route, M<=25) +2.194   +53.84  -197.1   0.9989       --
+W718  -abc9 -nocarry (CI)     -0.338   +55.04   +85.7   0.9494    0.9466
+W717  -family xc7 -flatten    -0.143  +113.67  +145.6   0.9421    0.9420
+```
+
+> **T231.** `-abc9 -nocarry` **more than halves placed LUT on every one of the
+> twenty arms** (ratio 0.317–0.575, mean 0.447) — ABC9's timing-driven mapping
+> more than repays the loss of CARRY4. **A cost model is a statement about a
+> flow, not about a datapath**, and two flows on identical RTL differ by a
+> factor of two in the quantity being modelled. The published `m1 = +53.84` is
+> reproduced almost exactly under the CI flags (**+55.04**) and not under mine
+> (+113.67) — evidence that the CI flags are the ones the model was fitted on.
+
+### T231a — my own sub-forecast, refuted
+
+**Registered:** `-nocarry` forbids CARRY4, so placed LUT should **rise**.
+
+> **T231a.** **Refuted, and by a factor of two in the wrong direction.** Adding
+> `-abc9` alongside `-nocarry` cut placed LUT to 44.7% of the plain flow. The
+> intuition priced one flag and ignored the other.
+
+### T232 — the M=33 inversion was mine, and the third flow says so
+
+W717 found `E_t = 2, M = 33` smaller than `M = 29` and recorded that two flows
+disagreed and a third was needed. It ran:
+
+```
+W717  -family xc7 -flatten   M=29 3817   M=33 3506   INVERTED
+W718  -abc9 -nocarry (CI)    M=29 1209   M=33 1297   monotone
+W716  -abc9 -nocarry, pre-route  4596 -> 4840        monotone
+```
+
+> **T232.** Two independent runs under the CI flags are monotone; the single
+> inverted reading came from **the flow this session introduced**. T227a's
+> refusal to smooth the point was right, and its agnosticism is now resolved
+> **against my own run.** The article's data are not implicated.
+
+### T233 — Q1 and Q2 across three flows
+
+**Q1**, Δ placed LUT from `M=9` to `M=11` under the CI flags: **76, 99, 100,
+145, 110** for E_t = 2…6 — positive at every width, a third independent
+confirmation after T221 (pre-route) and T226 (post-route, plain flow).
+
+**Q2**, first differences per 4 mantissa bits under the CI flags:
+
+```
+E_t=2   111  201   87   88
+E_t=3   199  197  172  165
+```
+
+> **T233.** **Flat or declining in both rows.** A surviving `M²` makes these
+> grow. Across three flows the quadratic is never supported: `m2` measures
+> **−0.057** (pre-route), **−0.143** (post-route plain), **−0.338** (post-route
+> CI), and a purely linear model is within 0.003 of R² in every case.
+> **Q2 is answered and the answer is stable: the quadratic term is a local
+> artefact of the original fit.**
+
+### T233a — what remains unexplained, stated as such
+
+The `E_t` coefficient is **+85.7** under the article's own flags against a
+published **−197.1**.
+
+> **T233a.** Not the package (T230), not the synthesis flags (T231 reproduces
+> `m1` to 2%), and not collinearity (`corr(M, E_t) = −0.08`). What remains is
+> the yosys **version** inside `regymm/openxc7`, the nextpnr build, or the arm
+> set the original fit used. **A disagreement narrowed to one variable is worth
+> more than one explained away** — and it is not resolvable from this host.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

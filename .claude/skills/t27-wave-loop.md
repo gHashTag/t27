@@ -8132,6 +8132,44 @@ These cost a wave each. Follow them before step 1.
      a same-die different-package chipdb and SAYING SO beats either a full disk
      or a silent substitution.
 
+680. **CHECK WHETHER A DEVIATION EXISTS BEFORE DOCUMENTING IT AS A LIMITATION.**
+     W717 wrote three careful paragraphs explaining that routing happened on
+     fbg676 rather than the article's fbg484, and declined a 1.3 GB chipdb
+     build. In prjxray-db the routing graph is in the **die** directory; the
+     package directory holds pin data, and `bbaexport` uses `package_pin` as a
+     STRING on a site. **For a port-less design the two packages route
+     identically.** The honest caveat was honest about nothing.
+
+681. **A cost model is a statement about a FLOW.** Twenty identical arms under
+     `-abc9 -nocarry` versus `-family xc7 -flatten` differ by **a factor of two
+     in placed LUT** (mean ratio 0.447). Before comparing a measurement to a
+     published model, reproduce the published FLOW -- the published `m1 = 53.84`
+     came back as **55.04** under the right flags and 113.67 under the wrong
+     ones, which is how you know which flags were used.
+
+682. **I priced one flag and ignored the other.** Forecast: `-nocarry` forbids
+     CARRY4 so LUT must RISE. Measured: LUT fell to 44.7%, because `-abc9`
+     shipped in the same change and its timing-driven mapping more than repaid
+     the loss. **A forecast about a command line must account for every flag on
+     it.**
+
+683. **When two runs disagree, suspect the one you just built.** W717 recorded
+     an inverted `M=33` point and said a third flow was needed. The third flow
+     agreed with the ORIGINAL and against W717's own run. Refusing to smooth the
+     point was right; the reflex to suspect the inherited data was not.
+
+684. **Narrow a disagreement instead of explaining it away.** The `E_t` sign is
+     still +85.7 against a published −197.1 -- but package, flags and
+     collinearity are now each eliminated by measurement, leaving the yosys
+     version inside the CI image. **A disagreement reduced to one variable is a
+     result; a disagreement rationalised is not.**
+
+685. **A registry's zero can be true and misleading at once.** ISSUE-REGISTRY
+     records "тема TNF = 0" and no issue in any of the three repos contains the
+     string. The work is nonetheless tracked in the **open epic
+     `trinity-fpga#199`**, which the sweep manifest names directly. The zero is
+     a property of the term, not of the topic.
+
 ### How to update this tracker
 
 After closing a wave:

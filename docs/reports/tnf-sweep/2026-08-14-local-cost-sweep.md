@@ -195,3 +195,62 @@ either is called the truth.
 Measured over these ten arms: **1.0%–12.7%, mean 6.6%**, against the 28–39% this
 programme measured on combinational adder trees. **No fixed factor converts a
 yosys cell count into an area.**
+
+---
+
+# ADDENDUM 2 — the flow was the variable
+
+The package deviation the first addendum declared **does not exist**. In
+`prjxray-db`, the routing graph comes from the **die** directory
+(`tilegrid.json`, `node_wires.json`, `tileconn.json`); the package directory
+holds `package_pins.csv`, `part.json`, `part.yaml` only, and `bbaexport.py`
+consumes `package_pin` as `bba.str(si.package_pin)` — a name on a site, never an
+edge. **For a port-less design, fbg484 and fbg676 route identically.** The
+post-route numbers already are the article's-part numbers.
+
+What differed was the **synthesis command**. Addendum 1 used
+`synth_xilinx -family xc7 -flatten`; the workflow uses
+`synth_xilinx -abc9 -nocarry -arch xc7`. Both flows, same twenty arms:
+
+| flow | m2 | m1 | E_t | R² | linear R² |
+|---|---:|---:|---:|---:|---:|
+| **published** (post-route, M≤25) | +2.194 | +53.84 | **−197.1** | 0.9989 | — |
+| **CI flags** `-abc9 -nocarry` | −0.338 | **+55.04** | **+85.7** | 0.9494 | 0.9466 |
+| plain `-family xc7 -flatten` | −0.143 | +113.67 | +145.6 | 0.9421 | 0.9420 |
+
+`-abc9 -nocarry` **more than halves placed LUT on all twenty arms** (ratio
+0.317–0.575, mean 0.447). The published `m1 = +53.84` is reproduced to **2%**
+under the CI flags and not under the other flow — evidence that the CI flags are
+what the published model was fitted on.
+
+## The M=33 inversion was an artefact of the OTHER flow
+
+| flow | E_t=2, M=29 | M=33 | |
+|---|---:|---:|---|
+| plain `-flatten` | 3817 | 3506 | **inverted** |
+| CI flags, post-route | 1209 | 1297 | monotone |
+| CI flags, pre-route (W716) | 4596 | 4840 | monotone |
+
+Two independent CI-flag runs are monotone. **The article's data are not
+implicated**; the inverted point came from the flow introduced here.
+
+## Q2 is now answered across three flows
+
+First differences per 4 mantissa bits, CI flags: `E_t=2: 111, 201, 87, 88`;
+`E_t=3: 199, 197, 172, 165` — flat or declining. Fitted `m2` is **−0.057**
+(pre-route), **−0.143** (post-route plain), **−0.338** (post-route CI), and a
+purely linear model is within **0.003 of R²** every time.
+
+**The quadratic term is not supported by any flow measured here.**
+
+## Q1 is confirmed a third time
+
+Δ placed LUT from M=9 to M=11 under the CI flags: **76, 99, 100, 145, 110** for
+E_t = 2…6. Positive at every exponent width.
+
+## What is still unexplained
+
+`E_t` is **+85.7** under the article's own flags against a published **−197.1**.
+Not the package, not the flags (which reproduce `m1` to 2%), not collinearity.
+What remains is the **yosys version** inside `regymm/openxc7`, the nextpnr
+build, or the arm set of the original fit. **Not resolvable from this host.**
