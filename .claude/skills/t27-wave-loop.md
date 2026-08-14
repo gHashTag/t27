@@ -8667,6 +8667,46 @@ These cost a wave each. Follow them before step 1.
      and unwritten specs counted as broken (T274). Each was found by looking at
      the population rather than at the number.
 
+### Lessons 773-777 (W745) — naming a law, and an instrument that excludes itself
+
+**773. A law can survive its own refutation by changing one word.** W744 killed
+"the ninth rung" because nine is not a constant — UNSW and Fashion saturate at
+nine, MNIST at five. The name survived by moving from a **value** to a
+**ceiling**: *no later than the ninth rung*. As a constant it is false; as a
+bound it is exact across eight tasks and 1220 runs. **Before discarding a
+refuted claim, check whether it is true as an inequality.** Most overreaches are
+a correct bound stated as a wrong constant.
+
+**774. Report the instrument that eliminated itself, in full.** GA-T lost on
+five axes and is the reason the paper has a result: "is φ special?" is
+unanswerable, "how much does an alphabet's shape buy at fixed size?" is
+answerable, and only a **graded family** converts the first into the second.
+An instrument that excludes itself has worked. **The temptation is to bury a
+line that lost — but the losing line is the measurement apparatus, and hiding it
+hides how the answer was obtained.**
+
+**775. A refuted forecast that replicates the law is the best outcome available.**
+W745 predicted difficulty sets the saturation rung; five graded digit-pairs said
+3, 9, 5, 9, 7 — non-monotone, r=−0.35. **But the ceiling held on all five.** A
+regularity that survives an experiment *designed to explain it away* is stronger
+than one that was fitted. **State it with no mechanism rather than with a
+mechanism you like** — two proposed mechanisms have now died (W744: 13-15;
+W745: difficulty).
+
+**776. Vary the confound inside one dataset, not across datasets.** "Difficulty"
+across UNSW/MNIST/Fashion is confounded with data, dimension and label balance.
+Five digit-pairs from the *same* MNIST — identical trainer, seeds, subsample,
+input dimension — vary difficulty and nothing else, and difficulty stops being an
+opinion: it is the **ceiling accuracy the task admits.** The design cost 500 runs
+and produced a clean refutation; three more datasets would have produced another
+argument.
+
+**777. Check the degenerate end of every sweep.** 0v1 gains **+0.02 pp** across
+the whole ladder — separable tasks buy nothing from any alphabet. The extreme
+case is where a knob's *precondition* becomes visible: alphabet size only pays
+where the task has **headroom**. A sweep that omits the trivial end omits the
+statement of when the whole result applies.
+
 ### How to update this tracker
 
 After closing a wave:
