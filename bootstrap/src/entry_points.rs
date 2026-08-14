@@ -324,7 +324,29 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
         let Ok(src) = std::fs::read_to_string(&f) else { continue };
         let v = classify(&src);
         *counts.entry(v.label()).or_default() += 1;
-        if v == Verdict::ForcedScalar || v == Verdict::ForcedRoot {
+        // W708: ONLY the count rule is actionable. `ForcedRoot` is a SUGGESTION.
+        //
+        // The root rule picks the one candidate no other function calls. W704
+        // defended it against two known bad picks (`e8_lie_algebra -> abs`,
+        // `gf4 -> decode`) on the grounds that the width filter excluded both.
+        // `queen/lotus.t27` is a third, and the width filter does NOT help:
+        // `lotus_spawn(agent_type: u8, count: u8) -> bool` is entirely scalar.
+        //
+        // The module is a six-phase orchestration cycle. Its subject is
+        // `lotus_orchestrate()`, which takes NO parameters and so cannot be a
+        // candidate at all -- leaving the rule to pick a primitive the cycle
+        // calls and present it as the hardware boundary.
+        //
+        // A further syntactic filter was measured and rejected: "block when the
+        // spec has a parameterless function with a return" would exclude 5 of
+        // the 20 applied boundaries to catch this 1, and one of the five is
+        // `fpga/uart.t27`'s `uart_tx_ready()` -- a status getter, not a driver.
+        // The distinction between a driver and a getter is SEMANTIC, and no
+        // predicate available here draws it.
+        //
+        // So the root rule stays, as a suggestion a human accepts. It is not
+        // emitted for automatic application.
+        if v == Verdict::ForcedScalar {
             if let Some((name, params, ret)) = forced_signature(&src) {
                 let sig = format!(
                     "fn on_comb({}) -> {ret} {{ return {name}({}); }}",
@@ -374,7 +396,7 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
     println!("  {:<16} {:>4}", "----", "----");
     println!("  {:<16} {:>4}", "total", total);
     println!();
-    println!("  ACTIONABLE = FORCED_SCALAR: exactly one function takes a parameter,");
+    println!("  ACTIONABLE = FORCED_SCALAR ONLY: exactly one function takes a parameter,");
     println!("  returns a value, has a body, and every type has a known width.");
     println!("  Deriving an entry point there invents nothing.");
     println!();
@@ -382,6 +404,13 @@ pub fn run(specs_root: &Path, verbose: bool) -> anyhow::Result<()> {
     println!("  cannot become a port without a decision, and this command makes none.");
     println!("  AMBIGUOUS is left alone on purpose -- picking wrong does not fail");
     println!("  loudly, it produces a module that computes something nobody asked for.");
+    println!();
+    println!("  W708: FORCED_ROOT is a SUGGESTION, not an action. The rule picks the one");
+    println!("  candidate nothing else calls -- and in queen/lotus.t27 that is a spawn");
+    println!("  primitive, while the module's subject is a six-phase cycle whose driver");
+    println!("  takes no parameters and so cannot be a candidate. The width filter does");
+    println!("  not catch it: (u8, u8) -> bool is entirely scalar. Driver-versus-getter");
+    println!("  is a SEMANTIC distinction and no predicate here draws it.");
 
     if !wide_blockers.is_empty() {
         println!();

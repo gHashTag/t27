@@ -7821,6 +7821,34 @@ These cost a wave each. Follow them before step 1.
 624. **The corpus headline has been an iverilog number since the metric existed**
      -- not a lower bound on synthesisable specs and not an upper bound either.
 
+625. **A boundary can be FORCED and WRONG.** queen/lotus.t27 is a six-phase
+     orchestration cycle; the root rule gave it `on_comb -> lotus_spawn`, a
+     primitive the cycle calls. Its real subject, `lotus_orchestrate()`, takes NO
+     parameters and so cannot be a candidate. The width filter does not help:
+     (u8,u8)->bool is entirely scalar. T202.
+
+626. **The obvious repair was measured and rejected.** "Block when the spec has a
+     parameterless function with a return" would exclude 5 of 20 applied
+     boundaries to catch 1, and one of the five is uart_tx_ready() -- a status
+     getter, not a driver. Driver-versus-getter is SEMANTIC. Second time a
+     one-command survey has stopped a repair that would break more than it fixes.
+     T202a.
+
+627. **FORCED_ROOT is demoted to a suggestion -- which the W704 fan-out
+     recommended and I overrode.** My defence was true about its two examples and
+     incomplete about the class. A DEFENCE THAT HOLDS FOR EVERY CASE YOU WERE
+     SHOWN IS NOT A DEFENCE OF THE RULE. T202b.
+
+628. **The case arrived from outside the repository.** The user said what
+     queen/lotus IS, and that sentence was the whole diagnosis. No sweep here
+     could have produced it: every measurement available tests the SHAPE of the
+     code, and this was a claim about its MEANING.
+
+629. **Check the machine before a timing-sensitive run.** W708 declined to start
+     the full --synth sweep at load average 8.57 on 8 cores with 17 agent
+     processes live. Starting it would have repeated T199b exactly one wave after
+     documenting it.
+
 ### How to update this tracker
 
 After closing a wave:

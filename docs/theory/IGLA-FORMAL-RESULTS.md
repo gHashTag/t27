@@ -11412,4 +11412,68 @@ magnitude needs the full run, which must be done alone.*
 
 ---
 
+## W708 — the root rule is demoted, and the case that demoted it came from the user
+
+### T202 — `queen/lotus` got a boundary that was forced and wrong
+
+`specs/queen/lotus.t27` is a **six-phase orchestration cycle** — Observe, Recall,
+Evaluate, Plan, Act, Record. W697's call-graph-root rule gave it
+
+```
+fn on_comb(agent_type: u8, count: u8) -> bool { return lotus_spawn(agent_type, count); }
+```
+
+**`lotus_spawn` is a primitive the cycle calls.** The module's subject is
+`lotus_orchestrate()`, which **takes no parameters** and therefore cannot be a
+candidate at all — so the rule chose the only parameterised root and presented it
+as the hardware boundary.
+
+> **T202.** T197a defended the root rule against its two known bad picks —
+> `e8_lie_algebra → abs(f64)` and `gf4 → decode(GF4)` — on the ground that the
+> width filter excluded both. **This is a third, and the width filter does not
+> help: `(u8, u8) -> bool` is entirely scalar.** The composition narrows the
+> failure mode without closing it. **Refuted by:** a syntactic predicate that
+> separates this case from `fpga/uart.t27`'s `uart_tx_ready()`.
+
+### T202a — and the obvious repair was measured and rejected
+
+*"Block the root rule when the spec has a parameterless function with a
+non-void return"* — the driver the rule cannot see. Measured over the 20 applied
+boundaries:
+
+| | count |
+|---|---:|
+| would be blocked | **5** |
+| of which the block is wrong | **`fpga/uart.t27` → `uart_tx_ready()`, a status getter** |
+
+> **T202a.** **Five excluded to catch one**, and one of the five is a getter, not
+> a driver. **Driver-versus-getter is a semantic distinction and no predicate
+> available here draws it.** This is W703/T196b's shape a second time: the survey
+> that took one command stopped a repair that would have broken more than it
+> fixed.
+
+### T202b — so the rule is demoted, which is what the audit said one wave ago
+
+`FORCED_ROOT` no longer appears in the applicable list. It is printed as a
+**suggestion a human accepts**, with the reason stated in the command's own
+output.
+
+> **T202b.** **W704's fan-out recommended exactly this — *"do not adopt
+> call-graph-root as a derivation rule; it could at most be a ranked SUGGESTION"*
+> — and I overrode it**, on the strength of a defence that was true about its two
+> examples and incomplete about the class. **A defence that holds for every case
+> you were shown is not a defence of the rule.**
+
+**The other five root-derived boundaries were checked individually and kept:**
+`ternary_mac → dot27`, `ternary_xor → ternary_xor`, `ternary_full_adder →
+full_adder`, `ternary_ripple_adder → add2`, `bitnet_neuron → neuron4` — in each
+the chosen function *is* the module's subject. `HAS_ENTRY` 78 → 77.
+
+**And the case arrived from outside.** The user said what `queen/lotus` is — the
+pipeline built for t27 — and that sentence was the whole diagnosis. **No sweep in
+this repository could have produced it**, because every measurement available
+tests the shape of the code and this was a claim about its meaning.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

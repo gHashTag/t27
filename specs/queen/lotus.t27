@@ -802,20 +802,23 @@ module QueenLotus {
         target: < 5000ns
 }
 
-// W697: the hardware boundary, derived from the CALL GRAPH.
+// W708: NO ENTRY POINT. The boundary W697 derived here was WRONG, and it is
+// removed rather than corrected.
 //
-// This spec has several functions that take a parameter and return a value,
-// so W696's count rule left it AMBIGUOUS. But exactly ONE of them is called
-// by no other function -- it is the root, and every other candidate is a
-// helper it reaches. With one root the choice is forced by structure rather
-// than by count, and forwarding to it still invents nothing.
+// W697's call-graph-root rule picked `lotus_spawn(agent_type: u8, count: u8)`
+// because it is the only candidate this module has: `lotus_orchestrate()` --
+// the module's actual subject, the six-phase Observe/Recall/Evaluate/Plan/Act/
+// Record cycle -- takes NO parameters, so the rule cannot see it.
 //
-// The call graph is built from FUNCTION BODIES ONLY. Counting `test` blocks
-// as callers makes the rule vacuous -- every function is called by its own
-// test, so nothing is ever a root.
+// The pick was mechanically forced and semantically wrong. `lotus_spawn` is a
+// primitive the cycle calls; exposing it as THE hardware boundary says this
+// module is a spawner, which it is not.
 //
-// Measured: the rule resolved 14 of 136 ambiguous specs, 6 of them with
-// types that can cross a module boundary. It is narrow because most of the
-// rest are libraries of INDEPENDENT functions, which have several roots and
-// correctly stay ambiguous.
-fn on_comb(agent_type: u8, count: u8) -> bool { return lotus_spawn(agent_type, count); }
+// T197a defended the root rule on the grounds that its two known bad picks were
+// excluded by the width filter (`f64`, `GF4`). This is a third case, and the
+// width filter does NOT help: `(u8, u8) -> bool` is entirely scalar. So the
+// filter composition narrows the failure mode without closing it.
+//
+// A stateful multi-phase cycle whose driver takes no data is not combinational
+// at all. If this module is ever given a boundary it will be `fn on_clock`, and
+// choosing it is a design decision, not a derivation.
