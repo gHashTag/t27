@@ -14243,4 +14243,61 @@ alphabet SIZE, 3->9 lv    +0.844    0.025   33.87   59.1   direction never varie
 
 ---
 
+## Where the ladder ends — W744
+
+The only effect that replicated across three tasks is **cardinality** (T286).
+Its limit had never been measured: the ladder stopped at nine. Eight rungs, the
+dyadic family, three tasks, 30 seeds each — 720 further runs.
+
+### T288 — saturation is universal; the rung is not
+
+```
+step        UNSW             MNIST            Fashion
+3 -> 5    +0.547 t 15.5*   +1.622 t 18.6*   +0.511 t 15.4*
+5 -> 7    +0.256 t 10.3*   +0.194 t  0.9    +0.218 t  9.7*
+7 -> 9    +0.182 t  6.2*   +0.021 t  0.1    +0.087 t  3.6*
+9 -> 11   +0.043 t  1.3    +0.176 t  0.8    +0.037 t  1.5
+11 -> 13  +0.064 t  1.4    +0.154 t  0.8    +0.011 t  0.4
+13 -> 15  +0.036 t  0.9    -0.460 t -1.7    -0.000 t -0.0
+15 -> 17  -0.002 t -0.1    +0.019 t  0.1    -0.006 t -0.3
+
+last SIGNIFICANT rung:   UNSW 9    MNIST 5    Fashion 9
+in bits per weight:         3.17      2.32       3.17
+```
+
+**Registered forecast: the first non-significant step at 13–15 levels.**
+
+> **T288. Refuted, and earlier than predicted on every task.** UNSW and Fashion
+> stop at **nine**; MNIST stops at **five**. **Saturation is universal — every
+> task has a rung after which nothing is significant — but the rung is a
+> property of the task, not a constant.** What holds on all three: it never
+> arrives later than nine, and **the first step, 3 → 5, is always the largest**
+> (+0.547, +1.622, +0.511).
+
+### T288a — and "the ninth rung" is withdrawn as a name
+
+> **T288a.** One message before this measurement I proposed naming the finding
+> **"the ninth rung"**, on UNSW evidence alone. **MNIST saturates at five.**
+> The name would have carried a constant that does not exist — and it would have
+> been my third claim in three waves built on a single task, after W741's
+> dominance and W742's replication failure. **The defensible statement is a
+> shape, not a number:**
+>
+> > *Accuracy in a binary-input network saturates in the alphabet's cardinality,
+> > always by nine levels (≈3.2 bits/weight), with most of the available gain
+> > taken by the first step from three to five.*
+
+### T289 — what this makes claimable
+
+> **T289.** Three findings now stand on three tasks and 1350 trained runs:
+> **(1)** cardinality dominates alphabet shape tenfold (T286); **(2)** its
+> return saturates, by nine levels, task-dependently (T288); **(3)** at fixed
+> cardinality the choice should therefore be made on **cost**, which belongs to
+> the substrate (T287). **None of the three is a format**, and a corpus-wide
+> arXiv search finds no paper measuring where cardinality saturates. **The
+> contribution is a decision procedure, and it is stronger than a format because
+> it survives the substrate changing.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

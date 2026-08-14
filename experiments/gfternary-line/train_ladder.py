@@ -36,6 +36,24 @@ ARMS = [
     ("lin9",  [1.0, 2.0, 3.0, 4.0]),                    # 9   ties GA-T3
 ]
 
+# W744: the ONLY effect that replicated across three tasks is CARDINALITY
+# (+0.844 pp pooled, z=33.9, direction never varies). Its limit is unmeasured --
+# the ladder stopped at nine. This is the saturation sweep, on the cheapest
+# family, since T286 showed the shape effect is an order of magnitude smaller.
+SAT_ARMS = [
+    ("pot3",  [1.0]),                                        #  3
+    ("pot5",  [1.0, 2.0]),                                   #  5
+    ("pot7",  [1.0, 2.0, 4.0]),                              #  7
+    ("pot9",  [1.0, 2.0, 4.0, 8.0]),                         #  9
+    ("pot11", [1.0, 2.0, 4.0, 8.0, 16.0]),                   # 11
+    ("pot13", [1.0, 2.0, 4.0, 8.0, 16.0, 32.0]),             # 13
+    ("pot15", [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0]),       # 15
+    ("pot17", [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0]),# 17
+]
+import os
+if os.environ.get("T27_SAT"):
+    ARMS = SAT_ARMS
+
 
 def levels(pos):
     return np.array(sorted([-p for p in pos] + [0.0] + list(pos)), dtype=np.float32)
