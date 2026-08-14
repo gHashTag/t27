@@ -11903,4 +11903,111 @@ IOKit and invisible to libusb, so nothing here was loaded (W714-HW).
 
 ---
 
+## What each rung can REPRESENT — W715
+
+Training answers "does the seventh level earn its cost" through one dataset, one
+architecture and one optimiser. **The representation question is prior to all of
+that and has an exact answer.** For weights drawn from the distribution every
+quantisation paper assumes, how much of the achievable accuracy does each fixed
+alphabet capture? Each alphabet is given its **own optimal scale** — otherwise
+the comparison measures scaling, not shape — and is compared against the
+**Lloyd–Max optimum**, which no fixed alphabet can beat.
+
+### T215 — the table
+
+`w ~ N(0,1)`, Gauss quadrature on [−8,8] at 20 001 nodes, scale minimised by
+golden-section. `% opt` = Lloyd–Max MSE ÷ this MSE.
+
+```
+ K  alphabet                          MSE     SQNR dB   % opt
+ 3  GFT0  {0,±1}                  0.190174     7.208   100.00
+ 5  GFT1  {0,±1,±φ}               0.098050    10.086    81.53
+ 5  lin5  {0,±1,±2}               0.082178    10.852    97.28
+ 7  GFT2  {0,±1,±φ,±φ²}           0.050766    12.944    86.67
+ 7  lin7  {0,±1,±2,±3}            0.046860    13.292    93.90
+ 7  pot7  {0,±1,±2,±4}            0.047560    13.228    92.52
+ 9  GFT3                          0.030336    15.180    91.82
+ 9  lin9  {0,±1,…,±4}             0.030696    15.129    90.74
+ 9  pot9  {0,±1,±2,±4,±8}         0.039875    13.993    69.85
+11  GFT4                          0.022656    16.448    84.83
+11  lin11                         0.021856    16.604    87.94
+11  pot11                         0.038603    14.134    49.79
+13  GFT5                          0.020055    16.978    70.13
+13  lin13                         0.016453    17.838    85.48
+13  pot13                         0.037856    14.219    37.15
+```
+
+**K=3's 100% is definitional, not a finding** — at three symmetric levels there
+is only one shape, so `{0,±1}` *is* the Lloyd–Max quantiser by construction.
+
+### T215a — the forecast, and the one place it broke
+
+**Registered before running (T44):** the GFT levels are geometric with ratio φ;
+geometric sets suit heavy tails and the Gaussian is light-tailed, so **a linear
+set of equal cardinality should beat every GFT rung.**
+
+> **T215a.** **Confirmed at K = 5, 7, 11, 13. Refuted at K = 9**, where
+> **GFT₃ (91.82%) beats lin9 (90.74%)** — the single rung at which the golden
+> ladder is the best equal-size alphabet measured. A forecast that survives four
+> of five cases and fails on the fifth has located something; one that survives
+> all five would only have restated the prior.
+
+### T216 — the golden ladder is non-monotone and peaks at GFT₃
+
+```
+GFT   81.53 → 86.67 → 91.82 → 84.83 → 70.13     peak at K=9
+pot   97.28 → 92.52 → 69.85 → 49.79 → 37.15     monotone collapse
+lin   97.28 → 93.90 → 90.74 → 87.94 → 85.48     slow monotone decline
+```
+
+> **T216.** Three ladders, three shapes. The dyadic ladder's ratio 2 **overshoots
+> the Gaussian tail and collapses to 37% by K=13** — that collapse is the entire
+> motivation of APoT (Li et al., ICLR 2020), here quantified. The golden ladder's
+> ratio φ = 1.618 is the *gentlest* multiplier-free geometric progression, so it
+> overshoots later and **peaks at GFT₃**, where its span (φ³ = 4.236σ·s) matches
+> the useful range of a Gaussian. Below that it under-covers; above it, overshoots.
+
+### T217 — where φ actually pays, stated against the project's own claim
+
+> **T217.** Among multiplier-free alphabets the comparison at each size is
+> golden against powers-of-two:
+> - **K=7: pot7 92.52% beats GFT₂ 86.67%.** The seven-level set claimed as the
+>   discovery is **outperformed by plain powers of two at equal cardinality and
+>   equal (zero) multiplier cost.**
+> - **K=9: GFT₃ 91.82% beats pot9 69.85%** — a 22-point margin, the largest in
+>   the table.
+>
+> **The rung at which the golden ratio earns its place is GFT₃, not GFT₂.** By
+> T210 that costs 2349 LUT against GFT₂'s 1878 (+25%) — so the case for φ, if
+> there is one, is nine levels and a quarter more logic, and it must be made
+> there or not at all.
+
+**What this does not test.** It measures fit to a **Gaussian weight prior** with
+a **fixed** alphabet. Trained weights are not exactly Gaussian, and LQ-Nets
+*learns* its basis, so it adapts to whatever the true distribution is and cannot
+be beaten by any fixed set on its own terms. This bounds fixed alphabets under
+the standard assumption; it does not bound the literature.
+
+### T218 — the verdict was read off all three dice
+
+`t27c silicon`, MVP ternary classifier, boards **1:4, 1:6, 1:8**, each bracketed
+by a wrong-part bitstream:
+
+```
+board   A1 wrong part   B1 ours   B2 read       ok  beat  chain index
+1:4     Done 0          Done 1    0xa5a5a5a7    1    1    [2]
+1:6     Done 0          Done 1    0xa5a5a5a5    1    0    [1, 2]
+1:8     Done 0          Done 1    0xa5a5a5a7    1    1    [0, 1, 2]
+```
+
+> **T218.** **The 0→1 transition was forced and observed on every board**, and
+> the magic word came back from the die on every board. `Done 1` alone proves
+> nothing; `Done 0 → Done 1` under a known wrong part, followed by a readback,
+> is the whole of the proof — and it now holds three times.
+
+**246 LUT, 104 CARRY4, 0 DSP48E1**, BSCANE2 ×1, chain forced to 2 and verified
+equal to the placed site.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1350,11 +1350,24 @@ pub fn run_silicon(
             secs: t.elapsed().as_secs_f64(),
             code: c,
             artefact: file_len(&json_path),
-            note: format!(
-                "{} | BSCANE2 x{bscan}{}",
-                cell_census(&log),
-                match chain_override { Some(n) => format!(" | chain forced to {n}"), None => String::new() }
-            ),
+            // On failure print yosys's OWN error, not our summary of a log it
+            // never wrote. `no statistics block | BSCANE2 x0` is a description
+            // of the missing output; the cause was one line up and invisible:
+            // `Module '\mvp_ternary_classifier_check' referenced in module
+            // '\mvp_ternary_classifier_jtag_noport' ... is not part of the
+            // design` -- i.e. a `--top` file had been left off the command.
+            note: if c == Some(0) {
+                format!(
+                    "{} | BSCANE2 x{bscan}{}",
+                    cell_census(&log),
+                    match chain_override { Some(n) => format!(" | chain forced to {n}"), None => String::new() }
+                )
+            } else {
+                log.lines()
+                    .find(|l| l.starts_with("ERROR:"))
+                    .map(|l| l.chars().take(72).collect::<String>())
+                    .unwrap_or_else(|| format!("{} | BSCANE2 x{bscan}", cell_census(&log)))
+            },
         });
         if c != Some(0) {
             break;
@@ -1411,6 +1424,27 @@ pub fn run_silicon(
     if let Some(st) = pnr_stage { stages.push(st); }
     if let Some(st) = guard_stage { stages.push(st); }
 
+    // W715: do NOT run the back end on the leavings of an earlier run.
+    // `tmp` persists between invocations, so when yosys failed at 21:34 the
+    // fasm from 20:33 was still on disk; fasm2frames and xc7frames2bit both
+    // reported OK and rebuilt a 9.7 MB bitstream FOR THE PREVIOUS DESIGN.
+    // The load was refused for other reasons, so nothing wrong reached a board
+    // -- but two green stage lines described work that had not been done.
+    let upstream_ok = stages.iter().all(|s| s.ok());
+    if !upstream_ok {
+        for name in ["fasm2frames", "frames -> bitstream"] {
+            stages.push(Stage {
+                name,
+                secs: 0.0,
+                code: None,
+                artefact: None,
+                note: "SKIPPED -- an upstream stage failed; stale artefacts not reused".into(),
+            });
+        }
+        print_table(&stages);
+        println!("FAIL -- the build did not complete. Nothing was loaded.");
+        std::process::exit(1);
+    }
 
     // ---- fasm2frames ----
     let frames_path = tmp.join(format!("{stem}.frames"));

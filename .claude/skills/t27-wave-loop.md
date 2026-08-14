@@ -8010,6 +8010,51 @@ These cost a wave each. Follow them before step 1.
      null survives, look for the structure that makes it necessary — that is
      the publishable half.**
 
+660. **CORRECTION to 654.** The three `/dev/cu.usbserial-1130/-11230/-11240`
+     ARE the CP2102N bridges — that part held. What I missed is that the FTDI
+     cables had serial nodes too (`usbserial-210512180081`, `-6`, `-8`), and
+     THOSE are the evidence that Apple's DriverKit FTDI dext had matched them.
+     I then blamed the dext for libusb's blindness — **also wrong**: after a
+     replug the three dext instances were still running and libusb saw all
+     three cables. The cause was a **stale exclusive claim**, cleared by
+     unplugging. Naming a culprit that is merely present at the scene is how a
+     diagnosis becomes folklore.
+
+661. **A persistent temp dir makes a failed build look partly successful.**
+     `t27c silicon` writes to `$TMPDIR/t27-silicon`, which survives between
+     runs. When yosys failed, `fasm2frames` and `xc7frames2bit` consumed the
+     FASM from an earlier run and **reported OK, rebuilding a 9.7 MB bitstream
+     for the previous design.** Fixed W715: downstream stages are SKIPPED once
+     any stage fails. **Check artefact mtimes before believing a stage.**
+
+662. **Print the tool's own error, never your summary of a log it did not
+     write.** The yosys stage said `no statistics block | BSCANE2 x0` — a
+     description of the missing output. The cause was one line above and never
+     shown: `Module '\mvp_ternary_classifier_check' ... is not part of the
+     design`, i.e. a `--top` file had been left off. Two waves of the wrong
+     hypothesis (`-sv`? top name?) came from summarising instead of quoting.
+
+663. **`--top` takes files in DEPENDENCY ORDER and the flag is repeatable.**
+     Passing only the wrapper omits the module it instantiates. The failure
+     mode reads as a broken wrapper, not a short command line.
+
+664. **Busdev addresses change on every replug and the mission prompt cannot
+     know them.** 0:4/0:7/0:10 became 1:4/1:6/1:8. `t27c boards` is the only
+     source; the standing prompt is a fixed string and the bus is not.
+
+665. **Measure representation before training when the question is about a
+     level set.** Thirty seeds were planned to decide whether the seventh level
+     earns its cost; the dataset had been wiped with the scratchpad. The exact
+     answer — MSE against the Lloyd-Max optimum at matched cardinality — needed
+     **no data at all**, took seconds, and is stronger: it holds for every task
+     with Gaussian-ish weights rather than for one dataset.
+
+666. **A forecast that fails in exactly one cell is worth more than one that
+     passes everywhere.** Predicted: linear alphabets beat golden at every
+     cardinality. True at K=5,7,11,13; **false at K=9**, which is precisely the
+     rung where φ's span matches a Gaussian. The exception located the peak;
+     four confirmations alone would have located nothing.
+
 ### How to update this tracker
 
 After closing a wave:
