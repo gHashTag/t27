@@ -9196,4 +9196,64 @@ by annotation status, not by raw match.
 
 ---
 
+### T147 (W683) — the struct-lowering thread is finished: 2.4% of the remaining field population is reachable by any predicate work
+
+W682 recommended multi-dimensional arrays. **One measurement showed the work is
+not warranted**, and the same measurement then closed a thread that has run since
+W665.
+
+**The recommendation, checked before building.** 28 specs use a multi-dimensional
+array field — 106 occurrences — and **every one is unsized**:
+
+```
+53 [][]u8 | 23 [][]f32 | 9 [][]i32 | 4 [][]f64 | 4 [][]Step | 2 [][]const
+```
+
+Unsized arrays have no packed width (T134), so multi-dimensional support would
+help **none** of them. The sized form `[2][3]u8` that W682 named appears **zero
+times** in the corpus.
+
+**So the wave asked the larger question instead:** of every struct field in the
+tree, how many are rejected for a reason a predicate extension could fix?
+
+| field classification | occurrences |
+|---|---:|
+| **OK** — primitive | 1,545 |
+| **OK** — nested struct | 132 |
+| unresolved type name (T133's dialect) | **955** |
+| fundamental — string, no fixed width | **700** |
+| fundamental — unsized slice | **602** |
+| fundamental — float, no packed `real` | **212** |
+| fundamental — sized array of non-primitive | 5 |
+| **fixable — enum** | 44 |
+| **fixable — sized array** | 34 |
+
+> **T147.** **Seventy-eight occurrences out of 3,229 — 2.4% — are reachable by
+> widening the lowerability predicate at all**, and the larger half of those
+> needs an enum registry that does not exist. **1,519 are fundamentally
+> unpackable** and 955 carry type names the compiler cannot resolve. The
+> capability ceiling for struct lowering has been reached; further predicate work
+> cannot repay a wave.
+
+**What this closes.** W665 traced the corpus' largest defect class to one
+predicate (T129, T131). W667, W669, W671 and W681 repaired it in stages, each
+refusing to ship a silent wrong width. W682 audited the shape those repairs kept
+producing and found the class closed. **W683 ends the thread with a number: there
+is 2.4% left, and it is not worth having.**
+
+**And a pattern in my own recommendations, now twice confirmed.** W682's
+recommended work was already done (T145); W683's was unwarranted. Both were
+caught by measuring before building, at a cost of one command each. **A
+recommendation written at the end of a wave is a hypothesis about the next one,
+and it deserves the same check as any other hypothesis** — the loop's discipline
+applied to the loop's own output.
+
+**Where the remaining value is, measured rather than guessed.** 955 unresolved
+type names and 700 strings — **1,655 occurrences, 51% of all struct fields** —
+are the T133 population: five spellings of *string*, capitalised names declared
+nowhere, types written as string literals. **That is a decision about what t27 is,
+and it is the only remaining item with a population large enough to matter.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

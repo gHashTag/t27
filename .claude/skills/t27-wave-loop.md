@@ -7033,6 +7033,23 @@ These cost a wave each. Follow them before step 1.
      Naming the shape turned that into a search that TERMINATED. Luck can find
      defects; only a search can establish there are no more.
 
+475. **A recommendation written at the end of a wave is a hypothesis about the
+     next one -- check it like any other.** W682's recommended work was already
+     done; W683's was unwarranted. Both were caught by ONE measurement before
+     building. Two consecutive waves, same failure mode in my own advice. T147.
+
+476. **Ask "how much is reachable at all" before extending a capability again.**
+     Classifying every struct field by WHY it is rejected: 78 of 3,229
+     occurrences (2.4%) are reachable by any predicate work, 1,519 are
+     fundamentally unpackable, and 955 carry unresolvable type names. That number
+     ends a thread eight waves long more decisively than any further repair
+     could.
+
+477. **The population of a proposed feature may be entirely the wrong shape.**
+     28 specs use multi-dimensional array fields and ALL 106 occurrences are
+     UNSIZED; the sized form the feature would support appears zero times.
+     Measure the exact form, not the family.
+
 ### How to update this tracker
 
 After closing a wave:
