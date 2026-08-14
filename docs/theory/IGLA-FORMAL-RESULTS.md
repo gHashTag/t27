@@ -14689,4 +14689,85 @@ Penalty ordering UNSW > Fashion > MNIST, negative nowhere.*
 
 ---
 
+## W748 — the architecture gap, decomposed
+
+### T309 — 429× of the 617× is one architectural step
+
+The dense 593→64 layer costs **54,914 LUT** (T301). The same layer as
+**truth tables** — each neuron a function of `F` inputs, emitted as a case
+statement and mapped by yosys — costs:
+
+| fan-in | LUT | CARRY4 | DSP | LUT/neuron |
+|---|---:|---:|---:|---:|
+| 2 | **80** | 0 | 0 | 1.25 |
+| 3 | 128 | 0 | 0 | 2.00 |
+| 4 | 126 | 0 | 0 | 1.97 |
+| **6** | **128** | **0** | **0** | **2.00** |
+
+> **T309.** **429× area reduction in one step, and the theory predicts the number
+> exactly**: a neuron of `F ≤ 6` one-bit inputs is a function of ≤6 bits, i.e.
+> **one LUT6 per output bit**, and a ternary symbol is two bits — hence 2.00
+> LUT/neuron, flat in `F` up to six. **No adder tree, no weight memory, no
+> comparator.** The arithmetic does not get cheaper; it stops existing.
+
+### T310 — the forecast was refuted, and by more than it first appeared
+
+**Registered before the run:** *(1) F=6 lands at 78–81%; (2) area falls ≥100×;
+(3) the residual gap is TRAINING, not architecture.*
+
+Measured on UNSW-NB15 (majority baseline **55.06%**, dense reference 83.4%),
+5 seeds per cell — hidden fan-in `f1` against **output** fan-in `f2`:
+
+| `f1` \ `f2` | 6 | 16 | 32 | 64 |
+|---|---:|---:|---:|---:|
+| **6** | **60.11** | 64.29 | 67.63 | 70.74 |
+| 16 | 67.44 | 70.91 | 74.19 | 74.96 |
+| 64 | 76.29 | 77.35 | 77.79 | 77.31 |
+
+> **T310. (1) is refuted hard — 60.11%, not 78–81%**, barely five points over the
+> majority class. **(2) is confirmed** — 429×, above the predicted 100×. **(3) is
+> confirmed in direction and is the result worth keeping.**
+
+> **T310a. My first sparse design was the worst corner of the grid.** Fan-in 6 was
+> applied to the *output* layer too, so the decision was read from **six of
+> sixty-four** hidden units. Output fan-in 6→64 buys **+10.6 pp** on its own;
+> hidden fan-in 6→64 buys **+6.6 pp**. **A single parameter applied uniformly to
+> layers with different jobs is not one choice, it is two** — and the one I never
+> examined cost more than the one I was studying.
+
+### T311 — the decomposition, which is what this wave was for
+
+At **comparable area** — ours 128 LUT, the field 89 LUT:
+
+| | LUT | accuracy |
+|---|---:|---:|
+| TreeLUT (II) | 89 | **92.0%** |
+| ours, sparse truth tables, best cell | 128 | **77.8%** |
+| ours, dense | 54,914 | 83.4% |
+| majority baseline | — | 55.06% |
+
+> **T311. The 617× gap was architectural; the accuracy gap is not.** One change of
+> datapath form closes the area to within 1.4× of the field. **What remains is
+> ~14 points of accuracy at area parity, and it is neither the alphabet nor the
+> datapath** — both are now controlled. It is training depth, connectivity
+> *choice* (ours is uniform random; LogicNets' is not), and epochs. **Seven waves
+> of alphabet work moved a quantity that was never the binding constraint, and one
+> wave of architecture moved the one that was.**
+
+> **T311a.** Sparsity is not free: even at fan-in 64 the truth-table form loses
+> **6 pp** against dense (77.3 vs 83.4). The field pays that too and buys it back
+> with **depth**, which we have not tried — our network is two layers and theirs
+> are four to five.
+
+### T312 — the diagnostic was killed, and the row is missing
+
+> **T312.** The grid's `f1 = 593` row (fully dense hidden, sparse output) died
+> with **exit 137 — OOM** — because `X[:, idx]` at `idx.shape = (64, 593)`
+> materialises a 40000×64×593 array. The row that would have isolated *output*
+> sparsity alone is therefore **absent, not zero**, and this note exists so a
+> later wave does not read its absence as a measurement. Fix: index in batches, or
+> fall back to the dense path when `F = n_in`.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
