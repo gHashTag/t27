@@ -6777,6 +6777,26 @@ These cost a wave each. Follow them before step 1.
      broken** -- that is the number that decides whether making a failure loud
      cost anything, and it should be measured explicitly, not inferred.
 
+431. **A defect SHAPE is not a defect POPULATION.** `parse().unwrap_or(N)` in
+     sizing paths appeared three times; one was reachable (fixed W669), one is
+     guarded by a predicate (verified by test, not assumed), and one takes an
+     input NO spec in 617 ever writes. Audit by shape to find candidates, then
+     measure reachability -- the audit is still worth running, because that is
+     the only way to learn which is which. T135.
+
+432. **Write the guard down at the site that depends on it, not at the site that
+     provides it.** Two sizing functions are sound only because
+     `is_lowerable_scalar_struct` rejects empty brackets. That argument lived
+     nowhere. It now lives beside each `unwrap_or`, naming the predicate and the
+     consequence of widening it. T115 applied before the refactor instead of
+     after.
+
+433. **State an expected yield of ZERO out loud when that is the honest
+     prediction.** W670 forecast no change to the compiling count and delivered
+     none. A correctness audit whose value is "we now know which two are safe" is
+     a real result, and calling it that in advance stops it from looking like a
+     failure afterwards.
+
 ### How to update this tracker
 
 After closing a wave:

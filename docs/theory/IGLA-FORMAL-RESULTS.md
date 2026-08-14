@@ -8548,4 +8548,49 @@ the right answer was known independently.
 
 ---
 
+### T135 (W670) — the audit that found the shape three times and the reach once
+
+T134 named a defect shape — `parse().unwrap_or(<plausible default>)` turning a
+parse failure into a confident wrong answer — and W670 audited every sizing path
+for it. **The forecast, registered first, predicted a yield of zero compiling
+specs.** It was right, and the reason is the finding.
+
+| site | function | reachable? |
+|---|---|---|
+| `struct_field_offset` | field offsets | **was** — fixed in W669 by rejecting empty brackets |
+| `element_width` | packed struct width | **no** — guarded by the same predicate, verified |
+| array `var` declaration | one `reg` per element | **no** — **zero occurrences in 617 specs** |
+
+**The shape appeared three times; exactly one instance was ever reached.** The
+array-variable site would declare a single register for an unsized array, and no
+spec in the corpus declares one.
+
+**Guard verified rather than assumed:**
+
+```
+struct Bad    { data: []u8,   n: u8 }   -> UNSUPPORTED_ICARUS
+struct Holder { items: [4]Bad, k: u8 }  -> UNSUPPORTED_ICARUS   (propagates)
+struct Good   { data: [4]u8,  n: u8 }   -> packed vector (40 bits)
+```
+
+> **T135.** A defect *shape* is not a defect *population*. Three instances of an
+> identical unsound pattern produced one real defect, because the other two sit
+> behind a guard or behind an input the corpus never writes. **Auditing by shape
+> finds candidates; only reachability makes them defects** — and the audit is
+> still worth running, because it is the only way to learn which is which.
+
+**What shipped is a comment, and that is the correct deliverable.** The two
+guarded sites now state the property they depend on:
+
+> sound ONLY because `is_lowerable_scalar_struct` rejects a field with empty
+> brackets — widen that predicate and this line silently sizes an unsized array
+> as ONE element.
+
+This is T115's rule applied preventively rather than after the fact: **a
+soundness argument that lives only in another function is one refactor away from
+being wrong.** W669 found that exact situation by accident; W670 wrote it down
+before it could happen again.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

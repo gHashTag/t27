@@ -7700,6 +7700,15 @@ impl VerilogCodegen {
         let trimmed = ty.trim();
         if let Some(close) = trimmed.find(']') {
             let inner = trimmed[1..close].trim();
+            // W670: sound ONLY because `is_lowerable_scalar_struct` rejects a
+            // field with EMPTY brackets, so no unsized slice reaches this
+            // arithmetic. Verified: `struct Bad { data: []u8, n: u8 }` and a
+            // holder containing `[4]Bad` are both UNSUPPORTED_ICARUS.
+            // Widen that predicate and this line silently sizes an unsized
+            // array as ONE element, moving every later field (T134). The
+            // property is stated here because a soundness argument that
+            // lives only in another function is a refactor away from being
+            // wrong (T115).
             let count: u32 = inner.parse().unwrap_or(1);
             let base = trimmed[close + 1..].trim();
             count * Self::type_to_width(base)
@@ -8441,6 +8450,18 @@ impl VerilogCodegen {
                 let trimmed = ft.trim();
                 if let Some(close) = trimmed.find(']') {
                     let inner = trimmed[1..close].trim();
+                    // W670: `unwrap_or(1)` here is sound ONLY because
+                    // `is_lowerable_scalar_struct` rejects a field whose brackets
+                    // are empty, so no unsized slice reaches this arithmetic.
+                    // Verified: `struct Bad { data: []u8, n: u8 }` and a holder
+                    // containing `[4]Bad` are both marked UNSUPPORTED_ICARUS.
+                    //
+                    // If that predicate is ever widened, THIS LINE SILENTLY
+                    // SIZES AN UNSIZED ARRAY AS ONE ELEMENT and every field
+                    // after it is read from the wrong bits (T134). A proof whose
+                    // validity rests on an unstated property of another function
+                    // is a defect waiting for a refactor (T115) -- so the
+                    // property is stated here.
                     let count: u32 = inner.parse().unwrap_or(1);
                     let base = trimmed[close + 1..].trim();
                     w += count * Self::type_to_width(base);
@@ -8465,6 +8486,15 @@ impl VerilogCodegen {
             let trimmed = ftype.trim();
             let fw = if let Some(close) = trimmed.find(']') {
                 let inner = trimmed[1..close].trim();
+                // W670: sound ONLY because `is_lowerable_scalar_struct` rejects a
+                // field with EMPTY brackets, so no unsized slice reaches this
+                // arithmetic. Verified: `struct Bad { data: []u8, n: u8 }` and a
+                // holder containing `[4]Bad` are both UNSUPPORTED_ICARUS.
+                // Widen that predicate and this line silently sizes an unsized
+                // array as ONE element, moving every later field (T134). The
+                // property is stated here because a soundness argument that
+                // lives only in another function is a refactor away from being
+                // wrong (T115).
                 let count: u32 = inner.parse().unwrap_or(1);
                 let base = trimmed[close + 1..].trim();
                 count * Self::type_to_width(base)
