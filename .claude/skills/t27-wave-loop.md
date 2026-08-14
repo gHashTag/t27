@@ -8288,6 +8288,33 @@ These cost a wave each. Follow them before step 1.
      tri-net's GF-T (T243). **The contribution was the consequence, not the
      observation, and the write-up has to say which.**
 
+705. **REPRODUCE ANOTHER REPOSITORY'S NUMBERS WITH ITS OWN SCRIPTS.** tri-net's
+     five published areas re-ran here under a different yosys (0.63 vs 0.65)
+     and four matched EXACTLY; the fifth differed by 3 LUT. Registered forecast
+     included the failure mode: an integer-factor gap would have been the
+     `stat` triple-count of T234 in THEIR numbers. There wasn't one.
+
+706. **SIMULATION-CORRECT AND LUT-CORRECT DOES NOT MEAN DSP-CORRECT.** The same
+     RTL passed iverilog, passed mapped to LUTs, and FAILED on three dice when
+     yosys inferred a DSP48E1 -- deterministically, five stable reads each.
+     **`-nodsp` is a diagnostic, not just an area knob.**
+
+707. **Do not name the guilty layer without an experiment that separates them.**
+     yosys DSP inference, nextpnr DSP placement and prjxray's DSP48E1 model are
+     all candidates and the run distinguishes none of them. Reporting "yosys has
+     a bug" would have been a guess wearing a measurement's clothes.
+
+708. **An area figure is not a correctness claim.** `1 DSP48E1 + 47 LUT`
+     reproduces exactly AND the DSP netlist is wrong on this flow. Both are
+     true. A scorecard that separates `[modelled]` from `on-chip` -- as
+     tri-net's does -- is what keeps the two from being conflated.
+
+709. **FOURTH WAVE RUNNING, STATE HAD TO GO ON THE WIRE.** `ok=0` does not say
+     which vector failed. Widening the reply to `{v0_ok, v1_ok, done, sig}`
+     isolated it on the FIRST read. **A verdict bit is a summary, and a summary
+     cannot be debugged** -- decide what distinguishes the failure cases before
+     the run, not after it fails.
+
 ### How to update this tracker
 
 After closing a wave:

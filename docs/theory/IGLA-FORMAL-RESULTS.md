@@ -12727,4 +12727,85 @@ T209 presented as a structural discovery that the historical alphabet
 
 ---
 
+## tri-net's silicon, reproduced — and a defect found in the DSP path — W723
+
+### T245 — five published area figures reproduce, four exactly
+
+`gHashTag/tri-net` publishes `fpga/gft/SYNTH_RESULTS.md` from **yosys 0.65**.
+Re-run here with **yosys 0.63**, using tri-net's own `.ys` scripts unmodified:
+
+```
+unit             DSP claim/meas   LUT claim/meas   CARRY4 claim/meas
+gft16_mul             1 / 1            47 / 47          18 / 18
+gft_add               0 / 0           483 / 483         45 / 45
+gft_alu               3 / 3           634 / 634        114 / 114
+gft_dot4_tile         4 / 4           705 / 708        124 / 124
+gft_dot4             12 / 12         1673 / 1673       303 / 303
+```
+
+**Registered before running (T44):** within ~10% on LUT, exact on DSP — and *if
+any figure differed by an integer factor, that would be the `stat`
+triple-counting defect of T234, this time in their numbers.*
+
+> **T245.** **No integer-factor discrepancy anywhere.** tri-net's figures do not
+> carry the parser defect this project's did; the single deviation is **3 LUT
+> in `gft_dot4_tile` (+0.4%)**, a yosys 0.63-versus-0.65 difference. **This is
+> the first cross-repository measurement in the ecosystem** — until now the two
+> repositories agreed only on documents.
+
+### T246 — the same RTL is correct in simulation, correct on LUTs, and WRONG on a DSP
+
+tri-net's `gft16_mul` was placed on **our** die inside the port-less BSCANE2
+harness, checked by **tri-net's own KAT vectors** — `φ¹·φ¹ = φ²` as `(41,0)²
+→ (42,0)`, and `1.5 × 1.5` as `(41,256)² → (43,64)`. No expected value was
+re-derived here, so there is no co-authored golden model.
+
+```
+                       v0 (phi^2)   v1 (1.5x1.5)
+iverilog, RTL              pass          pass
+yosys -family xc7          pass          FAIL      1 DSP48E1, 56 LUT
+yosys -family xc7 -nodsp   pass          pass      0 DSP,     53 LUT
+
+boards 1:4, 1:6, 1:8 -- five stable reads each, both builds, all three dice:
+   DSP build       a5a5a5aa   v0_ok 1  v1_ok 0
+   LUT-only build  a5a5a5af   v0_ok 1  v1_ok 1
+```
+
+> **T246.** **When yosys infers a DSP48E1 for this multiplier, the netlist is
+> functionally wrong on silicon**, deterministically, on three separate dice.
+> Mapped to LUTs instead, the identical RTL is correct. The failing vector is
+> the one whose mantissa is `256` — the top bit of a 9-bit field, so the product
+> needs 17 bits. **The RTL is not implicated: it passes in simulation and it
+> passes on LUTs.**
+
+**Which layer is at fault is NOT established.** The candidates are yosys's DSP
+inference, nextpnr-xilinx's DSP placement, and prjxray's DSP48E1 bitstream
+model — openXC7's DSP support is markedly less exercised than its LUT path.
+Naming one of them without a fourth experiment would be a guess.
+
+### T246a — what this costs tri-net's headline, and what it does not
+
+> **T246a.** `gft16_mul` = **1 DSP48E1 + 47 LUT** is an **area** figure from
+> `yosys stat` and it reproduces exactly (T245). It is **not** an on-silicon
+> correctness claim for the DSP-mapped netlist, and this measurement shows the
+> two must not be conflated. tri-net's own scorecard already separates
+> `[modelled]` from `on-chip`; **this is a case where that discipline earns its
+> keep.** Their on-chip claims were made on an AX7203 through their own flow,
+> which this experiment does not test — what it tests is **the openXC7 flow on
+> a QMTech board**, and there the DSP path is wrong.
+
+### T246b — the fourth time state had to be put on the wire
+
+`ok = 0` names nothing: it does not say which vector failed. The harness first
+exposed only `ok`, then `{v0_ok, v1_ok, done, sig}` — and the very first read of
+the wider word gave `a5a5a5aa`, isolating the failure to vector 1 immediately.
+
+> **T246b.** Fourth occurrence in four waves, after the decoder's missing
+> `nomatch` (T236a), the relay's colliding sentinel (T242) and the const-bit
+> confusion of the same wave. **A verdict bit is a summary, and a summary cannot
+> be debugged.** Expose the state that distinguishes the cases, before the run,
+> not after it fails.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
