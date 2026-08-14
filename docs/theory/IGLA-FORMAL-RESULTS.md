@@ -15130,4 +15130,65 @@ prior moves **68.06% → 55.06%**.
 
 ---
 
+## W751 — three dice, one network
+
+### T329 — a ternary network running one layer per FPGA, verified bit for bit
+
+| die | layer | LUT | DSP | acceptance |
+|---|---|---:|---:|---|
+| **A** | 31-bit input → 16 ternary symbols | **58** | 0 | 0→1 |
+| **R** | 16 symbols → 16 symbols (hidden) | **91** | 0 | 0→1 |
+| **B** | 16 symbols → 8 decisions | **71** | 0 | 0→1 |
+
+```
+       input           A          R          B      B model
+  0x00000000  0x153D3333 0x0CF10411 0xA5A5CCC0   0x0000CCC0   OK
+  0x7FFFFFFF  0x3F171115 0x04533C33 0xA5A54470   0x00004470   OK
+  ...
+  8 of 8 words crossed THREE dice intact
+```
+
+> **T329.** Three FPGAs, one layer each, **220 LUT and zero DSP in total**, and
+> every value on the wire was produced by the die before it. The host shifts
+> 31-bit payloads and performs **no arithmetic on them**. The reference model is
+> generated from the same seeds as the Verilog, so agreement means the silicon
+> matches the specification — not that two networks were compared and happened to
+> agree. **This is the ternary-internet demonstration the programme exists for,
+> and it is the first time a value has crossed two hops.**
+
+> **T329a. Lesson 800 earned its keep the first time it was applied.** The dies
+> were loaded `1:4→A, 1:6→R, 1:8→B` and identified as **`A` on index 2, `R` on
+> index 1, `B` on index 0** — the reverse. Identification is by behaviour: `B`
+> carries `0xA5A5` in the high half, `A` and `R` are distinguished by matching
+> their own models on two probe words. **Had the chain been wired by load order it
+> would have run backwards and reported a clean-looking failure.**
+
+### T330 — width is not the lever either
+
+**Registered before the run:** *width raises the oracle ceiling, 64→512 neurons
+taking 84.43% to 87–90%; depth stays flat, confirming T314.*
+
+| neurons | LUT | LUT/neuron | test | **oracle** |
+|---|---:|---:|---:|---:|
+| 64 | 128 | 2.00 | 82.88 | **84.88** |
+| 128 | 256 | 2.00 | 82.13 | 83.73 |
+| 256 | 511 | 2.00 | 83.69 | **85.30** |
+
+> **T330. Refuted.** Quadrupling the width moves the ceiling **84.88 → 85.30**,
+> not to 87–90, and 128 neurons scores *below* 64 — non-monotone, and at three
+> seeds that is inside the noise, which is itself the finding: **an effect this
+> project can no longer resolve at three seeds is not the lever it was looking
+> for.** Area scales exactly as predicted at **2.00 LUT/neuron across 64, 128 and
+> 256**, so the cost model is sound and the capacity model is not.
+
+> **T330a.** With depth flat (T314), width nearly flat (T330), alphabet worth
+> +0.735 pp and connectivity worth +1.6, **the 84–85% sparse ceiling is not
+> explained by any structural knob this project has turned.** The remaining
+> candidates are the activation itself — a hand-rolled tanh-threshold pair with a
+> straight-through estimator — and the fact that a six-input truth table cannot
+> represent what a 593-input dot product can. **The second is not a defect; it is
+> what the architecture is.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
