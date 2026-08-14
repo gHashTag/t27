@@ -8794,6 +8794,40 @@ term — so `nz8` and `pot9` measured **737 = 737 LUT**, identical to the digit.
 Zero's price is a **code**, i.e. weight memory, not datapath. **Half a day of
 area measurement can be replaced by one question about what the generator emits.**
 
+### Lessons 790-794 (W748) — rank the effects before optimising one
+
+**790. Ask "what dominates?" before "which variant?"** Ranked by measured effect
+on accuracy: inter-layer normalisation **+29.15 pp**, connectivity form
+−6 to −23 pp, alphabet size **+0.844 pp**, alphabet shape **+0.085 pp**.
+**Seven waves went to the bottom two rows.** The ranking cost one experiment and
+was available at any time. **A programme that never asks what dominates will
+optimise whatever it happened to start with.**
+
+**791. A monotone collapse below chance is a broken trainer, not a result.**
+Depth gave 71.8 → 56.1 → 52.4 → **50.6%** against a 55.06% baseline. An
+anti-correlated network is not "depth doesn't help" — it is signal leaving the
+threshold's range. **One normalisation line recovered +29 pp at depth five.**
+Read "below baseline" as an alarm, never as a data point.
+
+**792. A fixed threshold is only meaningful against a controlled scale.** The
+whole ternary design rests on a fixed integer threshold; across layers the
+pre-activation scale drifted and the threshold stopped meaning anything.
+**Whenever a constant is compared against a computed quantity, ask what pins the
+quantity's scale** — and if the answer is "nothing", that is the bug.
+
+**793. One parameter applied to layers with different jobs is several choices.**
+Fan-in 6 was applied to the output layer as well, so the decision read six of
+sixty-four hidden units. Output fan-in 6→64 bought **+10.6 pp** — more than the
+hidden fan-in under study. **The parameter I never examined dominated the one I
+was measuring.**
+
+**794. Three waves running, the mechanism I liked was wrong.** Difficulty sets
+the saturation rung (W745) — refuted. Zero prunes, so it pays most on UNSW
+(W747) — refuted, and backwards. A die that never freezes has a slow CFGMCLK
+(W747) — refuted; it was my own read racing the counter. **Register the mechanism
+alongside the forecast so both die together**, and treat a mechanism that feels
+explanatory as *more* suspect, not less: it is the one that will be believed.
+
 ### How to update this tracker
 
 After closing a wave:

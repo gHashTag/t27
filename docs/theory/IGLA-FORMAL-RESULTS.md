@@ -14799,6 +14799,68 @@ T304a offered two candidates for a die that never reached the freeze:
 > must poll `frozen` until it sets. 2^24 CFGMCLK cycles is not reliably complete
 > at immediate read; **2^20 is, and the readback now has no excuse not to poll.**
 
+### T314 — depth does not help, and the collapse was never depth
+
+**Registered before the run:** *depth will buy accuracy back, largest 2→3, and
+L=4 at fan-in 6 will reach 78–83%.*
+
+| depth | no normalisation | **with normalisation** | Δ |
+|---|---:|---:|---:|
+| 2 | 70.49 | 75.98 | +5.49 |
+| 3 | 55.69 | **77.28** | **+21.59** |
+| 4 | 51.42 | **77.23** | **+25.80** |
+| 5 | 48.51 | **77.66** | **+29.15** |
+
+> **T314. The forecast is refuted twice over.** Depth without normalisation
+> collapses monotonically **below the 55.06% majority baseline** — 48.51% at five
+> layers, an anti-correlated network. Depth *with* normalisation is **flat at
+> ~77%**: it does not collapse and it does not help either. **Neither the
+> predicted gain nor the predicted mechanism survived.**
+
+> **T314a. The collapse was one missing line.** Normalising the pre-activation to
+> unit scale before a fixed threshold — which every LUT-network paper does and we
+> never did — recovers **+29.15 pp at depth five.** A fixed integer threshold
+> only means anything if what it is compared against has a controlled scale, and
+> across layers ours did not. **The deep network was not failing to learn; its
+> signal was leaving the threshold's range.**
+
+### T315 — the largest effect in this programme is not an alphabet
+
+> **T315.** Ranked by measured effect on accuracy, everything this project has
+> studied:
+>
+> | intervention | effect | wave |
+> |---|---:|---|
+> | **normalisation between layers** | **+29.15 pp** | W748 |
+> | dense→sparse connectivity (cost) | −6 to −23 pp | W748 |
+> | alphabet **size**, 3→9 levels | +0.844 pp | W746 |
+> | alphabet **shape** at fixed size | +0.085 pp | W746 |
+>
+> **Normalisation is worth 34× the entire alphabet-size effect and 343× the shape
+> effect.** Seven waves went to the bottom two rows. **The ranking was available
+> at any point for the cost of one experiment, and nobody ran it** — because the
+> question was always "which alphabet?" and never "what dominates?"
+
+### T316 — what the gap is now made of
+
+Everything controlled, at 128 LUT against the field's 89:
+
+| accounted for | status |
+|---|---|
+| weight alphabet | controlled (T286, T306) — worth < 1 pp |
+| datapath form | controlled (T309) — 429× area, −6 pp |
+| depth | controlled (T314) — flat |
+| inter-layer normalisation | controlled (T314a) — +29 pp, now present |
+| **remaining gap to 92%** | **~14 pp** |
+
+> **T316.** The residue is **connectivity choice** — ours is uniform random,
+> LogicNets' and PolyLUT's are not — and **training budget**: 8 epochs on a 40k
+> subsample against full training. Both are cheap to test and neither has been.
+> **The honest position is that this project has never once trained a network to
+> convergence**, and every accuracy number it has published, including all of the
+> alphabet results, is a probe's number. **The paired comparisons remain valid;
+> the absolute figures were never claimed and must never be.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
