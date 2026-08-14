@@ -13965,4 +13965,74 @@ reference tests: 145 unchanged
 
 ---
 
+## GA-T, closed — W740
+
+The line was defined in W714 and measured in LUT, on silicon, and against the
+Lloyd-Max optimum. **No rung above GA-T1 had ever been trained.** T217 said the
+rung where the golden ratio earns its place is **GA-T3**, on representation
+grounds. This is that claim put to a trained model.
+
+UNSW-NB15 binarised (Zenodo 4519767), 593 binary inputs → 64 → 1, straight-
+through estimator, **a fixed integer threshold so φ cannot factor out**, seven
+alphabets differing only in their level set, **30 seeds**, paired t-tests.
+
+### T277 — cardinality is the whole effect, and it is monotone
+
+```
+alphabet   levels   accuracy %   sd
+GA-T0        3       82.378     0.468
+GA-T1        5       82.835     0.525
+GA-T2        7       83.077     0.555
+GA-T3        9       83.252     0.575
+
+GA-T1 - GA-T0   +0.457 pp   t = 14.44
+GA-T2 - GA-T1   +0.242 pp   t = 10.50
+GA-T3 - GA-T2   +0.175 pp   t =  7.28
+```
+
+> **T277.** **Every rung is a real improvement and every step is smaller than
+> the last.** T207 measured the first step and concluded cardinality did the
+> work; three more rungs confirm it and show the curve flattening. The ladder is
+> a cardinality ladder.
+
+### T278 — at equal cardinality, powers of two beat the golden set. Both times.
+
+```
+GA-T2 - pot7   -0.104 pp   t = -4.85   pot7 {0,±1,±2,±4}   is BETTER
+GA-T3 - pot9   -0.111 pp   t = -3.92   pot9 {0,±1,±2,±4,±8} is BETTER
+GA-T3 - lin9   +0.092 pp   t = +4.35   golden beats the linear set
+```
+
+**Registered forecast (T44), from the representation table:** *GA-T3 beats pot9
+significantly and ties lin9* — because T215–T217 measured GA-T3 at **91.82%** of
+the Lloyd-Max optimum against pot9's **69.85%**, a 22-point gap.
+
+> **T278. Both halves refuted.** pot9 **beats** GA-T3, and GA-T3 **beats** lin9.
+> A twenty-two-point advantage in representation efficiency turns into a tenth
+> of a point *against* in trained accuracy. **Representation efficiency does not
+> predict trained accuracy** — the measure that seemed to rescue φ measures
+> something the task does not reward.
+
+### T279 — the closure
+
+> **T279. GA-T is closed, and the answer is negative for φ.**
+>
+> - **What helps is the number of levels.** GA-T0 → GA-T3 is worth **+0.87 pp**,
+>   every step significant, diminishing.
+> - **At equal cardinality the golden alphabet loses to powers of two**, at both
+>   sizes tested, at *p* < 0.001 — and powers of two are also **multiplier-free
+>   and cheaper**: `pot9` is shifts, `GA-T3` needs the Fibonacci pair datapath.
+> - **The hardware claim measured in T210/T219 and the representation claim in
+>   T215–T217 both survive as facts and neither buys accuracy.**
+>
+> The programme's founding idea was an alphabet. Five waves measured it from
+> five directions — algebra (T158), thirty seeds at K=5 (T207), exact pair
+> propagation (T208), LUT and silicon (T210, T219), representation against the
+> optimum (T215) — and now training across the whole ladder. **Every direction
+> agrees: φ is not why anything works.** What survives is a named, measured,
+> silicon-verified ladder whose index is the power of a unit — and a clear
+> answer that its rungs are worth exactly their cardinality.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

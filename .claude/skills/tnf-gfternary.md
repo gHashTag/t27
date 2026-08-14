@@ -137,6 +137,33 @@ larger than the whole closed accumulation, and pipelining does not save it:
 
 ---
 
+## 3. CLOSED (W740): what the GA-T line is worth
+
+**Trained, 30 seeds, UNSW-NB15, fixed threshold, paired t-tests:**
+
+```
+GA-T0  3 levels  82.378%        GA-T1 - GA-T0  +0.457 pp  t 14.44
+GA-T1  5 levels  82.835%        GA-T2 - GA-T1  +0.242 pp  t 10.50
+GA-T2  7 levels  83.077%        GA-T3 - GA-T2  +0.175 pp  t  7.28
+GA-T3  9 levels  83.252%
+```
+
+**Cardinality is the whole effect.** And at EQUAL cardinality:
+
+```
+GA-T2 - pot7  -0.104 pp  t -4.85    powers of two are BETTER
+GA-T3 - pot9  -0.111 pp  t -3.92    powers of two are BETTER
+```
+
+**Quote this, not the representation table.** T215–T217 measured GA-T3 at 91.82%
+of the Lloyd–Max optimum against pot9's 69.85% — a 22-point gap that turns into
+a tenth of a point AGAINST in trained accuracy. Representation efficiency does
+not predict it.
+
+`{−φ, 0, +φ}` is `φ · GA-T0` and not a rung at all (T209).
+
+---
+
 ## 3a. The GA-T **line** — the rungs, and their measured price
 
 Named W714. Do not confuse with §8: that ladder indexes *degree* (`r^d = r+1`,
