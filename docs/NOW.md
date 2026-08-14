@@ -1,3 +1,19 @@
+# NOW -- a pull request title is untrusted input, and it was being run (2026-08-14)
+
+Last updated: 2026-08-14
+
+## ci: stop executing event data, and seal the binaries that carry evidence (Closes #2171)
+
+- **A pull request title was interpolated into a `run:` block, so whoever wrote the title chose what the runner executed.** `notebook-sync.yml` pasted `github.event.pull_request.title` and `github.event.issue.title` straight into shell. Measured on ten payloads: five of them execute a command under that form -- `$(...)`, backticks, `;`, `${IFS}` in place of a space, and one that writes `$GITHUB_TOKEN` to a file. The same ten pass through an `env:` variable byte for byte with no side effect
+- **The title that exposed this was broken by backticks, not by the parenthesis, and the earlier attribution in #2171 is corrected here.** The title of #2168 quotes code in backticks; bash opened a command substitution on them and `(` was a syntax error inside it, reproduced byte for byte against the CI log. The parenthesis is what stopped the execution rather than what caused the failure -- had the quoted text been a valid command it would have run. Titles in this repository quote code as a matter of style, so the dangerous construct is the ordinary one
+- **The unsafe value was serving no purpose.** The `issue_title` output was published and read by nobody, so it is deleted rather than sanitised. Everything still needed moves to `env:`, the issue number is checked against `^[0-9]+$` before it is written, and `SYNC_ARGS` becomes an array instead of a string the shell re-splits
+- **A newline needs no shell at all:** written into `GITHUB_OUTPUT`, which is a newline-delimited file, a value containing one defines further outputs of its own choosing. Demonstrated. Quoting does not help, because the value is already data and the file format is what is abused
+- **Second vector, same class:** `l1-traceability.yml` fetched `github.event.pull_request.head.ref`. `git check-ref-format` accepts `$( )`, backticks, `;`, `|`, `&` and quotes in a branch name, so the ref is now validated and refused if it could read as an option
+- `scripts/ci/check_untrusted_shell_interp.py` is the standing check: 5 untrusted interpolations before this change, 0 after, over 35 workflows. It runs with no `branches:` filter, since a gate that filters by branch reads as green on a stacked PR (#2167)
+- **Evidential binaries no longer live only in `/tmp`.** `scripts/ci/artifact_seal.py` records commit, build commands, toolchain, profile, digests, declared inputs and test results; `verify --rebuild` rebuilds from the named commit and compares. Reproduced bit-exactly at `836e8bc4...` from `b928725`
+- **That only worked once the build path was made a constant.** A debug build embeds its source path, so two builds of the same commit from differently named temporary worktrees differed in 39,830,933 bytes. Digest comparison is a usable check only from a fixed path
+- **The pair behind the tick D differential is sealed with its commit field empty.** Provenance not captured at build time cannot be recovered afterwards, and writing today's `HEAD` there would manufacture it
+
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
 Last updated: 2026-08-09

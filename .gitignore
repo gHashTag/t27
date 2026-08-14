@@ -86,3 +86,6 @@ docker/Xilinx_Unified_*.bin
 
 # Ephemeral agent worktrees (created by Claude Code / tooling)
 .claude/worktrees/
+
+# Evidential binaries: sealed by docs/evidence/seal_*.json, not stored in git.
+docs/evidence/bin/
