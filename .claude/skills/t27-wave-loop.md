@@ -6972,6 +6972,24 @@ These cost a wave each. Follow them before step 1.
      running. The complete data did not change the verdict but made the diagnosis
      stronger. Check completed jobs before the wave closes, not after.
 
+465. **Test the TOOL against a case it must handle before blaming your input.**
+     W679 diagnosed `&polyn`'s failures as a setup fault -- `abc -g AND`
+     flattening the structure. Running it on a circuit that is definitionally a
+     multiplier (`assign y = a * b`) produced the SAME failure at 8x8, refuting
+     the diagnosis. The tool works at 4x4 on both circuits and stops at 8x8 on
+     both. T144.
+
+466. **A heuristic that fires on a two-point sweep needs a third point below the
+     failure.** "Flat timing means a setup fault" (T143a) was reasonable and
+     wrong: the flatness came from the tool's own wall sitting BELOW the swept
+     range. Adding 4x4 -- one size smaller than the smallest failure -- settled
+     it in one run.
+
+467. **Retracting a retraction is a normal outcome, not an embarrassment.**
+     W679 withdrew a claim on a diagnosis; W680 withdrew the diagnosis. Each step
+     was the best reading of the evidence then available, and each was recorded
+     with what it rested on -- which is what made the next correction cheap.
+
 ### How to update this tracker
 
 After closing a wave:

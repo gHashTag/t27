@@ -9038,4 +9038,53 @@ test needs one of them — not an AND-mapped AIG.
 
 ---
 
+### T144 (W680) — the setup diagnosis was wrong, and the refutation condition is closed after all
+
+W679 concluded that `&polyn`'s uniform timeouts indicted **my setup** — that
+`abc -g AND` flattened the arithmetic structure the tool needs. T143a called flat
+timing across a size sweep "the signature of a setup fault".
+
+**W680 tested the tool against a known answer instead of reasoning about it**
+(lesson 462), by running `&polyn` on `mul_golden` — a circuit that is
+*definitionally* a multiplier, `assign y = a * b`:
+
+```
+  circuit      W x WB   time    result
+  mul_golden    4 x 4   0.0 s   HashC = 38. HashM = 2928. Total = 4984.
+  mul_golden    8 x 8   TIMEOUT 90 s
+  mul_noop      4 x 4   0.0 s   HashC = 36. HashM = 946.  Total = 1678.
+  mul_noop      8 x 8   TIMEOUT 90 s
+```
+
+> **T144.** `&polyn` **runs** — it derives polynomial statistics at 4 × 4 on both
+> circuits — and fails at 8 × 8 on **both**, including the true multiplier. **The
+> AND-mapping explanation is refuted by the golden's identical failure.** The
+> limitation is the tool as available here, not the input it was given.
+
+**Two consequences, and one of them is a retraction of a retraction.**
+
+1. **T143's caveat is withdrawn.** "The algebraic method was tried and not fairly
+   tried" was based on a diagnosis this measurement refutes. The method was tried,
+   it works at 4 × 4, and it is weaker than SAT, SMT and `cec` at 8 × 8 — all
+   three of which prove that case in under 1.5 s.
+
+2. **T117's refutation condition is therefore closed against all three named
+   methods.** SAT, SMT and algebraic verification have each been run on 64 × 8 and
+   none discharges it. The claim stands without a caveat about the third term.
+
+**T143a survives with its scope narrowed.** "Flat timing across a size sweep
+indicates a setup fault" was a good heuristic and it was wrong here: the flatness
+came from the tool hitting its own wall between 4 and 8 bits, below the range
+that was swept. **A heuristic that fires on a two-point sweep needs a third point
+below the failure**, which is exactly what testing 4 × 4 supplied.
+
+**What would still strengthen it.** A purpose-built algebraic verifier —
+`AMulet2` (Kaufmann & Biere) — reads Verilog directly and is reported to handle
+multipliers far beyond 8 bits. Three candidate repository URLs return **404** and
+a GitHub search returned nothing, so it was not obtainable here. **That is a
+availability limit, not an untested term**: the class of method has been
+exercised.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
