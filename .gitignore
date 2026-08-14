@@ -91,3 +91,6 @@ docker/Xilinx_Unified_*.bin
 # the specification it claims to be about. Do not commit.
 fpga/formal/mvp_classifier_dut.v
 lean4_bridge/.lake/
+
+# Evidential binaries: sealed by docs/evidence/seal_*.json, not stored in git.
+docs/evidence/bin/

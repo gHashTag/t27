@@ -1,0 +1,35 @@
+name: Untrusted Input Gate
+
+# Two checks, deliberately separate:
+#
+#   check_untrusted_shell_interp.py  -- no workflow interpolates untrusted event
+#                                       data into a run: block
+#   test_untrusted_payloads.py       -- the two shell forms behave as claimed, on
+#                                       payloads whose effect is declared up front
+#
+# The first is a property of this repository and can be fixed. The second is a
+# property of bash and cannot; it exists so that the first check's reason is
+# reproducible rather than asserted.
+#
+# No `branches:` filter: a gate that filters pull_request by branch does not run
+# on a stacked PR and reads as green (see #2167).
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  untrusted-input:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: No untrusted event data interpolated into shell
+        run: python3 scripts/ci/check_untrusted_shell_interp.py
+
+      - name: Payload behaviour matches what is claimed about it
+        run: python3 scripts/ci/test_untrusted_payloads.py
