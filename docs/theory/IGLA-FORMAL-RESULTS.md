@@ -11166,4 +11166,57 @@ but it is not a number, and **only the author knows which value was meant.**
 
 ---
 
+### T197 — an independent census reproduced the numbers, and objected to the method
+
+A fan-out that ran for 3.2 hours classified the same population by an independent
+AST harvest. **The counts match exactly**: `UNAMBIGUOUS` **16** (measured here as
+11 `FORCED_SCALAR` + 5 `FORCED_WIDE`), `AMBIGUOUS` **136**, and the `EMPTY`
+bucket **220 of 387** — 61 specs with no function and 159 whose bodies are all
+empty, agreeing with `spec-status`'s `NOFN 61 / UNWRITTEN 159`.
+
+> **T197.** **Two implementations, written from different directions, agree on
+> every bucket.** That is worth more than either number alone.
+
+**It also raised two objections to W697's call-graph-root rule.** Both were
+checked against what was actually applied, and neither lands — for a reason that
+must be stated precisely, because it is not the reason one would guess.
+
+**Objection 1 — "the root rule is a guess, ~12% wrong."** Its two demonstrations
+are `math/e8_lie_algebra.t27 → abs(x: f64)` and `numeric/gf4.t27 → decode(gf: GF4)`,
+helpers that merely happen to have no intra-spec caller.
+
+```
+math/e8_lie_algebra.t27    on_comb = 0   inserted by W696-699 = 0
+numeric/gf4.t27            on_comb = 0   inserted by W696-699 = 0
+```
+
+> **T197a.** **Neither was touched, and not by luck: `f64` and `GF4` are not
+> sized primitives, so both classify `FORCED_ROOT_WIDE` and the applier never
+> sees them.** The objection is correct about the root rule *alone*; the
+> implementation composes it with the width filter, and **the composition is what
+> makes it safe.** A root whose types cannot cross a module boundary is not
+> acted on, which happens to exclude exactly the failure mode the objection
+> names. **Refuted by:** an applied spec whose entry function has no intra-spec
+> caller for an incidental reason.
+
+**Objection 2 — the KIND is a second, unforced choice.** 7 of the 16 candidates
+assign to module-level `var`s, and `on_comb` lowers the return to a continuously
+driven `assign result` — a combinational surface that also writes module
+registers is the wrong shape.
+
+> **T197b.** **Measured over all 21 entry points inserted across W696–W699: zero
+> target functions write a module-level `var`.** The objection is structurally
+> right and empirically vacuous here. **It is now a stated precondition rather
+> than an accident**, and the next applier must check it: *forced function, sized
+> types, and no module-level writes* — three filters, not one.
+
+**And the objection's own bottom line is the honest one:** of 617 specs, the set
+where function, kind and ports are *all* forced is **5**. Of those five, an
+end-to-end synthesis check reached real logic in **two** —
+`activation_quantizer` 0 → 25 LUT, `mod_structure` 0 → 2,062 LUT — while
+`w535_bounded_while_module` hard-fails on the runtime-bounded `while` (T195) and
+two fail at base on defects W703 has since fixed one of.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

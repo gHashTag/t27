@@ -7732,6 +7732,28 @@ These cost a wave each. Follow them before step 1.
      repair whose population is not measured first is a guess with a compiler
      behind it. T196b.
 
+608. **An independent AST census reproduced every bucket**: UNAMBIGUOUS 16,
+     AMBIGUOUS 136, EMPTY 220 of 387 (61 no-fn + 159 unwritten). Two
+     implementations written from different directions agreeing is worth more
+     than either number alone. T197.
+
+609. **The call-graph-root rule IS a guess on its own -- and safe only because it
+     is composed with the width filter.** The objection's two counterexamples,
+     `e8_lie_algebra -> abs(f64)` and `gf4 -> decode(GF4)`, were never applied
+     because f64 and GF4 are not sized primitives. Verify the composition, do not
+     assume the rule. T197a.
+
+610. **The KIND is a second unforced choice: `on_comb` vs `on_clock`.** 7 of 16
+     candidates write module-level `var`s, and on_comb lowers the return to a
+     continuously-driven `assign result` -- a combinational surface that also
+     writes registers is the wrong shape. Measured over all 21 applied: ZERO do.
+     Now a stated precondition, not an accident. Three filters: forced function,
+     sized types, no module-level writes. T197b.
+
+611. **Of 617 specs, the set where function, kind AND ports are all forced is 5**
+     -- and only 2 of those reach real logic end to end. The mechanical population
+     is smaller than any single filter suggests.
+
 ### How to update this tracker
 
 After closing a wave:
