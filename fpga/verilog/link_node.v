@@ -3,6 +3,14 @@
 //
 // ROLE = 0  ENCODER.  Host writes a 3-bit word v; the node returns on_comb(v),
 //                     the 4-bit ternary codeword (two 2-bit wire symbols).
+// ROLE = 2  RELAY.    Host writes a 4-bit codeword; the node checks that BOTH
+//                     2-bit wire symbols are legal ({0,1,2} -- 3 is not a wire
+//                     code) and re-emits the codeword unchanged, or the
+//                     sentinel 4'b1111 if either symbol is illegal. The relay
+//                     does NOT decode: it never learns which data word it is
+//                     carrying, which is what makes it a link layer rather
+//                     than an endpoint. The sentinel is safe because (3,3) is
+//                     itself an illegal codeword and so can never be data.
 // ROLE = 1  DECODER.  Host writes a 4-bit codeword; the node sweeps v = 0..7
 //                     through ITS OWN ZeroDSP_TernaryLink instance and returns
 //                     the v whose encoding matches, or `nomatch` if none does.
@@ -44,7 +52,7 @@ module link_node #(
     reg  [2:0] probe = 3'd0;
     wire [7:0] code;
     wire       dut_ready;
-    wire [2:0] enc_in = (ROLE == 0) ? cmd[2:0] : probe;
+    wire [2:0] enc_in = (ROLE == 0) ? cmd[2:0] : probe;   // ROLE 2 leaves it at probe=0
     ZeroDSP_TernaryLink dut (
         .clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
         .v({5'b0, enc_in}), .ready(dut_ready), .result(code));
@@ -55,7 +63,7 @@ module link_node #(
     generate
     if (ROLE == 0) begin : g_enc
         always @(posedge cfgmclk) reply <= code[3:0];
-    end else begin : g_dec
+    end else if (ROLE == 1) begin : g_dec
         // Exhaustive inverse: eight cycles, restarted whenever cmd changes.
         reg [3:0] last = 4'hF;
         reg       hit  = 1'b0;
@@ -79,6 +87,16 @@ module link_node #(
             // three bits -- so the reply is {nomatch, v}.
             reply   <= hit ? {1'b0, probe_found} : 4'b1000;
             nomatch <= ~hit;
+        end
+    end else begin : g_relay
+        // Validate without interpreting. The delimiter (+1,+1) is a LEGAL pair
+        // of symbols and must pass here -- it is the data layer, not the
+        // physical layer, that has no preimage for it.
+        wire hi_ok = (cmd[3:2] != 2'b11);
+        wire lo_ok = (cmd[1:0] != 2'b11);
+        always @(posedge cfgmclk) begin
+            reply   <= (hi_ok & lo_ok) ? cmd : 4'b1111;
+            nomatch <= ~(hi_ok & lo_ok);
         end
     end
     endgenerate

@@ -12589,4 +12589,105 @@ CI image, all 20 arms:  m2 = +0.014   quadratic R² 0.9507   linear R² 0.9507
 
 ---
 
+## Three nodes, and the ladder that already existed — W721
+
+### T240 — a symbol survives three hops across three dice
+
+```
+board 1:4  ROLE=0 encoder   38 LUT / 38 placed
+board 1:8  ROLE=2 relay     38 LUT / 38 placed
+board 1:6  ROLE=1 decoder   44 LUT / 58 placed
+all three bracketed Done 0 -> 1, BSCAN chain 3 matching the FASM
+
+ v   enc  relay  dec        v   enc  relay  dec
+ 0    10     10    0        4     0      0    4
+ 1     8      8    1        5     1      1    5
+ 2     9      9    2        6     6      6    6
+ 3     2      2    3        7     4      4    7
+```
+
+> **T240.** **Eight of eight words survived three hops.** The relay validates
+> the two wire symbols and re-emits; it **never decodes**, so it cannot know
+> which data word it carries. That is the difference between a link layer and
+> an endpoint, and here it is a property of the netlist rather than a promise.
+
+### T241 — layer separation, demonstrated rather than asserted
+
+The delimiter `(+1,+1)` is a **legal pair of symbols** and an **impossible data
+codeword**. Those are statements about two different layers, and the three-node
+path can ask each separately:
+
+```
+relay(5)    = 5    PASSED   -- the symbols are legal
+decoder(5)  = 8    nomatch=1 -- there is no preimage
+```
+
+> **T241.** **The physical layer accepts exactly what the data layer rejects.**
+> A single node cannot show this — it has only one answer to give. Splitting
+> validation from interpretation across two dice makes the layering observable,
+> and this is the first time in this project that a claim about *layers*, as
+> opposed to a claim about arithmetic, has been checked on hardware.
+
+### T242 — the relay is exhaustive over the illegal space
+
+Wire codes are `{0,1,2}`; `3` is not one. Every 4-bit codeword containing a `3`:
+
+```
+codeword  symbols  legal  relay
+   7       (1,3)   no      15   sentinel
+  11       (2,3)   no      15   sentinel
+  13       (3,1)   no      15   sentinel
+  12       (3,0)   no      15   sentinel
+  15       (3,3)   no      15   sentinel
+   5       (1,1)   yes      5   passed
+  10       (2,2)   yes     10   passed
+```
+
+> **T242.** The first run tested only codeword 15, whose reply equals the
+> sentinel — **an answer indistinguishable from a pass-through**, and the same
+> defect as the decoder's missing `nomatch` bit one wave earlier (T236a). Four
+> further illegal codewords, none equal to the sentinel, make the rejection
+> unambiguous. **Twice in two waves a test was written whose failing answer
+> looked like its passing answer.**
+
+### T243 — tri-net already built a golden ternary ladder, and the names collide
+
+`gHashTag/tri-net` carries **GF-T (GoldenFloat-ternary)**, anchored on the same
+`φ² + φ⁻² = 3`, with claims this project did not know it was duplicating:
+
+| tri-net has | status there |
+|---|---|
+| GF-T8, GF-T16, GF-T32 multiply **on silicon** (AX7203), bit-exact | on-chip |
+| GF-T16 MAC — dot2, streaming row, 4-lane tile | on-chip |
+| ladder GF4…GF1024 exact to a 632-bit mantissa | cargo test |
+| `gft16_mul` = **1 DSP48E1 + ~47 LUT** | measured |
+| one `.t27` driving Rust + Verilog + a live FPGA | KAT |
+
+> **T243.** **The two ladders are different objects with almost the same name.**
+> tri-net's **GF-T** indexes the *width of a floating format* (GF-T4/8/16/32);
+> this project's **GFTernary** indexes the *cardinality of a weight alphabet*
+> (GFT₀…GFT₄ = `{0} ∪ ±φ^k`). Both are φ-anchored ladders in one ecosystem that
+> is meant to become one project, and **a collision this close will be read as
+> the same thing by anyone outside it.** Naming this is cheaper now than after
+> either is published.
+
+### T243a — what is duplicated, and what tonight actually added
+
+**Duplicated:** φ-anchored ladders, spec-to-silicon pipelines, and the ambition.
+tri-net's arithmetic is further along — three rungs bit-exact on a die.
+
+**Not duplicated.** tri-net's own scorecard names its gaps, and its networking is
+**IP over Zynq boards** (`SERIAL_NET_FIX.md`, `A2A_MESH_BRIDGE.md`) — a
+conventional stack carrying ternary payloads.
+
+> **T243a.** What this session added is **not arithmetic**: a **ternary line
+> code proved exhaustively on a die** (T235), **a symbol carried between two
+> dice with exactly one implementation of the code in the path** (T236), and
+> **layer separation across three** (T241). tri-net proves ternary numbers;
+> this proves a ternary *wire format*. The overlap is the anchor, not the
+> object — and tri-net's honest gap list (trained-model accuracy, energy, Fmax)
+> is the same list W711/W712 and W716 met from the other side.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

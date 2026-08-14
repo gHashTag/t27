@@ -8241,6 +8241,32 @@ These cost a wave each. Follow them before step 1.
      differ by 4.6%. Version skew was the last standing hypothesis and it was
      off by two orders of magnitude from what it needed to explain.
 
+698. **TWICE IN TWO WAVES A TEST'S FAILING ANSWER LOOKED LIKE ITS PASSING
+     ANSWER.** The decoder replied 0 for both "no preimage" and "recovered
+     v = 0" (fixed by routing `nomatch` to the wire); the relay replied 15 to
+     the illegal codeword 15, which is also its rejection sentinel. Four further
+     illegal codewords -- 7, 11, 12, 13 -- none equal to the sentinel, made the
+     rejection unambiguous. **Choose test inputs that CANNOT collide with the
+     failure signal.**
+
+699. **A layer claim needs more than one node to test.** "The physical layer
+     accepts what the data layer rejects" is unobservable on a single die --
+     one node has one answer. Split validation from interpretation across two
+     dice and the delimiter passes the relay and fails the decoder, on the
+     wire, in one run.
+
+700. **SEARCH THE ECOSYSTEM BEFORE BUILDING THE LADDER.** `gHashTag/tri-net`
+     carries **GF-T (GoldenFloat-ternary)** on the same φ² + φ⁻² = 3 anchor,
+     with GF-T8/16/32 multiply bit-exact ON SILICON, a GF4..GF1024 ladder exact
+     to a 632-bit mantissa, and `gft16_mul` measured at 1 DSP48E1 + ~47 LUT.
+     Six waves of ladder work here never looked. The user had to say it.
+
+701. **Two ladders, one anchor, almost one name.** tri-net's GF-T indexes the
+     WIDTH of a floating format (4/8/16/32); this project's GFTernary indexes
+     the CARDINALITY of a weight alphabet (GFT0..GFT4). In an ecosystem meant
+     to merge, a collision this close reads as one thing to everyone outside
+     it. **Name the collision before either object is published.**
+
 ### How to update this tracker
 
 After closing a wave:

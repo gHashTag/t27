@@ -133,3 +133,48 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def three_hop(chain=3):
+    """encoder -> relay -> decoder, across three separate dice.
+
+    The relay validates the wire symbols and re-emits; it never decodes, so it
+    cannot know which data word it carries. That is the whole distinction
+    between a link layer and an endpoint, and it is testable: the delimiter
+    (+1,+1) is a LEGAL symbol pair and must PASS the relay, while the decoder
+    must reject it for having no preimage.
+    """
+    roles = {}
+    for i in (0, 1, 2):
+        r, raw = role_of(i, chain)
+        # A relay echoes whatever legal codeword it is given: probe 10 -> 10.
+        if raw == 10:
+            r = "rly"
+        roles.setdefault(r, i)
+        print(f"  index {i}: role={r}  (probe returned {raw})")
+    need = ("enc", "rly", "dec")
+    if any(k not in roles for k in need):
+        print("  need encoder, relay and decoder on the bus")
+        return 1
+    a, m, b = (roles[k] for k in need)
+    print(f"\n  path: enc[{a}] -> relay[{m}] -> dec[{b}]\n")
+    print(f"  {'v':>2} {'enc':>5} {'relay':>6} {'dec':>5}  verdict")
+    ok = 0
+    for v in range(8):
+        c1 = request(a, v, chain)
+        c2 = request(m, c1, chain) if c1 is not None else None
+        d = request(b, c2, chain) if c2 is not None else None
+        good = (c1 == ENC[v]) and (c2 == c1) and (d == v)
+        ok += good
+        print(f"  {v:>2} {str(c1):>5} {str(c2):>6} {str(d):>5}  {'OK' if good else 'MISMATCH'}")
+    print(f"\n  {ok} of 8 words survived three hops")
+    print("\n  layer separation: the delimiter must PASS the relay and FAIL the decoder")
+    r5 = request(m, 5, chain)
+    d5 = request(b, r5, chain) if r5 is not None else None
+    print(f"    relay(5)   = {r5}   {'PASSED -- legal symbols' if r5 == 5 else 'REJECTED'}")
+    print(f"    decoder({r5}) = {d5}   nomatch={'1' if d5 is not None and d5 & 8 else '0'}")
+    print("\n  illegal symbol: codeword 15 = (3,3) is not a wire code")
+    r15 = request(m, 15, chain)
+    print(f"    relay(15)  = {r15}   {'REJECTED with the sentinel' if r15 == 15 else 'passed -- unexpected'}")
+    return 0 if ok == 8 else 1
+
