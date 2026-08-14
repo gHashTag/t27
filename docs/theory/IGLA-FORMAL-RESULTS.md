@@ -13038,4 +13038,78 @@ pre-adder.
 
 ---
 
+## What GF-T costs without the DSP — W727
+
+W726 showed the DSP path yields a wrong bitstream on this flow when its operands
+come from the fabric. So the honest area table for anyone building GF-T through
+**openXC7** is the `-nodsp` one, and it had never been measured.
+
+### T251 — the price of avoiding the broken path
+
+```
+unit             DSP    LUT   CARRY4   LUT(-nodsp)  ΔLUT    LUT per DSP
+gft16_mul          1     47       18          236   +189            189
+gft_add            0    483       45          483     +0              —
+gft_alu            3    634      114          640     +6              2
+gft_dot4_tile      4    708      124         1504   +796            199
+gft_dot4          12   1673      303         6000  +4327            361
+```
+
+**Registered before running (T44):** 200–400 LUT per DSP, since each is a 25×18
+multiply. Measured **189, 199, 361** — inside the band on every unit that does
+real multiplying.
+
+> **T251.** `gft16_mul` grows **five-fold**, 47 → 236 LUT: the single DSP is
+> carrying most of that unit's work, and the headline "1 DSP48E1 + 47 LUT" is a
+> figure that **only holds where a DSP can be trusted**. `gft_dot4` grows
+> 1673 → **6000**. On the openXC7 flow the correct comparison for GF-T against
+> LUT-network prior art is the right-hand column, not the published one.
+
+### T251a — three DSPs worth six LUT
+
+> **T251a.** **`gft_alu` sheds 3 DSP48E1 for 6 LUT** — two LUT apiece. yosys
+> inferred three hard macros for work that costs nothing to do in fabric. On a
+> flow where the DSP path is correct that is merely wasteful; on this one it
+> trades a working design for a broken one at a price of **six LUT**. The
+> `-nodsp` build of `gft_alu` is strictly better in every dimension measured.
+
+### T252 — the ecosystem's issue coverage, surveyed
+
+Searched across `tri-net`, `t27`, `trinity-fpga` and `trinity`:
+
+```
+"openxc7" OR "nextpnr" OR "prjxray"      0 issues   in ALL FOUR repositories
+"DSP"                                   22 issues   of which exactly ONE is
+                                                    about the DSP flow, and it
+                                                    is tri-net#381, filed W723
+```
+
+> **T252.** **The toolchain every FPGA claim in this ecosystem rests on has no
+> issue coverage whatsoever.** Twenty-two issues mention DSPs as a *resource*;
+> none before W723 mentioned the tools that place them. A dependency with zero
+> tracked issues is not a stable dependency — it is an untracked one.
+
+### T252a — and the migration question already has an answer
+
+The standing brief asks which repositories can be rewritten as `.t27`.
+**`tri-net#62` answers it**, open, with a per-module map:
+
+- **Expressible:** pure free functions over `u8..u128`/`i8..i128`, `f32`/`f64`,
+  structs with field access, fixed arrays with indexing, control flow, consts,
+  enums.
+- **Not expressible:** `impl` methods with a `self` receiver (t27 models
+  behaviour as free functions), external crates and FFI — which rules out
+  `crypto.rs` wholesale — and network or OS calls.
+- **Its recommendation:** *"SELECTIVE extraction of pure logic into specs, not a
+  wholesale rewrite"*, keeping the 103 tests green at each step.
+
+> **T252a.** **Fourth rediscovery in one session**, after tri-net's GF-T (T243),
+> the spec header that already stated T209 (T244a) and W627's seal comment
+> (T248a). `docs/reports/ECOSYSTEM-INVENTORY.md` counts 219 repositories;
+> **tri-net#62 says which parts of one of them can actually become specs**, and
+> that is the harder and more useful half. **Search the issue trackers before
+> re-deriving a plan** — the plan is often already written, by us.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

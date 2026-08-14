@@ -8389,6 +8389,28 @@ These cost a wave each. Follow them before step 1.
      configuration from yosys's own working netlist fixed it. **A failing probe
      proves nothing until the probe is known good.**
 
+723. **SEARCH THE ISSUE TRACKERS BEFORE RE-DERIVING A PLAN.** The standing
+     brief asks which repositories can become `.t27`. `tri-net#62` answers it,
+     OPEN, with a per-module map and the recommendation "SELECTIVE extraction of
+     pure logic, not a wholesale rewrite". **Fourth rediscovery in one session.**
+     ECOSYSTEM-INVENTORY counts 219 repos; #62 says which PARTS of one can
+     actually be specs, which is the harder and more useful half.
+
+724. **A DEPENDENCY WITH ZERO TRACKED ISSUES IS UNTRACKED, NOT STABLE.** Across
+     tri-net, t27, trinity-fpga and trinity: **zero** issues mention openxc7,
+     nextpnr or prjxray. Twenty-two mention DSPs as a RESOURCE; none mentioned
+     the tools that place them until W723.
+
+725. **Measure the cost of avoiding a broken path before recommending it.**
+     `-nodsp` is the workaround, and it is not free: gft16_mul goes 47 -> 236
+     LUT (5x), gft_dot4 1673 -> 6000. Quoting the DSP figure for an openXC7
+     build is quoting a number that only holds where the DSP works.
+
+726. **Three DSPs worth six LUT.** `gft_alu` sheds all three for +6 LUT -- two
+     apiece. yosys will infer a hard macro for work that is free in fabric, and
+     on a flow where that macro is broken the inference trades a working design
+     for a wrong one at a rounding-error price.
+
 ### How to update this tracker
 
 After closing a wave:
