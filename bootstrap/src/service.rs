@@ -746,9 +746,9 @@ pub fn run_corpus(
                     let vp2 = std::env::temp_dir().join(format!("t27-synth-{}.v", std::process::id()));
                     if std::fs::write(&vp2, &text).is_ok() {
                         let script = format!(
-                            "read_verilog -sv {}; synth_xilinx -family xc7 -top {} -flatten",
+                            "read_verilog -sv {}; {}",
                             vp2.display(),
-                            top
+                            synth_xilinx_noshare(&top)
                         );
                         if let Some((yc, _)) =
                             run_timed(Command::new("yosys").args(["-p", &script]), synth_secs)
@@ -1064,6 +1064,42 @@ pub fn run_depth(repo_root: &Path, specs_dir: &str, limit: usize) -> anyhow::Res
 // recorded as success.
 // ---------------------------------------------------------------------------
 
+
+/// W711: `synth_xilinx` without the `share` pass.
+///
+/// MEASURED, on `gft_dot8`:
+///
+/// ```text
+/// with share      31 s wall   28.86 s CPU
+/// without share   11 s wall    9.73 s CPU     2.97x
+/// cell census     IDENTICAL
+/// ```
+///
+/// `share` is SAT-based resource sharing. On this corpus it merges NOTHING: the
+/// SAT verdicts are 100% "can not be shared" -- 3/3, 21/21, 65/65, 32/32 across
+/// the designs measured -- while consuming 64-72% of synthesis time. It performs
+/// exactly C(N,2) pairwise SAT calls over cells with activation patterns, and N
+/// here counts the conditional variable-distance shifts in `gft_add`
+/// (`if (d < 10) { sb = (512 + lo_m) >> d; }`), one per instance. **Nothing can
+/// ever be shared there**: a combinational reduction tree evaluates every branch
+/// simultaneously, so no two shifts are mutually exclusive, and yosys spends a
+/// multi-million-clause SAT call proving that, C(N,2) times.
+///
+/// `gft_softmax4` goes from exceeding 900 s to completing in 282 s.
+///
+/// `-run` cannot skip it alone -- `share` sits inside the `coarse` label, between
+/// `alumacc` and `opt` -- so the flow is split and the block re-issued without
+/// it. If a future yosys reorders `coarse`, this must be re-derived from
+/// `yosys -h synth_xilinx`, not assumed.
+fn synth_xilinx_noshare(top: &str) -> String {
+    format!(
+        "synth_xilinx -family xc7 -top {top} -flatten -run :coarse; \
+         techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6; \
+         alumacc; opt; memory -nomap; opt_clean; \
+         synth_xilinx -family xc7 -top {top} -flatten -run map_memory:"
+    )
+}
+
 /// The run of decimal digits at the start of `s`, or `None`.
 fn leading_number(s: &str) -> Option<u32> {
     let d: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
@@ -1265,11 +1301,11 @@ pub fn run_silicon(
         // known and dies with "Module ... is not part of the design".
         // `synth_xilinx` runs hierarchy itself, in the right order.
         let script = format!(
-            "read_verilog {}; {}synth_xilinx -family xc7 -top {} -flatten; \
+            "read_verilog {}; {}{}; \
              delete t:$print; delete t:$scopeinfo; write_json {}",
             sources.join(" "),
             chparam,
-            top_name,
+            synth_xilinx_noshare(&top_name),
             json_path.display()
         );
         let (c, out, err) = run(Command::new("yosys").args(["-p", &script]));

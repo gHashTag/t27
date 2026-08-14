@@ -11597,4 +11597,60 @@ in `experiments/phi-alphabet/`.
 
 ---
 
+## W711 — the pass that burned 65% of synthesis time and merged nothing
+
+### T206 — `share` is removed, and the netlist is identical
+
+`synth_xilinx`'s `share` pass is SAT-based resource sharing. Measured on
+`gft_dot8`:
+
+```
+with share      31 s wall   28.86 s CPU
+without share   11 s wall    9.73 s CPU     2.97x
+cell census     IDENTICAL
+```
+
+> **T206.** **On this corpus `share` merges nothing.** The SAT verdicts are
+> **100% "can not be shared"** — 3/3, 21/21, 65/65, 32/32 across the designs
+> measured — while the pass consumes **64–72% of synthesis time**. **Refuted by:**
+> any design whose cell census differs between the two flows.
+
+**And the quadratic term is exactly `C(N,2)`.** `share` performs one pairwise SAT
+call per pair of cells with activation patterns: measured **1 / 6 / 28 / 120** at
+N = 2 / 4 / 8 / 16, equal to `N(N−1)/2` at every point. Here N counts the
+**conditional variable-distance shifts** in `gft_add`:
+
+```
+if (d < 10) { sb = (512 + lo_m) >> d; }
+```
+
+one per instance, and instance count is `dot length − 1` — exactly the number
+yosys reports as shareable. `gft_dot4` has 3 and ran 3 SAT problems; `gft_dot8`
+has 7 and ran 21.
+
+> **T206a — and nothing there can EVER be shared.** A combinational reduction
+> tree evaluates every branch simultaneously, so **no two shifts are mutually
+> exclusive**, every pair is provably unshareable, and yosys spends a
+> multi-million-clause SAT call establishing that, `C(N,2)` times. The pass is
+> not merely unproductive on this corpus — it is unproductive **by the structure
+> of the code it is given**.
+
+**`gft_softmax4` goes from exceeding 900 s to completing in 282 s.**
+
+> **T206b — and my own prime suspect was wrong.** Three waves blamed
+> `__mul_noop`, the 64-iteration shift-add multiplier. Its cost is **exactly
+> linear** in call-site count — LUT exponent **1.004**, measured at N = 1/2/4/8
+> giving 13,563 / 27,333 / 54,906 / 109,374 — and it generates **zero shareable
+> cells**, so it never triggers the pass that dominates. **It is an accomplice,
+> not the culprit**: replacing the ladder with a native `*` leaves the SAT count
+> at 21 and shrinks the largest instance 8.7×, because it inflates each SAT
+> problem rather than adding problems.
+
+`-run` cannot skip `share` alone — it sits inside the `coarse` label between
+`alumacc` and `opt` — so the flow is split and the block re-issued without it.
+**If a future yosys reorders `coarse`, this must be re-derived from
+`yosys -h synth_xilinx`, not assumed**, and the code says so at the site.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

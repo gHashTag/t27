@@ -7897,6 +7897,30 @@ These cost a wave each. Follow them before step 1.
      one architecture, 86.2% against a 92-93% published SOTA. This establishes
      RELATIVE ORDER among alphabets under identical conditions and nothing more.
 
+640. **`share` burned 64-72% of synthesis time and merged NOTHING.** SAT
+     verdicts 100% "can not be shared" -- 3/3, 21/21, 65/65, 32/32. Removing it
+     gives an IDENTICAL cell census at 2.97x the speed on gft_dot8, and takes
+     gft_softmax4 from >900 s to 282 s. T206.
+
+641. **The quadratic term is exactly C(N,2)** -- one pairwise SAT call per pair of
+     cells with activation patterns, measured 1/6/28/120 at N=2/4/8/16. N counts
+     the conditional variable-distance shifts in gft_add, one per instance.
+
+642. **Nothing there can EVER be shared.** A combinational reduction tree
+     evaluates every branch simultaneously, so no two shifts are mutually
+     exclusive and every pair is provably unshareable. The pass is unproductive
+     BY THE STRUCTURE of the code it is given. T206a.
+
+643. **My prime suspect was wrong for three waves.** __mul_noop's cost is exactly
+     LINEAR (LUT exponent 1.004 at N=1/2/4/8) and it generates ZERO shareable
+     cells, so it never triggers the dominating pass. It inflates each SAT
+     problem rather than adding problems -- an accomplice, not the culprit. T206b.
+
+644. **`-run` cannot skip a pass that sits mid-label.** `share` is inside
+     `coarse` between `alumacc` and `opt`, so the flow must be split and the
+     block re-issued without it. Re-derive from `yosys -h synth_xilinx` after any
+     yosys upgrade; do not assume the block.
+
 ### How to update this tracker
 
 After closing a wave:
