@@ -9869,4 +9869,184 @@ them permanently.** Rotation is not a step in the plan; it is the precondition.
 
 ---
 
+## W690 — the FPGA path, walked end to end for the first time
+
+### T167 — `gen-verilog` puts the spec's tests into the "synthesizable" output
+
+`t27c gen-verilog --help` says *"Generate **synthesizable** Verilog"*. Measured
+over every spec that generates:
+
+| | count | share |
+|---|---:|---:|
+| specs generating Verilog | 444 | |
+| **output contains `$display`** | **387** | **87.2%** |
+| output contains an `initial` block | 388 | 87.4% |
+| **free of both — actually synthesizable** | **56** | **12.6%** |
+| total `$display` calls in the corpus | **43,053** | |
+
+The MVP alone emits **124**. And `gen-verilog` differs from
+`gen-verilog-for-simulation` — a command that already exists — by exactly four
+lines: `$dumpfile` and `$dumpvars`.
+
+> **T167.** **The two commands emit the same thing.** yosys turns each `$display`
+> into a `$print` cell, and nextpnr cannot place one:
+> `ERROR: Unable to place cell '...$display$...', no BELs remaining to implement
+> cell type '$print'`. **87.2% of this project's generated Verilog cannot be
+> placed and routed without `delete t:$print`.** **Refuted by:** a `gen-verilog`
+> invocation whose output contains no simulation construct.
+
+> **T167a — and it reinterprets the headline metric.** "156 specs are
+> `iverilog`-clean" measures **acceptance of testbench code by a simulator**. It
+> is not a statement about synthesizability, and it never was. The count of specs
+> producing Verilog a place-and-route tool would accept unaided is **at most 56**.
+
+**Not repaired this wave, deliberately.** Changing `gen-verilog` moves what
+`corpus` measures, and the forecast for that change has to be written before the
+change — not after (T44).
+
+### T168 — the six routing entries T141 called impossible are in our FASM
+
+Registered **before** the build: *"the BSCANE2 MVP will pass `fasm2frames` with
+exit 0 on XC7A200T; a `FasmLookupError` would refute T163's transfer from Zynq."*
+
+```
+nextpnr            rc=0    6,836 FASM lines
+BSCAN FASM lines   7
+  CFG_CENTER_MID_X61Y136.BSCAN.JTAG_CHAIN_1
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_LOGIC_OUTS_B17_11.CFG_CENTER_BSCAN3_TDI
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_BSCAN3_TDO.CFG_CENTER_IMUX38_11
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_LOGIC_OUTS_B22_10.CFG_CENTER_BSCAN3_DRCK
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_LOGIC_OUTS_B16_10.CFG_CENTER_BSCAN3_SEL
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_LOGIC_OUTS_B11_11.CFG_CENTER_BSCAN3_CAPTURE
+  CFG_CENTER_MID_X61Y136.CFG_CENTER_LOGIC_OUTS_B21_11.CFG_CENTER_BSCAN3_SHIFT
+fasm2frames        rc=0    20,230 frames
+xc7frames2bit      rc=0    9,730,898 bytes
+```
+
+> **T168.** **All six.** T141 stated the open flow "expresses only BSCAN's
+> chain-select bit and drops all six routing PIPs". The FASM contains
+> `JTAG_CHAIN_1` **and** TDI, TDO, DRCK, SEL, CAPTURE, SHIFT, and `fasm2frames`
+> consumed them without a lookup error **on the artix7 database, for our part**.
+> T163's transfer from xc7z020 is no longer inferred; it is measured.
+> **Refuted by:** a `FasmLookupError` on a rebuild.
+
+Design cost after `delete t:$print; delete t:$scopeinfo`: **1 BSCANE2, 1
+STARTUPE2, 122 LUTs (39 LUT2, 6 LUT3, 8 LUT4, 5 LUT5, 64 LUT6), 50 FDRE.**
+
+### T169 — a bitstream is not evidence that anything was built
+
+```
+$ : > empty.frames
+$ xc7frames2bit --frm_file empty.frames --output_file empty.bit ; echo $?
+0
+$ wc -c empty.bit                 ->  9,730,899
+$ wc -c the-real-build.bit        ->  9,730,898
+```
+
+> **T169.** A **zero-byte** frames file yields a **9,730,899-byte** bitstream and
+> exit code 0 — **one byte** from the real build. Neither exit code nor file size
+> distinguishes a completed pipeline from one that failed three stages earlier.
+> Only content does: the two differ in **9,361 of 9,730,898 bytes (0.10%)**, and
+> their sha256 differ. **Gate on the FRAMES file, never on the `.bit`.**
+
+This is the `Done 0x1` rule one layer up: **an artefact produced unconditionally
+cannot testify to the process that produced it.**
+
+### T170 — two tooling defects found by using the tools
+
+> **T170.** `t27c fpga-flash --dry-run` prints
+> `openFPGALoader --cable digilent_hs2 <bit>` — **with no `--busdev-num`.** All
+> three cables share serial `210512180081`, so the command programs whichever
+> cable openFPGALoader enumerates first. The service command violates the rule its
+> sibling `t27c boards` exists to enforce.
+
+> **T170a.** [`CLAUDE.md`](../../CLAUDE.md) says *"Flash via the in-repo Rust
+> driver `cli/dlc10`… **Do not use `openFPGALoader`** — it cannot drive the
+> `0x03FD` Xilinx cable."* **This project has no `0x03FD` cable.** Its three
+> cables are Digilent `0403:6014`, `dlc10` accepts no `--busdev-num` and therefore
+> cannot address them at all, and `t27c fpga-flash` — a first-party command —
+> wraps `openFPGALoader`. **The repository's flashing law names hardware the
+> repository does not have**, and the flow document contradicts it in §3.
+
+### T171 — and the `fasm2frames` error message lies about its own cause
+
+```
+ImportError: cannot import name 'antlr_to_tuple' from partially initialized
+module 'fasm.parser' (most likely due to a circular import)
+```
+
+The real cause is `FileNotFoundError` on the `.fasm` argument, **further down the
+same traceback**. A missing input from an earlier failed stage surfaces as a
+library bug. **Read the last line of a Python traceback, not the first.**
+
+---
+
+### T172 — THE VERDICT HAS BEEN READ OFF SILICON
+
+Six waves chased this and four of them refuted it. **On 2026-08-14 the MVP's
+answer left the die through JTAG and a machine read it, on all three boards.**
+
+**The load, by the criterion the project set for itself** — `Done 0x1` alone
+proves nothing, so force it low first:
+
+```
+A1  wrong-part bitstream (xc7a100t)   ->  Done 0x0,  ID Error
+B1  ours                              ->  done 1, isc_done 1, init 1
+```
+
+**The read, A/B/A, three boards, 27 reads, no exception:**
+
+```
+A    our design         idx0 a5a5a5a7 a5a5a5a7 a5a5a5a5
+                        idx1 a5a5a5a5 a5a5a5a7 a5a5a5a5
+                        idx2 a5a5a5a5 a5a5a5a7 a5a5a5a7
+B    NO BSCANE2         idx0/1/2  00000000 00000000 00000000
+A'   ours again         idx0 a5a5a5a7 a5a5a5a7 a5a5a5a5
+                        idx1 a5a5a5a7 a5a5a5a5 a5a5a5a5
+                        idx2 a5a5a5a5 a5a5a5a5 a5a5a5a7
+```
+
+> **T172.** The 28-bit magic `0xA5A5A5A` returns, `const = 01` returns, **`ok = 1`
+> in every one of eighteen positive reads**, and `beat` toggles between reads —
+> the sweep is running, not frozen. The word vanishes to all-zero under a
+> bitstream containing no BSCANE2 and returns when ours is reloaded.
+> **`ok = 1` means the on-chip sweep found no misclassification across all 256
+> inputs since power-up.** **Refuted by:** the magic appearing under the control
+> bitstream, which would make it an artefact rather than a provenance token.
+
+**T172a — the defect was one parameter, and it is the reason for six waves of
+refutations.**
+
+nextpnr places a lone `BSCANE2` at site **BSCAN3**. The design asked for
+`.JTAG_CHAIN(1)`, so the FASM carried `BSCAN.JTAG_CHAIN_1` — enabling chain 1 —
+**while routing site 3's** TDI/TDO/DRCK/SEL/CAPTURE/SHIFT. Chain 1 selects a site
+nothing is wired to; site 3 is wired to a chain nothing selects.
+
+| build | USER1 | USER2 | USER3 | USER4 |
+|---|---|---|---|---|
+| `JTAG_CHAIN(1)`, site BSCAN3 | `ffffffff` | `00000000` | `00000000` | `00000000` |
+| **`JTAG_CHAIN(3)`, site BSCAN3** | `00000000` | `00000000` | **`a5a5a5a7`** | `00000000` |
+
+> **T172a.** **`JTAG_CHAIN` must equal the site index nextpnr chooses.** The BEL
+> cannot be pinned instead — nextpnr routes `BSCANE2` through the IO packer and
+> rejects the attribute with `Unexpected IOBUF BEL BSCAN_X0Y0/BSCAN`. **Every
+> read before this wave used `USER1` on a chain-1 design placed at some other
+> site**, which is why they returned artefacts.
+
+**T172b — and the first reading of this build was the artefact the magic exists
+to catch.** With chain and site mismatched, `USER1` returned `00000007` /
+`00000005` alternating — low nibble `0111`/`0101`: `ok = 1`, `const = 01`, `beat`
+toggling. **A perfect-looking verdict.** The 28 bits above it were **zero**.
+W675 introduced the wide magic precisely because W674's four-bit read could not
+be told from a JTAG artefact (T139). **It was needed, and it worked.**
+
+> **T172c.** The general rule this closes: *when a channel has more than one
+> instance and a selector, verify that the instance you configured is the
+> instance the selector reaches.* Nothing in synthesis, place-and-route, FASM
+> generation, `fasm2frames` or the bitstream loader reported an error. Every
+> stage returned 0. **The mismatch is invisible to every tool in the chain and
+> visible only in the read.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

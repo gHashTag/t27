@@ -7257,6 +7257,58 @@ These cost a wave each. Follow them before step 1.
      always identical. And 63% of t27's own 235 issues are sequential "Wave Loop
      N" journal entries. Classify by SUBJECT and you measure the bot. T164/T164a.
 
+514. **BSCANE2's `JTAG_CHAIN` MUST equal the site index nextpnr places it at.**
+     A lone BSCANE2 lands at site BSCAN3. `.JTAG_CHAIN(1)` then emits
+     `BSCAN.JTAG_CHAIN_1` while routing `CFG_CENTER_BSCAN3_*`: chain 1 selects an
+     unwired site, site 3 is wired to an unselected chain. Six waves of refuted
+     readbacks were this one parameter. T172a.
+
+515. **The BEL cannot be pinned to fix it** -- nextpnr routes BSCANE2 through the
+     IO packer and rejects `(* BEL="BSCAN_X0Y0/BSCAN" *)` with `Unexpected IOBUF
+     BEL`. Match the PARAMETER to the placement, and re-check the FASM's
+     `BSCAN.JTAG_CHAIN_n` against its `CFG_CENTER_BSCANn_*` lines after every
+     P&R run.
+
+516. **EVERY tool returned 0 while the design was wrong.** yosys, nextpnr,
+     fasm2frames, xc7frames2bit and openFPGALoader all succeeded on a build whose
+     readback register nothing could select. The mismatch is invisible to the
+     whole chain and visible only in the read. T172c.
+
+517. **The 28-bit magic earned its keep on its first use.** The mismatched build
+     returned `00000007`/`00000005` on USER1 -- ok=1, const=01, beat toggling, a
+     PERFECT-looking verdict -- with 28 zero bits above it. W675 added the wide
+     magic because a 4-bit read could not be told from an artefact (T139). It
+     could not, and the magic caught it. T172b.
+
+518. **`gen-verilog` emits the spec's test blocks into "synthesizable" output.**
+     387 of 444 (87.2%) contain `$display`, 43,053 calls corpus-wide; yosys turns
+     each into a `$print` cell and nextpnr cannot place one. Only 56 specs (12.6%)
+     are free of simulation constructs. Add `delete t:$print; delete t:$scopeinfo`
+     after `synth_xilinx`, or nothing routes. T167.
+
+519. **"156 iverilog-clean" measures SIMULATION acceptance of testbench code**,
+     not synthesizability. The count of specs producing Verilog a P&R tool would
+     accept unaided is at most 56. T167a.
+
+520. **`xc7frames2bit` turns a ZERO-BYTE frames file into a 9,730,899-byte
+     bitstream and returns 0** -- one byte from a real build. Gate on the FRAMES
+     file, never on the `.bit`, and never on its size. T169.
+
+521. **`t27c fpga-flash` omits `--busdev-num`.** With three cables sharing one
+     serial it programs whichever openFPGALoader enumerates first -- violating the
+     rule `t27c boards` exists to enforce. T170.
+
+522. **CLAUDE.md's flashing law names a cable this project does not own.** It
+     mandates `cli/dlc10` and forbids `openFPGALoader` "because it cannot drive
+     the 0x03FD Xilinx cable". Our cables are Digilent `0403:6014`, `dlc10` takes
+     no `--busdev-num` and cannot address them, and first-party `t27c fpga-flash`
+     wraps openFPGALoader. T170a.
+
+523. **A port-less top module needs no XDC.** `mvp_ternary_classifier_jtag.v`
+     dies with `Unable to constrain IO 'led_t23', device does not have a pin named
+     ''` because the only XDC in the tree targets CSG324, not our FGG676. Drop the
+     port list, keep the lamps as internal wires, and the pin map stops mattering.
+
 ### How to update this tracker
 
 After closing a wave:

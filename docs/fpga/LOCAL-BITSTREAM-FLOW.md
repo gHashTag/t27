@@ -168,6 +168,60 @@ Measured on the blinky: P&R 6.2 s of router time, 623 FASM lines, 20,230 frames,
 
 ---
 
+## W690: TWO TRAPS IN THIS PIPELINE, both measured
+
+### Trap 1 — `xc7frames2bit` accepts an EMPTY frames file and returns 0
+
+```
+$ : > empty.frames
+$ xc7frames2bit --part_file .../part.yaml --part_name xc7a200tfbg676-1 \
+                --frm_file empty.frames --output_file empty.bit
+$ echo $?          -> 0
+$ wc -c empty.bit  -> 9730899
+```
+
+**A zero-byte input produces a 9,730,899-byte bitstream and exit code 0.** The
+blinky's real bitstream is 9,730,896 bytes — **a difference of three bytes.**
+
+> Neither the exit code nor the file size distinguishes a real build from a
+> pipeline that failed three stages earlier. A `.bit` that exists is not evidence
+> of anything. **Gate on the FRAMES file being non-empty, before calling
+> `xc7frames2bit` at all** — which is why the build script in this repository now
+> does exactly that and prints `SKIPPED` instead of manufacturing a bitstream.
+
+This is the same shape as the `Done 0x1` rule already in §3: an artefact that is
+produced unconditionally cannot testify to the process that produced it.
+
+### Trap 2 — `fasm2frames.py` reports a CIRCULAR IMPORT when the input is missing
+
+```
+ImportError: cannot import name 'antlr_to_tuple' from partially initialized
+module 'fasm.parser' (most likely due to a circular import)
+```
+
+The actual cause was `FileNotFoundError` on the `.fasm` argument, further down
+the same traceback. **Read the last line of the traceback, not the first.** A
+missing input from an earlier failed stage surfaces here as a library bug.
+
+### And the port-less top module
+
+`mvp_ternary_classifier_jtag.v` declares `led_r23`/`led_t23` as outputs, so
+nextpnr must constrain them:
+
+```
+ERROR: Unable to constrain IO 'led_t23', device does not have a pin named ''
+```
+
+The repository has no XDC for the **FGG676** part — the only one present targets
+`CSG324`. [`mvp_ternary_classifier_jtag_noport.v`](../../fpga/verilog/mvp_ternary_classifier_jtag_noport.v)
+is the same design **with no port list at all**: the lamps become internal wires
+and the verdict leaves the die through USER1 only. **No package pin is driven, so
+no pin map is needed** — which is precisely the property that made this project's
+own withdrawn upstream issue reproducible on a board whose pinout it could not
+assert.
+
+---
+
 ## 3. Loading, and what the load actually proves
 
 ```bash
