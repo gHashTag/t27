@@ -10857,4 +10857,70 @@ guarantee it.
 
 ---
 
+## W699 — the port fixed, the predicate restored, and the real blocker found somewhere else
+
+### T191 — the entry-port width is derived or refused, never defaulted
+
+`gen_verilog` sized entry-point ports with `type_to_width`, whose last arm is
+`_ => 32`. **Measured first: all 74 specs declaring an entry point use only sized
+primitives, so the default never fired. The defect was latent** — and W698
+stepped on it, turning a 512-bit parameter into `input wire [31:0]`.
+
+`entry_port_width` replaces it and returns **`None` rather than a plausible
+number**. A parameter it cannot size makes the whole entry point refuse, loudly,
+in the generated source:
+
+```verilog
+// ENTRY POINT REFUSED -- a parameter or return has no derivable width:
+//     a: f64
+```
+
+```
+[8]u64   ->  input  wire [511:0] a        and on_comb + the forwarded fn both [511:0]
+[]u64    ->  refused, named
+f64      ->  refused, named
+```
+
+> **T191.** **`[N]T` is accepted because `N·width(T)` is arithmetic; a slice is
+> refused because its length is not in the type; `f64` is refused because 64 bits
+> is its SIZE, not its ENCODING.** The two sides now agree by construction — the
+> census predicate accepts exactly what the emitter can size, which is T190b's
+> rule with both guards on the same side. **Refuted by:** an entry port whose
+> width does not equal the declared type's.
+
+W698's retraction is reversed: the four BitNet specs took their entry points,
+**HAS_ENTRY 74 → 78**, with the port at 512 bits and no truncation anywhere in
+the chain.
+
+### T192 — and the LUT is still zero, because a `while` body lowers to nothing
+
+The forecast said: *"at least one of the four gives non-zero LUT; if all four
+still give zero, the port width was not the only blocker."* **All four still give
+zero.**
+
+**The first diagnosis was wrong.** The loop bound in `bitnet_neuron_nchunk` is
+`nchunks`, a runtime port, so a data-dependent bound looked like the answer. A
+constant-bound trial refuted it:
+
+| trial | body | LUT |
+|---|---|---:|
+| `noloop` | `if (a > b) return 1;` | **132** |
+| `arith` | `return a + b;` | **96** |
+| `whileonly` | `while (i < 4) { acc = acc + a; i = i + 1; }` | **0** |
+
+> **T192.** **A `while` body lowers to zero logic even when its bound is a
+> compile-time constant.** `if` and arithmetic synthesise normally. `ternary_mac`
+> reaches 951 LUT and contains **no `while` at all**. **Measured: 84 specs use
+> `while`; of the 78 with an entry point, 10 have a correct boundary, a correct
+> port width, and synthesise to nothing.** **Refuted by:** a spec whose only
+> loop is a `while` and which yields non-zero LUT.
+
+> **T192a — and this is the third distinct blocker on one path.** A module needs
+> an entry point (T187), a port the emitter can size (T191), **and a body that
+> survives synthesis** (T192). Each was invisible until the one before it was
+> fixed. **"Necessary but not sufficient" has now been demonstrated twice in
+> succession on the same four specs.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

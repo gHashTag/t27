@@ -7682,6 +7682,43 @@ impl VerilogCodegen {
         }
     }
 
+    /// W699: the width of an entry-point port, or `None` -- never a default.
+    ///
+    /// `type_to_width` ends in `_ => 32`, which is right for a local register
+    /// whose declared type the rest of the lowering also treats as 32 bits, and
+    /// WRONG for a module boundary, where the number becomes a contract with
+    /// whatever is on the other side. A 512-bit value entering through a 32-bit
+    /// port loses 15/16 of itself, and no stage downstream can tell.
+    ///
+    /// `[N]T` is accepted because N*width(T) is arithmetic. A slice is refused
+    /// because its length is not in the type. `f64` is refused because 64 bits is
+    /// its SIZE, not its ENCODING -- whether a float port carries raw IEEE bits
+    /// or fixed point is a design decision this function does not get to make.
+    fn entry_port_width(ty: &str) -> Option<u32> {
+        let t = ty.trim();
+        match t {
+            "bool" => return Some(1),
+            "u8" | "i8" => return Some(8),
+            "u16" | "i16" => return Some(16),
+            "u32" | "i32" | "usize" | "isize" => return Some(32),
+            "u64" | "i64" => return Some(64),
+            "trit" | "tri" => return Some(2),
+            _ => {}
+        }
+        // `[N]T`
+        if let Some(rest) = t.strip_prefix('[') {
+            if let Some(close) = rest.find(']') {
+                let count = rest[..close].trim();
+                if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
+                    let n: u32 = count.parse().ok()?;
+                    let inner = Self::entry_port_width(&rest[close + 1..])?;
+                    return n.checked_mul(inner);
+                }
+            }
+        }
+        None
+    }
+
     /// Map t27 type to Verilog signedness
     fn type_is_signed(ty: &str) -> bool {
         // W655 (T85): `f32`/`f64` were absent here, so a float lowered to an
@@ -9800,25 +9837,62 @@ impl VerilogCodegen {
         // (combinational) become INPUT data ports, so a spec can consume data fed
         // in on real ports (`fn on_clock(x: i16) {...}` -> `input signed [15:0] x`).
         // Only present when such a fn takes params -> existing specs unchanged.
+        //
+        // W699: THE WIDTH IS DERIVED OR THE PORT IS REFUSED. It is never defaulted.
+        //
+        // This site used `type_to_width`, whose last arm is `_ => 32`. That is
+        // correct for every entry signature in the corpus today -- measured: all
+        // 74 specs declaring `on_comb`/`on_clock` use only sized primitives, so
+        // the default never fires. It is a LATENT defect, and W698 stepped on it:
+        // widening the entry-point predicate to accept `[8]u64` produced
+        //
+        //     input  wire [31:0] acts,       // for a 512-bit parameter
+        //
+        // and nothing complained -- not the banner, not the census, not the
+        // corpus column, not yosys. A silent 16x narrowing.
+        //
+        // `entry_port_width` returns `None` rather than a plausible number, and a
+        // parameter it cannot size makes the whole entry point refuse, loudly, in
+        // the generated source. T190b: the accepting side must be the stricter,
+        // so anything accepted can be sized.
         let mut input_ports: Vec<(String, u32, bool)> = Vec::new();
+        let mut entry_refusal: Option<String> = None;
         if let Some(oc) = functions.iter().find(|f| f.name == "on_clock" || f.name == "on_comb") {
+            let mut widths: Vec<(String, u32, bool)> = Vec::new();
             for (pname, ptype) in &oc.params {
-                let w = Self::type_to_width(ptype);
-                let signed = Self::type_is_signed(ptype);
-                input_ports.push((pname.clone(), w, signed));
+                match Self::entry_port_width(ptype) {
+                    Some(w) => widths.push((pname.clone(), w, Self::type_is_signed(ptype))),
+                    None => {
+                        entry_refusal = Some(format!("{pname}: {ptype}"));
+                        break;
+                    }
+                }
+            }
+            if entry_refusal.is_none() {
+                input_ports = widths;
             }
         }
         // `on_comb` is the combinational counterpart of `on_clock`: its return is a
         // continuously-driven `output wire result` (`assign result = on_comb(...)`),
         // so a purely combinational spec (dot27, an adder, a whole MLP) synthesizes
         // to real LUTs instead of being dead-code-eliminated. Only when defined.
-        let comb_result: Option<(u32, bool, Vec<String>)> =
-            functions.iter().find(|f| f.name == "on_comb").map(|f| {
-                let w = Self::type_to_width(&f.extra_return_type);
+        let comb_result: Option<(u32, bool, Vec<String>)> = if entry_refusal.is_some() {
+            None
+        } else {
+            functions.iter().find(|f| f.name == "on_comb").and_then(|f| {
+                let w = Self::entry_port_width(&f.extra_return_type)?;
                 let signed = Self::type_is_signed(&f.extra_return_type);
                 let params: Vec<String> = f.params.iter().map(|(p, _)| p.clone()).collect();
-                (w, signed, params)
-            });
+                Some((w, signed, params))
+            })
+        };
+        if comb_result.is_none() && entry_refusal.is_none() {
+            if let Some(f) = functions.iter().find(|f| f.name == "on_comb") {
+                if Self::entry_port_width(&f.extra_return_type).is_none() {
+                    entry_refusal = Some(format!("-> {}", f.extra_return_type));
+                }
+            }
+        }
 
         // W649: the boilerplate `(clk, rst_n, en)` header was emitted
         // UNCONDITIONALLY, so a spec that declares `var clk : bool = false` --
@@ -9911,6 +9985,23 @@ impl VerilogCodegen {
                 "// it a combinational surface: parameters become inputs, the return becomes",
             );
             self.write_line("// `result`. See T81.");
+            // W699: and if there IS an entry point but a type has no derivable
+            // width, say which one. The alternative -- the `_ => 32` default --
+            // produces a port that looks right and carries a fraction of the
+            // value, which is the failure T190a measured: a 512-bit parameter
+            // became `input wire [31:0]` and nothing downstream noticed.
+            if let Some(what) = &entry_refusal {
+                self.write_line(
+                    "// ENTRY POINT REFUSED -- a parameter or return has no derivable width:",
+                );
+                self.write_line(&format!("//     {what}"));
+                self.write_line(
+                    "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
+                );
+                self.write_line(
+                    "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
+                );
+            }
         }
         self.write_line("");
 

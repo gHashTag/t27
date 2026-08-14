@@ -7622,6 +7622,33 @@ These cost a wave each. Follow them before step 1.
      with plain u64 parameters synthesises to 951 LUT; a ported module whose
      parameter was silently narrowed gives 0.
 
+588. **An entry-port width is DERIVED or REFUSED, never defaulted.**
+     `type_to_width` ends in `_ => 32`, which is right for a local register and
+     wrong for a module boundary, where the number is a contract. `entry_port_width`
+     returns None and the entry point refuses loudly, naming the offending
+     parameter in the generated source. T191.
+
+589. **Measure whether a latent defect is ACTIVE before fixing it.** All 74
+     existing entry-point specs use only sized primitives, so the 32-bit default
+     never fired in shipped code. Knowing that made the change purely enabling
+     rather than a migration.
+
+590. **A `while` body lowers to ZERO LOGIC even with a compile-time-constant
+     bound.** Measured: `if` 132 LUT, `a + b` 96 LUT, `while (i < 4)` 0 LUT.
+     ternary_mac reaches 951 LUT and contains no `while`. 10 of the 78
+     entry-point specs are in this state -- correct boundary, correct port width,
+     nothing synthesised. T192.
+
+591. **My first diagnosis was the data-dependent bound, and a constant-bound
+     trial refuted it in one command.** The loop bound in the failing spec WAS a
+     runtime port, which made the wrong answer look obvious. Build the minimal
+     discriminator before believing the plausible cause.
+
+592. **Three distinct blockers on one path, each invisible until the previous was
+     fixed:** an entry point (T187), a port the emitter can size (T191), a body
+     that survives synthesis (T192). "Necessary but not sufficient" twice in
+     succession on the same four specs. T192a.
+
 ### How to update this tracker
 
 After closing a wave:

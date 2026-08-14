@@ -107,26 +107,31 @@ fn has_derivable_width(t: &str) -> bool {
     if is_sized_primitive(t) {
         return true;
     }
-    // `[N]T` -- RETRACTED IN THE SAME WAVE THAT ADDED IT.
+    // `[N]T` -- RETRACTED in W698, RE-ENABLED in W699 once the emitter followed.
     //
-    // `[8]u64` is 512 bits and the arithmetic is not in dispute. But the port
-    // emitter does not follow: with the parameter accepted, `gen-verilog` wrote
+    // W698 accepted this while `gen_verilog` still sized entry ports with
+    // `type_to_width`, whose last arm is `_ => 32`. A `[8]u64` parameter became
+    // `input wire [31:0]` -- a silent 16x narrowing that the banner, the census,
+    // the corpus column and yosys all failed to notice. It was retracted the
+    // same wave.
     //
-    //     input  wire [31:0] acts,        // for a parameter declared [8]u64
+    // W699 gave the emitter `entry_port_width`, which returns `None` instead of
+    // a plausible number and makes the whole entry point refuse, loudly, in the
+    // generated source. Verified: `[8]u64` now emits `input wire [511:0]`, and
+    // the internal `on_comb` and forwarded function take `[511:0]` too, so there
+    // is no truncation between the boundary and the body.
     //
-    // -- the 32-bit `packed_width` default, silently 16x too narrow. Four
-    // BitNet specs took that port before it was noticed, and every downstream
-    // check passed: the banner was gone, the census counted them, `corpus`'s
-    // data-port column rose 70 -> 74, and yosys reported 0 LUT without a warning.
-    //
-    // A predicate may be widened only as far as the BACKEND can follow. This one
-    // was widened past it, which is the shape T145 recorded on the struct-packing
-    // path: a guard that accepts something it cannot size correctly ships a
-    // silent wrong width, and a silent wrong width is worse than a refusal.
-    //
-    // Re-enable this together with a port emitter that lowers `[N]T` to N*width(T)
-    // bits, and not before. The test below pins the refusal so it cannot drift
-    // back in unnoticed.
+    // The two sides now agree by construction: this predicate accepts exactly
+    // what `entry_port_width` can size. T190b -- the accepting side must be the
+    // stricter, and here it is the SAME side.
+    if let Some(rest) = t.strip_prefix('[') {
+        if let Some(close) = rest.find(']') {
+            let count = &rest[..close];
+            if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
+                return has_derivable_width(&rest[close + 1..]);
+            }
+        }
+    }
     false
 }
 
@@ -490,23 +495,22 @@ mod tests {
     /// W698: `[8]u64` is 512 bits and that is arithmetic, not a decision.
     #[test]
     fn a_sized_array_of_primitives_has_a_derivable_width() {
-        // W698 RETRACTION: the arithmetic is right and the emitter cannot follow
-        // it -- a [8]u64 parameter became a 32-bit port. Refused until the port
-        // emitter lowers N*width(T).
-        assert!(!has_derivable_width("[8]u64"), "retracted: the emitter writes 32 bits");
-        assert!(!has_derivable_width("[2][4]u8"), "retracted with it");
+        // W699: re-enabled once `entry_port_width` could size it. The emitter
+        // writes [511:0] for [8]u64 and refuses a slice loudly.
+        assert!(has_derivable_width("[8]u64"));
+        assert!(has_derivable_width("[2][4]u8"), "nesting is still arithmetic");
         assert!(!has_derivable_width("[]u8"), "a slice has no length in the type");
         assert!(!has_derivable_width("[N]u8"), "a symbolic count is not a number");
         assert!(!has_derivable_width("f64"), "the Verilog backend has no float");
         assert!(!has_derivable_width("BrainState"), "a struct needs its declaration");
     }
 
-    /// W698: a sized array is refused, because accepting it produced a 32-bit
-    /// port for a 512-bit value and nothing in the pipeline complained.
+    /// W699: accepted again, now that the emitter sizes it. The regression this
+    /// guards against is the W698 one: predicate ahead of backend.
     #[test]
-    fn a_spec_taking_a_sized_array_stays_wide() {
+    fn a_spec_taking_a_sized_array_is_forced_scalar() {
         let src = "module m\n\nfn dot(a: [8]u64, b: [8]u64) -> u8 { return 1; }\n";
-        assert_eq!(classify(src), Verdict::ForcedWide);
+        assert_eq!(classify(src), Verdict::ForcedScalar);
     }
 
     #[test]
