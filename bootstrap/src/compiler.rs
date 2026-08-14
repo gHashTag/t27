@@ -12848,12 +12848,50 @@ impl VerilogCodegen {
 
         self.write_indent();
         self.write_line(
-            "// W700: NOT UNROLLED -- the bound is not a literal, so there is no static",
+            "// W700/W702: NOT UNROLLED -- the bound is not a literal, so there is no",
         );
         self.write_indent();
         self.write_line(
-            "// trip count. yosys discards this loop and the body synthesises to nothing.",
+            "// static trip count and nothing can unroll it.",
         );
+        self.write_indent();
+        self.write_line("//");
+        self.write_indent();
+        self.write_line(
+            "// W702 measured the consequence, which is NOT a silent zero: yosys rejects",
+        );
+        self.write_indent();
+        self.write_line("// the enclosing function outright --");
+        self.write_indent();
+        self.write_line(
+            "//     ERROR: Function \\<name> can only be called with constant arguments.",
+        );
+        self.write_indent();
+        self.write_line(
+            "// -- because a Verilog `function` is combinational by definition and a",
+        );
+        self.write_indent();
+        self.write_line(
+            "// data-dependent trip count is not. NINE of the thirteen entry-point specs",
+        );
+        self.write_indent();
+        self.write_line("// that fail synthesis fail exactly here.");
+        self.write_indent();
+        self.write_line("//");
+        self.write_indent();
+        self.write_line(
+            "// The fix is a DESIGN decision this compiler does not make: either give the",
+        );
+        self.write_indent();
+        self.write_line(
+            "// loop a compile-time bound, or move the entry point to `fn on_clock` and let",
+        );
+        self.write_indent();
+        self.write_line(
+            "// it be the multi-cycle operation it actually is. A loop whose length depends",
+        );
+        self.write_indent();
+        self.write_line("// on data is sequential; naming it combinational is the error.");
         self.write_indent();
         self.write("while (");
         if !node.children.is_empty() {

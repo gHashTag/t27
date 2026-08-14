@@ -11046,4 +11046,67 @@ bitnet_layer                    0 LUT       same
 
 ---
 
+## W702 — thirteen failures, one cause behind nine of them
+
+### T195 — the entry-point specs that do not synthesise, classified
+
+Of the 78 specs declaring `on_comb`/`on_clock`, a sweep with a 90-second cap
+found 13 that yosys rejects. Every one now has a named cause:
+
+| cause | specs |
+|---|---:|
+| **`Function X can only be called with constant arguments`** | **9** |
+| `syntax error, unexpected TOK_REAL` (a float literal) | 1 |
+| `syntax error, unexpected TOK_ID` | 1 |
+| `Invalid use of [a-fxz?] in decimal constant` | 1 |
+| `Can't resolve task name` (a task called, never defined) | 1 |
+
+> **T195.** **Nine of thirteen — 69% — are one cause.** A Verilog `function` is
+> combinational **by definition**, and a loop whose trip count depends on data is
+> not. yosys therefore refuses the whole function, and every one of the nine
+> contains a `while` whose bound is a runtime value: `bitnet_layer`, `bitnet_mlp`,
+> `bitnet_mlp3`, `bitnet_neuron_nchunk`, four `fpga/testbench/*_tb`, and
+> `w535_bounded_while_module` — the spec written as a *positive witness* that a
+> bounded `while` stays lowerable. **Refuted by:** one of the nine whose failing
+> function contains no data-dependent loop.
+
+**The fix is a design decision this compiler does not make:** give the loop a
+compile-time bound, or move the entry point to `fn on_clock` and let it be the
+multi-cycle operation it is. **A loop whose length depends on data is sequential;
+calling it combinational is the error.** The generated source now says exactly
+that, at the site.
+
+### T195a — and "LUT = 0" was hiding an ERROR, for the fourth time
+
+The sweep computed its LUT figure with
+
+```
+awk '$2 ~ /^LUT[0-9]$/ {s+=$1} END{print s+0}'
+```
+
+over yosys's statistics block. **When yosys errors, that block is empty and the
+expression prints `0`** — indistinguishable from a design that synthesised to
+nothing.
+
+> **T195a.** So `bitnet_layer` was recorded as "0 LUT" in three consecutive waves
+> when it was in fact a **hard synthesis error**, and T192 built a theorem on
+> that reading. **This is the fourth measurement artefact in one chain**: the
+> undeclared counter (W700), the wiring-reducible body (W701), the
+> `NO DATA PORTS`-absence-as-presence (T187a), and now an empty statistics block
+> as a zero. **A summing expression must not share a value with failure.**
+> `END{print s+0}` should have been `END{if (n==0) print "NOSTAT"; else print s}`.
+
+### T195b — and the nine include the spec written to prove the opposite
+
+`specs/igla/w535_bounded_while_module.t27` opens with:
+
+> *"W535 positive corpus witness: a bounded while loop remains Icarus-lowerable."*
+
+It is Icarus-lowerable — `iverilog` accepts it. **It is not synthesisable**, and
+its `while (i < n)` takes `n` as a function parameter. **A witness for one
+backend was read as a witness for both**, and nothing in the corpus distinguished
+them until this sweep.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

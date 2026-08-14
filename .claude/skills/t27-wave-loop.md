@@ -7692,6 +7692,29 @@ These cost a wave each. Follow them before step 1.
      working transform as a failure. The conclusion was one command out of date.
      T194b.
 
+601. **Nine of the thirteen failing entry-point specs are ONE cause:**
+     `Function X can only be called with constant arguments`. A Verilog
+     `function` is combinational by definition; a loop whose trip count depends on
+     data is not. The fix is a DESIGN decision -- a compile-time bound, or move
+     the entry point to `fn on_clock`. T195.
+
+602. **`awk END{print s+0}` prints 0 when yosys ERRORED**, because the statistics
+     block is empty -- indistinguishable from a design that synthesised to
+     nothing. bitnet_layer was recorded as "0 LUT" for three waves while it was a
+     hard error, and T192 was built on that reading. A summing expression must not
+     share a value with failure. T195a.
+
+603. **Fourth measurement artefact in one chain**: an undeclared counter (W700),
+     a wiring-reducible body (W701), absence-of-banner read as presence of a port
+     (T187a), and an empty stat block read as zero (W702). Each was found only by
+     re-measuring after the previous repair.
+
+604. **A witness for one backend is not a witness for both.**
+     `w535_bounded_while_module.t27` calls itself "a positive corpus witness: a
+     bounded while loop remains Icarus-lowerable" and it IS -- iverilog accepts
+     it. It is not synthesisable, and its bound is a function parameter. Nothing
+     in the corpus distinguished the two claims. T195b.
+
 ### How to update this tracker
 
 After closing a wave:
