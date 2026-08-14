@@ -10070,6 +10070,58 @@ impl VerilogCodegen {
             self.write_line("");
         }
 
+        // W694: SAY WHAT THIS BACKEND DOES NOT LOWER.
+        //
+        // W692 gated the three simulation sections below on
+        // `emit_test_assertions` -- correctly, because emitting `$display` into
+        // output whose own help calls it synthesizable was the defect (T167).
+        // But it made `gen-verilog` DROP every declared `test`, `invariant` and
+        // `bench` in silence, and `suite.rs`'s honesty gate exists to catch
+        // exactly that: it went from `614 declared, 3 silent` to
+        // `242 declared, 375 silent`, +372 failures in the one check whose
+        // stated purpose is this (T181).
+        //
+        // The gate accepts any artefact that NAMES its omission. That is the
+        // honest repair and it is also the true statement: synthesis does not
+        // lower a test. The cheap alternative -- adding 375 rows to the
+        // expectations ledger -- would be adjusting the instrument until the
+        // reading is comfortable, which is the failure T178b/T180 name.
+        if !self.emit_test_assertions
+            && (!tests.is_empty() || !invariants.is_empty() || !benches.is_empty())
+        {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// NOT LOWERED BY THIS BACKEND");
+            self.write_indent();
+            self.write_line("//");
+            self.write_indent();
+            self.write_line("// `gen-verilog` emits synthesizable RTL. A test, an invariant and a");
+            self.write_indent();
+            self.write_line("// bench are simulation constructs -- yosys turns each `$display` into a");
+            self.write_indent();
+            self.write_line("// `$print` cell and nextpnr has no BEL to place one. They are carried by");
+            self.write_indent();
+            self.write_line("// `gen-verilog-for-simulation`, which lowers every declaration below.");
+            self.write_indent();
+            self.write_line("//");
+            for t in &tests {
+                self.write_indent();
+                self.write_line(&format!("// test      {}", t.name));
+            }
+            for inv in &invariants {
+                self.write_indent();
+                self.write_line(&format!("// invariant {}", inv.name));
+            }
+            for b in &benches {
+                self.write_indent();
+                self.write_line(&format!("// bench     {}", b.name));
+            }
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_line("");
+        }
+
         // Section: Tests → assertions (SystemVerilog-style)
         //
         // W692: GATED ON `emit_test_assertions`, and it should always have been.

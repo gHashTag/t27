@@ -10537,4 +10537,67 @@ None has been through yosys or nextpnr.*
 
 ---
 
+## W694 — the regression closed by declaring, not by widening the ledger
+
+### T185 — the honesty gate is back at 3, and the repair was to tell the truth
+
+W692 gated three simulation sections on `emit_test_assertions` and made
+`gen-verilog` **drop every declared `test`, `invariant` and `bench` in silence**.
+`suite.rs`'s `backends-declare-omissions` went **`614 declared, 3 silent` →
+`242 declared, 375 silent`** — +372 failures in the one check whose stated
+purpose is catching exactly that (T181).
+
+The gate accepts any artefact that **names** its omission. So `gen-verilog` now
+emits, when it is not lowering them:
+
+```
+// NOT LOWERED BY THIS BACKEND
+//
+// `gen-verilog` emits synthesizable RTL. A test, an invariant and a bench are
+// simulation constructs -- yosys turns each `$display` into a `$print` cell and
+// nextpnr has no BEL to place one. They are carried by
+// `gen-verilog-for-simulation`, which lowers every declaration below.
+//
+// test      sort_basic_case
+```
+
+**Forecast registered before the change**, three terms, all confirmed:
+
+| term | forecast | outcome |
+|---|---|---|
+| honesty gate | 375 silent → ~3 | **3** ✅ |
+| `iverilog accepts` | unchanged — *movement would mean it is not a comment* | **326** ✅ |
+| `… AND has a data port` | unchanged | **57** ✅ |
+
+> **T185.** And **none of the surviving three is a `gen-verilog` failure**: all
+> three name `gen` (Zig), two also name `gen-rust`. They are the pre-existing
+> baseline, not residue of the repair. **Refuted by:** a `backends-declare-omissions`
+> failure naming `gen-verilog` alone.
+
+> **T185a — the repair that was NOT taken.** The cheap fix was to add 375 rows to
+> `suite_expectations.json`, after which the ratchet would pass. **That is
+> adjusting the instrument until the reading is comfortable** — the failure
+> T178b and T180 name, applied to a gate rather than a metric. **A gate whose
+> expectations are rewritten to match its failures has been deleted, not
+> satisfied.**
+
+### T186 — ten specs hang yosys, and the sweep that found them had no timeout
+
+The corpus synthesis sweep stalled at 414 of 617. `yosys` had been running
+**4 minutes 18 seconds** on `specs/ternary/gft_layer3.t27`.
+
+> **T186.** **The loop invariant says "a timeout on EVERY pipeline step", and my
+> sweep had none.** `service.rs` carries `run_timed` for precisely this, with a
+> comment recording that its own first version manufactured 29 fake hangs. I
+> wrote a new instrument and reproduced the defect that function exists to
+> prevent — **the fifth instrument failure in three waves.** With a 60-second cap
+> the sweep resumed and found **10 specs that genuinely exceed it**, a population
+> no previous measurement could see: without a timeout they are not slow, they
+> are *the end of the run*.
+
+macOS has no `timeout(1)`, which is why the cap is a spawn-and-poll loop rather
+than a flag — the same reason `run_timed` is hand-rolled in Rust.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

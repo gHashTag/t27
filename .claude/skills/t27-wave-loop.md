@@ -7506,6 +7506,25 @@ These cost a wave each. Follow them before step 1.
      file identity would silently stop checking two chips behind a green file.
      T184a.
 
+564. **A backend that drops a declared construct must NAME it.** `gen-verilog`
+     now emits `NOT LOWERED BY THIS BACKEND` plus every dropped test/invariant/
+     bench. The honesty gate went 375 silent -> 3, and the three survivors are
+     pre-existing `gen`/`gen-rust` failures, not residue. T185.
+
+565. **The repair NOT taken: adding 375 rows to the expectations ledger.** The
+     ratchet would have passed. A gate whose expectations are rewritten to match
+     its failures has been DELETED, not satisfied. T185a.
+
+566. **FIFTH instrument failure in three waves: a sweep with no timeout.** yosys
+     sat 4m18s on one spec and stalled a 617-spec run at 414. The loop invariant
+     says EVERY pipeline step carries a timeout; `run_timed` exists in service.rs
+     with a comment about its own first version manufacturing 29 fake hangs. I
+     wrote a new instrument and reproduced the defect it prevents. T186.
+
+567. **With a 60 s cap, TEN specs genuinely exceed it.** Without a timeout they
+     are not "slow" -- they are the end of the run, and every spec after them is
+     unmeasured. macOS has no `timeout(1)`; use a spawn-and-poll loop.
+
 ### How to update this tracker
 
 After closing a wave:
