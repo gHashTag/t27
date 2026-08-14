@@ -14645,6 +14645,48 @@ Gating every startup register on a two-stage-synchronised `EOS`, and exposing
 > therefore proves nothing** — the only honest guard is on the *frames* count, and
 > it is now in the driver: fewer than 100 lines refuses to build.
 
+### T306 — the forecast was refuted in the opposite direction
+
+**Registered before the run (W747):** *zero will pay, most on UNSW-NB15, because
+zero is how a quantised net prunes and UNSW has 593 mostly-irrelevant features.
+Penalty ordering UNSW > Fashion > MNIST, negative nowhere.*
+
+30 seeds, paired t, compared at equal **code width**:
+
+| task | 3-bit: {0,±1,±2,±4} vs {±1,±2,±4,±8} | 4-bit: 9-level vs 16-level |
+|---|---|---|
+| UNSW-NB15 | **−0.20 pp, t = −8.31** | **−0.12 pp, t = −3.67** |
+| MNIST | +0.04, t = +0.16 | +0.04, t = +0.17 |
+| Fashion | **−0.09 pp, t = −3.99** | −0.04, t = −1.31 |
+
+> **T306. Refuted, and anti-correlated with its own mechanism.** Zero-free wins
+> significantly on UNSW at **both** widths and on Fashion at three bits; **the
+> zero-bearing alphabet wins nowhere.** The reasoning named UNSW specifically as
+> where zero would help most, and UNSW is where it loses hardest. **A mechanism
+> that predicts the sign backwards is worse than no mechanism** — it would have
+> been believed.
+
+### T307 — the zero costs no datapath at all; it costs a code
+
+> **T307.** A zero weight emits **no adder input**, in every arm, so the zero
+> *level* generates no hardware: measured `nz8` and `pot9` at **737 = 737 LUT**,
+> identical to the digit. What the zero costs is a **code**: eight zero-free
+> levels fit three bits exactly, while nine levels need four. **The price of
+> ternary's zero is 33% more weight memory for an alphabet that is not more
+> accurate** — and it is paid in storage and routing, never in the adder tree.
+
+### T308 — the limit of T306, stated because it is the strongest objection
+
+> **T308.** Every arm here shares **one fixed 50% zero mask** by construction, so
+> structural sparsity is held constant and cannot vary with the alphabet. **That
+> is exactly the benefit the alphabet's zero is supposed to deliver** — a real
+> design *learns* which weights vanish, and the zero level is the mechanism.
+> T306 therefore measures "does the zero code buy accuracy at fixed sparsity?"
+> (no) and **cannot** measure "does the zero code buy sparsity?" (unmeasured).
+> **The result stands as scoped and does not generalise to a learned-sparsity
+> design.** The experiment that would settle it lets the mask move with the arm,
+> and it has not been run.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

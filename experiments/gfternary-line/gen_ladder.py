@@ -46,7 +46,14 @@ LADDER = {
     "pot9":  [(1, 0), (2, 0), (4, 0), (8, 0)],               #  9
     "pot11": [(1, 0), (2, 0), (4, 0), (8, 0), (16, 0)],      # 11
     "pot13": [(1, 0), (2, 0), (4, 0), (8, 0), (16, 0), (32, 0)],   # 13
+    # W747: zero-free arms. The alphabet's zero is NOT the sparsity -- the zero
+    # MASK is, and it is identical across every arm by construction. These arms
+    # ask only what the zero CODE costs, at equal code width.
+    "nz8":  [(1, 0), (2, 0), (4, 0), (8, 0)],                       #  8 lv, 3 bits exactly
+    "nz16": [(1, 0), (2, 0), (4, 0), (8, 0), (16, 0), (32, 0), (64, 0), (128, 0)],  # 16 lv, 4 bits
 }
+# Arms whose alphabet has NO zero level: the level list is used without adding 0.
+NO_ZERO = {"nz8", "nz16"}
 PAIRED = {"gft1", "gft2", "gft3", "gft4"}
 
 
@@ -61,7 +68,8 @@ def emit_layer(arm, n, m, seed, acc_w):
     ports = ["input wire [%d:0] x" % (n - 1)]
     if paired:
         ports += ["output wire signed [%d:0] accA [0:%d]" % (acc_w - 1, m - 1)]
-    lines.append("// arm=%s levels=%d paired=%s" % (arm, 2 * len(levels) + 1, paired))
+    nlv = 2 * len(levels) + (0 if arm in NO_ZERO else 1)
+    lines.append("// arm=%s levels=%d paired=%s" % (arm, nlv, paired))
     lines.append("module layer_%s (" % arm)
     lines.append("    input  wire [%d:0] x," % (n - 1))
     outs = []
