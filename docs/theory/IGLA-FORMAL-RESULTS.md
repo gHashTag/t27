@@ -14863,4 +14863,68 @@ Everything controlled, at 128 LUT against the field's 89:
 
 ---
 
+## W749 — the bench was uncontrolled; the conclusions survive it
+
+### T317 — 39% of the alphabet-size effect was scale, and 61% was real
+
+Every alphabet result this project holds was measured with the pre-activation
+scale uncontrolled — and uncontrolled in exactly the direction that matters, since
+a larger alphabet makes larger sums and larger sums beat a **fixed** threshold.
+Re-run with the scale pinned, 30 seeds, same arms, same seeds:
+
+| task | SIZE 3→9, raw | SIZE 3→9, **normalised** | SHAPE @9, raw | SHAPE @9, **norm** |
+|---|---:|---:|---:|---:|
+| UNSW | +0.985 (t=19.1) | **+0.381** (t=8.9) | −0.111 (t=−3.9) | −0.008 (ns) |
+| MNIST | +1.837 (t=6.0) | **+1.478** (t=4.5) | +0.304 (ns) | +0.452 (t=2.5) |
+| Fashion | +0.815 (t=24.3) | **+0.346** (t=12.0) | −0.031 (ns) | +0.004 (ns) |
+| **mean** | **+1.213** | **+0.735** | +0.054 | +0.149 |
+
+> **T317. The size effect survives at 61% of its measured magnitude, significant
+> on all three tasks.** The forecast — *"shrink but survive, +0.3 to +0.8 pp,
+> sign unchanged, still significant"* — **is correct**, the first registered
+> forecast to land in four waves. **39% of what T286 reported was the alphabet
+> being rewarded for making bigger numbers.**
+
+> **T317a. Normalisation also removed a spurious *significant* result.** On UNSW
+> the raw bench said the golden ladder is **worse** than dyadic at nine levels by
+> −0.111 pp at **t = −3.92** — significant, and in T286 it appeared as
+> heterogeneity. With the scale pinned it is −0.008 and vanishes. **An
+> uncontrolled bench does not only inflate effects; it manufactures them.**
+
+> **T317b. The Nine-Rung Law survives.** Normalised UNSW ladder: 83.33 → 83.59 →
+> 83.61 → 83.71 for 3, 5, 7, 9 levels. **First step +0.26, then +0.02, then
+> +0.10** — first-step dominance and saturation both intact, and nothing above
+> nine was ever significant. **No retraction is required for T288 or for the
+> TNF-9 abstract.** The shape effect remains what it always was: 1/3 significant,
+> sign varying by task, and negligible beside size.
+
+### T318 — hidden-layer diversity contributes nothing
+
+**Registered before the run:** *`prop` (MI-proportional sampling) beats `uniform`
+by 3–8 pp; `top` (every neuron sees the SAME features) collapses toward the
+majority baseline through lost diversity.*
+
+UNSW, 15 seeds, normalisation on in every arm:
+
+| fan-in | uniform | **top** | top2f | prop | prop − uniform |
+|---|---:|---:|---:|---:|---:|
+| 4 | 75.77 | 76.58 | 76.58 | **77.32** | +1.56 (t=5.9) |
+| 6 | 76.78 | 76.58 | 76.87 | **77.31** | +0.53 (t=1.9) |
+| 12 | 77.48 | **78.67** | 77.57 | 78.08 | +0.60 (t=2.2) |
+
+> **T318. Both halves refuted, and the second is the finding.** `prop` buys
+> **+0.5 to +1.6 pp**, not 3–8. And **`top` did not collapse — at fan-in 12 it is
+> the best arm in the grid (78.67%)**. Sixty-four neurons that all see the *same
+> twelve features* beat sixty-four neurons that each see different random ones.
+> **The hidden layer's diversity is decoration**; the network is doing something
+> close to a weighted decision on a dozen features, and nothing in our
+> architecture ever asked it to do more.
+
+> **T318a.** Connectivity choice is therefore **not** the residue T316 hoped for.
+> With alphabet, datapath, depth, normalisation and now connectivity all
+> controlled, **training budget is the only item left on the list** — which is why
+> `train_full.py` exists and why it should have existed first.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
