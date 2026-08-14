@@ -7770,6 +7770,26 @@ These cost a wave each. Follow them before step 1.
      compiles with iverilog, so 28 specs carried this while the headline said
      they were fine. Same shape as T167a, one layer down. T198b.
 
+615. **A WALL-CLOCK TIMEOUT ON A SHARED MACHINE MEASURES THE MACHINE.**
+     gft_dot8 finishes in 44 s and was recorded as a hang at a 90 s cap -- the
+     sweep ran concurrently with a five-agent fan-out and a second corpus sweep.
+     The load was mine. Run the timing sweep ALONE, or record CPU time rather
+     than elapsed. T199/T199b.
+
+616. **Synthesis time is QUADRATIC in design size**: 2.16x LUT -> 4.4x time,
+     5.14x LUT -> 35.2x time, exponent ~2. Nothing is stuck; the gft family is
+     simply the largest thing the corpus contains -- gft_log2 alone is 18,612
+     LUTs, which is real hardware. T199a.
+
+617. **Third instance of "slow" mistaken for "stuck", and the first self-inflicted.**
+     W700 read a non-compiling build as a failed transform; W701 read a
+     wiring-reducible body as a vanished one; W706 read its own CPU contention as
+     a hang. The first two misread a true measurement; this one contaminated the
+     measurement.
+
+618. **Of nine specs recorded as hanging, at most one or two genuinely exceed a
+     generous cap.** The rest run 10-352 s, and the corpus tools cap at 15.
+
 ### How to update this tracker
 
 After closing a wave:

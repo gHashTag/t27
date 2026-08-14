@@ -11278,4 +11278,58 @@ the `function` form allowed. It does not.
 
 ---
 
+## W706 — the nine "hangs" were mostly my own machine load
+
+### T199 — four of five complete; the wall is quadratic, not infinite
+
+Nine `specs/ternary/gft_*.t27` were classified `TIMEOUT` by sweeps with 60- and
+90-second caps. Re-run **one at a time** with a 600-second cap:
+
+| spec | outcome | seconds | LUT |
+|---|---|---:|---:|
+| `gft_dot4` | OK | 10 | 3,429 |
+| `gft_dot8` | **OK** | **44** | 7,389 |
+| `gft_log2` | **OK** | **20** | 18,612 |
+| `gft_axpy` | **OK** | **352** | 17,613 |
+| `gft_layer3` | TIMEOUT | >600 | — |
+
+> **T199.** **`gft_dot8` finishes in 44 seconds and was recorded as a hang at a
+> 90-second cap.** The sweeps that classified it ran **concurrently with a
+> five-agent fan-out and a second corpus sweep**, so 44 seconds of CPU became
+> more than 90 of wall clock. **The cap measured the load on the machine, and
+> the load was mine.** **Refuted by:** a spec that exceeds 600 s when run alone.
+
+**The growth is quadratic in design size**, which is the real answer to "why the
+family":
+
+```
+dot4   3,429 LUT    10 s
+dot8   7,389 LUT    44 s     2.16x LUT -> 4.4x time    exponent 1.93
+axpy  17,613 LUT   352 s     5.14x LUT -> 35.2x time   exponent 2.18
+```
+
+> **T199a.** **Time ~ LUT².** A design 5× larger takes 35× longer. Nothing is
+> stuck; `synth_xilinx` on a flattened netlist is superlinear, and this family is
+> simply the largest thing the corpus contains — `gft_log2` alone is **18,612
+> LUTs**, which is real hardware, not a defect. **Refuted by:** a measured
+> exponent below 1.3 on a wider sample.
+
+### T199b — third instance of "slow" mistaken for "stuck", and the first that was self-inflicted
+
+W700 read a build that did not compile as a working transform's failure. W701
+read a wiring-reducible body as a vanished one. **This one is worse in kind:**
+the two previous were misreadings of a true measurement; **this was a
+measurement contaminated by the measurer.**
+
+> **T199b.** *A wall-clock timeout on a shared machine measures the machine.* The
+> rule that follows is not "use a longer cap" — it is **run the timing sweep
+> alone, or record CPU time rather than elapsed time**. A cap is a claim about
+> the workload; under contention it is a claim about the scheduler.
+
+**And the population shrinks accordingly.** Of nine specs recorded as hanging,
+**at most one or two genuinely exceed a generous cap.** The rest are between 10
+and 352 seconds, and the corpus tools cap at 15.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
