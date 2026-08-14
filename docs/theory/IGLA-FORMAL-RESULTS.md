@@ -14079,6 +14079,11 @@ survive placement**: 1370 placed against pot7's 1103.
 
 ### T281 — the gold standard, stated
 
+> ⚠ **The ACCURACY half of this section does not replicate — see T282 (W742).**
+> On MNIST the powers-of-two advantage vanishes (`pot9 − GA-T3 = −0.304 pp,
+> t = −1.07`). What replicates across both tasks is **cardinality only**. The
+> AREA half stands and is fabric-conditioned.
+
 > **T281.** For a ternary-family weight alphabet on this fabric, **without a
 > DSP**, the answer is **`{0, ±1, ±2, ±4, ±8}` — nine levels, powers of two.**
 >
@@ -14098,6 +14103,80 @@ survive placement**: 1370 placed against pot7's 1103.
 produced the comparison that found the answer. Five measurement directions and a
 trained ladder were needed to say *"powers of two, nine levels"* with a number
 attached to every claim — which is a different thing from having assumed it.
+
+---
+
+## The second task, and what a fabric is allowed to decide — W742
+
+### T282 — the powers-of-two advantage does not replicate
+
+MNIST binarised at pixel > 127, 784 inputs, binary label *digit ≥ 5*, the
+**identical** trainer, 30 seeds, paired:
+
+```
+                    UNSW-NB15                    MNIST >= 5
+pot9 - GA-T3     +0.111 pp  t=+3.92  SIG      -0.304 pp  t=-1.07  not sig
+pot7 - GA-T2     +0.104 pp  t=+4.85  SIG      -0.101 pp  t=-0.50  not sig
+GA-T3 - GA-T0    +0.874 pp  t=+20.9  SIG      +2.141 pp  t=+12.2  SIG
+```
+
+**Registered forecast: both halves replicate, with a larger margin on MNIST.**
+
+> **T282. Refuted on the half that mattered.** The powers-of-two accuracy
+> advantage is **task-specific**: significant on UNSW-NB15, absent on MNIST with
+> the sign nominally reversed. **Only cardinality replicates** — and it
+> replicates strongly, at 2.1 pp across the ladder on MNIST against 0.87 on
+> UNSW. **W741's claim of dominance is withdrawn on the accuracy axis** one wave
+> after it was made, by the experiment that was proposed in the same breath.
+
+### T283 — the area advantage is real and it is a property of the SUBSTRATE
+
+```
+alphabet   levels   bits/weight   placed LUT   accuracy/bit*
+GA-T0        3        1.6000        1035          53.28
+GA-T1        5        2.3333        1370          36.93
+GA-T2        7        2.8182        1509          30.72
+pot7         7        2.8182        1103          30.72
+GA-T3        9        3.1818        1677          27.27
+pot9         9        3.1818        1200          27.24
+```
+`*` mean of the two tasks divided by bits per weight.
+
+> **T283.** At equal cardinality the **packing is identical** — 7 levels cost
+> 2.8182 bits whatever they are — and **accuracy per bit is identical to two
+> decimals**. The only axis on which the alphabets differ is **placed LUT**, and
+> there the dyadic set wins by 27%. **That is not a property of the alphabet.
+> It is a property of a binary fabric in which a shift is wiring and a Fibonacci
+> pair is two accumulators.**
+
+### T283a — the substrate question, answered from the literature
+
+**ShiftCNN** (arXiv:1706.02393, 2017) is the power-of-two weight architecture,
+*"performs only shift and addition operations"*, and explicitly *"targets custom
+inference accelerators and can be realized on FPGAs **or ASICs**"*.
+
+> **T283a.** So the shift advantage is **not an FPGA artefact** — a shift is
+> wiring in any binary substrate, ASIC included. It would only dissolve on a
+> substrate that is **not binary**, and that substrate is a research frontier:
+> arXiv returns **6** papers for CNTFET+ternary and **3** for ternary-logic
+> hardware. **The honest position: on every substrate that can be bought, the
+> dyadic ladder is cheaper. On a ternary substrate the accounting has never been
+> done — by anyone, including us.**
+
+### T284 — is the slot taken?
+
+> **T284.** **On accuracy: no format is established, and ours is not excluded.**
+> Two tasks disagree about which of two alphabets is better, and both agree that
+> **more levels help**. The literature holds the *area* ground — ShiftCNN since
+> 2017 — and holds **no** ground on which finite level set is most accurate at a
+> given cardinality, because the answer appears to be task-dependent.
+>
+> **What is genuinely unclaimed, and what this programme has that others do
+> not:** a **named, cost-graded ladder** whose index is the power of a unit,
+> measured on **five axes** — algebra, trained accuracy on two tasks, LUT,
+> placement, silicon — with every number attached to a run. **The gap in the
+> literature is not a better alphabet. It is a methodology for choosing one**,
+> and that is the thing this project has built and has not yet published.
 
 ---
 
