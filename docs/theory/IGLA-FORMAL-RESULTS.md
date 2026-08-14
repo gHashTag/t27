@@ -13792,4 +13792,75 @@ after extending the collector to StmtAssign:
 
 ---
 
+## The full corpus, measured once on one binary — W737
+
+### T272 — 88 of 578, and the sample was flattering by 1.75×
+
+Every ratio quoted this session came from the first 131 sources in alphabetical
+order. Run over **all 578**, on a single binary whose hash was recorded before
+and after:
+
+```
+  sources checked        578
+  run their tests         88     15.2%
+  BLOCKED                490
+  TOTAL PASSING TESTS   1293
+```
+
+**Registered forecast: 24–29%, near the 26.7% the sample gave.**
+
+> **T272. Refuted, and by a factor of 1.75.** The true share is **15.2%**. An
+> alphabetical prefix is not a random sample — `specs/a*` through `specs/f*`
+> carries the hand-maintained numeric and fpga modules, and the rest of the
+> corpus is not like them. **Every per-wave percentage in this session's reports
+> is high, in a knowable direction**, and the absolute counts (tests passing,
+> specs fixed) are unaffected because they were never sampled.
+
+### T272a — and the two largest Zig classes were invisible in the sample
+
+```
+  PARSE ERROR                                 110
+  zig: unable to format type '...'            101     <-- absent from the sample
+  zig: use of undeclared identifier 'assert'   60     <-- absent from the sample
+  zig: expected '...'                          31
+  zig: use of undeclared identifier            28
+  UNWRITTEN                                    11
+```
+
+> **T272a.** `unable to format type` is the **second largest class in the whole
+> corpus at 101 specs**, and `assert` undeclared is third at 60 — and neither
+> appeared once in 131 alphabetically-ordered specs. **A sample can miss a class
+> that is a sixth of the population.** Both look like single roots: one is a
+> `std.debug.print` format-string mismatch, the other a missing `assert` import
+> or helper. Neither has been worked to root cause, and neither is claimed as
+> one root until it is.
+
+### T273 — a measurement invalidated by its own toolchain, caught
+
+The first full run was started in the background **and the compiler was rebuilt
+twice underneath it** — once with the W737-B change, once reverting it. 272
+specs had been measured across three different binaries.
+
+> **T273.** **The run was discarded, not salvaged.** A census whose instrument
+> changed mid-flight cannot be repaired by noting which rows are suspect,
+> because the boundary is not recorded anywhere. The rerun pinned the binary
+> hash **before and after** — `56b7a6b6d8047566` both times — which is now the
+> minimum protocol for any corpus-wide claim.
+
+### T273a — the `if` expression fix, attempted and reverted at 145 → 99
+
+`parse_if_stmt` has accepted `if cond { ... }` since W578; `parse_if_expr` still
+demanded parentheses, which is why `datalog_engine` advanced 63 lines in W734
+and stopped at `let x = if a == b { ... }`. Mirroring the statement form — the
+paren-less branch **and** its `no_struct_literal` guard — cost **46 of the 145
+reference tests**.
+
+> **T273a.** **The two forms are not symmetric and the guard is why.** In a
+> statement, `Name {` after a paren-less condition can only open the body; in an
+> expression, a branch **value** may legitimately be a struct literal, and
+> suppressing it breaks specs that were working. Reverted; the class stays open
+> with its root now named precisely — which is more than it had before.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

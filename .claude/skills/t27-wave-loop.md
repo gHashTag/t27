@@ -8621,6 +8621,29 @@ These cost a wave each. Follow them before step 1.
      comment. A limitation that lives only in a wave report is one the next
      wave rediscovers -- this session rediscovered four already.
 
+765. **AN ALPHABETICAL PREFIX IS NOT A SAMPLE.** 131 specs gave 26.7% running;
+     all 578 give **15.2%** -- flattering by 1.75x. `specs/a*`..`specs/f*` holds
+     the hand-maintained numeric and fpga modules and the rest of the corpus is
+     not like them. Absolute counts survive; every percentage quoted from a
+     prefix is high.
+
+766. **A SAMPLE CAN MISS A CLASS THAT IS A SIXTH OF THE POPULATION.**
+     `unable to format type` is 101 specs -- second largest in the corpus -- and
+     `undeclared identifier 'assert'` is 60. NEITHER appeared once in 131
+     alphabetically-ordered specs.
+
+767. **NEVER REBUILD THE TOOL UNDER A RUNNING CENSUS.** The first full run had
+     the compiler rebuilt twice beneath it; 272 specs were measured across three
+     binaries and the result was DISCARDED, not salvaged -- the boundary between
+     good and bad rows is recorded nowhere. Pin the binary hash before and
+     after; it is now the minimum protocol for a corpus-wide claim.
+
+768. **STATEMENT AND EXPRESSION FORMS ARE NOT SYMMETRIC.** Copying
+     `parse_if_stmt`'s paren-less branch into `parse_if_expr` cost 46 of 145
+     reference tests: in a statement `Name {` can only open the body, but a
+     branch VALUE may legitimately be a struct literal, so the
+     `no_struct_literal` guard broke working specs. Reverted.
+
 ### How to update this tracker
 
 After closing a wave:

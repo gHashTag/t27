@@ -1,0 +1,578 @@
+specs/account/auth.t27	BLOCKED	error: expected pointer dereference, optional unwrap, or field access, found 'error'
+specs/account/repo.t27	BLOCKED	codegen failed: Expected LBrace, got LParen ('(') at line 12:21
+specs/account/schema.t27	BLOCKED	codegen failed: Expected LBrace, got LParen ('(') at line 13:21
+specs/auth/config.t27	BLOCKED	codegen failed: Expected LBrace, got LParen ('(') at line 60:16
+specs/automation/wrapup-auto.t27	BLOCKED	codegen failed: parse error at module level near line 6: Unexpected token in expression: C
+specs/base/debounce.t27	RUNS	3
+specs/base/ops.t27	BLOCKED	error: expected type 'usize', found 'i8'
+specs/base/ring_32.t27	BLOCKED	error: use of undeclared identifier 'str'
+specs/base/seed.t27	RUNS	5
+specs/base/ternary_add.t27	BLOCKED	codegen failed: parse error in fn 'max_value' near line 64: Expected LBrace, got Colon (':
+specs/base/ternary_encoding.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 37:34
+specs/base/ternary_memory.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 45:25
+specs/base/types.t27	BLOCKED	codegen failed: parse error in fn 'pack_trit' near line 172: Unexpected token in expressio
+specs/boards/arty_a7.t27	RUNS	17
+specs/boards/xc7a100t_full.t27	RUNS	14
+specs/boards/xc7a100t_minimal.t27	RUNS	23
+specs/brain/bus.t27	RUNS	1
+specs/brain/cognitive_loop.t27	RUNS	1
+specs/brain/phi_timing.t27	RUNS	3
+specs/brain/unified_state.t27	RUNS	2
+specs/bus/pubsub.t27	BLOCKED	codegen failed: parse error in fn 'publish_result_to_string' near line 389: Unexpected tok
+specs/bus/schema.t27	BLOCKED	error: expected field initializer
+specs/cloud/railway_deploy.t27	BLOCKED	error: unreachable code
+specs/compiler/diagnostics.t27	BLOCKED	error: expected enum or tagged union, found 'comptime_int'
+specs/compiler/lexer.t27	BLOCKED	error: pointless discard of local constant
+specs/compiler/linker.t27	BLOCKED	codegen failed: parse error in fn 'symbol_ref_new' near line 69: Unexpected token in expre
+specs/compiler/meta_compile.t27	RUNS	4
+specs/compiler/mod_structure.t27	BLOCKED	error: unreachable code
+specs/compiler/optimizer.t27	BLOCKED	codegen failed: parse error in fn 'optimize' near line 201: Unexpected token in expression
+specs/compiler/parser.t27	BLOCKED	codegen failed: parse error in fn 'parse' near line 1458: Unexpected token in expression: 
+specs/compiler/pipeline.t27	RUNS	13
+specs/compiler/stdlib.t27	BLOCKED	error: expected ',' after initializer
+specs/compiler/typechecker.t27	BLOCKED	codegen failed: parse error in fn 'check_stmt' near line 373: parse error near line 373: p
+specs/config/load.t27	BLOCKED	codegen failed: parse error at module level near line 13: Expected RBrace, got Ident ('Con
+specs/config/migrate.t27	BLOCKED	codegen failed: parse error in fn 'migrate_detect_version' near line 396: Expected RBrace,
+specs/config/paths.t27	BLOCKED	codegen failed: parse error in fn 'basename' near line 256: Unexpected token in expression
+specs/config/schema.t27	BLOCKED	error: expected '}', found ']'
+specs/demos/jones_topology_decision_gate.t27	BLOCKED	error: use of undeclared identifier 'vsa'
+specs/demos/jones_topology_filter.t27	BLOCKED	error: use of undeclared identifier 'su2_chern_simons'
+specs/demos/simple_test.t27	RUNS	1
+specs/enrichment/audio_overview.t27	BLOCKED	codegen failed: parse error at module level near line 6: Unexpected token in expression: C
+specs/enrichment/youtube_transcript.t27	BLOCKED	codegen failed: parse error at module level near line 6: Unexpected token in expression: C
+specs/file/operations.t27	BLOCKED	error: expected expression, found '/'
+specs/file/schema.t27	BLOCKED	codegen failed: parse error in fn 'is_hidden' near line 240: Expected RBrace, got KwIf ('i
+specs/file/watcher.t27	BLOCKED	codegen failed: Expected LBrace, got LParen ('(') at line 14:21
+specs/fpga/apb_bridge.t27	BLOCKED	error: use of undeclared identifier 'count'
+specs/fpga/assembler.t27	RUNS	19
+specs/fpga/axi4.t27	BLOCKED	error: use of undeclared identifier 'count'
+specs/fpga/boards/arty_a7_integration.t27	RUNS	6
+specs/fpga/boards/qmtech_a100t_integration.t27	RUNS	7
+specs/fpga/bootrom.t27	RUNS	12
+specs/fpga/bpsk.t27	RUNS	13
+specs/fpga/bridge.t27	BLOCKED	error: use of undeclared identifier 'spi_is_busy'
+specs/fpga/clock_domain.t27	RUNS	12
+specs/fpga/crossopt.t27	RUNS	6
+specs/fpga/cts.t27	RUNS	15
+specs/fpga/dft.t27	RUNS	17
+specs/fpga/e2e_demo.t27	RUNS	16
+specs/fpga/fifo.t27	BLOCKED	codegen failed: parse error in fn 'validate_fifo' near line 203: Expected RParen, got LBra
+specs/fpga/formal.t27	BLOCKED	codegen failed: Expected LBrace, got Amp ('&') at line 171:33
+specs/fpga/gf16_accel.t27	RUNS	27
+specs/fpga/hir.t27	RUNS	26
+specs/fpga/hw_types.t27	RUNS	22
+specs/fpga/linker.t27	BLOCKED	codegen failed: Expected LBrace, got Ident ('sym') at line 250:15
+specs/fpga/mac.t27	BLOCKED	error: use of undeclared identifier 'TernaryWord'
+specs/fpga/memory.t27	RUNS	15
+specs/fpga/partition.t27	BLOCKED	codegen failed: parse error in fn 'assignment' near line 86: Unexpected token in expressio
+specs/fpga/placement.t27	RUNS	14
+specs/fpga/power.t27	RUNS	15
+specs/fpga/power_analysis.t27	BLOCKED	codegen failed: parse error in fn 'utilization_creation' near line 230: unexpected token a
+specs/fpga/router.t27	RUNS	19
+specs/fpga/simulator.t27	RUNS	13
+specs/fpga/spi.t27	BLOCKED	codegen failed: parse error in fn 'spi_get_prescaler_div' near line 114: unexpected token 
+specs/fpga/stdlib.t27	RUNS	17
+specs/fpga/ternary_isa.t27	RUNS	29
+specs/fpga/ternary_link.t27	RUNS	46
+specs/fpga/testbench.t27	RUNS	16
+specs/fpga/testbench/apb_bridge_tb.t27	BLOCKED	error: redeclaration of local variable 'i'
+specs/fpga/testbench/assembler_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/axi4_tb.t27	BLOCKED	error: redeclaration of local variable 'i'
+specs/fpga/testbench/bootrom_tb.t27	BLOCKED	error: expected a digit after base prefix
+specs/fpga/testbench/bridge_tb.t27	BLOCKED	error: local variable shadows declaration of 'rx_ready'
+specs/fpga/testbench/clock_domain_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/cts_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/dft_tb.t27	BLOCKED	error: local variable shadows declaration of 'test_mode'
+specs/fpga/testbench/fifo_tb.t27	BLOCKED	error: local variable shadows declaration of 'wr_en'
+specs/fpga/testbench/formal_tb.t27	BLOCKED	error: local constant shadows declaration of 'cover_hit'
+specs/fpga/testbench/gf16_accel_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/hir_tb.t27	BLOCKED	error: redeclaration of local variable 'ok'
+specs/fpga/testbench/integration_tb.t27	BLOCKED	error: local constant shadows declaration of 'all_modules_idle'
+specs/fpga/testbench/linker_tb.t27	BLOCKED	error: expected type expression, found 'align'
+specs/fpga/testbench/mac_tb.t27	BLOCKED	codegen failed: parse error in fn 'run_tests' near line 353: Unexpected token in expressio
+specs/fpga/testbench/memory_tb.t27	BLOCKED	error: redeclaration of local variable 'i'
+specs/fpga/testbench/partition_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/placement_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/power_analysis_tb.t27	BLOCKED	codegen failed: parse error in fn 'test_utilization_creation' near line 40: unexpected tok
+specs/fpga/testbench/power_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/router_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/simulator_tb.t27	BLOCKED	error: cannot assign to constant
+specs/fpga/testbench/spi_tb.t27	BLOCKED	error: local variable shadows declaration of 'spi_start'
+specs/fpga/testbench/stdlib_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/ternary_isa_tb.t27	BLOCKED	error: local constant shadows declaration of 'operand_a'
+specs/fpga/testbench/timing_tb.t27	BLOCKED	error: not yet implemented
+specs/fpga/testbench/top_tb.t27	BLOCKED	error: use of undeclared identifier 'print'
+specs/fpga/testbench/uart_tb.t27	BLOCKED	codegen failed: parse error in fn 'run_tests' near line 256: Unexpected token in expressio
+specs/fpga/testbench/vcd_conformance_compare_tb.t27	BLOCKED	codegen failed: parse error in fn 'test_run_compare_all_match' near line 59: unexpected to
+specs/fpga/testbench/vcd_trace_tb.t27	BLOCKED	error: local constant shadows declaration of 'timestamp_ps'
+specs/fpga/timing.t27	RUNS	24
+specs/fpga/top_level.t27	BLOCKED	error: expected field initializer
+specs/fpga/uart.t27	BLOCKED	error: cannot assign to constant
+specs/fpga/vcd_conformance_compare.t27	BLOCKED	codegen failed: parse error in fn 'compare_result_init' near line 219: unexpected token af
+specs/fpga/vcd_trace.t27	BLOCKED	codegen failed: Expected LBrace, got Amp ('&') at line 106:37
+specs/fpga/verification/build_verify.t27	RUNS	8
+specs/git/diff.t27	BLOCKED	error: local variable shadows declaration of 'stats'
+specs/git/operations.t27	BLOCKED	error: expected type expression, found ','
+specs/git/schema.t27	BLOCKED	error: expected type expression, found ','
+specs/git/status.t27	BLOCKED	error: not yet implemented
+specs/github/auth.t27	BLOCKED	codegen failed: parse error at module level near line 7: Unexpected token in expression: C
+specs/github/comments.t27	BLOCKED	codegen failed: parse error at module level near line 3: Unexpected token in expression: C
+specs/github/issues.t27	BLOCKED	codegen failed: parse error at module level near line 3: Unexpected token in expression: C
+specs/github/prs.t27	BLOCKED	codegen failed: parse error at module level near line 3: Unexpected token in expression: C
+specs/github/tests/e2e_full_flow.t27	BLOCKED	codegen failed: parse error at module level near line 8: Unexpected token in expression: C
+specs/graph/knowledge_graph.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 101:59
+specs/hslm/forward_pass.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 82:134
+specs/igla/coder/_tmp_pipeline_import.t27	BLOCKED	error: expected expression, found ']'
+specs/igla/coder/arch.t27	BLOCKED	error: expected expression, found ']'
+specs/igla/coder/bench_proxy.t27	BLOCKED	error: use of undeclared identifier 'BenchContext'
+specs/igla/coder/benchmark.t27	BLOCKED	error: duplicate struct member name 'stepprm_rtl_competitor'
+specs/igla/coder/dataset.t27	BLOCKED	error: use of undeclared identifier 'batch_count'
+specs/igla/coder/eval.t27	BLOCKED	error: use of undeclared identifier 'pipeline'
+specs/igla/coder/pipeline.t27	BLOCKED	error: expected expression, found ']'
+specs/igla/coder/prm.t27	BLOCKED	error: use of undeclared identifier 'reward_syntax_score'
+specs/igla/coder/tokenizer.t27	BLOCKED	error: invalid escape character: '0'
+specs/igla/coder/training.t27	BLOCKED	error: use of undeclared identifier 'sgd_step'
+specs/igla/coder/weights.t27	BLOCKED	codegen failed: parse error in fn 'int4_dequantize_bank' near line 691: Expected RBrace, g
+specs/igla/evaluation/multi_lang_harness.t27	RUNS	6
+specs/igla/integration/publication.t27	BLOCKED	error: expected ',' after initializer
+specs/igla/race/adder_tree.t27	RUNS	335
+specs/igla/race/backend.t27	BLOCKED	error: use of undeclared identifier 'char'
+specs/igla/race/bram_weights.t27	BLOCKED	error: redeclaration of local constant 'bank'
+specs/igla/race/cordic.t27	RUNS	330
+specs/igla/race/cordic_fixed.t27	BLOCKED	error: assertion failed
+specs/igla/race/cordic_top.t27	BLOCKED	error: assertion failed
+specs/igla/race/eda.t27	BLOCKED	error: use of undeclared identifier 'PpaMetrics'
+specs/igla/race/formal.t27	BLOCKED	error: use of undeclared identifier 'mock_safe_module'
+specs/igla/race/gemm.t27	BLOCKED	error: expected type 'i16', found 'i32'
+specs/igla/race/opcodes.t27	BLOCKED	error: use of undeclared identifier 'OP_ADD'
+specs/igla/race/rtl.t27	BLOCKED	error: use of undeclared identifier 'opcode_name'
+specs/igla/race/systolic_array.t27	BLOCKED	error: value with comptime-only type 'comptime_int' depends on runtime control flow
+specs/igla/race/systolic_ternary.t27	BLOCKED	error: use of undeclared identifier 'systolic_ternary_array'
+specs/igla/race/ternary_gemm.t27	BLOCKED	error: expected type 'i8', found 'spec.TernaryWeight'
+specs/igla/race/ternary_inference.t27	BLOCKED	error: type 'u8' cannot represent integer value '-1'
+specs/igla/race/ternary_mac.t27	BLOCKED	error: expected type 'i8', found 'spec.TernaryWeight'
+specs/igla/race/ternary_node.t27	RUNS	26
+specs/igla/race/yosys.t27	BLOCKED	error: use of undeclared identifier 'contains_substring'
+specs/igla/training/low_bit_ternary.t27	RUNS	3
+specs/igla/training/pilot_pretraining.t27	RUNS	3
+specs/igla/training/roadmap.t27	BLOCKED	error: use of undeclared identifier 'compute_budget'
+specs/igla/training/scale_up.t27	RUNS	3
+specs/igla/w535_bounded_while_module.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/interop/gf_cross_language.t27	BLOCKED	codegen failed: parse error at module level near line 7: unexpected token after expression
+specs/isa/registers.t27	BLOCKED	error: use of undeclared identifier 'TernaryWord'
+specs/isa/ternary_arithmetic.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 35:48
+specs/isa/ternary_bitwise.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 29:68
+specs/isa/ternary_control_flow.t27	BLOCKED	error: local variable is never mutated
+specs/isa/ternary_deque.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 29:76
+specs/isa/ternary_gates.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 30:28
+specs/isa/ternary_graph.t27	BLOCKED	error: value of type 'bool' ignored
+specs/isa/ternary_hash.t27	BLOCKED	codegen failed: parse error in fn 'insert_lookup' near line 102: Unexpected token in expre
+specs/isa/ternary_memory.t27	BLOCKED	error: expected type expression, found 'align'
+specs/isa/ternary_pattern_matching.t27	BLOCKED	codegen failed: parse error in fn 'match_exact_found' near line 110: Unexpected token in e
+specs/isa/ternary_search.t27	BLOCKED	codegen failed: parse error in fn 'linear_search_found' near line 113: Unexpected token in
+specs/isa/ternary_set.t27	BLOCKED	codegen failed: parse error in fn 'insert_contains' near line 127: Unexpected token in exp
+specs/isa/ternary_shift.t27	BLOCKED	codegen failed: Expected LBrace, got Number ('257') at line 34:66
+specs/isa/ternary_sorting.t27	BLOCKED	codegen failed: parse error in fn 'bubble_sort' near line 117: Unexpected token in express
+specs/isa/ternary_tree.t27	BLOCKED	error: use of undeclared identifier 'not'
+specs/jit/jit.t27	BLOCKED	codegen failed: parse error in fn 'jit_bind' near line 539: unexpected token after express
+specs/lsp/client.t27	BLOCKED	error: use of undeclared identifier 'TextDocumentSyncKind'
+specs/lsp/language.t27	BLOCKED	codegen failed: parse error in fn 'symbol_kind_to_string' near line 311: Unexpected token 
+specs/lsp/protocol.t27	BLOCKED	error: expected field initializer
+specs/lsp/schema.t27	BLOCKED	error: expected '}', found '.'
+specs/lsp/server.t27	BLOCKED	error: use of undeclared identifier 'Diagnostic'
+specs/math/constants.t27	BLOCKED	codegen failed: parse error in fn 'pow' near line 98: Expected LParen, got Ident ('negativ
+specs/math/e8_lie_algebra.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/math/gf_competitive.t27	BLOCKED	codegen failed: parse error in fn 'decode_complexity_returns_3_formats' near line 55: unex
+specs/math/pellis_precision_verify.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/math/phi_split_optimality.t27	BLOCKED	error: use of undeclared identifier 'results'
+specs/math/phi_universal_attractor.t27	BLOCKED	codegen failed: parse error in fn 'bit_allocation_attractor' near line 159: Expected RBrac
+specs/math/property_test_template.t27	BLOCKED	error: use of undeclared identifier 'test_tritspace_dimension'
+specs/math/radix_economy.t27	BLOCKED	codegen failed: parse error in fn 'pow' near line 104: Expected LParen, got Ident ('negati
+specs/math/sacred_physics.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/math/zamolodchikov_e8.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/memory/formula_embed.t27	BLOCKED	codegen failed: parse error in fn 'pad_features' near line 109: Expected LBrace, got Colon
+specs/memory/memory_primitives.t27	BLOCKED	error: use of undeclared identifier 'not'
+specs/memory/notebooklm.t27	BLOCKED	error: use of undeclared identifier 'str'
+specs/memory/semantic_search.t27	BLOCKED	codegen failed: parse error in fn 'semantic_search' near line 95: Expected LBrace, got Col
+specs/ml/activation/elu_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/gelu_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/gelu_approx_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/leaky_relu_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/relu_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/sigmoid_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/silu_swish_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/silu_swish_vbt_activation.t27	RUNS	0
+specs/ml/activation/softmax.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/activation/tanh_activation.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/igla_champion_capsule.t27	RUNS	7
+specs/ml/layers/avgpool2d_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/batchnorm_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/conv2d_layer.t27	BLOCKED	error: expected '{', found ','
+specs/ml/layers/dense_layer.t27	BLOCKED	error: expected '{', found ','
+specs/ml/layers/dropout_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/embedding_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/flatten_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/layernorm_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/maxpool2d_layer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/layers/residual_connection.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/loss/binary_crossentropy_loss.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/loss/contrastive_loss.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/loss/cross_entropy_loss.t27	BLOCKED	error: expected '{', found ','
+specs/ml/loss/huber_loss.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/loss/kl_divergence.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/loss/mse_loss.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/adagrad.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/adam.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/adamw.t27	BLOCKED	error: expected type expression, found ':'
+specs/ml/optimizer/lamb.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/lr_scheduler.t27	BLOCKED	error: use of undeclared identifier 'gf16'
+specs/ml/optimizer/race_config.t27	RUNS	6
+specs/ml/optimizer/rmsprop.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/sgd.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/optimizer/sgd_momentum.t27	BLOCKED	error: use of undeclared identifier 'gf16'
+specs/ml/pathway/mlp.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/attention_mechanism.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/bilstm.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/gru_cell.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/lstm_cell.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/lstm_single.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/rnn_cell.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/self_attention.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/recurrent/seq2seq.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/advantage_estimator.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/dqn.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/dqn_target_network.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/ppo_actor.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/ppo_clip_loss.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/ppo_critic.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/sac_actor.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/rl/sac_critic.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/transformer/encoder_block.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/transformer/feed_forward.t27	BLOCKED	codegen failed: Expected LBrace, got KwStruct ('struct') at line 148:71
+specs/ml/transformer/feed_forward_network.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/transformer/mha_block.t27	BLOCKED	error: use of undeclared identifier 'gf16'
+specs/ml/transformer/multi_head_attention.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/ml/transformer/multi_head_attn.t27	BLOCKED	codegen failed: parse error in fn 'compute_phi_scale' near line 175: unknown cast target t
+specs/ml/transformer/norm.t27	BLOCKED	error: expected type expression, found ','
+specs/ml/transformer/positional_enc.t27	BLOCKED	codegen failed: Expected LBrace, got KwStruct ('struct') at line 67:40
+specs/ml/transformer/positional_encoding.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/neural/forward_pass.t27	BLOCKED	codegen failed: parse error at module level near line 10: unexpected token after expressio
+specs/nn/attention.t27	BLOCKED	error: use of undeclared identifier 'PHI_CUBED_INV'
+specs/nn/gla.t27	BLOCKED	error: expected ']', found ';'
+specs/nn/hslm.t27	BLOCKED	error: use of undeclared identifier 'Trit'
+specs/numeric/bigint.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 50:31
+specs/numeric/formats.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 61:39
+specs/numeric/gf10.t27	RUNS	0
+specs/numeric/gf1024.t27	RUNS	0
+specs/numeric/gf12.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 259: Unexpected token in expressi
+specs/numeric/gf128.t27	RUNS	0
+specs/numeric/gf14.t27	RUNS	0
+specs/numeric/gf16.t27	BLOCKED	codegen failed: parse error in fn 'gf16_exp' near line 824: parse error near line 824: par
+specs/numeric/gf20.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 260: Unexpected token in expressi
+specs/numeric/gf24.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 260: Unexpected token in expressi
+specs/numeric/gf256.t27	RUNS	0
+specs/numeric/gf32.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 265: Unexpected token in expressi
+specs/numeric/gf4.t27	BLOCKED	error: use of undeclared identifier 'goldenfloat_family'
+specs/numeric/gf48.t27	RUNS	0
+specs/numeric/gf512.t27	RUNS	0
+specs/numeric/gf6.t27	RUNS	0
+specs/numeric/gf64.t27	BLOCKED	error: use of undeclared identifier 'goldenfloat_family'
+specs/numeric/gf8.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 272: Unexpected token in expressi
+specs/numeric/gf96.t27	RUNS	0
+specs/numeric/gf_competitive.t27	BLOCKED	error: expected error union type, found 'f64'
+specs/numeric/gfternary.t27	RUNS	13
+specs/numeric/goldenfloat_family.t27	BLOCKED	codegen failed: parse error in fn 'get_format_by_name' near line 232: Unexpected token in 
+specs/numeric/lucas_accumulator.t27	BLOCKED	error: use of undeclared identifier 'pow'
+specs/numeric/pellis_verify.t27	BLOCKED	error: expected error union type, found 'f64'
+specs/numeric/phi_ratio.t27	BLOCKED	codegen failed: parse error in fn 'exp_approx' near line 368: Unexpected token in expressi
+specs/numeric/posit_ladder_control.t27	BLOCKED	error: use of undeclared identifier 'pow'
+specs/numeric/tf3.t27	BLOCKED	codegen failed: parse error in fn 'tf3_from_f32' near line 139: parse error near line 139:
+specs/numeric/tnf17.t27	RUNS	34
+specs/numeric/trinity_numeric_surface.t27	RUNS	1
+specs/physics/chimera_best_gamma.t27	BLOCKED	codegen failed: parse error in fn 'formula' near line 14: unexpected token after expressio
+specs/physics/formula_discovery.t27	BLOCKED	codegen failed: parse error in fn 'generate_basis' near line 96: Unexpected token in expre
+specs/physics/gamma_conjecture.t27	BLOCKED	error: use of undeclared identifier 'pow'
+specs/physics/gi1_analysis.t27	BLOCKED	error: use of undeclared identifier 'pow'
+specs/physics/p2_brain_physics.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 53:55
+specs/physics/pellis-formulas.t27	BLOCKED	error: value of declaration 'spec.PHI' depends on itself here
+specs/physics/sacred_verification.t27	BLOCKED	codegen failed: parse error in fn 'verify_formula' near line 388: Expected LParen, got Ide
+specs/physics/su2_chern_simons.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/physics/zamolodchikov_4d_conjecture.t27	BLOCKED	error: use of undeclared identifier 'constants'
+specs/pins/emitter_xdc.t27	BLOCKED	error: expected expression, found ','
+specs/pins/ir.t27	BLOCKED	codegen failed: Expected LBrace, got Amp ('&') at line 234:50
+specs/pins/parser.t27	BLOCKED	codegen failed: unterminated string literal opened at line 579:81
+specs/pipeline/benchmarks.t27	BLOCKED	codegen failed: parse error in fn 'percentile_sample' near line 66: Unexpected token in ex
+specs/pipeline/e2e_test.t27	BLOCKED	codegen failed: parse error in fn 'full_pipeline_pass' near line 87: Unexpected token in e
+specs/pipeline/experience_save.t27	BLOCKED	error: use of undeclared identifier 'not'
+specs/portable/relay_observer.t27	BLOCKED	codegen failed: parse error at module level near line 6: Unexpected token in expression: C
+specs/provider/adapters.t27	BLOCKED	codegen failed: parse error in fn 'adapter_config_create' near line 208: Unexpected token 
+specs/provider/schema.t27	BLOCKED	codegen failed: parse error in fn 'provider_config_create' near line 267: Unexpected token
+specs/provider/stream.t27	BLOCKED	error: expected field initializer
+specs/provider/transform.t27	BLOCKED	error: expected field initializer
+specs/queen/brain_summaries.t27	RUNS	6
+specs/queen/lotus.t27	BLOCKED	error: variables must be initialized
+specs/queen/task_analysis.t27	BLOCKED	error: use of undeclared identifier 'BrainState'
+specs/runtime/execute.t27	BLOCKED	codegen failed: Expected LBrace, got RParen (')') at line 238:77
+specs/runtime/instance.t27	BLOCKED	codegen failed: parse error at module level near line 13: Expected RBrace, got Ident ('Pro
+specs/runtime/process.t27	BLOCKED	codegen failed: parse error in fn 'process_continue' near line 313: Expected identifier af
+specs/sacred/cosmology.t27	RUNS	0
+specs/sacred/dark_matter.t27	RUNS	0
+specs/sacred/gravity.t27	RUNS	0
+specs/sacred/monopoles.t27	RUNS	0
+specs/sacred/quantum.t27	RUNS	0
+specs/sacred/quantum_gravity.t27	RUNS	0
+specs/sacred/sacred_constants.t27	BLOCKED	error: use of undeclared identifier 'Namespacestructallmembersarecomptimeconstantsorpurefu
+specs/sacred/sacred_governance.t27	BLOCKED	error: expected ',' after field
+specs/sacred/sacred_identity.t27	BLOCKED	error: expected ',' after field
+specs/sacred/superconductivity.t27	RUNS	0
+specs/server/agent-runner.t27	BLOCKED	error: redeclaration of local variable 'state'
+specs/server/api.t27	BLOCKED	error: use of undeclared identifier 'MessageContent'
+specs/server/http.t27	BLOCKED	error: duplicate struct member name 'std'
+specs/server/mdns.t27	BLOCKED	error: expected pointer dereference, optional unwrap, or field access, found 'error'
+specs/server/project.t27	BLOCKED	codegen failed: parse error in fn 'create_project' near line 153: unexpected token after e
+specs/server/provider.t27	BLOCKED	codegen failed: parse error in fn 'provider_type_values' near line 177: unexpected token a
+specs/server/router.t27	BLOCKED	codegen failed: parse error in fn 'route_match' near line 127: parse error near line 127: 
+specs/server/routes.t27	BLOCKED	codegen failed: parse error in fn 'http_method_values' near line 27: unexpected token afte
+specs/server/session.t27	BLOCKED	codegen failed: parse error in fn 'session_state_values' near line 188: unexpected token a
+specs/server/sse.t27	BLOCKED	codegen failed: parse error in fn 'client_new' near line 127: Unexpected token in expressi
+specs/server/vm.t27	BLOCKED	codegen failed: parse error in fn 'vm_step' near line 181: Unexpected token in expression:
+specs/shell/environment.t27	BLOCKED	error: use of undeclared identifier 'Result'
+specs/shell/process.t27	BLOCKED	codegen failed: Expected LBrace, got LParen ('(') at line 14:21
+specs/shell/schema.t27	BLOCKED	codegen failed: parse error in fn 'process_options_full' near line 235: Unexpected token i
+specs/storage/kv.t27	BLOCKED	codegen failed: Expected LParen, got Lt ('<') at line 15:12
+specs/storage/lock.t27	BLOCKED	error: use of undeclared identifier 'Result'
+specs/storage/migrate.t27	BLOCKED	error: expected ',' after field
+specs/storage/schema.t27	BLOCKED	error: expected integer or vector, found 'spec.LockMode'
+specs/sync/index.t27	BLOCKED	codegen failed: parse error at module level near line 13: Expected RBrace, got Ident ('Syn
+specs/sync/schema.t27	BLOCKED	error: expected '.', found ':'
+specs/ternary/activation_quantizer.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bigint.t27	BLOCKED	codegen failed: parse error in fn 'big_int_zero_is_neutral_add' near line 1141: unexpected
+specs/ternary/bitnet_layer.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bitnet_majority.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bitnet_mlp.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bitnet_mlp3.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bitnet_neuron.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/bitnet_neuron_nchunk.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/clocked_counter.t27	RUNS	0
+specs/ternary/comb_bitnet_layer.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/comb_bitnet_neuron.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/comb_ternary_dot.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_add_rne.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_argmax4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_axpy.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_bitnet_neuron.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_classifier4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_classify.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_classify3.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_dot2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_dot2_rne.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_dot4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_dot4_rne.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_dot8.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_exp2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_hidden2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_layer2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_layer3.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_layer4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_log2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_logistic.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_madd.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_mlp2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_mlp3.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_mul_rne.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_neuron_full.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_nll.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_recip.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_relu.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_sadd.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_sgd_step.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_signed_dot4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_signed_mac.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_smul.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_softmax4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_softmax_grad4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_train1.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_train2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_train2relu.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xorbp.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xorbp2.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xornet.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xorpercep.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xorpercep3.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xorpercep4.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/gft_xortrain.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/hybrid_arithmetic.t27	BLOCKED	codegen failed: parse error at module level near line 49: Unexpected token in expression: 
+specs/ternary/hybrid_bigint.t27	BLOCKED	codegen failed: parse error at module level near line 10: unexpected token after expressio
+specs/ternary/packed_trit.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 75:61
+specs/ternary/stream_ternary_mac.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/ternary_full_adder.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/ternary_mac.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/ternary_ripple_adder.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/ternary/ternary_xor.t27	BLOCKED	error: use of undeclared identifier 'assert_eq'
+specs/test_framework/core.t27	BLOCKED	codegen failed: unterminated string literal opened at line 316:31
+specs/test_framework/graph_drift_detection.t27	BLOCKED	codegen failed: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Ban
+specs/test_framework/property_test_template.t27	BLOCKED	codegen failed: Expected LParen, got Lt ('<') at line 97:15
+specs/test_framework/runner.t27	BLOCKED	codegen failed: parse error at module level near line 23: unexpected token after expressio
+specs/test_framework/verilog_bench_harness.t27	BLOCKED	codegen failed: parse error in fn 'generate_random_gf16_vectors' near line 166: Expected R
+specs/tools/registry.t27	BLOCKED	codegen failed: parse error in fn 'registry_with_tools' near line 166: Unexpected token in
+specs/tools/schema.t27	BLOCKED	codegen failed: parse error at module level near line 7: unexpected token after expression
+specs/tools/tri_to_t27_converter.t27	BLOCKED	error: use of undeclared identifier 'contains_module_declaration'
+specs/tri/agent/agent_run.t27	RUNS	0
+specs/tri/agent/agents.t27	RUNS	0
+specs/tri/agent/autonomous_lifecycle.t27	BLOCKED	error: expected ',' after field
+specs/tri/agent/autonomous_universe.t27	RUNS	0
+specs/tri/agent/eternal_monitor.t27	BLOCKED	error: use of undeclared identifier 'std'
+specs/tri/agent/experience_hooks.t27	RUNS	0
+specs/tri/agent/faculty_board.t27	RUNS	0
+specs/tri/agent/governance_agent.t27	BLOCKED	error: expected ',' after field
+specs/tri/agent/handoff.t27	BLOCKED	error: expected expression, found ','
+specs/tri/agent/memory.t27	RUNS	0
+specs/tri/agent/swarm_agents.t27	BLOCKED	error: expected ',' after field
+specs/tri/collections/array.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/bitmap.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/collections/bitset.t27	BLOCKED	codegen failed: Expected LParen, got KwTest ('test') at line 39:8
+specs/tri/collections/bitvector.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/collections/btree.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/circular_buffer.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/collections/context.t27	RUNS	0
+specs/tri/collections/deque.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/collections/either.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/interval.t27	BLOCKED	error: expected '(', found 'union'
+specs/tri/collections/linked_list.t27	BLOCKED	error: use of undeclared identifier 'T'
+specs/tri/collections/list.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/lockfree_stack.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/collections/lru.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/lru_cache.t27	BLOCKED	error: tuple field has a name
+specs/tri/collections/map.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/maybe.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/namespace.t27	BLOCKED	error: expected '{', found ')'
+specs/tri/collections/option.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/priority_queue.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/collections/queue.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/result.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/ring_buffer.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/set.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/skip_list.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/stack.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/state.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/tuple.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/collections/variant.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/crypto/base32.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/crypto/base64.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/crypto/crypto.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/crypto/ecc.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/crypto/hex.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/crypto/hmac.t27	BLOCKED	error: use of undeclared identifier 'SHA256'
+specs/tri/crypto/reed_solomon.t27	BLOCKED	error: expected type expression, found ','
+specs/tri/crypto/rsa.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/crypto/sha256.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/encoding/bson.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/encoding/csv.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/encoding/html.t27	BLOCKED	error: expected ']', found ','
+specs/tri/encoding/json.t27	BLOCKED	error: use of undeclared identifier 'JsonValueData'
+specs/tri/encoding/markup.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/encoding/mime.t27	BLOCKED	error: expected ']', found ','
+specs/tri/encoding/msgpack.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/encoding/xml.t27	BLOCKED	error: expected ']', found ','
+specs/tri/graph/bellman_ford.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/graph/dijkstra.t27	BLOCKED	error: use of undeclared identifier 'Graph'
+specs/tri/graph/disjoint_set.t27	BLOCKED	error: expected '(', found 'union'
+specs/tri/graph/graph.t27	BLOCKED	codegen failed: unterminated string literal opened at line 20:20
+specs/tri/graph/graph_bfs.t27	BLOCKED	error: expected ']', found ','
+specs/tri/graph/graph_dfs.t27	BLOCKED	error: use of undeclared identifier 'Graph'
+specs/tri/graph/prims_mst.t27	BLOCKED	error: use of undeclared identifier 'Edge'
+specs/tri/graph/topological_sort.t27	BLOCKED	error: use of undeclared identifier 'Graph'
+specs/tri/io/compress.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/io/filesystem.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/io/fs.t27	BLOCKED	error: expected ']', found ','
+specs/tri/io/io.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/io/reader.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/io/writer.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/io/zip.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/math/bezier.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/math/constants.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/math/math.t27	RUNS	0
+specs/tri/math/matrix.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/math/measurement.t27	RUNS	0
+specs/tri/math/polynomial.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/math/probability.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/math/statistics.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/net/async.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/net/async_stream.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/net/channel.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/net/cloud.t27	RUNS	0
+specs/tri/net/http.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/net/net.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/net/url.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/pipeline/batch_runner.t27	BLOCKED	error: use of undeclared identifier 'String'
+specs/tri/pipeline/builder.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/pipeline/cloud_orchestrator.t27	RUNS	0
+specs/tri/pipeline/codegen.t27	BLOCKED	error: use of undeclared identifier 'String'
+specs/tri/pipeline/pipeline.t27	RUNS	0
+specs/tri/pipeline/pipeline_parallel.t27	BLOCKED	error: expected ',' after field
+specs/tri/pipeline/spec_parser.t27	RUNS	0
+specs/tri/pipeline/spec_writer.t27	BLOCKED	error: expected ']', found ','
+specs/tri/pipeline/workflow.t27	BLOCKED	error: expected ']', found ','
+specs/tri/pipeline/workflow_executor.t27	RUNS	0
+specs/tri/pipeline/workflow_parser.t27	RUNS	0
+specs/tri/search/aho_corasick.t27	BLOCKED	error: expected ']', found ','
+specs/tri/search/bloom_filter.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/boyer_moore.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/knuth_morris_pratt.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/match.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/pattern.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/rabin_karp.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/search/regex.t27	BLOCKED	error: expected ']', found ','
+specs/tri/search/regex_advanced.t27	BLOCKED	error: expected ']', found ','
+specs/tri/search/search.t27	BLOCKED	error: use of undeclared identifier 'T'
+specs/tri/sort/counting_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/heap_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/insertion_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/merge_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/quick_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/radix_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/selection_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/shell_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/sort/sort.t27	BLOCKED	error: use of undeclared identifier 'T'
+specs/tri/sort/tim_sort.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/avl_tree.t27	BLOCKED	error: tuple field has a name
+specs/tri/trees/b_tree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/fenwick_tree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/kd_tree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/octree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/quadtree.t27	BLOCKED	error: expected ']', found ','
+specs/tri/trees/red_black_tree.t27	BLOCKED	error: tuple field has a name
+specs/tri/trees/rtree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/segment_tree.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/splay_tree.t27	BLOCKED	error: tuple field has a name
+specs/tri/trees/suffix_array.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/trees/tree.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/trees/trie.t27	BLOCKED	codegen failed: parse error at module level near line 13: Unexpected token in expression: 
+specs/tri/utils/args.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/arrow_time.t27	RUNS	0
+specs/tri/utils/bytes.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/utils/color.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/colors.t27	RUNS	0
+specs/tri/utils/config.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/error.t27	RUNS	0
+specs/tri/utils/exit_codes.t27	BLOCKED	error: use of undeclared identifier 'Enum'
+specs/tri/utils/help.t27	BLOCKED	error: expected ',' after field
+specs/tri/utils/logger.t27	BLOCKED	error: use of undeclared identifier 'Instant'
+specs/tri/utils/logging.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/random.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/string.t27	RUNS	0
+specs/tri/utils/template.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/terminal.t27	BLOCKED	error: use of undeclared identifier 'TerminalSize'
+specs/tri/utils/text.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/time.t27	BLOCKED	error: use of undeclared identifier 'default_input'
+specs/tri/utils/utf8.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/tri/utils/version.t27	BLOCKED	error: unable to format type '@TypeOf(undefined)'
+specs/trinet/etx.t27	RUNS	11
+specs/vm/jit_semantics.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 73:58
+specs/vsa/jones_polynomial.t27	BLOCKED	codegen failed: parse error in fn 'writhe' near line 24: unexpected token after expression
+specs/vsa/ops.t27	BLOCKED	error: type '[]spec.Trit' does not support array initialization syntax
+specs/vsa/packed_vsa.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 58:74
+specs/vsa/sdk.t27	BLOCKED	error: use of undeclared identifier 'hybrid_arithmetic'
+specs/vsa/sequence_hdc.t27	BLOCKED	codegen failed: Expected LBrace, got Semicolon (';') at line 96:88
+specs/vsa/similarity_search.t27	RUNS	8
+specs/vsa/vsa_core.t27	BLOCKED	codegen failed: parse error in fn 'vsa_bind_self_inverse_property' near line 705: unexpect
