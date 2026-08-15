@@ -9537,6 +9537,28 @@ of 2.19; effective fan-in predicts LUT at r=+0.991 across six alphabets (T410).
 *When one arm is cheap, ask what it stopped doing before asking how it got
 cheap.* The spec had encoded this as a preference for two waves.
 
+**900. Two tasks, |r| >= 0.97 on both, opposite signs.** Effective fan-in
+predicts accuracy near-perfectly on UNSW (-0.971) and Fashion (+0.991). *A
+near-perfect correlation on one bench is not a law; it is one bench.* Run the
+second before writing the theorem, and when the signs disagree, that IS the
+theorem (T412).
+
+**901. A refuted forecast is worth more when the refutation is significant.**
+Fashion moved 5.28 pp the way I predicted and failed the test; UNSW moved 5.70 pp
+the other way and passed. *Report the direction that survived the test, not the
+one that matched the hypothesis.*
+
+**902. "Computes less" does not mean "is worth less".** A neuron reading one of
+three inputs is a sign detector on the strongest -- a legitimate feature. On UNSW
+the steepest alphabet is BOTH 6x smaller AND 5.70 pp better, significantly
+(T412b). *Separate the structural measurement from the value judgement; the first
+was exact and the second was assumed.*
+
+**903. Check the majority-class baseline before reading any ordering.** UNSW's
+best-fan-in arm sat 1.25 pp above majority, which is consistent with a training
+failure rather than a capability limit -- so the inversion is [измерено], not
+[доказано], and the confound is named with its test (T412c).
+
 ### How to update this tracker
 
 After closing a wave:

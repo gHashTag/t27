@@ -17389,4 +17389,69 @@ Six alphabets, L = 8 stacked layers, every neuron rejection-sampled live:
 
 ---
 
+## W778d — the forecast was refuted by the only significant result
+
+### T412 — effective fan-in governs accuracy on both tasks, with opposite signs
+
+T411 scoped S6 to area because the **dense** benches cannot see it. Tested where
+the mechanism can act — sparse, fan-in 3, L = 3, 8 seeds, identical wiring masks
+per seed so only the alphabet's values differ:
+
+**Registered forecast (T44), before the run:** *accuracy tracks effective fan-in
+monotonically, ordering linear ≥ dyadic > base 3 > base 4, and base 4 loses at
+least 3 pp against linear 9. Refutation consequence: if base 4 lands within 1 pp
+of linear 9, effective fan-in does not govern function and T408–T411 are
+re-scoped to area only.*
+
+| UNSW | eff. fan-in | accuracy | Δ vs linear 9 | t | |
+|---|---:|---:|---:|---:|---|
+| linear 9 | 2.55 | 56.31 % | — | — | *majority class 55.06 %* |
+| fib | 2.52 | 56.78 % | +0.46 | +1.73 | ns |
+| dyadic | 2.19 | 59.08 % | +2.77 | +2.75 | **significant** |
+| base 3 | 1.49 | 61.10 % | +4.79 | +3.14 | **significant** |
+| base 4 | 1.03 | **62.01 %** | **+5.70** | +3.34 | **significant** |
+| | | | | **r = −0.971** | |
+
+| Fashion | eff. fan-in | accuracy | Δ vs linear 9 | t | |
+|---|---:|---:|---:|---:|---|
+| linear 9 | 2.55 | **76.92 %** | — | — | |
+| fib | 2.52 | 76.74 % | −0.18 | −1.55 | ns |
+| dyadic | 2.19 | 75.00 % | −1.92 | −1.68 | ns |
+| base 3 | 1.49 | 73.39 % | −3.53 | −2.18 | ns |
+| base 4 | 1.03 | 71.64 % | −5.28 | −2.27 | ns |
+| | | | | **r = +0.991** | |
+
+> **T412. Refuted, and by the only significant result on either task.** Fashion
+> moved 5.28 pp in the forecast direction and **failed the test**; UNSW moved
+> 5.70 pp in the **opposite** direction and **passed it on three of four arms**.
+> Effective fan-in correlates with accuracy at **|r| ≥ 0.97 on both tasks and
+> with opposite signs**. The mechanism is real; its **direction is a property of
+> the task**, exactly as T355 found for the sparse penalty and T288 for the
+> saturation rung.
+
+> **T412a. "Computes less" is withdrawn as a claim about worth.** A neuron
+> reading one of three inputs is a **sign detector on the strongest one**, and
+> that is a legitimate feature, not a broken one. T408–T410 stand exactly as
+> measured — the enumeration is exhaustive, the tribonacci boundary is exact, and
+> effective fan-in predicts LUT at r = +0.991. What does not stand is the
+> inference from *fewer inputs* to *less value*.
+
+> **T412b. On UNSW the steep alphabet is Pareto-dominant, and that is the useful
+> finding.** Base 4 is **six times smaller** (45 LUT against linear 9's 271 at
+> L = 8) **and 5.70 pp more accurate, significantly.** A programme that had been
+> treating alphabet steepness as a cost has been paying for accuracy it could
+> have had for free on at least one task.
+
+> **T412c. A confound this run cannot separate, named with its test.** The
+> threshold is fixed at 2.0 while the alphabet's dynamic range varies 8:1 to
+> 64:1, and T207 established that a fixed threshold is precisely what makes an
+> alphabet's scale matter. UNSW's high-fan-in arms sitting **1.25 pp above the
+> majority class** is consistent with a training failure rather than a capability
+> limit. **Test:** re-run with the threshold scaled per arm to equalise the
+> pre-activation variance. If the UNSW inversion survives, it is the alphabet; if
+> it vanishes, it was the trainer. **Until then T412's UNSW direction is
+> [измерено], not [доказано].**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

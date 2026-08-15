@@ -230,12 +230,24 @@ pub fn binary_rows(fanin : u32) -> u32 {
 // COMPUTES LESS. `prefers_base(b, LAYER_TABLE) = b >= 3` was preferring
 // degeneracy, and is withdrawn below.
 //
-// SCOPE, because the accuracy benches do not show this. T403 measured base 3 at
-// +0.14 pp (UNSW) and -0.25 pp (Fashion), neither significant, on a DENSE stand.
-// A dominant weight among 593 dense inputs is harmless; among three it is fatal.
-// S6 is a property of the fan-in-3 table architecture S4 mandates -- the two
-// filters INTERACT, and this is the combining function T402a said the sieve
-// lacked.
+// SCOPE, AND THE DIRECTION IS NOT WHAT IT LOOKS LIKE (T412). Measured on the
+// sparse fan-in-3 stand where the mechanism can act, 8 seeds, both tasks:
+//
+//   effective fan-in vs accuracy   UNSW  r = -0.971   Fashion  r = +0.991
+//
+// Near-perfect on both, WITH OPPOSITE SIGNS. On UNSW the steepest alphabet is
+// significantly BETTER (base 4 at 62.01% against linear 9's 56.31%, t=+3.34) and
+// six times smaller; on Fashion it is 5.28 pp worse and NOT significant. A
+// neuron that reads one of three inputs is a sign detector on the strongest one,
+// and whether that is a loss is a property of the TASK, exactly as T355 found
+// for the sparse penalty and T288 for the saturation rung.
+//
+// So S6 marks a real and exactly-locatable structural effect. It does NOT mark a
+// defect. What it forbids is a base-only ranking rule: `b >= 3` claimed a
+// COMPRESSION mechanism that does not exist, and the mechanism that does exist
+// has task-dependent value. S6 is the interaction between S4's fan-in bound and
+// the alphabet's skew -- the combining function T402a said the sieve lacked --
+// and its sign must be measured per task, never assumed.
 // ============================================================================
 
 // The largest magnitude and the sum of the others, both as integers, so the
@@ -287,10 +299,12 @@ pub fn is_shift_base(b : u32) -> bool {
 // The ranking rule, stated so it cannot be quoted out of its layer.
 // Returns true when base `b` is the cheaper choice for a layer of kind `kind`.
 // W778: WITHDRAWN AS WRITTEN. The old body returned `b >= 3` for LAYER_TABLE,
-// on T366a's reading that a faster-growing base compresses better. It does not
-// compress better -- it computes less (S6 above, r = +0.991 between effective
-// fan-in and LUT). A ranking that prefers a cheaper table because the table has
-// stopped being a function is not an area ranking.
+// on T366a's reading that a faster-growing base COMPRESSES better. It does not
+// compress -- it lowers the neuron's effective fan-in (S6 above, r = +0.991
+// between effective fan-in and LUT). Whether that trade is good was then
+// measured and is TASK-DEPENDENT (T412): significantly better on UNSW, worse and
+// non-significant on Fashion. A base-only rule cannot express that, whichever
+// value it returns.
 //
 // The table-layer preference is therefore no longer a function of the base at
 // all: every integer ladder fails S6, so the ladder family has no good member
