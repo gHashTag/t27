@@ -9667,6 +9667,33 @@ worth 17-21 pp and then another 2.56, and the residual is still 9.39 against the
 field's 4.79 (T422b). *Finding the big one is a reason to keep looking, not to
 stop.*
 
+**924. A correlation over a predictor you designed to be monotone measures your
+design.** r=+0.991 at n=6, r=-0.971/+0.956 at n=5, no confidence intervals. Report
+the PAIRS and the SLOPE (T424). T418 caught this from the inside via Spearman; the
+literature said it from the outside. *Two independent routes to the same
+objection means it was always visible.*
+
+**925. Before coining a term, search for it.** "Effective fan-in" is ODIN's
+(arXiv:1804.07858), for accumulator depth. And the object already had a name --
+junta degree, O'Donnell (T424a). *A coined term makes work unfindable in both
+directions.*
+
+**926. Apply your own retraction to your own nulls.** T413c said a fixed threshold
+manufactures orderings; that makes every NULL measured under one equally suspect,
+including T403's headline. Checked -- bases.py normalises everywhere, "W748 fix,
+always on" -- and T403 stands (T425). *The question was found by an outside
+reader; the answer took one grep. Ask it of yourself first.*
+
+**927. "We could not resolve X" is not "X is worth <= 0.25 pp".** AdaMX removes
+83% of MXFP4 loss by adapting element representation; MoFQ beats GPTQ at fixed
+bit-width; GSQ works at 3-8 levels, our exact regime (T425a). *A null on two tasks
+at five seeds is a limit of the measurement, and the sentence must say so.*
+
+**928. Check whether two interventions are one object on the target hardware.**
+"Remove the fixed threshold" and "add normalisation" are the same thing once BN
+folds into a threshold -- FINN section 4.2.2 is literally titled that. Which is
+why the second one was worth only +2.56 pp after the first (T426).
+
 ### How to update this tracker
 
 After closing a wave:

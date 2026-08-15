@@ -17820,4 +17820,98 @@ gradient, running statistics for inference:
 
 ---
 
+## W779e — the synthesis, and the four things it takes back
+
+### T423 — the mechanism has a name, and it is not ours
+
+> **T423.** The collapse of a fan-in-3 neuron onto one input when one weight
+> dominates is **the critical-index / head-tail decomposition of linear threshold
+> functions** — Servedio, *Computational Complexity* 2007 (arXiv:0902.3757) —
+> with the superincreasing-implies-lexicographic fact formalised in Gupte
+> (arXiv:1503.03742) and the object's names (**1-junta, dictator, LTF**) from
+> O'Donnell. **T409 is a rediscovery twice over**: the constant is OEIS A058265's
+> definition and the collapse is a 2007 theorem.
+>
+> **What remains ours is bookkeeping**: that this kills the `k = 2` member of
+> `TNF(k,b)` — a formula nobody else uses. **State it that small.**
+
+> **T423a. The 1960s priority claim is withdrawn as unciteable.** Sarma/Das/
+> Choudhury 1967 and Sheng & Hwa 1966 are Crossref-verified in *metadata only*;
+> tandfonline returned 403 and IEEE an empty body. **Citing them as "stated in
+> 1967" is a priority claim on text nobody in this chain has read.** Servedio is
+> verifiable and does the same work — use it.
+
+### T424 — the correlation coefficients are not reportable
+
+> **T424.** `r = +0.991` (T410) is computed over **six alphabets constructed to
+> vary monotonically in the predictor**, `n = 6`, no confidence interval. The same
+> objection hits `r = −0.971 / +0.956` (T412/T413) at `n = 5` and `+0.916 /
+> +0.986` (T418) at `n = 7`. **Report the pairs and the slope; do not report `r`
+> as an effect size.** T418 already found this from the inside — Pearson +0.916
+> against Spearman +0.607 — and the synthesis says it from the outside: **a
+> correlation over a predictor you designed to be monotone measures your design,
+> not the world.**
+
+> **T424a. The name is taken.** ODIN (arXiv:1804.07858) uses *"effective fan-in"*
+> for accumulator depth: *"The effective fan-in of the neuron is controlled by an
+> 11-bit accumulator with configurable depth."* Ours must be renamed or the
+> collision disclaimed. Proposed: **functional fan-in**, or the existing
+> **junta degree**, which is O'Donnell's and needs no coining at all.
+
+> **T424b. The field already prices functional input count.** **Logic Shrinkage**
+> (FPGA'22 / TRETS 2023, 10.1145/3583075) learns per-LUT input counts *"by
+> removing LUT inputs determined to be of low importance"* and converts it to
+> **1.54× area**. **NeuraLUT** states the complement: *"the NN topology and
+> precision within a partition do not affect the size of the lookup tables
+> generated."* **DWN** (arXiv:2410.11112) supplies the mechanism: an `n`-input LUT
+> has VC-dimension `2ⁿ` against a thresholded linear neuron's `n+1`.
+> **What is unpublished is only the CAUSE** — attributing low junta degree to the
+> **weight alphabet**, with the exhaustive 729-triple enumeration behind it.
+> **That is the contribution: small, checkable, and real.**
+
+### T425 — the null that was challenged and survived
+
+> **T425.** The synthesis raised the sharpest internal objection of the wave:
+> *T413c establishes that a fixed threshold manufactures alphabet orderings, so a
+> **null** measured under a fixed threshold is exactly as suspect as the positive
+> result already retracted.* If T403's dense stand had a fixed threshold, the
+> whole "shape is worth ≤ 0.25 pp" result would fall with it.
+>
+> **Checked, not asserted.** `bases.py` normalises in **training, validation and
+> test** — `a1 = a1/(a1.std()+1e-6)*thr`, commented *"W748 fix, always on"*.
+> **T403 stands.**
+
+> **T425a. But its claim must be re-worded, and the literature says why.** The
+> defensible sentence is **not** *"alphabet shape is worth ≤ 0.25 pp"* — it is
+> *"on these two tasks, at this scale, with five seeds, we could not resolve shape
+> at fixed cardinality."* Direct counter-evidence exists and will be raised:
+> **AdaMX** (arXiv:2608.03867) removes **83 %** of MXFP4's commonsense loss by
+> adapting the element representation per block; **MoFQ** (arXiv:2305.12356)
+> beats GPTQ by choosing format per layer at fixed bit-width; **GSQ**
+> (arXiv:2604.18556) operates at **3–8 levels — exactly our regime** — and
+> recovers a large gap. **A null we could not resolve is not a null the world
+> obeys.**
+
+### T426 — the one finding with a case, and the case is narrow
+
+> **T426.** The **mechanism** half of T413 is thoroughly rediscovered and older
+> than assumed: **Ternary Weight Networks** (arXiv:1605.04711, 2016) gives the
+> dead-zone threshold in closed form as `Δ* ≈ 0.75·E|W| ≈ 0.6σ`; **Sari et al.**
+> (arXiv:1909.09139) state the scale-invariance argument almost verbatim and
+> quantify BN removal at **88.8 → 31.7** on ResNet-56/CIFAR-10; **FINN**
+> (arXiv:1612.07119) §4.2.2 is titled *"Batchnorm-activation as Threshold"*.
+> **On hardware, "remove the fixed threshold" and "add normalisation" are one
+> object, not two interventions** — which is why T422 found the second one worth
+> only +2.56 pp after the first.
+>
+> **The META half has no found prior art in quantisation**: that the confound
+> **reorders** arms rather than uniformly lowering them, flipping a correlation
+> from −0.971 to +0.956. Its nearest neighbours are in other subfields — **Yang
+> et al.** on NAS (arXiv:1912.12522) showing protocol changes alter architecture
+> *rankings*, and **Liu et al.** on pruning (arXiv:1810.05270) reversing a field
+> conclusion via training budget. **If anything here is publishable it is that,
+> as a methods note, framed as a confound demonstration and not as a result.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
