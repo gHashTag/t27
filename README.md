@@ -38,6 +38,40 @@ inspectable artefacts at every step.
   commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
   and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
 - **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+## FPGA — what is measured on real silicon (2026-08-15)
+
+Three **QMTech XC7A200T-FGG676** boards. Synthesis is
+`yosys 0.63 → nextpnr-xilinx (openXC7) → prjxray`, always with
+**`-nodsp -nosrl`** (see the defect note below).
+
+| result | number |
+|---|---|
+| **Trained ternary network across three dice** | **232 LUT**, 0 DSP, 0 SRL, **100/100** layer agreement on real UNSW-NB15 rows |
+| Best single-die artefact | **123 LUT** at **81.37%** (UNSW-NB15) / **86.91%** (Fashion-bin) |
+| Field reference on the same benchmark | TreeLUT (II): **89 LUT** at **92.0%** |
+| Cost rule, measured | **2.00 LUT/neuron** at ≤6 input bits; **39–54** at 12 |
+
+**Our area is competitive; our accuracy is not** — 1.38× the field's LUT at 10.6
+points less accuracy on UNSW-NB15. Detail: [`BENCHMARKS.md`](BENCHMARKS.md) §4,
+positioning: [`COMPETITORS.md`](COMPETITORS.md) §5.
+
+**The golden alphabet, measured against its own claim.** This line is named for
+φ. Alphabet **size** is worth **+0.735 pp** and its **shape** +0.149 pp, against
+inter-layer normalisation at **+29.15 pp** — and the multiplier φ removes from
+weight application **returns in the pair resolve** (8 DSP48E1, or ~2750 LUT
+without them). The algebra stands and is Coq-checked; the practical advantage
+does not. This is a negative result about our own headline idea and is recorded
+as one.
+
+**Toolchain defects found here.** openXC7 emits a **wrong bitstream from a
+correct netlist** for `SRL16E` (0/6 rows vs 24/24 with `-nosrl`, source
+byte-identical) and for a live-operand `DSP48E1`. Both pass the wrong-part → ours
+`0→1` acceptance criterion while computing the wrong answer. `t27c yostat` exits
+2 when either appears. Reproduction:
+[`docs/reports/OPENXC7-SRL16E-DEFECT.md`](docs/reports/OPENXC7-SRL16E-DEFECT.md).
+
+---
+
 ## HuggingFace mirror
 
 Discoverability mirror of the numeric corpus. GitHub remains the primary source of truth (one-way flow GitHub -> Zenodo -> Hugging Face).
