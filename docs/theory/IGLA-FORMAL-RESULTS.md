@@ -17454,4 +17454,69 @@ re-scoped to area only.*
 
 ---
 
+## W778e — the confound was the whole result
+
+### T413 — the same stand, normalised, and both tasks agree
+
+T412c named a confound and its test: *the threshold is fixed at 2.0 while the
+alphabet's dynamic range varies 8:1 to 64:1; re-run with the threshold scaled per
+arm; if the UNSW inversion survives it is the alphabet, if it vanishes it was the
+trainer.* Run, same seeds, same masks, one line changed:
+
+| UNSW | eff. fan-in | fixed thr | **normalised** | Δ vs linear 9 | t | threshold gave |
+|---|---:|---:|---:|---:|---:|---:|
+| linear 9 | 2.55 | 56.31 | **77.30** | — | — | **+20.99** |
+| fib | 2.52 | 56.78 | 76.87 | −0.43 | −1.96 | +20.09 |
+| dyadic | 2.19 | 59.08 | 76.85 | −0.45 | −1.11 | +17.77 |
+| base 3 | 1.49 | 61.10 | 76.38 | −0.92 | −1.17 | +15.28 |
+| base 4 | 1.03 | 62.01 | 75.70 | −1.60 | −1.52 | +13.68 |
+| | | **r = −0.971** | **r = +0.956** | | *0/4 significant* | |
+
+| Fashion | eff. fan-in | fixed thr | **normalised** | Δ vs linear 9 | t | threshold gave |
+|---|---:|---:|---:|---:|---:|---:|
+| linear 9 | 2.55 | 76.92 | **85.53** | — | — | +8.61 |
+| fib | 2.52 | 76.74 | 85.50 | −0.03 | −0.37 | +8.76 |
+| dyadic | 2.19 | 75.00 | 85.00 | −0.52 | **−2.48** | +10.00 |
+| base 3 | 1.49 | 73.39 | 83.97 | −1.55 | **−5.27** | +10.59 |
+| base 4 | 1.03 | 71.64 | 82.59 | −2.93 | **−4.85** | +10.95 |
+| | | r = +0.991 | **r = +0.987** | | *3/4 significant* | |
+
+> **T413. The sign flipped from −0.971 to +0.956 on one line of code.** With
+> normalisation present, **both tasks agree**: higher effective fan-in, higher
+> accuracy — r = +0.956 and +0.987, significant on three of four Fashion arms.
+> **T412's UNSW inversion was entirely the missing normalisation**, exactly as
+> T412c predicted it might be.
+
+> **T413a. T412b is withdrawn.** "On UNSW base 4 is six times smaller **and**
+> 5.70 pp more accurate, significantly" was the confound speaking. Corrected:
+> base 4 is six times smaller and **1.60 pp worse (ns) on UNSW, 2.93 pp worse
+> (significant) on Fashion**. That is still an excellent trade — **6× area for
+> under 3 pp** — but it is a trade, not a dominance, and the difference between
+> those two words is the entire value of running the control.
+
+> **T413b. The registered forecast lands on PARTIAL, by its own pre-stated
+> thresholds.** It predicted base 4 losing **≥ 3 pp**; measured 2.93 (Fashion)
+> and 1.60 (UNSW). The script's verdict function was written before the run with
+> `≥3 CONFIRMED / ≤1 REFUTED / else PARTIAL`, and it prints PARTIAL. **Reported
+> as PARTIAL and not rounded up**, which is what pre-registering the thresholds
+> was for.
+
+> **T413c. Normalisation is the largest lever again, and its absence manufactured
+> a correlation.** The threshold change is worth **+8.61 to +20.99 pp** — the same
+> order as the +29.15 pp the intervention ranking already put at the top, arrived
+> at from a different stand. And it is **differential**: it gave linear 9 +20.99
+> on UNSW against base 4's +13.68, and base 4 +10.95 on Fashion against linear
+> 9's +8.61. **A missing normalisation does not merely lower every arm — it
+> reorders them**, and that is how a stand produces a clean r = −0.971 pointing
+> the wrong way.
+
+> **T413d. Every sparse measurement taken with `thr=2.0` fixed is now suspect.**
+> `sparse_deep.py` hardcodes it, and UNSW gained **21 pp** from removing it. The
+> sparse penalty of T311 — the 14-point gap to the field that has driven this line
+> since W748 — was measured on that stand. **Re-measuring it is the first item of
+> the next wave**, and until then the size of that gap is an open question, not a
+> result.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

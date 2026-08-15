@@ -9559,6 +9559,27 @@ best-fan-in arm sat 1.25 pp above majority, which is consistent with a training
 failure rather than a capability limit -- so the inversion is [измерено], not
 [доказано], and the confound is named with its test (T412c).
 
+**904. Run the control you named, in the same wave you named it.** T412c wrote
+down the confound and its test; the test took one line and one hour and REVERSED
+the conclusion (r -0.971 -> +0.956). *A named confound left unrun is a result
+you have decided not to check.*
+
+**905. A missing normalisation does not lower every arm equally -- it REORDERS
+them.** The fixed threshold gave linear 9 +20.99 pp on UNSW and base 4 +13.68,
+and the reverse on Fashion. That differential manufactured a clean r = -0.971
+pointing the wrong way (T413c). *When a stand omits the programme's largest known
+intervention, its ORDERING is the first casualty, not its level.*
+
+**906. Pre-register the verdict FUNCTION, not just the hypothesis.** The script
+carried `>=3 CONFIRMED / <=1 REFUTED / else PARTIAL` written before the run, and
+printed PARTIAL at 2.93 pp. *Writing the thresholds into the code is what stops
+2.93 from becoming "about three".*
+
+**907. Suspect every prior measurement that shares the defective stand.**
+sparse_deep.py hardcodes thr=2.0 and UNSW gained 21 pp without it. The T311
+sparse penalty -- the 14-point gap driving this line since W748 -- was measured
+there (T413d). *A trainer defect is never scoped to the run that found it.*
+
 ### How to update this tracker
 
 After closing a wave:

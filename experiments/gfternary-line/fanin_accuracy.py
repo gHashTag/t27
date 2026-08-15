@@ -70,7 +70,17 @@ def fwd(X, idx, Q):
 
 
 def run(Xtr, ytr, Xte, yte, lv, seed, F=3, L=3, hidden=64, out_fanin=64,
-        epochs=8, lr=0.05, thr=2.0, bs=256):
+        epochs=8, lr=0.05, thr=2.0, bs=256, scale_thr=False):
+    """scale_thr: T412c. The confound this run was built to separate.
+
+    With a FIXED threshold the alphabet's dynamic range (8:1 dyadic to 64:1 base
+    4) decides how many neurons ever cross it, and T207 established that a fixed
+    threshold is exactly what makes an alphabet's scale matter. Normalising each
+    pre-activation by its own std before the threshold removes the scale and
+    leaves only the SHAPE -- which is what bases.py already does on the dense
+    stand. If the UNSW inversion survives this, it is the alphabet; if it
+    vanishes, it was the trainer.
+    """
     rng = np.random.default_rng(seed)
     sizes = [Xtr.shape[1]] + [hidden] * (L - 1) + [1]
     idxs, Ws = [], []
@@ -79,8 +89,11 @@ def run(Xtr, ytr, Xte, yte, lv, seed, F=3, L=3, hidden=64, out_fanin=64,
         idxs.append(masks(sizes[li], sizes[li + 1], f, rng))
         Ws.append(rng.normal(0, 1 / np.sqrt(idxs[-1].shape[1]),
                              idxs[-1].shape).astype(np.float32))
-    act = lambda a: np.tanh(a - thr) * 0.5 + np.tanh(a + thr) * 0.5
-    dact = lambda a: 0.5 * (1 - np.tanh(a - thr) ** 2) + 0.5 * (1 - np.tanh(a + thr) ** 2)
+    def nrm(a):
+        return a / (a.std() + 1e-6) * thr if scale_thr else a
+    act = lambda a: np.tanh(nrm(a) - thr) * 0.5 + np.tanh(nrm(a) + thr) * 0.5
+    dact = lambda a: 0.5 * (1 - np.tanh(nrm(a) - thr) ** 2) \
+                   + 0.5 * (1 - np.tanh(nrm(a) + thr) ** 2)
     for _ in range(epochs):
         perm = rng.permutation(len(Xtr))
         for i in range(0, max(len(Xtr) - bs, 1), bs):
@@ -121,6 +134,8 @@ def load(path):
 if __name__ == "__main__":
     G, out_path = sys.argv[1], sys.argv[2]
     seeds = int(sys.argv[3]) if len(sys.argv) > 3 else 8
+    SCALE = len(sys.argv) > 4 and sys.argv[4] == "scale"
+    print(f"  threshold: {'SCALED per arm (T412c control)' if SCALE else 'FIXED at 2.0'}")
     res = {}
     for tname, fn in (("UNSW", "unsw.npz"), ("Fashion", "fashion_bin.npz")):
         Xtr, ytr, Xte, yte = load(f"{G}/{fn}")
@@ -131,7 +146,8 @@ if __name__ == "__main__":
             # W776: PRINT THE ALPHABET ACTUALLY USED. A parameterisation that
             # silently did nothing once reported a run identical to baseline.
             t0 = time.time()
-            a = [run(Xtr, ytr, Xte, yte, lv, 1000 + s) for s in range(seeds)]
+            a = [run(Xtr, ytr, Xte, yte, lv, 1000 + s, scale_thr=SCALE)
+                 for s in range(seeds)]
             res[tname][name] = a
             m, sd = float(np.mean(a)) * 100, float(np.std(a, ddof=1)) * 100
             print(f"  {name:10s} eff.fan-in {ef:.2f}  lv={list(lv)}  "
