@@ -15820,6 +15820,32 @@ and tested it on **eleven** tasks rather than three.
 > therefore be **measured on X**, not argued from X's properties. **That is a
 > weaker statement than W758 made and it is the one the data supports.**
 
+### T360 — the same silicon, five and a half points higher
+
+The Pareto front of W757, rebuilt on Fashion-bin. **Identical architectures, so
+identical area** — only the task differs:
+
+| config | LUT | UNSW | **Fashion** | Δ |
+|---|---:|---:|---:|---:|
+| **H16 L2** | **123** | 81.37% | **86.91%** | **+5.54** |
+| H32 L3 | ~280 | 81.83% | 87.69% | +5.86 |
+| H48 L3 | 431 | 82.97% | 88.03% | +5.06 |
+| H64 L3 | 799 | 83.09% | **88.29%** | +5.20 |
+
+> **T360. The front is flat on Fashion too — 6.5× the area for 1.38 pp — and the
+> whole curve sits 5.1–5.9 points higher.** T352a's shape conclusion survives the
+> change of task; the level does not. **The best single-die artefact this
+> programme has is now 123 LUT at 86.91%**, and it was obtained by changing the
+> benchmark rather than anything in the datapath.
+
+> **T360a. What this does and does not license.** It licenses reporting the
+> Fashion row beside the UNSW one, both measured. It does **not** license
+> claiming the datapath "suits" Fashion — T359a withdrew exactly that kind of
+> inference, and the honest statement is **"measured higher on Fashion, cause
+> unknown."** Nine waves optimised the second-worst of eleven measured tasks
+> because nobody varied the benchmark; **one wave of varying it moved more than
+> the alphabet ever did.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

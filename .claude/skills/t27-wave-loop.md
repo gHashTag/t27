@@ -9141,6 +9141,33 @@ Layer-1 fan-in 10 scored *below* fan-in 8 at three seeds while costing 2.8× the
 area. The ordering is unresolvable at that sample size — **and being unable to
 rank two options is itself the answer about whether the knob matters.**
 
+### Lessons 842-845 (W759) — an explanation is a hypothesis, and three points fit anything
+
+**842. Turn every explanatory word into a measure, then test it on more points
+than inspired it.** "Evidence concentration" fit three tasks perfectly and scored
+**r = +0.128 on eleven** — wrong sign, indistinguishable from zero. **Three points
+will fit any story one cares to propose**, and the cheapest defence is to
+manufacture more tasks from data already on disk: eight MNIST digit-pairs cost
+minutes and killed a claim that would otherwise have been built on.
+
+**843. Define the measure before computing the correlation, and write down what
+refutes it.** `C6` had no free parameters and the registered threshold was
+r ≤ −0.5. When the answer came back at +0.128 there was nothing to argue about
+and no temptation to re-tune the measure. **A predictor invented after seeing the
+correlation is not a predictor.**
+
+**844. A task's identity is its LABELLING, not its inputs.** Every MNIST digit
+pair costs +0.28 to +5.66 pp; MNIST-bin, the *same pixels* under a different
+partition, costs **+14.85**. "The architecture is bad at MNIST" was never a
+sentence about MNIST. **When a result names a dataset, ask which labelling.**
+
+**845. Changing the benchmark moved more than nine waves of tuning.** The same
+silicon scores **+5.5 pp** on Fashion versus UNSW at every point on the curve.
+The benchmark was inherited from a neighbouring literature and never questioned.
+**Before optimising against a number, spend one wave asking whether it is the
+right number** — and note that this lesson only became visible because W758
+varied the task, which is lesson 838 paying out.
+
 ### How to update this tracker
 
 After closing a wave:
