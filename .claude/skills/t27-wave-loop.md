@@ -9062,6 +9062,33 @@ for a missing trick would now be a refusal to accept a measurement.
 oldest lesson in this file, in its fifth disguise** — after `head`, `tail`,
 `wc -l` and `grep -c`, now `$?` through a pipeline.
 
+### Lessons 830-833 (W756) — measure the artefact, not the scaffolding
+
+**830. Adopt the field's metric; do not invent a ratio.** I recommended
+"accuracy per LUT" and caught it before measuring: the published row is
+*Accuracy / LUT / FF / DSP / BRAM / Fmax / Latency / LUT·ns*. **Accuracy is a
+column, never a denominator** — a ratio flatters whatever sits nearest the
+majority baseline. **A metric invented to make your result look measurable is a
+naming error with arithmetic attached.**
+
+**831. Most of what you have been quoting may be scaffolding.** The three-die
+network measured **232 LUT**; the network alone is **126**, and the difference is
+three BSCANE2 blocks and three shift registers. **84% of a figure quoted for
+three waves was transport.** Before comparing against anyone, build the artefact
+with the harness removed and measure *that*.
+
+**832. State the column you cannot fill.** TreeLUT's LUT and accuracy are in our
+record; its Fmax and latency are not, so `LUT·ns` is **not comparable today** and
+saying so is the result. **A missing number named is worth more than a plausible
+one supplied** — and lesson 781 applies to our own record, not only to the
+literature.
+
+**833. Prefer a protocol that carries the payload to a model of what it drops.**
+Die B needed its truncation modelled to be believed (94/100 → 100/100 only after
+the model). One extra register bit removed both the loss and the model.
+**Every compensation is a place for a mistake to hide**, and the fix is usually
+cheaper than the theory.
+
 ### How to update this tracker
 
 After closing a wave:
