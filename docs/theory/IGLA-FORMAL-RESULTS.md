@@ -16211,4 +16211,59 @@ In ternary units that law reads differently:
 
 ---
 
+## W765 — two trits and no more, and a framing I got wrong
+
+### T369 — the third trit buys nothing
+
+T367 established that 3, 9 and 27 levels are the alphabet sizes that pack with
+zero waste in ternary storage. T288's Nine-Rung Law puts the ceiling at nine —
+but nine is where **our ladder happened to stop**, and 27 = 3³ is the next
+perfect packing. Measured rather than inherited, dyadic alphabets, 5 seeds:
+
+| task | levels | trits | accuracy | step |
+|---|---:|---:|---:|---|
+| UNSW | 3 | 1 | 89.52% | — |
+| UNSW | 9 | **2** | 89.62% | 3→9: **+0.10**, t=0.36, ns |
+| UNSW | 27 | 3 | 89.78% | 9→27: **+0.15**, t=0.65, **ns** |
+| Fashion | 3 | 1 | 90.69% | — |
+| Fashion | 9 | **2** | 90.94% | 3→9: **+0.25**, t=2.94, **significant** |
+| Fashion | 27 | 3 | 90.81% | 9→27: **−0.13**, t=−2.03, **ns** |
+
+> **T369. The forecast lands: the third trit buys nothing.** Neither task shows a
+> significant step from 9 to 27 levels, and Fashion's step is **negative**.
+> **"Two trits and no more" now holds as a measured statement in the target's own
+> units**, not as an inherited constant from where a ladder stopped.
+
+> **T369a. The 3→9 step is smaller than the file has been claiming.** T317 put the
+> size effect at **+0.735 pp** pooled; here it is **+0.10** (UNSW, ns) and
+> **+0.25** (Fashion, significant). The difference is the architecture — T317 used
+> a 64-wide dense net over three tasks, this uses the same bench at 5 seeds on
+> two. **The honest range for one trit versus two is 0.1–0.75 pp, and the low end
+> is not significant.** The case for two trits is weaker than the file implied.
+
+### T370 — "the ternary table we do not have" was the wrong framing
+
+Dmitrii pushed back on the phrase *"ТРОИЧНАЯ ТАБЛИЦА — то, чего у нас нет"* and
+asked what t27 was built for. `SOUL.md`, Preamble:
+
+> *"T27 is a **spec-first** architecture where mathematical truth, not
+> implementation, is the source of truth."*
+
+> **T370. The framing was backwards and is withdrawn.** The 27-entry ternary
+> table is **not a thing this project lacks** — it is **exactly the thing the
+> language exists to state.** A `.t27` spec names the mathematical object; the
+> compiler emits whatever the available substrate can hold. Today that substrate
+> is a binary FPGA and the emission costs **58% waste** (T368b). **The waste is a
+> property of the emission target, not of the specification**, and saying "we do
+> not have it" confuses the two — which is precisely the confusion a spec-first
+> architecture exists to prevent.
+
+> **T370a. What that licenses concretely.** The 58% figure is not a defect to
+> apologise for; it is **the measured cost of running a ternary specification on
+> binary silicon**, and it is the number that quantifies what a ternary substrate
+> would return. **It belongs in the argument for the Tiny Tapeout line, not in the
+> list of our shortcomings.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
