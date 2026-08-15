@@ -16097,6 +16097,48 @@ the enumeration compares against. Same 593→64 layer, fan-in 6, `-nodsp -nosrl`
 > and points the other way. **Both statements are about area; neither is about
 > accuracy, which varies by 0.49 pp across every base measured.**
 
+### T367 — measured in trits, the Nine-Rung ceiling is exactly two trits
+
+Dmitrii's correction: **every metric and every top must be measured for the
+TERNARY world.** Everything above is counted in LUT — a *binary* primitive of the
+substrate we happen to own, not of the target. Recounting the alphabet in trits
+changes what the programme's own measurements mean.
+
+| levels | bits needed | codes | wasted | **trits needed** | codes | **wasted** |
+|---:|---:|---:|---:|---:|---:|---:|
+| **3** | 2 | 4 | 1 | **1** | 3 | **0** |
+| 5 | 3 | 8 | 3 | 2 | 9 | 4 |
+| 7 | 3 | 8 | 1 | 2 | 9 | 2 |
+| **9** | 4 | 16 | **7 (44%)** | **2** | 9 | **0** |
+| 27 | 5 | 32 | 5 | **3** | 27 | **0** |
+
+> **T367** [arithmetic, not measurement]. **The alphabet sizes that pack with
+> zero waste in ternary storage are exactly the powers of three: 3, 9, 27.** The
+> Nine-Rung Law (T288) puts the accuracy ceiling at **nine**, and nine is
+> **3² — exactly two trits.** The two sizes this programme singled out by
+> measurement — the minimum useful alphabet (3) and the ceiling (9) — are
+> **both perfect in trits and both wasteful in bits**, 9 levels burning 7 of 16
+> binary codes.
+
+> **T367a. Every area figure in this file is in the wrong units for the target.**
+> LUT counts measure a binary FPGA. They are the correct number for *this
+> substrate* and the wrong number for a ternary one, where the natural unit is
+> the **trit-cell** and a 6-input binary LUT has no counterpart. **T340's
+> corrections, T352's Pareto front and T366's base ordering are all substrate
+> measurements**, and none of them has been restated in ternary units because no
+> ternary substrate exists to measure on. **That gap is named here rather than
+> papered over.**
+
+> **T367b. What the 0.49 pp result actually says, stated properly.** A
+> **three-level** alphabet — `{0, ±1}`, **one trit**, the project's founding
+> premise — scores within **0.49 pp** of a nine-level golden one on UNSW
+> (dense bench, 5 seeds), and costs **114 LUT against 123–128** in the table
+> architecture. **Half the weight storage for half a point.** Pooled over three
+> tasks the size effect is larger — **+0.735 pp** (T317) — so the honest range is
+> **half to three-quarters of a point for one trit versus two.** That is a strong
+> position for a ternary line and it was under-reported in W763 as "the
+> interesting half of a refutation."
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
