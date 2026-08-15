@@ -5,6 +5,82 @@ description: The TNF (Ternary Network Float) and GA-T number formats — their d
 
 # TNF & GA-T — working knowledge
 
+## THE ANSWER, if you were asked "which format for ternary on FPGA?"
+
+Dmitrii has asked this four times. Answer it directly, from these measurements,
+without re-deriving it.
+
+> **Weights: a TRUTH TABLE, not a format, at ≤6 input bits per neuron.
+> Where a table will not fit: `{0, ±1, ±2, ±4, ±8}`. Accumulator: int12–int16.
+> φ does not belong in the datapath.**
+
+**Why "not a format" is the honest answer.** A neuron reading ≤6 input bits is
+one LUT6 per output bit — **2.00 LUT/neuron, measured** — and contains **no
+arithmetic at all**: no multiplier, no adder, no weight memory. The format
+question dissolves because there is nothing left to compute with. Dense 593→64
+costs **54,914 LUT**; the same layer as tables costs **128**. That is **429×**,
+and 3.6× the Fmax (204 vs 57 MHz).
+
+**THE SIX-BIT RULE — the actual design law.** Cost is set by TOTAL BITS READ:
+
+| input | bits each | fan-in | cost |
+|---|---:|---:|---:|
+| binary | 1 | **6** | **2.00 LUT/neuron** |
+| **ternary** | **2** | **3** | **2.00 LUT/neuron** |
+| ternary | 2 | 6 (=12 bits) | **39–54 LUT/neuron** |
+
+A ternary symbol is **two bits**, so hidden layers take fan-in **3**. Violating
+this costs 20×, and it nearly shipped once: a depth sweep with fan-in 6
+everywhere cost **10,250 LUT** where its headline implied 800.
+
+**When arithmetic is unavoidable** (wide fan-in, final accumulator):
+`{0, ±1, ±2, ±4, ±8}` — this is **power-of-two (PoT) quantisation** in the
+literature (Li, Dong & Wang, ICLR 2020, arXiv:1909.13144; priority Zhou et al.,
+ICLR 2017, arXiv:1702.03044, Eq. 1). **`pot9` is this repo's internal tag, never
+a format name — do not print it in prose.** Zero DSP at every rung; nine levels
+is the ceiling (nothing above nine was significant on any of eight tasks).
+
+**Why not φ, in one table:**
+
+| | measured |
+|---|---:|
+| alphabet **size**, 3→9 levels | **+0.735 pp** |
+| alphabet **shape** at fixed size | +0.149 pp, significant on 1 of 3 tasks |
+| **resolving `a + b·φ` against a threshold** | **8 DSP48E1**, or **~2750 LUT** without them |
+
+**The multiplier φ removes from weight application returns in the pair resolve.**
+The algebra stands and is Coq-checked — `Z[φ]` is closed, and degree 2 admits φ
+alone as a multiplier-free scale. The practical advantage does not.
+
+**The ranking that makes the format question secondary:**
+
+| intervention | effect on accuracy |
+|---|---:|
+| inter-layer normalisation | **+29.15 pp** |
+| training budget | +3.30 pp |
+| class-balanced loss | +3.19 pp |
+| depth under the six-bit rule | +2.51 pp |
+| **alphabet size** | **+0.735 pp** |
+| **alphabet shape** | +0.149 pp |
+| activation (field's STE vs our tanh) | −0.77 pp |
+
+**The alphabet decides AREA, not accuracy.** That is why the answer is "a table,
+not a format".
+
+**Before choosing a task, compute `mi_tot`** — the sum of per-feature mutual
+information, one pass over the data. It predicts what the sparse datapath will
+cost you: **r = −0.88 within a dataset (45 labellings), −0.68 across three
+datasets.** MNIST-bin has the least (3.14) and the worst penalty (+14.85); the
+0-vs-1 pair has the most (44.75) and the least (+0.28).
+
+**Toolchain, non-negotiable:** `synth_xilinx -nodsp -nosrl`. openXC7 emits a
+**wrong bitstream from a correct netlist** for both `DSP48E1` (live operand) and
+`SRL16E`, and both pass the `0→1` acceptance criterion while computing the wrong
+answer. `t27c yostat` exits 2 on either. See t27#2173.
+
+---
+
+
 **Source of truth:** [`docs/theory/TNF_ARTICLE_RU.md`](../../docs/theory/TNF_ARTICLE_RU.md)
 (2353 lines, Russian). This skill is the distillation. When they disagree, the
 article wins — but re-read the article's own **Ограничения** section first,
