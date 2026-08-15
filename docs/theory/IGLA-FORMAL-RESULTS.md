@@ -17519,4 +17519,45 @@ trainer.* Run, same seeds, same masks, one line changed:
 
 ---
 
+## W778f — the alarm I raised, tested in the same wave, and cleared
+
+### T414 — the sparse penalty survives normalisation
+
+T413d flagged **every** sparse measurement taken with `thr=2.0` as suspect,
+including **T311's 14-point gap to the field — the number that has driven this
+line since W748.** Raising that and leaving it for the next wave would be the
+exact failure lesson 904 was written about. Tested, UNSW, dyadic 9, 6 seeds,
+dense reference 89.62 %:
+
+**Registered forecast (T44):** *normalisation closes a large part of the gap but
+not all of it — predicted 80–86 % sparse, a residual penalty of 4–10 pp rather
+than 14. Above 88 % the penalty was the trainer outright and T311 is withdrawn;
+below 80 % normalisation is not the explanation and T311 stands.*
+
+| fan-in | L | thr fixed | thr normalised | Δ | penalty, normalised |
+|---:|---:|---:|---:|---:|---:|
+| 3 | 3 | 58.53 ±3.42 | **76.54 ±1.47** | +18.00 | **13.08 pp** |
+| 6 | 3 | 60.20 ±4.87 | **77.22 ±1.08** | +17.01 | **12.40 pp** |
+| 6 | 4 | 59.04 ±4.77 | **76.23 ±1.32** | +17.19 | **13.39 pp** |
+
+> **T414. Forecast refuted, and the flagged result cleared.** Sparse lands at
+> **76.2–77.2 %**, below the 80 % floor the forecast set, so by its own
+> pre-registered criterion **normalisation is not the explanation and T311
+> stands**. The penalty is **12.4–13.4 pp** against T311's 14 — the same number.
+
+> **T414a. My stand was the worse one, not T311's.** The fixed threshold costs
+> 17–18 pp *on this stand*, and T311's stand did not show that, so T311's trainer
+> was already doing something mine was not. **T413d's alarm was reasonable and is
+> now withdrawn: the defect is real, it did not touch T311, and the check cost
+> twenty minutes.**
+
+> **T414b. The residual is stable across the structural knobs.** Fan-in 3 → 6 buys
+> 0.68 pp and depth 3 → 4 costs 0.99 pp, both inside one standard deviation.
+> **After normalisation the sparse penalty stops responding to structure** — which
+> is the same shape as T355 (the ceiling is the task's) and T404 (the number
+> decides area, not accuracy). **Three independent lines now say the residual gap
+> is a training question, not an architectural one.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

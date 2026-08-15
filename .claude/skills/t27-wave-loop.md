@@ -9580,6 +9580,16 @@ sparse_deep.py hardcodes thr=2.0 and UNSW gained 21 pp without it. The T311
 sparse penalty -- the 14-point gap driving this line since W748 -- was measured
 there (T413d). *A trainer defect is never scoped to the run that found it.*
 
+**908. Clear an alarm as loudly as you raised it.** T413d flagged the programmes
+central number -- T311's 14-point sparse gap -- as suspect. The check took twenty
+minutes and CLEARED it: the normalised penalty is 12.4-13.4 pp against T311's 14.
+*A suspicion published without its check is a claim; the check is what makes it
+an audit.* My stand was the worse one, not T311's.
+
+**909. When the residual stops responding to structure, it is not structural.**
+After normalisation, fan-in 3->6 buys 0.68 pp and depth 3->4 costs 0.99, both
+inside one sd. Three independent lines now say the same (T355, T404, T414b).
+
 ### How to update this tracker
 
 After closing a wave:
