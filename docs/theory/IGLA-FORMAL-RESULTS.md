@@ -16345,4 +16345,73 @@ effect decays with training budget — and measured it across four budgets:
 
 ---
 
+## W767 — the table is full, the tool is honest, the substrate has a number
+
+### T373 — the size effect is flat in budget, on both tasks, complete
+
+The empty cell of T372 is filled:
+
+| task | 8 ep | 15 ep | 30 ep | 60 ep | significance |
+|---|---:|---:|---:|---:|---|
+| UNSW | +0.512 | +0.169 | +0.328 | +0.351 | **never** (t = 1.45, 1.08, 1.19, 1.51) |
+| Fashion | +0.324 | +0.403 | +0.295 | **+0.200** | **always** (t = 8.25, 7.39, 4.23, **4.82**) |
+
+> **T373. Flat, confirmed on the full grid.** Fashion declines mildly across an
+> eightfold budget increase (+0.324 → +0.200) and every point stays significant;
+> UNSW wanders inside its own noise and never reaches significance at 8 seeds.
+> **The alphabet-size effect is not a crutch for under-training** — the mechanism
+> W766 proposed is dead on both tasks — **and it is worth about a third of a point
+> per task, which is what T317 said all along.**
+
+### T374 — the ranker, and the point estimate it refuses to print
+
+`taskfit.py` ranks candidate tasks by `mi_tot` and reports a **bracket taken from
+the two nearest measured anchors**, never an interpolated value:
+
+| task | `mi_tot` | bracket | measured |
+|---|---:|---|---:|
+| Fashion-bin | 30.49 | 0.3–3.5 pp | 3.48 |
+| UNSW | 11.06 | 0.9–6.7 pp | 6.70 |
+| MNIST-bin | 3.15 | 5.7–14.8 pp | 14.85 |
+
+> **T374. The ordering is right and every true value lands at the TOP edge of its
+> bracket** — the same systematic direction T371c predicted from fitting inside a
+> narrow band. **The tool is honest about what it cannot do: it prints an order
+> and a range, and states in its own output that a fitted curve under-predicted
+> three held-out datasets by 2.4, 3.3 and 8.6 pp.**
+
+> **T374a. The circularity, named.** Those three datasets are themselves anchors,
+> so this run is a consistency check and **not a validation.** The tool has not
+> been tested on a task outside its anchor set, and until it is, "the ordering is
+> right" means only "the ordering is self-consistent."
+
+### T375 — what a ternary substrate would return, in configuration cells
+
+**[СМОДЕЛИРОВАНО — estimate, not measurement. No ternary substrate exists to
+measure on.]** Unit: one configuration cell — a mask bit in a LUT, or a trit in a
+ternary table.
+
+| | binary | ternary | ratio |
+|---|---:|---:|---:|
+| one neuron (fan-in 3 ternary → 1 ternary) | 2 × LUT6 = **128 bit-cells** | one 3-trit table = **27 trit-cells** | **4.74×** |
+| ...in entropy terms | 128 bits | 42.8 bit-equivalents | **2.99×** |
+| trained network, hidden layers | 4,096 bit-cells | **864 trit-cells** | **4.74×** |
+| ...in entropy terms | 4,096 bits | 1,369 bit-equivalents | **2.99×** |
+
+> **T375. A ternary substrate would hold this network's hidden layers in 864
+> trit-cells against 4,096 bit-cells — 4.74× fewer cells, or 2.99× less
+> configuration entropy.** Of the 128 binary cells per neuron, **only 54 are
+> reachable** (T368b's 42%); the rest encode input patterns that cannot occur.
+
+> **T375a. Three things this estimate does NOT say, listed because the number is
+> quotable and the caveats are not.** It says **nothing about speed** — no ternary
+> cell delay is measured or modelled. It says **nothing about silicon area** — a
+> trit-cell costs more transistors than a bit-cell and how many depends on
+> circuit design this project does not have. It says **nothing about accuracy**,
+> which does not change with substrate. **It is an estimate of configuration
+> memory and only that**, and the output layer — an adder tree, not a table — is
+> excluded because the estimate does not apply to it.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
