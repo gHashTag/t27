@@ -15897,4 +15897,61 @@ a fixed seed before anything was measured.
 
 ---
 
+## W762 — the predictor travels, and T361b is relaxed
+
+### T363 — `mi_tot` predicts the sparse penalty across datasets too
+
+T361b stated that `mi_tot`'s success across labellings of one dataset **did not
+license prediction across datasets**, because nothing had tested it there.
+W759's eleven-task set spans three datasets, and its penalties were already
+measured; only the predictor needed computing.
+
+| task | features | `mi_tot` | penalty |
+|---|---:|---:|---:|
+| **MNIST-bin** | 784 | **3.14** | **+14.85** |
+| 4v9 | 784 | 5.21 | +5.66 |
+| 7v9 | 784 | 7.22 | +3.60 |
+| 3v5 | 784 | 7.63 | +4.84 |
+| UNSW | 593 | 11.04 | +6.70 |
+| 5v6 | 784 | 15.96 | +3.53 |
+| 0v8 | 784 | 21.89 | +0.90 |
+| 1v7 | 784 | 25.03 | +1.26 |
+| 2v7 | 784 | 25.10 | +2.48 |
+| Fashion | 784 | 30.40 | +3.48 |
+| **0v1** | 784 | **44.75** | **+0.28** |
+
+| predictor | r | t | |
+|---|---:|---:|---|
+| **`mi_tot`, raw** | **−0.684** | **−2.82** | **significant** |
+| `mi_tot / n_features` | −0.676 | −2.75 | significant |
+| dense accuracy | −0.398 | −1.30 | not significant |
+
+**Registered forecast:** *(1) raw `mi_tot` fails across datasets, |r| < 0.5;
+(2) the normalised version does better; (3) `dense` travels better than either.*
+
+> **T363. (1) is refuted — −0.684, comfortably past the 0.5 failure threshold and
+> significant at n = 11.** (2) is refuted: normalising by feature count made it
+> **worse** (−0.676), so the quantity that matters is the **total** evidence, not
+> evidence per feature. (3) is refuted hardest: `dense` is the **weakest** of the
+> three at −0.398 and does not reach significance. **One of three predictions
+> survived in direction and none in detail.**
+
+> **T363a. The mechanism, now stated with both scopes measured.**
+> **The more total single-feature evidence a task carries, the less a narrow
+> random view costs** — redundancy is what makes sparse sampling survivable.
+> Within one dataset: r = −0.78 discovery / **−0.88 confirmation** over 45
+> labellings (T361). Across three datasets: **r = −0.684** over 11 tasks. **T361b
+> is relaxed: `mi_tot` may be used to predict the penalty across datasets, at
+> roughly −0.7 rather than −0.88.**
+
+> **T363b. The programme's most useful positive result, and it is not about
+> arithmetic.** After the alphabet (+0.735 pp), the activation (−0.77 pp) and the
+> Nine-Rung ceiling, the thing that generalises is a **task-selection rule**:
+> compute `sum of per-feature mutual information` in one pass and it tells you,
+> before building anything, roughly what a six-input truth-table datapath will
+> cost you in accuracy. **MNIST-bin has the least evidence (3.14) and the worst
+> penalty (+14.85); 0v1 has the most (44.75) and the least (+0.28).**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
