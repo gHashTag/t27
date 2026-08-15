@@ -16414,4 +16414,66 @@ ternary table.
 
 ---
 
+## W768 — the ranker survives a held-out test; the bracket is diagnosed
+
+### T376 — twelve non-anchor labellings, and the ordering holds at ρ = −0.902
+
+T374a named the circularity: the tool's three demo datasets were themselves
+anchors. Twelve labellings from the census that are **not** anchors, penalties
+measured in W760/W761 with no reference to this tool:
+
+| task | `mi_tot` | bracket | measured | inside? |
+|---|---:|---|---:|---|
+| p07 | 30.90 | 0.3–3.5 | 1.62 | yes |
+| p09 | 28.63 | 0.9–3.5 | 0.83 | **below** |
+| p67 | 26.77 | 0.9–3.5 | 1.26 | yes |
+| p19 | 24.44 | 0.9–3.5 | 0.89 | **below** |
+| p29 | 21.00 | 0.9–6.7 | 2.11 | yes |
+| p34 | 20.11 | 0.9–6.7 | 1.76 | yes |
+| p24 | 17.65 | 0.9–6.7 | 2.01 | yes |
+| p48 | 13.24 | 0.9–6.7 | 3.48 | yes |
+| p45 | 12.31 | 0.9–6.7 | 2.99 | yes |
+| p59 | 12.28 | 0.9–6.7 | 2.66 | yes |
+| p38 | 10.04 | 5.7–6.7 | 3.78 | **below** |
+| p58 | 6.58 | 5.7–6.7 | 4.10 | **below** |
+
+**Registered forecast:** *(1) ranking holds, ρ ≤ −0.6; (2) bracket coverage under
+60%, misses BELOW the lower edge; (3) order usable, range not yet.*
+
+> **T376. (1) confirmed and beaten — ρ = −0.902.** The ordering is stronger on
+> held-out tasks than the −0.81 measured inside the census. **(2) is half right:**
+> coverage is **67%**, better than predicted, but **all four misses are below the
+> lower edge**, exactly the predicted direction. **The circularity of T374a is
+> discharged: `mi_tot` ranks tasks it has never seen.**
+
+> **T376a. The bracket's defect is diagnosed, and it is T364's confound again.**
+> Every miss sits **below** its bracket, and every missed task is a **digit
+> pair**. The anchor set mixes two populations — whole datasets (penalties
+> 3.5–14.9) and digit pairs (0.2–5.6) — that occupy the *same* `mi_tot` range at
+> *different* penalty levels. A bracket drawn across both is too high for pairs by
+> construction. **The fix is not a better curve but separate anchor sets per task
+> family**, which is the same lesson that T364 taught about `ntrain`.
+
+> **T376b. What is now licensed, precisely.** `mi_tot` may be used to **order**
+> candidate tasks — validated out of sample at ρ = −0.902 — and to bracket them
+> **within one task family**. It may **not** be used to bracket across families,
+> and it still may not produce a point estimate (T371). **The tool's own output
+> already says two of these three things and must be updated to say the third.**
+
+### T377 — there is no "golden sieve" in this repository
+
+Dmitrii asked whether a *golden sieve* in the commit history could be applied.
+Searched: `git log --all --grep=sieve -i` returns **two** commits, both
+**prime sieves** — Eratosthenes with factorisation (W498) and a Miller-Rabin
+sieve with totient (W370). Neither touches φ.
+
+> **T377. No golden sieve exists here, and reporting that is the answer.** The
+> nearest relative is **Zeckendorf representation**, present in
+> `specs/numeric/lucas_accumulator.t27`: every positive integer is uniquely a sum
+> of **non-consecutive** Fibonacci numbers, and that "no two adjacent" rule is
+> exactly base-φ's forbidden `11`. It is a *representation*, not a sieve, and it
+> has never been used as a weight encoding in this programme.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
