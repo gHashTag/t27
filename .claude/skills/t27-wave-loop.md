@@ -9321,6 +9321,33 @@ evidence that motivates it. **A next step that lives only in a summary is
 re-derived from scratch two waves later** — this programme has re-derived the
 same diagnosis three times already.
 
+### Lessons 867-870 (W771) — validate the instrument before the measurement
+
+**867. A defective instrument does not produce noise — it produces a clean answer
+to a question nobody asked.** The width bisection gave a **monotone** degradation
+(6/10, 6/10, 5/10, 1/10), exactly the shape a real width limit would have. It was
+an off-by-one in the probe: `{inw[NB-33:0], sr[30:0]}` assigns **NB−1** bits to an
+**NB-bit** register. **Four consecutive waves now have had the instrument as the
+defect** — W764 a typed summary, W770 a probe below the threshold, W771a a probe
+yosys pruned, W771b this.
+
+**868. Three checks before trusting a new probe, all cheap.** (1) Compute what it
+must report for **two inputs whose answers are known independently**. (2) Check
+the quantity under test **can reach the observable** — W771a could not. (3) Check
+the **arithmetic of every slice width in the emitted source** — one line comparing
+`NB-32+31` against `NB` would have caught W771b before a bitstream existed.
+
+**869. Delete intermediates in the build step, not in a later cleanup.** The
+scratchpad reached **6.6 GB** and filled the machine's disk; `Bash` then failed at
+output-file creation **before executing anything**, so the tool needed to clean up
+was disabled by the condition it had to fix. **A cleanup that runs after the
+failure cannot run.** `scripts/fpga-build.sh` now removes `.frames` and `.fasm`
+in the same command that produced them.
+
+**870. A known-wrong artefact is not a backup.** The 36 pre-W754 bitstreams were
+built with SRL inference and by T342 compute wrong answers. **Deleting them
+required no judgement about value** — they could only ever mislead.
+
 ### How to update this tracker
 
 After closing a wave:
