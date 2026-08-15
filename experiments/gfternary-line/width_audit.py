@@ -45,6 +45,16 @@ def audit(path):
         rest=body
         for r in REPL.finditer(body):     # {N{expr}} replication -- not parsed
             unparsed.append((i,"replication {N{...}}")); ok=False
+        # W776: a ternary conditional contributes ONE branch's width, not both,
+        # and its condition contributes nothing. The first version summed both
+        # branches plus the condition's operands and reported the WORKING die B
+        # as broken -- 46 bits where the line is 32. Caught only because the
+        # known-good dyadic build was audited alongside the new one.
+        # Report rather than mis-count (lesson 872).
+        if "?" in body and ":" in body:
+            unparsed.append((i, "ternary ?: -- width not inferred")); ok=False
+        if re.search(r'[<>]=?|==|!=', body):
+            unparsed.append((i, "comparison in concatenation -- width not inferred")); ok=False
         if not ok: continue
         for sm in SLICE.finditer(rest):
             total += int(sm.group(2))-int(sm.group(3))+1

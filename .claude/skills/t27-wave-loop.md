@@ -9427,6 +9427,33 @@ this programme, that **`gfternary` is catalogued as 2 bits with fields summing t
 3**. Nothing was written to find it. **A checker nobody points at a real question
 is indistinguishable from one that does not exist.**
 
+### Lessons 883-886 (W776) — verify the intervention before interpreting it
+
+**883. Confirm the change happened before reading what it did.** A patch aimed at
+`LV = np.array([...])` hit dead code; the module binds `LV = OS.LV`. The run
+finished, reported **82.70% — identical to the dyadic baseline** — and errored
+nowhere. **An unchanged number is exactly what a successful change to a similar
+alphabet would also produce.** Printing the actual levels cost one line and
+prevented publishing "base 3 equals dyadic".
+
+**884. Audit the new artefact ALONGSIDE a known-good one.** `width_audit.py`
+flagged the base-3 output die at 46 bits where the line is 32 — its first false
+positive, from summing both branches of a `? :`. The **dyadic die running 200/200
+on silicon carried the same line and was flagged identically**, which is what
+exposed it. **A checker's verdict on a new file means nothing until you have seen
+its verdict on a file you know is right.**
+
+**885. "Caught the known defect" licenses trust in that defect, not in the tool.**
+The auditor was validated in W774 against a slice-width error and shipped. It had
+never seen a working file containing a conditional. **One validated defect class
+is one validated defect class.**
+
+**886. A top computed on one layer type does not survive a network with two.**
+Base 3 is cheaper in the **table** layers (83 vs 89 LUT) and **twice as expensive**
+in the **adder-tree** output (203 vs 103), because ×3, ×9, ×27 are real additions
+while ×2, ×4, ×8 are shifts. Total: **348 vs 252 LUT**. **Rank formats against the
+mix of datapaths a real design contains, not against the one you measured.**
+
 ### How to update this tracker
 
 After closing a wave:

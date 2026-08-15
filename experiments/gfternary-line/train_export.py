@@ -28,7 +28,18 @@ import numpy as np, json, sys, time
 sys.path.insert(0,"/Users/playom/t27/.claude/worktrees/igla-fpga-improvements-3f5e1a/experiments/gfternary-line")
 import one_system as OS
 
-LV = OS.LV
+# W776: the alphabet is selectable. The sieve's leader is base 3 and every
+# export before this used dyadic; the first attempt patched a line that does not
+# define LV, the run reported 82.70% unchanged, and only printing the LEVELS
+# caught it. TNF(k=2, b) = {0} u {+- b^i : i < 4}.
+import os as _os
+_B = float(_os.environ.get("TNF_BASE", "0"))
+if _B >= 2:
+    _pos = [_B**i for i in range(4)]
+    LV = np.array(sorted([-x for x in _pos] + [0.0] + _pos), dtype=np.float32)
+    OS.LV = LV          # one_system.q() reads OS.LV, so it must change too
+else:
+    LV = OS.LV
 THR = 2.0
 
 def train(Xtr,ytr,Xva,yva,mi,seed,H1=16,H2=16,F1=6,F2=3,out_fanin=16,

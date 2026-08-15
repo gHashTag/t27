@@ -16996,4 +16996,72 @@ records, 332 numeric fields compared. **One finding:**
 
 ---
 
+## W776 — the sieve's leader built, and the top inverts on silicon
+
+### T398 — a base-3 network on three dice, and the area answer is not the sieve's
+
+The sieve (T394) and the spec (T396) put `b = 3` first on area **in the table
+datapath**. No trained network had ever used it — every export was dyadic. Built:
+
+| die | layer | **b = 3** | b = 2 | |
+|---|---|---:|---:|---|
+| A | 784 → 16, tables | **83** | 89 | base 3 cheaper |
+| R | 16 → 16, tables | 62 | **60** | level |
+| **B** | 16 → 1, **adder tree** | **203** | **103** | **dyadic half the cost** |
+| | **total** | **348** | **252** | **dyadic 38% smaller** |
+
+Silicon: **A 60/60, R 60/60, B 60/60**, accuracy **78.3% silicon = 78.3% software**.
+
+> **T398. The sieve's leader wins where the sieve measured and loses overall.**
+> `b = 3` is cheaper in the **table** layers, as T366 predicted, and **twice as
+> expensive in the adder-tree output**, because multiplying by 3, 9, 27 is real
+> addition while 2, 4, 8 is a shift. **A top computed on one layer type does not
+> survive a network that contains both**, and the sieve never claimed otherwise —
+> T366b said the ordering inverts with the datapath, and here both datapaths are
+> in one design.
+
+> **T398a. Accuracy went the other way, on one seed.** `b = 3` exported at
+> **83.50%** against dyadic's **81.92%** — **+1.58 pp**, far above the 0.14 pp
+> W763 measured densely. **One seed and one architecture: this is a signal to
+> re-measure, not a result.** If it survives seeds, the trade is +1.58 pp for
+> +38% area, and that is a decision rather than a ranking.
+
+### T399 — the parameterisation that silently did nothing
+
+The first attempt patched `LV = np.array([...])` in `train_export.py`. That line
+exists, but the module actually binds `LV = OS.LV` from `one_system`, so the
+patch applied to dead code. The run completed, reported **82.70%** — *identical
+to the dyadic baseline* — and printed no error.
+
+> **T399. It was caught only by printing the LEVELS, not the accuracy.** An
+> unchanged number is exactly what a successful base change to a *similar*
+> alphabet would also produce. **Verify that the intervention happened before
+> interpreting what it did** — the check cost one line and would have prevented a
+> published "base 3 equals dyadic".
+
+### T400 — the auditor's first false positive, caught by auditing a working design
+
+`width_audit.py` flagged the b=3 output die: `outw` declared 32 bits, expression
+gives **46**. The line is
+
+```verilog
+assign outw = {16'hA5A5, 14'd0, (acc > 0) ? 2'b01 : 2'b11};
+```
+
+which is exactly 32. The auditor summed **both branches** of the conditional and
+the 12-bit `acc` from its condition.
+
+> **T400. The dyadic die B — running 200/200 on silicon — carries the same line
+> and was flagged identically.** That is what exposed it: **the new design was
+> audited alongside a known-good one.** Fixed by *reporting* conditionals and
+> comparisons as unparsed rather than mis-counting them (lesson 872), and
+> re-validated: the known-broken W771 probe is still caught.
+
+> **T400a. An auditor validated on one defect class is validated on one defect
+> class.** W774 proved it catches a slice-width error and shipped. It had never
+> been pointed at a working file containing a conditional. **"Caught the known
+> defect" licenses trust in that defect, not in the tool.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
