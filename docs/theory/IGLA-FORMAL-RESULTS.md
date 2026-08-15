@@ -16670,4 +16670,66 @@ The failure signature was identical at every width: `top16=8000 → 0x00000000`,
 
 ---
 
+## W772 — the register is exonerated; the width limit does not exist
+
+### T386 — a width auditor, validated on a known-broken input first
+
+T384a prescribed checking the arithmetic of every slice width in emitted source.
+`experiments/gfternary-line/width_audit.py` does it mechanically: it records each
+declared `[H:L]` width and verifies that every concatenation assigned to it sums
+to exactly that many bits, and that no slice bound exceeds its declaration.
+**Anything it cannot parse is reported, never silently skipped** — an auditor that
+ignores what it does not recognise is the W771a failure in a new costume.
+
+| file | declarations | discrepancies |
+|---|---:|---|
+| `q_784.v` — **the known-broken W771 probe** | 3 | **1: `inw` declared 784, expression gives 783** |
+| `tr_a.v` — UNSW network (works) | 35 | **0** |
+| `f_a.v` — Fashion network (fails) | 35 | **0** |
+
+> **T386. The auditor caught the known defect on its first run**, which is what
+> makes its clean verdict on the two networks worth anything. **Width arithmetic
+> is exonerated for both the working and the failing network** — the Fashion
+> defect is not there.
+
+### T387 — with the probe fixed, both widths pass; there is no width limit
+
+Rebuilt with `inw[NB-32:0]` (= NB bits) instead of `inw[NB-33:0]`, **audited
+before synthesis**, and built through `scripts/fpga-build.sh`:
+
+| width | chunks | excess | words passing | W771's broken probe |
+|---:|---:|---:|---|---|
+| 593 | 20 | 27 | **10 / 10** | 6/10 |
+| 784 | 26 | 22 | **10 / 10** | 1/10 |
+
+> **T387. The 593-bit and 784-bit shift registers are both correct on silicon.**
+> T382's question — *genuine width limit or off-by-one?* — is answered: **it was
+> the off-by-one, and it was mine.** W771's monotone 6/10 → 1/10 degradation, the
+> shape of a real limit, was produced entirely by a one-bit slice error in the
+> instrument.
+
+> **T387a. What the Fashion defect is NOT, now with four exclusions measured.**
+> Not the logic (Icarus 64/64, T380). Not a known-bad primitive (`yostat` guard
+> passes, 0 SRL, 0 DSP). Not width arithmetic (T386). **Not the shift register at
+> that width (T387).** The remaining difference between the probe and the network
+> at the same width is **which flip-flops survive synthesis**: the probe observes
+> 32 contiguous bits and keeps 423 FFs; the network taps 85 scattered features up
+> to index 750 and keeps 471, where the feeding chains need ≈498.
+
+> **T387b. The next cut, recorded so it is not re-derived.** For each of the 85
+> taps, the chain `p, p−31, p−62, …` must survive. **Emit a design that reports
+> one deep tap directly — say `inw[750]` — and check it on silicon.** If a single
+> deep tap reads correctly, chain pruning is exonerated too and the defect is in
+> the table logic's *addressing* of `inw`, not in `inw` itself.
+
+### T388 — the build script paid for itself immediately
+
+> **T388.** `scripts/fpga-build.sh` (W771) built both probes and **deleted 40,460
+> lines of `.frames` and two `.fasm` files in the same command**. Free space was
+> **14 GiB before and 14 GiB after** — where W746–W771 accumulated 6.6 GB and
+> stopped the machine. **The intermediates were never wanted; only the habit of
+> keeping them was.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
