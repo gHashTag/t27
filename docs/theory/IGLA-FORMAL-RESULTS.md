@@ -15848,4 +15848,53 @@ identical area** — only the task differs:
 
 ---
 
+## W761 — a predictor, and it replicated
+
+### T361 — total mutual information predicts the sparse penalty
+
+W759 tested one pre-registered predictor on eleven tasks and it failed. W760/W761
+ran **45 labellings of ONE dataset** — MNIST digit pairs, one-vs-rest and
+groupings, so the input distribution is identical across all of them and only the
+decision changes — split into a **discovery** half and a **confirmation** half by
+a fixed seed before anything was measured.
+
+| candidate | r, discovery | r, **confirmation** |
+|---|---:|---:|
+| **`mi_tot`** — total per-feature MI | **-0.780** | **-0.879** |
+| `dense` — the dense reference's accuracy | -0.621 | -0.823 |
+| `head` — 100 − dense | +0.621 | +0.823 |
+| `mi_max` — the strongest single feature | -0.841 | -0.700 |
+| `c6` — W759's registered predictor | +0.281 | +0.654 |
+
+> **T361. The registered forecast is refuted, and for once in our favour.** It
+> predicted the discovery winner would *not* replicate (|r| < 0.3 on
+> confirmation). `mi_tot` scored **-0.780** on discovery and
+> **-0.879** on confirmation. **The more total single-feature
+> evidence a labelling carries, the LESS a six-of-N draw costs** — redundant
+> evidence spread across many features is exactly what a narrow random view can
+> still catch.
+
+> **T361a. Why W759 saw nothing and this does.** W759's `c6` measures
+> *concentration* — evidence in the top six features as a fraction of the total.
+> `mi_tot` measures **amount**, not shape. **The quantity that matters is how much
+> evidence exists, not how unevenly it is distributed** — which is the opposite of
+> the story W758 told and W759 refuted.
+
+> **T361b. What this licenses, stated narrowly.** It licenses predicting the
+> penalty **across labellings of one dataset**, which is what was measured. It
+> does **not** yet license prediction across datasets: W759's eleven-task set
+> spanned three datasets and `c6` failed there, and `mi_tot` has not been tested
+> across datasets with the confirmation discipline. **T359a's requirement — measure
+> suitability, do not argue it — is relaxed only within a dataset.**
+
+### T362 — the sweep that lost fifty-one results
+
+> **T362.** The first census run died at **51 of 60** on its alarm timeout and
+> lost **every one** of the fifty-one completed tasks, because `json.dump` ran
+> only after the loop. **A long sweep that persists only on success persists
+> nothing.** The file now writes after every task and resumes from what is on
+> disk. Cost of the lesson: one full re-run.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
