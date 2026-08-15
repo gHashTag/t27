@@ -9089,6 +9089,33 @@ the model). One extra register bit removed both the loss and the model.
 **Every compensation is a place for a mistake to hide**, and the fix is usually
 cheaper than the theory.
 
+### Lessons 834-837 (W757) — a flat front is an answer, and a blocked track is a result
+
+**834. A flat Pareto front is a finding, not a failed sweep.** Twelve
+configurations, **6.5× the area for 1.72 pp**, and the efficient point is the
+*smallest* one. The instinct is to keep searching for a better corner; the
+measurement says the corner does not exist. **When every step up the curve costs
+6–25× more per point, stop climbing and report the shape.**
+
+**835. Re-measure your headline against a properly-trained rerun.** T350's
+artefact was 126 LUT at 78.45%; the same shape trained with class balancing and
+chosen rather than accepted is **123 LUT at 81.37%** — better on both axes. **A
+headline built before the training fixes landed is stale even when nothing about
+it was wrong.**
+
+**836. A blocked track is a result if you say what blocked it.** `WebSearch` and
+`WebFetch` both failed with a model-access error, so the field's Fmax and latency
+stayed unreachable and `LUT·ns` stayed incomparable. **Recording "blocked, here
+is why, the number is still missing" preserves the gap; inventing a plausible
+Fmax would have closed it falsely** — and lesson 832 exists precisely because that
+temptation recurs.
+
+**837. Unpack what the function returns.** `pareto.py` returned
+`(acc, (weights, idx))` and the caller unpacked three values; the sweep died
+after the first configuration. Two minutes of smoke-testing the new function on
+one seed would have caught it before an hour of background compute. **Run the new
+code once, small, before running it twelve times.**
+
 ### How to update this tracker
 
 After closing a wave:
