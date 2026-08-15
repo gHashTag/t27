@@ -9252,6 +9252,28 @@ language exists precisely to state objects the substrate cannot hold natively.
 **The 58% waste is the measured cost of the emission target and belongs in the
 case for new silicon — not in a list of shortcomings.**
 
+### Lessons 858-860 (W767) — a tool may refuse to answer
+
+**858. A tool that cannot be calibrated should print an order and a range, not a
+number.** `taskfit` ranks tasks by `mi_tot` and reports the penalties of its two
+nearest **measured** anchors. It prints, in its own output, that a fitted curve
+under-predicted three held-out datasets by 2.4, 3.3 and 8.6 pp. **Refusing to
+produce a point estimate is a feature when the point estimate would be wrong** —
+and the alternative was one commit from shipping.
+
+**859. Say "consistency check" when the test cases are the training cases.**
+`taskfit`'s three demo datasets are themselves anchors, so the run proves the
+tool is self-consistent and **nothing else**. Calling that validation would have
+been the same error as fitting and testing on one sample — **name the circularity
+in the same breath as the result.**
+
+**860. Attach the non-claims to a quotable number, in the same paragraph.** The
+ternary estimate — **4.74× fewer configuration cells** — will be repeated; its
+caveats will not, unless they travel with it. So they do: nothing about speed,
+nothing about silicon area, nothing about accuracy, and the adder-tree output
+layer excluded. **A number that leaves its caveats behind is a number that will
+be misquoted, most often by its own author.**
+
 ### How to update this tracker
 
 After closing a wave:
