@@ -17064,4 +17064,81 @@ the 12-bit `acc` from its condition.
 
 ---
 
+## W777 — the +1.58 pp was one seed, and the seed had a standard deviation of 7.89
+
+### T401 — base 3 against base 2, eight seeds: indistinguishable, and the sign flips
+
+T398a reported `b = 3` at 83.50% against `b = 2` at 81.92% on the sparse export
+— **+1.58 pp on one seed** — against W763's dense **+0.14 pp**. Two numbers an
+order of magnitude apart for one comparison. Eight seeds, both bases, paired:
+
+| task | seeds | b=2 | b=3 | b3 − b2 | t | verdict |
+|---|---:|---:|---:|---:|---:|---|
+| Fashion | 8 | 82.87% | 83.56% | **+0.70** | 0.85 | **not significant** |
+| UNSW | 8 | 74.75% | 72.93% | **−1.82** | −0.74 | **not significant, sign flips** |
+
+| per-seed spread | b=2 | b=3 |
+|---|---:|---:|
+| Fashion | sd **2.93** | sd 1.21 |
+| UNSW | sd **7.89** | sd 5.85 |
+
+**Registered forecast:** *(1) the gap shrinks to +0.2…+0.8 pp and is not
+significant; (2) the variance is large, ±1 pp per seed, and produced the +1.58.*
+
+> **T401. Both halves land, and the second explains the first.** On UNSW the
+> per-seed standard deviation is **7.89 pp** — a single run there carries no
+> information at all, and the sign of the difference reverses between tasks.
+> **T398a's +1.58 pp is withdrawn: it was the tail of a distribution, not an
+> effect.**
+
+> **T401a. The sparse export architecture cannot resolve alphabet differences.**
+> Sixteen neurons with a random connectivity draw per seed swamp a sub-point
+> effect. **Every alphabet conclusion this programme holds was measured densely
+> (T286, T317, W763) and must stay there** — the sparse export is for building
+> silicon, not for ranking formats.
+
+> **T401b. What this leaves of the base-3 case.** Its **area** result stands and
+> was never in question: 83 LUT against 89 in the table layers, 203 against 103
+> in the adder output, **348 against 252 in total** (T398). **Base 3 costs 38%
+> more and buys nothing measurable in accuracy.** The sieve's ranking of it as
+> first-on-area applies to table layers alone, and a real network is not only
+> table layers.
+
+### T402 — the sieve now separates admissibility from ranking
+
+T398 showed one top cannot cover a network containing both table layers and an
+adder output. `specs/numeric/golden_sieve.t27` now carries the distinction, and
+the compiler proves it:
+
+```
+  Typecheck OK (0 errors, 0 warnings)
+  tests 3, pass 3, FAIL 0
+  invariants 6 -- proved comptime
+```
+
+```
+invariant ranking_depends_on_layer_kind {
+    assert(prefers_base(3, LAYER_TABLE));
+    assert(prefers_base(3, LAYER_ADDER) == false);
+    assert(prefers_base(2, LAYER_ADDER));
+    assert(prefers_base(2, LAYER_TABLE) == false);
+}
+```
+
+> **T402. Admissibility is a property of the alphabet; ranking is a property of
+> the alphabet AND the layer.** The five filters (S1–S5) decide what may be used
+> at all; `prefers_base(b, kind)` decides which of the admissible is cheaper, and
+> **it gives opposite answers for the same base in the two layer kinds.** The
+> compiler now refuses to build if that stops holding — which means the
+> distinction cannot quietly be dropped when someone quotes "base 3 is first."
+
+> **T402a. What the sieve still cannot do, named.** It has no rule for **mixing**:
+> a network is some proportion of table layers and some of adder output, and
+> nothing in the spec weights the two. T398 measured one such mix — 348 against
+> 252 LUT, dyadic winning — but a **rule** would need the proportion as an input
+> and that has never been varied. **Two ranks and no combining function is
+> honest; a single number would not be.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

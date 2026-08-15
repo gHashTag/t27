@@ -164,6 +164,44 @@ pub fn binary_rows(fanin : u32) -> u32 {
 }
 
 // ============================================================================
+// Layer kind -- W777. A top computed on one layer type does not survive a
+// network containing two.
+//
+// T398 measured a trained base-3 network against a dyadic one on the same
+// silicon: 83 LUT against 89 in the TABLE layers, and 203 against 103 in the
+// ADDER-TREE output. Base three wins where the table absorbs the arithmetic and
+// loses where the arithmetic is real, because x3, x9, x27 are additions while
+// x2, x4, x8 are shifts. Total 348 against 252.
+//
+// So admissibility is one question and RANKING is another, and the ranking needs
+// to know which kind of layer it is ranking for.
+// ============================================================================
+
+pub const LAYER_TABLE : u32 = 0;   // enumerated into a case statement, 2.00 LUT/neuron
+pub const LAYER_ADDER : u32 = 1;   // a real adder tree; the weight VALUES are paid for
+
+// Whether a base's magnitudes are all powers of two. In an ADDER layer this is
+// what decides between a shift and an addition; in a TABLE layer it is
+// irrelevant, because the table has already absorbed the arithmetic.
+pub fn is_shift_base(b : u32) -> bool {
+    if (b == 2) { return true; }
+    if (b == 4) { return true; }
+    if (b == 8) { return true; }
+    return false;
+}
+
+// The ranking rule, stated so it cannot be quoted out of its layer.
+// Returns true when base `b` is the cheaper choice for a layer of kind `kind`.
+pub fn prefers_base(b : u32, kind : u32) -> bool {
+    if (kind == LAYER_ADDER) {
+        return is_shift_base(b);
+    }
+    // LAYER_TABLE: cost is table skew, and a faster-growing base compresses
+    // better (T366a). Base three measured 1.05 LUT/neuron against dyadic's 1.92.
+    return b >= 3;
+}
+
+// ============================================================================
 // Invariants -- L4. These are the theorems, stated so the compiler checks them.
 // ============================================================================
 
@@ -200,6 +238,15 @@ invariant six_bit_rule_is_three_trit_rule {
 invariant twenty_seven_row_neuron {
     assert(ternary_rows(3) == 27);
     assert(binary_rows(3) == 64);
+}
+
+invariant ranking_depends_on_layer_kind {
+    // The same base is preferred in one layer kind and not in the other. This is
+    // the whole content of T398: a top is not a property of the number alone.
+    assert(prefers_base(3, LAYER_TABLE));
+    assert(prefers_base(3, LAYER_ADDER) == false);
+    assert(prefers_base(2, LAYER_ADDER));
+    assert(prefers_base(2, LAYER_TABLE) == false);
 }
 
 // ============================================================================

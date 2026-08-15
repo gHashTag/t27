@@ -9454,6 +9454,27 @@ in the **adder-tree** output (203 vs 103), because ×3, ×9, ×27 are real addit
 while ×2, ×4, ×8 are shifts. Total: **348 vs 252 LUT**. **Rank formats against the
 mix of datapaths a real design contains, not against the one you measured.**
 
+### Lessons 887-889 (W777) — a single seed on a high-variance bench is not a datum
+
+**887. Check the per-seed standard deviation before believing any single run.**
+`b=3` beat `b=2` by **+1.58 pp** on one seed of the sparse export. At eight seeds
+the gap is **+0.70 (ns) on Fashion and −1.82 (ns) on UNSW — the sign flips** — and
+the per-seed sd on UNSW is **7.89 pp**. **On that bench a single run carries no
+information**, and reporting one was the error, not the number it produced.
+
+**888. Rank formats on the bench that can resolve them.** The sparse 16-neuron
+export has a random connectivity draw per seed and swamps sub-point effects.
+Every alphabet conclusion this programme holds was measured **densely**, and must
+stay there. **The sparse export is for building silicon, not for ranking
+formats** — using it for both was the confusion.
+
+**889. Separate admissibility from ranking, and put both in the spec.** Five
+filters decide what may be used at all; a *separate* function decides which
+admissible option is cheaper — **and it answers oppositely for the same base in a
+table layer versus an adder tree.** The compiler now proves that, so "base 3 is
+first" cannot be quoted without its layer. **A rank with no stated scope is a
+claim waiting to be misapplied.**
+
 ### How to update this tracker
 
 After closing a wave:
