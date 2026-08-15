@@ -7,41 +7,77 @@ description: The TNF (Ternary Network Float) and GA-T number formats — their d
 
 ## THE GOLDEN SIEVE — the format derived from the theorems
 
-Five filters, each a measured theorem. A candidate format passes only if it
-survives every one. **Ten of sixteen measured candidates are removed; eight fall
-to S3 alone.**
+**SIX** filters, each a measured theorem. A candidate passes only if it survives
+every one. **Ten of sixteen measured candidates are removed; eight fall to S3
+alone. S6 removes the remaining ladder family entirely.**
 
 | filter | rule | theorem |
 |---|---|---|
 | **S1 packing** | `|A| = 3^k` — powers of three waste nothing in trits | T367 |
 | **S2 ceiling** | `k ≤ 2` — 27 levels measured +0.15 / −0.13 pp, ns | T288/T369 |
-| **S3 single lane** | `A ⊂ ℤ` — a two-lane `Z[b]` resolve costs 8 DSP or ~2750 LUT | T293 |
+| **S3 single lane** | **commensurable**: all ratios rational, so one accumulator. A common scale factors out, so `{0,±φ}` passes and `{0,±1,±φ}` does not | T293/T406 |
 | **S4 three-trit** | fan-in × bits ≤ 6 — 2.00 LUT/neuron, else 39–54 | T368b |
 | **S5 no bad primitive** | no DSP48E1 / SRL16E — wrong bitstream, correct netlist | T246/T342 |
+| **S6 non-dominance** | top magnitude ≤ sum of the others, else the neuron reads one input | **T408/T409** |
 
-**THE ONE FORMULA:**
+**S3 IS COMPUTED, NOT SUPPLIED (T406).** It used to take `lanes` as an argument —
+the answer typed in by hand, and typed wrong it kills our own format.
+
+**THE ONE FORMULA, AND ITS REFUTATION:**
 
     TNF(k, b) = {0} ∪ { ±b^i : 0 ≤ i < (3^k − 1)/2 },   k ∈ {1,2},  b ∈ ℤ, b ≥ 2
 
 - `k = 1` → **3 levels, one trit** — `{0, ±1}`
 - `k = 2` → **9 levels, two trits** — `{0, ±b⁰, ±b¹, ±b², ±b³}`
 
-**The 27-matrix is the NEURON, not the weight**: three ternary inputs → `3³ = 27`
+**T409: no integer base clears S6 at `k = 2`.** For the ladder `{b⁰..b³}` the top
+weight exceeds the sum of the others exactly when `b³ > b² + b + 1`, whose root is
+the **tribonacci constant 1.8392867552** — and S3 demands `b ∈ ℤ, b ≥ 2`, so
+`8 > 7` already. **The ladder was never the requirement; integrality was.** The
+formula must widen to any integer `A` with `|A| = 3^k` whose largest magnitude
+does not exceed the sum of the others: linear 9 at `4 < 6`, fib at `3 < 4`.
+
+**EFFECTIVE FAN-IN — enumerated over all 9³ = 729 weight triples, exhaustive:**
+
+| alphabet | top : rest | mean eff. fan-in | LUT (L=8) | Fashion Δ | UNSW Δ |
+|---|---|---:|---:|---:|---:|
+| **linear 9** `{0,±1,±2,±3,±4}` | 4 < 6 | **2.55** | 271 | — | — |
+| fib `{0,±1,±1,±2,±3}` | 3 < 4 | 2.52 | 246 | −0.03 ns | −0.43 ns |
+| dyadic `b=2` | 8 > 7 | 2.19 | 209 | **−0.52** | −0.45 ns |
+| base 3 | 27 > 13 | 1.49 | 116 | **−1.55** | −0.92 ns |
+| base 4 | 64 > 21 | **1.03** | **45** | **−2.93** | −1.60 ns |
+
+**Effective fan-in predicts LUT at r = +0.991 and accuracy at r = +0.956 (UNSW) /
++0.987 (Fashion).** So the alphabet's skew is ONE knob moving both: **6× area for
+under 3 pp.** That is a trade to make deliberately, not a ranking.
+
+**WHAT THIS CORRECTED (T410, T413a).** "Base 3 is 46% cheaper in table layers
+because a faster-growing base compresses better" — **withdrawn**. It does not
+compress; it lowers effective fan-in from 2.19 to 1.49. And the follow-on claim
+that base 4 is *Pareto-dominant on UNSW* — **also withdrawn**: that was a stand
+with no normalisation, which flipped the correlation from −0.971 to +0.956.
+
+**THE BASE TOP CARRIES SIGNIFICANCE NOW, OR IT IS NOT A TOP (T403).** W763's
+eleven bases, re-tested paired on the saved per-seed data, n = 5:
+
+- **UNSW: 0 of 11 differ significantly from dyadic.** φ's +0.39 pp is `t = +2.27`, ns.
+- **Fashion: 2 of 11** — √2 at +0.09 pp (significant only because its sd is 0.05)
+  and `b = 1.0` at −0.25 pp, the degenerate three-level control.
+- **The ordering printed in T365 and T395 is withdrawn.** The rows stay as
+  measurements. **Accuracy does not choose the base; area does.**
+
+**THE 27-MATRIX IS THE NEURON, NOT THE WEIGHT**: three ternary inputs → `3³ = 27`
 reachable rows, zero waste. The same neuron in a binary LUT6 has 64 rows of which
 27 are reachable — **42% used, 58% lost to the substrate.**
 
-**THE TOP, all measured axes at once:**
-
-| format | levels | trits | UNSW | Fashion | LUT dense | **LUT table** | LUT/neuron |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| **ternary b=3** | 9 | 2 | 89.76 | 90.69 | 1,417 | **67** | **1.05** |
-| true ternary | 3 | 1 | 89.52 | 90.69 | — | 114 | 1.78 |
-| dyadic b=2 | 9 | 2 | 89.62 | 90.94 | **752** | 123 | 1.92 |
-| linear | 9 | 2 | — | — | 812 | 128 | 2.00 |
-
-**In the TABLE datapath `b=3` leads; in the DENSE adder tree dyadic leads.** The
-order inverts with the datapath (T366b). **Accuracy orders neither** — the whole
-spread is 0.49 pp (UNSW) and 0.36 (Fashion).
+**THE 83-FORMAT CATALOGUE THROUGH THE SIEVE (T405): 1 admissible.** 12 unsievable
+(no width, or decimal), 71 sieved, **70 killed by S1 alone** — every one is a
+power-of-two code space and `2^n` is a power of three for no `n ≥ 1`. The
+survivor is `gfternary`. **This is a category result before a quality one**: the
+catalogue answers the *accumulator* question, the sieve asks the *weight*
+question, and `int8` being cut says nothing against `int8`. Nearest miss: `gf4` /
+`mxgf4`, span `[8,16]`, the only catalogued formats that *could* hold nine levels
+under a different convention — they hold seven.
 
 **NEVER PUT THESE IN A TRAINING CATALOGUE:** φ, √2, plastic, silver, e,
 tribonacci, ψ₄, supergolden. All fail S3, and all **teach a false hardware
@@ -50,7 +86,10 @@ cost** — multiplier-free in the weight application, not multiplier-free once t
 be built. They belong in the *history*, with their refutations attached, never in
 the *catalogue*.
 
-Runnable: `experiments/gfternary-line/golden_sieve.py`.
+Runnable: `experiments/gfternary-line/golden_sieve.py`,
+`sieve_catalog.py` (the 83), `gen_mix.py` (effective fan-in + area),
+`fanin_accuracy.py` (accuracy, with the `scale` control).
+Spec: `specs/numeric/golden_sieve.t27` — 3 tests, 7 invariants proved comptime.
 
 ---
 
