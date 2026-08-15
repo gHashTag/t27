@@ -16052,4 +16052,51 @@ class balancing, 5 seeds, UNSW-NB15. Area is a placed 64→8 layer, fixed-point
 
 ---
 
+## W764 — in a truth table the number is nearly free, and base 3 is cheapest
+
+### T366 — the 3.95× spread collapses, and the ternary base wins
+
+W763 measured the base's cost in a **dense adder tree**: dyadic 752 LUT, base 3
+1,417, φ 2,726, silver 2,971 — a **3.95× spread**, because that layer performs
+real arithmetic and pays for each base's shift-add decomposition.
+
+The **truth-table** layer performs none. A neuron of ≤6 input bits is enumerated
+on the host and emitted as a case statement; the base only decides which values
+the enumeration compares against. Same 593→64 layer, fan-in 6, `-nodsp -nosrl`:
+
+| base | LUT | LUT/neuron | vs dyadic |
+|---|---:|---:|---:|
+| **ternary 3.0** | **67** | **1.05** | **0.54×** |
+| e | 79 | 1.23 | 0.64× |
+| silver | 88 | 1.38 | 0.72× |
+| dyadic 2.0 | 123 | 1.92 | 1.00× |
+| φ / √2 / plastic / linear | 128 | 2.00 | 1.04× |
+
+**Registered forecast:** *every base costs the same, 2.00 LUT/neuron within
+±0.15; the 3.95× spread collapses to 1.0×.*
+
+> **T366. Refuted in the interesting direction.** The spread collapses from
+> **3.95× to 1.9×**, not to 1.0× — and the ordering **inverts**: the bases that
+> were *most* expensive in an adder tree are *cheapest* in a table.
+> **Base 3 costs 1.05 LUT/neuron, 46% less than dyadic**, and for a project whose
+> whole premise is ternary that is the first measurement in which the ternary
+> base wins anything.
+
+> **T366a. Why the ordering inverts, and it is not mysterious.** A table's cost
+> is set by **how many input patterns disagree with the most common output** —
+> `yosys` folds the rest into the `default` arm. A base whose powers grow fast
+> (3, e, silver) drives the accumulated sum past the threshold on most patterns,
+> so one symbol dominates and the table compresses. A base whose powers grow
+> slowly (φ, √2, plastic) leaves the sum near zero, the three symbols are evenly
+> mixed, and nothing folds. **Cheapness in a table is table SKEW, and skew is a
+> property of the base's growth rate.**
+
+> **T366b. T365c's scope was too wide and is corrected.** It said "the number you
+> choose for ternary weights is an area decision." That is true of **adder-tree**
+> datapaths, where the spread is 3.95×. In **table** datapaths the spread is 1.9×
+> and points the other way. **Both statements are about area; neither is about
+> accuracy, which varies by 0.49 pp across every base measured.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
