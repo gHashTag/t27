@@ -16540,4 +16540,58 @@ separate anchor sets. Implemented and tested on the same twelve held-out tasks:
 
 ---
 
+## W770 — the 784-bit path fails where the 593-bit path works
+
+### T380 — simulation clean, silicon wrong, and the difference is register width
+
+The Fashion network left W760 broken (die A agreed on 4 of 60 rows) and the wave
+moved on. W770 applied lesson 820 — **simulate before touching hardware**:
+
+| check | result |
+|---|---|
+| emitted Verilog vs model, Icarus, 64 real Fashion rows | **64 / 64 exact** |
+| `SRL16E` / `DSP48E1` in any of the three dies | **0**, `yostat` guard passes |
+| die A flip-flops | 471 present, ≈498 estimated as needed |
+| silicon vs the same 64 vectors | **2 / 24** |
+
+> **T380. The logic and the export are verified; the silicon is not.** The same
+> generator, the same flags and the same protocol produce a **correct** 593-bit /
+> 20-chunk path (T343: 100/100 on UNSW) and a **broken** 784-bit / 26-chunk one.
+> **The defect is in the wide register, and it is reproducible.**
+
+> **T380a. The register does load — the first diagnosis was wrong.** All-zeros
+> returns `0x75F3CCD7` and all-ones `0xDF51447D`; they differ, so bits reach the
+> logic. Vector 0 matches the model genuinely (it is not the all-zeros answer),
+> with 25 of the 85 used features set. **Whatever is wrong is partial, not a dead
+> register.**
+
+### T381 — my single-bit probe was not a valid diagnostic
+
+I probed thirteen used feature indices one at a time and found **one** that
+changed the output, and read that as "the silicon reads almost nothing".
+
+> **T381. That inference is invalid and is withdrawn.** Each neuron thresholds at
+> **|sum| > 2** with weights up to ±4, so flipping **one** input bit usually moves
+> no symbol across a threshold. **A probe whose null result is the expected
+> behaviour measures nothing.** The all-ones test — which does cross thresholds —
+> shows the register working, and it contradicts the probe.
+
+> **T381a. The general form, since this is the second time.** W764 drew a
+> conclusion from a hand-typed summary that the computed table beside it
+> contradicted; here a conclusion was drawn from a probe whose sensitivity was
+> never checked. **Before believing a negative result, ask what a positive one
+> would have looked like** — if the answer is "I do not know", the probe is not
+> an instrument.
+
+### T382 — what the next wave should do, stated so it is not re-derived
+
+> **T382.** The 593-bit path works and the 784-bit path does not, with identical
+> generator, flags, protocol and a clean simulation. **A bisection on register
+> width — 593, 640, 700, 784 — finds the breaking point in four builds**, and the
+> breaking point is what distinguishes a genuine width limit from an
+> off-by-one in chunk arithmetic. **That is a smaller question than "why is
+> Fashion wrong", and it is the one the evidence supports asking.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

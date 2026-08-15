@@ -9298,6 +9298,29 @@ a Zeckendorf win could not have been separated into *additive structure* versus
 *Fibonacci values*. **A 2×2 costs one extra arm and converts an outcome into an
 explanation.**
 
+### Lessons 864-866 (W770) — check a probe's sensitivity before believing its null
+
+**864. Before believing a negative result, ask what a positive one would look
+like.** Thirteen single-bit probes each failed to change the output, and I read
+that as "the silicon reads almost nothing". But every neuron thresholds at
+|sum| > 2 with weights up to ±4 — **one bit flip is not expected to move any
+symbol.** The probe's null was its normal behaviour. **A probe whose sensitivity
+is unknown is not an instrument**, and the all-ones test contradicted it
+immediately.
+
+**865. Simulate first, and the hardware question gets smaller.** Fashion left
+W760 as "die A agrees on 4 of 60 rows" — an unbounded question. Ten minutes of
+Icarus (64/64 exact) plus one `yostat` call (no SRL, no DSP) reduced it to
+**"the 784-bit register path fails where the 593-bit one works"**, which a
+four-build bisection on width can close. **The value of simulating first is not
+finding the bug; it is shrinking the search space before you pay for hardware.**
+
+**866. Write the next step into the record, not into the report.** "Bisect the
+register width at 593 / 640 / 700 / 784" belongs in the theorem file beside the
+evidence that motivates it. **A next step that lives only in a summary is
+re-derived from scratch two waves later** — this programme has re-derived the
+same diagnosis three times already.
+
 ### How to update this tracker
 
 After closing a wave:
