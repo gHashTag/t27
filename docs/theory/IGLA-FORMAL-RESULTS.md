@@ -16476,4 +16476,68 @@ sieve with totient (W370). Neither touches φ.
 
 ---
 
+## W769 — φ's last door, and a fix of mine that made things worse
+
+### T378 — Zeckendorf as a weight encoding: the door is closed
+
+Every measurement of φ in this programme used it as a **base** — levels
+`{0, ±φ^k}`. Dmitrii asked about a golden sieve; T377 found none, but the repo
+carries **Zeckendorf**: every integer uniquely a sum of **non-consecutive**
+Fibonacci numbers, which is base-φ's forbidden `11`. That is the one form never
+tried — a weight as a **sum** of Fibonacci terms, the Fibonacci analogue of
+**APoT** (Li, Dong & Wang, ICLR 2020).
+
+The 2×2 at matched cardinality — nine levels in every arm, so shape is tested and
+not size:
+
+| arm | levels | UNSW | Δ | Fashion | Δ |
+|---|---|---:|---:|---:|---:|
+| `pot9` single, 2^k | ±{1,2,4,8} | 89.88% | — | 90.95% | — |
+| `fib9` single, F_k | ±{1,2,3,5} | 89.86% | −0.029 | 91.04% | +0.092 |
+| `apot9` additive, 2^i+2^j | ±{3,5,6,9} | **90.00%** | +0.119 | 90.91% | −0.043 |
+| **`zeck9` additive, Zeckendorf** | ±{4,6,7,9} | **89.64%** | **−0.243** | — | — |
+
+> **T378. The forecast lands: all arms within 0.36 pp, none significant** (largest
+> |t| = 1.95). **Zeckendorf is the worst arm on UNSW**, not the best. `fib9` — the
+> control that separates *additive structure* from *Fibonacci values* — is
+> indistinguishable from `pot9` on both tasks, so neither ingredient carries
+> anything.
+
+> **T378a. φ's last untested form is now tested, and it closes the question.**
+> φ has been measured as a base (T286, T317, W763), as a two-lane `Z[φ]` datapath
+> (T293), and now as an additive Zeckendorf basis. **In every form its accuracy
+> advantage is inside the noise, and in the two forms with a hardware cost it is
+> expensive** — 3.63× the LUT as a base, 8 DSP48E1 for the pair resolve. **The
+> algebra remains proved and the practical case remains absent.**
+
+### T379 — my diagnosis of the bracket was wrong, and the fix made it worse
+
+T376a diagnosed the bracket's misses as a **task-family confound** and prescribed
+separate anchor sets. Implemented and tested on the same twelve held-out tasks:
+
+| anchors | coverage |
+|---|---:|
+| mixed (before) | **8/12 = 67%** |
+| per-family (the fix) | **6/12 = 50%** |
+
+> **T379. The fix is refuted by measurement — it made coverage worse.**
+> Per-family anchors are better *centred* and produce **narrower** brackets, and
+> narrower brackets miss more. **Coverage is what the tool promises, and a wide
+> bracket that catches two-thirds beats a tight one that catches half.**
+
+> **T379a. What T376a got right and wrong.** Right: the misses were systematically
+> **below**, and all were digit pairs. Wrong: the conclusion that separating the
+> families would fix it. **A correct observation about the direction of an error
+> does not license a conclusion about its cause** — the misses are low because
+> the *relation* under-predicts (T371c), not because the anchors are mixed, and
+> narrowing the interval cannot repair an estimator that is biased.
+
+> **T379b. The per-family anchors are kept anyway, and flagged.** They are the
+> better *centred* estimate and the honest basis for a future calibrated tool;
+> they are **not** an improvement in coverage and `taskfit` now needs to say which
+> of the two it is offering. **Reverting would discard a correct measurement
+> because it did not produce the hoped-for improvement.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

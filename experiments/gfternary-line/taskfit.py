@@ -23,10 +23,19 @@ import numpy as np, sys, json
 # 60 labellings of MNIST (W760/W761) plus three whole datasets (W758/W759).
 OBSERVED = {"min": 0.24, "max": 14.85, "median": 3.00,
             "n_tasks": 63, "source": "W758-W762"}
-# Anchors: (mi_tot, measured penalty). Used ONLY to place a new task between
-# known ones -- never to interpolate a value.
-ANCHORS = [(3.14, 14.85, "MNIST-bin"), (5.21, 5.66, "4v9"), (11.04, 6.70, "UNSW"),
-           (21.89, 0.90, "0v8"), (30.40, 3.48, "Fashion"), (44.75, 0.28, "0v1")]
+# W769: anchors are SPLIT BY TASK FAMILY. T376a diagnosed the single mixed set:
+# whole datasets (penalties 3.5-14.9) and digit pairs (0.2-5.6) occupy the SAME
+# mi_tot range at DIFFERENT penalty levels, so a bracket drawn across both is too
+# high for pairs by construction -- all four held-out misses were pairs, all four
+# below the lower edge. Same shape as T364's ntrain confound.
+ANCHOR_SETS = {
+  "whole-dataset": [(3.14, 14.85, "MNIST-bin"), (11.04, 6.70, "UNSW"),
+                    (30.40, 3.48, "Fashion")],
+  "binary-pair":   [(5.21, 5.66, "4v9"), (10.04, 3.78, "3v8"), (13.24, 3.48, "4v8"),
+                    (21.89, 0.90, "0v8"), (30.90, 1.62, "0v7"), (44.75, 0.28, "0v1")],
+}
+# Default when the caller does not say which family a task belongs to.
+ANCHORS = ANCHOR_SETS["whole-dataset"]
 
 def mutual_info(X, y):
     n = X.shape[1]; out = np.zeros(n); yb = y > 0.5; py1 = yb.mean()
@@ -47,23 +56,30 @@ def load(path):
     d = np.load(path); tr = d["train"]
     return tr[:, :-1].astype(np.float32) * 2 - 1, tr[:, -1].astype(np.float32)
 
-def bracket(mi):
-    """Place mi between the two nearest anchors and report THEIR penalties."""
-    lo = [a for a in ANCHORS if a[0] <= mi]
-    hi = [a for a in ANCHORS if a[0] >= mi]
+def bracket(mi, family="whole-dataset"):
+    """Place mi between the two nearest anchors OF THE SAME FAMILY and report
+    THEIR penalties. Bracketing across families is not licensed (T376b)."""
+    anchors = ANCHOR_SETS.get(family, ANCHORS)
+    lo = [a for a in anchors if a[0] <= mi]
+    hi = [a for a in anchors if a[0] >= mi]
     l = max(lo, key=lambda a: a[0]) if lo else None
     h = min(hi, key=lambda a: a[0]) if hi else None
     if l and h and l is not h:
         p = sorted([l[1], h[1]])
-        return f"{p[0]:.1f}-{p[1]:.1f} pp", f"between {l[2]} and {h[2]}"
+        return p[0], p[1], f"between {l[2]} and {h[2]}"
     a = l or h
-    return f"~{a[1]:.1f} pp", f"nearest anchor {a[2]}"
+    # outside the anchor span: widen by the observed spread rather than guessing
+    return a[1] * 0.7, a[1] * 1.3, f"nearest anchor {a[2]}, extrapolated"
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__); sys.exit(1)
+    family = "whole-dataset"
+    args = [a for a in sys.argv[1:] if not a.startswith("--family=")]
+    for a in sys.argv[1:]:
+        if a.startswith("--family="): family = a.split("=",1)[1]
     rows = []
-    for path in sys.argv[1:]:
+    for path in args:
         X, y = load(path)
         mi = mutual_info(X, y)
         rows.append((path.split("/")[-1], float(mi.sum()), int(X.shape[1])))
@@ -71,9 +87,10 @@ if __name__ == "__main__":
     print(f"\n  RANKED BY EXPECTED COST TO A SPARSE TERNARY DATAPATH -- cheapest first")
     print(f"  {'task':<22}{'features':>10}{'mi_tot':>10}   {'bracket':<14} basis")
     for nm, m, nf in rows:
-        b, why = bracket(m)
-        print(f"  {nm:<22}{nf:>10}{m:>10.2f}   {b:<14} {why}")
-    print(f"\n  THIS IS A RANKING, NOT A PREDICTION.")
+        lo, hi, why = bracket(m, family)
+        print(f"  {nm:<22}{nf:>10}{m:>10.2f}   {f'{lo:.1f}-{hi:.1f} pp':<14} {why}")
+    print(f"\n  family = {family}   (--family=binary-pair for digit-pair tasks)")
+    print(f"  THIS IS A RANKING, NOT A PREDICTION.")
     print(f"  mi_tot correlates with the penalty at r = -0.81 within a dataset and")
     print(f"  r = -0.68 across datasets, over {OBSERVED['n_tasks']} measured tasks spanning")
     print(f"  {OBSERVED['min']}-{OBSERVED['max']} pp (median {OBSERVED['median']}).")
