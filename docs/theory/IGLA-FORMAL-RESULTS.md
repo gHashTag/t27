@@ -15339,4 +15339,74 @@ register loaded 31 bits per UPDATE, twenty passes per row.
 
 ---
 
+## W753 — the register was innocent; T336 is withdrawn
+
+### T338 — make the thing observable instead of guessing at it
+
+T336 concluded *"the defect is in the ordering of bits within the shift
+register"* after three host-side hypotheses were tested and refuted. W753 built a
+**33-LUT diagnostic bitstream** carrying the same shift logic verbatim and
+reporting `inw[31:0]` directly.
+
+| sent | `inw[31:0]` read back | |
+|---|---|---|
+| one UPDATE, `0x00000001` | `0x00000001` | exact |
+| one UPDATE, `0x2AAAAAAA` | `0x2AAAAAAA` | exact |
+| two UPDATEs, `0x7FFFFFFF`,`0` | `0x80000000` | exact |
+| two UPDATEs, `0x40000000`,`0` | `0x00000000` | exact |
+
+> **T338. The transport is correct and T336 is withdrawn.** Bit `b` of chunk `k`
+> lands at `inw[b + 31(N−1−k)]`, exactly as designed, so twenty chunks reconstruct
+> the row. **Three waves of host-side guessing were replaced by one bitstream that
+> reports the register**, and the answer arrived in a single pass. **When a path
+> is opaque, the cheapest instrument is a version of the design that shows its
+> own state.**
+
+### T339 — what the defect actually is, and what it is not
+
+| checked | verdict |
+|---|---|
+| shift transport | **correct** (T338) |
+| Verilog references `inw` 97 times = 16×6 + 1 | **correct** |
+| constant-folded neurons in layer 0 | **none** — 0 of 16 |
+| register pruned by synthesis | **no** — 44 SRL16E + 58 FDRE implement it |
+| **feature set the silicon reads** | **differs from the model's** |
+
+Probing 24 input positions on die A: **6** change the output and are read by the
+model; **8** change the output but the model does not read them; **8** are read by
+the model and change nothing.
+
+> **T339.** The defect is **not** transport, **not** synthesis pruning, and
+> **not** constant folding — each of those is now separately excluded by
+> measurement. It is a **mismatch between the Python model and the emitted
+> selection/table pair**, and it is the last place left to look. **Open, and
+> narrowed from "somewhere in a 593-bit path" to "the index-to-table
+> correspondence in one function."**
+
+> **T339a. `grep -c` cost an hour.** `grep -c "inw\["` returned **17** and I read
+> it as "17 references, so 15 neurons are missing." It counts **lines**; the
+> occurrence count is **97**, exactly `16×6+1`. **The repository's oldest lesson —
+> never read a line count as a quantity — reappeared in its fourth disguise**,
+> and this time it manufactured a defect that did not exist.
+
+### T340 — the published areas are hidden-layer areas, and the correction is now sized
+
+> **T340.** T335 established that every area this project published omits the
+> decision neuron. The measured cost of that stage at fan-in 16 over ternary
+> inputs is **87 LUT** — an adder tree, since a 32-bit truth table is 4.3 billion
+> entries. The corrections owed:
+>
+> | published | stage | corrected |
+> |---|---|---|
+> | 128 LUT (T321) | + output | **≈ 215 LUT** |
+> | 511 LUT (T330) | + output | **≈ 598 LUT** |
+> | 770 LUT (T331) | + output | **≈ 857 LUT** |
+>
+> **The comparison against TreeLUT's 89 LUT moves from 1.44× to ≈2.4×.** The
+> output stage at wider fan-in has not been measured and the figures above assume
+> the 16-input cost, so they are **lower bounds on the correction, not the final
+> numbers.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
