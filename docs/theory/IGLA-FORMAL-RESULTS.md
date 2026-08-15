@@ -16139,6 +16139,76 @@ changes what the programme's own measurements mean.
 > position for a ternary line and it was under-reported in W763 as "the
 > interesting half of a refutation."
 
+### T368 — the ternary accounting, developed
+
+T367 recounted alphabet packing in trits. Pushed further, the reframing reaches
+three more places, two of which restate measurements this programme already has.
+
+#### T368a — radix economy: base 3 is the optimum among integers
+
+The classical cost of representing `N` values in base `b` is `E = b·log_b(N)`
+(Knuth, *TAOCP* vol. 2). At `N = 10⁶`:
+
+| base | E | vs base 3 |
+|---:|---:|---:|
+| 2 | 39.86 | 1.057× |
+| **3** | **37.73** | **1.000×** |
+| 4 | 39.86 | 1.057× |
+| 10 | 60.00 | 1.590× |
+| *e ≈ 2.718* | *37.55* | *0.995×* |
+
+> **T368a** [classical, not ours]. **Base 3 is the nearest integer to `e` and the
+> most economical integer radix**, beating binary by **5.7%**. This is textbook
+> and the project did not discover it — **but it is the substrate this line
+> targets**, and no measurement in this file had ever been stated against it.
+
+#### T368b — the SIX-BIT RULE is the THREE-TRIT RULE
+
+T331 measured: a neuron costs **2.00 LUT at ≤6 input bits** and 39–54 above.
+In ternary units that law reads differently:
+
+| | |
+|---|---|
+| binary input, fan-in 6 | 6 bits |
+| **ternary input, fan-in 3** | 3 × 2 bits = **6 bits = exactly 3 trits** |
+| natural ternary table over 3 trits | **3³ = 27 entries** |
+| the binary LUT6 that holds it | 2⁶ = **64 entries** |
+| fraction of the binary LUT actually used | **42%** |
+
+> **T368b.** The hardware law this programme measured empirically — *six bits per
+> neuron* — is, in the target's own units, **three trits per neuron**, and a
+> three-trit table is **27 entries**. We are paying for a 64-entry binary
+> primitive to hold a 27-entry ternary function: **58% of every LUT in the
+> datapath is structurally wasted by the substrate**, not by the design.
+
+#### T368c — weight storage: 21% is the standing tax
+
+| levels | entropy (bits) | bits allocated | waste | **trits** | equiv. bits | **waste** |
+|---:|---:|---:|---:|---:|---:|---:|
+| 3 | 1.58 | 2 | **21%** | **1** | 1.58 | **0%** |
+| 9 | 3.17 | 4 | **21%** | **2** | 3.17 | **0%** |
+| 27 | 4.75 | 5 | 5% | **3** | 4.75 | **0%** |
+
+> **T368c.** For the two sizes that matter — 3 and 9 — binary storage wastes
+> **21%** and ternary wastes **nothing**. On the trained network
+> (593→16→16→1, 9,760 weights) that is **39,040 bits binary against 19,520 trits
+> = 30,938 bit-equivalents: 21% less, at every width, unconditionally.**
+
+> **T368d. An arithmetic slip, caught in this file's own output.** The first
+> printing of the storage table carried a hand-written summary line reading
+> "37%, 21%, 37%" while the computed column read **21%, 21%, 5%**. The summary
+> was a hardcoded string and the table was right. **A number typed beside a
+> computed number is not a check on it** — this is the same class as reading a
+> line count for a quantity, in its sixth disguise.
+
+> **T368e. What this does and does not establish.** It establishes that **the
+> project's founding choice is optimal in its own units** — base 3 is the best
+> integer radix, 3 and 9 levels pack perfectly, and the measured six-bit rule is a
+> three-trit rule. It establishes **nothing about accuracy**, which is unmoved,
+> and nothing about the 10.6-point gap to the field. **The ternary case is an
+> efficiency case, and it is a real one; it is not an accuracy case and must
+> never be presented as one.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
