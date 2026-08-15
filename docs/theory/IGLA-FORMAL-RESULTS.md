@@ -17141,4 +17141,73 @@ invariant ranking_depends_on_layer_kind {
 
 ---
 
+## W778 — the base top was never a ranking
+
+### T403 — eleven bases, five seeds, and zero significant differences on UNSW
+
+W763 reported a top of eleven weight bases as **means, with no significance
+test**. The per-seed data was saved, so the test costs nothing but arithmetic.
+Paired against dyadic, n = 5, |t| > 2.78 significant:
+
+| UNSW | Δ vs dyadic | t | |
+|---|---:|---:|---|
+| φ | +0.39 | +2.27 | ns |
+| ψ₄ | +0.23 | +1.37 | ns |
+| e | +0.22 | +1.54 | ns |
+| tribonacci | +0.21 | +2.66 | ns |
+| silver | +0.18 | +0.51 | ns |
+| ternary 3.0 | +0.14 | +0.49 | ns |
+| linear | +0.06 | +0.27 | ns |
+| supergolden | +0.04 | +0.24 | ns |
+| plastic | +0.03 | +0.16 | ns |
+| √2 | +0.01 | +0.05 | ns |
+| b = 1.0 | −0.10 | −0.36 | ns |
+| | | | **0 of 11 significant** |
+
+| Fashion | Δ vs dyadic | t | |
+|---|---:|---:|---|
+| √2 | +0.09 | +3.37 | **significant** |
+| b = 1.0 | −0.25 | −2.94 | **significant** |
+| the other nine | −0.08 … +0.11 | ns | |
+| | | | **2 of 11 significant** |
+
+> **T403. The base top was a list of indistinguishable numbers printed in sorted
+> order.** On UNSW **nothing** separates from dyadic; on Fashion the only two that
+> do are **√2 at +0.09 pp** — significant because its standard deviation is 0.05,
+> not because the effect is large — and **b = 1.0 at −0.25 pp**, the three-level
+> alphabet, significantly *worse*. **T365 and T395 stated correctly that accuracy
+> orders none of them, and then printed an ordered table anyway.** The ordering
+> is withdrawn; the rows remain as measurements.
+
+> **T403a. The one thing that survives is the smallest one.** `b = 1.0` —
+> `{0, ±1}`, one trit — is measurably worse than nine levels on Fashion by
+> **0.25 pp**, and not on UNSW. **That is the entire accuracy content of nine
+> waves of alphabet work: a quarter of a point, on one of two tasks.**
+
+> **T403b. Why this was not caught earlier, and it is not subtle.** The data to
+> run these tests has been on disk since W763. Every wave since has quoted the
+> means. **A table of means without dispersion invites exactly the reading it
+> got** — and the fix cost one script and no new measurement. **Report the test
+> beside the mean, or the sorted order will be read as a result.**
+
+### T404 — what the programme's format claims now reduce to
+
+> **T404.** With W777 (the sparse bench cannot resolve alphabets) and W778 (the
+> dense bench shows no significant ordering), the honest statement of nine waves
+> of alphabet work is:
+>
+> - **Accuracy does not choose the base.** Eleven bases, two tasks, five seeds:
+>   0/11 and 2/11 significant, largest effect **0.25 pp**.
+> - **Area chooses the base, and differently per layer kind.** Table layers:
+>   base 3 at 1.05 LUT/neuron against dyadic's 1.92. Adder trees: dyadic 103 LUT
+>   against base 3's 203. A whole network: **252 vs 348**, dyadic.
+> - **The sieve's five filters remain the only hard constraints**, and they are
+>   about admissibility — packing, ceiling, lanes, bits, primitives — not about
+>   which admissible option is better.
+>
+> **The format question is settled and its answer is "the alphabet is an area
+> decision", which is what T365c said and what the ordering kept obscuring.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
