@@ -9348,6 +9348,31 @@ in the same command that produced them.
 built with SRL inference and by T342 compute wrong answers. **Deleting them
 required no judgement about value** — they could only ever mislead.
 
+### Lessons 871-874 (W772) — validate the auditor on a known defect first
+
+**871. Run a new checker against a KNOWN-BROKEN input before trusting its clean
+verdict.** `width_audit.py` was pointed at the W771 probe first and found the
+one-bit error immediately; only then did its "0 discrepancies" on two networks
+mean anything. **A checker that has never caught anything is an opinion.**
+
+**872. An auditor must report what it cannot parse.** Anything the width checker
+fails to recognise is printed as `НЕ РАЗОБРАНО`, never skipped. **Silent skipping
+is exactly the W771a failure — an instrument blind to the thing under test — in a
+new costume.**
+
+**873. A sampling rule that truncates silently under-tests and reads as
+coverage.** The first tap probe sampled every second used index and stopped at
+**497** of a range reaching **750**; "all 32 taps correct" would have been an
+unearned conclusion about the deep end. **Print the range you actually covered
+beside the result**, and the gap announces itself.
+
+**874. Narrow by exclusion and record each exclusion with its evidence.** Six
+waves of the Fashion defect produced a table: logic excluded by simulation,
+primitives by the guard, width arithmetic by the auditor, the register by 10/10,
+the chains by 8/8. **What remains is one stage.** The value was never in any
+single test — it is that each one is written down with what proved it, so nothing
+is re-tested and nothing is assumed.
+
 ### How to update this tracker
 
 After closing a wave:

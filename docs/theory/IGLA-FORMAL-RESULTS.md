@@ -16730,6 +16730,48 @@ before synthesis**, and built through `scripts/fpga-build.sh`:
 > stopped the machine. **The intermediates were never wanted; only the habit of
 > keeping them was.**
 
+### T389 — the chains are intact at every tap the network uses
+
+T387b prescribed reporting the network's own tap positions raw. Two probes, both
+audited before synthesis and built through `fpga-build.sh`:
+
+| probe | taps | range | FFs kept | result |
+|---|---:|---|---:|---|
+| spread sample | 32 | 11 … **497** | 191 | **8 / 8** |
+| **deepest** | 32 | 425 … **750** | — | **8 / 8** |
+
+> **T389. Every flip-flop chain the Fashion network taps is correct on silicon**,
+> including the deepest at index 750 — the highest the network reads. Chain
+> pruning is exonerated.
+
+> **T389a. The first probe under-tested and said so.** It sampled every second
+> used index and stopped at **497**, leaving the deep third untested; the
+> conclusion "chains are intact" would have been unearned. **A sampling rule that
+> silently truncates is the same defect as a probe that cannot see its
+> variable** — the fix was one more build, and noticing cost nothing.
+
+### T390 — five measured exclusions, and what they leave
+
+| candidate | verdict | evidence |
+|---|---|---|
+| the emitted logic | **excluded** | Icarus 64/64 on real rows (T380) |
+| known-bad primitives | **excluded** | `yostat` guard, 0 SRL, 0 DSP |
+| width arithmetic | **excluded** | `width_audit.py`, 0 discrepancies (T386) |
+| the 784-bit shift register | **excluded** | 10/10 on silicon (T387) |
+| **the tap chains** | **excluded** | 8/8 at 11–497 and 425–750 (T389) |
+| **synthesis or bitstream of the table logic** | **remaining** | — |
+
+> **T390. The Fashion defect is now confined to one stage**: what happens to the
+> **truth-table logic** between a correct `inw` and a wrong output, on this
+> toolchain at this size. Every other stage is separately measured and clean.
+
+> **T390a. The next cut, and it is a small one.** Build a design that is the
+> **working tap probe plus exactly one truth table** — same register, same
+> addressing, one `case` statement in the path. **If it fails, the table logic is
+> the defect and the cut is complete; if it passes, add tables until it breaks
+> and the count is the answer.** This is the first cut in six waves that can only
+> have two outcomes.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
