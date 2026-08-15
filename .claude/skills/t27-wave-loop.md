@@ -8995,6 +8995,40 @@ defect was bit ordering inside the register. It was not, and the record now says
 so at the same volume. **A wrong diagnosis left standing is worse than no
 diagnosis**, because the next wave starts from it.
 
+### Lessons 820-824 (W754) — simulate before silicon, and suspect the primitive
+
+**820. THE ORDER IS model → simulate → synthesise → CHECK CELL TYPES → bitstream
+→ silicon.** This programme used model → silicon and paid **three waves** for it.
+Icarus localised the defect in one command; the `stat` cell list named it in one
+more. **Simulation is what makes a hardware disagreement mean something** —
+without it "silicon disagrees" has a dozen causes; with it, exactly one.
+
+**821. When every stage checks out and the whole is wrong, suspect the
+PRIMITIVE.** Logic correct (Icarus 64/64), transport correct (W753 probe), tables
+correct, no constant folding, register not pruned — and the die still disagreed.
+The answer was **SRL16E**: openXC7 emits a wrong bitstream for it, exactly as it
+does for a live-operand DSP48E1 (T246). **`synth_xilinx -nodsp -nosrl` is now the
+default for this toolchain**, and any new primitive in a `stat` list is a
+suspect until proven on silicon.
+
+**822. Read the cell list, not just the LUT count.** `t27c yostat` prints
+SRL16E, MUXF7, FDRE and the rest. **The defect was visible in that list for a
+whole wave before anyone read past the LUT line.** A count of LUTs is a budget;
+the cell list is a description of what will actually be built.
+
+**823. A protocol's width limit only bites when a payload finally needs all of
+it.** T324 recorded a 31-bit payload in W752 and it cost nothing, because every
+payload since had spare bits. Sixteen ternary symbols is exactly 32 bits — and
+**6 of 100 decisions flipped.** Modelling the truncation took die B from 94/100
+to **100/100**: the silicon was right and the host was lossy. **When a payload
+grows to the protocol's limit, re-derive the limit rather than trusting that it
+worked before.**
+
+**824. `0→1` proves acceptance, never implementation — confirmed twice.** The
+broken SRL bitstream passed the wrong-part → ours acceptance criterion on every
+attempt. **The criterion tests the configuration engine, not the design.** Pair
+it always with a design-specific readback that a wrong build cannot produce.
+
 ### How to update this tracker
 
 After closing a wave:
