@@ -9168,6 +9168,34 @@ The benchmark was inherited from a neighbouring literature and never questioned.
 right number** — and note that this lesson only became visible because W758
 varied the task, which is lesson 838 paying out.
 
+### Lessons 846-849 (W761-W762) — replication does not protect against confounds
+
+**846. A predictor that replicates can still be measuring the wrong thing.** The
+discovery/confirmation split protected against fitting noise and gave **zero**
+protection against a confound present in both halves: `ntrain` scored +0.745 /
++0.730 because the census mixed 10,800-row digit pairs with 54,000-row
+one-vs-rest tasks. **The second check is a homogeneous subgroup, and it costs one
+filter.** `ntrain`'s sign flipped to −0.382 inside it; `mi_tot` got *stronger*
+(−0.810), which is what a real predictor does.
+
+**847. A long sweep that persists only on success persists nothing.** The census
+died at 51 of 60 on its timeout and lost **all fifty-one** completed tasks,
+because `json.dump` ran after the loop. **Write after every item and skip what is
+already on disk** — the re-run cost more than the fix.
+
+**848. When the same question is asked four times, the answer is not where it is
+looked for.** "Which format for ternary on FPGA?" was answered in four different
+reports and none of them was findable. It now opens the format skill, with the
+measurement behind every clause. **Repetition of a question is a defect report
+about your documentation, not about the asker.**
+
+**849. Publish the negative result about your own headline at the same volume as
+the positive ones.** The line is named for φ; φ measures **+0.735 pp** and its
+pair resolve **reintroduces the multiplier** it was supposed to remove. That now
+appears in `README.md`, `BENCHMARKS.md`, `COMPETITORS.md` and the format skill —
+not only in a theorem file nobody opens. **A retraction filed where the claim was
+never made is not a retraction.**
+
 ### How to update this tracker
 
 After closing a wave:

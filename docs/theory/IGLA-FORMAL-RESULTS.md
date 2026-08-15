@@ -15952,6 +15952,45 @@ measured; only the predictor needed computing.
 > cost you in accuracy. **MNIST-bin has the least evidence (3.14) and the worst
 > penalty (+14.85); 0v1 has the most (44.75) and the least (+0.28).**
 
+### T364 — a confound in my own headline, caught and resolved
+
+The full 60-labelling census put `ntrain` — the number of training rows — at
+**r = +0.745 discovery / +0.730 confirmation**, almost matching the winner. That
+is a warning, not a finding: the census mixes **digit pairs** (~10,800 rows,
+mean penalty +2.36) with **one-vs-rest** tasks (~54,000 rows, mean penalty
++3.42), so any predictor correlated with task *type* would replicate beautifully
+while measuring nothing about evidence.
+
+Restricted to the **45 digit pairs**, where `ntrain` varies by only **1.15×**:
+
+| predictor | r | t |
+|---|---:|---:|
+| **`mi_tot`** | **−0.810** | **−9.07** |
+| `mi_max` | −0.751 | −7.47 |
+| `dense` | −0.734 | −7.09 |
+| **`ntrain`** | **−0.382** | −2.71 |
+| `c6` | +0.534 | +4.15 |
+
+> **T364. `ntrain`'s sign flips — +0.745 across the mixed census, −0.382 within
+> the homogeneous group.** That inversion *is* the confound, made visible. And
+> `mi_tot` does not merely survive it: it is **stronger inside the clean group
+> (−0.810) than across the mixed one (−0.751)**, which is what a real predictor
+> does when a nuisance variable is removed.
+
+> **T364a. The replication discipline was necessary but not sufficient.** The
+> discovery/confirmation split (T361) protected against fitting noise; it offered
+> **no protection at all** against a confound present in both halves. **A
+> predictor that replicates can still be measuring the wrong thing** — the second
+> check is a homogeneous subgroup, and it costs one filter.
+
+> **T364b. Final statement of the rule, with both controls applied.**
+> `mi_tot` — the sum of per-feature mutual information, one pass over the data —
+> predicts the sparse truth-table penalty at **r = −0.81 within a homogeneous
+> group of 45 labellings**, **−0.72 across a mixed 60**, and **−0.68 across three
+> different datasets**. Penalties in the census span **+0.24 to +14.71 pp**.
+> **This is the programme's only predictor that has survived both a confirmation
+> split and a confound check.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
