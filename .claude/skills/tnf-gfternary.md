@@ -5,6 +5,65 @@ description: The TNF (Ternary Network Float) and GA-T number formats — their d
 
 # TNF & GA-T — working knowledge
 
+## MEASURE IN TRITS — Dmitrii's standing correction
+
+**Every LUT figure in this repository is in the wrong units for the target.** A
+LUT is a *binary* primitive of the FPGA we happen to own. The line targets
+ternary silicon, and in its own units the picture changes. Restate before
+quoting.
+
+**Radix economy** [classical — Knuth, *TAOCP* v2]. Cost of representing `N`
+values in base `b` is `E = b·log_b(N)`. At `N = 10⁶`: base 2 → 39.86, **base 3 →
+37.73**, base 4 → 39.86, `e` → 37.55. **Base 3 is the nearest integer to `e` and
+the most economical integer radix, beating binary by 5.7%.** Not our discovery —
+but it is our substrate, and no measurement here had been stated against it.
+
+**Alphabet packing.** Sizes that waste nothing in ternary storage are exactly the
+**powers of three**:
+
+| levels | bits | waste | **trits** | **waste** |
+|---:|---:|---:|---:|---:|
+| **3** | 2 | 21% | **1** | **0%** |
+| 5 | 3 | 41% | 2 | 44% |
+| 7 | 3 | 14% | 2 | 22% |
+| **9** | 4 | **21%** | **2** | **0%** |
+| 27 | 5 | 5% | **3** | **0%** |
+
+**The Nine-Rung ceiling (T288) is 9 = 3² = exactly two trits.** The two sizes the
+programme singled out by measurement — the minimum (3) and the ceiling (9) — are
+**both perfect in trits and both wasteful in bits.**
+
+**THE SIX-BIT RULE IS THE THREE-TRIT RULE.** T331 measured 2.00 LUT/neuron at ≤6
+input bits. A ternary symbol is 2 bits, so **fan-in 3 = 6 bits = exactly 3
+trits**, and a natural three-trit table is **3³ = 27 entries** — held in a binary
+LUT6 of 64. **42% used; 58% of every LUT in the datapath is wasted by the
+substrate, not by the design.**
+
+**Storage tax:** 21% at both 3 and 9 levels. On the trained 593→16→16→1 network
+(9,760 weights): **39,040 bits binary vs 19,520 trits = 30,938 bit-equivalents.**
+
+**Is three levels a strong position? YES — say so plainly.** `{0,±1}` is **one
+trit**, the founding premise, and it scores within **0.49 pp** of a nine-level
+golden alphabet on UNSW (dense, 5 seeds) and **+0.735 pp** pooled over three
+tasks (T317). **Half the weight storage for half to three-quarters of a point.**
+In the table architecture it costs **114 LUT against 123–128** for the nine-level
+arms. This was under-reported in W763 as "the interesting half of a refutation";
+it is a result.
+
+**In the TABLE architecture the base ordering INVERTS** (T366): base 3 costs
+**1.05 LUT/neuron**, dyadic 1.92, φ 2.00 — the ternary base is **cheapest**,
+because fast-growing bases skew the table so one output symbol dominates and
+`yosys` folds the rest into `default`. In a dense adder tree the ordering is the
+opposite (dyadic 752 LUT, φ 2,726).
+
+**THE BOUNDARY, never cross it.** All of the above is an **efficiency** case:
+radix economy, packing, storage, table skew. **It says nothing about accuracy**,
+which varies by 0.49 pp across every base measured, and nothing about the
+**10.6-point gap** to TreeLUT. **The ternary case is real and it is not an
+accuracy case.**
+
+---
+
 ## THE ANSWER, if you were asked "which format for ternary on FPGA?"
 
 Dmitrii has asked this four times. Answer it directly, from these measurements,

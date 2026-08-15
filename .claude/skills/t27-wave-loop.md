@@ -9196,6 +9196,34 @@ appears in `README.md`, `BENCHMARKS.md`, `COMPETITORS.md` and the format skill �
 not only in a theorem file nobody opens. **A retraction filed where the claim was
 never made is not a retraction.**
 
+### Lessons 850-853 (W763-W764) — measure in the target's units
+
+**850. Ask what units the target uses before quoting an area figure.** Every LUT
+count in this programme measures a **binary** FPGA; the line targets ternary
+silicon. Restated in trits, the two alphabet sizes measurement had singled out —
+**3 and 9** — are the ones that pack with **zero waste**, and the empirically
+measured "six bits per neuron" law is exactly **three trits per neuron**, held in
+a 64-entry binary LUT that a 27-entry ternary table would fill. **A correct number
+in the wrong units hides the result.**
+
+**851. When a catalogue cannot answer a question, say so before searching it.**
+"Which numbers suit ternary weights" was asked of an 83-format catalogue that
+enumerates **float encodings** — bit widths, exponent/mantissa splits — and
+contains nothing about weight *values*. **The gap had been there the whole time**
+and only a direct question exposed it.
+
+**852. The same variable can order two architectures oppositely.** In a dense
+adder tree the weight base spans **3.95×** (dyadic cheapest, φ 3.6× dearer); in a
+truth table it spans **1.9× the other way** (base 3 cheapest at 1.05 LUT/neuron,
+φ dearest). **A conclusion about cost is a conclusion about cost *in one
+datapath*** — T365c had to be rescoped one wave after it was written.
+
+**853. A number typed beside a computed number is not a check on it.** A
+hand-written summary line read "37%, 21%, 37%" while the computed column beside
+it read **21%, 21%, 5%**. The table was right and the sentence was a hardcoded
+string. **Sixth disguise of the oldest lesson** — after `head`, `tail`, `wc -l`,
+`grep -c` and `$?` through a pipe, now prose restating a table.
+
 ### How to update this tracker
 
 After closing a wave:
