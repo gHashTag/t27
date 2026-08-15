@@ -175,19 +175,28 @@ def build(L, H, base, seed=7):
         wl = [[lv[widx[l-1][n][i]] for i in range(FANIN)] for n in range(H)]
         live.append(live_count(H, wl, thr))
 
+    # W780: PAD-FREE TOP. nextpnr aborts on this chipdb at the seventh package
+    # pin ("No Bel named 'OPAD_X0Y15/IOB33/INBUF_EN'"), so real place-and-route was
+    # unreachable while the stand had 12 ports. Driving `din` from an internal LFSR
+    # and `addr` from an internal counter leaves exactly TWO pads, clk and dout,
+    # and keeps every layer live -- an LFSR is stateful, so nothing constant-folds.
     v = [f"// W778 layer-mix stand: L={L} table layers, H={H}, alphabet={base}",
          f"// live neurons per layer: {live}  ({sum(live)}/{L*H})",
          f"// constant draws rejected: {rejects}/{draws} = {rejects/draws:.1%}",
-         "module mix_top(input clk, input [1:0] din, input [7:0] addr,",
-         "               output reg dout);",
+         "module mix_top(input clk, output reg dout);",
+         "  reg [15:0] lfsr = 16'hACE1;",
+         "  always @(posedge clk) lfsr <= {lfsr[14:0],"
+         " lfsr[15]^lfsr[13]^lfsr[12]^lfsr[10]};",
+         "  reg [7:0] ctr = 0;",
+         "  always @(posedge clk) ctr <= ctr + 1'b1;",
          f"  reg [{2*H-1}:0] s0;",
-         "  always @(posedge clk) s0 <= {s0[%d:0], din};" % (2 * H - 3)]
+         "  always @(posedge clk) s0 <= {s0[%d:0], lfsr[1:0]};" % (2 * H - 3)]
     for l in range(1, L + 1):
         wts = [[lv[widx[l-1][n][i]] for i in range(FANIN)] for n in range(H)]
         v += emit_layer(l, H, picks[l-1], wts, thr)
     # Register the last layer out through a mux, so the whole chain is live but
     # the OUTPUT costs the same in both arms and never masks the layer slope.
-    v.append(f"  always @(posedge clk) dout <= s{L}[addr[%d:0]];" % (max(0, (2*H-1).bit_length()-1)))
+    v.append(f"  always @(posedge clk) dout <= s{L}[ctr[%d:0]];" % (max(0, (2*H-1).bit_length()-1)))
     v.append("endmodule")
     return "\n".join(v)
 

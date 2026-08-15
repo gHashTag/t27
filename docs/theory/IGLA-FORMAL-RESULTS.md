@@ -17914,4 +17914,60 @@ gradient, running statistics for inference:
 
 ---
 
+## W780 — the first placed-and-routed numbers in this line
+
+### T427 — the alphabet ordering survives place and route, and the spread shrinks
+
+Every area number in T408–T418 came from `yosys stat` — a **synthesis estimate,
+never placed, never routed**. Two obstacles blocked P&R, both mine, both fixed:
+
+- nextpnr aborted at the **seventh package pin** on this chipdb. Fixed with a
+  **pad-free top**: `clk` and `dout` only, `din` from an internal LFSR and `addr`
+  from a counter, so every layer stays live and nothing constant-folds.
+- it also refuses a PAD with **no `IOSTANDARD`**. Fixed with a two-line XDC and
+  **no `PACKAGE_PIN`** — where pads land cannot matter to a relative comparison.
+
+The die is **xc7a100t, not the target 200T** — the 200T chipdb is still missing.
+Same Artix-7 fabric, same LUT6/CLB, and the question is *relative* area.
+
+**Registered forecast (T44):** *post-route preserves the yosys ordering, and Fmax
+rises as junta degree falls.*
+
+| alphabet | junta degree | yosys LUT | **SLICE_LUTX** | SLICE_FFX | **Fmax MHz** | post/yosys |
+|---|---:|---:|---:|---:|---:|---:|
+| linear 9 | 2.55 | 110 | **128** | 85 | 187.7 | 1.16 |
+| `{1,2,3,5}` | 2.42 | 114 | 135 | 85 | 202.8 | 1.18 |
+| dyadic | 2.19 | 115 | **137** | 85 | **183.1** | 1.19 |
+| base 3 | 1.49 | 83 | 111 | 79 | 204.4 | 1.34 |
+| base 4 | 1.03 | 61 | **85** | 71 | **207.1** | 1.39 |
+
+> **T427. The ordering survives.** yosys ranks `[2,3,4,1,0]`, post-route ranks
+> `[2,3,4,1,0]` — **identical**. T410's synthesis-only measurement is **not** an
+> artefact of skipping place and route.
+
+> **T427a. But the spread is 16 % smaller than synthesis said, and systematically
+> so.** The post/yosys ratio is **1.16–1.19 for the three high-junta arms and
+> 1.34–1.39 for the two low-junta arms** — place and route inflates the cheap
+> designs more. The linear-to-base-4 area gap is **1.80× at synthesis and 1.51×
+> post-route**. **Every area ratio quoted from T408 onward is overstated by
+> roughly this factor** and should be restated post-route.
+
+> **T427b. The timing half is confirmed only at the ends.** Fmax spread is
+> **13.1 %**, above the 10 % floor the forecast set, and the two lowest-junta arms
+> are the **two fastest** (204.4, 207.1). But it is **not junta-ordered**: dyadic
+> at junta 2.19 is the **slowest of all** at 183.1, below linear at 2.55. Per
+> T424 no correlation coefficient is reported for five constructed arms — **the
+> defensible statement is that the two degenerate alphabets are the two fastest,
+> and that among the three functional ones Fmax varies 11 % with no junta
+> ordering at all.**
+
+> **T427c. What this still is not.** No bitstream reached a die. The acceptance
+> criterion — force `Done` to 0 with a foreign bitstream, then load ours and
+> require the 0→1 transition — **has not been exercised this wave or last**,
+> because the attached cables are FTDI `0403:6014` and `cli/dlc10` speaks only to
+> the Xilinx DLC10 at VID `0x03FD`. **Placed and routed is not programmed**, and
+> the distinction is the project's own rule.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
