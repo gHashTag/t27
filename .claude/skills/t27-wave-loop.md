@@ -9400,6 +9400,33 @@ between a Verilog declaration and a Python byte count. **A checker that stops at
 the file boundary misses the defects that live on it** — and this class has now
 cost more than every in-file width error combined.
 
+### Lessons 879-882 (W775) — put the law where the compiler can enforce it
+
+**879. A theorem in a Markdown file is documentation; one the build refuses to
+proceed without is a law.** The five sieve filters moved from a Python script to
+`specs/numeric/golden_sieve.t27`, where they are **comptime assertions**: five
+invariants proved, three tests passing, and the build fails if any stops holding.
+**`SOUL.md` says mathematical truth is the source of truth — that is a statement
+about WHERE things live, not only about what is true.**
+
+**880. The language's restriction produced the better artefact.** The first draft
+used `let mut` and `while`; the parser rejected it at line 60. Rewritten loop-free
+with four constants written out, the module became **shorter, total and
+comptime-evaluable** — which is the only reason its invariants can be proved at
+all. **When a restriction blocks the obvious form, check whether the form it
+forces is stronger.**
+
+**881. Keep predicates and evidence in different files.** The spec holds the five
+filters; `golden_sieve.py` keeps the measured table of accuracies and LUT counts.
+**Truths belong where the compiler checks them; measurements belong beside the
+experiment that produced them.** A file holding both makes neither auditable.
+
+**882. Run the tool that already exists against a question that makes its output
+matter.** `catalog-gate` has been in `t27c` all along and found, on its first run
+this programme, that **`gfternary` is catalogued as 2 bits with fields summing to
+3**. Nothing was written to find it. **A checker nobody points at a real question
+is indistinguishable from one that does not exist.**
+
 ### How to update this tracker
 
 After closing a wave:

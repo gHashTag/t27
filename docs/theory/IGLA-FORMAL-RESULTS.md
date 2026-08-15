@@ -16962,6 +16962,38 @@ not implementation, is the source of truth."* It is now a `.t27` module.
 > belong beside the experiments that produced them. **The spec holds the
 > predicates; the script holds the evidence.** Neither should hold both.
 
+### T397 — the catalogue gate finds a defect in the programme's own headline format
+
+`t27c catalog-gate` checks the 83-record numeric catalogue: 83 mandatory-field
+records, 332 numeric fields compared. **One finding:**
+
+```
+[fields-fit-concrete-width] gfternary: bits=2 is concrete,
+                            but s+e+m = 1+0+2 = 3 exceeds it
+```
+
+> **T397. `gfternary` is catalogued as a 2-bit format whose declared fields need
+> three bits.** The set is `{−φ, 0, +φ}` — **three levels**, which is
+> `ceil(log₂ 3) = 2` bits, and a separate sign bit is redundant because the sign
+> is already one of the three codes. The record carries a float's
+> sign/exponent/mantissa decomposition for an object that is **an alphabet, not a
+> float**, and the two descriptions cannot both be right.
+
+> **T397a. This is the same category error the sieve was built to expose.** W763
+> found that the 83-format catalogue enumerates **float encodings** and answers
+> nothing about **weight values**; T397 shows it also *mis-describes* the one
+> entry that is a weight alphabet. **`gfternary` should carry `levels = 3,
+> trits = 1` — the sieve's vocabulary — and not `s/e/m`.** Recorded, not fixed:
+> the catalogue is an SSOT under `conformance/`, and changing a record there is a
+> decision about the format registry rather than a wave's cleanup.
+
+> **T397b. Three tools, three separate defect classes, in one wave.**
+> `t27c check` rejected the spec's syntax at line 60; `test-report` proved its
+> five invariants; `catalog-gate` found a three-bits-in-two-bits record that has
+> been in the catalogue since before this programme began. **None of the three
+> was written this wave** — the gate has existed all along, and nobody had run it
+> against a question that made its output matter.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
