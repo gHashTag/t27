@@ -9116,6 +9116,31 @@ after the first configuration. Two minutes of smoke-testing the new function on
 one seed would have caught it before an hour of background compute. **Run the new
 code once, small, before running it twelve times.**
 
+### Lessons 838-841 (W758) — vary the thing your conclusion names
+
+**838. If a conclusion names a dataset, the dataset is an untested variable.**
+T354 said *"the capacity of six-input truth tables **on UNSW-NB15**"* and nobody
+noticed the second half was load-bearing. Varying it moved the penalty from
+**+3.48 to +14.85 pp** — an 11-point spread that nine waves of architecture work
+never saw. **Read your own strongest claim for the noun it quietly depends on.**
+
+**839. Measure the GAP, not the ceiling.** Absolute accuracy differs by task and
+proves nothing. Dense-minus-sparse on the same trainer is the invariant that
+answers "architecture or task?", and it had never been computed once in nine
+waves. **When comparing across settings, find the quantity that would be constant
+if your hypothesis were true.**
+
+**840. Nine waves of benchmarking on an unexamined choice.** Our datapath scores
+**88.03% on Fashion** and **82.97% on UNSW**, at half the penalty — and we
+followed the field's benchmark because the field uses it. **A benchmark inherited
+from a neighbouring literature is a hypothesis about your own system, not a
+given.**
+
+**841. An effect below your noise floor is not a lever, whatever it costs.**
+Layer-1 fan-in 10 scored *below* fan-in 8 at three seeds while costing 2.8× the
+area. The ordering is unresolvable at that sample size — **and being unable to
+rank two options is itself the answer about whether the knob matters.**
+
 ### How to update this tracker
 
 After closing a wave:
