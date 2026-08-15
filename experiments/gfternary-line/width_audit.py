@@ -79,3 +79,61 @@ if __name__=="__main__":
         for i,why in u[:3]:
             print(f"      строка {i}: НЕ РАЗОБРАНО ({why}) -- проверить вручную")
     sys.exit(1 if bad else 0)
+
+
+# ---------------------------------------------------------------------------
+# W774: THE CROSS-BOUNDARY CHECK.
+#
+# T392 cost six waves to a mismatch that lives ON the Verilog/Python boundary:
+# the design declared `reg [32:0] sr` (a 33-bit JTAG data register) and the
+# driver shifted 32 bits. Neither file was wrong on its own, and an auditor that
+# stops at the file boundary cannot see it. This one does not stop there.
+#
+# The design side: the width of the register wired to BSCANE2's TDO, which is the
+# DR length the JTAG state machine will clock.
+# The driver side: bits sent per DR pass, summed over MPSSE commands --
+#   0x39 / 0x19 <lenlo> <lenhi>  -> (len+1) BYTES  = 8*(len+1) bits
+#   0x3B / 0x1B <len> <byte>     -> (len+1) BITS
+# ---------------------------------------------------------------------------
+
+DR_REG = re.compile(r'^\s*reg\s+\[\s*(\d+)\s*:\s*0\s*\]\s*(\w+)\s*=')
+TDO    = re.compile(r'\.TDO\s*\(\s*(\w+)\s*\[')
+BYTECMD = re.compile(r'bytes\(\[\s*0x(?:39|19)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]')
+BITCMD  = re.compile(r'bytes\(\[\s*(?:CLK_BITS_IO_NEG|CLK_BITS_OUT_NEG|0x3B|0x1B)\s*,\s*(\d+)\s*,')
+
+def dr_width(verilog_path):
+    """The declared width of the register BSCANE2 shifts, or None."""
+    txt = open(verilog_path).read()
+    m = TDO.search(txt)
+    if not m: return None, "no BSCANE2 .TDO(reg[...]) found"
+    name = m.group(1)
+    for ln in txt.splitlines():
+        d = DR_REG.match(ln)
+        if d and d.group(2) == name:
+            return int(d.group(1)) + 1, name
+    return None, f"TDO drives {name} but no `reg [N:0] {name} =` declaration"
+
+def driver_bits(py_path, func):
+    """Bits a driver function shifts in one DR pass, counted from MPSSE commands."""
+    src = open(py_path).read()
+    i = src.find(f"def {func}(")
+    if i < 0: return None, f"{func} not found"
+    j = src.find("\ndef ", i + 1)
+    body = src[i: j if j > 0 else len(src)]
+    bits = 0
+    for m in BYTECMD.finditer(body):
+        bits += 8 * ((int(m.group(1)) | (int(m.group(2)) << 8)) + 1)
+    for m in BITCMD.finditer(body):
+        bits += int(m.group(1)) + 1
+    return bits, None
+
+def cross_check(verilog_path, py_path, func):
+    w, note = dr_width(verilog_path)
+    b, err = driver_bits(py_path, func)
+    vn = verilog_path.split("/")[-1]; pn = py_path.split("/")[-1]
+    if w is None: return f"  {vn:<16} DR: НЕ ОПРЕДЕЛЁН ({note})", 1
+    if b is None: return f"  {vn:<16} драйвер: {err}", 1
+    ok = (w == b)
+    tag = "OK" if ok else "!! РАСХОЖДЕНИЕ !!"
+    return (f"  {vn:<16} DR={w:>3} бит ({note})   {pn}:{func} шлёт {b:>3} бит   {tag}",
+            0 if ok else 1)

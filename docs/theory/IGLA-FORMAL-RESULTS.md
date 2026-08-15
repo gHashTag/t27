@@ -16838,4 +16838,84 @@ Silicon accuracy **82.0%**, software **82.0%**.
 
 ---
 
+## W774 — the golden sieve: the format derived, not chosen
+
+### T393 — Fashion closed at 200 rows, and the cross-boundary auditor exists
+
+| | |
+|---|---|
+| Fashion on three dice, 200 real rows | **A 200/200, R 200/200, B 200/200** |
+| silicon accuracy | **80.5% ± 2.8** |
+| software accuracy on the same rows | **80.5%** |
+
+`width_audit.py` now also checks **across the Verilog/Python boundary** — the
+declared JTAG data-register width against the bits a driver actually shifts.
+Validated on the known defect first (lesson 871):
+
+| design | DR | driver | verdict |
+|---|---:|---|---|
+| Fashion die A | **33** | `xfer` 32 bits | **!! MISMATCH !!** (the six-wave defect) |
+| Fashion die A | 33 | `xfer33` 33 bits | OK |
+| UNSW die A | 32 | `xfer` 32 bits | OK |
+| cut16 | 32 | `xfer` 32 bits | OK |
+
+> **T393.** The class that cost six waves — a declaration in one language against
+> a byte count in another — is now a check that fails loudly. **It catches the
+> historical defect and passes all three known-good pairs.**
+
+### T394 — THE GOLDEN SIEVE, and the one formula it leaves
+
+Five filters, each a measured theorem, applied to every base this programme has
+measured:
+
+| filter | rule | theorem | what it kills |
+|---|---|---|---|
+| **S1 packing** | `|A| = 3^k` | T367 | 5, 7, 11, 13, **17** levels |
+| **S2 ceiling** | `k ≤ 2` | T288/T369 | **27**, 81 levels |
+| **S3 single lane** | `A ⊂ ℤ` | T293 | **φ, √2, plastic, silver, e, tribonacci, ψ₄, supergolden** |
+| **S4 three-trit** | fan-in × bits ≤ 6 | T368b | any wider neuron (39–54 LUT) |
+| **S5 no bad primitive** | no DSP48E1 / SRL16E | T246/T342 | wrong bitstreams from correct netlists |
+
+**Ten of sixteen candidates are removed.** Eight fall to **S3 alone**: an
+irrational base needs a two-lane `Z[b]` representation, and resolving the pair
+costs **8 DSP48E1 or ~2750 LUT** — the multiplier it was supposed to remove.
+
+> **T394. The one formula the sieve leaves:**
+> $$\mathrm{TNF}(k,b) \;=\; \{0\} \cup \{\pm b^{\,i} \;:\; 0 \le i < \tfrac{3^k-1}{2}\},
+> \qquad k \in \{1,2\},\quad b \in \mathbb{Z},\ b \ge 2$$
+> `k = 1` → **3 levels, one trit**, `{0, ±1}`.
+> `k = 2` → **9 levels, two trits**, `{0, ±b⁰, ±b¹, ±b², ±b³}`.
+
+> **T394a. The 27-matrix is the NEURON, not the weight** — the question the
+> formula answers second. Three ternary inputs give `3³ = 27` reachable rows with
+> **zero waste**; the same neuron in a binary LUT6 has 64 rows of which 27 are
+> reachable — **42% used, 58% lost to the substrate** (T368b).
+
+### T395 — the top across every measured axis at once
+
+| format | levels | trits | UNSW | Fashion | LUT dense | **LUT table** | LUT/neuron | lanes | DSP |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **ternary b=3** | 9 | **2** | 89.76 | 90.69 | 1,417 | **67** | **1.05** | 1 | 0 |
+| true ternary | 3 | **1** | 89.52 | 90.69 | — | 114 | 1.78 | 1 | 0 |
+| dyadic b=2 | 9 | 2 | 89.62 | **90.94** | **752** | 123 | 1.92 | 1 | 0 |
+| linear | 9 | 2 | — | — | 812 | 128 | 2.00 | 1 | 0 |
+| APoT additive | 9 | 2 | **90.00** | 90.91 | — | — | — | 1 | 0 |
+| Zeckendorf | 9 | 2 | 89.64 | 90.89 | — | — | — | 1 | 0 |
+
+> **T395. In the table datapath — the one this programme actually builds —
+> `b = 3` is first on area at 1.05 LUT/neuron, 46% below dyadic**, and it is the
+> ternary base. In the **dense adder-tree** datapath the order inverts and dyadic
+> leads at 752 LUT (T366b). **Accuracy orders none of them: the whole spread is
+> 0.49 pp on UNSW and 0.36 on Fashion.**
+
+> **T395a. What must NOT enter a training catalogue, stated as Dmitrii asked.**
+> Every format failing **S3** — φ, √2, plastic, silver, e, tribonacci, ψ₄,
+> supergolden — **teaches a false hardware cost**: multiplier-free in the weight
+> application, and not multiplier-free once the pair is resolved. **A model
+> trained on that catalogue learns a datapath that cannot be built on this
+> toolchain.** They belong in the *history* of the investigation, with their
+> refutations attached, and not in the *catalogue*.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

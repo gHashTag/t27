@@ -5,6 +5,55 @@ description: The TNF (Ternary Network Float) and GA-T number formats — their d
 
 # TNF & GA-T — working knowledge
 
+## THE GOLDEN SIEVE — the format derived from the theorems
+
+Five filters, each a measured theorem. A candidate format passes only if it
+survives every one. **Ten of sixteen measured candidates are removed; eight fall
+to S3 alone.**
+
+| filter | rule | theorem |
+|---|---|---|
+| **S1 packing** | `|A| = 3^k` — powers of three waste nothing in trits | T367 |
+| **S2 ceiling** | `k ≤ 2` — 27 levels measured +0.15 / −0.13 pp, ns | T288/T369 |
+| **S3 single lane** | `A ⊂ ℤ` — a two-lane `Z[b]` resolve costs 8 DSP or ~2750 LUT | T293 |
+| **S4 three-trit** | fan-in × bits ≤ 6 — 2.00 LUT/neuron, else 39–54 | T368b |
+| **S5 no bad primitive** | no DSP48E1 / SRL16E — wrong bitstream, correct netlist | T246/T342 |
+
+**THE ONE FORMULA:**
+
+    TNF(k, b) = {0} ∪ { ±b^i : 0 ≤ i < (3^k − 1)/2 },   k ∈ {1,2},  b ∈ ℤ, b ≥ 2
+
+- `k = 1` → **3 levels, one trit** — `{0, ±1}`
+- `k = 2` → **9 levels, two trits** — `{0, ±b⁰, ±b¹, ±b², ±b³}`
+
+**The 27-matrix is the NEURON, not the weight**: three ternary inputs → `3³ = 27`
+reachable rows, zero waste. The same neuron in a binary LUT6 has 64 rows of which
+27 are reachable — **42% used, 58% lost to the substrate.**
+
+**THE TOP, all measured axes at once:**
+
+| format | levels | trits | UNSW | Fashion | LUT dense | **LUT table** | LUT/neuron |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **ternary b=3** | 9 | 2 | 89.76 | 90.69 | 1,417 | **67** | **1.05** |
+| true ternary | 3 | 1 | 89.52 | 90.69 | — | 114 | 1.78 |
+| dyadic b=2 | 9 | 2 | 89.62 | 90.94 | **752** | 123 | 1.92 |
+| linear | 9 | 2 | — | — | 812 | 128 | 2.00 |
+
+**In the TABLE datapath `b=3` leads; in the DENSE adder tree dyadic leads.** The
+order inverts with the datapath (T366b). **Accuracy orders neither** — the whole
+spread is 0.49 pp (UNSW) and 0.36 (Fashion).
+
+**NEVER PUT THESE IN A TRAINING CATALOGUE:** φ, √2, plastic, silver, e,
+tribonacci, ψ₄, supergolden. All fail S3, and all **teach a false hardware
+cost** — multiplier-free in the weight application, not multiplier-free once the
+`a + b·φ` pair is resolved. A model trained on them learns a datapath that cannot
+be built. They belong in the *history*, with their refutations attached, never in
+the *catalogue*.
+
+Runnable: `experiments/gfternary-line/golden_sieve.py`.
+
+---
+
 ## MEASURE IN TRITS — Dmitrii's standing correction
 
 **Every LUT figure in this repository is in the wrong units for the target.** A
