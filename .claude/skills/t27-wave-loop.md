@@ -9656,6 +9656,17 @@ object makes the work unfindable and unciteable, in both directions.*
 quantized activation functions, which utilize learned scaling factors." Our stand
 had none of that, and one partial normalisation was already worth 17-21 pp (T421).
 
+**922. A pre-registered verdict function still lies if the control arm is wrong.**
+The BN test printed "+16.49 pp CONFIRMED" by comparing against NO normalisation
+-- a baseline the wave had abandoned two days earlier. Against the stand as it
+stood the answer is +2.56 pp, i.e. PARTIAL (T422a). *Fix the threshold in advance
+AND name the control arm in advance; the threshold alone is half a control.*
+
+**923. The largest instrument defect is rarely the only one.** Normalisation was
+worth 17-21 pp and then another 2.56, and the residual is still 9.39 against the
+field's 4.79 (T422b). *Finding the big one is a reason to keep looking, not to
+stop.*
+
 ### How to update this tracker
 
 After closing a wave:

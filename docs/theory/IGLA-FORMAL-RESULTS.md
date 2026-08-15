@@ -17778,4 +17778,46 @@ elsewhere:
 
 ---
 
+## W779d — the field's training, implemented and measured
+
+### T422 — per-layer batch normalisation, and a verdict function that flattered it
+
+T420b named what the baselines train with and this stand lacked: *"Each layer's
+inputs and outputs are batch normalized ... which utilize learned scaling
+factors."* Implemented — real per-layer BatchNorm, learned `γ`/`β` trained by
+gradient, running statistics for inference:
+
+| stand | accuracy | penalty vs dense 89.62 |
+|---|---:|---:|
+| no normalisation at all | 63.74 ±3.59 | 25.88 |
+| variance rescale only *(W778, T413)* | 77.67 ±0.96 | 11.95 |
+| **per-layer BatchNorm + learned scale** | **80.23 ±2.04** | **9.39** |
+
+> **T422. Confirmed, and the number to quote is the small one.** The script's own
+> verdict function printed **+16.49 pp, CONFIRMED** — because it compared against
+> *no normalisation*, a baseline this wave had already abandoned two days earlier.
+> **Against the stand as it actually stood, full BatchNorm is worth +2.56 pp.**
+> Registered forecast was ≥ 5 pp: **against the honest baseline it is PARTIAL, not
+> CONFIRMED**, and the script said CONFIRMED because I chose its comparison arm
+> carelessly, not because the result is large.
+
+> **T422a. A verdict function is only as honest as its control arm.** W778's
+> lesson 906 said *pre-register the verdict function, not just the hypothesis* —
+> and this run shows the sequel: **a pre-registered threshold applied to the wrong
+> baseline launders a 2.56 into a 16.49.** The threshold was fixed in advance and
+> still produced the flattering answer.
+
+> **T422b. Where the residual now stands.** **9.39 pp** against the field's
+> **4.79 pp** for the comparable random-mask configuration — still **~2×**.
+> Normalisation was the largest single instrument defect and it was not the whole
+> defect. What remains untried from T420b's verbatim list: **quantised
+> activations with learned scaling factors** (Brevitas-style) — this stand
+> quantises weights only and leaves activations in float.
+
+> **T422c. Not a budget effect.** Both arms stopped at ~epoch 9 under identical
+> patience, so the 2.56 pp is the normalisation and not extra training — which is
+> consistent with T420c, where 30 epochs of budget bought −0.27 pp.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
