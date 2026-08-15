@@ -9274,6 +9274,30 @@ nothing about silicon area, nothing about accuracy, and the adder-tree output
 layer excluded. **A number that leaves its caveats behind is a number that will
 be misquoted, most often by its own author.**
 
+### Lessons 861-863 (W768-W769) — a right observation is not a right diagnosis
+
+**861. A correct observation about the DIRECTION of an error does not license a
+conclusion about its CAUSE.** T376a saw that every bracket miss was low and every
+misser was a digit pair, concluded the anchors were confounded by task family,
+and prescribed separate sets. Implemented, coverage fell from **67% to 50%**:
+narrower brackets are better centred and miss more. **The misses were low because
+the underlying relation under-predicts — narrowing an interval cannot repair a
+biased estimator.**
+
+**862. Keep the measurement that disappointed you, and label it.** The per-family
+anchors are the better *centred* estimate and the worse *covering* one. Reverting
+them would delete a correct measurement for failing to be the hoped-for
+improvement. **Ship both numbers and say which the tool is offering.**
+
+**863. Close a line by testing its last form, not by deciding it is closed.**
+φ had been measured as a base of powers and as a two-lane `Z[φ]` datapath.
+Dmitrii's question about a "golden sieve" surfaced the one form never tried —
+**Zeckendorf, φ as an additive basis** — and it measured **worst of four arms** on
+UNSW. Adding the `fib9` control was what made the result attributable: without it,
+a Zeckendorf win could not have been separated into *additive structure* versus
+*Fibonacci values*. **A 2×2 costs one extra arm and converts an outcome into an
+explanation.**
+
 ### How to update this tracker
 
 After closing a wave:
