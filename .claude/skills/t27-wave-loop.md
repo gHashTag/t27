@@ -9224,6 +9224,34 @@ it read **21%, 21%, 5%**. The table was right and the sentence was a hardcoded
 string. **Sixth disguise of the oldest lesson** — after `head`, `tail`, `wc -l`,
 `grep -c` and `$?` through a pipe, now prose restating a table.
 
+### Lessons 854-857 (W765-W766) — check the quantity before chasing the discrepancy
+
+**854. When two numbers for "the same" thing disagree, check first whether they
+ARE the same thing.** T317 reported a **three-task mean** (+0.735) beside its
+**per-task values** (+0.381, +1.478, +0.346), one column apart. W765 quoted the
+mean against two individual tasks and declared the file self-contradictory. **The
+discrepancy was arithmetic, not measurement**, and chasing it cost a wave's main
+experiment.
+
+**855. A predictor validated by correlation can still be wildly miscalibrated.**
+`mi_tot` correlates at r = −0.68 across datasets, and the curve fitted to one
+group under-predicted three held-out datasets by **2.4, 3.3 and 8.6 pp — all in
+the same direction.** The tool that would have printed those numbers was one
+commit from shipping. **Correlation licenses a RANKING; only out-of-sample error
+licenses a NUMBER.**
+
+**856. Extrapolating a curve outside its fitting range fails in a predictable
+direction.** The fit came from tasks spanning 0.24–5.55 pp; every held-out task
+lay above that band and every prediction under-shot. **That is a property of
+curve-fitting, not a fact about the system** — say so, or the systematic error
+looks like a discovery.
+
+**857. "The thing we do not have" is usually a substrate statement, not a
+capability one.** A 27-entry ternary table was captioned as missing; a spec-first
+language exists precisely to state objects the substrate cannot hold natively.
+**The 58% waste is the measured cost of the emission target and belongs in the
+case for new silicon — not in a list of shortcomings.**
+
 ### How to update this tracker
 
 After closing a wave:

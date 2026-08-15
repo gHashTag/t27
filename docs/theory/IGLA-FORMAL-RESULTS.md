@@ -16310,6 +16310,39 @@ and testing it on the three datasets **not in the fit**:
 > using it outside — not evidence about ternary datapaths**, and it would apply to
 > any functional form chosen the same way.
 
+### T372 — the contradiction was mine, and the experiment that found it was still worth running
+
+W765 (T369a) declared the file self-contradictory: *"T317 put the size effect at
++0.735 pp; here it is +0.10 and +0.25."* W766 registered a mechanism — that the
+effect decays with training budget — and measured it across four budgets:
+
+| task | 8 ep | 15 ep | 30 ep | 60 ep | significant? |
+|---|---:|---:|---:|---:|---|
+| UNSW | +0.512 | +0.169 | +0.328 | +0.351 | **never** (t = 1.45, 1.08, 1.19, 1.51) |
+| Fashion | +0.324 | +0.403 | +0.295 | — | **always** (t = 8.25, 7.39, 4.23) |
+
+> **T372. The forecast is refuted — the effect is FLAT in budget, not decaying.**
+> The registered consequence was to look elsewhere, and elsewhere was T317's own
+> table, which reports **per task**: UNSW **+0.381**, MNIST **+1.478**, Fashion
+> **+0.346**, mean **+0.735**. **W766 measures UNSW at ≈+0.34 and Fashion at
+> ≈+0.34 — agreeing with T317 on both.** The "+0.735" is a **three-task mean
+> lifted by an MNIST outlier**, and W765 compared it against two individual tasks.
+> **There was no contradiction in the file. There was a contradiction in how I
+> read it.**
+
+> **T372a. What the wasted experiment actually established.** Two facts that were
+> not known before: the size effect is **flat in training budget** from 8 to 60
+> epochs — it is not a crutch for under-training, as the mechanism supposed — and
+> **on UNSW it never reaches significance at 8 seeds** while on Fashion it always
+> does. **T317's UNSW significance came from 30 seeds, not from a larger effect.**
+
+> **T372b. The reading error, named so it is catchable.** A **pooled mean** and a
+> **per-task value** are different quantities, and the file printed both in the
+> same table one column apart. **Quoting a mean as though it were a measurement of
+> one task manufactures a discrepancy out of arithmetic** — and it cost this wave
+> its main experiment. **When two numbers for "the same" quantity disagree, check
+> first whether they are the same quantity.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
