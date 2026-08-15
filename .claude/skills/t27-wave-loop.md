@@ -8968,6 +8968,33 @@ results. It did not: those used the **single-pass** register, which still works
 here. **The new multi-pass path is what is broken** — and separating the two was
 worth more than the forecast that prompted the check.
 
+### Lessons 816-819 (W753) — build the instrument, do not guess at the black box
+
+**816. When a path is opaque, emit a version of the design that reports its own
+state.** T336 spent a wave testing host-side hypotheses — chunk order forward,
+reversed, offsets ±1 — and refuted all of them without learning anything. A
+**33-LUT bitstream that returns `inw[31:0]`** answered in one pass and
+**exonerated the transport completely.** The diagnostic cost less than one more
+round of guessing.
+
+**817. Exclude causes by measurement, one at a time, and write down what each
+excludes.** Transport (probe), synthesis pruning (44 SRL16E + 58 FDRE present),
+constant folding (0 of 16 tables constant), Verilog completeness (97 references =
+16×6+1). Four candidates eliminated, each by its own check. **"Somewhere in a
+593-bit path" became "the index-to-table correspondence in one function"** — and
+that narrowing, not a fix, was the wave's product.
+
+**818. `grep -c` counts LINES. Fourth disguise, first time it invented a defect.**
+`grep -c "inw\["` returned 17; the real occurrence count was 97. I concluded 15
+neurons were missing from the Verilog and chased it. **The repository's oldest
+lesson keeps arriving in new clothes: `-c`, `head`, `tail`, `wc -l` on structured
+output.** Use `grep -o … | wc -l`, or better, ask the tool that knows.
+
+**819. Withdraw your own diagnosis as loudly as you made it.** T336 stated the
+defect was bit ordering inside the register. It was not, and the record now says
+so at the same volume. **A wrong diagnosis left standing is worse than no
+diagnosis**, because the next wave starts from it.
+
 ### How to update this tracker
 
 After closing a wave:
