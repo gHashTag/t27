@@ -17210,4 +17210,80 @@ Paired against dyadic, n = 5, |t| > 2.78 significant:
 
 ---
 
+## W778b — the sieve run over our own catalogue, and the filter that was a typed-in answer
+
+### T405 — one of eighty-three
+
+Asked twice, deferred twice. `gen/numeric/formats_catalog.json` holds **83**
+numeric formats; the golden sieve (T394) ranges over weight alphabets. Run one
+through the other:
+
+| | |
+|---|---:|
+| catalogued | **83** |
+| unsievable — no declared width (technique or parametric family), or a decimal encoding | 12 |
+| sieved | **71** |
+| **admissible as a ternary weight code** | **1** — `gfternary` |
+| killed by **S1 PACKING** | **70** |
+| killed by S2 / S3 / S4 / S5 | 0 |
+
+> **T405. One filter accounts for the entire catalogue.** Seventy of seventy-one
+> die on S1 and nothing reaches the second filter, because every one of them is a
+> **power-of-two code space** and `2^n` is a power of three for no `n ≥ 1`.
+
+> **T405a. This is a category result before it is a quality one.** The catalogue
+> is an **accumulator** catalogue; the sieve is a **weight** sieve; the overlap is
+> one entry. **`int8` being cut says nothing against `int8`** — it says the
+> catalogue answers the question the paper's first sentence separates out, that a
+> ternary node has three sites which could carry a number format and one needs to.
+
+> **T405b. The near miss has a name, and it is ours.** Level counts for narrow
+> formats are bounded rather than fixed, because the special-value convention is
+> not carried in the record. Taking the widest span any convention can produce,
+> `gf4` and `mxgf4` (4-bit, s1 e1 m2, span **[8,16]**) are **the only catalogued
+> formats whose span contains an admissible power of three**. Under the IEEE
+> convention they land on **seven**. The 6-bit spans contain none; the 8-bit spans
+> contain 243, which S2 rejects. **No format in an 83-format catalogue has nine
+> levels**, and the one that could is two short.
+
+### T406 — S3 was not a predicate, it was the answer typed in by hand
+
+> **T406.** `golden_sieve.t27` stated S3 as `lanes == 1` with `lanes` supplied by
+> the caller. **That is not a test of the alphabet.** Typed by the wrong hand it
+> kills our own format: `{−φ, 0, +φ}` *looks* irrational and would be handed
+> `lanes = 2`, but **φ there is a common positive scale and factors straight out**
+> (T207) — the alphabet is `φ·{−1,0,+1}` and rides one lane. The two-lane cost of
+> T293 appears only when powers of the base are **mixed**, as in `{0,±1,±φ}`,
+> where 1 and φ cannot share an accumulator.
+>
+> The correct filter is **commensurability**: `A` is single-lane iff every ratio
+> of two nonzero elements is rational. For the ladder family it is decidable from
+> two facts — `n_magnitudes` and whether the base is rational — and is now
+> computed: `s3_single_lane(n, rational) = (n ≤ 1) ∨ rational`.
+
+> **T406a. The repair changed no verdict.** Re-run over the 16-candidate top it
+> reproduced all sixteen: six admissible (dyadic 9, base 3, base 4, linear 9,
+> balanced ternary, gfternary), eight killed on S3, one on S2 (27 levels), one on
+> S1 (5 levels) — identical to W774's hand-supplied run. **A repair that changes
+> an answer fixes a bug; a repair that changes none removes the opportunity for a
+> future answer to be wrong.** Both are worth making, and only the second is easy
+> to skip. `t27c test-report`: 3/3, 6 invariants proved comptime.
+
+### T407 — the storage claim that did not survive its own arithmetic
+
+> **T407.** Drafted for T405b and **withdrawn before publication**: *"nine levels
+> fit two trits with zero waste and a 4-bit word with 44 % waste."* **False as a
+> storage claim.** Nine levels need `⌈log₂ 9⌉ = 4` bits either way and waste 7 of
+> 16 codes either way; calling the four bits "two trits" changes the name, not the
+> cell count.
+>
+> The trit advantage is real and lives in two other places, both measured:
+> **in runs** — five trits, 243 levels, fit 8 bits at 5 % waste against 10 bits
+> for five separate 2-bit trits (T367) — and **in table rows**, where three
+> ternary inputs reach 27 of a LUT6's 64 (T368b). **It is not in one weight's
+> storage, and the sieve's S1 is a statement about the alphabet's cardinality
+> being enumerable in trits, not about how a weight is stored.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

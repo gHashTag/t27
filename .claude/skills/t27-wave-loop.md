@@ -9475,6 +9475,37 @@ table layer versus an adder tree.** The compiler now proves that, so "base 3 is
 first" cannot be quoted without its layer. **A rank with no stated scope is a
 claim waiting to be misapplied.**
 
+### W778 — lessons 890-894
+
+**890. A table of means without a dispersion column will be read as a ranking.**
+W763's eleven-base top was published as means. Nine waves quoted the order. The
+per-seed data was on disk the whole time, and the test cost one script: **0 of 11
+significant on UNSW, 2 of 11 on Fashion.** The ordering was withdrawn (T403).
+*Print the test beside the mean, or the sorted order becomes the result.*
+
+**891. When a filter takes its verdict as an argument, it is not a filter.**
+The sieve's S3 read `lanes == 1` with `lanes` handed in. Typed by the wrong hand
+it kills our own format — `{0,±φ}` looks irrational but φ is a common scale and
+factors out. **Compute the predicate from the object; do not accept it as an
+input** (T406).
+
+**892. A repair that changes no verdict is still worth making.** The computed S3
+reproduced all sixteen hand-supplied answers exactly. That is the good outcome:
+it removes the opportunity for a future answer to be wrong. *This is the class of
+work easiest to skip and cheapest to do.*
+
+**893. Run the sieve on your own catalogue before running it on anyone else's.**
+83 formats, 1 admissible, 70 dead on the first filter. The finding was not that
+the 82 are bad — it is that **the catalogue answers the accumulator question and
+the sieve asks the weight question**, and nobody had put them in the same room
+(T405).
+
+**894. Check a drafted claim's arithmetic before its rhetoric.** "Nine levels
+waste 44 % of a 4-bit word and nothing in two trits" reads well and is false:
+nine levels cost 4 bits either way. Caught in draft (T407). *The claims that
+survive review are the ones whose numbers were computed, not the ones whose
+sentences were good.*
+
 ### How to update this tracker
 
 After closing a wave:
