@@ -193,6 +193,71 @@ pub fn binary_rows(fanin : u32) -> u32 {
 }
 
 // ============================================================================
+// S6 -- NON-DOMINANCE. W778. The filter the other five could not see, and the
+// one that refutes this file's own formula.
+//
+// At fan-in 3 (which S4 fixes) a neuron reads three weights. If ONE of them
+// exceeds the sum of the others, no combination of the other two can outvote it
+// and the neuron's output is a function of that ONE input. It is not constant --
+// it passes every liveness check -- it simply is not a neuron.
+//
+// Enumerated over all 9^3 = 729 weight triples each nine-level alphabet admits,
+// MEAN EFFECTIVE FAN-IN (how many inputs the output actually depends on):
+//
+//   alphabet                        top : rest    mean fan-in   full fan-in
+//   linear  {0,+-1,+-2,+-3,+-4}      4 <  6          2.55          66.9%
+//   fib     {0,+-1,+-1,+-2,+-3}      3 <  4          2.52          63.6%
+//   ladder b=2                       8 >  7          2.19          52.7%
+//   ladder b=3                      27 > 13          1.49          21.9%
+//   ladder b=4                      64 > 21          1.03           8.8%
+//
+// A base-4 neuron is, on average, a function of ONE input.
+//
+// THE EXACT BOUNDARY. For the ladder {b^0..b^3} the top weight exceeds the sum
+// of the other three exactly when b^3 > b^2 + b + 1, whose root is the
+// TRIBONACCI CONSTANT 1.8392867552. S3 demands b in Z and b >= 2. Therefore:
+//
+//   NO INTEGER BASE ADMITS A NINE-LEVEL LADDER FREE OF WEIGHT DOMINATION.
+//
+// The one formula this file states -- TNF(k,b) = {0} u {+-b^i}, k in {1,2},
+// b in Z, b >= 2 -- has no member at k=2 that clears S6. The formula is widened
+// below: the ladder was never the requirement, integrality was.
+//
+// WHAT THIS CORRECTS. T366a and T398 read base 3 as CHEAPER in table layers
+// (1.05 LUT/neuron against dyadic's 1.92) and called it compression. Measured
+// across six alphabets on a stand where every neuron is rejection-sampled live,
+// effective fan-in predicts LUT at r = +0.991. Base 3 is cheaper because it
+// COMPUTES LESS. `prefers_base(b, LAYER_TABLE) = b >= 3` was preferring
+// degeneracy, and is withdrawn below.
+//
+// SCOPE, because the accuracy benches do not show this. T403 measured base 3 at
+// +0.14 pp (UNSW) and -0.25 pp (Fashion), neither significant, on a DENSE stand.
+// A dominant weight among 593 dense inputs is harmless; among three it is fatal.
+// S6 is a property of the fan-in-3 table architecture S4 mandates -- the two
+// filters INTERACT, and this is the combining function T402a said the sieve
+// lacked.
+// ============================================================================
+
+// The largest magnitude and the sum of the others, both as integers, so the
+// predicate is exact rather than a float comparison.
+pub fn s6_no_domination(top : u32, rest_sum : u32) -> bool {
+    return top <= rest_sum;
+}
+
+// The ladder rung sums, written out: {b^0..b^3} for the integer bases S3 allows.
+pub fn ladder_top(b : u32) -> u32 {
+    return b * b * b;
+}
+
+pub fn ladder_rest(b : u32) -> u32 {
+    return 1 + b + b * b;
+}
+
+pub fn ladder_survives_s6(b : u32) -> bool {
+    return s6_no_domination(ladder_top(b), ladder_rest(b));
+}
+
+// ============================================================================
 // Layer kind -- W777. A top computed on one layer type does not survive a
 // network containing two.
 //
@@ -221,14 +286,30 @@ pub fn is_shift_base(b : u32) -> bool {
 
 // The ranking rule, stated so it cannot be quoted out of its layer.
 // Returns true when base `b` is the cheaper choice for a layer of kind `kind`.
+// W778: WITHDRAWN AS WRITTEN. The old body returned `b >= 3` for LAYER_TABLE,
+// on T366a's reading that a faster-growing base compresses better. It does not
+// compress better -- it computes less (S6 above, r = +0.991 between effective
+// fan-in and LUT). A ranking that prefers a cheaper table because the table has
+// stopped being a function is not an area ranking.
+//
+// The table-layer preference is therefore no longer a function of the base at
+// all: every integer ladder fails S6, so the ladder family has no good member
+// here and the ranking must range over non-ladder integer alphabets instead.
 pub fn prefers_base(b : u32, kind : u32) -> bool {
     if (kind == LAYER_ADDER) {
         return is_shift_base(b);
     }
-    // LAYER_TABLE: cost is table skew, and a faster-growing base compresses
-    // better (T366a). Base three measured 1.05 LUT/neuron against dyadic's 1.92.
-    return b >= 3;
+    // LAYER_TABLE: admissible only if the ladder clears S6, which no integer
+    // base does. Kept as a function so the call sites still typecheck and so the
+    // FALSE is stated by the predicate rather than by a comment.
+    return ladder_survives_s6(b);
 }
+
+// What the table layer should rank on instead: the alphabet's own shape.
+// linear 9 = {0,+-1,+-2,+-3,+-4} has top 4 against rest 6 and the highest
+// measured effective fan-in of any integer nine-level alphabet, 2.55.
+pub const LINEAR9_TOP  : u32 = 4;
+pub const LINEAR9_REST : u32 = 6;
 
 // ============================================================================
 // Invariants -- L4. These are the theorems, stated so the compiler checks them.
@@ -277,12 +358,31 @@ invariant twenty_seven_row_neuron {
     assert(binary_rows(3) == 64);
 }
 
+invariant s6_kills_every_integer_ladder {
+    // The exact statement, checked rather than asserted in prose: no integer
+    // base clears S6 at the nine-level rung. The boundary is the tribonacci
+    // constant 1.8392867552, and the smallest integer above it is 2.
+    assert(ladder_survives_s6(2) == false);   //  8 > 1+2+4  = 7
+    assert(ladder_survives_s6(3) == false);   // 27 > 1+3+9  = 13
+    assert(ladder_survives_s6(4) == false);   // 64 > 1+4+16 = 21
+    assert(ladder_survives_s6(5) == false);
+    // A non-ladder integer alphabet CAN clear it. This is what the formula must
+    // widen to admit.
+    assert(s6_no_domination(LINEAR9_TOP, LINEAR9_REST));
+    assert(s6_no_domination(3, 4));           // fib {1,1,2,3}
+    // One trit is vacuously safe: a single magnitude dominates nothing.
+    assert(s6_no_domination(1, 1));
+}
+
 invariant ranking_depends_on_layer_kind {
     // The same base is preferred in one layer kind and not in the other. This is
     // the whole content of T398: a top is not a property of the number alone.
-    assert(prefers_base(3, LAYER_TABLE));
     assert(prefers_base(3, LAYER_ADDER) == false);
     assert(prefers_base(2, LAYER_ADDER));
+    // W778: BOTH table answers are now false, and that is the result. The old
+    // invariant asserted prefers_base(3, LAYER_TABLE) -- it was encoding
+    // degeneracy as a preference.
+    assert(prefers_base(3, LAYER_TABLE) == false);
     assert(prefers_base(2, LAYER_TABLE) == false);
 }
 

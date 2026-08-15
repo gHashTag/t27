@@ -9506,6 +9506,37 @@ nine levels cost 4 bits either way. Caught in draft (T407). *The claims that
 survive review are the ones whose numbers were computed, not the ones whose
 sentences were good.*
 
+### W778 — lessons 895-899
+
+**895. Non-monotone area is never a result.** The stand read base 3 at 8 LUT for
+eight layers and 34 for one. Area cannot fall when layers are added, and every
+time it does the network is being deleted. *Plot the trend before reading any
+single point: the shape catches what the value hides.* Had the sweep stopped at
+L∈{1,2,3} it would have reported "base 3 is 40% cheaper, confirming the sieve."
+
+**896. Liveness is a control, not a side effect.** Two arms of unequal deadness
+have incomparable areas — the deader one merely looks cheaper. Rejection-sample
+until both are 100% live, and *report the rejection rate*: it was 5.9% for
+dyadic, 20.5% for base 3, 30.8% for base 4, and that gradient was the first real
+signal of the wave.
+
+**897. Non-constant is not the same as functional.** After liveness was fixed the
+area STILL fell with depth, because a neuron can depend on one input of three.
+The right measure is EFFECTIVE FAN-IN — flip each input field and see if the
+output ever moves. Base 4 scores 1.03 of 3 (T408). *Ask what a unit computes, not
+whether it computes.*
+
+**898. Enumerate when the space is small enough.** 9³ = 729 weight triples is
+nothing. No seeds, no significance test, no sampling error — the effective fan-in
+table is exhaustive and cannot be wrong. *Half the waves in this log fought
+sampling noise on spaces that could have been enumerated.*
+
+**899. An area advantage below the field is a deletion, not a saving.** Base 3's
+46% table advantage (T366a, T398) was its neurons computing 1.49 inputs instead
+of 2.19; effective fan-in predicts LUT at r=+0.991 across six alphabets (T410).
+*When one arm is cheap, ask what it stopped doing before asking how it got
+cheap.* The spec had encoded this as a preference for two waves.
+
 ### How to update this tracker
 
 After closing a wave:

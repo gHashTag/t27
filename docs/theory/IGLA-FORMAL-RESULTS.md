@@ -17286,4 +17286,107 @@ through the other:
 
 ---
 
+## W778c — the table advantage was degeneracy, and the boundary is exact
+
+### T408 — a neuron that is not a function of its inputs
+
+T402a asked for the sieve's missing combining function across layer kinds. The
+stand built to measure it — L stacked fan-in-3 table layers, uniform, both bases,
+identical wiring — **read base 3 at 8 LUT for eight layers, below its own 34 at
+one.** Area cannot fall when layers are added. Three instrument defects came out
+of chasing it, and the third was not an instrument defect:
+
+1. **Threshold scaled with the raw alphabet** — 3.75 dyadic, 10.0 base 3 — so
+   base-3 neurons with small weights could not reach it under any input and
+   emitted constants. Fixed by normalising each alphabet to unit mean magnitude,
+   which is what training's absmean scaling already does.
+2. **Constants still appeared** at 12–18 % for base 3 against 0–5 % for dyadic.
+   Fixed by rejection-sampling every neuron until its table is non-constant, so
+   **liveness is the control rather than a side effect**.
+3. **Area still fell with depth.** A neuron can be non-constant and still be a
+   function of *one* input.
+
+> **T408. Enumerated over all `9³ = 729` weight triples each nine-level alphabet
+> admits — exhaustive, no sampling — the mean number of inputs a neuron's output
+> actually depends on:**
+>
+> | alphabet | top : rest | mean effective fan-in | share at full fan-in 3 |
+> |---|---|---:|---:|
+> | linear `{0,±1,±2,±3,±4}` | 4 < 6 | **2.55** | 66.9 % |
+> | fib `{0,±1,±1,±2,±3}` | 3 < 4 | 2.52 | 63.6 % |
+> | `{0,±1,±2,±3,±5}` | 5 < 6 | 2.42 | 60.4 % |
+> | ladder `b=2` | 8 > 7 | 2.19 | 52.7 % |
+> | ladder `b=3` | 27 > 13 | **1.49** | 21.9 % |
+> | ladder `b=4` | 64 > 21 | **1.03** | 8.8 % |
+>
+> **A base-4 neuron is, on average, a function of one input.**
+
+### T409 — the boundary is the tribonacci constant, and no integer clears it
+
+> **T409.** For the ladder `{b⁰..b³}` the top weight exceeds the sum of the other
+> three exactly when `b³ > b² + b + 1`, whose root is the **tribonacci constant
+> 1.8392867552**. S3 requires `b ∈ ℤ, b ≥ 2`. Therefore **no integer base admits
+> a nine-level ladder free of weight domination** — the smallest integer above the
+> boundary is 2, and `8 > 7` already.
+>
+> **This refutes the sieve's own one formula.** `TNF(k,b) = {0} ∪ {±bⁱ}`,
+> `k ∈ {1,2}`, `b ∈ ℤ`, `b ≥ 2` has **no member at `k = 2`** that clears S6. The
+> ladder was never the requirement; **integrality was**, and non-ladder integer
+> alphabets clear it easily — linear 9 at 4 < 6, fib at 3 < 4.
+
+### T410 — what the table-layer advantage actually was
+
+**Registered forecast (T44), stated before the run:** *the base changes which
+truth table, never the structure, so the area difference is truth-table entropy —
+small, under 4 LUT per 16-neuron layer, and signed at random.* **Refuted.** The
+difference is large, monotone, and has a mechanism.
+
+Six alphabets, L = 8 stacked layers, every neuron rejection-sampled live:
+
+| alphabet | eff. fan-in | LUT at L=8 |
+|---|---:|---:|
+| linear 9 | 2.55 | **271** |
+| fib | 2.52 | 246 |
+| `{1,2,3,5}` | 2.42 | 268 |
+| dyadic | 2.19 | 209 |
+| base 3 | 1.49 | 116 |
+| base 4 | 1.03 | 45 |
+
+> **T410. Effective fan-in predicts area at `r = +0.991`.** T366a and T398 read
+> base 3 as cheaper in table layers — 1.05 LUT/neuron against dyadic's 1.92, 46 %
+> less — and called it compression. **It is not compression. Base 3 is cheaper
+> because it computes less.** The 46 % tracks 1.49 against 2.19 effective inputs.
+
+> **T410a. The spec was encoding degeneracy as a preference.**
+> `prefers_base(b, LAYER_TABLE) = b >= 3` is **withdrawn**. It now returns
+> `ladder_survives_s6(b)`, which is false for every integer base — so the ladder
+> family has no good member in a table layer at all, and the ranking must range
+> over non-ladder integer alphabets. `t27c test-report`: 3/3, **7** invariants
+> proved comptime, including `s6_kills_every_integer_ladder`.
+
+### T411 — S6 is not independent of S4, and that is the missing combining function
+
+> **T411.** The accuracy benches do not show this effect and are not expected to.
+> T403 measured base 3 at **+0.14 pp (UNSW)** and **−0.25 pp (Fashion)**, neither
+> significant — on a **dense** stand. **A dominant weight among 593 dense inputs
+> is harmless; among three it is fatal.** S6 is therefore a property of the
+> **fan-in-3 table architecture that S4 mandates**: the two filters interact, and
+> a sieve applying them independently misses it.
+>
+> **This is the combining function T402a said the sieve lacked** — not a mix
+> across layer kinds, but an interaction between the fan-in bound and the
+> alphabet's skew. **The steeper the alphabet, the fewer inputs survive the
+> six-bit rule**, and the six-bit rule is the whole reason the table datapath is
+> cheap.
+
+> **T411a. What now sits at the top of a table layer.** Among the sieve's six
+> survivors, `linear 9 = {0,±1,±2,±3,±4}` has the highest effective fan-in of any
+> integer nine-level alphabet (2.55) and clears S6 (4 < 6). It also costs the
+> most (271 LUT at L=8) — **because it is the one still computing.** T403 measured
+> its accuracy at +0.06 pp over dyadic on UNSW, **not significant**. So the honest
+> ranking is unchanged in outcome and changed in explanation: **pick the alphabet
+> on area, knowing that below dyadic the area is bought by deleting the network.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
