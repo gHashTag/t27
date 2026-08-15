@@ -16266,4 +16266,50 @@ asked what t27 was built for. `SOUL.md`, Preamble:
 
 ---
 
+## W766 — the predictor ranks but does not calibrate
+
+### T371 — `mi_tot` predicts ORDER, not MAGNITUDE, across datasets
+
+T363 relaxed T361b on the strength of `r = −0.684` across three datasets. Fitting
+the relation on the **homogeneous** 45 digit pairs (T364's confound-free group)
+and testing it on the three datasets **not in the fit**:
+
+`penalty_pp = −2.2843 · ln(mi_tot) + 8.9025`   (in-sample r = −0.839, RMSE 0.64 pp)
+
+| held-out task | `mi_tot` | predicted | measured | error |
+|---|---:|---:|---:|---:|
+| Fashion | 30.40 | 1.10 pp | 3.48 pp | **−2.38** |
+| UNSW | 11.04 | 3.42 pp | 6.70 pp | **−3.28** |
+| MNIST | 3.14 | 6.29 pp | 14.85 pp | **−8.56** |
+
+> **T371. The fit is good and the extrapolation is not: MAE 4.74 pp out of
+> sample, against RMSE 0.64 pp in it — and all three errors have the SAME SIGN.**
+> The rule **systematically under-predicts** the penalty on every dataset outside
+> its fitting group. **`mi_tot` ranks tasks correctly and calibrates only within a
+> dataset.**
+
+> **T371a. This kills the tool I was about to ship.** `t27c taskfit` was to print
+> a predicted penalty from one pass over the data. On the three datasets we
+> actually care about it would have printed **1.1, 3.4 and 6.3** where the truth
+> is **3.5, 6.7 and 14.9** — confident numbers, all wrong, all optimistic.
+> **A predictor validated only by correlation will happily produce a calibrated
+> number that is nowhere near right**, and correlation was the only validation
+> T363 ran.
+
+> **T371b. What survives, stated at its real strength.** `mi_tot` is a **ranking**
+> signal: given two candidate tasks it says which will cost the sparse datapath
+> less, at `r = −0.68` across datasets and `−0.81` within one. **It is not a
+> calibrated estimator of the penalty and must never be printed as one.** The
+> honest tool prints an **ordering and a bracket**, not a number.
+
+> **T371c. Why the sign is always the same, as a hypothesis, not a finding.** The
+> fit came from MNIST digit pairs, whose penalties span 0.24–5.55 pp. All three
+> held-out tasks lie **above** that range. A logarithm fitted inside a narrow band
+> flattens outside it, so extrapolation toward larger penalties will under-shoot
+> by construction. **That is a property of fitting a curve inside a range and
+> using it outside — not evidence about ternary datapaths**, and it would apply to
+> any functional form chosen the same way.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
