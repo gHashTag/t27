@@ -16594,4 +16594,80 @@ changed the output, and read that as "the silicon reads almost nothing".
 
 ---
 
+## W771 — the fourth instrument in a row that was itself the defect
+
+### T383 — the width bisection measured my probe's off-by-one
+
+T382 prescribed bisecting the register width at 593 / 640 / 700 / 784 to
+distinguish a genuine width limit from an off-by-one in chunk arithmetic. Built,
+loaded, tested on silicon:
+
+| width | chunks | excess bits | words passing |
+|---:|---:|---:|---|
+| 593 | 20 | 27 | 6/10 |
+| 640 | 21 | 11 | 6/10 |
+| 700 | 23 | 13 | 5/10 |
+| 784 | 26 | 22 | **1/10** |
+
+The failure signature was identical at every width: `top16=8000 → 0x00000000`,
+`FFFF FFFF → 0x7FFFFFFF`. **The register's most significant bit never arrives.**
+
+> **T383. The defect is in the probe, not the design.** The probe assigns
+> `{inw[NB-33:0], sr[30:0]}` = **NB−1 bits** into an **NB-bit** register, so the
+> MSB is zero-filled at every width. The network generator assigns
+> `{inw[NB-32:0], sr[30:0]}` = **NB bits**, which is correct. **The bisection
+> measured an off-by-one I introduced in the instrument**, and the progressive
+> degradation from 6/10 to 1/10 is uninterpretable because it was produced by a
+> broken probe.
+
+> **T383a. The Fashion failure remains unexplained.** T380's finding stands
+> untouched: the 593-bit network path works (100/100) and the 784-bit one does
+> not (2/24), with a clean 64/64 simulation and no bad primitives. **This wave
+> did not narrow it.** The probe must be rebuilt with the correct slice before
+> the bisection means anything.
+
+### T384 — four consecutive waves where the instrument was the defect
+
+| wave | instrument | how it lied |
+|---|---|---|
+| W764 | a summary line typed beside a computed table | printed 37/21/37 where the table computed 21/21/5 |
+| W770 | single-bit probes on a thresholded neuron | a null result was the *expected* behaviour, |t| never tested |
+| W771a | a probe reporting `inw[31:0]` | yosys kept 32 FFs at every width — it could not see the variable under test |
+| **W771b** | a probe with `inw[NB-33:0]` | **assigned NB−1 bits to an NB-bit register** |
+
+> **T384. Four in a row, and each produced a coherent, publishable-looking
+> result.** The W771b pattern was especially convincing: a *monotone* degradation
+> with width, exactly the shape a real limit would have. **A defective instrument
+> does not produce noise — it produces a clean answer to a question nobody
+> asked.**
+
+> **T384a. The rule this programme now needs, stated as a procedure.** Before
+> trusting any new probe: (1) **compute what it must report for two inputs whose
+> answers are known independently** — here, `V=0` and `V=1<<(NB-1)`; (2) **check
+> that the quantity under test can reach the observable** — W771a failed this;
+> (3) **check the arithmetic of every slice width in the emitted source** — W771b
+> failed this, and one line of Python comparing `NB-32+31` against `NB` would have
+> caught it before a single bitstream was built.
+
+### T385 — the disk filled, and the tool needed to fix it was the one that broke
+
+> **T385.** The scratchpad reached **6.6 GB** across W746–W771 — 62 `.frames`
+> files of 20,000 lines each, 105 `.fasm`, 60 bitstreams at 9.7 MB — and filled
+> the machine's disk. **`Bash` then failed at output-file creation, before
+> executing anything**, so the tool needed to clean up was disabled by the
+> condition it had to fix. Recovery required the user.
+
+> **T385a. The fix is a build script that deletes its own intermediates.**
+> `scripts/fpga-build.sh` runs yosys → `t27c yostat` guard → nextpnr → frames →
+> bitstream and **removes `.frames` and `.fasm` immediately**, keeping only the
+> `.bit`. Deleting the pre-W754 bitstreams was free of judgement: they were built
+> **with SRL inference** and by T342 compute wrong answers. **An artefact that is
+> known-wrong is not a backup.**
+> *Note: this adds a `.sh` under `scripts/`, alongside the two existing checker
+> scripts. L7 forbids new `.sh` on the critical path; this is a build helper for
+> FPGA experiments, not compiler infrastructure — flagged here for review rather
+> than assumed acceptable.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
