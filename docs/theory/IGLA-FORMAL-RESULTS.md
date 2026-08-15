@@ -16774,4 +16774,68 @@ audited before synthesis and built through `fpga-build.sh`:
 
 ---
 
+## W773 — six waves resolved: my test and my design disagreed on one bit
+
+### T391 — the cut passes at every table count, which was the clue
+
+T390a prescribed the tap probe plus N truth tables. Built, audited before
+synthesis, tested on silicon:
+
+| design | content | result |
+|---|---|---|
+| cut1 | 1 table + 30 raw taps | **10 / 10** |
+| cut4 | 4 tables + 24 raw taps | **10 / 10** |
+| **cut16** | **the full 16-table layer** | **10 / 10** |
+
+**Registered forecast:** *design 1 passes, design 3 fails, the break is between.*
+
+> **T391. The forecast is refuted and the refutation is the answer.** The
+> **complete** Fashion layer-0 logic — sixteen truth tables over a 784-bit
+> register — is **correct on silicon**. Since die A of the same network fails, the
+> defect is in **neither the tables nor the register**, and the only remaining
+> difference is the JTAG wrapper.
+
+### T392 — a 33-bit data register read with a 32-bit shift
+
+| design | `sr` | tested with | result |
+|---|---|---|---|
+| cut16 | `reg [31:0]` — **32 bits** | 32-bit `xfer` | 10/10 |
+| UNSW die A | `reg [31:0]` — **32 bits** | 32-bit `xfer` | 100/100 |
+| **Fashion die A** | **`reg [32:0]` — 33 bits** | **32-bit `xfer`** | **2/24** |
+
+> **T392. W756 widened the data register to 33 bits for every role (T346), and
+> the die-A test path was never updated.** Shifting 32 bits through a 33-bit
+> register leaves everything one position out. Re-tested with the matching
+> 33-bit transfer, **die A goes from 2/24 to 24/24**, and the whole chain runs:
+
+| die | layer | agreement, 50 real Fashion rows |
+|---|---|---|
+| A | 784 features → 16 symbols | **50 / 50** |
+| R | 16 → 16 symbols | **50 / 50** |
+| B | 16 symbols → decision | **50 / 50** |
+
+Silicon accuracy **82.0%**, software **82.0%**.
+
+> **T392a. The defect was version skew between my own artefacts.** UNSW die A was
+> generated **before** W756 and carries a 32-bit register; Fashion die A was
+> generated **after** and carries 33. Both were driven by the same 32-bit
+> function. **Nothing was wrong with either the design or the test — they were
+> written against different versions of the protocol**, and the protocol change
+> was mine, recorded as T346, four waves earlier.
+
+> **T392b. What six waves of exclusion actually bought.** Logic (T380),
+> primitives (T386), width arithmetic (T386), the register (T387), the chains
+> (T389) and the table logic (T391) were each excluded **by measurement**. The
+> answer was in none of them, and it was found only because the list was
+> exhaustive enough to leave exactly one place. **Exclusion is slow and it
+> terminates; guessing is fast and does not.**
+
+> **T392c. The cheap check that would have skipped all six.** The design declares
+> `reg [32:0] sr`; the driver sends four bytes. **One line comparing the declared
+> DR width against the transfer length would have caught this before the first
+> bitstream** — and `width_audit.py`, written in W772 to check exactly this class
+> of arithmetic, does not cross the Verilog/Python boundary. **It should.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

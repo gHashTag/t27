@@ -9373,6 +9373,33 @@ the chains by 8/8. **What remains is one stage.** The value was never in any
 single test — it is that each one is written down with what proved it, so nothing
 is re-tested and nothing is assumed.
 
+### Lessons 875-878 (W773) — version skew between your own artefacts
+
+**875. When you change a protocol, change every driver that speaks it — or the
+next design built will not match the test that reads it.** W756 widened the JTAG
+data register to 33 bits for **all** roles; the die-A test path kept sending 32.
+UNSW die A predated the change and worked; Fashion die A postdated it and read
+**2/24**. With the matching transfer: **24/24**, and the full chain 50/50/50.
+**Six waves of hardware diagnosis for one bit of version skew between my own
+files.**
+
+**876. A refuted forecast can BE the answer.** The cut predicted "one table
+passes, sixteen fail". All three passed — and that refutation eliminated the last
+suspect, leaving only the wrapper. **When a bisection finds no break, the variable
+you bisected is not the variable.**
+
+**877. Exclusion terminates; guessing does not.** Six waves excluded the logic,
+the primitives, the width arithmetic, the register, the chains and the tables,
+each **by measurement**. The answer was in none of them and was reachable only
+because the list was exhaustive enough to leave exactly one place. **Slow and
+finite beats fast and open-ended.**
+
+**878. Extend the auditor across the language boundary.** `width_audit.py` checks
+slice arithmetic inside Verilog and would never have caught this: the mismatch is
+between a Verilog declaration and a Python byte count. **A checker that stops at
+the file boundary misses the defects that live on it** — and this class has now
+cost more than every in-file width error combined.
+
 ### How to update this tracker
 
 After closing a wave:
