@@ -17678,4 +17678,104 @@ fan-in statistic it was derived from.
 
 ---
 
+## W779c — the literature, read adversarially, and what it costs us
+
+Twelve agents, four prior-art angles each adversarially re-verified against full
+texts, plus a state-of-the-art sweep. Reported first: **what it takes away.**
+
+### T419 — the six-bit rule is LogicNets', and the field does not obey it
+
+> **T419.** S4 — *a neuron reading ≤ 6 input bits costs ~2 LUT* — was derived here
+> from measurement (T331/T368b) and promoted to a **comptime invariant** in
+> `golden_sieve.t27`. **LogicNets (Umuroglu et al., FPL 2020) states it as a cost
+> model**: LUT cost is driven by fan-in and quantisation bit-width and is
+> independent of which numeric values the codes denote. **Rediscovery, and it
+> should be cited, not claimed.**
+>
+> Worse for the sieve: **LogicNets' own NID configurations run at fan-in 7 with
+> β = 2, i.e. 14 input bits per LUT** — more than twice S4's ceiling. **The
+> six-bit rule is our constraint, not the field's**, and S4 is therefore a design
+> choice presented as a law.
+
+> **T419a. Where T410 genuinely refines LogicNets.** Their model says cost depends
+> on fan-in and bit-width and **not** on the values. This wave measured, at
+> *fixed* fan-in and *fixed* bit-width, LUT varying 45 → 271 across alphabets,
+> tracking **effective** fan-in at r = +0.991. Both can hold: nominal fan-in and
+> width **bound** the cost; the alphabet decides **where inside the bound** the
+> design lands. **That refinement is the defensible contribution and it must be
+> stated against their model, not instead of it.**
+
+### T420 — the sparse penalty, calibrated against the field
+
+The programme's 12.4–13.4 pp gap has driven this line since W748. Measured
+elsewhere:
+
+| source | task | sparse | dense | gap |
+|---|---|---:|---:|---:|
+| **SparseLUT Tab. IV**, fan-in 6 **random** mask | MNIST HDR(D=1) | 93.76 % | 98.55 % | **4.79 pp** |
+| SparseLUT, **learned** connectivity | MNIST HDR(D=1) | 95.89 % | 98.55 % | 2.66 pp |
+| NeuraLUT-Assemble | NID / MNIST / JSC | — | — | **≤ 1 pp**, NID **+0.5** |
+| PolyLUT-Add / PolyLUT / LogicNets | **UNSW-NB15** | **92.0 / 92.2 / 91.0 %** | — | — |
+| **this project** | UNSW-NB15 | **76–80 %** | 89.62 % | **11.9–13.4 pp** |
+
+> **T420. The field reaches 91–93 % on UNSW-NB15 where this project reaches
+> 76–80 %.** The comparable configuration — fan-in 6, *random* fixed mask, one LUT
+> per neuron — carries a **4.79 pp** gap in SparseLUT's own table. **Ours is 2.5×
+> that.** The excess is the instrument, not the architecture.
+
+> **T420a. W778's T414 "cleared" T311 by reproducing its number, which is not
+> validation.** Reproducing your own figure on your own stand confirms the stand
+> is consistent, not that it is right. **The external calibration was available in
+> SparseLUT Table IV throughout and was never read.** T311 and T414 are hereby
+> **re-opened**: the honest statement is that *this stand* shows 12–13 pp where a
+> comparable published stand shows 4.79 and a well-engineered one shows ≤ 1.
+
+> **T420b. What the field does that this stand does not.** Verbatim from
+> PolyLUT-Add: *"Each layer's inputs and outputs are batch normalized and
+> quantized using Brevitas quantized activation functions, which utilize learned
+> scaling factors."* **Per-layer batch norm and learned scales, on both sides of
+> every layer.** This stand has neither — W778 added only a variance
+> normalisation of pre-activations, and that alone was worth 17–21 pp (T413).
+> **Connectivity is not the difference**: the field's baseline mask is
+> `RandomFixedSparsityMask2D`, the same random draw used here.
+
+> **T420c. Training budget is refuted as the explanation.** Matching the dense
+> stand's 30 epochs with patience-6 early stopping gave **76.07 %** against the
+> 8-epoch 76.34 % — *worse*, because validation stopping fired at epoch 14. The
+> residual is **not** budget (registered forecast: ≥ 4 pp; measured: −0.27 pp).
+
+### T421 — what survives the prior-art check, and under whose names
+
+> **T421.** Four angles, each verified against full text:
+>
+> - **The tribonacci constant is not ours.** OEIS **A058265**, the real root of
+>   `x³ − x² − x − 1`. T409 restates a named constant's definition; the corollary
+>   that no integer `b ≥ 2` escapes it follows from `2 > 1.839`. **Rediscovery.**
+> - **"PoT has rigid resolution" is APoT's**, Li, Dong & Wang, ICLR 2020,
+>   **arXiv:1909.13144**, verbatim: *"We refer this phenomenon as the rigid
+>   resolution of PoT quantization."* **But the mechanism is different and the
+>   difference is machine-verified**: full-text term counts in that paper are
+>   fan-in 0, junta 0, dominat\* 0, "truth table" 0, Boolean 0. Their argument is
+>   **per-weight projection error against a weight distribution**; ours is
+>   **functional dependence of a neuron on its inputs**. Same symptom, different
+>   cause, and the causal claim is the one to defend.
+> - **The right vocabulary already exists and we were not using it.** A neuron
+>   whose output depends on one input is a **1-junta**, or a **dictator**; the
+>   neuron itself is a **linear threshold function**. O'Donnell, *Analysis of
+>   Boolean Functions*. **Adopt the names.**
+> - **Priority may sit in 1966–67 threshold logic** — Sheng & Hwa,
+>   *Successive Higher Ordering of Incremental Weights*, IEEE TEC 1966; Sarma,
+>   Das & Choudhury, IJC 1967. **Metadata verified, content NOT verified** —
+>   both are behind paywalls that returned 403/202. **Flagged as unresolved, and
+>   it must not be claimed either way until someone reads them.**
+
+> **T421a. Net position.** The **constant** is old, the **symptom** is APoT's, the
+> **names** are O'Donnell's, and the **priority on the inequality** is unresolved
+> pending two 1960s papers. What is not found in any of them is the measured link
+> from alphabet skew to **effective fan-in** to **LUT area at r = +0.991**. **That
+> is the contribution, it is narrower than the wave first read it, and it is the
+> only part that should carry weight in a write-up.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

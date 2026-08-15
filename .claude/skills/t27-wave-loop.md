@@ -9628,6 +9628,34 @@ refute the filter; the ones that confirm it prove nothing it was not built from.
 for the sparse penalty: receptive field, depth, alphabet, coverage. Naming the
 dead ends is what makes the residual a target rather than a mood.
 
+**917. Calibrate against the field BEFORE deriving a law from your own stand.**
+The project measured a 12-13 pp sparse penalty and built thirty waves on it.
+SparseLUT Table IV -- comparable configuration, fan-in 6, random mask -- shows
+4.79 pp, and NeuraLUT-Assemble reaches <=1 pp. The number was 2.5x the field's and
+nobody looked (T420). *An internal number reproduced on your own stand is a
+consistency check, not a validation.*
+
+**918. "I cleared the alarm" can mean "I reproduced my own error."** W778 tested
+T311 by re-measuring it here and got the same figure, then declared it cleared.
+Same stand, same blind spot (T420a). *Clearing a suspicion requires an
+INDEPENDENT instrument, and for a research programme that means the literature.*
+
+**919. Derived-and-promoted is the dangerous combination.** S4, the six-bit rule,
+was derived from our own measurements and made a COMPTIME INVARIANT -- and it is
+stated in LogicNets (2020), whose own configs run at 14 input bits, twice our
+ceiling (T419). *A law hard-coded into the compiler should have a citation or an
+explicit note that it is a local design choice.*
+
+**920. Adopt the field's vocabulary the moment you find it.** A neuron depending
+on one input is a 1-junta / dictator; the neuron is a linear threshold function.
+Those names are O'Donnell's and are decades old. *Inventing a term for a named
+object makes the work unfindable and unciteable, in both directions.*
+
+**921. Read what the baseline TRAINS with, not only what it reports.** PolyLUT-Add:
+"Each layer's inputs and outputs are batch normalized and quantized using Brevitas
+quantized activation functions, which utilize learned scaling factors." Our stand
+had none of that, and one partial normalisation was already worth 17-21 pp (T421).
+
 ### How to update this tracker
 
 After closing a wave:
