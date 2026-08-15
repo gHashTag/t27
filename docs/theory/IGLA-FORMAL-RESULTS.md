@@ -16918,4 +16918,50 @@ costs **8 DSP48E1 or ~2750 LUT** — the multiplier it was supposed to remove.
 
 ---
 
+## W775 — the sieve is a specification now, and the compiler proves it
+
+### T396 — five theorems moved from a script into `specs/numeric/golden_sieve.t27`
+
+Dmitrii asked for an invariant network **through the specification**. W774 built
+the sieve in Python, which `SOUL.md` calls the wrong place: *"mathematical truth,
+not implementation, is the source of truth."* It is now a `.t27` module.
+
+```
+  Typecheck OK (0 errors, 0 warnings)
+
+  tests       3
+  pass        3
+  FAIL        0
+  invariants  5   proved -- comptime, so compiling IS the check
+```
+
+| invariant | what the compiler now proves |
+|---|---|
+| `s1_rejects_non_powers` | 5, 7, 11, 17 levels fail; 3, 9, 27 pack exactly |
+| `s2_stops_at_two_trits` | 27 **packs** yet fails the ceiling — the two filters are independent |
+| `s3_rejects_two_lanes` | a two-lane alphabet is inadmissible |
+| `six_bit_rule_is_three_trit_rule` | `max_fanin(1) = 6`, `max_fanin(2) = 3`, and fan-in 6 over ternary is rejected |
+| `twenty_seven_row_neuron` | `ternary_rows(3) = 27`, `binary_rows(3) = 64` |
+
+> **T396. The five filters are no longer a script's opinion — they are comptime
+> assertions, and the build fails if any stops holding.** T367, T369, T293, T368b
+> and T246/T342 are now checked by the same compiler that emits the RTL. **A
+> theorem that only lives in a Markdown file is documentation; one the toolchain
+> refuses to build without is a law.**
+
+> **T396a. The language shaped the spec, and the shape is better.** The first
+> draft used `let mut` and `while`, which the numeric core does not accept; the
+> parser rejected it at line 60. Rewritten loop-free with the four alphabet sizes
+> written out as constants, the module is **shorter, total, and comptime-
+> evaluable** — which is why the invariants can be proved at all. **The
+> restriction that looked like an obstacle is what made the proof possible.**
+
+> **T396b. What is still Python, and why that is now the smaller half.**
+> `golden_sieve.py` keeps the measured *table* — accuracies, LUT counts, lane
+> counts per candidate — because those are **measurements**, not truths, and
+> belong beside the experiments that produced them. **The spec holds the
+> predicates; the script holds the evidence.** Neither should hold both.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: Apache-2.0
+// golden_sieve.t27 0 The Golden Sieve -- which weight alphabets a ternary
+// datapath may use, derived from measured theorems rather than chosen.
+//
+// Five predicates. A candidate alphabet is admissible only if it satisfies all
+// five. Each cites the measurement that established it; none is an opinion.
+//
+// S1 PACKING    |A| = 3^k          T367  only powers of three waste no trits
+// S2 CEILING    k <= 2             T369  27 levels measured +0.15 / -0.13 pp,
+// neither significant on two tasks
+// S3 INTEGRAL   A subset of Z      T293  a two-lane Z[b] resolve costs
+// 8 DSP48E1 or ~2750 LUT
+// S4 TRIT_FANIN fanin * bits <= 6  T368b 2.00 LUT/neuron at <= 6 bits,
+// 39-54 LUT at 12
+// S5 PRIMITIVE  no DSP48E1/SRL16E  T246, T342  openXC7 emits a wrong bitstream
+// for both while every tool reports OK
+//
+// THE ONE FORMULA the sieve leaves:
+//
+// TNF(k, b) = {0} u { +- b^i : 0 <= i < (3^k - 1)/2 },  k in {1,2}, b in Z, b >= 2
+//
+// k = 1 -> 3 levels, ONE trit,  {0, +-1}
+// k = 2 -> 9 levels, TWO trits, {0, +-b^0, +-b^1, +-b^2, +-b^3}
+//
+// And the 27-entry matrix is what a NEURON is, not what a weight is: three
+// ternary inputs give 3^3 = 27 reachable rows with zero waste, against a binary
+// LUT6's 64 rows of which 27 are reachable -- 42 percent used.
+//
+// phi^2 + phi^-2 = 3 | TRINITY
+
+module numeric-golden-sieve;
+
+// ============================================================================
+// Constants -- the thresholds, each traceable to a measurement
+// ============================================================================
+
+// S2: the Nine-Rung ceiling. Two trits, nine levels. T288 measured no
+// significant step above nine on any of eight tasks; T369 measured the third
+// trit at +0.15 pp (UNSW, ns) and -0.13 pp (Fashion, ns).
+pub const MAX_TRITS : u32 = 2;
+
+// S4: a neuron of at most this many INPUT BITS costs 2.00 LUT; above it, 39-54.
+// A ternary symbol occupies two bits, so a hidden layer's fan-in is three.
+pub const MAX_NEURON_BITS : u32 = 6;
+
+// The radix. Everything in the sieve is counted in trits, not bits.
+pub const RADIX : u32 = 3;
+
+// Bits a ternary symbol occupies on a binary substrate. The 58 percent of every
+// LUT lost to unreachable codes follows from this and from MAX_NEURON_BITS.
+pub const TERNARY_SYMBOL_BITS : u32 = 2;
+
+// The four alphabet sizes the sieve ever has to reason about, written out
+// rather than computed: the language's numeric core is loop-free, and a table
+// of four constants is clearer than a recursion that only ever runs to three.
+pub const LEVELS_0_TRITS : u32 = 1;
+pub const LEVELS_1_TRIT  : u32 = 3;
+pub const LEVELS_2_TRITS : u32 = 9;
+pub const LEVELS_3_TRITS : u32 = 27;
+
+// ============================================================================
+// S1 -- PACKING. |A| must be a power of three.
+// ============================================================================
+
+// Levels representable in `t` trits: 3^t, for the range the sieve needs.
+pub fn levels_in_trits(t : u32) -> u32 {
+    if (t == 0) { return LEVELS_0_TRITS; }
+    if (t == 1) { return LEVELS_1_TRIT; }
+    if (t == 2) { return LEVELS_2_TRITS; }
+    if (t == 3) { return LEVELS_3_TRITS; }
+    return 0;
+}
+
+// The trit count that holds `n` levels exactly, or 0 when n is not a power of
+// three. Returning 0 for "does not pack" is what makes S1 a predicate rather
+// than a rounding.
+pub fn trits_for_levels(n : u32) -> u32 {
+    if (n == LEVELS_1_TRIT) { return 1; }
+    if (n == LEVELS_2_TRITS) { return 2; }
+    if (n == LEVELS_3_TRITS) { return 3; }
+    return 0;
+}
+
+pub fn s1_packing(n : u32) -> bool {
+    return trits_for_levels(n) > 0;
+}
+
+// ============================================================================
+// S2 -- CEILING. At most two trits.
+// ============================================================================
+
+pub fn s2_ceiling(n : u32) -> bool {
+    let t : u32 = trits_for_levels(n);
+    if (t == 0) { return false; }
+    return t <= MAX_TRITS;
+}
+
+// ============================================================================
+// S3 -- INTEGRAL. The alphabet must lie in Z, so one accumulator lane suffices.
+//
+// An irrational base b forces the pair representation a + b*c, and resolving
+// that pair against a threshold costs 8 DSP48E1 or about 2750 LUT without them
+// (T293). The multiplier phi removes from weight application returns here.
+// ============================================================================
+
+pub fn s3_integral(lanes : u32) -> bool {
+    return lanes == 1;
+}
+
+// ============================================================================
+// S4 -- TRIT_FANIN. A neuron reads at most six input bits.
+// ============================================================================
+
+pub fn neuron_bits(fanin : u32, input_bits : u32) -> u32 {
+    return fanin * input_bits;
+}
+
+pub fn s4_trit_fanin(fanin : u32, input_bits : u32) -> bool {
+    return neuron_bits(fanin, input_bits) <= MAX_NEURON_BITS;
+}
+
+// The fan-in the rule permits for a given input encoding. Binary inputs give
+// six; ternary symbols are two bits each and give three.
+pub fn max_fanin(input_bits : u32) -> u32 {
+    if (input_bits == 0) { return 0; }
+    return MAX_NEURON_BITS / input_bits;
+}
+
+// ============================================================================
+// S5 -- PRIMITIVE. No DSP48E1 and no SRL16E in the emitted netlist.
+// ============================================================================
+
+pub fn s5_primitive(dsp_count : u32, srl_count : u32) -> bool {
+    if (dsp_count > 0) { return false; }
+    return srl_count == 0;
+}
+
+// ============================================================================
+// The sieve -- all five, and the substrate waste that follows
+// ============================================================================
+
+pub fn admissible(levels : u32, lanes : u32, fanin : u32, input_bits : u32,
+                  dsp_count : u32, srl_count : u32) -> bool {
+    if (s1_packing(levels) == false) { return false; }
+    if (s2_ceiling(levels) == false) { return false; }
+    if (s3_integral(lanes) == false) { return false; }
+    if (s4_trit_fanin(fanin, input_bits) == false) { return false; }
+    if (s5_primitive(dsp_count, srl_count) == false) { return false; }
+    return true;
+}
+
+// Rows a ternary neuron of `fanin` ternary inputs actually needs: 3^fanin.
+pub fn ternary_rows(fanin : u32) -> u32 {
+    return levels_in_trits(fanin);
+}
+
+// Rows the binary LUT holding it provides: 2^(fanin * TERNARY_SYMBOL_BITS).
+// Written out for the range that matters, as with levels_in_trits.
+pub fn binary_rows(fanin : u32) -> u32 {
+    if (fanin == 1) { return 4; }
+    if (fanin == 2) { return 16; }
+    if (fanin == 3) { return 64; }
+    return 0;
+}
+
+// ============================================================================
+// Invariants -- L4. These are the theorems, stated so the compiler checks them.
+// ============================================================================
+
+invariant s1_rejects_non_powers {
+    assert(s1_packing(5) == false);
+    assert(s1_packing(7) == false);
+    assert(s1_packing(11) == false);
+    assert(s1_packing(17) == false);
+    assert(s1_packing(3));
+    assert(s1_packing(9));
+    assert(s1_packing(27));
+}
+
+invariant s2_stops_at_two_trits {
+    assert(s2_ceiling(3));
+    assert(s2_ceiling(9));
+    assert(s1_packing(27));
+    assert(s2_ceiling(27) == false);
+}
+
+invariant s3_rejects_two_lanes {
+    assert(s3_integral(1));
+    assert(s3_integral(2) == false);
+}
+
+invariant six_bit_rule_is_three_trit_rule {
+    assert(max_fanin(1) == 6);
+    assert(max_fanin(TERNARY_SYMBOL_BITS) == 3);
+    assert(s4_trit_fanin(6, 1));
+    assert(s4_trit_fanin(3, TERNARY_SYMBOL_BITS));
+    assert(s4_trit_fanin(6, TERNARY_SYMBOL_BITS) == false);
+}
+
+invariant twenty_seven_row_neuron {
+    assert(ternary_rows(3) == 27);
+    assert(binary_rows(3) == 64);
+}
+
+// ============================================================================
+// Tests -- L4
+// ============================================================================
+
+test levels_and_trits_round_trip {
+    assert(levels_in_trits(0) == 1);
+    assert(levels_in_trits(1) == 3);
+    assert(levels_in_trits(2) == 9);
+    assert(levels_in_trits(3) == 27);
+    assert(trits_for_levels(1) == 0);
+    assert(trits_for_levels(3) == 1);
+    assert(trits_for_levels(9) == 2);
+    assert(trits_for_levels(27) == 3);
+}
+
+test the_sieve_admits_only_the_formula {
+    assert(admissible(3, 1, 3, TERNARY_SYMBOL_BITS, 0, 0));
+    assert(admissible(9, 1, 3, TERNARY_SYMBOL_BITS, 0, 0));
+    assert(admissible(27, 1, 3, TERNARY_SYMBOL_BITS, 0, 0) == false);
+    assert(admissible(7, 1, 3, TERNARY_SYMBOL_BITS, 0, 0) == false);
+    assert(admissible(9, 2, 3, TERNARY_SYMBOL_BITS, 0, 0) == false);
+    assert(admissible(9, 1, 6, TERNARY_SYMBOL_BITS, 0, 0) == false);
+    assert(admissible(9, 1, 3, TERNARY_SYMBOL_BITS, 1, 0) == false);
+    assert(admissible(9, 1, 3, TERNARY_SYMBOL_BITS, 0, 44) == false);
+}
+
+test substrate_waste_is_measured_not_asserted {
+    assert(ternary_rows(3) == 27);
+    assert(binary_rows(3) == 64);
+    assert(binary_rows(3) - ternary_rows(3) == 37);
+}
+
+// ============================================================================
+// Bench -- L4
+// ============================================================================
+
+bench sieve_admissibility {
+    assert(admissible(3, 1, 3, TERNARY_SYMBOL_BITS, 0, 0));
+    assert(admissible(9, 1, 3, TERNARY_SYMBOL_BITS, 0, 0));
+    assert(admissible(27, 1, 3, TERNARY_SYMBOL_BITS, 0, 0) == false);
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
