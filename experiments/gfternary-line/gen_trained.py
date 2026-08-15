@@ -165,7 +165,8 @@ if __name__=="__main__":
     net=json.load(open(a.net))
     idx=net["idx"][a.layer]; w=net["w"][a.layer]
     in_bits = 1 if a.layer==0 else 2
-    n_in = 593 if a.layer==0 else 16
+    # W760: the input width comes from the exported net, not a constant.
+    n_in = net.get("n_in", 593) if a.layer==0 else len(net["idx"][a.layer-1])
     if a.sim:
         print(emit_sim(idx, w, in_bits, n_in)); raise SystemExit
     # THE SIX-BIT RULE decides the FORM, not just the fan-in: a neuron reading

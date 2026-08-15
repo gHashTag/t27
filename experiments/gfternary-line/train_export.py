@@ -88,7 +88,8 @@ def quantise_to_int(W):
 if __name__=="__main__":
     out=sys.argv[1]; seed=int(sys.argv[2]) if len(sys.argv)>2 else 1000
     G="/private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/gat"
-    d=np.load(f"{G}/unsw.npz"); tr,te=d["train"],d["test"]
+    ds=sys.argv[3] if len(sys.argv)>3 else "unsw"   # W760: any dataset
+    d=np.load(f"{G}/{ds}.npz"); tr,te=d["train"],d["test"]
     rng=np.random.default_rng(0); perm=rng.permutation(len(tr)); nva=len(tr)//10
     va,trn=perm[:nva],perm[nva:]
     Xtr=tr[trn,:-1].astype(np.float32)*2-1; ytr=tr[trn,-1].astype(np.float32)
@@ -110,5 +111,6 @@ if __name__=="__main__":
           f"INTEGER-EXPORT test accuracy {acc*100:.2f}%",flush=True)
     json.dump({"idx":[i.tolist() for i in idxs],
                "w":[q.tolist() for q in Qi],
-               "test_acc":acc, "seed":seed}, open(out,"w"))
+               "test_acc":acc, "seed":seed,
+               "n_in":int(Xtr.shape[1]), "dataset":ds}, open(out,"w"))
     print("  written:",out,flush=True)

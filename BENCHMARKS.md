@@ -102,3 +102,69 @@ sources of **direction** for the research line.
 ---
 
 **phi^2 + 1/phi^2 = 3  |  TRINITY**
+
+---
+
+## 4. FPGA measurements, W746-W760 (2026-08-14/15)
+
+Every row below was produced in this repository on **QMTech XC7A200T-FGG676**
+hardware or by `yosys 0.63 -> nextpnr-xilinx (openXC7) -> prjxray`. Synthesis is
+**`synth_xilinx -nodsp -nosrl`** — see §4.4 for why that is mandatory.
+
+### 4.1 The single-die artefact
+
+| system | LUT | accuracy | Fmax | latency | notes |
+|---|---:|---:|---:|---:|---|
+| ours, H16 L2, UNSW-NB15 | **123** | **81.37%** | — | 1 cycle | whole net, output stage included |
+| ours, H16 L2, Fashion-bin | **123** | **86.91%** | — | 1 cycle | identical netlist, different task |
+| ours, 16-16-1, UNSW | 126 | 78.45% | **99.46 MHz** | 1 cycle | timed variant |
+| TreeLUT (II), UNSW-NB15 | 89 | 92.0% | *not in our record* | *not in our record* | published |
+
+**Not claimed:** `LUT·ns` against the field. TreeLUT's Fmax and latency are not
+in this repository and attempts to fetch them failed; the column stays empty
+rather than guessed.
+
+**Correction on record:** every LUT figure published before W752 counted hidden
+layers only and omitted the decision neuron (87 LUT at fan-in 16). The rows above
+include it.
+
+### 4.2 The three-die ternary network
+
+| die | layer | LUT | DSP | acceptance | agreement, 100 real rows |
+|---|---|---:|---:|---|---|
+| A | 593 features -> 16 ternary symbols | 78 | 0 | 0->1 | **100 / 100** |
+| R | 16 -> 16 symbols | 67 | 0 | 0->1 | **100 / 100** |
+| B | 16 symbols -> decision | 87 | 0 | 0->1 | **100 / 100** |
+
+Weights come from the trainer, not a seed. The host shifts bits and performs no
+arithmetic on any payload. Verified against a reference model generated from the
+same seeds as the Verilog.
+
+### 4.3 Cost rules, measured
+
+| rule | measurement |
+|---|---|
+| **six bits per neuron** | <=6 input bits: **2.00 LUT/neuron**. 12 bits: **39-54 LUT/neuron**. |
+| binary vs ternary inputs | a ternary symbol is two bits, so hidden layers take fan-in **3**, not 6 |
+| area is not a lever | 6.5x the area buys **1.72 pp** (UNSW) / **1.38 pp** (Fashion) |
+| the golden alphabet's resolve | `a + b*phi` against a threshold costs **8 DSP48E1**, or **~2750 LUT** without them |
+
+### 4.4 Toolchain defects found here
+
+| primitive | symptom | mitigation |
+|---|---|---|
+| **DSP48E1** (live operand) | netlist correct, bitstream wrong | `synth_xilinx -nodsp` |
+| **SRL16E / SRLC32E** | netlist correct, bitstream wrong; 0/6 rows vs 24/24 with the flag | `synth_xilinx -nosrl` |
+
+Both pass the wrong-part -> ours `0->1` acceptance criterion while computing the
+wrong answer. `t27c yostat` now **exits 2** when either appears in a synthesis
+log. Full reproduction: [`docs/reports/OPENXC7-SRL16E-DEFECT.md`](docs/reports/OPENXC7-SRL16E-DEFECT.md).
+
+### 4.5 What is explicitly NOT claimed
+
+- No `LUT·ns` comparison with any published system (§4.1).
+- No claim that this datapath "suits" any task: the sparse penalty ranges over a
+  factor of fifty across 11+ tasks and **no predictor for it survived
+  confirmation**. Suitability must be measured per task, not argued.
+- No accuracy figure from before W749 is comparable: the pre-activation scale was
+  uncontrolled, which inflated the alphabet-size effect by 39%.
