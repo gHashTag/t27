@@ -15566,4 +15566,72 @@ A **33-bit** data register — 65 FF, zero SRL — with the host shifting 33 bit
 
 ---
 
+## W756 — the field's metric, and the chain with nothing modelled away
+
+### T349 — I recommended the wrong metric and corrected it before measuring
+
+> **T349.** W755 closed by recommending **"accuracy per LUT"**. That is not a
+> metric this field uses, and inventing one would repeat W746's naming error
+> exactly. T161 already records the published row: *Accuracy / LUT / FF / DSP /
+> BRAM / Fmax / Latency / **LUT·ns***. **Accuracy is a column, never a
+> denominator** — a ratio rewards a system parked at the majority baseline, and
+> ours sits 27 points above a 55.06% baseline while the field sits 37 above it.
+> The correction cost one paragraph because it happened **before** the
+> measurement rather than after publication.
+
+### T350 — the whole network as ONE artefact
+
+Three layers and the output adder, single die, registered in and out, no JTAG:
+
+| | value |
+|---|---|
+| LUT | **126** (148 with the LFSR driver and readback harness) |
+| CARRY4 / DSP48E1 / SRL16E | 3 / **0** / **0** |
+| Fmax | **99.46 MHz** |
+| latency | **1 cycle** — one combinational sweep |
+| **LUT·ns** | **≈ 1,266** |
+| accuracy | **78.45%** |
+
+**Registered forecast:** *210–280 LUT; Fmax 150–260 MHz.*
+
+> **T350. Both halves refuted, and in opposite directions.** **126 LUT**, well
+> under the predicted range — the three-die split's 232 LUT was mostly *harness*,
+> three BSCANE2 blocks and three shift registers, not network. And **99.46 MHz**,
+> below the predicted range, because the whole network is **one combinational
+> path** from 593 inputs through two table layers into a 16-term adder. **The
+> split figure I have been quoting for three waves was 84% transport.**
+
+> **T350a. What cannot be quoted, and why.** TreeLUT's **89 LUT at 92.0%** is in
+> our record; **its Fmax and latency are not**, so `LUT·ns` cannot be compared
+> today. Lesson 781 applies to our own record as much as to the literature:
+> **the gap is stated, not guessed.** On the columns we do share: **126 vs 89 LUT
+> (1.42×) at 78.45% vs 92.0% (−13.6 pp)**, and this area figure **includes the
+> output stage** that T335 found missing from every earlier number.
+
+### T351 — the chain runs with nothing modelled away
+
+Dies R and B rebuilt with the **33-bit** data register of T346; die A unchanged
+on its chunked path:
+
+| die | agreement, 100 real UNSW rows | on the 31-bit wire (T343a) |
+|---|---|---|
+| A | **100 / 100** | 100 / 100 |
+| R | **100 / 100** | 100 / 100 |
+| **B** | **100 / 100** | **94 / 100** |
+
+Silicon accuracy 82.0%, software 82.0%.
+
+> **T351.** T343a had to *model the truncation* to reconcile die B — the silicon
+> was right and the host was lossy. **With the register one bit wider there is
+> nothing to reconcile.** A trained ternary network computes across three FPGAs at
+> full fidelity, every value on the wire produced by the die before it, the host
+> performing no arithmetic and **no longer performing any compensation either.**
+
+> **T351a.** The one-bit change also removed a class of future error: any result
+> obtained through a lossy transport needs its loss modelled to be believed, and
+> a model of the loss is a place for a mistake to hide. **A protocol that carries
+> the payload exactly needs no theory of what it drops.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
