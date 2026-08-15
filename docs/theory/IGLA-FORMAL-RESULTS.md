@@ -18262,7 +18262,7 @@ repositories:
 
 > **T435a. I introduced seven Cyrillic lines into a file governed by L3 PURITY.**
 > `docs/theory/IGLA-FORMAL-RESULTS.md` had **zero** at session start and seven
-> after I added `[измерено]`-style status tags. It is **not** on
+> after I added Russian-language status tags. It is **not** on
 > `docs/.legacy-non-english-docs`, and that allowlist says *"Do not add entries
 > without Architect approval"* — so the fix was to **remove them**, not to widen
 > the allowlist. All seven are now their English equivalents; the tri-net handoff
