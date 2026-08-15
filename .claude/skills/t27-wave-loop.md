@@ -9764,6 +9764,32 @@ clone pushed to a fresh repo reads as original. Seven MIT repos in the cleared
 bucket name Amazon, Supabase, Railway or OpenAI in their copyright line (T433).
 *Check the copyright line, not the fork flag.*
 
+**943. `cmd | grep ... ; echo "ok"` reports ok unconditionally.** My loop
+invariant did exactly this and would have said "build: ok" with the build on fire
+(T435). *Seventh disguise of reading output as status, after head, tail, wc -l, $?
+through a pipe, grep -c, and -- in the same investigation -- a failed `git show`
+whose empty output made `grep -c` return a plausible 0.*
+
+**944. Read the PANIC line, not the warnings above it.** Thirteen language-policy
+warnings printed above a FROZEN_HASH failure and I diagnosed the warnings. `grep
+-A3 panicked` gave the real cause in one command (T435b).
+
+**945. Do everything up to a human gate, then present the gate.** The Zig
+assert_eq fix is worth +60 specs on both backends and is verified; compiler.rs is
+under a FROZEN_HASH seal whose ceremony requires Architect intent. Delivered as a
+documented patch with its apply-and-verify recipe, seal untouched (T434b). *Repo
+law overrides "do it all autonomously"; the instruction to work unattended is not
+an instruction to walk through a gate marked human.*
+
+**946. Do not widen an allowlist to legalise your own violation.** I put seven
+Cyrillic lines into an L3-governed file that had zero; the allowlist exists but
+says "Architect approval only". The fix is to remove the violation (T435a).
+
+**947. A metric that cannot see a whole class of failure will report success.**
+`zig build-obj` does not analyse functions reachable only from `test` blocks, so
+`both_build` would have read +60 while 32 of the 60 were still broken (T434a).
+*Ask what your acceptance metric is structurally blind to before you adopt it.*
+
 ### How to update this tracker
 
 After closing a wave:

@@ -12071,7 +12071,7 @@ identical command from `tnf-cost-sweep.yml`. The handoff document of 2026-08-13
 lists this run as the main open item and marks it blocked for want of yosys,
 nextpnr and docker.
 
-> **T220.** `[измерено — программно]`, pre-route. The published model is fitted
+> **T220.** `[measured -- in software]`, pre-route. The published model is fitted
 > post-route on a different package and a different yosys, so what follows
 > compares **shapes**, never two numbers.
 
@@ -12141,7 +12141,7 @@ add arms 52    DSP48E1 total   0
 **Not run:** post-route on the article's part. This host has the
 `xc7a200tfbg676-1` chipdb (QMTech); the article's part is `xc7a200tfbg484-2`
 (ALINX AX7203). Same die, different package. Nothing here touched that board,
-and no number here is `[измерено на железе]`.
+and no number here is `[measured on hardware]`.
 
 ---
 
@@ -14304,7 +14304,7 @@ in bits per weight:         3.17      2.32       3.17
 
 ### T290 — the name, and the one word that makes it true
 
-The finding is named **the Nine-Rung Law** / «Закон девяти ступеней», and the
+The finding is named **the Nine-Rung Law** / (Zakon devyati stupeney), and the
 article becomes **TNF-9**.
 
 W744 withdrew "the ninth rung" because nine is not a constant: UNSW-NB15 and
@@ -16243,7 +16243,7 @@ perfect packing. Measured rather than inherited, dyadic alphabets, 5 seeds:
 
 ### T370 — "the ternary table we do not have" was the wrong framing
 
-Dmitrii pushed back on the phrase *"ТРОИЧНАЯ ТАБЛИЦА — то, чего у нас нет"* and
+Dmitrii pushed back on the phrase *"the ternary table is the thing we do not have"* (translated) and
 asked what t27 was built for. `SOUL.md`, Preamble:
 
 > *"T27 is a **spec-first** architecture where mathematical truth, not
@@ -16387,7 +16387,7 @@ the two nearest measured anchors**, never an interpolated value:
 
 ### T375 — what a ternary substrate would return, in configuration cells
 
-**[СМОДЕЛИРОВАНО — estimate, not measurement. No ternary substrate exists to
+**[MODELLED — estimate, not measurement. No ternary substrate exists to
 measure on.]** Unit: one configuration cell — a mask bit in a LUT, or a trit in a
 ternary table.
 
@@ -17450,7 +17450,7 @@ re-scoped to area only.*
 > limit. **Test:** re-run with the threshold scaled per arm to equalise the
 > pre-activation variance. If the UNSW inversion survives, it is the alphabet; if
 > it vanishes, it was the trainer. **Until then T412's UNSW direction is
-> [измерено], not [доказано].**
+> [measured], not [proved].**
 
 ---
 
@@ -17658,7 +17658,7 @@ fan-in statistic it was derived from.
 > two.** At *equal* fan-in the S6-passing alphabet is significantly better on
 > UNSW and not on Fashion; pooled across the filter it is significantly better on
 > Fashion and not on UNSW. **Each task gives one significant result and they are
-> different results.** S6 stays in the sieve as **[измерено]**, with the note that
+> different results.** S6 stays in the sieve as **[measured]**, with the note that
 > its independent contribution is at most **0.56 pp** and has never been
 > significant on both tasks at once.
 
@@ -18213,6 +18213,67 @@ repositories:
 > recoverable by any action of ours. *This is an engineering inventory, not legal
 > advice — the copyright-line and NOTICE findings belong in front of a lawyer
 > before any corpus is published.*
+
+---
+
+## W780f — a +60 fix that stops at a human gate, and two defects of my own
+
+### T434 — the Zig backend emits `assert_eq` and never defines it
+
+> **T434.** **60 of the 619 specs generate Zig that Zig rejects on one cause**:
+> the backend emits `assert_eq(a, b)` in test and invariant bodies and never
+> defines it. **The C backend received exactly this shim in W583** — the comment
+> beside it reads *"the backend emits calls to `assert_eq` in test bodies (59
+> headers) and never defined it, so the C output could not compile even in
+> principle"* — and the Verilog backend lowers `assert_eq` to an SV assertion.
+> **Zig is the only backend that never got it.**
+>
+> Measured, not inferred: prepending the three-line shim to all 446
+> zig-generating specs moves **`zig_build` 215 → 275** and **`both_build`
+> 181 → 241**, zero regressions, and the newly-building set is **identical to the
+> `assert_eq` cohort by set difference**.
+
+> **T434a. Shipping that alone would buy a metric mirage.** `zig test` on the same
+> 60 gives **28 pass / 32 fail**, all one error class — `var hf: i32 = @as(u32, 1)
+> << @intCast(d)`, the shift literal hardcoded `u32` under an `i32` annotation,
+> all 32 in `specs/ternary/`. **`build-obj` cannot see it because Zig does not
+> semantically analyse functions reachable only from `test` blocks**, so the
+> corpus metric itself under-reports. The signedness fix must ride in the same
+> commit.
+
+> **T434b. It is written, verified, and NOT applied.** `bootstrap/src/compiler.rs`
+> is under the **FROZEN_HASH** seal, and **FROZEN.md §5 step 2 requires a PR
+> stating `[GOLD-RING]` and a milestone, or an Architect-approved hotfix** — a
+> human intent gate. **Repo law overrides autonomous execution**, so the seal was
+> left intact and the change is delivered as
+> `docs/reports/W780-ZIG-ASSERT-EQ.patch` with its measurement, its trap, and its
+> apply-and-verify recipe. **Doing everything up to the gate and presenting the
+> gate is the correct autonomous behaviour; moving the seal would not be.**
+
+### T435 — two defects of my own, found by the build I said was green
+
+> **T435. My loop-invariant check printed `build: ok` unconditionally.** The
+> pattern was `cargo build ... | grep -E '^error' | head -3; echo "build: ok"` —
+> the `echo` never reads the grep. It happened to be telling the truth this wave,
+> and it would have said the same thing if the build were on fire. **This is the
+> seventh disguise of reading a pipeline's output as its status**, after `head`,
+> `tail`, `wc -l`, `$?` through a pipe, `grep -c`, and a `git show` whose failure
+> made `grep -c` return a plausible `0` **in this very investigation**.
+
+> **T435a. I introduced seven Cyrillic lines into a file governed by L3 PURITY.**
+> `docs/theory/IGLA-FORMAL-RESULTS.md` had **zero** at session start and seven
+> after I added `[измерено]`-style status tags. It is **not** on
+> `docs/.legacy-non-english-docs`, and that allowlist says *"Do not add entries
+> without Architect approval"* — so the fix was to **remove them**, not to widen
+> the allowlist. All seven are now their English equivalents; the tri-net handoff
+> tag vocabulary maps to `[proved] / [measured] / [modelled] / [open hypothesis]`
+> in any ASCII-governed file.
+
+> **T435b. The build was red for the right reason and I diagnosed the wrong one.**
+> Thirteen `LANGUAGE POLICY VIOLATION` warnings printed above the failure and I
+> read them as the cause. The actual panic was at `build.rs:235` — **FROZEN HASH**,
+> from my own compiler edit. **The loudest output was not the failing one**, and
+> the failure line was one `grep -A3 panicked` away the whole time.
 
 ---
 
