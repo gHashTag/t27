@@ -78,9 +78,13 @@ def train(Xtr,ytr,Xva,yva,Xte,yte,mi,seed,H=32,L=3,F1=6,Fd=3,out_fanin=None,
         if li<L-1: a=a/(a.std()+1e-6)*THR; h=act(a)
         else: h=a
     sc=h.ravel()
-    return float(np.mean((sc>0)==(yte>0.5))), ([q.astype(int).tolist() for q in
-            [LV[np.argmin(np.abs(W[...,None]/(np.mean(np.abs(W))/(np.mean(np.abs(LV[LV!=0]))+1e-9)+1e-9)
-              - LV[None,None,:]),axis=-1)] for W in Ws2]], [i.tolist() for i in ix2])
+    acc=float(np.mean((sc>0)==(yte>0.5)))
+    # export the INTEGER levels, which is what the truth tables are built from
+    wq=[]
+    for W in Ws2:
+        sc_=np.mean(np.abs(W))/(np.mean(np.abs(LV[LV!=0]))+1e-9)+1e-9
+        wq.append(LV[np.argmin(np.abs(W[...,None]/sc_ - LV[None,None,:]),axis=-1)].astype(int).tolist())
+    return acc, wq, [i.tolist() for i in ix2]
 
 if __name__=="__main__":
     out=sys.argv[1]; seeds=int(sys.argv[2]) if len(sys.argv)>2 else 3

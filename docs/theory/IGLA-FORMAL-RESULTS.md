@@ -15634,4 +15634,63 @@ Silicon accuracy 82.0%, software 82.0%.
 
 ---
 
+## W757 — the Pareto front is flat, and one column is unreachable
+
+### T352 — the curve between the two points we had
+
+Twelve configurations trained (width × depth, six-bit rule throughout, class
+balanced, full training), then the **whole artefact** synthesised — every layer
+plus the output adder, the stage T335 found missing from earlier figures:
+
+| config | LUT | accuracy | LUT per point above the 55.06% baseline |
+|---|---:|---:|---:|
+| **H16 L2** | **123** | **81.37 ± 0.71** | **4.7** |
+| H32 L4 | 280 | 82.35 ± 1.25 | 10.3 |
+| H48 L3 | 431 | 82.97 ± 0.09 | 15.5 |
+| H64 L3 | 799 | 83.09 ± 1.46 | 28.5 |
+
+**Registered forecast:** *(1) 48-wide within 0.5 pp of 64-wide; (2) the best
+accuracy-at-area is H32 L3 at 82–84% for 250–400 LUT; (3) nothing reaches 88%.*
+
+> **T352. (1) correct — 0.12 pp. (3) correct — the maximum is 83.09%, best single
+> seed 84.04%. (2) partially: the area band 250–400 LUT holds (H32 L4 at 280) but
+> the named configuration was wrong, H32 L3 scoring 81.83%.**
+
+> **T352a. The front is flat, and that is the result.** **6.5× the area buys
+> 1.72 pp.** The efficient point is the *smallest* one: **123 LUT at 81.37%**, and
+> every step up costs between 6× and 25× more LUT per point of accuracy gained.
+> **On this architecture, area is not a lever** — which closes the last hope that
+> the 84–87% ceiling could be bought past with silicon.
+
+> **T352b. It also beats the W756 artefact on both axes.** T350 measured
+> 126 LUT at 78.45%; this is **123 LUT at 81.37%** — the difference is class
+> balancing (T326) and picking the configuration rather than accepting the first
+> one built. **The best number this programme has for a deployable single-die
+> ternary network is 123 LUT at 81.37%**, against the field's 89 LUT at 92.0%:
+> **1.38× the area, 10.6 points behind.**
+
+### T353 — the column that cannot be filled today
+
+> **T353.** Track A of this wave — fetching TreeLUT's and NeuraLUT-Assemble's
+> **Fmax and latency**, the two columns missing from T350a's comparison — is
+> **blocked**: `WebSearch` and `WebFetch` both fail in this session with a model
+> access error, and no local copy of those papers exists in the repository. **The
+> gap is therefore unchanged and is stated rather than guessed** (lesson 832).
+> `LUT·ns` remains incomparable, and our own value — **123 LUT × 10.05 ns ≈ 1,236
+> at 81.37%** — stands alone until the field's row can be read.
+
+### T354 — what nine waves of architecture work established
+
+> **T354.** Since W748 the programme has controlled: normalisation (+29.15 pp),
+> training budget (+3.30), class balance (+3.19), depth under the six-bit rule
+> (+2.51), connectivity (+0.5…+1.6), EM prior (+0.91), alphabet size (+0.735),
+> alphabet shape (+0.149), activation (−0.77), and now **width and depth jointly
+> (+1.72 pp for 6.5× area)**. Every knob is measured; none reaches the field.
+> **The honest summary is that the architecture's accuracy is bounded near 84%
+> and its area is competitive** — 1.38× the field at 10.6 points less accuracy —
+> and that the remaining distance is **not** a tuning problem this project has
+> left unexplored. **It is the capacity of six-input truth tables on UNSW-NB15.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
