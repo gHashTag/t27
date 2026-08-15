@@ -17600,4 +17600,82 @@ it fails **S1** and had no business in the comparison at all.
 
 ---
 
+## W779b — a fourth mechanism eliminated, and S6 tested where it could fail
+
+### T416 — the sparse penalty is not input coverage either
+
+T414b concluded the residual gap is a training question because fan-in 3→6 buys
+0.68 pp and depth 3→4 costs 0.99. A third mechanism neither knob tests: **at
+fan-in `F` with `H` first-layer neurons over `n` inputs, the network draws `F·H`
+indices and can see only**
+
+    E[distinct features] = n · (1 − e^(−F·H/n))
+
+At the measured `H = 64`, `F = 3`, `n = 593` that is **164 of 593 — the stand
+could not see 72 % of the input.** No amount of training fixes a feature that is
+not wired in.
+
+**Registered forecast (T44):** *widening `H` follows the coverage curve; `H=1024`
+(99.4 % coverage) lands within 4 pp of the dense 89.62 %. If it is still more than
+8 pp below, coverage is not the mechanism and T414b stands unmodified.*
+
+| H | coverage | features seen | accuracy | penalty |
+|---:|---:|---:|---:|---:|
+| 16 | 7.8 % | 46 | 73.50 ±3.03 | 16.12 |
+| 64 | 27.7 % | 164 | 76.07 ±1.04 | 13.55 |
+| 256 | 72.6 % | 431 | 77.67 ±0.96 | 11.95 |
+| **1024** | **99.4 %** | **590** | **77.77 ±1.34** | **11.85** |
+
+> **T416. Refuted, decisively.** Full coverage leaves an **11.85 pp** residual
+> against a 4 pp threshold. The **marginal** reading is the one that matters:
+> going from 72.6 % to 99.4 % coverage — 431 features to 590, and 512 LUT of
+> first layer to 2048 — buys **0.10 pp**. **Coverage saturates long before the
+> penalty does.**
+
+> **T416a. Four mechanisms are now eliminated by measurement:** receptive field
+> (fan-in, T414b), depth (T414b), alphabet (T403, T412), and **input coverage**.
+> The residual 11.85–13.4 pp belongs to training or representation, and it is now
+> the largest single unexplained quantity in the programme.
+
+### T417 — S6 tested where it could fail, and one task says it is real
+
+`{0,±1,±2,±4,±7}` and dyadic `{0,±1,±2,±4,±8}` have **identical mean effective
+fan-in, 2.19**, and sit on **opposite sides of S6**: `7 = 7` passes, `8 > 7`
+fails. That is a natural experiment on whether S6 carries information beyond the
+fan-in statistic it was derived from.
+
+| | `{1,2,4,7}` | dyadic | Δ | t | |
+|---|---:|---:|---:|---:|---|
+| UNSW | **77.41 %** | 76.85 % | **+0.56** | **+2.51** | **significant** |
+| Fashion | 85.17 % | 85.00 % | +0.17 | +0.47 | ns |
+
+| S6 survivors vs failures, pooled per seed | survivors | failures | Δ | t | |
+|---|---:|---:|---:|---:|---|
+| UNSW | 77.13 % | 76.31 % | +0.83 | +1.71 | ns |
+| Fashion | 85.35 % | 83.86 % | **+1.50** | **+5.25** | **significant** |
+
+> **T417. S6 is not merely a restatement of effective fan-in — on one task of
+> two.** At *equal* fan-in the S6-passing alphabet is significantly better on
+> UNSW and not on Fashion; pooled across the filter it is significantly better on
+> Fashion and not on UNSW. **Each task gives one significant result and they are
+> different results.** S6 stays in the sieve as **[измерено]**, with the note that
+> its independent contribution is at most **0.56 pp** and has never been
+> significant on both tasks at once.
+
+### T418 — a correlation of +0.916 that is not an ordering
+
+> **T418.** On UNSW, `r`(effective fan-in, accuracy) `= +0.916` looks decisive and
+> the **Spearman rank correlation is only +0.607**, because `{1,2,4,7}` at fan-in
+> 2.19 outranks three alphabets above it. **The Pearson value is carried entirely
+> by the two low-fan-in ladders at the end of the range**; among the top five arms
+> there is no reliable ordering at all. On Fashion the two agree — `+0.986` and
+> `+0.964` — and there the ordering is real across all seven.
+>
+> **Report both, or a two-point spread will be quoted as a seven-point law.** This
+> is the same failure as T403, where a table of means was read as a ranking, in a
+> new disguise: **a Pearson `r` over a short range with extreme endpoints is an
+> endpoint measurement wearing a trend's clothes.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

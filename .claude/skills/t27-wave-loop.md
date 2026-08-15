@@ -9607,6 +9607,27 @@ whenever a list stands for an alphabet.*
 5,400,000 ms and got killed at 10m 0s. *Anything that might exceed ten minutes
 goes to the background with nohup, not into a larger timeout argument.*
 
+**913. Read the MARGINAL point, not the correlation.** The coverage sweep gave
+r=+0.911 and looked like a mechanism; the last step -- 72.6% to 99.4% coverage,
+512 LUT to 2048 -- bought 0.10 pp (T416). *A saturating curve has a high
+correlation and no remaining causal room; the derivative is the answer, the
+correlation is decoration.*
+
+**914. Report Pearson AND Spearman when the range is short.** UNSW gave r=+0.916
+with rho=+0.607: the Pearson value was carried entirely by two endpoint arms and
+there was no ordering among the top five (T418). *This is lesson 890 in a new
+disguise -- a two-point spread quoted as a seven-point law.*
+
+**915. Test a derived filter where it could FAIL, not where it must pass.**
+{1,2,4,7} and dyadic have identical effective fan-in and sit on opposite sides of
+S6 -- the only comparison that can show S6 carries information of its own. It did,
+on one task of two, at most 0.56 pp (T417). *Design the comparison that could
+refute the filter; the ones that confirm it prove nothing it was not built from.*
+
+**916. Count mechanisms eliminated, not just results found.** Four are now dead
+for the sparse penalty: receptive field, depth, alphabet, coverage. Naming the
+dead ends is what makes the residual a target rather than a mood.
+
 ### How to update this tracker
 
 After closing a wave:
