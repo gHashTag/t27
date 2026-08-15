@@ -18096,4 +18096,47 @@ picking the least informative features.
 
 ---
 
+## W780d — spreading beats choosing
+
+### T431 — balanced coverage, and the constraint I added that cost 1.11 pp
+
+T430a proposed a mechanism for the control's win: **inverse MI spreads the draw**,
+and spreading is what helps. Tested in its clean form — deal the `F·H` input slots
+so every feature is used `⌊·⌋`/`⌈·⌉` of `F·H/n` times. **No labels are consulted**,
+so there is no leakage objection either.
+
+| arm | accuracy | sd | penalty |
+|---|---:|---:|---:|
+| random (baseline) | 80.23 | 2.04 | 9.39 |
+| MI-weighted (T430) | 80.75 | 0.80 | 8.87 |
+| ANTI-MI (T430) | 82.64 | 1.93 | 6.98 |
+| balanced coverage | 81.98 | **0.60** | 7.64 |
+| **balanced, regrouped** | **83.09** | 0.88 | **6.53** |
+
+> **T431. Every non-random scheme beats random, and the best is the one that
+> spreads coverage while grouping at random.** 83.09 % is the best sparse result
+> in this line — penalty **6.53 pp** against the field's 4.79, from 13.55 three
+> waves ago. `t = +2.28` at `n = 5`: **directionally clear, not significant.**
+
+> **T431a. My own constraint cost 1.11 pp.** The "balanced" arm carried a
+> collision-avoidance loop forbidding a neuron to read the same feature twice.
+> The "regrouped" arm reshuffles the balanced deck and **allows duplicates** — and
+> scored **1.11 pp higher** (`t = −2.45`). A neuron reading feature `X` twice with
+> two different weights is a **two-level quantiser on `X`**, which is a perfectly
+> good function; forbidding it removed capacity and added structure I had not
+> reasoned about. **The constraint felt obviously right and was measurably wrong.**
+
+> **T431b. Coverage is the story; grouping is not.** With coverage held identical,
+> re-randomising *which three features share a neuron* changed the result by
+> 1.11 pp in favour of *less* structure. **What matters is that every feature gets
+> used, not who it sits with** — which is the opposite of the intuition that drove
+> the MI hypothesis, and it explains why choosing informative features backfired.
+
+> **T431c. The variance result is the robust one.** Seed sd falls **2.04 → 0.60**
+> under balanced coverage. PolyLUT-Add documents this dataset as seed-sensitive
+> and reports needing multiple trials; **a label-free connectivity rule that cuts
+> seed variance by 3.4× is worth having even before its mean effect is resolved.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
