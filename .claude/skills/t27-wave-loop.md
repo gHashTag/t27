@@ -9790,6 +9790,29 @@ says "Architect approval only". The fix is to remove the violation (T435a).
 `both_build` would have read +60 while 32 of the 60 were still broken (T434a).
 *Ask what your acceptance metric is structurally blind to before you adopt it.*
 
+### W781 — lessons 948-951
+
+**948. Scope the first migration so it can FINISH.** E8M0 was chosen over the GF
+ladder because it is 8 bits, one field, no sign, no mantissa -- and it landed in
+one wave with 18/18 tests, both backends, a data port and a passing simulation
+(T436). *Two earlier migrations in this repo picked bigger targets and neither
+finished.*
+
+**949. A lookup table must reach DOWN, not only up.** `trits_needed` started at
+3^5 because 3^5 was what the subject format needed, and answered 5 for 81 -- a
+number that is exactly 3^4. The comptime invariant failed the build and caught it
+before commit (T437b).
+
+**950. Ask what your metric is blind to before quoting it.** `validate-vacuity`
+counts assert-bodied tests and cannot see `given/then` tests at all -- it reports
+0 for tnf17.t27, the reference spec with 34 tests. Every vacuity percentage this
+project quotes is over that subset, with the scope undeclared (T438).
+
+**951. A wrong CLI flag reports as a failure of the subject.** `t27c gen
+--backend verilog` does not exist, and I read "verilog gen: FAIL" as a defect in
+my new spec for several minutes. *Check the tool's usage before believing its
+verdict about your work.*
+
 ### How to update this tracker
 
 After closing a wave:

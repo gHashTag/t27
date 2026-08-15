@@ -18277,4 +18277,74 @@ repositories:
 
 ---
 
+## W781 — the first migration, and what it found on the way
+
+### T436 — E8M0 exists now, and the SSOT no longer depends on an undefined component
+
+`specs/numeric/formats_catalog.t27` is the L6 numeric SSOT. It names `e8m0`
+**five times** as the storage of another format — `mxfp8`, `mxfp6`, `mxfp4`,
+`mxgf6`, `mxgf4`, all `storage=..._e8m0` — and `grep "id=e8m0 "` over the same
+file returns **zero**. Written: `specs/numeric/e8m0.t27`.
+
+| gate | result |
+|---|---|
+| `t27c check` | **0 errors, 0 warnings** |
+| `t27c test-report` | **18/18 tests, 9 invariants proved comptime** |
+| `t27c gen-verilog` | generates **with a data port** — `input [31:0] x`, `output [31:0] result` |
+| `t27c icarus-lowerable` | **lowerable** |
+| `t27c icarus-simulate` | every test and the bench **PASSED** |
+
+> **T436. One file, both backends, a data port, and simulated.** The migration
+> was scoped to the smallest complete format in the ecosystem — 8 bits, one
+> field, no sign, no mantissa — precisely so it could finish. **Two prior
+> migration attempts in this project did not** (ring-105's 8 unparseable `.tri`
+> files; TZ-T27-001, untouched after four months).
+
+### T437 — the trit count E8M0 does not have
+
+> **T437.** E8M0's exponent takes **255** distinct finite values, `e ∈ [−127, 127]`.
+> Five balanced trits span `3⁵ = 243`, six span `3⁶ = 729`:
+>
+>     243 < 255 < 729
+>
+> **E8M0's exponent field is not a whole number of trits.** It needs six and uses
+> 255 of 729 — **35 %**. Against `tnf17.t27`, whose offset field holds exactly
+> `81 = 3⁴` and uses **81 of 81**. Both statements are **comptime invariants** in
+> the new file, not prose: `e8m0_exponent_does_not_pack_into_trits` and
+> `tnf17_offset_packs_exactly`.
+>
+> **This is the only thing the format tells us that its own standard does not**,
+> and it is the answer to "why write a spec instead of a constant".
+
+> **T437a. Under the sieve E8M0 is not a candidate and does not need to be.** S1
+> asks `|A| = 3^k`; 255 is not a power of three. But a shared scale is **one shift
+> applied to a whole block** — single lane, no DSP, never inside a neuron's truth
+> table. **The sieve governs weight alphabets; a block scale is a different site**,
+> which is the paper's own first sentence arriving as a spec.
+
+> **T437b. My own table was wrong and the invariant caught it.** The first
+> `trits_needed` started at `3⁵`, so it answered **5** for `81` — a number that is
+> exactly `3⁴` — and `packs_exactly(81)` came back **false**. The comptime
+> assertion failed the build. **A lookup table must reach down to every value a
+> caller can land on, not only up to the one the subject needs**, and this is
+> precisely what invariants are for: it was caught before the file was committed,
+> by the mechanism the file exists to demonstrate.
+
+### T438 — the vacuity metric cannot see half the corpus's tests
+
+> **T438.** `t27c validate-vacuity` reports **0 tests** for `e8m0.t27` — which has
+> 18 — and **0 for `tnf17.t27`**, which has 34 and is the project's reference
+> spec. It reports 243 for `gf16.t27` and 4 for `golden_sieve.t27`. The
+> difference is the test **shape**: it counts `assert`-bodied tests and is blind
+> to `given / then` tests entirely.
+>
+> **Consequence for a number this project quotes.** The ecosystem plan priced the
+> `.t27` migration using *"54.7 % of tests in `specs/igla/race` are vacuous"* and
+> *"29.8 % corpus-wide"*. **Those percentages are computed over the `assert`-bodied
+> subset only.** Whether they hold over the whole corpus is **unmeasured**, and
+> the denominator is not the one a reader assumes. **The figure is not wrong; its
+> scope is undeclared.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
