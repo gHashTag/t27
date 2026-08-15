@@ -77,12 +77,22 @@ if __name__=="__main__":
     T=tasks(d["train"],d["test"],d["dig_train"],d["dig_test"])
     print(f"  {len(T)} labellings of ONE dataset",flush=True)
     rows=[]
+    try:
+        rows=json.load(open(out)); done={r["task"] for r in rows}
+        print(f"  resuming: {len(rows)} tasks already on disk",flush=True)
+    except Exception: done=set()
     for i,(nm,(Xtr,ytr,Xva,yva,Xte,yte)) in enumerate(T):
+        if nm in done: continue
         t0=time.time(); mi=OS.mutual_info(Xtr,ytr)
         dn=np.mean([TA.dense(Xtr,ytr,Xva,yva,Xte,yte,1000+s) for s in range(seeds)])*100
         sp=np.mean([P.train(Xtr,ytr,Xva,yva,Xte,yte,mi,1000+s,H=48,L=3)[0] for s in range(seeds)])*100
         r=feats(mi,Xtr,ytr,dn); r.update({"task":nm,"sparse":float(sp),"penalty":float(dn-sp)})
         rows.append(r)
+        # W761: write after EVERY task. The first run died at 51 of 60 on a
+        # timeout and lost all fifty-one results, because the dump was at the
+        # end. A long sweep that only persists on success is a sweep that
+        # persists nothing.
+        json.dump(rows,open(out,"w"),indent=1)
         if i%10==0 or i==len(T)-1:
             print(f"    [{i+1}/{len(T)}] {nm:<5} dense {dn:6.2f} sparse {sp:6.2f} pen {dn-sp:+6.2f} ({time.time()-t0:.0f}s)",flush=True)
     json.dump(rows,open(out,"w"),indent=1); print("  written:",out,flush=True)
