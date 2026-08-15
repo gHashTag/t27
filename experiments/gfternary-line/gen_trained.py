@@ -129,15 +129,45 @@ def emit(role, idx, w, in_bits, n_in, chain=3, shift_in=False):
     L.append("endmodule")
     return "\n".join(L)
 
+
+def emit_sim(idx, w, in_bits, n_in):
+    """W754: the SAME selection and table logic, with PORTS, so a simulator can
+    check it against the Python model before a bitstream is ever built.
+
+    Three waves of hardware debugging (W752, W753) chased a mismatch that a
+    ten-minute simulation would have localised. The emitted logic below is
+    copied from `emit()` line for line -- if it is changed, `emit()` must change
+    with it, or this file tests something the silicon does not run."""
+    n_out=len(idx)
+    L=["`default_nettype none",
+       f"module sim_layer (input wire [{n_in*in_bits-1}:0] inw, output wire [{2*n_out-1}:0] sym);"]
+    for o in range(n_out):
+        picks=idx[o]; ww=w[o]; tbl=table(ww,in_bits)
+        sel_bits=", ".join(f"inw[{p*in_bits+b}]" for p in reversed(picks) for b in reversed(range(in_bits)))
+        L.append(f"    wire [{len(picks)*in_bits-1}:0] s{o} = {{{sel_bits}}};")
+        L.append(f"    reg [1:0] r{o};")
+        L.append(f"    always @* case (s{o})")
+        common=Counter(tbl).most_common(1)[0][0]
+        for pat,v in enumerate(tbl):
+            if v!=common: L.append(f"        {len(picks)*in_bits}'d{pat}: r{o} = 2'd{v};")
+        L.append(f"        default: r{o} = 2'd{common};")
+        L.append("    endcase")
+        L.append(f"    assign sym[{2*o+1}:{2*o}] = r{o};")
+    L.append("endmodule")
+    return "\n".join(L)
+
 if __name__=="__main__":
     ap=argparse.ArgumentParser()
     ap.add_argument("--net",required=True); ap.add_argument("--layer",type=int,required=True)
     ap.add_argument("--role",required=True); ap.add_argument("--chain",type=int,default=3)
+    ap.add_argument("--sim",action="store_true")
     a=ap.parse_args()
     net=json.load(open(a.net))
     idx=net["idx"][a.layer]; w=net["w"][a.layer]
     in_bits = 1 if a.layer==0 else 2
     n_in = 593 if a.layer==0 else 16
+    if a.sim:
+        print(emit_sim(idx, w, in_bits, n_in)); raise SystemExit
     # THE SIX-BIT RULE decides the FORM, not just the fan-in: a neuron reading
     # more than six bits cannot be a table, and the output neuron never can.
     if len(idx) == 1 or len(idx[0])*in_bits > 12:

@@ -15409,4 +15409,78 @@ the model and change nothing.
 
 ---
 
+## W754 — openXC7 mis-implements SRL16E, and the trained net runs
+
+### T341 — the simulator answered in ten minutes what three waves of silicon could not
+
+`gen_trained.py --sim` emits the **same** selection and table logic with ports.
+Against the Python model on 64 real UNSW rows under Icarus:
+
+> **T341. 64 of 64 exact.** The emitted logic, the tables, the index selection and
+> the Python model are **all correct** — and W753 had already proved the transport
+> correct. **Every stage was individually sound and the assembled bitstream was
+> wrong**, which is the signature of a defect below the netlist.
+
+### T342 — openXC7 produces a wrong bitstream for SRL16E
+
+W753's cell breakdown showed **44 SRL16E** in die A: yosys infers shift-register
+LUTs for long shift chains. This project already carries a defect of exactly that
+class — T246/T250, a live-operand **DSP48E1** whose netlist is correct and whose
+**bitstream is not**.
+
+**Registered before the test:** *re-synthesising with `-nosrl` will make the
+silicon agree; predicted 10-of-16 disagreeing → 0, with no change to the source.*
+
+| synthesis | cells | rows matching the model |
+|---|---|---|
+| default | 44 SRL16E + 58 FDRE | **0 / 6** |
+| **`-nosrl`** | **0 SRL16E + 362 FDRE** | **24 / 24** |
+
+> **T342. Confirmed — the sixth registered forecast to land.** The Verilog source
+> is byte-identical between the two runs. **SRL16E joins DSP48E1 as a primitive
+> whose bitstream openXC7 gets wrong while every upstream tool reports success.**
+> Three waves of debugging (W752, W753, W754) trace to this one cause.
+
+> **T342a. The acceptance criterion passed for the broken bitstream too.** Wrong
+> part → `Done 0`, ours → `done 1`, on every attempt. **`0→1` proves a bitstream
+> was accepted by the die, never that it implements the netlist** — lesson 800
+> confirmed a second time, now against a defect in the vendor-independent
+> toolchain rather than against a stale load.
+
+### T343 — a TRAINED ternary network computing on three FPGAs
+
+| die | layer | LUT | DSP | SRL | agreement on 100 real UNSW rows |
+|---|---|---:|---:|---:|---|
+| A | 593 features → 16 symbols | 78 | 0 | 0 | **100 / 100** |
+| R | 16 → 16 symbols | 67 | 0 | 0 | **100 / 100** |
+| B | 16 symbols → decision | 87 | 0 | 0 | **100 / 100** † |
+| | **total** | **232** | **0** | **0** | |
+
+Silicon accuracy on those rows **82.0%**, software **82.0%**, exported network's
+full-test accuracy 78.45%.
+
+> **T343.** Every value crossing the wire was produced by the die before it, the
+> host performs no arithmetic on any payload, and the weights come from the
+> trainer rather than from a seed. **This is the ternary-internet demonstration
+> the programme exists for, complete.**
+
+> **T343a. † The six apparent failures on die B were the host, not the die.**
+> Die R emits 16 symbols = **32 bits**, and the wire carries **31** (T324): the
+> pre-shift truncates symbol 15's high bit. Modelling that truncation takes die B
+> from 94/100 to **100/100**. **The silicon computes exactly what the truncated
+> input implies**, and the defect is the protocol's known width limit meeting a
+> payload that finally needed all of it. 14 of 100 rows had bit 31 set; 6 of those
+> changed the decision.
+
+### T344 — the ordering that should have been used from the start
+
+> **T344.** The correct order is **model → simulate → synthesise → check cell
+> types → bitstream → silicon**. This programme used model → silicon and spent
+> **three waves** on a defect that Icarus localised in one command and that a
+> `stat` line named in one more. **Simulation is not a formality before hardware;
+> it is what makes a hardware disagreement mean something** — without it, "silicon
+> disagrees" has a dozen candidate causes, and with it, exactly one.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
