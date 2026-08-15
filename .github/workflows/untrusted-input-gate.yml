@@ -6,6 +6,10 @@ name: Untrusted Input Gate
 #                                       data into a run: block
 #   test_untrusted_payloads.py       -- the two shell forms behave as claimed, on
 #                                       payloads whose effect is declared up front
+#   check_untrusted_javascript_interp.py -- no github.* expression enters a
+#                                         github-script source block
+#   test_untrusted_javascript_payloads.py -- JavaScript source injection fails
+#                                           while process.env preserves data
 #
 # The first is a property of this repository and can be fixed. The second is a
 # property of bash and cannot; it exists so that the first check's reason is
@@ -33,3 +37,9 @@ jobs:
 
       - name: Payload behaviour matches what is claimed about it
         run: python3 scripts/ci/test_untrusted_payloads.py
+
+      - name: No event data interpolated into github-script source
+        run: python3 scripts/ci/check_untrusted_javascript_interp.py
+
+      - name: JavaScript payload behaviour matches what is claimed about it
+        run: python3 scripts/ci/test_untrusted_javascript_payloads.py
