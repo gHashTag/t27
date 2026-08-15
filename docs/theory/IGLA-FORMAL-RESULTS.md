@@ -15483,4 +15483,87 @@ full-test accuracy 78.45%.
 
 ---
 
+## W755 — the defect is locked in the tool, the wire is 32 bits, the ceiling is closed
+
+### T345 — the known-bad primitive check now lives in `t27c`
+
+> **T345.** `t27c yostat` counts `SRL16E`/`SRLC32E`/`DSP48E1` and **exits 2** when
+> any is present, naming the flag to add. Verified: the W752 log exits **2**, the
+> W754 `-nosrl` log exits **0**, a missing file still exits 1. **The cell list
+> carried the answer for a whole wave before anyone read past the LUT line
+> (lesson 822); the tool now reads it for them and refuses to be quiet.**
+> `docs/reports/OPENXC7-SRL16E-DEFECT.md` records the reproduction, the toolchain
+> versions, the diagnosis path, and — explicitly — that **the root cause inside
+> openXC7 is not identified**, only that the defect is primitive-specific and
+> removed by suppressing inference.
+
+### T346 — the wire is 32 bits
+
+T324 measured the usable payload at 31 bits and T343a showed it biting: sixteen
+ternary symbols is exactly 32, and **6 of 100 decisions flipped** because symbol
+15's high bit never arrived. The fix is width.
+
+A **33-bit** data register — 65 FF, zero SRL — with the host shifting 33 bits
+(4 bytes then one bit via `CLK_BITS_IO_NEG`):
+
+| payload | echoed | |
+|---|---|---|
+| `0x80000000` | `0x7FFF0000` | **OK** — the bit that used to vanish |
+| `0xFFFFFFFF` | `0x0000FFFF` | OK |
+| `0xDEADBEEF` | `0x2152BEEF` | OK |
+| | | **8 / 8 intact** |
+
+> **T346.** The Exit1-DR clock is absorbed by the extra register bit instead of
+> eating the payload's top. **The 31-bit limit that shaped three waves of protocol
+> design is lifted**, and the echo inverts its high half so a stuck-at line cannot
+> masquerade as a correct answer.
+
+### T347 — the activation is refuted in our favour, and the ceiling is now closed
+
+**Registered before the run:** *`ste` beats `tanh` by 0.5–2.0 pp; `ste_lrn` adds
+0–1 pp; none lifts the oracle by more than 2 pp.*
+
+| activation | test | oracle |
+|---|---:|---:|
+| **`tanh` — the incumbent** | **83.17 ± 1.34** | **84.64** |
+| `ste` — the field's standard | 82.40 ± 0.73 | 83.83 |
+| `ste_lrn` — learnable threshold | 80.51 ± 0.59 | 81.32 |
+| `ste_wide` — window doubled | 82.19 ± 0.29 | 83.72 |
+
+> **T347. The first half is refuted in the opposite direction: the hand-rolled
+> smooth activation BEATS the straight-through estimator**, by 0.77 pp, and the
+> learnable threshold is worse by 2.66 (its threshold drifted to 3.29 and stayed).
+> The file called it *"a smooth surrogate someone (me) invented"* — **it is the
+> best of the four.** The second half **holds**: no arm lifts the oracle past
+> 84.7%.
+
+> **T347a. T330a is now closed, and its conclusion strengthened.** Alphabet,
+> depth, width, connectivity, normalisation, training budget, calibration and now
+> the activation have each been measured. **None explains the 84–87% ceiling of
+> the sparse system.** With every knob turned, the honest statement is that
+> **the ceiling is the capacity of six-input truth tables on this task** — not a
+> defect, not a missing trick, and not something a better estimator recovers.
+
+### T348 — the complete ranking, all knobs measured
+
+| intervention | effect on accuracy | wave |
+|---|---:|---|
+| inter-layer normalisation (depth 5) | **+29.15 pp** | W748 |
+| training budget (full data, schedule) | +3.30 pp | W749 |
+| class-balanced loss (prior shift) | +3.19 pp | W750 |
+| depth 2→4 under the six-bit rule | +2.51 pp | W751 |
+| connectivity choice (MI-proportional) | +0.5 … +1.6 pp | W749 |
+| EM prior correction | +0.91 pp | W751 |
+| alphabet **size**, 3→9 levels | +0.735 pp | W749 |
+| alphabet **shape** at fixed size | +0.149 pp | W749 |
+| **activation (STE vs our tanh)** | **−0.77 pp** | **W755** |
+
+> **T348.** Nine controlled interventions. **The alphabet — the programme's first
+> seven waves — ranks seventh and eighth.** The activation, its last hope for a
+> structural explanation, is **negative**. Everything that mattered was in how the
+> network is trained and how its layers are scaled; **everything the project was
+> named for was worth under a point.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

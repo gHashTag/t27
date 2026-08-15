@@ -10970,6 +10970,32 @@ fn run_yostat(log: &str) -> anyhow::Result<()> {
     println!("  MUXF7 / MUXF8      : {} / {}", count("MUXF7"), count("MUXF8"));
     println!("  FF (FDRE/SE/CE/PE) : {ff}");
     println!("  BSCANE2            : {}", count("BSCANE2"));
+
+    // W755: primitives whose NETLIST is correct and whose BITSTREAM openXC7 gets
+    // wrong. Both were found the expensive way -- DSP48E1 in W723 (T246/T250) and
+    // SRL16E in W754 (T342), the latter after THREE waves of hardware debugging
+    // during which every upstream tool reported success and the wrong-part -> ours
+    // acceptance criterion passed on every attempt. The cell list carried the
+    // answer for a whole wave before anyone read past the LUT line, so the tool
+    // now reads it for them and refuses to stay quiet.
+    let srl = count("SRL16E") + count("SRLC32E") + count("SRL16") + count("SRLC16E");
+    let dsp = count("DSP48E1");
+    println!("  SRL16E / SRLC32E   : {srl}");
+    if srl > 0 || dsp > 0 {
+        println!();
+        println!("  !! KNOWN-BAD PRIMITIVES FOR openXC7 !!");
+        if srl > 0 {
+            println!("  {srl} shift-register LUT(s). T342: the bitstream is wrong while the");
+            println!("     netlist is right. Re-synthesise with `synth_xilinx -nosrl`.");
+        }
+        if dsp > 0 {
+            println!("  {dsp} DSP48E1. T246/T250: a live operand yields a wrong bitstream.");
+            println!("     Re-synthesise with `synth_xilinx -nodsp`.");
+        }
+        println!("  A bitstream built from this netlist will load, pass the 0->1");
+        println!("  acceptance criterion, and compute the wrong answer.");
+        std::process::exit(2);
+    }
     Ok(())
 }
 
