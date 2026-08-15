@@ -87,7 +87,10 @@ if __name__=="__main__":
         dn=[dense(Xtr,ytr,Xva,yva,Xte,yte,1000+s) for s in range(seeds)]
         sp=[P.train(Xtr,ytr,Xva,yva,Xte,yte,mi,1000+s,H=48,L=3)[0] for s in range(seeds)]
         d_,s_=np.mean(dn)*100, np.mean(sp)*100
-        res[name]={"base":base,"dense":dn,"sparse":sp}
+        # float32 is not JSON serialisable and the dump died AFTER all three
+        # tasks had printed -- the numbers survived only in the log.
+        res[name]={"base":float(base),"dense":[float(x) for x in dn],
+                   "sparse":[float(x) for x in sp]}
         print(f"  {name:<9}{base:>8.2f}%{d_:>8.2f}%{s_:>8.2f}%{d_-s_:>+8.2f}   ({time.time()-t0:.0f}s)",flush=True)
     json.dump(res,open(out,"w"),indent=1)
     gaps=[np.mean(v["dense"])*100-np.mean(v["sparse"])*100 for v in res.values()]

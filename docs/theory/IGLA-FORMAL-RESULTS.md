@@ -15693,4 +15693,74 @@ accuracy-at-area is H32 L3 at 82–84% for 250–400 LUT; (3) nothing reaches 88
 
 ---
 
+## W758 — the ceiling is the TASK's, not the architecture's
+
+### T355 — T354 is refuted: the sparse penalty varies by 11 points
+
+T354 asserted the limit is *"the capacity of six-input truth tables on
+UNSW-NB15"* — a sentence containing a dataset that had never been varied. Same
+architecture family, same trainer, same quantiser, same normalisation and
+balancing; only the task changes:
+
+| task | baseline | dense reference | sparse (H48 L3) | **penalty** |
+|---|---:|---:|---:|---:|
+| UNSW-NB15 | 55.06% | 89.67% | 82.97% | **+6.70** |
+| MNIST-bin | 51.39% | 96.01% | 81.16% | **+14.85** |
+| **Fashion-bin** | 50.00% | 91.52% | **88.03%** | **+3.48** |
+
+> **T355. The penalty spread is 11.37 pp — T354 is refuted and must be narrowed.**
+> The cost of collapsing a layer into six-input truth tables is **not a constant
+> of the architecture**; it is a property of how much a task's decision depends on
+> seeing many features at once. **"Six-input truth tables have a ceiling" is true;
+> "the ceiling is 84%" was a fact about UNSW-NB15 wearing an architecture's
+> clothes.**
+
+> **T355a. Two of three forecast bands landed, and the miss is the interesting
+> one.** Registered: UNSW 5–7 (**6.70 ✓**), MNIST 10–18 (**14.85 ✓**), Fashion
+> 8–15 (**3.48 ✗**). The reasoning — *informative pixels punish a 6-of-784 draw* —
+> holds for MNIST and **inverts** for Fashion, whose binarised silhouettes are
+> decided by a few coarse pixels rather than by fine strokes. **Feature count and
+> modality do not predict the penalty; how CONCENTRATED the evidence is does.**
+
+> **T355b. We have been benchmarking on our second-worst task for nine waves.**
+> Sparse accuracy is **88.03% on Fashion** against 82.97% on UNSW, and the
+> penalty there is **half** UNSW's. The field's LUT-network benchmark triplet
+> centres on UNSW-NB15 and we followed it without asking whether it suits this
+> datapath. **It does not, particularly.**
+
+### T356 — the first layer's narrow view is not the bottleneck
+
+**Registered before the run:** *fan-in 12 on layer 1 buys 1.5–3.0 pp; if it buys
+under 1 pp, the "six-of-593" framing that guided three waves is wrong.*
+
+| layer-1 fan-in | bits | accuracy | layer-1 LUT (H=16) | LUT/neuron |
+|---|---:|---:|---:|---:|
+| **6** | 6 | 80.84% | **32** | **2.00** |
+| 8 | 8 | 81.62% | 125 | 7.81 |
+| 10 | 10 | 81.45% | 348 | 21.75 |
+| 12 | 12 | 81.67% | **864** | **54.00** |
+
+> **T356. Refuted, and the framing with it. +0.83 pp for 832 extra LUT** — a
+> thousand LUT per point, against width's 393 (T352a). **Both are bad and fan-in
+> is 2.5× worse.** The pre-registered consequence applies: **a neuron seeing six
+> of 593 features is not what limits this architecture**, and three waves of
+> reasoning that started from that image were reasoning about the wrong thing.
+
+> **T356a.** Note the non-monotonicity — fan-in 10 (81.45%) scores *below* fan-in
+> 8 (81.62%) at three seeds. At this effect size three seeds cannot resolve the
+> ordering, which is itself the finding: **an intervention whose signal is below
+> our own noise floor is not a lever**, whatever its cost.
+
+### T357 — where this leaves the programme
+
+> **T357.** The corrected statement, with every knob and now the task controlled:
+> **the sparse truth-table datapath costs between 3.5 and 15 points against a
+> dense reference, depending on how concentrated a task's evidence is, and costs
+> ~2 LUT per neuron to build.** On a task that suits it — Fashion — it reaches
+> **88.03%** at the same area where UNSW yields 82.97%. **The architecture was
+> never the problem and the alphabet was never the lever; the benchmark was the
+> unexamined choice.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
