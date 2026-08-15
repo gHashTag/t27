@@ -15993,4 +15993,63 @@ Restricted to the **45 digit pairs**, where `ntrain` varies by only **1.15×**:
 
 ---
 
+## W763 — which NUMBERS suit ternary weights: the measured top
+
+Dmitrii asked for a top of numbers for ternary weights **from our catalogues**.
+First a distinction the question exposes: the 83-format catalogue
+(`docs/metrics/NUMERIC_FORMATS_83_METRICS.md`) enumerates **float encodings** —
+bit widths, exponent/mantissa splits. It does not contain a single answer about
+what **values** a weight level should take. **That catalogue cannot answer this
+question, and nobody had noticed.**
+
+### T365 — eleven bases, nine levels each, accuracy and area both measured
+
+Alphabet shape fixed at `A(b) = {0} ∪ {±b^k : 0 ≤ k ≤ 3}` — **nine levels for
+every base**, so only the number varies. Dense bench with the W748 scale fix and
+class balancing, 5 seeds, UNSW-NB15. Area is a placed 64→8 layer, fixed-point
+`round(b^k · 2^8)`, `-nodsp -nosrl`, identical zero mask and level draw per arm.
+
+| # | base | value | accuracy | LUT | LUT per point over dyadic |
+|---|---|---:|---:|---:|---:|
+| **1** | **dyadic** | **2.0000** | 89.62% | **752** | — |
+| 2 | linear `{0,±1,±2,±3,±4}` | — | — | 812 | — |
+| 3 | ternary | 3.0000 | 89.76% | 1,417 | 4,750 |
+| 4 | √2 | 1.4142 | 89.64% | 1,991 | 61,950 |
+| 5 | plastic (`r³=r+1`) | 1.3247 | 89.66% | 2,709 | 48,925 |
+| 6 | **golden φ** | **1.6180** | **90.01%** | **2,726** | **5,062** |
+| 7 | e | 2.7183 | — | 2,856 | — |
+| 8 | silver | 2.4142 | 89.80% | 2,971 | 12,328 |
+| — | ψ₄ (`r⁴=r+1`) | 1.2207 | 89.86% | — | — |
+| — | tribonacci | 1.8393 | 89.84% | — | — |
+| — | supergolden | 1.4656 | 89.66% | — | — |
+| — | **b = 1.0** — degenerate, really `{0,±1}` | 1.0000 | **89.52%** | — | — |
+
+> **T365. The whole spread of accuracy across every base, including the
+> degenerate one, is 0.49 pp. The spread of area is 3.95×.** φ is nominally
+> first on accuracy (+0.39 pp over dyadic) and costs **1,974 extra LUT** for it —
+> **5,062 LUT per point of accuracy.** The top is decided by area and dyadic wins
+> it, exactly as forecast.
+
+> **T365a. The forecast's second half is refuted, and it is the more interesting
+> half.** It predicted `b = 1.0` — an alphabet that collapses to `{0,±1}` — would
+> lose by **2–6 pp**. It loses by **0.49 pp.** **A three-level alphabet is within
+> half a point of a nine-level golden one on this bench**, which is a stronger
+> statement of T286/T317's size effect than either made: the levels above ±1 are
+> buying almost nothing here.
+
+> **T365b. Base 3 had never been measured, in a ternary project.** `b = 3.0`
+> scores 89.76% at 1,417 LUT — second-cheapest of the geometric bases and better
+> on accuracy than dyadic. **The obvious candidate for a ternary line was absent
+> from every prior sweep**, which is what happens when the catalogue being
+> consulted is about float encodings.
+
+> **T365c. What the top actually says.** Ordered by what a hardware designer
+> pays: **dyadic (752 LUT) → linear (812) → ternary base 3 (1,417) → everything
+> irrational (1,991–2,971)**. Accuracy does not order them: it varies by less than
+> half a point across the entire list. **The number you choose for ternary weights
+> is an area decision, and the arithmetic literature's answer — powers of two —
+> is the right one.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
