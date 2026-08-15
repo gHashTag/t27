@@ -1,0 +1,47 @@
+{
+  "schema": "trinity.artifact-seal/1",
+  "sealed_utc": "2026-08-15T08:06:27.879894+00:00",
+  "obtained_utc": "2026-08-15T08:06:27.879914+00:00",
+  "label": "pr2168-candidate",
+  "purpose": "evidential binary rebuilt from a named commit",
+  "source": {
+    "repo": "/home/user/workspace/t27",
+    "built_in_tree": "/tmp/t27_seal_build",
+    "remote": "https://github.com/gHashTag/t27.git",
+    "commit": "a33413de5c0f3bf859c715238b847c9a88fb21b9",
+    "commit_subject": "bootstrap: accept `pub const Name(T) = struct` as a parameterised type declaration (Closes #2162)",
+    "branch": "HEAD",
+    "provenance": "captured-at-build-time",
+    "claimed_commit_unverified": "",
+    "tree_dirty_at_seal_time": false,
+    "tree_dirty_note": ""
+  },
+  "build": {
+    "profile": "dev",
+    "commands": [
+      "cd bootstrap && CARGO_TARGET_DIR=/home/user/workspace/t27/target/evidence cargo build --quiet"
+    ],
+    "toolchain": {
+      "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+      "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+      "python3": "Python 3.14.3",
+      "uname": "Linux 6.1.155+ x86_64"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "/home/user/workspace/t27/docs/evidence/bin/t27c.pr2168-candidate",
+      "present": true,
+      "sha256": "ef99cc164c0c9d63d36d384c2ed05acdc241bbaa2e1881b1b6d2ab42d01f1119",
+      "size_bytes": 118029392,
+      "mtime_utc": "2026-08-15T08:06:27.188758+00:00",
+      "produced_at": "/home/user/workspace/t27/target/evidence/debug/t27c"
+    }
+  ],
+  "inputs": [],
+  "tests": [],
+  "limits": [
+    "verify recomputes digests; it does not prove the artifact matches the commit. Use --rebuild for that, and read its caveat.",
+    "a rebuild mismatch is reported as unreproduced, not as tampering: cargo release builds are not bit-reproducible by default."
+  ]
+}
