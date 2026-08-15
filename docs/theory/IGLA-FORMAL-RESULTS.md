@@ -18139,4 +18139,81 @@ so there is no leakage objection either.
 
 ---
 
+## W780e — the confirmation that failed by 0.01, and the licence gate
+
+### T432 — the connectivity thread is UNRESOLVED, by its own pre-registered rule
+
+T431 reported five arms with every non-random scheme above random and none
+significant at `n = 5`. **Registered forecast (T44):** *balanced+regrouped beats
+random significantly at `n = 12` (`|t| > 2.20`), by 2–3 pp; if not, the thread is
+reported as unresolved, not as a gain.*
+
+| n = 12 | accuracy | sd | penalty |
+|---|---:|---:|---:|
+| random | 81.25 | 2.08 | 8.37 |
+| balanced + regrouped | 82.52 | 1.06 | 7.10 |
+| **paired** | **+1.27 pp** | | **t = +2.19** |
+
+> **T432. `t = 2.19` against a critical value of `2.20`. Not significant, and the
+> rule was written before the run, so the thread is UNRESOLVED.** Reporting
+> "+2.86 pp, best result in the line" from the five-seed sweep would have been
+> T403's error committed knowingly.
+
+> **T432a. The five-seed sweep flattered both ends.** At 12 seeds random rose
+> **80.23 → 81.25** and balanced+regrouped fell **83.09 → 82.52**: the gap
+> shrank from **+2.86 to +1.27**, more than half of it seed noise. **Every arm in
+> T430 and T431 is subject to the same correction**, and the ordering among five
+> arms separated by under 3 pp at `n = 5` should be treated as unordered.
+
+> **T432b. What survives is the variance, again.** Seed sd **2.08 → 1.06** at
+> `n = 12`, the same halving seen at `n = 5`. **The mean effect did not resolve;
+> the dispersion effect replicated.** That is the honest headline of the whole
+> connectivity thread.
+
+### T433 — the licence gate, tested at last, and it fails
+
+`ECOSYSTEM-INVENTORY.md` §7 declared licence compatibility **untested** — the one
+requirement no repository layout can satisfy. Audited over all **210**
+repositories:
+
+| | count | share |
+|---|---:|---:|
+| **CAN** enter a redistributable corpus (public, non-fork, permissive) | **45** | 21.4 % |
+| **CANNOT** — 37 forks + 89 public non-fork with **no licence at all** | **126** | 60.0 % |
+| **undecidable from metadata** — 31 private + 8 unrecognised licence text | 39 | 18.6 % |
+
+> **T433. Twenty-one percent, and it degrades on contact.** Of the 25 MIT-cleared
+> repos, only **14** carry a Vasilev/gHashTag copyright. **Seven name third
+> parties outright** — Amazon, Supabase, Railway, OpenAI, and three individuals —
+> one has an MIT notice with **no copyright line at all**, and three are
+> ambiguous. **The realistic cleared set is ~34 of 210**, and it carries
+> attribution duties the owner did not author and cannot relicense.
+
+> **T433a. A query artefact may be under the original "untested" flag.** The audit
+> first used `.licenseInfo.spdxId`, **a field that does not exist** on
+> `gh repo list` output — the schema is `{key, name, nickname}` — and it returned
+> `NONE` for all 210. **Anyone repeating this audit with `spdxId` concludes the
+> entire account is unlicensed, which is false.** If §7 was drafted against
+> `spdxId`, its premise is the same artefact.
+
+> **T433b. Three AGPL-3.0 forks are the highest contamination risk in the set**
+> (BrowserOS, plane-999, warp). Copyleft in a training corpus is not an
+> attribution question, it is a licensing question about the model.
+
+> **T433c. Our own house is half-documented.** SPDX headers cover **542 of 1074**
+> `.t27` files — **50.5 %** — and `specs/sandbox/` carries **5 CC0-1.0 files inside
+> a repository that declares Apache-2.0**. CC0 is more permissive so nothing is
+> blocked, but it is **undeclared mixed licensing**, and per-file provenance
+> cannot be established from headers for half the corpus.
+
+> **T433d. The largest recoverable win is not architectural.** **89 public
+> non-fork repositories are blocked only by a missing `LICENSE` file**, and the
+> owner appears to hold copyright on most. **Adding licences is an owner-side
+> action that moves a large block from CANNOT to CAN**; the 37 forks are not
+> recoverable by any action of ours. *This is an engineering inventory, not legal
+> advice — the copyright-line and NOTICE findings belong in front of a lawyer
+> before any corpus is published.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

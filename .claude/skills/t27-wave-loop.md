@@ -9746,6 +9746,24 @@ second is what a wide sparse layer needs.*
 moved no mean and halved seed sd, 2.04 -> 0.80, on a dataset the field itself
 documents as seed-sensitive (T430c).
 
+**939. t=2.19 against a critical 2.20 is NOT SIGNIFICANT.** The rule was written
+before the run and it decides (T432). *The moment you find yourself arguing that
+2.19 is basically 2.20, the pre-registration has done its job -- honour it.*
+
+**940. Five seeds flatter BOTH ends.** At n=12 the baseline rose 80.23->81.25 and
+the treatment fell 83.09->82.52: the gap halved, +2.86 -> +1.27 (T432a). *A
+five-arm sweep separated by under 3 pp at n=5 is unordered, not a ranking.*
+
+**941. A missing field returns a plausible wrong answer.** `.licenseInfo.spdxId`
+does not exist on `gh repo list`; jq returns null and the audit reads "no licence"
+for all 210 repos. The correct key is `.licenseInfo.key` (T433a). *jq never errors
+on a wrong path -- verify one known-good row before trusting a whole column.*
+
+**942. "Non-fork" does not mean "ours".** isFork only catches the fork button; a
+clone pushed to a fresh repo reads as original. Seven MIT repos in the cleared
+bucket name Amazon, Supabase, Railway or OpenAI in their copyright line (T433).
+*Check the copyright line, not the fork flag.*
+
 ### How to update this tracker
 
 After closing a wave:
