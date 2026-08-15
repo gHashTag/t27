@@ -18039,4 +18039,61 @@ predicted 1.6–2.1, and Fmax falls with depth.*
 
 ---
 
+## W780c — the control beat the treatment
+
+### T430 — mutual-information connectivity, refuted by the arm built to lose
+
+T428b left **connectivity quality** as the last named candidate: SparseLUT closes
+2.13 pp over a random mask by *learning* the sparsity pattern, and this stand uses
+the same `RandomFixedSparsityMask2D` baseline the field uses. The project already
+owns a cheap approximation — T376's per-feature mutual information, `ρ = −0.902`
+out of sample — which had only ever been used to **predict** the penalty. Here it
+**chose** the fan-in.
+
+**Registered forecast (T44):** *MI-weighted connectivity closes ≥ 1.5 pp.* And a
+control that decided it: **ANTI-MI**, sampling by *inverse* MI, i.e. deliberately
+picking the least informative features.
+
+| arm | accuracy | sd | penalty |
+|---|---:|---:|---:|
+| random (baseline) | 80.23 | 2.04 | 9.39 |
+| MI-weighted | 80.75 | **0.80** | 8.87 |
+| **ANTI-MI (control)** | **82.64** | 1.93 | **6.98** |
+
+| comparison | Δ | t | |
+|---|---:|---:|---|
+| MI vs random | +0.52 | +0.64 | ns |
+| MI vs ANTI-MI | **−1.89** | −1.80 | ns |
+
+> **T430. Refuted, and by the arm built to lose.** The deliberately-bad
+> connectivity was the **best of the three**. Nothing is significant at `n = 5`,
+> so the honest statement is that **no weighting had a resolvable effect and the
+> ordering put the anti-hypothesis first** — which is exactly the outcome that
+> kills a hypothesis rather than parking it.
+
+> **T430a. The mechanism, and it is not a null.** UNSW's MI is heavily skewed —
+> median 0.0112, max 0.5475. **MI-weighting concentrates many neurons on the same
+> few strong features and builds redundant neurons; inverse weighting spreads the
+> draw.** At fan-in 3 with 256 neurons, **diversity of coverage beats individual
+> informativeness of each pick.** T376's predictor is confirmed as **diagnostic
+> only** — which is what T376 itself said about calibration.
+
+> **T430b. The pre-registered verdict function said PARTIAL. The control said
+> refuted. The control wins.** This is the **third** time this month a
+> pre-registered threshold returned the flattering answer — T422a (wrong baseline
+> arm), T413b (right threshold, wrong direction), and now a threshold that never
+> saw the control at all. **A verdict function that does not read the control arm
+> is scoring one number against a wish.** Without the ANTI-MI arm this wave would
+> have published *"MI-guided connectivity helps a little"*, and it would have been
+> exactly backwards.
+
+> **T430c. The one real effect is in the variance, not the mean.** MI-weighting
+> cut the seed standard deviation from **2.04 to 0.80**. PolyLUT-Add reports the
+> same class of instability on this dataset — *"the training convergence of the
+> UNSW dataset is sensitive to the initial random seed, and hence, multiple trials
+> were necessary"* — so a connectivity rule that halves seed variance is worth
+> having even when it moves no mean. **Not what was forecast, and measured.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

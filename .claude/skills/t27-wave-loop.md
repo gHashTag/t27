@@ -9725,6 +9725,27 @@ as area, never before seen because the flow stopped at synthesis (T429a).
 chipdb is missing; the 100T is present and is the same Artix-7 fabric. Two waves
 were lost to insisting on the target part for a comparison that never needed it.
 
+**935. Put in the arm designed to LOSE, and let it decide.** MI-weighted
+connectivity scored +0.52 pp and the pre-registered function said PARTIAL; the
+ANTI-MI control -- deliberately the least informative features -- scored best of
+all three (T430). *Without that arm the wave publishes "MI-guided connectivity
+helps a little", exactly backwards.*
+
+**936. A verdict function that never reads the control is scoring a wish.** Third
+flattering pre-registered verdict this month: wrong baseline arm (T422a), right
+threshold wrong direction (T413b), and now no control in the formula at all.
+*Name the control IN the verdict function, not beside it.*
+
+**937. At small fan-in, coverage diversity beats per-pick informativeness.** MI on
+UNSW is skewed (median 0.011, max 0.548), so weighting by it makes many neurons
+redundant while inverse weighting spreads the draw (T430a). *"Pick the best
+features" and "pick a good SET of features" are different objectives and only the
+second is what a wide sparse layer needs.*
+
+**938. Report the variance result even when the mean result fails.** MI-weighting
+moved no mean and halved seed sd, 2.04 -> 0.80, on a dataset the field itself
+documents as seed-sensitive (T430c).
+
 ### How to update this tracker
 
 After closing a wave:
