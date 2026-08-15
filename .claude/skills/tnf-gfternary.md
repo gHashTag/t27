@@ -79,6 +79,56 @@ question, and `int8` being cut says nothing against `int8`. Nearest miss: `gf4` 
 `mxgf4`, span `[8,16]`, the only catalogued formats that *could* hold nine levels
 under a different convention — they hold seven.
 
+**CALIBRATION AGAINST THE FIELD — read this before quoting any gap (W779).**
+
+| source | task | sparse | dense | gap |
+|---|---|---:|---:|---:|
+| SparseLUT Tab. IV, fan-in 6, **random** mask | MNIST HDR(D=1) | 93.76 % | 98.55 % | **4.79 pp** |
+| SparseLUT, **learned** connectivity | MNIST HDR(D=1) | 95.89 % | 98.55 % | 2.66 pp |
+| NeuraLUT-Assemble | NID | — | — | **≤ 1 pp**, NID **+0.5** |
+| PolyLUT-Add / PolyLUT / LogicNets | **UNSW-NB15** | **92.0 / 92.2 / 91.0 %** | — | — |
+| **this project, best** | UNSW-NB15 | **80.23 %** | 89.62 % | **9.39 pp** |
+
+**The field reaches 91–93 % where we reach 80.** Our stand's gap is ~2× the
+comparable random-mask figure. The baselines batch-normalise **every layer's
+inputs and outputs** and use **quantised activations with learned scaling
+factors** (Brevitas); we do the first now (+2.56 pp, T422) and **not the second**.
+
+**PRIOR ART — cite these, do not re-derive them.**
+
+- **S4 (six-bit rule)** is **LogicNets**, arXiv:2004.03021. Their own NID configs
+  run at **14 input bits**. Six is *our* choice, not a law.
+- **S6's mechanism** is the **critical-index / head-tail decomposition of linear
+  threshold functions**, Servedio, *Comput. Complexity* 2007, arXiv:0902.3757.
+- **The names**: a neuron reading one of three inputs is a **1-junta** or
+  **dictator**; the neuron is an **LTF**. O'Donnell, *Analysis of Boolean
+  Functions*. **Say "junta degree", not "effective fan-in"** — the latter is
+  ODIN's (arXiv:1804.07858) for accumulator depth.
+- **The tribonacci constant** is **OEIS A058265** by definition.
+- **"PoT has rigid resolution"** is **APoT**, arXiv:1909.13144, verbatim. Our
+  mechanism differs (their argument is per-weight projection error; ours is
+  functional dependence) and that difference is machine-verified: their full text
+  contains fan-in 0, junta 0, dominat\* 0, "truth table" 0, Boolean 0.
+- **The threshold/normalisation identity**: **FINN** §4.2.2 is titled
+  *"Batchnorm-activation as Threshold"*; **TWN** arXiv:1605.04711 gives the dead
+  zone as `Δ* ≈ 0.75·E|W|`; **Sari et al.** arXiv:1909.09139 quantify BN removal
+  at **88.8 → 31.7**. **On hardware, "remove the fixed threshold" and "add
+  normalisation" are one object.**
+- **Functional input count is already priced**: **Logic Shrinkage**,
+  10.1145/3583075, learns per-LUT input counts for **1.54× area**.
+
+**DO NOT REPORT `r` FOR THESE SWEEPS.** Every correlation in the alphabet line is
+over 5–7 arms *constructed* to vary monotonically in the predictor, with no
+confidence interval. **Report the pairs and the slope.** T418 showed the failure
+from inside: Pearson `+0.916` against Spearman `+0.607` on the same seven points.
+
+**AND THE NULL IS A LIMIT, NOT A LAW.** The defensible sentence is *"on two tasks,
+at this scale, with five seeds we could not resolve alphabet shape at fixed
+cardinality"* — **not** *"shape is worth ≤ 0.25 pp"*. Counter-evidence exists:
+**AdaMX** (arXiv:2608.03867) removes **83 %** of MXFP4's loss by adapting the
+element representation; **GSQ** (arXiv:2604.18556) works at **3–8 levels**, our
+exact regime.
+
 **NEVER PUT THESE IN A TRAINING CATALOGUE:** φ, √2, plastic, silver, e,
 tribonacci, ψ₄, supergolden. All fail S3, and all **teach a false hardware
 cost** — multiplier-free in the weight application, not multiplier-free once the

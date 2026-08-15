@@ -11,7 +11,11 @@
 // S3 INTEGRAL   A subset of Z      T293  a two-lane Z[b] resolve costs
 // 8 DSP48E1 or ~2750 LUT
 // S4 TRIT_FANIN fanin * bits <= 6  T368b 2.00 LUT/neuron at <= 6 bits,
-// 39-54 LUT at 12
+// 39-54 LUT at 12. NOT OURS: LogicNets
+// (arXiv:2004.03021) states the cost model
+// in 2020, and its own NID configs run at
+// 14 input bits -- so 6 is OUR choice,
+// not a law (T419).
 // S5 PRIMITIVE  no DSP48E1/SRL16E  T246, T342  openXC7 emits a wrong bitstream
 // for both while every tool reports OK
 //
@@ -196,6 +200,24 @@ pub fn binary_rows(fanin : u32) -> u32 {
 // S6 -- NON-DOMINANCE. W778. The filter the other five could not see, and the
 // one that refutes this file's own formula.
 //
+// PRIOR ART, W779, and it is older than the filter. A neuron whose output depends
+// on one input is a 1-JUNTA, or a DICTATOR; the neuron is a LINEAR THRESHOLD
+// FUNCTION (O'Donnell, Analysis of Boolean Functions). The collapse itself is the
+// CRITICAL-INDEX / HEAD-TAIL DECOMPOSITION of LTFs -- Servedio, Computational
+// Complexity 2007, arXiv:0902.3757 -- and the superincreasing-implies-
+// lexicographic fact is formalised in Gupte, arXiv:1503.03742. The tribonacci
+// constant is OEIS A058265 by definition. NOTHING in S6's mathematics is new
+// (T423); what is ours is the measured attribution of low junta degree to the
+// WEIGHT ALPHABET, and the consequence that TNF(k,b) has no admissible k=2
+// member over Z.
+//
+// The metric below is JUNTA DEGREE, not "effective fan-in": that term is taken
+// by ODIN (arXiv:1804.07858) for accumulator depth (T424a).
+//
+// The field already prices functional rather than structural input count --
+// Logic Shrinkage (FPGA'22 / TRETS 2023, 10.1145/3583075) learns per-LUT input
+// counts by removing low-importance inputs, for 1.54x area (T424b).
+//
 // At fan-in 3 (which S4 fixes) a neuron reads three weights. If ONE of them
 // exceeds the sum of the others, no combination of the other two can outvote it
 // and the neuron's output is a function of that ONE input. It is not constant --
@@ -204,7 +226,7 @@ pub fn binary_rows(fanin : u32) -> u32 {
 // Enumerated over all 9^3 = 729 weight triples each nine-level alphabet admits,
 // MEAN EFFECTIVE FAN-IN (how many inputs the output actually depends on):
 //
-//   alphabet                        top : rest    mean fan-in   full fan-in
+//   alphabet                        top : rest   junta degree   full (3 of 3)
 //   linear  {0,+-1,+-2,+-3,+-4}      4 <  6          2.55          66.9%
 //   fib     {0,+-1,+-1,+-2,+-3}      3 <  4          2.52          63.6%
 //   ladder b=2                       8 >  7          2.19          52.7%
@@ -233,7 +255,10 @@ pub fn binary_rows(fanin : u32) -> u32 {
 // SCOPE, AND THE DIRECTION IS NOT WHAT IT LOOKS LIKE (T412). Measured on the
 // sparse fan-in-3 stand where the mechanism can act, 8 seeds, both tasks:
 //
-//   effective fan-in vs accuracy   UNSW  r = -0.971   Fashion  r = +0.991
+//   junta degree vs accuracy   UNSW  r = -0.971   Fashion  r = +0.991
+//   (W779: these r values are over 5-7 arms CONSTRUCTED to vary monotonically in
+//    the predictor, with no confidence interval. Report the PAIRS and the SLOPE;
+//    r here measures the design, not the world -- T424.)
 //
 // Near-perfect on both, WITH OPPOSITE SIGNS. On UNSW the steepest alphabet is
 // significantly BETTER (base 4 at 62.01% against linear 9's 56.31%, t=+3.34) and
@@ -241,6 +266,14 @@ pub fn binary_rows(fanin : u32) -> u32 {
 // neuron that reads one of three inputs is a sign detector on the strongest one,
 // and whether that is a loss is a property of the TASK, exactly as T355 found
 // for the sparse penalty and T288 for the saturation rung.
+//
+// W779, tested where it could FAIL: {1,2,4,7} and dyadic have IDENTICAL junta
+// degree 2.19 and sit on opposite sides of S6 (7=7 passes, 8>7 fails). At equal
+// junta degree the S6-passing alphabet is significantly better on UNSW (+0.56 pp,
+// t=+2.51) and not on Fashion (+0.17, ns); pooled across the filter it is
+// significant on Fashion (+1.50, t=+5.25) and not on UNSW. Each task yields ONE
+// significant result and they are different results. S6 contributes at most
+// 0.56 pp of its own and has never been significant on both at once (T417).
 //
 // So S6 marks a real and exactly-locatable structural effect. It does NOT mark a
 // defect. What it forbids is a base-only ranking rule: `b >= 3` claimed a
