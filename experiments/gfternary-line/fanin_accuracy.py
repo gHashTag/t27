@@ -41,13 +41,41 @@ import numpy as np
 # Magnitudes only; 0 and the negatives are added. Nine levels everywhere, so
 # CARDINALITY is held fixed and only SHAPE varies (T286: confounding them is how
 # a base wins for the wrong reason).
+# W779 CORRECTION. The first version listed `fib [1,1,2,3]` as a nine-level arm.
+# A DUPLICATE MAGNITUDE IS ONE LEVEL, NOT TWO: as a set that alphabet has SEVEN
+# levels, fails S1 (7 is not a power of three), and had no business in a
+# comparison whose whole control is "nine levels everywhere, so cardinality is
+# held fixed". The script asserted its control in a docstring and violated it in
+# an arm. `assert_same_cardinality` below is that control made executable.
+#
+# The four S6 survivors at nine levels, and the three ladders that fail S6, so
+# the comparison spans the filter rather than sitting on one side of it.
 ARMS = [
-    ("linear 9", [1., 2., 3., 4.], 2.55),
-    ("fib",      [1., 1., 2., 3.], 2.52),
-    ("dyadic",   [1., 2., 4., 8.], 2.19),
-    ("base 3",   [1., 3., 9., 27.], 1.49),
-    ("base 4",   [1., 4., 16., 64.], 1.03),
+    ("linear 9",  [1., 2., 3., 4.],   2.55),   # S6 ok, 4 < 6
+    ("1,2,3,5",   [1., 2., 3., 5.],   2.42),   # S6 ok, 5 < 6
+    ("1,2,3,6",   [1., 2., 3., 6.],   2.27),   # S6 ok, 6 = 6, the boundary
+    ("1,2,4,7",   [1., 2., 4., 7.],   2.19),   # S6 ok, 7 = 7, the boundary
+    ("dyadic",    [1., 2., 4., 8.],   2.19),   # S6 FAILS, 8 > 7
+    ("base 3",    [1., 3., 9., 27.],  1.49),   # S6 FAILS, 27 > 13
+    ("base 4",    [1., 4., 16., 64.], 1.03),   # S6 FAILS, 64 > 21
 ]
+
+
+def assert_same_cardinality(arms):
+    """The control the docstring claimed and the code did not check.
+
+    T286 measured alphabet SIZE at +0.844 pp and SHAPE at +0.085 -- an order of
+    magnitude apart -- so an arm with the wrong cardinality does not add noise,
+    it adds the larger effect under the smaller effect's name.
+    """
+    sizes = {}
+    for name, pos, _ in arms:
+        sizes[name] = 2 * len(set(pos)) + 1
+    uniq = set(sizes.values())
+    if len(uniq) != 1:
+        raise SystemExit(f"GUARD: arms differ in level count -- {sizes}. "
+                         f"This comparison measures SIZE, not SHAPE.")
+    return uniq.pop()
 
 
 def levels(pos):
@@ -136,6 +164,8 @@ if __name__ == "__main__":
     seeds = int(sys.argv[3]) if len(sys.argv) > 3 else 8
     SCALE = len(sys.argv) > 4 and sys.argv[4] == "scale"
     print(f"  threshold: {'SCALED per arm (T412c control)' if SCALE else 'FIXED at 2.0'}")
+    K = assert_same_cardinality(ARMS)
+    print(f"  cardinality control: every arm has {K} levels")
     res = {}
     for tname, fn in (("UNSW", "unsw.npz"), ("Fashion", "fashion_bin.npz")):
         Xtr, ytr, Xte, yte = load(f"{G}/{fn}")

@@ -9590,6 +9590,23 @@ an audit.* My stand was the worse one, not T311's.
 After normalisation, fan-in 3->6 buys 0.68 pp and depth 3->4 costs 0.99, both
 inside one sd. Three independent lines now say the same (T355, T404, T414b).
 
+### W779 — lessons 910-912
+
+**910. A control written in a docstring is a wish.** fanin_accuracy.py opened
+with "nine levels everywhere, so cardinality is held fixed" and carried a
+seven-level arm for a whole wave. The same sentence as an `assert` catches it in
+0.1 s (T415). *Every claimed control should be executable, and validated against
+a known-bad input before it is trusted.*
+
+**911. A duplicate magnitude is one level, not two.** `{1,1,2,3}` looks like four
+magnitudes and is three. It also weights the enumeration wrong -- iterating the
+multiset draws the duplicate twice (T415a). *Count `set(...)`, not `len(...)`,
+whenever a list stands for an alphabet.*
+
+**912. The Bash tool caps at 600 s regardless of what you pass.** I passed
+5,400,000 ms and got killed at 10m 0s. *Anything that might exceed ten minutes
+goes to the background with nohup, not into a larger timeout argument.*
+
 ### How to update this tracker
 
 After closing a wave:

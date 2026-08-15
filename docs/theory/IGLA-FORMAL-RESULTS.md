@@ -17313,7 +17313,7 @@ of chasing it, and the third was not an instrument defect:
 > | alphabet | top : rest | mean effective fan-in | share at full fan-in 3 |
 > |---|---|---:|---:|
 > | linear `{0,±1,±2,±3,±4}` | 4 < 6 | **2.55** | 66.9 % |
-> | fib `{0,±1,±1,±2,±3}` | 3 < 4 | 2.52 | 63.6 % |
+> | ~~fib `{0,±1,±1,±2,±3}`~~ | 3 < 4 | ~~2.52~~ | ~~63.6 %~~ — **withdrawn, see T415: seven levels, not nine** |
 > | `{0,±1,±2,±3,±5}` | 5 < 6 | 2.42 | 60.4 % |
 > | ladder `b=2` | 8 > 7 | 2.19 | 52.7 % |
 > | ladder `b=3` | 27 > 13 | **1.49** | 21.9 % |
@@ -17557,6 +17557,46 @@ below 80 % normalisation is not the explanation and T311 stands.*
 > is the same shape as T355 (the ceiling is the task's) and T404 (the number
 > decides area, not accuracy). **Three independent lines now say the residual gap
 > is a training question, not an architectural one.**
+
+---
+
+## W779 — the arm that broke its own control
+
+### T415 — a duplicate magnitude is one level, not two
+
+T408's effective-fan-in table listed **`fib {0,±1,±1,±2,±3}` as a nine-level
+alphabet**. As a *set* it has **seven** levels. Seven is not a power of three, so
+it fails **S1** and had no business in the comparison at all.
+
+| | as multiset | as distinct set |
+|---|---:|---:|
+| levels | 7 | 7 |
+| S1 | **fails** | **fails** |
+| mean effective fan-in | 2.52 *(reported)* | **2.47** |
+
+> **T415. The script asserted its control in a docstring and violated it in an
+> arm.** `fanin_accuracy.py` opens with *"nine levels everywhere, so CARDINALITY
+> is held fixed and only SHAPE varies (T286: confounding them is how a base wins
+> for the wrong reason)"* — and then carried a seven-level arm. **T286 measured
+> size at +0.844 pp and shape at +0.085**, an order of magnitude apart, so a
+> wrong-cardinality arm does not add noise: **it adds the larger effect under the
+> smaller effect's name.**
+
+> **T415a. The enumeration was also weighted wrong.** Iterating over the multiset
+> `[1,1,2,3]` draws magnitude 1 **twice**, so fib's 2.52 was computed under a
+> non-uniform draw. The distinct-set value is **2.47**. Both are withdrawn; the
+> row is struck in T408 rather than silently edited.
+
+> **T415b. What does not change.** `linear 9` remains the highest of the true
+> nine-level alphabets at **2.55**, and the ordering of every other row stands —
+> all of them have four distinct magnitudes. **The headline survives; one row of
+> the evidence did not, and the difference matters to anyone quoting the table.**
+
+> **T415c. The control is now executable.** `assert_same_cardinality` refuses to
+> run a comparison whose arms differ in level count, and it was **validated
+> against the known-bad arm list first** — it fires on `{linear 9, fib, dyadic}`
+> and passes on the corrected seven-arm set. *A control stated in prose is a
+> wish; the same control in an assert is a control.*
 
 ---
 
