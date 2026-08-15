@@ -306,3 +306,80 @@ Extending §2, and specific to the model tracks:
 ---
 
 **phi^2 + 1/phi^2 = 3  |  TRINITY**
+
+---
+
+## 5. Network-level results, W746-W761 (2026-08-14/15)
+
+Section 4 said the single-cell figure "cannot be compared to FINN's or hls4ml's
+published figures" because those are network-level. **That gap is now closed on
+one benchmark**, and the answer is not flattering.
+
+### 5.1 The row, both systems measured as ONE build
+
+| system | LUT | accuracy | notes |
+|---|---:|---:|---|
+| TreeLUT (II), UNSW-NB15 | **89** | **92.0%** | published |
+| ours, UNSW-NB15 | 123 | 81.37% | whole net, output stage included |
+| ours, Fashion-MNIST-bin | 123 | 86.91% | identical netlist, different task |
+
+**1.38x the field's area at 10.6 points less accuracy on UNSW-NB15.** Our area is
+competitive; our accuracy is not. Full detail in [`BENCHMARKS.md`](BENCHMARKS.md) §4.
+
+### 5.2 The golden alphabet, measured against its own claim
+
+The line is named for `phi`. Measured across three tasks, 30 seeds, with the
+pre-activation scale controlled:
+
+| effect | measured |
+|---|---:|
+| alphabet **size**, 3 -> 9 levels | **+0.735 pp** |
+| alphabet **shape** at fixed size | +0.149 pp, significant on 1 of 3 tasks |
+| inter-layer normalisation, for comparison | **+29.15 pp** |
+
+And the multiplier that `phi` removes from weight application **returns in the
+pair resolve**: evaluating `a + b*phi` against a threshold costs **8 DSP48E1**,
+or **~2750 LUT** when DSP inference is disabled. A dyadic alphabet costs zero
+either way.
+
+> **This is a negative result about our own headline idea, and it is stated as
+> one.** The algebra stands -- `Z[phi]` is closed under weight application, and
+> degree 2 admits `phi` alone as a multiplier-free scale, both proved. The
+> practical advantage does not.
+
+### 5.3 What section 2 should now also say we do not claim
+
+5. **No claim that the golden alphabet is preferable in hardware.** It is
+   measured at +0.735 pp for alphabet size, its shape effect is inside the noise
+   on 2 of 3 tasks, and its pair resolve reintroduces a multiplier.
+6. **No `LUT*ns` comparison with any published system.** TreeLUT's Fmax and
+   latency are not in this repository; the column stays empty rather than guessed.
+7. **No claim that this datapath "suits" any task.** The sparse penalty ranges
+   over a factor of fifty across eleven measured tasks and **no predictor for it
+   survived a confirmation split.** Suitability is measured per task or not
+   asserted.
+8. **No accuracy figure from before W749 is comparable.** The pre-activation
+   scale was uncontrolled, which inflated the alphabet-size effect by 39%.
+
+### 5.4 Two contributions that are not ours to keep quiet about
+
+Both are defects in **openXC7**, found here with minimal reproductions, and both
+produce a **wrong bitstream from a correct netlist** while passing the
+wrong-part -> ours `0->1` acceptance criterion:
+
+| primitive | evidence | flag |
+|---|---|---|
+| DSP48E1 (live operand) | T246 / T250 | `-nodsp` |
+| **SRL16E / SRLC32E** | 0/6 rows vs **24/24** with the flag | `-nosrl` |
+
+Reproduction, toolchain versions and diagnosis path:
+[`docs/reports/OPENXC7-SRL16E-DEFECT.md`](docs/reports/OPENXC7-SRL16E-DEFECT.md).
+`t27c yostat` exits 2 when either appears in a synthesis log.
+
+### 5.5 The demonstration the mission was for
+
+A **trained** ternary network, one layer per FPGA, across three
+XC7A200T dice: **232 LUT total, zero DSP, zero SRL**, and **100/100 layer
+agreement** with the reference model on 100 real UNSW-NB15 rows. Every value on
+the wire is produced by the die before it; the host shifts bits and performs no
+arithmetic on any payload.
