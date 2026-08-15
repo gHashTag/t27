@@ -109,6 +109,21 @@ def s5_primitive(dsp, srl):
     return dsp == 0 and srl == 0
 
 
+def s6_no_domination(alphabet):
+    """W778/T409: the top magnitude must not exceed the sum of the others.
+
+    Otherwise no combination of the remaining fan-in-3 inputs can outvote it and
+    the neuron is a function of ONE input -- 1.03 of 3 for base 4, enumerated
+    over all 729 triples (T408). The boundary for the ladder {b^0..b^3} is
+    b^3 = b^2 + b + 1, the tribonacci constant 1.8392867552, and S3 demands
+    b in Z, b >= 2 -- so no integer ladder clears it.
+    """
+    mags = sorted({abs(x) for x in alphabet if x != 0})
+    if len(mags) <= 1:
+        return True
+    return mags[-1] <= sum(mags[:-1])
+
+
 def sieve(levels, alphabet, fanin=3, input_bits=2, dsp=0, srl=0):
     """Return the first filter that kills the candidate, or None if admissible."""
     if not s1_packing(levels):
@@ -121,6 +136,8 @@ def sieve(levels, alphabet, fanin=3, input_bits=2, dsp=0, srl=0):
         return "S4 TRIT_FANIN"
     if not s5_primitive(dsp, srl):
         return "S5 PRIMITIVE"
+    if not s6_no_domination(alphabet):
+        return "S6 DOMINANCE"
     return None
 
 
@@ -157,7 +174,7 @@ def main():
     cat = json.load(open("gen/numeric/formats_catalog.json"))["formats"]
 
     print("=" * 74)
-    print("PART 1 -- the 16-candidate WEIGHT top, which the sieve was built for")
+    print("PART 1 -- the 16-candidate WEIGHT top, now through SIX filters")
     print("=" * 74)
     surv = []
     for name, alpha, lv in WEIGHT_TOP:
@@ -179,10 +196,18 @@ def main():
         if lv is None:
             unsievable.append((f["id"], how))
             continue
-        # A catalogued format's alphabet is its code space, which is a uniform
-        # grid: always commensurable, so S3 never fires here. S4/S5 are datapath
-        # properties, held at the ternary-hidden-layer default.
-        killed = sieve(lv, [0.0, 1.0, 2.0])
+        # A catalogued format's alphabet is its whole CODE SPACE -- hundreds to
+        # 10^300 values on a dense grid. Two consequences, and the placeholder
+        # must express both or a filter will read it as data:
+        #   S3 always passes: a code space is commensurable by construction.
+        #   S6 always passes: with hundreds of magnitudes the largest cannot
+        #                     exceed the sum of the rest.
+        # W778 DEFECT: the first placeholder was {0,+-1,+-2}, chosen to exercise
+        # S3 alone. When S6 was added it read `2 > 1` and killed gfternary in
+        # Part 2 while Part 1 admitted it -- one runner, two verdicts, same
+        # format. A placeholder is data to every filter, not only the one it was
+        # written for.
+        killed = sieve(lv, [0.0, 1.0, 2.0, 3.0, -1.0, -2.0, -3.0])
         rows.append((f["id"], f["cluster"], f["bits"], lv, killed))
         if killed is None:
             admissible.append(f["id"])
