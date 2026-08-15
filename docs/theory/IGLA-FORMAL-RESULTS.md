@@ -15763,4 +15763,63 @@ under 1 pp, the "six-of-593" framing that guided three waves is wrong.*
 
 ---
 
+## W759 — "evidence concentration" was a story, and eleven tasks killed it
+
+### T358 — the registered predictor fails, wrong sign and near zero
+
+W758 explained an 11-point spread in the sparse penalty with *"how concentrated a
+task's evidence is"*. W759 turned that word into a measure defined **before** any
+correlation was computed —
+`C6 = (sum of the 6 largest per-feature mutual informations) / (sum of all)` —
+and tested it on **eleven** tasks rather than three.
+
+| task | C6 | dense | sparse | penalty |
+|---|---:|---:|---:|---:|
+| UNSW | 0.1461 | 89.67 | 82.97 | +6.70 |
+| MNIST-bin | 0.0807 | 96.01 | 81.16 | **+14.85** |
+| Fashion-bin | **0.0419** | 91.52 | 88.03 | **+3.48** |
+| 0v1 | 0.0703 | 99.87 | 99.59 | +0.28 |
+| 0v8 | 0.1141 | 99.28 | 98.38 | +0.90 |
+| 1v7 | 0.0949 | 98.88 | 97.61 | +1.26 |
+| 2v7 | 0.0662 | 97.65 | 95.18 | +2.48 |
+| 5v6 | 0.0851 | 97.66 | 94.13 | +3.53 |
+| 7v9 | 0.1317 | 96.19 | 92.59 | +3.60 |
+| 3v5 | 0.0935 | 96.42 | 91.59 | +4.84 |
+| 4v9 | **0.2243** | 96.63 | 90.98 | +5.66 |
+
+> **T358. r(C6, penalty) = +0.128, t = +0.39 at n = 11.** Not merely weaker than
+> the registered −0.7 threshold — **the wrong sign and indistinguishable from
+> zero.** The pre-registered consequence applies verbatim: **W758's explanation is
+> withdrawn to a bare observation that the penalty varies between +0.28 and
+> +14.85 pp and we do not know why.**
+
+> **T358a. Forecast (2) was refuted before the correlation was even computed.**
+> I predicted the three originals would order Fashion > UNSW > MNIST by C6.
+> Measured: **UNSW 0.146 > MNIST 0.081 > Fashion 0.042** — Fashion has the
+> *lowest* concentration and the *lowest* penalty, the exact inverse of the story.
+> **The mechanism was contradicted by its own three founding points**, and only
+> checking the measure rather than asserting it surfaced that.
+
+> **T358b. Nothing else measured predicts it either.** Dense accuracy
+> r = −0.398 (t = −1.30) and headroom r = +0.398 (t = +1.30); neither reaches
+> significance at n = 11. **Three candidate explanations, none surviving.**
+
+### T359 — the outlier that the digit pairs expose
+
+> **T359.** Every MNIST **digit pair** has a penalty between **+0.28 and +5.66**,
+> while **MNIST-bin — the same pixels, a different labelling — costs +14.85.**
+> The architecture is not bad at "MNIST"; it is bad at *that particular binary
+> partition of MNIST*. **A task's identity is its labelling, not its input
+> distribution**, and eight tasks built from one dataset made that visible where
+> three datasets could not.
+
+> **T359a. The honest position on the penalty.** It ranges over a factor of
+> **fifty** across eleven tasks, it is not explained by single-feature evidence
+> concentration, by task difficulty, or by headroom, and **the project has no
+> predictor for it.** Any claim of the form "this datapath suits task X" must
+> therefore be **measured on X**, not argued from X's properties. **That is a
+> weaker statement than W758 made and it is the one the data supports.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
