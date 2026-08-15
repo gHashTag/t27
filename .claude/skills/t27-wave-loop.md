@@ -9694,6 +9694,37 @@ at five seeds is a limit of the measurement, and the sentence must say so.*
 folds into a threshold -- FINN section 4.2.2 is literally titled that. Which is
 why the second one was worth only +2.56 pp after the first (T426).
 
+### W780 — lessons 929-934
+
+**929. Train at the width the hardware emits.** Quantising the ACTIVATION to three
+levels bought +1.45 pp; five and nine bought exactly zero (T428). The deployed LUT
+outputs a trit, and thirty waves treated that as free. *The architecture's output
+alphabet is a training hyper-parameter, not a deployment detail.*
+
+**930. When only one setting of a knob helps, that is the finding.** 3 yes, 5 no,
+9 no is not a weak effect -- it is train-test match, and it rules out
+quantisation-as-regulariser without a further experiment.
+
+**931. A synthesis estimate is not a measurement, and the error is systematic.**
+Place and route inflated the cheap designs 1.34-1.39x against 1.16-1.19x for the
+dear ones, so every area RATIO from yosys was overstated ~16%, and every per-layer
+SLOPE ~23% (T427a, T429). *Ordering survived; magnitudes did not.*
+
+**932. Two obstacles blocked real P&R for two waves and both were three lines of
+fix.** nextpnr aborts at the seventh pad, and refuses a pad with no IOSTANDARD.
+Answer: a pad-free top (LFSR + counter) and a two-line XDC. *When a tool "cannot
+run", read its actual error before concluding the environment is broken -- I
+declared the chipdb lost and spent a wave on it while the real blocker was a
+missing IOSTANDARD line.*
+
+**933. Measure timing whenever you measure area; it is free once P&R runs.** Fmax
+fell 4.1x for linear over eight layers and 2.5x for base 3 -- the same mechanism
+as area, never before seen because the flow stopped at synthesis (T429a).
+
+**934. A wrong die is better than no die for a RELATIVE question.** The 200T
+chipdb is missing; the 100T is present and is the same Artix-7 fabric. Two waves
+were lost to insisting on the target part for a comparison that never needed it.
+
 ### How to update this tracker
 
 After closing a wave:

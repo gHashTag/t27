@@ -17970,4 +17970,73 @@ rises as junta degree falls.*
 
 ---
 
+## W780b — the last item on the field's list, and the slopes on real fabric
+
+### T428 — quantised activations help at exactly three levels and nowhere else
+
+T420b's transcription of what the baselines train with had one item left: *"...and
+quantized using Brevitas quantized activation functions, which utilize learned
+scaling factors."* Implemented — quantisation after BatchNorm through a **learned
+per-layer scale**, straight-through estimator, gradient clipped to the in-range
+mask (the LSQ/PACT arrangement).
+
+| stand | accuracy | penalty | Δ vs BN-only |
+|---|---:|---:|---:|
+| BN only (T422) | 80.23 | 9.39 | — |
+| **BN + quantised activation, 3 levels** | **81.68** | **7.94** | **+1.45** |
+| BN + quantised activation, 5 levels | 80.07 | 9.55 | −0.16 |
+| BN + quantised activation, 9 levels | 80.23 | 9.39 | −0.00 |
+
+> **T428. PARTIAL against a forecast of ≥ 2 pp — and the shape of the result is
+> worth more than its size.** Only **three** activation levels help. Five and nine
+> are worth **zero**. The gain is therefore **not** quantisation-as-regulariser,
+> which would improve with any coarsening; it is **train–test match**: a deployed
+> LUT emits a **trit**, and training with a ternary activation is training the
+> network that will actually be built.
+
+> **T428a. This is the ternary claim arriving from the side it was never argued
+> from.** Nine waves argued ternary *weights*. The measured gain here is from a
+> ternary **activation**, and it appears only because the hardware's output
+> alphabet is three. **The architecture's own output width is a training
+> hyper-parameter, and treating it as free cost 1.45 pp for thirty waves.**
+
+> **T428b. The transcription is now complete, and the residual is 7.94 pp against
+> the field's 4.79.** Normalisation, class balance, budget, per-layer BatchNorm
+> and quantised activations are all in. **The remaining 3.15 pp is no longer
+> attributable to any item on PolyLUT-Add's stated list** — it is either
+> connectivity quality (SparseLUT's learned masks close 2.13 pp of exactly this
+> kind) or something not yet named.
+
+### T429 — the per-layer slope on real fabric, and what depth does to the clock
+
+T410 fitted per-layer slopes from `yosys stat` — 25.1 LUT/layer dyadic against
+10.4 base 3, ratio **2.41** — and T427a then showed place and route compresses the
+gap. **Registered forecast (T44):** *the post-route slope ratio is smaller,
+predicted 1.6–2.1, and Fmax falls with depth.*
+
+| alphabet | L=1 | L=2 | L=4 | L=8 | **post-route fit** | Fmax over L |
+|---|---:|---:|---:|---:|---|---:|
+| linear 9 | 66 | 96 | 128 | **307** | `34.3·L + 20.5` | 351 → **85** MHz |
+| dyadic | 66 | 86 | 137 | 247 | `26.2·L + 35.9` | 382 → 106 MHz |
+| base 3 | 54 | 75 | 111 | **150** | `13.4·L + 47.2` | 372 → **149** MHz |
+
+> **T429. Confirmed: the post-route slope ratio is 1.95** against the yosys 2.41,
+> inside the forecast band. **T427a's compression applies to slopes as well as
+> totals**, and every per-layer figure quoted from T410 is overstated by ~23 %.
+
+> **T429a. Depth costs the clock, and it costs it unequally.** Over eight layers
+> Fmax falls **4.1×** for linear 9, **3.6×** for dyadic, and **2.5×** for base 3.
+> At `L = 8` base 3 runs at **149 MHz against linear's 85** — **1.75× faster and
+> 2.05× smaller** (150 LUT against 307). **The alphabet that computes least keeps
+> its clock**, which is the same mechanism as the area result and the first time
+> it has been measured in timing.
+
+> **T429b. The trade, stated once, post-route, with both costs.** At `L = 8`,
+> against `linear 9`: base 3 is **2.05× smaller, 1.75× faster**, and costs
+> **1.55 pp on Fashion (significant)** and **0.92 pp on UNSW (ns)** — T417. **That
+> is a decision a designer can make.** It is not a ranking, and no filter in the
+> sieve makes it for them.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
