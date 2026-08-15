@@ -9029,6 +9029,39 @@ broken SRL bitstream passed the wrong-part → ours acceptance criterion on ever
 attempt. **The criterion tests the configuration engine, not the design.** Pair
 it always with a design-specific readback that a wrong build cannot produce.
 
+### Lessons 825-829 (W755) — put the lesson in the tool, not in the tracker
+
+**825. A lesson that lives only in a file gets re-learned.** SRL16E was visible
+in `yostat`'s own output for a whole wave. Writing "read the cell list" into the
+tracker would have been the fourth such note. Instead `yostat` now **exits 2** on
+a known-bad primitive and names the flag. **The test of a lesson is whether the
+next person can skip it without knowing it exists.**
+
+**826. Fix the width, not the workaround.** The 31-bit payload was worked around
+for three waves — pre-shifts, masks, models of the truncation. A **33-bit
+register** absorbs the Exit1 clock and the limit is gone: 8/8 full words,
+including the `0x80000000` that used to vanish. **When a protocol constant keeps
+appearing in application code, it is the protocol that is wrong.**
+
+**827. The thing you apologise for may be the thing that works.** The activation
+was documented as *"a smooth surrogate someone (me) invented"* and replaced with
+the field's straight-through estimator — which lost by **0.77 pp**, with the
+learnable-threshold variant losing **2.66**. **An incumbent that has never been
+measured against its replacement is not obviously the weak part**, and calling it
+homemade is not evidence.
+
+**828. When every knob is measured and none explains the gap, say the gap is the
+architecture.** Alphabet, depth, width, connectivity, normalisation, training
+budget, calibration, activation — nine controlled interventions, and the
+84–87% ceiling survives all of them. **That is not an open question any more; it
+is a property of six-input truth tables on this task**, and continuing to hunt
+for a missing trick would now be a refusal to accept a measurement.
+
+**829. Check the exit code without a pipe.** `cmd | tail; echo $?` reports
+`tail`'s status, so the new guard looked like it exited 0 when it exited 2. **The
+oldest lesson in this file, in its fifth disguise** — after `head`, `tail`,
+`wc -l` and `grep -c`, now `$?` through a pipeline.
+
 ### How to update this tracker
 
 After closing a wave:
