@@ -9894,6 +9894,21 @@ Linear 9 is rank 1 in junta AND smallest of the top three -- but its near-ties
 cost 15% more, so the area win comes from truth-table coincidences (1+2=3, 1+3=4,
 2+2=4), not from junta degree (T445b). *Two wins can have two causes.*
 
+**966. A control that is secretly the baseline turns two results into one.**
+Frozen random scores ARE a random mask, so joint-minus-frozen (+1.18) and
+balanced-minus-random (+0.90) measure the same distance -- and the +0.20 between
+the two methods says they found the same thing (T446a). *Draw the arithmetic
+between experiments; three refutations collapsed into one explanation.*
+
+**967. "The mechanism failed" and "the mechanism arrived by an expensive route"
+are different findings.** Mask learning beat its own control by 1.18 pp and beat
+the free rule by 0.20. It works; it is just not worth its cost here (T446).
+
+**968. Close an axis with three methods and three controls, then say it is
+closed.** MI, magnitude pruning and joint soft masks all failed against a
+label-free coverage rule. The residual 6.90 pp is not connectivity, and that is
+now a measurement rather than a hunch (T446b).
+
 ### How to update this tracker
 
 After closing a wave:

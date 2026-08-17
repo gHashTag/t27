@@ -18621,4 +18621,61 @@ the last ~40 % smaller.*
 
 ---
 
+## W783c — mask learning recovers coverage balance and little else
+
+### T446 — the published method, implemented honestly, ties a free rule
+
+T443 refuted a magnitude *probe* and said explicitly that this was not a result
+about SparseLUT's method. Implemented properly: a score per `(input, neuron)`
+pair trained by gradient, a **straight-through top-`F`** mask so the hard fan-in
+holds forward while the gradient reaches every score, then hardening and retrain.
+
+**Registered forecast (T44):** *closes ≥ 1.5 pp over balanced coverage.*
+**Control:** identical machinery with the scores **frozen at random init** — every
+parameter, every epoch, no connectivity learning — so `joint − frozen` isolates
+mask learning from the capacity it drags in.
+
+| arm | accuracy | sd | penalty |
+|---|---:|---:|---:|
+| balanced coverage, label-free (T439) | 82.52 | 1.06 | 7.10 |
+| **joint soft mask** | **82.72** | 1.71 | **6.90** |
+| frozen scores (control) | 81.54 | 1.77 | 8.08 |
+
+| comparison | Δ | t | |
+|---|---:|---:|---|
+| joint vs balanced | **+0.20** | +0.36 | ns — **refuted** |
+| joint vs frozen (mask learning alone) | **+1.18** | +1.53 | ns |
+
+> **T446. Mask learning works, and it recovers what a free rule already gives.**
+> Against its own frozen control the joint mask is **+1.18 pp** — so the mechanism
+> is doing something. Against **balanced coverage** it is **+0.20 pp**. The
+> learning is not failing; **it is arriving at the same place by an expensive
+> route.**
+
+> **T446a. The arithmetic closes all three refutations at once.** Frozen scores
+> **are** a random mask (top-3 of random scores). So:
+>
+>     learned mask  −  random   =  +1.18 pp   (T446)
+>     balanced      −  random   =  +0.90 pp   (T439, n = 30, significant)
+>     learned       −  balanced =  +0.20 pp   (T446, not significant)
+>
+> **The two gains are the same gain.** Mutual information (T430), magnitude
+> pruning (T443) and joint mask learning (T446) all failed to beat balanced
+> coverage because **coverage balance is most of what connectivity learning finds
+> on this task**, and it costs no labels, no probe and no parameters.
+
+> **T446b. The connectivity axis is closed by measurement, not abandoned.** Three
+> distinct methods, each with its own control, each pre-registered, each refuted
+> against a rule that deals every feature an equal share of the fan-in slots.
+> **The residual 6.90 pp against the field's 4.79 is not connectivity.**
+
+> **T446c. What this does not say about SparseLUT.** They report 2.13 pp over a
+> random mask **on MNIST HDR**, and this measures 1.18 pp over a random mask **on
+> binarised UNSW-NB15** with a different relaxation and a 4-epoch score budget.
+> **Neither the task, the relaxation, nor the budget matches**, so their figure
+> stands. What is measured here is that **on this task, their axis and the free
+> rule are the same axis.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
