@@ -19647,4 +19647,68 @@ rather than failing silently.
 
 ---
 
+## W797 — a second spec to a verdict, and the read pattern is the board's
+
+### T471 — `e8m0.t27` answers from silicon, out-of-range probe included
+
+W796 carried one spec to a verdict. A wrapper for a second was written on the
+`ternary_link_jtag.v` pattern — `STARTUPE2` for the clock so no package pin is
+needed, a reset counter, `BSCANE2` returning `{A5A5A5A, 0, 1, beat, ok}`.
+
+The known-answer sweep is eight probes over `on_comb`, which the spec makes the
+**identity** on the 8-bit code space and a **saturation to the NaN code** outside
+it:
+
+| probe | 0 | 1 | 126 | 127 | 128 | 254 | 255 | **256** |
+|---|---|---|---|---|---|---|---|---|
+| expected | 0 | 1 | 126 | 127 | 128 | 254 | 255 | **255** |
+
+The last is the one that matters: `e8m0_exponent(256) = 129 > 127`, so the
+range guard must fire and return the NaN code rather than a wrapped one — the
+same thing the spec's own `encode_out_of_range_is_nan` test asserts in software.
+
+| | |
+|---|---|
+| yosys | **98 LUT, 56 CARRY4, 0 DSP48E1**, BSCANE2 ×1 |
+| BSCAN guard | `JTAG_CHAIN(1) at BSCAN1 -- agree` — **converged on the first attempt** |
+| bitstream | 9,730,816 B |
+| **boards 1:4 / 1:6 / 1:8** | `Done 0` → `Done 1` → **`0xa5a5a5a7`, ok=1**, three of three |
+
+> **T471. Two specifications now answer from silicon, and the corpus metric is no
+> longer one.** `ternary_link.t27` (W796) and `e8m0.t27` (here). **The guard
+> converged immediately for this design and needed four attempts for the other**,
+> which is the fixed-point behaviour T469 identified, seen from the other side:
+> the site is a property of the netlist, not a constant to be typed.
+
+### T472 — the flaky read is a property of the board, not the design
+
+T470b recorded that the magic word appears on different read indices per board
+and marked it **[измерено], not explained**. The second design settles it:
+
+| board | `ternary_link.t27` | `e8m0.t27` |
+|---|---|---|
+| 1:4 | index **[2]** | index **[2]** |
+| 1:6 | index **[1, 2]** | index **[1, 2]** |
+| 1:8 | index **[0, 1, 2]** | index **[0, 1, 2]** |
+
+> **T472. Identical, across two designs with different logic, different LUT
+> counts, different BSCAN chains and different bitstreams.** Board 1:4 always
+> needs three reads, 1:6 two, 1:8 one. **The pattern is the board's, and it is
+> reproducible.**
+
+> **T472a. The obvious hypothesis is settling time after configuration, and it is
+> not yet tested.** What is measured is that the variation is **design-independent
+> and board-ordered**; whether it tracks configuration-to-read delay, cable
+> position on the hub, or something else is unmeasured. **Naming the wrong cause
+> confidently is what the last thirteen waves cost, so it is left named and
+> untested.**
+
+> **T472b. A single-shot read would report board 1:4 as a failure on both
+> designs.** Twice now. **The retry-and-report design is not defensive
+> engineering, it is the difference between a result and a coin toss** — and
+> because the indices are printed rather than swallowed, the pattern became
+> visible without a single extra experiment.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

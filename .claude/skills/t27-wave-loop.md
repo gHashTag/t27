@@ -10207,6 +10207,19 @@ single-shot read would have called the first board a failure (T470b). *A flaky
 channel reported as pass/fail hides the flakiness; reported as indices it becomes
 a measurement.*
 
+### W797 — lessons 1019-1020
+
+**1019. A second instance turns an anomaly into a property.** The read-index
+pattern [2] / [1,2] / [0,1,2] looked like flakiness on one design; identical on a
+second design with different logic, LUT count, chain and bitstream, it is a
+BOARD property (T472). *The cheapest way to explain a one-off is to produce a
+second one.*
+
+**1020. Report the retry indices and the pattern arrives free.** No extra
+experiment was run: the indices were already printed, so the second design's run
+answered a question left open in the first (T472b). *Instrumentation that logs
+HOW a result was obtained pays for itself the next time the same code runs.*
+
 ### How to update this tracker
 
 After closing a wave:
