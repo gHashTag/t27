@@ -41,8 +41,22 @@ openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 --det
   Detected: micron N25Q128_3V  256 sectors  size: 128Mb
 ```
 
-Non-volatile programming is therefore available and is **not** performed
-autonomously: writing flash changes what the board boots on power-up.
+Non-volatile programming is available. It is **not** performed autonomously —
+writing flash changes what the board boots on power-up — but it was executed by
+the owner on 2026-08-17 and verified here:
+
+```
+openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 \
+               -f fpga/verilog/mvp_ternary_classifier_top_200t.bit
+```
+
+**Readback check (W794):** dumped 9,730,892 bytes; sync word `0xAA995566` sits at
+`.bit` offset 288 and flash offset 48; the 9,730,604-byte payload matches
+**100.0000 %** on a every-97th-byte sample and the first 4096 bytes are identical.
+
+Note: `--reset` is a modifier to an operation, not a standalone command, and
+`--detect` does not report DONE — so **boot-from-flash cannot be confirmed over
+JTAG alone**; it needs a power cycle.
 
 **Superseded note —** `--detect -f` aborts on a missing
 `spiOverJtag_xc7a200tfgg676.bit.gz`; Homebrew ships no 200T/fgg676 bridge and

@@ -19442,4 +19442,43 @@ file appearing anywhere**:
 
 ---
 
+## W794 — the classifier is in flash, verified byte for byte
+
+### T465 — non-volatile programming, done by the user, checked by readback
+
+T463b left non-volatile programming as the one action not taken autonomously:
+writing flash changes what a board boots on power-up, and the standing cron prompt
+is not an answer to a question about it. **Dmitrii ran it himself:**
+
+    openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 \
+                   -f fpga/verilog/mvp_ternary_classifier_top_200t.bit
+    Erasing: 100%   Writing: 100%   Done
+
+Verified by reading the flash back and comparing against the source file:
+
+| | |
+|---|---|
+| dumped | **9,730,892 bytes** — exactly the `.bit` size |
+| sync word `0xAA995566` | `.bit` offset **288** (after its ASCII header), flash offset **48** |
+| payload compared | **9,730,604 bytes** |
+| sampled every 97th byte | **100,316 / 100,316 match — 100.0000 %** |
+| first 4096 payload bytes | **byte-identical** |
+
+> **T465. The project's own ternary classifier is in non-volatile memory on board
+> 1:4, and the image is provably the one intended.** This is the strongest check
+> available over JTAG: `--reset` is a modifier to an operation rather than a
+> standalone command, and `--detect` does not report the DONE bit, so
+> **configuration-from-flash cannot be confirmed without a power cycle** — a
+> physical act. **Readback verifies the contents; only unplugging verifies the
+> boot.**
+
+> **T465a. The division of labour was the right one and is worth stating.** Every
+> reversible step — scan, detect, SRAM load on three dice, the controlled 0→1,
+> flash identification, flash readback — was taken autonomously. **The one
+> irreversible-in-effect step was left to the person whose boards they are**, and
+> it took him one command. *The boundary cost nothing and removed the only class
+> of mistake that would have been the user's to live with.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
