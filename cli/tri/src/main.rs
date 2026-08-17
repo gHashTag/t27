@@ -10,6 +10,7 @@ use std::process::Command;
 mod depin;
 mod fpga;
 mod hooks;
+mod rtl;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -57,6 +58,12 @@ enum Commands {
     Fpga {
         #[command(subcommand)]
         action: fpga::FpgaCmd,
+    },
+    /// The structural check t27.ai offers, run locally: five verdicts, the
+    /// yosys version beside the numbers, and no claim about correctness.
+    Rtl {
+        #[command(subcommand)]
+        action: rtl::RtlCmd,
     },
     /// Pure-Rust ports of repository commit / push gates.
     Hooks {
@@ -655,6 +662,7 @@ fn main() -> Result<()> {
         }
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
 
