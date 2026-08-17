@@ -20416,6 +20416,66 @@ registration, 0.872 and 0.916 would have been absorbed as "wider spread than
 expected" and the law would have survived in weakened prose. The interval, fixed
 in advance, is what made absorption impossible.
 
+## W805d -- a measurement that refuted its own premise
+
+### T494 -- the CFGMCLK measurement is VOID, and the half that survives is the interesting half [measured]
+
+FORECAST REGISTERED before sampling: every BSCAN wrapper in `fpga/verilog/`
+carries `reg [23:0] pre; if (pre == 0) beat <= ~beat;`, so `beat` toggles once
+per 2^24 cfgmclk cycles and `f = 2^24 / half-period`. UG470 gives CFGMCLK as
+65 MHz nominal over 50-80 MHz, so (1) all three dice land in [50, 80] MHz and
+(2) the spread between them is under 10%.
+
+RAW RESULT, chain 2, 90 s per die:
+
+    idx  samples   rate  edges  half-per   implied f   sd
+      0      953  10.6/s   757    0.0949s   176.73M   5.1%
+      1      936  10.4/s   735    0.0967s   173.49M   4.1%
+      2      936  10.4/s   719    0.0967s   173.42M   3.9%
+
+    spread 1.9%
+
+Clause 2 confirmed. Clause 1 apparently refuted at 174 MHz. THE REFUTATION IS
+VOID, on two independent premise failures, and reporting 174 MHz would have been
+a fabricated silicon measurement.
+
+FAILURE 1 -- BELOW NYQUIST. `read_word` opens and closes the FTDI device per
+call, giving 10.4 samples/s against a measured 0.095 s half-period: roughly ONE
+sample per half-period. The tell is in the data and was there before the number
+was: 757 edges in 953 samples is 0.79 edges per sample. A correctly sampled
+square wave gives edges/sample = 1/(samples per half-period), which at 65 MHz and
+10.4 Hz would be 0.37. A value approaching 0.5 and above is the signature of
+undersampling, where consecutive samples are effectively uncorrelated.
+
+FAILURE 2 -- THE DIVIDER IS NOT 2^24 IN THE DESIGN THAT WAS LOADED. The formula
+was read out of `e8m0_jtag.v` / `tnf17_jtag.v` / `phi_weights_jtag.v`, which do
+carry a 24-bit prescaler. The bitstream on the dice was built from
+`mvp_ternary_classifier_jtag_noport.v`, where `wire beat = led_r23` -- a counter
+bit inside the classifier core, at a rate this measurement never established. The
+constant 2^24 was applied to a design that does not contain it.
+
+WHAT SURVIVES, AND IT IS NOT NOTHING. All three dice ran the SAME bitstream, so
+whatever the divider is, it is identical across them, and the ratio of their beat
+rates is the ratio of their clock rates. **Three XC7A200T dice agree to 1.9%.**
+Since STARTUPE2's CFGMCLK is an internal ring oscillator with no crystal, that
+is a real process-variation bound: 1.9% across three parts, where UG470's
+tolerance envelope is +/-23%. The absolute frequency is unmeasured; the agreement
+is measured.
+
+THE FIX, stated so the next attempt is not the same attempt: hold the FTDI device
+open across the whole sample window instead of reopening per read (the 96 ms per
+call IS the period being measured), and sample a design whose divider is known by
+construction -- `e8m0_jtag.v` and its siblings qualify, `..._noport.v` does not.
+
+### T494a -- the premise was read from a sibling file, not the loaded one [self-critical]
+
+Four files in `fpga/verilog/` share the BSCAN wrapper pattern and three of them
+have the 24-bit prescaler. I read the pattern, confirmed it in three files, and
+did not check the fourth -- which was the one on the dice. Confirming a premise in
+the files that agree with it is not confirmation. The check that would have caught
+this costs one grep of the loaded design, and I ran that grep only AFTER the
+number came out wrong.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
