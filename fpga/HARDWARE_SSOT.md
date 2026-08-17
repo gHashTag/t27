@@ -10,6 +10,37 @@
 
 ---
 
+## W791 verification (2026-08-17) — SRAM path confirmed on all three dice
+
+Executed with `openFPGALoader 1.1.1` (Homebrew), profile `digilent_hs2`:
+
+```
+--scan-usb   001:004 / 001:006 / 001:008   0x0403:0x6014  Digilent  210512180081
+--detect     idcode 0x3636093  xilinx  artix a7 200t  xc7a200
+```
+
+**Acceptance criterion (drop Done with a foreign bitstream, then raise it):**
+
+| board | `ternary_mac_demo_top.bit` (xc7a100t) | `ternary_mac_demo_top_200t.bit` |
+|---|---|---|
+| `--busdev-num 1:4` | `Done 0x0`, `ID Error` | `isc_done 1 ... done 1` |
+| `--busdev-num 1:6` | `Done 0x0`, `ID error` | `done 1` |
+| `--busdev-num 1:8` | `Done 0x0`, `ID error` | `done 1` |
+
+Also reaching `done 1` on 1:4: `ternary_mac_demo_top_v2_200t.bit`,
+`mvp_ternary_classifier_top_200t.bit`, `mvp_ternary_classifier_jtag_200t.bit`.
+
+**Still blocked — flash only.** `--detect -f` aborts on a missing
+`spiOverJtag_xc7a200tfgg676.bit.gz`; Homebrew ships no 200T/fgg676 bridge and
+`fpga/tools/` carries only the **xc7a100t** one. Build the bridge for the correct
+die and the non-volatile path opens.
+
+**`CLAUDE.md` corrected the same day**: it forbade `openFPGALoader` on the grounds
+that it cannot drive a `0x03FD` cable — true, and irrelevant here, since no
+`0x03FD` cable is attached. That sentence was quoted as a hardware blocker for
+thirteen waves.
+
+
 ## 1. Target board (the one we build & flash for)
 
 | Field | Value |

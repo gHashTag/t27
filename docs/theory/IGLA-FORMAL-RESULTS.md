@@ -19310,4 +19310,41 @@ load ours and require the 0→1 transition; `done 1` alone proves nothing.*
 
 ---
 
+## W791b — four bitstreams on the die, and the one thing still blocked
+
+### T462 — every 200T artefact in the tree loads, and flash needs one missing file
+
+With the route open, everything the tree offers was put on board 1:4:
+
+| bitstream | `done 1` |
+|---|---|
+| `ternary_mac_demo_top_200t.bit` | yes |
+| `ternary_mac_demo_top_v2_200t.bit` | yes |
+| `mvp_ternary_classifier_top_200t.bit` | **yes** |
+| `mvp_ternary_classifier_jtag_200t.bit` | **yes** |
+
+> **T462. Four distinct bitstreams reach `done 1` on the target part, and two of
+> them are the project's own ternary classifier** rather than a MAC demo. Combined
+> with T461's three-die control, **SRAM configuration is fully working on this
+> bench.**
+
+> **T462a. Flash is blocked by a missing bridge, and that is the precise
+> statement that replaces "requires the cable".** `openFPGALoader --detect -f`
+> aborts with
+>
+>     fail to open .../spiOverJtag_xc7a200tfgg676.bit.gz
+>
+> Homebrew's 1.1.1 does not ship a 200T/fgg676 bridge, and `fpga/tools/` carries
+> only `spiOverJtag_xc7a100tfgg676.bit` — the **wrong die**. **One file stands
+> between this bench and non-volatile programming**, and it is buildable from the
+> openFPGALoader sources for the correct part.
+
+> **T462b. What the thirteen-wave blocker actually was, in one line.** Not a
+> cable, not a driver, not a permission: **a stale sentence in `CLAUDE.md` and a
+> missing `spiOverJtag` bitstream for the right die.** The first cost thirteen
+> waves of reported blockage; the second is still open and is now named precisely
+> enough to fix in one build.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
