@@ -21543,6 +21543,82 @@ result. I would not have run all 44 if I had believed the answer was small; I ra
 them because lesson 1075 forbids naming a class from a grep, and the rule paid
 for itself for the third time.
 
+## W813 -- one yosys pass was costing 31% of the corpus, and it buys us nothing
+
+### T529 -- THE BLOW-UP IS THE `share` PASS, AND IT IS WORTHLESS ON TERNARY ARITHMETIC [measured]
+
+T527 measured that 25 of 80 ported specs cannot be synthesised in bounded time.
+Before proposing a rewrite of the GFTernary numeric line -- a semantic change and
+not mine to make -- the cheaper question: is this fixable in the TOOL INVOCATION?
+
+FORECAST REGISTERED: the blow-up sits in an optimisation pass, so a flow that
+omits it completes `gft_layer3.t27` in bounded time and needs no spec changed.
+
+Reading the yosys log, the last pass header before 23,451 lines of
+`Activation pattern for cell $shr$...` is:
+
+    2.26. Executing SHARE pass (SAT-based resource sharing).
+
+`share` is inside `synth_xilinx`'s `coarse` label, and `-run` cannot skip a
+single pass -- only a label. So `coarse` was replayed verbatim minus `share`:
+
+    synth_xilinx -family xc7 -flatten -run :coarse
+    techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6
+    alumacc ; opt ; memory -nomap ; opt_clean
+    synth_xilinx -family xc7 -flatten -run map_memory:
+
+    rc 0, 39 s, activation-pattern lines: 0
+    13,821 LUT, 2,106 CARRY4, 0 DSP48E1
+
+CONFIRMED. From "never finishes" to 39 seconds by deleting one pass.
+
+**AND THE PASS BUYS US NOTHING BY CONSTRUCTION.** `share` is SAT-based resource
+sharing: it searches for arithmetic operators that can be time-multiplexed onto
+one instance. On a design whose arithmetic is ternary -- sign-select and add, no
+multipliers, 0 DSP48E1 measured everywhere -- **there is nothing to share.** The
+pass spends unbounded SAT time proving that a design has no reusable multipliers,
+which this project's whole thesis guarantees in advance. It is not a trade; it is
+a pass that cannot pay on this class of design.
+
+### T530 -- WIRED INTO THE PIPELINE, AND THE CONTROLS ARE BIT-IDENTICAL [measured, fixed]
+
+`bootstrap/src/service.rs` -- not under the FROZEN_HASH seal -- now runs the
+no-share flow. FORECAST REGISTERED before rebuilding: previously-passing specs
+report byte-identical cell counts, and the previously-blocked spec completes.
+
+    control  igla/race/ternary_lut_table   361 LUT, 26 CARRY4, 0 DSP    (W812: identical)
+                                           iverilog 16 PASSED, 0 FAILED
+    control  igla/race/ternary_mac          33 LUT, 10 CARRY4, 0 DSP    (W806: identical)
+    unblocked ternary/gft_layer3         13,821 LUT, 2,106 CARRY4, 0 DSP
+                                           yosys 48.46 s, was: never
+
+BOTH HALVES CONFIRMED. Removing `share` costs exactly zero on designs that
+synthesised before, and returns a design that could not be synthesised at all.
+
+Scale, for the record: 13,821 LUT is **6.4% of an XC7A200T**. A full BitNet layer
+in TNF float arithmetic fits this die with room for fifteen more, and until this
+wave the project could not have said so.
+
+### T531 -- my own test harness reported a syntax error as a timeout [self-critical]
+
+Screening yosys options, the run recorded as
+
+    synth_xilinx -flatten -noopt      over 90s (log 7,348 B)
+
+was nothing of the kind. `-noopt` is not a `synth_xilinx` option; yosys exited in
+about a second with `ERROR: Command syntax error`. My screen wrote
+`if TO 90 yosys ...; then OK; else over 90s; fi`, which reads ANY non-zero exit
+as a timeout.
+
+The tell was in the output and I nearly walked past it: the three real blow-ups
+logged 11-16 MB and this one logged 7 KB. A 2,000-fold difference in log size
+between runs reported identically is not a subtle signal.
+
+**A screen that maps every failure to one label is not a screen.** Distinguish
+"exceeded the bound" from "refused to start" -- they are the same shape as T523a's
+`0 PASSED, 0 FAILED` versus `KILLED`, and this is the fifth instance this month of
+a reporting layer collapsing two states the run distinguishes.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

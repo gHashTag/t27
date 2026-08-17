@@ -10671,6 +10671,30 @@ lesson 1071 describes. Measured: **zero** `abc` processes survive, because yosys
 reaps its own. The previous wave's mechanism did not transfer, and asserting it
 would have sent a wave chasing a fix for a problem that does not exist here.
 
+**1083. BEFORE PROPOSING A SEMANTIC REWRITE, ASK WHETHER THE TOOL INVOCATION IS
+THE BUG.** 25 of 80 ported specs could not be synthesised, and the obvious fix was
+rewriting GFTernary's float normalisation to use constant shifts. The actual fix
+was deleting ONE yosys pass. `synth_xilinx`'s `coarse` label runs `share`
+(SAT-based resource sharing); it does not terminate on variable-shift designs.
+`-run` skips labels, not passes, so replay `coarse` minus `share`:
+
+    synth_xilinx -family xc7 -flatten -run :coarse
+    techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6
+    alumacc ; opt ; memory -nomap ; opt_clean
+    synth_xilinx -family xc7 -flatten -run map_memory:
+
+gft_layer3: never -> 39 s, 13,821 LUT, zero activation-pattern lines. Controls
+byte-identical. **`share` searches for arithmetic to time-multiplex, and ternary
+arithmetic has none** -- it spends unbounded SAT time proving what this project's
+thesis guarantees in advance.
+
+**1084. A SCREEN THAT MAPS EVERY FAILURE TO ONE LABEL IS NOT A SCREEN.** My option
+sweep wrote `if TO 90 yosys ...; then OK; else "over 90s"; fi`, and reported
+`-noopt` -- which is not a valid option and errored in one second -- as a
+90-second timeout. The tell was there: the real blow-ups logged 11-16 MB, that one
+logged 7 KB. Two thousand times smaller, same label. Fifth instance this month of
+a reporting layer collapsing two states the run distinguishes.
+
 ### How to update this tracker
 
 After closing a wave:

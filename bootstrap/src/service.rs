@@ -663,7 +663,32 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
         let json_path = tmp.join(format!("{stem}.json"));
         let t = Instant::now();
         let script = format!(
-            "read_verilog -sv -DSIMULATION {}; synth_xilinx -family xc7 -flatten; write_json {}",
+            // W813 (T529): `synth_xilinx`'s `coarse` label runs `share`, a
+            // SAT-based resource-sharing pass, and on this corpus it does not
+            // terminate. Measured: `specs/ternary/gft_layer3.t27` produced
+            // 23,451 lines of `Activation pattern for cell $shr$...` with widths
+            // to 14 bits, a log growing 6.4 -> 30.5 MB in four minutes, and never
+            // finished. **25 of the 80 ported specs -- 31% -- were unreachable
+            // for this reason alone** (T527), every one of them in
+            // `specs/ternary/gft_*`, where TNF float normalisation compiles to
+            // variable-amount shifts and `share` enumerates their control
+            // conditions.
+            //
+            // `-run` cannot skip a single pass, only a label, so the `coarse`
+            // label is replayed here verbatim MINUS `share`. Everything else is
+            // byte-identical to what `synth_xilinx` would have run.
+            //
+            // Measured with this flow: gft_layer3 completes in 39 s at
+            // 13,821 LUT / 2,106 CARRY4 / 0 DSP48E1, and the activation-pattern
+            // count is ZERO. `share` looks for arithmetic to reuse; on a design
+            // whose arithmetic is already ternary there is nothing to find, so
+            // the pass costs everything and returns nothing.
+            "read_verilog -sv -DSIMULATION {}; \
+             synth_xilinx -family xc7 -flatten -run :coarse; \
+             techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6; \
+             alumacc; opt; memory -nomap; opt_clean; \
+             synth_xilinx -family xc7 -flatten -run map_memory:; \
+             write_json {}",
             v_path.display(), json_path.display()
         );
         let (c, out, err) = run(Command::new("yosys").args(["-p", &script]));
