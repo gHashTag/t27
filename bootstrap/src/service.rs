@@ -1299,7 +1299,16 @@ pub fn run_silicon(
     // on the next netlist change, and a WRONG chain reads all-zero, which is
     // indistinguishable from a design that is not on the board. So: place once,
     // read the site out of the FASM, and if it disagrees with the parameter,
-    // rebuild with `chparam` and place again. Two attempts, then fail.
+    // rebuild with `chparam` and place again.
+    //
+    // W796: TWO ATTEMPTS ARE NOT ENOUGH, because the cell MOVES when the
+    // parameter changes. Observed on specs/fpga/ternary_link.t27: the wrapper's
+    // own default (3) places at site 1; forcing 1 moves the cell to site 4; and
+    // the loop is out of attempts. This is a fixed-point iteration, not a
+    // one-shot correction, so it is given room to converge -- and if it CYCLES
+    // instead, the sequence of sites is printed, because that distinguishes
+    // "needs another turn" from "needs a placement constraint" and the two have
+    // opposite repairs.
     let json_path = tmp.join(format!("{stem}.json"));
     let fasm_path = tmp.join(format!("{stem}.fasm"));
     let mut sources = vec![v_path.to_string_lossy().to_string()];
@@ -1315,7 +1324,8 @@ pub fn run_silicon(
     let mut guard_stage: Option<Stage> = None;
     let mut derived_chain: Option<u32> = None;
 
-    for attempt in 0..2u32 {
+    let mut seen_sites: Vec<u32> = Vec::new();
+    for attempt in 0..6u32 {
         let t = Instant::now();
         let chparam = match chain_override {
             Some(n) => format!("chparam -set JTAG_CHAIN_N {n} {top_name}; "),
@@ -1415,7 +1425,20 @@ pub fn run_silicon(
         }
         // Disagreed. Adopt the SITE nextpnr chose and place once more.
         match sites.as_slice() {
-            [s] if attempt == 0 => chain_override = Some(*s),
+            [s] if seen_sites.contains(s) => {
+                // Same site twice: the iteration is cycling, not converging.
+                guard_stage = guard_stage.map(|mut g| {
+                    g.note = format!(
+                        "{} | CYCLES: sites {:?} -- needs a placement constraint, not another attempt",
+                        g.note, seen_sites);
+                    g
+                });
+                break;
+            }
+            [s] if attempt + 1 < 6 => {
+                seen_sites.push(*s);
+                chain_override = Some(*s);
+            }
             _ => break,
         }
     }

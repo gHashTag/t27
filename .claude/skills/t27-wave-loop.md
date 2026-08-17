@@ -10189,6 +10189,24 @@ wrapper's JTAG_CHAIN_N from 3 to 4 and the note still said "chain forced to 1":
 the flow overrides it. *Revert an inert edit rather than leaving it as evidence of
 an attempt -- it reads as a fix to the next person.*
 
+### W796 — lessons 1016-1018
+
+**1016. A fixed-point iteration given two steps is not a fixed-point iteration.**
+The BSCAN chain search moved the cell each time the parameter changed -- default 3
+placed at site 1, forcing 1 moved it to site 4 -- and the loop was written `0..2`.
+Six attempts converged at 4/4 with no placement constraint (T469). *When a search
+"almost" converges, count the turns it is allowed before designing a constraint.*
+
+**1017. `done 1` and an answer are different claims.** Configuration says the
+fabric accepted a bitstream; a value read back says the logic ran. Three waves
+reported the first as though it were progress toward the second (T470a).
+
+**1018. Show the retry indices, not just the result.** The magic word appeared on
+read index [2] for one board, [1,2] for another and [0,1,2] for the third -- a
+single-shot read would have called the first board a failure (T470b). *A flaky
+channel reported as pass/fail hides the flakiness; reported as indices it becomes
+a measurement.*
+
 ### How to update this tracker
 
 After closing a wave:

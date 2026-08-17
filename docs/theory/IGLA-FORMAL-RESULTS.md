@@ -19586,4 +19586,65 @@ emits `ZeroDSP_TernaryLink` and `fpga/verilog/ternary_link_jtag.v` wraps it.
 
 ---
 
+## W796 — the silicon answered, on all three dice
+
+### T469 — the chain search needed room to converge, not a constant
+
+T468 left the readback blocked at one stage: the guard detected
+`JTAG_CHAIN(1) enabled, BSCAN4 wired`, announced *"rebuilding at 4"*, and stopped.
+Reading `bootstrap/src/service.rs` (**not** under the FROZEN_HASH seal — only
+`compiler.rs` is) showed why the announcement never happened.
+
+**The cell moves when the parameter changes.** On `ternary_link.t27`: the
+wrapper's own default (3) places the `BSCANE2` at **site 1**; forcing chain 1
+moves it to **site 4**; and the loop, written for `0..2`, is out of attempts. **It
+is a fixed-point iteration and it was given two steps.**
+
+**Registered forecast (T44):** *a fixed point exists and is reached within six
+attempts; if the site sequence repeats instead, the repair is a placement
+constraint and not more iteration — and the cycle will be visible because the
+sites are now printed.*
+
+Changed: `0..2u32 → 0..6u32`, plus cycle detection that reports the site sequence
+rather than failing silently.
+
+    OK  yosys                118 LUT, 16 CARRY4, 0 DSP48E1 | BSCANE2 x1 | chain forced to 4
+    OK  BSCAN chain == site  JTAG_CHAIN(4) at BSCAN4 -- agree
+    OK  fasm2frames          22,698,060 B
+    OK  frames -> bitstream  9,730,824 B
+
+> **T469. Confirmed: the iteration converges at chain 4 / site 4.** No placement
+> constraint was needed. **The blocker was an off-by-one in the number of turns a
+> search was allowed**, in a file nobody had to unseal.
+
+### T470 — a verdict read back off three dice
+
+| board | wrong part | ours | **USER4 read** |
+|---|---|---|---|
+| **1:4** | `Done Some(0)` | `Done Some(1)` | **`0xa5a5a5a7` — magic, ok=1, beat=1**, index [2] |
+| **1:6** | `Done Some(0)` | `Done Some(1)` | **`0xa5a5a5a7`**, index [1, 2] |
+| **1:8** | `Done Some(0)` | `Done Some(1)` | **`0xa5a5a5a7`**, index [0, 1, 2] |
+
+> **T470. `PASS -- the silicon answered, and its answer is ok=1`, three times.**
+> This is the project's stated goal for its FPGA line — *carry a spec all the way
+> to a verdict read back off the die* — and it is now met: `specs/fpga/
+> ternary_link.t27` → Verilog → yosys with **zero forbidden primitives** →
+> nextpnr on the chipdb built in W794 → FASM → bitstream → a die that reports
+> `Done 0` under a foreign image and `Done 1` under ours, and then **returns a
+> computed word through JTAG USER4**.
+
+> **T470a. `done 1` and an answer are different claims, and the difference is the
+> whole point.** T461 established configuration on three dice; that says the
+> fabric accepted a bitstream. **T470 says the logic ran and produced the value
+> the spec predicts.** Everything between them was one search bound.
+
+> **T470b. The read is not stable on the first attempt, and the tool shows it.**
+> The magic appeared on index `[2]` for board 1:4, `[1, 2]` for 1:6 and
+> `[0, 1, 2]` for 1:8 — so the first one or two reads after configuration return
+> something else on two of three boards. **A single-shot read would have called
+> board 1:4 a failure.** The retry-and-report design is why this is a result
+> rather than a coin toss, and the variation is **[измерено]**, not explained.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
