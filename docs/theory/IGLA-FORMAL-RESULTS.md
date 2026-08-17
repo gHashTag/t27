@@ -22686,6 +22686,80 @@ am publishing too early. **Both readings are available and I do not have the
 evidence to choose between them**; the ratio of confirmed to refuted forecasts
 over the next several waves would settle it.
 
+## W828 -- a XOR perceptron's training step on three dice, and a refuted prediction of harm
+
+### T568 -- DEPTH, NOT WIDTH, SETS THE PERIOD [measured]
+
+`specs/ternary/gft_xorpercep.t27` is one training step of a two-hidden-unit
+perceptron: `s = x0+x1`, `h0 = relu(s)`, `h1 = relu(s-1)`, predict from
+`z = v0*h0 + v1*h1`, step both weights. It measures
+
+    10,914 LUT, 1,885 CARRY4, 0 DSP48E1     1.01 DUT-equivalents
+    critical path 2.93 MHz
+
+against `gft_signed_dot4`'s 12,724 LUT at 7.16 MHz (T551). **Smaller and 2.4x
+slower**, because the chain is relu, multiply, add, multiply, add in SERIES where
+the dot product's four multiplies are parallel. Width fills the die; depth sets
+the clock, and the two are independent.
+
+The wrapper therefore divides by 32 rather than 16 -- 70.77/32 = 2.21 MHz against
+a 2.93 MHz path, a 1.33x margin declared in `gft_xorpercep_jtag.xdc`.
+
+Place-and-route took **320.74 s**. Under the 300 s bound in force until W827 this
+design would have been killed; the raise was needed on the very next wave, which
+is a better argument for it than the arithmetic that justified it.
+
+### T569 -- THE PREDICTION OF HARM IS REFUTED: A ZERO LEARNING RATE DOES NOTHING [measured]
+
+W821 found that `smul` has no zero special case, so `0 * x != 0` (T552). The
+update rule is `v0' = sadd(v0, neg(smul(eta, smul(g, h0))))`, so I reasoned that a
+zero learning rate would still move the weights -- that **"do not learn" is not
+expressible in this numeric line** -- and registered `c_eta0 = 0` before building.
+
+All three dice, loaded with the same build:
+
+    chain 3 idx 0/1/2:  0xa5a5a1f7
+      c_gold = 1   the spec's own `test upd` vector reproduces on silicon
+      c_eta0 = 1   eta = 0 leaves (v0, v1) EXACTLY unchanged
+      c_non  = 1   the gold case does move v0 off zero, so the above is not vacuous
+      c_ind  = 1   an independently-driven live input yields a varying result
+      ok     = 1
+
+**REFUTED.** T552's algebraic violation is real and its consequence here is
+nothing.
+
+THE LIKELY MECHANISM, and it is NOT established. `smul(0, x)` returns a
+sign-tagged product of magnitude fields rather than zero, but in TNF a zero
+magnitude field encodes a very small number -- so the spurious term is tiny, and
+`sadd(v0, neg(tiny))` rounds back to `v0`. The defect is absorbed by the addition
+rather than propagating. That is the explanation that fits, and I have not
+verified it against `magmul`'s semantics; it is a hypothesis, and the measured
+fact is only that the weights do not move.
+
+WHAT THIS CHANGES ABOUT T552. Nothing about its correctness -- `0*x != 0` still
+holds and the annihilation clause in `gft_signed_dot4_jtag.v` still fails
+honestly. What changes is its **severity**: I extrapolated from an identity
+failing to a training step being broken, without checking whether the magnitudes
+involved could reach a weight. **An algebraic violation is not automatically a
+functional one**, and the distance between them is measurable in exactly the way
+this wave measured it.
+
+### T569a -- the first wave in five with no withdrawal [derived]
+
+W827 asked whether four waves of self-correction meant the measurements were
+getting sharp enough to catch each other, or that I was publishing too early, and
+said the ratio of confirmed to refuted forecasts over the following waves would
+settle it. This is the first data point.
+
+A forecast was refuted here -- `c_eta0` -- and that is ordinary science: a
+prediction registered before the measurement, then contradicted by it. **No
+previously published claim was withdrawn.** T552 stands unchanged; only my
+extrapolation from it was wrong, and that extrapolation had never been asserted
+as a result.
+
+One wave is not evidence either way. The count starts here: **withdrawals 0,
+refuted forecasts 1, confirmed 0** for W828.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

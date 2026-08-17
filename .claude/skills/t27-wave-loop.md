@@ -11026,6 +11026,25 @@ with 12% margin and buys 28,600 LUT = 13% of an XC7A200T. Deferred three waves o
 purpose: W823's rule is that raising a limit because something failed turns a
 timeout into decoration. Raise it when a slope and a largest-design number say to.
 
+**1132. DEPTH SETS THE CLOCK; WIDTH FILLS THE DIE.** `gft_xorpercep` is 10,914
+LUT at **2.93 MHz**; `gft_signed_dot4` is 12,724 LUT at **7.16 MHz**. Smaller and
+2.4x slower, because the perceptron's relu-multiply-add-multiply-add is in SERIES
+where the dot product's four multiplies are parallel. Pick the divider from the
+chain's depth, not from its cell count.
+
+**1133. AN ALGEBRAIC VIOLATION IS NOT AUTOMATICALLY A FUNCTIONAL ONE.** T552
+measured `0*x != 0` on silicon. I extrapolated that a zero learning rate would
+therefore move the weights, registered `c_eta0 = 0`, and three dice returned
+`c_eta0 = 1`. The spurious product is too small for `sadd` to keep, so the
+addition absorbs it. Measure the MAGNITUDES before predicting that a broken
+identity breaks a computation.
+
+**1134. A VERSION NIBBLE SEPARATES LAYOUTS, NOT DESIGNS.** Reading three dice
+after programming one, all three showed `v=1, clauses=1111, ok=1` -- because
+`ternary_node` from W820 is also layout v1 and its four clauses were also true.
+The nibble did its job (legacy versus v1) and cannot do the other one. Load the
+same build on every board before attributing a fleet-wide read, as W820 did.
+
 ### How to update this tracker
 
 After closing a wave:
