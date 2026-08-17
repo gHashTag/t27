@@ -21878,6 +21878,65 @@ bug also revealed that this number is not perfectly stable across placements --
 8 versus 371 is not in question, but quoting a CARRY4 count to three digits as if
 it were a property of the design would be wrong.
 
+## W817 -- the gate completed, and tested in the direction that matters
+
+### T539 -- THE DUT IS NOW SYNTHESISED ALONE, SO "AT THE FLOOR" BECOMES A VERDICT [fixed]
+
+W816 shipped the CARRY4 number and named what it might mean. It could not say
+WHICH, because sitting at the floor is honest for a DUT with no arithmetic --
+`tnf17`'s negate is a sign-bit flip, 0 LUT -- and dishonest for one that has some.
+T538a deferred the separation because it needs a second synthesis.
+
+That second synthesis is now in `t27c silicon`: the DUT Verilog is built alone
+with the no-share flow (T529) and its CARRY4 compared against the wrapper's. Four
+verdicts, and only one of them fails the run:
+
+    wrapper_carry > floor                  -> live on the die
+    wrapper_carry == floor, dut_carry == 0 -> nothing was lost, the port is wiring
+    wrapper_carry == floor, dut_carry > 0  -> FOLDED, and the run STOPS
+    dut synthesis did not complete         -> NOT ESTABLISHED, said in those words
+
+FORECAST REGISTERED before building: three LIVE, three nothing-was-lost, zero
+FOLDED -- the last because `ternary_node` was repaired in W815. CONFIRMED exactly:
+
+    gft_bitnet_neuron_jtag   371 CARRY4 in the fabric
+    ternary_node_jtag         40 CARRY4 in the fabric
+    e8m0_jtag                 28 CARRY4 in the fabric
+    tnf17_jtag                 8 == floor, DUT ALONE has 0 -- nothing lost
+    phi_weights_jtag           8 == floor, DUT ALONE has 0 -- nothing lost
+    ternary_link_jtag          8 == floor, DUT ALONE has 0 -- nothing lost
+
+### T540 -- AND THE FAILING BRANCH WAS TESTED, BECAUSE A GATE THAT NEVER FIRED PROVES NOTHING [measured]
+
+Lesson 1072 says a check that has never fired is evidence of nothing until the day
+it fires. A gate whose only evidence is six passes is exactly that. So the fold
+was reconstructed deliberately: `ternary_node_jtag` with its activations reverted
+to the literals `32'sd7` and `32'sd11`.
+
+    FAIL  datapath survives  2.37s  1
+          FOLDED: 8 CARRY4 == floor while the DUT ALONE needs 24. The probes are
+          constants and Yosys answered at synthesis time -- this verdict is about
+          the compilation path, not the datapath
+    FAIL -- the build did not complete. Nothing was loaded.
+
+CONFIRMED. The gate names the numbers on both sides, says which conclusion
+follows, and **refuses to load the bitstream**. The defect that ran silently for
+four months now cannot reach a die.
+
+### T540a -- what the four-verdict shape is actually for [derived]
+
+Three of the four outcomes pass, and that is the design, not a weakness. A binary
+gate on this signal would have had to choose between condemning three honest
+wrappers and letting one dishonest one through -- T536 measured that the two
+populations are not separable by the wrapper's own number.
+
+The fourth verdict is the one worth naming separately: when the DUT-alone
+synthesis fails, the stage says **NOT ESTABLISHED** rather than passing. That is
+the same distinction this month's failures kept collapsing -- `0 PASSED, 0 FAILED`
+against `KILLED` (T523a), a syntax error against a timeout (T531), a stale
+artefact against a live one (T513). A gate that cannot compute its own verdict
+must say so, not default to the answer that is quieter.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

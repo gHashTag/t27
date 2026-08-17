@@ -1559,26 +1559,60 @@ pub fn run_silicon(
         // removes nothing that existed, and condemning them would be an
         // accusation rather than an audit (T536).
         //
-        // So this stage reports the number and names what it means. It does NOT
-        // fail the run, because the judgement needs the DUT-alone CARRY4 count and
-        // that costs a second synthesis; what it removes is the silence. A figure
-        // that has to be noticed is not a check, and this one went unnoticed for
-        // four months while it was sitting in the yosys line all along.
+        // W817 (T539): the second half. W816 shipped the number and named what it
+        // might mean; it could not say WHICH, because "at the floor" is honest for
+        // a DUT that has no arithmetic to begin with -- `tnf17`'s negate is a
+        // sign-bit flip, 0 LUT -- and dishonest for one that does. Separating them
+        // needs the DUT synthesised ALONE, which is one more yosys run of a few
+        // seconds, and that is cheap against four months of a silent wrong answer.
+        let t_dp = Instant::now();
         let wrapper_carry = carry4_count(&log);
+        let (dc, dout, _) = run(Command::new("yosys").args([
+            "-p",
+            &format!(
+                "read_verilog -sv {}; \
+                 synth_xilinx -family xc7 -flatten -run :coarse; \
+                 techmap -map +/cmp2lut.v -map +/cmp2lcu.v -D LUT_WIDTH=6; \
+                 alumacc; opt; memory -nomap; opt_clean; \
+                 synth_xilinx -family xc7 -flatten -run map_memory:; stat",
+                v_path.display()
+            ),
+        ]));
+        let dut_carry = if dc == Some(0) { Some(carry4_count(&dout)) } else { None };
+        let (dp_code, dp_note) = match (wrapper_carry > WRAPPER_CARRY4_FLOOR, dut_carry) {
+            (true, _) => (
+                Some(0),
+                format!("{wrapper_carry} CARRY4 in the fabric -- arithmetic is live on the die"),
+            ),
+            (false, Some(0)) => (
+                Some(0),
+                format!(
+                    "{wrapper_carry} CARRY4 == floor, and the DUT ALONE has 0 -- \
+                     nothing was lost; this spec's port is pure wiring"
+                ),
+            ),
+            (false, Some(d)) => (
+                Some(1),
+                format!(
+                    "FOLDED: {wrapper_carry} CARRY4 == floor while the DUT ALONE needs {d}. \
+                     The probes are constants and Yosys answered at synthesis time -- this \
+                     verdict is about the compilation path, not the datapath (T534/T536)"
+                ),
+            ),
+            (false, None) => (
+                Some(0),
+                format!(
+                    "{wrapper_carry} CARRY4 == floor; the DUT-alone synthesis did not \
+                     complete, so whether anything was lost is NOT ESTABLISHED"
+                ),
+            ),
+        };
         datapath_stage = Some(Stage {
             name: "datapath survives",
-            secs: 0.0,
-            code: Some(0),
+            secs: t_dp.elapsed().as_secs_f64(),
+            code: dp_code,
             artefact: None,
-            note: if wrapper_carry > WRAPPER_CARRY4_FLOOR {
-                format!("{wrapper_carry} CARRY4 in the fabric -- arithmetic is live on the die")
-            } else {
-                format!(
-                    "{wrapper_carry} CARRY4 == the wrapper floor ({WRAPPER_CARRY4_FLOOR}): \
-                     NO arithmetic reached the fabric. If this DUT has any, the probes are \
-                     constants and Yosys answered at synthesis time (T534/T536)"
-                )
-            },
+            note: dp_note,
         });
 
         let t = Instant::now();

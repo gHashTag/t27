@@ -10761,6 +10761,27 @@ because each attempt re-places the BSCAN cell -- so a CARRY4 count is not stable
 to three digits across placements. 8 versus 371 is safe; quoting 371 as a property
 of the design is not.
 
+**1094. TEST THE BRANCH THAT FAILS, OR THE GATE IS SIX PASSES AND A HOPE.** The
+completed datapath gate passed all six wrappers, which proves only that it does
+not fire spuriously. The fold was then RECONSTRUCTED on purpose -- `ternary_node`
+with its activations reverted to literals -- and the gate answered
+`FOLDED: 8 CARRY4 == floor while the DUT ALONE needs 24` with a non-zero code and
+refused to load the bitstream. Lesson 1072 in the other direction: a check that
+has never fired is evidence of nothing, and you can make it fire yourself.
+
+**1095. A GATE THAT CANNOT COMPUTE ITS VERDICT MUST SAY SO, NOT PASS.** The
+datapath gate has four outcomes, and the fourth is "the DUT-alone synthesis did
+not complete, so whether anything was lost is NOT ESTABLISHED". Defaulting that to
+a pass would repeat this month's recurring defect -- `0 PASSED, 0 FAILED` versus
+`KILLED`, a syntax error versus a timeout, a stale artefact versus a live one.
+Three names for the same mistake: the quiet answer is not the safe one.
+
+**1096. When two populations are not separable by one number, do not build a
+binary gate.** T536 measured that wrapper CARRY4 alone cannot distinguish a
+wrapper that folded away real arithmetic from one whose DUT never had any. A
+pass/fail gate on that number had to be wrong in one direction. The fix was a
+SECOND measurement -- the DUT synthesised alone -- not a cleverer threshold.
+
 ### How to update this tracker
 
 After closing a wave:
