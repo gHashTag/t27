@@ -10782,6 +10782,34 @@ wrapper that folded away real arithmetic from one whose DUT never had any. A
 pass/fail gate on that number had to be wrong in one direction. The fix was a
 SECOND measurement -- the DUT synthesised alone -- not a cleverer threshold.
 
+**1097. A CLOCK DIVIDER IS NOT A TIMING CONSTRAINT.** Dividing `cfgmclk` by 16
+through a BUFG changed the reported frequency from 7.53 to 7.60 MHz and failed
+just the same, because without `--freq` or an XDC every clock nextpnr discovers
+gets the same default. The RTL knows the ratio; the timing engine does not. Tell
+it, or the divider is decoration.
+
+**1098. AN UNSTATED DEFAULT IS A CLAIM, AND IT IS THE ONE NOBODY AUDITS.**
+`nextpnr-xilinx` with no `--freq` targets **12 MHz**. T495 measured CFGMCLK on
+these dice at **70.77 / 68.49 / 67.20 MHz** four waves earlier. Every design this
+project ever placed was checked at 5.7x below the clock it is driven at, and
+re-placing at the real figure turned `gft_bitnet_neuron` from PASS into
+**11.26 MHz FAIL** -- the design whose silicon verdict had been published and
+written into the SSOT. The flow now passes `--freq 70.77` and says so in the stage
+name.
+
+**1099. Target the FASTEST die, not the mean.** Three dice measure 70.77, 68.49
+and 67.20 MHz. A design that must run on all three has to survive the shortest
+period, so the conservative timing target is the LARGEST measured frequency.
+Using the mean would leave the fastest die unchecked -- which is the one most
+likely to fail.
+
+**1100. The reporting defect reached physics.** Four times this month a layer
+reported something the run had not established (a doubled census, a stale
+artefact, a collapsed state, a syntax error as a timeout). The fifth was a
+constant inside a third-party placer that defined what PASS meant for every
+design here and appears nowhere in this repository. Audit the defaults of tools
+you did not write, and prefer flags that put the number in the output.
+
 ### How to update this tracker
 
 After closing a wave:

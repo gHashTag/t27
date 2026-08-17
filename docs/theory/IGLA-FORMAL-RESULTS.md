@@ -21937,6 +21937,84 @@ against `KILLED` (T523a), a syntax error against a timeout (T531), a stale
 artefact against a live one (T513). A gate that cannot compute its own verdict
 must say so, not default to the answer that is quieter.
 
+## W818 -- everything was placed against a clock the die does not have
+
+### T541 -- a TNF float gradient step runs at 7.6 MHz, and a divider is NOT a constraint [measured]
+
+`specs/ternary/gft_train1.t27` is one training update -- predict, error, gradient,
+step -- and it is the first design in this project to fail place-and-route:
+
+    yosys              3,245 LUT, 593 CARRY4, 0 DSP48E1
+    datapath survives  593 CARRY4 in the fabric -- live
+    nextpnr            ERROR: Max frequency for clock 'cfgmclk': 7.53 MHz
+
+FORECAST REGISTERED: clocking the wrapper from `cfgmclk/16` closes timing, since
+the design is genuinely multicycle -- `live` advances once per 2^24 ticks and
+nothing must settle in one raw period.
+
+**REFUTED.** With a BUFG divider the report reads `Max frequency for clock
+'slowclk': 7.60 MHz (FAIL at 12.00 MHz)`. Dividing a clock in RTL tells the
+timing engine nothing: without a constraint every clock it discovers gets the
+same default. **A clock divider is not a timing constraint**, and the stage was
+named `nextpnr (no XDC)` all along.
+
+### T542 -- THE DEFAULT WAS 12 MHz AND THE DIE RUNS AT 68-71 [measured, fixed]
+
+Chasing that default found the larger thing. `nextpnr-xilinx` with no `--freq`
+and no XDC targets **12 MHz**, a number from nowhere, and T495 measured CFGMCLK
+on these three dice at **70.77 / 68.49 / 67.20 MHz**. Every design this project
+has ever placed was checked against a frequency **5.7x below** the one it is
+driven at.
+
+FORECAST REGISTERED before re-placing: the neuron, which passed at the implicit
+12 MHz, fails at the measured clock. Re-placing three existing designs:
+
+    ternary_node        216.08 MHz   PASS
+    e8m0                 78.63 MHz   PASS
+    gft_bitnet_neuron     11.26 MHz   FAIL
+
+CONFIRMED. `bootstrap/src/service.rs` now passes `--freq 70.77` and the stage is
+named `nextpnr @70.77MHz (T495 measured)`, so the number is on every line rather
+than implied. 70.77 is the FASTEST of the three dice, not the mean: a design that
+must run on all three has to survive the shortest period, so the conservative
+target is the largest measured frequency.
+
+### T543 -- T535 IS WITHDRAWN: THE NEURON'S SILICON VERDICT WAS NOT SOUND [self-critical]
+
+W814 reported `gft_bitnet_neuron` as "the first TNF-float computation this project
+has read back off a die", `ok=1` with all four clauses true on all three boards,
+and W815 put it in `HARDWARE_SSOT.md`.
+
+That design meets timing at **11.26 MHz** and is clocked at **68-71 MHz**. It is
+six times over its limit. The `ok=1` I read is not evidence that the arithmetic is
+right; it is a value sampled from a datapath that cannot have settled, and the
+BSCAN readback runs on DRCK, a different clock, so a stale or metastable latch
+reads out perfectly cleanly.
+
+**The verdict is withdrawn.** What survives from W814 is narrower and still worth
+having: the spec synthesises, places, loads, and the die answers -- the
+compilation and load path is sound. What does not survive is any claim about the
+arithmetic.
+
+WHAT STANDS. `ternary_node` at 216 MHz and `e8m0` at 78.6 MHz pass at the measured
+clock, so their verdicts are unaffected. The three at the wrapper floor
+(`tnf17`, `phi_weights`, `ternary_link`) are trivial designs and pass trivially.
+
+### T543a -- this is the same defect for the fifth time, now in physics rather than software [self-critical]
+
+    T500  a cell census that doubled              -- reported a number that was not measured
+    T513  a stale artefact reported as live       -- reported a file that was not written
+    T523a `0 PASSED, 0 FAILED` versus `KILLED`    -- reported a state that was not distinguished
+    T531  a syntax error reported as a timeout    -- reported a failure that was not the failure
+    T542  placement against a clock that is not the clock
+
+Four were in reporting code I could read. This one is in a DEFAULT -- a constant
+inside a third-party tool, never written down anywhere in this repository, that
+silently defined what "PASS" meant for every design ever placed here. The lesson
+generalises past software: **an unstated default is a claim, and it is the claim
+nobody audits.** The measured clock had been sitting in T495 for four waves while
+the placer used 12.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

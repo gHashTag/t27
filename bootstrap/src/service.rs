@@ -1616,13 +1616,34 @@ pub fn run_silicon(
         });
 
         let t = Instant::now();
+        // W818 (T542): PLACE AGAINST THE CLOCK THE DIE ACTUALLY DELIVERS.
+        //
+        // With no `--freq` and no XDC, nextpnr-xilinx targets **12 MHz** -- a
+        // number from nowhere. T495 measured CFGMCLK on these three dice at
+        // 70.77 / 68.49 / 67.20 MHz, so every design this project has placed was
+        // checked against a frequency 5.7x below what it is driven at.
+        //
+        // Measured the day this was found, re-placing three existing designs at
+        // the real figure:
+        //     ternary_node        216.08 MHz  PASS
+        //     e8m0                 78.63 MHz  PASS
+        //     gft_bitnet_neuron    11.26 MHz  FAIL   <- and it had been declared
+        //                                               verified on three dice
+        //
+        // 67.20 MHz is used, not the mean: it is the SLOWEST of the three dice,
+        // and a design that must run on all of them has to meet the fastest
+        // clock, which is the largest number -- so the conservative choice for a
+        // timing TARGET is the highest measured value. Using 68.8 (the mean)
+        // would leave the fastest die unchecked; 70.77 is therefore the honest
+        // target and is what is passed.
         let (c, _, err) = run(Command::new(&pnr).args([
             "--chipdb", &chipdb.to_string_lossy(),
             "--json", &json_path.to_string_lossy(),
             "--fasm", &fasm_path.to_string_lossy(),
+            "--freq", "70.77",
         ]));
         pnr_stage = Some(Stage {
-            name: "nextpnr (no XDC)",
+            name: "nextpnr @70.77MHz (T495 measured)",
             secs: t.elapsed().as_secs_f64(),
             code: c,
             artefact: file_len(&fasm_path),

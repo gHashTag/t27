@@ -116,6 +116,24 @@ that it cannot drive a `0x03FD` cable — true, and irrelevant here, since no
 thirteen waves.
 
 
+## ⚠ W818 CORRECTION — the W814 neuron verdict below is WITHDRAWN (T543)
+
+`gft_bitnet_neuron` meets timing at **11.26 MHz** and these dice run CFGMCLK at
+**70.77 / 68.49 / 67.20 MHz** (T495). It was placed against nextpnr's unstated
+**12 MHz** default and is therefore six times over its limit. The `ok=1` read from
+three boards is not evidence about the arithmetic — the BSCAN readback runs on
+DRCK, a different clock, so an unsettled latch reads out cleanly.
+
+**What stands:** the spec synthesises, places, loads, and the die answers — the
+compilation and load path is sound. **What does not:** any claim about the
+computation. `ternary_node` (216 MHz) and `e8m0` (78.6 MHz) pass at the measured
+clock and are unaffected.
+
+`t27c silicon` now passes `--freq 70.77` — the fastest of the three dice, because
+a design that must run on all of them has to survive the shortest period.
+
+---
+
 ## W814 verification (2026-08-18) — a GFTernary float neuron on all three dice
 
 `specs/ternary/gft_bitnet_neuron.t27` — a four-tap BitNet neuron over signed GF-T
