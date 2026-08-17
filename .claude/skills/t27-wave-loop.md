@@ -10220,6 +10220,23 @@ experiment was run: the indices were already printed, so the second design's run
 answered a question left open in the first (T472b). *Instrumentation that logs
 HOW a result was obtained pays for itself the next time the same code runs.*
 
+### W798 — lessons 1021-1023
+
+**1021. A property test beats a constant table, and needs a non-triviality
+clause.** The TNF17 check is `on_comb(on_comb(x)) == x` with a second instance --
+no golden values, so no risk of checking a spec against itself. But an involution
+test passes on a WIRE, so a second bit requires that some probe actually moved
+(T473a).
+
+**1022. A denominator can contain a category error.** golden_sieve.t27 has no
+data port and cannot reach a die -- correctly, because it is entirely predicates
+and comptime invariants. "3 of 6 specs answered" counts a proof-only file as a
+failure; "3 of 5 with a boundary" is the number that means something (T474a).
+
+**1023. Three instances make a property.** The per-board read indices held across
+a third design with different LUT count, chain and bitstream. *One is an anomaly,
+two is a pattern, three is something to put in the SSOT.*
+
 ### How to update this tracker
 
 After closing a wave:

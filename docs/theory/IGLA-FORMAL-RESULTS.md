@@ -19711,4 +19711,70 @@ and marked it **[измерено], not explained**. The second design settles i
 
 ---
 
+## W798 — three specifications answer, and one cannot
+
+### T473 — an involution checked on silicon, with no golden constants
+
+`tnf17.t27` sets `on_comb(x) = tnf_negate(x)`, and negation of a sign-magnitude
+float is an **involution**. So the known-answer test needs no expected values —
+it needs a second instance:
+
+    x --> [TNF17] --> r1 --> [TNF17] --> r2      require r2 == x
+
+> **T473. A table of constants derived from the same spec checks nothing.** This
+> checks an algebraic property the hardware either has or does not, and **no
+> golden model was written to produce it.** The wrapper instantiates the generated
+> module **twice** and compares the round trip.
+
+> **T473a. And the second half is what makes the first mean anything.** An
+> involution test passes trivially if `on_comb` is the **identity**, so a separate
+> bit requires that at least one probe actually **moved** — `r1 != x`. Both must
+> hold for `ok`. *A property test without a non-triviality clause is a test that
+> a wire passes.*
+
+| | `ternary_link` | `e8m0` | **`tnf17`** |
+|---|---:|---:|---:|
+| LUT | 118 | 98 | **86** |
+| CARRY4 | 16 | 56 | **16** |
+| DSP48E1 / SRL16E | 0 / 0 | 0 / 0 | **0 / 0** |
+| BSCAN chain | 4 (4 attempts) | 1 (1 attempt) | **4 (4 attempts)** |
+| boards answering | 3 / 3 | 3 / 3 | **3 / 3** |
+| verdict | `0xa5a5a5a7` ok=1 | `0xa5a5a5a7` ok=1 | **`0xa5a5a5a7` ok=1** |
+
+### T474 — the corpus metric, and the specs that cannot reach a die at all
+
+Surveying the mission's "ready artefacts" for a **data port**, which T81/T187
+make the precondition for a module to synthesise to anything:
+
+| spec | module | `on_comb`/`on_clock` | can reach a die |
+|---|---|---:|---|
+| `tnf17.t27` | `TNF17` | 1 | **yes — done** |
+| `ternary_link.t27` | `ZeroDSP_TernaryLink` | 1 | **yes — done** |
+| `e8m0.t27` | `E8M0` | 1 | **yes — done** |
+| `ternary_node.t27` | `IglaRaceTernaryNode` | 1 | yes — wrapper needed |
+| `phi_weights.t27` | `IglaRacePhiWeights` | 1 | yes — wrapper needed |
+| **`golden_sieve.t27`** | `numeric-golden-sieve` | **0** | **no — no boundary** |
+
+> **T474. The golden sieve cannot reach a die, and that is correct rather than a
+> gap.** It is a file of predicates and comptime invariants — `s1_packing`,
+> `s6_no_domination`, `ladder_survives_s6` — with **8 invariants proved at compile
+> time and nothing to move across a boundary.** T81's rule is not a defect report
+> here: **a specification whose content is entirely a proof has nothing for
+> silicon to answer.**
+
+> **T474a. So "fraction of the corpus that reaches a verdict" needs two
+> denominators.** Of the six ready artefacts, **five have a data port and three
+> have now answered from silicon.** Quoting `3/6` would count a proof-only spec as
+> a failure; quoting `3/5` is the number that means something. **The metric this
+> project has been reaching for has a category error inside it, and naming the
+> category is the fix.**
+
+> **T474b. The board pattern held a third time.** `[2]` / `[1, 2]` / `[0, 1, 2]`
+> for boards 1:4 / 1:6 / 1:8 — now across **three designs** with 86, 98 and 118
+> LUT, two different BSCAN chains and three different bitstreams. **Three
+> instances is no longer an anomaly; it is a property of the bench**, still
+> **[измерено]** and still unexplained.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
