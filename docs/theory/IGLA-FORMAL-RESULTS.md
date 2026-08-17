@@ -22610,6 +22610,82 @@ a yosys log double-counts) and the general `cell_census` beside it doubled for 2
 commits anyway (T500). **A tool protects only the call sites that use it**, so the
 next question for `scripts/timed` is whether anything but this wave will.
 
+## W827 -- the repository was already disciplined; only my one-liners were not
+
+### T566 -- THE CLASS IS ZERO FILES, AND THE BROAD ACCUSATION WOULD HAVE BEEN WRONG [measured]
+
+W826 ended by saying the timing class was "closed only in name" until existing
+measurements moved to `scripts/timed`. FORECAST REGISTERED: a search finds bare
+timing loops in `experiments/` and `scripts/`, at least one discarding a return
+code.
+
+First pass matched **60+ files**. Lesson 1128 -- audit the accusation before
+making it -- applies exactly here, and most of those are innocent by
+construction: `time.time()` around a training loop in `bn_sparse.py` measures the
+training, and the result IS the artefact. The defect is specific: **timing a
+SUBPROCESS and discarding its exit status.**
+
+Filtering to files where a timing site sits within a few lines of a subprocess
+call: **three**. Reading all three:
+
+    run_ladder.sh          line 18: `rc=$?`                        captures it
+    unified_search_all.py  line 29: `"returncode": result.returncode`, checked
+    pnr.sh                 no `$?` -- and something better
+
+**REFUTED. The class is zero.** And `pnr.sh` is the finding: it validates the
+artefact after every single stage and deletes stale outputs first --
+
+    rm -f $J $F $B
+    [ -s $v ] && [ -s $wv ] || { printf "GEN-FAIL";   continue; }
+    [ -s $J ]              || { printf "YOSYS-FAIL"; continue; }
+    [ -s $F ]              || { printf "PNR-FAIL";   continue; }
+
+which is precisely the discipline `scripts/timed` implements, written before it.
+**The repository already knew this pattern. The only place it was missing was my
+own ad-hoc shell, three times in one month.**
+
+That is worth stating plainly rather than softening: the codebase was more careful
+than the person editing it, and four waves of theorems (T500, T531, T562a, T564)
+were spent rediscovering a rule that was sitting in `experiments/gfternary-line/`
+the whole time.
+
+### T567 -- THE PIPELINE BOUND RAISED 300 -> 600 s, ON ARITHMETIC [fixed]
+
+Deferred three waves on W823's rule -- raising a limit because one design exceeded
+it turns a timeout into decoration. What changed is that the number now follows
+from measurement rather than from a failure:
+
+    slope                       ~21 ms/LUT, confirmed by two routes (T558, T563)
+    largest design in corpus    gft_xorbp, 25,273 LUT (T532)  ->  ~535 s
+    old bound                   300 s  ->  14,280 LUT   (killed a 19,985-LUT build)
+    new bound                   600 s  ->  28,600 LUT   13% of an XC7A200T
+
+600 s is the smallest bound covering the known corpus, with 12% margin over its
+largest member. Verified after the change: `gft_signed_dot4` still builds, nextpnr
+252.53 s, datapath gate 1.96 DUT-equivalents, PASS. The 19,985-LUT design that
+died at `300.05s ABSENT` needs about 424 s by the slope and is now inside.
+
+A full-die build remains 76 minutes and is not attempted; T560 carries the
+arithmetic for choosing that bound when someone wants it.
+
+### T567a -- what four waves of instrument work actually produced [derived]
+
+W824 through W827 spent four waves on measurement infrastructure and produced no
+new silicon verdict. What they produced instead:
+
+    a place-and-route cost model    21 ms/LUT, floor 15.6 s cold, warm-cache regime
+    a capacity number               600 s buys 28,600 LUT, 13% of the die
+    a datapath metric               DUT-equivalents, and independence is its lever
+    a timing tool                   in which the bad form cannot be expressed
+    three withdrawn claims          T558's intercept, T559's mechanism, T566's class
+
+The withdrawals are the honest measure of the period. Three of the five items are
+corrections to my own work from the immediately preceding wave, which is either a
+sign that the measurements are getting sharp enough to catch each other, or that I
+am publishing too early. **Both readings are available and I do not have the
+evidence to choose between them**; the ratio of confirmed to refuted forecasts
+over the next several waves would settle it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

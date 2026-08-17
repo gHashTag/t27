@@ -76,7 +76,24 @@ impl Stage {
 /// A killed process is reported as `None`, the same as a tool that could not
 /// spawn, with the reason in stderr. Both mean "this stage produced no verdict",
 /// which is exactly what the caller must not confuse with a clean exit.
-const STAGE_TIMEOUT: Duration = Duration::from_secs(300);
+/// W827 (T567): raised 300 -> 600 s, on measurement rather than caution.
+///
+/// W811 set 300 s from nothing in particular. W824 measured the place-and-route
+/// slope at ~21 ms/LUT and W825 corrected the model's shape while confirming the
+/// slope by a second route. The largest design this corpus contains is
+/// `gft_xorbp` at 25,273 LUT (T532), which needs about **535 s** -- inside 600
+/// and outside 300, which is why W823's 19,985-LUT build was killed at
+/// `300.05s ABSENT`.
+///
+/// 600 s buys roughly 28,600 LUT, or 13% of an XC7A200T. A full-die build would
+/// need 76 minutes and is not attempted; when it is, this constant is the place
+/// to say so, and the arithmetic for choosing it is in T560.
+///
+/// Deferred three waves deliberately: W823's rule is that raising a limit because
+/// one design exceeded it turns a timeout into decoration. What changed is that
+/// the number now follows from a measured slope and a known largest design, not
+/// from the fact that something failed.
+const STAGE_TIMEOUT: Duration = Duration::from_secs(600);
 
 fn run(cmd: &mut Command) -> (Option<i32>, String, String) {
     run_bounded(cmd, STAGE_TIMEOUT)

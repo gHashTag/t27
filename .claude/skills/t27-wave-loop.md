@@ -11004,6 +11004,28 @@ instead, because neither produces a file worth sizing. The pipeline never had th
 defect; every instance was a one-off shell loop of mine. Confirming a forecast in
 letter is not confirming it in substance.
 
+**1129. `experiments/gfternary-line/pnr.sh` IS THE REFERENCE FOR STAGED
+MEASUREMENT.** It deletes stale outputs (`rm -f $J $F $B`) and validates the
+artefact after every stage (`[ -s $J ] || { printf "YOSYS-FAIL"; continue; }`)
+before reporting anything. That is exactly the discipline `scripts/timed`
+implements, written earlier and by someone else. Copy it rather than reinventing
+it -- and note that four waves of theorems (T500, T531, T562a, T564) went into
+rediscovering a rule already in the repository.
+
+**1130. A 60-FILE MATCH BECAME A 3-FILE CANDIDATE SET AND THEN A ZERO-FILE
+CLASS.** Grepping for `time.time()` matched 60+ files; almost all measure a
+training loop where the result IS the artefact. Filtering to timing NEAR a
+subprocess gave three; reading all three gave zero, because two capture `$?` and
+the third validates artefacts instead. **Lesson 1075 and lesson 1128 in the same
+wave**: a syntactic match is a hypothesis, and confirming a forecast in letter is
+not confirming it in substance.
+
+**1131. STAGE_TIMEOUT is 600 s, and the arithmetic is in T560.** ~21 ms/LUT
+(two routes), largest corpus design 25,273 LUT needing ~535 s, so 600 covers it
+with 12% margin and buys 28,600 LUT = 13% of an XC7A200T. Deferred three waves on
+purpose: W823's rule is that raising a limit because something failed turns a
+timeout into decoration. Raise it when a slope and a largest-design number say to.
+
 ### How to update this tracker
 
 After closing a wave:
