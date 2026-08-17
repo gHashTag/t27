@@ -10718,6 +10718,27 @@ Five specs read directly, five for five. A wrapper written to the canon would
 compute the exact negation of the spec -- and would still pass a cancellation
 test, because cancellation is symmetric under negation.
 
+**1088. CARRY4 == 8 MEANS NO ARITHMETIC SURVIVED INTO THE FABRIC.** Every JTAG
+wrapper in `fpga/verilog/` needs exactly 8 CARRY4 for its prescaler and reset
+counter -- identical across four unrelated designs. LUT counts blur the boundary
+because the BSCAN shift register and comparison logic vary; carry logic does not
+appear unless somebody is adding. One comparison decides whether a silicon
+verdict is about a datapath or about a compilation, it costs nothing, and it went
+unrun for four months.
+
+**1089. "How many are at the floor" is the wrong question; "whose DUT had
+something to lose" is the right one.** Four of six wrappers reported 8 CARRY4,
+but `tnf17` (DUT 0 LUT -- negate is a wire), `phi_weights` (3 LUT) and
+`ternary_link` (7 LUT) have nothing to fold, so their verdicts stand. Only
+`ternary_node` (DUT 66 LUT, 24 CARRY4) lost real logic: its weight symbol was
+swept but its activations were literals. An audit that had stopped at the count
+would have condemned three honest wrappers.
+
+**1090. A swept INDEX is not a live DATAPATH.** `ternary_node_jtag` swept `v`
+through the weight symbols, which looks live and is, and fed the arithmetic
+`32'sd7` and `32'sd11`. The mux moved; the adder did not exist. Check what drives
+the WIDE ports, not whether anything in the file is a counter.
+
 ### How to update this tracker
 
 After closing a wave:

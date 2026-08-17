@@ -21753,6 +21753,75 @@ The rule: when a fleet can hold more than one build, the readback must carry a
 VERSION, not only a magic. Not fixed here -- registered, because changing the word
 again mid-wave would repeat the mistake.
 
+## W815 -- auditing every past silicon verdict, and CARRY4 is the discriminator
+
+### T536 -- THE WRAPPER AUDIT: FOUR AT THE FLOOR, BUT ONLY ONE DISCARDED A DATAPATH [measured]
+
+T534 raised the charge that a wrapper whose probes are constants folds its DUT
+away and measures only the compilation path. FORECAST REGISTERED: 2 to 4 of the
+six wrappers sit at that floor. Every wrapper was synthesised inside its wrapper
+and its DUT synthesised alone, for comparison:
+
+    wrapper                   IN WRAPPER            DUT ALONE
+    gft_bitnet_neuron_jtag    2047 LUT, 371 CARRY4  4909 LUT, 702 CARRY4
+    e8m0_jtag                   49 LUT,  28 CARRY4    56 LUT,  20 CARRY4
+    ternary_link_jtag           59 LUT,   8 CARRY4     7 LUT,   0 CARRY4
+    ternary_node_jtag           46 LUT,   8 CARRY4    66 LUT,  24 CARRY4
+    tnf17_jtag                  43 LUT,   8 CARRY4     0 LUT,   0 CARRY4
+    phi_weights_jtag            43 LUT,   8 CARRY4     3 LUT,   0 CARRY4
+
+**CARRY4 IS THE SHARP DISCRIMINATOR, NOT LUT.** The wrapper's own prescaler and
+reset counter need exactly **8 CARRY4**, and that figure is identical across four
+otherwise unrelated designs. LUT counts vary with the BSCAN shift register and the
+comparison logic and so blur the boundary; carry logic does not appear unless
+somebody is adding.
+
+Four wrappers report exactly 8. But the charge only lands on ONE of them, and
+saying so is the difference between an audit and an accusation:
+
+  - `tnf17` (DUT 0 LUT) -- `tnf_negate` is a sign-bit flip. Pure wiring. There was
+    never any arithmetic to fold, and 43/8 is the honest cost of checking it.
+  - `phi_weights` (DUT 3 LUT), `ternary_link` (DUT 7 LUT) -- same reasoning at a
+    slightly larger size. Folding removes nothing that existed.
+  - **`ternary_node` (DUT 66 LUT, 24 CARRY4) -- this one lost a real datapath.**
+    Its weight symbol `v` was swept, so it was never dead, but `act_a`, `act_b`
+    and `acc` were the literals `32'sd7`, `32'sd11` and `32'sd0`. Yosys evaluated
+    the accumulator at synthesis time.
+
+So of six past silicon verdicts, **five were worth what they claimed and one was
+not**. The forecast's range was right and its emphasis was wrong: "how many sit
+at the floor" is the wrong question, and "whose DUT had something to lose" is the
+right one.
+
+### T537 -- `ternary_node_jtag` REPAIRED AND RE-VERIFIED ON SILICON [measured, fixed]
+
+FORECAST REGISTERED: driving the activations from counters lifts the design well
+above the 8-CARRY4 floor.
+
+    before   46 LUT,   8 CARRY4     activations 32'sd7 / 32'sd11 / 32'sd0
+    after   146 LUT,  40 CARRY4     activations from free-running counters
+
+CONFIRMED -- 3.2x the LUTs and **5x the carry logic**, because there is now carry
+logic. Loaded to board 1:4:
+
+    Done 1, readback 0xa5a5a5a7, magic, ok=1, beat=1
+
+The node's additivity, antisymmetry and non-triviality now hold on the die over a
+MOVING accumulator, which is what the wrapper always claimed and did not test.
+
+### T537a -- what this says about reading any of these numbers [derived]
+
+A wrapper's cell count is not the design's cell count, and the gap is not
+overhead -- it is the part of the design the synthesiser was allowed to answer in
+advance. The test that costs nothing and settles it:
+
+    CARRY4 == 8  ->  no arithmetic survived into the fabric
+
+Applied to any future wrapper in this project, that single comparison decides
+whether a silicon verdict is about a datapath or about a compilation. It has been
+available since the first wrapper was written and nobody, including me, ran it
+until the fourth month.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

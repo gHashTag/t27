@@ -32,7 +32,18 @@ module ternary_node_jtag #(parameter integer JTAG_CHAIN_N = 3);
     always @(posedge cfgmclk) if (rstc != 4'hF) rstc <= rstc + 4'd1;
 
     // sweep the two comparator bits so every symbol the slicer can name is hit
+    // W815 (T537): THE ACTIVATIONS WERE CONSTANTS AND THE ARITHMETIC FOLDED AWAY.
+    // The weight symbol `v` was swept, so this wrapper was never at the dead
+    // floor -- but `act_a`/`act_b`/`acc` were literals, and Yosys evaluated the
+    // accumulator at synthesis time. Measured: 46 LUT / **8 CARRY4**, where 8 is
+    // exactly this wrapper family's prescaler-plus-reset overhead (T534) and the
+    // DUT alone needs 24. Driving the activations from counters gives
+    // 146 LUT / 40 CARRY4 -- five times the carry logic, because there is now
+    // carry logic. The old verdict proved the symbol sweep and the compilation
+    // path; it did not prove the adder.
     reg [2:0] v = 3'd0;
+    reg signed [31:0] liveA = 32'sd7;
+    reg signed [31:0] liveB = 32'sd11;
     reg [7:0] hi, lo;
     always @* begin
         hi = {6'b0, v[2], v[1]};
@@ -45,13 +56,13 @@ module ternary_node_jtag #(parameter integer JTAG_CHAIN_N = 3);
     wire signed [31:0] r0, rp, rn;
     wire y0, yp, yn;
     IglaRaceTernaryNode n0 (.clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .hi(hi), .lo(lo), .act_a(32'sd7), .act_b(32'sd11),
+        .hi(hi), .lo(lo), .act_a(liveA), .act_b(liveB),
         .acc(32'sd0), .ready(y0), .result(r0));
     IglaRaceTernaryNode np (.clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .hi(hi), .lo(lo), .act_a(32'sd7), .act_b(32'sd11),
+        .hi(hi), .lo(lo), .act_a(liveA), .act_b(liveB),
         .acc(KP), .ready(yp), .result(rp));
     IglaRaceTernaryNode nn (.clk(cfgmclk), .rst_n(rst_n), .en(1'b1),
-        .hi(hi), .lo(lo), .act_a(32'sd7), .act_b(32'sd11),
+        .hi(hi), .lo(lo), .act_a(liveA), .act_b(liveB),
         .acc(KN), .ready(yn), .result(rn));
 
     reg swept = 1'b0;
@@ -76,7 +87,7 @@ module ternary_node_jtag #(parameter integer JTAG_CHAIN_N = 3);
     reg        beat = 1'b0;
     always @(posedge cfgmclk) begin
         pre <= pre + 24'd1;
-        if (pre == 24'd0) beat <= ~beat;
+        if (pre == 24'd0) begin beat <= ~beat; liveA <= liveA + 32'sd1; liveB <= liveB - 32'sd1; end
     end
     wire ok = sig;
 
