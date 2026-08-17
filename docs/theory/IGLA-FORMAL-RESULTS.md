@@ -19097,4 +19097,44 @@ change the ORDERING, because the corruption is arm-independent.*
 
 ---
 
+## W788 — scoping the split defect, by checking rather than assuming
+
+### T457 — Fashion is clean, and the re-open list is smaller than T456c said
+
+T456c re-opened eleven theorems and listed T455's slopes as collateral. Before
+spending a night re-measuring, the scope was checked.
+
+| dataset | label runs / n | train rate | **val rate** | verdict |
+|---|---|---:|---:|---|
+| **UNSW** | 8172 / 175341 — **sorted** | 0.6243 | **1.0000** | **broken** |
+| **Fashion** | 29861 / 60000 — shuffled | 0.5016 | **0.4907** | **clean** |
+
+> **T457. The defect is UNSW-only.** Fashion-MNIST arrives shuffled, its 85/15 tail
+> split lands at 0.4907 against an overall 0.5000, and **every Fashion measurement
+> in this line is unaffected.** T456's blanket re-open was correct to raise and
+> too wide by half.
+
+> **T457a. And T455 is clean, because it never used a validation split.**
+> `fanin_accuracy.run` trains a fixed eight epochs with no validation and no early
+> stopping; only `run_bn` and `run_qact` carry the selector. **So T412, T413,
+> T417, T418 and the T455 slopes derived from them stand.** The re-open list is
+> exactly the eleven that call `run_bn`/`run_qact` on UNSW: **T422, T428, T430,
+> T431, T432, T439, T443, T446, T450, T451, T452.**
+
+> **T457b. A second UNSW property, not a defect but a confound worth naming.** The
+> official test set is **0.5506 positive against the training set's 0.6806** — a
+> **13-point prior shift**. Every accuracy figure this programme reports on UNSW
+> is measured under that shift, and the class weighting to 50/50 that `run_bn`
+> applies is a *choice* made against it, never justified in writing.
+> **[измерено]** — it is the dataset's own published split and the field uses it,
+> so this is a caveat to state, not something to correct.
+
+> **T457c. Checking the scope cost two minutes and halved the work.** T456 was
+> written at the moment of discovery, when the honest move is to over-scope. **The
+> next move is always to narrow it by measurement**, and doing that before the
+> re-run saved a night of machine time and kept four theorems that were never in
+> danger.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
