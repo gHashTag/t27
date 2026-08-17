@@ -22760,6 +22760,84 @@ as a result.
 One wave is not evidence either way. The count starts here: **withdrawals 0,
 refuted forecasts 1, confirmed 0** for W828.
 
+## W829 -- the zero-annihilation defect, bounded exactly
+
+### T570 -- `smul(0, x)` RETURNS x's MANTISSA, AT OFFSET ZERO [measured]
+
+T552 measured on silicon that `0 * x != 0`; T569 measured that a zero learning
+rate nonetheless leaves weights untouched, and offered absorption as an
+unverified hypothesis. Simulating `magmul` and `magadd` from the spec source
+settles both.
+
+FORECAST REGISTERED: `smul(0,x)` is zero exactly when x's mantissa is zero and
+non-zero otherwise; and `sadd(1.0, that)` returns 1.0 for every x.
+
+    x = 20480  (off 40, mant   0)   smul(0,x) =   0   ZERO
+    x = 20481  (off 40, mant   1)   smul(0,x) =   1
+    x = 20487  (off 40, mant   7)   smul(0,x) =   7
+    x = 20991  (off 40, mant 511)   smul(0,x) = 511
+
+CONFIRMED, and the reason is one line of `magmul`: with `am = 0` the product is
+`(512+0)(512+bm)`, so `q - 512 = bm` -- **the mantissa passes straight through**.
+The offset is `ao + bo + carry - 40` floored at zero, which for `ao = 0` and a
+normal `bo = 40` gives **offset 0** every time.
+
+So the spurious term is always at the very bottom of the exponent range, carrying
+the other operand's mantissa. That is the whole defect, stated exactly.
+
+### T571 -- AND ABSORPTION IS TOTAL ABOVE OFFSET 10, WHICH BOUNDS THE SEVERITY [measured]
+
+`magadd` clamps the exponent difference: `d = ho - lo; if (d > 11) { d = 11; }`
+and then shifts the smaller operand by `d`. Since `512 >> 11 = 0`, anything more
+than eleven offsets below the larger operand contributes **nothing at all**.
+
+Sweeping the largest possible spurious term (offset 0, mantissa 511) against
+every offset:
+
+    other operand at offset 0..9    ->  the result MOVES
+    other operand at offset >= 10   ->  absorbed, exactly unchanged
+
+**1.0 sits at offset 40.** The entire ordinary numeric range is offset 40 give or
+take a few, thirty offsets clear of the boundary.
+
+So the severity of T552 is now a number rather than a judgement:
+
+    the defect is REAL              `0 * x != 0` whenever x has a mantissa
+    the defect is BOUNDED           magnitude at most 511 at offset 0
+    the defect is UNREACHABLE       for any operand at offset >= 10
+
+W821's `c_ann` fails because it compares against **exact zero**, which is offset
+0 -- inside the affected band by construction. W828's `c_eta0` passes because it
+compares weights at offset 40, thirty clear. Both measurements were right and they
+were measuring different sides of the same boundary.
+
+### T571a -- what this does to the standing decision [derived]
+
+The `smul`-and-zero question has been open eleven waves as "should this be
+fixed?", which is a judgement nobody could ground. It is now:
+
+**a defect that can only perturb operands within ten offsets of the bottom of the
+exponent range, in a numeric line whose working values sit at offset 40.**
+
+That is answerable. It does not answer itself -- IEEE-754 says `0 x = 0` for
+finite x and a format may want that unconditionally, and a future computation
+could legitimately work at small offsets -- but the question no longer requires
+anyone to guess at consequences. **Eleven waves of "we should decide this" became
+one wave of arithmetic**, and the arithmetic was available the whole time in
+`magmul` and `magadd`.
+
+### T571b -- the forecast count, second entry [derived]
+
+W827 asked whether the run of self-corrections meant measurements catching each
+other or publishing too early, and W828 started a count.
+
+    W828   withdrawals 0   refuted 1   confirmed 0
+    W829   withdrawals 0   refuted 0   confirmed 2
+
+Two waves, no withdrawals, and this wave's two forecasts were registered before
+the simulation and both held. Still far too little to conclude anything; recorded
+so that it accumulates rather than being re-argued.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

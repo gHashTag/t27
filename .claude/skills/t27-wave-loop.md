@@ -11045,6 +11045,27 @@ after programming one, all three showed `v=1, clauses=1111, ok=1` -- because
 The nibble did its job (legacy versus v1) and cannot do the other one. Load the
 same build on every board before attributing a fleet-wide read, as W820 did.
 
+**1135. `smul(0, x)` RETURNS x's MANTISSA AT OFFSET 0, AND `magadd` ABSORBS
+ANYTHING MORE THAN 11 OFFSETS DOWN.** With `am = 0` the product is
+`(512+0)(512+bm)`, so the mantissa passes straight through; the offset floors at
+zero. And `magadd` clamps `d = ho - lo` to 11, where `512 >> 11 = 0`. Sweeping the
+worst spurious term against every offset: **moves the result at offsets 0-9,
+absorbed at 10 and above.** 1.0 is at offset 40. The T552 defect is real, bounded,
+and unreachable by any operand of ordinary magnitude.
+
+**1136. A SEVERITY QUESTION OPEN FOR ELEVEN WAVES TOOK ONE WAVE OF ARITHMETIC.**
+"Should `smul`'s missing zero case be fixed?" could not be answered while the
+consequence was unknown, and the consequence was sitting in `magmul` and `magadd`
+the whole time. When a decision stalls on "how bad is it", simulate the two
+functions rather than debating the principle.
+
+**1137. TWO MEASUREMENTS THAT DISAGREE MAY BE ON OPPOSITE SIDES OF A BOUNDARY.**
+W821 measured `c_ann = 0` (annihilation fails) and W828 measured `c_eta0 = 1` (a
+zero learning rate is harmless). Both are correct: `c_ann` compares against exact
+zero, which is offset 0 and inside the affected band; `c_eta0` compares weights at
+offset 40, thirty clear of it. Before treating a disagreement as a contradiction,
+look for the parameter that separates them.
+
 ### How to update this tracker
 
 After closing a wave:
