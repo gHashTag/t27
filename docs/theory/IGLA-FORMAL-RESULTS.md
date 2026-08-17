@@ -23360,6 +23360,104 @@ Eight waves, two withdrawals. The drift question opened in W833 and is closed
 here: it took three waves, of which the middle one was spent discovering that the
 measurement did not measure what its name said.
 
+## W836 -- 38% of the drift was comments, and `smul` has two implementations, not fourteen
+
+### T589 -- THE FOURTEEN `smul` BODIES ARE TWO DESIGNS [measured]
+
+FORECAST REGISTERED: the fourteen differ along a few independent axes rather
+than being fourteen unrelated implementations. Classifying by structural feature:
+
+    12 bodies   zero-guard, branch-sign, mask-sign, calls magmul
+     2 bodies   xor-sign, calls magmul, NO zero guard
+
+**Two feature combinations across fourteen bodies.** Then the stronger test --
+strip comments and collapse whitespace, and re-hash:
+
+    raw bodies            14
+    after normalisation    2
+
+    7c0755a0   19 specs   with the zero guard, sign by branch
+    8d3af2b6    2 specs   no guard, sign by XOR   (gft_signed_dot4, gft_signed_mac)
+
+CONFIRMED past what was forecast. **There is no fourteen-way drift in `smul`.
+There are two implementations**, and the nineteen that share one are identical
+character for character once comments and indentation are removed.
+
+### T590 -- T580 IS WITHDRAWN, AND SO IS PART OF T588 [self-critical]
+
+T580 said "there is no canonical implementation of GFTernary multiplication in
+this repository -- there are fourteen". That was counting formatting.
+
+Re-running the whole-corpus census with normalisation:
+
+    directory             raw   normalised   was formatting
+    specs/ternary          49       24            25
+    specs/igla/coder       20       19             1
+    specs/igla/race        11        5             6
+    specs/numeric           8        6             2
+    specs/fpga              8        5             3
+    TOTAL                  96       59            37
+
+**38% of the reported drift was comments and whitespace**, and in
+`specs/ternary` specifically it was 51%.
+
+So:
+
+    T580  "fourteen implementations of smul"        WITHDRAWN -- there are two
+    T588  "88 genuinely drifted functions"          CORRECTED -- 59 raw matches,
+                                                    of which ~6 in numeric are
+                                                    per-format design, so ~53
+
+I hashed raw function bodies for three consecutive waves and reported the counts
+as distinct implementations. A normalisation step of two lines was available the
+whole time, and its absence inflated every number in W833, W834 and W835.
+
+### T591 -- AND THE CONSOLIDATION QUESTION GETS MUCH SMALLER [derived]
+
+W833 framed the choice as "which of fourteen `smul`s is canonical", called it a
+decision about what GFTernary multiplication IS, and left it to the Architect.
+The measurement now says:
+
+    nineteen specs already agree, byte for byte after normalisation
+    two do not, and their difference is exactly the zero guard plus a sign
+      encoding -- XOR versus branch, which are equivalent for the two-value
+      sign field this format uses
+
+**The canonical form is not a choice among fourteen. It is the one nineteen specs
+already share.** What remains is whether `gft_signed_dot4` and `gft_signed_mac`
+should be brought to it -- which is a two-file change, still with a silicon
+verdict resting on the current behaviour of one of them (T552), and still not
+mine to make unilaterally. But the decision has shrunk from "define the
+arithmetic" to "adopt the majority form in two files".
+
+### T591a -- what the three waves cost and what they bought [derived]
+
+W833 through W836 spent four waves on drift. The sequence:
+
+    W833  hashed raw bodies, found 14 smul variants, called it no shared arithmetic
+    W834  found the metric counts name reuse; numeric's spread is per-format design
+    W835  read the bodies, split 88 into arithmetic (49) and utilities (39)
+    W836  normalised, found 38% was formatting and smul has two forms
+
+Each wave corrected the previous one's headline while keeping its measurements.
+The final position -- two `smul` forms, ~53 genuine drifts, consolidation is
+adopting a majority rather than defining one -- is both smaller and more useful
+than W833's, and it took three corrections to reach.
+
+**Two of the four corrections came from a step that costs two lines of code**
+(strip comments; collapse whitespace) and one from reading bodies instead of
+counting them. The expensive part was not the measurement; it was measuring the
+wrong thing carefully.
+
+### T591b -- forecast count, ninth entry [derived]
+
+    W828 (0/1/0)  W829 (0/0/2)  W830 (0/1/1)  W831 (1/1/0)  W832 (0/0/2)
+    W833 (1/0/1)  W834 (0/1/0)  W835 (0/0/1)  W836 (2/0/2)
+
+Nine waves, four withdrawals, two of them in this wave. Both were of claims made
+in the preceding three waves by the same flawed measurement, and both were found
+by improving the measurement rather than by new evidence.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

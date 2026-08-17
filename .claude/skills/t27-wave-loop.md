@@ -11189,6 +11189,25 @@ semantic check anyway. **Stop refining the grep; read the bodies.**
 character-identical openings. Check for `_tmp`/`_old`/`_new` in spec names before
 attributing duplication to organic divergence.
 
+**1156. NORMALISE BEFORE HASHING: 38% OF THE "DRIFT" WAS COMMENTS.** Three waves
+hashed raw function bodies and reported the counts as distinct implementations.
+Stripping `//` comments and collapsing whitespace takes the corpus from 96 to 59
+matches, and `smul` from **14 bodies to 2**. In `specs/ternary` half the reported
+drift was formatting. Two lines of `re.sub` were available the whole time.
+
+**1157. `smul` HAS TWO FORMS, NOT FOURTEEN, AND NINETEEN SPECS ALREADY AGREE.**
+`7c0755a0` (19 specs: zero guard, sign by branch) and `8d3af2b6` (2 specs:
+`gft_signed_dot4`, `gft_signed_mac` -- no guard, sign by XOR). The consolidation
+question is therefore **not** "define GFTernary multiplication" but "bring two
+files to the form the other nineteen share" -- still gated on a silicon verdict
+resting on the current behaviour (T552), and much smaller than W833 framed it.
+
+**1158. MEASURING THE WRONG THING CAREFULLY IS THE EXPENSIVE FAILURE.** W833-W836
+each corrected the previous wave's headline while keeping its numbers. Two of the
+corrections came from a two-line normalisation and one from reading bodies rather
+than counting them. The cost was never the measurement; it was four waves of
+precision applied to a quantity that included formatting.
+
 ### How to update this tracker
 
 After closing a wave:
