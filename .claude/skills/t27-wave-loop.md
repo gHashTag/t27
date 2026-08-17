@@ -9813,6 +9813,27 @@ project quotes is over that subset, with the scope undeclared (T438).
 my new spec for several minutes. *Check the tool's usage before believing its
 verdict about your work.*
 
+**952. An arm chosen by a small sweep must be re-measured ALONE.** Balanced
+coverage read +2.86 pp at n=5, +1.27 at n=12, +0.90 at n=30 -- and the sd ratio
+0.29, 0.51, 0.73. Both effects shrank monotonically: winner's curse, twice over
+(T439a). *Selecting the best of five at n=5 and quoting its size is the same error
+as T403, arrived at from the other end.*
+
+**953. "Predicted, smaller than predicted, still significant" is three facts, not
+one verdict.** The dispersion forecast failed its 0.65 threshold at 0.73 and
+F=1.90>1.86 made it significant anyway (T439b). *Report the threshold outcome AND
+the test; collapsing them into confirmed/failed loses the result.*
+
+**954. A named port surface is not an exercised one.** tnf17.t27 synthesises to 35
+IBUF, 33 OBUF and ONE INV, because its on_comb is a sign flip -- "builds on both
+backends with a data port" is true and computes one inverter (T440a). *Ask what
+the boundary DOES, not whether it exists.*
+
+**955. Watch free disk every wave, not when it breaks.** This wave went 6.2 GB ->
+185 MB while three jobs and two workflows ran. The candidates are all mine and all
+regenerable synthesis logs, and naming them for the user costs nothing; waiting
+until ENOSPC disables the Bash tool costs the loop.
+
 ### How to update this tracker
 
 After closing a wave:

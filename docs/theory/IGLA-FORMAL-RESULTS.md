@@ -18347,4 +18347,70 @@ file returns **zero**. Written: `specs/numeric/e8m0.t27`.
 
 ---
 
+## W781b — resolved at thirty seeds, and both effects shrank all the way there
+
+### T439 — balanced coverage is real, and it is a third of what five seeds said
+
+T432 left the connectivity thread **unresolved** at `t = 2.19` against a critical
+2.20. **Registered forecast (T44), `n = 30`, `|t| > 2.05`:** *(a) the mean lands
++1.0 to +1.5 pp and significant, or the connectivity mean is declared dead — three
+sample sizes is enough; (b) the seed-variance ratio, which has replicated twice,
+stays below 0.65, tested by an F-ratio because that is the claim that has actually
+been surviving.*
+
+| n | random | balanced + regrouped | Δ | t | sd ratio |
+|---:|---:|---:|---:|---:|---:|
+| 5 | 80.23 ±2.04 | 83.09 ±0.88 | **+2.86** | +2.28 ns | **0.29** |
+| 12 | 81.25 ±2.08 | 82.52 ±1.06 | **+1.27** | +2.19 ns | 0.51 |
+| **30** | 81.67 ±1.70 | **82.57 ±1.24** | **+0.90** | **+2.15** | 0.73 |
+
+> **T439. Significant at last: `t = +2.15 > 2.05`, `Δ = +0.90 pp`.** Balanced
+> feature coverage beats a random mask, the effect is real, and **it is under a
+> third of what the five-seed sweep reported.**
+
+> **T439a. Both effects shrank monotonically with `n`, and neither is a fluke of
+> one step.** The mean went **+2.86 → +1.27 → +0.90** and the sd ratio **0.29 →
+> 0.51 → 0.73** across 5, 12 and 30 seeds. **This is the winner's-curse shape** —
+> selecting the best of five arms at `n = 5` and then re-measuring it. **Any arm
+> chosen by a small sweep must be re-measured before its size is quoted, and the
+> re-measurement must be of that arm alone.**
+
+> **T439b. My dispersion forecast FAILED by its own threshold, and the effect is
+> significant anyway.** Predicted sd ratio below 0.65; measured **0.73**. But
+> `F = 1.90 > 1.86` at `df = 29,29`, so the variance reduction **is** significant
+> at 5 %. **Two verdicts, one measurement, and the honest report is both**: the
+> effect I predicted exists and is smaller than I predicted, which is a different
+> sentence from either "confirmed" or "failed".
+
+> **T439c. The residual is 7.05 pp against the field's 4.79.** With normalisation,
+> class balance, budget, per-layer BatchNorm, ternary activations and balanced
+> connectivity all in, this stand is now within **2.3 pp** of the comparable
+> published configuration — from **13.55 pp** four waves ago. **Nothing named in
+> PolyLUT-Add's method remains untried.**
+
+### T440 — the new spec, carried to placed-and-routed gates
+
+| stage | E8M0 | TNF17e |
+|---|---:|---:|
+| synthesis LUT | 56 | **0** |
+| CARRY4 | 20 | 0 |
+| DSP48E1 / SRL16E | **0 / 0** | 0 / 0 |
+| post-route SLICE_LUTX (pad-free wrapper) | **197** | — |
+| SLICE_FFX | 33 | — |
+| **Fmax** | **93.63 MHz** | — |
+| FASM | 77,625 bytes | — |
+
+> **T440. `e8m0.t27` goes from source to placed-and-routed gates in one wave**, on
+> Artix-7 fabric, with zero forbidden primitives — the first spec written this
+> month to make the whole trip.
+
+> **T440a. TNF17e's zero is correct, not a defect, and it is a caveat on a claim.**
+> The reference spec synthesises to **35 IBUF, 33 OBUF and one INV** — because its
+> `on_comb` is `tnf_negate`, a single sign-bit flip. **"tnf17 builds on both
+> backends with a data port" is true and its data port computes one inverter.**
+> A port surface is what synthesises; naming one is not the same as exercising the
+> format.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
