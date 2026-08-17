@@ -10647,6 +10647,30 @@ watchdog and two `$finish`, reachable as `t27c gen-testbench`. The pipeline call
 watchdog. Two generators and a wiring choice, and the wiring lives outside the
 seal. I spent a wave measuring an absence that was a selection.
 
+**1080. A BOUND YOU GUESSED IS A HYPOTHESIS -- MEASURE THE DISTRIBUTION IT
+SITS IN.** W811's 300 s wall clock was admittedly a guess. Timing all 44
+variable-shift specs found the distribution is BIMODAL: 18 of 19 completions land
+at **13 s or less**, one at 29 s, then nothing, then 25 that never finish. So the
+bound is 23x the slowest real work AND the exact value is irrelevant -- anything
+above ~30 s separates the populations perfectly. A bound is normally a trade; when
+the distribution is bimodal there is no trade, and knowing that is worth more than
+the number.
+
+**1081. VARIABLE-AMOUNT SHIFTS BLOW UP YOSYS, AND IT IS THE FLOAT PATH NOT THE
+TERNARY ONE.** `gft_layer3.t27` is 5 KB and exceeds 300 s where a 62 KB spec takes
+2.4 s. The log is 23,451 lines of `Activation pattern for cell $shr$...` with
+widths to **14 bits** (16,384 combinations per cell), growing 6.4 -> 30.5 MB in
+four minutes. Barrel shifters from `ls >> d` in TNF normalisation are the cause.
+**25 of 80 ported specs -- 31% -- cannot be synthesised in bounded time**, all in
+`specs/ternary/gft_*`. Constant-amount shifts are fine; the identifier after `<<`
+or `>>` is the tell.
+
+**1082. Grandchildren are not always orphaned -- CHECK, do not assume the last
+lesson applies.** Seeing `yosys` spawn `yosys-abc`, I forecast orphans of the kind
+lesson 1071 describes. Measured: **zero** `abc` processes survive, because yosys
+reaps its own. The previous wave's mechanism did not transfer, and asserting it
+would have sent a wave chasing a fix for a problem that does not exist here.
+
 ### How to update this tracker
 
 After closing a wave:

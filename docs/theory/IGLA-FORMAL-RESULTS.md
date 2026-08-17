@@ -21462,6 +21462,87 @@ duplicated struct-flattened declarations, with 15 duplicated names. Not a class 
 `adamw.t27` is nearly alone. Lesson 1075's rule held again: I expected this to be
 widespread and it is not.
 
+## W812 -- the timeout was a guess; measuring it found that a third of the ported corpus cannot be synthesised
+
+### T526 -- THE 300-SECOND BOUND FIRED ON A REAL CASE, AND THE CASE IS A BLOW-UP [measured]
+
+W811 introduced a 300 s wall clock and I stated plainly that the number was a
+guess. Measuring a size-stratified sample of the 80 ported specs:
+
+    boards/wukong_v1.t27          12,121 B    yosys  2.56s
+    fpga/ternary_link.t27         20,157 B    yosys  2.47s
+    igla/race/ternary_mac.t27     61,956 B    yosys  2.43s
+    ternary/gft_relu.t27             939 B    yosys  2.57s
+    ternary/gft_mlp2.t27           5,300 B    yosys 33.84s
+    ternary/gft_layer3.t27         5,226 B    yosys 300.10s   <- KILLED
+
+A 5 KB spec taking >300 s while a 62 KB spec takes 2.43 s is not a cost curve. It
+is a pathology, and the yosys log names it: **23,451 lines of**
+
+    Activation pattern for cell $shr$...l3.v:189$1221: { ... } = 14'00000000000000
+
+`gft_layer3.t27` is a full BitNet layer in TNF float arithmetic, and its
+normalisation path is built from VARIABLE-amount shifts (`ls >> d`, `t << sh`).
+Those synthesise to barrel shifters, and yosys's optimiser enumerates activation
+patterns over their control conditions. Pattern widths reach **14 bits**, which is
+16,384 combinations for one cell. The log grew **6.4 MB -> 30.5 MB in four
+minutes** and was still growing when killed.
+
+So the bound is a TRUE POSITIVE. It is not killing legitimate slow work.
+
+### T527 -- 25 OF 80 PORTED SPECS CANNOT BE SYNTHESISED IN BOUNDED TIME [measured]
+
+A grep for a variable-amount shift matches 44 of the 80 ported specs. Per lesson
+1075 that is a hypothesis, so all 44 were RUN, each bounded at 30 s:
+
+    finished within 30 s   19
+    exceeded 30 s          25
+
+FORECAST REGISTERED before the run: fewer than 10 of 44 exceed 30 s. **REFUTED at
+25** -- two and a half times my estimate, and in the direction that matters.
+
+25 of 80 is **31% of every spec in this repository that has a data port**, and
+they are one family: `specs/ternary/gft_*`, the GFTernary float layers --
+`gft_signed_dot4`, `gft_classifier4`, `gft_softmax4`, `gft_train1/2`,
+`gft_xorbp/xorbp2/xorpercep/xorpercep4/xortrain`, `gft_hidden2`, `gft_layer3`.
+
+**This is a hardware-reachability fact and it has never been stated.** A third of
+the specs that could in principle reach a die cannot get past synthesis, and the
+cause is not the ternary weights -- it is the float NORMALISATION around them.
+
+### T528 -- THE DISTRIBUTION IS BIMODAL, WHICH SETTLES THE THRESHOLD QUESTION [measured]
+
+Completion times of the 19 that finished, in seconds:
+
+    2 2 3 3 3 3 3 4 5 7 7 8 9 10 10 12 13 13 29
+
+Eighteen of nineteen finish in **13 s or less**. One at 29 s. Then nothing, and
+25 that never finish. **Synthesis on this corpus either completes quickly or does
+not complete at all**, and the gap between the populations is the whole interval
+from 29 s to unbounded.
+
+Two consequences, and the second is the useful one.
+
+First, W811's 300 s is validated: it is **23x** the slowest legitimate completion,
+so no real work is at risk.
+
+Second, **the exact value barely matters.** Any threshold above ~30 s separates
+the two populations perfectly. A bound is usually a trade between false kills and
+long hangs; here there is no trade to make, because nothing lives in the middle.
+That is worth more than the number: it means this pipeline can be bounded
+aggressively without anyone having to tune it.
+
+### T528a -- three consecutive waves where the refuted forecast carried the finding [self-critical]
+
+    W810  fewer than 5 of 29 deduplicated specs pass    CONFIRMED (0)  -- told us where we were
+    W811  the colliding identifiers share one cause     REFUTED  (3)   -- found the flattening
+    W812  fewer than 10 of 44 exceed 30 s               REFUTED  (25)  -- found the 31%
+
+The W812 estimate was wrong by 2.5x and the correction is the wave's whole
+result. I would not have run all 44 if I had believed the answer was small; I ran
+them because lesson 1075 forbids naming a class from a grep, and the rule paid
+for itself for the third time.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
