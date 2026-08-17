@@ -524,7 +524,7 @@ tri prove --mutate   # ПОТРЕБОВАТЬ, чтобы доказательс
   OK  Zig tests            2.12s       0           -  All 31 tests passed.
   OK  spec -> Verilog      0.01s       0     30809 B
   OK  iverilog + vvp       0.09s       0     64753 B  31 PASSED, 0 FAILED
-  OK  yosys                3.03s       0   9551056 B  166 LUT, 74 CARRY4, 0 DSP48E1
+  OK  yosys                3.03s       0   9551056 B  166 LUT, 74 CARRY4, 0 DSP48E1 *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **83 LUT, 37 CARRY4**]*
   total 3.41s, of which code generation 0.01s (0.4%)
 ```
 

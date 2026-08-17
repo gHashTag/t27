@@ -10059,7 +10059,7 @@ guard is a stage that can fail:
 ```
   stage                          time      rc      artefact  note
   OK   spec -> Verilog          0.01s       0       30809 B  155 $display (stripped below)
-  OK   yosys                    5.64s       0     9729834 B  244 LUT, 114 CARRY4, 0 DSP48E1 | BSCANE2 x1
+  OK   yosys                    5.64s       0     9729834 B  244 LUT, 114 CARRY4, 0 DSP48E1 | BSCANE2 x1 *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **122 LUT, 57 CARRY4**]*
   OK   nextpnr (no XDC)        10.12s       0      247414 B
   OK   BSCAN chain == site      0.00s       0             -  JTAG_CHAIN(3) at BSCAN3 -- agree
   OK   fasm2frames              1.81s       0    22698060 B
@@ -11869,7 +11869,7 @@ accumulator bit** for GA-T1, **18.0** for GA-T0.
 
 `φ⁻¹ = φ − 1` makes renormalisation `(a,b) ↦ (b−a, a)`: one exact integer
 subtraction and a wire swap, holding width constant forever. **The project has
-never used it.** Measured for 8 neurons at 12 bits: **288 LUT, 72 CARRY4, 0
+never used it.** Measured for 8 neurons at 12 bits: **288 LUT, 72 CARRY4, 0 *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **144 LUT, 36 CARRY4**]*
 DSP.**
 
 ```
@@ -12010,7 +12010,7 @@ board   A1 wrong part   B1 ours   B2 read       ok  beat  chain index
 > nothing; `Done 0 → Done 1` under a known wrong part, followed by a readback,
 > is the whole of the proof — and it now holds three times.
 
-**246 LUT, 104 CARRY4, 0 DSP48E1**, BSCANE2 ×1, chain forced to 2 and verified
+**246 LUT, 104 CARRY4, 0 DSP48E1**, BSCANE2 ×1, chain forced to 2 and verified *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **123 LUT, 52 CARRY4**]*
 equal to the placed site.
 
 ---
@@ -19509,7 +19509,7 @@ than at zero:
 | `t27c check` | 0 errors |
 | `t27c test-report` | **18/18 tests, 9 invariants proved comptime** |
 | `t27c gen-verilog` | data port `input [31:0] x` / `output [31:0] result` |
-| yosys `synth_xilinx -nodsp -nosrl` | 38 LUT, 20 CARRY4, **0 DSP48E1, 0 SRL16E** |
+| yosys `synth_xilinx -nodsp -nosrl` | 38 LUT, 20 CARRY4, **0 DSP48E1, 0 SRL16E** | *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **19 LUT, 10 CARRY4**]*
 | **nextpnr, `xc7a200tfbg676`** | **197 SLICE_LUTX / 269,200**, 33 FF, **90.63 MHz** |
 | `fasm2frames` | 20,230 frame lines |
 | `xc7frames2bit` | **9,730,887-byte bitstream** |
@@ -19553,7 +19553,7 @@ emits `ZeroDSP_TernaryLink` and `fpga/verilog/ternary_link_jtag.v` wraps it.
 | stage | result |
 |---|---|
 | spec → Verilog | **OK**, 12,940 B, 1 `$display` stripped (T167) |
-| yosys | **OK**, **118 LUT, 16 CARRY4, 0 DSP48E1, BSCANE2 ×1** — *chain forced to 1* |
+| yosys | **OK**, **118 LUT, 16 CARRY4, 0 DSP48E1, BSCANE2 ×1** — *chain forced to 1* | *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **59 LUT, 8 CARRY4**]*
 | nextpnr | **OK**, 102,675 B |
 | **BSCAN chain == site** | **FAIL** — *"JTAG_CHAIN(1) enabled, BSCAN4 wired — rebuilding at 4"* |
 | fasm2frames, bitstream | skipped |
@@ -19608,7 +19608,7 @@ sites are now printed.*
 Changed: `0..2u32 → 0..6u32`, plus cycle detection that reports the site sequence
 rather than failing silently.
 
-    OK  yosys                118 LUT, 16 CARRY4, 0 DSP48E1 | BSCANE2 x1 | chain forced to 4
+    OK  yosys                118 LUT, 16 CARRY4, 0 DSP48E1 | BSCANE2 x1 | chain forced to 4 *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **59 LUT, 8 CARRY4**]*
     OK  BSCAN chain == site  JTAG_CHAIN(4) at BSCAN4 -- agree
     OK  fasm2frames          22,698,060 B
     OK  frames -> bitstream  9,730,824 B
@@ -19669,7 +19669,7 @@ same thing the spec's own `encode_out_of_range_is_nan` test asserts in software.
 
 | | |
 |---|---|
-| yosys | **98 LUT, 56 CARRY4, 0 DSP48E1**, BSCANE2 ×1 |
+| yosys | **98 LUT, 56 CARRY4, 0 DSP48E1**, BSCANE2 ×1 | *[W807 ERRATA: this figure is `cell_census` doubling (T504); true value **49 LUT, 28 CARRY4**]*
 | BSCAN guard | `JTAG_CHAIN(1) at BSCAN1 -- agree` — **converged on the first attempt** |
 | bitstream | 9,730,816 B |
 | **boards 1:4 / 1:6 / 1:8** | `Done 0` → `Done 1` → **`0xa5a5a5a7`, ok=1**, three of three |
@@ -20792,6 +20792,90 @@ proves the upper bits dead and trims them. The defect is cosmetic in silicon.
 REFUTED, and worth recording because it was the obvious suspect and it was
 innocent; two more suspects were cleared before the real cause was found, and the
 real cause was in the measuring instrument rather than in anything measured.
+
+## W807 -- the contamination audit, and an errata table
+
+### T504 -- THE DOUBLING RAN FOR 264 COMMITS AND CONTAMINATED BOTH REPORTING PATHS [measured]
+
+FORECAST REGISTERED before the history was read: `cell_census` was wrong from
+introduction, so every figure it ever printed is doubled.
+
+    git log -S "fn cell_census" -- bootstrap/src/service.rs
+      introduced  addf9a3df  2026-08-14  W657
+      next touch  2e2bea00f  2026-08-17  W806 -- the fix
+      commits between: 264
+
+CONFIRMED. Three days, 264 commits, no intervening edit.
+
+AND IT IS WORSE THAN `path --synth`. `cell_census` has THREE call sites:
+`service.rs:590` (the `path` table) and `service.rs:1400` / `:1407` -- the latter
+carrying the `| BSCANE2 x{bscan}` suffix, which is `t27c silicon`. **Every cell
+figure this project produced from either command between W657 and W806 is 2x.**
+
+Verified live with the fixed binary, against the figure recorded at line 19556:
+
+    t27c silicon --skip-hardware --top fpga/verilog/ternary_link_jtag.v
+                 specs/fpga/ternary_link.t27
+      ->  59 LUT, 8 CARRY4, 0 DSP48E1 | BSCANE2 x1
+
+The document says **118 LUT, 16 CARRY4**. Exactly half, exactly as forecast.
+
+### T505 -- PARITY SEPARATES CONTAMINATED FIGURES FROM CLEAN ONES, AND THE ARCHIVE CONFIRMS IT [derived, then measured]
+
+A figure produced by summing two identical tables must be EVEN in every field.
+An odd count therefore cannot come from this defect. Applying that test to every
+`N LUT, M CARRY4` in the repository:
+
+    site                figure                 parity   implied true
+    IGLA:10062          244 LUT, 114 CARRY4    even     122 LUT,  57 CARRY4
+    IGLA:11872          288 LUT,  72 CARRY4    even     144 LUT,  36 CARRY4
+    IGLA:12013          246 LUT, 104 CARRY4    even     123 LUT,  52 CARRY4
+    IGLA:19512           38 LUT,  20 CARRY4    even      19 LUT,  10 CARRY4
+    IGLA:19556          118 LUT,  16 CARRY4    even      59 LUT,   8 CARRY4
+    IGLA:19672           98 LUT,  56 CARRY4    even      49 LUT,  28 CARRY4
+    PATH_TO_HARDWARE_RU:527  166 LUT, 74 CARRY4  even    83 LUT,  37 CARRY4
+    IGLA:8668            96 LUT,  57 CARRY4    ODD      not this defect
+    WAVE_LOOP_656_REPORT:13  83 LUT, 37 CARRY4  ODD     not this defect
+
+TWO INDEPENDENT CONFIRMATIONS FALL OUT OF THAT TABLE, and neither was sought.
+
+**One.** `PATH_TO_HARDWARE_RU:527` halves to **83 LUT, 37 CARRY4** -- which is
+verbatim what `docs/reports/WAVE_LOOP_656_REPORT.md` recorded for the same
+design. W656 predates `cell_census` by one wave. Two waves measured one design;
+the later one is exactly twice the earlier, and the earlier is the true value.
+
+**Two.** `IGLA:12013` halves to **123 LUT** -- which is exactly the cell count
+obtained in W805 by parsing `mvp_ternary_classifier.json` directly, a route that
+never touches `cell_census` at all.
+
+So the doubling is now established by FOUR independent routes: a live re-run
+after the fix, direct netlist-JSON cell counting, parity arithmetic, and a
+pre-defect historical measurement of the same design.
+
+### T505a -- and the parity test forbids blanket correction [self-critical]
+
+The obvious move on discovering a 2x defect is to halve every figure. Parity
+forbids it: `IGLA:8668` reports 57 CARRY4 and `WAVE_LOOP_656_REPORT:13` reports
+37, both odd, and neither can be a doubled value. Halving them would have
+manufactured two new wrong numbers while cleaning up seven real ones -- and the
+cleanup would have looked complete.
+
+The rule this buys: **when correcting a systematic error, first find the test
+that identifies which records the error touched.** Here it costs one modulus.
+
+### T506 -- THE 83 LUT MVP FIGURE IS GENUINE, AND WAS ALL ALONG [measured]
+
+T501 withdrew "66 LUT per composed MAC node" as a doubling of 33. The
+neighbouring claim -- the MVP classifier at 83 LUT -- has the opposite status:
+it is odd, it was recorded in W656 before the defect existed, and the doubled
+version of it appears later at 166. It needs no correction.
+
+That does NOT rehabilitate it as a density figure. T498's objection is untouched
+and is about a different thing: 83 LUT covers 24 COMPILE-TIME CONSTANT weights
+that Yosys folds into a boolean function of eight inputs, so it is not a
+multiply-accumulate density and must never be quoted against the field's
+LUT-per-multiply numbers. A number can be accurately measured and still answer no
+question anyone asked.
 
 ---
 
