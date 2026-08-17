@@ -19,6 +19,21 @@
 //
 // FORECAST REGISTERED before this file was synthesised: c_eta0 comes back ZERO.
 //
+// W838 -- REFUTED ON THREE DICE. c_eta0 came back ONE. The paragraph above
+// derives its forecast from T552, and T552 measured `gft_signed_dot4`, whose
+// `smul` is the MINORITY form with no zero guard (W836: two normalised forms
+// across the corpus, 8d3af2b6 in two specs, 7c0755a0 in nineteen). THIS spec
+// carries the majority form:
+//     fn smul(a,b) { if (a==0) return 0; if (b==0) return 0; ... if (mag==0) return 0; }
+// so `smul(eta=0, x)` is exactly zero here and a zero learning rate DOES leave
+// the weights alone. Icarus predicted 1111 over 64 cycles before the build; the
+// die read 0xa5a5a1f7 -- clauses 1111, ok=1.
+//
+// The error was checking one file's claim against another file's arithmetic --
+// the fourth instance of it in this project. The two specs genuinely disagree
+// about whether 0*x = 0, and W838 demonstrated both answers on the same three
+// boards within minutes of each other.
+//
 // THE FOUR CLAUSES:
 //   1. GOLD      the spec's own `test upd`: on_comb(0,0, 1.0,0, 1.0, 0.25)
 //                = (19456 << 32) | 0, i.e. v0 moves to 0.25 and v1 stays put.

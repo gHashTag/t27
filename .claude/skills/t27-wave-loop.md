@@ -11229,6 +11229,32 @@ WRITTEN, uniform across the population, so they moved every count and no rank.
 **Report the ordering when the decision needs an ordering** -- four waves of
 correction would then have changed nothing that was said.
 
+**1162. A FORECAST WRITTEN IN A FILE IS NOT A FORECAST ABOUT THAT FILE.**
+`gft_xorpercep_jtag.v` carried a registered prediction derived from T552, which
+measured a DIFFERENT spec with the opposite `smul` form. Silicon refuted it.
+Fourth instance of checking one file's claim against another's arithmetic. Before
+trusting a forecast in a header, check which spec its evidence came from.
+
+**1163. THE READ HAD TO START WORKING BEFORE IT COULD START LYING.** Fixing the
+false FAIL exposed a false PASS: with two boards answering, the service reported
+the neighbour's verdict as this board's. A false FAIL stops a wave; a false PASS
+does not. **Whenever a broken check is repaired, ask immediately what it will now
+report wrongly** -- the newly-live path has never been exercised.
+
+**1164. MY FIRST FIX WAS WRONG AND ONLY THE HARDWARE SAID SO.** I patched the
+index parser, rebuilt, re-ran on the die -- still FAIL, because the gate that
+prints is a different variable. Re-reading the diff would not have caught it.
+When a cheap end-to-end check exists (40 s here), run it instead of re-reading.
+
+**1165. A STAGE THAT REPORTS FAILURE WITHOUT ITS EVIDENCE COSTS THE NEXT WAVE.**
+`read_verdict` returned its log and the caller wrote `let (before, word, _)`. Two
+rebuilds went into hunting a cause the discarded string already named.
+
+**1166. STICKY-LOW CLAUSES MEASURE `EVER`, NOT `NOW`.** `c_com` read 0 after one
+load and 1 after two others. That is an intermittent, and 64 simulated values
+cannot see what millions of silicon cycles do. Record it as open; do not promote
+it to a defect without a dedicated sweep.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -23538,6 +23538,116 @@ Ten waves, five withdrawals. Four of the five were of magnitudes produced by a
 flawed instrument; one was of an inference (T579's *settled*). **None was of a
 qualitative claim, and none was of a hardware measurement.**
 
+## W838 -- two specs disagree about zero, and the die said so twice in one hour
+
+### T595 -- THE FORECAST WAS DERIVED FROM THE WRONG FILE, AND I CAUGHT IT BY READING [self-critical]
+
+`gft_xorpercep_jtag.v` carried, in its own header, a registered forecast:
+*"c_eta0 comes back ZERO"* -- a zero learning rate will still move the weights,
+because `smul` has no zero case. That was derived from T552, and **T552 measured
+`gft_signed_dot4`**. W836 established there are exactly two normalised `smul`
+forms in the corpus; the two designs queued for this wave hold one each:
+
+    gft_signed_dot4   8d3af2b6   NO zero guard, no mag==0 guard, XOR sign   (2 specs)
+    gft_xorpercep     7c0755a0   both guards + branch sign                  (19 specs)
+
+FORECASTS REGISTERED BEFORE ANY BUILD, both against what the files say:
+
+    gft_xorpercep     c_eta0 PASSES   (the file predicts it fails)
+    gft_signed_dot4   c_ann  FAILS    (the wrapper was built expecting a pass)
+
+### T596 -- `magmul(0, x)` RETURNS THE OTHER OPERAND'S MANTISSA [measured]
+
+Reading the minority form's helper settles why annihilation cannot hold:
+
+    a = 0 -> am = 0;  prod = 512*(512+bm);  q = 512+bm;  mant = bm;  off = 0
+
+So `smul(0, live)` is the mantissa of `live`, and the wrapper drives `live` from
+a counter whose mantissa is almost always non-zero. Icarus on the generated RTL,
+64 values: **c_ann fails on all 64**, c_can/c_com/c_non pass.
+
+### T597 -- BOTH FORECASTS CONFIRMED ON SILICON, AND THE IDENTITY ARGUMENT IS NOT CIRCULAR [measured]
+
+    board 1:8   gft_sadd         0xa5a521f7   v2 design 1  1111  ok=1   PASS
+    board 1:6   gft_xorpercep    0xa5a5a1f7   v1           1111  ok=1   PASS
+    board 1:4   gft_signed_dot4  0xa5a5a1b4   v1           1011  ok=0   FAIL
+
+Both v1 wrappers carry NO design id, so the word alone cannot name its design --
+the T569 hole, flagged in this wave BEFORE the run rather than after. The
+assignment does not rest on the forecast it would then confirm:
+
+> `1011` read as `gft_xorpercep` would mean c_gold=1 with c_non=0. But c_gold=1
+> asserts `r_gold == (19456 << 32) | 0`, whose top half is 19456, while c_non=0
+> asserts that same top half is zero. **The two bits contradict each other.**
+> So the word cannot be the perceptron's, whatever the forecast said.
+
+**Two specs in one directory disagree about whether 0*x = 0, and both answers
+were read off the same bench within one hour.**
+
+### T598 -- THE SERVICE HAD BEEN REPORTING `no magic on any cable` SINCE THE LAYOUT MIGRATION [self-critical]
+
+Three boards loaded, `Done` 0->1 on all three, `BSCAN chain == site` agreeing on
+all three -- and `t27c silicon` failed the read on all three. The standalone
+reader, minutes later against the same loaded bitstreams, read **3 of 3**.
+
+The cause was one constant:
+
+    .filter(|v| (v >> 4) == 0xA5A5A5A)      // the LEGACY 28-bit magic
+
+v1 carries 20 magic bits plus a version nibble; v2 carries 16 plus version plus
+design. Both were rejected. Every hardware read since the W820-W828 migration
+printed a false FAIL while the reader beneath it printed `VERDICT: PASS`, and
+every wave since read by hand without noticing the service was lying. The one
+thing all three layouts share is `16'hA5A5` in the top sixteen bits; that is now
+the test. Verified end-to-end on the die: `OK B2 read 0xa5a521f7 ok=1`.
+
+**My first fix was wrong.** I patched the index parser (`MAGIC PRESENT` vs
+`LAYOUT `), rebuilt, re-ran on hardware -- still FAIL. The gate that prints is
+`match word`, not the index list. The hardware re-run is what caught it; reading
+the diff again would not have.
+
+### T599 -- AND THEN IT REPORTED A FALSE PASS [self-critical]
+
+With the read repaired, `gft_signed_dot4` on board 1:4 reported **ok=1**. Its
+actual word is `1011 / ok=0`. The line gave itself away -- `on index [1, 2]` --
+two cables carrying magic, and `word` took whichever answered first: the
+neighbouring board, still holding `gft_xorpercep`. The libftdi index is not the
+`--busdev-num`; the reader says so in its own header.
+
+**A false FAIL stops a wave. A false PASS does not.** The second defect is the
+worse one, and it was introduced by fixing the first -- the read had to start
+working before it could start lying. `silicon` now REFUSES when more than one
+cable answers and no `--control` was given to derive the mapping, printing both
+words instead of choosing. Verified on the die.
+
+Also fixed: the `None` arm discarded the reader's log, so a failed read looked
+identical whatever its cause. It cost this wave two rebuilds before the actual
+constant became visible.
+
+### T600 -- COMMUTATIVITY IS INTERMITTENT, AND THAT IS ALL I CAN SAY [measured]
+
+    load 1, read 06:22   1001   c_com = 0
+    load 2, read 06:39   1011   c_com = 1
+    load 2, read 06:52   1011   c_com = 1
+
+The clauses latch sticky-low, so `c_com = 0` means commutativity failed at least
+once during that load. Icarus passed it on 64 values; the die runs millions.
+`u_ab` and `u_ba` are structurally different netlists computing the same sum, so
+a rare input pattern and a settling race are both live explanations and this
+wave separates neither. **Recorded as an open intermittent, not as a defect** --
+the sadd boundary took a dedicated sweep wrapper to move from two points to
+twenty-one, and this deserves the same.
+
+### T600a -- RESOURCE NUMBERS, THREE DESIGNS, ZERO DSP [measured]
+
+    design             LUT      CARRY4   DSP   DUT-equiv   P&R
+    gft_signed_dot4   12724      2018     0      1.96      259 s
+    gft_xorpercep     10914      1885     0      1.01      337 s
+    gft_sadd           1335       260     0      1.08       20 s
+
+Both large designs met timing at the declared divider (/16 and /32) against a
+70.77 MHz CFGMCLK -- the XDC ratio doing the work T541 said it must.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

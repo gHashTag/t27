@@ -1396,11 +1396,25 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
                 .and_then(|n| n.trim().parse::<usize>().ok());
             if word.is_none() {
                 word = t.split_whitespace().find_map(|w| {
-                    u32::from_str_radix(w, 16).ok().filter(|v| (v >> 4) == 0xA5A5A5A)
+                    // W838: `(v >> 4) == 0xA5A5A5A` tests the LEGACY 28-bit
+                    // magic. v1 carries 20 magic bits and a version nibble, v2
+                    // carries 16 magic bits, a version nibble and a design
+                    // nibble -- so both were rejected here and every hardware
+                    // read since the W820-W828 migration printed `no magic on
+                    // any cable` while the reader beneath it was printing
+                    // `VERDICT: PASS`. The one thing all three layouts share is
+                    // 16'hA5A5 in the top sixteen bits; test exactly that.
+                    u32::from_str_radix(w, 16).ok().filter(|v| (v >> 16) == 0xA5A5)
                 });
             }
         }
-        if t.starts_with("MAGIC PRESENT") {
+        // W838: "MAGIC PRESENT" is the LEGACY 28-bit line. Wrappers migrated to
+        // layout v1/v2 in W820-W828 and the reader prints "LAYOUT v1 ..." for
+        // them instead -- so this parser recorded nothing and every hardware
+        // read since reported `no magic on any cable` while the standalone
+        // reader saw all three dice. Measured W838: 3 of 3 boards read by hand,
+        // 0 of 3 through this function, minutes apart, same loaded bitstreams.
+        if t.starts_with("MAGIC PRESENT") || t.starts_with("LAYOUT ") {
             if let Some(i) = current {
                 if !idxs.contains(&i) {
                     idxs.push(i);
@@ -1880,15 +1894,50 @@ pub fn run_silicon(
 
     let chain = derived_chain.unwrap_or(3);
     println!("  reading USER{chain}, derived from the FASM");
-    let (before, word, _) = read_verdict(repo_root, chain);
+    let (before, word, read_log) = read_verdict(repo_root, chain);
     let ok = !before.is_empty();
     hw_ok &= ok;
+    // W838: MEASURED false PASS. `gft_signed_dot4` was loaded on 1:4 and this
+    // stage reported ok=1 -- the word belonged to the NEIGHBOURING board, which
+    // still held `gft_xorpercep` from an earlier run. Both wrappers are layout
+    // v1, which carries no design id, and `word` took whichever cable answered
+    // first. Hand-reading the same three cables minutes later gave 1011/ok=0 for
+    // the board actually under test. A false FAIL stops a wave; a false PASS
+    // does not, so this is the more dangerous of the two defects found today.
+    // The libftdi index is NOT the --busdev-num (the reader says so in its own
+    // header), so the only honest options are: exactly one cable answers, or a
+    // --control bitstream derives the mapping. Anything else is a guess.
+    if word.is_some() && before.len() > 1 && no_bscan_control.is_none() {
+        hw_ok = false;
+        println!(
+            "  FAIL B2 read            {} cables carry magic {before:?} -- CANNOT SAY WHICH IS {busdev}",
+            before.len()
+        );
+        println!("  libftdi index is not --busdev-num. Pass --control to derive the mapping,");
+        println!("  or clear the other boards first. Reporting the first answer would be a guess.");
+        for line in read_log.lines() {
+            println!("  | {line}");
+        }
+    } else {
     match word {
         Some(w) => println!(
             "  {} B2 read            0x{w:08x}  magic, ok={} beat={}  on index {before:?}",
             if ok { "OK  " } else { "FAIL" }, w & 1, (w >> 1) & 1
         ),
-        None => println!("  FAIL B2 read            no magic on any cable"),
+        None => {
+            // W838: this arm used to print the verdict and DISCARD the reader's
+            // log, so a read that failed for an unrelated reason -- a busy FTDI
+            // handle, a Python traceback, a wrong flag -- was indistinguishable
+            // from a die that genuinely carries no magic. A stage that reports a
+            // failure without its evidence sends the next wave hunting the wrong
+            // fault; it cost this one two rebuilds.
+            println!("  FAIL B2 read            no magic on any cable");
+            println!("  --- reader output, so the cause is visible ---");
+            for line in read_log.lines() {
+                println!("  | {line}");
+            }
+        }
+    }
     }
 
     if let Some(nb) = &no_bscan_control {
