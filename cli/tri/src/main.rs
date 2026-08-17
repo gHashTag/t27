@@ -9,6 +9,7 @@ use std::process::Command;
 
 mod depin;
 mod fpga;
+mod gates;
 mod hooks;
 mod rtl;
 
@@ -58,6 +59,11 @@ enum Commands {
     Fpga {
         #[command(subcommand)]
         action: fpga::FpgaCmd,
+    },
+    /// Find workflows that have never once succeeded.
+    Gates {
+        #[command(subcommand)]
+        action: gates::GatesCmd,
     },
     /// The structural check t27.ai offers, run locally: five verdicts, the
     /// yosys version beside the numbers, and no claim about correctness.
@@ -662,6 +668,7 @@ fn main() -> Result<()> {
         }
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Gates { action } => gates::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
