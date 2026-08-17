@@ -10932,6 +10932,28 @@ fixed downstream stages reusing a stale artefact and left the failing stage's ow
 column. Seventh instance this month, and the second inside a fix for the previous
 one.
 
+**1119. PLACE-AND-ROUTE IS LINEAR AT 21.19 ms/LUT, R^2 = 0.9994.** Seven designs
+from 43 to 12,724 LUT; fitting the three at or above 100 LUT gives
+`seconds = 21.19 ms/LUT x LUT - 2.60` across an 87-fold size range. So the 300 s
+bound permits **14,280 LUT = 6.6% of an XC7A200T**, and a full-die build would
+take **76 minutes**. First time this project can predict build time from design
+size. Unlike synthesis (T528: bimodal, 13 s or never) the threshold here is a real
+capacity trade, not an indifferent choice.
+
+**1120. Below ~100 LUT the runtime is BSCAN retry overhead, not the design.**
+`phi_weights` (43 LUT) took 26.38 s and `tnf17` (44 LUT) 8.37 s -- 613 and
+190 ms/LUT against the model's 21. `t27c silicon` re-runs place-and-route up to
+six times when the JTAG chain disagrees with the placed site (T172a), and that
+fixed cost is the entire runtime when the design is nothing. State the model's
+DOMAIN; do not read its breakdown outside it as a refutation.
+
+**1121. A SIGN OR RANGE THAT CANNOT HAPPEN IS THE CHEAPEST DETECTOR, AND IT FIRED
+TWICE THIS MONTH.** W822 printed "196% of the datapath exercised" -- a fraction
+above one. W824 printed "-16x the fitted cost" -- a negative multiple, because the
+fit's intercept is -2.60 s and 43 LUT lies outside its domain. Both were caught by
+the impossible value alone, with no second measurement. Choose units and names
+that CAN be impossible.
+
 ### How to update this tracker
 
 After closing a wave:

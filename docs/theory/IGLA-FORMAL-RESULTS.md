@@ -22380,6 +22380,91 @@ the second inside a fix for the previous one. The pattern is not that the code i
 careless -- it is that **"the file exists" and "this run wrote it" are different
 propositions, and every place that conflates them has to be found separately.**
 
+## W824 -- place-and-route is linear at 21 ms/LUT, and the bound now has a number under it
+
+### T558 -- THE PLACE-AND-ROUTE COST MODEL, MEASURED [measured]
+
+W823 found the pipeline's 300 s wall clock binding on a 19,985-LUT design and
+refused to raise it, because W811 had set that limit from the SYNTHESIS
+distribution and place-and-route had never been measured against it. T528 measured
+synthesis and found it **bimodal** -- 13 s or never -- which made the exact
+threshold irrelevant.
+
+FORECAST REGISTERED: place-and-route is different, scaling continuously with
+design size, so 300 s is a real trade-off rather than an indifferent choice.
+Seven designs spanning 43 to 12,724 LUT:
+
+    LUT      pnr sec    ms/LUT
+     43       26.38      613.5
+     44        8.37      190.2
+     51        2.29       44.9
+     59        1.73       29.3
+    146        3.27       22.4
+   3132       60.13       19.2
+  12724      267.88       21.1
+
+CONFIRMED. Fitting the three designs at or above 100 LUT:
+
+    seconds = 21.19 ms/LUT x LUT - 2.60      **R^2 = 0.9994**
+
+across an 87-fold range in size. Place-and-route on this toolchain is linear in
+LUT count to four significant figures.
+
+WHAT THAT BUYS, and it is the first time this project can answer any of it:
+
+    the 300 s bound permits            14,280 LUT
+    XC7A200T total                    215,360 LUT
+    fraction of the die buildable now      6.6%
+    time to place a FULL die              76 min
+
+### T559 -- THE TWO SMALL OUTLIERS ARE RETRY OVERHEAD, NOT A BROKEN MODEL [measured]
+
+`phi_weights` at 43 LUT took 26.38 s and `tnf17` at 44 LUT took 8.37 s -- 613 and
+190 ms/LUT against the model's 21. Mid-census I read that as the forecast failing:
+a 15-fold spread among designs of identical size is not what linear scaling looks
+like.
+
+It is the BSCAN chain-retry loop. `t27c silicon` re-runs place-and-route when the
+JTAG chain nextpnr placed the cell at disagrees with the one the FASM declares
+(T172a), up to six times. That is a FIXED cost, and when the design itself is
+forty-three LUT it is the entire runtime.
+
+So the model holds and its domain is stated: **linear above roughly 100 LUT,
+dominated by retry overhead below it.** Both regimes are now measured rather than
+one being assumed.
+
+### T559a -- and my own report printed a meaningless ratio [self-critical]
+
+The script compared the outliers against the fit and printed
+
+    43 LUT took 26.38s = -16x the fitted cost
+
+A negative multiple. The fit's intercept is -2.60 s, so at 43 LUT it predicts a
+negative time -- the design sits outside the fitted domain, and dividing by an
+extrapolation there produces a number with no meaning and a sign to prove it.
+
+Same shape as W822's `196% of the datapath`: **a quantity whose sign or range is
+impossible is the cheapest detector there is**, and it is the second time this
+month that property, rather than a second measurement, caught the error. The
+ratio is not reported; the domain limit is.
+
+### T560 -- WHAT THE BOUND SHOULD BE, STATED AS A TRADE RATHER THAN A NUMBER [derived]
+
+T528 could say the synthesis threshold did not matter, because nothing lived
+between 13 s and never. Here everything lives in between, so the bound is a
+capacity decision and belongs to whoever is choosing what to build:
+
+    300 s   ->  14,280 LUT   6.6% of the die     (today)
+    600 s   ->  28,600 LUT    13%
+   1200 s   ->  57,000 LUT    26%
+   4600 s   -> 215,360 LUT   100%                (76 min per build)
+
+NOT CHANGED HERE. W823's rule stands -- raising a limit because one design
+exceeded it is how a timeout becomes decoration -- and now the rule has arithmetic
+under it rather than caution. The largest design this project has actually wanted
+is 25,273 LUT (`gft_xorbp`, T532), which needs **535 s**, so 600 s is the smallest
+bound that covers the known corpus.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
