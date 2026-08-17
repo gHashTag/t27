@@ -10508,6 +10508,22 @@ question "then where did the saving go?", and the answer -- CARRY4 is dedicated
 silicon and read-outs are not -- reversed a theorem written two waves earlier.
 Register forecasts you might lose.
 
+**1063. A CENSUS OVER EVERY SPEC IS A DISK ATTACK ON YOUR OWN SESSION.** W807
+launched `path --synth` over every spec carrying `fn on_comb`, to re-measure the
+corpus after the doubling fix. Each run leaves a yosys netlist of order 10 MB,
+and free space fell from 1.1 GB to **579 MB** in one background job -- with two
+prior ENOSPC events on record, each of which disabled the Bash tool ENTIRELY by
+failing before the command ran. Killing the job recovered 738 MB.
+
+The census was the right question asked the most expensive way. `fpga/boards/
+qmtech_a100t_integration.t27` alone synthesises to 12,559 LUT; there was no
+reason to build it to answer "is this figure doubled", when **parity answers that
+for free** (lesson 1060) and a targeted re-run answers it for one spec.
+
+THE RULE: before a sweep, multiply the artefact size by the item count and
+compare to `df`. If the product exceeds free space, the sweep is not a
+measurement, it is an outage with a progress bar.
+
 ### How to update this tracker
 
 After closing a wave:
