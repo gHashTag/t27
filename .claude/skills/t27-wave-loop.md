@@ -10981,6 +10981,29 @@ toolchain has a **cold chipdb load of ~15.6 s** (332 MB), a per-LUT slope of
 `ternary_node` measures 3.27 s inside the pipeline and 15.04 s standalone. Three
 regimes, one number would have hidden all of them.
 
+**1126. USE `scripts/timed` FOR EVERY AD-HOC MEASUREMENT.**
+
+    scripts/timed --expect FILE -- cmd args...
+    ->  16636 ms  rc=0  75487 B  /path/to.fasm
+    ->     36 ms  rc=255  0 B  ...  <-- NOT A MEASUREMENT
+
+It deletes the expected artefact first, so a stale file cannot be counted as this
+run's output, and refuses a non-regular path outright -- `--expect /dev/null` is
+the W825 mistake in a new costume. A duration is never printed without the return
+code and the byte count beside it.
+
+**1127. A LESSON THAT DOES NOT CHANGE CODE COMES BACK.** "Time the artefact, not
+the clock" was recorded after the third instance (T500, T531, T562a) and nothing
+was built. What ended it was a tool in which the bad form **cannot be expressed**:
+you cannot get a duration out of `scripts/timed` without also getting rc and size.
+Prefer a shape that forbids the error to a rule that names it.
+
+**1128. And audit the accusation before making it.** The `Stage` audit found two
+timed stages with `artefact: None` -- and both carry their evidence in `note`
+instead, because neither produces a file worth sizing. The pipeline never had this
+defect; every instance was a one-off shell loop of mine. Confirming a forecast in
+letter is not confirming it in substance.
+
 ### How to update this tracker
 
 After closing a wave:

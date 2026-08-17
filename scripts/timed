@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Time a command and REFUSE to report a duration without evidence it ran.
+
+W826 (T564). Three times in one month a failure was timed and read as a fast
+success: a doubled cell count (T500), a syntax error read as a timeout (T531),
+and `nextpnr --fasm /dev/null` clocked at 22 ms and reported as "placement is
+essentially instant" (T562a). Every one came from the same harness shape --
+
+    t0=$(date +%s%N); some_command >/dev/null 2>&1; echo $(( ... ))
+
+which captures the clock and discards the exit code, stderr, and whether anything
+was written. `t27c silicon` does not have this defect: every stage there carries
+either a byte count or a note with counts in it. The gap is ad-hoc measurement,
+and this closes it.
+
+    scripts/timed --expect FILE -- cmd args...
+
+prints  `<ms>  rc=<code>  <bytes> B  <path>`  and exits non-zero when the command
+failed OR the expected artefact is missing or empty. A duration alone is never
+printed.
+"""
+import subprocess, sys, time, os
+
+def main(argv):
+    expect = None
+    if argv and argv[0] == "--expect":
+        expect = argv[1]; argv = argv[2:]
+    if argv and argv[0] == "--":
+        argv = argv[1:]
+    if not argv:
+        print("usage: timed [--expect FILE] -- cmd args...", file=sys.stderr)
+        return 2
+    # A stale file is not this run's artefact (T513/T557). A path that is not a
+    # regular file cannot BE an artefact -- `--expect /dev/null` is exactly the
+    # W825 mistake in a new costume, so it is rejected up front rather than
+    # deleted, which on a device fails with EPERM and takes the harness with it.
+    if expect:
+        if os.path.exists(expect) and not os.path.isfile(expect):
+            print(f"  {expect} is not a regular file -- it cannot be an artefact",
+                  file=sys.stderr)
+            return 2
+        if os.path.exists(expect):
+            os.remove(expect)
+    t0 = time.time()
+    p = subprocess.run(argv, capture_output=True)
+    ms = int((time.time() - t0) * 1000)
+    size = os.path.getsize(expect) if expect and os.path.exists(expect) else 0
+    ok = p.returncode == 0 and (expect is None or size > 0)
+    print(f"  {ms} ms  rc={p.returncode}  {size} B  {expect or '(no artefact expected)'}"
+          f"{'' if ok else '   <-- NOT A MEASUREMENT'}")
+    if not ok:
+        tail = (p.stderr or b"").decode(errors="replace").strip().split("\n")[-1:]
+        for l in tail:
+            print(f"      stderr: {l[:100]}", file=sys.stderr)
+    return 0 if ok else 1
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

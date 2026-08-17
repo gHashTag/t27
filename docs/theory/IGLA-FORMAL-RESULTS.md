@@ -22542,6 +22542,74 @@ after design and the 332 MB chipdb stays in the page cache; each standalone run
 paid the load again. **The floor is a cold-start cost, and a corpus sweep pays it
 once.** That is a fourth regime and it is now named rather than averaged over.
 
+## W826 -- the lesson was written three times; this wave it became a tool
+
+### T564 -- THE PIPELINE WAS NEVER GUILTY; THE AD-HOC SCRIPTS WERE [measured]
+
+Lesson 1122 was recorded after the third instance of timing a failure and reading
+it as a fast success -- a doubled cell count (T500), a syntax error read as a
+timeout (T531), `nextpnr --fasm /dev/null` clocked at 22 ms and reported as
+"placement is essentially instant" (T562a). The lesson was written and no code
+changed, which is how a class returns a fourth time.
+
+FORECAST REGISTERED: auditing every `Stage` in `service.rs` finds places that
+report a duration with no evidence the work happened. Result -- two of thirteen
+stages carry `artefact: None` while being timed:
+
+    "Zig tests"           timed, artefact None
+    "datapath survives"   timed, artefact None
+
+**And both are innocent.** Each carries its evidence in the `note` field instead
+of a byte count: the Zig stage prints its pass/fail counts, the datapath stage
+prints CARRY4 in the fabric against CARRY4 per DUT. There is no file to size, and
+a byte count would be the wrong evidence for either.
+
+So the forecast is confirmed in letter and refuted in substance. **The pipeline
+does not have this defect. Every instance of it has been in a one-off shell loop
+of mine**, of the shape
+
+    t0=$(date +%s%N); some_command >/dev/null 2>&1; echo $(( ... ))
+
+which captures the clock and discards the exit code, stderr, and whether anything
+was written.
+
+### T565 -- `scripts/timed`: a duration is never printed alone [fixed]
+
+    scripts/timed --expect FILE -- cmd args...
+
+Deletes the expected artefact first (a stale file is not this run's output --
+T513, T557), runs the command, and prints `<ms> rc=<code> <bytes> B <path>`,
+appending `<-- NOT A MEASUREMENT` and echoing stderr's last line when the command
+failed or the artefact is missing or empty. It exits non-zero in that case.
+
+Demonstrated against the exact W825 error and both neighbours:
+
+    --expect /dev/null    /dev/null is not a regular file -- it cannot be an artefact
+    failing command       36 ms  rc=255  0 B  ...  <-- NOT A MEASUREMENT
+    real run              17450 ms  rc=0  123112 B
+
+**36 ms, which W825 read as a fast success, now says it is not a measurement.**
+
+The `/dev/null` guard is the part worth noting. Rejecting a non-regular file up
+front is not defensive coding for its own sake: `--fasm /dev/null` IS the W825
+mistake wearing a new costume, and deleting a device node fails with EPERM and
+takes the harness down with it -- which is how the first version of this tool
+crashed rather than reporting.
+
+### T565a -- what "closing a class" actually required [derived]
+
+Three theorems, three lessons, and the defect recurred each time. What stopped it
+was not a better-worded rule but **a tool that cannot express the bad form**: with
+`scripts/timed` there is no way to obtain a duration without also obtaining the
+return code and the artefact size, because they are printed on the same line by
+the same call.
+
+That is the difference between a lesson and a fix, and this project has now seen
+it twice -- `t27c yostat` was written for the same reason (summing `findall` over
+a yosys log double-counts) and the general `cell_census` beside it doubled for 264
+commits anyway (T500). **A tool protects only the call sites that use it**, so the
+next question for `scripts/timed` is whether anything but this wave will.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
