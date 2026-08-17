@@ -11066,6 +11066,27 @@ zero, which is offset 0 and inside the affected band; `c_eta0` compares weights 
 offset 40, thirty clear of it. Before treating a disagreement as a contradiction,
 look for the parameter that separates them.
 
+**1138. LAYOUT v2 CARRIES A DESIGN ID.**
+`{16'hA5A5, 4'd2, 4'd<design>, four clauses, 0, 1, beat, ok}` -- bits [11:8] the
+version, [7:4] the design. v1 said which FORMAT a board speaks and not which
+EXPERIMENT it runs, which is how W828 read `v=1, clauses=1111` off two boards
+holding another design. `read_verdict.py` must check v2 BEFORE v1, since a v2 word
+also begins 0xA5A5. Design 1 = gft_sadd boundary probe.
+
+**1139. A SIMULATION OF A SPEC SHARES EVERY MISREADING OF THAT SPEC.** W829's
+absorption boundary came from re-implementing `magadd` in Python -- the same
+source the RTL is generated from -- so agreement between them proves nothing about
+either. Putting both halves on three dice confirmed one and contradicted the
+other. **Derive from the source, verify against the hardware.**
+
+**1140. AN UNRESOLVED DISAGREEMENT IS A RESULT; A PLAUSIBLE STORY IS NOT.**
+`c_move = 0` contradicts three consistent readings of the spec, and four
+explanations were eliminated by direct comparison (identical `magadd`, faithful
+RTL including the `hm`/`lm` swap, same-sign path, and three passing clauses).
+What remains was NOT guessed between. W825 spent a whole wave undoing a plausible
+story about BSCAN retries (T561); write down the fork instead of choosing a
+branch.
+
 ### How to update this tracker
 
 After closing a wave:

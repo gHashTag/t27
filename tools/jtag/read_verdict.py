@@ -115,6 +115,22 @@ def report(idx, reads=5, chain=3):
     # Anything else is a word this reader does not understand, and it says so
     # rather than pattern-matching the top bits and reporting a verdict.
     for w in good:
+        # W830 (T572): layout v2 carries a DESIGN ID as well as a version.
+        #   {16'hA5A5, 4'd2, 4'd<id>, four clause bits, 0, 1, beat, ok}
+        # v1 said which FORMAT a board speaks and not which EXPERIMENT it runs,
+        # so W828 read three dice at `v=1, clauses=1111` where two held a
+        # different design (lesson 1134). Checked BEFORE v1, because a v2 word
+        # also starts 0xA5A5.
+        if (w >> 16) == 0xA5A5 and ((w >> 12) & 0xF) == 2:
+            did = (w >> 8) & 0xF
+            c = [(w >> b) & 1 for b in (7, 6, 5, 4)]
+            names = {1: "gft_sadd boundary probe"}.get(did, f"design {did}")
+            print(f"           LAYOUT v2  {names}  clauses={''.join(map(str,c))}  "
+                  f"beat={(w >> 1) & 1}  ok={w & 1}")
+            print("           VERDICT: " + ("PASS -- every clause held on the die"
+                                            if (w & 1) and all(c)
+                                            else "FAIL -- a clause is false; the bits above name it"))
+            return w
         if (w >> 12) == 0xA5A5A:
             ver = (w >> 8) & 0xF
             if ver == 1:

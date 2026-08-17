@@ -22838,6 +22838,84 @@ Two waves, no withdrawals, and this wave's two forecasts were registered before
 the simulation and both held. Still far too little to conclude anything; recorded
 so that it accumulates rather than being re-argued.
 
+## W830 -- half the model confirmed on silicon, half contradicted, cause unresolved
+
+### T572 -- LAYOUT v2 CARRIES A DESIGN ID, AND IT WORKED ON ITS FIRST USE [fixed]
+
+v1 said which FORMAT a board speaks and not which EXPERIMENT it runs, so W828 read
+three dice at `v=1, clauses=1111` where two held `ternary_node` rather than the
+design just programmed (lesson 1134). Layout v2:
+
+    {16'hA5A5, 4'd2, 4'd<design>, four clause bits, 1'b0, 1'b1, beat, ok}
+
+`read_verdict.py` checks v2 BEFORE v1, because a v2 word also begins 0xA5A5. The
+first read after programming reported `v2 design=1` on all three cables, so the
+fleet was unambiguous without loading the same build everywhere first -- which is
+the discipline v2 replaces.
+
+### T573 -- ABSORPTION CONFIRMED ON THREE DICE; THE MOVING HALF IS CONTRADICTED [measured]
+
+W829 derived the absorption boundary by simulating `magadd` in Python from the
+spec source, and said plainly that this was a simulation and not a measurement.
+`gft_sadd_jtag.v` puts both sides of it on silicon.
+
+FORECAST REGISTERED, values computed before the file was written:
+
+    c_move    sadd(2560, 511) == 2591   offset 5, inside the band -- must MOVE
+    c_abs     sadd(7680, 511) == 7680   offset 15, outside -- must be ABSORBED
+
+All three dice, `0xa5a52174`:
+
+    c_move = 0    c_abs = 1    c_gold = 1    c_ind = 1    ok = 0
+
+**The absorbing half is confirmed. The moving half is contradicted.** The die does
+not compute `sadd(2560, 511) = 2591`, and it does compute
+`sadd(7680, 511) = 7680` exactly, and it reproduces the spec's own `test a1`
+(`1.0 + 1.0 = 2.0`) while its adder is measurably live at 1.07 DUT-equivalents.
+
+WHAT WAS ELIMINATED, each by direct comparison rather than reasoning:
+
+  - **`magadd` differing between the two specs** -- byte-identical, same md5.
+    (This was the obvious suspect: W829 simulated `gft_signed_dot4`'s copy and
+    W830 tests `gft_sadd`'s. They are the same function.)
+  - **The RTL differing from the spec** -- the generated Verilog matches line by
+    line, including the `hm`/`lm` swap that accompanies `ho`/`lo`, which is the
+    one place a lowering bug would hide.
+  - **`sadd`'s same-sign path differing** -- the two files' `sadd` DO differ, and
+    both return `magadd(ma, mb)` when the signs agree, which is this case.
+  - **The module being broken generally** -- three other clauses pass on all three
+    boards.
+
+WHAT IS NOT ELIMINATED, and I am not guessing between them: my expected value
+2591 despite three sources agreeing on it; a fault in the `c_move` clause
+specifically; or something in synthesis, placement or routing that affects this
+one computation and not the other three.
+
+### T573a -- the right next diagnostic, registered rather than run [derived]
+
+The discriminating experiment is to run the GENERATED VERILOG under Icarus with
+exactly this vector. That separates "the RTL computes something else" from "the
+silicon computes something else than the RTL", which is the only fork the
+eliminations above leave open, and it needs no die.
+
+It is registered rather than run because this wave has reached the point where the
+next step is a different kind of measurement, and W820's lesson -- that a
+transform and its verification sharing a command hides which one failed -- applies
+to waves as well as to shell lines.
+
+**Recording an unresolved disagreement is the result here.** Three dice, three
+readings of one source, and a contradiction between them is worth more written
+down precisely than closed with a plausible story: W825 spent a wave undoing
+exactly such a story about BSCAN retries (T561).
+
+### T573b -- forecast count, third entry [derived]
+
+    W828   withdrawals 0   refuted 1   confirmed 0
+    W829   withdrawals 0   refuted 0   confirmed 2
+    W830   withdrawals 0   refuted 1   confirmed 1
+
+The W830 forecast had two clauses and they split. Three waves, no withdrawals.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
