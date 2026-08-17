@@ -10057,6 +10057,29 @@ timings.** I guessed the Python scatter loop was the bottleneck, vectorised it
 proven-identical, and got 1.0x. The profiler then handed me a defect worth 4 pp
 in a warning line (T456).
 
+### W789 — lessons 994-997
+
+**994. I said the article was "not started" and it is 2,687 lines.** The line "It
+has a 2,353-line article (docs/theory/TNF_ARTICLE_RU.md)" is in tnf17.t27, which I
+READ this session while copying its template. *Answering a status question from
+memory when the answer is in a file you opened an hour earlier is the same failure
+as reading a pipeline's output as its status -- and it reached the user.*
+
+**995. macOS sed is BSD and does not support `\|` alternation.** My verification
+that the article's prose was untouched used it, matched nothing, and reported
+"prose changed" on a correct edit -- nearly triggering a revert of good work.
+*Verify a verification before trusting its alarm; on this machine use python or
+`sed -E`.*
+
+**996. Tagging a document is an AUDIT, and the audit is the deliverable.** Adding
+status tags to 89 theorem statements surfaced that 43 of them carry neither a
+proof mark nor a measurement within eight lines. That is a documentation finding,
+not a soundness one -- and it is invisible until someone tries to tag them.
+
+**997. When correcting a claim to the user, correct the SOURCE of the error too.**
+The wrong percentage came from not checking; the fix is not a better percentage
+but a rule -- read the artefact before reporting its status.
+
 ### How to update this tracker
 
 After closing a wave:
