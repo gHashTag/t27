@@ -59,6 +59,12 @@ NAMED = {
     "linear": [1., 2., 3., 4.],
     "fib":    [1., 1., 2., 3.],
     "1235":   [1., 2., 3., 5.],
+    # W783/T444: the enumerated ranking over all 1156 admissible nine-level
+    # integer alphabets. rank1 == linear; kept under both names so the P&R table
+    # can be read against the enumeration without a lookup.
+    "rank2":   [1., 3., 4., 5.],     # junta 2.519
+    "rank3":   [1., 4., 5., 6.],     # junta 2.519
+    "rank1156": [1., 4., 23., 24.],  # junta 1.333, the worst admissible alphabet
 }
 
 

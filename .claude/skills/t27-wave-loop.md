@@ -9883,6 +9883,17 @@ not to bind.*
 and base 3 -- the incumbents of nine waves -- fail S6 and are excluded before any
 ranking happens (T444b). *Say which one you mean; a reader assumes the first.*
 
+**964. A mechanism that ranks the ENDS need not rank the middle.** Junta degree
+put rank-1156 at 65 LUT against rank-1's 128 -- and ranks 2 and 3, at 2.519
+against 2.551, cost MORE than rank 1 (T445). *Same shape as T418's Pearson-vs-
+Spearman split, now on placed fabric: predictive across a range, silent inside a
+neighbourhood.*
+
+**965. When the winner wins on two axes, check whether it is for one reason.**
+Linear 9 is rank 1 in junta AND smallest of the top three -- but its near-ties
+cost 15% more, so the area win comes from truth-table coincidences (1+2=3, 1+3=4,
+2+2=4), not from junta degree (T445b). *Two wins can have two causes.*
+
 ### How to update this tracker
 
 After closing a wave:

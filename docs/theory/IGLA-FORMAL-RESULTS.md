@@ -18576,4 +18576,49 @@ alphabet exceeds 2.60.*
 
 ---
 
+## W783b — the enumerated ranking, taken to real gates
+
+### T445 — junta degree resolves the ends of the space and not the top of it
+
+The ranking of T444 is exhaustive, so the area claim can be tested against an
+optimum rather than a hand-picked rival. Placed and routed, xc7a100t, `L = 4`,
+`H = 16`, fan-in 3:
+
+| enumeration rank | alphabet | junta | **SLICE_LUTX** | **Fmax MHz** |
+|---:|---|---:|---:|---:|
+| **1** | `{1,2,3,4}` | 2.551 | **128** | 187.7 |
+| 2 | `{1,3,4,5}` | 2.519 | **147** | 171.0 |
+| 3 | `{1,4,5,6}` | 2.519 | **147** | 171.0 |
+| 1156 | `{1,4,23,24}` | 1.333 | **65** | **254.9** |
+
+**Registered forecast (T44):** *area orders as rank 1 > rank 2 > rank 1156, with
+the last ~40 % smaller.*
+
+> **T445. Refuted at the top, confirmed at the bottom, and the split is the
+> result.** Rank 1156 is **49 % smaller and 36 % faster** than rank 1 — more than
+> forecast. But **ranks 2 and 3 cost *more* than rank 1 while having *lower* junta
+> degree**: 147 against 128. The ordering inverts exactly where the junta
+> difference is smallest — **2.551 against 2.519, a 1.3 % gap, driving nothing**.
+
+> **T445a. This is T418 reappearing on hardware.** T418 found Pearson `+0.916`
+> against Spearman `+0.607` and warned that the correlation was carried by the
+> endpoints. **Here the endpoints are 65 and 128 LUT and the middle is unordered**
+> — the same shape, now on placed-and-routed fabric with an exhaustively derived
+> ranking rather than a sampled one. **Junta degree predicts area across the
+> space and not within a neighbourhood of it.**
+
+> **T445b. Linear 9 wins on both axes and not because of the mechanism.** It is
+> rank 1 in junta degree *and* the smallest of the top three — but ranks 2 and 3,
+> at nearly identical junta, cost 15 % more. **What separates them is truth-table
+> content**: `{1,2,3,4}` carries the coincidences `1+2=3`, `1+3=4`, `2+2=4`, which
+> collapse table rows that `{1,3,4,5}` keeps distinct. **The optimum is real and
+> the explanation for it is not the one the sieve offers.**
+
+> **T445c. Ranks 2 and 3 are bit-identical in area and clock** — 147 LUT and
+> 171.03 MHz, to the decimal. Two different alphabets with equal junta degree
+> producing identical hardware is a consistency check the enumeration passed
+> without being asked to.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
