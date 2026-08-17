@@ -20037,4 +20037,52 @@ two that already disagree. If any survivor flips, it is not architectural either
 
 ---
 
+## W803 — the fan-in mechanism, and the null experiment I nearly ran
+
+### T481 — fan-in pays in inverse proportion to per-feature information
+
+T480a proposed that fan-in helps most where inputs are **spatially related**, and
+recommended testing it by permuting MNIST pixels. **That experiment is a null and
+could not have measured anything.** The connectivity mask is a **random draw over
+feature indices**, so permuting the columns permutes the mask: the network is
+**exactly permutation-invariant** and has no access to spatial structure at all.
+**Caught before running, by asking what the mask actually sees.**
+
+The real mechanism needs no training to test:
+
+| dataset | features | dead (`var<1e-9`) | near-dead | **mean per-feature MI** | **fan-in 3→6 gain** |
+|---|---:|---:|---:|---:|---:|
+| Fashion | 784 | 5 (1 %) | 44 | **0.0561** | **+0.91** |
+| UNSW | 593 | 5 (1 %) | 81 | **0.0269** | **+1.73** |
+| MNIST | 784 | **108 (14 %)** | 270 | **0.0058** | **+4.51** |
+
+> **T481. Mean per-feature mutual information orders the fan-in gain exactly, and
+> inversely, across all three tasks.** 0.0561 → +0.91; 0.0269 → +1.73;
+> 0.0058 → +4.51. **Fan-in pays in proportion to how uninformative the average
+> feature is**: when each input carries little, a neuron reading three of them
+> often catches nothing, and doubling to six doubles the chance of catching
+> signal. Where features are individually informative, three already suffice.
+
+> **T481a. MNIST agrees twice over.** It has the lowest mean MI *and* **108 dead
+> pixels — 14 % of its input is constant**, against 1 % for the other two. A
+> random fan-in-3 draw on MNIST hits a dead pixel with probability ~0.36; a
+> fan-in-6 draw still has ~0.6 chance of at least one live informative input.
+> **Two independent statistics of the same dataset point the same way.**
+
+> **T481b. Three points and an exact ordering is suggestive, not established.**
+> `n = 3`, and the predictor was chosen after seeing the outcome — the honest
+> reading is a **mechanism consistent with the data**, and the test that would
+> establish it is a **fourth dataset with mean MI chosen in advance**. Stated so
+> it cannot later be quoted as a law, which is exactly the error T447 and T472
+> record.
+
+> **T481c. The near-miss is the more useful half.** T480a's recommendation would
+> have consumed a wave producing a guaranteed null, and the reason is structural:
+> **a random mask cannot see input order.** *Before running an experiment, ask
+> what the mechanism under test is physically able to reach — permutation
+> invariance is a property of the architecture and was knowable without a single
+> run.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

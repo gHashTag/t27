@@ -10316,6 +10316,23 @@ the script only did Fashion. Same class as the `6'd` case-label of T453 -- a
 constant that encoded the old scope (T480c). *When you add a parameter, grep the
 output strings too, not just the logic.*
 
+### W803 — lessons 1037-1039
+
+**1037. Ask what the mechanism under test can physically reach.** I recommended
+permuting MNIST pixels to test a spatial-adjacency hypothesis; the connectivity
+mask is a RANDOM draw over feature indices, so the network is exactly
+permutation-invariant and the experiment is a guaranteed null (T481c). *Knowable
+without a single run, and it would have cost a wave.*
+
+**1038. A no-training statistic can name a mechanism.** Mean per-feature mutual
+information orders the fan-in gain exactly and inversely on three datasets --
+0.056 -> +0.91, 0.027 -> +1.73, 0.006 -> +4.51 -- computed in one minute from
+data already on disk (T481).
+
+**1039. A predictor chosen AFTER seeing the outcome is a hypothesis, not a
+result.** n=3 and an exact ordering is suggestive; the test that establishes it
+picks the fourth dataset by its mean MI IN ADVANCE (T481b).
+
 ### How to update this tracker
 
 After closing a wave:
