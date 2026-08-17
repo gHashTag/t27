@@ -19347,4 +19347,49 @@ With the route open, everything the tree offers was put on board 1:4:
 
 ---
 
+## W792 — the last named blocker was a package suffix
+
+### T463 — the flash bridge existed, under the other package name
+
+T462a named the remaining obstacle precisely: `openFPGALoader --detect -f` aborts
+on a missing `spiOverJtag_xc7a200tfgg676.bit.gz`, and proposed building one. It
+did not need building. The Homebrew install ships:
+
+    spiOverJtag_xc7a200t.bit.gz
+    spiOverJtag_xc7a200tfbg484.bit.gz
+    spiOverJtag_xc7a200tfbg676.bit.gz     <-- this one
+    spiOverJtag_xc7a200tffg1156.bit.gz
+    spiOverJtag_xc7a200tsbg484.bit.gz
+
+and `fpga/HARDWARE_SSOT.md` §2026-07-05 already records that **`fbg676` is the
+same die and pinout as `fgg676`** and instructs using it for place-and-route.
+Passing `--fpga-part xc7a200tfbg676`:
+
+    Use: .../spiOverJtag_xc7a200tfbg676.bit.gz
+    ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+    jtag_chain_len: 1
+    SOJ version: 2.000000
+    JEDEC ID: 0x20ba18
+    Detected: micron N25Q128_3V  256 sectors  size: 128Mb
+
+> **T463. The flash is identified and the bridge loads.** `JEDEC 0x20ba18`,
+> **Micron N25Q128_3V, 128 Mb, 256 sectors** — a measurement that confirms the
+> SSOT's stated part rather than repeating it.
+
+> **T463a. Two blockers in two waves, and neither was real.** W791 found the
+> "cable" was a stale sentence contradicting the SSOT. W792 finds the "missing
+> bridge" was a package suffix, with the equivalence written in the same SSOT
+> section that specifies the chipdb. **Both times the answer was in the document
+> the project names as authoritative, and both times I proposed work — buy a
+> cable, build a bitstream — instead of reading it.**
+
+> **T463b. The hardware side is now unblocked to the write boundary.** SRAM
+> configuration: three dice, controlled 0→1 (T461). Four bitstreams including two
+> ternary classifiers: `done 1` (T462). Flash: identified, bridge loads (T463).
+> **What remains is non-volatile programming, and that is a persistent change to
+> the user's boards** — it alters what they boot on power-up. **Not taken without
+> confirmation**; everything up to it is done.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

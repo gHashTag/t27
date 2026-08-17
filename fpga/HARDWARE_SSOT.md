@@ -30,7 +30,21 @@ Executed with `openFPGALoader 1.1.1` (Homebrew), profile `digilent_hs2`:
 Also reaching `done 1` on 1:4: `ternary_mac_demo_top_v2_200t.bit`,
 `mvp_ternary_classifier_top_200t.bit`, `mvp_ternary_classifier_jtag_200t.bit`.
 
-**Still blocked — flash only.** `--detect -f` aborts on a missing
+**Flash: RESOLVED W792.** The bridge is shipped under the *other package name* —
+`spiOverJtag_xc7a200tfbg676.bit.gz` — and this file's own §2026-07-05 already
+records that `fbg676` is the same die and pinout as `fgg676`. Use:
+
+```
+openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 --detect -f
+  SOJ version: 2.000000
+  JEDEC ID: 0x20ba18
+  Detected: micron N25Q128_3V  256 sectors  size: 128Mb
+```
+
+Non-volatile programming is therefore available and is **not** performed
+autonomously: writing flash changes what the board boots on power-up.
+
+**Superseded note —** `--detect -f` aborts on a missing
 `spiOverJtag_xc7a200tfgg676.bit.gz`; Homebrew ships no 200T/fgg676 bridge and
 `fpga/tools/` carries only the **xc7a100t** one. Build the bridge for the correct
 die and the non-volatile path opens.
