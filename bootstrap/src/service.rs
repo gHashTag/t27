@@ -29,7 +29,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// One stage of the path, with everything needed to judge it honestly.
 struct Stage {
@@ -59,17 +59,94 @@ impl Stage {
     }
 }
 
+/// W811: the wall-clock bound every stage in this file lacked.
+///
+/// `cmd.output()` waits forever. That is how W810 found a `vvp` at 98.1% CPU
+/// **32 minutes** after the run that spawned it had been killed: `t27c path
+/// --synth` over `specs/fpga/testbench/memory_tb.t27` produced a simulation that
+/// never terminates, and nothing in this file bounded it. Measured the same wave:
+/// **0 of 30** generated testbenches contain `$finish`, and 4 of 30 hang, so a
+/// corpus sweep spawns immortal simulators by construction.
+///
+/// The bound belongs HERE and not only in the testbench, for two reasons. It
+/// covers every tool this file drives -- yosys, nextpnr and openFPGALoader can
+/// hang too -- and it needs no seal broken, where the testbench emitter is inside
+/// `compiler.rs` under the FROZEN_HASH seal at `bootstrap/build.rs:206`.
+///
+/// A killed process is reported as `None`, the same as a tool that could not
+/// spawn, with the reason in stderr. Both mean "this stage produced no verdict",
+/// which is exactly what the caller must not confuse with a clean exit.
+const STAGE_TIMEOUT: Duration = Duration::from_secs(300);
+
 fn run(cmd: &mut Command) -> (Option<i32>, String, String) {
-    match cmd.output() {
-        Ok(out) => (
-            out.status.code(),
-            String::from_utf8_lossy(&out.stdout).into_owned(),
-            String::from_utf8_lossy(&out.stderr).into_owned(),
-        ),
+    run_bounded(cmd, STAGE_TIMEOUT)
+}
+
+fn run_bounded(cmd: &mut Command, limit: Duration) -> (Option<i32>, String, String) {
+    let mut child = match cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
         // Spawn failure -- the tool is absent. This is the case that reads as
         // "0.0 s" to anything that times stages, so it is reported as a
         // distinct, loud absence rather than folded into a non-zero code.
-        Err(e) => (None, String::new(), format!("could not spawn: {e}")),
+        Err(e) => return (None, String::new(), format!("could not spawn: {e}")),
+    };
+
+    // Drain both pipes on their own threads. A child that fills a pipe while we
+    // poll would deadlock, and that failure looks exactly like the hang we are
+    // here to prevent.
+    let mut out_pipe = child.stdout.take();
+    let mut err_pipe = child.stderr.take();
+    let out_h = std::thread::spawn(move || {
+        let mut b = Vec::new();
+        if let Some(p) = out_pipe.as_mut() {
+            let _ = std::io::Read::read_to_end(p, &mut b);
+        }
+        b
+    });
+    let err_h = std::thread::spawn(move || {
+        let mut b = Vec::new();
+        if let Some(p) = err_pipe.as_mut() {
+            let _ = std::io::Read::read_to_end(p, &mut b);
+        }
+        b
+    });
+
+    let start = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(s)) => break Some(s),
+            Ok(None) => {
+                if start.elapsed() >= limit {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            Err(_) => break None,
+        }
+    };
+
+    let out = out_h.join().unwrap_or_default();
+    let err = err_h.join().unwrap_or_default();
+    let mut err_s = String::from_utf8_lossy(&err).into_owned();
+    match status {
+        Some(s) => (
+            s.code(),
+            String::from_utf8_lossy(&out).into_owned(),
+            err_s,
+        ),
+        None => {
+            err_s.push_str(&format!(
+                "\nKILLED after {}s -- the stage did not terminate (W811, T523)",
+                limit.as_secs()
+            ));
+            (None, String::from_utf8_lossy(&out).into_owned(), err_s)
+        }
     }
 }
 
@@ -556,10 +633,19 @@ pub fn run_path(_repo_root: &Path, spec: &str, to_bitstream: bool) -> anyhow::Re
     let mut note = String::new();
     let mut code = c;
     if c == Some(0) {
-        let (c2, out2, _) = run(Command::new("vvp").arg(&vvp_path));
+        let (c2, out2, err2) = run(Command::new("vvp").arg(&vvp_path));
         let passed = out2.matches("PASSED").count();
         let failed = out2.matches("FAILED").count();
-        note = format!("{passed} PASSED, {failed} FAILED");
+        // W811 (T523): a simulation killed on the wall clock must SAY so. Without
+        // this the row reads "0 PASSED, 0 FAILED", which is indistinguishable from
+        // a testbench that ran and checked nothing -- and those are opposite
+        // diagnoses. 0 of 30 generated testbenches emit `$finish`, so this is not
+        // a rare path.
+        note = if c2.is_none() && err2.contains("KILLED after") {
+            format!("KILLED on the wall clock -- the simulation does not terminate ({passed} PASSED, {failed} FAILED before the kill)")
+        } else {
+            format!("{passed} PASSED, {failed} FAILED")
+        };
         // A harness that reports zero checks is the 265-baseline failure: it
         // could not fail, so its silence proves nothing.
         code = if failed > 0 || passed == 0 { Some(1) } else { c2 };

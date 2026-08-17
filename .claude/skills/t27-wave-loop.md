@@ -10624,6 +10624,29 @@ zero modified files -- 187 wrong renames prevented, and nothing to undo. A
 post-hoc grep would have shown a smaller duplicate count and proved nothing about
 what had happened to the 360 anonymous invariants on the way.
 
+**1077. THE PIPELINE HAD NO WALL CLOCK AT ALL.** `service.rs`'s `run()` was
+`cmd.output()`, which waits forever, for every tool it drives -- yosys, nextpnr,
+iverilog, vvp, openFPGALoader. W810 diagnosed the 32-minute runaway as "killing a
+parent misses grandchildren", which was true and was not the root. Now
+`run_bounded` at 300 s: piped stdio, a drain thread per pipe so a full pipe
+cannot deadlock the poll, `try_wait` against a deadline, `kill` then `wait`.
+Verified both directions -- a passing spec unchanged, a hanging spec failed at
+300.04 s with zero orphans. The loop invariant demands a timeout on every
+pipeline step; the pipeline itself had none.
+
+**1078. When a stage can fail two opposite ways with the same numbers, the row
+must name the way.** A killed simulation printed `0 PASSED, 0 FAILED` -- identical
+to a harness that ran and checked nothing, and the opposite diagnosis. Fourth
+instance this month of the reporting layer collapsing states the run
+distinguishes (doubling, stale artefact, unbounded harness, this).
+
+**1079. Before building a thing, grep for it -- the bounded testbench generator
+already existed.** `impl HirTestbench` in `compiler.rs:21135` emits a timeout
+watchdog and two `$finish`, reachable as `t27c gen-testbench`. The pipeline calls
+`gen-verilog-for-simulation` instead, which emits inline assertions and no
+watchdog. Two generators and a wiring choice, and the wiring lives outside the
+seal. I spent a wave measuring an absence that was a selection.
+
 ### How to update this tracker
 
 After closing a wave:

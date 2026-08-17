@@ -21360,6 +21360,108 @@ duplicate invariant names matched 57 specs of which 4 actually had them.
 between them is running the thing that fails and reading which failure comes
 first. It has cost minutes each time and would have cost 187 wrong edits here.
 
+## W811 -- the pipeline had no wall clock at all, and now it does
+
+### T523 -- EVERY STAGE IN `service.rs` WAS UNBOUNDED; FIXED, UNSEALED, VERIFIED BOTH WAYS [measured, fixed]
+
+W810 found a `vvp` at 98.1% CPU 32 minutes after the run that spawned it had been
+killed (T518). The diagnosis stopped at "grandchildren survive a parent kill".
+That was true and it was not the root. The root is one line:
+
+    fn run(cmd: &mut Command) -> ... { match cmd.output() { ... } }
+
+`cmd.output()` waits forever. **Not one stage in the file that drives yosys,
+nextpnr, iverilog, vvp and openFPGALoader had a wall clock.** With 0 of 30
+generated testbenches emitting `$finish` (T519), a corpus sweep spawns immortal
+simulators by construction, and the only thing that had ever stopped one was a
+human noticing.
+
+FIXED in `bootstrap/src/service.rs`, which is NOT under the FROZEN_HASH seal:
+`run` now delegates to `run_bounded` with a 300-second limit -- spawn with piped
+stdio, drain both pipes on their own threads so a full pipe cannot deadlock the
+poll, `try_wait` against a deadline, `kill` and `wait` on expiry. A killed stage
+returns `None`, the same shape as a tool that could not spawn, because both mean
+"this stage produced no verdict".
+
+FORECAST REGISTERED before rebuilding: a hanging spec returns a failure inside the
+bound with no orphan, and a passing spec is unchanged. Both CONFIRMED:
+
+    control   specs/igla/race/ternary_lut_table.t27
+              iverilog + vvp  0.09s  16 PASSED, 0 FAILED   -- unchanged
+              yosys           361 LUT, 26 CARRY4, 0 DSP48E1
+              PASS
+
+    hanging   specs/fpga/testbench/memory_tb.t27
+              iverilog + vvp  300.04s  FAIL
+              elapsed 301s, orphaned vvp processes: 0
+
+### T523a -- and the row now says which of two opposite things happened [fixed]
+
+Before the second edit the killed row read `0 PASSED, 0 FAILED`, which is
+character-for-character what a testbench that ran and checked nothing prints.
+Those are opposite diagnoses -- one is a simulation that never ends, the other is
+a harness that proves nothing -- and the table could not tell them apart. It now
+reads `KILLED on the wall clock -- the simulation does not terminate`.
+
+This is the fourth instance this month of the reporting layer failing to
+distinguish states the run distinguishes (T500 doubling, T513 stale artefact,
+T519 unbounded harness, this). The pattern is stable enough to act on: **when a
+stage can fail in two ways with the same numbers, the row must name the way.**
+
+### T524 -- THE BOUNDED TESTBENCH GENERATOR ALREADY EXISTS AND IS NOT WIRED IN [measured]
+
+`$finish` does appear in `compiler.rs`, twice, at `:21267` and `:21274` -- inside
+`impl HirTestbench` (line 21135), which builds a testbench with a **timeout
+watchdog**:
+
+    let timeout_ps = self.config.timeout_ns * 1000;
+    // Timeout watchdog
+    initial begin #<timeout>; $display("TIMEOUT after ...ns"); $finish; end
+    // Completion
+    initial begin #<total>; $display("SIM PASSED"); $finish; end
+
+It carries `max_cycles`, `timeout_ns = max_cycles * 10`, and is reachable as
+`t27c gen-testbench` (`main.rs:4686`, wired at `:10318` and `:10697`).
+
+**The project has had a bounded testbench generator all along, and the pipeline
+uses the other one.** `gen-verilog-for-simulation` emits inline assertions into
+the design file and no watchdog; `gen-testbench` emits a separate bounded `_tb.v`
+that `path --synth` never calls. That is not a missing feature; it is two
+generators and a wiring choice, and the wiring choice lives in `service.rs`,
+outside the seal.
+
+NOT CHANGED THIS WAVE, deliberately. Switching the pipeline's generator changes
+what every stage downstream measures, and the wall clock already removes the
+hazard. Registering it as the next structural question rather than doing it at
+the end of a wave is the discipline lesson 1040 buys.
+
+### T525 -- the `already been declared` class has THREE causes, and the biggest is ONE SPEC [measured]
+
+W810 left 7 specs failing on duplicate identifiers. Running each and reading the
+first collision, rather than grepping:
+
+    igla/coder/_tmp_pipeline_import   'tokens'
+    igla/coder/pipeline               'tokens'
+    igla/coder/tokenizer              'text'
+    igla/coder/benchmark              'rtlscout_competitor'
+    igla/race/cordic_top              '_bench_cordic_top_latency_cycles'
+    ml/optimizer/adamw                'adamwconfig_learning_rate'
+
+Three different shapes: ordinary identifiers colliding across scopes, a
+bench-generated name, and a STRUCT-FIELD FLATTENING. The last is provable from
+the generated Verilog:
+
+    line 65:  reg [31:0] adamwconfig_learning_rate; // AdamWConfig.learning_rate
+    line 87:  reg [31:0] adamwconfig_learning_rate; // AdamWConfig.learning_rate
+
+Two use sites, two module-level declarations, one Verilog scope. This is the same
+family as the standing `p_a` defect in the mission context.
+
+SIZED BY RUNNING, over 67 generated Verilog files on hand: **1 spec** carries
+duplicated struct-flattened declarations, with 15 duplicated names. Not a class --
+`adamw.t27` is nearly alone. Lesson 1075's rule held again: I expected this to be
+widespread and it is not.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
