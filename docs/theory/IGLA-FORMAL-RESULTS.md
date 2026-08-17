@@ -19175,6 +19175,24 @@ T457 narrowed the re-open list to the eleven UNSW measurements calling
 > which forbids it — is the single most expensive design choice in this project**,
 > and T454 priced it at **3.75× area** for that gain.
 
+> **T458d. The completed verdicts, with significance, and the seventh arm.** The
+> run finished after T458 was written:
+>
+> | forecast | then | **now** | t | |
+> |---|---:|---:|---:|---|
+> | (a) BatchNorm | +16.49 | **+17.85** | **+16.06** | **confirmed** |
+> | (b) ternary activations | +1.45 | **−2.37** | **−4.64** | **significantly NEGATIVE** |
+> | (c) balanced coverage | +2.29 | −0.77 | −0.71 | reversed, ns |
+> | (d) depth L=5 | +0.31 | −0.27 | −0.55 | gone |
+> | fan-in 6 | +0.98 | **+1.73** | **+4.00** | **confirmed** |
+>
+> Seventh arm: the old best configuration `BN + balanced + F6 L4` scores
+> **86.48** against plain `BN + F=6`'s **86.59**. **Every addition made after
+> normalisation and fan-in either does nothing or costs.** Ternary activations are
+> not merely unhelpful — they are **significantly harmful at t = −4.64**, and the
+> claim that only three activation levels help (T428a, "train-test match with the
+> LUT's trit output") is withdrawn with them.
+
 > **T458c. What the eleven theorems are worth now.** T422 **stands and
 > strengthens**. T452c **stands and strengthens**. T428, T430, T431, T432, T439,
 > T443, T446, T450, T451 are **withdrawn as measured** — their direction reverses
