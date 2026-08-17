@@ -10835,6 +10835,28 @@ The version field was housekeeping, added with no expectation of use. It caught 
 false PASS on the first design that carried it. Lesson 1072 says a check that has
 never fired proves nothing; the converse is that the wait can be very short.
 
+**1105. A SCRIPT THAT FAILS TO PARSE WRITES NOTHING, AND THE CHECK AFTER IT WILL
+LOOK GREEN.** My migration script died on `SyntaxError: f-string expression part
+cannot include a backslash` -- at parse time, before a single write -- and the
+placement check in the same command printed five OK lines from five unmodified
+files. `git status --porcelain | wc -l` returning **0** is what settled it. When a
+transform and its verification share a command, the verification must show the
+transform HAPPENED (file count, diff, grep for the new token), not merely that
+nothing is broken.
+
+**1106. PADDING BITS MUST BE CONSTANT AND LABELLED.** Migrating five wrappers to a
+four-clause word, three of them had fewer than four real clauses. The spare bits
+are written `1'b1` and marked PADDING in the source: a constant one can never mask
+a failure, and calling it a clause when it checks nothing is the same dishonesty
+being removed everywhere else. `ternary_link` carries three padding bits because
+it folds its checks into a 16-bit mask -- one honest clause beats three invented.
+
+**1107. A FORMAT MIGRATION IS THE ONLY REAL FIX FOR A FORMAT AMBIGUITY.** W819
+made the two layouts DETECTABLE by adding a version nibble; the bench still held
+both, and a reader that forgot to check could still report a verdict about
+someone else's design. Migrating every wrapper removes the second format from
+existence. Detection is the stopgap; migration is the fix.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -22109,6 +22109,71 @@ converse is worth stating too: **a check added because something was once
 confusing is not overhead, and the interval between adding it and needing it can
 be one wave.**
 
+## W820 -- the fleet now speaks one format, and every clause names itself
+
+### T548 -- ALL FIVE LEGACY WRAPPERS MIGRATED TO LAYOUT v1 [fixed]
+
+W819 watched `t27c silicon` print PASS from two boards carrying a different
+design, because a 28-bit magic matches whatever follows it (T547). The version
+nibble caught it; the format that made it possible remained.
+
+Each wrapper already computed named clause signals and buried them in a single
+`sig`. The migration surfaces them:
+
+    e8m0          acc, swept                    + 2 padding
+    tnf17         inv_acc, moved, swept         + 1 padding
+    phi_weights   antisym, annihil, nontriv     + 1 padding
+    ternary_node  add_ok, moved, swept          + 1 padding
+    ternary_link  swept                         + 3 padding
+
+**Padding bits are written as constant `1'b1` and labelled PADDING in the source.**
+A bit that is always one cannot mask a failure, and calling it a clause when it
+checks nothing would be the same dishonesty this month has been removing.
+`ternary_link` gets three of them because it folds its validity checks into a
+16-bit `seen` mask rather than into named wires -- surfacing one clause honestly
+is better than inventing three.
+
+FORECAST REGISTERED: all five still place at 70.77 MHz and every hardware read
+returns v1. Placement CONFIRMED, five of five, datapath gate and nextpnr both OK.
+
+### T549 -- AND THE FLEET READS AS ONE FORMAT [measured]
+
+`ternary_node_jtag` v1 loaded to all three dice:
+
+    chain 2 idx 0: 0xa5a5a1f7  version=1  clauses=1111  beat=1  ok=1
+    chain 2 idx 1: 0xa5a5a1f5  version=1  clauses=1111  beat=0  ok=1
+    chain 2 idx 2: 0xa5a5a1f7  version=1  clauses=1111  beat=1  ok=1
+
+CONFIRMED. There is no longer a second layout on the bench for a reader to
+confuse, which is the only way the T547 failure is actually closed -- the reader
+fix made the confusion detectable; this makes it impossible.
+
+Worth recording from the intermediate state: with one board migrated and two not,
+`t27c silicon` reported **`no magic on any cable`** and FAILED, where in W819 the
+identical situation produced `PASS ... on index [0, 1]` from boards holding
+another design. A refusal is the correct output there, and it is new.
+
+### T549a -- a script that fails to PARSE writes nothing, and I nearly read a green result from that [self-critical]
+
+The first migration script raised `SyntaxError: f-string expression part cannot
+include a backslash` -- at parse time, so **not one file was written**. The
+placement check that followed in the same command reported
+
+    e8m0_jtag OK   tnf17_jtag OK   phi_weights_jtag OK   ...
+
+five green lines, from five unmodified files. I read them as confirmation for a
+moment before the traceback registered.
+
+The check that settles it costs one line and was run second: `git status
+--porcelain | wc -l` returned **0**, which is proof no edit landed. **When a
+transform and its verification share a command, the verification must include
+evidence the transform happened** -- a file count, a diff, a grep for the new
+token -- and not merely evidence that the world is still well.
+
+This is the same shape as T500, T513, T523a, T531 and T542: a green report about
+something that did not occur. Sixth instance, and the first where the reporting
+layer was my own shell one-liner.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
