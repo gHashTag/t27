@@ -11127,6 +11127,26 @@ the counter reached the end -- without which a wrapper whose counter never
 advances satisfies the other two vacuously. Boundary 11 is now measured by three
 parties: corrected model, Icarus on the RTL, three dice across the full band.
 
+**1147. THE GFTernary LINE HAS NO SHARED ARITHMETIC: 14 `smul`s ACROSS 21
+SPECS.** Hashing every shared function body over 44 `gft_*` specs gives 14
+variants of `smul`, 6 of `sadd`, 5 of `magmul`, 4 of `magadd`, 3 of `magsub`, 3
+of `neg`, 4 of `relu`. The largest `smul` cluster is 5 specs; eight
+implementations are used by exactly one spec each. **Treating a function name as
+an identity in this corpus is unsound by default.**
+
+**1148. NINETEEN FILES AGREEING ABOUT ONE BRANCH IS NOT NINETEEN FILES
+AGREEING.** W832 counted 19 specs guarding zero against 2 not, and called the
+canonical form clear. Splitting the guarded group by md5 gives TWELVE distinct
+implementations. They share a predicate, not a routine. Adding the guard to the
+two outliers would make them agree with nineteen files about zero and with none
+of them about anything else.
+
+**1149. `specs/ternary/` IS THE ECOSYSTEM PROBLEM AT A TESTABLE SIZE.** The
+mission's 219-repository consolidation and this directory's 44 specs with private
+copies of seven shared functions are the same problem. The small one has silicon
+verdicts, a working toolchain and a measured boundary already attached, so every
+consolidation step is checkable against three programmed dice. Start there.
+
 ### How to update this tracker
 
 After closing a wave:

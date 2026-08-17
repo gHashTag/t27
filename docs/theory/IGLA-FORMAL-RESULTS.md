@@ -23090,6 +23090,104 @@ now rather than a judgement call, and it is not mine to take unilaterally.
 Five waves, one withdrawal, and that one was found by a hardware test built to
 look for it.
 
+## W833 -- the GFTernary line has no shared arithmetic; every spec carries a private copy
+
+### T580 -- FOURTEEN IMPLEMENTATIONS OF `smul` ACROSS TWENTY-ONE SPECS [measured]
+
+W832 found two specs missing a zero guard that nineteen others have, and inferred
+that the canonical form was therefore clear. FORECAST REGISTERED for this wave:
+the two outliers differ from the majority in more than `smul` -- they are an older
+generation and `magadd`/`magsub` will differ too.
+
+Hashing every shared function body across all 44 `gft_*` specs:
+
+    smul     14 variants across 21 specs
+    sadd      6 variants across 30 specs
+    magmul    5 variants across 23 specs
+    magadd    4 variants across 30 specs
+    magsub    3 variants across 30 specs
+    neg       3 variants across 22 specs
+    relu      4 variants across  9 specs
+
+CONFIRMED, and far past what was forecast. This is not two outliers against a
+coherent majority. **There is no canonical implementation of GFTernary
+multiplication in this repository -- there are fourteen.**
+
+### T581 -- T579's NUMBERS STAND; ITS INFERENCE IS WITHDRAWN [self-critical]
+
+T579 counted 19 specs with the zero guard against 2 without, and concluded
+"`0 * x = 0` is the settled behaviour of nineteen specs". The count is correct.
+The word *settled* is not, and splitting the guarded group by implementation shows
+why:
+
+    distinct GUARDED smul implementations    12  over 19 specs
+    distinct UNGUARDED smul implementations   2  over  2 specs
+
+    5e60079c  5 specs    580134c7  3    b9d4895e  2
+    and EIGHT implementations used by exactly one spec each
+
+Nineteen specs share a *predicate* -- they all guard zero -- and do not share a
+*function*. I read agreement on one line as agreement on the routine, which is
+the same error as W831's "reading the same function three times is one reading",
+inverted: **nineteen files agreeing about one branch is not nineteen files
+agreeing.**
+
+What survives from T579: the guard is near-universal, the two unguarded files are
+the ones every silicon anomaly since T552 was measured on, and `gft_smul.t27`
+shows a corrected form. What is withdrawn: that this makes the fix obvious.
+Adding `if (a == 0) return 0` to `gft_signed_dot4` makes it agree with nineteen
+files about zero and with none of them about anything else.
+
+### T582 -- WHAT THIS EXPLAINS BACKWARDS [derived]
+
+Three episodes in the last four waves now have one cause:
+
+  - **W831**: my Python model of `magadd` was read from `gft_signed_dot4` and
+    tested against `gft_sadd`. They happened to be byte-identical (T573 verified
+    it), which was luck -- `magadd` has four variants and those two share one.
+  - **W832**: an Icarus run "refuted" T570 using `gft_smul`, whose `smul` is one
+    of the other thirteen.
+  - **W830**: the discrepancy that started the chain was between a model built
+    from one file and hardware built from another.
+
+Lesson 1145 said "compare the two functions before comparing their results". The
+measurement behind it is now stated: **in this corpus the prior probability that
+two specs share an implementation of `smul` is low**, and treating a function name
+as an identity is unsound by default rather than by accident.
+
+### T583 -- AND THIS IS THE ECOSYSTEM QUESTION, ARRIVED AT FROM THE OTHER END [derived]
+
+The standing mission asks for these repositories to become one ecosystem project.
+`docs/reports/ECOSYSTEM-INVENTORY.md` approaches that from the outside -- 219
+repositories, 39 merge candidates. This wave arrives at the same problem from
+inside a single directory:
+
+**44 specs in `specs/ternary/` carry private copies of arithmetic that should be
+one module, and the copies have drifted into 14, 6, 5, 4, 3, 3 and 4 variants of
+seven shared functions.**
+
+That is a concrete, bounded, measurable instance of the ecosystem problem, in the
+one place where the project already has silicon verdicts, a working toolchain and
+a measured boundary. Consolidating `specs/ternary/`'s arithmetic into a single
+imported module is smaller than the 219-repository question and answers the same
+shape of it -- and unlike the big version, every step of it is testable against
+three dice that are already programmed.
+
+NOT ATTEMPTED HERE. Choosing which of fourteen `smul`s is canonical changes what
+the hardware computes for every spec that does not currently use it, and two of
+them carry silicon verdicts (T546, T577). That is the decision this measurement
+puts in front of whoever takes it, with the variant table as its evidence.
+
+### T583a -- forecast count, sixth entry [derived]
+
+    W828 (0/1/0)   W829 (0/0/2)   W830 (0/1/1)
+    W831 (1/1/0)   W832 (0/0/2)   W833 (1/0/1)
+
+Six waves, two withdrawals. Both were of inferences drawn from correct
+measurements rather than of the measurements themselves -- T571's boundary
+arithmetic and T579's word *settled*. That distinction is worth keeping in the
+count.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
