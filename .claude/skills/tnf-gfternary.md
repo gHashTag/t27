@@ -201,6 +201,36 @@ factors** (Brevitas); we do the first now (+2.56 pp, T422) and **not the second*
 - **Functional input count is already priced**: **Logic Shrinkage**,
   10.1145/3583075, learns per-LUT input counts for **1.54× area**.
 
+**PRIOR ART ADDED W805 — the ternary-FPGA field itself, which this list omitted
+for four months (T491a). Every citation above is a *quantisation* paper; none of
+them is a ternary accelerator. Search the field the artefact is IN.**
+
+- **THE ZERO-DSP RESULT IS NO LONGER OURS ALONE.** **ELiTeFormer**,
+  arXiv:2607.03652 (2026-07): a PE that *"eliminates all multiplications in
+  ternary linear projections through bitmasking operations … completely avoiding
+  dedicated DSP blocks."* **Cite it.** Claiming zero-DSP as novel after 2026-07
+  is a provenance error. And state the other half (T487): zero DSP is true of the
+  ternary **core** and false of a full Q2_0 pipeline, whose one FP16 scale per
+  128 weights costs ~1 DSP48E1 of 740.
+- **A DIRECT COMPETITOR TO THE GOLDEN SIEVE**: arXiv:2604.25183 (2026-04),
+  *Hardware Generation and Exploration of LUT-Based Accelerators for 1.58-bit LLM
+  Inference* — formalises the ternary-LUT design space with an analytical cost
+  model **and an open-source generator**, ASIC-validated. Its finding cuts
+  against our regime: *"LUT-based reuse offers significant gains for high-cost
+  arithmetic (e.g. FP16), it yields diminishing returns for small integer
+  types"* — and our activations are ternary. Our counter (their LUT is an ASIC
+  precompute table; ours is a fabricated, idle LUT6) is **unverified — the paper
+  is unread**. **The sieve may not be called novel until this is answered (T491).**
+- **The ternary-LLM-on-FPGA baseline the article does not acknowledge**:
+  **TerEffic** arXiv:2502.16473 (370 M fully on-chip, multi-FPGA, 16,300 tok/s;
+  2.7 B with HBM at 727 tok/s / 46 W); **TeLLMe** arXiv:2504.16266 (AMD KV260,
+  9 tok/s @ 1024 ctx, 7 W) and **v2** arXiv:2510.15926 (25 tok/s, 5 W);
+  **TENET** arXiv:2509.13765 (sparsity-aware LUT-centric, 4.3× energy vs A100).
+- **Scale honesty (T488/T489)**: three XC7A200T dice hold **25.5 M** ternary
+  parameters on-chip (5.05 MB of BRAM at 1.58 b/w). TerEffic's 370 M needs 43
+  dice of this part. **No published ternary LLM accelerator targets an Artix-7** —
+  every one uses HBM or a Zynq UltraScale+ with a hardened DDR controller.
+
 **THE NUMBERS TO QUOTE (T455), slope with bootstrap 95 % CI, not `r`:**
 
 | relation | n | slope | 95 % CI |

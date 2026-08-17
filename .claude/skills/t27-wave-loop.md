@@ -10345,6 +10345,70 @@ entirely.*
 bans fan-in 6 on an area argument; T482 says what the area buys per task from a
 one-minute statistic -- nothing on 0v1, +2.77 pp on 4v9 (T482b).
 
+**1042. The Bash tool's ceiling is 600 s, and a background job launched in the
+same call dies with the timeout.** I passed `timeout: 900000`; it clamped to 600 s;
+my `sleep 600` hit it exactly; SIGTERM to the process group killed the `nohup`ed
+child. Empty log, no process, an hour of compute gone. `setsid` does not exist on
+macOS. The working form is `( nohup cmd > log 2>&1 < /dev/null & )` in a subshell,
+returning IMMEDIATELY, then polling from separate calls. Earlier runs survived
+only because `sleep 540` happened to land under the ceiling.
+
+**1043. `timeout` is not a macOS command, and its absence is silent.** The loop
+invariant says "timeout on EVERY pipeline step", so I wrote
+`timeout 25 openFPGALoader ... | grep idcode`. zsh answers `command not found`,
+grep gets nothing, and the report reads "three boards, no idcode" -- a hardware
+fault where there was a missing binary. `perl -e 'alarm N; exec @ARGV'` is the
+portable form and it is what the rest of this pipeline already used.
+
+**1044. `done 1` failed the acceptance criterion twice in one session, against
+me.** Restoring the boards after a flash read, `mvp_ternary_classifier_jtag_200t.bit`
+and then `..._top_200t.bit` both returned `done 1` on all three dice while the
+BSCAN readback was dead on ALL FOUR chains. Only the third attempt, the
+`t27c silicon` build, answered with magic on chain 2. The criterion is in the
+mission context because configuration success is not design presence -- and it
+catches the operator, not only the tool.
+
+**1045. Search the field the artefact is IN, not the field its ideas came FROM.**
+The golden sieve cites LogicNets, FINN, APoT, SparseLUT, Logic Shrinkage -- all
+quantisation and LUT-network work, which is where its ideas came from. It is
+itself a design-space formalisation for ternary accelerators, and no search for
+design-space formalisations was ever run. arXiv:2604.25183 did exactly that in
+2026-04 with an open-source generator and an ASIC-validated cost model, and went
+unseen for four months until a survey was requested.
+
+**1046. A grep count is not evidence until the hits are read.** Asked whether
+this repo has the blocks an LLM needs, `rope` matched 10 files -- every one was
+the substring in `p-rope-rty`. `DDR3` matched 2 -- both `MEM_DDR3_ADD_LATENCY`,
+an attribute Yosys copies out of the Xilinx blackbox library into every netlist
+JSON. Reporting "10 files have RoPE" would have invented a capability out of
+string matching. This is lesson 1001's family: never read a count as a finding.
+
+**1047. Two predictors correlated at r = +0.947 cannot both be a mechanism.**
+T482 named mean per-feature MI as the driver of the fan-in 3->6 gain. Headroom
+(100 - accuracy at fan-in 3), which nobody had measured, beats it: partial
+correlation +0.853 against MI's +0.458, and adding MI to a headroom model buys
+0.6 points of R^2 for a second parameter on six observations. The hypothesis was
+built from MI because MI was the statistic being computed -- lesson 1039's error,
+committed again two waves after writing it down.
+
+**1048. A registered forecast that FAILS is worth more than one that passes.**
+[0.65, 0.75] was registered for UNSW before the run; it returned 0.872, outside
+even the [0.60, 0.80] refutation band. Clean refutation, and it says the
+constant-error-ratio law is not universal -- which a confirmation could never
+have shown. Two runs, two registered forecasts, one confirmed and one refuted:
+that ratio is the point of registering them.
+
+**1049. A spec must REFUSE to answer, not guess.** `specs/boards/wukong_v1.t27`
+holds `DRAM_BYTES = 0` with `DRAM_BYTES_MEASURED = false`, so `weights_fit_dram()`
+returns false for lack of INPUT, never for lack of capacity, and an invariant
+pins the sentinel at zero. Filling in 1 GB from a different board's datasheet is
+exactly how an AX7203 figure arrived at a Wukong bench and was nearly repeated.
+
+**1050. MB is not MiB, and here it was 5%.** I told the user the flash shortfall
+was 28.6x, dividing 457.3 MB by "16 MB". The flash is 128 Mbit = 16 MiB =
+16.78 MB, so the figure is 27.3x. Small, and it was in a number handed to a
+partner. Compute in bytes and convert once.
+
 ### How to update this tracker
 
 After closing a wave:

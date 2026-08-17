@@ -124,6 +124,41 @@ thirteen waves.
 | FPGA | **XC7A200T-FGG676** |
 | Vivado part string | **`xc7a200tfgg676-1`** |
 | JTAG IDCODE | **`0x03636093`** (XC7A200T) |
+| Block RAM | **1.682 MB** (365 × 36 Kb), datasheet |
+| LUT / DSP48E1 | **215,360 / 740**, datasheet |
+| SPI flash | **16 MiB** — Micron N25Q128, JEDEC `0x20ba18`, measured on all three dice 2026-08-17 |
+| **On-board DRAM** | **NOT MEASURED.** See §"DRAM is unmeasured" below. Do not fill this in from another board's datasheet. |
+
+> **W805 (2026-08-17):** the four rows above did not exist. The board this project
+> builds for, flashes and reads verdicts off had no recorded memory capacity of
+> any kind, while `specs/boards/` described an XC7A100T and an Arty A7 — neither
+> of which is on this bench. `specs/boards/wukong_v1.t27` now carries the same
+> facts as comptime invariants (11 tests, 7 invariants, typecheck clean).
+
+### DRAM is unmeasured — and that is a load-bearing gap
+
+A partner analysis concluded a 1.7-billion-weight ternary LLM "fits the board":
+457.3 MB of weights against **1 GB of DDR3 on an Alinx AX7203**. That is a
+different board. This one is a QMTech Wukong V1, and **nothing in this repository
+records its DRAM capacity**. The fit question is therefore `not-evaluated` here,
+not answered — and `specs/boards/wukong_v1.t27` keeps `DRAM_BYTES = 0` with
+`DRAM_BYTES_MEASURED = false` so that every predicate depending on it refuses to
+answer rather than returning a plausible number.
+
+What *is* measured says enough to plan by:
+
+| Quantity | Value | Source |
+|---|---:|---|
+| SPI flash, per die | 16 MiB | JEDEC `0x20ba18`, read on 1:4, 1:6, 1:8 |
+| Ternary-Bonsai-1.7B weights (Q2_0) | 457.3 MB | partner GGUF metadata |
+| Shortfall, weights vs flash | **27×** | derived |
+| Block RAM, three dice | 5.05 MB | datasheet |
+| Ternary parameters that fit on-chip, 1.58 b/w | **25.5 M** | derived |
+
+The last row is the useful one: ~25 M parameters is simultaneously the largest
+model that fits the fabric and a model that fits the 16 MiB flash with room over,
+so below that size the bench is host-free after boot. See
+`docs/reports/W805-TERNARY-FPGA-FIELD-SURVEY.md`.
 
 > **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
 

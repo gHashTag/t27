@@ -20130,6 +20130,292 @@ smallest; (2) `gain(4v9) > +1.73`, above UNSW; (3) `gain(4v9) > gain(0v1)`, and 
 > two of the five points were used to build the hypothesis. **[измерено], and the
 > next honest step is a fitted form tested on a sixth.**
 
+## W805 (2026-08-17) -- the fan-in law measured, and mostly withdrawn
+
+### T483 -- the functional form is compressive, not linear [measured]
+
+T482c left the form open: "the ordering is monotone but nothing here fixes
+whether the relation is logarithmic, reciprocal or something else". Three MNIST
+digit pairs (`0v8`, `3v5`, `7v9`) were chosen to fill the gap between MI 0.0096
+and 0.0561, giving eight points over a 14x span in MI.
+
+FORECAST REGISTERED BEFORE THE RUN (T44): a log fit reaches R^2 > 0.85 and beats
+a plain linear-in-MI fit; monotonicity survives at eight points.
+
+    linear in MI      R^2 = 0.717
+    LOG   -ln(MI)     R^2 = 0.904   gain = 1.56*(-ln MI) - 4.04
+    reciprocal 1/MI   R^2 = 0.896
+
+Clauses 1 and 2 CONFIRMED. The relation is compressive; a linear reading of MI
+overstates the gain at the low end and understates it at the high end. Note the
+reciprocal form is within 0.008 of the log form -- eight points cannot separate
+them, and this result does NOT claim it can.
+
+### T484 -- monotonicity in MI fails, and the counterexample is informative [measured]
+
+Clause 3 REFUTED. Sorted by descending MI, `0v8` sits third but gains least:
+
+    0v1      MI 0.0823   gain +0.14
+    Fashion  MI 0.0561   gain +0.91
+    0v8      MI 0.0403   gain +0.09   <-- below both MI neighbours
+    UNSW     MI 0.0269   gain +1.73
+    3v5      MI 0.0140   gain +2.57
+    7v9      MI 0.0133   gain +2.69
+    4v9      MI 0.0096   gain +2.77
+    MNIST    MI 0.0058   gain +4.51
+
+The two datasets that break the order, `0v1` and `0v8`, are the two that are
+already almost solved at fan-in 3 (99.56% and 98.48%). Nothing about their
+feature quality explains the failure; their lack of remaining error does.
+
+### T485 -- T482 IS PARTIALLY WITHDRAWN: headroom, not MI, carries the effect [measured]
+
+Over the six datasets whose fan-in-3 accuracy is known:
+
+    corr( -ln MI , headroom )              = +0.947    <-- the two predictors are collinear
+    corr( -ln MI , gain     )              = +0.959
+    corr( headroom , gain   )              = +0.986
+
+    PARTIAL corr( MI , gain | headroom )   = +0.458
+    PARTIAL corr( headroom , gain | MI )   = +0.853
+
+Controlling for headroom, MI retains little; controlling for MI, headroom
+survives nearly intact. Adding MI to a headroom-only model moves R^2 from 0.972
+to 0.978 -- 0.6 points for a second parameter on six observations, which is not
+evidence.
+
+WHAT SURVIVES OF T482: the ORDERING is real and was validated out of sample, and
+mean per-feature MI is a usable label-free proxy. WHAT IS WITHDRAWN: the
+mechanistic claim that poor features are what require wider fan-in. That claim is
+not distinguished by any measurement here from the far duller reading -- harder
+tasks have more error left, and fan-in 6 removes a fixed fraction of whatever is
+left. T482 built its hypothesis from MI because MI was the statistic being
+computed, which is exactly the selection error lesson 1039 names.
+
+### T486 -- the constant-error-ratio law [measured]
+
+The duller reading, stated as a law and tested:
+
+    err(F=6) = 0.693 * err(F=3)
+
+    set        err F=3   err F=6   ratio
+    0v1           0.44      0.30   0.682
+    0v8           1.52      1.42   0.934   <-- the one outlier, unexplained
+    7v9           8.09      5.40   0.667
+    3v5           8.21      5.64   0.687
+    4v9           9.12      6.35   0.696
+    MNIST        16.75     12.24   0.731
+
+Five of six cluster at 0.667-0.731, sd 0.021, across a 38x span in error rate
+(0.44% to 16.75%). Predicting the absolute gain, this law scores R^2 = 0.957
+against the MI regression's 0.920 -- and it has ZERO parameters fitted to the
+gain, where the MI form has two.
+
+HONEST LIMITS. One of six deviates (`0v8` at 0.934) and no mechanism here
+explains why; a floor effect is ruled out because `0v1`, at a third of `0v8`'s
+error, obeys the law. All six are image classification. The off-family test
+(UNSW-NB15 network telemetry) was registered with the interval [0.65, 0.75] and
+is running at the time of writing; whatever it returns is reported.
+
+### T487 -- the ternary LLM does not fit this bench, and flash is the binding constraint [measured]
+
+A partner analysis of Ternary-Bonsai-1.7B-Q2_0 (457.3 MB of weights, 2.125
+bits/weight) concludes it fits an AX7203 board: 457 MB of 1 GB DDR3. Three facts
+measured on the actual bench contradict transferring that conclusion here.
+
+1. The board is a QMTech Wukong V1, not an AX7203. Same die (XC7A200T-FGG676,
+   IDCODE 0x3636093), different board.
+
+2. THE REPOSITORY NOWHERE RECORDS THIS BOARD'S DRAM. `fpga/HARDWARE_SSOT.md` §1
+   carries FPGA, part string and IDCODE and no memory row; `specs/boards/` holds
+   only `arty_a7.t27` and two `xc7a100t_*.t27` files, both for the wrong part.
+   The denominator of "457 of 1024 MB" is therefore unmeasured here, and the fit
+   claim is `not-evaluated` for this hardware rather than true.
+
+3. NON-VOLATILE STORAGE IS THE CONSTRAINT NOBODY LISTED. Read on all three dice:
+
+       JEDEC 0x20ba18  ->  Micron N25Q128  =  128 Mbit  =  16 MB
+
+   Against 457.3 MB of weights this is a 28.6x shortfall. Even with sufficient
+   DRAM the weights have no home across a power cycle: every boot requires 457 MB
+   streamed from a host. This precedes every P0 item in the partner's plan and
+   appears in none of them.
+
+Separately, a full search of this tree finds ZERO of the eight P0 blocks -- no
+MIG/DDR3 controller, no AXI datapath, no RoPE, RMSNorm, softmax, SiLU, KV cache
+or attention. Three apparent matches were false: `rope` as a substring of
+`p-rope-rty`, and `DDR3`/`axi_` from `MEM_DDR3_ADD_LATENCY` and sibling
+attributes that Yosys copies out of the Xilinx blackbox cell library into every
+netlist JSON. `rtl/` does not exist in this repository at all.
+
+### T487a -- `done 1` failed the acceptance criterion twice in one session [measured]
+
+Restoring the boards after the flash read, two different bitstreams
+(`mvp_ternary_classifier_jtag_200t.bit`, then `..._top_200t.bit`) both returned
+`done 1` on all three dice while the BSCAN readback was dead on ALL FOUR chains.
+The third attempt, the `t27c silicon` build, returned magic 0xA5A5A5A on chain 2
+with ok=1 on all three. This is the mission's own acceptance criterion firing
+against the operator: configuration succeeded and the design was not there. It
+also re-confirms T693 -- the JTAG chain is a property of the build, since the
+flash image answered on chain 3 and the SRAM build answers on chain 2.
+
+## W805b -- the field survey, and what it costs us
+
+### T488 -- the bench holds 25.5 M ternary parameters on-chip, and that is the design point [derived]
+
+XC7A200T block RAM is 365 x 36 Kb = 1.682 MB per die; three dice give 5.05 MB.
+
+    at 1.58 bits/weight  ->  25.5 M parameters fully on-chip
+    at 2.125 bits/weight ->  19.0 M parameters (Q2_0, with its FP16 scales)
+
+Against the published fully-on-chip working point, TerEffic's 370 M
+(arXiv:2502.16473), this part needs 43.4 dice; against Ternary-Bonsai-1.7B,
+202 dice. The gap to the smallest published system is 14x in die count.
+
+The result is not the shortfall, it is the coincidence: 25.5 M parameters at
+1.58 bits is 5.0 MB, and the measured flash is 16 MiB (T487). The largest model
+that fits the fabric therefore ALSO fits non-volatile storage, with room over.
+Those two limits landing together is what makes ~25 M a design point rather than
+a consolation -- below it the system is host-free after boot, above it the
+weights must be streamed every power cycle.
+
+### T489 -- no published ternary LLM accelerator targets an Artix-7 [measured]
+
+A query for `abs:"Artix" AND (abs:"quantiz" OR abs:"ternary" OR abs:"LLM")`
+returns six papers on 2026-08-17, and none is a ternary LLM: event-based flow
+estimation, spiking recurrent cells, an approximate float square rooter,
+quantised continuous controllers, a CNN arithmetic survey, an attention-level
+CNN. Every published ternary LLM FPGA system uses either an HBM-equipped board
+(TerEffic 2.7B) or a Zynq UltraScale+ MPSoC with a hardened DDR4 controller and
+ARM cores (TeLLMe, on a KV260). Artix-7 has neither: the family has no HBM part
+and no hard memory controller.
+
+Stated in both directions, because only one direction is flattering. This is
+open ground; it is open because the part is under-provisioned for the workload
+the field selected, not because the idea is new. A result here is publishable
+only if it answers something better-provisioned boards cannot -- which points at
+the fully-on-chip regime and at multi-die partitioning, not at tokens per second.
+
+### T490 -- OUR ZERO-DSP RESULT HAS PRIOR ART AS OF 2026-07 [measured]
+
+ELiTeFormer (arXiv:2607.03652, 2026-07) reports a processing element that
+"eliminates all multiplications in ternary linear projections through bitmasking
+operations, significantly reducing resource utilization by completely avoiding
+dedicated digital signal processing (DSP) blocks."
+
+That is this project's own on-silicon measurement, obtained independently and
+published first. `docs/theory/TNF_ARTICLE_RU.md` presents zero-DSP as a
+contribution and does not cite it. The citation is now mandatory; the claim of
+novelty is not available after 2026-07. Priority in this area turns on month.
+
+Note also T487's arithmetic in the other direction: zero DSP is true of the
+ternary CORE and false of a full Q2_0 pipeline, whose one FP16 scale per 128
+weights is 13.4e6 multiplies per token -- about one DSP48E1 of 740 at a few
+tokens per second. Both halves belong in the article.
+
+### T491 -- A DIRECT COMPETITOR TO THE GOLDEN SIEVE EXISTS, AND ITS MAIN FINDING CUTS AGAINST OUR REGIME [open challenge]
+
+arXiv:2604.25183 (2026-04), "Hardware Generation and Exploration of Lookup
+Table-Based Accelerators for 1.58-bit LLM Inference", formalises the design space
+of ternary LUT accelerators with an analytical cost model -- the same move
+`specs/numeric/golden_sieve.t27` makes -- and adds an open-source generator
+validated against TSMC 16 nm synthesis. It reports 2.2x area reduction over
+multiplier baselines and finds published accelerators mis-parameterised by up to
+1.2x in area.
+
+Its finding that bears on us: "the optimal architecture is fundamentally governed
+by the activation data type: while LUT-based reuse offers significant gains for
+high-cost arithmetic (e.g., FP16), it yields diminishing returns for small
+integer types."
+
+Our activations are ternary -- the smallest integer type there is. Taken at face
+value this weakens the central economic argument for a LUT-centric ternary
+datapath exactly where this project operates.
+
+THE COUNTER, AND ITS LIMIT. Their LUT is an architectural precompute table
+costed in ASIC area; ours is the FPGA's native LUT6, already fabricated and
+otherwise idle. A statement about ASIC area does not transfer unexamined to a
+fabric where the table is free. But this project HAS NOT READ THE PAPER, only its
+abstract, and an unread objection is not a refuted one. Registered as an OPEN
+CHALLENGE. The golden sieve may not be claimed novel until it is answered.
+
+### T491a -- the sieve was built without a prior-art search of its own field [self-critical]
+
+The golden sieve accumulated six filters across many waves and cited LogicNets,
+FINN, APoT, SparseLUT and Logic Shrinkage -- all quantisation and LUT-network
+work, none of it ternary-LLM accelerator design-space work. 2604.25183 was
+published 2026-04 and was found only when a survey was requested by the user in
+2026-08. Four months. The lesson is not "search more" but "search the field the
+artefact is IN, not the field its ideas came FROM": the sieve is a design-space
+formalisation, and no search for design-space formalisations was ever run.
+
+## W805c -- the second registered forecast, and it failed
+
+### T492 -- T486 IS WITHDRAWN AS A LAW: the constant ratio is a property of one dataset family [measured]
+
+The off-family test registered in T486 predicted `err(F=6)/err(F=3)` in
+[0.65, 0.75] for UNSW-NB15 and Fashion, with [0.60, 0.80] as the refutation band.
+Both came back outside it:
+
+    set        F=3 acc   F=6 acc    err3    err6   ratio   verdict
+    UNSW         84.71     86.67   15.29   13.33   0.872   REFUTED
+    Fashion      88.01     89.02   11.99   10.98   0.916   REFUTED
+
+The full picture over seven datasets:
+
+    0v1        0.682  |
+    3v5        0.687  |  five MNIST digit-pair tasks
+    7v9        0.667  |  mean 0.693, sd 0.021
+    4v9        0.696  |
+    MNIST      0.731  |
+    ---
+    UNSW       0.872  |  everything else
+    Fashion    0.916  |  plus 0v8 at 0.934
+    0v8        0.934  |
+
+    pooled, 0v8 excluded: mean 0.750, sd 0.093, range 0.667-0.916
+
+WHAT IS WITHDRAWN. "Fan-in 6 removes 31% of the fan-in-3 error, sd 2 points" is
+false. The tight cluster is a property of five MNIST digit-pair tasks, not of
+fan-in. WHAT SURVIVES. Fan-in 6 helps on all seven datasets and never hurts; the
+honest pooled figure is that it removes 25% of the error with a standard
+deviation of 9 points -- four times the spread T486 reported and a smaller
+effect.
+
+WHY THE SPLIT IS NOT "IMAGES VS NOT". Fashion is images and sits with UNSW at
+0.916; `0v8` is a MNIST digit pair and sits with them at 0.934. No property
+measured here separates the two groups, and this result does NOT claim one. It
+claims only that the six points T486 generalised from were not a sample of the
+population it generalised to.
+
+### T492a -- both of this session's laws were built from within one family [self-critical]
+
+T482 named MI as the mechanism because MI was the statistic being computed
+(T485, withdrawn). T486 named a constant error ratio because six datasets agreed
+(withdrawn here) -- and five of those six were MNIST digit pairs, chosen precisely
+BECAUSE they were cheap to add to an existing curve. Cheap points are correlated
+points. T102 said the sample and the population can have opposite shapes; this is
+the third time that has been demonstrated on my own work in this project, and the
+first two demonstrations were also mine.
+
+THE PROCEDURAL FIX, stated so it can be checked rather than intended: a law is
+not proposed until its supporting points come from at least three data SOURCES,
+counting a family of derived splits (MNIST digit pairs) as ONE source. Under that
+rule T486 would never have been written: it had two sources, MNIST and one point
+of Fashion, and the Fashion point came from a different protocol.
+
+### T493 -- the forecast register earned its keep this wave [measured]
+
+Two forecasts were registered before their runs, as T44 requires.
+
+    T483  log form beats linear over eight points      CONFIRMED (0.904 vs 0.717)
+    T486  off-family ratio lands in [0.65, 0.75]       REFUTED  (0.872, 0.916)
+
+One of two. The refuted one is the one that changed the theory: without the
+registration, 0.872 and 0.916 would have been absorbed as "wider spread than
+expected" and the law would have survived in weakened prose. The interval, fixed
+in advance, is what made absorption impossible.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
