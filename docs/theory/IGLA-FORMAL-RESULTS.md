@@ -20476,6 +20476,50 @@ the files that agree with it is not confirmation. The check that would have caug
 this costs one grep of the loaded design, and I ran that grep only AFTER the
 number came out wrong.
 
+### T495 -- CFGMCLK measured on three dice: 70.77 / 68.49 / 67.20 MHz [measured]
+
+T494's two premise failures fixed, and both fixes are what the rerun tests.
+FIX 1: the FTDI device is opened once and the instruction register loaded once;
+the sample loop only re-enters Capture-DR and shifts 32 bits. FIX 2: the design
+is `e8m0.bit`, whose source `fpga/verilog/e8m0_jtag.v` was grepped for
+`reg [23:0] pre` in ITS OWN lineage, and whose chain (1) was found by readback
+rather than assumed.
+
+FORECAST REGISTERED before sampling: (1) sampling above 40 Hz; (2) all three dice
+in UG470's [50, 80] MHz; (3) spread under 10%.
+
+    idx  busdev  samples     rate  s/half  edges/smp  half-per   CFGMCLK
+      0     1:4    11945  199.1/s    47.2      0.021   0.2371s   70.77 MHz
+      1     1:6    11987  199.8/s    48.9      0.020   0.2450s   68.49 MHz
+      2     1:8    11970  199.5/s    49.8      0.020   0.2497s   67.20 MHz
+
+    mean 68.82 MHz, spread 5.19%
+
+ALL THREE CLAUSES CONFIRMED. Sampling is 19x faster at 199 Hz, giving 47-50
+samples per half-period. The internal consistency check is `edges/sample`, which
+came out 0.020-0.021 = 1/48 -- exactly what correct sampling of a square wave
+predicts, against 0.79 in the void run. That statistic, not the frequency, is
+what distinguishes a measurement from an alias, and it is the first thing to read
+in any future rerun.
+
+RESULT. STARTUPE2's CFGMCLK is an internal ring oscillator with no crystal;
+UG470 gives 65 MHz nominal. Three XC7A200T dice measure 70.77, 68.49 and
+67.20 MHz -- all 3-9% ABOVE nominal, all inside the datasheet envelope, spread
+5.19%. This is the first physical characterisation of these three parts in this
+project, and it needed no rebuild, no package pin and no extra logic.
+
+### T495a -- T494's "surviving half" did not survive either [self-critical]
+
+T494 reported that its 1.9% inter-die spread remained valid because all three
+dice ran the same bitstream, so the divider cancels in the ratio. The true spread
+is 5.19%. The reasoning was sound and the conclusion was still wrong: under
+aliasing the apparent half-period is set by the SAMPLE rate, which was near
+identical across the three runs, so the three aliased numbers agreed with each
+other for a reason that had nothing to do with the dice. An alias does not just
+corrupt the absolute value -- it manufactures agreement. When a measurement is
+declared void, the parts salvaged from it need their own justification, and
+"the divider cancels" was not one.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
