@@ -11169,6 +11169,26 @@ The per-directory variant census took a minute and reads like a corpus-wide
 finding. Two directories were then read; three still have numbers and no
 diagnosis. State which are which rather than letting the table speak for all five.
 
+**1153. 88 DRIFTED FUNCTIONS, 8 CORRECTLY DISTINCT, AND THE SPLIT IS THE POINT.**
+Read, not counted: `specs/ternary` 49 (arithmetic -- one operation, many bodies),
+`specs/igla/coder` 20 + `specs/igla/race` 11 + `specs/fpga` 8 (copied utilities),
+`specs/numeric` 8 (per-format design, NOT drift). **The 39 utilities are
+copy-paste with character-identical openings -- mechanical to consolidate, nothing
+on silicon depends on them. The 49 arithmetic bodies may encode different
+intentions and two carry silicon verdicts.** Do not do both in one pass.
+
+**1154. "SAME NAME + SAME SIGNATURE" STILL DOES NOT SEPARATE DESIGN FROM DRIFT.**
+`max_value() -> f64` takes no arguments, so eight number formats declare an
+identical signature and the strict criterion counts them as drifted. Fourth wave
+running in which a syntactic refinement was proposed, tried and found to need a
+semantic check anyway. **Stop refining the grep; read the bodies.**
+
+**1155. A `_tmp` FILE THAT OUTLIVED ITS PURPOSE IS A DRIFT SOURCE.**
+`specs/igla/coder/_tmp_pipeline_import.t27` carries copies of `match_at` and
+`check_balanced_braces` that also live in `dataset.t27` and `eval.t27`, with
+character-identical openings. Check for `_tmp`/`_old`/`_new` in spec names before
+attributing duplication to organic divergence.
+
 ### How to update this tracker
 
 After closing a wave:

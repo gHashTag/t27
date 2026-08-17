@@ -23278,6 +23278,88 @@ Seven waves, two withdrawals. This wave's forecast was refuted before publicatio
 rather than after -- the corpus-wide claim was checked and abandoned inside the
 wave, which is the cheap version of the same correction.
 
+## W835 -- the drift question closed: 88 real, 8 not, and the two kinds need different fixes
+
+### T586 -- THE STRICT CRITERION STILL CANNOT SEPARATE THEM [measured]
+
+W834 proposed "same name AND same signature AND different body" as the test that
+excludes per-format design by construction. Applied to all five directories:
+
+    specs/ternary       49 drifted   worst 14   smul, tmul, sadd
+    specs/igla/coder    20           worst  5   match_at, check_balanced_braces
+    specs/igla/race     11           worst  3   contains_substring, cordic_sin
+    specs/numeric        8           worst  7   validate_format, max_value
+    specs/fpga           8           worst  3   generate_clock, wait_cycles
+
+`specs/numeric` still appears, with `max_value` at seven bodies -- **because it
+takes no arguments**, so every format spec declares the identical signature
+`max_value() -> f64` and the criterion cannot tell eight formats from eight
+copies. The strict test is better than the loose one and still not sufficient.
+
+**Reading remains the only discriminator**, and this is now the fourth wave in
+which a syntactic refinement was proposed, tried, and found to need a semantic
+check anyway (lessons 1075, 1128, 1130, 1150).
+
+### T587 -- THE TWO UNREAD DIRECTORIES ARE COPIED UTILITIES [measured]
+
+FORECAST REGISTERED: `specs/fpga` and `specs/igla/coder` hold duplicated
+utilities rather than per-instance design. Reading the bodies:
+
+    generate_clock   mac_tb.t27  and  top_tb.t27
+      clk = !clk; sim_cycle = sim_cycle + 1;        -- character-identical prefix
+    wait_cycles      mac_tb.t27  and  top_tb.t27
+      var i : u32 = 0; while (i < n) { generate_clock();   -- identical
+    match_at         _tmp_pipeline_import.t27  and  dataset.t27
+      if (n_idx >= needle.len()) { return true; }   -- identical
+    check_balanced_braces   _tmp_pipeline_import.t27  and  eval.t27
+      if (idx >= s.len()) { return depth == 0; }    -- identical
+
+CONFIRMED. These are copy-paste that diverged somewhere past the first sixty
+characters -- the opposite of `max_value`, whose bodies differ from the first
+constant because the formats differ.
+
+Worth flagging separately: `specs/igla/coder/_tmp_pipeline_import.t27` is a file
+with `_tmp` in its name carrying copies of two utilities that also live in
+`dataset.t27` and `eval.t27`. A temporary import file that outlived its import is
+a plausible origin for at least part of that directory's twenty.
+
+### T588 -- 88 DRIFTED FUNCTIONS, AND THEY SPLIT INTO TWO PROBLEMS [derived]
+
+The classification is now complete and read rather than counted:
+
+    ARITHMETIC DRIFT   specs/ternary        49    one operation, many bodies
+    UTILITY DRIFT      specs/igla/coder     20    copied string helpers
+                       specs/igla/race      11    copied string/toolchain helpers
+                       specs/fpga            8    copied testbench helpers
+    NOT DRIFT          specs/numeric         8    per-format by design, correct
+
+**88 genuinely drifted functions; 8 correctly distinct.**
+
+And the split matters for anyone consolidating, because the two halves need
+different work:
+
+  - The **39 utilities** are copy-paste. Their bodies agree on their opening
+    lines, so choosing a canonical version is mechanical and the risk is limited
+    to whatever diverged later. Nothing on silicon depends on them.
+  - The **49 arithmetic functions** are not obviously copies. Fourteen bodies of
+    `smul` may encode fourteen intentions -- W832 found one difference that was
+    clearly a missing guard, and thirteen others remain unexamined. Two carry
+    silicon verdicts.
+
+Consolidating the utilities is a mechanical change with no hardware consequence.
+Consolidating the arithmetic is a decision about what GFTernary multiplication
+IS. **They should not be done in the same pass, and calling both "drift" invited
+exactly that.**
+
+### T588a -- forecast count, eighth entry [derived]
+
+    W828 (0/1/0)  W829 (0/0/2)  W830 (0/1/1)  W831 (1/1/0)
+    W832 (0/0/2)  W833 (1/0/1)  W834 (0/1/0)  W835 (0/0/1)
+
+Eight waves, two withdrawals. The drift question opened in W833 and is closed
+here: it took three waves, of which the middle one was spent discovering that the
+measurement did not measure what its name said.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
