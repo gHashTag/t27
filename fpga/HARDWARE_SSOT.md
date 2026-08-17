@@ -10,6 +10,49 @@
 
 ---
 
+## W796-W799 — five specifications answered from silicon
+
+`t27c silicon` carries a `.t27` spec through Verilog, yosys, nextpnr on
+`xc7a200tfbg676`, FASM and `xc7frames2bit` to a die, brackets the load with a
+**wrong-part bitstream that must force `Done` to 0 first**, and reads a verdict
+back through a JTAG USER register. Every row below is three boards
+(`--busdev-num 1:4 / 1:6 / 1:8`), each with that control.
+
+| spec | LUT | CARRY4 | DSP48E1 / SRL16E | BSCAN chain | verdict |
+|---|---:|---:|---:|---:|---|
+| `specs/fpga/ternary_link.t27` | 118 | 16 | **0 / 0** | 4 | `0xa5a5a5a7` ok=1, 3/3 |
+| `specs/numeric/e8m0.t27` | 98 | 56 | **0 / 0** | 1 | ok=1, 3/3 |
+| `specs/numeric/tnf17.t27` | 86 | 16 | **0 / 0** | 4 | ok=1, 3/3 |
+| `specs/igla/race/phi_weights.t27` | 86 | 16 | **0 / 0** | 3 | ok=1, 3/3 |
+| `specs/igla/race/ternary_node.t27` | 92 | 16 | **0 / 0** | 3 | ok=1, 3/3 |
+
+**Fifteen spec-to-die verdicts. Zero DSP48E1 and zero SRL16E in every design**, so
+none is exposed to the openXC7 primitive defects of T246/T250 and T342.
+
+**Wrappers are in `fpga/verilog/*_jtag.v`** and none uses a golden constant table.
+Each checks an algebraic property the spec itself claims — involution,
+antisymmetry, annihilation, exact additivity — and each carries its own
+**non-triviality clause**, because the dead answer differs per property: a wire
+passes an involution, a zero-returning module passes antisymmetry, and a module
+returning `acc` unchanged passes additivity.
+
+**The BSCAN chain is derived, never typed.** `t27c silicon` places once, reads the
+site out of the FASM and rebuilds with `chparam` if they disagree. The cell moves
+when the parameter changes, so this is a fixed-point iteration: it was written
+with two attempts and needed up to four (W796). Chains 1, 3 and 4 all occur above.
+
+**Read timing is NOT characterised.** The verdict is read up to three times and
+the indices that returned the magic word are reported. Four designs read
+`[2] / [1,2] / [0,1,2]` on boards 1:4 / 1:6 / 1:8; the fifth read `[0,1,2]` on all
+three. **A single-shot read would have reported board 1:4 as a failure on four
+designs out of five.** Whether this tracks configuration-to-read delay is
+**unmeasured** — do not state a cause.
+
+**`specs/numeric/golden_sieve.t27` has no data port and correctly cannot reach a
+die**: it is predicates and comptime invariants, eight proved at compile time,
+with nothing to move across a boundary. Any "fraction of the corpus on silicon"
+must exclude proof-only specs from its denominator.
+
 ## W791 verification (2026-08-17) — SRAM path confirmed on all three dice
 
 Executed with `openFPGALoader 1.1.1` (Homebrew), profile `digilent_hs2`:
