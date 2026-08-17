@@ -19900,4 +19900,46 @@ same word as `ok`.
 
 ---
 
+## W801 — the article has no unsourced statements, and my detector was wrong three ways
+
+### T478 — 43 → 5 → 0, and each step was the detector, not the article
+
+W789 tagged 89 theorem-like statements and reported **43** with no proof or
+measurement nearby. W790 widened the window and got **5** (T459). Reading those
+five in full gets **0**.
+
+| statement | what it actually is |
+|---|---|
+| *Поправка на кривизну* | **[измерено]** — an empirical claim, *"predicts the perplexity ranking on both models tested"*, with the measurement narrative in the lines **before** it |
+| *Оптимальное отношение* | **[измерено]** — a numerical minimisation, `r* = 2.054, 1.4115, …` at 3–8 bits, with the mechanism stated (`ln r*` halves per bit) |
+| *Аргумент об основании держится на позициях* | **[доказано]** — the derivation is **inside the same blockquote**: `cost = r·log_r V`, the `0.3691E` figure, and `3^{E_t}2^M ≤ 2^{N-1}` |
+| *Замкнутая форма для геометрического тейпера* | **[доказано]** — two lines of algebra in the quote, `M(e)=p−log₂e ⇒ x=2^{p−m}` |
+| *потеря есть неопределённое кодовое пространство* | **[доказано]** — the formula, plus its instance: 24,064 codes of 65,536 at `E_t=4` |
+
+> **T478. Zero of eighty-nine statements are unsourced, and the number moved 43 →
+> 5 → 0 without the article changing once.** Every step was a defect in how I was
+> looking: **the window was too small** (W789), then **the detector was
+> keyword-based** and could not see a derivation that never says
+> *"доказательство"*, and finally **it demanded proofs of claims labelled
+> "Теорема" that are empirical results.**
+
+> **T478a. Two of the five are labelled "Теорема" and are measurements.** That is
+> the article's own imprecision and it is worth fixing in the prose — a numerical
+> minimisation over a weight distribution is a *result*, not a theorem — but it is
+> a naming matter, not a soundness one, and the tags now say so.
+
+> **T478b. The "Оптимальное отношение" claim is NOT contradicted by T442, and I
+> nearly said it was.** T459b called it *"both unsupported and contradicted"*.
+> Neither holds: it is measured, and it concerns **representation error** for a
+> weight distribution, while T442's S6 concerns **fan-in-3 truth-table
+> datapaths**. The W788 errata already drew that line — *"утверждение об оптимуме
+> вдоль лестницы остаётся представленческим"* — and I overlooked my own
+> distinction one wave later. **T459b is withdrawn.**
+
+> **T478c. Three successive corrections of one measurement, all mine.** The
+> article was never the thing changing. *A count produced by a detector is a
+> measurement of the detector until someone reads the population it flagged.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

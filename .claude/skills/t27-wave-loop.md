@@ -10270,6 +10270,25 @@ verdict hidden by `tail -1`, the retry indices that revealed the board pattern,
 and now `beat` timestamping the read. *Before designing a measurement, re-read
 what the existing one already prints.*
 
+### W801 — lessons 1029-1031
+
+**1029. 43 -> 5 -> 0, and the article never changed.** Three successive counts of
+"unsourced statements", each corrected by looking harder at MY detector: window
+too small, then keyword-based so it could not see a derivation that never says
+"proof", then demanding proofs of claims labelled "Теорема" that are empirical
+results (T478). *A count produced by a detector is a measurement of the detector
+until someone reads the population it flagged.*
+
+**1030. I contradicted my own errata one wave after writing it.** T459b called a
+claim "both unsupported and contradicted"; it is measured, and the scope
+distinction that saves it -- representation error vs a fan-in-3 truth-table
+datapath -- was written by me in the W788 errata (T478b). *Re-read your own
+corrections before adding to them.*
+
+**1031. "Теорема" over an empirical result is a naming defect worth fixing.** Two
+of the five are numerical minimisations labelled as theorems. Not a soundness
+problem; a reader-expectation one, and the tags now carry the truth.
+
 ### How to update this tracker
 
 After closing a wave:
