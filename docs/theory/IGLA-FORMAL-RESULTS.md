@@ -20085,4 +20085,51 @@ The real mechanism needs no training to test:
 
 ---
 
+## W804 — the fan-in law, predicted before it was measured
+
+### T482 — mean per-feature MI predicts the fan-in gain out of sample
+
+T481b said what would turn the mechanism into a result: *"the test that
+establishes it picks the fourth dataset by its mean MI **in advance**."* Two MNIST
+digit pairs were chosen on MI alone, computed with no training:
+
+**Registered before a single epoch:** *(1) `gain(0v1) < +0.91`, below the previous
+smallest; (2) `gain(4v9) > +1.73`, above UNSW; (3) `gain(4v9) > gain(0v1)`, and if
+(3) fails the mechanism is withdrawn.*
+
+| dataset | **mean per-feature MI** | F=3 | F=6 | **fan-in gain** | |
+|---|---:|---:|---:|---:|---|
+| **`0v1`** | **0.0823** | 99.56 | 99.69 | **+0.14** | **predicted** |
+| Fashion | 0.0561 | — | — | +0.91 | fitted |
+| UNSW | 0.0269 | — | — | +1.73 | fitted |
+| **`4v9`** | **0.0096** | 90.88 | 93.65 | **+2.77** *(t=+7.02)* | **predicted** |
+| MNIST | 0.0058 | — | — | +4.51 | fitted |
+
+> **T482. All three clauses confirmed, and the relation is monotone across five
+> datasets with the two extremes predicted out of sample.** `+0.14` where MI is
+> highest, `+2.77` where it is nearly lowest. **Mean per-feature mutual
+> information predicts how much a neuron gains from reading six inputs instead of
+> three, before any training is done.**
+
+> **T482a. This is the first predictive law in the alphabet line.** Everything
+> before it — the base top, the cardinality effect, the Nine-Rung ceiling,
+> junta degree — was fitted to data already seen, and three of those four were
+> later withdrawn or re-scoped. **This one named its numbers first.**
+
+> **T482b. And it prices S4 in a way the six-bit rule's own derivation cannot.**
+> S4 forbids fan-in 6 on an area argument (≈3.75× post-route, T454). T482 says
+> **what that area buys, per task, from a statistic computable in one minute
+> without a GPU**: nothing on `0v1`, +2.77 pp on `4v9`. **A filter that forbids a
+> lever whose value is now predictable is a filter that should take the prediction
+> as an input.**
+
+> **T482c. What it still is not.** Five points, one architecture, one weight
+> alphabet, and MI measured on binarised inputs against a binary label. **The
+> functional form is unmeasured** — the ordering is monotone but nothing here
+> fixes whether the relation is logarithmic, reciprocal or something else, and
+> two of the five points were used to build the hypothesis. **[измерено], and the
+> next honest step is a fitted form tested on a sixth.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

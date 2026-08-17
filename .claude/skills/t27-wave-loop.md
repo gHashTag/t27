@@ -10333,6 +10333,18 @@ data already on disk (T481).
 result.** n=3 and an exact ordering is suggestive; the test that establishes it
 picks the fourth dataset by its mean MI IN ADVANCE (T481b).
 
+### W804 — lessons 1040-1041
+
+**1040. Naming the numbers first is what separates a law from a fit.** Five
+alphabet-line claims were fitted to seen data and three were later withdrawn; the
+fan-in relation picked two datasets by MI alone, predicted their gains, and both
+landed (T482a). *The cost was one extra run and it changed the claim's status
+entirely.*
+
+**1041. A filter should take a prediction as input, not forbid the lever.** S4
+bans fan-in 6 on an area argument; T482 says what the area buys per task from a
+one-minute statistic -- nothing on 0v1, +2.77 pp on 4v9 (T482b).
+
 ### How to update this tracker
 
 After closing a wave:

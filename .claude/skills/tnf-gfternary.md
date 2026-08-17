@@ -130,6 +130,21 @@ question, and `int8` being cut says nothing against `int8`. Nearest miss: `gf4` 
 `mxgf4`, span `[8,16]`, the only catalogued formats that *could* hold nine levels
 under a different convention — they hold seven.
 
+**THE FAN-IN LAW (T482) — predictive, validated out of sample.** Mean per-feature
+mutual information predicts the fan-in 3→6 gain **before training**:
+
+| dataset | mean MI | gain | |
+|---|---:|---:|---|
+| `0v1` | 0.0823 | **+0.14** | **predicted** |
+| Fashion | 0.0561 | +0.91 | fitted |
+| UNSW | 0.0269 | +1.73 | fitted |
+| `4v9` | 0.0096 | **+2.77** | **predicted** |
+| MNIST | 0.0058 | +4.51 | fitted |
+
+Monotone across five datasets, extremes predicted in advance. **Compute mean MI
+first; it tells you whether fan-in 6 is worth 3.75× the area (T454) on your task.**
+Functional form unmeasured — ordering only.
+
 **WHAT SURVIVES THREE TASKS (T480).** Measured on UNSW-NB15, Fashion-MNIST and
 MNIST, 8 seeds, shuffled splits, sparse fan-in networks:
 
