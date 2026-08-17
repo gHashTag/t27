@@ -19183,4 +19183,52 @@ T457 narrowed the re-open list to the eleven UNSW measurements calling
 
 ---
 
+## W790 — the article's real documentation gap is five statements, not forty-three
+
+### T459 — an eight-line window over-flagged by a factor of eight
+
+W789 tagged 89 theorem-like statements by what followed within **eight** lines and
+found **43** with neither a proof mark nor a measurement. Re-examined on a
+**twenty-three-line** window:
+
+| what actually follows | count |
+|---|---:|
+| a proof, unmarked by `∎` or "Доказательство" | **21** |
+| a measurement | 9 |
+| a pointer to a section or reference | 8 |
+| **nothing at all** | **5** |
+
+Final tag distribution across the article: **40 доказано, 42 измерено, 8 источник
+в тексте, 5 ИСТОЧНИКА НЕТ.** Prose verified identical apart from the tag text.
+
+> **T459. The audit over-flagged by a factor of eight and the correction is the
+> result.** A window is a parameter, and W789 published `43` without varying it.
+> **The article's real documentation gap is five statements out of eighty-nine** —
+> and 21 of the 43 carry a full proof that simply does not use the words the
+> detector looked for.
+
+> **T459a. The five, named, so they can be fixed or withdrawn:**
+>
+> | line | statement |
+> |---:|---|
+> | 963 | Теорема (Поправка на кривизну) |
+> | **967** | **Теорема (Оптимальное отношение)** |
+> | 1917 | Теорема (Аргумент об основании держится на позициях, а не на битах) |
+> | 2116 | Следствие (Замкнутая форма для геометрического тейпера) |
+> | 2330 | Следствие (потеря есть неопределённое кодовое пространство) |
+
+> **T459b. One of the five is also one of the four the week overturned.**
+> *Теорема (Оптимальное отношение)* — the optimal ladder ratio for a given weight
+> distribution and code budget — is **unsourced in the article** and **re-scoped by
+> T442/T444**, which prove no integer ladder of two or more magnitudes is
+> admissible at all and enumerate `linear 9` as the optimum of 1156 non-ladder
+> alphabets. **A claim that is both unsupported and contradicted is the first one
+> a reviewer will reach**, and it sits in the section the paper's title is about.
+
+> **T459c. The tagging pass paid for itself twice.** It found a real gap of five,
+> and it found that my own detector's window was the difference between five and
+> forty-three. **Both are findings, and only the second one is about me.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

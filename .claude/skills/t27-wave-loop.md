@@ -10104,6 +10104,17 @@ line -- an explanatory note -- and never the RUNAWAY verdict above it. The scrip
 worked the whole time. *The lesson I have written six ways about reading truncated
 output was inside the invariant that is supposed to catch such things.*
 
+**1002. A detection WINDOW is a parameter -- vary it before publishing the count.**
+Eight lines gave 43 unsourced theorems; twenty-three gave 5, because 21 of them
+carry a full proof that never uses the word "доказательство" or the symbol
+(T459). *I published 43 in a commit message one wave before measuring that the
+window decided it.*
+
+**1003. A claim that is both unsupported and contradicted is the reviewer's first
+stop.** "Теорема (Оптимальное отношение)" is unsourced in the article AND
+re-scoped by T442/T444, and it sits in the section the paper is named for
+(T459b).
+
 ### How to update this tracker
 
 After closing a wave:
