@@ -10695,6 +10695,29 @@ sweep wrote `if TO 90 yosys ...; then OK; else "over 90s"; fi`, and reported
 logged 7 KB. Two thousand times smaller, same label. Fifth instance this month of
 a reporting layer collapsing two states the run distinguishes.
 
+**1085. 43 LUT IS THE WRAPPER FLOOR, NOT A RESULT.** A JTAG wrapper whose probes
+are all compile-time constants folds the entire DUT away at synthesis: four
+instances of a 4,909-LUT neuron reported **43 LUT, 9 CARRY4**. Driving ONE
+activation from a counter took it to 2,078 -- a factor of 48. And 43 is exactly
+what `phi_weights.json` and `tnf17.json` measured in W805, because 43 LUT is
+STARTUPE2 + reset counter + prescaler + BSCAN and nothing else. If a wrapper
+reports ~43 LUT, it is measuring the compilation path, not the datapath.
+
+**1086. A READBACK WORD THAT STAYS COMPATIBLE WITH ITS PREDECESSOR CANNOT SAY
+WHICH IT IS.** I moved four bits of the 28-bit magic into clause results, keeping
+`ok`/`beat` in place. Three dice then held two different builds, I decoded all
+three with the new layout, and the two old boards reported `c_ann=0, c_ant=0`
+beside `ok=1` -- impossible for a conjunction, and the only reason I caught it.
+When a fleet can hold more than one build, the word needs a VERSION field, not
+just a magic.
+
+**1087. Read the alphabet out of the spec you are instantiating.** The whole
+`gft_*` family decodes `w==2` as POSITIVE and `w==0` as NEGATIVE, inverting
+`specs/numeric/gfternary.t27`'s canonical `GAT_ZERO=0, GAT_POS=1, GAT_NEG=2`.
+Five specs read directly, five for five. A wrapper written to the canon would
+compute the exact negation of the spec -- and would still pass a cancellation
+test, because cancellation is symmetric under negation.
+
 ### How to update this tracker
 
 After closing a wave:

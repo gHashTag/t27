@@ -21647,6 +21647,112 @@ That is **31% of the reachable corpus recovered by deleting one optimisation
 pass**, and the largest single change to what this project can put on a die since
 the silicon path opened.
 
+## W814 -- a GFTernary float neuron on silicon, and what the old wrappers were really measuring
+
+### T533 -- THE `gft_*` FAMILY INVERTS THE CANONICAL TERNARY ALPHABET [measured]
+
+`specs/numeric/gfternary.t27` is the canonical source and says
+
+    GAT_ZERO = 0x00     GAT_POS = 0x01     GAT_NEG = 0x02
+
+Reading `contrib` out of five `gft_*` specs directly -- not by regex, per lesson
+1075 -- gives the opposite:
+
+    gft_bitnet_neuron   if(w==2){return a;}  if(w==0){return a^65536;}  else 0
+    gft_layer3          identical
+    gft_mlp2            identical
+    gft_neuron_full     identical
+    gft_classifier4     identical
+
+    so:  w==2 -> +a      w==0 -> -a      w==1 -> 0
+
+Five for five, the family swaps 0 and 2 and gives 1 the meaning of zero, where
+`ternary_mac.t27` decodes `code==1 -> +1, code==2 -> -1`. The SSOT rule says the
+canonical file wins, but **reconciling it would change what the hardware
+computes**, so this is recorded and not silently fixed.
+
+IT MATTERS NOW IN A WAY IT DID NOT BEFORE. Until W813 these specs could not be
+synthesised, so the inconsistency was inert. A JTAG wrapper written against the
+canonical alphabet would instantiate the neuron with every weight's sign
+inverted, compute the negation of what the spec means, and **still pass a
+cancellation test**, because cancellation is symmetric under negation.
+
+### T534 -- THE CONSTANT-INPUT WRAPPER FOLDS AWAY, AND 43 LUT IS THE FLOOR [measured]
+
+The first `gft_bitnet_neuron_jtag.v` drove all four taps with constants, as every
+existing wrapper in `fpga/verilog/` does. It built cleanly and reported
+
+    43 LUT, 9 CARRY4, 0 DSP48E1
+
+for four instances of a neuron that synthesises to **4,909 LUT** on its own. A
+456-fold reduction is not optimisation; it is Yosys evaluating the whole design
+at synthesis time, because every input is a compile-time constant.
+
+FORECAST REGISTERED: driving ONE activation from a counter raises the LUT count
+by orders of magnitude. Measured: **43 -> 2,078 LUT**, a factor of 48. CONFIRMED.
+
+AND 43 IS NOT AN ARBITRARY NUMBER. From the W805 netlist census:
+
+    phi_weights.json   43 LUT
+    tnf17.json         43 LUT
+    this wrapper, constant inputs   43 LUT
+
+**43 LUT is the wrapper's own STARTUPE2 + reset counter + prescaler + BSCAN
+shift register, and nothing else.** Any design whose probes are all constants
+reports exactly that floor. Two wrappers already in the repository sit on it.
+
+WHAT THIS DOES AND DOES NOT INVALIDATE. A constant-probe wrapper still proves the
+whole compilation and load path -- spec to Verilog to netlist to FASM to frames to
+bitstream to die and back over JTAG -- carried a value derived from the spec's
+semantics. It does NOT prove the datapath computes on the die, because there is
+no datapath left. `e8m0_jtag.v` and `tnf17_jtag.v` sweep a probe index through a
+counter, so their multiplexer is live and they are not at the floor;
+`phi_weights_jtag.v` has five constant instances and is.
+
+### T535 -- FIRST GFTernary FLOAT NEURON READ BACK OFF THE DIE [measured]
+
+`specs/ternary/gft_bitnet_neuron.t27` -- one of the 25 that could not be
+synthesised before W813 -- now runs on board `1:4`:
+
+    yosys      2,047 LUT, 371 CARRY4, 0 DSP48E1, BSCANE2 x1
+    nextpnr    OK, chain forced to 1, BSCAN chain == site: agree
+    hardware   Done 1
+    readback   0xa5a5a5f7
+
+Decoded under this wrapper's own layout
+`{24'hA5A5A5, c_can, c_ann, c_non, c_ant, 0, 1, beat, ok}`:
+
+    c_can = 1   cancellation:  (+,+,-,-) on a LIVE activation sums to zero
+    c_ann = 1   annihilation:  all-zero weights give zero
+    c_non = 1   non-triviality: a single positive tap returns a NON-ZERO value
+    c_ant = 1   antisymmetry:  a single negative tap flips the sign bit
+    beat  = 1   the design is running
+    ok    = 1
+
+All four algebraic clauses hold on silicon, with a moving activation and zero
+DSP48E1. This is the first TNF-float computation this project has read back off a
+die rather than out of a simulator.
+
+### T535a -- one bit could not localise four clauses, and a mixed fleet made me misread two dice [self-critical]
+
+The FIRST build of this wrapper returned `ok=0` with the magic present and
+`beat=1` -- alive, and false, with nothing on the wire saying which clause. That
+is the same defect this month found three times in the host tooling (T500, T513,
+T523a), now in hardware I wrote myself. The BSCAN word has 28 spare bits; four
+became the clauses, and the failure would have named itself on the first read.
+
+Then the second error, which is worse and is mine. The three dice held DIFFERENT
+BUILDS with DIFFERENT WORD LAYOUTS -- board 1:4 the new one, the other two an
+older `{28'hA5A5A5A, 0, 1, beat, ok}` -- and I decoded all three with the new
+layout. Boards 0 and 1 duly reported `c_ann=0, c_ant=0` alongside `ok=1`, which is
+arithmetically impossible for a conjunction, and that contradiction is the only
+reason I did not publish it. **A word layout that stays magic-compatible with its
+predecessor is not a favour; it is a format that cannot say which format it is.**
+
+The rule: when a fleet can hold more than one build, the readback must carry a
+VERSION, not only a magic. Not fixed here -- registered, because changing the word
+again mid-wave would repeat the mistake.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
