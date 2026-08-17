@@ -1696,7 +1696,14 @@ pub fn run_silicon(
             name: if xdc.is_some() { "nextpnr @70.77MHz + XDC" } else { "nextpnr @70.77MHz (T495 measured)" },
             secs: t.elapsed().as_secs_f64(),
             code: c,
-            artefact: file_len(&fasm_path),
+            // W823 (T557): a KILLED stage has no artefact, whatever is on disk.
+            // T513 stopped downstream stages reusing a stale file and left this
+            // column alone: a nextpnr run killed at the 300 s wall clock printed
+            // `ABSENT  12956756 B`, the byte count of a FASM from an earlier
+            // successful build. Reporting bytes for a stage that produced none is
+            // the same defect T500, T513 and T523a were, in the one place the
+            // earlier fix did not reach.
+            artefact: if c == Some(0) { file_len(&fasm_path) } else { None },
             note: err.lines().find(|l| l.starts_with("ERROR")).unwrap_or("").to_string(),
         });
         if c != Some(0) {

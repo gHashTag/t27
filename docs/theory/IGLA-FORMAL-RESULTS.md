@@ -22304,6 +22304,82 @@ something specific and should pin it -- but it does mean **"all probes live" and
 the first while reaching about two-fifths of the second. The metric now says so
 on every run.
 
+## W823 -- more live operands gave LESS arithmetic, and independence is why
+
+### T554 -- THE FORECAST WAS REFUTED IN THE DIRECTION NOBODY EXPECTS [measured]
+
+W822 left the question: can a wrapper reach ~5.0 DUT-equivalents, or does the
+requirement to CHECK something cap it? FORECAST REGISTERED: 3.0-3.5, and 5.0 is
+unreachable because annihilation needs a zero operand and non-triviality needs a
+known result -- each clause pins what it asserts.
+
+The first attempt raised live operands from 19/40 to **29/40**, using the
+observation that a negation is derivable rather than constant: `nlive = live ^
+65536` keeps the +x/-x relationship cancellation needs while nothing is a literal.
+Commutativity needs no constants at all -- `a·b = b·a` for any operands -- so both
+its probes went 8/8 live.
+
+    19/40 live, 2 sources             2018 CARRY4    1.96 equivalents
+    29/40 live, 2 sources             1573 CARRY4    1.53 equivalents
+
+**REFUTED, and downward.** Ten more live operands produced 22% LESS arithmetic in
+the fabric.
+
+### T555 -- INDEPENDENCE IS THE LEVER, NOT LIVENESS [measured]
+
+The cause is visible once the numbers are: `nlive` differs from `live` in ONE BIT,
+and `nlive2` from `live2` likewise. Two independent sources fed all twenty-nine
+"live" operands, and Yosys proves the shared subexpressions and collapses them.
+**A correlated live input folds nearly as well as a constant.**
+
+FORECAST REGISTERED: four sources with no provable relationship raise the metric
+above 1.96. Implemented as a counter at stride 1, a second at stride 3 counting
+down, a third at stride 7, and a 32-bit LFSR -- unequal seeds, coprime strides,
+one non-linear:
+
+    29/40 live, 4 INDEPENDENT sources  3269 CARRY4   3.18 equivalents
+
+CONFIRMED. **The same operand count, 2.1x the arithmetic**, purely from removing
+the relationships. 19,985 LUT, 9.3% of an XC7A200T.
+
+So the metric T553 introduced measures something sharper than it was named for.
+It does not count moving wires; it counts arithmetic a synthesiser could not
+prove redundant. **For a hardware test wrapper the design rule is: pin what the
+clause asserts, and make everything else INDEPENDENT, not merely live.**
+
+### T556 -- AND THE BINDING CONSTRAINT IS NOW THE PIPELINE'S OWN WALL CLOCK [measured]
+
+The 19,985-LUT build does not place inside `run_bounded`'s 300 s:
+
+    FAIL nextpnr @70.77MHz + XDC   300.05s  ABSENT
+
+FORECAST REGISTERED and CONFIRMED. This is the first design where neither timing
+nor die capacity is the limit -- W811's wall clock is. That bound was set from the
+synthesis distribution (T528, bimodal at 13 s or never) and place-and-route was
+never measured against it. The restored wrapper places in **256.88 s**, which is
+85% of the bound, so the margin was already thin and nobody had looked.
+
+NOT RAISED HERE. Changing a limit because one design exceeded it is how a
+timeout becomes decoration. The place-and-route distribution deserves the same
+measurement the synthesis one got, and until then the honest position is that
+this pipeline can build designs up to roughly 13,000 LUT and not 20,000.
+
+### T557 -- A KILLED STAGE STILL PRINTED A STALE BYTE COUNT [fixed]
+
+The killed nextpnr row read
+
+    FAIL nextpnr @70.77MHz + XDC   300.05s  ABSENT  12956756 B
+
+`ABSENT` is the return code of a process that was killed; the 12,956,756 bytes are
+a FASM from an earlier successful build. T513 fixed downstream stages reusing a
+stale artefact and did not touch the column of the stage that failed. Now
+`artefact: if c == Some(0) { file_len(&fasm_path) } else { None }`.
+
+Seventh instance this month of a report about something that did not happen, and
+the second inside a fix for the previous one. The pattern is not that the code is
+careless -- it is that **"the file exists" and "this run wrote it" are different
+propositions, and every place that conflates them has to be found separately.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

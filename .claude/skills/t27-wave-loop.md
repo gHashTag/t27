@@ -10905,6 +10905,33 @@ arithmetic still folds because three probes pin one operand each. That is correc
 behaviour for a probe testing a specific property, and it means the first claim
 does not imply the second. The metric now states which one you have.
 
+**1115. MORE LIVE OPERANDS CAN MEAN LESS ARITHMETIC.** Raising a wrapper from
+19/40 to 29/40 live operands DROPPED the datapath metric 1.96 -> 1.53. The extra
+"live" values were derived -- `nlive = live ^ 65536` -- so two sources fed
+twenty-nine ports and Yosys proved the shared subexpressions. **A correlated live
+input folds nearly as well as a constant.**
+
+**1116. INDEPENDENCE IS THE LEVER.** Four sources with no provable relationship --
+counters at strides 1, 3 and 7 from unequal seeds plus a 32-bit LFSR -- took the
+same 29/40 operand count from 1.53 to **3.18 DUT-equivalents**, 2.1x the
+arithmetic. Design rule for a hardware test wrapper: **pin what the clause
+asserts, and make everything else INDEPENDENT, not merely moving.**
+
+**1117. THE PIPELINE'S WALL CLOCK IS NOW THE BINDING CONSTRAINT.** A 19,985-LUT
+build hit `run_bounded`'s 300 s in nextpnr and was killed; the design that does
+place takes **256.88 s**, 85% of the bound. W811 set that limit from the SYNTHESIS
+distribution (T528: bimodal, 13 s or never) and place-and-route was never measured
+against it. Do not raise a limit because one design exceeded it -- measure the
+distribution, as T528 did. Until then this pipeline builds to about 13,000 LUT,
+not 20,000.
+
+**1118. "The file exists" and "this run wrote it" are different propositions, and
+every place that conflates them must be found separately.** A killed nextpnr
+printed `ABSENT  12956756 B` -- the byte count of an earlier build's FASM. T513
+fixed downstream stages reusing a stale artefact and left the failing stage's own
+column. Seventh instance this month, and the second inside a fix for the previous
+one.
+
 ### How to update this tracker
 
 After closing a wave:
