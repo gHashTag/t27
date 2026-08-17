@@ -20520,6 +20520,170 @@ corrupt the absolute value -- it manufactures agreement. When a measurement is
 declared void, the parts salvaged from it need their own justification, and
 "the divider cancels" was not one.
 
+## W806 -- the open challenge answered, and the answer costs more than it pays
+
+### T496 -- T491'S CHALLENGE IS ANSWERED: their finding is correct and does not apply to us [measured]
+
+T491 registered arXiv:2604.25183 as an open challenge because its headline --
+"LUT-based reuse ... yields diminishing returns for small integer types" -- would,
+if it transferred, undercut a LUT-centric ternary datapath exactly where this
+project operates. The paper is now read, not just its abstract.
+
+FORECAST REGISTERED before reading, three clauses:
+  (1) their LUT is a precomputed PARTIAL-SUM table over weight groups, not a
+      truth table of a neuron;
+  (2) their cost metric is ASIC area, not FPGA LUT count;
+  (3) "small integer types" means activation width >= INT8; ternary activations
+      lie outside their evaluated range.
+
+ALL THREE CONFIRMED, from the paper's own text:
+
+  (1) The architecture has four parameters -- "mu: LUT group size, determining LUT
+      depth; L: number of parallel LUTs; K: number of parallel fetchers per LUT;
+      the activation data type". The table holds partial sums of activations
+      selected by ternary weight groups. It "replaces multiplications with
+      conditional additions". A neuron's truth table appears nowhere.
+  (2) TSMC 16 nm, mm^2 and um^2, VCD-annotated power. One FPGA row exists, in a
+      comparison against TeLLMe v2.
+  (3) Table III fixes the evaluated space: "Activation (adder) data type FP16,
+      INT8". Two values. Nothing narrower than eight bits is synthesised.
+
+AND THEIR MECHANISM IS EXPLICIT, which is what makes the transfer question
+decidable rather than a matter of opinion:
+
+    adder-to-read-out cost ratio    LUT benefit
+    balanced   a_add ~ a_mux+a_inv  (INT8)   minimal
+    high       a_add >> a_mux+a_inv (FP16)   significant
+
+The benefit of tabulating comes entirely from AMORTISING AN EXPENSIVE ADDER. For
+FP16 the adder dominates and the table pays; for INT8 it does not.
+
+WHY IT DOES NOT TRANSFER. Extrapolating their own axis, a ternary accumulator is
+cheaper still than INT8's, so their model predicts even LESS benefit from
+partial-sum tabulation in our regime -- and that prediction is correct and we
+should accept it. But it is a prediction about a machine we do not build. Their
+LUT amortises adders; ours eliminates the arithmetic. Our cost model has no
+a_add, a_mux or a_inv term at all, because a fan-in-3 ternary neuron is one LUT6
+lookup and the LUT6 is already fabricated. The two architectures share a name and
+not a mechanism.
+
+Read constructively, their result ARGUES FOR going further than they did: if at
+small activation widths partial-sum tabulation stops paying, the remaining move
+is to tabulate the whole function rather than half of it.
+
+### T497 -- AND THE ANSWER DOES NOT HELP, BECAUSE ON THEIR OWN FPGA AXIS WE LOSE [measured]
+
+The same paper carries the FPGA row that T161 has been missing since it declared
+"83 LUT has no denominator". Placing this project on it:
+
+    design                        LUT     mul/cyc   LUT/mul   activations  weights
+    TeLLMe v2 (Zynq XCK26)     35,200      1,344     26.19    INT8         runtime
+    arXiv:2604.25183 optimised 25,709      1,334     19.27    INT8         runtime
+    t27, composed MAC node          66          1     66.00    ternary      runtime
+    t27 MVP whole classifier        83         24      3.46    ternary      COMPILE-TIME
+
+THE THIRD ROW IS THE ARCHITECTURAL ONE AND IT IS 3.4x WORSE than the 2026 state
+of the art -- while using activations roughly five times narrower, which should
+have made it cheaper, not dearer. T161 already recorded 66 LUT/MAC as 18x FINN's
+2017 binary figure and warned "if 66 is real, the ternary datapath is being built
+the expensive way". The 2026 row does not soften that; it sharpens it, because
+19.27 is achieved at INT8 with runtime weights, which is a strictly harder
+problem than ours in both respects.
+
+### T498 -- the flattering number is constant folding, and it is a different machine [measured]
+
+Rows three and four of that table differ by 19x and sit in the same spec file.
+They are not two measurements of one design; they are two designs.
+
+The MVP's 24 ternary weights are COMPILE-TIME CONSTANTS written into the spec.
+Yosys folds them: 24 constant multiplications collapse into a small boolean
+function of eight inputs, and 83 LUT is the size of that function. It cannot run
+a different model without resynthesis, so it is not a MAC array and 3.46 LUT/mul
+is not a MAC density. Quoting it against 19.27 -- where the weights arrive from
+memory at run time -- compares a lookup table of one fixed model against a
+machine that runs any model.
+
+THE RULE THIS BUYS: a density figure is meaningless without stating whether the
+weights are mutable at run time. Two numbers 19x apart lived in one file for
+three waves without that distinction being drawn, and the smaller one is the one
+that got quoted in a commit message.
+
+WHAT WOULD MAKE THE CLAIM COMPARABLE, stated so it can be built rather than
+argued: a ternary MAC array with weights loaded from BRAM at run time, measured
+in LUT per multiply per cycle at matched throughput. Until that exists, this
+project has no FPGA density result, and T161's verdict stands unchanged with a
+2026 date on it.
+
+### T499 -- 66 LUT/MAC MEASURED, and it puts us at the WORST point of the competitor's own design space [measured]
+
+`specs/igla/race/ternary_mac.t27` was one of the 799 of 852 modules with no data
+port. W806 gave it `fn on_comb(a: i8, code: u8, acc: i32) -> i32` -- the exact
+arguments `ternary_mac` already takes, with `TernaryWeight` flattened to its one
+field because a port carries wires and not structs. Nothing was guessed.
+
+FORECAST REGISTERED before synthesis: 40-90 LUT, dominated by the 32-bit
+accumulator adder, zero DSP48E1.
+
+    t27c path --synth specs/igla/race/ternary_mac.t27
+      yosys  ->  66 LUT, 20 CARRY4, 0 DSP48E1
+
+CONFIRMED on all three clauses. The 20 CARRY4 cells are the accumulator's carry
+chain, and they are the direct evidence that the adder, not the ternary select,
+is what is being paid for. This also settles T161's suspicion: **66 LUT per
+composed MAC node is real**, measured on a runtime-weight unit, not inferred.
+
+### T499a -- AND THIS REVERSES T496's CONCLUSION IN OUR FAVOUR [derived]
+
+T496 concluded that arXiv:2604.25183's finding "does not transfer" because our
+activations are ternary and theirs are INT8 at minimum. That reading was wrong,
+and the measurement is what exposes it.
+
+Their axis is NOT activation width. It is stated explicitly as a RATIO:
+
+    adder-to-read-out cost ratio        LUT benefit
+    balanced  a_add ~ a_mux + a_inv     minimal      (their INT8 case)
+    high      a_add >> a_mux + a_inv    significant  (their FP16 case)
+
+Now put our measured unit on that axis. Our `a_add` is a 32-bit accumulator --
+20 CARRY4 cells of it. Our `a_mux + a_inv` is a ternary select over an 8-bit
+activation, which is nearly free. **That is a HIGH ratio, so by their own model
+this project sits in the FP16-like regime where grouping pays MOST** -- not in
+the INT8-like regime where it does not.
+
+The mistake was reading "small integer types" as a statement about our data and
+concluding exemption. It is a statement about a ratio, and ours is the opposite
+of what I assumed. Their paper does not argue against this project; **it hands us
+the fix and tells us our current design sits at mu = 1, the worst point of the
+space they mapped.**
+
+### T499b -- the next experiment, registered before it is built [forecast]
+
+If the mechanism above is right, sharing one accumulator across a group of mu
+ternary lanes should collapse the per-multiply cost, because the 32-bit adder is
+divided by mu while the cheap per-lane select is not.
+
+    cost/mul  ~=  select_per_lane  +  adder_cost / mu
+
+REGISTERED FORECAST for a grouped ternary MAC at mu = 8, before it is written:
+  (1) the per-multiply LUT cost falls below 30, i.e. more than halves from 66;
+  (2) CARRY4 count per multiply falls by roughly mu;
+  (3) it does NOT reach the field's 19.27, because that figure is at INT8 with a
+      narrower accumulator and this one keeps 32 bits.
+  REFUTATION: cost/mul staying above 45 at mu = 8 means the adder is not the
+  dominant term after all, and T499a's reading of the ratio is wrong.
+
+This is the experiment T498 asked for -- a runtime-weight ternary MAC measured in
+LUT per multiply at matched throughput -- and it is now specified precisely
+enough that its failure would be informative.
+
+### T499c -- two backends still fail on this spec, and that is not new [measured]
+
+The same `path --synth` run reports `FAIL Zig tests` (rc 1) and
+`FAIL iverilog + vvp` (rc 13) alongside the clean yosys stage. Those are the
+standing open items -- the Icarus baselines and the software-backend gap -- not
+regressions from the port added here, and the port is not claimed to have fixed
+them. Recorded so a later wave does not read the yosys success as a green spec.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

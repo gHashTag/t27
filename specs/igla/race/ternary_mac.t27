@@ -68,8 +68,59 @@ fn ternary_dot(a: []i8, w: []TernaryWeight, idx: u32, acc: i32) -> i32 {
 }
 
 // ============================================================================
+// 2b. Combinational port surface (T81) -- W806
+// ============================================================================
+
+/// W806. Without a data port this module has no boundary, synthesises to
+/// nothing, and cannot be measured on a die. It is one of the 799 of 852 in that
+/// state, and it is the one worth closing first, because the number it yields
+/// decides whether the ternary datapath is viable at all.
+///
+/// THE PORT IS NOT A GUESS. `on_comb` takes exactly the arguments `ternary_mac`
+/// already takes, with `TernaryWeight` flattened to its single field because a
+/// port carries wires and not structs. No packing scheme is invented, no default
+/// is assumed, and nothing is added that the module did not already compute.
+///
+/// WHAT IT IS FOR. T497 places this project 3.4x behind the 2026 state of the
+/// art on LUT-per-multiply (66 against arXiv:2604.25183's 19.27), and T498 shows
+/// the flattering 3.46 figure is constant folding of compile-time weights rather
+/// than a MAC density. This port produces the first RUNTIME-WEIGHT ternary MAC
+/// this project can synthesise and count.
+///
+/// REGISTERED FORECAST (T44), before synthesis: the cost lands in 40-90 LUT and
+/// is dominated by the 32-bit accumulator adder, with ZERO DSP48E1. If that
+/// holds, the field's 19.27 comes from amortising one adder across a group of
+/// lanes -- their `mu` parameter -- which is exactly the partial-sum tabulation
+/// T496 argued does not apply to us, and the honest reading becomes that our
+/// architecture declines the one trick that pays.
+fn on_comb(a: i8, code: u8, acc: i32) -> i32 {
+    let w = TernaryWeight { code: code };
+    return ternary_mac(acc, a, w);
+}
+
+// ============================================================================
 // 3. Tests
 // ============================================================================
+
+test port_zero_weight_leaves_accumulator
+    given r = on_comb(7, 0, 100)
+    then r == 100
+
+test port_plus_weight_adds_activation
+    given r = on_comb(7, 1, 100)
+    then r == 107
+
+test port_minus_weight_subtracts_activation
+    given r = on_comb(7, 2, 100)
+    then r == 93
+
+test port_out_of_alphabet_code_is_zero
+    given r = on_comb(7, 3, 100)
+    then r == 100
+
+test port_negative_activation_with_minus_weight_adds
+    given r = on_comb(-7, 2, 100)
+    then r == 107
 
 test ternary_decode_zero
     given w = TernaryWeight { code: 0 }
