@@ -732,12 +732,12 @@ test is_power_of_two_const_1024
     when ok = is_power_of_two_const(v)
     then ok == true
 
-bench booth_encode_latency
+bench booth_encode_latency_v2
     given x = 15
     measure booth_encode(x)
     target latency_ns < 1.0
 
-bench r_si_1_pass_latency
+bench r_si_1_pass_latency_v2
     given expr = "assign y = a & b;"
     measure r_si_1_compliant(expr)
     target latency_ns < 1.0

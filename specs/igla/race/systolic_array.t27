@@ -821,7 +821,7 @@ invariant systolic_result_zero_after_two_steps_identity_inv
     let r = systolic_result(s2)
     r.a11 == 0 && r.a12 == 0 && r.a21 == 0 && r.a22 == 0
 
-invariant booth_mul_i16_commutative
+invariant booth_mul_i16_commutative_v2
     forall a : i16, b : i16
     booth_mul_i16(a, b) == booth_mul_i16(b, a)
 

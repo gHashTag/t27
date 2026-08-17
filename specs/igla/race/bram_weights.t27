@@ -770,7 +770,7 @@ invariant bram_flatten_addr_within_bounds
     addr.row < bank.depth && addr.col < bank.width
     ==> flatten_addr(bank, addr) < bank.data.len()
 
-invariant bram_read_weight_oob_zero
+invariant bram_read_weight_oob_zero_v2
     forall bank : WeightBank, addr : WeightAddr
     addr.row >= bank.depth || addr.col >= bank.width
     ==> read_weight(bank, addr) == 0

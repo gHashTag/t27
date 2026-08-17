@@ -1019,7 +1019,7 @@ invariant rtl_count_mul_ops_single:
 invariant rtl_count_mul_ops_empty_zero_inv:
     count_mul_ops("") == 0
 
-invariant rtl_count_mul_ops_nonnegative
+invariant rtl_count_mul_ops_nonnegative_v2
     forall s : string
     count_mul_ops(s) >= 0
 

@@ -21296,6 +21296,70 @@ whole diagnosis above followed from that one line in under ten minutes.
 A check that has never fired is not evidence that it is unnecessary. It is
 evidence of nothing at all until the day it fires.
 
+### T521 -- the deduplicated specs: 0 of 29 pass, exactly as forecast [measured]
+
+W809 removed 366 duplicate test names across 29 specs and measured the effect on
+one spec only. FORECAST REGISTERED before measuring the rest: fewer than 5 of 29
+now pass Icarus, because layers 1, 3 and 4 remain and cluster in the same files.
+
+    COMPILE  29      NOGEN  1      RAN  0      HANG  0
+
+CONFIRMED, at zero. The first blocker per spec:
+
+    13   has no method "len"           -- layer 1
+     7   has already been declared     -- NOT the class W809 removed; see T522
+     2   No function named `cast_i*`   -- layer 3
+     1   No function named `transpose`
+     2   other
+
+Layer 2 is genuinely gone -- no spec now fails on a duplicate TEST name. It was
+never going to be sufficient on its own, and saying so before measuring is what
+makes the zero informative rather than disappointing.
+
+### T522 -- I NEARLY "FIXED" 187 NON-PROBLEMS, AND AN ASSERTION STOPPED ME [self-critical]
+
+The 7 remaining `already been declared` failures are `'tokens'` and
+`'rtlscout_competitor'` -- ordinary identifiers declared twice in one scope, not
+declaration names. Chasing them, I counted duplicate `invariant` names across the
+corpus and got **57 specs, 198 redundant names**, and began renaming.
+
+The rename script asserted, per file, that no duplicates remained after its own
+edit. On `specs/fpga/boards/arty_a7_integration.t27` the assertion FAILED and the
+run aborted with the tree clean -- `git status` showed zero modified files.
+
+The cause is that `invariant` has TWO syntactic forms and I had conflated them:
+
+    invariant name              <- named, followed by `assert` on later lines
+    invariant divisor > 0;      <- ANONYMOUS, an expression
+
+My regex captured the first identifier of the expression and called it a name, so
+`divisor` and `SYS_CONFIG` counted as duplicated "names". Separating the forms:
+
+    anonymous `invariant <expr>;` lines corpus-wide   360
+    specs with duplicate NAMED invariants               4
+    redundant NAMED invariant names                    11
+
+    the figure I was about to act on                57 specs / 198 names
+
+**An 18x overcount.** The real class is 4 specs and 11 names and it was fixed in
+one pass (20 names including duplicate `bench` names; six files; all re-typecheck
+clean).
+
+What saved this was lesson 1069 -- the invariant lives INSIDE the script as an
+assertion, checked before writing. A post-hoc grep would have reported a smaller
+duplicate count afterwards and proved nothing about what the rename had done to
+360 anonymous invariants along the way.
+
+### T522a -- the general rule this buys [derived]
+
+Two waves ago the same shape appeared: a grep for `slice parameter AND .len()`
+matched 38 specs of which 15 actually failed that way (T509). Here a grep for
+duplicate invariant names matched 57 specs of which 4 actually had them.
+
+**A syntactic pattern is a hypothesis about a class, never the class.** The step
+between them is running the thing that fails and reading which failure comes
+first. It has cost minutes each time and would have cost 187 wrong edits here.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

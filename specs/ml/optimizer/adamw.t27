@@ -802,7 +802,7 @@ module AdamW;
     // EXISTING TDD: Invariants (preserved)
     // =========================================================
 
-    invariant step_preserves_param_count
+    invariant step_preserves_param_count_v2
         given config = any_adamw_config()
         and   state = init(config, 100)
         and   params = random_input(100)
@@ -810,13 +810,13 @@ module AdamW;
         when result = step(state, params, grads)
         then result.updated_params.len == 100
 
-    invariant moments_have_same_length
+    invariant moments_have_same_length_v2
         given config = any_adamw_config()
         and   state = init(config, 50)
         then state.m.len == 50
         and   state.v.len == 50
 
-    invariant first_moment_remains_bounded
+    invariant first_moment_remains_bounded_v2
         given config = any_adamw_config()
         and   state = init(config, 10)
         and   params = finite_input(10)
@@ -824,7 +824,7 @@ module AdamW;
         and   result = step(state, params, grads)
         then all(result.m, is_finite)
 
-    invariant second_moment_non_negative
+    invariant second_moment_non_negative_v2
         given config = any_adamw_config()
         and   state = init(config, 10)
         and   params = finite_input(10)
@@ -832,14 +832,14 @@ module AdamW;
         and   result = step(state, params, grads)
         then all(result.v, fn(x) x >= 0.0)
 
-    invariant bias_correction_in_zero_one_range
+    invariant bias_correction_in_zero_one_range_v2
         given beta = random_gf16_in_range(0.0, 0.999)
         and   t = random_u64_in_range(1, 1000)
         when bc = compute_bias_correction(beta, t)
         then bc >= 0.0
         and   bc <= 1.0
 
-    invariant weight_decay_preserves_sign
+    invariant weight_decay_preserves_sign_v2
         given params = [-1.0, 0.0, 1.0]
         and   lr = 0.01
         and   weight_decay = 0.1
@@ -847,7 +847,7 @@ module AdamW;
         then result[0] < 0.0
         and   result[2] > 0.0
 
-    invariant amsgrad_v_max_non_decreasing
+    invariant amsgrad_v_max_non_decreasing_v2
         given config = AdamWConfig{.amsgrad = true}
         and   state = init(config, 10)
         and   params = random_input(10)
@@ -856,7 +856,7 @@ module AdamW;
         and   result2 = step(state, result1.updated_params, grads)
         then all_pairs(result1.v_max, result2.v_max, fn(a, b) b >= a)
 
-    invariant denominator_positive
+    invariant denominator_positive_v2
         given v = 0.0
         and   epsilon = 1e-8
         when denom = sqrt(v) + epsilon
@@ -915,17 +915,17 @@ module AdamW;
     // EXISTING TDD: Benchmarks (preserved)
     // =========================================================
 
-    bench init_small
+    bench init_small_v2
         given config = any_adamw_config()
         when result = init(config, 100)
         then elapsed_time_us < 50
 
-    bench init_large
+    bench init_large_v2
         given config = any_adamw_config()
         when result = init(config, 1000000)
         then elapsed_time_ms < 20
 
-    bench step_small
+    bench step_small_v2
         given config = any_adamw_config()
         and   state = init(config, 100)
         and   params = random_input(100)
@@ -933,7 +933,7 @@ module AdamW;
         when result = step(state, params, grads)
         then elapsed_time_us < 200
 
-    bench step_medium
+    bench step_medium_v2
         given config = any_adamw_config()
         and   state = init(config, 10000)
         and   params = random_input(10000)
@@ -941,7 +941,7 @@ module AdamW;
         when result = step(state, params, grads)
         then elapsed_time_ms < 10
 
-    bench step_large
+    bench step_large_v2
         given config = any_adamw_config()
         and   state = init(config, 1000000)
         and   params = random_input(1000000)
@@ -949,13 +949,13 @@ module AdamW;
         when result = step(state, params, grads)
         then elapsed_time_ms < 200
 
-    bench compute_bias_correction
+    bench compute_bias_correction_v2
         given beta = 0.9
         and   t = 100
         when result = compute_bias_correction(beta, t)
         then elapsed_time_ns < 50
 
-    bench amsgrad_update
+    bench amsgrad_update_v2
         given v = random_positive_gf16()
         and   v_max = random_positive_gf16()
         when result = amsgrad_update(v, v_max)

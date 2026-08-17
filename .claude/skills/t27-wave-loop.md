@@ -10609,6 +10609,21 @@ testbench generator that emits `$finish` in 0 of 30 outputs. None was in a spec'
 mathematics or a hardware design; each cost more than the thing it measured.
 The instruments are less tested than the experiments -- budget accordingly.
 
+**1075. A SYNTACTIC PATTERN IS A HYPOTHESIS ABOUT A CLASS, NEVER THE CLASS.**
+Twice in three waves: `slice parameter AND .len()` matched 38 specs of which 15
+actually failed that way; duplicate `invariant` names matched 57 specs of which
+**4** actually had them, because `invariant` has an anonymous form
+(`invariant divisor > 0;`, 360 lines corpus-wide) whose first identifier my regex
+read as a name. An 18x overcount that I was one assertion away from acting on.
+Run the thing that fails and read which failure comes FIRST; grep only proposes.
+
+**1076. Put the invariant inside the edit script, and it fails with the tree
+clean.** The rename asserted per file that no duplicates remained after its own
+edit. It fired on `arty_a7_integration.t27`, aborted, and `git status` showed
+zero modified files -- 187 wrong renames prevented, and nothing to undo. A
+post-hoc grep would have shown a smaller duplicate count and proved nothing about
+what had happened to the 360 anonymous invariants on the way.
+
 ### How to update this tracker
 
 After closing a wave:
