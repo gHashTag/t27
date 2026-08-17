@@ -10165,6 +10165,17 @@ failed to finish three times and is a convenience; the fan-in sweep had already
 reproduced two published points exactly. *Kill by evidence produced, not by
 resident size.*
 
+### W794 — lessons 1012-1013
+
+**1012. Four attempts, and the only difference was running alone.** The 200T
+chipdb build failed three times under concurrent load and succeeded on the fourth
+with nothing else running (T466). *When a long job keeps dying, check what else
+you started before concluding it cannot be done.*
+
+**1013. A guard that stops at 1 GB free is worth more than a cleanup that runs at
+zero.** The build was watched by a loop that would have killed it with headroom
+left; it never needed to fire. *Instrument the failure you have already had twice.*
+
 ### How to update this tracker
 
 After closing a wave:

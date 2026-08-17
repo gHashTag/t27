@@ -19481,4 +19481,60 @@ Verified by reading the flash back and comparing against the source file:
 
 ---
 
+## W794b — a specification reached the die
+
+### T466 — the chipdb built on the fourth attempt, alone
+
+Three previous attempts stalled. Lesson 1010 said why: **one heavy job at a
+time.** Run as the only process, with a guard that stops it at 1 GB free rather
+than at zero:
+
+    bbaexport --device xc7a200tfbg676-1   ->  exit 0, .bba 981,747,550 bytes
+    bbasm                                  ->  xc7a200tfbg676-1.bin 332,405,500 bytes
+
+**332 MB, matching the size `fpga/HARDWARE_SSOT.md` records for this part.** The
+981 MB `.bba` was deleted immediately; the chipdb is installed at
+`build/fpga/openxc7/xc7a200tfbg676-1.bin`.
+
+> **T466. The blocker was scheduling, not capability.** Four attempts, three
+> killed by swap pressure from a concurrent job, one succeeded with nothing else
+> running. **The machine could always do it.**
+
+### T467 — `.t27` → gates → bitstream → `done 1`
+
+`specs/numeric/e8m0.t27`, written in W781, carried end to end:
+
+| stage | result |
+|---|---|
+| `t27c check` | 0 errors |
+| `t27c test-report` | **18/18 tests, 9 invariants proved comptime** |
+| `t27c gen-verilog` | data port `input [31:0] x` / `output [31:0] result` |
+| yosys `synth_xilinx -nodsp -nosrl` | 38 LUT, 20 CARRY4, **0 DSP48E1, 0 SRL16E** |
+| **nextpnr, `xc7a200tfbg676`** | **197 SLICE_LUTX / 269,200**, 33 FF, **90.63 MHz** |
+| `fasm2frames` | 20,230 frame lines |
+| `xc7frames2bit` | **9,730,887-byte bitstream** |
+| **board 1:4, foreign bitstream first** | **`Done 0x0`** |
+| **board 1:4, ours** | **`ir: 1 isc_done 1 isc_ena 0 init 1 done 1`** |
+
+> **T467. A specification written this session reached silicon, with the
+> control.** Not a demo bitstream from the tree — a `.t27` file, through the
+> project's own compiler, to a die that reports `done 1` only after a foreign
+> image was shown to force `Done` to 0 on the same board minutes earlier.
+
+> **T467a. The two dice agree on the design and differ on placement.** The same
+> wrapper placed on `xc7a100t` (T440) gave **197 SLICE_LUTX, 33 FF, 93.63 MHz,
+> FASM 77,625 bytes**; on the target `xc7a200tfbg676` it gives **197, 33,
+> 90.63 MHz, 76,908 bytes**. **Identical logic, 3 MHz slower, 717 fewer FASM
+> bytes** — a cross-die consistency check that neither run was set up to provide.
+
+> **T467b. What this closes and what it does not.** The path from a written
+> specification to a configured FPGA is now open end to end on this bench and
+> needs no Vivado, no vendor tooling and no cloud. **It does not close the
+> question of whether the design computes what the spec says** — the port surface
+> was exercised in simulation (`icarus-simulate`, every test and the bench
+> PASSED, T436) and the die reports only that it configured. **Reading a computed
+> value back off the die is the next thing, and it is a different measurement.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
