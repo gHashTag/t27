@@ -10857,6 +10857,33 @@ both, and a reader that forgot to check could still report a verdict about
 someone else's design. Migrating every wrapper removes the second format from
 existence. Detection is the stopgap; migration is the fix.
 
+**1108. THE DATAPATH GATE PROVES ARITHMETIC EXISTS, NOT THAT IT IS EXERCISED.**
+`gft_signed_dot4_jtag.v` with one live operand measured 174 LUT / 68 CARRY4 --
+comfortably above the 8-CARRY4 floor, so the gate passed -- against a DUT that is
+**6,231 LUT** alone. 97% folded. Driving all four probes live gave 12,615 LUT and
+2,017 CARRY4: **72x the LUTs**. `CARRY4 > 8` closes the wholly-folded hole (T534)
+and leaves the partially-folded one open. Say so rather than widening the gate on
+a guess.
+
+**1109. PER-CLAUSE BITS PAID FOR THEMSELVES ON THE FIRST FAILING READ.** The die
+returned `clauses=1011, ok=0` and the diagnosis was immediate: annihilation, not
+cancellation, not commutativity, not non-triviality. Under the old single-`ok`
+word this would have been "something is false on a 12,724-LUT design" and a wave
+of bisection.
+
+**1110. WHEN SILICON DISAGREES WITH YOUR EXPECTATION, SUSPECT THE EXPECTATION
+FIRST.** `c_ann = 0` meant `0·x + 0·y != 0`. The spec settles it: `smul` has NO
+zero special case while `sadd` has one, and a zero magnitude field in TNF is a
+valid small number rather than the number zero. **The die was right.** Register
+that hypothesis before reaching for a hardware explanation -- it was confirmed by
+reading fourteen lines of the spec.
+
+**1111. A SPEC WITH ONE TEST CANNOT FIND WHAT A FOURTH PROPERTY FINDS.**
+`gft_signed_dot4.t27` asserts `cancel` and nothing else, and cancellation never
+presents a zero operand. Eight waves of making the measurement trustworthy were
+spent so that one bit in a readback word could mean something; this is the first
+defect the silicon found that the software tests did not.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -22174,6 +22174,77 @@ This is the same shape as T500, T513, T523a, T531 and T542: a green report about
 something that did not occur. Sixth instance, and the first where the reporting
 layer was my own shell one-liner.
 
+## W821 -- the first time silicon found something the software tests did not
+
+### T550 -- THE DATAPATH GATE PASSES A WRAPPER THAT EXERCISES 3% OF ITS DUT [measured]
+
+`gft_signed_dot4_jtag.v` was written with ONE live operand, the rest constants,
+which is what every wrapper before it did. Measured:
+
+    174 LUT, 68 CARRY4, 53.27 MHz     -- gate says "arithmetic is live on the die"
+
+The DUT alone is **6,231 LUT**. So 97% of it folded, the gate passed, and the
+verdict would have been about a fraction of the design. FORECAST REGISTERED:
+driving all four probes from live operands raises the LUT count several-fold.
+
+    12,615 LUT, 2,017 CARRY4, 7.16 MHz
+
+CONFIRMED -- **72x the LUTs, 30x the carry logic, 7.4x slower**.
+
+So the gate's meaning needs stating exactly: **`CARRY4 > 8` proves arithmetic
+reached the fabric. It does not prove the design is exercised.** 68 CARRY4 is
+comfortably above the floor and was produced by a wrapper touching one operand of
+eight. The gate closes the T534 hole -- a wholly-folded DUT -- and leaves a
+partially-folded one open. Naming that is better than widening the gate on a
+guess about what fraction should count.
+
+### T551 -- 12,724 LUT PLACED AT A DECLARED 4.42 MHz [measured]
+
+All four probes live, the whole wrapper on CFGMCLK/16 through a BUFG, and the
+ratio declared in `gft_signed_dot4_jtag.xdc`:
+
+    create_clock -period 226.1 -name slowclk [get_nets slowclk]
+
+226.1 ns is 70.77/16 against a 7.16 MHz path -- a **1.62x margin, stated**. The
+build passes: 12,724 LUT, 2,018 CARRY4, 0 DSP48E1, nextpnr OK, bitstream written,
+`Done 1` on board 1:4. 12,724 LUT is **5.9% of an XC7A200T**.
+
+### T552 -- AND THE DIE SAID `c_ann = 0`: `smul` DOES NOT ANNIHILATE ZERO [measured]
+
+FORECAST REGISTERED before loading: clauses 1111, ok=1. **REFUTED**, and the
+per-clause bits named the failure on the first read:
+
+    chain 3 idx 2: 0xa5a5a1b6  version=1  clauses=1011  beat=1  ok=0
+                                          c_can=1  c_ann=0  c_com=1  c_non=1
+
+Annihilation failed: `0·x + 0·y + 0·x + 0·y` is not zero on the die. The second
+forecast -- that the SILICON IS RIGHT AND I AM WRONG -- is confirmed by the spec:
+
+    fn smul(a, b) = ((sa ^ sb) << 16) | magmul(mag(a), mag(b))   <- no zero case
+    fn sadd(a, b) { if (a == 0) return b; if (b == 0) return a;  <- zero case present
+
+`smul` has **no zero special case** and `sadd` has one. In TNF a magnitude field
+of zero is a valid small number, not the number zero, so `smul(0, x)` returns a
+sign-tagged product of magnitudes rather than zero. **`0·x ≠ 0` by construction**,
+and the author of `sadd` evidently knew zero needed handling while the author of
+`smul` did not.
+
+`specs/ternary/gft_signed_dot4.t27` carries **one test**, `cancel`, which cannot
+catch this: cancellation is about equal-and-opposite products and never presents
+a zero operand.
+
+**This is the first defect this project's silicon has found that its software
+tests did not.** Eight waves of making the measurement trustworthy -- the doubling
+census, the stale artefact, the wall clock, the datapath gate, the real frequency,
+the version nibble -- were spent so that a `0` in bit 6 would mean something. It
+does.
+
+WHAT IS NOT CLAIMED. Whether `smul` SHOULD annihilate zero is a specification
+decision, not mine. IEEE-754 says `0 × x = 0` for finite x; whether GF-T intends
+to follow it is the kind of question that changes what the hardware computes, and
+W814's alphabet finding is still open for the same reason. The clause stays in the
+wrapper, failing honestly, until that is decided.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
