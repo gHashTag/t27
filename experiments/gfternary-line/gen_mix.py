@@ -65,6 +65,9 @@ NAMED = {
     "rank2":   [1., 3., 4., 5.],     # junta 2.519
     "rank3":   [1., 4., 5., 6.],     # junta 2.519
     "rank1156": [1., 4., 23., 24.],  # junta 1.333, the worst admissible alphabet
+    # W784/T447: the three-level alphabet, whose accuracy cost is now measured at
+    # 0.27 pp rather than 0.84. One magnitude -- a majority vote on three trits.
+    "ternary3": [1.],
 }
 
 

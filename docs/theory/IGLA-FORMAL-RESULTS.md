@@ -18739,4 +18739,69 @@ the 3→9 gain falls below 0.5 pp under normalisation, and the ceiling survives.
 
 ---
 
+## W784b — nine levels are free, and the reason overturns the programme's premise
+
+### T448 — three levels cost the same area as nine, post-route
+
+With T447 putting the accuracy cost of three levels at **0.27 pp**, the other half
+of the trade was finally worth measuring. **Registered forecast (T44):** *one
+magnitude makes the neuron a majority vote, so ≥ 40 % smaller.*
+
+| alphabet | levels | **SLICE_LUTX** | Fmax MHz |
+|---|---:|---:|---:|
+| linear 9 | 9 | **128** | 187.7 |
+| dyadic 9 | 9 | **137** | 183.1 |
+| **ternary `{0,±1}`** | **3** | **137** | 194.4 |
+
+> **T448. Refuted completely: three levels are not cheaper. They cost exactly what
+> dyadic nine costs, and 7 % more than linear nine.** Predicted ≥ 40 % smaller;
+> measured **0 %**.
+
+> **T448a. The reason, and it makes cardinality free.** In a truth-table datapath
+> the neuron is enumerated over `2^(fanin × bits)` input codes — **64 rows,
+> whatever the alphabet**. The alphabet decides *which of three outputs each row
+> gets*; it does not decide how many rows there are. **Alphabet cardinality does
+> not appear in the table's size at all.** It costs area only in an **adder**
+> datapath, where the weight values are paid for arithmetically (T398: 203 LUT
+> against 103).
+>
+> **Nine waves searched for a cheap small alphabet in the one datapath where
+> alphabet size is free.**
+
+### T449 — junta degree does not survive a change of cardinality
+
+My stated mechanism for T448 — *"one magnitude means every input matters, hence
+the most logic"* — was **wrong, and the enumeration says so**:
+
+| alphabet | levels | junta degree | full fan-in 3 | SLICE_LUTX |
+|---|---:|---:|---:|---:|
+| linear 9 | 9 | 2.551 | 66.9 % | 128 |
+| dyadic 9 | 9 | 2.189 | 52.7 % | 137 |
+| **ternary** | **3** | **1.778** | **29.6 %** | **137** |
+| base 3 | 9 | 1.490 | 21.9 % | 111 |
+| rank 1156 | 9 | 1.333 | 8.8 % | 65 |
+
+> **T449. Ternary's junta degree is 1.778 — *lower* than dyadic's — and its area is
+> the same as dyadic's.** It sits far off the line the nine-level alphabets
+> occupy: at junta 1.778 the fitted relation predicts ~120 LUT and it costs 137.
+>
+> **The cause is the zero fraction.** `{0,±1}` puts **1/3** of its mass on zero
+> against a nine-level alphabet's **1/9**, so three times as many of its inputs
+> are ignored *because the weight is literally zero*. Junta degree counts that the
+> same as an input ignored through **domination** — but a zero weight removes a
+> wire while domination removes a distinction, and the two do not cost the same in
+> a table.
+
+> **T449a. T410 is re-scoped, not withdrawn.** Its `r = +0.991` was measured across
+> **five nine-level alphabets** — all with the same zero fraction, all varying only
+> in shape. **Junta degree predicts area at fixed cardinality and fails across
+> cardinalities**, and this is the third time this line has found a relation that
+> holds across a range and not within or beyond it (T418, T445, now T449).
+
+> **T449b. What the trade actually is, stated with both halves measured.** Against
+> nine levels, three levels cost **0.27 pp of accuracy** and save **nothing** in a
+> table datapath. **There is no trade.** In a table datapath, take the nine.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

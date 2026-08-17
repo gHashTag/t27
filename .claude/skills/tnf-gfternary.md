@@ -26,6 +26,31 @@ removes. **S1 and S2 are strictly subsumed by S6**; **S4 and S5 never fire**,
 because every candidate is evaluated at fan-in 3 / two bits / no DSP — they are
 held constant, not tested.
 
+**⚠ CARDINALITY IS FREE IN A TABLE DATAPATH (T448).** A truth-table neuron is
+enumerated over `2^(fanin × bits)` codes — **64 rows whatever the alphabet.** The
+alphabet decides *which output each row gets*, not how many rows exist.
+Post-route, `L=4`, `H=16`: **ternary `{0,±1}` costs 137 SLICE_LUTX, dyadic 9 costs
+137, linear 9 costs 128.** Three levels are **not cheaper**. Cardinality costs
+area only in an **adder** datapath (T398: 203 vs 103).
+
+**⚠ AND THE ACCURACY COST OF THREE LEVELS IS 0.27 pp, NOT 0.84 (T447).** T286's
+`+0.844` was measured on `train_ladder.py`, which has **no normalisation**;
+re-measured on a normalised stand the 3→9 gain is **+0.26 (UNSW) / +0.28
+(Fashion)** — the fixed threshold was penalising the *narrow* alphabet, which
+gained +0.90 from normalisation against nine levels' +0.21. **Alphabet SIZE drops
+from +0.844 to +0.27, beside alphabet SHAPE (+0.149) rather than tenfold above
+it.** T288's Nine-Rung ceiling holds on Fashion and **breaks on UNSW at 13
+levels** (+0.14 pp) — **downgraded from a law to a measurement.**
+
+**SO THERE IS NO TRADE IN A TABLE DATAPATH: three levels cost 0.27 pp and save
+nothing. Take the nine.**
+
+**JUNTA DEGREE DOES NOT CROSS CARDINALITIES (T449).** Ternary's junta is **1.778**,
+*below* dyadic's 2.189, yet its area is equal — because `{0,±1}` puts 1/3 of its
+mass on zero against nine levels' 1/9, and a zero weight removes a *wire* while
+domination removes a *distinction*. T410's `r = +0.991` was over five nine-level
+alphabets: **it holds at fixed cardinality only.**
+
 **THE OPTIMUM IS ENUMERATED, NOT PICKED (T444).** All **1156** admissible
 nine-level integer alphabets `{0,±1,±b,±c,±d}` with `d ≤ 1+b+c`, `d ≤ 24` were
 enumerated over all 729 weight triples. **`linear 9 = {0,±1,±2,±3,±4}` is rank 1

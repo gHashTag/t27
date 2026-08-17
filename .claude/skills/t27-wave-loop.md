@@ -9935,6 +9935,23 @@ sat second at +0.844 and is +0.27 on the corrected stand -- beside alphabet shap
 rather than tenfold above it, which is the entire justification for nine waves of
 cardinality work (T447b).
 
+**973. Ask where the cost actually LIVES before optimising against it.** A
+truth-table neuron is 2^(fanin*bits) rows whatever the alphabet, so cardinality is
+free there and costs only in an adder tree. Nine waves searched for a cheap small
+alphabet in the one datapath where alphabet size is free (T448a).
+
+**974. When your mechanism explains the result, check the mechanism separately.**
+"One magnitude means every input matters, hence more logic" explained the 137 LUT
+perfectly -- and the enumeration put ternary's junta at 1.778, BELOW dyadic's
+2.189 (T449). *A story that fits the number is not evidence; the number the story
+predicts is.*
+
+**975. A relation measured at fixed X does not cross X.** Junta degree predicts
+area across nine-level alphabets and fails when cardinality changes, because zero
+weights and dominated weights both lower junta and only one of them removes a
+wire (T449a). *Third instance this line -- T418 across a range, T445 within a
+neighbourhood, T449 beyond a held-constant variable.*
+
 ### How to update this tracker
 
 After closing a wave:
