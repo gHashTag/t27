@@ -18678,4 +18678,65 @@ mask learning from the capacity it drags in.
 
 ---
 
+## W784 — the foundation re-measured, and 70 % of it was the trainer
+
+### T447 — the cardinality effect is mostly a fixed-threshold artefact
+
+T286 (*alphabet SIZE worth +0.844 pp, z = 33.9*) and T288 (*the Nine-Rung Law*)
+were both produced by `train_ladder.py`. **That file has no normalisation** —
+`run()` applies `thr = 2.0` to a raw pre-activation and `grep std()` returns
+nothing. T413c then proved a fixed threshold **reorders** arms rather than merely
+lowering them. **The two foundations sit on the stand later shown to manufacture
+orderings.**
+
+**Registered forecast (T44), with its mechanism stated first:** *a larger alphabet
+has a wider magnitude spread, so against a fixed threshold more of its neurons
+cross at all — part of the "cardinality effect" may be the threshold. Predicted:
+the 3→9 gain falls below 0.5 pp under normalisation, and the ceiling survives.*
+
+| stand | 3 levels | 9 levels | **3→9** | t | step above 9 |
+|---|---:|---:|---:|---:|---|
+| UNSW, fixed thr *(T286/T288's stand)* | 82.37 | 83.32 | **+0.95** | +9.38 | none |
+| **UNSW, normalised** | **83.27** | 83.53 | **+0.26** | +2.83 | **13 significant** |
+| Fashion, fixed thr | 89.01 | 89.84 | **+0.84** | +11.44 | none |
+| **Fashion, normalised** | **89.62** | 89.90 | **+0.28** | +6.50 | none |
+
+> **T447. Confirmed, and by more than forecast: the cardinality effect loses
+> ~70 % of its size.** +0.95 → **+0.26** on UNSW and +0.84 → **+0.28** on Fashion.
+> It remains significant on both — the effect is real — but **T286's pooled
+> +0.844 pp describes a trainer as much as an alphabet.**
+
+> **T447a. The threshold was penalising the NARROW alphabet specifically.**
+> Normalisation gave the 3-level arm **+0.90 pp** on UNSW and the 9-level arm
+> **+0.21**. A three-level alphabet has the narrowest magnitude spread and
+> therefore crosses a fixed threshold least often. **"Bigger alphabet is better"
+> was substantially "the trainer punished small alphabets"**, which is the same
+> differential-reordering mechanism T413c found, arriving at the programme's
+> oldest result.
+
+> **T447b. The intervention ranking must be restated.** Alphabet SIZE was second
+> only to normalisation at +0.844; measured on a normalised stand it is **+0.27**,
+> which puts it beside alphabet SHAPE (+0.149) rather than an order of magnitude
+> above it. **The gap between "size dominates shape tenfold" (T286) and "size and
+> shape are comparable" is the whole justification for nine waves of cardinality
+> work.**
+
+> **T447c. The Nine-Rung ceiling survives on Fashion and breaks on UNSW.** Under
+> normalisation the step from 11 to 13 levels is **significant on UNSW** — at
+> **+0.14 pp**, an effect smaller than anything else this programme treats as
+> meaningful. **T288 is downgraded from a law to a measurement**: on Fashion no
+> step above nine resolves; on UNSW one does, and it is worth a seventh of a
+> point. *A ceiling that moves when the trainer is fixed is a property of the
+> trainer at least as much as of the task.*
+
+> **T447d. And the answer to a question asked nine waves ago.** Dmitrii asked
+> whether three levels sitting *"half a point"* from nine was a strong position.
+> **On the corrected stand it is a quarter of a point** — 0.26 pp on UNSW, 0.28 on
+> Fashion. Combined with T442, which showed the sieve's own formula admits only
+> `{0,±c}`: **the project's formula returns one trit, and one trit now costs a
+> quarter of a point rather than the 0.84 that was believed when the formula was
+> being argued against.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

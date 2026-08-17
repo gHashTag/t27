@@ -9909,6 +9909,32 @@ closed.** MI, magnitude pruning and joint soft masks all failed against a
 label-free coverage rule. The residual 6.90 pp is not connectivity, and that is
 now a measurement rather than a hunch (T446b).
 
+### W784 — lessons 969-972
+
+**969. Audit which STAND produced your oldest results, not just your newest.**
+T286 and T288 -- the cardinality effect and the Nine-Rung Law -- came from
+train_ladder.py, which has no normalisation, and W778 had already proved a fixed
+threshold reorders arms. Re-measured, 70% of the cardinality effect was the
+trainer (T447). *A defect found in wave N indicts every result from every stand
+that shares it, and the oldest results are the ones nobody re-runs.*
+
+**970. State the mechanism BEFORE the run and the result reads as a test.** "A
+wider alphabet crosses a fixed threshold more often, so the threshold may be
+manufacturing the cardinality effect" was written first; the 3-level arm then
+gained +0.90 from normalisation against the 9-level arm's +0.21 (T447a). *A
+prediction about WHICH arm moves is far stronger evidence than one about the
+aggregate.*
+
+**971. A ceiling that moves when the trainer is fixed is not a law.** T288's
+"no step above nine is significant on any task" holds on Fashion and breaks on
+UNSW at 13 levels once normalisation is present -- by 0.14 pp (T447c). *Downgrade
+the noun: law -> measurement.*
+
+**972. Re-check the intervention ranking after every trainer fix.** Alphabet size
+sat second at +0.844 and is +0.27 on the corrected stand -- beside alphabet shape
+rather than tenfold above it, which is the entire justification for nine waves of
+cardinality work (T447b).
+
 ### How to update this tracker
 
 After closing a wave:
