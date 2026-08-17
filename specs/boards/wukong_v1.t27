@@ -75,6 +75,31 @@ module BoardWukongV1 {
     const FLASH_MBIT     : u32 = 128;
     const FLASH_BYTES    : u32 = 16_777_216;    // 128 Mbit / 8
 
+    // ---- CFGMCLK: MEASURED on each of the three dice (T495) ----
+    //
+    // STARTUPE2's CFGMCLK is an internal RING OSCILLATOR with no crystal; UG470
+    // gives 65 MHz nominal over a 50-80 MHz envelope. Measured by timing the
+    // `beat` bit of `fpga/verilog/e8m0_jtag.v` (a 2^24 prescaler) over JTAG at
+    // 199 samples/s, 60 s per die. Held in kHz because the numeric core is
+    // integer; the three dice are named by their `--busdev-num`.
+    //
+    // These are the first physical characterisation of these parts. They cost no
+    // rebuild, no package pin and no extra logic -- every BSCAN wrapper in
+    // fpga/verilog/ already carries the heartbeat that makes them readable.
+    const CFGMCLK_KHZ_BUSDEV_1_4 : u32 = 70_770;
+    const CFGMCLK_KHZ_BUSDEV_1_6 : u32 = 68_490;
+    const CFGMCLK_KHZ_BUSDEV_1_8 : u32 = 67_200;
+
+    const CFGMCLK_KHZ_NOMINAL : u32 = 65_000;   // UG470
+    const CFGMCLK_KHZ_MIN     : u32 = 50_000;   // UG470 envelope
+    const CFGMCLK_KHZ_MAX     : u32 = 80_000;
+
+    fn cfgmclk_in_datasheet_range(khz: u32) -> bool {
+        if (khz < CFGMCLK_KHZ_MIN) { return false; }
+        if (khz > CFGMCLK_KHZ_MAX) { return false; }
+        return true;
+    }
+
     // ---- DRAM: NOT MEASURED. Do not fill this in from a datasheet. ----
     //
     // The sentinel is zero and the flag is false. Every predicate below that
@@ -194,6 +219,24 @@ module BoardWukongV1 {
         given r = on_comb(4)
         then r == 215360
 
+    // ---- CFGMCLK, measured (T495) ----
+
+    test die_one_four_is_in_range
+        given r = cfgmclk_in_datasheet_range(CFGMCLK_KHZ_BUSDEV_1_4)
+        then r == true
+
+    test die_one_six_is_in_range
+        given r = cfgmclk_in_datasheet_range(CFGMCLK_KHZ_BUSDEV_1_6)
+        then r == true
+
+    test die_one_eight_is_in_range
+        given r = cfgmclk_in_datasheet_range(CFGMCLK_KHZ_BUSDEV_1_8)
+        then r == true
+
+    test a_frequency_below_the_envelope_is_rejected
+        given r = cfgmclk_in_datasheet_range(40_000)
+        then r == false
+
     // ---- Invariants ----
 
     invariant flash_bytes_are_mbit_over_eight
@@ -217,6 +260,23 @@ module BoardWukongV1 {
     // Three cables, and they cannot be told apart by serial.
     invariant three_cables_share_one_serial
         assert CABLE_COUNT == 3
+
+    // ALL THREE DICE RUN FAST. Every one measures above the 65 MHz nominal --
+    // 3.4%, 5.4% and 8.9% -- and all three stay inside the envelope. Asserted so
+    // the ordering cannot be lost to prose: 1:4 is the fastest of the three.
+    invariant every_die_runs_above_nominal
+        assert CFGMCLK_KHZ_BUSDEV_1_8 > CFGMCLK_KHZ_NOMINAL
+
+    invariant one_four_is_the_fastest_die
+        assert CFGMCLK_KHZ_BUSDEV_1_4 > CFGMCLK_KHZ_BUSDEV_1_6
+
+    invariant one_six_is_faster_than_one_eight
+        assert CFGMCLK_KHZ_BUSDEV_1_6 > CFGMCLK_KHZ_BUSDEV_1_8
+
+    // The measured spread is 5.19%, comfortably inside the envelope's width.
+    invariant spread_is_smaller_than_the_envelope
+        assert (CFGMCLK_KHZ_BUSDEV_1_4 - CFGMCLK_KHZ_BUSDEV_1_8)
+             < (CFGMCLK_KHZ_MAX - CFGMCLK_KHZ_MIN)
 
     // A ternary core needs no DSP48E1; the FP16 block scales do. One scale per
     // 128 weights over 1.72e9 weights is 13.4e6 multiplies per token, which is

@@ -10409,6 +10409,37 @@ was 28.6x, dividing 457.3 MB by "16 MB". The flash is 128 Mbit = 16 MiB =
 16.78 MB, so the figure is 27.3x. Small, and it was in a number handed to a
 partner. Compute in bytes and convert once.
 
+**1051. `edges/sample` is the statistic that separates a measurement from an
+alias, and it must be read BEFORE the value it guards.** Timing the FPGA
+heartbeat over JTAG, the void run gave 757 edges in 953 samples = 0.79 per
+sample; the correct run gave 0.020 = 1/48. For a square wave, edges/sample is
+1/(samples per half-period), so anything approaching 0.5 means consecutive
+samples are uncorrelated and the "period" you computed is your own sample rate
+wearing a costume. The number was in the output of the bad run the whole time.
+
+**1052. AN ALIAS DOES NOT ONLY CORRUPT A VALUE -- IT MANUFACTURES AGREEMENT.**
+Having declared the CFGMCLK run void, I salvaged its 1.9% inter-die spread on the
+reasoning that all three dice ran the same bitstream so the divider cancels in
+the ratio. Sound reasoning, wrong conclusion: the true spread is 5.19%. Under
+aliasing the apparent period is set by the SAMPLE rate, which was near identical
+across the three runs, so the three numbers agreed for a reason that had nothing
+to do with silicon. When a result is declared void, every part salvaged from it
+needs its OWN justification.
+
+**1053. Confirming a premise in the files that agree with it is not
+confirmation.** Four wrappers in `fpga/verilog/` share a BSCAN pattern; three
+carry `reg [23:0] pre` and the fourth wires `beat` to a core counter bit. I
+checked three, and the fourth was the one on the dice. One grep of the LOADED
+design would have caught it, and I ran that grep only after the answer came out
+wrong. Check the artefact under test, not its siblings.
+
+**1054. `done 1` came back with dead readback THREE times in one session.** Three
+different bitstreams configured all three dice successfully while the BSCAN
+register answered on no chain at all -- and the three working designs sit on
+three DIFFERENT chains (flash image 3, mvp 2, e8m0 1). The chain is a property of
+the build (T693), so "scan every chain before concluding the design is absent" is
+part of the acceptance criterion, not an optional extra.
+
 ### How to update this tracker
 
 After closing a wave:

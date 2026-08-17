@@ -127,6 +127,7 @@ thirteen waves.
 | Block RAM | **1.682 MB** (365 × 36 Kb), datasheet |
 | LUT / DSP48E1 | **215,360 / 740**, datasheet |
 | SPI flash | **16 MiB** — Micron N25Q128, JEDEC `0x20ba18`, measured on all three dice 2026-08-17 |
+| CFGMCLK, measured | **70.77 / 68.49 / 67.20 MHz** on busdev 1:4 / 1:6 / 1:8 — mean 68.82, spread 5.19% (T495) |
 | **On-board DRAM** | **NOT MEASURED.** See §"DRAM is unmeasured" below. Do not fill this in from another board's datasheet. |
 
 > **W805 (2026-08-17):** the four rows above did not exist. The board this project
