@@ -10135,6 +10135,20 @@ fix the condition is disabled by it. Second occurrence this session. *The cause
 was my own `ioreg -l` in a background task: `head -30` in the pipeline does not
 stop the task file from capturing the full dump.*
 
+### W792 — lessons 1007-1008
+
+**1007. Two "blockers" in two waves, both answered inside the SSOT.** The cable
+was a stale CLAUDE.md sentence; the missing flash bridge was a package suffix,
+with `fbg676 == fgg676` written in the same SSOT section that specifies the
+chipdb. *Both times I proposed WORK -- buy a cable, build a bitstream -- where the
+required action was READING. Before scoping a fix, grep the authoritative doc for
+the part number.*
+
+**1008. Read is a measurement, write is a boundary.** Flash identification and a
+4 KB dump are free and reversible; programming flash changes what the board boots
+on power-up and is not an autonomous act. *State where the line is before
+approaching it, not after.*
+
 ### How to update this tracker
 
 After closing a wave:

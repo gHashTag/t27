@@ -19383,6 +19383,12 @@ Passing `--fpga-part xc7a200tfbg676`:
 > the project names as authoritative, and both times I proposed work — buy a
 > cable, build a bitstream — instead of reading it.**
 
+> **T463c. The read path is confirmed end to end, not merely the identification.**
+> `--dump-flash --file-size 4096` returns **4096 bytes, of which 4056 are not
+> `0xFF`** — the flash **carries data**, so a bitstream is already programmed on
+> board 1:4. Reading is a measurement; **writing is the boundary, and it stays
+> uncrossed** without a word from Dmitrii.
+
 > **T463b. The hardware side is now unblocked to the write boundary.** SRAM
 > configuration: three dice, controlled 0→1 (T461). Four bitstreams including two
 > ternary classifiers: `done 1` (T462). Flash: identified, bridge loads (T463).
