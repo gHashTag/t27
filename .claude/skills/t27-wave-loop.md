@@ -10884,6 +10884,27 @@ presents a zero operand. Eight waves of making the measurement trustworthy were
 spent so that one bit in a readback word could mean something; this is the first
 defect the silicon found that the software tests did not.
 
+**1112. A UNIT THAT CANNOT EXCEED ONE IS A FREE ERROR DETECTOR.** I divided
+wrapper CARRY4 by DUT-alone CARRY4 and called it "% of the datapath exercised".
+It printed **196%**. A wrapper instantiates the DUT several times, so the quotient
+counts DUT-EQUIVALENTS and is not a fraction of anything. The wrong name caught
+the wrong model instantly -- had I called it "coverage", 1.96 would have looked
+plausible and shipped. Every other detection this month needed a second
+measurement; this one only needed honest units.
+
+**1113. REPORT THE AMOUNT, NOT ONLY THE PREDICATE.** The datapath gate could say
+arithmetic reached the fabric and not how much: 68 CARRY4 passed while 97% of the
+DUT had folded. Both numbers were already computed, so the ratio cost a division.
+Yesterday's build reads **0.06 DUT-equivalents**, today's **1.96** -- a 33-fold
+difference, and both printed "live on the die" before this line existed.
+
+**1114. "All probes live" and "the whole design exercised" are different claims.**
+`gft_signed_dot4_jtag` drives every probe from a live register, instantiates the
+DUT five times, and reaches 1.96 equivalents -- about 60% of the instantiated
+arithmetic still folds because three probes pin one operand each. That is correct
+behaviour for a probe testing a specific property, and it means the first claim
+does not imply the second. The metric now states which one you have.
+
 ### How to update this tracker
 
 After closing a wave:

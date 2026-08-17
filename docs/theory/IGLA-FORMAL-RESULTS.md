@@ -22245,6 +22245,65 @@ to follow it is the kind of question that changes what the hardware computes, an
 W814's alphabet finding is still open for the same reason. The clause stays in the
 wrapper, failing honestly, until that is decided.
 
+## W822 -- the gate learns to say how much, not only whether
+
+### T553 -- THE EXERCISED AMOUNT IS NOW REPORTED, IN DUT-EQUIVALENTS [fixed]
+
+T550 left the gate able to say that arithmetic reached the fabric and unable to
+say how much: a wrapper at 68 CARRY4 passed while 97% of its DUT had folded. Both
+numbers were already being computed -- the wrapper's and the DUT-alone -- so the
+ratio costs nothing but a division.
+
+FORECAST REGISTERED: reporting it separates the exercised wrappers from the
+merely-touching ones. Measured:
+
+    gft_signed_dot4_jtag   2018 CARRY4 in the fabric, 1026 per DUT -- 1.96 equiv
+    ternary_node_jtag        40 CARRY4 in the fabric,   24 per DUT -- 1.33 equiv
+    e8m0_jtag                28 CARRY4 in the fabric,   20 per DUT -- 1.00 equiv
+    phi_weights_jtag        floor, and the DUT ALONE has 0 -- nothing was lost
+
+CONFIRMED. And the retrospective number is the one that matters: yesterday's
+one-live-operand build measured 68 CARRY4, which is **(68-8)/1026 = 0.06
+DUT-equivalents** against 1.96 today. **A 33-fold difference the old verdict could
+not see**, both of them printing "arithmetic is live on the die".
+
+NO THRESHOLD IS INVENTED. T538a's rule stands: the populations are not separable
+by one number, so the number is reported and the reader judges. What changed is
+that the reader has it without synthesising the DUT by hand -- which is precisely
+the wave of work T536 spent.
+
+### T553a -- I NAMED IT A FRACTION AND IT PRINTED 196% [self-critical]
+
+The first version divided wrapper carry by DUT carry and called the result "% of
+the datapath exercised". It printed
+
+    gft_signed_dot4_jtag   196% of the datapath is exercised
+    ternary_node_jtag      133% of the datapath is exercised
+
+Arithmetically correct and semantically nonsense: a wrapper instantiates the DUT
+several times -- five here -- so the quotient is a COUNT OF DUT-EQUIVALENTS and
+not a fraction of anything. It was caught by one property of the name I had
+chosen: **a fraction cannot exceed one.** Had I called it "coverage" from the
+start, 1.96 would have read as a plausible number and gone unquestioned.
+
+That is worth stating as a rule, because it is the cheapest error-detector in this
+month's collection. Every other one -- the doubling census, the stale artefact,
+the collapsed states -- needed a second measurement to expose. This one exposed
+itself because the units were wrong and the name knew it.
+
+### T553b -- and 1.96 equivalents from five instances is itself a finding [measured]
+
+`gft_signed_dot4_jtag` instantiates the DUT **five** times, every probe driven
+from a live register, and reaches 1.96 DUT-equivalents. So roughly 60% of the
+instantiated arithmetic still folds: three of the five probes hold at least one
+constant operand, and Yosys collapses whatever those determine.
+
+That is not a defect -- a probe that pins one operand to `-1.0` is testing
+something specific and should pin it -- but it does mean **"all probes live" and
+"the whole design exercised" are different claims**, and this wrapper satisfies
+the first while reaching about two-fifths of the second. The metric now says so
+on every run.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

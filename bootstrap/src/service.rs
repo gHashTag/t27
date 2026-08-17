@@ -1580,9 +1580,42 @@ pub fn run_silicon(
         ]));
         let dut_carry = if dc == Some(0) { Some(carry4_count(&dout)) } else { None };
         let (dp_code, dp_note) = match (wrapper_carry > WRAPPER_CARRY4_FLOOR, dut_carry) {
+            // W822 (T553): report the EXERCISED FRACTION, not just "live".
+            //
+            // T550 measured a wrapper at 68 CARRY4 -- comfortably above the floor,
+            // so this arm fired and said "live" -- against a DUT that alone needs
+            // 2,017. Ninety-seven percent of the design had folded, and the gate
+            // was content. Driving every probe raised it to 2,018, a 30-fold
+            // change the verdict could not see.
+            //
+            // No threshold is invented. T538a's rule holds: the two populations
+            // are not separable by one number, so the number is REPORTED and the
+            // reader judges. What changes is that the reader now has it -- before
+            // this line, learning that 68 of 2,017 were reached required
+            // synthesising the DUT by hand, which is exactly the wave of work
+            // T536 spent.
+            (true, Some(d)) if d > 0 => {
+                // NOT a percentage. A wrapper instantiates the DUT several times,
+                // so wrapper carry over single-DUT carry is a COUNT OF
+                // DUT-EQUIVALENTS, and naming it a fraction produced "196% of the
+                // datapath is exercised" -- arithmetically right, semantically
+                // nonsense, and caught only because a fraction cannot exceed one.
+                let equiv = (wrapper_carry.saturating_sub(WRAPPER_CARRY4_FLOOR) as f64)
+                    / (d as f64);
+                (
+                    Some(0),
+                    format!(
+                        "{wrapper_carry} CARRY4 in the fabric, {d} per DUT -- \
+                         {equiv:.2} DUT-equivalents of arithmetic reached the die"
+                    ),
+                )
+            }
             (true, _) => (
                 Some(0),
-                format!("{wrapper_carry} CARRY4 in the fabric -- arithmetic is live on the die"),
+                format!(
+                    "{wrapper_carry} CARRY4 in the fabric -- arithmetic is live on the die \
+                     (DUT-alone count unavailable, so the exercised fraction is NOT ESTABLISHED)"
+                ),
             ),
             (false, Some(0)) => (
                 Some(0),
