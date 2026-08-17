@@ -21619,6 +21619,34 @@ between runs reported identically is not a subtle signal.
 `0 PASSED, 0 FAILED` versus `KILLED`, and this is the fifth instance this month of
 a reporting layer collapsing two states the run distinguishes.
 
+### T532 -- 24 OF 25 UNBLOCKED, AND THE 25th IS NOT A TIMEOUT [measured]
+
+FORECAST REGISTERED before the sweep: the no-share flow completes at least 20 of
+the 25 specs T527 found unsynthesisable. Running all 25:
+
+    OK     24      yosys 13-167 s,  2,913 - 25,273 LUT
+    STILL   1      specs/fpga/testbench/dft_tb.t27, at 0 s
+
+CONFIRMED at 24. Every `specs/ternary/gft_*` spec that could not be synthesised
+now can, and none needed a line changed.
+
+The one exception failed in ZERO seconds, which is a compile error and not a
+time-out -- and my sweep script recorded it under a label that says "still too
+slow", **reproducing lesson 1084 inside the same wave that wrote it.** The lesson
+said a screen mapping every failure to one label is not a screen; I then wrote
+`if perl -e alarm ... yosys; then OK; else STILL; fi`. Writing a rule down does
+not install it.
+
+THE CORPUS POSITION, restated with the new numbers. Of 80 specs with a data port:
+
+    synthesise, and did before          55
+    synthesise now, could not before    24
+    fail for a non-time reason           1
+
+That is **31% of the reachable corpus recovered by deleting one optimisation
+pass**, and the largest single change to what this project can put on a die since
+the silicon path opened.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
