@@ -9976,6 +9976,28 @@ waves with only adjacent comparisons; "best of each" is not "best".*
 ever measured.** Depth 3 was inherited, not justified; the field runs 4-6 and the
 corrected optimum is 4 (T450b).
 
+**980. Writing a lesson does not install it.** Lesson 976 said an endpoint
+threshold assumes monotonicity; ONE experiment later I pre-registered L3->L4
+again, on a curve that dips at 4 and peaks at 5 (T452b). *Re-read the lesson you
+just wrote before designing the next forecast -- the gap between knowing and doing
+is one wave long.*
+
+**981. When interventions do not compose, the chain total is not the sum.**
+13.55 -> 6.23 was measured as single steps from a moving baseline; depth is +0.67
+with ternary activations and -0.22 without, and activations are +1.45 on random
+connectivity and -1.09 on balanced. The best configuration came from
+re-measuring the GRID, not from stacking winners (T452a).
+
+**982. A defect that overturns two results still leaves the third.** Cardinality
+inverted, depth inverted, FAN-IN SURVIVED (+0.68 old, +0.98 new, same sign both
+times). *Re-running all three is what lets you say which is which; re-running the
+suspicious ones would have missed that fan-in was fine.*
+
+**983. Say when your best result breaks your own filter.** F=6 at two bits is
+twelve input bits and T368b prices that at 39-54 LUT/neuron against 2.00 at six.
+The accuracy optimum costs ~20x the area of the area optimum, and S4 is a design
+choice, not a law (T452d).
+
 ### How to update this tracker
 
 After closing a wave:

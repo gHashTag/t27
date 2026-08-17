@@ -18872,4 +18872,62 @@ is not a structural null.**
 
 ---
 
+## W785b — non-composition is the rule, and the best configuration breaks our own filter
+
+### T452 — 6.23 pp, and the one null that survived
+
+The best-known configuration (balanced coverage + per-layer BatchNorm) had never
+been measured off `L=3`. **Registered forecast (T44):** *`L=4` beats `L=3` by
+≥ 0.5 pp; under 0.2 pp depth and connectivity do not stack either.*
+
+| fan-in | L=3 | L=4 | L=5 |
+|---|---:|---:|---:|
+| **3** | 82.63 ±1.08 | **82.41 ±2.31** | 83.09 ±1.43 |
+| **6** | 83.23 ±1.61 | **83.39 ±1.55** | — |
+
+| | Δ | t | |
+|---|---:|---:|---|
+| depth transfer `L3→L4` (F=3) | **−0.22** | −0.39 | ns — **refuted** |
+| fan-in `3→6` at `L=4` | **+0.98** | +1.72 | ns |
+
+> **T452. Best in the line: 83.39 %, penalty 6.23 pp** against the field's 4.79 —
+> **within 1.44 pp**, from **13.55** six waves ago. The configuration is
+> `balanced coverage + BatchNorm, F=6, L=4`, and **no wave before this one had
+> tried it.**
+
+> **T452a. Non-composition is the rule of this stand, not one unlucky pair.**
+> Depth was worth **+0.67 pp** with ternary activations (T450) and **−0.22**
+> without them. Ternary activations were worth **+1.45** on random connectivity
+> and **−1.09** on balanced (T451). **Two interventions, four combinations, and
+> the sign of each depends on the other.** The chain 13.55 → 6.23 was measured as
+> single steps from a moving baseline, so **its total is not the sum of its
+> parts** — and the best configuration was found by re-measuring the grid, not by
+> stacking the winners.
+
+> **T452b. I pre-registered the wrong point again, one experiment after writing
+> the lesson.** Lesson 976 was: *a threshold on an endpoint difference assumes
+> monotonicity.* This forecast then asked about `L3→L4` — because T450's peak sat
+> at `L=4` in a **different** configuration — and the balanced+BN curve dips at 4
+> and peaks at **5** (`L3→L5 = +0.46`). **The depth optimum is
+> configuration-dependent and the forecast assumed it transfers.** Writing a
+> lesson does not install it.
+
+> **T452c. Fan-in is the one structural null T414b got right.** `3→6` measured
+> **+0.68** on the old stand and **+0.98** on the corrected one — same sign, same
+> order, non-significant both times. **Of the three foundational nulls, cardinality
+> inverted (T447), depth inverted (T450), and fan-in survived.** A defect that
+> overturns two results out of three still leaves the third standing, and saying
+> which is which is the whole value of re-running them all.
+
+> **T452d. The accuracy optimum breaks our own S4.** `F=6` at two bits per symbol
+> is **twelve input bits**, and T368b measured 39–54 LUT per neuron there against
+> **2.00** at six bits. **The best-accuracy configuration costs roughly twenty
+> times the area per neuron of the best-area one.** S4 is our design choice, not a
+> law — LogicNets runs fourteen bits (T419) — so this is a **stated trade and not
+> a contradiction**: at six bits the stand reaches 82.63 and 6.99 pp; at twelve it
+> reaches 83.39 and 6.23. **1.44 pp of the remaining gap to the field is available
+> for 20× area, and the project's own filter forbids buying it.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
