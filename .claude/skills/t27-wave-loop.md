@@ -11147,6 +11147,28 @@ copies of seven shared functions are the same problem. The small one has silicon
 verdicts, a working toolchain and a measured boundary already attached, so every
 consolidation step is checkable against three programmed dice. Start there.
 
+**1150. THE VARIANT METRIC COUNTS NAME REUSE, NOT DRIFT.** Hashing function
+bodies per directory gives `specs/numeric` the worst spread in the repository --
+4.47 variants per shared name, worse than `specs/ternary` -- and it is **correct
+design**: `max_value` returns `1.0 + 127.0/128.0` in gf12 and `1.0 +
+4095.0/4096.0` in gf20, eight formats with eight maxima. Real drift is same name
+AND same signature AND same operation with different bodies, which is what
+`smul(u32,u32)->u32` fourteen times in `specs/ternary` is. **Read the bodies
+before the count means anything** -- third time this month (lessons 1075, 1128,
+1130).
+
+**1151. `specs/igla/race` HAS 11 DRIFTED HELPERS AND NO DRIFTED VERDICT.**
+`contains_substring` (3 bodies), `strings_equal`, `cordic_sin`/`cordic_cos`,
+`command_exists` -- string and toolchain helpers. The functions behind the silicon
+verdicts (`ternary_decode`, `ternary_mul`, `node_step_b`, `weight_apply_b`) are
+each defined in exactly one spec, so T537/T546/T577 are unaffected. That was the
+question worth asking of the directory that holds the verdicts.
+
+**1152. A ONE-MINUTE TABLE WILL SUPPORT A LARGER CLAIM THAN THE READING DOES.**
+The per-directory variant census took a minute and reads like a corpus-wide
+finding. Two directories were then read; three still have numbers and no
+diagnosis. State which are which rather than letting the table speak for all five.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -23188,6 +23188,96 @@ measurements rather than of the measurements themselves -- T571's boundary
 arithmetic and T579's word *settled*. That distinction is worth keeping in the
 count.
 
+## W834 -- the drift metric measures name reuse, and only reading separates the two
+
+### T584 -- THE COUNT IS CORPUS-WIDE; THE DIAGNOSIS IS NOT [measured]
+
+FORECAST REGISTERED: `specs/igla/race` has drifted like `specs/ternary`, at a
+lower count because it has fewer specs. Hashing every function body per
+directory:
+
+    directory            specs  fn names  shared>=2  variants   variants/name
+    specs/ternary           64      110        57       238        4.18
+    specs/igla/race         26      284        19        42        2.21
+    specs/igla/coder        11      659        72        88        1.22
+    specs/numeric           32      284        17        76        4.47
+    specs/fpga              35      526        17        42        2.47
+
+Every directory shows spread, and `specs/numeric` -- which CLAUDE.md's L6 names
+as the numeric SSOT -- shows the most. That reads like a serious finding and it
+is not one.
+
+**CONFIRMED IN LETTER, REFUTED IN SUBSTANCE.** Reading what `specs/numeric`'s
+worst offenders actually are:
+
+    max_value   8 variants in 8 files    gf12: 1.0 + 127.0/128.0
+                                         gf20: 1.0 + 4095.0/4096.0
+    min_positive, encode, decode, epsilon, validate_format -- the same shape
+
+Eight number formats have eight different maxima **by definition**. These are
+per-format functions in per-format specs, which is correct design and the
+opposite of drift.
+
+Against which `specs/ternary`:
+
+    gft_smul          smul(a: u32, b: u32) -> u32
+    gft_signed_dot4   smul(a: u32, b: u32) -> u32
+    gft_xorpercep     smul(a: u32, b: u32) -> u32
+
+identical signature, identical TNF encoding, one operation -- and fourteen bodies.
+
+**The variant metric cannot tell a per-format family from a drifted one.** It
+counts name reuse. Only reading the bodies separates them, and this is the third
+time this month a syntactic measure needed a semantic check before it meant
+anything (lessons 1075, 1128, 1130).
+
+### T585 -- `specs/igla/race` HAS 11 REAL DRIFTS, AND NONE CARRIES A SILICON VERDICT [measured]
+
+Restricting to same name AND same signature AND different body -- which excludes
+the per-format case by construction:
+
+    contains_substring(haystack, needle) -> bool     3 bodies   backend, eda, formal
+    strings_equal(a, b) -> bool                      2 bodies   across 3 files
+    contains_substring_inner                         2 bodies   backend, formal
+    cordic_sin(angle: i16) -> i16                    2 bodies   cordic_fixed, cordic_top
+    cordic_cos(angle: i16) -> i16                    2 bodies   cordic_fixed, cordic_top
+    command_exists(cmd) -> bool                      2 bodies   eda, yosys
+    ... 11 in total
+
+Real drift, an order of magnitude milder than `gft_*`, and concentrated in string
+and toolchain helpers rather than in arithmetic.
+
+**And the functions carrying silicon verdicts do not appear.** `ternary_decode`,
+`ternary_mul`, `node_step_b` and `weight_apply_b` are each defined in exactly one
+spec, so T537's, T546's and T577's verdicts are not affected by drift in this
+directory. That was the question worth asking of `race/` and it has a clean
+answer.
+
+### T585a -- what survives, stated as the bound rather than the headline [derived]
+
+W833 said "the GFTernary line has no shared arithmetic". That stands, and this
+wave establishes what it does NOT extend to:
+
+    specs/ternary     genuine drift, 14 bodies of one operation      W833 holds
+    specs/igla/race   genuine drift, 11 helpers, no verdict touched  new, mild
+    specs/numeric     NOT drift -- per-format design, correctly so   forecast refuted
+    specs/fpga        unchecked by reading; count alone proves nothing
+    specs/igla/coder  unchecked by reading; count alone proves nothing
+
+Two of five directories are now read rather than counted. The other three have
+numbers and no diagnosis, and saying so is the point: **the table above was
+produced in one minute and would have supported a much larger claim than the
+reading supports.**
+
+### T585b -- forecast count, seventh entry [derived]
+
+    W828 (0/1/0)  W829 (0/0/2)  W830 (0/1/1)
+    W831 (1/1/0)  W832 (0/0/2)  W833 (1/0/1)  W834 (0/1/0)
+
+Seven waves, two withdrawals. This wave's forecast was refuted before publication
+rather than after -- the corpus-wide claim was checked and abandoned inside the
+wave, which is the cheap version of the same correction.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
