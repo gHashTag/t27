@@ -22015,6 +22015,100 @@ generalises past software: **an unstated default is a claim, and it is the claim
 nobody audits.** The measured clock had been sitting in T495 for four waves while
 the placer used 12.
 
+## W819 -- the corpus re-checked at the real clock, and a training step verified honestly
+
+### T544 -- ALL FIVE REMAINING WRAPPERS PASS AT THE MEASURED CLOCK [measured]
+
+W818 withdrew one silicon verdict and left four wrappers unchecked at the real
+frequency, on the grounds that they are trivial and would "almost certainly"
+pass. That phrase is what had just cost a published result, so they were run.
+
+FORECAST REGISTERED: all four pass, because their DUTs are 0-7 LUT and the
+critical path belongs to the wrapper's own counter rather than to any logic.
+Re-placed at `--freq 70.77`:
+
+    phi_weights_jtag    PASS      ternary_link_jtag   PASS
+    tnf17_jtag          PASS      e8m0_jtag           PASS
+    ternary_node_jtag   PASS
+
+CONFIRMED, five of five. The corpus position is now clean: **five verdicts stand
+at the clock the die actually delivers, and one (T543, `gft_bitnet_neuron`) is
+withdrawn.**
+
+### T545 -- A DIVIDED DOMAIN NEEDS A DECLARED PERIOD, AND AN XDC IS THE ONLY WAY TO SAY IT [fixed]
+
+T541 measured that a BUFG divider changes nothing in the timing report -- the
+engine never learns the ratio. `--freq` is global, so it cannot express a slower
+domain either. `nextpnr-xilinx` accepts `--xdc`, and the flow did not pass one.
+
+`bootstrap/src/service.rs` now looks for `<top>.xdc` beside the wrapper and
+passes it when present; absent, the global `--freq` applies exactly as before.
+`fpga/verilog/gft_train1_jtag.xdc` declares the divided clock:
+
+    create_clock -period 226.1 -name slowclk [get_nets slowclk]
+
+226.1 ns is 70.77 MHz divided by 16, and the datapath was measured at 7.60 MHz --
+a **1.72x margin, stated rather than assumed**, which is the whole difference
+between this verdict and the one W818 withdrew.
+
+    yosys                    3,132 LUT, 594 CARRY4, 0 DSP48E1
+    datapath survives        594 CARRY4 in the fabric -- live
+    nextpnr @70.77MHz + XDC  OK
+
+### T546 -- ONE GRADIENT-DESCENT STEP VERIFIED ON SILICON [measured]
+
+`specs/ternary/gft_train1.t27` -- predict, error, gradient, step, all in TNF float
+-- read off board 1:4:
+
+    0xa5a5a1f7   LAYOUT v1  clauses=1111  beat=1  ok=1
+
+        c_fix = 1   at the optimum the update leaves the weight alone
+        c_asc = 1   target above prediction moves the weight UP
+        c_mov = 1   a weight below the optimum moves toward it, not past it
+        c_non = 1   the fixed point and the ascent DISAGREE -- so the module is
+                    not simply returning its first argument
+
+**This is the first result in this project where the arithmetic claim is sound**:
+the datapath gate proves it is on the die (594 CARRY4, not the 8-CARRY4 floor),
+the placement is against the measured clock, and the divided domain is declared
+with its margin written down. What W814 asserted and W818 withdrew, this
+establishes.
+
+### T547 -- AND THE READER REPORTED PASS FROM THE WRONG BOARDS [measured, fixed]
+
+`t27c silicon` printed
+
+    OK  B2 read  0xa5a5a5a5  magic, ok=1  on index [0, 1]
+    PASS -- the silicon answered, and its answer is ok=1
+
+having read boards that carried `ternary_node` from W817, not the design just
+programmed onto 1:4. Version nibble 5, the legacy layout. **The tool matched a
+28-bit magic and reported a verdict about a different design.**
+
+This is W814's failure from the other side -- there I decoded the wrong layout by
+hand, here the tool did -- and the version nibble added in W818 is what caught it:
+the word said 5 where mine says 1.
+
+`tools/jtag/read_verdict.py` now reads bits [11:8] FIRST. Version 1 decodes the
+four clause bits and reports them; version 5 falls through to the legacy path;
+**anything else prints `UNKNOWN LAYOUT ... will NOT guess a verdict from the
+magic` and returns nothing.** Re-read immediately after:
+
+    index 0: a5a5a5a5   legacy layout
+    index 1: a5a5a5a5   legacy layout
+    index 2: a5a5a1f7   LAYOUT v1  clauses=1111  ok=1
+
+### T547a -- the version field paid for itself on its first use [derived]
+
+It was added in W818 as housekeeping after a confusing episode, with no
+expectation of firing. It fired on the very next wave, on the first design that
+used it, and it caught a false PASS that the pipeline had already printed.
+
+Lesson 1072 said a check that has never fired is evidence of nothing. The
+converse is worth stating too: **a check added because something was once
+confusing is not overhead, and the interval between adding it and needing it can
+be one wave.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

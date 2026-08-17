@@ -10810,6 +10810,31 @@ constant inside a third-party placer that defined what PASS meant for every
 design here and appears nowhere in this repository. Audit the defaults of tools
 you did not write, and prefer flags that put the number in the output.
 
+**1101. "Almost certainly fine" is the phrase that costs published results.**
+W818 withdrew a silicon verdict and left four wrappers unchecked at the real clock
+because they are trivial. They were run anyway: five of five pass at 70.77 MHz.
+The run cost minutes; the assumption had just cost a result written into the SSOT.
+
+**1102. `--freq` IS GLOBAL; A SLOWER DOMAIN NEEDS AN XDC.** A BUFG divider tells
+the timing engine nothing (lesson 1097) and `--freq` applies one target to every
+clock. `nextpnr-xilinx` takes `--xdc`, and the flow now passes `<top>.xdc` when it
+exists beside the wrapper. `create_clock -period 226.1 -name slowclk` is 70.77/16,
+against a datapath measured at 7.60 MHz -- **a 1.72x margin STATED**, which is the
+whole difference between this verdict and the one that was withdrawn.
+
+**1103. A MAGIC WITHOUT A VERSION LETS A TOOL REPORT A VERDICT ABOUT A DIFFERENT
+DESIGN.** `t27c silicon` printed `PASS ... ok=1 on index [0, 1]` after programming
+board 1:4 -- those two boards held another build entirely, and a 28-bit magic
+matches whatever follows it. The version nibble added the previous wave caught it
+(5 versus 1). `read_verdict.py` now reads bits [11:8] first and prints
+`UNKNOWN LAYOUT ... will NOT guess a verdict from the magic` rather than
+pattern-matching the top bits.
+
+**1104. A check added after a merely confusing episode can fire one wave later.**
+The version field was housekeeping, added with no expectation of use. It caught a
+false PASS on the first design that carried it. Lesson 1072 says a check that has
+never fired proves nothing; the converse is that the wait can be very short.
+
 ### How to update this tracker
 
 After closing a wave:

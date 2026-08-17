@@ -1636,14 +1636,31 @@ pub fn run_silicon(
         // timing TARGET is the highest measured value. Using 68.8 (the mean)
         // would leave the fastest die unchecked; 70.77 is therefore the honest
         // target and is what is passed.
-        let (c, _, err) = run(Command::new(&pnr).args([
-            "--chipdb", &chipdb.to_string_lossy(),
-            "--json", &json_path.to_string_lossy(),
-            "--fasm", &fasm_path.to_string_lossy(),
-            "--freq", "70.77",
-        ]));
+        // W819 (T544): a design that DIVIDES the clock needs its own constraint,
+        // and `--freq` is global. T541 measured that a BUFG divider changes
+        // nothing in the report -- the timing engine never learns the ratio -- so
+        // the only honest way to declare a slower domain is an XDC.
+        //
+        // Convention: if `<top>.xdc` sits beside the wrapper, it is passed. No
+        // file means the global `--freq` applies, which is the existing
+        // behaviour for every design that does not divide.
+        let xdc = tops
+            .last()
+            .map(|t| Path::new(t).with_extension("xdc"))
+            .filter(|p| p.exists());
+        let mut pnr_args: Vec<String> = vec![
+            "--chipdb".into(), chipdb.to_string_lossy().into_owned(),
+            "--json".into(), json_path.to_string_lossy().into_owned(),
+            "--fasm".into(), fasm_path.to_string_lossy().into_owned(),
+            "--freq".into(), "70.77".into(),
+        ];
+        if let Some(x) = &xdc {
+            pnr_args.push("--xdc".into());
+            pnr_args.push(x.to_string_lossy().into_owned());
+        }
+        let (c, _, err) = run(Command::new(&pnr).args(&pnr_args));
         pnr_stage = Some(Stage {
-            name: "nextpnr @70.77MHz (T495 measured)",
+            name: if xdc.is_some() { "nextpnr @70.77MHz + XDC" } else { "nextpnr @70.77MHz (T495 measured)" },
             secs: t.elapsed().as_secs_f64(),
             code: c,
             artefact: file_len(&fasm_path),

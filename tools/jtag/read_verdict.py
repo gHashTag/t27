@@ -100,6 +100,36 @@ def report(idx, reads=5, chain=3):
         print("           ALL ONES -- dead chain")
         return None
 
+    # W819 (T545): NAME THE LAYOUT BEFORE TRUSTING THE BITS.
+    #
+    # W814 decoded three dice with one layout while they held two builds, and two
+    # boards reported an arithmetically impossible result. W819 repeated the
+    # shape from the other side: `t27c silicon` printed PASS having read the
+    # magic off two boards that carried a DIFFERENT DESIGN from the one just
+    # programmed, because a 28-bit magic matches whatever follows it.
+    #
+    # Wrappers from W818 onward carry a VERSION NIBBLE at bits [11:8]:
+    #   1 -> {20'hA5A5A, 4'd1, four clause bits, 0, 1, beat, ok}
+    #   5 -> the legacy {28'hA5A5A5A, 0, 1, beat, ok}, because 0xA5A5A5A puts a
+    #        5 in that position
+    # Anything else is a word this reader does not understand, and it says so
+    # rather than pattern-matching the top bits and reporting a verdict.
+    for w in good:
+        if (w >> 12) == 0xA5A5A:
+            ver = (w >> 8) & 0xF
+            if ver == 1:
+                c = [(w >> b) & 1 for b in (7, 6, 5, 4)]
+                print(f"           LAYOUT v1  clauses={''.join(map(str, c))}  "
+                      f"beat={(w >> 1) & 1}  ok={w & 1}")
+                print("           VERDICT: " + ("PASS -- every clause held on the die"
+                                                if (w & 1) and all(c)
+                                                else "FAIL -- a clause is false; the bits above name it"))
+                return w
+            if ver != 5:
+                print(f"           UNKNOWN LAYOUT (version nibble {ver}) -- this reader "
+                      "cannot decode it, and will NOT guess a verdict from the magic")
+                return None
+
     for w in good:
         if (w >> 4) == MAGIC:
             ok = w & 1
