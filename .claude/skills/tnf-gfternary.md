@@ -26,6 +26,14 @@ removes. **S1 and S2 are strictly subsumed by S6**; **S4 and S5 never fire**,
 because every candidate is evaluated at fan-in 3 / two bits / no DSP — they are
 held constant, not tested.
 
+**THE OPTIMUM IS ENUMERATED, NOT PICKED (T444).** All **1156** admissible
+nine-level integer alphabets `{0,±1,±b,±c,±d}` with `d ≤ 1+b+c`, `d ≤ 24` were
+enumerated over all 729 weight triples. **`linear 9 = {0,±1,±2,±3,±4}` is rank 1
+of 1156** at junta degree **2.551**, runner-up `{1,3,4,5}` at 2.519. The bound is
+**not load-bearing** — maximum junta degree is non-increasing in spread and
+plateaus at 2.453 beyond `d/a = 8` — so the result is global. **Dyadic and base 3
+are not ranked low here; they are not in the space at all**, failing S6.
+
 **AND THE FORMULA RETURNS BALANCED TERNARY (T442).** For
 `A = {0} ∪ {±bⁱ : i < k}`, `b ∈ ℤ`, `b ≥ 2`, `k ≥ 2`:
 

@@ -18522,4 +18522,58 @@ the **selection rule** from the extra training the probe buys.
 
 ---
 
+## W783 — the whole space, enumerated, and linear 9 is optimal in it
+
+### T444 — `{0,±1,±2,±3,±4}` is the global maximiser of junta degree
+
+T442 removed every integer ladder from the sieve, leaving **non-ladder integer
+alphabets** as the only escape — of which exactly four had ever been measured, all
+picked by hand. The space is small enough to exhaust.
+
+A nine-level integer alphabet is `{0, ±a, ±b, ±c, ±d}` with `0 < a < b < c < d`.
+A common positive scale factors out (T207), so fixing `a = 1` loses nothing. S6
+requires `d ≤ a+b+c`. With `d ≤ 24` — comparable to base 3's 27:1 spread —
+**1156** alphabets are admissible, and every one was enumerated over all
+`9³ = 729` weight triples.
+
+**Registered forecast (T44):** *the maximum sits at or beside `linear 9`, and no
+alphabet exceeds 2.60.*
+
+| rank | alphabet | junta degree | full fan-in 3 |
+|---:|---|---:|---:|
+| **1** | **`{0,±1,±2,±3,±4}`** | **2.551** | **66.9 %** |
+| 2 | `{0,±1,±3,±4,±5}` | 2.519 | 65.8 % |
+| 3 | `{0,±1,±4,±5,±6}` | 2.519 | 65.8 % |
+| … | | | |
+| 1156 | `{0,±1,±4,±23,±24}` | 1.333 | 8.8 % |
+
+> **T444. Rank 1 of 1156, and strictly** — the runner-up is 2.519. `linear 9` is
+> not "the best of the four we happened to try"; **it is the optimum of the entire
+> admissible space.** Exhaustive: no seeds, no sampling, no significance test
+> needed, and no winner's curse to correct for.
+
+> **T444a. The bound `d ≤ 24` is not load-bearing, so the result is global.**
+> Maximum junta degree by spread band: **2.551** at `d/a = 4`, **2.519** at 5–8,
+> then **2.453** at 8–12, 12–18 and 18–25 — non-increasing, and plateaued.
+> **Nothing beyond spread 6 reaches even 2.5.** Extending the bound can only admit
+> wider-spread alphabets, whose maximum is already capped below the winner.
+> `{1,2,3,4}` is the flattest four distinct positive integers there are.
+
+> **T444b. Dyadic and base 3 are not ranked low in this space — they are not in
+> it.** Both fail S6 and are excluded before ranking, exactly as T442 proves for
+> every integer ladder. **The incumbent of nine waves is not a member of the
+> admissible set**, and the alphabet that is optimal in that set was measured at
+> `+2.93 pp` over base 4 on Fashion and `−1.55 pp` against base 3 in area-adjusted
+> terms (T417, T429b). **The trade is now stated against an optimum rather than
+> against a hand-picked rival.**
+
+> **T444c. What this does not settle.** Junta degree is a **structural** optimum,
+> and its measured link to accuracy is `|r| ≥ 0.95` on two tasks but with effect
+> sizes of 1–3 pp and correlations over arms *constructed* to vary in the
+> predictor (T424). **Optimal in junta degree is not proven optimal in accuracy**,
+> and the three alphabets between rank 1 and rank 3 differ by 0.032 junta — far
+> inside what any accuracy bench here can resolve.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

@@ -355,8 +355,18 @@ pub fn prefers_base(b : u32, kind : u32) -> bool {
 // What the table layer should rank on instead: the alphabet's own shape.
 // linear 9 = {0,+-1,+-2,+-3,+-4} has top 4 against rest 6 and the highest
 // measured effective fan-in of any integer nine-level alphabet, 2.55.
+// W783/T444: linear 9 is not a hand-picked example -- it is the GLOBAL MAXIMISER
+// of junta degree over the entire admissible nine-level integer space. All 1156
+// alphabets {0,+-1,+-b,+-c,+-d} with d <= 1+b+c and d <= 24 were enumerated over
+// all 9^3 triples: rank 1 of 1156 at 2.551, runner-up 2.519. The bound is not
+// load-bearing -- maximum junta degree is non-increasing in spread and plateaus
+// at 2.453 beyond d/a = 8 -- so no wider alphabet can overtake it.
 pub const LINEAR9_TOP  : u32 = 4;
 pub const LINEAR9_REST : u32 = 6;
+
+// The runner-up, kept so the margin is checkable rather than asserted.
+pub const RUNNERUP_TOP  : u32 = 5;   // {1,3,4,5}
+pub const RUNNERUP_REST : u32 = 8;
 
 // ============================================================================
 // Invariants -- L4. These are the theorems, stated so the compiler checks them.

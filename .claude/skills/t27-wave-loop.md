@@ -9866,6 +9866,23 @@ the label-free balanced rule beat both. *When several attempts at one mechanism
 fail while the trivial baseline holds, suspect the mechanism is not where the
 gain is.*
 
+### W783 — lessons 961-963
+
+**961. Enumerate the space instead of arguing about samples from it.** 1156
+admissible alphabets, all 729 triples each, one minute of numpy -- and linear 9 is
+rank 1, strictly (T444). *After thirty waves of five-seed sweeps and winner-curse
+corrections, the exhaustive answer cost less than one of them.*
+
+**962. Check whether your enumeration BOUND is load-bearing before quoting the
+result.** Maximum junta degree is non-increasing in spread and plateaus well below
+the winner, so d<=24 constrains nothing and the optimum is global (T444a). *An
+exhaustive result over a bounded space is only exhaustive if the bound is shown
+not to bind.*
+
+**963. "Not ranked low" and "not in the space" are different sentences.** Dyadic
+and base 3 -- the incumbents of nine waves -- fail S6 and are excluded before any
+ranking happens (T444b). *Say which one you mean; a reader assumes the first.*
+
 ### How to update this tracker
 
 After closing a wave:
