@@ -620,7 +620,7 @@ test contains_multiply_no_star
     when ok = contains_multiply(expr)
     then ok == false
 
-test replace_multiply_power_of_two
+test replace_multiply_power_of_two_v2
     given lhs = "y"
     given a = "x"
     given b = "4"
@@ -649,7 +649,7 @@ test booth_encode_negative
     when (s, m) = booth_encode(x)
     then s == true
 
-test parse_const_binary
+test parse_const_binary_v2
     given s = "0b1010"
     when v = parse_const(s)
     then v == 10
@@ -674,7 +674,7 @@ test parse_const_dec
     when v = parse_const(s)
     then v == 123
 
-test is_power_of_two_const_one
+test is_power_of_two_const_one_v2
     given s = "1"
     when ok = is_power_of_two_const(s)
     then ok == true
@@ -701,12 +701,12 @@ test log2_const_16
     when v = log2_const(s)
     then v == 4
 
-test parse_const_hex_lowercase
+test parse_const_hex_lowercase_v2
     given s = "0xff"
     when v = parse_const(s)
     then v == 255
 
-test is_power_of_two_const_hex
+test is_power_of_two_const_hex_v2
     given s = "0x10"
     when v = parse_const(s)
     then v == 16
@@ -843,22 +843,22 @@ test contains_multiply_no_star_returns_false
     when ok = contains_multiply(expr)
     then ok == false
 
-test is_power_of_two_const_one
+test is_power_of_two_const_one_v3
     given s = "1"
     when ok = is_power_of_two_const(s)
     then ok == true
 
-test parse_const_hex_zero
+test parse_const_hex_zero_v2
     given s = "0x0"
     when v = parse_const(s)
     then v == 0
 
-test is_power_of_two_const_zero
+test is_power_of_two_const_zero_v2
     given s = "0"
     when ok = is_power_of_two_const(s)
     then ok == false
 
-test parse_const_decimal_zero
+test parse_const_decimal_zero_v2
     given s = "0"
     when v = parse_const(s)
     then v == 0
@@ -948,15 +948,15 @@ test parse_const_binary_large
     when val = parse_const("0b1111")
     then val == 15
 
-test is_power_of_two_const_one
+test is_power_of_two_const_one_v4
     when ok = is_power_of_two_const("1")
     then ok == true
 
-test is_power_of_two_const_two
+test is_power_of_two_const_two_v2
     when ok = is_power_of_two_const("2")
     then ok == true
 
-test parse_const_hex_zero
+test parse_const_hex_zero_v3
     when val = parse_const("0x0")
     then val == 0
 
@@ -1247,7 +1247,7 @@ test backend_contains_multiply_nested_parens
     when r = contains_multiply(expr)
     then r == true
 
-test backend_contains_multiply_empty_false
+test backend_contains_multiply_empty_false_v2
     given expr = ""
     when r = contains_multiply(expr)
     then r == false
@@ -1618,12 +1618,12 @@ test backend_log2_const_thirtytwo_five_w309
 
 invariant backend_parse_const_positive_ten_w309_inv:
     parse_const("10") == 10
-test backend_parse_const_positive_ten_w309
+test backend_parse_const_positive_ten_w309_v2
     given s = "10"
     when v = parse_const(s)
     then v == 10
 
-test backend_log2_const_thirtytwo_five_w309
+test backend_log2_const_thirtytwo_five_w309_v2
     given s = "32"
     when v = log2_const(s)
     then v == 5
@@ -1660,12 +1660,12 @@ invariant backend_parse_const_positive_ten_w311_inv:
 
 
 
-test backend_parse_const_positive_ten_w311
+test backend_parse_const_positive_ten_w311_v2
     given s = "10"
     when v = parse_const(s)
     then v == 10
 
-test backend_log2_const_thirtytwo_five_w311
+test backend_log2_const_thirtytwo_five_w311_v2
     given s = "32"
     when v = log2_const(s)
     then v == 5

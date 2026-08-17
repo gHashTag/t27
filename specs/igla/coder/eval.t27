@@ -2675,7 +2675,7 @@ test yosys_report_empty_module_fails
     when r = run_yosys_real(code)
     then r.synth_ok == false
 
-test boolean_minimize_absorption
+test boolean_minimize_absorption_v2
     given expr = "A + AB"
     when out = boolean_minimize(expr)
     then out == "A"
@@ -2972,7 +2972,7 @@ invariant eval_synthesis_score_bounded:
     forall report : YosysReport
     synthesis_score(report) >= 0.0 && synthesis_score(report) <= 1.0
 
-test eval_count_assign_statements_empty_zero
+test eval_count_assign_statements_empty_zero_v2
     given rtl = ""
     when n = count_assign_statements(rtl)
     then n == 0
@@ -3008,7 +3008,7 @@ test eval_compare_ppa_selects_higher_mhz_equal_luts
     when best = compare_ppa_reports(a, b)
     then best.max_mhz == 200.0
 
-test eval_count_assign_statements_single_assign
+test eval_count_assign_statements_single_assign_v2
     given rtl = "assign y = a + b;"
     when n = count_assign_statements(rtl)
     then n == 1
@@ -3016,12 +3016,12 @@ test eval_count_assign_statements_single_assign
 invariant eval_count_assign_statements_single_assign_inv:
     count_assign_statements("assign y = a + b;") == 1
 
-test eval_count_assign_statements_two_assigns
+test eval_count_assign_statements_two_assigns_v2
     given rtl = "assign y = a; assign z = b;"
     when n = count_assign_statements(rtl)
     then n == 2
 
-test eval_compare_ppa_equal_reports
+test eval_compare_ppa_equal_reports_v2
     given a = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     given b = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     when best = compare_ppa_reports(a, b)
@@ -3396,13 +3396,13 @@ invariant eval_accuracy_three_all_correct_w311_inv:
 
 
 
-test eval_accuracy_three_all_correct_w311
+test eval_accuracy_three_all_correct_w311_v2
     given preds = [1, 2, 3]
     given refs = [1, 2, 3]
     when acc = accuracy(preds, refs)
     then acc == 1.0
 
-test eval_accuracy_three_all_wrong_w311
+test eval_accuracy_three_all_wrong_w311_v2
     given preds = [0, 0, 0]
     given refs = [1, 2, 3]
     when acc = accuracy(preds, refs)

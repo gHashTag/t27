@@ -495,7 +495,7 @@ test tensor_to_weight_bank_zero
     when bank = tensor_to_weight_bank(data, rows, cols)
     then bank.data[0] == 0 && bank.data[3] == 0
 
-test is_valid_checkpoint_empty
+test is_valid_checkpoint_empty_v2
     given path = ""
     when ok = is_valid_checkpoint(path)
     then ok == false
@@ -796,7 +796,7 @@ test int4_dequantize_bank_depth_one
 invariant int4_quantize_negative_half_inv:
     int4_quantize(-0.5) < 0
 
-test int4_quantize_zero_is_zero
+test int4_quantize_zero_is_zero_v2
     given w = 0.0
     when code = int4_quantize(w)
     then code == 0
@@ -1143,12 +1143,12 @@ test weights_count_minus_three_minus_w309
 
 invariant weights_load_all_zero_count_w309_inv:
     count_zero(load_all_zero(4)) == 4
-test weights_load_all_zero_count_w309
+test weights_load_all_zero_count_w309_v2
     given n = 4
     when w = load_all_zero(n)
     then count_zero(w) == 4
 
-test weights_count_minus_three_minus_w309
+test weights_count_minus_three_minus_w309_v2
     given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when c = count_minus(w)
     then c == 3
@@ -1185,12 +1185,12 @@ invariant weights_load_all_zero_count_w311_inv:
 
 
 
-test weights_load_all_zero_count_w311
+test weights_load_all_zero_count_w311_v2
     given n = 4
     when w = load_all_zero(n)
     then count_zero(w) == 4
 
-test weights_count_minus_three_minus_w311
+test weights_count_minus_three_minus_w311_v2
     given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when c = count_minus(w)
     then c == 3

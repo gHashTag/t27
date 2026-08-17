@@ -178,7 +178,7 @@ test ternary_mac_large_negative
     when r = ternary_mac(acc, a, w)
     then r == -99973
 
-test ternary_mac_zero_weight
+test ternary_mac_zero_weight_v2
     given acc = 42
     given a = 7
     given w = TernaryWeight { code: 0 }
@@ -199,7 +199,7 @@ test ternary_mac_min_activation
     when r = ternary_mac(acc, a, w)
     then r == -128
 
-test ternary_mac_max_activation
+test ternary_mac_max_activation_v2
     given acc = 0
     given a = 127
     given w = TernaryWeight { code: 1 }
@@ -242,7 +242,7 @@ test ternary_mac_zero_activation
     when r = ternary_mac(acc, a, w)
     then r == 42
 
-test ternary_mac_zero_weight
+test ternary_mac_zero_weight_v3
     given acc = 10
     given a = 5
     given w = TernaryWeight { code: 0 }
@@ -561,7 +561,7 @@ invariant ternary_mac_zero_weight_identity
     forall acc : i32, a : i8
     ternary_mac(acc, a, TernaryWeight { code: 0 }) == acc
 
-test ternary_mac_negative_activation
+test ternary_mac_negative_activation_v2
     given a = cast_i8(-3)
     given w = TernaryWeight { code: 1 }
     when result = ternary_mac(0, a, w)
@@ -586,7 +586,7 @@ invariant ternary_mac_is_acc_plus_mul:
     forall acc : i32, a : i8, w : TernaryWeight
     ternary_mac(acc, a, w) == acc + ternary_mul(a, w)
 
-test ternary_mac_zero_activation_zero_weight
+test ternary_mac_zero_activation_zero_weight_v2
     given acc = 0
     given a = cast_i8(0)
     given w = TernaryWeight { code: 0 }
@@ -642,7 +642,7 @@ invariant ternary_mul_negative_weight_identity
     forall a : i8
     ternary_mul(a, TernaryWeight { code: 2 }) == -a
 
-test ternary_mac_zero_acc_zero_activation
+test ternary_mac_zero_acc_zero_activation_v2
     given acc = 0
     given a = cast_i8(0)
     given w = TernaryWeight { code: 1 }
@@ -1078,14 +1078,14 @@ test ternary_mac_plus_weight_adds_w309
 invariant ternary_mac_zero_weight_nop_w309_inv:
     forall acc : i32
     ternary_mac(99, TernaryWeight { code: 0 }, acc) == acc
-test ternary_mac_zero_weight_nop_w309
+test ternary_mac_zero_weight_nop_w309_v2
     given a = 99
     given w = TernaryWeight { code: 0 }
     given acc = 42
     when result = ternary_mac(a, w, acc)
     then result == 42
 
-test ternary_mac_plus_weight_adds_w309
+test ternary_mac_plus_weight_adds_w309_v2
     given a = 10
     given w = TernaryWeight { code: 1 }
     given acc = 5
@@ -1135,14 +1135,14 @@ invariant ternary_mac_zero_weight_nop_w311_inv:
 
 
 
-test ternary_mac_zero_weight_nop_w311
+test ternary_mac_zero_weight_nop_w311_v2
     given a = 99
     given w = TernaryWeight { code: 0 }
     given acc = 42
     when result = ternary_mac(a, w, acc)
     then result == 42
 
-test ternary_mac_plus_weight_adds_w311
+test ternary_mac_plus_weight_adds_w311_v2
     given a = 10
     given w = TernaryWeight { code: 1 }
     given acc = 5

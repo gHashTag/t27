@@ -1296,12 +1296,12 @@ invariant prm_param_bounds_saturate_max_boundary_identity_w311_inv:
 
 
 
-test prm_param_bounds_saturate_max_boundary_identity_w311
+test prm_param_bounds_saturate_max_boundary_identity_w311_v2
     given val = 127
     when result = param_bounds_saturate(val)
     then result == 127
 
-test prm_select_top_empty_empty_w311
+test prm_select_top_empty_empty_w311_v2
     given scores = []
     given k = 0
     when indices = select_top(scores, k)

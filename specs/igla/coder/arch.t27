@@ -1580,7 +1580,7 @@ test arch_sqrt_approx_zero_zero
     when y = sqrt_approx(x)
     then y == 0.0
 
-test arch_relu_zero_zero
+test arch_relu_zero_zero_v2
     given x = 0.0
     when y = relu(x)
     then y == 0.0
@@ -1600,7 +1600,7 @@ invariant arch_forward_layers_with_weights_identity_len
 invariant arch_sqrt_approx_zero_zero_inv:
     sqrt_approx(0.0) == 0.0
 
-test arch_rag_retrieve_systolic
+test arch_rag_retrieve_systolic_v2
     when arch = rag_retrieve_architecture("Systolic array")
     then arch == "systolic_array"
 
@@ -1634,7 +1634,7 @@ test arch_relu_negative_zero
     when y = relu(x)
     then y == 0.0
 
-test arch_sqrt_approx_zero_zero
+test arch_sqrt_approx_zero_zero_v2
     given x = 0.0
     when y = sqrt_approx(x)
     then y == 0.0
@@ -1657,7 +1657,7 @@ test arch_sqrt_approx_one_near_one
 invariant arch_sqrt_approx_one_near_one_inv:
     sqrt_approx(1.0) == 1.0
 
-test arch_relu_positive_identity
+test arch_relu_positive_identity_v2
     given x = 5.0
     when y = relu(x)
     then y == 5.0
@@ -1672,12 +1672,12 @@ invariant arch_relu_positive_identity_inv:
     forall x : f32
     x >= 0.0 ==> relu(x) == x
 
-test arch_relu_negative_zero
+test arch_relu_negative_zero_v2
     given x = -3.0
     when y = relu(x)
     then y == 0.0
 
-test arch_select_best_beam_empty
+test arch_select_best_beam_empty_v2
     given candidates = []BeamCandidate{}
     given beam_width = 3
     when selected = select_best_beam(candidates, beam_width)
@@ -2035,13 +2035,13 @@ invariant arch_add_slices_negative_offset_empty_w311_inv:
 
 
 
-test arch_add_slices_negative_offset_empty_w311
+test arch_add_slices_negative_offset_empty_w311_v2
     given a = [1.0f32, 2.0f32]
     given b = [3.0f32]
     when c = add_slices(a, b, 5)
     then c.len() == 0
 
-test arch_generate_next_token_topk_three_highest_w311
+test arch_generate_next_token_topk_three_highest_w311_v2
     given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
     given k = 3
     when tokens = generate_next_token(logits, k)

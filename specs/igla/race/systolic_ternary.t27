@@ -160,7 +160,7 @@ test systolic_ternary_array_single_element
     when result = systolic_ternary_array(activations, weights, size)
     then result[0] == 5
 
-test systolic_pe_negative_activation
+test systolic_pe_negative_activation_v2
     given a = -50
     given w = TernaryWeight { code: 1 }
     given psum = 0
@@ -315,7 +315,7 @@ test systolic_ternary_array_mixed_weights
     when result = systolic_ternary_array(activations, weights, size)
     then result[0] == 4 && result[1] == 0 && result[2] == -3
 
-test systolic_ternary_pe_zero_activation
+test systolic_ternary_pe_zero_activation_v2
     given psum = 10
     when (_, psum_out) = systolic_ternary_pe(0, TernaryWeight { code: 1 }, psum)
     then psum_out == 10
@@ -450,7 +450,7 @@ test decode_weight_code_1_returns_pos_one
     when d = ternary_decode(w)
     then d == 1
 
-test systolic_ternary_pe_max_activation
+test systolic_ternary_pe_max_activation_v2
     given a = 127
     given w = TernaryWeight { code: 1 }
     given psum = 0
@@ -474,7 +474,7 @@ test decode_weight_code_3_returns_zero
     when d = ternary_decode(w)
     then d == 0
 
-test systolic_ternary_pe_zero_activation
+test systolic_ternary_pe_zero_activation_v3
     given a = 0
     given w = TernaryWeight { code: 1 }
     given psum = 10
@@ -517,7 +517,7 @@ test systolic_ternary_pe_neg_activation_pos_weight
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == -40
 
-test decode_weight_code_1_returns_pos_one
+test decode_weight_code_1_returns_pos_one_v2
     given w = TernaryWeight { code: 1 }
     when d = ternary_decode(w)
     then d == 1
@@ -597,13 +597,13 @@ test systolic_ternary_pe_reg_reset_clears
     when new_pe = systolic_ternary_pe_reg(true, false, pe, 7, TernaryWeight { code: 1 }, 10)
     then new_pe.a_reg == 0 && new_pe.psum_reg == 0
 
-test systolic_ternary_array_zero_size
+test systolic_ternary_array_zero_size_v2
     given a = []i8{}
     given w = []TernaryWeight{}
     when out = systolic_ternary_array(a, w)
     then out.len() == 0
 
-test systolic_ternary_pe_zero_weight_identity
+test systolic_ternary_pe_zero_weight_identity_v2
     given a = 42
     given w = TernaryWeight { code: 0 }
     given psum = 10
@@ -632,7 +632,7 @@ test ternary_decode_weight_code_1
     when d = ternary_decode(w)
     then d == 1
 
-test systolic_ternary_array_single_element
+test systolic_ternary_array_single_element_v2
     given a = [5]
     given w = [TernaryWeight { code: 2 }]
     when out = systolic_ternary_array(a, w)
@@ -666,7 +666,7 @@ test systolic_ternary_pe_reg_hold_no_clock
     when new_pe = systolic_ternary_pe_reg(false, true, pe, 7, TernaryWeight { code: 1 }, 10)
     then new_pe.a_reg == 42 && new_pe.psum_reg == 99
 
-test systolic_ternary_pe_neg_activation_pos_weight
+test systolic_ternary_pe_neg_activation_pos_weight_v2
     given a = -5
     given w = TernaryWeight { code: 1 }
     given psum = 0
@@ -697,7 +697,7 @@ test systolic_ternary_pe_zero_activation_zero_weight
     when (_, out) = systolic_ternary_pe(a, w, psum)
     then out == 42
 
-test systolic_ternary_array_single_element
+test systolic_ternary_array_single_element_v3
     given a = [5]
     given w = [TernaryWeight { code: 1 }]
     when out = systolic_ternary_array(a, w)
@@ -750,7 +750,7 @@ test systolic_ternary_array_two_elements_positive
     when out = systolic_ternary_array(a, w)
     then out.len() == 2 && out[0] == 3 && out[1] == 4
 
-test systolic_ternary_pe_zero_weight_identity
+test systolic_ternary_pe_zero_weight_identity_v3
     given a = 5
     given w = TernaryWeight { code: 0 }
     given psum = 10
@@ -784,7 +784,7 @@ test systolic_ternary_pe_negative_weight_negates
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == -5
 
-test systolic_ternary_pe_zero_weight_identity
+test systolic_ternary_pe_zero_weight_identity_v4
     given a = 7
     given w = TernaryWeight { code: 0 }
     given psum = 10
@@ -852,7 +852,7 @@ test systolic_ternary_pe_reg_reset_zero
     when reg = systolic_ternary_pe_reg(clk, rst_n, pe, a, w, psum)
     then reg.psum_reg == 0
 
-test systolic_ternary_array_two_elements_positive
+test systolic_ternary_array_two_elements_positive_v2
     given activations = [cast_i8(1), cast_i8(2)]
     given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
     given size = 2
@@ -863,7 +863,7 @@ invariant systolic_ternary_pe_reg_reset_psum_zero_inv:
     forall pe : SystolicTernaryPE, a : i8, w : TernaryWeight
     systolic_ternary_pe_reg(true, false, pe, a, w, 0).psum_reg == 0
 
-test systolic_ternary_array_empty
+test systolic_ternary_array_empty_v2
     given activations = []i8{}
     given weights = []TernaryWeight{}
     given size = 0
@@ -928,7 +928,7 @@ test systolic_ternary_pe_negative_activation_minus_weight
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == 15
 
-test systolic_ternary_pe_zero_activation_zero_weight
+test systolic_ternary_pe_zero_activation_zero_weight_v2
     given a = 0
     given w = TernaryWeight { code: 0 }
     given psum = 100
@@ -983,7 +983,7 @@ test systolic_ternary_pe_reg_update_preserves_weight
     when new_pe = systolic_ternary_pe_reg(true, true, pe, 7, TernaryWeight { code: 0 }, 3)
     then new_pe.a_reg == 7 && new_pe.psum_reg == 10
 
-test systolic_ternary_pe_negative_activation_minus_weight
+test systolic_ternary_pe_negative_activation_minus_weight_v2
     given a = -5
     given w = TernaryWeight { code: 2 }
     given psum = 10
@@ -1021,7 +1021,7 @@ invariant systolic_ternary_pe_activation_passthrough_inv:
     forall a : i8, w : TernaryWeight, psum : i16
     systolic_ternary_pe(a, w, psum).0 == a
 
-test systolic_ternary_array_empty
+test systolic_ternary_array_empty_v3
     given activations = []i8{}
     given weights = []TernaryWeight{}
     when out = systolic_ternary_array(activations, weights)
@@ -1063,7 +1063,7 @@ test systolic_ternary_pe_minus_one_weight_negative
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == -3
 
-test systolic_ternary_array_single_element
+test systolic_ternary_array_single_element_v4
     given activations = [cast_i8(5)]
     given weights = [TernaryWeight { code: 1 }]
     given size = 1
@@ -1124,7 +1124,7 @@ test systolic_ternary_pe_reg_plus_weight_accumulate
     when new_pe = systolic_ternary_pe_reg(true, true, pe, 3, TernaryWeight { code: 1 }, 10)
     then new_pe.psum_reg == 13
 
-test systolic_ternary_array_single_element
+test systolic_ternary_array_single_element_v5
     given activations = [cast_i8(5)]
     given weights = [TernaryWeight { code: 1 }]
     given size = 1
@@ -1135,7 +1135,7 @@ invariant systolic_ternary_array_single_element_identity_inv:
     forall a : i8
     systolic_ternary_array([a], [TernaryWeight { code: 1 }], 1)[0] == cast_i16(a)
 
-test systolic_ternary_array_two_elements
+test systolic_ternary_array_two_elements_v2
     given activations = [cast_i8(3), cast_i8(4)]
     given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
     given size = 2
@@ -1212,14 +1212,14 @@ invariant systolic_ternary_pe_zero_activation_any_weight_nop_inv:
     forall w : TernaryWeight
     systolic_ternary_pe(0, w, 100).1 == 100
 
-test systolic_ternary_pe_positive_activation_plus_weight
+test systolic_ternary_pe_positive_activation_plus_weight_v2
     given a = 7
     given w = TernaryWeight { code: 1 }
     given psum = 10
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == 17
 
-test systolic_ternary_array_single_element
+test systolic_ternary_array_single_element_v6
     given activations = [cast_i8(5)]
     given weights = [TernaryWeight { code: 1 }]
     given size = 1
@@ -1229,7 +1229,7 @@ test systolic_ternary_array_single_element
 invariant systolic_ternary_pe_positive_activation_plus_weight_inv:
     systolic_ternary_pe(7, TernaryWeight { code: 1 }, 10).1 == 17
 
-test systolic_ternary_array_two_elements
+test systolic_ternary_array_two_elements_v3
     given activations = [cast_i8(3), cast_i8(4)]
     given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
     given size = 2
@@ -1276,7 +1276,7 @@ test systolic_ternary_pe_zero_activation_plus_weight_nop
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == 100
 
-test systolic_ternary_array_empty
+test systolic_ternary_array_empty_v4
     given activations = []i8{}
     given weights = []TernaryWeight{}
     given size = 0
@@ -1322,7 +1322,7 @@ test systolic_ternary_array_single_element_plus
     when out = systolic_ternary_array(a, w)
     then out.len() == 1 && out[0] == 3
 
-test systolic_ternary_pe_negative_activation_minus_weight
+test systolic_ternary_pe_negative_activation_minus_weight_v3
     given a = -4
     given w = TernaryWeight { code: -1 }
     given psum = 10
@@ -1646,14 +1646,14 @@ test systolic_ternary_pe_minus_activation_minus_weight_adds_w309
 
 invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w309_inv:
     systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13
-test systolic_ternary_pe_plus_activation_plus_weight_adds_w309
+test systolic_ternary_pe_plus_activation_plus_weight_adds_w309_v2
     given a = 3
     given w = TernaryWeight { code: 1 }
     given psum = 10
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == 13
 
-test systolic_ternary_pe_minus_activation_minus_weight_adds_w309
+test systolic_ternary_pe_minus_activation_minus_weight_adds_w309_v2
     given a = -4
     given w = TernaryWeight { code: 2 }
     given psum = 10
@@ -1700,14 +1700,14 @@ invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w311_inv:
 
 
 
-test systolic_ternary_pe_plus_activation_plus_weight_adds_w311
+test systolic_ternary_pe_plus_activation_plus_weight_adds_w311_v2
     given a = 3
     given w = TernaryWeight { code: 1 }
     given psum = 10
     when (_, psum_out) = systolic_ternary_pe(a, w, psum)
     then psum_out == 13
 
-test systolic_ternary_pe_minus_activation_minus_weight_adds_w311
+test systolic_ternary_pe_minus_activation_minus_weight_adds_w311_v2
     given a = -4
     given w = TernaryWeight { code: 2 }
     given psum = 10

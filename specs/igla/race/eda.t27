@@ -806,7 +806,7 @@ test eda_contains_substring_empty_needle_true
     when ok = contains_substring(s, needle)
     then ok == true
 
-test eda_command_exists_verilator
+test eda_command_exists_verilator_v2
     when ok = command_exists("verilator")
     then ok == true
 
@@ -830,7 +830,7 @@ test eda_command_exists_whitespace_true
     when ok = command_exists(cmd)
     then ok == true
 
-test eda_command_exists_unknown_false
+test eda_command_exists_unknown_false_v2
     given cmd = "unknown_tool"
     when ok = command_exists(cmd)
     then ok == false
@@ -1027,7 +1027,7 @@ test eda_ppa_delta_equal_returns_zero
     when d = ppa_delta(m1, m2)
     then d == ""
 
-test eda_contains_substring_empty_needle_true
+test eda_contains_substring_empty_needle_true_v2
     given s = "abc"
     given needle = ""
     when r = contains_substring(s, needle)
@@ -1052,7 +1052,7 @@ invariant eda_ppa_delta_equal_returns_empty
     m1.area_um2 == m2.area_um2 && m1.power_mw == m2.power_mw && m1.slack_ns == m2.slack_ns && m1.cell_count == m2.cell_count
     ==> ppa_delta(m1, m2) == ""
 
-test eda_command_exists_yosys_true
+test eda_command_exists_yosys_true_v2
     when ok = command_exists("yosys")
     then ok == true
 
@@ -1128,7 +1128,7 @@ invariant eda_contains_substring_prefix_found_inv:
     s.len() >= prefix.len() && prefix.len() > 0 ==>
     contains_substring(s, prefix) == true && s.len() >= prefix.len()
 
-test eda_contains_substring_empty_needle_true
+test eda_contains_substring_empty_needle_true_v3
     given haystack = "abc"
     given needle = ""
     when found = contains_substring(haystack, needle)
@@ -1205,12 +1205,12 @@ invariant eda_floorplan_config_pin_margin_nonnegative_inv:
     forall fp : FloorplanConfig
     fp.pin_margin_um >= 0.0
 
-test eda_generate_openroad_script_nonempty
+test eda_generate_openroad_script_nonempty_v2
     given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
     when script = generate_openroad_script("top.v", "MyMod", fp, "sky130")
     then script.len() > 0
 
-test eda_generate_innovus_script_nonempty
+test eda_generate_innovus_script_nonempty_v2
     given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
     when script = generate_innovus_script("top.v", "MyMod", fp, "sky130")
     then script.len() > 0
@@ -1245,7 +1245,7 @@ test eda_command_exists_klayout_true
 invariant eda_command_exists_openroad_true_inv:
     command_exists("openroad") == true
 
-test eda_command_exists_yosys_true
+test eda_command_exists_yosys_true_v3
     when ok = command_exists("yosys")
     then ok == true
 
@@ -1538,12 +1538,12 @@ test eda_route_wire_length_small_positive_true_w309
 
 invariant eda_placement_area_huge_positive_true_w309_inv:
     placement_area_positive(1000000.0) == true
-test eda_placement_area_huge_positive_true_w309
+test eda_placement_area_huge_positive_true_w309_v2
     given area = 1000000.0
     when ok = placement_area_positive(area)
     then ok == true
 
-test eda_route_wire_length_small_positive_true_w309
+test eda_route_wire_length_small_positive_true_w309_v2
     given len = 1
     when ok = route_wire_length_non_negative(len)
     then ok == true
@@ -1580,12 +1580,12 @@ invariant eda_placement_area_huge_positive_true_w311_inv:
 
 
 
-test eda_placement_area_huge_positive_true_w311
+test eda_placement_area_huge_positive_true_w311_v2
     given area = 1000000.0
     when ok = placement_area_positive(area)
     then ok == true
 
-test eda_route_wire_length_small_positive_true_w311
+test eda_route_wire_length_small_positive_true_w311_v2
     given len = 1
     when ok = route_wire_length_non_negative(len)
     then ok == true

@@ -1381,7 +1381,7 @@ test pipeline_token_count_empty_result
     when count = pipeline_token_count(p)
     then count == 0
 
-test tokenize_prompt_empty
+test tokenize_prompt_empty_v2
     given prompt = ""
     when tokens = tokenize_prompt(prompt)
     then tokens.len() == 0
@@ -1418,7 +1418,7 @@ test pipeline_decode_tokens_single_token
     when s = decode_tokens(tokens)
     then s.len() > 0
 
-test pipeline_tokenize_prompt_nonempty
+test pipeline_tokenize_prompt_nonempty_v2
     given prompt = "hello"
     when tokens = tokenize_prompt(prompt)
     then tokens.len() > 0
@@ -1530,7 +1530,7 @@ test pipeline_select_best_candidate_single
     when best = select_best_candidate([c])
     then best.token == 5
 
-test pipeline_generate_tokens_autoregressive_empty_input
+test pipeline_generate_tokens_autoregressive_empty_input_v2
     given input_ids = []u32{}
     given bank = WeightBank { depth: 1, width: 1, data: [0] }
     given cfg = PipelineConfig { max_tokens: 5, temperature: 1.0, top_p: 1.0 }
@@ -1978,12 +1978,12 @@ invariant pipeline_compose_triple_double_w311_inv:
 
 
 
-test pipeline_compose_triple_double_w311
+test pipeline_compose_triple_double_w311_v2
     given x = 2
     when result = compose(triple, double, x)
     then result == 12
 
-test pipeline_compose_double_identity_w311
+test pipeline_compose_double_identity_w311_v2
     given x = 7
     when result = compose(double, identity, x)
     then result == 14

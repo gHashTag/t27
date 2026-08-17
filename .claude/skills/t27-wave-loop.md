@@ -10547,6 +10547,36 @@ turned the diagnosis from "a missing emitter case" into "specs whose
 computational model is software", which is a different fix in a different place.
 The cheap wrong experiment bought the right diagnosis.
 
+**1067. I MEASURED A TOOL'S OUTPUT WITH THE WRONG COMMAND AND PUBLISHED THE
+CONCLUSION.** T513 said "the generated testbench contains no checks", from `vvp`
+on `gen-verilog` output -- the command whose entire purpose is SYNTHESISABLE
+Verilog and which deliberately omits the testbench. The pipeline never used it;
+`service.rs:538` calls `gen-verilog-for-simulation` and carries a nine-line
+comment saying why. The correct file holds 232 PASSED literals and 1,054
+`$display`. Before concluding a tool is broken, check which invocation the
+pipeline actually makes -- it is one grep, and I did it one wave late.
+
+**1068. A `test` block is a Verilog NAMED BLOCK, so duplicate test names are a
+compile error, not a style issue.** 30 specs, 376 redundant names, and
+`cordic_fixed.t27` alone had 21 duplicates over 342 tests. Nothing in the t27
+tooling rejects them; they surface 1,400 lines into generated Verilog as
+`'..._test' has already been declared in this scope`. Fixing all 366 needed no
+compiler change and no seal broken.
+
+**1069. When a script edits many files, put the invariant INSIDE the script as an
+assertion.** The corpus dedup asserted, per file, that the test count was
+unchanged and that no duplicates remained, before writing. 9,171 tests in, 9,171
+out. An after-the-fact grep would have reported the same number and proved
+nothing about which file lost what.
+
+**1070. Four layers in four waves means the estimate is the count of layers
+FOUND, not the count that exist.** `.len()`, duplicate names, `cast_*`/`abs_*`,
+struct-constructor helpers -- each found only by removing the one in front, and
+three of the four are the same shape: the Verilog backend lacks a lowering case
+the Zig backend has (`compiler.rs:6962`, `:6983`, `:6991`; zero occurrences in
+the Verilog region). Stop discovering them one wave at a time and DIFF the two
+backends' case lists in one pass. Reading a sealed file is not editing it.
+
 ### How to update this tracker
 
 After closing a wave:

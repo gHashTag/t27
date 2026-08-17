@@ -578,7 +578,7 @@ module AdamW;
     // EXISTING TDD: Tests (preserved from pre-B1 spec)
     // =========================================================
 
-    test init_creates_zero_moments
+    test init_creates_zero_moments_v2
         given config = AdamWConfig{.learning_rate = 1e-3, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.01, .epsilon = 1e-8, .amsgrad = false, .phi_variant = PhiVariant.TunedStd}
         when state = init(config, 10)
         then state.m.len == 10
@@ -587,47 +587,47 @@ module AdamW;
         and   all(state.v, is_zero)
         and   state.step == 0
 
-    test init_with_amsgrad_creates_v_max
+    test init_with_amsgrad_creates_v_max_v2
         given config = AdamWConfig{.amsgrad = true}
         when state = init(config, 10)
         then state.v_max.len == 10
         and   all(state.v_max, is_zero)
 
-    test compute_bias_correction_first_step
+    test compute_bias_correction_first_step_v2
         given beta = 0.9
         and   t = 1
         when result = compute_bias_correction(beta, t)
         then approximately_equal(result, 0.1)
 
-    test compute_bias_correction_later_steps
+    test compute_bias_correction_later_steps_v2
         given beta = 0.9
         and   t = 10
         when result = compute_bias_correction(beta, t)
         then result < 1.0
         and   result > 0.0
 
-    test update_first_momentum_basic
+    test update_first_momentum_basic_v2
         given m_prev = 0.0
         and   grad = 1.0
         and   beta1 = 0.9
         when result = update_first_moment(m_prev, grad, beta1)
         then approximately_equal(result, 0.1) // 0.9 * 0 + 0.1 * 1
 
-    test update_first_momentum_with_history
+    test update_first_momentum_with_history_v2
         given m_prev = 0.5
         and   grad = 1.0
         and   beta1 = 0.9
         when result = update_first_moment(m_prev, grad, beta1)
         then approximately_equal(result, 0.9 * 0.5 + 0.1)
 
-    test update_second_momentum_basic
+    test update_second_momentum_basic_v2
         given v_prev = 0.0
         and   grad = 2.0
         and   beta2 = 0.999
         when result = update_second_moment(v_prev, grad, beta2)
         then approximately_equal(result, 0.001 * 4.0)
 
-    test compute_update_basic
+    test compute_update_basic_v2
         given m = 0.1
         and   v = 0.01
         and   lr_t = 0.001
@@ -635,7 +635,7 @@ module AdamW;
         when result = compute_update(m, v, lr_t, epsilon)
         then result > 0.0
 
-    test apply_weight_decay_reduces_parameters
+    test apply_weight_decay_reduces_parameters_v2
         given params = [1.0, 2.0, 3.0]
         and   lr = 0.01
         and   weight_decay = 0.1
@@ -644,7 +644,7 @@ module AdamW;
         and   result[1] < 2.0
         and   result[2] < 3.0
 
-    test step_without_weight_decay_matches_adam
+    test step_without_weight_decay_matches_adam_v2
         given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
         and   state = init(config, 1)
         and   params = [1.0]
@@ -652,7 +652,7 @@ module AdamW;
         when result = step(state, params, grads)
         then result.updated_params.len == 1
 
-    test step_with_weight_decay_shrinks_params
+    test step_with_weight_decay_shrinks_params_v2
         given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
         and   state = init(config, 1)
         and   params = [1.0]
@@ -660,19 +660,19 @@ module AdamW;
         when result = step(state, params, grads)
         then result.updated_params[0] < 1.0
 
-    test amsgrad_update_tracks_maximum
+    test amsgrad_update_tracks_maximum_v2
         given v = 0.05
         and   v_max = 0.03
         when result = amsgrad_update(v, v_max)
         then result == 0.05
 
-    test amsgrad_update_preserves_maximum
+    test amsgrad_update_preserves_maximum_v2
         given v = 0.02
         and   v_max = 0.05
         when result = amsgrad_update(v, v_max)
         then result == 0.05
 
-    test step_increases_step_counter
+    test step_increases_step_counter_v2
         given config = AdamWConfig{}
         and   state = init(config, 10)
         and   params = random_input(10)

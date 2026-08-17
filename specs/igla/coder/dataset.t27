@@ -1688,7 +1688,7 @@ test dataset_score_sample_rtl_nonempty_positive
     when score = score_dataset_sample(sample)
     then score >= 0.0
 
-test dataset_filter_by_quality_empty_returns_empty
+test dataset_filter_by_quality_empty_returns_empty_v2
     given samples = []DataSample{}
     when filtered = filter_dataset_by_quality(samples)
     then filtered.len() == 0
@@ -1802,7 +1802,7 @@ invariant dataset_count_dataset_by_template_single_match_inv:
     count_dataset_by_template([DataSample { prompt: "p", rtl: "r", template: template, bits: 8 }], template) == 1
 
 
-test dataset_count_dataset_by_template_single_match
+test dataset_count_dataset_by_template_single_match_v2
     given dataset = [DataSample { prompt: "p", rtl: "r", template: "adder", bits: 8 }]
     when n = count_dataset_by_template(dataset, "adder")
     then n == 1
@@ -2105,7 +2105,7 @@ test dataset_batch_size_one_same_len_w309
 
 invariant dataset_batch_size_one_same_len_w309_inv:
     batch([1, 2, 3], 1).len() == 3
-test dataset_shuffle_different_seed_different_w309
+test dataset_shuffle_different_seed_different_w309_v2
     given data = [1, 2, 3, 4]
     given seed1 = 1
     given seed2 = 2
@@ -2113,7 +2113,7 @@ test dataset_shuffle_different_seed_different_w309
     when r2 = shuffle(data, seed2)
     then r1 != r2
 
-test dataset_batch_size_one_same_len_w309
+test dataset_batch_size_one_same_len_w309_v2
     given data = [1, 2, 3]
     given size = 1
     when batches = batch(data, size)
@@ -2159,7 +2159,7 @@ invariant dataset_batch_size_one_same_len_w311_inv:
 
 
 
-test dataset_shuffle_different_seed_different_w311
+test dataset_shuffle_different_seed_different_w311_v2
     given data = [1, 2, 3, 4]
     given seed1 = 1
     given seed2 = 2
@@ -2167,7 +2167,7 @@ test dataset_shuffle_different_seed_different_w311
     when r2 = shuffle(data, seed2)
     then r1 != r2
 
-test dataset_batch_size_one_same_len_w311
+test dataset_batch_size_one_same_len_w311_v2
     given data = [1, 2, 3]
     given size = 1
     when batches = batch(data, size)

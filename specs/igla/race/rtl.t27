@@ -704,12 +704,12 @@ test rtl_emit_verilog_single_input
     when v = emit_verilog(mod)
     then contains_substring(v, "input")
 
-test rtl_bits_to_u64_all_zeros
+test rtl_bits_to_u64_all_zeros_v2
     given bits = [0,0,0,0,0,0,0,0]
     when v = bits_to_u64(bits)
     then v == 0
 
-test rtl_bits_to_u64_all_ones
+test rtl_bits_to_u64_all_ones_v2
     given bits = [1,1,1,1,1,1,1,1]
     when v = bits_to_u64(bits)
     then v == 255
@@ -719,7 +719,7 @@ test rtl_count_mul_ops_in_comment
     when n = count_mul_ops(expr)
     then n == 0
 
-test rtl_bits_to_u64_single_one
+test rtl_bits_to_u64_single_one_v2
     given bits = [0,0,0,0,0,0,0,1]
     when v = bits_to_u64(bits)
     then v == 1
@@ -739,12 +739,12 @@ test rtl_count_mul_ops_no_star
     when n = count_mul_ops(expr)
     then n == 0
 
-test rtl_bits_to_u64_single_one
+test rtl_bits_to_u64_single_one_v3
     given bits = [0,0,0,0,0,0,0,1]
     when v = bits_to_u64(bits)
     then v == 1
 
-test rtl_count_mul_ops_star_in_string
+test rtl_count_mul_ops_star_in_string_v2
     given expr = "a * b"
     when n = count_mul_ops(expr)
     then n == 1
@@ -754,12 +754,12 @@ test rtl_count_mul_ops_two_stars
     when n = count_mul_ops(expr)
     then n == 2
 
-test rtl_bits_to_u64_single_bit_one
+test rtl_bits_to_u64_single_bit_one_v2
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
 
-test rtl_bits_to_u64_all_zeros
+test rtl_bits_to_u64_all_zeros_v3
     given bits = [0, 0, 0]
     when val = bits_to_u64(bits)
     then val == 0
@@ -769,12 +769,12 @@ test rtl_bits_to_u64_two_bits
     when val = bits_to_u64(bits)
     then val == 5
 
-test rtl_bits_to_u64_single_one
+test rtl_bits_to_u64_single_one_v4
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
 
-test rtl_bits_to_u64_empty
+test rtl_bits_to_u64_empty_v2
     given bits = []u8{}
     when val = bits_to_u64(bits)
     then val == 0
@@ -784,7 +784,7 @@ test rtl_bits_to_u64_overflow_guard
     when val = bits_to_u64(bits)
     then val == 1023
 
-test emit_verilog_empty_module
+test emit_verilog_empty_module_v2
     given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
     when v = emit_verilog(mod)
     then v.len() > 0
@@ -820,7 +820,7 @@ test rtl_emit_verilog_contains_endmodule
     when v = emit_verilog(mod)
     then contains_substring(v, "endmodule")
 
-test rtl_bits_to_u64_single_zero_bit
+test rtl_bits_to_u64_single_zero_bit_v2
     given bits = [0]
     when val = bits_to_u64(bits)
     then val == 0
@@ -1057,7 +1057,7 @@ invariant rtl_generate_sacred_module_inputs_nonempty_inv:
     forall op : u8, config : RtlGenConfig
     generate_sacred_module(op, config).inputs.len() >= 0
 
-test rtl_count_mul_ops_empty_zero
+test rtl_count_mul_ops_empty_zero_v2
     given expr = ""
     when n = count_mul_ops(expr)
     then n == 0
@@ -1067,7 +1067,7 @@ test rtl_emit_verilog_empty_module_has_module
     when v = emit_verilog(m)
     then v.len() > 0
 
-test rtl_emit_verilog_empty_module_has_endmodule
+test rtl_emit_verilog_empty_module_has_endmodule_v2
     given m = RtlModule { name: "test", inputs: []Signal{}, outputs: []Signal{}, wires: []Signal{}, assigns: []Assignment{}, instances: []Instance{}, sacred_chain: []u8{} }
     when v = emit_verilog(m)
     then contains_substring(v, "endmodule")
@@ -1118,7 +1118,7 @@ test rtl_emit_verilog_empty_module_no_crash
     when v = emit_verilog(mod)
     then v.len() > 0 && contains_substring(v, "endmodule")
 
-test rtl_bits_to_u64_single_one
+test rtl_bits_to_u64_single_one_v5
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
@@ -1469,19 +1469,19 @@ test rtl_bits_to_u64_five_ones_thirtyone_w309
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w309
+test rtl_bits_to_u64_six_ones_sixtythree_w309_v2
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63
 
 invariant rtl_bits_to_u64_five_ones_thirtyone_w309_inv:
     bits_to_u64([1, 1, 1, 1, 1]) == 31
-test rtl_bits_to_u64_five_ones_thirtyone_w309
+test rtl_bits_to_u64_five_ones_thirtyone_w309_v2
     given bits = [1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w309
+test rtl_bits_to_u64_six_ones_sixtythree_w309_v3
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63
@@ -1518,12 +1518,12 @@ invariant rtl_bits_to_u64_five_ones_thirtyone_w311_inv:
 
 
 
-test rtl_bits_to_u64_five_ones_thirtyone_w311
+test rtl_bits_to_u64_five_ones_thirtyone_w311_v2
     given bits = [1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w311
+test rtl_bits_to_u64_six_ones_sixtythree_w311_v2
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63

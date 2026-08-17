@@ -311,7 +311,7 @@ test cordic_top_batch_two_angles
     when sum = cordic_top_batch(angles)
     then sum > 20000
 
-test cordic_top_invalid_input
+test cordic_top_invalid_input_v2
     given clk = true
     given rst_n = true
     given angle = 0
@@ -345,7 +345,7 @@ test cordic_top_reset_outputs_zero
     when (s, c, r) = cordic_top(true, false, 4096, true)
     then s == 0 && c == 0 && r == false
 
-test cordic_top_batch_two_angles
+test cordic_top_batch_two_angles_v2
     given angles = [0, 4096]
     when sum = cordic_top_batch(angles)
     then sum > 9000 && sum < 10000
@@ -432,7 +432,7 @@ test cordic_top_cos_positive_small
     when sum = cordic_top_batch(angles)
     then sum > 16000
 
-test cordic_top_batch_single_element
+test cordic_top_batch_single_element_v2
     given angles = [4096]
     when sum = cordic_top_batch(angles)
     then sum > 11000 && sum < 12000
@@ -442,7 +442,7 @@ test cordic_top_invalid_input_no_ready
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then r == false
 
-test cordic_top_batch_empty
+test cordic_top_batch_empty_v2
     given angles = []i16{}
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -602,7 +602,7 @@ test cordic_top_invalid_angle_max
     when (_, _, r) = cordic_top(clk, rst_n, angle, valid_in)
     then r == false
 
-test cordic_top_batch_empty
+test cordic_top_batch_empty_v3
     given angles = []i16{}
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -730,12 +730,12 @@ test cordic_top_rst_n_false_resets
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then s == 0 && c == 0
 
-test cordic_top_batch_empty
+test cordic_top_batch_empty_v4
     given angles = []
     when sum = cordic_top_batch(angles)
     then sum == 0
 
-test cordic_top_batch_single_angle
+test cordic_top_batch_single_angle_v2
     given angles = [0.0]
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -748,7 +748,7 @@ test cordic_top_reset_output_zero
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then s == 0 && c == 0
 
-test cordic_top_batch_two_angles
+test cordic_top_batch_two_angles_v3
     given angles = [4096, 4096]
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -774,7 +774,7 @@ test cordic_top_valid_in_false_ignores_angle
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then r == false
 
-test cordic_top_batch_three_angles
+test cordic_top_batch_three_angles_v2
     given angles = [4096, 4096, 4096]
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -795,7 +795,7 @@ test cordic_top_cos_zero_angle
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then c > 0 && c < 2
 
-test cordic_top_batch_empty
+test cordic_top_batch_empty_v5
     given angles = []i16{}
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -808,7 +808,7 @@ test cordic_top_rst_n_low_outputs_zero
     when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
     then s == 0 && c == 0
 
-test cordic_top_batch_single_angle
+test cordic_top_batch_single_angle_v3
     given angles = [4096]
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -849,7 +849,7 @@ test cordic_top_batch_empty_returns_zero
     when sum = cordic_top_batch(angles)
     then sum == 0
 
-test cordic_top_batch_negative_angle
+test cordic_top_batch_negative_angle_v2
     given angles = [-4096]
     when sum = cordic_top_batch(angles)
     then sum < 0
@@ -951,7 +951,7 @@ test cordic_top_batch_empty_returns_empty
 invariant cordic_top_batch_empty_len_zero_inv:
     cordic_top_batch([]i16{}).len() == 0
 
-test cordic_top_reset_outputs_zero
+test cordic_top_reset_outputs_zero_v2
     given clk = true
     given rst_n = false
     given angle = 4096
@@ -980,7 +980,7 @@ invariant cordic_top_cordic_sin_negative_inv:
 invariant cordic_top_cordic_cos_negative_inv:
     cordic_cos(-4096) > 0
 
-test cordic_top_reset_outputs_zero
+test cordic_top_reset_outputs_zero_v3
     given clk = true
     given angle = 0
     given rst = true
@@ -1039,7 +1039,7 @@ test cordic_top_cordic_sin_quarter_pi
     when s = cordic_sin(a)
     then s > 15000 && s < 17000
 
-test cordic_top_batch_empty_zero
+test cordic_top_batch_empty_zero_v2
     given angles = []i16{}
     when sum = cordic_top_batch(angles)
     then sum == 0
@@ -1052,7 +1052,7 @@ test cordic_top_cordic_cos_zero
     when c = cordic_cos(a)
     then c > 16000 && c < 16500
 
-test cordic_top_batch_single_angle
+test cordic_top_batch_single_angle_v4
     given angles = [256]
     when sum = cordic_top_batch(angles)
     then sum > 16000
@@ -1370,12 +1370,12 @@ test cordic_top_batch_mixed_sum_w309
 
 invariant cordic_top_batch_negative_sum_w309_inv:
     cordic_top_batch([-1000, -2000, -3000]) == -6000
-test cordic_top_batch_negative_sum_w309
+test cordic_top_batch_negative_sum_w309_v2
     given angles = [-1000, -2000, -3000]
     when sum = cordic_top_batch(angles)
     then sum == -6000
 
-test cordic_top_batch_mixed_sum_w309
+test cordic_top_batch_mixed_sum_w309_v2
     given angles = [1000, -500, 2000, -1500]
     when sum = cordic_top_batch(angles)
     then sum == 1000
@@ -1412,12 +1412,12 @@ invariant cordic_top_batch_negative_sum_w311_inv:
 
 
 
-test cordic_top_batch_negative_sum_w311
+test cordic_top_batch_negative_sum_w311_v2
     given angles = [-1000, -2000, -3000]
     when sum = cordic_top_batch(angles)
     then sum == -6000
 
-test cordic_top_batch_mixed_sum_w311
+test cordic_top_batch_mixed_sum_w311_v2
     given angles = [1000, -500, 2000, -1500]
     when sum = cordic_top_batch(angles)
     then sum == 1000

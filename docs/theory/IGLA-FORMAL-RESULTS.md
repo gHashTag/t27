@@ -21106,6 +21106,95 @@ unhandled" to "these are software call graphs" to "and behind them the testbench
 generator emits no checks at all". Each step was a refutation of the previous
 wave's proposed fix, and each was cheaper than the fix would have been.
 
+## W809 -- T513 IS WITHDRAWN; the Icarus wall has four layers and one of them is now gone
+
+### T514 -- T513 WAS MEASURED ON THE WRONG FILE, AND IS WITHDRAWN [self-critical]
+
+T513 stated that "the generated testbench contains no checks", from running
+`vvp` on output that printed 0 PASSED and 0 FAILED. That output came from
+`t27c gen-verilog`, whose documented purpose is SYNTHESISABLE Verilog and which
+deliberately omits the testbench -- `emit_test_assertions` has gated exactly this
+since W692, because emitting `$display` into synthesis output was T167's defect.
+
+The pipeline never used that command. `service.rs:538` calls
+`gen-verilog-for-simulation`, with a nine-line comment explaining why. Generating
+with the correct command:
+
+    synthesis output    28,599 B
+    simulation output  266,334 B   1,054 $display,  232 PASSED literals
+
+The testbench is full of checks. **T513's claim is false and is withdrawn**, and
+with it the inference that the 265-baseline failure had been localised to the
+testbench generator. It had not; I had localised it to my own command line.
+
+The forecast registered this wave -- that the fix would lie outside the seal
+because the caller passes the flag wrongly -- is also REFUTED. The caller was
+already right. W692 fixed this before I arrived.
+
+### T515 -- THE REAL WALL HAS FOUR LAYERS, MEASURED [measured]
+
+With the correct file, `ternary_mac.t27` fails elaboration for reasons that
+appear one behind the other. Each was found only by removing the one in front.
+
+    layer                                    scope measured over the corpus
+    1  `.len()` on a slice parameter         15 specs (T509)
+    2  DUPLICATE test names                  30 specs, 376 redundant declarations
+    3  typed builtins `cast_*` / `abs_*`     1,180 calls, 6 distinct, 0 Verilog cases
+    4  struct-literal constructor helpers    `TernaryWeight_plus/zero/minus` emitted,
+                                             never defined
+
+Layers 1, 3 and 4 share one shape: **the Zig backend has a lowering case and the
+Verilog backend does not.** `compiler.rs:6983` and `:6991` strip the `abs_` and
+`cast_` prefixes for Zig; grepping the Verilog generation region, lines
+11,000-12,600, returns **zero** occurrences of either. `.len()` is the same at
+`:6962`. The Verilog backend was written against a smaller language than the one
+the corpus is written in.
+
+### T516 -- LAYER 2 IS REMOVED, AND IT WAS A SPEC DEFECT, NOT A COMPILER ONE [measured]
+
+A `test` block becomes a Verilog named block. Two tests sharing a name produce
+two blocks sharing an identifier, which Verilog rejects outright:
+
+    error: 'ternary_mac_zero_weight_test' has already been declared in this scope.
+
+Sized over the corpus, not a sample: 1,079 specs, **30 carry duplicate test
+names, 376 redundant declarations**, and they cluster exactly where the work is --
+`igla/race/cordic_fixed.t27` alone has 21 duplicated names over 342 tests.
+
+FORECAST REGISTERED before the edit: deduplicating removes the redundant names
+and preserves every test count. CONFIRMED, and checked by assertion inside the
+script rather than by inspection afterwards:
+
+    specs deduplicated       29   (ternary_mac.t27 had been done separately)
+    redundant names fixed   366
+    tests before / after   9171 / 9171      PRESERVED
+    duplicate names remaining corpus-wide     0
+
+Five of the largest touched specs re-typecheck clean. **No seal was involved:**
+this is 366 identifiers in specification files, and it needed no Architect
+signature, no compiler change, and no measurement of anything the compiler does.
+
+After the fix, zero duplicate-name errors remain in `ternary_mac.t27` and the
+first errors are layers 3 and 4 -- 9 for `cast_i8`, 10 for the struct
+constructors. The wall moved, and it is the third consecutive wave in which it
+moved under measurement rather than under a fix.
+
+### T516a -- what four layers in four waves says about the estimate [self-critical]
+
+W808 called layer 1 "the" cause and sized a class at 15. W809 finds three more
+behind it. No wave has yet reached a spec that elaborates, and each wave has
+ended by naming the next obstacle rather than clearing the last one.
+
+That is not failure, but it forbids a schedule. The honest statement is that the
+number of layers is UNKNOWN and every estimate so far has been the count of
+layers found, not the count that exist. The only defensible prediction is
+structural: layers 1, 3 and 4 are all "the Verilog backend lacks a case the Zig
+backend has", so **an audit of the Zig backend's lowering cases against the
+Verilog backend's would enumerate the remainder in one pass** instead of
+discovering them one wave at a time. That audit is registered as the next
+measurement, and it needs no seal broken -- reading both regions of a sealed file
+is not editing it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

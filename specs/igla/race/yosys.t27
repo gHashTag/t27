@@ -468,13 +468,13 @@ test generate_equiv_script_same_module
     when script = generate_equiv_script("same.v", "same.v", "top")
     then script.len() > 0 && eval::has_substring(script, "same.v", 0) == true
 
-test emit_sva_assertions_multiple_properties
+test emit_sva_assertions_multiple_properties_v2
     given p1 = Property { kind: PropKind::Always, name: "p1", expr: "a", clk: "clk", rst: "rst_n" }
     given p2 = Property { kind: PropKind::Always, name: "p2", expr: "b", clk: "clk", rst: "rst_n" }
     when sv = emit_sva_assertions([p1, p2])
     then sv.len() > 0
 
-test aggregate_coverage_partial_proof
+test aggregate_coverage_partial_proof_v2
     when report = aggregate_coverage("PROVED ADMITTED PROVED", "ADMITTED")
     then report.proved_count == 2 && report.admitted_count == 1
 
@@ -705,7 +705,7 @@ test emit_sva_assertions_mixed_kinds
     when sv = emit_sva_assertions([p1, p2, p3])
     then eval::has_substring(sv, "always_assert", 0) == true && eval::has_substring(sv, "never_assert", 0) == true && eval::has_substring(sv, "implication_assert", 0) == true
 
-test strings_equal_empty_both
+test strings_equal_empty_both_v2
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -745,7 +745,7 @@ test strings_equal_diff_length
     when ok = strings_equal(a, b)
     then ok == false
 
-test count_substring_overlapping
+test count_substring_overlapping_v2
     given haystack = "aaaa"
     given needle = "aa"
     when c = count_substring(haystack, needle)
@@ -757,7 +757,7 @@ test strings_equal_prefix_false
     when ok = strings_equal(a, b)
     then ok == false
 
-test count_substring_no_match
+test count_substring_no_match_v2
     given haystack = "abcd"
     given needle = "xyz"
     when c = count_substring(haystack, needle)
@@ -780,7 +780,7 @@ test strings_equal_same_true
     when ok = strings_equal(a, b)
     then ok == true
 
-test count_substring_single_char
+test count_substring_single_char_v2
     given haystack = "aaaa"
     given needle = "a"
     when c = count_substring(haystack, needle)
@@ -884,13 +884,13 @@ test yosys_match_at_same_string_position_zero
     when ok = match_at(haystack, needle, start)
     then ok == true
 
-test yosys_compute_coverage_percent_zero_proved
+test yosys_compute_coverage_percent_zero_proved_v2
     given proved = 0
     given total = 10
     when p = compute_coverage_percent(proved, total)
     then p == 0.0
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_v2
     given proved = 5
     given total = 10
     when p = compute_coverage_percent(proved, total)
@@ -992,7 +992,7 @@ test yosys_strings_equal_same_string_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_v3
     given proved = 2
     given total = 4
     when p = compute_coverage_percent(proved, total)
@@ -1026,7 +1026,7 @@ test yosys_strings_equal_empty_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half
+test yosys_compute_coverage_percent_half_v4
     given proved = 4
     given total = 8
     when p = compute_coverage_percent(proved, total)
@@ -1129,7 +1129,7 @@ test yosys_match_at_beginning_boundary
 invariant yosys_count_substring_single_occurrence_inv:
     count_substring("hello", "l") == 2
 
-test yosys_strings_equal_empty_empty_true
+test yosys_strings_equal_empty_empty_true_v2
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -1478,13 +1478,13 @@ test yosys_strings_equal_empty_empty_w309
 
 invariant yosys_is_prefix_partial_true_w309_inv:
     is_prefix("ab", "abc") == true
-test yosys_is_prefix_partial_true_w309
+test yosys_is_prefix_partial_true_w309_v2
     given a = "ab"
     given b = "abc"
     when ok = is_prefix(a, b)
     then ok == true
 
-test yosys_strings_equal_empty_empty_w309
+test yosys_strings_equal_empty_empty_w309_v2
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -1526,13 +1526,13 @@ invariant yosys_is_prefix_partial_true_w311_inv:
 
 
 
-test yosys_is_prefix_partial_true_w311
+test yosys_is_prefix_partial_true_w311_v2
     given a = "ab"
     given b = "abc"
     when ok = is_prefix(a, b)
     then ok == true
 
-test yosys_strings_equal_empty_empty_w311
+test yosys_strings_equal_empty_empty_w311_v2
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)

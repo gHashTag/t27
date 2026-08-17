@@ -179,7 +179,7 @@ test ternary_dot_both_empty_returns_acc
     when d = ternary_dot(a, w, idx, acc)
     then d == 7
 
-test ternary_dot_single_element
+test ternary_dot_single_element_v2
     given a = [5]
     given w = [TernaryWeight { code: 2 }]
     given idx = 0
@@ -273,7 +273,7 @@ test ternary_dot_three_elements_acc_carry
     when d = ternary_dot(a, w, idx, acc)
     then d == 11
 
-test ternary_dot_single_element
+test ternary_dot_single_element_v3
     given a = [42]
     given w = [TernaryWeight { code: 2 }]
     given idx = 0
@@ -329,7 +329,7 @@ test ternary_dot_single_element_positive
     when d = ternary_dot(a, w, idx, acc)
     then d == 52
 
-test ternary_dot_empty_arrays
+test ternary_dot_empty_arrays_v2
     given a = []i8{}
     given w = []TernaryWeight{}
     when r = ternary_dot(a, w, 0, 0)
