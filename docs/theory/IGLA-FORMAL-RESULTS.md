@@ -18804,4 +18804,72 @@ the most logic"* — was **wrong, and the enumeration says so**:
 
 ---
 
+## W785 — the depth null was the trainer too, and I pre-registered the wrong comparison
+
+### T450 — depth helps to four layers, where it used to cost
+
+T414b declared the residual *"not architectural"* on two nulls: fan-in 3→6 buys
+0.68 pp, **depth 3→4 costs 0.99**. Both were measured on a stand carrying only a
+variance rescale — **before** per-layer BatchNorm (T422), ternary activations
+(T428) and balanced coverage (T439), which between them moved the stand
+11.95 → 6.90 pp. **A structural null measured on a trainer that could not train
+is not a structural null.**
+
+**Registered forecast (T44):** *depth now helps — `L=3→5` buys ≥ 1.0 pp; under
+0.3 pp depth is genuinely exhausted.*
+
+| fan-in 3 | L=2 | L=3 | **L=4** | L=5 |
+|---|---:|---:|---:|---:|
+| accuracy | 80.29 ±2.67 | 81.43 ±0.91 | **82.10 ±1.63** | 81.74 ±1.14 |
+| penalty | 9.33 | 8.19 | **7.52** | 7.88 |
+
+> **T450. The sign is inverted.** On the corrected stand `L=3→4` **gains +0.67 pp**
+> where T414b measured it **costing 0.99**. Depth rises from two layers to four —
+> **+1.81 pp** across that span — and then falls. **T414b's depth null joins T286's
+> cardinality effect and T412's alphabet inversion as a trainer artefact**, the
+> third foundational null overturned by the same defect.
+
+> **T450a. And I pre-registered the wrong comparison — the response is peaked.**
+> The forecast asked about `L=3→5`, which measures **+0.31 pp** and lands on the
+> boundary of its own REFUTED threshold. But the curve **peaks at L=4** and
+> declines after; an endpoint comparison across a peak reports the difference of
+> two points on opposite sides of the maximum and calls it a trend. **The correct
+> pre-registration was "does the optimum move off L=3", and the answer is yes, to
+> L=4.** *Pre-registering a comparison is not the same as pre-registering the
+> right one, and a monotone assumption smuggled into the threshold is still an
+> assumption.*
+
+> **T450b. The field runs four to six layers and this stand ran three.** LogicNets
+> and PolyLUT configurations are four to five deep. **Three was never justified by
+> measurement — it was inherited from a stand whose depth null was an artefact**,
+> and the corrected optimum sits exactly where the field already was.
+
+### T451 — two good interventions that do not stack
+
+> **T451.** Measured separately against their own baselines:
+>
+>     random connectivity + BN                   80.23   (T422)
+>     random connectivity + BN + ternary act     81.68   (T428, +1.45)
+>     balanced coverage  + BN                    82.52   (T439, +2.29)
+>     balanced coverage  + BN + ternary act      81.43   (here, -1.09)
+>
+> **Ternary activations help by +1.45 on random connectivity and hurt by −1.09 on
+> balanced connectivity.** The two do not compose; the combination is **below both
+> single interventions**.
+>
+> A plausible mechanism, offered as a hypothesis and not a result: both raise the
+> diversity of what a neuron sees — one by spreading the input draw, the other by
+> coarsening the signal it carries — and together they over-regularise a network
+> already at fan-in 3. **What is measured is the interaction, not the
+> explanation.**
+
+> **T451a. The best configuration is therefore not the union of the best parts.**
+> The stand's best remains **balanced coverage + BN at 82.52** (T439/T446), and
+> the "everything corrected" configuration this wave built for the depth sweep is
+> **1.09 pp worse at the same depth.** **Every stacked-intervention claim in this
+> line should be re-checked against its own parts**, because five interventions
+> were added over four waves and only pairwise-adjacent comparisons were ever run.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

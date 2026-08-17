@@ -9952,6 +9952,30 @@ weights and dominated weights both lower junta and only one of them removes a
 wire (T449a). *Third instance this line -- T418 across a range, T445 within a
 neighbourhood, T449 beyond a held-constant variable.*
 
+### W785 — lessons 976-979
+
+**976. Pre-registering A COMPARISON is not pre-registering the RIGHT one.** I
+fixed a threshold on L=3->L=5 and the response peaked at L=4, so the endpoint
+delta (+0.31) straddled its own REFUTED line while the real finding -- the optimum
+moved -- was never in the forecast (T450a). *A threshold on an endpoint difference
+assumes monotonicity; say so, or pre-register "where is the optimum".*
+
+**977. A structural null measured on a broken trainer is not a structural null.**
+Depth 3->4 "cost 0.99" on the old stand and GAINS 0.67 on the corrected one --
+the third foundational null overturned by one defect, after T286's cardinality
+effect and T412's alphabet inversion (T450). *When a trainer defect is found,
+list every null that stand produced and re-run them all, not the ones that seem
+related.*
+
+**978. Interventions do not stack by default -- measure the union.** Ternary
+activations are worth +1.45 pp on random connectivity and -1.09 on balanced; the
+combination is below both parts (T451). *Five interventions were added over four
+waves with only adjacent comparisons; "best of each" is not "best".*
+
+**979. When the field's parameter differs from yours, check whether yours was
+ever measured.** Depth 3 was inherited, not justified; the field runs 4-6 and the
+corrected optimum is 4 (T450b).
+
 ### How to update this tracker
 
 After closing a wave:
