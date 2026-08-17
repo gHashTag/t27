@@ -21822,6 +21822,62 @@ whether a silicon verdict is about a datapath or about a compilation. It has bee
 available since the first wrapper was written and nobody, including me, ran it
 until the fourth month.
 
+## W816 -- the discriminator is now a pipeline stage, not a thing someone has to notice
+
+### T538 -- `t27c silicon` NOW REPORTS WHETHER ANY ARITHMETIC REACHED THE FABRIC [fixed]
+
+T537a ended by observing that `CARRY4 == 8` decides whether a silicon verdict is
+about a datapath or about a compilation, that the check costs nothing, and that
+nobody -- including me -- had run it in four months. A finding that has to be
+noticed is not a check. It is now a stage.
+
+`bootstrap/src/service.rs` -- not under the FROZEN_HASH seal -- gained
+`carry4_count`, the constant `WRAPPER_CARRY4_FLOOR = 8`, and a `datapath
+survives` stage emitted once per run. Run across every wrapper in the repository:
+
+    wrapper                   verdict
+    gft_bitnet_neuron_jtag    371 CARRY4 in the fabric
+    ternary_node_jtag          40 CARRY4 in the fabric
+    e8m0_jtag                  28 CARRY4 in the fabric
+    ternary_link_jtag           8 CARRY4 == the wrapper floor
+    phi_weights_jtag            8 CARRY4 == the wrapper floor
+    tnf17_jtag                  8 CARRY4 == the wrapper floor
+
+FORECAST REGISTERED before building: the gate passes the neuron and the repaired
+node, marks the three trivial-DUT wrappers as at-floor, and would have caught the
+old `ternary_node`. **CONFIRMED on all three clauses**, and the table reproduces
+T536's hand measurement exactly -- which is the point: the audit that took a wave
+is now one line of every run.
+
+### T538a -- THE GATE DOES NOT FAIL THE RUN, AND THAT IS DELIBERATE [derived]
+
+The obvious design is "CARRY4 == 8 is an error". T536 forbids it. Three wrappers
+sit at the floor legitimately -- `tnf17`'s DUT is **0 LUT** because negating a
+sign-magnitude float is a bit flip, `phi_weights` is 3 LUT, `ternary_link` is 7 --
+and folding removes nothing that was there. A hard failure would condemn three
+honest wrappers to make one dishonest one visible.
+
+Distinguishing them needs the DUT-alone CARRY4 count, which costs a second
+synthesis. I started writing that, left it half-built as dead code returning
+`None`, and removed it rather than shipping a stage that computes nothing and
+looks like it computes something. **The stage removes the SILENCE, which was the
+actual defect;** the judgement stays with a reader who knows whether the DUT
+should contain an adder.
+
+### T538b -- and the first version of the gate printed itself three times [self-critical]
+
+`stages.push` inside the BSCAN chain-retry loop emitted the stage once per
+attempt. The yosys stage two lines above uses `yosys_stage = Some(...)` and is
+pushed after the loop, precisely to avoid this, and I did not copy the pattern I
+was standing in.
+
+Worth recording for a smaller reason too: the three duplicate lines were not
+identical. The neuron read **307, 371, 371** CARRY4 across attempts, because each
+retry re-places the BSCAN cell and the placement changes the carry count. So the
+bug also revealed that this number is not perfectly stable across placements --
+8 versus 371 is not in question, but quoting a CARRY4 count to three digits as if
+it were a property of the design would be wrong.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

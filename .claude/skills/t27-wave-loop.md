@@ -10739,6 +10739,28 @@ through the weight symbols, which looks live and is, and fed the arithmetic
 `32'sd7` and `32'sd11`. The mux moved; the adder did not exist. Check what drives
 the WIDE ports, not whether anything in the file is a counter.
 
+**1091. A FINDING THAT HAS TO BE NOTICED IS NOT A CHECK -- MAKE IT A STAGE.**
+`CARRY4 == 8` decides whether a silicon verdict concerns a datapath or a
+compilation, it was sitting in the yosys line of every run for four months, and
+nobody read it. It is now a `datapath survives` stage in `t27c silicon`, and it
+reproduces the wave-long hand audit in one line per run.
+
+**1092. Do not turn a discriminator into a hard failure until it can tell honest
+from dishonest.** "CARRY4 == 8 is an error" would condemn `tnf17` (DUT 0 LUT --
+negate is a wire), `phi_weights` (3 LUT) and `ternary_link` (7 LUT), which fold
+because there is nothing to fold. Separating them needs the DUT-alone count and a
+second synthesis. I began that, left it as dead code returning `None`, and DELETED
+it rather than ship a stage that computes nothing while looking like it computes
+something. Removing the silence was the fix; the verdict can stay with the reader.
+
+**1093. Copy the pattern you are standing in.** My gate used `stages.push` inside
+the BSCAN retry loop and printed itself three times; the yosys stage two lines
+above assigns to `yosys_stage` and is pushed after the loop for exactly that
+reason. The duplicate lines also disagreed -- 307, 371, 371 CARRY4 across retries,
+because each attempt re-places the BSCAN cell -- so a CARRY4 count is not stable
+to three digits across placements. 8 versus 371 is safe; quoting 371 as a property
+of the design is not.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -183,6 +183,27 @@ fn file_len(p: &Path) -> Option<(PathBuf, u64)> {
 ///
 /// FIX: stop at the SECOND section header. For a `-flatten`ed design the first
 /// section is the whole design, and any later section can only repeat it.
+/// W816 (T538): CARRY4 count out of the same block `cell_census` reads.
+///
+/// T536 measured that this one number decides whether a silicon verdict is about
+/// a datapath or about a compilation. Every JTAG wrapper in `fpga/verilog/` needs
+/// exactly **8 CARRY4** for its prescaler and reset counter -- identical across
+/// four unrelated designs -- and carry logic does not appear unless something is
+/// adding. LUT counts blur the same boundary, because the BSCAN shift register
+/// and the comparison logic vary with the checks.
+fn carry4_count(log: &str) -> u64 {
+    let census = cell_census(log);
+    census
+        .split(',')
+        .find(|f| f.trim_end().ends_with("CARRY4"))
+        .and_then(|f| f.trim().split_whitespace().next())
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0)
+}
+
+/// The prescaler-plus-reset overhead every wrapper in this family carries.
+const WRAPPER_CARRY4_FLOOR: u64 = 8;
+
 fn cell_census(log: &str) -> String {
     let Some(start) = log.rfind("Printing statistics") else {
         return "no statistics block".into();
@@ -1459,6 +1480,7 @@ pub fn run_silicon(
 
     let mut chain_override: Option<u32> = None;
     let mut yosys_stage: Option<Stage> = None;
+    let mut datapath_stage: Option<Stage> = None;
     let mut pnr_stage: Option<Stage> = None;
     let mut guard_stage: Option<Stage> = None;
     let mut derived_chain: Option<u32> = None;
@@ -1522,6 +1544,43 @@ pub fn run_silicon(
             break;
         }
 
+        // ---- W816 (T538): does any arithmetic actually reach the fabric? ----
+        //
+        // T536 audited six wrappers and found one -- `ternary_node_jtag` -- whose
+        // weight symbol was swept while its activations were the literals
+        // `32'sd7` and `32'sd11`. Yosys evaluated the accumulator at synthesis
+        // time, the design reported 8 CARRY4 where the DUT alone needs 24, and
+        // the silicon verdict was about the compilation path. Nothing in the
+        // pipeline said so, for four months.
+        //
+        // The check is NOT "CARRY4 == 8 is a failure". Three wrappers sit at the
+        // floor legitimately: `tnf17`'s DUT is 0 LUT because negate is a
+        // sign-bit flip, `phi_weights` is 3 LUT, `ternary_link` is 7. Folding
+        // removes nothing that existed, and condemning them would be an
+        // accusation rather than an audit (T536).
+        //
+        // So this stage reports the number and names what it means. It does NOT
+        // fail the run, because the judgement needs the DUT-alone CARRY4 count and
+        // that costs a second synthesis; what it removes is the silence. A figure
+        // that has to be noticed is not a check, and this one went unnoticed for
+        // four months while it was sitting in the yosys line all along.
+        let wrapper_carry = carry4_count(&log);
+        datapath_stage = Some(Stage {
+            name: "datapath survives",
+            secs: 0.0,
+            code: Some(0),
+            artefact: None,
+            note: if wrapper_carry > WRAPPER_CARRY4_FLOOR {
+                format!("{wrapper_carry} CARRY4 in the fabric -- arithmetic is live on the die")
+            } else {
+                format!(
+                    "{wrapper_carry} CARRY4 == the wrapper floor ({WRAPPER_CARRY4_FLOOR}): \
+                     NO arithmetic reached the fabric. If this DUT has any, the probes are \
+                     constants and Yosys answered at synthesis time (T534/T536)"
+                )
+            },
+        });
+
         let t = Instant::now();
         let (c, _, err) = run(Command::new(&pnr).args([
             "--chipdb", &chipdb.to_string_lossy(),
@@ -1583,6 +1642,7 @@ pub fn run_silicon(
     }
 
     if let Some(st) = yosys_stage { stages.push(st); }
+    if let Some(st) = datapath_stage { stages.push(st); }
     if let Some(st) = pnr_stage { stages.push(st); }
     if let Some(st) = guard_stage { stages.push(st); }
 
