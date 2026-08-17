@@ -21195,6 +21195,38 @@ discovering them one wave at a time. That audit is registered as the next
 measurement, and it needs no seal broken -- reading both regions of a sealed file
 is not editing it.
 
+### T517 -- the backend diff, run in one pass as registered [measured]
+
+T516a registered it: rather than discovering Verilog-backend gaps one wave at a
+time, diff the two backends' lowering case lists. `gen_expr` (Zig) begins at
+`compiler.rs:6904`; `gen_verilog_fn` at `:11416`. Counting each case family in
+both regions:
+
+    lowering case               Zig   Verilog
+    strip_prefix("cast_")         1         0
+    strip_prefix("abs_")          1         0
+    ends_with(".len")             1         0
+    name == "len"                 2         0
+    @intCast / @as                2         0
+
+**Five families, five zeros.** Not one lowering case the Zig backend performs is
+performed by the Verilog backend. This is not a list of oversights; it is a
+backend written against the core language while the corpus is written against the
+language plus its builtins.
+
+WHAT THAT PREDICTS, and it is the useful part: any spec whose test bodies use a
+typed cast, an absolute value, or a slice length will fail Icarus regardless of
+what else is fixed, and the count is bounded by the corpus usage measured in
+T515 -- 1,180 typed-builtin calls across six distinct spellings, plus the 15
+slice-length specs. Layer 4, the struct-literal constructor helpers, is a sixth
+family of the same shape and was not in the grep because it has no prefix to
+strip.
+
+NO SEAL WAS TOUCHED. `compiler.rs` was read, not written; `bootstrap/build.rs:206`
+enforces a hash over its contents and reading does not move it. The fix does
+require writing it, and that remains an Architect decision (FROZEN.md, and W780's
+precedent: verify, document, do not apply).
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
