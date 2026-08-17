@@ -9998,6 +9998,24 @@ twelve input bits and T368b prices that at 39-54 LUT/neuron against 2.00 at six.
 The accuracy optimum costs ~20x the area of the area optimum, and S4 is a design
 choice, not a law (T452d).
 
+### W786 — lessons 984-986
+
+**984. A hardcoded literal WIDTH is a silent truncation waiting for a parameter.**
+`6'd{code}` was correct at fan-in 3 and turns 4000 into 32 at fan-in 6 -- every
+table entry above index 63 colliding, synthesising cleanly, computing garbage
+(T453). *When you make something settable, grep the emitter for every constant
+that encoded the old value.*
+
+**985. A per-NEURON figure does not transfer to a LAYER.** T368b's 2.00-vs-39-54
+implies 20-27x; measured on a layer of 16 neurons post-route it is 3.75x, and the
+absolute numbers are 3.00 and 13.69 (T454a). *I quoted the derived ratio in a
+report one wave before measuring it, and it was wrong by a factor of five.*
+
+**986. Price a filter before enforcing it in a compiler.** S4 is a comptime
+invariant in golden_sieve.t27, resting on a ratio never measured at the scale it
+governs. Twelve bits buys +0.98 pp for 3.75x area and -34% Fmax -- a table row,
+not a constraint (T454b).
+
 ### How to update this tracker
 
 After closing a wave:

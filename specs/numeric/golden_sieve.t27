@@ -11,7 +11,13 @@
 // S3 INTEGRAL   A subset of Z      T293  a two-lane Z[b] resolve costs
 // 8 DSP48E1 or ~2750 LUT
 // S4 TRIT_FANIN fanin * bits <= 6  T368b 2.00 LUT/neuron at <= 6 bits,
-// 39-54 LUT at 12. NOT OURS: LogicNets
+// 39-54 LUT at 12 -- BUT SEE T454: those
+// are PER-NEURON figures on a different
+// structure. Measured post-route on a
+// LAYER of 16 neurons the ratio is 3.75x
+// (4.12 vs 15.44 LUT/neuron), not 20-27x.
+// S4 is a stated trade, not a law.
+// NOT OURS: LogicNets
 // (arXiv:2004.03021) states the cost model
 // in 2020, and its own NID configs run at
 // 14 input bits -- so 6 is OUR choice,

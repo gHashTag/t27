@@ -49,6 +49,10 @@ import argparse
 import random
 
 FANIN = 3          # three ternary symbols = six bits = the six-bit rule
+# W786: made settable so S4 can be PRICED rather than assumed. fan-in 6 at two
+# bits per symbol is twelve input bits and a 4096-row table per neuron; T368b
+# prices that at 39-54 LUT/neuron by SYNTHESIS, and W780 showed place and route
+# changes such ratios systematically.
 SYM_BITS = 2       # a ternary symbol on a binary substrate
 
 
@@ -139,7 +143,11 @@ def emit_layer(idx, H, picks, wts, thr):
         v.append(f"  reg [1:0] n{idx}_{n};")
         v.append(f"  always @* case ({{ {sel} }})")
         for code, out in truth_table(wts[n], thr):
-            v.append(f"    6'd{code}: n{idx}_{n} = 2'd{out};")
+            # W786: the case-label width MUST track FANIN. It was hardcoded to
+            # 6 bits, which is correct at fan-in 3 and silently truncates every
+            # label above 63 at fan-in 6 -- 4095 would become 63 and the whole
+            # table would be wrong while synthesising cleanly.
+            v.append(f"    {FANIN*SYM_BITS}'d{code}: n{idx}_{n} = 2'd{out};")
         v.append(f"    default: n{idx}_{n} = 2'd0;")
         v.append("  endcase")
         v.append(f"  assign s{idx}[{2*n+1}:{2*n}] = n{idx}_{n};")
@@ -215,8 +223,11 @@ if __name__ == "__main__":
     ap.add_argument("--layers", type=int, required=True)
     ap.add_argument("--width", type=int, default=16)
     ap.add_argument("--base", required=True)
+    ap.add_argument("--fanin", type=int, default=3)
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
+    FANIN = a.fanin                     # module-level rebind for the emitters
+    globals()["FANIN"] = a.fanin
     b = a.base if a.base in NAMED else float(a.base)
     src = build(a.layers, a.width, b)
     open(a.out, "w").write(src)

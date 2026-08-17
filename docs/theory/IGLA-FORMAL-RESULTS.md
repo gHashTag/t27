@@ -18930,4 +18930,57 @@ been measured off `L=3`. **Registered forecast (T44):** *`L=4` beats `L=3` by
 
 ---
 
+## W786 — the six-bit rule priced, and it costs a fifth of what was claimed
+
+### T453 — a case label that would have truncated every table above index 63
+
+Making fan-in settable so S4 could be priced exposed a defect in the generator
+before a single number was measured. `emit_layer` wrote its case labels as
+`6'd{code}` — **hardcoded**. Correct at fan-in 3, where codes run 0…63. At fan-in
+6 the codes run to **4095**, and `6'd4000` is a six-bit literal holding 4000:
+**it truncates to 32.**
+
+> **T453. Every table entry above index 63 would have collided, and the design
+> would have synthesised cleanly and computed garbage.** No warning, no error, a
+> plausible LUT count. Caught by reading the generated file for the literal width
+> rather than trusting the generator — the same check `width_audit.py` was built
+> for in W772, applied by hand because this literal is emitted, not declared.
+
+### T454 — twelve bits costs 3.75× six bits, not twenty
+
+One layer, 16 neurons, dyadic 9, xc7a100t, placed and routed:
+
+| fan-in | input bits | yosys LUT/neuron | **post-route LUT/neuron** | Fmax |
+|---:|---:|---:|---:|---:|
+| 3 | 6 | 3.00 | **4.12** | **381.5** |
+| 6 | 12 | 13.69 | **15.44** | 250.0 |
+| | | **4.56×** | **3.75×** | −34 % |
+
+**Registered forecast (T44):** *the post-route ratio is smaller than the
+synthesis-implied 20–27×.* **Confirmed, and by far more than expected.**
+
+> **T454. T452d is corrected, one wave after I published it.** I wrote that the
+> best-accuracy configuration *"costs roughly twenty times the area per neuron"*,
+> reading that ratio off T368b's 2.00-vs-39–54 LUT/neuron. **Measured post-route
+> it is 3.75×.** The trade is therefore **+0.98 pp for 3.75× area**, not for 20× —
+> **a decision a designer might actually take**, where the number I published was
+> a decision nobody would.
+
+> **T454a. And the absolute figures do not reproduce either.** This stand measures
+> **3.00 LUT/neuron at six bits** against T368b's 2.00, and **13.69 at twelve**
+> against its 39–54. Different structure — a layer of 16 neurons sharing a
+> register, with the wrapper amortised across them — so this is **not a
+> refutation of T368b**, it is a statement that **T368b's numbers do not transfer
+> to a layer**, and every ratio derived from them for a layer-level design has
+> been wrong by a factor of five.
+
+> **T454b. S4 is now priced instead of assumed, and it looks expensive to keep.**
+> The filter forbids twelve bits on the strength of a per-neuron figure measured
+> on a different structure. On a layer, twelve bits buys **+0.98 pp** for
+> **3.75× area and −34 % Fmax**. **That is a trade to state in a table, not a
+> constraint to enforce in a compiler** — and `golden_sieve.t27` currently
+> enforces it as a comptime invariant.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
