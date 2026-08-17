@@ -19986,4 +19986,55 @@ aggregate forecast hides sign flips:
 
 ---
 
+## W802 — a third task, and the three survivors hold
+
+### T480 — three interventions keep their sign on three tasks; two give three answers
+
+T479 split five interventions into three task-independent and two task-specific on
+two tasks. Two points can look like agreement by chance, so the same seven arms
+ran on **MNIST** — split checked first (shuffled, 29,829 label runs in 60,000,
+val rate 0.4882, test 0.4861).
+
+**Registered forecast (T44):** *the three survivors keep their signs — BN above
++3 pp, fan-in 6 positive, ternary activations non-positive. No prediction for the
+two that already disagree. If any survivor flips, it is not architectural either.*
+
+| intervention | UNSW | Fashion | **MNIST** | verdict |
+|---|---:|---:|---:|---|
+| **BatchNorm** | +17.85 | +6.36 | **+20.48** *(t=+10.8)* | **same sign ×3, significant ×3** |
+| **fan-in 6** | +1.73 | +0.91 | **+4.51** *(t=+18.2)* | **same sign ×3, significant ×3** |
+| **ternary activations** | −2.37 | −0.35 | **−1.83** *(t=−5.6)* | **same sign ×3** |
+| balanced coverage | −0.77 | +0.54 | **+0.01** *(ns)* | **three different answers** |
+| depth `L=5` | −0.27 | +0.46 | **+2.80** *(t=+10.1)* | **three different answers** |
+
+> **T480. Confirmed on every clause.** Normalisation, fan-in and ternary
+> activations keep their direction across three tasks; balanced coverage and depth
+> give **a negative, a positive and a null** between them. **The article's
+> defensible set is three claims, each significant on three datasets.**
+
+> **T480a. Fan-in is the second-largest lever on MNIST and the smallest on
+> Fashion — and the ordering is by input structure.** `+4.51` on MNIST digits,
+> `+1.73` on UNSW's 593 binarised features, `+0.91` on Fashion. **A neuron reading
+> six inputs instead of three matters most where neighbouring inputs are
+> spatially related**, which is a mechanism the six-bit rule's own derivation does
+> not contain. **[измерено]**, and it is the strongest argument yet that S4 costs
+> real accuracy.
+
+> **T480b. Depth is the clearest task-specific effect in the programme.** `−0.27 /
+> +0.46 / +2.80` — on MNIST it is the second-largest intervention after
+> normalisation, on UNSW it is nothing. **A five-layer network was never worse
+> than a three-layer one on any task; it simply bought nothing on two of them.**
+> *That is a different statement from "depth does not help", which is what three
+> waves of this log said from UNSW alone.*
+
+> **T480c. And a label bug in my own harness, found while reading the output.**
+> The verdict line printed `Fashion` for every dataset because the string was
+> hardcoded when the script was written for Fashion; the numbers were always the
+> right ones, but a reader of the MNIST log would have been told they were
+> Fashion's. **Fixed.** *A hardcoded label in a script that later took a parameter
+> is the same defect class as the `6'd` case-label of T453, in text rather than
+> Verilog.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

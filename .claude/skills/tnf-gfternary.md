@@ -130,6 +130,24 @@ question, and `int8` being cut says nothing against `int8`. Nearest miss: `gf4` 
 `mxgf4`, span `[8,16]`, the only catalogued formats that *could* hold nine levels
 under a different convention — they hold seven.
 
+**WHAT SURVIVES THREE TASKS (T480).** Measured on UNSW-NB15, Fashion-MNIST and
+MNIST, 8 seeds, shuffled splits, sparse fan-in networks:
+
+| intervention | UNSW | Fashion | MNIST | |
+|---|---:|---:|---:|---|
+| **normalisation (per-layer BN)** | +17.85 | +6.36 | +20.48 | **sign ×3, significant ×3** |
+| **fan-in 6 over fan-in 3** | +1.73 | +0.91 | +4.51 | **sign ×3, significant ×3** |
+| **ternary activations** | −2.37 | −0.35 | −1.83 | **costs, on all three** |
+| balanced coverage | −0.77 | +0.54 | +0.01 | **task-specific — do not claim** |
+| depth `L=5` | −0.27 | +0.46 | +2.80 | **task-specific — do not claim** |
+
+**Only the first three may be stated as properties.** Never pool them: the same
+intervention differs fourfold between tasks, and UNSW is the harder one.
+
+**Fan-in matters most where inputs are spatially related** (+4.51 MNIST, +0.91
+Fashion) — a mechanism S4's derivation does not contain, and the strongest
+evidence that the six-bit rule costs accuracy.
+
 **CALIBRATION AGAINST THE FIELD — read this before quoting any gap (W779).**
 
 | source | task | sparse | dense | gap |

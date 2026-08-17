@@ -10299,6 +10299,23 @@ from "property of UNSW" for five claims in one run.*
 +17.85 on UNSW and +6.36 on Fashion; a pooled figure describes neither (T479c).
 *Report per task, always, when the tasks differ in difficulty.*
 
+### W802 — lessons 1034-1036
+
+**1034. Two tasks can agree by chance; three separate agreement from coincidence.**
+Five interventions on three datasets: three keep their sign every time, two
+produce a negative, a positive and a null between them (T480). *The third dataset
+cost one night and turned "probably architectural" into "significant on three".*
+
+**1035. "X does not help" and "X bought nothing HERE" are different sentences.**
+Three waves said depth does not help, from UNSW alone; on MNIST it is +2.80 pp and
+the second-largest lever after normalisation (T480b).
+
+**1036. A hardcoded label survives the parameterisation that makes it wrong.** The
+harness printed "Fashion" for every dataset because the string was written when
+the script only did Fashion. Same class as the `6'd` case-label of T453 -- a
+constant that encoded the old scope (T480c). *When you add a parameter, grep the
+output strings too, not just the logic.*
+
 ### How to update this tracker
 
 After closing a wave:
