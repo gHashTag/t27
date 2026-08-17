@@ -10096,6 +10096,14 @@ broken selector -- and it is payable.** The models trained correctly throughout;
 only the epoch choice was corrupted, so the re-run cost one night and not one
 experiment (T458c).
 
+### W790 — lesson 1001
+
+**1001. My own loop invariant hid its own alarm.** For a dozen waves the check ran
+`bash scripts/check-runaway-processes.sh 2>&1 | tail -1`, which prints the last
+line -- an explanatory note -- and never the RUNAWAY verdict above it. The script
+worked the whole time. *The lesson I have written six ways about reading truncated
+output was inside the invariant that is supposed to catch such things.*
+
 ### How to update this tracker
 
 After closing a wave:
