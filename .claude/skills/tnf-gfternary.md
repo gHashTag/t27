@@ -168,6 +168,19 @@ factors** (Brevitas); we do the first now (+2.56 pp, T422) and **not the second*
 - **Functional input count is already priced**: **Logic Shrinkage**,
   10.1145/3583075, learns per-LUT input counts for **1.54× area**.
 
+**THE NUMBERS TO QUOTE (T455), slope with bootstrap 95 % CI, not `r`:**
+
+| relation | n | slope | 95 % CI |
+|---|---:|---:|---|
+| junta → LUT, **L=8** | 5 | **+151 LUT/junta** | [+139, +189] |
+| junta → LUT, **L=4** | 5 | +31 LUT/junta | **[−25, +46] — includes 0** |
+| junta → accuracy, UNSW | 7 | **+1.0 pp/junta** | [+0.1, +1.3] |
+| junta → accuracy, Fashion | 7 | **+1.9 pp/junta** | [+1.1, +2.1] |
+
+**The area relation is CONDITIONAL ON DEPTH** — it separates at `L=8` (LUT range
+6×) and not at `L=4` (range 1.6×). **The accuracy relation is unconditional on
+both tasks.** Lead with accuracy; quote area with its depth attached.
+
 **DO NOT REPORT `r` FOR THESE SWEEPS.** Every correlation in the alphabet line is
 over 5–7 arms *constructed* to vary monotonically in the predictor, with no
 confidence interval. **Report the pairs and the slope.** T418 showed the failure

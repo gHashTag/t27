@@ -18983,4 +18983,53 @@ synthesis-implied 20–27×.* **Confirmed, and by far more than expected.**
 
 ---
 
+## W786b — the line's correlations restated as slopes, and one of them needs depth
+
+### T455 — every junta relation, with an interval instead of an r
+
+T424 said it in W779 and nobody acted on it: *`r` over arms constructed to vary
+monotonically in the predictor measures the design, not the world; report the
+pairs and the slope.* Done — least-squares slope with a **bootstrap-percentile
+95 % interval** over resampled arms, Spearman beside it, `n` stated.
+
+| relation | n | r | Spearman | **slope** | **95 % CI** | |
+|---|---:|---:|---:|---:|---|---|
+| **T410 junta → LUT, L=8** | 5 | +0.996 | **+1.000** | **+151.4 LUT** | **[+139.2, +189.4]** | **excludes 0** |
+| same, with withdrawn `fib` | 6 | +0.994 | +0.943 | +147.6 LUT | [+132.7, +170.6] | excludes 0 |
+| junta → LUT, **L=4** | 5 | +0.924 | +0.600 | +30.8 LUT | **[−24.9, +45.5]** | **includes 0** |
+| junta → post-route LUT, L=4 | 5 | +0.906 | +0.700 | +44.9 LUT | **[−24.9, +64.0]** | **includes 0** |
+| T417 junta → accuracy, UNSW | 7 | +0.916 | +0.714 | +1.0 pp | [+0.1, +1.3] | excludes 0 |
+| T417 junta → accuracy, Fashion | 7 | +0.985 | **+1.000** | +1.9 pp | [+1.1, +2.1] | excludes 0 |
+
+> **T455. The published claim survives, and it is now stated in units.** At `L=8`
+> the relation is **+151 LUT per unit of junta degree**, interval `[+139, +189]`,
+> **Spearman +1.000** — perfect rank agreement across five alphabets. *"`r=0.991`"*
+> is replaced by a number a designer can use.
+
+> **T455a. And it needs depth to be resolvable — which I got wrong two commands
+> before getting it right.** My first pass used the `L=4` table and reported that
+> the flagship area claim's interval **includes zero**. It does — at `L=4`. The
+> published claim was measured at `L=8`, where the LUT range is **45–271 (6×)**
+> against `L=4`'s **85–137 (1.6×)**. **The relation is real and only separates
+> once depth has amplified it**, so every future quotation must carry the depth.
+> *I raised an alarm on the programme's flagship claim from the wrong slice of my
+> own data, and the check that cleared it was reading which table the claim was
+> published from.*
+
+> **T455b. The two halves swap places under proper statistics.** Before this, the
+> **area** relation was the confident one (`r=0.991`) and the **accuracy** relation
+> the hedged one. With intervals: area is **conditional on depth**, accuracy is
+> **unconditional on both tasks** — `+1.0` and `+1.9` pp per unit junta, neither
+> interval touching zero. **The claim this line should lead with is the one it has
+> been apologising for.**
+
+> **T455c. What is still not defensible.** All six relations rest on `n = 5–7`
+> alphabets **chosen to span the predictor**. A bootstrap over five points is a
+> weak instrument, and Spearman `+1.000` on five arms happens by chance one time
+> in 120. **The intervals make the claims honest, not strong**, and the only way
+> to make them strong is more alphabets — which T444's enumeration of 1156 makes
+> cheap for the structural axis and expensive for the trained one.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

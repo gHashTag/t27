@@ -10016,6 +10016,23 @@ invariant in golden_sieve.t27, resting on a ratio never measured at the scale it
 governs. Twelve bits buys +0.98 pp for 3.75x area and -34% Fmax -- a table row,
 not a constraint (T454b).
 
+**987. Test the claim AS PUBLISHED, from the table it was published from.** I
+recomputed the flagship area relation from an L=4 slice, found its interval
+includes zero, and nearly reported the programmes headline as unestablished. The
+published claim is at L=8, where it is solid: slope +151 LUT/junta, CI [+139,
++189], Spearman +1.000 (T455a). *Before auditing a number, find which run
+produced it.*
+
+**988. A relation can need a RANGE to be resolvable.** Junta -> LUT separates at
+L=8 (LUT span 6x) and not at L=4 (span 1.6x). Same relation, same alphabets, and
+the interval crosses zero at the shallower depth. *Quote the condition with the
+claim, always.*
+
+**989. Intervals can swap which half of a result is defensible.** The area
+relation was the confident one at r=0.991 and is conditional; the accuracy
+relation was hedged and its intervals exclude zero on both tasks (T455b). *Lead
+with what survives the interval, not with what has the prettier r.*
+
 ### How to update this tracker
 
 After closing a wave:
