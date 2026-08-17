@@ -10033,6 +10033,30 @@ relation was the confident one at r=0.991 and is conditional; the accuracy
 relation was hedged and its intervals exclude zero on both tasks (T455b). *Lead
 with what survives the interval, not with what has the prettier r.*
 
+### W787 — lessons 990-993
+
+**990. CHECK THE CLASS BALANCE OF EVERY SPLIT YOU MAKE.** `Xva = Xtr[cut:]` on
+data with 8172 label runs gave a validation set that was 100% ONE CLASS, and
+early stopping then selected the most class-biased epoch for eleven waves (T456).
+*One line -- `print(yva.mean())` -- next to every split.*
+
+**991. A warning that appears in every run is a finding nobody has read.** The
+divide-by-zero in the class weights had been printing for waves. It was the whole
+defect (T456d). *T435 said read the panic not the warnings; the converse is just
+as true, and both cost a wave.*
+
+**992. Differential corruption reverses orderings; uniform corruption does not.**
+The split fix is worth +3.95 pp to random connectivity and +1.45 to balanced, so
+balanced's advantage does not shrink -- it REVERSES. Third time this session a
+defect turned out to be differential (T413c normalisation, T447 cardinality,
+T456 split). *Assume differential until measured otherwise; the forecast that
+assumed arm-independence was refuted.*
+
+**993. Profile before optimising, and read what the profiler prints besides the
+timings.** I guessed the Python scatter loop was the bottleneck, vectorised it
+proven-identical, and got 1.0x. The profiler then handed me a defect worth 4 pp
+in a warning line (T456).
+
 ### How to update this tracker
 
 After closing a wave:

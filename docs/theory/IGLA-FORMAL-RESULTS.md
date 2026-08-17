@@ -19032,4 +19032,69 @@ pairs and the slope.* Done — least-squares slope with a **bootstrap-percentile
 
 ---
 
+## W787 — the validation split was one class, and it reverses the connectivity thread
+
+### T456 — twelve theorems re-open, and the sparse penalty closes
+
+Found by a `RuntimeWarning: divide by zero in 0.5/(1-p1)` in a profiler run I
+nearly ignored. That warning only fires when a slice holds one class, so I
+checked the real split:
+
+    UNSW train n = 175341, overall positive rate 0.6806
+    train [0:149039]   positive rate 0.6243
+    VAL   [149039:]    positive rate 1.0000     <-- ALL ONE CLASS
+
+`evaluate(Xva, yva)` returns `mean((h>0) == (y>0.5))`. **On an all-positive set
+that is maximised by predicting positive for everything.** So "best validation
+accuracy" selected **the most positive-biased epoch**, in every run using
+`run_bn`/`run_qact` since W779.
+
+**Registered forecast (T44):** *a stratified split raises every arm and does not
+change the ORDERING, because the corruption is arm-independent.*
+
+| | random | balanced | balanced − random |
+|---|---:|---:|---:|
+| **broken split** (val 100 % one class) | 80.91 ±2.01 | **82.63 ±1.08** | **+1.72** |
+| **shuffled split** (val 0.6792) | **84.86 ±1.49** | 84.09 ±1.85 | **−0.77** |
+| split fix worth | **+3.95** (t=+5.26) | **+1.45** (t=+2.43) | |
+
+> **T456. REFUTED. The ordering flips.** The fix is worth **+3.95 pp** to random
+> and **+1.45** to balanced — **differential, exactly like the normalisation
+> defect of T413c** — and balanced coverage's advantage does not merely shrink,
+> it **reverses**.
+
+> **T456a. The whole connectivity thread was an artefact.** T430 (mutual
+> information), T431 (balanced coverage), T432 (+0.90 pp significant at n=30),
+> T443 (magnitude pruning), T446 (joint soft mask) all compared arms under a
+> selector that rewarded positive bias. **T439's headline — the one result of that
+> thread that reached significance at thirty seeds — is withdrawn.** On a correct
+> split, random connectivity is the better of the two and the difference is not
+> significant.
+
+> **T456b. And the sparse penalty closes.** Random connectivity with a correct
+> split reaches **84.86 %** against the dense **89.62** — a penalty of **4.76 pp**
+> against the field's comparable random-mask figure of **4.79** (SparseLUT Tab.
+> IV). **The gap this programme has chased since W748 is gone, and it was not
+> architecture, alphabet, connectivity, coverage or depth.** It was, in order:
+> normalisation (T413, ~17 pp), class balance and BatchNorm (T422), and now the
+> validation split (T456, ~4 pp).
+
+> **T456c. Every theorem from T422 to T452 that used the split is re-opened.**
+> T422, T428, T430, T431, T432, T439, T443, T446, T450, T451, T452 — **eleven** —
+> plus T455's accuracy slopes, which were computed from T417's arms on the same
+> stand. **They are not all wrong**: the models trained correctly and only the
+> epoch choice was corrupted. But **the corruption is differential**, so no
+> comparison among them may be quoted until re-run. **The area results (T410,
+> T427, T429, T444, T445, T454) are untouched** — they never used a validation
+> split.
+
+> **T456d. The lesson is the one I keep re-learning at a higher price each time.**
+> A `RuntimeWarning` printed above a profile I was reading for a different reason.
+> **T435 was "read the panic, not the warnings"; this is its exact converse** —
+> the warning *was* the finding, and I had run it past twenty times without
+> reading it. *A warning that appears in every run is not noise; it is a finding
+> nobody has looked at.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

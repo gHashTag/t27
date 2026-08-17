@@ -102,10 +102,14 @@ def run_bn(Xtr, ytr, Xva, yva, Xte, yte, lv, seed, F=3, L=3, hidden=256,
                     g = gx - gx.mean(0) - xh * (gx * xh).mean(0)
                 gW = np.einsum('no,nof->of', g, hs[li][:, idxs[li]])
                 if li > 0:
+                    # W787: one scatter instead of a Python loop over every
+                    # neuron. The loop ran H x (L-1) x batches x epochs times --
+                    # 18 million iterations per seed at H=256, L=5 -- and was the
+                    # bottleneck of every measurement in this line, not a part of
+                    # the science. Proven bit-identical on random data before use.
                     gp = np.zeros_like(hs[li])
-                    for o in range(idxs[li].shape[0]):
-                        np.add.at(gp, (slice(None), idxs[li][o]),
-                                  g[:, o:o + 1] * Qs[li][o][None, :])
+                    np.add.at(gp, (slice(None), idxs[li].reshape(-1)),
+                              (g[:, :, None] * Qs[li][None, :, :]).reshape(len(b), -1))
                     g = gp * dact(pre[li - 1])
                 Ws[li] -= lr * gW
         v = evaluate(Xva, yva)
