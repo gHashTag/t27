@@ -19855,4 +19855,49 @@ fourth. **The fifth breaks it:**
 
 ---
 
+## W800 — the read anomaly, constrained by a bit that was already there
+
+### T477 — `beat` is a clock, and it argues against the settling hypothesis
+
+T472a and T476 left the read-index variation **[измерено] and unexplained**, with
+"settling time after configuration" named as the obvious hypothesis and
+deliberately not asserted. It can be constrained **without a new experiment**,
+because every wrapper already carries a free-running toggle:
+
+    pre <= pre + 1;  if (pre == 0) beat <= ~beat;
+
+At CFGMCLK ≈ 65 MHz that is one flip per `2²⁴ / 65e6 ≈` **258 ms**, so `beat` is
+**a coarse clock counting time since configuration**, and it is returned in the
+same word as `ok`.
+
+| design | `beat` at capture | read indices |
+|---|---|---|
+| `ternary_link` | 1 | [2] / [1,2] / [0,1,2] |
+| `e8m0` | 1 | [2] / [1,2] / [0,1,2] |
+| `tnf17` | 1 | [2] / [1,2] / [0,1,2] |
+| `phi_weights` | 1 | [2] / [1,2] / [0,1,2] |
+| **`ternary_node`** | **0, 0, 1** | **[0,1,2] on all three** |
+
+> **T477. The one design that answered on the very first read is also the one read
+> *earliest* after configuration** — `beat` still 0 on two of three boards, i.e.
+> under ~258 ms — while the four that needed two or three reads were all captured
+> after the first flip. **That is evidence against "the design needs time to
+> settle": the earliest read succeeded soonest.**
+
+> **T477a. What it does not establish.** `beat` is one bit at 258 ms resolution
+> and the sample is five designs; it constrains the hypothesis rather than
+> replacing it. **The mechanism remains unnamed**, and the direction of the
+> evidence — earlier read, fewer retries — is the opposite of what a settling
+> story predicts, which is worth exactly that much and no more.
+
+> **T477b. The datum cost nothing because the wrapper already reported it.** The
+> `beat` bit exists so a reader can tell a live design from a frozen one; it
+> turned out to timestamp the read as well. **Instrumentation added for one
+> purpose answered a different question four waves later**, which is the third
+> time this week the answer was already in the output — after the runaway check
+> hidden by `tail -1` (lesson 1001) and the retry indices that revealed the board
+> pattern (lesson 1020).
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

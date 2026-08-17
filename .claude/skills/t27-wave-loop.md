@@ -10257,6 +10257,19 @@ prose "no normalisation, no rounding, two exact integers" -- that is exact
 additivity in the accumulator, checkable on silicon with no golden values. *A
 spec's own prose is a source of properties nobody has to invent.*
 
+### W800 — lessons 1027-1028
+
+**1027. Constrain a hypothesis with data you already have before running an
+experiment.** The `beat` bit toggles every 258 ms, so it timestamps every read --
+and it shows the design that answered on the FIRST attempt was read EARLIEST, the
+opposite of what "needs time to settle" predicts (T477). *One minute of arithmetic
+over five existing logs, no hardware time.*
+
+**1028. Third time this week the answer was already in the output.** The runaway
+verdict hidden by `tail -1`, the retry indices that revealed the board pattern,
+and now `beat` timestamping the read. *Before designing a measurement, re-read
+what the existing one already prints.*
+
 ### How to update this tracker
 
 After closing a wave:

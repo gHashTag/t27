@@ -46,7 +46,11 @@ the indices that returned the magic word are reported. Four designs read
 `[2] / [1,2] / [0,1,2]` on boards 1:4 / 1:6 / 1:8; the fifth read `[0,1,2]` on all
 three. **A single-shot read would have reported board 1:4 as a failure on four
 designs out of five.** Whether this tracks configuration-to-read delay is
-**unmeasured** — do not state a cause.
+**unmeasured** — do not state a cause. **W800 constrains it, though:** every
+wrapper's `beat` bit toggles once per `2^24` CFGMCLK cycles ≈ **258 ms**, so it
+timestamps the read, and the one design that answered on index `[0]` was captured
+with `beat` still **0** on two boards — read *earlier*, not later. **Evidence
+against a settling story; mechanism still unnamed.**
 
 **`specs/numeric/golden_sieve.t27` has no data port and correctly cannot reach a
 die**: it is predicates and comptime invariants, eight proved at compile time,
