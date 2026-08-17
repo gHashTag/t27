@@ -11208,6 +11208,27 @@ corrections came from a two-line normalisation and one from reading bodies rathe
 than counting them. The cost was never the measurement; it was four waves of
 precision applied to a quantity that included formatting.
 
+**1159. BOUND FUNCTION BODIES BY BRACE MATCHING, NOT BY "THE NEXT `fn`".**
+My extractor produced a 75,278-character "function body" and four phantom
+variants of a function `benchmark.t27` defines once, because nested and indented
+definitions break a column-zero boundary. Brace matching removed 10 phantom
+drifts corpus-wide. **The tell was a body two orders of magnitude larger than its
+siblings** -- an impossible size, like the impossible sign in W824 and the
+impossible percentage in W822.
+
+**1160. 96 -> 59 -> 52: HALF THE FIGURE WAS THE INSTRUMENT.** Three corrections
+in five waves, all to my own measurement -- name reuse (W834), comments and
+whitespace (W836), extraction artefacts (W837). Each fix was two lines that could
+have been written first. When a count is the headline, expect to spend more waves
+fixing how it was taken than taking it.
+
+**1161. AN ORDERING CAN SURVIVE INSTRUMENT ERRORS THAT DESTROY THE MAGNITUDES.**
+Across all three fixes the ranking stayed `ternary > coder > ... ` with a single
+swap between near-ties. All three defects were properties of how specs are
+WRITTEN, uniform across the population, so they moved every count and no rank.
+**Report the ordering when the decision needs an ordering** -- four waves of
+correction would then have changed nothing that was said.
+
 ### How to update this tracker
 
 After closing a wave:

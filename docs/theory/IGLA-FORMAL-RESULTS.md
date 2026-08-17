@@ -23458,6 +23458,86 @@ Nine waves, four withdrawals, two of them in this wave. Both were of claims made
 in the preceding three waves by the same flawed measurement, and both were found
 by improving the measurement rather than by new evidence.
 
+## W837 -- the third measurement fix, and the ranking that never moved
+
+### T592 -- MY EXTRACTOR INVENTED TEN DRIFTS [self-critical]
+
+FORECAST REGISTERED: `specs/igla/coder`'s drift is genuine rather than
+formatting, since W836's normalisation removed only 1 of its 20 while halving
+`specs/ternary`. Reading its worst entries:
+
+    stepprm_rtl_competitor   4 "bodies" of 14,330 / 8,677 / 75,278 characters
+                             ALL FOUR IN ONE FILE, benchmark.t27
+
+A seventy-five-kilobyte function body is not a function body. My extractor
+bounded bodies by "the next `fn` at column zero", and nested or indented
+definitions break that boundary, so `benchmark.t27` manufactured phantom
+variants of functions it defines once.
+
+Re-extracting with brace matching:
+
+    directory             old   brace-matched   phantom
+    specs/ternary          24        20            4
+    specs/igla/coder       19        16            3
+    specs/igla/race         5         4            1
+    specs/numeric           9         8            1
+    specs/fpga              5         4            1
+    TOTAL                  62        52           10
+
+CONFIRMED for the real cases -- `match_at` (217/377/431 characters across five
+files) and `check_balanced_braces` are genuine drift, and their sizes are
+plausible where the benchmark entries were not. **The tell was in the data and it
+was a number: a body two orders of magnitude larger than its siblings.**
+
+### T593 -- 96 -> 59 -> 52: NEARLY HALF THE ORIGINAL FIGURE WAS MEASUREMENT ERROR [measured]
+
+Three corrections in five waves, each to my own instrument:
+
+    W834   the metric counts NAME REUSE, not drift        (specs/numeric is design)
+    W836   38% was COMMENTS AND WHITESPACE                (96 -> 59)
+    W837   10 more were EXTRACTION ARTEFACTS              (62 -> 52)
+
+The published figure went 88, then ~53, now 52 genuine drifts. **46% of what W835
+reported was error in the measuring instrument**, and every fix was two lines of
+code that could have been written first.
+
+### T594 -- AND THE RANKING SURVIVED ALL THREE UNCHANGED [measured]
+
+    W835 raw     ternary > coder > race > numeric > fpga
+    W836 norm    ternary > coder > numeric > race > fpga
+    W837 brace   ternary > coder > numeric > race > fpga
+
+One swap, between two directories separated by three counts, and nothing after.
+**The top two never moved.**
+
+So the advice that followed from the first measurement -- consolidate
+`specs/ternary` first, then `specs/igla/coder` -- was correct from W833 onward,
+while W833's number for it was more than double the truth.
+
+That is worth stating as a general result rather than as consolation:
+
+> **An ordering can be robust to instrument errors that destroy the magnitudes.**
+
+Here three independent defects -- counting name reuse, counting formatting,
+counting extraction artefacts -- each inflated the numbers and none of them
+inflated one directory preferentially, because all three are properties of how
+specs are WRITTEN rather than of what they contain. A defect that is uniform
+across the population moves every count and no rank.
+
+**The corollary is the useful half**: had I reported only the ordering, four
+waves of correction would have changed nothing I said. Reporting the counts is
+what required withdrawing them, and the counts were never what the decision
+needed.
+
+### T594a -- forecast count, tenth entry [derived]
+
+    W828 (0/1/0)  W829 (0/0/2)  W830 (0/1/1)  W831 (1/1/0)  W832 (0/0/2)
+    W833 (1/0/1)  W834 (0/1/0)  W835 (0/0/1)  W836 (2/0/2)  W837 (1/0/1)
+
+Ten waves, five withdrawals. Four of the five were of magnitudes produced by a
+flawed instrument; one was of an inference (T579's *settled*). **None was of a
+qualitative claim, and none was of a hardware measurement.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
