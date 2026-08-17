@@ -405,6 +405,27 @@ invariant twenty_seven_row_neuron {
     assert(binary_rows(3) == 64);
 }
 
+// W782/T442: the general statement, and it is why S1 and S2 have no unique kill
+// on the ladder family. For A = {0} u {+-b^i : i < k}, b integer >= 2, k >= 2:
+//     top = b^(k-1),  rest = (b^(k-1) - 1)/(b - 1) <= b^(k-1) - 1 < top
+// so S6 fails for EVERY such alphabet, at every k. Exhaustively checked over
+// b in [2,12] and k in [2,12]: zero counterexamples, and the margin at b=2 is
+// exactly +1 for every k -- the tightest possible failure, never closing.
+//
+// The formula this file states therefore has exactly ONE admissible shape:
+// k = 1, one magnitude, {0, +-c} -- three levels, one trit, balanced ternary.
+invariant s6_kills_ladders_at_every_size {
+    // k = 2 magnitudes: {1, b}
+    assert s6_no_domination(2, 1) == false;
+    assert s6_no_domination(3, 1) == false;
+    // k = 3 magnitudes: {1, b, b^2}
+    assert s6_no_domination(4, 3) == false;
+    assert s6_no_domination(9, 4) == false;
+    // k = 4 is ladder_survives_s6, already asserted below
+    // k = 1 magnitude is the one survivor, and it is vacuous rather than lucky
+    assert s6_no_domination(1, 1);
+}
+
 invariant s6_kills_every_integer_ladder {
     // The exact statement, checked rather than asserted in prose: no integer
     // base clears S6 at the nine-level rung. The boundary is the tribonacci

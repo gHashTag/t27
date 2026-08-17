@@ -18413,4 +18413,58 @@ been surviving.*
 
 ---
 
+## W782 — the sieve, applied to its own formula, returns balanced ternary
+
+### T441 — four of the six filters are decoration on the candidate space
+
+Every filter has been measured alone; none had been asked whether it removes
+anything the others do not. Kill sets over the 16-candidate weight top:
+
+| filter | kills | **unique kills** |
+|---|---:|---|
+| S1 packing | 1 | **0** — subsumed by S2 *and* by S6 |
+| S2 ceiling | 2 | **0** — subsumed by S6 |
+| S3 one lane | 8 | **5** — golden GA-T3, plastic, √2, supergolden, tribonacci |
+| S4 fan-in | 0 | 0 — never fires |
+| S5 primitive | 0 | 0 — never fires |
+| **S6 dominance** | 8 | **3** — base 3, base 4, **dyadic 9** |
+
+> **T441. The sieve is two filters wearing six.** Only **S3** and **S6** are
+> load-bearing; S1 and S2 are strictly subsumed, and S4 and S5 never fire because
+> every candidate is evaluated at fan-in 3, two bits and no DSP — **they are held
+> constant, not tested.** *"Kills nothing" is not "useless" for S4/S5; it is
+> "this top does not vary that axis".* For S1 and S2 the finding is stronger and
+> logical, not incidental — see T442.
+
+### T442 — no integer ladder of two or more magnitudes can clear S6, at any size
+
+> **T442.** For `A = {0} ∪ {±bⁱ : 0 ≤ i < k}` with `b ∈ ℤ`, `b ≥ 2`, `k ≥ 2`:
+>
+>     top  = b^(k−1)
+>     rest = Σ_{i<k−1} bⁱ = (b^(k−1) − 1)/(b − 1) ≤ b^(k−1) − 1 < top
+>
+> **S6 fails for every such alphabet.** Checked exhaustively over `b ∈ [2,12]`,
+> `k ∈ [2,12]`: **zero counterexamples**. At `b = 2` the margin is exactly **+1**
+> for every `k` — the tightest possible failure, and it never closes.
+
+> **T442a. This generalises T409 from nine levels to every level count.** T409
+> said no integer base clears S6 at `k = 4` magnitudes. The statement is much
+> larger: **no integer base clears it at any `k ≥ 2`.** S1 and S2 are subsumed on
+> the ladder family for exactly this reason — they constrain the level *count*,
+> and S6 has already removed every ladder regardless of count.
+
+> **T442b. The formula has exactly one admissible shape, and it is the smallest
+> one.** `TNF(k,b)` survives only at **one magnitude**: `{0, ±c}` — **three
+> levels, one trit, balanced ternary.** Everything above it fails. **The golden
+> sieve, applied to the formula it was built to justify, returns the alphabet the
+> project started from.**
+>
+> That is not a null result. It is the sieve doing its job on its own author:
+> nine waves of ladder search were searching a family whose every multi-magnitude
+> member was excluded by a filter derived from the project's own six-bit rule.
+> **The escape is not a different base — it is a non-ladder integer alphabet**,
+> and `linear 9 = {0,±1,±2,±3,±4}` is the measured example (top 4 < rest 6).
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

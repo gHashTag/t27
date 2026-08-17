@@ -9834,6 +9834,26 @@ the boundary DOES, not whether it exists.*
 regenerable synthesis logs, and naming them for the user costs nothing; waiting
 until ENOSPC disables the Bash tool costs the loop.
 
+### W782 — lessons 956-958
+
+**956. Ask which of your filters is LOAD-BEARING.** Six filters, and only two
+remove anything the others do not: S1 and S2 are strictly subsumed, S4 and S5
+never fire because the candidate list holds their axes constant (T441). *Measuring
+each filter alone never reveals redundancy; kill-set containment does, in one
+pass.*
+
+**957. When a subsumption looks like a coincidence, try to prove it.** S6
+swallowing S1 and S2 was not an accident of sixteen candidates -- it follows from
+(b^(k-1)-1)/(b-1) < b^(k-1) for every integer b>=2, so S6 kills every ladder at
+every size (T442). *A pattern over a candidate list is a hypothesis; the algebra
+behind it is the theorem, and it was three lines.*
+
+**958. A sieve applied to its own author is worth more than one applied to
+rivals.** Nine waves searched the ladder family for a better base; the project's
+own six-bit rule had already excluded every multi-magnitude ladder there is
+(T442b). *Run your criteria against your own formula before running them against
+anyone else's catalogue.*
+
 ### How to update this tracker
 
 After closing a wave:

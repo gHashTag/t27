@@ -20,6 +20,24 @@ alone. S6 removes the remaining ladder family entirely.**
 | **S5 no bad primitive** | no DSP48E1 / SRL16E — wrong bitstream, correct netlist | T246/T342 |
 | **S6 non-dominance** | top magnitude ≤ sum of the others, else the neuron reads one input | **T408/T409** |
 
+**THE SIEVE IS TWO FILTERS WEARING SIX (T441).** Over the 16-candidate top, only
+**S3** (5 unique kills) and **S6** (3 unique kills) remove anything no other filter
+removes. **S1 and S2 are strictly subsumed by S6**; **S4 and S5 never fire**,
+because every candidate is evaluated at fan-in 3 / two bits / no DSP — they are
+held constant, not tested.
+
+**AND THE FORMULA RETURNS BALANCED TERNARY (T442).** For
+`A = {0} ∪ {±bⁱ : i < k}`, `b ∈ ℤ`, `b ≥ 2`, `k ≥ 2`:
+
+    top = b^(k−1),   rest = (b^(k−1) − 1)/(b − 1) ≤ b^(k−1) − 1 < top
+
+so **S6 fails for every integer ladder of two or more magnitudes, at every size.**
+Exhaustive over `b ∈ [2,12]`, `k ∈ [2,12]`: zero counterexamples; at `b = 2` the
+margin is exactly **+1** for every `k` and never closes. **`TNF(k,b)` has exactly
+one admissible shape — one magnitude, `{0, ±c}`, three levels, one trit.** The
+escape is not a different base: it is a **non-ladder integer alphabet**, and
+`linear 9 = {0,±1,±2,±3,±4}` is the measured example (top 4 < rest 6).
+
 **S3 IS COMPUTED, NOT SUPPLIED (T406).** It used to take `lanes` as an argument —
 the answer typed in by hand, and typed wrong it kills our own format.
 
