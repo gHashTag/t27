@@ -9854,6 +9854,18 @@ own six-bit rule had already excluded every multi-magnitude ladder there is
 (T442b). *Run your criteria against your own formula before running them against
 anyone else's catalogue.*
 
+**959. A negative result about your proxy is not one about their method.**
+"Learned connectivity" here was a 3-epoch magnitude probe; SparseLUT learns the
+mask jointly through a differentiable relaxation. Their 2.13 pp stands
+unchallenged by a run that did not implement it (T443b). *Name what you built, not
+what it was inspired by, especially when reporting that it failed.*
+
+**960. Two hypotheses died on the same axis -- that is information.** Mutual
+information (T430) and magnitude pruning (T443) both failed on CONNECTIVITY, and
+the label-free balanced rule beat both. *When several attempts at one mechanism
+fail while the trivial baseline holds, suspect the mechanism is not where the
+gain is.*
+
 ### How to update this tracker
 
 After closing a wave:

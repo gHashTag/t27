@@ -18467,4 +18467,59 @@ anything the others do not. Kill sets over the 16-candidate weight top:
 
 ---
 
+## W782b — a label-free rule that a learned one does not beat
+
+### T443 — magnitude-probe connectivity is refuted, and the control behaved
+
+T439c left 7.05 pp against the field's 4.79 with nothing from PolyLUT-Add's
+method untried. What remained was outside it: **SparseLUT learns the mask** and
+reports **2.13 pp** over a random one. Implemented as the cheap faithful version —
+train wide (fan-in 32, 3 epochs), keep each neuron's top-3 inputs by `|w|`,
+retrain under that fixed mask.
+
+**Registered forecast (T44):** *closes ≥ 1.5 pp; below 0.5 the hypothesis is
+dead.* **Control, because T430 is why:** an **anti-learned** arm keeping the
+*smallest* weights, paying the identical probe cost, so `learned − anti` isolates
+the **selection rule** from the extra training the probe buys.
+
+| arm | accuracy | sd | penalty |
+|---|---:|---:|---:|
+| balanced coverage (T439 best) | **82.52** | 1.06 | **7.10** |
+| learned, top `\|w\|` | 82.21 | 1.35 | 7.41 |
+| anti-learned (control) | 81.60 | 1.44 | 8.02 |
+
+| comparison | Δ | t | |
+|---|---:|---:|---|
+| learned vs balanced | **−0.31** | −0.54 | ns — **refuted** |
+| learned vs anti (the selection rule alone) | +0.61 | +1.31 | ns |
+
+> **T443. Refuted, and this time the control behaved.** Learned connectivity does
+> **not** beat balanced coverage — it is 0.31 pp below it — and the selection rule
+> itself is unresolvable at `n = 12`. Unlike T430, the control landed on the
+> sensible side; it simply did not separate. **Both readings agree that
+> magnitude-probe pruning buys nothing here.**
+
+> **T443a. The label-free rule is holding the position.** `balanced + regrouped`
+> uses **no labels, no probe, no training** — it deals each feature an equal share
+> of the fan-in slots — and it beats a random mask by **+0.90 pp significantly**
+> (T439) while a learned mask fails to beat *it*. **Whatever SparseLUT's learning
+> captures on MNIST, coverage balance appears to capture most of it here at zero
+> cost.**
+
+> **T443b. And the caveat that governs how far that can be taken.** What was
+> implemented is a **magnitude probe**, not SparseLUT's method: they learn the
+> mask jointly with training through a differentiable relaxation, and this trains
+> a wide probe for three epochs and thresholds it. **A negative result about a
+> cheap proxy is not a negative result about the published method**, and the 2.13
+> pp they report on MNIST stands unchallenged by this run.
+
+> **T443c. The residual holds at 7.10 pp against 4.79, and the wave that closes it
+> is not this one.** Five interventions have landed — normalisation, class
+> balance, per-layer BatchNorm, ternary activations, balanced coverage — worth
+> 13.55 → 7.10 pp between them. **Two hypotheses are now dead (mutual information,
+> magnitude pruning) and both died on connectivity**, which is where the field's
+> own remaining gain lives.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
