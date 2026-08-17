@@ -161,6 +161,28 @@ model that fits the fabric and a model that fits the 16 MiB flash with room over
 so below that size the bench is host-free after boot. See
 `docs/reports/W805-TERNARY-FPGA-FIELD-SURVEY.md`.
 
+#### W806: the DRAM search came back empty — do not repeat it
+
+Searched and found nothing usable, recorded so the next wave spends its time
+elsewhere:
+
+- No QMTech public repository carries a Wukong V1 constraint file. `gh api
+  search/repositories q="QMTech Wukong xc7a200t"` returns zero rows.
+- `gh api search/code` for `QMTech Wukong MT41` and `wukong ddr3 xdc` both return
+  `total_count: 0`.
+- The capacity cannot be probed over JTAG. Reading a DDR3 device needs a memory
+  controller, Artix-7 has no hardened one, and the open toolchain has no MIG.
+  There is no SPD EEPROM on a soldered-down FPGA-board DRAM.
+
+**Two paths remain, and both need a human at the bench.** (a) Read the part
+marking off the DDR3 chip — one photograph settles it. (b) Build LiteDRAM for
+this part, which self-calibrates and reports geometry; that is a project, not a
+command.
+
+Until one of those happens, `specs/boards/wukong_v1.t27` keeps `DRAM_BYTES = 0`
+and `DRAM_BYTES_MEASURED = false`, and `weights_fit_dram()` returns false for
+lack of input. **That is the correct answer, not a placeholder.**
+
 > **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
 
 > **2026-07-05 update:** `xc7a200tfbg676-1` and `xc7a200tfgg676-1` use the **same
