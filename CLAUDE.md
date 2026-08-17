@@ -134,8 +134,17 @@ before touching anything under `fpga/`. Non-negotiables:
   it points to. Measured on all three attached boards: `idcode 0x3636093`,
   `family artix a7 200t`. For place-and-route use the `fbg676` chipdb
   (`xc7a200tfbg676-1`) — same die and pinout, per HARDWARE_SSOT.md §2026-07-05.
-- Flash via the in-repo Rust driver **`cli/dlc10`** (`dlc10 idcode|sram|flash|reload`).
-  **Do not use `openFPGALoader`** — it cannot drive the `0x03FD` Xilinx cable.
+- **Flash with `openFPGALoader -c digilent_hs2`.** The attached cables are
+  **Digilent FTDI `0x0403:0x6014`**, not the Xilinx `0x03FD` Platform Cable, and
+  `cli/dlc10` speaks only to `0x03FD` — it answers `DLC10 cable not found` on this
+  bench. Address the three boards with `--busdev-num 1:4 / 1:6 / 1:8`; they share
+  serial `210512180081`, so serial-based addressing cannot separate them.
+  See `fpga/HARDWARE_SSOT.md` §"Note" and §"Programming".
+  *Corrected W791 (T460/T461): the previous text here forbade `openFPGALoader` on
+  the grounds that it cannot drive a `0x03FD` cable — true, and irrelevant, since
+  no `0x03FD` cable is attached. That sentence contradicted the SSOT this file
+  names as authoritative, and it was reported as a hardware blocker for thirteen
+  waves. `cli/dlc10` remains correct for a DLC10 bench and is not removed.*
 - No native macOS Vivado exists. Synthesis is Vivado-in-Docker or OpenXC7 only.
 - If any other FPGA doc contradicts the SSOT, the SSOT wins — fix the other doc.
 

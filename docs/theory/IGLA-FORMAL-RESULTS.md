@@ -19249,4 +19249,65 @@ Final tag distribution across the article: **40 доказано, 42 измер�
 
 ---
 
+## W791 — the acceptance criterion, executed on all three dice
+
+### T460 — silicon was never blocked, and the block was a stale document
+
+For thirteen waves this log reported the hardware as unreachable, on the grounds
+that `cli/dlc10` answers `DLC10 cable not found (VID=0x03FD)` and the attached
+cables are FTDI `0403:6014`. Dmitrii asked why a DLC10 was needed at all when the
+boards flash over USB. Checked:
+
+| document | says |
+|---|---|
+| `CLAUDE.md:138` | *"**Do not use `openFPGALoader`** — it cannot drive the `0x03FD` Xilinx cable."* |
+| **`fpga/HARDWARE_SSOT.md:48`** | *"the connected cable is a **Digilent FTDI cable** (`0x0403:0x6014`), not the Xilinx `0x03FD` Platform Cable. The in-repo `dlc10` driver only supports `0x03FD` cables, so the bring-up flow now uses **openFPGALoader** with the `digilent_hs2` cable profile."* |
+
+`CLAUDE.md` itself rules that **"if any other FPGA doc contradicts the SSOT, the
+SSOT wins — fix the other doc."** `openFPGALoader` was installed at
+`/opt/homebrew/bin/openFPGALoader` throughout.
+
+    openFPGALoader --scan-usb
+      001:004  0x0403:0x6014  Digilent  210512180081
+      001:006  0x0403:0x6014  Digilent  210512180081
+      001:008  0x0403:0x6014  Digilent  210512180081
+    openFPGALoader --detect -c digilent_hs2
+      idcode 0x3636093   xilinx   artix a7 200t   xc7a200
+
+> **T460. Three cables sharing one serial, addressed by `--busdev-num 1:4 / 1:6 /
+> 1:8`** — the addressing the mission context has demanded since the first wave,
+> and which `dlc10` does not implement. **The hardware answered on the first
+> attempt.**
+
+### T461 — Done forced to 0, then raised, on every die
+
+The project's own criterion: *force `Done` to 0 with a wrong-part bitstream, then
+load ours and require the 0→1 transition; `done 1` alone proves nothing.*
+
+| board | wrong part (`ternary_mac_demo_top.bit`, built for xc7a100t) | our part (`..._200t.bit`) |
+|---|---|---|
+| **1:4** | `Done 0x0`, `ID Error  ID error` | `ir: 1 isc_done 1 isc_ena 0 init 1 done 1` |
+| **1:6** | `Done 0x0` + `ID error` | `done 1` |
+| **1:8** | `Done 0x0` + `ID error` | `done 1` |
+
+> **T461. Three of three, with the control, on the target part.** The wrong-part
+> load does not merely fail — it reports **`ID Error`**, so the zero is attributable
+> and not a coincidence of a bad cable or a half-seated board. **This is the first
+> time in this session that a bitstream reached a die.**
+
+> **T461a. What it cost to find, stated plainly.** Thirteen waves reported
+> "requires the DLC10 cable" in a section headed *requires the user*. The correct
+> tool was installed, the correct procedure was written in the SSOT, and the SSOT
+> is named in `CLAUDE.md` two lines above the sentence that contradicts it.
+> **I quoted the stale document instead of the one it points at**, and no
+> measurement I ran would have caught it — only reading the SSOT would, and the
+> user asking one question did.
+
+> **T461b. The lesson generalises past this repository.** A blocker that appears
+> in every report for thirteen cycles and is never re-tested is not a blocker, it
+> is an **inherited belief**. *Re-test the thing that has been blocking you longest
+> — its cost compounds while its evidence does not.*
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

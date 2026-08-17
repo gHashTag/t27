@@ -10115,6 +10115,26 @@ stop.** "Теорема (Оптимальное отношение)" is unsource
 re-scoped by T442/T444, and it sits in the section the paper is named for
 (T459b).
 
+### W791 — lessons 1004-1006
+
+**1004. A blocker repeated for thirteen waves and never re-tested is an inherited
+belief, not a blocker.** "Requires the DLC10 cable" appeared in every report under
+"requires the user". The correct tool was installed, the correct procedure was in
+the SSOT, and the SSOT is named in CLAUDE.md two lines above the sentence
+contradicting it (T461a). *Re-test the thing blocking you longest -- its cost
+compounds while its evidence does not.*
+
+**1005. When two repo documents disagree, the one that says who wins is the one
+to read.** CLAUDE.md forbade openFPGALoader AND ruled that the SSOT wins any FPGA
+contradiction. I quoted the forbidding line for thirteen waves and never followed
+the ruling line.
+
+**1006. ENOSPC disables the Bash tool BEFORE the command runs.** It fails creating
+the output file, so `df`, `rm`, even `echo` are unavailable -- the tool needed to
+fix the condition is disabled by it. Second occurrence this session. *The cause
+was my own `ioreg -l` in a background task: `head -30` in the pipeline does not
+stop the task file from capturing the full dump.*
+
 ### How to update this tracker
 
 After closing a wave:
