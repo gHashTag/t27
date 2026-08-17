@@ -19942,4 +19942,48 @@ five in full gets **0**.
 
 ---
 
+## W801b — Fashion judges the five, and two of them are task-specific
+
+### T479 — three interventions survive both tasks, two flip sign
+
+T458 withdrew nine of eleven UNSW measurements. Fashion was then the article's
+**only unverified leg** — its split is clean (T457), but **five interventions had
+never been measured on it at all.** Registered per-intervention, because an
+aggregate forecast hides sign flips:
+
+| intervention | **Fashion** | t | UNSW | verdict |
+|---|---:|---:|---:|---|
+| BatchNorm | **+6.36** | **+11.51** | +17.85 | **same sign, both significant** |
+| ternary activations | −0.35 | −1.91 ns | −2.37 | **same sign** |
+| **balanced coverage** | **+0.54** | **+3.43** | **−0.77** | **SIGN DIFFERS** |
+| **depth `L=5`** | **+0.46** | **+3.73** | **−0.27** | **SIGN DIFFERS** |
+| fan-in 6 | **+0.91** | **+6.59** | +1.73 | **same sign, both significant** |
+
+> **T479. Three interventions are task-independent and two are not.**
+> **Normalisation** and **fan-in** help on both tasks and significantly on both.
+> **Ternary activations** hurt on both. **Balanced coverage and depth reverse**:
+> significantly positive on Fashion, negative on UNSW. By the rule registered
+> before the run, **neither may be stated as a property of the architecture.**
+
+> **T479a. The two that flip are exactly the two the connectivity thread was
+> built on.** T439's balanced coverage and T450's depth were the results the
+> broken UNSW split first inflated (T456), then reversed; Fashion now shows they
+> are **real on one task and absent on the other**. **A single-task effect
+> published as an architectural finding is the failure mode this programme has hit
+> three times** — T412's alphabet inversion, T447's cardinality, and now these.
+
+> **T479b. What the article may claim after this.** Only what holds on both:
+> **normalisation is the dominant intervention** (+17.85 / +6.36), **fan-in 6
+> helps** (+1.73 / +0.91), and **ternary activations cost** (−2.37 / −0.35).
+> Everything else is a task observation. **That is three claims, all significant
+> on two tasks, and it is a smaller and more defensible set than the eleven the
+> programme carried a week ago.**
+
+> **T479c. The magnitudes differ fourfold and the article must not average them.**
+> BatchNorm is +17.85 on UNSW and +6.36 on Fashion; fan-in is +1.73 and +0.91.
+> **UNSW is the harder task and every effect is larger there**, so a pooled number
+> would describe neither. **Report both, per task, as the table above does.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

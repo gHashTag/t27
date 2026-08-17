@@ -10289,6 +10289,16 @@ corrections before adding to them.*
 of the five are numerical minimisations labelled as theorems. Not a soundness
 problem; a reader-expectation one, and the tags now carry the truth.
 
+**1032. A second task is the cheapest test of whether a finding is
+architectural.** Five interventions, two tasks: three keep their sign, two
+reverse -- and the two that reverse are exactly the ones the connectivity thread
+was built on (T479a). *One extra dataset separated "property of the architecture"
+from "property of UNSW" for five claims in one run.*
+
+**1033. Never pool effects that differ fourfold between tasks.** BatchNorm is
++17.85 on UNSW and +6.36 on Fashion; a pooled figure describes neither (T479c).
+*Report per task, always, when the tasks differ in difficulty.*
+
 ### How to update this tracker
 
 After closing a wave:
