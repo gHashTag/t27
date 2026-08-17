@@ -19537,4 +19537,53 @@ than at zero:
 
 ---
 
+## W795 — the readback path, and the one stage that stops it
+
+### T468 — `t27c silicon` diagnoses its own blocker correctly and does not act on it
+
+With the boards reachable (T460) and the target chipdb built (T466), the project's
+own end-to-end command was run for the first time this session. It needs a spec
+whose generated module a BSCAN wrapper instantiates; `specs/fpga/ternary_link.t27`
+emits `ZeroDSP_TernaryLink` and `fpga/verilog/ternary_link_jtag.v` wraps it.
+
+    t27c silicon --top fpga/verilog/ternary_link_jtag.v \
+                 --wrong-part fpga/verilog/ternary_mac_demo_top.bit \
+                 --busdev-num 1:4 specs/fpga/ternary_link.t27
+
+| stage | result |
+|---|---|
+| spec → Verilog | **OK**, 12,940 B, 1 `$display` stripped (T167) |
+| yosys | **OK**, **118 LUT, 16 CARRY4, 0 DSP48E1, BSCANE2 ×1** — *chain forced to 1* |
+| nextpnr | **OK**, 102,675 B |
+| **BSCAN chain == site** | **FAIL** — *"JTAG_CHAIN(1) enabled, BSCAN4 wired — rebuilding at 4"* |
+| fasm2frames, bitstream | skipped |
+
+> **T468. The tool's own T172a guard fires correctly and the promised rebuild does
+> not happen.** It forces the chain to 1, nextpnr places the `BSCANE2` at site
+> **BSCAN4**, the guard compares them, reports the mismatch and announces
+> *"rebuilding at 4"* — and then stops. **Reproduced identically on three
+> consecutive runs.**
+
+> **T468a. The wrapper's parameter is not the lever.** `ternary_link_jtag.v`
+> declares `JTAG_CHAIN_N = 3`; setting it to 4 changed nothing and the note still
+> read *chain forced to 1*, so the flow overrides the parameter. **The edit was
+> reverted rather than left in as a misleading no-op.**
+
+> **T468b. This is the last blocker between a specification and a value read off
+> the die, and it is one stage of logic.** Everything upstream works —
+> spec → Verilog → yosys with zero forbidden primitives → placed and routed — and
+> everything downstream is proven separately: `fasm2frames` and `xc7frames2bit`
+> produced a loadable bitstream this session (T467), and `openFPGALoader` loads it
+> with the 0→1 control on three dice (T461). **The guard is right, the diagnosis
+> is right, and the rebuild it names is missing.**
+
+> **T468c. Worth stating plainly: the tool caught a defect that would have wasted
+> the wave.** Without that guard the flow would have produced a bitstream, loaded
+> it, reported `done 1`, and read **silence** from a BSCAN user register wired to
+> a chain nobody enabled — which is precisely the failure T172a records as having
+> hidden the readback for six waves. **A guard that stops the pipeline is cheaper
+> than a result that is quietly empty.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

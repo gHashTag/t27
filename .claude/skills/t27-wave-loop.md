@@ -10176,6 +10176,19 @@ you started before concluding it cannot be done.*
 zero.** The build was watched by a loop that would have killed it with headroom
 left; it never needed to fire. *Instrument the failure you have already had twice.*
 
+### W795 — lessons 1014-1015
+
+**1014. A guard that names the fix and does not apply it is still worth having.**
+`t27c silicon` reports "JTAG_CHAIN(1) enabled, BSCAN4 wired -- rebuilding at 4"
+and then stops. Without it the flow would have loaded a bitstream, reported
+done 1, and read silence from an unenabled chain -- the exact failure T172a says
+hid the readback for six waves (T468c).
+
+**1015. Check whether the knob you turned is the knob being read.** I set the
+wrapper's JTAG_CHAIN_N from 3 to 4 and the note still said "chain forced to 1":
+the flow overrides it. *Revert an inert edit rather than leaving it as evidence of
+an attempt -- it reads as a fix to the next person.*
+
 ### How to update this tracker
 
 After closing a wave:
