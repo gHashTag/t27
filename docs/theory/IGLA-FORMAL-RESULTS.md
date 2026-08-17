@@ -19398,4 +19398,48 @@ Passing `--fpga-part xc7a200tfbg676`:
 
 ---
 
+## W793 — the ENOSPC was swap, and I had blamed the wrong thing twice
+
+### T464 — memory pressure, not output files, filled the volume
+
+Two ENOSPC events this session disabled the `Bash` tool outright — it fails
+creating its output file **before** running anything, so `df` and `rm` become
+unavailable and the tool needed to recover is killed by the condition it must
+fix. I diagnosed the second as *"my own `ioreg -l` in a background task; `head`
+in the pipeline does not stop the task file capturing the full dump"* (lesson
+1006). That was **part of it and not the driver.**
+
+Measured while watching free space fall 5.0 → 3.0 GB in minutes with **no large
+file appearing anywhere**:
+
+    vm.swapusage: total = 7168.00M  used = 6113.12M  free = 1054.88M
+
+> **T464. macOS swap lives on the boot volume and grows dynamically, so memory
+> pressure consumes the same free space `df` reports.** Two concurrent
+> memory-heavy Python jobs — `bbaexport` parsing a 547 MB device database and a
+> fan-in-9 sweep holding `(batch, 256, 9)` einsum arrays — drove swap to **6.1 GB**
+> and the volume to the edge. **No file I could find was growing, because the
+> growth was not a file I owned.**
+
+> **T464a. The mitigation changes accordingly.** Cleaning scratch directories
+> treats the symptom. The rule is **do not run two memory-heavy jobs
+> concurrently**, and when free space falls with no growing file, **check
+> `sysctl vm.swapusage` before hunting for one.**
+
+> **T464b. Killing the right job is a judgement about evidence, not about size.**
+> `bbaexport` was stopped and the fan-in sweep kept: the sweep had already
+> produced `F=3 = 84.86` and `F=6 = 86.59` — reproducing T458 exactly — and its
+> remaining points locate an accuracy ceiling. The chipdb has never completed in
+> **three** attempts and is a convenience, not a measurement. **The job that has
+> produced nothing twice is the one to stop.**
+
+> **T464c. What this costs the spec-to-die closure.** `e8m0.t27` is placed and
+> routed on the **xc7a100t** chipdb (T440), and the target die needs
+> `xc7a200tfbg676`. That build is now three-for-three unfinished, and it is the
+> only step between a specification and a bitstream this bench can load.
+> **It is not blocked by knowledge — it is blocked by 7 GB of swap on a volume
+> with 12 GB used.**
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

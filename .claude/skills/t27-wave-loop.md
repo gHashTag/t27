@@ -10149,6 +10149,22 @@ the part number.*
 on power-up and is not an autonomous act. *State where the line is before
 approaching it, not after.*
 
+### W793 — lessons 1009-1011
+
+**1009. When free space falls and no file is growing, check `sysctl
+vm.swapusage`.** macOS swap lives on the boot volume; two memory-heavy Python
+jobs drove it to 6.1 GB and took the volume to the edge while `find -size +100M
+-newermt` returned nothing (T464). *I blamed my own ioreg output file for the
+previous ENOSPC -- that was part of it and not the driver.*
+
+**1010. Do not run two memory-heavy jobs concurrently on this machine.** The
+mitigation is scheduling, not cleaning. Cleaning scratch treats the symptom.
+
+**1011. Stop the job that has produced nothing, not the big one.** bbaexport has
+failed to finish three times and is a convenience; the fan-in sweep had already
+reproduced two published points exactly. *Kill by evidence produced, not by
+resident size.*
+
 ### How to update this tracker
 
 After closing a wave:
