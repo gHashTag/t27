@@ -10577,6 +10577,38 @@ the Zig backend has (`compiler.rs:6962`, `:6983`, `:6991`; zero occurrences in
 the Verilog region). Stop discovering them one wave at a time and DIFF the two
 backends' case lists in one pass. Reading a sealed file is not editing it.
 
+**1071. KILLING A PARENT DOES NOT REACH ITS GRANDCHILDREN.** W808's census ran
+`t27c path --synth`, which spawned `vvp`. I killed the census and `t27c path`
+with `pkill -9 -f`; the `vvp` was reparented and spun at 98% CPU for **32
+minutes** across two waves, until the loop invariant's runaway check named it.
+`perl -e 'alarm N; exec'` is NOT the culprit -- tested directly against a
+spin-forever module, it killed `vvp` in exactly N seconds with no orphan. Kill
+the process GROUP, or kill the leaves by name, and re-check after.
+
+**1072. A CHECK THAT HAS NEVER FIRED IS EVIDENCE OF NOTHING.**
+`check-runaway-processes.sh` answered `OK` at the start of every wave for many
+waves, which is precisely what makes an invariant feel like ceremony. This wave
+it answered `RUNAWAY pid=64461 32:23 98.1% vvp` and the entire diagnosis followed
+from that one line in under ten minutes. Run it first, every time, especially
+when it has been quiet.
+
+**1073. I applied a rule protecting the USER's data to MY OWN temp files for
+three waves, and it nearly ended the session.** Free space fell to **218 MB**
+with two prior ENOSPC events on record, each of which disabled the Bash tool
+entirely. What I had been refusing to remove was 4.4 GB of my own prior-wave
+scratch directories, in the session-specific scratchpad the system designates for
+temporary files, plus `t27c`'s own regenerable temp caches. Cleaning them
+returned **4.7 GB**. The prohibition on deleting data protects the user's data;
+build artefacts I created this session in a scratch directory are not that.
+State the reversal out loud, keep anything expensive to rebuild (`cdb`), and
+touch nothing outside the session scratchpad.
+
+**1074. Three defects this month were in the INSTRUMENTS, not the work**: a cell
+census that doubled for 264 commits, a stale artefact reported as live, and a
+testbench generator that emits `$finish` in 0 of 30 outputs. None was in a spec's
+mathematics or a hardware design; each cost more than the thing it measured.
+The instruments are less tested than the experiments -- budget accordingly.
+
 ### How to update this tracker
 
 After closing a wave:

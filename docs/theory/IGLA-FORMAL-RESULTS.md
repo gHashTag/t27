@@ -21227,6 +21227,75 @@ enforces a hash over its contents and reading does not move it. The fix does
 require writing it, and that remains an Architect decision (FROZEN.md, and W780's
 precedent: verify, document, do not apply).
 
+## W810 -- the loop's own hygiene check earned its keep
+
+### T518 -- A RUNAWAY `vvp` RAN FOR 32 MINUTES, AND KILLING ITS PARENT IS WHY [measured]
+
+The loop invariant's third step found it:
+
+    RUNAWAY  pid=64461  32:23 (32m)  98.1%  vvp
+             /var/folders/.../T/t27-path/memory_tb.vvp
+
+That process came from W808's corpus census, which I killed two waves ago. The
+census ran `t27c path --synth`, which spawned `vvp`. I killed the census script
+and `t27c path`; **the grandchild was reparented and kept spinning.**
+
+The mechanism was tested rather than assumed. `perl -e 'alarm N; exec @ARGV'`
+kills `vvp` correctly -- a deliberate spin-forever module wrapped in `alarm 5`
+returned in exactly 5 s with no orphan. So SIGALRM is not ignored, and the
+timeout discipline the mission's loop invariant demands is sound. What failed is
+different and simpler: **`pkill -f <parent>` does not reach grandchildren**, and a
+simulator running an unbounded testbench is precisely the grandchild that never
+exits on its own. Two waves of degrading CPU and disk had one cause and it was
+not mysterious; it was orphaned.
+
+### T519 -- NO GENERATED TESTBENCH EMITS `$finish`, IN ANY OF THIRTY [measured]
+
+Generating simulation Verilog for every `specs/fpga/testbench/*.t27` and running
+each under an 8-second bound:
+
+    terminates      12
+    HANGS            4     clock_domain_tb, gf16_accel_tb, memory_tb, spi_tb
+    no compile      10
+    no generation    4
+
+    `$finish` present in the generated testbench:   0 of 30
+
+Zero. The twelve that terminate do so only because their `initial` blocks run out
+of statements, not because the simulation is bounded. Nothing in the generator
+bounds it, so any spec whose test bodies contain a non-terminating computation
+produces a `vvp` that runs until something outside kills it -- and `t27c path
+--synth` over a corpus spawns one per spec.
+
+The four that hang carry no `always` block and no `forever`, and `power_tb`
+terminates with the same `#delay` count, so neither a clock generator nor a delay
+is the discriminator. The non-termination is in the specified computation itself
+and Icarus is executing it faithfully. **That makes it a spec defect surfaced by
+a generator defect**: an unbounded function would be caught instantly by a
+`$finish` guard, and there is none.
+
+### T519a -- this is the third defect this month in the REPORTING and HARNESS layer, not in the work [self-critical]
+
+    T500  `cell_census` doubled every cell count for 264 commits
+    T513  a stale `.vvp` was reported as a live artefact; withdrawn claim followed
+    T519  no generated testbench is bounded, and one escaped for 32 minutes
+
+None of the three is in a spec's mathematics or in a hardware design. All three
+are in the layer that reports on those, and each cost more than the thing it was
+reporting on. The pattern is worth stating plainly because it predicts where to
+look next: **the instruments are less tested than the experiments.**
+
+### T520 -- and the mission's own invariant is what caught it [measured]
+
+The loop invariant requires `scripts/check-runaway-processes.sh` at the start of
+every wave. It has been run every wave for many waves and answered `OK` every
+time -- which is exactly what makes a check look like ceremony. This wave it
+answered `RUNAWAY`, named the pid, the age, the CPU share and the binary, and the
+whole diagnosis above followed from that one line in under ten minutes.
+
+A check that has never fired is not evidence that it is unnecessary. It is
+evidence of nothing at all until the day it fires.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
