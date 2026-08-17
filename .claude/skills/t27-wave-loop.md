@@ -10524,6 +10524,29 @@ THE RULE: before a sweep, multiply the artefact size by the item count and
 compare to `df`. If the product exceeds free space, the sweep is not a
 measurement, it is an outage with a progress bar.
 
+**1064. A BYTE COUNT FROM A STALE TEMP FILE AUTHENTICATES A CORPSE.** The
+`path --synth` table showed `19082 B` for an `iverilog + vvp` stage that failed
+and wrote nothing; the file was three days old, left in the temp directory by an
+earlier run. The artefact column exists to catch stages that "finish" without
+doing anything, and it does not clear the directory first, so it certifies the
+previous run's success as this one's. Same family as the doubling (T500): the
+reporting layer asserting what the run did not do. Delete the expected artefact
+BEFORE the stage, then a byte count means something.
+
+**1065. Size a class over the POPULATION, and expect the sample to be wrong in
+direction as well as magnitude.** 38 specs matched `slice parameter AND .len()`.
+A 12-spec sample failed on `.len()` in 3 cases -- 25%, extrapolating to 9.5. Over
+all 38 the true count is 15, or 39%. The sample was the alphabetical head and the
+affected specs cluster in `igla/`. Running the whole population cost 90 seconds.
+
+**1066. Deleting a node from a call graph breaks its callers, and that is the
+measurement, not the obstacle.** Modelling "the backend skips what has no Verilog
+form" by removing every function that calls `.len(` converted 1 of 15 to PASS;
+13 then failed with `No function named '<callee>'`. That refutation is what
+turned the diagnosis from "a missing emitter case" into "specs whose
+computational model is software", which is a different fix in a different place.
+The cheap wrong experiment bought the right diagnosis.
+
 ### How to update this tracker
 
 After closing a wave:

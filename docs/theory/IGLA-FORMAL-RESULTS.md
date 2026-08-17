@@ -20960,6 +20960,152 @@ the only one that changed a theorem: without T499b's failure, the CARRY4
 explanation would never have been looked for, because grouping would have
 appeared to work and its mechanism would have gone unexamined.
 
+## W808 -- the Icarus class measured, and my proposed fix refuted
+
+### T509 -- `.len()` REACHES THE GENERATED VERILOG, AND THE CLASS IS 15, NOT 38 [measured]
+
+`specs/igla/race/ternary_mac.t27` passes yosys and fails Icarus (T499c). The
+cause is two elaboration errors:
+
+    tm1.v:120: error: Object igla_race_ternary_mac.ternary_dot.a
+                      has no method "len(...)".
+    tm1.v:120: error: Unable to elaborate condition expression.
+
+`ternary_dot(a: []i8, w: []TernaryWeight, ...)` calls `a.len()`. `compiler.rs`
+handles that spelling at line 6962 -- **for the Zig backend only**, lowering it to
+Zig's `.len` field. The Verilog backend has no case for it at all and emits the
+name verbatim. Verilog has neither dynamic arrays nor methods, so the file fails
+elaboration, and the failure takes the SYNTHESISABLE part of the file down with
+it: yosys survives because the function is unreachable from the top module and
+gets pruned; Icarus elaborates everything.
+
+SIZING THE CLASS, over the population and not a sample, because the mission's own
+standing correction says a class named from one case is not a class. 1,078 specs;
+38 match the pattern `slice parameter AND .len()`. Running all 38:
+
+    LEN    15   fail with `.len()` as the FIRST error
+    OTHER  16   fail earlier, on something unrelated
+    NOGEN   6   produce no Verilog at all
+    PASS    1
+
+A 12-spec sample had given 3 of 12 = 25%, which extrapolates to 9.5. The
+population gives 15 of 38 = 39%. **The sample underestimated by 60%**, in the
+same direction and for the same reason as T102: the sample was the alphabetical
+head, and the affected specs cluster in `igla/`.
+
+The 15 are concentrated exactly where this project's work is: **9 in
+`igla/race`, 5 in `igla/coder`, 1 in `nn/`.**
+
+### T510 -- AND MY PROPOSED FIX IS REFUTED: 1 OF 15, NOT 8 [measured]
+
+FORECAST REGISTERED before the experiment: deleting every generated Verilog
+function whose body calls `.len(` -- modelling the backend skipping what has no
+Verilog form -- converts the 15 to PASS or to a later error, with **at least 8 of
+15 reaching a clean PASS**.
+
+    result: 1 of 15 PASS  (`igla/race/ternary_mac.t27`)
+           13 of 15 fail with `No function named '<callee>' found`
+            1 of 15 unchanged (`nn/hslm.t27`, 0 functions removed)
+
+REFUTED, and the refutation rewrites the diagnosis. Removing a slice-taking
+function breaks its CALLERS -- `apply_rope_k`, `ternary_mul`, `has_substring`,
+`detokenize_inner`, `adder_tree_inner`. The `.len()` emission is only the first
+error in a call graph that has no Verilog form at any node.
+
+**So this is not a missing emitter case. It is specs whose computational model is
+software.** Recursion over dynamic slices is not hardware, and the honest fix is
+for the Verilog backend to REFUSE such a call graph with a diagnostic naming the
+slice, not to emit it and let Icarus discover it 120 lines later.
+
+`nn/hslm.t27` is a third sub-case again: zero functions were removed, so its
+`.len()` sits outside any `function ... endfunction` block.
+
+### T511 -- ONE SPEC IN FIFTEEN IS A LEAF, AND IT IS THE DENSITY-CRITICAL ONE [measured]
+
+`ternary_mac.t27` reached PASS after removing exactly ONE function. `ternary_dot`
+is a leaf: nothing in the synthesisable path calls it, so deleting it costs the
+Verilog nothing. That is why this spec alone crosses.
+
+It is also the spec every FPGA density number in W806-W807 came from (T499, T502,
+T507-T508). So the single highest-value item in this class is not a compiler
+change at all -- **it is separating `ternary_dot` from the hardware path in the
+spec**, which needs no seal broken and no Architect signature.
+
+The remaining 14 need the diagnostic T510 describes, and that lives in
+`bootstrap/src/compiler.rs`, which is under the FROZEN_HASH seal enforced at
+`bootstrap/build.rs:206`. **Not attempted.** FROZEN.md requires a `[GOLD-RING]`
+PR with Architect approval, and W780's Zig patch set the precedent: verify,
+document, do not apply.
+
+### T511a -- three forecasts, and the refuted one was again the informative one [self-critical]
+
+    W808 registered:  the `.len()` fix converts >= 8 of 15 to PASS   REFUTED (1)
+
+Had it confirmed, the wave would have ended with "add a Verilog case for `.len()`"
+-- a change that would have fixed one spec and left thirteen failing on the next
+node of the same call graph, while appearing to address a class of fifteen. The
+refutation is what produced T510's actual diagnosis. Third consecutive wave in
+which the losing forecast is the one that moved a theorem (T508b, T493).
+
+### T512 -- the split works at the level it was aimed at, and the four-stage forecast is REFUTED [measured]
+
+`ternary_dot` and its declarations were lifted out of `ternary_mac.t27` into
+`specs/igla/race/ternary_dot_sw.t27`, which imports the arithmetic rather than
+copying it (`use igla::race::ternary_mac;`), so `ternary_mul` and
+`ternary_decode` keep one home.
+
+    declarations   485  ->  426 + 59 = 485      exact
+    tests          345  ->  294 + 51 = 345      exact, none lost
+    `.len(` in the generated Verilog:  12  ->  0
+    yosys:  33 LUT, 10 CARRY4, 0 DSP48E1  -- unchanged, the hardware is identical
+    iverilog on the generated file:  rc 0, an 8,880 B vvp where there was none
+
+FORECAST REGISTERED before the split: `ternary_mac.t27` passes ALL FOUR stages.
+**REFUTED.** The elaboration blocker is gone and the `iverilog + vvp` stage still
+reports failure. What the split bought is real and smaller than claimed: the
+design now compiles, where before it could not be elaborated at all.
+
+### T513 -- TWO REPORTING DEFECTS BEHIND THAT, AND ONE IS THE DOUBLING'S SIBLING [measured]
+
+**A stale artefact is reported as this run's output.** The `iverilog + vvp` row
+shows `19082 B` on a stage that produced nothing. That file is in `path`'s temp
+directory dated **Aug 14** -- three days old, from before any of this work. The
+stage failed, wrote no artefact, and the table printed a byte count anyway.
+
+This is the doubling's sibling (T500): both are the REPORTING layer asserting
+something the run did not do, and `service.rs`'s own docstring names the disease
+-- *"a stage that finished in 0.0 s did not finish; it did not start"*. The
+byte-count column was introduced to catch exactly this and does not clear its
+own temp directory first, so it authenticates a corpse.
+
+**And the generated testbench contains no checks.** Building and running the
+freshly generated Verilog by hand:
+
+    iverilog -g2012 -o tm2.vvp tm2.v   ->  rc 0, 8,880 B
+    vvp tm2.vvp                        ->  0 PASSED, 0 FAILED
+
+Zero of each, from a spec carrying 294 tests. `service.rs:565` already treats
+that as failure -- `code = if failed > 0 || passed == 0 { Some(1) }` -- with the
+comment *"a harness that reports zero checks is the 265-baseline failure: it
+could not fail, so its silence proves nothing."* This spec is one of those 265,
+and the standing open item is now localised: **the Verilog testbench generator
+emits no assertions for this spec's test forms**, and no amount of fixing the
+design will change that.
+
+### T513a -- what W808 actually established, stated without inflation [self-critical]
+
+Three forecasts registered, and the two that mattered both lost.
+
+    the `.len()` fix converts >= 8 of 15 to PASS     REFUTED (1 of 15)
+    the split makes ternary_mac green on all four    REFUTED (compiles, still fails)
+    the class is countable and is not 38             CONFIRMED (15)
+
+Nothing here has been made to work end to end. What has been established is
+where the wall is, and it moved twice under measurement: from "`.len()` is
+unhandled" to "these are software call graphs" to "and behind them the testbench
+generator emits no checks at all". Each step was a refutation of the previous
+wave's proposed fix, and each was cheaper than the fix would have been.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
