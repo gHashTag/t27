@@ -10475,6 +10475,39 @@ LUT indexed by the whole group's code word, not eight selects sharing an adder.
 Implementing the sharing and skipping the tabulation moved the cost from the
 carry chain into the mux trees, and the mux trees cost more.
 
+**1059. A COST MODEL DOES NOT SURVIVE A CHANGE OF FABRIC.** arXiv:2604.25183
+governs LUT-tabulation benefit by the ratio `a_add : (a_mux + a_inv)`, measured
+in TSMC 16 nm where an adder and a mux are both gates. On Xilinx 7-series the
+adder gets dedicated **CARRY4** silicon and the mux does not, so the identical
+arithmetic lands on the opposite side of the identical inequality. I imported the
+model unchanged, concluded our 32-bit accumulator put us in their FP16-like
+regime where tabulation pays most (T499a), and three synthesised architectures
+said the reverse. Every term of their model is right; one is denominated in a
+different currency here.
+
+**1060. Parity is a free test for a doubling defect, and it FORBIDS blanket
+correction.** A count produced by summing two identical tables is even in every
+field, so an odd count cannot come from that defect. Seven repository figures
+were even and correctable; two were odd and clean. Halving everything -- the
+obvious move -- would have manufactured two new wrong numbers while the cleanup
+looked complete. When fixing a systematic error, first find the test that says
+which records it touched. Here it cost one modulus.
+
+**1061. An archived measurement from before a defect is the cheapest control you
+will ever get.** `WAVE_LOOP_656_REPORT.md` recorded 83 LUT / 37 CARRY4 one wave
+before `cell_census` existed; the same design appears in a later document at
+166 / 74. Two numbers, one design, exactly 2x apart, written by two waves that
+were not comparing anything. Grep the archive for the same artefact measured
+twice before designing a new experiment.
+
+**1062. Of three registered forecasts, the REFUTED one was the only one that
+moved a theorem.** Confirmed: the single MAC at 40-90 LUT, and the mu-deep table
+between 250 and 500. Refuted: grouping below 30 LUT/mul, which came back at
+63.25. The two confirmations told us where we stood; the refutation forced the
+question "then where did the saving go?", and the answer -- CARRY4 is dedicated
+silicon and read-outs are not -- reversed a theorem written two waves earlier.
+Register forecasts you might lose.
+
 ### How to update this tracker
 
 After closing a wave:

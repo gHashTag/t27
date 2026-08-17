@@ -20877,6 +20877,89 @@ multiply-accumulate density and must never be quoted against the field's
 LUT-per-multiply numbers. A number can be accurately measured and still answer no
 question anyone asked.
 
+## W807b -- the mu-deep LUT built and measured, and the fabric decides
+
+### T507 -- THE TABLE BEATS GROUPED SELECTS AND LOSES TO THE PLAIN MAC [measured]
+
+T503 named W806's mistake: arXiv:2604.25183's `mu` is a LUT indexed by the
+group's whole code word, and `ternary_mac_group.t27` implemented the adder
+sharing while skipping the tabulation. `specs/igla/race/ternary_lut_table.t27`
+builds the tabulation: mu = 2 activations produce all nine ternary partial sums
+from TWO adders, and K = 4 output neurons each read one entry. Eight multiplies.
+
+FORECAST REGISTERED before synthesis: between 250 and 500 LUT -- better than the
+506 the grouped selects cost, not better than 8 x 33 = 264.
+
+    t27c path --synth  ->  361 LUT, 26 CARRY4, 0 DSP48E1
+      (all four stages green: Zig 15/15, iverilog 16/16, yosys clean)
+
+CONFIRMED, at 361. The full picture over three architectures at matched function:
+
+    design                        LUT   CARRY4   muls   LUT/mul   CARRY4/mul
+    mu=1, plain scalar MAC         33       10      1     33.00        10.00
+    mu=8, grouped selects         506       24      8     63.25         3.00
+    mu=2 K=4, the mu-deep table   361       26      8     45.11         3.25
+    arXiv:2604.25183 (ASIC, INT8)  --       --     --     19.27           --
+
+The table recovers 29% against grouped selects, exactly as the mechanism
+predicts. **And it still loses to the plain per-MAC unit by 37%.** The best FPGA
+density this project has is the simplest thing it built.
+
+### T508 -- THE REASON IS CARRY4, AND IT REVERSES T499a [derived from measurement]
+
+T499a argued this project sits in the competitor's FP16-like regime -- high
+`a_add : (a_mux + a_inv)` ratio -- because our accumulator is 32 bits wide while
+our ternary select is nearly free, and therefore grouping should pay MOST here.
+The measurement says otherwise, and the three CARRY4 columns say why.
+
+On Xilinx 7-series a wide add is not built from LUTs. It is built from **CARRY4**,
+dedicated carry logic, four bits per cell -- the 32-bit accumulator of the scalar
+MAC costs 10 CARRY4 and its share of only 33 LUT. So on this fabric:
+
+    a_add   is cheap IN THE RESOURCE BEING COUNTED  (it spends CARRY4, not LUT)
+    a_mux   is expensive in that resource            (a read-out is pure LUT)
+
+which is a LOW ratio -- the competitor's INT8-like regime, where their own model
+says tabulation yields little. **Their finding does transfer to us, and T499a's
+reversal of T496 was itself wrong.**
+
+The error in T499a was importing an ASIC cost model unchanged. In 16 nm standard
+cells an adder and a mux are both gates and the ratio is a property of the
+arithmetic. On an FPGA the adder has dedicated silicon and the mux does not, so
+the same arithmetic lands on the opposite side of the same inequality. Every
+term of their model is right; one of them is measured in a different currency
+here.
+
+    T496   their finding does not transfer     -- wrong reason, right direction
+    T499a  it transfers and favours us         -- wrong
+    T508   it transfers and does NOT favour us -- measured, three architectures
+
+### T508a -- the honest reading of what to build next [derived]
+
+If tabulation loses because read-outs are LUTs and adds are CARRY4, then the
+lever is not deeper tables. It is **more accumulator per LUT**: keep the plain
+per-MAC structure, which already spends the cheap resource, and widen the array
+rather than the group. The competitor's 19.27 is an ASIC number where that trade
+does not exist, and this project should stop treating it as a target reachable by
+copying their architecture.
+
+What remains genuinely open is whether 33 LUT/mul can be cut at all on this
+fabric. Nothing measured here addresses it, and no forecast is registered,
+because there is no mechanism in hand to forecast about. Naming that gap is
+worth more than another architecture drawn from a paper whose cost model does not
+hold here.
+
+### T508b -- three forecasts, three outcomes, and the useful one lost [self-critical]
+
+    T499  single MAC 40-90 LUT, adder-dominated, 0 DSP   CONFIRMED (33, 10 CARRY4)
+    T499b mu=8 grouping below 30 LUT/mul                 REFUTED  (63.25)
+    T507  mu-deep table between 250 and 500 LUT          CONFIRMED (361)
+
+The confirmed pair told us where we are. The refuted one told us why, and it is
+the only one that changed a theorem: without T499b's failure, the CARRY4
+explanation would never have been looked for, because grouping would have
+appeared to work and its mechanism would have gone unexamined.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
