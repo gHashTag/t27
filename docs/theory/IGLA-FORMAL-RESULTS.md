@@ -19777,4 +19777,82 @@ make the precondition for a module to synthesise to anything:
 
 ---
 
+## W799 — five of five, and T472 withdrawn by the fifth
+
+### T475 — every specification with a boundary now answers from silicon
+
+Two wrappers completed the set, both checked by properties rather than constants:
+
+**`phi_weights.t27`** — the three-symbol alphabet claims `+φ` and `−φ` are
+distinct weights and everything else is zero, so:
+
+| clause | check |
+|---|---|
+| antisymmetry | `r(GAT_NEG) == −r(GAT_POS)` |
+| annihilation | `r(0) == r(3) == r(255) == 0` |
+| **non-triviality** | **`r(GAT_POS) ≠ 0`** — without it, a module returning zero for everything passes the first two perfectly |
+
+**`ternary_node.t27`** — the spec states its own accumulator contract in words:
+*"there is no normalisation stage, no rounding, and nothing for a floating-point
+comparison to be imprecise about — the datapath holds two exact integers."* That
+is testable without golden values:
+
+| clause | check |
+|---|---|
+| exact additivity | `node(…, acc=K) == node(…, acc=0) + K` for `K = +12345` and `K = −987654321` |
+| **non-triviality** | **`node(…, acc=0) ≠ 0`** for some symbol — else a module returning `acc` unchanged passes |
+
+**The full table, all three dice, all with the `Done 0 → Done 1` control:**
+
+| spec | LUT | CARRY4 | DSP/SRL | chain | verdict |
+|---|---:|---:|---:|---:|---|
+| `ternary_link.t27` | 118 | 16 | 0/0 | 4 | ok=1, 3/3 |
+| `e8m0.t27` | 98 | 56 | 0/0 | 1 | ok=1, 3/3 |
+| `tnf17.t27` | 86 | 16 | 0/0 | 4 | ok=1, 3/3 |
+| `phi_weights.t27` | 86 | 16 | 0/0 | 3 | ok=1, 3/3 |
+| `ternary_node.t27` | 92 | 16 | 0/0 | 3 | ok=1, 3/3 |
+
+> **T475. Five of five specifications with a data port answer from silicon, with
+> zero DSP48E1 and zero SRL16E in every one.** The sixth ready artefact,
+> `golden_sieve.t27`, has no boundary and correctly cannot (T474). **Fifteen
+> spec-die verdicts, each bracketed by a foreign bitstream that forced `Done` to
+> 0 on the same board.**
+
+> **T475a. Not one of the five uses a golden constant table.** Involution,
+> antisymmetry, annihilation, exact additivity — every check is an algebraic
+> property the spec itself claims, and each carries a **non-triviality clause**
+> because a dead module satisfies all four otherwise. *A table derived from the
+> spec would check the spec against itself; a property checks the hardware.*
+
+### T476 — the board pattern was not a board property, and the fifth design says so
+
+T472 called the read-index pattern `[2] / [1,2] / [0,1,2]` **"a property of the
+board, reproducible"** on two designs, and W798 confirmed it on a third and
+fourth. **The fifth breaks it:**
+
+| design | 1:4 | 1:6 | 1:8 |
+|---|---|---|---|
+| `ternary_link` | [2] | [1,2] | [0,1,2] |
+| `e8m0` | [2] | [1,2] | [0,1,2] |
+| `tnf17` | [2] | [1,2] | [0,1,2] |
+| `phi_weights` | [2] | [1,2] | [0,1,2] |
+| **`ternary_node`** | **[0,1,2]** | **[0,1,2]** | **[0,1,2]** |
+
+> **T476. T472 is withdrawn.** The pattern is **not** design-independent: the
+> fifth design reads correctly on the very first attempt on every board,
+> including 1:4, which four designs in a row needed three reads for. **Whatever
+> the mechanism is, it is a joint property of design and board and not of the
+> board alone.**
+
+> **T476a. Four confirmations were not enough, and that is the lesson.** Lesson
+> 1019 said *"a second instance turns an anomaly into a property"* and lesson 1023
+> said *"three instances make a property"* — both written this week, both about
+> this exact pattern, and the fifth instance refuted the claim they justified.
+> **A pattern that holds four times and breaks on the fifth was never a property;
+> it was four samples from a space I had not characterised.** The honest form was
+> available and I did not use it: *"identical on N designs so far"*, with N
+> printed.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

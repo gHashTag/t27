@@ -10237,6 +10237,26 @@ failure; "3 of 5 with a boundary" is the number that means something (T474a).
 a third design with different LUT count, chain and bitstream. *One is an anomaly,
 two is a pattern, three is something to put in the SSOT.*
 
+### W799 — lessons 1024-1026
+
+**1024. Four confirmations refuted by the fifth.** The read-index pattern held on
+four designs and broke on the fifth. Lessons 1019 and 1023 -- "a second instance
+turns an anomaly into a property", "three instances make a property" -- were
+written this week ABOUT THIS PATTERN and the fifth instance refuted the claim they
+justified (T476a). *Write "identical on N so far" with N printed, not "is a
+property".*
+
+**1025. Every property test needs a non-triviality clause, and each one is
+different.** Involution passes on a wire; antisymmetry and annihilation pass on a
+module returning zero; exact additivity passes on a module returning `acc`
+unchanged. Three checks, three distinct dead answers, three separate clauses
+(T475a).
+
+**1026. Test the claim the spec makes about ITSELF.** ternary_node.t27 says in
+prose "no normalisation, no rounding, two exact integers" -- that is exact
+additivity in the accumulator, checkable on silicon with no golden values. *A
+spec's own prose is a source of properties nobody has to invent.*
+
 ### How to update this tracker
 
 After closing a wave:
