@@ -20684,6 +20684,115 @@ standing open items -- the Icarus baselines and the software-backend gap -- not
 regressions from the port added here, and the port is not claimed to have fixed
 them. Recorded so a later wave does not read the yosys success as a green spec.
 
+## W806b -- the measuring instrument was doubling, and it had been for waves
+
+### T500 -- `t27c path --synth` REPORTED EXACTLY 2x EVERY CELL COUNT [measured, fixed]
+
+Chasing why grouping made things worse, the group design was synthesised twice --
+once through `t27c path --synth`, once by hand through `yosys` and read with
+`t27c yostat`. They disagreed by a factor of two, exactly:
+
+    t27c path --synth   1012 LUT, 48 CARRY4
+    t27c yostat          506 LUT, 24 CARRY4
+
+Three candidate causes were tested and eliminated before the fourth was accepted.
+`-DSIMULATION`, which `path` defines and the manual run did not: the generated
+Verilog contains no `ifdef` at all and the count with it is unchanged. A
+different synthesis script: `service.rs:552` uses the same
+`synth_xilinx -family xc7 -flatten`. Two modules in the design: it is flattened.
+
+THE CAUSE. `cell_census` did `log.rfind("Printing statistics")` and summed to
+end-of-log. Finding the last statistics block is necessary and NOT sufficient --
+that block holds one table PER SECTION, and when yosys is invoked without a
+trailing explicit `stat`, the final block holds two: the module's own table and a
+`=== design hierarchy ===` table listing the same cells again. Reproduced with
+`path`'s exact invocation:
+
+    sections in that span : ['IglaRaceTernaryMacGroup', 'design hierarchy']
+    cell_census sums both : 1012 LUT, 48 CARRY4
+
+The manual run had an explicit trailing `stat`, which opens a fresh block with
+one section, which is why it was right by accident rather than by design.
+
+FIXED in `bootstrap/src/service.rs` -- stop at the second section header.
+Forecast registered before rebuilding: `path --synth` on `ternary_mac.t27` would
+then report 33 LUT, 10 CARRY4, 0 DSP48E1 and agree with `yostat`. CONFIRMED.
+
+This is the W719 family for the seventh time -- 3x, 2x and 4x inflations across
+five waves, a sixth reading nextpnr output -- and this time it was in the tool
+sitting beside the one written to prevent it. `yostat`'s doc comment describes
+this exact failure. Writing the specialised tool did not protect the general one.
+
+### T501 -- THE "66 LUT PER COMPOSED MAC NODE" FIGURE IS WITHDRAWN; IT IS 33 [measured]
+
+The number 66 has been in this repository for waves. It is quoted in
+`specs/igla/race/mvp_ternary_classifier.t27` ("At the measured 66 LUT per
+composed MAC node that is 990 LUT fully parallel"), and T161 built an argument on
+it ("66 LUT per ternary MAC -- 18x FINN's 1-bit figure ... if 66 is real, the
+ternary datapath is being built the expensive way").
+
+It was never real. It is `cell_census` doubling 33.
+
+    single runtime-weight ternary MAC, verified two ways:
+      33 LUT, 10 CARRY4, 0 DSP48E1
+
+T161's conclusion softens accordingly: 33 LUT/MAC is 9x FINN's 3.66 LUT per
+binary MAC, not 18x. The warning it drew is still worth heeding, at half strength.
+
+### T502 -- the field comparison, corrected [measured]
+
+    design                        LUT     mul/cyc   LUT/mul   activations  weights
+    arXiv:2604.25183 optimised 25,709      1,334     19.27    INT8         runtime
+    TeLLMe v2 (Zynq XCK26)     35,200      1,344     26.19    INT8         runtime
+    t27 ternary_mac, mu=1          33          1     33.00    ternary      runtime
+    t27 ternary_mac_group, mu=8   506          8     63.25    ternary      runtime
+    t27 MVP whole classifier       83         24      3.46    ternary      COMPILE-TIME
+
+T497 said 3.4x behind the 2026 state of the art. **The true figure is 1.7x**, and
+it is the first honest FPGA density number this project has had. T498's separate
+point stands untouched: the 3.46 row is constant folding and is not a MAC density.
+
+### T503 -- T499b REFUTED, AND THE REFUTATION SURVIVES THE CORRECTION [measured]
+
+Registered before `ternary_mac_group.t27` was written: at mu = 8 the per-multiply
+cost falls below 30, CARRY4 per multiply falls by roughly mu, and it does not
+reach 19.27.
+
+    mu = 1   33 LUT,  10 CARRY4  ->  33.00 LUT/mul, 10.00 CARRY4/mul
+    mu = 8  506 LUT,  24 CARRY4  ->  63.25 LUT/mul,  3.00 CARRY4/mul
+
+  (1) below 30 LUT/mul       REFUTED -- it nearly doubled
+  (2) CARRY4/mul down by ~mu CONFIRMED -- 10.00 -> 3.00, a factor of 3.3
+  (3) does not reach 19.27   confirmed, but vacuously
+
+The adder DID share, exactly as T499a predicted from the competitor's own cost
+model -- and the saving was consumed several times over by something else. The
+netlist names it: the grouped design carries **172 MUXF7 and 59 MUXF8**, where
+the single MAC carries **zero of either**. Eight lanes of per-lane code extraction
+and select build wide multiplexer trees, and on this fabric those cost more than
+the carry chain they bought back.
+
+So T499a's reading of the ratio was right about the adder and incomplete about
+the alternative: their `a_mux` term is not negligible when the group is built as
+eight independent selects rather than as one table indexed by the group's code
+word. **That is precisely their `mu`-deep LUT, which this design did not build.**
+The experiment implemented the sharing and skipped the tabulation, which is half
+of their architecture, and the half that was skipped is where the mux cost goes.
+
+### T503a -- and the width defect I blamed first costs nothing [measured]
+
+Before finding the doubling, the generated Verilog was found to declare all 14
+locals of `group_sum` as `reg [31:0]` despite the spec's `as i16` casts -- the
+function's return type is correctly `signed [15:0]`, only the locals are wide.
+Forecast: narrowing them to `[15:0]` drops the count below 400.
+
+Patched all 14 and re-synthesised: **29 LUT2, 2 LUT3, 140 LUT4, 12 LUT5, 323
+LUT6, 24 CARRY4 -- identical, cell for cell.** Yosys's range propagation already
+proves the upper bits dead and trims them. The defect is cosmetic in silicon.
+REFUTED, and worth recording because it was the obvious suspect and it was
+innocent; two more suspects were cleared before the real cause was found, and the
+real cause was in the measuring instrument rather than in anything measured.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

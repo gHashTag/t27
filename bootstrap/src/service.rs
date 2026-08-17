@@ -88,11 +88,39 @@ fn file_len(p: &Path) -> Option<(PathBuf, u64)> {
 ///
 /// The statistics block is authoritative: it lists only instantiated cells, one
 /// per line, as `   <count>   <TYPE>`. Absence from the block means zero.
+/// W806 DEFECT, and it is the W719 family for the seventh time: finding the last
+/// `Printing statistics` is necessary and NOT sufficient. That block contains one
+/// table PER SECTION, and when `path` invokes yosys without a trailing explicit
+/// `stat` the final block holds TWO -- the module's own table and a
+/// `=== design hierarchy ===` table that repeats the same cells. Summing to
+/// end-of-log therefore counts every cell twice.
+///
+/// Measured on `specs/igla/race/ternary_mac_group.t27`: the span after the last
+/// `Printing statistics` holds sections `[IglaRaceTernaryMacGroup, design
+/// hierarchy]`, this function returned `1012 LUT, 48 CARRY4`, and `t27c yostat`
+/// on the same log returned `506 LUT, 24 CARRY4`. Exactly 2x, silently, in the
+/// tool that sits beside the one written to prevent this.
+///
+/// The single-MAC figure quoted through several waves as "66 LUT per composed
+/// MAC node" is the same doubling: the true cost is 33 LUT, 10 CARRY4.
+///
+/// FIX: stop at the SECOND section header. For a `-flatten`ed design the first
+/// section is the whole design, and any later section can only repeat it.
 fn cell_census(log: &str) -> String {
     let Some(start) = log.rfind("Printing statistics") else {
         return "no statistics block".into();
     };
-    let block = &log[start..];
+    let tail = &log[start..];
+    // Take the first `=== ... ===` section only; a second one is the hierarchy
+    // summary and re-lists the same cells.
+    let block = {
+        let after_first = tail.find("\n=== ").map(|i| i + 1).unwrap_or(0);
+        let rest = &tail[after_first..];
+        match rest[1..].find("\n=== ") {
+            Some(i) => &rest[..i + 1],
+            None => rest,
+        }
+    };
     let mut luts = 0u64;
     let mut dsp = 0u64;
     let mut carry = 0u64;

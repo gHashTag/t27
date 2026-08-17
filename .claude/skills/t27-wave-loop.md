@@ -10440,6 +10440,41 @@ three DIFFERENT chains (flash image 3, mvp 2, e8m0 1). The chain is a property o
 the build (T693), so "scan every chain before concluding the design is absent" is
 part of the acceptance criterion, not an optional extra.
 
+**1055. THE MEASURING INSTRUMENT WAS DOUBLING, AND THE SPECIALISED TOOL DID NOT
+PROTECT THE GENERAL ONE.** `t27c yostat` exists because summing `findall` over a
+yosys log double-counts; its doc comment describes the failure exactly. Beside it,
+`cell_census` in `service.rs` did `rfind("Printing statistics")` and summed to
+end-of-log -- and that span holds TWO tables when yosys is invoked without a
+trailing explicit `stat`: the module's own and the `=== design hierarchy ===`
+repeat. Every cell count `t27c path --synth` printed was 2x. Finding the last
+stat block is necessary and not sufficient; you must also stop at the second
+section header.
+
+**1056. A number that has sat in the repo for waves is not thereby verified.**
+"66 LUT per composed MAC node" was quoted in a spec comment, built into T161's
+argument, and used to size a scaling model. It was 33, doubled. Nothing had ever
+checked it against a second route. The cheap check -- synthesise once by hand and
+read with the tool written for reading -- took one command and would have caught
+it at any point.
+
+**1057. Clear the obvious suspect BEFORE the obvious conclusion.** When grouping
+made the design worse, the first suspect was the generated Verilog declaring all
+14 locals of a 16-bit reduction as `reg [31:0]`. Plausible, visible, and
+innocent: patching all 14 gave a netlist identical cell for cell, because Yosys's
+range propagation already proves the upper bits dead. Two more suspects
+(`-DSIMULATION`, a different synth script) were cleared the same way before the
+real cause turned up in the measuring instrument. Three wrong suspects is not
+waste; asserting the first one would have been.
+
+**1058. Sharing the adder without building the table is half an architecture,
+and the wrong half.** Grouping eight ternary lanes onto one accumulator did drop
+CARRY4 per multiply from 10.0 to 3.0 exactly as predicted -- and LUT per multiply
+went 33 -> 63, because eight independent per-lane selects built **172 MUXF7 and
+59 MUXF8** where the single MAC had zero of either. The competitor's `mu` is a
+LUT indexed by the whole group's code word, not eight selects sharing an adder.
+Implementing the sharing and skipping the tabulation moved the cost from the
+carry chain into the mux trees, and the mux trees cost more.
+
 ### How to update this tracker
 
 After closing a wave:

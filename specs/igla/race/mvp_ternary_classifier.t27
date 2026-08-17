@@ -47,9 +47,22 @@
 //    15   00001111    2   1  -1     0
 //   240   11110000   -1   0   2     2
 //
-// SIZE.  24 weights, 15 non-zero. At the measured 66 LUT per composed MAC node
-// that is 990 LUT fully parallel -- 0.74% of an XC7A200T. The point is not that
+// SIZE.  24 weights, 15 non-zero. At the measured 33 LUT per composed MAC node
+// that is 495 LUT fully parallel -- 0.23% of an XC7A200T. The point is not that
 // it is small; the point is that it is small enough to be certain about.
+//
+// W806 CORRECTION.  This line said 66 LUT and 990 LUT for several waves, and
+// T161 built an argument on the 66. It was never a measurement: `cell_census` in
+// `bootstrap/src/service.rs` summed BOTH tables of yosys's final statistics block
+// -- the module's own and the `=== design hierarchy ===` repeat -- and so
+// doubled every cell count `t27c path --synth` ever printed (T500). The single
+// runtime-weight ternary MAC is **33 LUT, 10 CARRY4, 0 DSP48E1**, verified by
+// `t27c yostat` and again by `path --synth` after the fix.
+//
+// The 83 LUT figure below is from a different route and is NOT corrected here;
+// it is a whole-classifier number whose 24 weights are compile-time constants
+// that Yosys folds, so it is not a MAC density at all and must never be quoted
+// against the field's LUT-per-multiply figures (T498).
 //
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
