@@ -23000,6 +23000,96 @@ sought, not stumbled into.
 That is not a defence of publishing early. It is the distinction between a claim
 that carries its own falsification test and one that does not.
 
+## W832 -- the boundary measured across the whole band, and the zero question answered
+
+### T577 -- OFFSET 11, MEASURED AT EVERY POINT ON THREE DICE [measured]
+
+W830 tested the boundary at two points; W831 found one of them carried a wrong
+expected value and corrected the model. Two verified points still leave nineteen
+computed by the model that had erred once.
+
+`gft_sadd_sweep_jtag.v` walks a counter through offsets 0 to 20, probing
+`sadd(off << 9, 511)` at each, with both halves latched sticky-low so a single
+disagreement anywhere is visible at the end. Icarus first, on the same RTL:
+
+    offsets 0..10   MOVED       offsets 11..20   absorbed
+    FIRST ABSORBED OFFSET = 11
+
+FORECAST REGISTERED: the die agrees at every offset. All three, `0xa5a522f7`:
+
+    design = 2   c_low = 1   c_high = 1   c_swept = 1   c_ind = 1   ok = 1
+
+CONFIRMED. `c_swept` matters and is why it is there -- a wrapper whose counter
+never advances satisfies the other two vacuously.
+
+**The boundary is now measured rather than computed**, by three parties: a
+corrected Python model, Icarus on the generated RTL, and three dice across the
+full band. Offset 0 is included deliberately and passes by `sadd`'s
+`if (a == 0) return b` guard rather than by the shift.
+
+### T578 -- T570 SURVIVES, AND I NEARLY REFUTED IT WITH THE WRONG FUNCTION [self-critical]
+
+T570 says `smul(0, x)` returns x's mantissa at offset 0. Testing it under Icarus
+against `specs/ternary/gft_smul.t27`:
+
+    x = 20481 (mant 1)   smul(0,x) = 0   DIFFERS
+    x = 20991 (mant 511) smul(0,x) = 0   DIFFERS
+    T570 REFUTED (8 mismatches)
+
+That report is correct about `gft_smul` and says nothing about T570, which was
+derived from `gft_signed_dot4.t27`. Reading both:
+
+    gft_smul          if (a == 0) { return 0; }   if (b == 0) { return 0; }
+    gft_signed_dot4   -- no guard at all --
+
+and their `magmul` differs too, by md5. **Two specs in one family implement
+multiplication differently.** T570 stands where it was derived; it never applied
+where I tested it.
+
+This is the third time in this wave-series that a claim about one file was
+checked against another -- W830 suspected it and cleared it, W831 was bitten by
+it in Python, and this is the same shape a third time. The tell is always
+available and always the same: **compare the two functions before comparing their
+results.**
+
+### T579 -- THE ZERO QUESTION IS NOT A DESIGN DECISION; IT IS TWO SPECS OUT OF TWENTY-ONE [measured]
+
+Reading `fn smul` in every `gft_*` spec that defines one:
+
+    with the zero guard      19
+    without it                2      gft_signed_dot4.t27, gft_signed_mac.t27
+    no smul at all           23
+
+Nineteen to two. **`0 * x = 0` is not an open question in this numeric line -- it
+is the settled behaviour of nineteen specs, and two are missing the guard.**
+
+That reframes what has been open since T552, twelve waves ago, as "should GF-T
+annihilate zero?" -- a question about the format, which nobody could answer
+without deciding what the format is for. It is instead a defect in two files
+against a majority that already implements the fix, and `gft_smul.t27` shows
+exactly what the corrected lines look like.
+
+W821's `c_ann = 0` was measured on `gft_signed_dot4` -- one of exactly the two.
+Every consequence traced since (T569's refuted harm prediction, T570's mantissa
+pass-through, the absorption boundary) is a property of those two files and not
+of the arithmetic the other nineteen use.
+
+STILL NOT DONE HERE. Adding two guards changes what the hardware computes for
+`gft_signed_dot4` and `gft_signed_mac`, and one of them has a silicon verdict
+resting on the current behaviour (T552). That is a decision with a measured basis
+now rather than a judgement call, and it is not mine to take unilaterally.
+
+### T579a -- forecast count, fifth entry [derived]
+
+    W828   withdrawals 0   refuted 1   confirmed 0
+    W829   withdrawals 0   refuted 0   confirmed 2
+    W830   withdrawals 0   refuted 1   confirmed 1
+    W831   withdrawals 1   refuted 1   confirmed 0
+    W832   withdrawals 0   refuted 0   confirmed 2
+
+Five waves, one withdrawal, and that one was found by a hardware test built to
+look for it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

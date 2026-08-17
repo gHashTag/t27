@@ -11107,6 +11107,26 @@ discriminating run; W831 ran it in ninety milliseconds of Icarus and the answer
 was the model. Keep the two questions separate, and prefer the run to the
 argument.
 
+**1144. `0 * x = 0` IS SETTLED IN 19 OF 21 gft SPECS; TWO LACK THE GUARD.**
+`gft_signed_dot4.t27` and `gft_signed_mac.t27` are the only ones whose `smul`
+omits `if (a == 0) return 0`. Twelve waves treated this as "should GF-T annihilate
+zero?" -- a format decision -- when it is two files missing what nineteen have,
+and `gft_smul.t27` shows the corrected lines. **Count the population before
+calling something a design question.**
+
+**1145. COMPARE THE TWO FUNCTIONS BEFORE COMPARING THEIR RESULTS.** Third time in
+this series that a claim about one file was checked against another: W830
+suspected it and cleared it, W831 was bitten in Python, W832 nearly refuted T570
+using `gft_smul` when T570 was derived from `gft_signed_dot4` -- which has no zero
+guard and a different `magmul` by md5. One `md5` of each function body settles it
+in seconds.
+
+**1146. A SWEEP WITH A `swept` CLAUSE BEATS TWO POINTS.** The band probe walks
+offsets 0..20 with both predicates latched sticky-low AND a third clause asserting
+the counter reached the end -- without which a wrapper whose counter never
+advances satisfies the other two vacuously. Boundary 11 is now measured by three
+parties: corrected model, Icarus on the RTL, three dice across the full band.
+
 ### How to update this tracker
 
 After closing a wave:
