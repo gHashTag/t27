@@ -10954,6 +10954,33 @@ fit's intercept is -2.60 s and 43 LUT lies outside its domain. Both were caught 
 the impossible value alone, with no second measurement. Choose units and names
 that CAN be impossible.
 
+**1122. A TIMING LOOP MUST ASSERT THE ARTEFACT, NOT JUST READ THE CLOCK.** I
+timed nextpnr with `--fasm /dev/null` and got **22-84 ms**, concluding placement
+was instant. nextpnr errors out on that path immediately, and my harness discarded
+stderr and the exit code. With real output paths every run returns rc 0, writes
+75-326 kB and takes **fifteen seconds**. Third time this month a failure was timed
+and read as a fast success (T500, T531). Capture rc and file size beside every
+duration.
+
+**1123. THREE POINTS FIT A LINE BY CONSTRUCTION.** W824 reported
+`R^2 = 0.9994` for place-and-route scaling and called it linear to four
+significant figures. The fit had three points. The slope (~21 ms/LUT) is
+corroborated by a second route and stands; the goodness-of-fit number was never
+evidence of anything.
+
+**1124. AN IMPOSSIBLE INTERCEPT IS THE MODEL TELLING YOU ITS SHAPE IS WRONG.**
+W824's fit had intercept −2.60 s. T559a noticed the consequence -- a printed
+"-16x the fitted cost" -- and filed it as a units artefact outside the domain. It
+was also the model saying it had no floor when the measured floor is **+15.6 s**.
+Lesson 1121 said an impossible value is the cheapest detector; the corollary is to
+follow it all the way to the model, not just to the printout.
+
+**1125. Name the regime, do not average over it.** Place-and-route on this
+toolchain has a **cold chipdb load of ~15.6 s** (332 MB), a per-LUT slope of
+~21 ms, and a warm-cache regime where a corpus sweep pays the load once --
+`ternary_node` measures 3.27 s inside the pipeline and 15.04 s standalone. Three
+regimes, one number would have hidden all of them.
+
 ### How to update this tracker
 
 After closing a wave:

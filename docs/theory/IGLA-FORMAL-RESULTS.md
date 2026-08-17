@@ -22465,6 +22465,83 @@ under it rather than caution. The largest design this project has actually wante
 is 25,273 LUT (`gft_xorbp`, T532), which needs **535 s**, so 600 s is the smallest
 bound that covers the known corpus.
 
+## W825 -- T558's slope survives, its intercept does not, and the sign told me yesterday
+
+### T561 -- MY RETRY EXPLANATION WAS A STORY, NOT A MEASUREMENT [self-critical]
+
+T559 attributed the small-design outliers -- `phi_weights` at 613 ms/LUT,
+`tnf17` at 190 -- to the BSCAN chain-retry loop, "a fixed cost that is the entire
+runtime when the design is forty-three LUT". Plausible, mechanistically sensible,
+and never checked.
+
+Running `phi_weights` and reading the stages:
+
+    OK  yosys                    2.43s   chain forced to 3
+    OK  nextpnr @70.77MHz       24.64s
+    OK  BSCAN chain == site      0.00s   JTAG_CHAIN(3) at BSCAN3 -- agree
+
+**One placement, agreeing on the check.** The 24.64 s is a single nextpnr run on a
+43-LUT design, not six of them. T559's mechanism is withdrawn.
+
+### T562 -- THE COST IS A FIXED FLOOR, AND `--no-tmdriv` DOES NOT MOVE IT [measured]
+
+FORECAST REGISTERED: the 25 s is timing-driven placement effort, so `--no-tmdriv`
+drops it sharply. Four designs, both ways, with real output files:
+
+    design         timing-driven   --no-tmdriv
+    phi_weights  43 LUT   16.28s      15.85s
+    tnf17        44 LUT   14.57s      14.48s
+    e8m0         51 LUT   16.47s      16.50s
+    ternary_node 146 LUT  15.04s      15.24s
+
+**REFUTED.** The disable changes nothing, and the time is FLAT at 15.59 s +/- 0.95
+across a 3.4-fold range in size. That is a fixed floor -- on this toolchain, the
+332 MB chipdb load -- and not a slope.
+
+### T562a -- AND I MEASURED 22 ms FIRST, BECAUSE `--fasm /dev/null` FAILS [self-critical]
+
+The first attempt timed the same runs at **22 to 84 milliseconds** and I read
+"placement is essentially instant". Those runs wrote FASM to `/dev/null`, where
+nextpnr errors out immediately; my harness discarded both stderr and the exit
+code. Re-run against real paths, every one returns rc 0, writes 75-326 kB, and
+takes fifteen seconds.
+
+**Third time this month I timed a failure and read it as a fast success**, after
+T500 (a doubled count read as a measurement) and T531 (a syntax error read as a
+timeout). The common shape is not carelessness about correctness -- it is a
+harness that captures a duration while discarding the evidence that anything
+happened. A timing loop must assert the artefact, not just the clock.
+
+### T563 -- T558'S SLOPE STANDS; ITS INTERCEPT IS WITHDRAWN [measured]
+
+W824 fitted `seconds = 21.19 ms/LUT x LUT - 2.60` at R^2 = 0.9994 and reported it
+as place-and-route being "linear to four significant figures". Two corrections:
+
+**The fit used THREE points.** Three points fit a line by construction, and an
+R^2 near one across them is close to tautological. The 87-fold size range is real
+and the slope it gives is probably right; the goodness-of-fit figure was never
+evidence.
+
+**The intercept is negative and that is impossible.** T559a caught the consequence
+-- a report printing "-16x the fitted cost" -- and treated it as a units artefact
+outside the fitted domain. It was that, and it was also the model telling me its
+shape was wrong. The measured floor is **+15.6 s cold**, not −2.6 s.
+
+    W824 model    seconds = 21.19 ms/LUT * LUT - 2.60          intercept impossible
+    W825 measured floor 15.59 s +/- 0.95 across 43-146 LUT, cold chipdb
+    two-point slope through the large designs: 21.66 ms/LUT
+
+The slope is stable at ~21 ms/LUT by both routes, so **W824's capacity numbers
+survive** -- they are slope-dominated at the sizes that matter, and 300 s still
+buys roughly 14,000 LUT. What does not survive is the claim that the relationship
+is a single line through the origin's neighbourhood.
+
+WHY THE PIPELINE REPORTS LESS THAN A STANDALONE RUN. `ternary_node` measured
+3.27 s inside `t27c silicon` and 15.04 s standalone. The pipeline places design
+after design and the 332 MB chipdb stays in the page cache; each standalone run
+paid the load again. **The floor is a cold-start cost, and a corpus sweep pays it
+once.** That is a fourth regime and it is now named rather than averaged over.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
