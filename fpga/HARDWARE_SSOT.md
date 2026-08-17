@@ -116,6 +116,38 @@ that it cannot drive a `0x03FD` cable — true, and irrelevant here, since no
 thirteen waves.
 
 
+## W814 verification (2026-08-18) — a GFTernary float neuron on all three dice
+
+`specs/ternary/gft_bitnet_neuron.t27` — a four-tap BitNet neuron over signed GF-T
+activations with round-to-nearest-even — **could not be synthesised at all before
+W813**, when removing yosys's `share` pass took the `gft_*` family from "never" to
+seconds (T529/T532). It is the first of those 25 to reach silicon.
+
+```
+yosys      2,047 LUT, 371 CARRY4, 0 DSP48E1, BSCANE2 x1
+nextpnr    OK — BSCAN chain == site, agree
+hardware   Done 1 on 1:4, 1:6, 1:8
+
+readback, chain 1, all three cables:
+  idx 0  0xa5a5a5f5    idx 1  0xa5a5a5f7    idx 2  0xa5a5a5f7
+  c_can=1  c_ann=1  c_non=1  c_ant=1  ok=1
+```
+
+Word layout is `{24'hA5A5A5, c_can, c_ann, c_non, c_ant, 0, 1, beat, ok}` — four
+clause bits, because one `ok` bit cannot localise a four-clause conjunction
+(T535a). **Note the hazard this exposed:** the magic is 24 bits here and 28 bits
+in every earlier wrapper, and the two layouts are not distinguishable from the
+word alone. Decode with the layout of the build you loaded, and prefer a version
+field when a fleet can hold more than one build.
+
+**A wrapper reporting ~43 LUT is measuring nothing (T534).** That figure is
+STARTUPE2 + reset counter + prescaler + BSCAN and no datapath at all: with every
+probe a compile-time constant, Yosys folds the DUT away. This design measured
+43 LUT until one activation was driven from a counter, then 2,047. `phi_weights`
+and `tnf17` sit at that floor in the W805 census.
+
+---
+
 ## 1. Target board (the one we build & flash for)
 
 | Field | Value |
