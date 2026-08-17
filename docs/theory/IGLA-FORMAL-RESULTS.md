@@ -22916,6 +22916,90 @@ exactly such a story about BSCAN retries (T561).
 
 The W830 forecast had two clauses and they split. Three waves, no withdrawals.
 
+## W831 -- the silicon was right, and it caught what three readings of the spec did not
+
+### T574 -- ICARUS EXONERATES BOTH THE RTL AND THE DIE; THE MODEL WAS WRONG [measured]
+
+W830 left one fork: does the RTL compute something other than 2591, or does the
+silicon compute something other than the RTL? FORECAST REGISTERED: Icarus returns
+2591, placing the fault downstream of the RTL.
+
+    in-band  off5   sadd(2560, 511) = 2592   want 2591   DIFFER
+    out-band off15  sadd(7680, 511) = 7680   want 7680   MATCH
+    gold            sadd(1.0, 1.0)  = 20992  want 20992  MATCH
+    zero guard      sadd(0, 511)    = 511    want 511    MATCH
+
+**REFUTED.** The RTL says **2592**, agreeing with all three dice. Spec, RTL and
+silicon are consistent; the odd one out is my model.
+
+### T575 -- T571 IS WITHDRAWN: THE BOUNDARY IS OFFSET 11, NOT 10 [self-critical]
+
+W829 simulated `magadd` in Python and omitted an entire branch:
+
+    } else {
+        var t = rem << 1;  var hf = 1 << d;
+        if (t > hf) { mant = mant + 1; }
+        else { if (t == hf) { if ((s & 1) == 1) { mant = mant + 1; } } }
+    }
+
+That is **round-to-nearest-even on the shifted-out bits**, and it runs whenever
+`s < 1024` -- which is every case W829 examined. For the in-band probe `rem = 31`,
+`t = 62`, `hf = 32`, so `t > hf` and the mantissa rounds up: 2591 becomes 2592.
+
+Re-running the sweep with the branch restored:
+
+    offset  0..10   the spurious term MOVES the result
+    offset  >= 11   absorbed, exactly unchanged
+
+**T571 said 10. The boundary is 11.** The severity conclusion is unchanged --
+1.0 sits at offset 40 and the defect remains unreachable by any ordinary
+operand -- but the number was wrong and the reasoning that produced it was a
+truncated reading.
+
+WHY THIS MATTERS MORE THAN ONE OFFSET. W829 stated its own limitation exactly:
+"a simulation of a spec shares every misreading of that spec" (lesson 1139), and
+then relied on the simulation anyway because three readings -- the spec text, the
+generated Verilog, the Python -- all agreed. **They agreed because all three were
+mine.** Reading the same function three times is one reading.
+
+The hardware was the only independent party, and it dissented on the first probe
+that touched the disputed region.
+
+### T576 -- THE LOOP CLOSED, AND THE FAILING CLAUSE WAS DOING ITS JOB [measured]
+
+With `MOVED` corrected to the verified 2592, reloaded on all three boards:
+
+    chain 2 idx 0/1/2:  0xa5a521f7 / 0xa5a521f5
+      design = 1        c_move = 1   c_abs = 1   c_gold = 1   c_ind = 1   ok = 1
+
+Four clauses, three dice, 1.08 DUT-equivalents of arithmetic in the fabric.
+
+**The clause that failed in W830 was correct as a test and carried a wrong
+expected value.** That is the distinction worth keeping: a red clause means the
+prediction and the hardware disagree, and which of them is wrong is a separate
+question that W830 explicitly refused to answer and W831 answered with a run.
+
+Five waves, from "0*x != 0 on silicon" (T552) to a verified boundary and a
+withdrawn number, and every step of the chain except the last was mine and
+self-consistent.
+
+### T576a -- forecast count, fourth entry, and the first withdrawal [derived]
+
+    W828   withdrawals 0   refuted 1   confirmed 0
+    W829   withdrawals 0   refuted 0   confirmed 2
+    W830   withdrawals 0   refuted 1   confirmed 1
+    W831   withdrawals 1   refuted 1   confirmed 0
+
+W827 asked whether the run of self-corrections meant the measurements were
+catching each other or that I publish too early. **This entry is evidence for the
+first**: T571 was published on Tuesday and withdrawn on Thursday by a hardware
+measurement designed on Wednesday specifically to test it, and W829 had labelled
+itself a simulation rather than a measurement at the time. The correction was
+sought, not stumbled into.
+
+That is not a defence of publishing early. It is the distinction between a claim
+that carries its own falsification test and one that does not.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

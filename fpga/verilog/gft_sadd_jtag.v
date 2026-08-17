@@ -69,7 +69,13 @@ module gft_sadd_jtag #(parameter integer JTAG_CHAIN_N = 3);
     always @(posedge slowclk) if (rstc != 4'hF) rstc <= rstc + 4'd1;
 
     localparam [31:0] IN_BAND  = 32'd2560;   // offset 5,  mantissa 0
-    localparam [31:0] MOVED    = 32'd2591;   // what sadd(2560, 511) must give
+    // W831 (T574): 2592, not 2591. W829's Python model of `magadd` OMITTED the
+    // round-to-nearest-even branch that runs when `s < 1024` --
+    //     t = rem << 1; hf = 1 << d; if (t > hf) mant++;
+    // -- and here rem = 31, t = 62, hf = 32, so the mantissa rounds up. The RTL,
+    // Icarus and all three dice say 2592; three readings of the spec by me said
+    // 2591 because they shared one omission. **The clause was right to fail.**
+    localparam [31:0] MOVED    = 32'd2592;   // verified: RTL, Icarus, silicon
     localparam [31:0] OUT_BAND = 32'd7680;   // offset 15, mantissa 0
     localparam [31:0] SPUR     = 32'd511;    // offset 0,  mantissa 511
     localparam [31:0] ONE      = 32'd20480;  // 1.0

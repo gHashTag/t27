@@ -11087,6 +11087,26 @@ What remains was NOT guessed between. W825 spent a whole wave undoing a plausibl
 story about BSCAN retries (T561); write down the fork instead of choosing a
 branch.
 
+**1141. READING THE SAME FUNCTION THREE TIMES IS ONE READING.** W829 derived a
+boundary from the spec text, the generated Verilog and a Python re-implementation,
+all agreeing -- and all three were mine, sharing one omitted branch. `magadd`'s
+`else` arm does round-to-nearest-even on the shifted-out bits and runs whenever
+`s < 1024`, which was every case examined. The hardware was the only independent
+party and it dissented immediately. **Agreement among your own readings is not
+corroboration.**
+
+**1142. THE BOUNDARY IS OFFSET 11, NOT 10 (T571 WITHDRAWN).** A spurious term at
+offset 0 with mantissa 511 moves an operand at offsets 0-10 and is absorbed at 11
+and above. 1.0 is at offset 40, so the severity conclusion of T571 stands and its
+number did not.
+
+**1143. A RED CLAUSE MEANS PREDICTION AND HARDWARE DISAGREE -- NOT THAT THE
+HARDWARE IS WRONG.** W830's `c_move = 0` was a correct test carrying a wrong
+expected value. W830 refused to say which side was at fault and registered the
+discriminating run; W831 ran it in ninety milliseconds of Icarus and the answer
+was the model. Keep the two questions separate, and prefer the run to the
+argument.
+
 ### How to update this tracker
 
 After closing a wave:
