@@ -19137,4 +19137,50 @@ spending a night re-measuring, the scope was checked.
 
 ---
 
+## W789 — the eleven re-measured, and only two interventions survive
+
+### T458 — one lever is real, three reverse, and the field is behind us
+
+T457 narrowed the re-open list to the eleven UNSW measurements calling
+`run_bn`/`run_qact`. Re-run on a **shuffled** 85/15 split (val rate 0.6792),
+8 seeds, one common seed set:
+
+| arm | **now** | penalty | previously claimed |
+|---|---:|---:|---|
+| no BN *(T422 base)* | 67.01 ±4.09 | 22.61 | — |
+| **BN** *(T422)* | **84.86 ±1.49** | **4.76** | +16.49 → **+17.85, survives** |
+| BN + ternary activations *(T428)* | 82.49 ±0.84 | 7.13 | +1.45 → **−2.37, reversed** |
+| BN + balanced coverage *(T439)* | 84.09 ±1.85 | 5.53 | +2.29 → **−0.77, reversed** |
+| BN + L=5 *(T450)* | 84.59 ±1.19 | 5.03 | +0.31 → **−0.27, gone** |
+| **BN + fan-in 6** *(T452c)* | **86.59 ±0.98** | **3.03** | +0.98 → **+1.73, survives and grows** |
+
+> **T458. Two interventions survive the correct split and three do not.**
+> **Normalisation** (+17.85 pp) and **fan-in** (+1.73 pp) are real. **Ternary
+> activations, balanced coverage and depth all reverse sign.** Every reversed one
+> was a connectivity- or activation-side claim measured under a selector that
+> rewarded positive bias; the two survivors are the ones whose effect is large
+> enough to dominate the selector.
+
+> **T458a. The penalty is now 3.03 pp against the field's 4.79 — we are ahead of
+> the comparable published configuration.** SparseLUT Table IV puts a fan-in-6,
+> random-mask, one-LUT-per-neuron design **4.79 pp** below its dense reference;
+> this stand is **3.03** below its own. **From 13.55 pp eleven waves ago, and not
+> one point of it came from architecture** — it came from normalisation, class
+> balance, and a validation split that was one class.
+
+> **T458b. Fan-in was the only structural lever, and it was the one the programme
+> kept dismissing.** T414b called it a null (+0.68, ns). T452c found it survived
+> the trainer fixes (+0.98, ns). On a correct split it is **+1.73 pp** and it is
+> the difference between parity and being ahead. **The six-bit rule — our own S4,
+> which forbids it — is the single most expensive design choice in this project**,
+> and T454 priced it at **3.75× area** for that gain.
+
+> **T458c. What the eleven theorems are worth now.** T422 **stands and
+> strengthens**. T452c **stands and strengthens**. T428, T430, T431, T432, T439,
+> T443, T446, T450, T451 are **withdrawn as measured** — their direction reverses
+> or vanishes. **Nine of eleven withdrawn, two confirmed.** That is the price of
+> eleven waves run against a broken selector, and it is paid.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

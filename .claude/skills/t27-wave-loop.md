@@ -10080,6 +10080,22 @@ not a soundness one -- and it is invisible until someone tries to tag them.
 The wrong percentage came from not checking; the fix is not a better percentage
 but a rule -- read the artefact before reporting its status.
 
+**998. Large effects survive a broken selector; small ones invert.**
+Normalisation (+17.85 pp) and fan-in (+1.73) survived a one-class validation
+split; ternary activations, balanced coverage and depth -- all between -0.3 and
++2.3 pp -- reversed (T458). *An effect smaller than the defect it is measured
+through is not an effect, it is a reading of the defect.*
+
+**999. The lever the programme kept dismissing was the real one.** Fan-in was
+called a null in T414b, "survives, ns" in T452c, and is +1.73 pp and the
+difference between parity and a lead on a correct split (T458b). *Re-check the
+nulls you inherited before optimising the effects you like.*
+
+**1000. Nine of eleven theorems withdrawn is the price of eleven waves against a
+broken selector -- and it is payable.** The models trained correctly throughout;
+only the epoch choice was corrupted, so the re-run cost one night and not one
+experiment (T458c).
+
 ### How to update this tracker
 
 After closing a wave:
