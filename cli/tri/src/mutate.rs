@@ -84,6 +84,40 @@ fn make_recoverable(file: &Path, original: &str) -> Result<PathBuf> {
     Ok(backup)
 }
 
+/// Delete bytecode caches derived from this file.
+///
+/// Verifying that the source came back byte-for-byte turned out not to be
+/// enough. Most mutations here preserve the file's LENGTH -- `5` becomes `6`,
+/// `16` becomes `17` -- and Python decides a `.pyc` is current by comparing the
+/// source's (mtime, size). Restore the file inside the same filesystem second
+/// and both match, so the interpreter serves bytecode compiled from the mutant.
+///
+/// Measured, not theorised: a benchmark's format table read back as `e5m11` and
+/// then `e6m10` on consecutive runs while the file on disk said `e5m10` both
+/// times. Clearing the cache made every assertion pass.
+///
+/// So the restore has to reach the derived artefacts too, or the next
+/// measurement in that session is against a mutant nobody can see.
+fn clear_derived_caches(file: &Path) {
+    let stem = match file.file_stem().and_then(|s| s.to_str()) {
+        Some(s) => s,
+        None => return,
+    };
+    let dir = match file.parent() {
+        Some(d) => d.join("__pycache__"),
+        None => return,
+    };
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with(&format!("{stem}.")) && name.ends_with(".pyc") {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+}
+
 struct Mutant {
     line: usize,
     /// 1-based column. Without it, two identical literals on one line produce
@@ -281,6 +315,7 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         std::fs::write(file, &text)?;
         let survived = passes(cmd).unwrap_or(false);
         std::fs::write(file, &original)?;
+        clear_derived_caches(file);
 
         // Verify the restore instead of assuming it. A measurement taken
         // against a file this command left perturbed is not a measurement, and
@@ -310,6 +345,7 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     }
     println!("\r                    ");
 
+    clear_derived_caches(file);
     let _ = std::fs::remove_file(&backup);
     if survivors.is_empty() {
         println!(
