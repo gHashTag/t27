@@ -26389,6 +26389,66 @@ position meaningless; the key (family, parameter) is the only join. Fifth
 instrument in this session whose first output was an artefact of its own pairing
 rather than a property of the data.
 
+## W875 -- five oracles at once, and what a fleet finds that one at a time did not
+
+### T712 -- ORACLE COVERAGE 11 -> 16, AND THREE MORE DOCUMENT DEFECTS (14-16) [measured]
+
+Five regenerators built in parallel, each adversarially verified by a second agent
+that ran it, read it for the five known cheats, and mutation-tested it:
+
+    tab:centring      45/45   bold sits exactly on the crossing row
+    tab:workloads    132/132  bold==qualifies 7/7; thresholds recompute
+    tab:landing       33/33   caption identities (768*82, 12*82^2...) recompute
+    tab:gpt2window    12/12   after fixing defect #14
+    tab:oneoverm      22/22   after re-attribution (T712b)
+
+    #14  tab:gpt2window binary16 cell: printed 1.78e-4, record 1.7749565e-4
+         -> 1.77e-4. Third single-digit rounding defect, third table.
+    #15  tab:workloads caption: "no ratio exists" -- the record carries FINITE
+         ratios for 8 of 11 dashed rows (up to 1.04e6); the true dash predicate
+         is in_range==false. Reworded, not deleted: the suppression itself is
+         defensible, the stated reason was false.
+    #16  prose: takum represents the excluded workloads "without loss" --
+         boltzmann_300K has takum_out=376/400 at BOTH rungs. The neighbouring
+         sec:takumrange claim SURVIVES the same recomputation (tnf_out 395, 387
+         strictly larger), which is what distinguishes an audit from a hit job.
+
+### T712a -- THE MUTATION TEST IS WHAT MADE THE FLEET TRUSTWORTHY [derived]
+
+The verifiers did not merely re-run the scripts; they mutated the inputs and
+demanded failures: perturbed record values, moved bold markers, deleted printed
+rows, emptied tables. Two real holes surfaced -- a vacuous pass at zero parsed
+rows, and prose defects hardcoded so a fix could never turn green. Both are now
+guarded (`_row_guard`, and prose checks that READ the paper), and both guards have
+their own negative tests. **A check that cannot pass is not a check, and a check
+that can pass vacuously is not one either.**
+
+### T712b -- A RECORD'S OWN DESCRIPTION FIELD OUTRANKS EVERY MATCHING HEURISTIC [measured]
+
+`breakeven_2026-08-14.json` was assigned to `tab:convert` by numeric overlap (45%
+forward, F=0.636). The agent asked to build that oracle instead proved the
+assignment wrong: the record's law C/(2cM) yields 8.14 and 4.26 where tab:convert
+prints 8.98 and 3.94 -- those cells invert to the cost sweep's local slopes
+((567-372)/4, (1683-1238)/4), which live in a different record. And the record
+names its own purpose: description = "direct check of cor:breakeven". It backs
+`tab:oneoverm`, 22/22, plus cor:breakeven's prose digits.
+
+Sixth wrong mapping produced by similarity scoring, and the correction came, as
+every time, from reading the artefact itself.
+
+### T712c -- THE SELECTION-DISCLOSURE GATE, AND THE LEDGER [measured]
+
+`check_selection_disclosure.py` walks the registry of established (record, table)
+pairs and requires any row shortfall to be disclosed in the caption:
+
+    tab:tailsweep   18 -> 8   disclosed        tab:workloads  22 -> 22  FULL
+    tab:window      11 -> 9   disclosed (new)  tab:landing    11 -> 11  FULL
+    tab:invariant  180 -> 30  disclosed        tab:rungthr    aggregate
+
+Negative test: removing a disclosure phrase exits 1. The complete audit ledger --
+16 defects, 8 reported-not-patched items, 3 toolchain properties, 5 withdrawals --
+is one page at docs/reports/upstream/TNF-FINDINGS-LEDGER.md and a comment on #603.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

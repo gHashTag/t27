@@ -11966,6 +11966,22 @@ sweep for the failure point.
 printed rows against record rows by position produced 33 phantom mismatches
 (sigma=1.5 against sigma=1.0). Match on (family, parameter), never on order.
 
+**1316. MUTATION-TEST EVERY ORACLE.** Verifiers that perturbed records, moved bold
+markers and emptied tables found two real holes review missed: a vacuous pass at
+zero parsed rows, and hardcoded defect claims that no fix could turn green.
+
+**1317. A CHECK THAT CANNOT PASS IS NOT A CHECK.** Prose-defect assertions must
+read the paper, so that fixing the paper turns the light green; otherwise the
+oracle is a grudge, not a gate.
+
+**1318. THE RECORD'S OWN DESCRIPTION FIELD OUTRANKS EVERY HEURISTIC.** breakeven's
+JSON says "direct check of cor:breakeven"; numeric overlap had assigned it to a
+table whose cells it cannot produce. Read the artefact's self-description first.
+
+**1319. REPORT THE CLAIM THAT SURVIVES BESIDE THE ONE THAT FALLS.** "without loss"
+fell to takum_out=376/400; sec:takumrange's neighbouring claim survived the same
+recomputation. Auditing both directions is what separates an audit from a hit job.
+
 ### How to update this tracker
 
 After closing a wave:
