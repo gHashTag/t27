@@ -194,6 +194,20 @@ enum Commands {
         dir: Option<String>,
     },
 
+    /// THE SERVICE: which record backs which table, asked in BOTH directions, and
+    /// silent when they disagree. Coverage alone says a 563-number record backs a
+    /// 71-cell table -- true, and worthless, since it covers most of the paper.
+    /// Correcting for record size then REJECTS that same correct mapping, because
+    /// two thirds of the record serves other formats. Both were measured on
+    /// tab:invariant and each produced a confident wrong answer (W864, W865).
+    /// Exits 1 while anything is undecided: the refusal names what a human must
+    /// settle, which takes the author a minute and no amount of text matching.
+    Provenance {
+        /// Directory holding tnf_paper.tex and measurements/
+        #[arg(long)]
+        dir: String,
+    },
+
     /// THE SERVICE: refuse an edit whose target is not exactly one place. A find
     /// matching zero times is a silent NO-OP -- unchanged file, successful exit,
     /// indistinguishable from an edit that worked. A find matching twice changes
@@ -10427,6 +10441,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Provenance { dir } => {
+            service::run_provenance(&std::env::current_dir()?, dir)?
+        }
         Commands::EditCheck { file, needle } => {
             service::run_editcheck(&std::env::current_dir()?, file, needle)?
         }
@@ -10820,6 +10837,9 @@ fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Provenance { dir } => {
+            service::run_provenance(&std::env::current_dir()?, dir)?
+        }
         Commands::EditCheck { file, needle } => {
             service::run_editcheck(&std::env::current_dir()?, file, needle)?
         }

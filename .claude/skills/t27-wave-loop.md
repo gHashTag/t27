@@ -11730,6 +11730,18 @@ the package was ready to send; the owner reviewed and merged it in ten minutes.
 Correction discipline made it defensible and was worth it -- deliberating about
 whether to offer it at all was not.
 
+**1263. MATCH IDENTIFIERS EXACTLY, NEVER BY CONTAINMENT.** `inside_window`
+contains `window` and backs a different table than `tab:window` does. A substring
+rule would have voted confidently wrong on a third of the corpus, and would have
+looked like independent corroboration because it is a different kind of signal.
+
+**1264. CUT THE CAPTION BEFORE COUNTING CELLS.** A caption states sample counts
+and seeds; counting them makes every table look partly backed by every record.
+
+**1265. `rc=$?` AFTER A PIPELINE, AGAIN.** Testing the very tool built to prevent
+this, I piped it through `tail` and read 0 from a command that exited 1. Run to a
+file, then check.
+
 ### How to update this tracker
 
 After closing a wave:

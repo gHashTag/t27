@@ -25527,6 +25527,55 @@ was worth the effort; the hesitation about whether to offer it at all was not.
     still open                        2 further defects, 1 regenerator (PR #603)
     tables a reader can verify        4 -> 9 of 59
 
+## W867 -- `t27c provenance`, and the vote that would have been wrong
+
+### T686 -- SUBSTRING MATCHING ON RECORD NAMES IS A FALSE-SIGNAL GENERATOR [measured]
+
+The new command asks three signals -- the label's own name, forward coverage
+against a noise floor, and size-corrected inversion -- and refuses to pick when
+they diverge. The name signal compares by EXACT equality, and that was measured
+rather than chosen:
+
+    exact stem == label            1 of 12   gpt2_window -> tab:gpt2window
+    substring containment          4 of 12
+       inside_window   contains `window`     but backs tab:landing
+       tab:window                            is backed by crossover2
+
+**A containment rule would have cast a confident third vote for the wrong table on
+a third of the corpus** -- and, being a different KIND of signal, would have looked
+like independent corroboration of whichever numeric statistic it happened to join.
+
+### T686a -- MEASURED OVER THE MERGED PAPER [measured]
+
+    60 labelled tables, 1,975 numeric cells, 12 records
+    8 agreed, 4 undecided, exit 1
+
+    centering        -> tab:centring     96.0%  floor 31.7%  F=0.712
+    crossover2       -> tab:window       95.7%  floor 36.0%  F=0.885
+    workloads_strict -> tab:workloads    97.8%  floor 41.7%  F=0.831
+    gpt2_window      -> tab:gpt2window   68.2%  floor 13.6%  F=0.615   3 of 3 signals
+    inside_window    -> tab:landing      82.9%  floor 12.5%  F=0.673
+    crossover        -> tab:tailsweep    94.0%  floor 33.3%  F=0.585
+    breakeven        -> tab:blockpct     45.0%  floor  7.7%  F=0.636
+
+    per_rung         forward tab:paretobudget 96.2% (floor 54.1%) vs inverted
+                     tab:fullthroughput -- UNDECIDED
+    tnf_downstream   forward tab:bothops vs inverted tab:downstream -- UNDECIDED
+    tnf_kappa_taxonomy, tnf_topaligned_cost                        -- UNDECIDED
+
+Cutting the CAPTION before counting cells matters: a caption states sample counts
+and seeds, and counting those makes every table look partly backed by every
+record. The command cuts it, which is why `tab:centring` reads 96.0% here against
+92.6% under my earlier hand-rolled pass.
+
+### T686b -- I READ `tail`'s EXIT STATUS AGAIN [measured]
+
+The command exits 1 while anything is undecided. Piped through `tail` it reported
+`rc=0`; run to a file it reports `rc=1`. **This is the same defect `t27c gates`
+exists to prevent, committed while testing the tool that prevents it.** Third
+occurrence in this project, and the first inside a session that had already
+recorded it as a lesson twice.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1686,6 +1686,222 @@ fn close(a: f64, b: f64, tol_pct: f64) -> bool {
     (a - b).abs() / scale <= tol_pct / 100.0
 }
 
+/// The tables of a LaTeX paper, as `(label, numeric cells)`. The caption is cut
+/// first: a caption states sample counts and seeds, and counting those as cells
+/// makes every table look partly backed by every record.
+fn tables_of(tex: &str) -> Vec<(String, Vec<f64>)> {
+    let mut out = Vec::new();
+    let mut rest = tex;
+    while let Some(a) = rest.find("\\begin{table}") {
+        let after = &rest[a..];
+        let end = match after.find("\\end{table}") {
+            Some(e) => e,
+            None => break,
+        };
+        let body = &after[..end];
+        rest = &after[end + 11..];
+        let label = match body.find("\\label{tab:") {
+            Some(l) => {
+                let s = &body[l + 7..];
+                match s.find('}') {
+                    Some(e) => s[..e].to_string(),
+                    None => continue,
+                }
+            }
+            None => continue,
+        };
+        let mut trimmed = String::new();
+        let mut b = body;
+        while let Some(c) = b.find("\\caption{") {
+            trimmed.push_str(&b[..c]);
+            let mut i = c + 9;
+            let ch: Vec<char> = b.chars().collect();
+            let mut depth = 1usize;
+            while i < ch.len() && depth > 0 {
+                match ch[i] {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+            if i >= b.len() { b = ""; break; }
+            b = &b[i..];
+        }
+        trimmed.push_str(b);
+        out.push((label, numbers_in(&trimmed)));
+    }
+    out
+}
+
+/// Strip a record's date stamp and separators so `gpt2_window_2026-08-13e.json`
+/// and the label `tab:gpt2window` can be compared. The paper's labels are named
+/// after its records; four waves of this project searched caption TEXT instead
+/// and concluded, with rising confidence, that the mapping did not exist.
+///
+/// The comparison is EXACT EQUALITY, not substring containment, and that is not
+/// caution -- it was measured. Of twelve records one stem matches a label exactly
+/// and four match by substring, and the substring matches are wrong:
+/// `inside_window` contains `window`, yet it backs `tab:landing` while
+/// `tab:window` is backed by `crossover2`. A containment rule would have supplied
+/// a confident third vote for the wrong table on a third of the corpus.
+fn record_stem(name: &str) -> String {
+    let base = name.split('.').next().unwrap_or(name);
+    let cut = match base.find("_2026") {
+        Some(i) => &base[..i],
+        None => base,
+    };
+    cut.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
+}
+
+/// Which measurement record backs which table -- asked in BOTH directions, and
+/// silent when they disagree.
+///
+/// One direction alone is wrong about a whole class of table, in both possible
+/// ways. Scoring a record against a table by coverage says a 563-number record
+/// covers 100% of a 71-cell table -- true, and worthless, since it covers most of
+/// the paper. Correcting for record size then rejects that same correct mapping,
+/// because two thirds of the record serves other format pairs: the correction
+/// assumes one record backs one table. Both were measured on `tab:invariant`, and
+/// each in turn produced a confident wrong answer.
+///
+/// So this reports THREE signals -- the label's own name, forward coverage
+/// against a noise floor, and size-corrected inversion -- and refuses to pick when
+/// they diverge. A refusal here is the useful output: it names the table a human
+/// must settle, which takes the author a minute and no amount of text matching.
+pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
+    let root = repo_root.join(&dir);
+    let tex_path = root.join("tnf_paper.tex");
+    let tex = std::fs::read_to_string(&tex_path)
+        .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", tex_path.display()))?;
+    let tables = tables_of(&tex);
+    if tables.is_empty() {
+        anyhow::bail!("no labelled tables in {}", tex_path.display());
+    }
+    let cells_total: usize = tables.iter().map(|t| t.1.len()).sum();
+    println!(
+        "{} labelled tables, {} numeric cells",
+        tables.len(),
+        cells_total
+    );
+
+    let mdir = root.join("measurements");
+    let mut records: Vec<(String, Vec<f64>)> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&mdir) {
+        let mut names: Vec<_> = rd
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.ends_with(".json"))
+            .collect();
+        names.sort();
+        for n in names {
+            if let Ok(s) = std::fs::read_to_string(mdir.join(&n)) {
+                let mut v = numbers_in(&s);
+                v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                v.dedup();
+                if !v.is_empty() {
+                    records.push((n, v));
+                }
+            }
+        }
+    }
+    if records.is_empty() {
+        anyhow::bail!("no readable records in {}", mdir.display());
+    }
+    println!("{} records\n", records.len());
+
+    let mut undecided = 0usize;
+    let mut agreed = 0usize;
+    for (name, rec) in &records {
+        let stem = record_stem(name);
+        let by_name: Option<&str> = tables
+            .iter()
+            .map(|(l, _)| l.as_str())
+            .find(|l| {
+                let flat: String = l
+                    .trim_start_matches("tab:")
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .flat_map(|c| c.to_lowercase())
+                    .collect();
+                flat == stem
+            });
+
+        let mut fwd: Vec<(f64, &str)> = Vec::new();
+        let mut inv: Vec<(f64, &str)> = Vec::new();
+        for (lab, cells) in &tables {
+            if cells.is_empty() {
+                continue;
+            }
+            let hit = cells
+                .iter()
+                .filter(|c| rec.iter().any(|r| close(**c, *r, 1.0)))
+                .count();
+            let recall = hit as f64 / cells.len() as f64;
+            let precision = hit as f64 / rec.len() as f64;
+            fwd.push((recall, lab.as_str()));
+            inv.push(((recall * precision).sqrt(), lab.as_str()));
+        }
+        fwd.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        inv.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let mut floor: Vec<f64> = fwd.iter().map(|x| x.0).collect();
+        floor.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median = floor[floor.len() / 2];
+
+        // Three signals. Agreement is only meaningful across signals that can
+        // fail differently -- three readers of one statistic agree by construction.
+        let votes: Vec<&str> = [by_name, Some(fwd[0].1), Some(inv[0].1)]
+            .into_iter()
+            .flatten()
+            .collect();
+        let winner = votes
+            .iter()
+            .max_by_key(|c| votes.iter().filter(|d| d == c).count())
+            .copied()
+            .unwrap_or("");
+        let support = votes.iter().filter(|c| **c == winner).count();
+
+        println!("{name}   |record| = {}", rec.len());
+        println!(
+            "    name      {}",
+            by_name.unwrap_or("-- (no label matches the record's stem)")
+        );
+        println!(
+            "    forward   {:<22} {:5.1}%   floor {:4.1}%   runner-up {} {:.1}%",
+            fwd[0].1,
+            100.0 * fwd[0].0,
+            100.0 * median,
+            fwd.get(1).map(|x| x.1).unwrap_or("-"),
+            100.0 * fwd.get(1).map(|x| x.0).unwrap_or(0.0)
+        );
+        println!(
+            "    inverted  {:<22} F={:.3}",
+            inv[0].1, inv[0].0
+        );
+        if support >= 2 && votes.len() >= 2 {
+            agreed += 1;
+            println!("    => {winner}  ({support} of {} signals agree)", votes.len());
+        } else {
+            undecided += 1;
+            println!("    => UNDECIDED -- the signals disagree; a human settles this in a minute");
+        }
+        println!();
+    }
+
+    println!("{agreed} agreed, {undecided} undecided, of {} records", records.len());
+    println!(
+        "reminder: agreement across signals that share a blind spot is not evidence. \
+         Reconstruct the table from the record before asserting a mapping."
+    );
+    if undecided > 0 {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 pub fn run_gates(repo_root: &Path, dir: Option<String>) -> anyhow::Result<()> {
     let root = match dir {
         Some(d) => repo_root.join(d),
