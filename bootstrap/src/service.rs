@@ -1464,6 +1464,115 @@ fn design_id_from_top(repo_root: &Path, tops: &[String]) -> Option<u32> {
     None
 }
 
+/// THE SERVICE: a verdict that agrees across several PLACEMENTS, or no verdict.
+///
+/// W842 (T616) built one netlist five times changing nothing but nextpnr's seed
+/// and got three placements that computed the specified function and two that
+/// did not -- deterministically, with the FAILING seeds holding better timing
+/// margin than the passing ones (T617). Every silicon verdict before W842 was
+/// built at the default seed and never repeated, so each was a claim about one
+/// placement rather than about the spec.
+///
+/// T619a set the rule: agree across at least three seeds or it is not a verdict.
+/// A rule that has to be remembered is not a rule, so this is the gate.
+pub fn run_verdict(
+    repo_root: &Path,
+    spec: &str,
+    tops: Vec<String>,
+    busdev: String,
+    wrong_part: Option<String>,
+    seeds: Vec<u32>,
+) -> anyhow::Result<()> {
+    if seeds.len() < 3 {
+        println!("REFUSED -- {} seed(s) given. T619a requires at least 3: a verdict", seeds.len());
+        println!("built at one placement is a statement about that placement (W842).");
+        std::process::exit(2);
+    }
+    let exe = std::env::current_exe()?;
+    println!("  verdict over {} placements: seeds {:?}", seeds.len(), seeds);
+    println!();
+    let mut rows: Vec<(u32, Option<(u32, String, u32)>)> = Vec::new();
+    for &sd in &seeds {
+        let mut cmd = Command::new(&exe);
+        cmd.arg("silicon").arg(spec)
+            .args(["--busdev-num", &busdev])
+            .args(["--pnr-seed", &sd.to_string()])
+            .current_dir(repo_root);
+        for tp in &tops {
+            cmd.args(["--top", tp]);
+        }
+        if let Some(wp) = &wrong_part {
+            cmd.args(["--wrong-part", wp]);
+        }
+        let (_, out, err) = run_bounded(&mut cmd, Duration::from_secs(1800));
+        let log = format!("{out}{err}");
+        // `OK   B2 read            0x<word>  design <d> on index <i>, clauses=<c>  ok=<k> ...`
+        let parsed = log.lines().find(|l| l.contains("B2 read") && l.contains("clauses=")).and_then(|l| {
+            let w = l.split_whitespace()
+                .find(|t| t.starts_with("0x"))
+                .and_then(|t| u32::from_str_radix(t.trim_start_matches("0x"), 16).ok())?;
+            let c = l.split("clauses=").nth(1)?.split_whitespace().next()?.to_string();
+            let k = l.split("ok=").nth(1)?.chars().next()?.to_digit(10)?;
+            Some((w, c, k))
+        });
+        match &parsed {
+            Some((w, c, k)) => println!("  seed {sd:<8} 0x{w:08x}  clauses={c}  ok={k}"),
+            None => {
+                // W843: I wrote this arm without its evidence and it cost the
+                // first audit run -- the same defect W838 fixed in the read stage
+                // (lesson 1165), reintroduced in new code hours after fixing it.
+                // A child that produced no verdict has ALREADY printed why.
+                println!("  seed {sd:<8} NO VERDICT READ -- the child said:");
+                let tail: Vec<&str> = log.lines().rev().take(14).collect();
+                for l in tail.iter().rev() {
+                    if !l.trim().is_empty() {
+                        println!("      | {l}");
+                    }
+                }
+            }
+        }
+        rows.push((sd, parsed));
+    }
+    println!();
+    let good: Vec<&(u32, String, u32)> = rows.iter().filter_map(|(_, r)| r.as_ref()).collect();
+    if good.len() != rows.len() {
+        println!("REFUSED -- {} of {} placements produced no reading. A verdict cannot be",
+                 rows.len() - good.len(), rows.len());
+        println!("assembled from the placements that happened to answer.");
+        std::process::exit(1);
+    }
+    // per-clause stability, because WHICH clause moved is the useful half (T620a)
+    let width = good[0].1.len();
+    let mut unstable: Vec<usize> = Vec::new();
+    for i in 0..width {
+        let first = good[0].1.as_bytes()[i];
+        if good.iter().any(|g| g.1.as_bytes()[i] != first) {
+            unstable.push(i);
+        }
+    }
+    let agreed_ok = good.iter().all(|g| g.2 == good[0].2);
+    if unstable.is_empty() && agreed_ok {
+        println!("VERDICT clauses={} ok={}  -- AGREED ACROSS {} PLACEMENTS",
+                 good[0].1, good[0].2, good.len());
+        println!("This is a statement about the spec, not about one placement.");
+        return Ok(());
+    }
+    println!("NO VERDICT -- the placements disagree.");
+    for i in &unstable {
+        let vals: String = good.iter().map(|g| g.1.as_bytes()[*i] as char).collect();
+        println!("  clause {i} is UNSTABLE across seeds: {vals}");
+    }
+    if !agreed_ok {
+        let vals: String = good.iter().map(|g| char::from_digit(g.2, 10).unwrap()).collect();
+        println!("  ok bit is UNSTABLE across seeds: {vals}");
+    }
+    println!();
+    println!("W842/T616: place-and-route is not function-preserving on this bench, so a");
+    println!("clause that moves with the seed was decided by the router. The STABLE clauses");
+    println!("above are still readable; the unstable ones are not results.");
+    std::process::exit(1);
+}
+
 pub fn run_silicon(
     repo_root: &Path,
     spec: &str,

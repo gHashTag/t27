@@ -11365,6 +11365,27 @@ set a three-seed rule, the corpus split was re-measured under it. It survived --
 but the point is that the check happened before the rule could be quietly
 forgotten, and on the claim with the most riding on it.
 
+**1189. A RULE THAT HAS TO BE REMEMBERED IS NOT A RULE.** T619a's three-seed
+requirement lived in a theorem file for one wave and was applied by hand to one
+result out of nine. As `t27c verdict` it now refuses fewer than three seeds and
+names the unstable clause. Build the gate in the same wave that discovers the
+rule, or the next wave will not apply it.
+
+**1190. AUDIT WITH A GATE AND THE FINDINGS COME TO YOU.** Three findings in the
+first hour of `t27c verdict`, none of them from an experiment: two verdicts
+upheld across placements, and one wrapper that had been building at a TIMING MISS
+for eleven waves while every log line said OK.
+
+**1191. A COMPONENT'S OWN Fmax IS NOT ITS Fmax IN A WRAPPER.** `gft_sadd` measures
+24.59 MHz alone; four instances of it in one wrapper measure 17.4. The divider was
+declared from the component number and was one percent too fast. Declare periods
+from the WRAPPER's measured Fmax, never from the DUT's.
+
+**1192. WRITING A LESSON DOWN IS NOT APPLYING IT.** Lesson 1165 says a failure
+must carry its evidence. Hours later I wrote a new failure path from scratch that
+discarded the child's output, and the first audit run cost exactly what 1165
+predicted. When adding an error path, go read the lessons about error paths.
+
 ### How to update this tracker
 
 After closing a wave:

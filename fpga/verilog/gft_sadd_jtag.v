@@ -59,10 +59,17 @@ module gft_sadd_jtag #(parameter integer JTAG_CHAIN_N = 3);
     // operation deep instead of five, and 8.4x faster -- depth sets the period.
     // The ratio is DECLARED in gft_sadd_jtag.xdc; a divider alone tells the
     // timing engine nothing (T541).
-    reg [1:0] dv = 2'd0;
-    always @(posedge cfgmclk) dv <= dv + 2'd1;
+    // W843: /8, NOT /4. The audit that T619a's three-seed rule made possible
+    // measured this wrapper at 17.39-17.53 MHz against the 17.70 MHz that /4
+    // declares -- a MISS, on two seeds of three, by about one percent. `sadd`
+    // ALONE measures 24.59 MHz (T568); four instances of it in one wrapper do
+    // not. The standing verdict here (T572/T575, the absorption boundary) was
+    // built at essentially zero timing margin and the pipeline could not say so
+    // until T603 made Fmax a measurement instead of a label.
+    reg [2:0] dv = 3'd0;
+    always @(posedge cfgmclk) dv <= dv + 3'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(dv[1]), .O(slowclk));
+    BUFG bufg_slow (.I(dv[2]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);

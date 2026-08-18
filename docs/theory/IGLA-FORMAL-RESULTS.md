@@ -24110,6 +24110,80 @@ defects were found only because the hardware kept disagreeing with the software*
 -- none would have surfaced from reading the code, and two of them (T598, T603)
 had been silently wrong for more than twenty waves.
 
+## W843 -- the rule became a gate, and the gate found three things in its first hour
+
+### T621 -- `t27c verdict`: AGREEMENT ACROSS PLACEMENTS, OR NO VERDICT [measured]
+
+T619a's rule lived in a theorem file, which is to say it lived nowhere. It is now
+a subcommand:
+
+    t27c verdict <spec> --top <wrapper> --busdev-num <cable> --seeds 1,7,42
+
+It builds once per seed, reads each, and reports a verdict ONLY if every clause
+bit and the ok bit agree across all of them. Fewer than three seeds is refused
+outright. On disagreement it names WHICH clause moved and prints its values --
+because which clause is unstable is the useful half (T620a).
+
+**A rule that has to be remembered is not a rule.** W842 applied T619a by hand to
+one result and left eight others un-audited; this makes the next wave physically
+unable to record a one-placement verdict.
+
+### T622 -- THE FIRST AUDIT: TWO VERDICTS UPHELD, ONE COULD NOT BE BUILT [measured]
+
+    ternary_node   0xa5a5323f  1111 ok=1  x3 seeds   UPHELD
+    e8m0           0xa5a531bf  1111 ok=1  x3 seeds   UPHELD
+    gft_sadd       no reading at any seed            INVESTIGATED BELOW
+
+Both upheld verdicts are now statements about their specs rather than about one
+placement -- the first on this bench to which that applies.
+
+### T623 -- `gft_sadd` HAD BEEN BUILT AT A TIMING MISS, AND NOTHING COULD SAY SO [self-critical]
+
+The child's own output, once the refusal was made to carry it:
+
+    Max frequency for clock 'slowclk': 17.53 MHz (FAIL at 17.70 MHz)
+                                       17.39 MHz (FAIL at 17.70 MHz)
+
+`gft_sadd` ALONE measures 24.59 MHz (T568) and the wrapper declared /4 = 17.70
+MHz on that basis. **Four instances of it in one wrapper do not measure 24.59
+MHz** -- they measure 17.4, and the declaration was about one percent too fast.
+
+This was invisible until two changes landed: T603 (W839) made Fmax a measurement
+instead of a label, and W842 made a timing miss stop the run. Before those, every
+build of this wrapper reported `OK nextpnr @70.77MHz + XDC` and loaded.
+
+**The standing absorption-boundary verdict (T572/T575, offset 11) had been built
+at zero timing margin for eleven waves.** Divider moved /4 -> /8, XDC 56.5 ->
+113.0 ns, giving 2.0x margin against the 17.4 MHz measured. Re-measured:
+
+    gft_sadd  0xa5a5307f  1111 ok=1  x3 seeds   UPHELD
+
+The result survives. It was never wrong -- it was merely never entitled to be
+believed, and now it is.
+
+### T624 -- I REINTRODUCED "FAILURE WITHOUT EVIDENCE" HOURS AFTER FIXING IT [self-critical]
+
+`run_verdict`'s first version printed `NO VERDICT READ -- this placement produced
+no answer` and discarded the child's output. The first audit run therefore
+reported three empty readings and no cause. That is exactly the defect W838 found
+in the read stage and recorded as lesson 1165 -- *a stage that reports failure
+without its evidence costs the next wave* -- reintroduced by me, in new code,
+within the same working session.
+
+Fixed by printing the child's tail. **The lesson had been written and it did not
+transfer**, because I wrote the new failure path from scratch rather than from the
+pattern. Writing a lesson down is not the same as applying it.
+
+### T624a -- forecast count, fifteenth entry [derived]
+
+    W843  (0 confirmed / 0 withdrawn / 0 refuted / 3 UNFORECAST FINDINGS)
+
+No forecast was registered this wave, because the work was implementing a rule
+rather than testing a hypothesis -- and three findings arrived anyway, all from
+the gate rather than from an experiment. **A gate is a standing experiment that
+runs itself.** That is a better return than a wave of hypotheses, and it is the
+argument for building gates instead of running checks.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

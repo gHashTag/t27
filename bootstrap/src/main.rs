@@ -156,6 +156,28 @@ enum Commands {
         pnr_seed: Option<u32>,
     },
 
+    /// THE SERVICE: a verdict that agrees across several PLACEMENTS, or no
+    /// verdict. W842 built one netlist five times changing only nextpnr's seed
+    /// and got three placements computing the specified function and two not --
+    /// deterministically, with the FAILING seeds holding the better timing
+    /// margin. Every verdict before W842 was one placement's opinion.
+    Verdict {
+        /// The .t27 spec whose verdict should be read
+        input: String,
+        /// Verilog wrappers, in dependency order; the LAST one is the top module
+        #[arg(long)]
+        top: Vec<String>,
+        /// Which cable. Take it from `t27c boards`.
+        #[arg(long, default_value = "1:4")]
+        busdev_num: String,
+        /// A bitstream for the WRONG PART, to force Done low before loading ours
+        #[arg(long)]
+        wrong_part: Option<String>,
+        /// Placer seeds. T619a requires at least three; fewer is refused.
+        #[arg(long, value_delimiter = ',', default_value = "1,7,42")]
+        seeds: Vec<u32>,
+    },
+
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
     /// agreement, that the nextpnr source is the openXC7 fork and not the
@@ -10352,6 +10374,11 @@ async fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
+            service::run_verdict(
+                &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
+            )?
+        }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -10733,6 +10760,11 @@ fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
+            service::run_verdict(
+                &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
+            )?
+        }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
