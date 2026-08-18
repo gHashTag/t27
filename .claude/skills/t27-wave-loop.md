@@ -11649,6 +11649,29 @@ downstream from the real thing.
 file backs tab:rungthr" in one minute; no amount of text matching recovers it. A
 correctly scoped open question beats a plausible answer.
 
+**1245. A BASELINE-FILTERED COUNT MEASURES THE DIFF, NOT THE DOCUMENT -- THIRD
+RECURRENCE.** My gate fix looked like a regression (14 -> 17 failures) because the
+baseline keys on surrounding words and my patch changed the context window. With
+the baseline removed the fix is strictly better: 19 -> 17, dropping exactly the
+two false positives it targeted.
+
+**1246. A CONTEXT-KEYED BASELINE MUST SHIP WITH ITS GATE.** Patch the context
+extraction and every baseline key is invalid. Send the gate alone and the
+recipient sees 17 failures that are not failures.
+
+**1247. VERIFY A PATCH WITH THE TABLE'S OWN REGENERATOR, THEN DO THE ARITHMETIC.**
+The ladder regenerator prints the OUT-of-range count; the table prints the
+in-range one. 187 - 102 = 85 confirmed the patch. Reading 102 as a mismatch would
+have been the fourth false finding of that shape.
+
+**1248. AUDIT THE COVER LETTER BEFORE SENDING, NOT JUST THE PATCHES.** The package
+README documented three of seven items and named an enclosure that was not in the
+directory. Understating your own package by half is a defect in the package.
+
+**1249. RUNNING GATES DIRTIES THE TREE.** They write a PDF and a cross-repo
+reference list; that broke a `git stash pop` mid-audit. Revert generated files
+before any stash or commit.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -25248,6 +25248,76 @@ in its own Section 27. Three waves of filename-guessing had already produced a
 The author knows in one minute what no amount of text matching recovers. The
 useful deliverable is the question, correctly scoped -- not a plausible answer.
 
+## W862 -- the package audited before sending, and it needed it
+
+### T677 -- MY OWN GATE FIX APPEARED TO BE A REGRESSION, AND THE APPEARANCE WAS THE BASELINE [measured]
+
+Run in place on the same tree, `check_withdrawn_live` reported 14 failures before
+my correction and **17 after**. A fix that finds MORE is either catching more or
+breaking. Neither: the gate filters findings against
+`withdrawn_live_baseline.txt`, whose key is the value **plus its surrounding
+words** (line 104). My third correction stops the context window at `\\` so a key
+cannot reach into the next table row -- which changes the key, so previously
+known findings re-present as new.
+
+I had compared two BASELINE-FILTERED outputs. That is the defect I recorded as a
+lesson two waves earlier: a baseline-filtered count measures the diff, not the
+document. **Third recurrence.**
+
+With the baseline removed, the honest comparison:
+
+    before   22 numbers in withdrawal passages, 19 flagged live
+    after    21 numbers,                        17 flagged live
+
+Strictly fewer: it drops `0.1736` and `2.44` -- the two documented false
+positives -- and refines `0.1651` to `0.1651\%`. Nothing new appears.
+
+### T677a -- A GATE WHOSE BASELINE IS KEYED ON CONTEXT CANNOT BE PATCHED ALONE [derived]
+
+Changing the context extraction invalidates every baseline entry. Shipping the
+gate without regenerating the baseline hands the recipient 17 failures that are
+not failures. Regenerated: 15 -> 25 entries, after which the gate exits 0, and the
+negative test the file's own header demands still catches an injected `0.189`
+with a provably-changed file.
+
+**This is a property of the design, not of my patch.** Any future correction to
+this gate's context window carries the same obligation.
+
+### T678 -- THE TWO NUMBER PATCHES CONFIRMED BY THE TABLES' OWN REGENERATORS [measured]
+
+    tab:law TNF8       recompute_law_table.py prints
+                       u=3.12e-02 measured=1.54e-02 ratio=0.49 flatness=1.883
+                       -- the patch, character for character
+
+    tab:ladderacc TNF8 recompute_ladder_exact.py prints ('2.02e-02', 102)
+
+The second needed arithmetic before it counted as confirmation. The tuple is
+`(mean, OUT-of-range count)` (line 64), and the band holds 187 values -- TNF4
+shows `('out', 187)` for the same band -- so in-range is `187 - 102 = 85`. The
+patch's `(85/187)` is exact. **Reading `102` as a mismatch would have been a
+fourth false finding of the same shape as the first three.**
+
+### T679 -- THE COVER LETTER DESCRIBED THREE OF SEVEN ITEMS [measured]
+
+The package README was written when the package held one patch and was never
+revised. It documented items 1, 5 and 6 and omitted both TNF8 defects, the
+`check_withdrawn_live` correction, the superseded marker and the provenance
+question -- and it named `check_self_consistency.WIDENED.py` as an enclosure that
+is not in the directory (the gates live in `docs/reports/gates/`).
+
+**A package understating itself by more than half is a defect in the package.**
+Rewritten to eight sections, each with its before/after measured in one
+environment.
+
+### T679a -- WHAT ELSE THE DRY RUN CAUGHT [measured]
+
+    the patched paper builds        pdflatex x3, 136 pages, rc=0, 0 undefined refs
+    running the gates DIRTIES the tree   they write tnf_paper.pdf and
+                                    tools/doc_refs_crossrepo.txt, which broke a
+                                    `git stash pop` mid-audit
+    the built PDF differs in size   31,730,993 vs the shipped 32,303,608 -- the
+                                    toolchain is not theirs, so ours is not sent
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
