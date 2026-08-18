@@ -1,3 +1,17 @@
+# NOW -- seal-coverage was an echo, and 207 seals do not hold (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: give seal-coverage a body, and measure what it finds (Closes #2209)
+
+- **The last decorative required check.** `seal-coverage.yml` was `echo "Running SEAL coverage analysis..."`
+- **Two attempts to establish what it should assert.** In #2191 I matched seal FILENAMES against spec filenames and got "1668 orphans of 1714" -- a finding about my assumption. Seals are keyed by MODULE name; the spec is named inside, in `spec_path`. I wrote neither check nor deletion then and said so; this returns to it
+- **A seal is a reproducibility record:** `spec_path`, `spec_hash`, and the sha256 of each of the four generated targets at the moment of sealing. Its invariant is that the spec still exists and still hashes to what was recorded -- otherwise the four gen_hashes describe something the spec no longer produces, and the seal asserts something false
+- **1714 seals: 1507 hold, 113 stale, 89 dangling, 5 without a spec_path. 207 (12%) do not hold**, under a check that said `echo`
+- Of the dangling, 89 name specs deleted outright (`binary16.t27`, `int4.t27`, `int8.t27`, …). Two named `specs/vsa/core.t27`, which **moved** to `specs/test_framework/core.t27`; repointed here, and they correctly become *stale* -- the moved file's contents differ from what was sealed, so they need re-sealing rather than repointing
+- The 207 are debt in `tools/seal_baseline.txt`, one per line, so the gate holds the line without demanding a 207-item cleanup
+- **Job id stays `coverage`** -- renaming it stops the required context reporting and sends PRs to BLOCKED with every check green (#2191). Verified the context still appears on an open PR before committing
+
 # NOW -- fifteen copies of tmul, and nothing compared them (2026-08-18)
 
 Last updated: 2026-08-18
