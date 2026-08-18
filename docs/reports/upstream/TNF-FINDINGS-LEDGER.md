@@ -4,6 +4,14 @@ One page holding everything this audit found, fixed, reported and withdrew, so a
 review of PR #603 does not have to walk fourteen commit messages. Every claim
 below is measured; the measurement lives in the named commit or record.
 
+**G8 cannot be closed from this bench** (measured 2026-08-19): the CI flow pins
+`docker regymm/openxc7` on `xc7a200tfbg484-2`; the local Docker daemon is not
+running (GUI app, not startable autonomously) and 3.5 GB free disk cannot hold the
+image; the local chipdb is the QMTech `fbg676-1` — a different package and speed
+grade, measured earlier to be non-substitutable. Closing G8 takes either one
+`tnf-cost-sweep` dispatch on CI or the author's own logs for the sixteen
+`tab:untraced` frequencies.
+
 **Status frame: the release verdict is NO-GO on gate G8** (post-route evidence
 absent for the sixteen published frequencies in `tab:untraced`) — the other
 track's finding, and nothing here closes it. Everything below is beneath that
