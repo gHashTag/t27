@@ -11952,6 +11952,20 @@ conclusion.
 315-run sweep; zero runs were lost or repeated, because the driver's only state is
 its result file and a present run is never redone.
 
+**1313. A VERDICT BELOW THE SEED NOISE IS DECIDED BY THE SEED.** 25-37 of 210
+pairwise winners alternate across five seeds of a single configuration, at median
+margins up to ~20-38%. Median-of-five fixes the magnitude; it does not make a close
+ranking real.
+
+**1314. WHERE A PRINTED SWEEP STOPS IS DATA.** tab:tailsweep prints 8 of 18
+measured rows and stops at sigma=6; the record continues to sigma=8, where two
+clips blow TNF's mean up 38 orders of magnitude. Check the unprinted tail of every
+sweep for the failure point.
+
+**1315. A SELECTION MAKES POSITION MEANINGLESS -- JOIN ON THE KEY.** Zipping
+printed rows against record rows by position produced 33 phantom mismatches
+(sigma=1.5 against sigma=1.0). Match on (family, parameter), never on order.
+
 ### How to update this tracker
 
 After closing a wave:

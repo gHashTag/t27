@@ -26341,6 +26341,54 @@ interruption, 315/315 at the end, zero repeated work.
 **Design the driver for the harness's failure mode** -- here, a 600-second kill and
 an unreliable turn boundary -- and interruptions stop being events.
 
+## W874 -- verdicts below the seed noise, and the sweep that stops before the failure point
+
+### T710 -- A PAIRWISE VERDICT BELOW THE SEED NOISE IS DECIDED BY THE SEED [measured]
+
+For each configuration and each of 210 design pairs: in how many of five seeds does
+X beat Y? Unstable if neither 0/5 nor 5/5:
+
+    heap/router1   25 of 210 unstable    worst unstable pair's median margin 17.3%
+    heap/router2   27 of 210                                              21.5%
+    sa/router2     37 of 210                                              37.6%
+
+Median-of-five, which every hardware caption states, is the right MAGNITUDE
+estimator. But "A is faster than B" at a median margin under ~20% is not
+established by five seeds of one configuration -- the winner alternates from seed
+to seed (`bnf16` vs `tnf16`: 850/759, 650/643, 754/599, 550/573, 719/746). This is
+the project's own three-seed rule, which exists for FUNCTION, applied to rankings.
+
+### T711 -- ELEVENTH ORACLE, THIRTEENTH DEFECT, AND A SELECTION THAT ENDS AT THE FAILURE POINT [measured]
+
+`recompute_tailsweep_table.py` reconstructs `tab:tailsweep` from the orphan record
+`crossover_2026-08-13e.json`: 8 printed rows reproduce exactly, ratio identities
+hold to 1e-9, and the caption's "No row favours TNF" recomputes true over all 18
+measured rows.
+
+Thirteenth document defect: mixture/0-outliers prints tnf `7.09e-4` for a record
+value of `7.084535e-4` -> `7.08e-4`. Same class as tab:window's c=4 cell -- one
+mis-rounded final digit, found the same way, by the first oracle that read the row.
+
+**The selection is the finding.** 18 measured rows, 8 printed, no stated rule --
+and among the ten unprinted:
+
+    lognormal sigma=8   tnf 2.48e+35   takum 6.39e-4   clips: tnf 2/12000
+                                                              binary16 1192/12000
+
+Two clipped samples blow TNF's mean up 38 orders of magnitude. **The printed sweep
+of tail heaviness ends at sigma=6; the measured sweep continues to TNF's outright
+failure, and that row is silently absent.** By the paper's own tab:window standard
+a clipped mean is not a comparison, so the suppression may be right -- but the rule
+is unstated and the stopping point coincides with the failure point.
+
+### T711a -- POSITIONAL MATCHING PRODUCED 33 PHANTOM MISMATCHES FIRST [self-critical]
+
+The first regenerator zipped printed rows against record rows by position and
+reported 33 mismatches -- sigma=1.5 compared against sigma=1.0. A selection makes
+position meaningless; the key (family, parameter) is the only join. Fifth
+instrument in this session whose first output was an artefact of its own pairing
+rather than a property of the data.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
