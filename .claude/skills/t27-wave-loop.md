@@ -11755,6 +11755,19 @@ half-truth for a table assembled from two.
 midpoint of 8.988110 and 10.009651 and appears in no record. Membership tests
 score it absent, which reads as a defect. Only reconstruction can tell them apart.
 
+**1269. A COLUMN MUST BE DISTINCTIVE BEFORE IT CAN BE ATTRIBUTED.** Without a
+three-distinct-values rule, 29 of 60 tables reported as drawing on several records
+-- a column reading `16, 32, 32` lies inside almost every record. The rule took it
+to 18, and the one real case survived.
+
+**1270. SAY IN THE TOOL'S OWN OUTPUT WHAT IT CANNOT DECIDE.** Eight of eighteen
+multi-record reports have every owner among the three largest records. The command
+now prints that these are candidates for reconstruction, not findings.
+
+**1271. A COLUMN THAT IS A FORMULA IS RECOVERABLE TWICE.** reach = (3^E-1)/2 is
+both stored in a record and computable from the printed label. Finding it in the
+record alone confirms storage, not provenance.
+
 ### How to update this tracker
 
 After closing a wave:

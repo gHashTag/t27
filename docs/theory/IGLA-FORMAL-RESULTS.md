@@ -25620,6 +25620,42 @@ document defect. **A derived cell is indistinguishable from a wrong cell to any
 instrument that only asks whether a number is present** -- which is every
 instrument in this sequence before the reconstruction scripts.
 
+### T688 -- THE REACH COLUMN IS A CLOSED FORM, NOT A LOOKUP [measured]
+
+    TNF(4,8)   (3^4 - 1)/2 = 40    printed 40
+    TNF(5,23)  (3^5 - 1)/2 = 121   printed 121
+    TNF(6,21)  (3^6 - 1)/2 = 364   printed 364
+
+`3^E` occurs 28 times in the paper, so this is its own vocabulary: a ternary
+exponent field of E trits spans 3^E values symmetric about zero, hence a reach of
++-(3^E - 1)/2. The column is therefore recoverable **twice over** -- stored as
+`tnf_reach` in `per_rung`, and computable from the E in the printed pair label.
+
+That identity is what IDENTIFIED the column. Without it, "40, 121, 364" is three
+unexplained integers beside three rung names, and an instrument that finds them in
+`per_rung` has confirmed a coincidence of storage rather than a provenance.
+
+### T688a -- PER-COLUMN ATTRIBUTION FINDS THE TWO-RECORD TABLE AND OVER-REPORTS BY THE SAME CONFOUND [measured]
+
+`t27c provenance` reworked to ask per COLUMN:
+
+    60 tables, 1,975 cells, 12 records
+    83 columns attributed, 146 in no record, 57 too non-distinctive to attribute
+    18 tables draw on more than one record -- INCLUDING tab:rungthr
+
+**The rework finds what four waves of table-at-a-time analysis could not.** It also
+over-reports: 8 of those 18 have every owner among the three largest records, so
+containment rather than provenance explains them.
+
+A distinctness rule was required and was measured, not chosen: without it 29 of 60
+tables report as multi-record, because a column reading `16, 32, 32` -- physical
+cell counts -- lies inside almost every record and votes for whichever is checked
+first. Requiring three distinct values takes 29 to 18. `tab:rungthr`'s real split
+survives: reach is 40/121/364 and comp. is 30/51/58.
+
+**So the command emits candidates, and says so in its own output.** Only
+reconstruction settles a column, which is why the two regenerators exist.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

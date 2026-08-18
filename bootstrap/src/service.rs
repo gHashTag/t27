@@ -1686,10 +1686,38 @@ fn close(a: f64, b: f64, tol_pct: f64) -> bool {
     (a - b).abs() / scale <= tol_pct / 100.0
 }
 
-/// The tables of a LaTeX paper, as `(label, numeric cells)`. The caption is cut
-/// first: a caption states sample counts and seeds, and counting those as cells
-/// makes every table look partly backed by every record.
-fn tables_of(tex: &str) -> Vec<(String, Vec<f64>)> {
+/// A table's numeric cells arranged BY COLUMN, which is the unit provenance
+/// actually has. `tab:rungthr` takes five columns from one record and its
+/// `reach` column from another; asked table-at-a-time, no record explains it and
+/// the honest answer is a refusal. Asked column-at-a-time, both appear at once.
+fn columns_of(body: &str) -> Vec<Vec<f64>> {
+    let mut cols: Vec<Vec<f64>> = Vec::new();
+    for row in body.split("\\\\") {
+        if !row.contains('&') {
+            continue;
+        }
+        for (i, cell) in row.split('&').enumerate() {
+            let v = numbers_in(cell);
+            if v.is_empty() {
+                continue;
+            }
+            while cols.len() <= i {
+                cols.push(Vec::new());
+            }
+            // A cell may carry several numbers -- `1.16e-2 (82/187)` carries
+            // three. All of them belong to this column.
+            cols[i].extend(v);
+        }
+    }
+    cols.retain(|c| !c.is_empty());
+    cols
+}
+
+/// The tables of a LaTeX paper, as `(label, body with the caption cut)`. The
+/// caption must go before anything is counted: it states sample counts and
+/// seeds, and counting those makes every table look partly backed by every
+/// record.
+fn tables_of(tex: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut rest = tex;
     while let Some(a) = rest.find("\\begin{table}") {
@@ -1729,7 +1757,7 @@ fn tables_of(tex: &str) -> Vec<(String, Vec<f64>)> {
             b = &b[i..];
         }
         trimmed.push_str(b);
-        out.push((label, numbers_in(&trimmed)));
+        out.push((label, trimmed));
     }
     out
 }
@@ -1777,10 +1805,18 @@ pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
     let tex_path = root.join("tnf_paper.tex");
     let tex = std::fs::read_to_string(&tex_path)
         .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", tex_path.display()))?;
-    let tables = tables_of(&tex);
-    if tables.is_empty() {
+    let raw = tables_of(&tex);
+    if raw.is_empty() {
         anyhow::bail!("no labelled tables in {}", tex_path.display());
     }
+    let tables: Vec<(String, Vec<f64>, Vec<Vec<f64>>)> = raw
+        .into_iter()
+        .map(|(l, b)| {
+            let cells = numbers_in(&b);
+            let cols = columns_of(&b);
+            (l, cells, cols)
+        })
+        .collect();
     let cells_total: usize = tables.iter().map(|t| t.1.len()).sum();
     println!(
         "{} labelled tables, {} numeric cells",
@@ -1813,13 +1849,107 @@ pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
     }
     println!("{} records\n", records.len());
 
+    // ---- per COLUMN, which is the unit provenance has ------------------------
+    //
+    // A table assembled from two records is invisible to a table-at-a-time
+    // question: neither record explains it, so the honest answer is a refusal and
+    // the truth is never reached. `tab:rungthr` took four passes over this corpus
+    // for exactly that reason -- five columns from one record, `reach` from
+    // another.
+    let mut multi = Vec::new();
+    let mut unexplained_cols = 0usize;
+    let mut explained_cols = 0usize;
+    let mut nondistinct_cols = 0usize;
+    for (lab, _, cols) in &tables {
+        if cols.is_empty() {
+            continue;
+        }
+        let mut owners: Vec<Option<&str>> = Vec::new();
+        for col in cols {
+            // A column must be DISTINCTIVE before it can be attributed. Measured
+            // on this corpus: without this rule 29 of 60 tables report as drawing
+            // on more than one record, because a column reading `16, 32, 32` --
+            // physical cell counts -- is contained in almost every record and so
+            // votes for whichever one is checked first. Requiring three distinct
+            // values takes that to a handful. `tab:rungthr`'s real split survives:
+            // reach is 40/121/364 and comp. is 30/51/58, three distinct each.
+            let mut d: Vec<f64> = col.clone();
+            d.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            d.dedup_by(|a, b| close(*a, *b, 1.0));
+            if d.len() < 3 {
+                owners.push(None);
+                nondistinct_cols += 1;
+                continue;
+            }
+            let mut best: Option<(f64, &str)> = None;
+            for (name, rec) in &records {
+                let hit = col
+                    .iter()
+                    .filter(|c| rec.iter().any(|r| close(**c, *r, 1.0)))
+                    .count() as f64
+                    / col.len() as f64;
+                if best.map(|b| hit > b.0).unwrap_or(true) {
+                    best = Some((hit, name.as_str()));
+                }
+            }
+            // A column is attributed only when a record holds essentially all of
+            // it. A DERIVED column -- `tab:rungthr`'s threshold is the midpoint of
+            // a bracketing pair -- is in no record at all, and scoring it as a
+            // near-miss would make a rule look like a defect.
+            match best {
+                Some((f, n)) if f >= 0.9 => {
+                    owners.push(Some(n));
+                    explained_cols += 1;
+                }
+                _ => {
+                    owners.push(None);
+                    unexplained_cols += 1;
+                }
+            }
+        }
+        let distinct: std::collections::BTreeSet<&str> =
+            owners.iter().flatten().copied().collect();
+        if distinct.len() > 1 {
+            multi.push((lab.as_str(), owners.clone(), distinct.len()));
+        }
+    }
+    println!(
+        "columns: {explained_cols} attributed, {unexplained_cols} in no record \
+         (derived, or backed by nothing shipped), {nondistinct_cols} too \
+         non-distinctive to attribute"
+    );
+    if multi.is_empty() {
+        println!("no table draws on more than one record\n");
+    } else {
+        println!(
+            "{} table(s) draw on MORE THAN ONE record. These are CANDIDATES FOR \
+             RECONSTRUCTION, not findings: a record of several hundred numbers \
+             contains many columns it does not back, and measured here 8 of 18 have \
+             every owner among the three largest records. The list earns its keep \
+             on the case a table-at-a-time question cannot see at all -- tab:rungthr, \
+             whose reach column is in per_rung and whose others are in strict_range, \
+             and which four passes over this corpus left unplaced.",
+            multi.len()
+        );
+        for (lab, owners, n) in &multi {
+            let names: Vec<String> = owners
+                .iter()
+                .enumerate()
+                .map(|(i, o)| format!("col{i}={}", o.unwrap_or("--")))
+                .collect();
+            println!("    {lab}  {n} records   {}", names.join("  "));
+        }
+        println!();
+    }
+
+    // ---- per RECORD, kept because it names what a human must settle ----------
     let mut undecided = 0usize;
     let mut agreed = 0usize;
     for (name, rec) in &records {
         let stem = record_stem(name);
         let by_name: Option<&str> = tables
             .iter()
-            .map(|(l, _)| l.as_str())
+            .map(|(l, _, _)| l.as_str())
             .find(|l| {
                 let flat: String = l
                     .trim_start_matches("tab:")
@@ -1832,7 +1962,7 @@ pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
 
         let mut fwd: Vec<(f64, &str)> = Vec::new();
         let mut inv: Vec<(f64, &str)> = Vec::new();
-        for (lab, cells) in &tables {
+        for (lab, cells, _) in &tables {
             if cells.is_empty() {
                 continue;
             }
@@ -1893,8 +2023,9 @@ pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
 
     println!("{agreed} agreed, {undecided} undecided, of {} records", records.len());
     println!(
-        "reminder: agreement across signals that share a blind spot is not evidence. \
-         Reconstruct the table from the record before asserting a mapping."
+        "reminder: agreement across signals that share a blind spot is not evidence, and a \
+         record with no table of its own may still own one COLUMN of one. Reconstruct \
+         before asserting."
     );
     if undecided > 0 {
         std::process::exit(1);
