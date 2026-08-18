@@ -11482,6 +11482,25 @@ requiring enumerated == marked is wrong in principle, not tuned wrong.
 and `narrowed` are qualifications; folding them in would let the gate agree with
 any number at all. A checker that can be made to agree is not a checker.
 
+**1212. COUNT WHERE YOUR FINDINGS LAND.** Eight consecutive findings in the
+tooling against one in the document. If that ratio holds, the metric being
+computed from gate outcomes is a metric of the tooling. Track the ratio
+explicitly; it is the fastest signal that an audit has drifted off its target.
+
+**1213. A NUMBER'S QUANTITY IS PART OF ITS IDENTITY, NOT JUST ITS SUFFIX.** W846
+taught the gate that `2.44\%` and `2.44e-4` differ. W850 found a Laplace kurtosis
+of 2.07 flagged against `2.07 x 10^180`. Matching digits across unrelated
+quantities produces a finding for every coincidence in a paper full of numbers.
+
+**1214. A PROVENANCE RULE FOR COMPUTED ARTEFACTS DOES NOT APPLY TO ARTWORK.**
+"no code produces this file" is correct about 79 hand-drawn plates and says
+nothing about whether they belong. Scope a provenance gate to what is supposed to
+be generated.
+
+**1215. DO NOT PUBLISH A PERCENTAGE COMPUTED FROM GATE OUTCOMES.** Four readiness
+figures were given this session -- 92, 55, 45, 52 -- each dominated by how many
+gates passed. The gates were wrong about the paper eight times out of nine.
+
 ### How to update this tracker
 
 After closing a wave:

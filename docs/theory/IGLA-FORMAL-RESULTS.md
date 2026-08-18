@@ -24551,6 +24551,83 @@ The number does not move because the evidence moved sideways: fewer paper
 defects, and correspondingly less confidence that the gates are measuring the
 paper at all.
 
+## W850 -- all three failures triaged, and the count of instrument findings closes at eight
+
+### T645 -- THE 28 WITHDRAWN-LIVE VIOLATIONS ARE ONE TABLE AND FOUR HOMONYMS [measured]
+
+    18 of 28   cells of ONE table, lines 4258-4269 -- the post-route comparison
+    10 of 28   prose
+
+The eighteen are the measurement record. The paper withdrew a comparative CLAIM
+built on that table; the table itself stands as what was measured, which is what
+a retraction is supposed to leave behind.
+
+The ten in prose are homonyms -- the same digits naming different quantities:
+
+    2.07    a Laplace kurtosis (:6316)      vs  2.07 x 10^180, a reach (:6532)
+    0.331   "0.331 positions" (:843)        vs  "by 0.331", a relative error (:1686)
+    0.0295  the ABSTRACT's live ranking (:118) -- not withdrawn at all
+
+**Eighth instrument finding.** The gate matches bare decimal digits across
+unrelated quantities. My W846 fix captured a number's LaTeX suffix; it did not
+capture the quantity the number names, and a kurtosis is not a mantissa.
+
+The paper anticipates the whole hazard at `:5280`: *"whenever it occurs inside a
+longer unrelated number. Two figures reading 3.15..."*
+
+### T646 -- THE 81 ORPHAN ARTEFACTS ARE HAND-DRAWN ART [measured]
+
+    79 of 81   canon/canon-tnf-*.png -- the engraved plates
+     1         canon/trinity-logo.png
+     1         a measurements file
+
+`gen_figures_canon.py` exists and mentions `canon-tnf` **zero** times: it
+re-renders the DATA figures in the engraving style, and says so in its own
+docstring. The plates have no generator because they were drawn.
+
+The gate is factually right and diagnostically wrong: *no code produces this* is
+a provenance rule for computed artefacts, and artwork is not one.
+
+### T647 -- EIGHT CONSECUTIVE FINDINGS IN THE INSTRUMENT, ONE IN THE DOCUMENT [self-critical]
+
+    W846  gate failures from an incomplete tree
+    W846  every gate green from an rc read after a pipeline
+    W846  check_withdrawn_live: heuristic, key, unit -- three
+    W847  my own three fixes, net-neutral where it counts
+    W848  eight "missing" retraction marks: the regex covered 12 of ~20 forms
+    W849  seven self-referential sections: all plate captions, correct usage
+    W850  28 withdrawn-live: one table plus four homonyms
+    W850  81 orphan artefacts: hand-drawn plates
+
+    W849  TWELVE `Section~\ref` resolving to figure numbers -- THE DOCUMENT
+
+One finding in the paper against eight in its tooling. **That ratio is the
+result**, not an aside: a document behind this many gates is described almost
+entirely by machinery, and machinery written once against one revision reports on
+the revision it was written against.
+
+**The corollary is uncomfortable and worth stating.** Every readiness percentage
+I gave -- 92, 55, 45, 52 -- was computed largely from gate outcomes, and the
+gates were wrong about the paper eight times out of nine. **The percentages
+measured the tooling's opinion, and I published them as measurements of the
+paper.**
+
+### T647a -- READINESS, STATED WITHOUT THE INSTRUMENT [derived]
+
+What is established about the canonical revision by evidence that does not depend
+on a gate's judgement:
+
+    builds clean          136 pages, 0 errors, 0 undefined references
+    twelve real defects   found and FIXED (T642), rebuild unchanged
+    the numbers           abstract's 0.1797 / 0.1631 / 0.0295 are its live claim
+    provenance            data files, 18 measurement records, a generator per figure
+
+    open, and gate-independent:  nothing found this wave
+
+**A percentage is not available on this evidence, and I will not compute one from
+gate outcomes again.** What can be said: one class of defect was found and fixed,
+and no second class has been demonstrated in the document itself.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
