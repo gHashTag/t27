@@ -24058,6 +24058,58 @@ eight refutations across four waves, the hypothesis that survived was the one
 that could only be tested by making place-and-route a variable -- which required
 a tool change (`--pnr-seed`) rather than another wrapper.
 
+### T620 -- THE CORPUS SPLIT RE-RUN UNDER THE NEW RULE, AND IT SURVIVES [measured]
+
+T619a required every verdict to agree across three placer seeds. Applied at once
+to the result the project would most regret losing:
+
+    seed    design 12 (guarded smul)   design 13 (unguarded smul)
+    1        1111   c_zero = 1          0011   c_zero = 0
+    7        1111   c_zero = 1          0111   c_zero = 0
+    42       1010   c_zero = 1          0011   c_zero = 0
+
+**`c_zero` is 1 in all three builds of the majority form and 0 in all three of
+the minority form.** `0 * x == 0` holds where the guard is written and fails
+where it is not, on three placements each. The corpus split is the first verdict
+on this bench built to the standard T619a sets, and it stands.
+
+### T620a -- SEED-STABILITY SORTS THE CLAUSES, AND IT SORTS THEM BY SHAPE [measured]
+
+Across the same six builds:
+
+    clause      shape                        values over 3 seeds   stable?
+    c_zero      vs constant                  1,1,1  /  0,0,0        YES
+    c_gold      vs constant                  1,1,1                  YES
+    c_cancel    vs constant                  1,1,1                  YES
+    c_comm      instance vs instance         1,1,0  /  0,1,0        NO
+    c_ind       vs a live counter's value    1,1,0                  NO
+
+W839 proposed exactly this partition and called it a partition of TRUTH -- which
+W840 refuted, because design 14 compared two instances and passed. It is instead
+a partition of **seed-stability**, and under that reading every measurement in
+W839, W840, W841 and W842 agrees with it without exception.
+
+**A criterion can be right about which results are trustworthy and wrong about
+why.** W839's error was not the grouping; it was calling a reliability property
+an arithmetic one, and then reasoning about the arithmetic from it.
+
+### T620b -- WHAT THE FOUR-WAVE CHASE COST AND BOUGHT [derived]
+
+    waves            W838 -> W842, five
+    hypotheses       9 registered, 8 refuted, 1 confirmed
+    silicon runs     ~35, on three dice
+    designs built    9 new wrappers (11-18), 3 of them purely to be refuted
+    tool changes     3 real defects fixed in `t27c silicon` (T598 magic test,
+                     T599 false PASS, T603 target-as-result) and 2 capabilities
+                     added (design-id selection, --pnr-seed)
+
+Bought: a reproducible flow defect stated in two commands, a rule that makes
+every future verdict trustworthy, and the discovery that three of the pipeline's
+own stages had been reporting things they had not measured. **The three tool
+defects were found only because the hardware kept disagreeing with the software**
+-- none would have surfaced from reading the code, and two of them (T598, T603)
+had been silently wrong for more than twenty waves.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

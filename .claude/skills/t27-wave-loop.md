@@ -11354,6 +11354,17 @@ instead of a search. Narrowing WHERE is progress even when WHAT is still unknown
 fails, `--pnr-seed 42` passes, on 800 LUT in 50 seconds. Reduce to that before
 writing it up; the reduction is most of the value.
 
+**1187. A CRITERION CAN BE RIGHT ABOUT WHICH RESULTS TO TRUST AND WRONG ABOUT WHY.**
+W839's "constant comparisons hold, instance comparisons fail" was refuted as a
+claim about arithmetic and is exactly correct as a claim about SEED-STABILITY.
+When a grouping keeps predicting well after its explanation dies, keep the
+grouping and re-derive the explanation.
+
+**1188. RE-RUN THE RESULT YOU WOULD MOST REGRET LOSING, FIRST.** The moment T619a
+set a three-seed rule, the corpus split was re-measured under it. It survived --
+but the point is that the check happened before the rule could be quietly
+forgotten, and on the claim with the most riding on it.
+
 ### How to update this tracker
 
 After closing a wave:
