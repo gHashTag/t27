@@ -26496,6 +26496,42 @@ Closing G8 takes one tnf-cost-sweep dispatch on CI or the author's own logs.
 bench physically cannot produce** -- recorded in the ledger so nobody rediscovers
 it.
 
+## W877 -- the method transferred, the battery built, and the deliberate stop
+
+### T714 -- `t27c battery`: every oracle and gate, each with its OWN exit status [measured]
+
+    32 scripts on the canon tree: 12 oracles + 20 gates
+    27 PASS, 5 FAIL -- and the five are exactly the five known base-branch
+    failures (doc_refs 84, orphan_artefacts 83, ref_kinds 7 caption
+    false-positives, self_consistency 20-vs-17, withdrawn_live baseline rot),
+    all pre-existing on ae868cfe and all documented in PR #603.
+
+The command exists because `rc=$?` after a pipeline read the tail's status three
+times in one session, once while testing the tool built to prevent it. Batteries
+also DIRTY the tree (gates write the pdf and a crossref list) -- restore after.
+
+### T714a -- THE METHOD IS NOW A SKILL, NOT A MEMORY [measured]
+
+`.claude/skills/oracle-method.md`: the full pipeline -- known-first, metadata
+over similarity, reconstruction over scoring, mutation testing, selection
+reporting, ship-the-generator -- each rule with the failure that paid for it.
+Twenty tables, sixteen defects, five withdrawals compressed to one page the next
+session loads cold.
+
+### T715 -- THE DELIBERATE STOP, RECORDED AS A DECISION [derived]
+
+Below gate G8 the remaining work is 39 tables WITHOUT records -- their oracles
+are impossible without the author's data -- and re-polishing of the 20 covered.
+The audit therefore STOPS HERE by choice:
+
+    what closes G8              one CI dispatch, or the author's logs
+    what reopens the audit      owner reaction on #603, or new records
+    what continues meanwhile    nothing on this document
+
+An autonomous loop's failure mode is to keep finding smaller things forever. The
+honest terminal state of an audit is a ledger, a battery that reruns it in one
+command, and a stop.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

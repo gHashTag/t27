@@ -11996,6 +11996,11 @@ G8 needs a docker flow on a part this bench does not have, behind a daemon that 
 not running, on a disk that cannot hold the image. The ledger now says so; further
 waves polishing beneath an unclosable gate should know they are polishing.
 
+**1323. END AN AUDIT WITH A BATTERY AND A STOP.** `t27c battery --dir X` reruns
+all 32 oracles and gates with true per-child exit codes; the ledger names the five
+known failures. When the remaining work needs data only the author has, the honest
+move is a recorded stop, not ever-smaller findings.
+
 ### How to update this tracker
 
 After closing a wave:

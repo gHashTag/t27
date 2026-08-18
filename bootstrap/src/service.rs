@@ -2188,6 +2188,78 @@ pub fn run_provenance(repo_root: &Path, dir: String) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Run every reconstruction oracle and every gate, with each child's OWN exit
+/// status. Exists because `rc=$?` after a pipeline reads the tail's status, not
+/// the command's -- the same mistake was made three times in one session,
+/// including once while testing the very tool built to prevent it. Oracles
+/// (recompute_*.py, adjudicate_*.py) run from the document directory; gates
+/// (tools/check_*.py) from the repository root. Exits 1 if ANY child failed.
+pub fn run_battery(repo_root: &Path, dir: String) -> anyhow::Result<()> {
+    let doc = repo_root.join(&dir);
+    let mut total = 0usize;
+    let mut failed = Vec::new();
+
+    let mut scripts: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&doc) {
+        for e in rd.filter_map(|e| e.ok()) {
+            let n = e.file_name().to_string_lossy().to_string();
+            if (n.starts_with("recompute_") || n.starts_with("adjudicate_")) && n.ends_with(".py") {
+                scripts.push(e.path());
+            }
+        }
+    }
+    let tools = [repo_root.join("tools"), doc.join("../../tools")]
+        .into_iter()
+        .find(|p| p.is_dir());
+    if let Some(t) = &tools {
+        if let Ok(rd) = std::fs::read_dir(t) {
+            for e in rd.filter_map(|e| e.ok()) {
+                let n = e.file_name().to_string_lossy().to_string();
+                if n.starts_with("check_") && n.ends_with(".py") {
+                    scripts.push(e.path());
+                }
+            }
+        }
+    }
+    scripts.sort();
+    if scripts.is_empty() {
+        anyhow::bail!("no recompute_*/adjudicate_*/check_* scripts under {} or tools/", doc.display());
+    }
+
+    for s in &scripts {
+        total += 1;
+        let name = s.file_name().unwrap().to_string_lossy().to_string();
+        let cwd = if name.starts_with("check_") {
+            s.parent().unwrap().parent().unwrap().to_path_buf()
+        } else {
+            doc.clone()
+        };
+        let st = std::process::Command::new("python3")
+            .arg(s)
+            .current_dir(&cwd)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        match st {
+            Ok(code) if code.success() => println!("  PASS {name}"),
+            Ok(code) => {
+                println!("  FAIL {name} (exit {})", code.code().unwrap_or(-1));
+                failed.push(name);
+            }
+            Err(e) => {
+                println!("  FAIL {name} (spawn: {e})");
+                failed.push(name);
+            }
+        }
+    }
+    println!("
+{} script(s), {} failed", total, failed.len());
+    if !failed.is_empty() {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 pub fn run_gates(repo_root: &Path, dir: Option<String>) -> anyhow::Result<()> {
     let root = match dir {
         Some(d) => repo_root.join(d),

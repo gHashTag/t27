@@ -194,6 +194,16 @@ enum Commands {
         dir: Option<String>,
     },
 
+    /// THE SERVICE: run every reconstruction oracle and every gate with each
+    /// child's OWN exit status -- `rc=$?` after a pipeline reads the tail's
+    /// status, a mistake made three times in one session including while testing
+    /// the tool built to prevent it. Exits 1 if any child failed.
+    Battery {
+        /// Document directory holding recompute_*/adjudicate_* scripts
+        #[arg(long)]
+        dir: String,
+    },
+
     /// THE SERVICE: has this project already found what you are about to measure?
     /// Three claims were withdrawn in one wave, each after real measurement, each
     /// landing where the repository already stood -- a seed count called unstated
@@ -10458,6 +10468,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Battery { dir } => {
+            service::run_battery(&std::env::current_dir()?, dir)?
+        }
         Commands::Known { dir, about } => {
             service::run_known(&std::env::current_dir()?, dir, about)?
         }
@@ -10857,6 +10870,9 @@ fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Battery { dir } => {
+            service::run_battery(&std::env::current_dir()?, dir)?
+        }
         Commands::Known { dir, about } => {
             service::run_known(&std::env::current_dir()?, dir, about)?
         }
