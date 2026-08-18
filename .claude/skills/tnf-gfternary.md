@@ -601,6 +601,14 @@ one scale φ are in the alphabet).
 | rung | alphabet | levels | bits/weight packed | measured LUT¹ |
 |---|---|---:|---:|---:|
 | **GA-T0** | `{0,±1}` | 3 | 1.6000 | 1692 |
+
+> **W845 — the GA-T line above is superseded.** T234 corrected these post-route
+> LUT counts by a factor of **3.00x**: 1692/1371/1878/2349/2796 become
+> **564/457/626/783/932** (`docs/theory/IGLA-FORMAL-RESULTS.md`, T234). This
+> file was last committed 2026-08-17, three days AFTER that correction, and
+> carried the old numbers forward without mentioning it. Do not quote the
+> line above.
+
 | **GA-T1** | `{0,±1,±φ}` | 5 | 2.3333 | **1371** |
 | **GA-T2** | `{0,±1,±φ,±φ²}` | 7 | 2.8182 | 1878 |
 | **GA-T3** | `… ±φ³` | 9 | 3.1818 | 2349 |
