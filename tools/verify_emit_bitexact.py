@@ -124,10 +124,30 @@ def check(g, arch, workdir):
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(f"FAIL {arch}: iverilog compile error\n{r.stderr}"); return False
-    out = subprocess.run(["vvp", vvp], capture_output=True, text=True).stdout
+    sim = subprocess.run(["vvp", vvp], capture_output=True, text=True)
+    out = sim.stdout
+    # A simulator that died, or one that hit the testbench's own TIMEOUT, produces a
+    # short Y-list -- which the step-count check below would report as "the RTL
+    # emitted the wrong number of outputs", i.e. a design fault. It is not: nothing
+    # was compared. Ask the exit code, and read the marker the testbench prints.
+    if sim.returncode != 0:
+        sig = f" (signal {-sim.returncode})" if sim.returncode < 0 else ""
+        print(f"FAIL {arch}: vvp exited {sim.returncode}{sig} -- the simulation did not "
+              f"run to completion, so nothing was compared")
+        for line in (sim.stderr or "").strip().splitlines()[:6]:
+            print(f"    {line}")
+        return False
+    if "TIMEOUT" in out:
+        print(f"FAIL {arch}: the testbench hit its own TIMEOUT after "
+              f"{len(re.findall(r'^Y ', out, re.M))} of {len(py)} steps -- the design did "
+              f"not finish, which is not the same as disagreeing with the model")
+        return False
     rtl = [tuple(map(int, m.split())) for m in re.findall(r"^Y ([\d ]+)$", out, re.M)]
     if len(rtl) != len(py):
-        print(f"FAIL {arch}: step count RTL={len(rtl)} PY={len(py)}"); return False
+        print(f"FAIL {arch}: step count RTL={len(rtl)} PY={len(py)}"
+              f" -- vvp exited 0 and printed no TIMEOUT, so this is a real output-count "
+              f"disagreement, not a dead simulation")
+        return False
     mism = [(i, p, r_) for i, (p, r_) in enumerate(zip(py, rtl)) if p != r_]
     if mism:
         print(f"FAIL {arch}: {len(mism)}/{len(py)}; first step {mism[0][0]} py={mism[0][1]} rtl={mism[0][2]}")
