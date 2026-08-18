@@ -24268,6 +24268,68 @@ The forecast named one wrapper; the audit found three misses and two thin margin
 wrong in** -- the reverse, forecasting a class and finding one instance, is what
 W623 did and what T102 was written about.
 
+## W845/W846 -- the article audited, and nine blockers taken one at a time
+
+### T629 -- FOUR VERDICTS NOW MEET THE THREE-SEED RULE [measured]
+
+    ternary_node   0xa5a5323f  1111 ok=1  x3   UPHELD (W843)
+    e8m0           0xa5a531bf  1111 ok=1  x3   UPHELD (W843)
+    gft_sadd       0xa5a5307f  1111 ok=1  x3   UPHELD (W843, after /4 -> /8)
+    ternary_link   0xa5a532bf  1111 ok=1  x3   UPHELD (W846)
+
+`phi_weights` agreed on two seeds of three and is therefore not yet a verdict.
+`tnf17` could not be read: the design-id guard refused when two cables carried
+magic -- **the guard behaving correctly, and the reason the reading is missing
+rather than wrong.** The boards had re-enumerated to 1:3 / 1:5 / 1:8 between
+waves, which is why the first run of this measurement addressed cables that no
+longer existed.
+
+### T630 -- AUTOMATED CORRECTIONS TO A SCIENTIFIC TEXT MOSTLY DO NOT SURVIVE CHECKING [self-critical]
+
+Six agents drafted 31 replacement passages for the article's blockers; each was
+handed to an independent verifier told to refuse it and to default to refusal
+when uncertain. **Three survived. Twenty-one were rejected** -- and almost none
+for the reason a reader would guess. The `find` strings were nearly all exact and
+unique; what failed was the *content*:
+
+- one draft cited an appendix, `«Снятые утверждения»`, **that does not exist**
+- one replaced the retraction count with "тридцать пять", **contradicting four
+  other statements of the same count in the same file**
+- one asserted the measured ladder runs "от TNF4 до TNF64", which the file's own
+  table contradicts
+
+**The failure mode is fluent, well-formed prose asserting things the repository
+does not support** -- which is exactly the failure the article itself is about.
+A drafting pass without an adversarial pass would have introduced three new
+defects while fixing one.
+
+### T631 -- WHAT NINE BLOCKERS DIVIDE INTO [derived]
+
+    B1  abstract asserts three retracted numbers   FIXED, 3 verified edits
+    B2  retraction count stated four ways          NOT FIXABLE by choosing a number
+    B3  Железо table contradicts Ограничения       MARKED; TNF128 row does not stand
+    B5  zero-DSP table has no provenance           MARKED; 2 of 5 numbers untraceable
+    B6  zero-DSP novelty unavailable               FIXED, ELiTeFormer cited (T490)
+    B7  single-placement silicon verdicts          4 of 15 now meet the rule
+    B8  five named gates do not exist              MARKED at 4 sites; verified absent
+                                                   from the tree AND all history
+    B9  two publication gates point at dead paths  FIXED, both corrected
+    B4  three LUT counts for one multiplier        **NOT FIXED -- see below**
+
+**B4 cannot be closed by editing.** 212, 219 and 372 LUT are published for the
+same TNF16 multiplier; the seed caveat forecloses "different placements" and the
+article's own line forecloses "synthesis versus route". Nothing in the repository
+adjudicates, so the only honest closes are a re-measurement or a decision, and
+**neither is a wave's to make alone**.
+
+### T631a -- forecast count, seventeenth entry [derived]
+
+    W845/W846  (0 registered / 24 audit findings confirmed / 21 drafts refuted)
+
+No forecast was registered because the work was an audit and a repair, not a
+hypothesis. The number worth carrying forward is the **21 of 24 rejection rate on
+generated corrections** -- a measurement of the method, not of the article.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

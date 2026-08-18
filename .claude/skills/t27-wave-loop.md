@@ -11412,6 +11412,20 @@ gft_sadd_sweep's `ok=0` as an AGREED verdict across three placements rather than
 as a failure to read. A gate that only says pass/fail loses this distinction, and
 it is the one that tells you whether to fix the design or the flow.
 
+**1198. GENERATED PROSE CORRECTIONS FAIL ON CONTENT, NOT ON MATCHING.** 31 drafted
+replacements, 21 rejected -- almost all with exact, unique `find` strings. What
+failed was fluent text citing a non-existent appendix, contradicting four other
+sites, or asserting what the repo does not support. **Never apply a drafted
+correction to a scientific text without an adversarial pass.**
+
+**1199. RE-READ THE CABLE MAP EVERY WAVE.** The boards re-enumerated from
+1:4/1:6/1:8 to 1:3/1:5/1:8 between waves, and the first run of a measurement
+addressed two cables that no longer existed. `t27c boards` costs three seconds.
+
+**1200. A MISSING READING IS NOT A FAILED READING.** `tnf17` returned no verdict
+because the design-id guard refused when two cables carried magic. That is the
+guard working. Record it as "not read" and say why, never as "did not pass".
+
 ### How to update this tracker
 
 After closing a wave:
