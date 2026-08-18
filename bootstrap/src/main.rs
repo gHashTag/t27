@@ -676,6 +676,10 @@ enum Commands {
         /// Verify current hashes match previously saved seals
         #[arg(long)]
         verify: bool,
+
+        /// Seal even when a backend rejected the spec, recording gen_hash=none
+        #[arg(long)]
+        force: bool,
     },
     /// Encode integer to ternary
     TernaryEncode {
@@ -3903,6 +3907,11 @@ struct SealHashes {
     gen_hash_verilog: String,
     gen_hash_c: String,
     gen_hash_rust: String,
+    /// (backend, message) for each backend that refused the spec. The four hash
+    /// fields carry the literal "none" in that case, and `--save` used to write it
+    /// as though it were a hash -- a seal asserting reproducibility for output that
+    /// does not exist. Keeping the reason means the refusal can say why.
+    failures: Vec<(String, String)>,
 }
 
 /// Compute all seal hashes for a .t27 spec file
@@ -3920,27 +3929,41 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
 
     let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
 
+    let mut failures: Vec<(String, String)> = Vec::new();
     let gen_hash_zig = match compiler::Compiler::compile(&source) {
         Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("zig".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
         Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("verilog".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_c = match compiler::Compiler::compile_c(&source) {
         Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("c".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_rust = match compiler::Compiler::compile_rust(&source) {
         Ok(rust_code) => format!("sha256:{}", sha256_hex(rust_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("rust".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     Ok(SealHashes {
+        failures,
         module,
         spec_path: input_path.to_string(),
         spec_hash,
@@ -3962,7 +3985,7 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
     Path::new(".trinity").join("seals").join(name)
 }
 
-fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
+fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
 
     if verify {
@@ -4006,6 +4029,26 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
             std::process::exit(1);
         }
     } else if save {
+        // A seal records "this spec produced these four outputs". If a backend refused
+        // the spec, the corresponding field is the literal "none", and writing that as
+        // though it were a hash makes the seal assert reproducibility for output which
+        // does not exist. 348 of 1114 specs in this repository do not generate at all;
+        // re-sealing them in bulk would have recorded 348 such claims.
+        if !hashes.failures.is_empty() && !force {
+            eprintln!(
+                "refusing to seal {}: {} of 4 backends rejected it",
+                hashes.spec_path,
+                hashes.failures.len()
+            );
+            for (backend, msg) in &hashes.failures {
+                eprintln!("    gen-{}: {}", backend, msg.lines().next().unwrap_or(""));
+            }
+            eprintln!();
+            eprintln!("A seal with gen_hash=none claims reproducibility for output that");
+            eprintln!("does not exist. Fix the spec, or pass --force if the gap is");
+            eprintln!("deliberate and you want it on the record.");
+            std::process::exit(1);
+        }
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
         fs::create_dir_all(&seals_dir)?;
@@ -8484,7 +8527,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -8766,7 +8809,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }

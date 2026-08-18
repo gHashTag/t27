@@ -1,3 +1,14 @@
+# NOW -- seal --save refuses a spec no backend accepts (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(bootstrap): stop sealing output that does not exist (Closes #2211)
+
+- `t27c seal --save` wrote `gen_hash_*: "none"` as though it were a hash. #2210 showed batch re-sealing the 113 stale seals would have recorded 348 such claims -- reproducibility assertions for output that does not exist
+- **Two defects in one function.** `Err(_) => "none".to_string()` discarded the compiler's own diagnosis -- the same swallowing pattern fixed across the Python tools in #2187/#2189/#2193, here in the Rust CLI -- and `--save` then wrote the `none` out
+- Now: exit 1, **no file written**, and the compiler's message printed per backend (`Expected LBrace, got Colon (':') at line 93:65`). A generating spec still seals normally; `--force` keeps the deliberate case explicit rather than silent
+- **Scope stated rather than implied:** the same `Err(_) => "none"` exists in the HTTP `seal_handler`. Fixing it there changes the response shape, so it is named here rather than half-done. My first patch hit that handler by accident -- the pattern appears twice and the naive replace found the wrong one -- and the compiler caught it via an undefined variable
+
 # NOW -- 348 of 1114 specs do not generate (2026-08-18)
 
 Last updated: 2026-08-18
