@@ -64,3 +64,30 @@ blocker, one file) is the only further [GOLD-RING]-sized item.
     git apply 0001-compound-assignment.patch
     cargo build --release
     ./target/release/t27c parse specs/numeric/tf3.t27   # rc=0, was rc=1
+
+---
+
+# [GOLD-RING] proposal 0002: nested `fn`, hoisted (prototype)
+
+`0002-nested-fn.CUMULATIVE.patch` carries 0001 + 0002 together (they were
+validated in one scratchpad copy; the 0002 delta is the three `hoisted_fns`
+hunks: the parser field, the `KwFn` interception in `parse_fn_body`, and the
+drain beside `module.children.push(decl)`).
+
+A nested `fn` is parsed by the ordinary fn parser and HOISTED to module level;
+no statement node is produced, so no backend needs a no-op.
+
+**OPEN QUESTION, stated rather than hidden:** hoisting is sound only when the
+nested fn captures nothing beyond its own parameters and module-level names.
+The one corpus instance (`gf16`'s `phi_dist`) satisfies that. A capture check
+belongs in the real patch; the prototype measures reach, not soundness.
+
+## Measured result
+
+    gf16.t27 (the L6 SSOT)   parses COMPLETELY and produces REAL gen hashes
+                             on all four backends -- sealable for the first
+                             time under the repository's own compiler
+    tf3.t27                  fixed by 0001 alone
+    blast radius             0001+0002 fix exactly the SSOT-family pair;
+                             the remaining 34 failures are the three DIALECTS
+                             (see DIALECTS.md) and stay untouched by design

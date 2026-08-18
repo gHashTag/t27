@@ -1,0 +1,203 @@
+--- bootstrap/src/compiler.rs	2026-08-15 21:11:30
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 03:25:03
+@@ -214,6 +214,10 @@
+     ShiftLeft,
+     ShiftRight,
+     PlusEquals,
++    MinusEquals,
++    StarEquals,
++    SlashEquals,
++    PercentEquals,
+     PlusPercent,
+     MinusPercent,
+     StarPercent,
+@@ -695,6 +699,50 @@
+                 };
+             }
+ 
++            if two == [b'-', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::MinusEquals,
++                    lexeme: String::from("-="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'*', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::StarEquals,
++                    lexeme: String::from("*="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'/', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::SlashEquals,
++                    lexeme: String::from("/="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'%', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::PercentEquals,
++                    lexeme: String::from("%="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
+             if two == [b'+', b'%'] {
+                 self.advance();
+                 self.advance();
+@@ -978,6 +1026,8 @@
+     /// -- for input that was consumed AND THROWN AWAY. Counting them is what
+     /// makes that population visible. See T42.
+     dropped_top_level_tokens: usize,
++    // W883 prototype: nested `fn` declarations, hoisted to module level.
++    hoisted_fns: Vec<Node>,
+     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
+     /// told us 55,563 tokens vanish; only reading them can say whether any of
+     /// it is content a theorem depends on. See T43.
+@@ -1003,6 +1053,7 @@
+             pending_pragma: String::new(),
+             no_struct_literal: 0,
+             dropped_top_level_tokens: 0,
++            hoisted_fns: Vec::new(),
+             dropped_spans: Vec::new(),
+         }
+     }
+@@ -1547,6 +1598,11 @@
+                 match self.parse_top_level_decl() {
+                     Ok(decl) => {
+                         module.children.push(decl);
++                        // W883: functions hoisted out of the just-parsed item
++                        // land beside it at module level.
++                        for h in self.hoisted_fns.drain(..) {
++                            module.children.push(h);
++                        }
+                     }
+                     Err(e) => {
+                         // A malformed declaration is a HARD error: the old
+@@ -2555,6 +2611,17 @@
+     /// Parse function body statements until closing brace
+     fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
+         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
++            // W883 prototype: a NESTED fn is parsed with the ordinary fn parser
++            // and HOISTED to module level -- no statement node is produced, so
++            // no backend needs a no-op. Sound only when the nested fn captures
++            // nothing beyond its own parameters and module-level names; the
++            // one corpus instance (gf16's phi_dist) satisfies that, and the
++            // proposal text records the capture question as OPEN.
++            if self.current.kind == TokenKind::KwFn {
++                let nested = self.parse_fn_decl(false)?;
++                self.hoisted_fns.push(nested);
++                continue;
++            }
+             match self.parse_body_stmt() {
+                 Ok(stmt) => decl.children.push(stmt),
+                 Err(e) => {
+@@ -2766,15 +2833,26 @@
+         }
+ 
+         // Check for += assignment
+-        if self.current.kind == TokenKind::PlusEquals {
+-            self.advance(); // consume +=
++        // Compound assignment. `+=` was the grammar's only member for its whole
++        // life; W880 measured the gap -- 55 specs, 138 seals and the L6 SSOT
++        // (gf16.t27's Taylor loop) unparseable for want of `*=` alone.
++        let compound = match self.current.kind {
++            TokenKind::PlusEquals => Some("+="),
++            TokenKind::MinusEquals => Some("-="),
++            TokenKind::StarEquals => Some("*="),
++            TokenKind::SlashEquals => Some("/="),
++            TokenKind::PercentEquals => Some("%="),
++            _ => None,
++        };
++        if let Some(op) = compound {
++            self.advance(); // consume the compound operator
+             let rhs = self.parse_expr()?;
+             if self.current.kind == TokenKind::Semicolon {
+                 self.advance();
+             }
+             let mut assign = Node::new(NodeKind::StmtAssign);
+             assign.line = self.current.line as u32;
+-            assign.extra_op = "+=".to_string();
++            assign.extra_op = op.to_string();
+             assign.children.push(expr);
+             assign.children.push(rhs);
+             return Ok(assign);
+@@ -6681,10 +6759,13 @@
+                 self.write_indent();
+                 if node.children.len() >= 2 {
+                     self.gen_expr(&node.children[0]);
+-                    if node.extra_op == "+=" {
+-                        self.write(" += ");
+-                    } else {
+-                        self.write(" = ");
++                    match node.extra_op.as_str() {
++                        "+=" => self.write(" += "),
++                        "-=" => self.write(" -= "),
++                        "*=" => self.write(" *= "),
++                        "/=" => self.write(" /= "),
++                        "%=" => self.write(" %= "),
++                        _ => self.write(" = "),
+                     }
+                     self.gen_expr(&node.children[1]);
+                 }
+@@ -12932,10 +13013,18 @@
+                         self.in_lvalue = true;
+                         self.gen_verilog_expr(lhs);
+                         self.in_lvalue = false;
+-                        if node.extra_op == "+=" {
++                        let bin = match node.extra_op.as_str() {
++                            "+=" => Some(" + "),
++                            "-=" => Some(" - "),
++                            "*=" => Some(" * "),
++                            "/=" => Some(" / "),
++                            "%=" => Some(" % "),
++                            _ => None,
++                        };
++                        if let Some(b) = bin {
+                             self.write(asn);
+                             self.gen_verilog_expr(lhs);
+-                            self.write(" + ");
++                            self.write(b);
+                         } else {
+                             self.write(asn);
+                         }
+@@ -15085,10 +15174,13 @@
+                         self.gen_c_expr(&node.children[1]);
+                     } else {
+                         self.gen_c_expr(&node.children[0]);
+-                        if node.extra_op == "+=" {
+-                            self.write(" += ");
+-                        } else {
+-                            self.write(" = ");
++                        match node.extra_op.as_str() {
++                            "+=" => self.write(" += "),
++                            "-=" => self.write(" -= "),
++                            "*=" => self.write(" *= "),
++                            "/=" => self.write(" /= "),
++                            "%=" => self.write(" %= "),
++                            _ => self.write(" = "),
+                         }
+                         self.gen_c_expr(&node.children[1]);
+                     }
+--- bootstrap/stage0/FROZEN_HASH	2026-08-15 01:42:51
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 03:25:44
+@@ -1 +1 @@
+-7db97938202977477abd1e80a82b9f5f5d7b40e1c1d1d1999aa006aec71412b3  bootstrap/src/compiler.rs
++cdac92b9315d30318ff4a42401004626428faddc0bf583bcf36f6e8206e7a50b  bootstrap/src/compiler.rs
