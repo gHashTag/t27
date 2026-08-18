@@ -146,6 +146,14 @@ enum Commands {
         /// Build only; do not touch the boards
         #[arg(long, default_value_t = false)]
         skip_hardware: bool,
+        /// W842: nextpnr's placer/router seed. W841 measured a verdict that
+        /// flipped when the netlist was perturbed by a change that cannot affect
+        /// the arithmetic (T614), which puts the cause below the front end.
+        /// Sweeping this separates PLACEMENT from everything under it: a clause
+        /// that moves with the seed was decided by place-and-route; one that
+        /// holds across seeds has its cause in FASM or bitstream generation.
+        #[arg(long)]
+        pnr_seed: Option<u32>,
     },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
@@ -10333,6 +10341,7 @@ async fn main() -> anyhow::Result<()> {
             wrong_part,
             control,
             skip_hardware,
+            pnr_seed,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -10341,6 +10350,7 @@ async fn main() -> anyhow::Result<()> {
             wrong_part,
             control,
             skip_hardware,
+            pnr_seed,
         )?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
@@ -10712,6 +10722,7 @@ fn main() -> anyhow::Result<()> {
             wrong_part,
             control,
             skip_hardware,
+            pnr_seed,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -10720,6 +10731,7 @@ fn main() -> anyhow::Result<()> {
             wrong_part,
             control,
             skip_hardware,
+            pnr_seed,
         )?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?

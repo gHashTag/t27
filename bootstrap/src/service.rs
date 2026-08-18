@@ -1472,6 +1472,7 @@ pub fn run_silicon(
     wrong_part: Option<String>,
     no_bscan_control: Option<String>,
     skip_hardware: bool,
+    pnr_seed: Option<u32>,
 ) -> anyhow::Result<()> {
     let tmp = std::env::temp_dir().join("t27-silicon");
     std::fs::create_dir_all(&tmp)?;
@@ -1756,6 +1757,16 @@ pub fn run_silicon(
             "--fasm".into(), fasm_path.to_string_lossy().into_owned(),
             "--freq".into(), "70.77".into(),
         ];
+        // W842 (T616): a seed makes place-and-route a VARIABLE. nextpnr's default
+        // is fixed, so every build of a given netlist places identically -- which
+        // is why W841's 13-LUT netlist change read as a coin flip rather than as
+        // the placement move it was. Sweeping the seed holds the netlist still
+        // and moves only the placement, which is the one bisection this bench has
+        // never been able to make.
+        if let Some(sd) = pnr_seed {
+            pnr_args.push("--seed".into());
+            pnr_args.push(sd.to_string());
+        }
         if let Some(x) = &xdc {
             pnr_args.push("--xdc".into());
             pnr_args.push(x.to_string_lossy().into_owned());

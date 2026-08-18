@@ -23966,6 +23966,98 @@ verdict, because I did not consider that it could**, and the anomaly is the
 wave's main result. Registering forecasts only for the things you are testing
 leaves the things you are assuming unguarded.
 
+## W842 -- THE CAUSE, LOCATED: place-and-route is not function-preserving here
+
+### T616 -- THE PLACER SEED DECIDES THE VERDICT [measured]
+
+`t27c silicon` gained `--pnr-seed`, and design 14 was built five times from ONE
+netlist -- 187 CARRY4 in every build -- changing nothing but nextpnr's seed:
+
+    seed       word          clauses   ok
+    1          0xa5a533bf     1111      1    PASS
+    7          0xa5a533b6     1101      0    FAIL  (c_comm)
+    42         0xa5a533bf     1111      1    PASS
+    1234       0xa5a533b6     1101      0    FAIL  (c_comm)
+    31337      0xa5a533bf     1111      1    PASS
+
+Same board, same spec, same wrapper, same synthesis output. **Three of five
+placements compute the specified function and two do not.**
+
+FORECAST REGISTERED BEFORE THE SWEEP: a clause that moves with the seed was
+decided by place-and-route; one that holds across seeds has its cause below it.
+**CONFIRMED.**
+
+### T617 -- IT IS NOT TIMING, AND THE MARGINS SAY SO BACKWARDS [measured]
+
+    seed      slowclk Fmax          verdict
+    1         15.83 / 24.41 MHz     PASS      <- the WORST margin passes
+    7         17.36 / 25.63 MHz     FAIL
+    42        18.15 / 25.88 MHz     PASS
+    1234      18.29 / 26.05 MHz     FAIL      <- the BEST margin fails
+
+Every build reported `PASS at 8.85 MHz`. The failures are not at the tight end of
+the distribution; the best-margin build is one of them. **A timing report of PASS
+does not imply the built circuit computes the specified function**, and on this
+bench it never did -- W839 through W841 read that reassurance as if it were one.
+
+### T618 -- AND IT IS DETERMINISTIC [measured]
+
+    rep A  seed 7   1101 ok=0        rep A  seed 42  1111 ok=1
+    rep B  seed 7   1101 ok=0        rep B  seed 42  1111 ok=1
+
+Seed -> verdict is a function. This is a reproducible defect, not a flaky bench,
+and it reproduces in under a minute on an 800-LUT design:
+
+    t27c silicon specs/ternary/gft_smul.t27 --top fpga/verilog/gft_dup_jtag.v \
+        --busdev-num 1:4 --pnr-seed 7     # c_comm = 0
+    ...                                   --pnr-seed 42    # c_comm = 1
+
+### T619 -- WHAT THIS CLOSES, AND WHAT IT COSTS [derived]
+
+The question opened in W838 ("silicon and Icarus disagree") is answered by
+elevation, after four waves and eight refuted hypotheses:
+
+    W839  instance-vs-constant criterion        REFUTED (W840, design 14)
+    W840  a second counter                      REFUTED (design 15)
+    W840  foldable neighbours                   REFUTED (design 16)
+    W841  a wrapper property of any kind        REFUTED (T614: a repack flipped it)
+    W842  PLACE-AND-ROUTE                       CONFIRMED
+
+Arithmetic was excluded three ways (reading `magmul`, Icarus over 8,192 pairs,
+yosys `sat -prove`). Timing is now excluded by measurement in the strongest form
+available: the failures have BETTER margin than the passes.
+
+**The cost is that every silicon verdict on this bench was built at nextpnr's
+default seed, and none was ever repeated at another.** A verdict is now a claim
+about one placement, not about the spec -- until it is repeated across seeds.
+
+### T619a -- THE RULE THAT FOLLOWS [derived]
+
+> **A silicon verdict must agree across at least three placer seeds, or it is a
+> statement about one placement.**
+
+The three-seed floor is not arbitrary: with 2 of 5 seeds failing here, a single
+build has a ~40% chance of reporting the wrong answer for this design, and three
+agreeing builds cut that to a few percent under independence. It is cheap --
+design 14 builds in 50 seconds -- and it is the only defence available while the
+flow defect stands.
+
+What this does NOT invalidate: nothing is retracted on this evidence alone. Every
+standing verdict now needs a seed sweep, and the constant-comparison clauses
+(`c_zero`, `c_gold`, `c_cancel`, `c_init`) plus `c_self` are the ones most likely
+to survive it, having already held under every netlist perturbation W840 and W841
+threw at them. **The corpus split (T602) is the first that should be re-run**,
+because it is the result the project would most regret losing quietly.
+
+### T619b -- forecast count, fourteenth entry [derived]
+
+    W842  (1 confirmed / 0 withdrawn / 0 refuted)
+
+One forecast, registered before the sweep, and it named the mechanism. After
+eight refutations across four waves, the hypothesis that survived was the one
+that could only be tested by making place-and-route a variable -- which required
+a tool change (`--pnr-seed`) rather than another wrapper.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

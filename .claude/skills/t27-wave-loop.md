@@ -11332,6 +11332,28 @@ from three more wrapper edits.
 the migration because it was "just a repack". The unforecast step is where the
 anomaly was. Register a one-line expectation even for the mechanical parts.
 
+**1182. A SILICON VERDICT AT ONE PLACER SEED IS A CLAIM ABOUT ONE PLACEMENT.**
+W842 built ONE netlist five times changing only `--pnr-seed`: three placements
+computed the specified function and two did not, deterministically. Require
+agreement across >= 3 seeds before recording any verdict.
+
+**1183. "TIMING PASSED" DOES NOT MEAN "COMPUTES THE RIGHT FUNCTION".** The failing
+seeds had BETTER Fmax margin than the passing ones. Every build reported PASS.
+Three waves read that line as reassurance it could not give.
+
+**1184. WHEN EVERY HYPOTHESIS ABOUT THE SOURCE FAILS, MAKE THE TOOL A VARIABLE.**
+Four waves refuted eight wrapper-level explanations. The answer needed
+`--pnr-seed` -- a tool change, not another wrapper. If edits to the thing under
+test keep missing, the thing under test is not where the bug is.
+
+**1185. LOCATE BY ELEVATION BEFORE LOCATING BY NAME.** "It is below yosys and
+above the die" (W841) was not the answer, but it is what made W842 one experiment
+instead of a search. Narrowing WHERE is progress even when WHAT is still unknown.
+
+**1186. A DEFECT WORTH REPORTING REPRODUCES IN UNDER A MINUTE.** `--pnr-seed 7`
+fails, `--pnr-seed 42` passes, on 800 LUT in 50 seconds. Reduce to that before
+writing it up; the reduction is most of the value.
+
 ### How to update this tracker
 
 After closing a wave:
