@@ -276,6 +276,25 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
         let survived = passes(cmd).unwrap_or(false);
         std::fs::write(file, &original)?;
 
+        // Verify the restore instead of assuming it. A measurement taken
+        // against a file this command left perturbed is not a measurement, and
+        // that is not hypothetical: a perturbed constant survived a hand-run
+        // mutation on this machine, was read back as if it were the real value,
+        // and produced a written-up finding that did not exist. Failing loudly
+        // here costs one read per mutant and makes that silent.
+        let back = std::fs::read_to_string(file)
+            .with_context(|| format!("cannot re-read {} after restoring it", file.display()))?;
+        if back != original {
+            bail!(
+                "{} was NOT restored after mutating line {}. Recover it with \
+                 `git checkout -- {}` before trusting any measurement taken \
+                 against it.",
+                file.display(),
+                m.line,
+                file.display()
+            );
+        }
+
         print!("\r  {}/{}   ", n + 1, mutants.len());
         use std::io::Write;
         let _ = std::io::stdout().flush();
