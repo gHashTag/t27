@@ -11598,6 +11598,16 @@ in one table (W851) and stale again in another (W857), both times because a fix
 pass updated the wider rungs. When a defect has a mechanism, search for the same
 key in every table before chasing the next alarm.
 
+**1235. A HYPOTHESIS THAT FINDS NOTHING IS THE HYPOTHESIS WORKING.** "A
+reconciliation skips a rung everywhere" predicted where to look; five further TNF8
+rows were consistent. A negative result from a named mechanism is a closed
+question, not a wasted wave.
+
+**1236. COUNTING A DIGIT STRING IS NOT FINDING A NUMBER.** I reported 4.08 as
+"occurring twice in the paper" -- they were 4.08e-17 and 4.08e-151, different
+quantities at different magnitudes. That is exactly the defect I had spent three
+waves documenting in the withdrawn-live gate, committed while auditing it.
+
 ### How to update this tracker
 
 After closing a wave:

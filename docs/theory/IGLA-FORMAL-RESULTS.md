@@ -25035,6 +25035,65 @@ The three document defects came from: reading LaTeX, running a regenerator, and
 running a regenerator with its counting instrumented. **None came from a gate**,
 and all three were within reach of a person who ran the scripts the paper ships.
 
+## W858 -- the hypothesis is exhausted, and the last candidate dissolves
+
+### T669 -- TNF8 IS CONSISTENT IN EVERY REMAINING TABLE [measured]
+
+W857 named the mechanism -- a reconciliation that updates the wider rungs and
+skips the 8-bit one -- and it had fired twice. Searching every TNF8 row in the
+paper:
+
+    tab:law            M=4                          fixed W851
+    tab:ladderacc      dec=8, band cells             fixed W857
+    tab:spec           E_t=3, M=4, dec=8             consistent
+    tab:ladder-sweep   spec, 3, 4, 8, 0, 4           consistent
+    tab:ladderversions 3, 4, 8 checkmark, 3, 4       consistent
+    tab:ladder         50 LUT, 0 DSP, 153.23 MHz     no regenerator
+    tab:fullthroughput 545 LUT, 62.13 MHz, 0.1140    no regenerator
+
+The five specification rows agree with each other and with both corrected
+tables. **The mechanism is exhausted: it reached the two tables a regenerator
+covers and no others**, which is consistent with its cause -- a re-run that
+touched the computed tables and left the declarative ones alone, because those
+never needed re-running.
+
+Searching by hypothesis found nothing this time, and that is the hypothesis
+working: it predicted where to look and the answer was clean.
+
+### T670 -- `68.17` IS DERIVABLE, NOT MISSING [measured]
+
+The last open candidate. `recompute_field_table` prints
+`TNF vs GF ratios: ['4.08','4.11','68.17']`, and `tab:field` prints the rows
+those ratios come from:
+
+    TNF16   8.34e-5   8.41e-5   8.45e-5
+    GF16    3.41e-4   3.46e-4   5.76e-3 (465)
+
+    3.41e-4 / 8.34e-5 = 4.088     3.46e-4 / 8.41e-5 = 4.114
+    5.76e-3 / 8.45e-5 = 68.17
+
+**None of the three ratios is printed, and all three are derivable from printed
+rows.** The far-band figure is large because GF16 clips 465 values there, which
+the table states in the cell. Not a defect.
+
+**And a correction to W854.** I reported that `4.08` occurs twice in the paper and
+`4.11` six times, treating that as evidence they were printed. They are
+coincidences: `4.08e-17` at TNF64 and `4.08e-151` at TNF512, different quantities
+at different magnitudes. **Counting a digit string is not finding a number** --
+the same error the withdrawn-live gate makes, made by me while auditing it.
+
+### T670a -- THE LEDGER, CLOSED FOR NOW [derived]
+
+    document findings      3   twelve labels; two TNF8 cells
+    instrument findings   13
+    tables verified        3   all clean at 0.1% tolerance
+    candidates open        0
+
+Every open thread from eight waves is now either fixed, verified, or shown to be
+an artefact. **What remains is not a finding but a decision**: three patches, three
+gate corrections and one superseded-script marker sit in `docs/reports/upstream/`
+and cannot be sent by a wave.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
