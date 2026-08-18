@@ -1,3 +1,16 @@
+# NOW -- the third opinion, exhaustive (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: an independent model closes the two-way gap on 33.7M inputs (Closes #2200)
+
+- **#2199 printed its own limitation on every run:** C against Rust only, so a fault shared by both backends -- a spec bug, or shared lowering -- was invisible. "The backends agree" and "both match the specification" are different claims
+- **`tools/ternary_model.py` is transcribed from the SPEC text**, not from generated code. Had it been derived from the backends it would agree by construction and prove nothing. Transcribed faithfully including what looks wrong: `pack2` does not mask its arguments to two bits, so values above 3 spill into the next trit lane -- a model that "fixed" that would report the model disagreeing with the spec it encodes
+- **model == C == Rust, exhaustively:** `full_adder` and `maj3` at 16,777,216 inputs each, `tmul` and `pack2` at 65,536, `negate` at 256. **33.7 million inputs, three implementations, ~8 seconds**
+- **Two negative controls, because the model arm needed its own.** Perturbing C proves the C/Rust comparison has resolution and says nothing about whether a model disagreeing with *both* backends would be seen -- which is the reason the model exists
+- **Measured, not guessed:** pure Python did not finish `full_adder` in 600 s (nine `dot27` calls per input, 27 lanes each, ~4e9 operations). Memoising `dot27` -- pure, so semantics untouched -- took it from 179k calls/s to 2.2M/s
+- Targets without a model entry stay two-way and are **labelled** as such, so the weaker case cannot pass for the stronger
+
 # NOW -- exhaust the input space wherever it is small (2026-08-18)
 
 Last updated: 2026-08-18
