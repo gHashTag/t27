@@ -1,3 +1,16 @@
+# NOW -- three more primitives enumerated, and a width bug in the checker (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: pack3, xor2 and sign0 join the enumeration -- 50.6M inputs (Closes #2205)
+
+- **50,594,048 inputs covered exhaustively** by model/C/Rust, of which **196,864 across four independent implementations**. At the start of this line of work none of these specs had any cross-target check at all
+- New: \`pack3\` at 16,777,216 (three-way), \`xor2\` and \`sign0\` at 65,536 each (**four-way, exhaustive**)
+- **A bug caught before it ran, which would have made the tool agree with itself.** The Verilog testbench generator sliced every loop variable as \`i0[7:0]\`, hardcoded to a byte. \`sign0\` takes \`i16\`. It would have compiled, run, produced a digest, and compared a **narrower function** than the C and Rust arms evaluated -- the Verilog arm truncating to 8 bits while the others used 16. The width now comes from the argument's declared type
+- That is this line's own failure mode, in the checker rather than the checked: **a harness that measures something other than what it reports**
+- \`pack2\` and \`pack3\` return u64; the C and Rust folds take the low 32 bits and a matching Verilog fold needs a 64-bit accumulator. They stay three-way and are **labelled**, rather than given an arm that quietly compares something narrower -- the mistake avoided just above
+- Caught in my own issue text too: I wrote "262,400 across four implementations", which had counted \`pack2\`'s 65,536 despite it having only three arms. The figure is 196,864
+
 # NOW -- when enumeration beats a prover, and the nightly that uses it (2026-08-18)
 
 Last updated: 2026-08-18
