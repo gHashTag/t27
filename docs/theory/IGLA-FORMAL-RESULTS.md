@@ -25154,6 +25154,65 @@ correctness: **94% of this paper's numeric cells have no regenerator, and no
 statement about them has been earned.** Three defects in the six percent that
 could be checked is the only rate anyone has.
 
+## W860 -- there is nothing to map with, and that is the finding
+
+### T673 -- THE PAPER NAMES ZERO OF ITS DATA FILES AND ZERO OF ITS REGENERATORS [measured]
+
+Three waves failed to map a measurement record to the table it backs, each time by
+guessing filenames. W859 concluded the mapping must be somewhere I had not read.
+It is nowhere:
+
+    `.json`           0 occurrences in tnf_paper.tex
+    `measurements/`   0
+    `recompute_`      0
+    `gen_figures`     0
+    `.py`             7   -- the check_* gates, not data
+
+All twelve occurrences of "measurements" are the English word. And
+`measurements/README.md` describes each record in prose -- *"backs the downstream
+table"*, *"backs the rung-threshold table"* -- naming no `\label`.
+
+**So the link between a table and the data behind it exists in no file.** My three
+failed mappings were not carelessness about something written down; they were
+attempts to read something that is not there.
+
+### T674 -- FOURTH DOCUMENT FINDING, AND IT IS ABOUT PROVENANCE RATHER THAN A NUMBER [derived]
+
+The three earlier document findings were wrong values. This one is structural:
+
+    59 tables carry fractional numbers
+     4 have a regenerator a reader could run
+     0 tables state, in the paper, which file backs them
+
+A reader who wants to check `tab:rungthr`'s 99 cells has `per_rung_2026-08-13g.json`
+sitting in the repository, described in a README as backing *"the rung-threshold
+table"*, and no way to confirm that is the same table without doing what I did --
+guess, compare, and get 64% mismatch.
+
+The repository is unusually well provisioned: machine-written records copied
+verbatim, generators with declared seeds, a README that refuses to copy two
+superseded records and says why. **The one link missing is the cheapest of all**:
+a filename in a caption.
+
+### T675 -- WHAT THE FOUR SESSION FINDINGS HAVE IN COMMON [derived]
+
+    W849  twelve `Section~\ref` resolving to figure numbers   a label in the wrong place
+    W851  TNF8's row in tab:law                               a re-run that skipped a rung
+    W857  TNF8's cell in tab:ladderacc                        the same re-run, same rung
+    W860  no table names its data                             a link never written
+
+Not one is an arithmetic error. **All four are bookkeeping between a number and
+where it came from** -- which is precisely what this paper is about, and what its
+own Section 27 documents twenty times over. The defects are in the same class as
+the subject.
+
+### T675a -- READINESS, STATED AS WHAT A READER CAN DO [derived]
+
+    cells a reader can verify by running a shipped script     121 of 2,094   5.8%
+    tables whose data source is stated in the paper             0 of 59
+    document defects found in the verifiable 5.8%                    3
+    document defects found in provenance                             1
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

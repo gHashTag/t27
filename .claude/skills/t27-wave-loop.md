@@ -11623,6 +11623,22 @@ a check fires on two thirds of what it examines, stop and read the check. Three
 waves in a row I mapped data to tables by guessing filenames and each time the
 mapping was the defect.
 
+**1240. THREE FAILED MAPPINGS MAY MEAN THERE IS NOTHING TO MAP WITH.** After
+guessing filenames three waves running, I looked for the mapping I assumed I had
+missed: `.json` occurs zero times in the paper, `recompute_` zero, the
+measurements directory zero. Check that a link EXISTS before concluding you read
+it wrong.
+
+**1241. THE CHEAPEST MISSING LINK IS A FILENAME IN A CAPTION.** A repository with
+machine-written records, declared seeds and a README that documents its own
+superseded files still leaves a reader unable to check 55 of 59 tables, because no
+caption names the file behind it.
+
+**1242. COUNT WHAT THE DEFECTS HAVE IN COMMON.** Four document findings this
+session: a misplaced label, a skipped rung twice, and an unwritten link. None is
+arithmetic. All four are bookkeeping between a number and its origin -- the
+paper's own subject.
+
 ### How to update this tracker
 
 After closing a wave:
