@@ -15,6 +15,28 @@ real divergence exits 1. Run:  python3 tools/verify_trainer_c.py
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 
+def _build(cmd, cwd, what):
+    """Run a compiler and, if it fails, print what IT said before giving up.
+
+    Every caller below used to test `.returncode` on a capture_output=True run and
+    discard the message. That is how a missing brace in a spec came to be reported
+    as "the C backend failed to build" for four days: the compiler named the file,
+    the function, the line and the token, and the wrapper threw it away. A
+    diagnostic that names the wrong subsystem costs more than none.
+    """
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if r.returncode == 0:
+        return True
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  {what}: {os.path.basename(cmd[0])} exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:6]:
+        print(f"      {line}")
+    if len(out) > 6:
+        print(f"      ... {len(out) - 6} more line(s)")
+    return False
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]   # 2-layer, multi-output, deep
@@ -135,8 +157,7 @@ int main(void){{
 """
     cf = os.path.join(wd, "trainer.c"); open(cf, "w").write(main)
     b = os.path.join(wd, "tbin")
-    r = subprocess.run(["cc", "-O2", "-o", b, cf], cwd=wd, capture_output=True, text=True)
-    if r.returncode != 0:
+    if not _build(["cc", "-O2", "-o", b, cf], wd, "trainer C"):
         return None
     out = subprocess.run([b], capture_output=True, text=True).stdout
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
