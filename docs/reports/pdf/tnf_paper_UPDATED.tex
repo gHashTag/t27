@@ -82,9 +82,10 @@ between the shift and $\varphi$. The family $r^d=r+1$ reaches any granularity at
 \emph{one addition} and $d$ registers: fineness costs registers, not adders.
 
 Among the twenty-one formats carrying their own range --- those a training run can
-live in --- GFTernary ranks highest on throughput per area in this XC7A200T post-route
-comparison, at $0.1797$\,MHz/LUT against $0.1631$ for the next entry and
-$0.0295$ for \texttt{posit32}, with nine of the twenty-one ours. Formats needing
+live in --- GFTernary scores $0.181$\,MHz/LUT on this XC7A200T post-route flow at a median
+of five placement seeds, against \texttt{int8}'s $0.180$ --- a difference of
+$0.4\%$ inside a $16\%$ seed spread, so the two are indistinguishable and no
+lead is claimed. Nine of the twenty-one are ours. Formats needing
 an external learned scale are tabulated apart. On an XC7A200T the folded ternary
 neuron costs $28.0$ LUT per weight at fan-in 8, rising to $33.1$ and $33.2$ at
 fan-in 16 and 32, with \emph{no DSP at any fan-in}.
@@ -181,7 +182,7 @@ not.
 \begin{equation}
 \begin{aligned}
 &\text{TNF16}=[\,s\,\mid\,E{=}4\ \text{balanced-ternary trits}\,\mid\,M{=}11\ \text{bits}\,],\\[4pt]
-&v=(-1)^{s}\Bigl(1+\frac{M}{2^{9}}\Bigr)2^{e},
+&v=(-1)^{s}\Bigl(1+\frac{M}{2^{11}}\Bigr)2^{e},
 \qquad e=\sum_{i} t_i 3^i \in [-40,40].
 \end{aligned}
 \end{equation}
@@ -197,7 +198,7 @@ included. Fixed fields make it a bit slice.
 $3^4=81$ exponent steps. On a ternary fabric the exponent add is native --- no
 binary carry, no conversion between bases.
 
-\paragraph{Precision does not taper.} Nine mantissa bits at every magnitude,
+\paragraph{Precision does not taper.} Eleven mantissa bits at every magnitude,
 where a tapered format narrows towards the extremes. This is the mechanism behind
 the accuracy result of Section~\ref{sec:accuracy}: the win appears where the
 comparison format has spent its mantissa on range.
