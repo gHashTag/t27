@@ -1529,7 +1529,19 @@ pub fn run_recompute_diff(
         for l in err.lines().take(6) { println!("  | {l}"); }
         std::process::exit(2);
     }
-    let recomputed = numbers_in(&out);
+    // W853: a regenerator prints DIAGNOSTICS beside its cells --
+    // `outside [659, 1903, 2788]` counts out-of-range samples and belongs in no
+    // table. Across all five scripts the convention is the same: a cell value is
+    // QUOTED, bookkeeping is bare. `['9.99e-02','nan'] outside [659, 1903]` and
+    // `[('1.04e-01', 57), ('out', 187)]` both put the number that reaches the
+    // paper inside quotes and the count outside them.
+    //
+    // So: if the output quotes ANY number, take only the quoted ones. If it
+    // quotes none, the script has no such convention and every number counts.
+    // Reported either way, because a reader must know which rule applied.
+    let quoted = quoted_numbers_in(&out);
+    let used_quoted = !quoted.is_empty();
+    let recomputed = if used_quoted { quoted } else { numbers_in(&out) };
 
     let body = std::fs::read_to_string(repo_root.join(&tex))?;
     let region = match &label {
@@ -1547,13 +1559,31 @@ pub fn run_recompute_diff(
                 }
             }
         }
-        None => body.clone(),
+        None => {
+            // W853: whole-file mode is a FALSE PASS GENERATOR and is refused.
+            // Measured: the paper holds 6,064 numbers over many orders of
+            // magnitude, so a 2% band around almost any value contains one of
+            // them. Run against the paper as it stood BEFORE a known stale row
+            // was fixed, whole-file mode reported OK while --label reported all
+            // three cells -- and two of those three (0.49, 1.883) appear
+            // NOWHERE else in the file. They were matched by coincidence.
+            //
+            // W852 reported "two tables verify clean" from two whole-file runs.
+            // That evidence is withdrawn by this measurement.
+            println!();
+            println!("REFUSED -- --label is required. Searching the whole paper reports OK for");
+            println!("  almost anything: 6,064 numbers over many orders of magnitude mean a 2%");
+            println!("  band around nearly any value contains one. Measured, this mode missed a");
+            println!("  stale row whose values appear nowhere else in the file (W853).");
+            std::process::exit(2);
+        }
     };
     let printed = numbers_in(&region);
 
     println!("  script    {script}");
     println!("  table     {tex}{}", label.as_ref().map(|l| format!("  \\label{{{l}}}")).unwrap_or_default());
-    println!("  numbers   recomputed {}   printed {}", recomputed.len(), printed.len());
+    println!("  numbers   recomputed {}   printed {}{}", recomputed.len(), printed.len(),
+             if used_quoted { "   (quoted cells only; bare numbers read as diagnostics)" } else { "" });
 
     // THE GUARD. Comparing nothing to something reports total disagreement.
     if recomputed.is_empty() || printed.is_empty() {
@@ -1587,6 +1617,30 @@ pub fn run_recompute_diff(
         }
     }
     std::process::exit(1);
+}
+
+/// Numbers appearing inside single quotes: the cell values, by the convention
+/// every regenerator in this tree follows. Bare numbers alongside them are
+/// counts the script keeps for itself.
+fn quoted_numbers_in(s: &str) -> Vec<f64> {
+    let mut out = Vec::new();
+    let mut rest = s;
+    while let Some(a) = rest.find('\'') {
+        let after = &rest[a + 1..];
+        match after.find('\'') {
+            Some(b) => {
+                let tok = &after[..b];
+                if let Ok(v) = tok.trim().parse::<f64>() {
+                    if v != 0.0 && v.is_finite() {
+                        out.push(v);
+                    }
+                }
+                rest = &after[b + 1..];
+            }
+            None => break,
+        }
+    }
+    out
 }
 
 /// Every numeric literal, with LaTeX scientific notation folded to a plain

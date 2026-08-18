@@ -11531,6 +11531,22 @@ document.
 tell them apart reports the script's own bookkeeping as a paper defect; say so
 rather than counting it.
 
+**1222. WIDENING A COMPARISON IS HOW IT STOPS COMPARING.** Two of this session's
+ten instrument defects were mine, and each was introduced while fixing the last
+one: a suffix rule that widened what counts as one number, and a whole-file mode
+that widened where to look. Both made a check pass more often. When a fix makes
+a checker agree more, that is the signal to stop.
+
+**1223. TOLERANCE TIMES POPULATION IS THE REAL FALSE-PASS RATE.** A 2% band over
+6,064 literals spanning many orders of magnitude contains a neighbour for almost
+any value. Two numbers appearing NOWHERE in the file were reported found. Before
+trusting a tolerance, multiply it by how many numbers it may match against.
+
+**1224. A VERDICT PRODUCED BY A MODE YOU LATER DISABLE MUST BE WITHDRAWN.**
+W852's "two tables verify clean" came from whole-file runs. Disabling the mode
+without retracting the verdict would leave the conclusion standing on evidence
+the tool itself now refuses to produce.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -24751,6 +24751,70 @@ covered by a command: `recompute-diff` reproduces the stale row, and `gates`
 reports true exit codes on a stated tree. **Nine instrument findings bought three
 instruments.**
 
+## W853 -- the tolerance was the hole, and it withdraws yesterday's clean verdict
+
+### T654 -- A CELL IS QUOTED; BOOKKEEPING IS BARE [measured]
+
+Every regenerator in `research/arxiv_tnf/` follows one convention:
+
+    ['9.99e-02', 'nan', 'nan']  outside [659, 1903, 2788]
+     +-- cells --+                       +- counts -+
+
+    [('1.04e-01', 57), ('out', 187)]
+       +- cell -+  +- clip
+
+`recompute-diff` now takes only quoted numbers when the output quotes any, falls
+back to all numbers when it quotes none, and says which rule applied. That
+removes the diagnostics W852 could not tell from cells.
+
+### T655 -- WHOLE-FILE MODE IS A FALSE-PASS GENERATOR, AND W852 USED IT [self-critical]
+
+Yesterday I recommended omitting `--label` when a script spans tables, and
+reported *"two tables verify clean"* on that basis. Measured today against the
+paper as it stood BEFORE the known stale row was fixed:
+
+    with --label tab:law   FAIL -- all three stale cells caught
+    whole file             OK
+
+And the mechanism is worse than a near miss. Of the three values the scoped run
+caught, **two appear nowhere else in the file at all**:
+
+    1.54    3 occurrences elsewhere
+    0.49    0
+    1.883   0
+
+They were matched by **coincidence**: the paper holds **6,064** numeric literals
+across many orders of magnitude, so a 2% band around nearly any value contains
+one of them. Whole-file mode does not compare a table against its regenerator;
+it asks whether a number of roughly that size exists anywhere in a long document,
+and the answer is almost always yes.
+
+**W852's "two tables verify clean" is withdrawn.** Both were whole-file runs and
+neither establishes anything. The mode is now REFUSED with that measurement in
+its message.
+
+### T656 -- THE TENTH INSTRUMENT DEFECT WAS MINE, AND IT WAS A RECOMMENDATION [self-critical]
+
+    W851  my inline extractor read zero cells      mine
+    W853  my whole-file recommendation             mine
+
+Two of the ten instrument defects this session are mine, and both were introduced
+while fixing the previous one. The pattern is specific: **each fix widened the
+comparison to be more robust, and widening a comparison is how it stops
+comparing.** The suffix fix (W846) widened what counts as one number; the
+whole-file recommendation (W852) widened where to look. Both made a check pass
+more often, which is what a check must not do.
+
+### T656a -- WHAT SURVIVES [measured]
+
+    tab:law verified against recompute_law_table, scoped   OK, 48 values
+    the TNF8 correction (W851)                             stands, independently re-checked
+    the twelve label corrections (W849)                    stand
+    every other table                                      NOT verified -- yesterday's
+                                                           clean verdict is withdrawn
+
+**One table is verified. The claim that a second was is retracted.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
