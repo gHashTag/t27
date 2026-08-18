@@ -26744,6 +26744,53 @@ grammar cannot read. Each audit instrument built this session reads one stratum.
 The `sealed_by` field is the first piece of metadata that lets future audits
 tell the strata apart without archaeology.
 
+## W883 -- the strata verified, the SSOT parses, and the decision priced
+
+### T725 -- THE TWO STRATA, VERIFIED END TO END [measured]
+
+`t27c seal --verify` swept both layers of the store:
+
+    bootstrap-minted (165, labelled)        165/165 MATCH -- spec hash and every
+                                            gen hash reproduce
+    meta-minted (random 100 of 1,014)        11 MATCH, 89 MISMATCH
+
+**Only 11% of the meta compiler's certificates reproduce under the tool the
+repository builds today.** The stratigraphy is not a metaphor: the two layers
+verify at 100% and 11%, and no audit before `sealed_by` could have told them
+apart except by dates.
+
+### T726 -- UNDER PROTOTYPES 0001+0002 THE L6 SSOT PARSES AND COMPILES [measured]
+
+The nested-fn prototype (a parser-level hoist: field + KwFn interception in
+`parse_fn_body` + drain beside the module push) joined the compound-assignment
+patch in the scratchpad copy:
+
+    gf16.t27    parses COMPLETELY; all four backends emit REAL gen hashes --
+                sealable under the repository's own compiler for the first time
+    control     the unpatched compiler still fails at line 824
+    radius      0001+0002 fix exactly the SSOT-family pair (gf16, tf3);
+                the remaining 34 failures are the three dialects, untouched
+
+The if-expression I expected to block (`return if (d < 0.0) -d else d`) did not:
+`ExprIf` was already in the grammar. **The distance from "the SSOT is unparseable"
+to "the SSOT is sealable" was two small, separately-reviewable grammar changes.**
+
+### T726a -- CAPTURE SOUNDNESS STATED OPEN, NOT HIDDEN [derived]
+
+Hoisting a nested fn is sound only when it captures nothing beyond its own
+parameters and module-level names. The one corpus instance (`phi_dist`)
+satisfies this; the prototype measures REACH and the proposal says so. A
+prototype that quietly over-claims soundness would be a vacuous seal in patch
+form -- the exact disease this audit spent a session measuring.
+
+### T726b -- THE FROZEN-HASH GUARD CAUGHT ITS OWN PROTOTYPE [measured]
+
+The second edit to the scratchpad compiler failed the copy's own FROZEN_HASH
+check at build time -- the stale binary then "passed" gf16 before the rebuild,
+and only re-running the build surfaced it. The freeze mechanism works, including
+against the person prototyping around it; the two-minute confusion it cost is
+the price of the guarantee.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -12059,6 +12059,19 @@ against dialects pre-empts a language-design decision that is not the patcher's.
 late-evening UTC seals filed them under the previous day; the first filter
 matched zero and looked like absence.
 
+**1338. VERIFY THE STRATA SEPARATELY.** bootstrap layer 165/165, meta layer
+11/100 -- one number for the whole store would have said "mostly broken" and
+meant nothing. Label first, then verify per layer.
+
+**1339. INTERCEPT IN THE LOOP, NOT IN THE STATEMENT PARSER.** Hoisting nested
+fns from parse_fn_body's loop needs no no-op statement node and touches no
+backend. The cheapest sound insertion point is one level up from where the
+grammar fails.
+
+**1340. A STALE BINARY AFTER A FAILED BUILD IS A FALSE POSITIVE FACTORY.** The
+copy's FROZEN_HASH rejected the second edit; the old binary then 'passed' the
+new test. After any build, confirm it FINISHED before believing the binary.
+
 ### How to update this tracker
 
 After closing a wave:
