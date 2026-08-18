@@ -25213,6 +25213,41 @@ the subject.
     document defects found in the verifiable 5.8%                    3
     document defects found in provenance                             1
 
+### T676 -- THE MISSING LINK IS NOT RECOVERABLE FROM OUTSIDE, AND I DECLINED TO GUESS IT [measured]
+
+Having found that no table names its data (T673), the constructive move looked
+obvious: reconstruct the mapping by matching the README's prose to the paper's 60
+captions, and offer it upstream. Scored by keyword against all 60:
+
+    gpt2_window        -> tab:landing        3/3 vs 1/3   UNAMBIGUOUS
+    per_rung           -> tab:rungthr | tab:landing        2/2 TIE
+    workloads_strict   -> tab:ladderacc | tab:workloads    2/2 TIE
+    strict_range       -> tab:invariant | tab:rungthr      3/3 TIE
+    crossover2         -> tab:crosscorrected | tab:window  1/1 TIE
+    centering          -> NO CANDIDATE
+    tnf_downstream     -> NO CANDIDATE
+
+**One of eight resolves.** Two have no candidate at all; five tie between two or
+three captions. So the link is not merely unwritten -- it is *unreconstructible*
+by a reader, which is the stronger statement and the one that matters.
+
+**I did not publish the guessed table.** A provenance map assembled from keyword
+ties is invented provenance: it would read as authoritative, be wrong for five
+rows out of eight, and be indistinguishable from the real thing to anyone
+downstream. That is precisely the defect class this paper documents twenty times
+in its own Section 27. Three waves of filename-guessing had already produced a
+64% mismatch; the correct output of a fourth attempt is a refusal, not a table.
+
+### T676a -- WHAT MAY BE OFFERED INSTEAD [derived]
+
+    the finding                 no table states its data source              REPORTABLE
+    the one clean mapping       gpt2_window -> tab:landing                  REPORTABLE
+    the seven unresolved        two absent, five tied                       REPORTABLE AS OPEN
+    a completed mapping         --                                          ONLY THE AUTHOR CAN
+
+The author knows in one minute what no amount of text matching recovers. The
+useful deliverable is the question, correctly scoped -- not a plausible answer.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

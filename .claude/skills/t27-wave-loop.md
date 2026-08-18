@@ -11639,6 +11639,16 @@ session: a misplaced label, a skipped rung twice, and an unwritten link. None is
 arithmetic. All four are bookkeeping between a number and its origin -- the
 paper's own subject.
 
+**1243. WHEN THE RECONSTRUCTION TIES, THE OUTPUT IS A REFUSAL, NOT A TABLE.**
+Matching eight data records to 60 captions by keyword resolved ONE. Two had no
+candidate, five tied. Publishing the guessed map would have been invented
+provenance -- authoritative-looking, wrong in five rows, indistinguishable
+downstream from the real thing.
+
+**1244. THE USEFUL DELIVERABLE CAN BE THE QUESTION.** The author answers "which
+file backs tab:rungthr" in one minute; no amount of text matching recovers it. A
+correctly scoped open question beats a plausible answer.
+
 ### How to update this tracker
 
 After closing a wave:
