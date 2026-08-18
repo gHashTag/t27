@@ -172,8 +172,12 @@ enum Commands {
         /// \label{...} of the table; omit to search the whole file
         #[arg(long)]
         label: Option<String>,
-        /// Relative tolerance in percent
-        #[arg(long, default_value_t = 2.0)]
+        /// Relative tolerance in percent. Default 0.1, not 2.0: W854 measured the
+        /// false-match rate against population size, and at a 50-number table
+        /// 2.0% masks about 17% of stale cells while 0.1% masks about 3%. On the
+        /// correct table there were ZERO false rejections at any tolerance from
+        /// 5% down to 0.01%, so tightening costs nothing here.
+        #[arg(long, default_value_t = 0.1)]
         tol: f64,
     },
 

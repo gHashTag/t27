@@ -24815,6 +24815,73 @@ more often, which is what a check must not do.
 
 **One table is verified. The claim that a second was is retracted.**
 
+## W854 -- the tolerance was never the problem; the population was
+
+### T657 -- SCOPED, THE CHECK IS INSENSITIVE TO TOLERANCE OVER TWO AND A HALF ORDERS [measured]
+
+Run against the paper as it stood before the known stale row was fixed, scoped to
+`tab:law`:
+
+    tolerance   5.0%   2.0%   0.5%   0.1%   0.01%
+    caught       3/3    3/3    3/3    3/3     3/3
+    false        0      0      0      0       0     (on the corrected table)
+
+**Yesterday's prescription -- "lower the tolerance" -- was wrong.** Tolerance does
+nothing here. What broke the check was searching 1,486 numbers instead of 50.
+
+### T658 -- THE FALSE-MATCH RATE IS A FUNCTION OF POPULATION, MEASURED [measured]
+
+Three values that appear NOWHERE in the paper, matched against random samples of
+its literals, 200 trials each:
+
+    population    2.0%     0.5%     0.1%
+          50     16.8%     7.8%     3.2%
+         200     43.3%    24.8%    13.8%
+        1000     92.8%    84.8%    67.0%
+        1486    100.0%   100.0%   100.0%
+
+At full-document scope a value absent from the paper is matched **every time**,
+at every tolerance tried. At table scope 0.1% masks about 3% of stale cells and
+2.0% masks about 17%.
+
+Default tolerance moved 2.0 -> 0.1 on that measurement, since false rejections
+were zero at every tolerance down to 0.01%.
+
+**Correction to my own count.** W853 said the paper holds 6,064 numbers; a
+stricter regex finds **1,486**. The earlier figure counted integers -- page
+numbers, section numbers, ordinals -- as candidate values. The conclusion is
+unchanged and the arithmetic behind it was loose.
+
+### T659 -- FOUR MORE CANDIDATES, ALL SCOPE ARTEFACTS, AND ONE QUESTION FOR THE AUTHOR [measured]
+
+Mapping each regenerator to its table by best overlap and running scoped:
+
+    recompute_field_table  -> tab:field    24 of 27 matched
+    recompute_ladder_exact -> tab:ladder   23 of 24 matched
+
+The unmatched values are `4.08`, `4.11`, `68.17` and `2.02e-2`. The script prints
+`TNF vs GF ratios: ['4.08','4.11','68.17']`, and `tab:field` carries **errors, not
+ratios** -- three columns by `|e|` band and no ratio column. Same class as W852's
+`tab:tnf16-fill` case: the regenerator computes more than the one table holds.
+
+**No new document defect this wave.**
+
+One observation worth passing on rather than concluding: `4.08` occurs twice in
+the paper and `4.11` six times, but **`68.17` occurs zero times.** A number the
+paper's own regenerator computes and the paper never prints. Whether that is
+deliberate is the author's to say.
+
+### T659a -- THE SESSION'S LEDGER [derived]
+
+    instrument findings   11   (two of them mine, both from widening a comparison)
+    document findings      2   twelve mis-bound labels; one stale table row
+    commands built         3   gates, edit-check, recompute-diff
+    tables verified        1   tab:law, scoped, 48 values, tolerance-insensitive
+
+**The ratio has not improved and the reason is now measured rather than
+suspected**: at document scope this apparatus cannot distinguish a present number
+from an absent one, so every check that runs at that scope reports agreement.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -11547,6 +11547,21 @@ W852's "two tables verify clean" came from whole-file runs. Disabling the mode
 without retracting the verdict would leave the conclusion standing on evidence
 the tool itself now refuses to produce.
 
+**1225. SCOPE BEATS TOLERANCE, AND THE DIFFERENCE IS MEASURABLE.** Scoped to a
+50-number table the check caught 3 of 3 stale cells at every tolerance from 5%
+to 0.01%, with zero false rejections. At full-document scope it caught none. Do
+not tune a threshold before measuring the population it searches.
+
+**1226. FALSE-MATCH RATE IS TOLERANCE TIMES POPULATION DENSITY.** Measured: 50
+numbers at 2% -> 17%; 1,486 numbers at 0.1% -> 100%. A value absent from the
+document was matched every time at full scope. Report both numbers when quoting a
+tolerance.
+
+**1227. A REGENERATOR COMPUTES MORE THAN ONE TABLE HOLDS.** Three unmatched
+values against `tab:field` were TNF-vs-GF ratios; that table carries errors and
+has no ratio column. Before calling an unmatched value a defect, check whether
+the target table has a column for it.
+
 ### How to update this tracker
 
 After closing a wave:
