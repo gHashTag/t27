@@ -11982,6 +11982,20 @@ table whose cells it cannot produce. Read the artefact's self-description first.
 fell to takum_out=376/400; sec:takumrange's neighbouring claim survived the same
 recomputation. Auditing both directions is what separates an audit from a hit job.
 
+**1320. A LOW SIMILARITY SCORE CAN HIDE A PERFECT MAPPING.** tab:downstream sat at
+F=0.155 because the record stores 16 digits and the table prints 3. Reconstruction:
+16/16. Similarity measures formatting overlap, in both error directions.
+
+**1321. THE CLEAN WAVE CALIBRATES THE DIRTY ONES.** Sixteen defects in sixteen
+waves, then a wave of four adjudications with zero -- and the hidden halves of two
+records CONFIRMING their printed diagonals. Report survivals with the same rigor as
+falls, or the audit is a hit list.
+
+**1322. WHEN THE BLOCKER IS PHYSICALLY OUT OF REACH, WRITE THAT DOWN AND STOP.**
+G8 needs a docker flow on a part this bench does not have, behind a daemon that is
+not running, on a disk that cannot hold the image. The ledger now says so; further
+waves polishing beneath an unclosable gate should know they are polishing.
+
 ### How to update this tracker
 
 After closing a wave:

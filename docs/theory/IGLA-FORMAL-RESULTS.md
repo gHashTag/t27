@@ -26449,6 +26449,53 @@ Negative test: removing a disclosure phrase exits 1. The complete audit ledger -
 16 defects, 8 reported-not-patched items, 3 toolchain properties, 5 withdrawals --
 is one page at docs/reports/upstream/TNF-FINDINGS-LEDGER.md and a comment on #603.
 
+## W876 -- the orphan count reaches zero, and the audit's first clean wave
+
+### T713 -- EVERY RECORD IN THE TREE NOW HAS A NAMED CONSUMER [measured]
+
+The last four records adjudicated, each verified with 8-13 mutations:
+
+    tnf_downstream_bayesian_si  -> tab:downstream      16/16
+    tnf_downstream_linear_cg    -> tab:downstream-cg   16/16, incl. the SHA-256
+    tnf_kappa_taxonomy          -> tab:taxonomy        31/31, sampler re-run
+                                                       BIT-FOR-BIT (8e6 draws)
+    tnf_topaligned_cost         -> cor:topaligned PROSE ONLY; proven NOT tab:alloc
+
+The orphan count that stood at 10 of 14 records (T699) is **zero**. Oracle
+coverage: 20 of 59 numeric tables, against 4 when the audit began.
+
+### T713a -- THE WEAKEST MAPPING WAS REAL, AND ITS WEAKNESS WAS THE INSTRUMENT'S [measured]
+
+`tab:downstream` sat at F=0.155 -- far below every confirmed pair -- and was
+nearly rejected twice. Reconstructed: 16/16. The record stores 16-digit raw
+values; the table prints 3-significant-figure views; a membership test finds
+almost nothing while every cell is exactly right. **Similarity scores measure
+formatting overlap, not provenance** -- sixth and final demonstration in this
+corpus, this time in the false-negative direction.
+
+### T713b -- ZERO DEFECTS: WHAT A CLEAN WAVE MEANS AFTER SIXTEEN DIRTY ONES [derived]
+
+Every prior oracle wave found defects (sixteen in total). This one found none --
+and surfaced two SELECTION FACTS instead, both properly outside the captions'
+declared scope: at the looser 1e-5 threshold takum32 ties TNF32, and on the
+objective-error metric takum32 wins. The paper's declared threshold and metric are
+legitimate choices, declared; the facts are now in the NOTE output of the oracle
+where a reader can weigh them.
+
+The taxonomy record's hidden half was checked for the same reason and CONFIRMS
+the printed diagonal (ratios 0.9996 and 1.0000). **An audit that only ever finds
+defects is suspect; the clean wave is what calibrates the dirty ones.**
+
+### T713c -- G8 REMAINS OPEN AND CANNOT BE CLOSED FROM THIS BENCH [measured]
+
+The CI flow pins docker regymm/openxc7 on xc7a200tfbg484-2. The local Docker
+daemon is down (GUI app), 3.5 GB of disk cannot hold the image, and the local
+chipdb is the fbg676-1 QMTech part -- measured earlier to be non-substitutable.
+Closing G8 takes one tnf-cost-sweep dispatch on CI or the author's own logs.
+**After twenty waves of audit, the one release blocker is the one thing this
+bench physically cannot produce** -- recorded in the ledger so nobody rediscovers
+it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
