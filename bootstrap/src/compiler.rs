@@ -214,6 +214,10 @@ pub enum TokenKind {
     ShiftLeft,
     ShiftRight,
     PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    PercentEquals,
     PlusPercent,
     MinusPercent,
     StarPercent,
@@ -695,6 +699,50 @@ impl Lexer {
                 };
             }
 
+            if two == [b'-', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusEquals,
+                    lexeme: String::from("-="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'*', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarEquals,
+                    lexeme: String::from("*="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'/', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::SlashEquals,
+                    lexeme: String::from("/="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'%', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PercentEquals,
+                    lexeme: String::from("%="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
             if two == [b'+', b'%'] {
                 self.advance();
                 self.advance();
@@ -978,6 +1026,8 @@ pub struct Parser {
     /// -- for input that was consumed AND THROWN AWAY. Counting them is what
     /// makes that population visible. See T42.
     dropped_top_level_tokens: usize,
+    // W883 prototype: nested `fn` declarations, hoisted to module level.
+    hoisted_fns: Vec<Node>,
     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
@@ -992,6 +1042,39 @@ struct ParserCheckpoint {
     pending_pragma: String,
 }
 
+/// Identifiers a nested fn uses that are neither its parameters nor its own
+/// locals. Builtin scalar type names are excluded: `@as(f32, ..)` carries `f32`
+/// as a bare identifier argument.
+fn free_idents_of(decl: &Node) -> Vec<String> {
+    const BUILTIN_TYPES: &[&str] = &[
+        "f32", "f64", "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32",
+        "i64", "isize", "bool", "void", "true", "false",
+    ];
+    let mut bound: Vec<String> = decl.params.iter().map(|p| p.0.clone()).collect();
+    let mut free: Vec<String> = Vec::new();
+    fn walk(n: &Node, bound: &mut Vec<String>, free: &mut Vec<String>) {
+        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() {
+            bound.push(n.name.clone());
+        }
+        if n.kind == NodeKind::ExprIdentifier
+            && !n.name.is_empty()
+            && !n.name.starts_with('@')
+            && !bound.iter().any(|b| b == &n.name)
+            && !free.iter().any(|f| f == &n.name)
+        {
+            free.push(n.name.clone());
+        }
+        for c in &n.children {
+            walk(c, bound, free);
+        }
+    }
+    for c in &decl.children {
+        walk(c, &mut bound, &mut free);
+    }
+    free.retain(|f| !BUILTIN_TYPES.contains(&f.as_str()));
+    free
+}
+
 impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
         let first = lexer.next_token();
@@ -1003,6 +1086,7 @@ impl Parser {
             pending_pragma: String::new(),
             no_struct_literal: 0,
             dropped_top_level_tokens: 0,
+            hoisted_fns: Vec::new(),
             dropped_spans: Vec::new(),
         }
     }
@@ -1309,6 +1393,7 @@ impl Parser {
         Ok(module)
     }
 
+
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
         self.reject_unterminated_string()?;
         while self.current.kind != TokenKind::Eof
@@ -1547,6 +1632,11 @@ impl Parser {
                 match self.parse_top_level_decl() {
                     Ok(decl) => {
                         module.children.push(decl);
+                        // W883: functions hoisted out of the just-parsed item
+                        // land beside it at module level.
+                        for h in self.hoisted_fns.drain(..) {
+                            module.children.push(h);
+                        }
                     }
                     Err(e) => {
                         // A malformed declaration is a HARD error: the old
@@ -2555,6 +2645,45 @@ impl Parser {
     /// Parse function body statements until closing brace
     fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // W883 prototype: a NESTED fn is parsed with the ordinary fn parser
+            // and HOISTED to module level -- no statement node is produced, so
+            // no backend needs a no-op. Sound only when the nested fn captures
+            // nothing beyond its own parameters and module-level names; the
+            // one corpus instance (gf16's phi_dist) satisfies that, and the
+            // proposal text records the capture question as OPEN.
+            if self.current.kind == TokenKind::KwFn {
+                let nested = self.parse_fn_decl(false)?;
+                // CAPTURE CHECK, at the only scope that matters. Hoisting moves
+                // the nested fn OUT of the enclosing body, so the one thing it
+                // must not reach is the enclosing fn's own bindings -- its
+                // parameters and the locals declared before this point. A free
+                // name that is NOT such a binding resolves identically before
+                // and after hoisting (module scope either way), so external
+                // names like an imported PHI_INV are none of this check's
+                // business. The first version asked \"is it module-level?\" and
+                // rejected gf16 for an IMPORTED constant -- the wrong question.
+                let free = free_idents_of(&nested);
+                let mut enclosing: Vec<&str> =
+                    decl.params.iter().map(|p| p.0.as_str()).collect();
+                for c in &decl.children {
+                    if c.kind == NodeKind::StmtLocal && !c.name.is_empty() {
+                        enclosing.push(c.name.as_str());
+                    }
+                }
+                let captured: Vec<String> = free
+                    .into_iter()
+                    .filter(|f| enclosing.iter().any(|e| e == f))
+                    .collect();
+                if !captured.is_empty() {
+                    return Err(format!(
+                        "nested fn '{}' inside '{}' captures enclosing locals {:?} -- \
+                         hoisting would unbind them; lift them to parameters or module consts",
+                        nested.name, decl.name, captured
+                    ));
+                }
+                self.hoisted_fns.push(nested);
+                continue;
+            }
             match self.parse_body_stmt() {
                 Ok(stmt) => decl.children.push(stmt),
                 Err(e) => {
@@ -2766,15 +2895,26 @@ impl Parser {
         }
 
         // Check for += assignment
-        if self.current.kind == TokenKind::PlusEquals {
-            self.advance(); // consume +=
+        // Compound assignment. `+=` was the grammar's only member for its whole
+        // life; W880 measured the gap -- 55 specs, 138 seals and the L6 SSOT
+        // (gf16.t27's Taylor loop) unparseable for want of `*=` alone.
+        let compound = match self.current.kind {
+            TokenKind::PlusEquals => Some("+="),
+            TokenKind::MinusEquals => Some("-="),
+            TokenKind::StarEquals => Some("*="),
+            TokenKind::SlashEquals => Some("/="),
+            TokenKind::PercentEquals => Some("%="),
+            _ => None,
+        };
+        if let Some(op) = compound {
+            self.advance(); // consume the compound operator
             let rhs = self.parse_expr()?;
             if self.current.kind == TokenKind::Semicolon {
                 self.advance();
             }
             let mut assign = Node::new(NodeKind::StmtAssign);
             assign.line = self.current.line as u32;
-            assign.extra_op = "+=".to_string();
+            assign.extra_op = op.to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
             return Ok(assign);
@@ -6681,10 +6821,13 @@ impl Codegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" += ");
-                    } else {
-                        self.write(" = ");
+                    match node.extra_op.as_str() {
+                        "+=" => self.write(" += "),
+                        "-=" => self.write(" -= "),
+                        "*=" => self.write(" *= "),
+                        "/=" => self.write(" /= "),
+                        "%=" => self.write(" %= "),
+                        _ => self.write(" = "),
                     }
                     self.gen_expr(&node.children[1]);
                 }
@@ -12932,10 +13075,18 @@ impl VerilogCodegen {
                         self.in_lvalue = true;
                         self.gen_verilog_expr(lhs);
                         self.in_lvalue = false;
-                        if node.extra_op == "+=" {
+                        let bin = match node.extra_op.as_str() {
+                            "+=" => Some(" + "),
+                            "-=" => Some(" - "),
+                            "*=" => Some(" * "),
+                            "/=" => Some(" / "),
+                            "%=" => Some(" % "),
+                            _ => None,
+                        };
+                        if let Some(b) = bin {
                             self.write(asn);
                             self.gen_verilog_expr(lhs);
-                            self.write(" + ");
+                            self.write(b);
                         } else {
                             self.write(asn);
                         }
@@ -15085,10 +15236,13 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[1]);
                     } else {
                         self.gen_c_expr(&node.children[0]);
-                        if node.extra_op == "+=" {
-                            self.write(" += ");
-                        } else {
-                            self.write(" = ");
+                        match node.extra_op.as_str() {
+                            "+=" => self.write(" += "),
+                            "-=" => self.write(" -= "),
+                            "*=" => self.write(" *= "),
+                            "/=" => self.write(" /= "),
+                            "%=" => self.write(" %= "),
+                            _ => self.write(" = "),
                         }
                         self.gen_c_expr(&node.children[1]);
                     }
