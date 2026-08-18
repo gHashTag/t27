@@ -11921,6 +11921,19 @@ away and blamed partial observation. On the full-observation harness it still fo
 away -- because a sign-extend is absorbed by the output register. Only the
 corrected instrument separated the claim from its explanation.
 
+**1306. NAME THE PLACER AND THE ROUTER, NOT ONLY THE SEED COUNT.** The pair moves
+Fmax up to 4.3x where seeds move it 1.4x. A caption stating tool, part, DSP setting
+and seed count still leaves the largest knob unnamed.
+
+**1307. AN ORDERED FALLBACK IS A SILENT INHOMOGENEITY.** The CI tries three
+configurations and keeps the first that routes, so two rows may come from different
+configurations without anything saying so.
+
+**1308. `grep -c` ON THE BARE WORD SETTLES WHAT AN ALTERNATION MUDDLES.** My pattern
+matched `heap` inside `cheap` eight times; `grep -ci placer` returned 0 and decided
+it. Fourth containment false positive in three waves -- including inside the wave
+whose lesson is that containment over-reports.
+
 ### How to update this tracker
 
 After closing a wave:

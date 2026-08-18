@@ -26202,6 +26202,65 @@ harness for the right one.
 **A claim can be right and its stated cause wrong, and only the corrected
 instrument separates them.**
 
+## W872 -- the largest knob in the measurement is the one no caption names
+
+### T707 -- THE PLACER/ROUTER PAIR MOVES Fmax UP TO 4.3x; THE SEED MOVES IT 1.4x [measured]
+
+Six designs on the full-observation harnesses, three configurations, five seeds
+each, xc7a200tfbg676-1. Medians in MHz:
+
+                    heap/router1   heap/router2   sa/router2   best/worst
+    w_baseline           997.0          874.9        873.4        1.14x
+    w_gfternary          675.7          509.9        182.3        3.71x
+    w_tnf16              642.7          584.1        148.3        4.33x
+    w_bnf16              718.9          744.0        418.4        1.78x
+    w_bin16              240.3          232.0        114.9        2.09x
+    w_posit16            134.8          121.1         38.8        3.48x
+
+Between-configuration spread reaches **96.7%** of the median. The widest
+within-configuration seed spread on this set is 41.7%. **Configuration dominates
+seed, by a factor of two to four.**
+
+`placer` occurs **0** times in `tnf_paper.tex`. So does `router`. The captions name
+the tool and its commit, the part, the DSP setting and the seed count -- everything
+except the knob that moves the number most.
+
+### T707a -- WHY IT IS NOT MERELY PEDANTIC [derived]
+
+`.github/workflows/tnf-cost-sweep.yml` tries the three configurations **in order**
+and keeps the first that routes. So a published median is a median over seeds
+WITHIN whichever configuration happened to succeed for that design -- and two
+designs that succeeded under different configurations are being compared across a
+knob worth up to 4.3x.
+
+**No claim is made that any published figure came from `sa/router2`.** If
+`heap/router1` routes, the fallback never fires and every row is homogeneous. The
+narrow claim is that the caption does not let a reader tell, and the fallback is
+silent by construction.
+
+### T707b -- THE FIRST FINDING OF THIS SESSION WITH NO PRIOR ART AT ALL [measured]
+
+Checked before claiming, which is the habit W870 cost me:
+
+    t27c known --about placer      0 gates, 0 baselines, 0 captions
+    t27c known --about router1     0 / 0 / 0
+    t27c known --about sa/router2  0 / 0 / 0
+    t27c known --about router      1 baseline -- UNRELATED, a doc naming a
+                                   nonexistent rtl/L4/mesh_router.v
+
+Nothing in fourteen gates, ninety baselines or sixty captions speaks to it.
+
+### T707c -- A SUBSTRING FALSE POSITIVE, IN THE WAVE ABOUT SUBSTRING FALSE POSITIVES [measured]
+
+Grepping the paper for `placer|router1|router2|heap|simulated anneal` returned eight
+lines. All eight matched **`heap` inside `cheap` and `cheapest`**. The authoritative
+counts -- `grep -ci placer` and `grep -ci router`, both 0 -- are what settled it.
+
+Fourth instance in three waves of containment producing a hit that is not a match,
+and this one landed inside the wave whose recorded lesson is that containment
+over-reports. **The pattern is not something I am learning; it is something I keep
+having to re-apply under a new disguise.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
