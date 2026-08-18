@@ -25381,6 +25381,73 @@ conclusions rested on a search that had never been checked against a positive
 control** -- a record whose table was known. One such control would have failed
 immediately on `tab:gpt2window` and ended the sequence at W854.
 
+## W864 -- two instruments, and the one that caught what agreement could not
+
+### T681 -- SIZE-CORRECTED INVERSION REJECTS A MAPPING THAT PASSED EVERY OTHER TEST [measured]
+
+Eight records were resolved by a fan-out, and two adversarial auditors -- one on
+separation from noise, one on derived-quantity confounds -- passed all eight
+verdicts. Unanimity across three independent readers.
+
+An inverted test disagrees with one. Instead of asking which table a record
+matches, ask which record best explains a table, scored by
+`sqrt(recall x precision)` so record size is corrected for:
+
+    tab:window      <- crossover2          F=0.773   confirmed
+    tab:centring    <- centering           F=0.578   confirmed
+    tab:landing     <- inside_window       F=0.559   confirmed
+    tab:workloads   <- workloads_strict    F=0.537   confirmed
+    tab:gpt2window  <- gpt2_window         F=0.446   confirmed
+    tab:downstream  <- tnf_downstream      F=0.155   top, but too weak to assert
+    tab:invariant   <- strict_range        THIRD, behind crossover2
+
+`strict_range` covers **100 % of tab:invariant's 71 cells** -- the highest recall
+in the entire set, which is exactly why it passed. It holds 563 distinct numbers;
+its precision is 0.13. **A record large enough to contain the paper explains every
+table in it.**
+
+### T681a -- WHAT UNANIMITY IS WORTH WHEN THE READERS SHARE AN INSTRUMENT [derived]
+
+Three readers agreed because all three asked the same question -- does this
+record's number set cover this table's cells -- and that question cannot see the
+size confound. Adding a fourth reader of the same kind would have made it four.
+
+**Diversity of instrument, not count of readers, is what breaks a shared blind
+spot.** The same lesson as W863, one level up: there, four waves of my own
+increasingly confident negative results rested on a search that never read the
+labels; here, three independent readers rested on a statistic that never
+normalised by record size.
+
+### T681b -- THE SEQUENCE, END TO END [derived]
+
+    W854-859  map by filename guess              wrong 3 times, 64% mismatch
+    W860      "the mapping is unread"            wrong -- the README has no labels
+    W861      "the mapping is unwritten"         wrong -- and published as such
+    W863      the mapping is in the LABELS       T676 withdrawn, PR body corrected
+    W864      5 of 8 asserted on two instruments 1 rejected, 1 weak, 1 backs nothing
+
+Five mappings now rest on two instruments that fail in different directions. The
+paper's own labels supplied the hypothesis; numeric overlap in both directions
+supplied the test.
+
+### T682 -- WHAT WAS SENT [measured]
+
+`gHashTag/trinity-fpga` PR #601, two independent commits:
+
+    1. three paper defects   twelve section references; tab:law TNF8; tab:ladderacc
+                             TNF8 -- both confirmed by the tables' own regenerators
+       three gate corrections check_withdrawn_live (19 -> 17 findings, baseline
+                             regenerated 15 -> 25, negative test passing),
+                             check_self_consistency (marks 12 -> 17),
+                             recompute_ladder_table marked SUPERSEDED
+    2. five captions         \emph{Data:} naming the backing record
+
+    pdflatex after each: 136 pages, rc=0, 0 errors, 0 undefined references
+
+The second commit is droppable without the first. A cover letter that first went
+out understating the package by half, and then carrying a withdrawn claim for
+eleven minutes, was corrected in place both times.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

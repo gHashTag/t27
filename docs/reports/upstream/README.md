@@ -167,29 +167,43 @@ floor rises above half. Those two rows are not evidence of anything.
 non-distinctive values excluded `tab:gpt2window` leaves the top two entirely. We
 report both rather than the one we prefer.
 
-### What we would actually assert
+### Two instruments, and what each one settles
 
-Three mappings carry **two independent agreeing signals** — the label is named
-after the record, and the record is that table's numeric top-1:
+    1. FORWARD, per record   match the record's numbers against the cells of all
+                             60 labelled tables; the median across tables is the
+                             noise floor
+    2. INVERTED, per table   rank all 12 records by sqrt(recall x precision),
+                             which corrects for record size
 
-    centering_2026-08-13f.json         -> tab:centring
-    workloads_strict_2026-08-13g.json  -> tab:workloads
-    tnf_downstream_bayesian_si_....json -> tab:downstream
+The second instrument exists because the first cannot see one specific failure: a
+record holding 563 numbers contains most of the paper and "explains" any table
+under recall alone. Only mappings that pass BOTH are asserted.
 
-One carries strong numeric separation without name support:
+    tab:window      <- crossover2_2026-08-13e.json          F=0.773   asserted
+    tab:centring    <- centering_2026-08-13f.json           F=0.578   asserted
+    tab:landing     <- inside_window_2026-08-13f.json       F=0.559   asserted
+    tab:workloads   <- workloads_strict_2026-08-13g.json    F=0.537   asserted
+    tab:gpt2window  <- gpt2_window_2026-08-13e.json         F=0.446   asserted
+    tab:downstream  <- tnf_downstream_bayesian_si_...json   F=0.155   too weak
+    tab:invariant   <- strict_range_2026-08-13g.json        REJECTED
+    per_rung_2026-08-13g.json                               backs no table
 
-    inside_window_2026-08-13f.json     -> tab:landing   (78.8 % vs 33.3 %, floor 8.2 %)
+`tab:invariant` is the case the second instrument was built for. `strict_range`
+covers **100 % of that table's 71 cells** — and holds 563 numbers, precision 0.13,
+ranking third behind `crossover2` once size is corrected for. Under the forward
+test alone it looked like the strongest mapping in the set. Full coverage by a
+large record is not evidence.
 
-The rest we leave to you. `per_rung` and `strict_range` in particular cannot be
-settled by this method at all.
+### Delivered, as the second commit on this branch
 
-### The cheap fix, if you want it
+Five captions now carry `\emph{Data:} \texttt{measurements/<file>.json}`.
+pdflatex: 136 pages, rc=0, 0 LaTeX errors.
 
-One line per caption — `\emph{Data:} \texttt{measurements/per_rung_2026-08-13g.json}` —
-turns 59 tables a PDF reader cannot check into 59 they can. The information
-already exists in your label names; it just does not survive into the rendered
-document. It is the least expensive change in this package and the largest gain
-in what a reader can confirm.
+**The two commits are independent.** Drop the second and keep the first if you
+would rather state provenance a different way, or if you want the remaining 54
+tables filled in before any are. The information already exists in your label
+names; it simply does not survive into the rendered document, where a reader who
+cannot grep the source is left with 59 tables and no way to check one.
 
 ## What was verified, and what was not
 

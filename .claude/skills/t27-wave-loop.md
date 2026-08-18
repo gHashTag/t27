@@ -11690,6 +11690,20 @@ only the one I was sure of -- and measurement put it on the wrong table by an
 eightfold margin. Refusing to guess protected the seven; it did not protect the
 one.
 
+**1254. DIVERSITY OF INSTRUMENT BEATS COUNT OF READERS.** Eight resolvers and two
+adversarial auditors passed a mapping unanimously. An inverted, size-corrected
+test rejected it: the record covered 100% of the table because it holds 563
+numbers and contains most of the paper. All three readers asked the same question,
+so all three shared its blind spot.
+
+**1255. FULL COVERAGE BY A LARGE SOURCE IS NOT EVIDENCE.** Score
+sqrt(recall x precision), not recall. The highest-recall mapping in the set was
+the one that was wrong.
+
+**1256. RUN THE TEST IN BOTH DIRECTIONS.** "Which table does this record match"
+and "which record best explains this table" disagree exactly where the size
+confound lives.
+
 ### How to update this tracker
 
 After closing a wave:
