@@ -11934,6 +11934,15 @@ matched `heap` inside `cheap` eight times; `grep -ci placer` returned 0 and deci
 it. Fourth containment false positive in three waves -- including inside the wave
 whose lesson is that containment over-reports.
 
+**1309. COUNT HOW MUCH OF YOUR RECORD IS ABOUT YOURSELF.** Of 100 theorems, 59
+concern the document and 41 concern my own method. Process notes earn their place
+when they change later behaviour -- `t27c known` did -- but two fifths is a lot to
+make a reader walk past.
+
+**1310. THE WITHDRAWAL RATE IS THE NUMBER TO WATCH.** Five withdrawals against about
+a dozen surviving findings, and every one came from asserting before checking what
+the repository, the caption or the oracle already said.
+
 ### How to update this tracker
 
 After closing a wave:

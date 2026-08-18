@@ -26261,6 +26261,40 @@ and this one landed inside the wave whose recorded lesson is that containment
 over-reports. **The pattern is not something I am learning; it is something I keep
 having to re-apply under a new disguise.**
 
+### T708 -- 41% OF WHAT I RECORDED IS ABOUT MY OWN METHOD, NOT THE PAPER [measured]
+
+The 45 claims with no queryable identifier had none because **they are not about
+the paper**. Classifying all 100 theorems from T650 by whether their first 900
+characters lean on document vocabulary or on self-reference:
+
+    about the paper        59
+    about my own method    19
+    mixed                  22
+
+So roughly **two fifths of the record is process**: broken verifiers, withdrawn
+claims, instrument defects, ledgers of my own score. That is not automatically
+waste -- W870 cost a whole wave and produced `t27c known`, which then cleared 58
+claims in a minute -- but it is a large fraction, and it was invisible until
+counted.
+
+The honest reading: this project produced **59 claims about a document and 41 about
+the process of examining it.** A reader wanting the first has to walk past the
+second.
+
+### T708a -- THE COMPLETE LEDGER FOR THE TNF WORK [derived]
+
+    merged into the paper (PR #601)          3 paper defects, 3 gate corrections
+    open with the author (PR #603)           11 commits: 2 regenerators, the reach
+                                             off-by-one at 9 sites, 2 duplicate
+                                             references, 3 measurement records
+    withdrawn by me                          T676, T681, T688, T698a, T702
+    rediscoveries the repository already had ~8% of queryable claims (the W870 cluster)
+    findings with no prior art at all        1 -- the placer/router knob (T707)
+
+**Five withdrawals against roughly a dozen surviving findings.** The withdrawal rate
+is the number to watch: every one came from asserting before checking what the
+repository, the caption, or the oracle already said.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
