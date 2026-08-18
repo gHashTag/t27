@@ -1,3 +1,17 @@
+# NOW -- one missing brace, and three layers that named the wrong subsystem (2026-08-18)
+
+Last updated: 2026-08-18
+
+## specs: close 27 unterminated test blocks; the cross-target proof was never running (Closes #2185)
+
+- **`emit-bitexact` was red since 2026-08-14 because of one character.** A bulk edit appended `test <name>_w339_batch_depth_invariant_2 {` to 27 spec files and omitted the closing `}` in every one, so the parser hits the next `test` keyword while still inside the block
+- **Three layers each reported something else, and only the innermost was true.** The CI gate said `IGLA RACE CROSS-TARGET MISMATCH`; `verify_igla_race.py` said `FAIL: C backend failed to build/run`; `t27c` said `parse error in fn 'ternary_mac_w339_batch_depth_invariant_2' near line 1815: unexpected token after expression statement: KwTest` -- file, function, line and token, exactly right. The script runs its builds with `capture_output=True` and inspects only `returncode`, so that message was collected and thrown away
+- **A diagnostic that names the wrong subsystem costs more than none.** "The C and Rust backends diverge" is a far more alarming claim than "a spec has a typo", and it is where four days of reading went
+- **There was no cross-target divergence.** With the braces closed, `verify_igla_race.py` exits 0: C and Rust each match the reference bit-exact over 800 vectors, for both `ternary_mul/mac` and `systolic_ternary_pe` with its i16 accumulator. #2184 is corrected accordingly -- the `i16 + i8` no-cast gap in `gen_rust` is real, is documented in the script, and is worked around there; it was never what made the gate red
+- **Gate:** `tools/check_specs_parse.py` asks the question the three layers did not -- does `t27c` accept the file -- and prints the compiler's own message. Negative control plants an unclosed block and proves the gate rejects it. Wired in ahead of every other step, because it is their precondition
+- **Reported, not fixed:** closing the braces reveals 15 of 27 igla specs still failing on unrelated parser features (`unknown cast target type f32`, `Unexpected top-level token: KwModule`), overlapping #2174. Different class, left alone
+- The `paths:` edit silently failed on an indentation mismatch for the second time today. Caught by a negative control over the filter, not by reading it
+
 # NOW -- the bit-exactness gate could not see the compiler (2026-08-18)
 
 Last updated: 2026-08-18
