@@ -1,3 +1,15 @@
+# NOW -- Verilog joins as the fourth arm (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: Verilog under iverilog, exhaustive where it fits and a labelled slice where it does not (Closes #2202)
+
+- **Verilog goes to silicon and was the least verified of the four.** `verify_emit_bitexact.py` samples it; model/C/Rust have been exhaustive since #2200. It now folds the same digest over the same domain
+- `tmul` and `negate`: **four independent implementations agreeing on every input**
+- `full_adder` and `maj3` keep exhaustive model/C/Rust and get a **labelled Verilog slice** -- 0.4 % and 3.1 % of their domains. Measured, not assumed: iverilog runs `tmul` at ~330,000 inputs/s, `maj3` at 21,061/s and `full_adder` at 2,972/s, because `full_adder` calls `dot27` nine times per input at 27 lanes. Whole domains are 13 min and 94 min; `--verilog-full` runs them
+- **Three of my own errors, all caught before the PR opened.** I measured `tmul`'s rate and extrapolated to `full_adder`, which does nine times the work -- the run timed out. I then budgeted in **inputs**, a unit whose cost varies 100x here, so one number meant seconds for one function and eleven minutes for another; the budget is in seconds now. And the summary line claimed `AGREE EXHAUSTIVELY across every arm`, **false for three of five**, while the detail above it was right -- a summary overstating its own detail is precisely what this session has been finding elsewhere
+- `pack2` returns u64 and its Verilog fold would need a wider accumulator than the C/Rust one; left three-way and labelled rather than given an arm that compares something else
+
 # NOW -- the third opinion, exhaustive (2026-08-18)
 
 Last updated: 2026-08-18
