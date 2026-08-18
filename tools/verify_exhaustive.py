@@ -50,17 +50,17 @@ MODEL.dot27 = functools.lru_cache(maxsize=None)(MODEL.dot27)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # (spec, function, [(c_type, rust_type, lo, hi)]) -- the full domain of each argument.
+# (spec, function, args, verilog return as (signed, bits) or None to skip that arm)
+RIP = "specs/ternary/ternary_ripple_adder.t27"
+U8 = ("uint8_t", "u8", 0, 255)
 TARGETS = [
-    ("specs/ternary/ternary_ripple_adder.t27", "full_adder",
-     [("uint8_t", "u8", 0, 255)] * 3),
-    ("specs/ternary/ternary_ripple_adder.t27", "maj3",
-     [("uint8_t", "u8", 0, 255)] * 3),
-    ("specs/ternary/ternary_ripple_adder.t27", "tmul",
-     [("uint8_t", "u8", 0, 255)] * 2),
-    ("specs/ternary/ternary_ripple_adder.t27", "negate",
-     [("uint8_t", "u8", 0, 255)]),
-    ("specs/ternary/ternary_xor.t27", "pack2",
-     [("uint8_t", "u8", 0, 255)] * 2),
+    (RIP, "full_adder", [U8] * 3, (False, 8)),
+    (RIP, "maj3", [U8] * 3, (False, 8)),
+    (RIP, "tmul", [U8] * 2, (True, 8)),
+    (RIP, "negate", [U8], (False, 8)),
+    # pack2 returns u64; the fold takes the low 32 bits in C and Rust, and a 64-bit
+    # Verilog reg would need a wider fold to match. Left two-and-model until then.
+    ("specs/ternary/ternary_xor.t27", "pack2", [U8] * 2, None),
 ]
 
 
@@ -163,7 +163,100 @@ def model_digest(fn, args):
     return f"{h:08x}"
 
 
-def check(spec, fn, args, wd):
+def verilog_program(vsrc, fn, args, ret_signed, ret_bits):
+    """A testbench that enumerates the whole domain and folds the same FNV-1a digest.
+
+    The generated module carries the spec's own `initial` test blocks, which print
+    [TEST] lines; the digest is picked out by filtering those. Its four ports are
+    unused by the functions, so the body is lifted into a bare `module tb;` with the
+    ports declared as constants rather than instantiated -- these primitives are
+    combinational, and giving them a clock would only add a way to be wrong.
+    """
+    body = vsrc[vsrc.index(");", vsrc.index("module ")) + 2: vsrc.rindex("endmodule")]
+    loops, close = [], []
+    for i in range(len(args)):
+        loops.append(f"    for (i{i} = {args[i][2]}; i{i} <= {args[i][3]}; i{i} = i{i} + 1)")
+        close.append("")
+    call = ", ".join(f"i{i}[7:0]" for i in range(len(args)))
+    decl = " ".join(f"integer i{i};" for i in range(len(args)))
+    # sign-extend a signed return to 32 bits so the fold matches the C/Rust one
+    ext = (f"{{{{{32 - ret_bits}{{r[{ret_bits - 1}]}}}}, r}}" if ret_signed
+           else f"{{{32 - ret_bits}'b0, r}}")
+    return "\n".join([
+        "`timescale 1ns/1ps", "module tb;",
+        "  wire clk = 1'b0; wire rst_n = 1'b1; wire en = 1'b1; wire ready;",
+        body,
+        f"  {decl}",
+        "  reg [31:0] h;",
+        f"  reg {'signed ' if ret_signed else ''}[{ret_bits - 1}:0] r;",
+        "  initial begin",
+        "    h = 32'd2166136261;",
+        *loops,
+        "    begin",
+        f"      r = {fn}({call});",
+        f"      h = (h ^ ({ext} & 32'hFFFFFFFF)) * 32'd16777619;",
+        "    end",
+        '    $display("DIGEST %08x", h);',
+        "    $finish;", "  end", "endmodule"]) + "\n"
+
+
+# iverilog is an interpreter, and the cost per input is not the same across these
+# functions -- measured, not assumed: tmul ~330,000 inputs/s, maj3 21,061/s,
+# full_adder 2,972/s, because full_adder calls dot27 nine times per input at 27 lanes
+# each. Exhausting full_adder in Verilog is 94 minutes. So the Verilog arm gets a
+# budget: exhaustive where that fits, and an explicitly labelled SLICE where it does
+# not. A slice is never reported as exhaustive.
+# Budgeting in INPUTS was the wrong unit: the cost per input differs by 100x across
+# these functions, so one input count is seconds for tmul and eleven minutes for
+# full_adder. The budget is in SECONDS, converted per function using the rates measured
+# above. Choosing a budget in a unit the thing does not vary in is how you get a limit
+# that binds nowhere and everywhere at once.
+VERILOG_SECONDS = 25
+VERILOG_RATE = {"tmul": 330_000, "negate": 330_000, "maj3": 21_061, "full_adder": 2_972}
+DEFAULT_RATE = 20_000
+
+
+def verilog_digest(spec, fn, args, ret, wd, full=False):
+    """Fourth opinion: the target that actually goes to silicon."""
+    if ret is None:
+        return None
+    vsrc = gen("verilog", spec)
+    if vsrc is None:
+        return False
+    signed, bits = ret
+    space = 1
+    for _, _, lo, hi in args:
+        space *= (hi - lo + 1)
+    vargs, covered = list(args), space
+    budget = int(VERILOG_RATE.get(fn, DEFAULT_RATE) * VERILOG_SECONDS)
+    if not full and space > budget:
+        t, r, lo, hi = vargs[0]
+        n = max(1, budget // (space // (hi - lo + 1)))
+        vargs[0] = (t, r, lo, lo + n - 1)
+        covered = space // (hi - lo + 1) * n
+    f = os.path.join(wd, f"{fn}_tb.v")
+    open(f, "w").write(verilog_program(vsrc, fn, vargs, signed, bits))
+    b = subprocess.run(["iverilog", "-o", os.path.join(wd, f"{fn}.vvp"), f],
+                       cwd=wd, capture_output=True, text=True)
+    if b.returncode != 0:
+        errs = [l for l in (b.stderr or "").splitlines() if "error" in l.lower()]
+        print(f"  {fn} Verilog: iverilog exited {b.returncode}")
+        for l in (errs or (b.stderr or "").splitlines())[:4]:
+            print(f"      {l}")
+        return False
+    r = subprocess.run(["vvp", os.path.join(wd, f"{fn}.vvp")], cwd=wd,
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"  {fn} Verilog: vvp exited {r.returncode} -- nothing was compared")
+        return False
+    m = re.search(r"^DIGEST ([0-9a-f]{8})$", r.stdout, re.M)
+    if not m:
+        print(f"  {fn} Verilog: no DIGEST line in {len(r.stdout.splitlines())} lines of output")
+        return False
+    return (m.group(1), covered, space)
+
+
+def check(spec, fn, args, wd, ret=None):
     space = 1
     for _, _, lo, hi in args:
         space *= (hi - lo + 1)
@@ -194,13 +287,43 @@ def check(spec, fn, args, wd):
               f"backends differ from the specification on at least one of the {space:,} inputs, "
               f"which two-way agreement could never have shown")
         return False
-    print(f"OK   {fn:<12} model == C == Rust on ALL {space:>12,} inputs   digest {cd}   {dt:.1f}s")
+    vres = verilog_digest(spec, fn, args, ret, wd, full="--verilog-full" in sys.argv)
+    if vres is False:
+        return False
+    if vres is None:
+        print(f"OK   {fn:<12} model == C == Rust on ALL {space:>12,} inputs   digest {cd}"
+              f"   {dt:.1f}s   [3-way: no Verilog arm]")
+        return True
+    vd, covered, vspace = vres
+    if covered == vspace:
+        if vd != cd:
+            print(f"FAIL {fn}: model/C/Rust agree on {cd} but Verilog says {vd} -- the target "
+                  f"that goes to silicon differs on at least one of the {space:,} inputs")
+            return False
+        print(f"OK   {fn:<12} model == C == Rust == Verilog on ALL {space:>12,} inputs"
+              f"   digest {cd}   {time.time() - t0:.1f}s")
+        return True
+    # Sliced Verilog arm: its digest covers a different domain, so it is recomputed on
+    # that slice by the model and compared there. Reported as a slice, never as ALL.
+    mv = model_digest(fn, [args[0][:2] + (args[0][2], args[0][2] + covered //
+                           (space // (args[0][3] - args[0][2] + 1)) - 1)] + list(args[1:]))
+    verdict = "==" if mv == vd else "!="
+    if mv != vd:
+        print(f"FAIL {fn}: on the Verilog slice ({covered:,} of {space:,} inputs) the model "
+              f"says {mv} and Verilog says {vd}")
+        return False
+    print(f"OK   {fn:<12} model == C == Rust on ALL {space:>12,} inputs   digest {cd}   "
+          f"{time.time() - t0:.1f}s")
+    print(f"     {'':<12} Verilog {verdict} model on a SLICE of {covered:,} "
+          f"({100.0 * covered / space:.1f}% of the domain) -- iverilog costs "
+          f"{space / VERILOG_RATE.get(fn, DEFAULT_RATE) / 60:.0f} min for the whole of it; "
+          f"--verilog-full runs it")
     return True
 
 
 def self_check(wd):
     """Plant a divergence and prove the comparison sees it."""
-    spec, fn, args = TARGETS[2]           # tmul, 65,536 inputs
+    spec, fn, args, _ret = TARGETS[2]     # tmul, 65,536 inputs
     cs, rs = gen("c", spec), gen("rust", spec)
     if cs is None or rs is None:
         return 1
@@ -241,14 +364,14 @@ def main():
         if "--self-check" in sys.argv:
             return self_check(wd)
         print("Cross-target agreement over the ENTIRE input space.\n")
-        print("  Three opinions: the C backend, the Rust backend, and tools/ternary_model.py,")
-        print("  transcribed from the spec text rather than from generated code. A fault shared")
-        print("  by both backends shows up as the model disagreeing with both.\n")
+        print("  Four opinions: C, Rust, Verilog under iverilog, and tools/ternary_model.py,")
+        print("  transcribed from the spec text rather than from generated code. Verilog is the")
+        print("  target that actually goes to silicon and was previously checked only by sample.\n")
         results = []
-        for spec, fn, args in TARGETS:
+        for spec, fn, args, ret in TARGETS:
             if only and fn not in only:
                 continue
-            results.append(check(spec, fn, args, wd))
+            results.append(check(spec, fn, args, wd, ret))
         bad = [r for r in results if r is not True]
         print()
         if not results:
@@ -257,7 +380,15 @@ def main():
         if bad:
             print(f"FAIL: {len(bad)} of {len(results)} targets did not agree or did not run")
             return 1
-        print(f"ALL {len(results)} PRIMITIVES: model == C == Rust EXHAUSTIVELY (no sampling)")
+        # The summary must not claim more than the lines above it. model/C/Rust are
+        # exhaustive for every target; the Verilog arm is exhaustive only where its
+        # budget allowed, and says so per line. An earlier version of this line read
+        # "AGREE EXHAUSTIVELY across every arm", which was false for three of five.
+        full_v = sum(1 for r in results if r is True)
+        print(f"{len(results)} PRIMITIVES: model == C == Rust EXHAUSTIVELY over every input.")
+        print("Verilog agrees wherever it was run -- exhaustively on the cheap primitives,")
+        print("on a labelled slice where iverilog's cost makes the whole domain a long job.")
+        print("Run --verilog-full to exhaust the Verilog arm too.")
         return 0
 
 
