@@ -128,6 +128,48 @@ The workflow's `name:` may change freely. `jobs.<id>:` may not.
 When `repos/:owner/:repo/branches/master/protection` returns nothing useful, read the
 contexts off a recently merged PR: `gh pr checks <N> | awk '{print $1}' | sort -u`.
 
+## 7. When a scan says something alarming, re-derive it a second way before writing it down
+
+Four times in one session an anomaly came from the instrument rather than the thing
+measured. Every one would have been reported as a fact about the repository.
+
+| what the instrument said | what was true | why it lied |
+|---|---|---|
+| "two of four optima are not identified" | the opposite — all four narrow, mutually incompatible | `depth` measured the gap to the nearest **grid point**, so it ranked the grids |
+| "`tmul` has diverged across the BitNet family" | all 15 copies are one function | a regex ending at `\n}` swallowed five definitions in a spec written on one line; and `if(ta==1)` vs `if (ta == 1)` hash differently |
+| Verilog arm silently narrower than C and Rust | caught before it ran | the testbench generator sliced every argument `[7:0]`, hardcoded, while `sign0` takes `i16` |
+| "73 seals reference specs that never existed" | **15** | `git log --diff-filter=D -- <exact path>` only sees a deletion recorded at that path; by basename across all history the count is a fifth of that |
+
+None was caught by reasoning. Three were caught by a **negative control** — plant the
+fault, run, read the output — and one by re-deriving the same number a different way.
+
+**The rule.** A scan that reports something bad about the tree is a claim like any
+other, and the first version of it is usually a claim about the scan. Before writing it
+down: derive it a second way, and prefer a way that shares no code with the first.
+`tools/check_seal_coverage.py` does this in-line — `_ever_existed` asks git twice, by
+path and by basename, because the one-way version overstated fivefold.
+
+**The corollary about severity.** The more alarming the finding, the more likely it is
+yours. "Seals reference specs that never existed" and "the backends diverge" are
+accusations; "a spec has a typo" and "a regex is wrong" are not. The session's four
+false alarms were all in the first category, and all four true causes were in the
+second.
+
+## 8. Name the kinds of a failure separately when their fixes differ
+
+`check_seal_coverage.py` first reported 89 **dangling** seals. Splitting by whether the
+spec ever existed gives two problems that share nothing but a symptom:
+
+* **74 dangling** — the spec was committed and later deleted, 16 of them by one
+  identifiable commit. Fix: remove the seal with the spec, or restore both.
+* **15 phantom** — the spec appears in no commit and is nowhere on disk. Its
+  `spec_hash` and four `gen_hash_*` name a file nobody can fetch, so the record has no
+  checkable content. For four of them the seal file is the **only** trace of the module
+  anywhere in the tree. Fix: find the spec, or drop the seal.
+
+One word for both would have sent a reader to the wrong repair for 15 of 89 cases. A
+gate's vocabulary is part of its output.
+
 ---
 
 ## Writing a gate here

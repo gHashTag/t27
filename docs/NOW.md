@@ -1,3 +1,80 @@
+# NOW -- the honest diagnostic, not the cheap fix (2026-08-19)
+
+Last updated: 2026-08-19
+
+## lang: float casts named truthfully; seal_handler keeps its reasons (Closes #2213)
+
+- **30 cast errors (16 f32 + 14 f64) among the non-generating specs, and the cheap fix was wrong.** `var x: f32` parses and the type tables know floats in four places -- but the C generator emits the literal token `f32` (not a C type, 5 cc errors on a one-line probe) and Verilog treats it as 32 plain bits. Adding f32/f64 to VALID_CAST_TYPES would turn a visible parse error into uncompilable C -- the compound-assignment lesson at a scale where the missing half is 'implement floating point in three backends', an owner decision
+- The parser now says the true state: *cast to f32 is not supported: the language accepts float declarations, but no backend lowers float arithmetic... This spec assumes a float-capable target that does not exist yet.* Integer casts untouched; nonsense targets keep the old message
+- **The last named instance of the swallowing pattern is closed.** `seal_handler` kept `Err(_) => "none"` after #2211 fixed the CLI path. Done additively: existing response fields unchanged, new `gen_failures` array carries {backend, error} so a consumer sees WHY a hash is "none"
+- M5 ceremony performed again for the compiler.rs change
+
+# NOW -- only += existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## feat(lang): five missing compound assignments, and the three backends that would have miscompiled them (Closes #2212)
+
+- **`specs/base/types.t27`, a base module, did not parse.** `result |= encoding << bit_pos;` at `pack_trit` line 172. The cause is a missing language feature: only `+=` existed, and `-= *= |= &= ^=` lexed as two tokens and died in `parse_expr` on the bare `=`
+- **The part that mattered most.** All three code generators did `if extra_op == "+=" { " += " } else { " = " }`, so teaching the *parser* `|=` without touching them would have emitted **`x = rhs`** for `x |= rhs` -- silently dropping the operator. A miscompilation is worse than the parse error it replaces. The change touches four places together: token enum, lexer, parser, and all three backends via a shared `compound_binop()`
+- Verified by **reading the generated code**, not assuming: C emits `x |= 3`, Verilog expands to `x = x | 3`, for all six operators
+- **Honest yield: 2 of 346, not the ~11 I estimated.** Six specs use `-=`, four `*=`, one `|=`, but only `specs/base/types.t27` and `compiler/runtime/runtime.t27` are fixed by this; the rest have further errors
+- **M5 freeze ceremony performed.** `build.rs` refuses to build when `compiler.rs` changes without a seal update -- a deliberate gate making a change to the compiler core explicit. The seal is exactly `sha256(compiler.rs)`
+- **A dead arm in my own checker, found on the way:** `check_specs_generate.py` ran `gen-zig`, and **there is no such subcommand** -- the Zig backend is `gen`. It always returned non-zero and never contributed a verdict. Corrected count: **768 generate, 346 do not**, against 766/348 before
+
+# NOW -- seal --save refuses a spec no backend accepts (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(bootstrap): stop sealing output that does not exist (Closes #2211)
+
+- `t27c seal --save` wrote `gen_hash_*: "none"` as though it were a hash. #2210 showed batch re-sealing the 113 stale seals would have recorded 348 such claims -- reproducibility assertions for output that does not exist
+- **Two defects in one function.** `Err(_) => "none".to_string()` discarded the compiler's own diagnosis -- the same swallowing pattern fixed across the Python tools in #2187/#2189/#2193, here in the Rust CLI -- and `--save` then wrote the `none` out
+- Now: exit 1, **no file written**, and the compiler's message printed per backend (`Expected LBrace, got Colon (':') at line 93:65`). A generating spec still seals normally; `--force` keeps the deliberate case explicit rather than silent
+- **Scope stated rather than implied:** the same `Err(_) => "none"` exists in the HTTP `seal_handler`. Fixing it there changes the response shape, so it is named here rather than half-done. My first patch hit that handler by accident -- the pattern appears twice and the naive replace found the wrong one -- and the compiler caught it via an undefined variable
+
+# NOW -- 348 of 1114 specs do not generate (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: measure what actually compiles, and stop re-sealing what does not (Closes #2210)
+
+- **The plan was to re-seal 113 stale seals. Testing ONE instead of batching stopped it.** `specs/ml/optimizer/adamw.t27` fails on all four backends, and `t27c seal --save` sealed it anyway with `gen_hash_rust=none`, into a **different filename** (`optimizer_AdamW.json`), leaving the original stale seal untouched. The batch would have made 113 duplicates, blessed the broken ones with `none`, and fixed nothing
+- **348 of 1114 specs (31.2%) do not generate with ANY backend**, in a repository whose constitution makes specs the single source of truth
+- **The alternative was checked and eliminated.** A spec written for one target should not count as broken because another rejects it, so the gate accepts any backend. On a 25-spec random sample of the 348, **zero** generated with any of the four -- they fail in the parser, before a backend is reached. Checked precisely because "31% of the source of truth does not compile" is alarming, and by `ci-gates` §7 an alarming claim is usually the instrument
+- `specs/tri/` 70, `specs/scratch/` 58, `specs/fpga/` 35, `specs/igla/` 15, `specs/numeric/` 15. Error classes: 120 module-level parse, 107 in-fn parse, 45 RBrace, 36 LBrace, 34 unknown cast target. **`specs/base/types.t27`** is among them, failing at `pack_trit` line 172
+- `tools/check_specs_generate.py` records the 348 as debt with each compiler message, fails when a working spec breaks, and **reports when a baselined spec starts working** so the list cannot rot in the other direction either
+- **The 113 stale seals stay unsealed.** 46 of the 95 specs behind them do not generate; sealing those records reproducibility for output that does not exist. That is now a measured reason rather than a hunch
+
+# NOW -- seal-coverage was an echo, and 207 seals do not hold (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: give seal-coverage a body, and measure what it finds (Closes #2209)
+- **The 89 dangling, characterised:** 74 name specs that DID exist in history (16 of them removed by one commit, \`692ba5263\` DARPA CLARA); **15 name specs found in no commit under any path**, each recording a spec_hash and all four gen_hashes -- reproducibility claims nobody can check. Four of those 15 are GF16 comparison/claims specs, in a repository whose GF16 claims have been withdrawn twice. Stated as found, not further
+- **A correction to my own first pass:** I tested existence with \`git log --diff-filter=D -- <exact path>\`, which only sees a deletion recorded at that same path, and reported **73** never-existed. By basename across all history it is **15** -- my instrument overstated fivefold, and "73 seals reference specs that never existed" would have been a serious unsupported accusation. **Fourth time this session an anomaly came from the instrument, not the thing measured**
+
+- **The last decorative required check.** `seal-coverage.yml` was `echo "Running SEAL coverage analysis..."`
+- **Two attempts to establish what it should assert.** In #2191 I matched seal FILENAMES against spec filenames and got "1668 orphans of 1714" -- a finding about my assumption. Seals are keyed by MODULE name; the spec is named inside, in `spec_path`. I wrote neither check nor deletion then and said so; this returns to it
+- **A seal is a reproducibility record:** `spec_path`, `spec_hash`, and the sha256 of each of the four generated targets at the moment of sealing. Its invariant is that the spec still exists and still hashes to what was recorded -- otherwise the four gen_hashes describe something the spec no longer produces, and the seal asserts something false
+- **1714 seals: 1507 hold, 113 stale, 89 dangling, 5 without a spec_path. 207 (12%) do not hold**, under a check that said `echo`
+- Of the dangling, 89 name specs deleted outright (`binary16.t27`, `int4.t27`, `int8.t27`, …). Two named `specs/vsa/core.t27`, which **moved** to `specs/test_framework/core.t27`; repointed here, and they correctly become *stale* -- the moved file's contents differ from what was sealed, so they need re-sealing rather than repointing
+- The 207 are debt in `tools/seal_baseline.txt`, one per line, so the gate holds the line without demanding a 207-item cleanup
+- **Job id stays `coverage`** -- renaming it stops the required context reporting and sends PRs to BLOCKED with every check green (#2191). Verified the context still appears on an open PR before committing
+
+# NOW -- fifteen copies of tmul, and nothing compared them (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: duplicated functions checked by BEHAVIOUR, not text (Closes #2207)
+
+- **`tmul` is defined in 14 specs, `dot27` in 9, `quantize` in 7**, and nothing checked that the copies still compute the same thing. Copies drift
+- **They agree.** One behaviour each: `tmul` `91a68892` across 14 specs -- the same digest the exhaustive checker gets for the ripple adder's copy, so all fifteen definitions in the tree are one function. `dot27` `8f8e7503` across 9, `quantize` `1f7b9105` across 7
+- A negative result, and that is the point: fifteen unchecked copies is a standing risk, now a tripwire
+- **Text comparison is the wrong instrument, and trying it first is why this exists.** My first pass hashed normalised source and reported "2 variants of tmul, 3 of dot27, 3 of quantize". All artefacts: `bitnet_mlp3.t27` writes functions on one line, so a regex ending at `
+}` swallowed **five following definitions**; and with balanced braces, `if(ta==1)` and `if (ta == 1)` still hash differently while computing the same thing
+- I nearly reported "tmul has diverged across the BitNet family" as a fact about the repository. It was a fact about my regex -- **the third time this session that the instrument, not the thing measured, produced the anomaly**
+
 # NOW -- three more primitives enumerated, and a width bug in the checker (2026-08-18)
 
 Last updated: 2026-08-18

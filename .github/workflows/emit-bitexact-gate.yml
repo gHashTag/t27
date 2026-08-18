@@ -21,7 +21,10 @@ on:
       - "bootstrap/**"
       - "cli/**"
       - "tools/check_specs_parse.py"
+      - "tools/check_specs_generate.py"
+      - "specs/**"
       - "tools/verify_exhaustive.py"
+      - "tools/check_duplicate_agreement.py"
       - "specs/ternary/**"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
@@ -66,6 +69,15 @@ jobs:
       - name: Required specs parse
         run: python3 tools/check_specs_parse.py
 
+      # 348 of 1114 specs do not generate with ANY backend -- 31.2% of what the
+      # constitution calls the single source of truth. Not one is a backend mismatch:
+      # on a 25-spec sample, zero generated with any of the four. They are recorded as
+      # debt so this holds the line, and the number can only go down.
+      - name: Every spec still generates (negative control)
+        run: python3 tools/check_specs_generate.py --self-check
+      - name: Every spec still generates
+        run: python3 tools/check_specs_generate.py
+
       # Ternary primitives have input spaces small enough to enumerate: a full adder
       # over three trits-in-a-byte is 16,777,216 inputs, about a second of CPU. A space
       # you can exhaust needs neither a sample nor a prover, and docs/POSITIONING.md
@@ -75,6 +87,15 @@ jobs:
         run: python3 tools/verify_exhaustive.py --self-check
       - name: Exhaustive cross-target agreement
         run: python3 tools/verify_exhaustive.py
+
+      # tmul is defined in 14 specs, dot27 in 9, quantize in 7. Nothing checked that
+      # the copies still compute the same thing, and copies drift. Compares BEHAVIOUR,
+      # not text: hashing the source reported three "divergences" that were all
+      # artefacts of the comparison rather than facts about the tree.
+      - name: Duplicated functions agree (negative control)
+        run: python3 tools/check_duplicate_agreement.py --self-check
+      - name: Duplicated functions agree
+        run: python3 tools/check_duplicate_agreement.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py

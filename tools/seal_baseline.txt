@@ -1,0 +1,209 @@
+# Seals that do not hold today. Each line is a debt, not a rule.
+# Remove the line when the seal is fixed; the gate then holds it fixed.
+AdamW.json | stale | specs/ml/optimizer/adamw.t27 changed since sealing
+AspSolver.json | stale | specs/ar/asp_solver.t27 changed since sealing
+Backend.json | stale | specs/igla/race/backend.t27 changed since sealing
+BaseOps.json | stale | specs/base/ops.t27 changed since sealing
+BaseTypes.json | stale | specs/base/types.t27 changed since sealing
+Binary16.json | dangling | specs/numeric/binary16.t27
+CompetitiveTests.json | stale | specs/numeric/gf_competitive.t27 changed since sealing
+Composition.json | stale | specs/ar/composition.t27 changed since sealing
+D2D_Conformance.json | phantom | specs/network/d2d_conformance.t27
+DatalogEngine.json | stale | specs/ar/datalog_engine.t27 changed since sealing
+Explainability.json | stale | specs/ar/explainability.t27 changed since sealing
+FPGA_Bridge.json | stale | specs/fpga/bridge.t27 changed since sealing
+FeedForward.json | stale | specs/ml/transformer/feed_forward_network.t27 changed since sealing
+Fifo.json | stale | specs/fpga/fifo.t27 changed since sealing
+FpgaEmission.json | stale | compiler/codegen/verilog/fpga_emission.t27 changed since sealing
+GF128.json | stale | specs/numeric/gf128.t27 changed since sealing
+GF16.json | stale | specs/numeric/gf16.t27 changed since sealing
+GF256.json | stale | specs/numeric/gf256.t27 changed since sealing
+GF64.json | stale | specs/numeric/gf64.t27 changed since sealing
+GoldenFloatFamily.json | stale | specs/numeric/goldenfloat_family.t27 changed since sealing
+Int4.json | dangling | specs/numeric/int4.t27
+Int8.json | dangling | specs/numeric/int8.t27
+NF4.json | dangling | specs/numeric/nf4.t27
+Partition.json | stale | specs/fpga/partition.t27 changed since sealing
+PhiRatio.json | stale | specs/numeric/phi_ratio.t27 changed since sealing
+ProofTrace.json | stale | specs/ar/proof_trace.t27 changed since sealing
+RTL.json | stale | specs/igla/race/rtl.t27 changed since sealing
+Restraint.json | stale | specs/ar/restraint.t27 changed since sealing
+SPI_Master.json | stale | specs/fpga/spi.t27 changed since sealing
+SacredAttention.json | stale | specs/nn/attention.t27 changed since sealing
+SacredPhysics.json | stale | specs/math/sacred_physics.t27 changed since sealing
+SimilaritySearch.json | stale | specs/vsa/similarity_search.t27 changed since sealing
+String.json | stale | specs/sacred/sacred_governance.t27 changed since sealing
+TF3.json | stale | specs/numeric/tf3.t27 changed since sealing
+TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
+TernaryLayer.json | dangling | specs/ml/ternary_layer.t27
+TernaryLogic.json | stale | specs/ar/ternary_logic.t27 changed since sealing
+TernaryLoss.json | dangling | specs/ml/ternary_loss.t27
+TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
+TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
+TestFramework.json | stale | specs/test_framework/core.t27 changed since sealing
+TestRunner.json | stale | specs/test_framework/runner.t27 changed since sealing
+TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
+Trinity_FPGA_Top.json | stale | specs/fpga/top_level.t27 changed since sealing
+UART_Bridge.json | stale | specs/fpga/uart.t27 changed since sealing
+VSACore.json | stale | specs/test_framework/core.t27 changed since sealing
+agent_"[]const u8".json | stale | specs/tri/agent/eternal_monitor.t27 changed since sealing
+agent_AgentMemory.json | stale | specs/tri/agent/memory.t27 changed since sealing
+agent_AgentRun.json | stale | specs/tri/agent/agent_run.t27 changed since sealing
+agent_ExperienceHooks.json | stale | specs/tri/agent/experience_hooks.t27 changed since sealing
+api_tri-net-api.json | stale | specs/api/tri_net_api.t27 changed since sealing
+ar_AspSolver.json | stale | specs/ar/asp_solver.t27 changed since sealing
+ar_DatalogEngine.json | stale | specs/ar/datalog_engine.t27 changed since sealing
+ar_ProofTrace.json | stale | specs/ar/proof_trace.t27 changed since sealing
+ar_TernaryLogic.json | stale | specs/ar/ternary_logic.t27 changed since sealing
+avs-controller-48.json | dangling | specs/fpga/avs_controller_48.t27
+avs-controller-96.json | dangling | specs/fpga/avs_controller_96.t27
+avs-reconf.json | dangling | specs/fpga/avs_reconf.t27
+benchmarks_GF16VsBFloat16NMSE.json | phantom | specs/benchmarks/gf16_vs_bfloat16_nmse.t27
+brain_domains.json | no-spec-path | the seal does not say which spec it describes
+brain_gwt_model.json | dangling | specs/brain/gwt_model.t27
+brain_pipeline.json | no-spec-path | the seal does not say which spec it describes
+brain_summary.json | no-spec-path | the seal does not say which spec it describes
+claims_claims-legend.json | phantom | specs/claims/claims_legend.t27
+claims_gf16-mx-alliance-anchoring.json | phantom | specs/claims/gf16_mx_alliance_anchoring.t27
+claims_gf16-nmse-comparison.json | phantom | specs/claims/gf16_nmse_comparison.t27
+coder_igla-coder-arch.json | stale | specs/igla/coder/arch.t27 changed since sealing
+coder_igla-coder-bench-proxy.json | stale | specs/igla/coder/bench_proxy.t27 changed since sealing
+coder_igla-coder-benchmark.json | stale | specs/igla/coder/benchmark.t27 changed since sealing
+coder_igla-coder-dataset.json | stale | specs/igla/coder/dataset.t27 changed since sealing
+coder_igla-coder-eval.json | stale | specs/igla/coder/eval.t27 changed since sealing
+coder_igla-coder-pipeline.json | stale | specs/igla/coder/pipeline.t27 changed since sealing
+coder_igla-coder-prm.json | stale | specs/igla/coder/prm.t27 changed since sealing
+coder_igla-coder-tokenizer.json | stale | specs/igla/coder/tokenizer.t27 changed since sealing
+coder_igla-coder-training.json | stale | specs/igla/coder/training.t27 changed since sealing
+coder_igla-coder-weights.json | stale | specs/igla/coder/weights.t27 changed since sealing
+experience_example.json | no-spec-path | the seal does not say which spec it describes
+fbb-active-path.json | dangling | specs/fpga/fbb_active_path.t27
+format_conversion.json | dangling | specs/numeric/format_conversion.t27
+fpga-accelerator_Gf16Accelerator.json | dangling | examples/fpga-accelerator/gf16-accelerator.t27
+fpga_FPGA_Bridge.json | stale | specs/fpga/bridge.t27 changed since sealing
+fpga_Fifo.json | stale | specs/fpga/fifo.t27 changed since sealing
+fpga_FpgaStdlib.json | stale | specs/fpga/stdlib.t27 changed since sealing
+fpga_Partition.json | stale | specs/fpga/partition.t27 changed since sealing
+fpga_SPI_Master.json | stale | specs/fpga/spi.t27 changed since sealing
+fpga_avs-controller-48.json | dangling | specs/fpga/avs_controller_48.t27
+fpga_avs-controller-96.json | dangling | specs/fpga/avs_controller_96.t27
+fpga_avs-reconf.json | dangling | specs/fpga/avs_reconf.t27
+fpga_fbb-active-path.json | dangling | specs/fpga/fbb_active_path.t27
+fpga_gf16-to-fp16.json | dangling | specs/fpga/gf16_to_fp16.t27
+fpga_gf16-to-posit16.json | dangling | specs/fpga/gf16_to_posit16.t27
+fpga_gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
+fpga_purkinje-thermal-gate.json | dangling | specs/fpga/purkinje_thermal_gate.t27
+fpga_rbb-fbb-cap-boost.json | phantom | specs/fpga/rbb_fbb_cap_boost.t27
+fpga_sacred-dfs_gate.json | dangling | specs/fpga/dfs_gate.t27
+fpga_sacred-drowsy_ret.json | dangling | specs/fpga/drowsy_ret.t27
+fpga_sacred-holo_mux_x4.json | dangling | specs/fpga/holo_mux_x4.t27
+fpga_sacred-lane_precheck.json | dangling | specs/fpga/lane_l_precheck.t27
+fpga_sacred-lut_npu_81_entry.json | dangling | specs/fpga/lut_npu_81_entry.t27
+fpga_sacred-null_pe.json | dangling | specs/fpga/null_pe.t27
+fpga_sacred-sparse_mask.json | dangling | specs/fpga/sparse_mask.t27
+fpga_sacred-sparse_skip.json | dangling | specs/fpga/sparse_skip.t27
+fpga_sacred-spec_exit.json | dangling | specs/fpga/spec_exit.t27
+fpga_sacred-stoch_round.json | dangling | specs/fpga/stoch_round.t27
+fpga_sacred-subth_clk.json | dangling | specs/fpga/subth_clk.t27
+gf16-to-fp16.json | dangling | specs/fpga/gf16_to_fp16.t27
+gf16-to-posit16.json | dangling | specs/fpga/gf16_to_posit16.t27
+gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
+gwt_model.json | dangling | specs/brain/gwt_model.t27
+isa_TernaryEncoding.json | stale | specs/isa/ternary_encoding.t27 changed since sealing
+math_math-igla-primitives.json | phantom | specs/math/igla_primitives.t27
+ml-quantization_ModelQuantization.json | dangling | examples/ml-quantization/model-quant.t27
+ml_TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
+ml_TernaryLayer.json | dangling | specs/ml/ternary_layer.t27
+ml_TernaryLoss.json | dangling | specs/ml/ternary_loss.t27
+ml_TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
+ml_TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
+network_d2d-conformance.json | phantom | specs/network/d2d_conformance.t27
+network_d2d-protocol.json | phantom | specs/network/d2d_protocol.t27
+nn_PhiRoPE.json | stale | specs/nn/phi_rope.t27 changed since sealing
+nn_SacredAttentionPhi.json | stale | specs/nn/sacred_attention.t27 changed since sealing
+numeric_Binary16.json | dangling | specs/numeric/binary16.t27
+numeric_CompetitiveTests.json | stale | specs/numeric/gf_competitive.t27 changed since sealing
+numeric_FormatsCatalog.json | stale | specs/numeric/formats_catalog.t27 changed since sealing
+numeric_GF128.json | stale | specs/numeric/gf128.t27 changed since sealing
+numeric_GF256.json | stale | specs/numeric/gf256.t27 changed since sealing
+numeric_GoldenFloatFamily.json | stale | specs/numeric/goldenfloat_family.t27 changed since sealing
+numeric_Int4.json | dangling | specs/numeric/int4.t27
+numeric_Int8.json | dangling | specs/numeric/int8.t27
+numeric_NF4.json | dangling | specs/numeric/nf4.t27
+numeric_TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
+numeric_format_conversion.json | dangling | specs/numeric/format_conversion.t27
+numeric_triformat-fp8_e4m3.json | dangling | specs/numeric/fp8_e4m3.t27
+numeric_triformat-fp8_e5m2.json | dangling | specs/numeric/fp8_e5m2.t27
+numeric_triformat-posit16.json | dangling | specs/numeric/posit16.t27
+performance_tops-w-22fdx.json | phantom | specs/performance/tops_w_22fdx.t27
+pipeline_SpecWriter.json | stale | specs/tri/pipeline/spec_writer.t27 changed since sealing
+pipeline_Workflow.json | stale | specs/tri/pipeline/workflow.t27 changed since sealing
+power_state-machine-mapping.json | phantom | specs/power/state_machine_mapping.t27
+property_test_template.json | stale | specs/math/property_test_template.t27 changed since sealing
+purkinje-thermal-gate.json | dangling | specs/fpga/purkinje_thermal_gate.t27
+race_igla-race-adder-tree.json | stale | specs/igla/race/adder_tree.t27 changed since sealing
+race_igla-race-backend.json | stale | specs/igla/race/backend.t27 changed since sealing
+race_igla-race-bram-weights.json | stale | specs/igla/race/bram_weights.t27 changed since sealing
+race_igla-race-cordic-fixed.json | stale | specs/igla/race/cordic_fixed.t27 changed since sealing
+race_igla-race-cordic-top.json | stale | specs/igla/race/cordic_top.t27 changed since sealing
+race_igla-race-cordic.json | stale | specs/igla/race/cordic.t27 changed since sealing
+race_igla-race-eda.json | stale | specs/igla/race/eda.t27 changed since sealing
+race_igla-race-formal.json | stale | specs/igla/race/formal.t27 changed since sealing
+race_igla-race-gemm.json | stale | specs/igla/race/gemm.t27 changed since sealing
+race_igla-race-opcodes.json | stale | specs/igla/race/opcodes.t27 changed since sealing
+race_igla-race-rtl.json | stale | specs/igla/race/rtl.t27 changed since sealing
+race_igla-race-systolic-array.json | stale | specs/igla/race/systolic_array.t27 changed since sealing
+race_igla-race-systolic-ternary.json | stale | specs/igla/race/systolic_ternary.t27 changed since sealing
+race_igla-race-ternary-gemm.json | stale | specs/igla/race/ternary_gemm.t27 changed since sealing
+race_igla-race-ternary-inference.json | stale | specs/igla/race/ternary_inference.t27 changed since sealing
+race_igla-race-ternary-mac.json | stale | specs/igla/race/ternary_mac.t27 changed since sealing
+race_igla-race-yosys.json | stale | specs/igla/race/yosys.t27 changed since sealing
+radix_economy.json | stale | specs/math/radix_economy.t27 changed since sealing
+sacred-dfs_gate.json | dangling | specs/fpga/dfs_gate.t27
+sacred-drowsy_ret.json | dangling | specs/fpga/drowsy_ret.t27
+sacred-holo_mux_x4.json | dangling | specs/fpga/holo_mux_x4.t27
+sacred-lane_precheck.json | dangling | specs/fpga/lane_l_precheck.t27
+sacred-lut_npu_81_entry.json | dangling | specs/fpga/lut_npu_81_entry.t27
+sacred-null_pe.json | dangling | specs/fpga/null_pe.t27
+sacred-sparse_mask.json | dangling | specs/fpga/sparse_mask.t27
+sacred-sparse_skip.json | dangling | specs/fpga/sparse_skip.t27
+sacred-spec_exit.json | dangling | specs/fpga/spec_exit.t27
+sacred-stoch_round.json | dangling | specs/fpga/stoch_round.t27
+sacred-subth_clk.json | dangling | specs/fpga/subth_clk.t27
+sacred_DarkMatter.json | stale | specs/sacred/dark_matter.t27 changed since sealing
+sacred_QuantumGravity.json | stale | specs/sacred/quantum_gravity.t27 changed since sealing
+sacred_SacredIdentity.json | stale | specs/sacred/sacred_identity.t27 changed since sealing
+sandbox_sandbox.json | stale | specs/sandbox/sandbox.tri changed since sealing
+scientific-computing_NumericalMethods.json | dangling | examples/scientific-computing/numerical-methods.t27
+search_SearchMatch.json | stale | specs/tri/search/match.t27 changed since sealing
+simulation_tri-net-system-sim.json | phantom | specs/simulation/tri_net_system_sim.t27
+specs_test_array_literal_inline.json | phantom | specs/test_array_literal_inline.t27
+specs_test_ternary_hir.json | phantom | specs/test_ternary_hir.t27
+ternary_GftBitnetNeuron.json | stale | specs/ternary/gft_bitnet_neuron.t27 changed since sealing
+ternary_GftClassifier4.json | stale | specs/ternary/gft_classifier4.t27 changed since sealing
+ternary_GftLayer3.json | stale | specs/ternary/gft_layer3.t27 changed since sealing
+ternary_GftLayer4.json | stale | specs/ternary/gft_layer4.t27 changed since sealing
+ternary_GftMlp2.json | stale | specs/ternary/gft_mlp2.t27 changed since sealing
+ternary_GftMlp3.json | stale | specs/ternary/gft_mlp3.t27 changed since sealing
+ternary_GftNeuronFull.json | stale | specs/ternary/gft_neuron_full.t27 changed since sealing
+ternary_GftSgdStep.json | stale | specs/ternary/gft_sgd_step.t27 changed since sealing
+ternary_GftSignedDot4.json | stale | specs/ternary/gft_signed_dot4.t27 changed since sealing
+ternary_GftSignedMac.json | stale | specs/ternary/gft_signed_mac.t27 changed since sealing
+ternary_GftSoftmax4.json | stale | specs/ternary/gft_softmax4.t27 changed since sealing
+ternary_GftSoftmaxGrad4.json | stale | specs/ternary/gft_softmax_grad4.t27 changed since sealing
+testbench_tri-net-tb.json | phantom | specs/testbench/tri_net_tb.t27
+transformer_FeedForward.json | stale | specs/ml/transformer/feed_forward_network.t27 changed since sealing
+tri::sync.json | dangling | specs/tri/sync.t27
+tri_tri::sync.json | dangling | specs/tri/sync.t27
+tricompiler-parser.json | stale | specs/compiler/parser.t27 changed since sealing
+triformat-fp8_e4m3.json | dangling | specs/numeric/fp8_e4m3.t27
+triformat-fp8_e5m2.json | dangling | specs/numeric/fp8_e5m2.t27
+triformat-gf16.json | stale | specs/numeric/gf16.t27 changed since sealing
+triformat-posit16.json | dangling | specs/numeric/posit16.t27
+utils_ArrowTime.json | stale | specs/tri/utils/arrow_time.t27 changed since sealing
+utils_TriArgs.json | stale | specs/tri/utils/args.t27 changed since sealing
+utils_TriLogger.json | stale | specs/tri/utils/logger.t27 changed since sealing
+utils_TriString.json | stale | specs/tri/utils/string.t27 changed since sealing
+verdict_example.json | no-spec-path | the seal does not say which spec it describes
+vsa_VSACore.json | stale | specs/test_framework/core.t27 changed since sealing
+webassembly_GfCalculator.json | dangling | examples/webassembly/gf-calculator.t27

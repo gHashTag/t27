@@ -1,0 +1,348 @@
+# Specs that do not generate with ANY backend. Each line is a debt.
+# Remove the line when the spec compiles; the gate then holds it compiling.
+bootstrap/bootstrap/specs/physics/formula_registry.t27 | Error: Too many levels of symbolic links (os error 62)
+bootstrap/src/codegen_python.t27 | Error: Compile error: parse error in fn 'map_trit_to_python_type' near line 36: Unexpected token in expression: Semicolon (';') at line 36:10
+compiler/cli/gen.t27 | Error: Compile error: parse error in fn 'gen' near line 84: Unexpected token in expression: Pipe ('|') at line 84:44
+compiler/cli/git.t27 | Error: Compile error: parse error in fn 'git_commit' near line 38: Expected RParen, got Dot ('.') at line 38:37
+compiler/cli/spec.t27 | Error: Compile error: parse error in fn 'spec_create' near line 19: Unexpected token in expression: PlusPlus ('++') at line 19:57
+compiler/codegen/c/codegen.t27 | Error: Compile error: parse error in fn 'emit_expression' near line 120: Unexpected token in expression: KwVar ('var') at line 120:14
+compiler/codegen/verilog/fpga_emission.t27 | Error: Compile error: parse error in fn 'emit_line' near line 720: Expected LBrace, got Colon (':') at line 720:39
+compiler/codegen/zig/runtime.t27 | Error: Compile error: parse error in fn 'generate_main' near line 15: Unexpected token in expression: PlusPlus ('++') at line 15:80
+compiler/parser/parser.t27 | Error: Compile error: parse error in fn 'Parser.new' near line 36: Expected RBrace, got KwConst ('const') at line 36:38
+compiler/runtime/commands.t27 | Error: Compile error: parse error in fn 'spec_create' near line 33: Unexpected token in expression: LBrace ('{') at line 33:42
+compiler/runtime/validation.t27 | Error: Compile error: parse error in fn 'validate_policy_matrix' near line 216: parse error near line 216: parse error near line 216: Expected RBrace,
+compiler/skill/registry.t27 | Error: Compile error: parse error in fn 'create_skill' near line 200: Expected RBrace, got KwConst ('const') at line 200:31
+examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at module level near line 1: unexpected token after expression statement: Ident
+specs/account/repo.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 12:21
+specs/account/schema.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 13:21
+specs/api/c_api_contract.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/api/sdk_contract.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/api/tri_net_api.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/ar/asp_solver.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/coa_planning.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/composition.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/datalog_engine.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/explainability.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/proof_trace.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/restraint.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/auth/config.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 60:16
+specs/automation/wrapup-auto.t27 | Error: Compile error: parse error at module level near line 3: unexpected token after expression statement: Ident
+specs/base/debounce.t27 | Error: Compile error: parse error at module level near line 8: Unexpected token in expression: LBrace ('{') at line 8:27
+specs/base/ring_32.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: LBrace ('{') at line 7:27
+specs/base/ternary_add.t27 | Error: Compile error: parse error in fn 'max_value' near line 64: Expected LBrace, got Colon (':') at line 64:19
+specs/base/ternary_encoding.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 37:34
+specs/base/ternary_memory.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 45:25
+specs/benchmarks/bench_main.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/benchmarks/ternary_vs_binary.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/brain/brain.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Number
+specs/brain/neural_gamma.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/bus/pubsub.t27 | Error: Compile error: parse error in fn 'join_topic' near line 303: parse error near line 303: Unexpected token in expression: PlusPlus ('++') at line
+specs/cloud/railway_deploy.t27 | Error: Compile error: parse error at module level near line 9: Unexpected token in expression: LBrace ('{') at line 9:27
+specs/compiler/linker.t27 | Error: Compile error: parse error in fn 'symbol_ref_new' near line 69: Unexpected token in expression: KwModule ('module') at line 69:27
+specs/compiler/mod_structure.t27 | Error: Compile error: parse error at module level near line 8: Unexpected token in expression: LBrace ('{') at line 8:27
+specs/compiler/optimizer.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 149:88
+specs/compiler/parser.t27 | Error: Compile error: parse error in fn 'parse_type_annotation' near line 272: parse error near line 272: Unexpected token in expression: PlusPlus ('+
+specs/compiler/typechecker.t27 | Error: Compile error: parse error in fn 'check_stmt' near line 373: parse error near line 373: parse error near line 373: Unexpected token in expressi
+specs/config/load.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('Config') at line 13:21
+specs/config/migrate.t27 | Error: Compile error: parse error in fn 'migrate_detect_version' near line 396: Expected RBrace, got Colon (':') at line 396:59
+specs/config/paths.t27 | Error: Compile error: parse error in fn 'basename' near line 256: Unexpected token in expression: RBracket (']') at line 256:37
+specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/enrichment/audio_overview.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
+specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:18
+specs/file/schema.t27 | Error: Compile error: parse error in fn 'is_hidden' near line 239: Expected DotDot, got LBrace ('{') at line 239:27
+specs/file/watcher.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
+specs/fpga/boards/arty_a7_integration.t27 | Error: Compile error: parse error in fn 'test_baud_divisor' near line 95: Unexpected token in expression: KwInvariant ('invariant') at line 95:9
+specs/fpga/boards/qmtech_a100t_integration.t27 | Error: Compile error: parse error in fn 'test_baud_divisor' near line 58: Unexpected token in expression: KwInvariant ('invariant') at line 58:9
+specs/fpga/power_analysis.t27 | Error: Compile error: parse error in fn 'utilization_creation' near line 230: unexpected token after expression statement: Ident
+specs/fpga/testbench/apb_bridge_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 75: Unexpected token in expression: KwInvariant ('invariant') at line 75:9
+specs/fpga/testbench/assembler_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 70: Unexpected token in expression: KwInvariant ('invariant') at line 70:9
+specs/fpga/testbench/axi4_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 114: Unexpected token in expression: KwInvariant ('invariant') at line 114:9
+specs/fpga/testbench/bootrom_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 64: Unexpected token in expression: KwInvariant ('invariant') at line 64:9
+specs/fpga/testbench/bridge_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 69: Unexpected token in expression: KwInvariant ('invariant') at line 69:9
+specs/fpga/testbench/clock_domain_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 62: Unexpected token in expression: KwInvariant ('invariant') at line 62:9
+specs/fpga/testbench/cts_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 65: Unexpected token in expression: KwInvariant ('invariant') at line 65:9
+specs/fpga/testbench/dft_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 86: Unexpected token in expression: KwInvariant ('invariant') at line 86:9
+specs/fpga/testbench/fifo_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 84: Unexpected token in expression: KwInvariant ('invariant') at line 84:9
+specs/fpga/testbench/formal_tb.t27 | Error: Compile error: parse error in fn 'test_reset_clears_asserts' near line 74: Unexpected token in expression: KwInvariant ('invariant') at line 74
+specs/fpga/testbench/gf16_accel_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 75: Unexpected token in expression: KwInvariant ('invariant') at line 75:9
+specs/fpga/testbench/hir_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 56: Unexpected token in expression: KwInvariant ('invariant') at line 56:9
+specs/fpga/testbench/integration_tb.t27 | Error: Compile error: parse error in fn 'test_reset_all_modules' near line 45: Unexpected token in expression: KwInvariant ('invariant') at line 45:9
+specs/fpga/testbench/linker_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 49: Unexpected token in expression: KwInvariant ('invariant') at line 49:9
+specs/fpga/testbench/mac_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 353: Unexpected token in expression: Semicolon (';') at line 353:69
+specs/fpga/testbench/memory_tb.t27 | Error: Compile error: parse error in fn 'test_reset_clears' near line 63: Unexpected token in expression: KwInvariant ('invariant') at line 63:9
+specs/fpga/testbench/partition_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 51: Unexpected token in expression: KwInvariant ('invariant') at line 51:9
+specs/fpga/testbench/placement_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 64: Unexpected token in expression: KwInvariant ('invariant') at line 64:9
+specs/fpga/testbench/power_analysis_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 36: Unexpected token in expression: KwInvariant ('invariant') at line 36:9
+specs/fpga/testbench/power_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 69: Unexpected token in expression: KwInvariant ('invariant') at line 69:9
+specs/fpga/testbench/router_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 60: Unexpected token in expression: KwInvariant ('invariant') at line 60:9
+specs/fpga/testbench/simulator_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 56: Unexpected token in expression: KwInvariant ('invariant') at line 56:9
+specs/fpga/testbench/spi_tb.t27 | Error: Compile error: parse error in fn 'test_idle_state' near line 62: Unexpected token in expression: KwInvariant ('invariant') at line 62:9
+specs/fpga/testbench/stdlib_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 63: Unexpected token in expression: KwInvariant ('invariant') at line 63:9
+specs/fpga/testbench/ternary_isa_tb.t27 | Error: Compile error: parse error in fn 'test_ternary_add_zero' near line 61: Unexpected token in expression: KwInvariant ('invariant') at line 61:9
+specs/fpga/testbench/timing_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 49: Unexpected token in expression: KwInvariant ('invariant') at line 49:9
+specs/fpga/testbench/uart_tb.t27 | Error: Compile error: parse error in fn 'run_tests' near line 256: Unexpected token in expression: Semicolon (';') at line 256:39
+specs/fpga/testbench/vcd_conformance_compare_tb.t27 | Error: Compile error: parse error in fn 'test_reset_clears_state' near line 53: Unexpected token in expression: KwInvariant ('invariant') at line 53:9
+specs/fpga/testbench/vcd_trace_tb.t27 | Error: Compile error: parse error in fn 'test_reset_state' near line 53: Unexpected token in expression: KwInvariant ('invariant') at line 53:9
+specs/fpga/vcd_conformance_compare.t27 | Error: Compile error: parse error in fn 'compare_result_init' near line 219: unexpected token after expression statement: Ident
+specs/fpga/verification/build_verify.t27 | Error: Compile error: parse error in fn 'test_module_count' near line 45: Unexpected token in expression: KwInvariant ('invariant') at line 45:9
+specs/github/auth.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: Colon (':') at line 7:14
+specs/github/comments.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
+specs/github/issues.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
+specs/github/prs.t27 | Error: Compile error: parse error at module level near line 3: Unexpected token in expression: Colon (':') at line 3:14
+specs/github/tests/e2e_full_flow.t27 | Error: Compile error: parse error at module level near line 8: Unexpected token in expression: Colon (':') at line 8:14
+specs/graph/knowledge_graph.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 101:59
+specs/hslm/forward_pass.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 82:134
+specs/igla/coder/arch.t27 | Error: Compile error: parse error in fn 'apply_rope_q' near line 211: cast to `f32` is not supported: the language accepts float declarations, but no 
+specs/igla/coder/bench_proxy.t27 | Error: Compile error: parse error in fn 'compute_pass_at_1' near line 109: cast to `f32` is not supported: the language accepts float declarations, bu
+specs/igla/coder/benchmark.t27 | Error: Compile error: parse error in fn 'sacrebleu_precision' near line 127: cast to `f32` is not supported: the language accepts float declarations, 
+specs/igla/coder/dataset.t27 | Error: Compile error: parse error in fn 'round_trip_accuracy' near line 627: cast to `f32` is not supported: the language accepts float declarations, 
+specs/igla/coder/eval.t27 | Error: Compile error: parse error in fn 'pass_at_k' near line 108: cast to `f32` is not supported: the language accepts float declarations, but no bac
+specs/igla/coder/pipeline.t27 | Error: Compile error: parse error in fn 'compute_team_match_reward' near line 598: cast to `f32` is not supported: the language accepts float declarat
+specs/igla/coder/prm.t27 | Error: Compile error: parse error in fn 'char_match_ratio' near line 196: parse error near line 196: cast to `f32` is not supported: the language acce
+specs/igla/coder/tokenizer.t27 | Error: Compile error: parse error in fn 'next_word_inner' near line 286: parse error near line 286: Expected RBracket, got Colon (':') at line 286:26
+specs/igla/coder/training.t27 | Error: Compile error: parse error in fn 'compute_lr' near line 120: parse error near line 120: cast to `f32` is not supported: the language accepts fl
+specs/igla/race/backend.t27 | Error: Compile error: parse error at module level near line 394: unexpected token after expression statement: KwFn
+specs/igla/race/eda.t27 | Error: Compile error: parse error in fn 'compute_backend_realizability' near line 39: cast to `f32` is not supported: the language accepts float decla
+specs/igla/race/formal.t27 | Error: Compile error: parse error in fn 'compute_coverage' near line 241: cast to `f32` is not supported: the language accepts float declarations, but
+specs/igla/race/opcodes.t27 | Error: Compile error: parse error in fn 'module_identity_latency_1' near line 336: unexpected token after expression statement: Ident
+specs/igla/race/rtl.t27 | Error: Compile error: Unexpected top-level token: KwModule ('module') at line 448:26
+specs/igla/race/yosys.t27 | Error: Compile error: parse error at module level near line 228: unexpected token after expression statement: KwFn
+specs/interop/gf_cross_language.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+specs/isa/ternary_arithmetic.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 35:48
+specs/isa/ternary_bitwise.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 29:68
+specs/isa/ternary_deque.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 29:76
+specs/isa/ternary_encoding.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
+specs/isa/ternary_gates.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 30:28
+specs/isa/ternary_hash.t27 | Error: Compile error: parse error in fn 'insert_lookup' near line 102: Unexpected token in expression: RBracket (']') at line 102:27
+specs/isa/ternary_pattern_matching.t27 | Error: Compile error: parse error in fn 'match_exact_found' near line 110: Unexpected token in expression: RBracket (']') at line 110:36
+specs/isa/ternary_search.t27 | Error: Compile error: parse error in fn 'linear_search_found' near line 113: Unexpected token in expression: RBracket (']') at line 113:38
+specs/isa/ternary_set.t27 | Error: Compile error: parse error in fn 'insert_contains' near line 127: Unexpected token in expression: RBracket (']') at line 127:27
+specs/isa/ternary_shift.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 34:66
+specs/isa/ternary_sorting.t27 | Error: Compile error: parse error in fn 'bubble_sort' near line 117: Unexpected token in expression: RBracket (']') at line 117:29
+specs/lsp/language.t27 | Error: Compile error: parse error in fn 'symbol_kind_to_string' near line 311: Unexpected token in expression: KwModule ('module') at line 311:10
+specs/lsp/protocol.t27 | Error: Compile error: parse error in fn 'response_error_create' near line 200: Expected RBrace, got PlusPlus ('++') at line 200:31
+specs/math/constants.t27 | Error: Compile error: parse error in fn 'pow' near line 98: Expected LParen, got Ident ('negative') at line 98:22
+specs/math/e8_lie_algebra.t27 | Error: Compile error: parse error in fn 'cos' near line 221: parse error near line 221: cast to `f64` is not supported: the language accepts float dec
+specs/math/gf_competitive.t27 | Error: Compile error: parse error in fn 'decode_complexity_returns_3_formats' near line 55: unexpected token after expression statement: Bang
+specs/math/pellis_precision_verify.t27 | Error: Compile error: parse error in fn 'count_significant_digits' near line 88: Expected LBrace, got LParen ('(') at line 88:24
+specs/math/phi_split_optimality.t27 | Error: Compile error: parse error in fn 'optimal_ratio_by_self_similarity' near line 53: cast to `f64` is not supported: the language accepts float de
+specs/math/phi_universal_attractor.t27 | Error: Compile error: parse error in fn 'bit_allocation_attractor' near line 166: cast to `f64` is not supported: the language accepts float declarati
+specs/math/property_test_template.t27 | Error: Compile error: parse error at module level near line 429: unexpected token after expression statement: Ident
+specs/math/radix_economy.t27 | Error: Compile error: parse error in fn 'ternary_range' near line 56: cast to `f64` is not supported: the language accepts float declarations, but no 
+specs/math/zamolodchikov_e8.t27 | Error: Compile error: parse error in fn 'cos' near line 178: parse error near line 178: cast to `f64` is not supported: the language accepts float dec
+specs/memory/formula_embed.t27 | Error: Compile error: parse error in fn 'pad_features' near line 109: Expected LBrace, got Colon (':') at line 109:31
+specs/memory/semantic_search.t27 | Error: Compile error: parse error in fn 'semantic_search' near line 95: Expected LBrace, got Colon (':') at line 95:28
+specs/ml/optimizer/adamw.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 93:65
+specs/ml/optimizer/lr_scheduler.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 53:45
+specs/ml/optimizer/sgd_momentum.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 76:117
+specs/ml/transformer/feed_forward.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 128:72
+specs/ml/transformer/mha_block.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 106:104
+specs/ml/transformer/multi_head_attn.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 130:95
+specs/ml/transformer/norm.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 135:68
+specs/ml/transformer/positional_enc.t27 | Error: Compile error: Expected LBrace, got KwStruct ('struct') at line 67:40
+specs/neural/forward_pass.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
+specs/nn/attention.t27 | Error: Compile error: parse error in fn 'sacred_attention_init' near line 84: parse error near line 84: parse error near line 84: cast to `f64` is not
+specs/nn/hslm.t27 | Error: Compile error: parse error in fn 'rms_norm_forward' near line 212: cast to `f64` is not supported: the language accepts float declarations, but
+specs/nn/phi_rope.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
+specs/numeric/bigint.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 50:31
+specs/numeric/formats.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 61:39
+specs/numeric/gf12.t27 | Error: Compile error: parse error in fn 'decode' near line 88: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf16.t27 | Error: Compile error: parse error in fn 'gf16_log' near line 848: Expected RParen, got Ident ('e38') at line 848:20
+specs/numeric/gf20.t27 | Error: Compile error: parse error in fn 'decode' near line 89: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf24.t27 | Error: Compile error: parse error in fn 'decode' near line 89: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf32.t27 | Error: Compile error: parse error in fn 'decode' near line 90: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf4.t27 | Error: Compile error: parse error in fn 'decode' near line 97: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf64.t27 | Error: Compile error: parse error in fn 'decode' near line 80: cast to `f64` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf8.t27 | Error: Compile error: parse error in fn 'decode' near line 98: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/goldenfloat_family.t27 | Error: Compile error: parse error in fn 'get_format_by_name' near line 232: Unexpected token in expression: KwConst ('const') at line 232:14
+specs/numeric/lucas_accumulator.t27 | Error: Compile error: parse error in fn 'phi_acc' near line 55: cast to `f64` is not supported: the language accepts float declarations, but no backen
+specs/numeric/phi_ratio.t27 | Error: Compile error: parse error in fn 'phi_split' near line 52: cast to `f64` is not supported: the language accepts float declarations, but no back
+specs/numeric/posit_ladder_control.t27 | Error: Compile error: parse error in fn 'useed' near line 52: cast to `f64` is not supported: the language accepts float declarations, but no backend 
+specs/numeric/tf3.t27 | Error: Compile error: parse error in fn 'tf3_from_f32' near line 139: parse error near line 139: Unexpected token in expression: Equals ('=') at line 
+specs/physics/chimera_best_gamma.t27 | Error: Compile error: parse error in fn 'formula' near line 14: unexpected token after expression statement: RParen
+specs/physics/e8_lqg_bridge.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/physics/formula_discovery.t27 | Error: Compile error: parse error in fn 'chimera_div' near line 47: unexpected token after expression statement: LBrace
+specs/physics/gamma-conflict.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/physics/lqg_cs_bridge.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 53:55
+specs/physics/quantum.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
+specs/physics/sacred_verification.t27 | Error: Compile error: parse error in fn 'verify_formula' near line 388: Expected LParen, got Ident ('abs_error') at line 388:28
+specs/physics/su2_chern_simons.t27 | Error: Compile error: parse error in fn 's_matrix_element' near line 113: cast to `f64` is not supported: the language accepts float declarations, but
+specs/pins/parser.t27 | Error: Compile error: parse error at module level near line 40: Unexpected token in expression: Comma (',') at line 40:10
+specs/pipeline/benchmarks.t27 | Error: Compile error: parse error in fn 'percentile_sample' near line 66: Unexpected token in expression: RBracket (']') at line 66:46
+specs/pipeline/e2e_test.t27 | Error: Compile error: parse error in fn 'pipeline_progress' near line 79: cast to `f64` is not supported: the language accepts float declarations, but
+specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:16
+specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 209: Expected RBrace, got Semicolon (';') at line 209:36
+specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 268: Expected RBrace, got Semicolon (';') at line 268:36
+specs/provider/transform.t27 | Error: Compile error: parse error in fn 'transform_messages' near line 201: parse error near line 201: parse error near line 201: Unexpected token in 
+specs/queen/lotus.t27 | Error: Compile error: parse error in fn 'evaluate_quality' near line 304: cast to `f64` is not supported: the language accepts float declarations, but
+specs/queen/task_analysis.t27 | Error: Compile error: parse error at module level near line 9: Unexpected token in expression: LBrace ('{') at line 9:27
+specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
+specs/runtime/instance.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('ProcessID') at line 13:23
+specs/runtime/process.t27 | Error: Compile error: parse error in fn 'process_continue' near line 313: Expected identifier after '.', got KwContinue
+specs/sandbox/health.t27 | Error: Compile error: Unexpected top-level token: Ident ('trait') at line 32:5
+specs/sandbox/https_enforce.t27 | Error: Compile error: parse error in fn 'should_redirect' near line 57: unexpected token after expression statement: Ident
+specs/sandbox/modules.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 18:5
+specs/sandbox/orphan_detection.t27 | Error: Compile error: parse error at module level near line 19: unexpected token after expression statement: Ident
+specs/sandbox/session_timeout.t27 | Error: Compile error: parse error at module level near line 14: unexpected token after expression statement: Ident
+specs/scratch/w368_hex_width.t27 | Error: Compile error: parse error in fn 'w368_hex_width_const_ok' near line 9: unexpected token after expression statement: KwTrue
+specs/scratch/w369_bin_width.t27 | Error: Compile error: parse error in fn 'w369_bin_width_const_ok' near line 9: unexpected token after expression statement: KwTrue
+specs/scratch/w370_const_order.t27 | Error: Compile error: parse error in fn 'w370_const_order_ok' near line 11: unexpected token after expression statement: KwTrue
+specs/scratch/w371_early_return.t27 | Error: Compile error: parse error in fn 'w371_early_return_ok' near line 10: unexpected token after expression statement: KwTrue
+specs/scratch/w371_verilog_keyword.t27 | Error: Compile error: parse error in fn 'w371_verilog_keyword_ok' near line 21: unexpected token after expression statement: KwTrue
+specs/scratch/w372_local_keyword.t27 | Error: Compile error: parse error in fn 'w372_local_keyword_task' near line 9: unexpected token after expression statement: Ident
+specs/scratch/w373_struct_field_keyword.t27 | Error: Compile error: parse error in fn 'w373_struct_field_keyword_sum' near line 18: unexpected token after expression statement: Ident
+specs/scratch/w374_module_keyword.t27 | Error: Compile error: parse error in fn 'w374_module_keyword_sum' near line 11: unexpected token after expression statement: Ident
+specs/scratch/w375_early_return.t27 | Error: Compile error: parse error in fn 'w375_early_return_sign' near line 23: unexpected token after expression statement: Ident
+specs/scratch/w376_cast_width.t27 | Error: Compile error: parse error in fn 'w376_cast_width_basic' near line 27: unexpected token after expression statement: Ident
+specs/scratch/w377_struct_field_mapping.t27 | Error: Compile error: parse error at module level near line 14: Unexpected token in expression: Semicolon (';') at line 14:2
+specs/scratch/w378_let_destructuring.t27 | Error: Compile error: parse error in fn 'w378_let_destructuring_basic' near line 27: unexpected token after expression statement: Ident
+specs/scratch/w379_let_destructuring_generalized.t27 | Error: Compile error: parse error in fn 'use_pair_ok' near line 31: unexpected token after expression statement: Ident
+specs/scratch/w380_tuple_return.t27 | Error: Compile error: parse error in fn 'use_pair_ok' near line 26: unexpected token after expression statement: Ident
+specs/scratch/w381_tuple_call_chain.t27 | Error: Compile error: parse error in fn 'sum_pair_ok' near line 22: unexpected token after expression statement: Ident
+specs/scratch/w528_parse_const_2d.t27 | Error: Compile error: parse error in fn 'dummy' near line 10: unexpected token after expression statement: KwTrue
+specs/scratch/w534_negative_cast_to_string.t27 | Error: Compile error: parse error in fn 'make_label' near line 6: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
+specs/scratch/w543_negative_nonlowerable_call_init.t27 | Error: Compile error: parse error in fn 'make_label' near line 8: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
+specs/scratch/w544_negative_nonlowerable_var_call_init.t27 | Error: Compile error: parse error in fn 'make_label' near line 6: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
+specs/scratch/w592_bench_module_3x2p15_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 294914: Unexpected token in expression: Semicolon (';') at line 294914:6
+specs/scratch/w593_bench_module_5x2p15_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 491518: Unexpected token in expression: Semicolon (';') at line 491518:6
+specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 344058: Unexpected token in expression: Semicolon (';') at line 344058:6
+specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 221174: Unexpected token in expression: Semicolon (';') at line 221174:6
+specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 135154: Unexpected token in expression: Semicolon (';') at line 135154:6
+specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 79854: Unexpected token in expression: Semicolon (';') at line 79854:6
+specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 46058: Unexpected token in expression: Semicolon (';') at line 46058:6
+specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 26086: Unexpected token in expression: Semicolon (';') at line 26086:6
+specs/scratch/w600_bench_module_19x2p8_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 14562: Unexpected token in expression: Semicolon (';') at line 14562:6
+specs/scratch/w601_bench_module_21x2p7_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8030: Unexpected token in expression: Semicolon (';') at line 8030:6
+specs/scratch/w602_bench_module_23x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 4378: Unexpected token in expression: Semicolon (';') at line 4378:6
+specs/scratch/w603_bench_module_25x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 4758: Unexpected token in expression: Semicolon (';') at line 4758:6
+specs/scratch/w604_bench_module_27x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5138: Unexpected token in expression: Semicolon (';') at line 5138:6
+specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5518: Unexpected token in expression: Semicolon (';') at line 5518:6
+specs/scratch/w606_bench_module_31x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5898: Unexpected token in expression: Semicolon (';') at line 5898:6
+specs/scratch/w607_bench_module_33x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 6278: Unexpected token in expression: Semicolon (';') at line 6278:6
+specs/scratch/w608_bench_module_35x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 6658: Unexpected token in expression: Semicolon (';') at line 6658:6
+specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7038: Unexpected token in expression: Semicolon (';') at line 7038:6
+specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7418: Unexpected token in expression: Semicolon (';') at line 7418:6
+specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7798: Unexpected token in expression: Semicolon (';') at line 7798:6
+specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8178: Unexpected token in expression: Semicolon (';') at line 8178:6
+specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8558: Unexpected token in expression: Semicolon (';') at line 8558:6
+specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8938: Unexpected token in expression: Semicolon (';') at line 8938:6
+specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 9318: Unexpected token in expression: Semicolon (';') at line 9318:6
+specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 9698: Unexpected token in expression: Semicolon (';') at line 9698:6
+specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 10078: Unexpected token in expression: Semicolon (';') at line 10078:6
+specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 10458: Unexpected token in expression: Semicolon (';') at line 10458:6
+specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 12770: Expected RBracket, got Eof ('') at line 12770:1
+specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 13216: Expected RBracket, got Eof ('') at line 13216:1
+specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 13662: Expected RBracket, got Eof ('') at line 13662:1
+specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14108: Expected RBracket, got Eof ('') at line 14108:1
+specs/scratch/w623_bench_module_65x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14548: Expected RBracket, got Eof ('') at line 14548:1
+specs/scratch/w624_bench_module_67x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14988: Expected RBracket, got Eof ('') at line 14988:1
+specs/scratch/w625_bench_module_69x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 15428: Expected RBracket, got Eof ('') at line 15428:1
+specs/scratch/w626_bench_module_71x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 15868: Expected RBracket, got Eof ('') at line 15868:1
+specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 16308: Expected RBracket, got Eof ('') at line 16308:1
+specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
+specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
+specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
+specs/server/project.t27 | Error: Compile error: parse error in fn 'create_project' near line 53: Unexpected token in expression: PlusPlus ('++') at line 53:28
+specs/server/provider.t27 | Error: Compile error: parse error in fn 'provider_type_values' near line 177: unexpected token after expression statement: Ident
+specs/server/router.t27 | Error: Compile error: parse error in fn 'route_match' near line 127: parse error near line 127: parse error near line 127: Unexpected token in express
+specs/server/routes.t27 | Error: Compile error: parse error in fn 'http_method_values' near line 27: unexpected token after expression statement: Ident
+specs/server/session.t27 | Error: Compile error: parse error in fn 'session_state_values' near line 188: unexpected token after expression statement: Ident
+specs/server/sse.t27 | Error: Compile error: parse error in fn 'client_new' near line 127: Unexpected token in expression: KwFn ('fn') at line 127:23
+specs/server/vm.t27 | Error: Compile error: parse error in fn 'vm_step' near line 181: Unexpected token in expression: LBrace ('{') at line 181:24
+specs/shell/process.t27 | Error: Compile error: Expected LBrace, got LParen ('(') at line 14:21
+specs/shell/schema.t27 | Error: Compile error: parse error in fn 'process_options_full' near line 235: Unexpected token in expression: LBrace ('{') at line 235:31
+specs/storage/kv.t27 | Error: Compile error: Expected LParen, got Lt ('<') at line 15:12
+specs/sync/index.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('SyncID') at line 13:19
+specs/ternary/hybrid_arithmetic.t27 | Error: Compile error: parse error at module level near line 49: Unexpected token in expression: Semicolon (';') at line 49:6
+specs/ternary/hybrid_bigint.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
+specs/ternary/packed_trit.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 75:61
+specs/test_framework/core.t27 | Error: Compile error: parse error at module level near line 64: unexpected token after expression statement: Ident
+specs/test_framework/graph_drift_detection.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: LBrace ('{') at line 7:31
+specs/test_framework/property_test_template.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: LBrace ('{') at line 7:31
+specs/test_framework/runner.t27 | Error: Compile error: parse error at module level near line 9: Unexpected token in expression: LBrace ('{') at line 9:11
+specs/test_framework/verilog_bench_harness.t27 | Error: Compile error: parse error at module level near line 7: Unexpected token in expression: LBrace ('{') at line 7:31
+specs/tools/registry.t27 | Error: Compile error: parse error in fn 'registry_with_tools' near line 166: Unexpected token in expression: LBrace ('{') at line 166:47
+specs/tools/schema.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+specs/tri/agent/agent_run.t27 | Error: Compile error: parse error at module level near line 5: Unexpected token in expression: Equals ('=') at line 5:12
+specs/tri/agent/eternal_monitor.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 63:1
+specs/tri/agent/faculty_board.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 54:1
+specs/tri/agent/governance_agent.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Comma
+specs/tri/collections/array.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/collections/bitmap.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 126:1
+specs/tri/collections/bitset.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 97:1
+specs/tri/collections/bitvector.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 106:1
+specs/tri/collections/btree.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:29
+specs/tri/collections/circular_buffer.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 79:1
+specs/tri/collections/deque.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 89:1
+specs/tri/collections/either.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/collections/interval.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 61:1
+specs/tri/collections/list.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:25
+specs/tri/collections/lru.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/collections/map.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/collections/maybe.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:26
+specs/tri/collections/option.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/collections/priority_queue.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 87:1
+specs/tri/collections/queue.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:26
+specs/tri/collections/result.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/collections/ring_buffer.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:25
+specs/tri/collections/set.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:28
+specs/tri/collections/skip_list.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:29
+specs/tri/collections/stack.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:26
+specs/tri/collections/state.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:29
+specs/tri/collections/tuple.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/collections/variant.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:28
+specs/tri/crypto/base32.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 56:1
+specs/tri/crypto/base64.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 86:1
+specs/tri/crypto/hmac.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 56:1
+specs/tri/encoding/json.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 67:1
+specs/tri/encoding/markup.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 47:1
+specs/tri/encoding/mime.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 48:1
+specs/tri/encoding/msgpack.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 56:1
+specs/tri/graph/graph.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:26
+specs/tri/graph/prims_mst.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 37:1
+specs/tri/graph/topological_sort.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 46:1
+specs/tri/io/compress.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 46:1
+specs/tri/io/io.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:23
+specs/tri/io/reader.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/io/writer.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:30
+specs/tri/io/zip.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/math/bezier.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 51:1
+specs/tri/math/matrix.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 98:1
+specs/tri/math/polynomial.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 86:1
+specs/tri/net/async.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/net/async_stream.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:27
+specs/tri/net/channel.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:28
+specs/tri/net/url.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 70:1
+specs/tri/pipeline/builder.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:28
+specs/tri/pipeline/spec_writer.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 43:1
+specs/tri/search/aho_corasick.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 74:1
+specs/tri/search/bloom_filter.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 57:1
+specs/tri/search/boyer_moore.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 46:1
+specs/tri/search/match.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: KwConst
+specs/tri/search/regex.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 62:1
+specs/tri/trees/fenwick_tree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 87:1
+specs/tri/trees/kd_tree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 84:1
+specs/tri/trees/octree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 84:1
+specs/tri/trees/quadtree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 82:1
+specs/tri/trees/rtree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 69:1
+specs/tri/trees/segment_tree.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 67:1
+specs/tri/trees/suffix_array.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 56:1
+specs/tri/trees/tree.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:25
+specs/tri/trees/trie.t27 | Error: Compile error: parse error at module level near line 13: Unexpected token in expression: KwStruct ('struct') at line 13:29
+specs/tri/utils/args.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: KwConst
+specs/tri/utils/bytes.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 106:1
+specs/tri/utils/template.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 51:1
+specs/tri/utils/utf8.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 70:1
+specs/vm/jit_semantics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 73:58
+specs/vsa/jones_polynomial.t27 | Error: Compile error: parse error in fn 'writhe' near line 24: unexpected token after expression statement: Colon
+specs/vsa/ops.t27 | Error: Compile error: parse error in fn 'hamming_similarity' near line 175: cast to `f64` is not supported: the language accepts float declarations, b
+specs/vsa/packed_vsa.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 58:74
+specs/vsa/sequence_hdc.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:88
+specs/vsa/vsa_core.t27 | Error: Compile error: parse error in fn 'vsa_bind_self_inverse_property' near line 705: unexpected token after expression statement: KwFor
+test_highlight.t27 | Error: Compile error: Unexpected top-level token: KwModule ('module') at line 4:5

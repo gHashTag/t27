@@ -1,17 +1,51 @@
-name: SEAL Coverage
+name: Seal Coverage
+
+# This workflow is named a required check in docs/BRANCH-PROTECTION.md and its entire
+# body used to be:
+#
+#     echo "Running SEAL coverage analysis..."
+#
+# A required check that cannot fail reads as coverage and is worse than none.
+#
+# A seal records spec_path, spec_hash, and the sha256 of each generated target at the
+# moment of sealing. Its invariant is therefore: the spec it names still exists, and
+# still hashes to what was recorded. If the spec changed, the four gen_hashes no longer
+# describe what it produces and the seal asserts something false.
+#
+# Establishing that took two attempts. The first scored coverage by matching seal
+# FILENAMES against spec filenames and produced "1668 orphans of 1714" -- a finding
+# about the assumption, not the tree. Seals are keyed by MODULE name; the spec is named
+# inside the file.
+#
+# 207 seals do not hold today (89 dangling, 113 stale, 5 without a spec_path). They are
+# recorded in tools/seal_baseline.txt as debt so this gate holds the line without
+# demanding they all be fixed at once.
+#
+# The job id below is the status-check CONTEXT branch protection matches on. Renaming it
+# makes the required context stop reporting and the PR goes BLOCKED with every visible
+# check green -- learned the hard way in #2191.
 
 on:
   pull_request:
     branches: [master]
   push:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Run coverage
-        run: |
-          echo "Running SEAL coverage analysis..."
+      # A gate nobody has seen fail is not a gate: this plants a stale seal and a
+      # dangling one in a temp tree and proves both are reported while a good one
+      # stays silent.
+      - name: Negative control
+        run: python3 tools/check_seal_coverage.py --self-check
+
+      - name: Every seal still describes its spec
+        run: python3 tools/check_seal_coverage.py
