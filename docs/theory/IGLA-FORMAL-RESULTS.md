@@ -24685,6 +24685,72 @@ nine reports about itself and none about the paper. The two defects that exist
 were found by the two cheapest possible methods: looking at the source, and
 running the script that regenerates the table.
 
+## W852 -- the check as a command, validated against a known defect
+
+### T651 -- `t27c recompute-diff`, AND ITS ONE HARD GUARD [derived]
+
+    t27c recompute-diff --script <regenerator.py> --tex <paper.tex> [--label X] [--tol 2.0]
+
+Runs the script, folds `\mathrm{e}{-N}` to `e-N` on both sides, and reports every
+recomputed value with no counterpart in the printed text, each beside the nearest
+printed number so a stale cell reads as a pair.
+
+**The guard is the point.** W851's hand-written version of this comparison read
+ZERO cells -- its regex stopped at the backslash inside `\mathrm` -- and printed
+eight-of-eight mismatched. The command REFUSES to compare when either side yields
+no numbers, because *an extractor that extracts nothing reports total
+disagreement, and in the output that is indistinguishable from the truth.*
+
+VALIDATED AGAINST THE KNOWN DEFECT. Run on the pre-fix paper it reproduces W851's
+finding exactly:
+
+    recomputed 1.54e-2   nearest printed 1.11e-2
+    recomputed 4.90e-1   nearest printed 3.70e-1
+    recomputed 1.883     nearest printed 2.000
+
+A tool that cannot reproduce a defect already found by hand has not been tested.
+
+### T652 -- TWO TABLES VERIFY CLEAN; THREE REPORTS ARE NOT FINDINGS [measured]
+
+    recompute_law_table    OK   -- after W851's TNF8 correction
+    recompute_fill_table   OK
+    recompute_ladder_table FAIL
+    recompute_field_table  FAIL -- one value, 2788
+    recompute_ladder_exact FAIL -- three values
+
+**The three FAILs are not claimed as defects.** These scripts print diagnostics
+alongside their table values -- `recompute_ladder_table` emits
+`outside [659, 1903, 2788]`, a count of samples beyond range, which a table has
+no reason to carry. The command cannot tell a table cell from a diagnostic, and
+until it can, its FAIL on those three says only that the script printed something
+the paper did not.
+
+### T653 -- THREE MIS-SCOPED RUNS BEFORE ONE CORRECT ONE [self-critical]
+
+First I ran the command against single `\label`s I guessed: `tab:ladder-sweep`,
+`tab:spec`, `tab:tnf16-fill`. Every one reported many missing values with
+`nearest printed 1.0` -- the signature of a table that does not hold those numbers
+at all. **The scripts' output spans more than one table**, so scoping to one
+label reports the rest as missing.
+
+The single value flagged against `tab:tnf16-fill` -- takum16's `1.917e-3` -- is
+printed in the paper as `1.92e-3` at three other places. Within tolerance, in a
+different table, not a defect.
+
+Correct usage for a script spanning tables is to omit `--label` and search the
+whole file, which is what the two clean results above used.
+
+### T653a -- THE SCORE AFTER SEVEN WAVES [derived]
+
+    findings in the tooling      9
+    findings in the document     2   twelve mis-bound labels; one stale table row
+    tools built to stop repeats  3   t27c gates, edit-check, recompute-diff
+
+Both document defects came from outside the gate apparatus, and each is now
+covered by a command: `recompute-diff` reproduces the stale row, and `gates`
+reports true exit codes on a stated tree. **Nine instrument findings bought three
+instruments.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

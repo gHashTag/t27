@@ -11516,6 +11516,21 @@ regex stopped at the backslash inside `\mathrm{e}{-2}`, read zero cells, and
 printed 8-of-8 mismatched. Assert the extractor found the expected NUMBER of
 fields before comparing any of them.
 
+**1219. A TOOL THAT CANNOT REPRODUCE A KNOWN DEFECT IS UNTESTED.** Before
+trusting `recompute-diff` on four unexamined tables, it was run against the paper
+as it stood BEFORE the defect was fixed, and it reproduced all three cells.
+Validate a checker on a finding you already have.
+
+**1220. `nearest printed 1.0` IS THE SIGNATURE OF A WRONG SCOPE.** When a
+comparison reports many missing values whose nearest match is a round constant,
+the target does not hold those numbers at all. Suspect the scope before the
+document.
+
+**1221. A REGENERATOR PRINTS DIAGNOSTICS AS WELL AS CELLS.** `outside [659, 1903,
+2788]` is a count of out-of-range samples, not a table entry. A diff that cannot
+tell them apart reports the script's own bookkeeping as a paper defect; say so
+rather than counting it.
+
 ### How to update this tracker
 
 After closing a wave:

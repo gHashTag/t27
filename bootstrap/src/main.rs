@@ -156,6 +156,27 @@ enum Commands {
         pnr_seed: Option<u32>,
     },
 
+    /// THE SERVICE: compare a table PRINTED in a paper against the script that
+    /// REGENERATES it. Six such scripts shipped beside the TNF paper and sat
+    /// unused for eight waves; the first one run found a stale row (W851). It
+    /// REFUSES to compare when either side yields no numbers -- a hand-written
+    /// version of this check read zero cells and reported eight-of-eight
+    /// mismatched, which in the output is indistinguishable from the truth.
+    RecomputeDiff {
+        /// The regenerating script, relative to the repository root
+        #[arg(long)]
+        script: String,
+        /// The .tex carrying the printed table
+        #[arg(long)]
+        tex: String,
+        /// \label{...} of the table; omit to search the whole file
+        #[arg(long)]
+        label: Option<String>,
+        /// Relative tolerance in percent
+        #[arg(long, default_value_t = 2.0)]
+        tol: f64,
+    },
+
     /// THE SERVICE: run every `check_*.py` in a tree and report what each one
     /// ACTUALLY did. Captures the child's OWN exit code -- `rc=$?` after a
     /// pipeline reads `tail`'s status, which is how thirteen gates reported
@@ -10398,6 +10419,9 @@ async fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::RecomputeDiff { script, tex, label, tol } => {
+            service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
+        }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
         Commands::EditCheck { file, needle } => {
             service::run_editcheck(&std::env::current_dir()?, file, needle)?
@@ -10788,6 +10812,9 @@ fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::RecomputeDiff { script, tex, label, tol } => {
+            service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
+        }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
         Commands::EditCheck { file, needle } => {
             service::run_editcheck(&std::env::current_dir()?, file, needle)?

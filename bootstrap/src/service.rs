@@ -1495,6 +1495,143 @@ fn design_id_from_top(repo_root: &Path, tops: &[String]) -> Option<u32> {
 /// It also separates GATES from REPORTS. A script ending in an unconditional
 /// `sys.exit(0)` cannot fail whatever it finds; two of this bench's thirteen do,
 /// and both had been counted among the green ones for thirteen iterations.
+/// THE SERVICE: compare a table PRINTED in a paper against the script that
+/// REGENERATES it, and refuse to compare when the extractor found nothing.
+///
+/// W851: six such scripts shipped beside a paper and sat unused for eight waves
+/// while every audit finding landed on the paper's `check_*` gates instead. The
+/// first one run found a stale row -- TNF8's measured error, ratio and flatness
+/// were from a pass before the table was reconciled, while its `M` and
+/// `2^-(M+1)` were current. Seven of eight rows agreeing to the last digit is
+/// what made the eighth a finding rather than a doubt about the script.
+///
+/// And the hand-written comparison that found it was itself broken first: a cell
+/// regex stopping at the backslash inside `\mathrm{e}{-2}` read ZERO cells from
+/// every row and reported eight-of-eight mismatched. **An extractor that
+/// extracts nothing reports total disagreement, and in the output that is
+/// indistinguishable from total disagreement.** This refuses to compare unless
+/// both sides yielded numbers.
+pub fn run_recompute_diff(
+    repo_root: &Path,
+    script: String,
+    tex: String,
+    label: Option<String>,
+    tol: f64,
+) -> anyhow::Result<()> {
+    let sp = repo_root.join(&script);
+    let dir = sp.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| repo_root.to_path_buf());
+    let (code, out, err) = run_bounded(
+        Command::new("python3").arg(&sp).current_dir(&dir),
+        Duration::from_secs(600),
+    );
+    if code != Some(0) {
+        println!("REFUSED -- {} exited {:?}; nothing to compare against.", script, code);
+        for l in err.lines().take(6) { println!("  | {l}"); }
+        std::process::exit(2);
+    }
+    let recomputed = numbers_in(&out);
+
+    let body = std::fs::read_to_string(repo_root.join(&tex))?;
+    let region = match &label {
+        Some(lab) => {
+            // the table environment carrying \label{lab}
+            match body.find(&format!("\\label{{{lab}}}")) {
+                Some(at) => {
+                    let s = body[..at].rfind("\\begin{tabular}").unwrap_or(at);
+                    let e = body[at..].find("\\end{tabular}").map(|k| at + k).unwrap_or(body.len());
+                    body[s..e].to_string()
+                }
+                None => {
+                    println!("REFUSED -- \\label{{{lab}}} not found in {tex}.");
+                    std::process::exit(2);
+                }
+            }
+        }
+        None => body.clone(),
+    };
+    let printed = numbers_in(&region);
+
+    println!("  script    {script}");
+    println!("  table     {tex}{}", label.as_ref().map(|l| format!("  \\label{{{l}}}")).unwrap_or_default());
+    println!("  numbers   recomputed {}   printed {}", recomputed.len(), printed.len());
+
+    // THE GUARD. Comparing nothing to something reports total disagreement.
+    if recomputed.is_empty() || printed.is_empty() {
+        println!();
+        println!("REFUSED -- one side yielded NO numbers, so a comparison would report");
+        println!("  total disagreement whatever the truth is. Check the extractor, not");
+        println!("  the paper (W851: a regex stopping at `\\mathrm` did exactly this).");
+        std::process::exit(2);
+    }
+
+    let missing: Vec<f64> = recomputed
+        .iter()
+        .copied()
+        .filter(|r| !printed.iter().any(|p| close(*r, *p, tol)))
+        .collect();
+
+    println!();
+    if missing.is_empty() {
+        println!("OK -- every recomputed value appears in the printed table (tol {tol:.1}%).");
+        return Ok(());
+    }
+    println!("FAIL -- {} recomputed value(s) absent from the printed table:", missing.len());
+    for m in &missing {
+        // the nearest printed value, so a stale cell reads as a pair
+        let near = printed.iter().copied().min_by(|a, b| {
+            (a - m).abs().partial_cmp(&(b - m).abs()).unwrap()
+        });
+        match near {
+            Some(n) => println!("  recomputed {m:<16.6e}  nearest printed {n:<16.6e}"),
+            None => println!("  recomputed {m:<16.6e}"),
+        }
+    }
+    std::process::exit(1);
+}
+
+/// Every numeric literal, with LaTeX scientific notation folded to a plain
+/// exponent so `$1.11\mathrm{e}{-2}$` and `1.11e-2` are the same number.
+fn numbers_in(s: &str) -> Vec<f64> {
+    let flat = s
+        .replace("\\mathrm{e}{", "e")
+        .replace("}", " ")
+        .replace("{", " ")
+        .replace("$", " ")
+        .replace(",", "");
+    let mut out = Vec::new();
+    let bytes: Vec<char> = flat.chars().collect();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() || (bytes[i] == '-' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_digit()) {
+            let start = i;
+            if bytes[i] == '-' { i += 1; }
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == '.') { i += 1; }
+            if i < bytes.len() && (bytes[i] == 'e' || bytes[i] == 'E') {
+                let save = i;
+                i += 1;
+                if i < bytes.len() && (bytes[i] == '-' || bytes[i] == '+') { i += 1; }
+                if i < bytes.len() && bytes[i].is_ascii_digit() {
+                    while i < bytes.len() && bytes[i].is_ascii_digit() { i += 1; }
+                } else { i = save; }
+            }
+            let tok: String = bytes[start..i].iter().collect();
+            if let Ok(v) = tok.parse::<f64>() {
+                if v != 0.0 { out.push(v); }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+fn close(a: f64, b: f64, tol_pct: f64) -> bool {
+    if a == b { return true; }
+    let scale = a.abs().max(b.abs());
+    if scale == 0.0 { return true; }
+    (a - b).abs() / scale <= tol_pct / 100.0
+}
+
 pub fn run_gates(repo_root: &Path, dir: Option<String>) -> anyhow::Result<()> {
     let root = match dir {
         Some(d) => repo_root.join(d),
