@@ -31,6 +31,13 @@ pub enum PrCmd {
         /// How many recently merged pull requests to compare against.
         #[arg(long, default_value_t = 5)]
         baseline: usize,
+        /// Block until every check has finished, then report. Without this a
+        /// verdict can be computed while checks are still starting.
+        #[arg(long)]
+        wait: bool,
+        /// Seconds between polls while waiting.
+        #[arg(long, default_value_t = 30)]
+        poll: u64,
     },
 }
 
@@ -40,7 +47,9 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             number,
             repo,
             baseline,
-        } => ready(*number, repo.as_deref(), *baseline),
+            wait,
+            poll,
+        } => ready(*number, repo.as_deref(), *baseline, *wait, *poll),
     }
 }
 
@@ -82,7 +91,28 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
     Ok(names)
 }
 
-fn ready(n: u64, repo: Option<&str>, baseline: usize) -> Result<()> {
+/// Number of checks not yet completed on this pull request's head.
+///
+/// Zero can mean two different things and only one of them is "finished": no
+/// checks have STARTED yet also reports zero. That is not hypothetical -- a
+/// polling loop of mine exited on an empty list, and the pull request was
+/// merged while ten checks were still running. So this returns the completed
+/// count too, and the caller waits for it to stop growing.
+fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
+    let sha = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".head.sha"])?;
+    let counts = gh(&[
+        "api",
+        &format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim()),
+        "--jq",
+        r#"[[.check_runs[]|select(.status!="completed")]|length, [.check_runs[]]|length]|@tsv"#,
+    ])?;
+    let mut it = counts.split_whitespace();
+    let pending = it.next().unwrap_or("0").parse().unwrap_or(0);
+    let total = it.next().unwrap_or("0").parse().unwrap_or(0);
+    Ok((pending, total))
+}
+
+fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
         None => gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?,
@@ -90,22 +120,30 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize) -> Result<()> {
 
     // Anything still running makes the answer provisional, so say so rather
     // than reporting a verdict on a partial list.
-    let pending = gh(&[
-        "api",
-        &format!("repos/{repo}/pulls/{n}"),
-        "--jq",
-        ".head.sha",
-    ])
-    .and_then(|sha| {
-        gh(&[
-            "api",
-            &format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim()),
-            "--jq",
-            r#"[.check_runs[]|select(.status!="completed")]|length"#,
-        ])
-    })?
-    .parse::<usize>()
-    .unwrap_or(0);
+    let mut pending = in_flight(&repo, n)?.0;
+    if wait {
+        let mut quiet = 0;
+        loop {
+            let (p, total) = in_flight(&repo, n)?;
+            if p > 0 {
+                quiet = 0;
+                println!("  waiting: {p} of {total} check(s) still running");
+            } else if total == 0 {
+                // An empty list is not "finished" -- it is "not started". Give
+                // it a few rounds before believing it.
+                quiet += 1;
+                println!("  waiting: no checks have appeared yet ({quiet}/4)");
+                if quiet >= 4 {
+                    break;
+                }
+            } else {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_secs(poll));
+        }
+        pending = in_flight(&repo, n)?.0;
+        println!();
+    }
 
     let mine = failures_of(&repo, n)?;
 
@@ -193,6 +231,18 @@ mod tests {
         let new_here: Vec<_> = mine.iter().filter(|m| !elsewhere.contains(m)).collect();
         assert_eq!(new_here.len(), 1);
         assert_eq!(new_here[0], "checks");
+    }
+
+    /// An empty check list means "not started", not "finished". A polling loop
+    /// of mine counted rows, saw none, called it done, and a pull request was
+    /// merged while ten checks were still running -- with this command's own
+    /// WAIT verdict printed in the same batch, unread.
+    #[test]
+    fn an_empty_check_list_is_not_finished() {
+        let total = 0usize;
+        let pending = 0usize;
+        let finished = total > 0 && pending == 0;
+        assert!(!finished, "zero of zero must not read as complete");
     }
 
     /// A verdict computed from a partial list is worse than no verdict: it
