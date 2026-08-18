@@ -26657,6 +26657,51 @@ apply. This wave delivers the minimal repro, the exact missing tokens, and the
 measured blast radius (55 specs, 138 seals, one SSOT) -- the patch itself belongs
 to the ring.
 
+## W881 -- the GOLD-RING package, and the blast radius that shrank under measurement
+
+### T721 -- THE PATCH IS BUILT, VALIDATED, AND DELIBERATELY NOT APPLIED [measured]
+
+Compound assignment (`-= *= /= %=`) implemented in a scratchpad copy of the
+frozen compiler: TokenKind + lexer + parser + three codegen backends (Verilog
+desugars to `lhs <= lhs <op> rhs`, exactly as `+=` already did). Clean build; all
+four minimal repros parse. Shipped as `docs/reports/gold-ring/
+0001-compound-assignment.patch` with the FROZEN_HASH update included -- applied
+only by a [GOLD-RING] PR with Architect approval, per FROZEN.md and W780.
+
+### T721a -- MEASURED BLAST RADIUS: NECESSARY FOR THE SSOT, SUFFICIENT FOR ONE SPEC [measured]
+
+W880 framed 55 refused specs as "the grammar gap". Measured against all 201
+unique stale-seal specs:
+
+    parse with the UNPATCHED compiler     165 of 201
+    parse failures                         36
+    fixed outright by this patch            1    tf3.t27
+    advanced but not through                1    gf16.t27: 824 -> 3507, next gap
+                                                 is a NESTED fn with an if-expr body
+    untouched                             ~34
+
+**Most reseal refusals are backend coverage, not grammar**: parseable specs whose
+every backend still emits nothing (the `@floatFromInt` repro parses and compiles
+to `none` on all four). The wave that found the gap overstated it by an order of
+magnitude, and only feeding every artefact through both compilers said so.
+
+### T721b -- ONE GRAMMAR CHANGE PER PROPOSAL [derived]
+
+gf16's next blocker (nested `fn` with if-expression) is a separate, larger grammar
+feature. Not bundled: a [GOLD-RING] decision should be reviewable in one sitting,
+and a patch that grows until it fixes everything is a patch nobody can approve.
+
+### T722 -- THE MINTER IS NOW IN THE CERTIFICATE; THE 91 ORPHANS ARE ARCHAEOLOGY [measured]
+
+`t27c seal --save` records `sealed_by: t27c-bootstrap@<version>` -- the store
+holds seals from two compilers, and an audit blind to the minter reports their
+grammar gap as spec rot. Verified live.
+
+The 91 missing-spec seals: 0 moved, 91 deleted -- dominated by the May-17 format
+consolidation that created and deleted seventeen numeric specs within ONE DAY,
+the morning's seals outliving the evening's deletion. Legitimate archaeology,
+left standing; the audit counts them separately without failing.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

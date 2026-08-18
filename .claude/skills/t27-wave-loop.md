@@ -12035,6 +12035,18 @@ minutes, after file-level errors pointed only at a line number.
 meta_compiler audited against bootstrap t27c report grammar gaps as spec rot.
 Record WHICH tool minted a certificate inside the certificate.
 
+**1332. VALIDATE A FROZEN-FILE PATCH IN A SCRATCHPAD COPY.** Copy, detach from
+the workspace, update the copied FROZEN_HASH, build, run the repros -- the
+verification the ring needs, with the freeze never touched.
+
+**1333. MEASURE A GAP'S BLAST RADIUS THROUGH BOTH COMPILERS BEFORE NAMING IT.**
+"55 specs don't compile" became "165 of 201 parse fine; the patch fixes one spec
+outright" -- most refusals were backend coverage, not grammar. An order of
+magnitude, again, and again from reading one raw comparison.
+
+**1334. ONE GRAMMAR CHANGE PER GOLD-RING PROPOSAL.** A patch that grows until it
+fixes everything is a patch nobody can approve.
+
 ### How to update this tracker
 
 After closing a wave:
