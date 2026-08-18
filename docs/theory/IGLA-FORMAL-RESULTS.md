@@ -24628,6 +24628,63 @@ on a gate's judgement:
 gate outcomes again.** What can be said: one class of defect was found and fixed,
 and no second class has been demonstrated in the document itself.
 
+## W851 -- checking the paper with what is not its gates, and the second real defect
+
+### T648 -- THE RECOMPUTERS ARE THE EVIDENCE THE GATES ARE NOT [measured]
+
+`research/arxiv_tnf/` ships six scripts that regenerate the paper's tables from
+its data: `recompute_law_table`, `recompute_ladder_table`, `recompute_field_table`,
+`recompute_fill_table`, `recompute_ladder_exact`, `refit_cost_model`. Five run
+clean; the sixth needs a metrics directory argument.
+
+**These verify a table without any `check_*` in the path.** After eight waves in
+which every finding landed on the tooling, this is the first evidence about the
+document that does not pass through it.
+
+### T649 -- TNF8's ROW WAS STALE, AND SEVEN ROWS PROVE THE RECOMPUTER SOUND [measured]
+
+    rung      printed                          recomputed
+    TNF8      1.11e-2 / 0.36 / 1.082           1.54e-2 / 0.49 / 1.883   MISMATCH
+    TNF16     2.44e-4 / 8.51e-5 / 0.35 / 1.048  same                    match
+    TNF32 ... TNF1024                            same                   match x6
+
+Seven of eight rows agree to the last digit, which is what makes the eighth a
+finding rather than a doubt about the script. And the table's own caption names
+the reason: *"the 16-bit rung at its reconciled $M{=}11$, TNF32 at the
+specification's $M{=}25$"* -- **the reconciliation updated TNF16 and TNF32 and did
+not re-run TNF8.** Its `M` and `2^{-(M+1)}` are right; its measured, ratio and
+flatness are from the earlier pass.
+
+Corrected. All eight now agree; 136 pages, zero undefined references, unchanged.
+
+**Second document defect of the session**, after W849's twelve mis-bound labels,
+and both were found by reading or recomputing rather than by a gate.
+
+### T650 -- I BROKE MY OWN VERIFIER AND ALMOST REPORTED ITS OUTPUT [self-critical]
+
+The first comparison printed `совпало 0, расходится 8` -- every row disagreeing.
+The cell extractor's regex `[^\\\\]*` stopped at the first backslash, which is
+inside `\mathrm{e}{-2}`, so it read zero cells from every row and reported
+mismatch for all eight. **A comparison that extracts nothing reports total
+disagreement, which is indistinguishable in the output from total disagreement.**
+
+Fixed by normalising `\mathrm{e}{-N}` to `e-N` before matching: 8 of 8 agree.
+
+That is the ninth instrument defect of the session and the second one I wrote
+myself, hours after `t27c edit-check` was built to prevent exactly this class.
+**The command guards edits; nothing guards a verifier written inline.**
+
+### T650a -- THE SCORE, AND WHAT IT SAYS TO DO [derived]
+
+    findings in the tooling      9   (8 theirs, and my broken extractor)
+    findings in the document     2   twelve mis-bound labels; one stale table row
+    both document findings came from   reading LaTeX, and running a recomputer
+
+**Neither came from a gate.** The programme's checking apparatus has produced
+nine reports about itself and none about the paper. The two defects that exist
+were found by the two cheapest possible methods: looking at the source, and
+running the script that regenerates the table.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

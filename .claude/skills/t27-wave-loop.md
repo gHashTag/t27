@@ -11501,6 +11501,21 @@ be generated.
 figures were given this session -- 92, 55, 45, 52 -- each dominated by how many
 gates passed. The gates were wrong about the paper eight times out of nine.
 
+**1216. RUN THE RECOMPUTER BEFORE READING THE GATE.** A paper that ships scripts
+regenerating its own tables can be verified without its checkers. Six such scripts
+sat unused for eight waves while every finding landed on the tooling; the first
+run of one found a stale row.
+
+**1217. SEVEN ROWS AGREEING IS WHAT MAKES THE EIGHTH A FINDING.** A recomputer
+that matches most of a table and differs on one row has proved itself on that
+table. Do not treat a single mismatch as doubt about the script when the rest is
+exact.
+
+**1218. AN EXTRACTOR THAT EXTRACTS NOTHING REPORTS TOTAL DISAGREEMENT.** My cell
+regex stopped at the backslash inside `\mathrm{e}{-2}`, read zero cells, and
+printed 8-of-8 mismatched. Assert the extractor found the expected NUMBER of
+fields before comparing any of them.
+
 ### How to update this tracker
 
 After closing a wave:
