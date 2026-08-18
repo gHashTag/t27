@@ -26,7 +26,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  schema-validation:
+  # The job id is the status-check CONTEXT that branch protection matches on.
+  # It was `validate` and must stay `validate`: renaming it makes the required
+  # context silently stop reporting, and the PR is BLOCKED with every visible
+  # check green. Found the hard way on the PR that introduced this file.
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
