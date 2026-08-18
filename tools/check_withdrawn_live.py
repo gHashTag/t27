@@ -13,7 +13,13 @@ honesty pass over the same file, which was looking at a different sentence.
 The lesson generalises past this one number: a correction recorded in notes does
 not propagate to documents, and nothing was checking. So this checks.
 
-  live document      any tracked .md / .tex / .rst, minus the exclusions below
+  live document      any tracked .md / .tex / .rst / .t27 / .csv / .json, minus the
+                     exclusions below. The machine-readable types are in scope
+                     because the first version was not, and was green while
+                     specs/numeric/formats_catalog.t27 -- the canonical CATALOG row
+                     that feeds the published dataset -- still carried the number.
+                     A gate that is green because it is under-scoped is the same
+                     failure it was built to kill.
   exclusions         the claims registry itself (it must state what it withdrew),
                      dated history under docs/reports/ (a record of what was
                      believed then is not a live claim), and this gate's own data
@@ -40,10 +46,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "tools/withdrawn.txt"
 BASELINE = ROOT / "tools/withdrawn_live_baseline.txt"
-SUFFIXES = {".md", ".tex", ".rst"}
+SUFFIXES = {".md", ".tex", ".rst", ".t27", ".csv", ".json"}
 EXCLUDE_PREFIXES = (
     "docs/nona-03-manifest/RESEARCH_CLAIMS.md",   # must state what it withdrew
     "docs/reports/",                              # dated history, not live claims
+    "conformance/vectors/",                       # numeric test data, not prose
     "tools/withdrawn.txt",
     "tools/withdrawn_live_baseline.txt",
     "tools/check_withdrawn_live.py",

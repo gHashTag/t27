@@ -667,14 +667,15 @@ pub fn cktformalizer_competitor() -> CompetitorScore {
 
 /// goldenfloat_competitor() -> CompetitorScore
 /// GoldenFloat (arXiv:2606.05017v1): Phi-derived floating-point format family.
-/// RTL generator, GF16 passes 35/35 tests at 323 MHz on Xilinx Artix-7.
+/// RTL generator, GF16 passes 35/35 tests on Xilinx Artix-7. The 323 MHz figure
+/// once quoted here is withdrawn (ring-oscillator probe; RESEARCH_CLAIMS.md).
 pub fn goldenfloat_competitor() -> CompetitorScore {
     return CompetitorScore {
         name: "GoldenFloat",
         pass_at_1: 0.0,
         pass_at_5: 0.0,
         pass_at_10: 0.0,
-        benchmark: "Phi-derived FP16 RTL at 323 MHz Artix-7",
+        benchmark: "Phi-derived FP16 RTL on Artix-7 (no frequency claimed)",
     };
 }
 

@@ -153,11 +153,11 @@
     "issue": 129,
     "method": "Mean of ((x - roundtrip(x)) / x)^2 over 512 log-spaced samples between 1e-3 and 3e4 (float32 domain)",
     "nmse": {
-      "GF16_proxy_same_as_ieee_binary16": 4.3990737594875413e-8,
-      "IEEE_bfloat16": 2.6256710851419654e-6,
-      "IEEE_binary16": 4.3990737594875413e-8
+      "GF16_proxy_same_as_ieee_binary16": 4.3990737594875413e-08,
+      "IEEE_bfloat16": 2.6256710851419654e-06,
+      "IEEE_binary16": 4.3990737594875413e-08
     },
-    "note": "Synthetic roundtrip only. `gf16_vectors.json` uses the same IEEE binary16 decode as a GF16 stand-in — not trained-model NMSE.",
+    "note": "Synthetic roundtrip only. `gf16_vectors.json` uses the same IEEE binary16 decode as a GF16 stand-in \u2014 not trained-model NMSE.",
     "samples": 512,
     "x_range": [
       0.001,
@@ -279,7 +279,8 @@
           "speedup_vs_fp32": 2.0
         }
       ],
-      "samples": 10000
+      "samples": 10000,
+      "validity": "INVALID \u2014 model untrained: every format at accuracy 0.1187 / loss 2.3631, against chance 0.1000 and ln(10)=2.3026. Identical scores across formats mean the scenario does not measure the format. Do not cite."
     },
     {
       "description": "Error in representing sacred constants",

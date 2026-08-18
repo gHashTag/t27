@@ -1,3 +1,17 @@
+# NOW -- the withdrawal gate was green because it was blind (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: widen the gate that shipped under-scoped, and clear what it then found (Closes #2180)
+
+- **The gate reported OK on 975 documents and could not see the files that mattered.** It scanned `.md`/`.tex`/`.rst` only, so `specs/numeric/formats_catalog.t27:228` -- the canonical CATALOG row for `gf16`, the one that feeds the published dataset -- still carried `FPGA 35/35 at 323 MHz Artix-7`, as did `docs/metrics/numeric_formats_83_metrics.csv:12` and `specs/igla/coder/benchmark.t27:670,677`. A gate that is green because it is under-scoped is the same failure it was built to kill
+- **The withdrawn list was too narrow too.** It held `323 MHz` but not `330 MHz` or `322 MHz`, which are the same `chain[19]` ring-oscillator net read on designs whose claimed sizes differ by 62x -- which is exactly why they agree to 2.5%. `docs/arxiv-submission/trinity-gf16.tex:317-318` still shipped both, and the whole `Max Freq` column is now gone rather than one row blanked
+- Scope is now `.md .tex .rst .t27 .csv .json`, minus `conformance/vectors/`; **4435 documents scanned**, 4.5x the first version
+- **`97.67 % MNIST MLP, 0.00 % accuracy gap vs f32` is withdrawn.** Nothing in the tree produces it. The only MNIST run present, `conformance/gf_family_bench.json`, has **every format at accuracy 0.1187 and loss 2.3631** -- chance for ten classes is 0.1000 and ln(10) is 2.3026, so the model is untrained, and one format scores 0.098, below chance. Every format scoring identically to four decimals is itself the tell that the scenario measures nothing about the format. The scenario is marked INVALID in place rather than deleted
+- **`GF16 -- VERIFIED + FROZEN SILICON` is withdrawn.** `STATUS.md:33` defines SILICON as a physical die received with written bring-up, asserted only on direct device evidence; `STATUS.md:112` states there is to be no SILICON claim anywhere in t27. No die has been received. Four other uses of "frozen silicon" meant the frozen tape-out design, not a received die, and are disambiguated to say so rather than deleted -- the phrase was ambiguous, not false
+- **`fpga/HARDWARE_SSOT.md:1192` is flagged, not corrected.** It reports `Fmax 322 MHz` for a 70-LUT design -- the same value as the withdrawn reading on a 40,350-LUT design. That invariance is the tell, but this design's own clocking has not been re-checked, so the line is marked UNVERIFIED rather than asserted wrong. The baseline is keyed on line text, so removing the marker re-opens the gate
+- Two of the six survey reports were themselves partly stale, written against the tree before the morning's repair landed. Verified every finding against the current tree before acting on it
+
 # NOW -- 323 MHz was a ring oscillator, and a gate now says so (2026-08-18)
 
 Last updated: 2026-08-18
