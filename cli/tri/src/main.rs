@@ -13,6 +13,7 @@ mod gates;
 mod hooks;
 mod mutate;
 mod prcheck;
+mod synth;
 mod red;
 mod rtl;
 
@@ -73,6 +74,11 @@ enum Commands {
     Pr {
         #[command(subcommand)]
         action: prcheck::PrCmd,
+    },
+    /// Synthesise a top module and report area, with the instrument named.
+    Synth {
+        #[command(subcommand)]
+        action: synth::SynthCmd,
     },
     Red {
         #[command(subcommand)]
@@ -688,6 +694,7 @@ fn main() -> Result<()> {
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
+        Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
