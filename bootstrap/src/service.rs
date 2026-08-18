@@ -1686,6 +1686,145 @@ fn close(a: f64, b: f64, tol_pct: f64) -> bool {
     (a - b).abs() / scale <= tol_pct / 100.0
 }
 
+/// Has this project already found what you are about to measure?
+///
+/// Three claims were withdrawn in one wave, each after real measurement, each
+/// landing somewhere the repository already stood: a seed count called unstated
+/// that four captions state; a decoder called a no-op that was a harness pruning
+/// half its output word; a partial-observation defect already documented, already
+/// quantified more sharply, already gated, and already baselining the twelve
+/// files by name. Fifty-five place-and-route runs reached an answer three greps
+/// hold.
+///
+/// So this greps, in the order that would have stopped each one:
+///
+///   1. gate docstrings   -- the defect may be named there already
+///   2. gate baselines    -- your artefact may be listed by name
+///   3. table captions    -- the disclosure may already be printed
+///
+/// It answers no question by itself. It shows what the repository already says,
+/// which is the cheapest thing to read and the last thing I read.
+pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result<()> {
+    let root = repo_root.join(&dir);
+    let needle = about.to_lowercase();
+    let mut hits = 0usize;
+
+    // `tools/` sits at the repository root while the paper sits two levels down,
+    // so accept either and say which was used -- a silent "(none)" from looking in
+    // the wrong directory is exactly the false all-clear this command exists to
+    // prevent.
+    let tools = [root.join("tools"), root.join("../../tools"), repo_root.join("tools")]
+        .into_iter()
+        .find(|p| p.is_dir())
+        .unwrap_or_else(|| root.join("tools"));
+    println!("gates read from {}", tools.display());
+
+    println!("== gates whose text mentions {about:?} ==");
+    if let Ok(rd) = std::fs::read_dir(&tools) {
+        let mut names: Vec<_> = rd
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.starts_with("check_") && n.ends_with(".py"))
+            .collect();
+        names.sort();
+        for n in names {
+            let body = match std::fs::read_to_string(tools.join(&n)) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            // The WHOLE file, not the docstring. Searching the first 2,600
+            // characters missed `check_harness.py` on the word "partial-observation"
+            // -- the phrase lives in the gate's OUTPUT string, past its header. A
+            // prior-art search that reads part of a file is the very error it exists
+            // to prevent, and it made that error on its first real query.
+            let doc = body.to_lowercase();
+            if n.to_lowercase().contains(&needle) || doc.contains(&needle) {
+                hits += 1;
+                let line = body
+                    .lines()
+                    .find(|l| l.to_lowercase().contains(&needle) && l.len() > 20)
+                    .unwrap_or("")
+                    .trim();
+                println!("  {n}");
+                if !line.is_empty() {
+                    println!("      {}", &line[..line.len().min(96)]);
+                }
+            }
+        }
+    }
+    if hits == 0 {
+        println!("  (none)");
+    }
+
+    println!("\n== baselines listing {about:?} ==");
+    let mut bhits = 0usize;
+    if let Ok(rd) = std::fs::read_dir(&tools) {
+        for e in rd.filter_map(|e| e.ok()) {
+            let n = e.file_name().to_string_lossy().to_string();
+            if !(n.contains("baseline") || n.ends_with(".txt")) {
+                continue;
+            }
+            if let Ok(b) = std::fs::read_to_string(e.path()) {
+                let n_match = b
+                    .lines()
+                    .filter(|l| l.to_lowercase().contains(&needle))
+                    .count();
+                if n_match > 0 {
+                    bhits += 1;
+                    println!("  {n}: {n_match} line(s), {} total", b.lines().count());
+                    for l in b.lines().filter(|l| l.to_lowercase().contains(&needle)).take(3) {
+                        println!("      {}", &l[..l.len().min(96)]);
+                    }
+                }
+            }
+        }
+    }
+    if bhits == 0 {
+        println!("  (none) -- but a baseline may list the artefact under another name");
+    }
+
+    println!("\n== table captions mentioning {about:?} ==");
+    let mut chits = 0usize;
+    let paper = [root.join("tnf_paper.tex"), root.join("research/arxiv_tnf/tnf_paper.tex")]
+        .into_iter()
+        .find(|p| p.is_file());
+    if let Ok(tex) = std::fs::read_to_string(paper.unwrap_or_else(|| root.join("tnf_paper.tex"))) {
+        for (lab, body) in tables_of(&tex) {
+            // tables_of strips the caption, so search the raw environment instead
+            let _ = &body;
+            if let Some(p) = tex.find(&format!("\\label{{{lab}}}")) {
+                let lo = tex[..p].rfind("\\begin{table}").unwrap_or(p);
+                let hi = tex[p..].find("\\end{table}").map(|d| p + d).unwrap_or(tex.len());
+                let env = &tex[lo..hi];
+                if let Some(c) = env.find("\\caption{") {
+                    let cap: String = env[c..].chars().take(1400).collect();
+                    if cap.to_lowercase().contains(&needle) {
+                        chits += 1;
+                        let flat: String = cap
+                            .split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .chars()
+                            .take(150)
+                            .collect();
+                        println!("  {lab}: {flat}");
+                    }
+                }
+            }
+        }
+    }
+    if chits == 0 {
+        println!("  (none)");
+    }
+
+    println!("\n{} gate(s), {} baseline(s), {} caption(s) already speak to this.",
+             hits, bhits, chits);
+    if hits + bhits + chits > 0 {
+        println!("Read them before measuring. Three greps, under a minute.");
+    }
+    Ok(())
+}
+
 /// A table's numeric cells arranged BY COLUMN, which is the unit provenance
 /// actually has. `tab:rungthr` takes five columns from one record and its
 /// `reach` column from another; asked table-at-a-time, no record explains it and

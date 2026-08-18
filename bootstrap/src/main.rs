@@ -194,6 +194,23 @@ enum Commands {
         dir: Option<String>,
     },
 
+    /// THE SERVICE: has this project already found what you are about to measure?
+    /// Three claims were withdrawn in one wave, each after real measurement, each
+    /// landing where the repository already stood -- a seed count called unstated
+    /// that four captions state, a decoder called a no-op that was a harness
+    /// pruning half its output word, and a defect already gated with the twelve
+    /// affected files baselined BY NAME. Fifty-five place-and-route runs reached
+    /// an answer three greps hold. Greps gate docstrings, gate baselines and table
+    /// captions, in that order.
+    Known {
+        /// Directory holding tools/ and tnf_paper.tex
+        #[arg(long)]
+        dir: String,
+        /// What you are about to measure, as a keyword
+        #[arg(long)]
+        about: String,
+    },
+
     /// THE SERVICE: which record backs which table, asked in BOTH directions, and
     /// silent when they disagree. Coverage alone says a 563-number record backs a
     /// 71-cell table -- true, and worthless, since it covers most of the paper.
@@ -10441,6 +10458,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Known { dir, about } => {
+            service::run_known(&std::env::current_dir()?, dir, about)?
+        }
         Commands::Provenance { dir } => {
             service::run_provenance(&std::env::current_dir()?, dir)?
         }
@@ -10837,6 +10857,9 @@ fn main() -> anyhow::Result<()> {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
         }
         Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Known { dir, about } => {
+            service::run_known(&std::env::current_dir()?, dir, about)?
+        }
         Commands::Provenance { dir } => {
             service::run_provenance(&std::env::current_dir()?, dir)?
         }

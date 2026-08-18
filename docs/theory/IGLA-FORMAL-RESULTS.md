@@ -26070,6 +26070,36 @@ Before measuring anything about this repository, in this order:
 Steps 1-3 cost under a minute together. This wave spent 55 place-and-route runs
 reaching the answer they hold.
 
+### T704 -- `t27c known`, AND THE LINE THAT HELD THE WHOLE ANSWER [measured]
+
+The wave's lesson made executable: grep gate docstrings, gate baselines and table
+captions before measuring anything. Queried with the name of the file I had spent
+55 place-and-route runs on:
+
+    $ t27c known --dir research/arxiv_tnf --about d_posit16
+    == baselines listing "d_posit16" ==
+      harness_baseline.txt: 1 line(s), 88 total
+          fpga/tnet/d_posit16.v: observes 16 of 32 bits of `q` --
+          50% of the logic feeding it can be pruned
+
+**One line, holding the finding and the figure.** I measured 6.5%-80% pruning
+across four designs; the baseline had already written "50% of the logic feeding it
+can be pruned" for this one, and for eighty-seven others.
+
+### T704a -- THE PRIOR-ART SEARCH COMMITTED THE ERROR IT EXISTS TO PREVENT [measured]
+
+Its first implementation read the first 2,600 characters of each gate -- the
+docstring -- and returned `(none)` for "partial-observation". The phrase lives in
+`check_harness.py`'s OUTPUT string, past its header:
+
+    # Ratchet: the tree carries 83 known partial-observation harnesses
+
+**A tool for finding what has already been found missed it by reading part of a
+file.** Fixed to read the whole file, at which point it returns the gate. The
+failure is worth keeping in the record because it is the same shape, one level up,
+as the three withdrawals it was written to prevent: a partial read, reported as an
+absence.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

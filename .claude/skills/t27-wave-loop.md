@@ -11883,6 +11883,16 @@ where the repository already was.
 cost under a minute. A repository this well instrumented answers most questions
 before a single run.
 
+**1298. `t27c known --about X` BEFORE MEASURING X.** Queried with the filename I
+had spent 55 routing runs on, it returned one baseline line carrying the finding
+AND the figure: "observes 16 of 32 bits of `q` -- 50% of the logic feeding it can
+be pruned".
+
+**1299. A PARTIAL READ REPORTED AS AN ABSENCE IS THE RECURRING FAILURE.** The
+prior-art command's first version read only each gate's docstring and returned
+"(none)" for a phrase in the gate's output string. Same shape as the three
+withdrawals it was built to prevent.
+
 ### How to update this tracker
 
 After closing a wave:
