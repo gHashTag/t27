@@ -58,9 +58,14 @@ TARGETS = [
     (RIP, "maj3", [U8] * 3, (False, 8)),
     (RIP, "tmul", [U8] * 2, (True, 8)),
     (RIP, "negate", [U8], (False, 8)),
-    # pack2 returns u64; the fold takes the low 32 bits in C and Rust, and a 64-bit
-    # Verilog reg would need a wider fold to match. Left two-and-model until then.
+    (RIP, "xor2", [U8] * 2, (False, 8)),
+    # sign0 takes i16, so its domain is the signed 16-bit range rather than a byte.
+    (RIP, "sign0", [("int16_t", "i16", -32768, 32767)], (False, 8)),
+    # pack2 and pack3 return u64. The C and Rust folds take the low 32 bits; a matching
+    # Verilog fold needs a 64-bit accumulator, so those stay model+C+Rust and are
+    # labelled 3-way rather than given an arm that compares something narrower.
     ("specs/ternary/ternary_xor.t27", "pack2", [U8] * 2, None),
+    (RIP, "pack3", [U8] * 3, None),
 ]
 
 
@@ -177,7 +182,12 @@ def verilog_program(vsrc, fn, args, ret_signed, ret_bits):
     for i in range(len(args)):
         loops.append(f"    for (i{i} = {args[i][2]}; i{i} <= {args[i][3]}; i{i} = i{i} + 1)")
         close.append("")
-    call = ", ".join(f"i{i}[7:0]" for i in range(len(args)))
+    # Slice each loop variable to the argument's declared width. This was hardcoded
+    # to [7:0] and would have silently truncated sign0's i16 argument to a byte --
+    # the tool would have compared a narrower function than the C and Rust arms did,
+    # and agreed with itself about it.
+    widths = {"u8": 8, "i8": 8, "u16": 16, "i16": 16, "u32": 32, "i32": 32}
+    call = ", ".join(f"i{i}[{widths.get(args[i][1], 8) - 1}:0]" for i in range(len(args)))
     decl = " ".join(f"integer i{i};" for i in range(len(args)))
     # sign-extend a signed return to 32 bits so the fold matches the C/Rust one
     ext = (f"{{{{{32 - ret_bits}{{r[{ret_bits - 1}]}}}}, r}}" if ret_signed
