@@ -12,6 +12,7 @@ mod fpga;
 mod gates;
 mod hooks;
 mod mutate;
+mod prcheck;
 mod red;
 mod rtl;
 
@@ -67,6 +68,11 @@ enum Commands {
     Mutate {
         #[command(subcommand)]
         action: mutate::MutateCmd,
+    },
+    /// Is this pull request actually safe to merge?
+    Pr {
+        #[command(subcommand)]
+        action: prcheck::PrCmd,
     },
     Red {
         #[command(subcommand)]
@@ -681,6 +687,7 @@ fn main() -> Result<()> {
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Pr { action } => prcheck::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
