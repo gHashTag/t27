@@ -1,5 +1,5 @@
 --- bootstrap/src/compiler.rs	2026-08-15 21:11:30
-+++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 03:25:03
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 03:43:09
 @@ -214,6 +214,10 @@
      ShiftLeft,
      ShiftRight,
@@ -11,10 +11,15 @@
      PlusPercent,
      MinusPercent,
      StarPercent,
-@@ -695,6 +699,50 @@
-                 };
-             }
- 
+@@ -690,6 +694,50 @@
+                 return Token {
+                     kind: TokenKind::PlusEquals,
+                     lexeme: String::from("+="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
 +            if two == [b'-', b'='] {
 +                self.advance();
 +                self.advance();
@@ -54,14 +59,9 @@
 +                return Token {
 +                    kind: TokenKind::PercentEquals,
 +                    lexeme: String::from("%="),
-+                    line: start_line,
-+                    col: start_col,
-+                };
-+            }
-+
-             if two == [b'+', b'%'] {
-                 self.advance();
-                 self.advance();
+                     line: start_line,
+                     col: start_col,
+                 };
 @@ -978,6 +1026,8 @@
      /// -- for input that was consumed AND THROWN AWAY. Counting them is what
      /// makes that population visible. See T42.
@@ -71,7 +71,47 @@
      /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
      /// told us 55,563 tokens vanish; only reading them can say whether any of
      /// it is content a theorem depends on. See T43.
-@@ -1003,6 +1053,7 @@
+@@ -990,6 +1040,39 @@
+     current: Token,
+     peek: Token,
+     pending_pragma: String,
++}
++
++/// Identifiers a nested fn uses that are neither its parameters nor its own
++/// locals. Builtin scalar type names are excluded: `@as(f32, ..)` carries `f32`
++/// as a bare identifier argument.
++fn free_idents_of(decl: &Node) -> Vec<String> {
++    const BUILTIN_TYPES: &[&str] = &[
++        "f32", "f64", "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32",
++        "i64", "isize", "bool", "void", "true", "false",
++    ];
++    let mut bound: Vec<String> = decl.params.iter().map(|p| p.0.clone()).collect();
++    let mut free: Vec<String> = Vec::new();
++    fn walk(n: &Node, bound: &mut Vec<String>, free: &mut Vec<String>) {
++        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() {
++            bound.push(n.name.clone());
++        }
++        if n.kind == NodeKind::ExprIdentifier
++            && !n.name.is_empty()
++            && !n.name.starts_with('@')
++            && !bound.iter().any(|b| b == &n.name)
++            && !free.iter().any(|f| f == &n.name)
++        {
++            free.push(n.name.clone());
++        }
++        for c in &n.children {
++            walk(c, bound, free);
++        }
++    }
++    for c in &decl.children {
++        walk(c, &mut bound, &mut free);
++    }
++    free.retain(|f| !BUILTIN_TYPES.contains(&f.as_str()));
++    free
+ }
+ 
+ impl Parser {
+@@ -1003,6 +1086,7 @@
              pending_pragma: String::new(),
              no_struct_literal: 0,
              dropped_top_level_tokens: 0,
@@ -79,7 +119,15 @@
              dropped_spans: Vec::new(),
          }
      }
-@@ -1547,6 +1598,11 @@
+@@ -1308,6 +1392,7 @@
+ 
+         Ok(module)
+     }
++
+ 
+     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
+         self.reject_unterminated_string()?;
+@@ -1547,6 +1632,11 @@
                  match self.parse_top_level_decl() {
                      Ok(decl) => {
                          module.children.push(decl);
@@ -91,7 +139,7 @@
                      }
                      Err(e) => {
                          // A malformed declaration is a HARD error: the old
-@@ -2555,6 +2611,17 @@
+@@ -2555,6 +2645,45 @@
      /// Parse function body statements until closing brace
      fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
          while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
@@ -103,13 +151,41 @@
 +            // proposal text records the capture question as OPEN.
 +            if self.current.kind == TokenKind::KwFn {
 +                let nested = self.parse_fn_decl(false)?;
++                // CAPTURE CHECK, at the only scope that matters. Hoisting moves
++                // the nested fn OUT of the enclosing body, so the one thing it
++                // must not reach is the enclosing fn's own bindings -- its
++                // parameters and the locals declared before this point. A free
++                // name that is NOT such a binding resolves identically before
++                // and after hoisting (module scope either way), so external
++                // names like an imported PHI_INV are none of this check's
++                // business. The first version asked \"is it module-level?\" and
++                // rejected gf16 for an IMPORTED constant -- the wrong question.
++                let free = free_idents_of(&nested);
++                let mut enclosing: Vec<&str> =
++                    decl.params.iter().map(|p| p.0.as_str()).collect();
++                for c in &decl.children {
++                    if c.kind == NodeKind::StmtLocal && !c.name.is_empty() {
++                        enclosing.push(c.name.as_str());
++                    }
++                }
++                let captured: Vec<String> = free
++                    .into_iter()
++                    .filter(|f| enclosing.iter().any(|e| e == f))
++                    .collect();
++                if !captured.is_empty() {
++                    return Err(format!(
++                        "nested fn '{}' inside '{}' captures enclosing locals {:?} -- \
++                         hoisting would unbind them; lift them to parameters or module consts",
++                        nested.name, decl.name, captured
++                    ));
++                }
 +                self.hoisted_fns.push(nested);
 +                continue;
 +            }
              match self.parse_body_stmt() {
                  Ok(stmt) => decl.children.push(stmt),
                  Err(e) => {
-@@ -2766,15 +2833,26 @@
+@@ -2766,15 +2895,26 @@
          }
  
          // Check for += assignment
@@ -139,7 +215,7 @@
              assign.children.push(expr);
              assign.children.push(rhs);
              return Ok(assign);
-@@ -6681,10 +6759,13 @@
+@@ -6681,10 +6821,13 @@
                  self.write_indent();
                  if node.children.len() >= 2 {
                      self.gen_expr(&node.children[0]);
@@ -157,7 +233,7 @@
                      }
                      self.gen_expr(&node.children[1]);
                  }
-@@ -12932,10 +13013,18 @@
+@@ -12932,10 +13075,18 @@
                          self.in_lvalue = true;
                          self.gen_verilog_expr(lhs);
                          self.in_lvalue = false;
@@ -178,7 +254,7 @@
                          } else {
                              self.write(asn);
                          }
-@@ -15085,10 +15174,13 @@
+@@ -15085,10 +15236,13 @@
                          self.gen_c_expr(&node.children[1]);
                      } else {
                          self.gen_c_expr(&node.children[0]);
@@ -197,7 +273,7 @@
                          self.gen_c_expr(&node.children[1]);
                      }
 --- bootstrap/stage0/FROZEN_HASH	2026-08-15 01:42:51
-+++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 03:25:44
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 03:43:09
 @@ -1 +1 @@
 -7db97938202977477abd1e80a82b9f5f5d7b40e1c1d1d1999aa006aec71412b3  bootstrap/src/compiler.rs
-+cdac92b9315d30318ff4a42401004626428faddc0bf583bcf36f6e8206e7a50b  bootstrap/src/compiler.rs
++436bdb495b3a1cc99fa3c3c24cfaea357e73079d045324fc012772f272ad4ed9  bootstrap/src/compiler.rs

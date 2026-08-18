@@ -77,10 +77,15 @@ drain beside `module.children.push(decl)`).
 A nested `fn` is parsed by the ordinary fn parser and HOISTED to module level;
 no statement node is produced, so no backend needs a no-op.
 
-**OPEN QUESTION, stated rather than hidden:** hoisting is sound only when the
-nested fn captures nothing beyond its own parameters and module-level names.
-The one corpus instance (`gf16`'s `phi_dist`) satisfies that. A capture check
-belongs in the real patch; the prototype measures reach, not soundness.
+**The capture check is IN the patch** (W884), at the only scope that matters:
+hoisting moves the nested fn out of the enclosing body, so the one thing it must
+not reach is the enclosing fn's own bindings — parameters and locals declared
+before that point. A free name that is NOT such a binding resolves identically
+before and after hoisting, so imported constants are none of the check's
+business. The first version asked "is it module-level?" and rejected gf16 for an
+imported `PHI_INV` — the wrong question, kept in the record. Negative test: a
+nested fn using an enclosing `const scale` fails with
+`captures enclosing locals ["scale"]`; the module-const control passes.
 
 ## Measured result
 
