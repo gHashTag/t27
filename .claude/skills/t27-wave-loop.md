@@ -11742,6 +11742,19 @@ and seeds; counting them makes every table look partly backed by every record.
 this, I piped it through `tail` and read 0 from a command that exited 1. Run to a
 file, then check.
 
+**1266. A TABLE CAN HAVE TWO BACKING RECORDS.** tab:rungthr takes its reach
+column from per_rung and everything else from strict_range's summary_tie_aware.
+Every instrument here asked a one-to-one question and so returned a confident
+partial answer or an honest refusal. Four waves of "per_rung backs no table" were
+this: it backs one COLUMN.
+
+**1267. THE UNIT OF PROVENANCE IS THE COLUMN.** A caption naming one file is a
+half-truth for a table assembled from two.
+
+**1268. A DERIVED CELL LOOKS EXACTLY LIKE A WRONG CELL.** "D >~ 9.5" is the
+midpoint of 8.988110 and 10.009651 and appears in no record. Membership tests
+score it absent, which reads as a defect. Only reconstruction can tell them apart.
+
 ### How to update this tracker
 
 After closing a wave:

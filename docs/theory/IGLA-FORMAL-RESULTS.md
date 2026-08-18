@@ -25576,6 +25576,50 @@ exists to prevent, committed while testing the tool that prevents it.** Third
 occurrence in this project, and the first inside a session that had already
 recorded it as a lesson twice.
 
+### T687 -- A TABLE CAN HAVE TWO BACKING RECORDS, AND EVERY INSTRUMENT ASSUMED ONE [measured]
+
+`tab:rungthr` is backed by **two** records, each supplying different columns:
+
+    reach          per_rung.tnf_reach                    40, 121, 364
+    comp.          strict_range.summary_tie_aware        30, 51, 58
+    separates      same object                           8.988110 -> 10.009651
+                                                         19.861571 -> 23.874593
+                                                         wins 0, losses 58
+    threshold      DERIVED from the same object          (8.988110+10.009651)/2 = 9.4989 -> "D >~ 9.5"
+                                                         (19.861571+23.874593)/2 = 21.868 -> "D >~ 21.9"
+
+Every instrument this project built asks *which table does this record back* or
+*which record backs this table* -- both phrased one-to-one. Against a two-record
+table each returns a confident partial answer or an honest refusal, and neither is
+the truth.
+
+**This is why four waves concluded `per_rung` backs no table.** It backs one
+COLUMN. Its 408 numbers are the 120-row sweep the reach figures are extracted
+from; the table prints three of them.
+
+### T687a -- PROVENANCE IS PER-COLUMN, NOT PER-TABLE [derived]
+
+The unit of provenance is the column, and a caption line naming one file is
+therefore sometimes a half-truth. `tab:rungthr` needs two:
+
+    \emph{Data:} \texttt{measurements/per_rung_...json} (reach),
+                 \texttt{measurements/strict_range_...json} (remaining columns)
+
+The five captions already merged in PR #601 are single-record tables and remain
+correct. But `t27c provenance` cannot represent this case at all: its output has
+one slot per record, so a record that supplies one column of a table it does not
+otherwise back has nowhere to go. The command's UNDECIDED verdict on `per_rung`
+was right for the wrong reason -- it did not detect a second record, it simply
+failed to find a first.
+
+### T687b -- THE DERIVED COLUMN IS THE ONE NO OVERLAP TEST COULD FIND [derived]
+
+`D >~ 9.5` and `D >~ 21.9` appear nowhere in either record: they are midpoints of
+a loss/win pair. A numeric membership test scores them as absent, which reads as a
+document defect. **A derived cell is indistinguishable from a wrong cell to any
+instrument that only asks whether a number is present** -- which is every
+instrument in this sequence before the reconstruction scripts.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
