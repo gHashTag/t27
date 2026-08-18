@@ -24,9 +24,12 @@ gen_hashes no longer describe what it produces, and the seal asserts something f
 State when this was written -- 1714 seals:
 
     1507  valid
-     111  stale        spec changed after sealing
-      89  dangling     spec deleted (basename not found anywhere in git)
-       2  dangling     spec moved: specs/vsa/core.t27 -> specs/test_framework/core.t27
+     113  stale        spec changed after sealing
+      74  dangling     spec was committed, then deleted -- 16 of them by one commit,
+                       692ba5263 (DARPA CLARA submission)
+      15  phantom      spec appears in NO commit and is nowhere on disk. Four of these
+                       are GF16 claims/comparison specs, and for those the seal file is
+                       the ONLY trace of the module anywhere in the tree
        5  no spec_path
 
 The 207 broken ones are recorded in tools/seal_baseline.txt as debt, one per line, so
@@ -45,6 +48,7 @@ import hashlib
 import json
 import os
 import pathlib
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -68,7 +72,14 @@ def scan(root=ROOT):
             continue
         full = root / sp
         if not full.exists():
-            bad.append((name, "dangling", sp))
+            # Two different problems wearing one word. A seal for a spec that WAS
+            # committed and then deleted is an orphan of that deletion: remove it with
+            # the spec, or restore both. A seal for a spec that appears in no commit
+            # names nothing anyone can fetch -- its spec_hash and four gen_hashes
+            # describe a file that is not in the history, so the record has no
+            # checkable content at all. The fixes are not the same, so the gate does
+            # not call them the same thing.
+            bad.append((name, "dangling" if _ever_existed(root, sp) else "phantom", sp))
             continue
         want = (d.get("spec_hash") or "")
         algo, _, digest = want.partition(":")
@@ -79,6 +90,36 @@ def scan(root=ROOT):
         if got != digest:
             bad.append((name, "stale", f"{sp} changed since sealing"))
     return len(seals), bad
+
+
+_EVER = {}
+
+
+def _ever_existed(root, sp):
+    """Did this spec appear in ANY commit, under this path or its basename?
+
+    Checked two ways on purpose. My first pass used
+    `git log --diff-filter=D -- <exact path>`, which only sees a deletion recorded at
+    that same path, and it reported 73 specs as never having existed. By basename
+    across all history the number is 15. An instrument that overstates fivefold is how
+    'seals reference specs that never existed' becomes an accusation nobody can
+    support -- so this asks twice.
+    """
+    if sp in _EVER:
+        return _EVER[sp]
+    base = os.path.basename(sp)
+    hit = False
+    for args in (["--", sp], ["--", "*/" + base]):
+        try:
+            r = subprocess.run(["git", "log", "--all", "--oneline"] + args,
+                               cwd=root, capture_output=True, text=True, timeout=30)
+            if r.stdout.strip():
+                hit = True
+                break
+        except Exception:
+            return True          # cannot tell: assume the milder classification
+    _EVER[sp] = hit
+    return hit
 
 
 def baseline():
@@ -106,9 +147,15 @@ def self_check():
             {"module": "Gone", "spec_path": "specs/missing.t27", "spec_hash": "sha256:" + good}))
         total, bad = scan(t)
         kinds = sorted(k for _, k, _ in bad)
-        ok = total == 3 and kinds == ["dangling", "stale"]
-    print(f"  self-check: 3 seals scanned, stale and dangling both reported, good one "
-          f"silent = {ok}")
+        # The temp tree has no git history, so a missing spec is correctly PHANTOM
+        # rather than dangling -- that distinction is the point of this scan and the
+        # control asserts it rather than the older two-way answer. This check failed
+        # when the classification was split, which is what a control is for.
+        ok = total == 3 and kinds == ["phantom", "stale"]
+    print(f"  self-check: 3 seals scanned; stale reported, missing-spec classified "
+          f"phantom (no history), good one silent = {ok}")
+    if not ok:
+        print(f"              got {total} seals, kinds {kinds}")
     return 0 if ok else 1
 
 
@@ -142,9 +189,14 @@ def main():
     for n, k, d in new:
         print(f"  {n}  [{k}]")
         print(f"      {d}")
-    print("\n  A stale seal asserts that a spec produces four specific target hashes,")
-    print("  when the spec has changed since. Re-seal it, or add it to")
-    print(f"  {BASELINE.name} with --update-baseline if the debt is deliberate.")
+    print("\n  stale    the spec changed after sealing, so the four gen_hashes describe")
+    print("           something it no longer produces. Re-seal it.")
+    print("  dangling the spec was committed and later deleted. Remove the seal with it,")
+    print("           or restore both.")
+    print("  phantom  the spec appears in NO commit. The seal's spec_hash and four")
+    print("           gen_hashes name a file nobody can fetch, so there is nothing in")
+    print("           the record to check. Find the spec or drop the seal.")
+    print(f"\n  Deliberate debt goes in {BASELINE.name} via --update-baseline.")
     return 1
 
 
