@@ -9,13 +9,17 @@ that is genuinely ours: **ternary primitives have tiny input spaces**, and a spa
 can enumerate does not need a prover or a sample. A ternary full adder takes three
 trits-in-a-byte and has 16,777,216 possible inputs. That is seconds of CPU.
 
-What this checks and what it does NOT. It compares the C backend against the Rust
-backend on every input. If both are wrong in the same way -- a bug in the spec, or in
-shared front-end lowering -- this will not see it. That is a weaker statement than
-`verify_igla_race.py` makes for `ternary_mul`, where an independent Python model is the
-third opinion. The distinction is printed with every result, because "C == Rust on all
-inputs" and "C == Rust == independent model on all inputs" are different claims and the
-first is easy to mistake for the second.
+What this checks. C, Rust and an independent model, on every input. The model lives in
+`tools/ternary_model.py` and was transcribed from the SPEC text, not from the generated
+code -- that is what makes it a third opinion rather than a restatement. A fault shared
+by both backends, whether from the spec or from shared front-end lowering, shows up as
+the model disagreeing with both.
+
+An earlier version of this file compared only C against Rust and said so on every run,
+because "the backends agree" and "the backends both match the specification" are
+different claims and the first is easy to mistake for the second. The model closes that
+gap for the primitives listed below; anything added to TARGETS without a model entry is
+reported as two-way and labelled as such.
 
 Coverage before this file: four specs (`ternary_mac`, `systolic_ternary`, `gft_smul`,
 `gft_sadd`). `ternary_ripple_adder.t27` generates 167 lines of C and had no cross-target
@@ -34,6 +38,14 @@ import subprocess
 import sys
 import tempfile
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import functools                                              # noqa: E402
+import ternary_model as MODEL                                 # noqa: E402
+
+# dot27 is pure, so memoising it changes nothing about what the model computes and
+# takes full_adder over its 16,777,216 inputs from minutes to under a minute.
+MODEL.dot27 = functools.lru_cache(maxsize=None)(MODEL.dot27)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -130,6 +142,27 @@ def build_and_run(src, path, cmd, wd, what):
     return r.stdout.strip()
 
 
+def model_digest(fn, args):
+    """The same FNV-1a fold, over the same domain, computed by the independent model."""
+    f = getattr(MODEL, fn, None)
+    if f is None:
+        return None
+    h = 2166136261
+
+    def rec(i, acc):
+        nonlocal h
+        if i == len(args):
+            v = f(*acc) & 0xFFFFFFFF
+            h = ((h ^ v) * 16777619) & 0xFFFFFFFF
+            return
+        _, _, lo, hi = args[i]
+        for x in range(lo, hi + 1):
+            rec(i + 1, acc + [x])
+
+    rec(0, [])
+    return f"{h:08x}"
+
+
 def check(spec, fn, args, wd):
     space = 1
     for _, _, lo, hi in args:
@@ -151,7 +184,17 @@ def check(spec, fn, args, wd):
         print(f"FAIL {fn}: C digest {cd} != Rust digest {rd} -- the backends disagree on at "
               f"least one of the {space:,} possible inputs")
         return False
-    print(f"OK   {fn:<12} C == Rust on ALL {space:>12,} inputs   digest {cd}   {dt:.1f}s")
+    md = model_digest(fn, args)
+    if md is None:
+        print(f"OK   {fn:<12} C == Rust on ALL {space:>12,} inputs   digest {cd}   {dt:.1f}s"
+              f"   [2-way: no model entry in ternary_model.py]")
+        return True
+    if md != cd:
+        print(f"FAIL {fn}: backends agree on {cd} but the independent model says {md} -- both "
+              f"backends differ from the specification on at least one of the {space:,} inputs, "
+              f"which two-way agreement could never have shown")
+        return False
+    print(f"OK   {fn:<12} model == C == Rust on ALL {space:>12,} inputs   digest {cd}   {dt:.1f}s")
     return True
 
 
@@ -171,10 +214,25 @@ def self_check(wd):
     bad_c = build_and_run(bad_src, os.path.join(wd, "sb.c"),
                           ["cc", "-O2", "-o", os.path.join(wd, "sb"), os.path.join(wd, "sb.c")],
                           wd, "self-check C perturbed")
-    ok = good_c is not None and bad_c is not None and good_c != bad_c
-    print(f"  self-check: one-input perturbation changes the digest = {ok}"
-          + (f"  ({good_c} -> {bad_c})" if ok else ""))
-    return 0 if ok else 1
+    ok_c = good_c is not None and bad_c is not None and good_c != bad_c
+    print(f"  self-check: one-input perturbation of C changes the digest = {ok_c}"
+          + (f"  ({good_c} -> {bad_c})" if ok_c else ""))
+
+    # The model arm needs its own control. Perturbing C proves the C/Rust comparison
+    # has resolution; it says nothing about whether a model that disagreed with BOTH
+    # backends would be noticed -- which is the whole reason the model was added.
+    real = MODEL.tmul
+    try:
+        MODEL.tmul = lambda a, b, _r=real: (_r(a, b) + 1) if (a == 7 and b == 3) else _r(a, b)
+        perturbed = model_digest("tmul", args)
+    finally:
+        MODEL.tmul = real
+    clean = model_digest("tmul", args)
+    ok_m = perturbed is not None and clean is not None and perturbed != clean and clean == good_c
+    print(f"  self-check: one-input perturbation of the MODEL is visible = {ok_m}"
+          + (f"  ({clean} -> {perturbed}, backends {good_c})" if ok_m else ""))
+
+    return 0 if (ok_c and ok_m) else 1
 
 
 def main():
@@ -183,10 +241,9 @@ def main():
         if "--self-check" in sys.argv:
             return self_check(wd)
         print("Cross-target agreement over the ENTIRE input space.\n")
-        print("  This compares C against Rust. It does NOT include an independent model, so a")
-        print("  fault shared by both backends -- a spec bug, or shared front-end lowering --")
-        print("  is invisible here. verify_igla_race.py carries the stronger form for")
-        print("  ternary_mul, where a Python model is the third opinion.\n")
+        print("  Three opinions: the C backend, the Rust backend, and tools/ternary_model.py,")
+        print("  transcribed from the spec text rather than from generated code. A fault shared")
+        print("  by both backends shows up as the model disagreeing with both.\n")
         results = []
         for spec, fn, args in TARGETS:
             if only and fn not in only:
@@ -200,7 +257,7 @@ def main():
         if bad:
             print(f"FAIL: {len(bad)} of {len(results)} targets did not agree or did not run")
             return 1
-        print(f"ALL {len(results)} PRIMITIVES: C == Rust EXHAUSTIVELY (no sampling, no model)")
+        print(f"ALL {len(results)} PRIMITIVES: model == C == Rust EXHAUSTIVELY (no sampling)")
         return 0
 
 
