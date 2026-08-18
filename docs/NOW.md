@@ -1,3 +1,15 @@
+# NOW -- two required checks were a single echo (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: give schema-validation a body, and say what seal-coverage should assert -- I do not know (Closes #2191)
+
+- **`seal-coverage.yml` and `schema-validation.yml` are each one `echo`**, and both are named required in `docs/BRANCH-PROTECTION.md`. `phi-loop-ci.yml`, described there as the main test suite, asserts `abs(phi**2 + phi**-2 - 3) < 1e-10` -- true of an empty repository -- alongside one real grep lint. A required check that cannot fail reads as coverage and is worse than none
+- **`schema-validation` now asks the weakest question worth asking:** does every tracked JSON parse. Cheap, and carrying no theory that could itself be wrong
+- **It found a broken file that a test actually loads.** `clara-bridge/audit-trail/experience-schema.json` had a literal `...` on line 40; `clara-bridge/tests/run_tests.py:152` does `json.load()` on it. **3 of its 11 tests were failing** -- measured by reverting the fix and re-running, not assumed -- and no workflow runs `clara-bridge` at all. Fixed; the suite is 11/11
+- Six empty JSON artefacts recorded as debts in `tools/json_parse_baseline.txt`. `external/` excluded: tsconfig is JSONC by convention, and flagging it would be this gate making the mistake it exists to catch
+- **`seal-coverage` deliberately untouched.** `.trinity/seals/` holds 1714 files keyed on TYPE names (`Account`, `AXI4_Testbench`, `"[]const u8"`), not spec names. My first attempt matched seal filenames against spec filenames and reported "1668 orphans of 1714" -- a finding about my assumption, not the repository. `t27c` has no `seal` subcommand. Wrote neither a check nor a deletion
+
 # NOW -- finish the diagnostic repair; a crash is not a numeric mismatch (2026-08-18)
 
 Last updated: 2026-08-18

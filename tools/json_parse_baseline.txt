@@ -1,0 +1,8 @@
+# JSON files that do not parse today. Each line is a debt, not a rule.
+# Remove the line when the file is fixed; the gate then holds it fixed.
+.trinity/icarus-baselines/specs/scratch/w743_bench_module_305x2p6_aos_var_call_write.json | empty file
+.trinity/icarus-baselines/specs/scratch/w744_bench_module_307x2p6_aos_var_call_write.json | empty file
+.trinity/icarus-baselines/specs/scratch/w745_bench_module_309x2p6_aos_var_call_write.json | empty file
+.trinity/icarus-baselines/specs/scratch/w746_bench_module_311x2p6_aos_var_call_write.json | empty file
+.trinity/icarus-baselines/specs/scratch/w747_bench_module_313x2p6_aos_var_call_write.json | empty file
+research/toda_derivation.json | empty file
