@@ -1,3 +1,18 @@
+# NOW -- 323 MHz was a ring oscillator, and a gate now says so (2026-08-18)
+
+Last updated: 2026-08-18
+
+## docs: retract 323 MHz and everything derived from it, then gate it (Closes #2179)
+
+- **The number timed a probe, not the design.** `fpga/vivado/gf16_matmul4x4_top.v:22` is the design's only sequential statement -- `always @(posedge osc)` on a 23-bit counter, where `osc = chain[19]` is the output of a 20-stage LUT1 ring oscillator the wrapper instantiates. `grep -c posedge` over `gf16_{mul,add,dot4,matmul4x4}.v` returns 0, 0, 0, 0: the arithmetic is combinational and has no synchronous path to time
+- **The netlist that produced the bitstream contains no GF16 at all.** Its design module holds 55 logic cells -- LUT1 19, FDRE 23, CARRY4 6, BUFG 1, INV 4, OBUF 2 -- which is exactly the ring, the counter, its carry chain and the LEDs. Zero DSP48E1 against 64 claimed. The wrapper feeds the DUT literal constants, so the arithmetic is constant-folded out. When re-checking, count the *design* module: the same JSON lists `DSP48E1: 18 cells` for the Xilinx cell-library model, which is timing metadata
+- **`create_clock` is absent from the XDC**, so "PASS at 100 MHz" and "0 timing violations" describe a default target on an auto-inferred domain holding only the counter
+- **A tell needed none of that.** Three designs whose claimed sizes differ by 62x reported 330 / 322 / 323 MHz -- a 2.5 % spread. A real critical path cannot be invariant to a 62x change in size
+- Corrected in the three documents that state it live -- the arXiv draft, its `.tex`, `NUMERIC_FORMATS_SSOT.md` -- across title, abstract, resource table, timing section, throughput table and the "from actual FPGA hardware runs" sentence. **No replacement frequency**, because none was measured. The four dated `docs/reports/WAVE_LOOP_*` are left alone: a record of what was believed on a date is not a live claim
+- **Why a gate and not only an edit.** The withdrawal was in research notes on 2026-08-05 and 2026-08-08 and did not reach the papers for ten days, through an intervening honesty pass over the same file that was looking at a different sentence. `tools/check_withdrawn_live.py` now fails CI if a withdrawn number appears in a live document; the withdrawn list is data (`tools/withdrawn.txt`) so a row is added the moment a number is withdrawn, not when the paper is finally fixed. `--self-check` is a negative control that plants a hit and proves the scan fires
+- **It earned its keep immediately**: it caught two places in the `.tex` that the first pass of this very change had missed
+- Unrelated and worth stating: `docs/SILICON_TRAINING_METHODOLOGY.md` was audited for the same defect class and is **clean**. It distinguishes a loose from a tight constraint, uses `create_clock -period 50`, attributes the 21 -> 29 MHz change to a specific design edit, and keeps twelve ruled-out hypotheses. The papers were the problem; the engineering notes were not
+
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
 Last updated: 2026-08-09

@@ -1,0 +1,5 @@
+# Occurrences that are text ABOUT a withdrawal, not a live claim.
+docs/NUMERIC_FORMATS_SSOT.md:323(\.[0-9]+)?\s*MHz
+docs/arxiv-trinity-gf16-draft.md:322M\s*matmuls/sec
+docs/arxiv-trinity-gf16-draft.md:323(\.[0-9]+)?\s*MHz
+docs/arxiv-trinity-gf16-draft.md:41\.2\s*GOPS

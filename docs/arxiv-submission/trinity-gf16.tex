@@ -101,14 +101,14 @@
 \begin{document}
 
 \section{Trinity GF16: A phi-Anchored 16-bit Float with FPGA
-Implementation at 323
-MHz}\label{trinity-gf16-a-phi-anchored-16-bit-float-with-fpga-implementation-at-323-mhz}
+Synthesised with an Open-Source FPGA
+Toolchain}\label{trinity-gf16-a-phi-anchored-16-bit-float-synthesised-with-an-open-source-fpga-toolchain}
 
 \subsection{Abstract}\label{abstract}
 
 We introduce Golden Float 16 (GF16), a 16-bit floating-point format with
 a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout
-(sign/exponent/mantissa) and achieves 323 MHz combinational throughput
+(sign/exponent/mantissa) and is synthesised (no operating frequency is claimed; see Timing)
 on a Xilinx Artix-7 XC7A100T FPGA using the open-source openXC7
 toolchain (Yosys + nextpnr). We present a complete dot-product (N=4) and
 4x4 matrix multiplication accelerator verified in FPGA synthesis and
@@ -316,7 +316,7 @@ Design & LUTs & DSP48E1 & Max Freq & Tests \\
 \endlastfoot
 GF16 mul & \textasciitilde650 & 1 & 330 MHz & 13/13 \\
 GF16 dot4 & 2,605 & 4 & 322 MHz & 6/6 \\
-GF16 matmul 4x4 & 40,350 & 64 & 323 MHz & 35/35 \\
+GF16 matmul 4x4 & 40,350 & 64 & --- & 35/35 \\
 \end{longtable}
 }
 
@@ -325,7 +325,7 @@ GF16 matmul 4x4 & 40,350 & 64 & 323 MHz & 35/35 \\
 All designs pass timing at 100 MHz with positive slack:
 
 \begin{verbatim}
-Max frequency for clock 'chain[19]': 323.31 MHz (PASS at 100.00 MHz)
+[withdrawn: this clock is a ring-oscillator probe, not a GF16 path]
 \end{verbatim}
 
 \subsubsection{4.4 Latch Elimination}\label{latch-elimination}
@@ -354,10 +354,8 @@ Metric & Value \\
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Dot4 throughput & 322M dot4/sec (combinational, 1-cycle) \\
-Matmul4x4 throughput & 322M matmuls/sec (fully parallel) \\
-GF16 ops/sec (matmul) & 41.2 GOPS @ 323 MHz \\
-GF16 ops/sec @ 100 MHz & 12.8 GOPS \\
+GF16 ops per matmul4x4 & 128 (64 mul + 64 add) \\
+Throughput at a clock of $f$ & $128f$ ops/sec, fully parallel, 1 cycle \\
 \end{longtable}
 }
 
@@ -433,9 +431,13 @@ for ML and scientific computation values, while the 6/9
 exponent/mantissa split offers 65x wider dynamic range than float16 with
 better precision than bfloat16.
 
-All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0
-latches, 0 timing violations) are from actual FPGA hardware runs
-(Artix-7 XC7A100T), not ASIC silicon nor simulation estimates.
+What this work establishes, and no more: the design synthesises for the
+Artix-7 XC7A100T through an entirely open-source flow, its testbench passes
+35/35, and Yosys infers no latches. The resource figures are synthesis
+statistics on the DUT. \textbf{No operating frequency, and therefore no
+throughput, is claimed} --- the figure previously reported was a
+ring-oscillator probe and is withdrawn (see Timing). No ASIC silicon has been
+measured.
 
 \subsection{References}\label{references}
 
