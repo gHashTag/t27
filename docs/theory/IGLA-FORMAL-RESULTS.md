@@ -25888,6 +25888,69 @@ nobody would ask at submission.
 A readiness number should be the conjunction of the gates, not an average of the
 progress.
 
+## W869 -- post-route evidence exists now, and the first thing it measures is the paper's own precision
+
+### T698 -- ONE NETLIST, FIVE PLACER SEEDS: AREA IS INVARIANT, TIMING IS NOT [measured]
+
+`t27c preflight` passes on this bench -- chipdb 316 MB, nextpnr-xilinx runs, yosys,
+xc7frames2bit, three cables. So the flow the paper's CI runs in docker runs here.
+One arm, routed end to end:
+
+    tnf_cost_e2m11_add_top, xc7a200tfbg676-1, --freq 50.0, heap/router1
+
+    seed 1  408.16 MHz     seed 4  422.65 MHz
+    seed 2  379.65 MHz     seed 5  384.91 MHz
+    seed 3  411.52 MHz
+
+    median 408.16    spread 43.0 MHz = 10.5%    LUTs 467 IN ALL FIVE
+
+**The LUT count does not move at all and Fmax moves a tenth.** Area is decided by
+synthesis; timing is decided by the placement, and the placement is a seed.
+
+### T698a -- SIXTEEN FREQUENCIES ARE QUOTED THREE ORDERS OF MAGNITUDE FINER THAN THEY REPRODUCE [derived]
+
+`tab:fullthroughput` prints 78.83, 77.00, 73.51, 67.06 MHz and twelve more, to
+0.01 MHz. Against a quantity whose own spread across placer seeds is 10.5%, the
+second decimal asserts a precision of about 0.012% -- roughly **900 times finer
+than the measurement reproduces**, unless those figures are medians over a stated
+seed count, which the table does not say.
+
+This is the timing analogue of T616, which this project established for FUNCTION:
+one netlist, five seeds, three computing the specified function and two not. The
+same knob that can change what a circuit COMPUTES also moves what it is reported
+to run at, and only the first was previously written down.
+
+### T699 -- TEN OF FOURTEEN RECORDS CANNOT BE REBUILT BY ANYTHING IN THE TREE [measured]
+
+    have a generator in measurements/       4   downstream_bayesian_si, downstream_linear_cg,
+                                                kappa_taxonomy, topaligned_cost
+    have only a reader                      2   per_rung, strict_range (read by a script
+                                                written in THIS session)
+    mentioned by nothing at all              8   breakeven, centering, crossover, crossover2,
+                                                gpt2_window, inside_window, workloads_strict, +1
+
+Earlier waves established that a READER cannot check the tables -- no caption named
+its data. This is worse and separate: **the AUTHOR cannot rebuild the records.**
+`per_rung` in particular stores `tnf_reach = 40/121/364`, which T692 showed to be
+the offset rather than the reach, and there is no generator to correct it in --
+so the defensive assertion in the regenerator is the only available fix, and hand-
+editing a machine-written record would be the wrong one.
+
+### T699a -- THE STANDARD APPLIED TO MY OWN RECORD [measured]
+
+The sweep record I had just added was the ninth orphan by my own count. I wrote
+its generator, `measurements/gen_pnr_seed_sweep.py`, and re-ran it against the
+shipped record.
+
+    all five Fmax figures          identical to the digit
+    all five log_sha256            DIFFERENT
+
+nextpnr writes wall-clock timings into its log, so the hash pins the file that was
+shipped and does not predict a re-run. **A verification field that cannot be
+reproduced is a trap for the next reader**, who sees five hash mismatches and
+concludes the record is wrong. Now stated in the script, at the hashing line, and
+in a `reproducibility` field of the record itself.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

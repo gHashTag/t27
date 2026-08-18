@@ -11830,6 +11830,27 @@ identifiers were named.
 The other track's NO-GO on "post-route evidence absent" outranks any figure I
 computed from tables-with-oracles. Report the conjunction of the gates.
 
+**1286. AREA IS SEED-INVARIANT, TIMING IS NOT.** One netlist, five placer seeds:
+LUT count identical in all five, Fmax spread 10.5%. Any Fmax from a single seed
+carries a tenth of unstated uncertainty.
+
+**1287. CHECK A PRINTED PRECISION AGAINST THE QUANTITY'S OWN REPRODUCIBILITY.**
+Sixteen frequencies printed to 0.01 MHz on a quantity that moves 10.5% across
+seeds assert about 900x more precision than they have.
+
+**1288. A RECORD NO SCRIPT CAN REBUILD CANNOT BE CORRECTED AT SOURCE.** Ten of
+fourteen records here have no generator, so a wrong field in one of them can only
+be defended against by the reader, never fixed. Hand-editing a machine-written
+record is the wrong fix.
+
+**1289. APPLY THE AUDIT'S STANDARD TO YOUR OWN ARTEFACT IN THE SAME WAVE.** My
+sweep record was the ninth orphan by my own count. Shipping its generator took
+minutes; leaving it would have made the finding hypocritical.
+
+**1290. A HASH THAT DOES NOT REPRODUCE IS A TRAP.** Fmax came back identical on a
+re-run and every log_sha256 differed, because nextpnr logs wall-clock timings. Say
+which fields pin a shipped file and which predict a re-run.
+
 ### How to update this tracker
 
 After closing a wave:
