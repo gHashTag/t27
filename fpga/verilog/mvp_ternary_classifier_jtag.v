@@ -96,10 +96,16 @@ module mvp_ternary_classifier_jtag (
     //   [2]    constant 1
     //   [1]    beat
     //   [0]    ok
-    reg [31:0] sr = 32'hA5A5A5A4;
+    reg [31:0] sr = 32'hA5A534BC;
     always @(posedge drck) begin
         if (sel) begin
-            if (capture)     sr <= {28'hA5A5A5A, 1'b0, 1'b1, beat, ok};
+            if (capture)     sr <= {16'hA5A5, 4'd3, 6'd18,
+                                    1'b1, 1'b1, 1'b1, 1'b1,   // PADDING: this
+                                    // wrapper carries NO clauses. The four ones
+                                    // are constants, not measurements, and the
+                                    // reader prints them as PAD so nobody reads
+                                    // a verdict into them (T547).
+                                    beat, ok};
             else if (shift)  sr <= {tdi, sr[31:1]};
         end
     end

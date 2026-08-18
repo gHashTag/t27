@@ -23881,6 +23881,91 @@ carried forward as an assumption. What remains is a short enumerable list of
 differences between design 12 and design 16, on 800-LUT designs, which is a far
 better place to hand over from than W839's 12,724-LUT starting point.
 
+## W841 -- layout v3, and a verdict that flipped because I repacked its word
+
+### T613 -- LAYOUT v3: SIXTY-FOUR DESIGN IDS, FROM TWO BITS NOBODY READ [measured]
+
+W840 spent the last v2 design id and discovered the field was four bits by
+writing `4'd16` and watching Verilog truncate it to 0 in silence (T610). v3
+absorbs the two hardcoded padding bits -- `1'b0, 1'b1`, unread by any decoder
+since the legacy layout -- into a six-bit field:
+
+    v2   {16'hA5A5, 4'd2, 4'd<id>, c3,c2,c1,c0, 1'b0, 1'b1, beat, ok}
+    v3   {16'hA5A5, 4'd3, 6'd<id>, c3,c2,c1,c0,             beat, ok}
+
+Eighteen wrappers migrated, including the last two still on the legacy 24- and
+28-bit magic (`gft_bitnet_neuron` -> 17, whose verdict remains WITHDRAWN from
+W814; `mvp_ternary_classifier` -> 18, whose four clause bits are constants and
+are labelled PAD so no one reads a verdict into them). The reader and
+`t27c silicon` accept BOTH encodings -- the version nibble says which field holds
+the id, and guessing that is how W838 read a neighbour's verdict as this board's.
+
+Verified end-to-end: `0xa5a533b6  design 14 on index 2`.
+
+### T614 -- THE SAME DESIGN FLIPPED ITS VERDICT WHEN I REPACKED ITS RESULT WORD [measured]
+
+Design 14 in W840, layout v2: **c_comm = 1 on two dice.**
+Design 14 in W841, layout v3: **c_comm = 0 on three dice.**
+
+The delta between those builds is the shift-register capture expression and
+nothing else. The DUT instances, their operands, the comparison and the clause
+logic are byte-identical; what changed is that two constant bits left the
+concatenation and the id field grew by two. Synthesis moved 811 LUT -> 798.
+
+**A change that cannot affect the arithmetic changed the answer about the
+arithmetic.** Designs 15 and 16 took the same edit and did not move:
+
+    design   layout   LUT    DUT-equiv   c_comm    dice
+    14       v2       811      2.21        1        2
+    14       v3       798      2.21        0        3
+    15       v3       816      2.31        1        1
+    16       v3       807      2.31        1        1
+    12       v2/v3    629      1.57        0        2
+    13       v2       6632     3.10        0        2
+
+This retires the last of the wrapper-property explanations. The failure is
+sensitive to netlist perturbation, which places it below yosys's front end --
+in placement, routing, or bitstream generation -- and no wrapper-level edit will
+find it.
+
+### T615 -- `c_self` HAS NEVER FAILED, AND THAT IS THE SHARPEST FACT AVAILABLE [measured]
+
+Across every experiment in W840 and W841:
+
+    two instances, SAME operand order    (c_self)   1, always, every build
+    two instances, SWAPPED operands      (c_comm)   0 in 12, 13, 14v3
+                                                    1 in 14v2, 15, 16
+
+**Duplication is handled correctly. Operand-swapped instantiation is the only
+construct on this bench that has ever disagreed with itself.** That is a much
+narrower target than W839's "instance comparisons fail" (refuted in W840) or
+W840's counter and foldable-neighbour hypotheses (both refuted), and unlike all
+three it has survived every perturbation aimed at it.
+
+### T615a -- WHAT A PERTURBATION-SENSITIVE CLAUSE DOES TO THE STANDING RESULTS [derived]
+
+Clauses that compare against CONSTANTS have not moved under any of these
+perturbations: `c_zero`, `c_gold`, `c_cancel`, `c_init`. Neither has `c_self`.
+Every standing silicon verdict built only from those shapes is unaffected --
+including **the corpus split (T602), which is a constant comparison, forecast
+from source, and reproduced on two dice.**
+
+What is now in doubt is narrower than W839 feared and better specified: any
+clause whose truth depends on comparing two differently-ordered instantiations.
+By name, that is `c_com` in `gft_signed_dot4` (design 3), `c_comm` in designs 12
+and 13, and `c_imm`/`c_settled` in design 11. Four clauses across four designs,
+each identifiable from its wrapper source.
+
+### T615b -- forecast count, thirteenth entry [derived]
+
+    W841  (1 confirmed / 0 withdrawn / 0 refuted / 1 UNFORECAST ANOMALY)
+
+The v3 migration was forecast to be behaviour-neutral -- a repacking of bits no
+decoder reads. It was not. **I did not register a forecast that it might change a
+verdict, because I did not consider that it could**, and the anomaly is the
+wave's main result. Registering forecasts only for the things you are testing
+leaves the things you are assuming unguarded.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

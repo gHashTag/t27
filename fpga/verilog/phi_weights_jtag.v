@@ -22,7 +22,7 @@
 // -phi are DISTINCT weights -- is exactly what rules it out.
 //
 // Five instances, one per probe, all combinational; STARTUPE2 supplies the clock
-// so no package pin is needed, and BSCANE2 returns {A5A5A5A, 0, 1, beat, ok}.
+// so no package pin is needed, and BSCANE2 returns {A5A5A5A, beat, ok}.
 module phi_weights_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -73,10 +73,10 @@ module phi_weights_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A527F4;
+    reg [31:0] sr = 32'hA5A531FC;
     always @(posedge drck)
         if (sel) begin
-            // W820 (T548), migrated W839: LAYOUT v2, DESIGN 7 -- the clause
+            // W820 (T548), migrated W839: LAYOUT v3, DESIGN 7 -- the clause
             // bits ride in the word, and the design nibble names whose they are.
             // antisym = -phi is the negation of +phi; annihil = zero and out-of-alphabet codes
     // give zero; nontriv = +phi is not zero, without which a dead module satisfies
@@ -85,8 +85,8 @@ module phi_weights_jtag #(parameter integer JTAG_CHAIN_N = 3);
             // legacy 28-bit magic. W819 watched `t27c silicon` report PASS from
             // two boards carrying a different design, because a 28-bit magic
             // matches whatever follows it (T547).
-            if (capture)    sr <= {16'hA5A5, 4'd2, 4'd7, antisym, annihil, nontriv, 1'b1,
-                                   1'b0, 1'b1, beat, ok};
+            if (capture)    sr <= {16'hA5A5, 4'd3, 6'd7, antisym, annihil, nontriv, 1'b1,
+                                   beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

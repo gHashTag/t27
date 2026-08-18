@@ -27,7 +27,7 @@
 //
 // Structure copied from `ternary_link_jtag.v`: STARTUPE2 supplies the clock so
 // the design needs no package pin, a reset counter releases the DUT after the
-// clock is running, and BSCANE2 returns {A5A5A5A, 0, 1, beat, ok}.
+// clock is running, and BSCANE2 returns {A5A5A5A, beat, ok}.
 module e8m0_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -92,10 +92,10 @@ module e8m0_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A526F4;
+    reg [31:0] sr = 32'hA5A531BC;
     always @(posedge drck)
         if (sel) begin
-            // W820 (T548), migrated W839: LAYOUT v2, DESIGN 6 -- the clause
+            // W820 (T548), migrated W839: LAYOUT v3, DESIGN 6 -- the clause
             // bits ride in the word, and the design nibble names whose they are.
             // acc = every probe matched its expected word; swept = the sweep finished.
     // Two clauses and two PADDING bits. A padding bit is not a check; it is
@@ -104,8 +104,8 @@ module e8m0_jtag #(parameter integer JTAG_CHAIN_N = 3);
             // legacy 28-bit magic. W819 watched `t27c silicon` report PASS from
             // two boards carrying a different design, because a 28-bit magic
             // matches whatever follows it (T547).
-            if (capture)    sr <= {16'hA5A5, 4'd2, 4'd6, acc, swept, 1'b1, 1'b1,
-                                   1'b0, 1'b1, beat, ok};
+            if (capture)    sr <= {16'hA5A5, 4'd3, 6'd6, acc, swept, 1'b1, 1'b1,
+                                   beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

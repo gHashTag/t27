@@ -1449,14 +1449,19 @@ fn design_id_from_top(repo_root: &Path, tops: &[String]) -> Option<u32> {
     let src = std::fs::read_to_string(repo_root.join(top))
         .or_else(|_| std::fs::read_to_string(top))
         .ok()?;
-    let key = "16'hA5A5, 4'd2, 4'd";
-    let at = src.find(key)? + key.len();
-    src[at..]
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect::<String>()
-        .parse()
-        .ok()
+    // W841: v3 first. A v2 word also starts 16'hA5A5, so the more specific
+    // pattern must be tried first or a v3 wrapper reads as v2 and the id lands
+    // in the wrong bit field.
+    for key in ["16'hA5A5, 4'd3, 6'd", "16'hA5A5, 4'd2, 4'd"] {
+        if let Some(k) = src.find(key) {
+            let at = k + key.len();
+            let n: String = src[at..].chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(v) = n.parse::<u32>() {
+                return Some(v);
+            }
+        }
+    }
+    None
 }
 
 pub fn run_silicon(
@@ -1969,7 +1974,15 @@ pub fn run_silicon(
         Some(d) => hits
             .iter()
             .copied()
-            .filter(|(_, w)| ((w >> 12) & 0xF) == 2 && ((w >> 8) & 0xF) == d)
+            // W841: v3 puts the id at [11:6] and v2 at [11:8]. Accept either, so
+            // a bench mid-migration can still be read -- the version nibble says
+            // which field to look in, and guessing it is how W838 read a
+            // neighbouring board's verdict as this one's.
+            .filter(|(_, w)| match (w >> 12) & 0xF {
+                3 => ((w >> 6) & 0x3F) == d,
+                2 => ((w >> 8) & 0xF) == d,
+                _ => false,
+            })
             .collect(),
         None => Vec::new(),
     };
@@ -1988,9 +2001,12 @@ pub fn run_silicon(
     if matching.len() == 1 {
         let (i, w) = matching[0];
         let d = want_did.unwrap_or(0);
+        // v3 clause bits sit at [5:2], v2's at [7:4].
+        let cb: u32 = if ((w >> 12) & 0xF) == 3 { 5 } else { 7 };
         println!(
             "  OK   B2 read            0x{w:08x}  design {d} on index {i}, clauses={}{}{}{}  ok={} beat={}",
-            (w >> 7) & 1, (w >> 6) & 1, (w >> 5) & 1, (w >> 4) & 1, w & 1, (w >> 1) & 1
+            (w >> cb) & 1, (w >> (cb - 1)) & 1, (w >> (cb - 2)) & 1, (w >> (cb - 3)) & 1,
+            w & 1, (w >> 1) & 1
         );
         if before.len() > 1 {
             println!("  ({} cables answered; the design nibble picked this one -- W839)", before.len());

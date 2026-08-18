@@ -1,4 +1,8 @@
 `default_nettype none
+// LAYOUT v3, DESIGN 17 (migrated W841 from the legacy 24-bit magic).
+// NOTE: this design's silicon verdict was WITHDRAWN in W814 -- it fails timing
+// at the measured 70.77 MHz CFGMCLK and meets it only at 11.26 MHz. The wrapper
+// is migrated so the bench speaks one language; the verdict stays withdrawn.
 // W814: a four-tap BitNet neuron on our die, checked by ALGEBRA, no golden table.
 //
 // `specs/ternary/gft_bitnet_neuron.t27` computes
@@ -149,10 +153,11 @@ module gft_bitnet_neuron_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A5A5A4;
+    reg [31:0] sr = 32'hA5A5347C;
     always @(posedge drck)
         if (sel) begin
-            if (capture)    sr <= {24'hA5A5A5, c_can, c_ann, c_non, c_ant, 1'b0, 1'b1, beat, ok};
+            if (capture)    sr <= {16'hA5A5, 4'd3, 6'd17,
+                                   c_can, c_ann, c_non, c_ant, beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

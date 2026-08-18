@@ -1,6 +1,6 @@
 `default_nettype none
 // W832: the absorption boundary swept across the whole band, on silicon.
-// LAYOUT v2, DESIGN 2.
+// LAYOUT v3, DESIGN 2.
 //
 // W830 tested the boundary at TWO points and W831 found one of them carried a
 // wrong expected value -- my Python model of `magadd` had dropped its
@@ -38,7 +38,7 @@
 //             never advances satisfies 1 and 2 vacuously
 //   4. IND    an independently-driven adder is live in the fabric (T534/T555)
 //
-// WORD v2: {16'hA5A5, 4'd2, 4'd2, c_low, c_high, c_swept, c_ind, 0, 1, beat, ok}
+// WORD v3: {16'hA5A5, 4'd3, 6'd2, c_low, c_high, c_swept, c_ind, beat, ok}
 // Design 2 = sadd band sweep. Design 1 was the two-point probe (T572).
 module gft_sadd_sweep_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
@@ -120,12 +120,12 @@ module gft_sadd_sweep_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A522F4;
+    reg [31:0] sr = 32'hA5A530BC;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd2,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd2,
                                 c_low, c_high, c_swept, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

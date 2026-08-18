@@ -1,5 +1,5 @@
 `default_nettype none
-// W839: does 0 * x == 0? The MINORITY form, on the die. LAYOUT v2, DESIGN 13.
+// W839: does 0 * x == 0? The MINORITY form, on the die. LAYOUT v3, DESIGN 13.
 //
 // The companion to `gft_smul_jtag.v` (DESIGN 12). Same question, same four
 // clause slots, opposite `smul`: `gft_signed_mac` is one of the only two specs
@@ -43,7 +43,7 @@
 // 70.77 MHz (T495) / 16 = 4.42 MHz, a period of 226.1 ns, DECLARED in the
 // companion .xdc (T541).
 //
-// WORD v2: {16'hA5A5, 4'd2, 4'd13, c_zero, c_comm, c_cancel, c_ind, 0, 1, beat, ok}
+// WORD v3: {16'hA5A5, 4'd3, 6'd13, c_zero, c_comm, c_cancel, c_ind, beat, ok}
 module gft_signed_mac_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -127,12 +127,12 @@ module gft_signed_mac_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A52DF4;
+    reg [31:0] sr = 32'hA5A5337C;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd13,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd13,
                                 c_zero, c_comm, c_cancel, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

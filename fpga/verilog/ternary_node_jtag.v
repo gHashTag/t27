@@ -96,10 +96,10 @@ module ternary_node_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A528F4;
+    reg [31:0] sr = 32'hA5A5323C;
     always @(posedge drck)
         if (sel) begin
-            // W820 (T548), migrated W839: LAYOUT v2, DESIGN 8 -- the clause
+            // W820 (T548), migrated W839: LAYOUT v3, DESIGN 8 -- the clause
             // bits ride in the word, and the design nibble names whose they are.
             // add_ok = exact additivity held for every symbol; moved = the result actually
     // changed; swept = the sweep finished. One PADDING bit.
@@ -107,8 +107,8 @@ module ternary_node_jtag #(parameter integer JTAG_CHAIN_N = 3);
             // legacy 28-bit magic. W819 watched `t27c silicon` report PASS from
             // two boards carrying a different design, because a 28-bit magic
             // matches whatever follows it (T547).
-            if (capture)    sr <= {16'hA5A5, 4'd2, 4'd8, add_ok, moved, swept, 1'b1,
-                                   1'b0, 1'b1, beat, ok};
+            if (capture)    sr <= {16'hA5A5, 4'd3, 6'd8, add_ok, moved, swept, 1'b1,
+                                   beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

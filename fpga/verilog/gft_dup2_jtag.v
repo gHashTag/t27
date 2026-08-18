@@ -1,5 +1,5 @@
 `default_nettype none
-// W840: DESIGN 14 PLUS ONE COUNTER. LAYOUT v2, DESIGN 15.
+// W840: DESIGN 14 PLUS ONE COUNTER. LAYOUT v3, DESIGN 15.
 //
 // Design 14 passed all four clauses on two dice. Designs 12 and 13 failed
 // `c_comm` on two dice each -- with a comparison that is TEXTUALLY IDENTICAL to
@@ -26,7 +26,7 @@
 // (The original design-14 header follows, since every clause is unchanged.)
 //
 // W840: do two IDENTICAL instances of one function agree on the die?
-// ORIGINALLY LAYOUT v2, DESIGN 14.
+// ORIGINALLY LAYOUT v3, DESIGN 14.
 //
 // W839 measured, on three designs and two arithmetic forms, that clauses
 // comparing one DUT instance against another fail on silicon while clauses
@@ -79,7 +79,7 @@
 // through the stage repaired in T603, against 8.85 MHz declared -- so the margin
 // here is known rather than assumed, for the first time on this bench.
 //
-// WORD v2: {16'hA5A5, 4'd2, 4'd15, c_init, c_self, c_comm, c_ind, 0, 1, beat, ok}
+// WORD v3: {16'hA5A5, 4'd3, 6'd15, c_init, c_self, c_comm, c_ind, beat, ok}
 module gft_dup2_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -165,12 +165,12 @@ module gft_dup2_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A52FF4;
+    reg [31:0] sr = 32'hA5A533FC;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd15,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd15,
                                 c_init, c_self, c_comm, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

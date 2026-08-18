@@ -36,9 +36,9 @@
 //
 // WORD LAYOUT, AND IT CARRIES A VERSION (T535a).
 //
-//     {16'hA5A5, 4'd2, 4'd5, c_fix, c_asc, c_mov, c_non, 1'b0, 1'b1, beat, ok}
+//     {16'hA5A5, 4'd3, 6'd5, c_fix, c_asc, c_mov, c_non, beat, ok}
 //
-// Every earlier wrapper used `{28'hA5A5A5A, 0, 1, beat, ok}`, and W814 found the
+// Every earlier wrapper used `{28'hA5A5A5A, beat, ok}`, and W814 found the
 // two indistinguishable when three dice held different builds -- two boards were
 // decoded with the wrong layout and reported an arithmetically impossible result.
 // Bits [11:8] are now a VERSION NIBBLE: **1** is this layout, and the old one
@@ -145,11 +145,11 @@ module gft_train1_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A525F4;
+    reg [31:0] sr = 32'hA5A5317C;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd5, c_fix, c_asc, c_mov, c_non,
-                                1'b0, 1'b1, beat, ok};
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd5, c_fix, c_asc, c_mov, c_non,
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

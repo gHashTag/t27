@@ -74,6 +74,31 @@ def read_word(idx, chain=3):
         m.close()
 
 
+# W841: the design table lives at module scope so layouts v2 AND v3 can
+# share it. v2 spends four bits on the id and W840 spent the last of them
+# (T610); v3 spends six. Same designs, two encodings, one table.
+DESIGNS = {
+    1: ("gft_sadd boundary probe", ['c_move', 'c_abs', 'c_gold', 'c_ind']),
+    2: ("gft_sadd band sweep", ['c_low', 'c_high', 'c_swept', 'c_ind']),
+    3: ("gft_signed_dot4", ['c_can', 'c_ann', 'c_com', 'c_non']),
+    4: ("gft_xorpercep", ['c_gold', 'c_eta0', 'c_non', 'c_ind']),
+    5: ("gft_train1", ['c_fix', 'c_asc', 'c_mov', 'c_non']),
+    6: ("e8m0", ['acc', 'swept', 'PAD', 'PAD']),
+    7: ("phi_weights", ['antisym', 'annihil', 'nontriv', 'PAD']),
+    8: ("ternary_node", ['add_ok', 'moved', 'swept', 'PAD']),
+    9: ("tnf17", ['inv_acc', 'moved', 'swept', 'PAD']),
+    10: ("ternary_link", ['swept', 'PAD', 'PAD', 'PAD']),
+    11: ("gft_dot4_comm", ['c_imm', 'c_settled', 'c_swept', 'c_ind']),
+    12: ("gft_smul (guarded zero)", ['c_zero', 'c_comm', 'c_gold', 'c_ind']),
+    13: ("gft_signed_mac (no guard)", ['c_zero', 'c_comm', 'c_cancel', 'c_ind']),
+    14: ("gft_dup (duplication control)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
+    15: ("gft_dup2 (+2nd counter)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
+    16: ("gft_dup3 (+foldable neighbours)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
+    17: ("gft_bitnet_neuron (verdict WITHDRAWN W814)", ['c_can', 'c_ann', 'c_non', 'c_ant']),
+    18: ("mvp_ternary_classifier", ['PAD', 'PAD', 'PAD', 'PAD']),
+}
+
+
 def report(idx, reads=5, chain=3):
     words = []
     for _ in range(reads):
@@ -121,30 +146,28 @@ def report(idx, reads=5, chain=3):
         # so W828 read three dice at `v=1, clauses=1111` where two held a
         # different design (lesson 1134). Checked BEFORE v1, because a v2 word
         # also starts 0xA5A5.
+        # W841 (T613): LAYOUT v3. v2's design field was four bits and W840 spent
+        # the last one -- `4'd16` truncated to 0 in silence and the die answered
+        # as design 0. v3 absorbs the two padding bits, which nothing has read
+        # since the legacy layout, into a SIX-bit field: 64 ids instead of 15.
+        #   {16'hA5A5, 4'd3, 6'd<id>, c3,c2,c1,c0, beat, ok}
+        if (w >> 16) == 0xA5A5 and ((w >> 12) & 0xF) == 3:
+            did = (w >> 6) & 0x3F
+            c = [(w >> b) & 1 for b in (5, 4, 3, 2)]
+            nm, cn = DESIGNS.get(did, (f"design {did}", ["c3", "c2", "c1", "c0"]))
+            named = "  ".join(f"{n}={b}" for n, b in zip(cn, c) if n != "PAD")
+            print(f"           LAYOUT v3  {nm}  {named}  "
+                  f"beat={(w >> 1) & 1}  ok={w & 1}")
+            print("           VERDICT: " + ("PASS -- every clause held on the die"
+                                            if (w & 1) and all(c)
+                                            else "FAIL -- a clause is false; the bits above name it"))
+            return w
         if (w >> 16) == 0xA5A5 and ((w >> 12) & 0xF) == 2:
             did = (w >> 8) & 0xF
             c = [(w >> b) & 1 for b in (7, 6, 5, 4)]
             # W838/W839: a design id is only half an identity -- the reader
             # must also say WHICH clause is false. Before this, a verdict of
             # `1011` sent the reader to the Verilog to count bit positions.
-            DESIGNS = {
-                1: ("gft_sadd boundary probe", ['c_move', 'c_abs', 'c_gold', 'c_ind']),
-                2: ("gft_sadd band sweep", ['c_low', 'c_high', 'c_swept', 'c_ind']),
-                3: ("gft_signed_dot4", ['c_can', 'c_ann', 'c_com', 'c_non']),
-                4: ("gft_xorpercep", ['c_gold', 'c_eta0', 'c_non', 'c_ind']),
-                5: ("gft_train1", ['c_fix', 'c_asc', 'c_mov', 'c_non']),
-                6: ("e8m0", ['acc', 'swept', 'PAD', 'PAD']),
-                7: ("phi_weights", ['antisym', 'annihil', 'nontriv', 'PAD']),
-                8: ("ternary_node", ['add_ok', 'moved', 'swept', 'PAD']),
-                9: ("tnf17", ['inv_acc', 'moved', 'swept', 'PAD']),
-                10: ("ternary_link", ['swept', 'PAD', 'PAD', 'PAD']),
-                11: ("gft_dot4_comm", ['c_imm', 'c_settled', 'c_swept', 'c_ind']),
-                12: ("gft_smul (guarded zero)", ['c_zero', 'c_comm', 'c_gold', 'c_ind']),
-                13: ("gft_signed_mac (no guard)", ['c_zero', 'c_comm', 'c_cancel', 'c_ind']),
-                14: ("gft_dup (duplication control)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
-                15: ("gft_dup2 (+2nd counter)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
-                0:  ("gft_dup3 (+foldable neighbours)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
-            }
             nm, cn = DESIGNS.get(did, (f"design {did}", ["c3","c2","c1","c0"]))
             names = nm
             named = "  ".join(f"{n}={b}" for n, b in zip(cn, c) if n != "PAD")

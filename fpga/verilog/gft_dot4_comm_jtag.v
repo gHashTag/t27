@@ -1,6 +1,6 @@
 `default_nettype none
 // W839: is `gft_signed_dot4`'s commutativity failure ARITHMETIC or a RACE?
-// LAYOUT v2, DESIGN 11.
+// LAYOUT v3, DESIGN 11.
 //
 // W838 read `gft_signed_dot4` three times on board 1:4. The first load returned
 // clauses 1001 -- c_com = 0 -- and the next two returned 1011. The clause bits
@@ -64,7 +64,7 @@
 //   4. IND      the compared instances produce a non-zero result, so neither
 //               was folded to a constant (T534)
 //
-// WORD v2: {16'hA5A5, 4'd2, 4'd11, c_imm, c_settled, c_swept, c_ind, 0, 1, beat, ok}
+// WORD v3: {16'hA5A5, 4'd3, 6'd11, c_imm, c_settled, c_swept, c_ind, beat, ok}
 module gft_dot4_comm_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -163,12 +163,12 @@ module gft_dot4_comm_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A52BF4;
+    reg [31:0] sr = 32'hA5A532FC;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd11,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd11,
                                 c_imm, c_settled, c_swept, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

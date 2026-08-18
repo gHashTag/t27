@@ -11307,6 +11307,31 @@ hypothesis assumed, and that is worth as much as the clause bits.
 design-id refusal earned its place by refusing a wave that had mis-encoded its
 own identity -- not by refusing a hypothetical.
 
+**1177. A REFACTOR THAT "CANNOT CHANGE BEHAVIOUR" IS A HYPOTHESIS, NOT A FACT.**
+Repacking design 14's result word -- two constant bits removed, an id field
+widened -- flipped its verdict from PASS on two dice to FAIL on three. Nothing in
+the datapath changed. **Re-measure after a refactor you were sure was neutral**;
+that measurement is how W841 found its result.
+
+**1178. NAME THE CONSTRUCT, NOT THE CATEGORY.** "Instance comparisons fail" was
+refuted; "operand-swapped instantiation is the only construct that has ever
+disagreed with itself" has survived every perturbation. The narrower the named
+construct, the longer the claim lives.
+
+**1179. A CONTROL THAT NEVER FAILS IS DATA.** `c_self` -- two instances, same
+operand order -- has been 1 in every build across two waves. That is not a boring
+clause, it is the fact that rules out "the flow miscompiles duplication" and
+leaves only the swap.
+
+**1180. PERTURBATION SENSITIVITY LOCATES A BUG BY ELEVATION.** A failure that
+moves when the netlist is jostled but the logic is not lives below the front end.
+No amount of wrapper editing will find it, and knowing that saves the next wave
+from three more wrapper edits.
+
+**1181. FORECAST THE STEPS YOU ARE NOT TESTING.** W841 registered no forecast for
+the migration because it was "just a repack". The unforecast step is where the
+anomaly was. Register a one-line expectation even for the mechanical parts.
+
 ### How to update this tracker
 
 After closing a wave:

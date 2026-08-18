@@ -1,5 +1,5 @@
 `default_nettype none
-// W839: does 0 * x == 0? The MAJORITY form, on the die. LAYOUT v2, DESIGN 12.
+// W839: does 0 * x == 0? The MAJORITY form, on the die. LAYOUT v3, DESIGN 12.
 //
 // W836 normalised every function body in the corpus and found that `smul` has
 // exactly TWO forms, not the fourteen a raw hash reported:
@@ -39,7 +39,7 @@
 // of 113.0 ns, DECLARED in the companion .xdc -- a divider alone tells the
 // timing engine nothing (T541).
 //
-// WORD v2: {16'hA5A5, 4'd2, 4'd12, c_zero, c_comm, c_gold, c_ind, 0, 1, beat, ok}
+// WORD v3: {16'hA5A5, 4'd3, 6'd12, c_zero, c_comm, c_gold, c_ind, beat, ok}
 module gft_smul_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     wire cfgmclk;
@@ -125,12 +125,12 @@ module gft_smul_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A52CF4;
+    reg [31:0] sr = 32'hA5A5333C;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd12,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd12,
                                 c_zero, c_comm, c_gold, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

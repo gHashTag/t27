@@ -35,9 +35,9 @@
 // module that simply returns its first argument fails clause 1 while passing
 // clause 2 -- which is why both are here rather than only the absorbing one.
 //
-// WORD LAYOUT v2, and the version nibble is why:
+// WORD LAYOUT v3, and the version nibble is why:
 //
-//     {16'hA5A5, 4'd2, 4'd1, c_move, c_absorb, c_gold, c_ind, 1'b0, 1'b1, beat, ok}
+//     {16'hA5A5, 4'd3, 6'd1, c_move, c_absorb, c_gold, c_ind, beat, ok}
 //
 // v1 carried a version but no DESIGN identity, and W828 read three dice showing
 // `v=1, clauses=1111` where two of them held `ternary_node` rather than the
@@ -140,12 +140,12 @@ module gft_sadd_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A521F4;
+    reg [31:0] sr = 32'hA5A5307C;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd1,
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd1,
                                 c_move, c_abs, c_gold, c_ind,
-                                1'b0, 1'b1, beat, ok};
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

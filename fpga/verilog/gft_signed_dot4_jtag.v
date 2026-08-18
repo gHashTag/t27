@@ -1,5 +1,5 @@
 `default_nettype none
-// W821: a signed four-term dot product on our die, checked by algebra. LAYOUT v2, DESIGN 3.
+// W821: a signed four-term dot product on our die, checked by algebra. LAYOUT v3, DESIGN 3.
 //
 // `specs/ternary/gft_signed_dot4.t27` computes
 //     on_comb = sadd(dot2(a1,b1, a2,b2), dot2(a3,b3, a4,b4))
@@ -30,8 +30,8 @@
 // to load such a build (T539/T540), so the live drive is not decoration -- it is
 // what makes the gate pass honestly.
 //
-// WORD LAYOUT v2, DESIGN 3 (T548; migrated W839):
-//     {16'hA5A5, 4'd2, 4'd3, c_can, c_ann, c_com, c_non, 1'b0, 1'b1, beat, ok}
+// WORD LAYOUT v3, DESIGN 3 (T548; migrated W839):
+//     {16'hA5A5, 4'd3, 6'd3, c_can, c_ann, c_com, c_non, beat, ok}
 // Bits [11:8] are the version nibble; 5 was the legacy 28-bit magic. Every
 // wrapper on this bench now speaks v1, so a reader cannot attribute one design's
 // verdict to another (T547/T549).
@@ -130,11 +130,11 @@ module gft_signed_dot4_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A523F4;
+    reg [31:0] sr = 32'hA5A530FC;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd3, c_can, c_ann, c_com, c_non,
-                                1'b0, 1'b1, beat, ok};
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd3, c_can, c_ann, c_com, c_non,
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];

@@ -1,5 +1,5 @@
 `default_nettype none
-// W828: a XOR perceptron's weight update on our die. LAYOUT v2, DESIGN 4.
+// W828: a XOR perceptron's weight update on our die. LAYOUT v3, DESIGN 4.
 //
 // `specs/ternary/gft_xorpercep.t27` is one training step of a two-hidden-unit
 // perceptron in signed GF-T float: form `s = x0 + x1`, take `h0 = relu(s)` and
@@ -144,11 +144,11 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A524F4;
+    reg [31:0] sr = 32'hA5A5313C;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {16'hA5A5, 4'd2, 4'd4, c_gold, c_eta0, c_non, c_ind,
-                                1'b0, 1'b1, beat, ok};
+            if (capture) sr <= {16'hA5A5, 4'd3, 6'd4, c_gold, c_eta0, c_non, c_ind,
+                                beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
     assign tdo = sr[0];
