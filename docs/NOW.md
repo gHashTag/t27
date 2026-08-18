@@ -1,3 +1,15 @@
+# NOW -- when enumeration beats a prover, and the nightly that uses it (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci+docs: nightly --verilog-full, and why exhaustion is a decision procedure (Closes #2204)
+
+- **Nightly closes the slice.** The per-PR gate runs Verilog on a labelled slice because iverilog needs 13 min for `maj3` and 94 for `full_adder` at its measured 21,061 and 2,972 inputs/s. `exhaustive-nightly.yml` runs `--verilog-full` at 03:17 UTC, giving **four independent implementations agreeing on all 16,777,216 inputs** instead of 0.4 % of them
+- **`docs/EXHAUSTION_THEORY.md`: exhaustive agreement over a finite domain is a DECISION PROCEDURE, not a test.** No induction, no invariants, no prover kernel; a disagreement is a counterexample and agreement is the theorem. It is what HECTOR and ACL2 approximate when the domain is too big to walk
+- **The domain size is set by REPRESENTATION, not semantics.** For k trit arguments in a w-bit type, enumeration costs `(2^w/3)^k` more than the semantics require. For w=8, k=3 that is 621,378.4 -- and `16,777,216 / 27 = 621,378.4` measured here. Only **1.6e-6** of `full_adder`'s space is a valid trit triple
+- **Both readings are true.** A 2-bit trit type puts `full_adder` at 64 inputs -- 0.02 s in iverilog rather than 94 minutes, four million times cheaper from a type declaration. And the byte-wide enumeration verifies out-of-domain behaviour that a caller can actually reach, since `pack2` does not mask and values above 3 spill into the next lane. A 2-bit type makes those *unrepresentable* rather than *verified*: better, but a different guarantee
+- **The regime boundary:** a binary float add over two 32-bit operands is 1.8e19 inputs -- **58,561 years** at 10^7/s. Enumeration is unavailable at any budget there, which is why sequential EC and theorem proving exist. Small alphabets sit on the other side of that line, and that is the one place ternary buys a **verification** advantage rather than an area claim -- checkable by counting, unlike the area claims withdrawn twice in this project's history
+
 # NOW -- Verilog joins as the fourth arm (2026-08-18)
 
 Last updated: 2026-08-18

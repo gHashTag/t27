@@ -1,0 +1,41 @@
+name: Exhaustive Verilog (nightly)
+
+# The per-PR gate runs the Verilog arm on a labelled slice, because iverilog needs
+# 13 minutes for maj3 and 94 for full_adder at its measured rates (21,061 and 2,972
+# inputs/s -- full_adder calls dot27 nine times per input at 27 lanes each). Those are
+# unacceptable on every push and perfectly acceptable once a day.
+#
+# So the slice is what gates, and this is what closes it: --verilog-full exhausts the
+# Verilog arm over the whole domain, giving four independent implementations agreeing
+# on every one of 16,777,216 inputs rather than on 0.4% of them.
+#
+# docs/EXHAUSTION_THEORY.md sets out why this is worth the wall-clock: on a finite
+# domain, exhaustive agreement is a decision procedure, not a test.
+
+on:
+  schedule:
+    # 03:17 UTC -- an off-minute, so this does not land with every other
+    # repository that asked for "nightly" at midnight.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  exhaustive-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Negative control
+        run: python3 tools/verify_exhaustive.py --self-check
+
+      - name: Exhaustive, every arm, whole domain
+        run: python3 tools/verify_exhaustive.py --verilog-full
