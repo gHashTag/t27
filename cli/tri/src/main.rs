@@ -11,6 +11,7 @@ mod depin;
 mod fpga;
 mod gates;
 mod hooks;
+mod mutate;
 mod red;
 mod rtl;
 
@@ -62,6 +63,11 @@ enum Commands {
         action: fpga::FpgaCmd,
     },
     /// What is failing on the default branch right now, and since when.
+    /// Find the constants in a checker that nothing actually checks.
+    Mutate {
+        #[command(subcommand)]
+        action: mutate::MutateCmd,
+    },
     Red {
         #[command(subcommand)]
         action: red::RedCmd,
@@ -674,6 +680,7 @@ fn main() -> Result<()> {
         }
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Mutate { action } => mutate::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
         Commands::Rtl { action } => rtl::run(action)?,
