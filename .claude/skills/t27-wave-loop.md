@@ -11943,6 +11943,15 @@ make a reader walk past.
 a dozen surviving findings, and every one came from asserting before checking what
 the repository, the caption or the oracle already said.
 
+**1311. A RANKING INVERSION IS WORSE THAN A MAGNITUDE ERROR.** The placer/router
+pair flips fp8-vs-TNF winners -- seven inversions from a router change alone, all
+in the format-comparison class. A magnitude error scales; an inversion is a wrong
+conclusion.
+
+**1312. STATE-IN-THE-OUTPUT-FILE SURVIVES ANYTHING.** Four dead turns interrupted a
+315-run sweep; zero runs were lost or repeated, because the driver's only state is
+its result file and a present run is never redone.
+
 ### How to update this tracker
 
 After closing a wave:

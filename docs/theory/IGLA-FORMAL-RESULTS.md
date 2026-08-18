@@ -26295,6 +26295,52 @@ second.
 is the number to watch: every one came from asserting before checking what the
 repository, the caption, or the oracle already said.
 
+## W873 -- the configuration decides the winner, not only the number
+
+### T709 -- PAIRWISE VERDICTS INVERT ACROSS PLACER/ROUTER CONFIGURATIONS [measured]
+
+All 21 full-observation harnesses, three configurations, five seeds each -- 315
+routed runs. Medians per configuration; pairs within 3% treated as ties and
+excluded. Pairwise ranking inversions out of 210 pairs:
+
+    heap/router1 vs heap/router2     7    (a ROUTER change alone)
+    heap/router1 vs sa/router2      13
+    heap/router2 vs sa/router2      12
+
+**Every one of the seven router-only inversions involves a TNF-family or GFTernary
+comparison against fp8** -- the exact class of verdict a throughput table
+adjudicates:
+
+    fp8e4m3 vs gfternary   647.2/675.7 -> 597.4/509.9    winner flips
+    fp8e5m2 vs tnf16       594.2/642.7 -> 607.5/584.1    winner flips
+    gfternary vs tnf16     675.7/642.7 -> 509.9/584.1    winner flips
+
+Under sa/router2, fp8e5m2-vs-tnf16 goes from TNF ahead to fp8 ahead THREEFOLD
+(446.4 vs 148.3).
+
+### T709a -- WHAT THIS ADDS TO T707, AND ITS LIMITS [derived]
+
+T707 showed the knob moves magnitudes up to 4.3x (now 4.7x on the full set). This
+is stronger: **the knob decides which format wins.** A magnitude error survives as
+a scaling; a ranking inversion survives as a wrong conclusion.
+
+Limits, so the record cannot be over-read: decoder harnesses, not the paper's
+neuron datapath; a different part; a generated pinless xdc; local yosys. No
+published row is contradicted. The property belongs to the toolchain: any table
+built on nextpnr-xilinx whose caption omits the placer/router pair -- and
+`placer`/`router` occur 0 times in tnf_paper.tex -- pins its ranking to an
+unstated choice, whichever choice that was.
+
+### T709b -- THE RESUMABLE DRIVER SURVIVED FOUR DEAD TURNS [measured]
+
+The sweep ran across seven chunks and four model-error interruptions ("Try
+again"). Nothing was lost: state is the output file itself, a run already present
+is never repeated, and each chunk wrote before yielding. 123/315 at the first
+interruption, 315/315 at the end, zero repeated work.
+
+**Design the driver for the harness's failure mode** -- here, a 600-second kill and
+an unreliable turn boundary -- and interruptions stop being events.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
