@@ -13,6 +13,7 @@ mod gates;
 mod hooks;
 mod mutate;
 mod prcheck;
+mod sweep;
 mod synth;
 mod red;
 mod rtl;
@@ -74,6 +75,11 @@ enum Commands {
     Pr {
         #[command(subcommand)]
         action: prcheck::PrCmd,
+    },
+    /// Synthesise across a parameter and check the area actually moves.
+    Sweep {
+        #[command(subcommand)]
+        action: sweep::SweepCmd,
     },
     /// Synthesise a top module and report area, with the instrument named.
     Synth {
@@ -694,6 +700,7 @@ fn main() -> Result<()> {
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
+        Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
         Commands::Red { action } => red::run(action)?,
         Commands::Gates { action } => gates::run(action)?,
