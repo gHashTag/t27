@@ -1,3 +1,16 @@
+# NOW -- a dead simulator is not a design that emitted nothing (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: check vvp's exit code and its own TIMEOUT marker (Closes #2193)
+
+- **Last site of the class, and it sits on the load-bearing proof.** `verify_emit_bitexact.py:127` took `vvp`'s stdout with no exit-code check. A crashed simulator yields a short Y-list, and the next check reports `step count RTL=0 PY=80` -- which reads as *the RTL emitted no outputs*, a design fault. Nothing had been compared
+- **The testbench already said so and nobody read it.** It prints `TIMEOUT` into the very stdout the script parses. A design that ran out of simulated time is not a design that disagrees with the model, and the two want different fixes
+- Exit code first (with the signal number when negative), then the `TIMEOUT` marker, then the step count -- which now states that vvp exited 0 and printed no TIMEOUT, so a mismatch there is real
+- **Verified by shortening the testbench timeout** so the branch fires, not by reading. Clean tree still exits 0
+- **Class closed.** Two `run(...).stdout` sites remain, both `git ls-files` inside `try/except` with `check=True` and an rglob fallback: a git failure raises and is handled, not swallowed
+- Dropped a hardcoded `#60000000` from the message on the second pass -- a literal copied into prose is exactly the drift this cycle has been correcting
+
 # NOW -- two required checks were a single echo (2026-08-18)
 
 Last updated: 2026-08-18
