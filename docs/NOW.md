@@ -1,3 +1,16 @@
+# NOW -- finish the diagnostic repair; a crash is not a numeric mismatch (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: 10 more sites took stdout without checking the exit code (Closes #2189)
+
+- **#2187 was a partial repair.** It fixed six `t27c gen-*` calls in one file; an AST re-scan found 12 more, in two classes
+- **Different call shape** (3 sites): the previous regex matched only the single-line form, so the multi-line `t27c gen-*` calls in `verify_multitarget.py` and `verify_trainer_c.py` were silently skipped
+- **Running the built binary** (8 sites): `.stdout` with no exit-code check means a crash arrives as a short or empty result list, and surfaces as a NUMERIC MISMATCH between targets. A program that died on signal 11 did not disagree about arithmetic -- and that is the most alarming reading the harness can produce
+- `_run_bin` joins `_build` and `_gen`, reporting the exit code and the signal when negative. All ten call sites now guard `None`, so a failure ends cleanly instead of raising `TypeError` on `None.split()`
+- **Verified by planting a fault:** `C target: cc exited 1` followed by `mod.h:18:34: error: use of undeclared identifier 'hm'`, where before there was only `FAIL: C backend failed to build/run`. All three tools still exit 0 on a clean tree
+- **Second partial repair in a row.** #2187's regex matched one call shape and I reported the pattern fixed without re-scanning. The AST scan is the check now, and it runs before the claim
+
 # NOW -- the wrappers threw the compiler's message away (2026-08-18)
 
 Last updated: 2026-08-18
