@@ -1,15 +1,44 @@
-name: Validate JSON Schemas
+name: Schema Validation
+
+# This workflow is named a required check in docs/BRANCH-PROTECTION.md. Its entire
+# body used to be:
+#
+#     echo "Validating JSON schemas..."
+#
+# A required check that cannot fail reads as coverage and is worse than none —
+# it is the shape of gate this repository has now found four times in one day.
+#
+# It now asks the weakest question worth asking: does every tracked JSON file
+# parse. That question is cheap, carries no theory that could itself be wrong,
+# and it immediately found a file a test actually loads:
+# clara-bridge/audit-trail/experience-schema.json had a literal `...` on line 40,
+# and clara-bridge/tests/run_tests.py:152 does json.load() on it — 3 of its 11
+# tests were failing, and no workflow runs clara-bridge.
+#
+# Known-unparseable files live in tools/json_parse_baseline.txt as debts, one per
+# line. Remove a line when the file is fixed and the gate then holds it fixed.
 
 on:
   pull_request:
     branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
-  validate:
+  schema-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Validate schemas
-        run: |
-          echo "Validating JSON schemas..."
+      # A gate nobody has seen fail is not a gate. This plants a malformed file
+      # and an empty one and proves the scan reports both while staying silent
+      # on a valid file.
+      - name: Negative control
+        run: python3 tools/check_json_parses.py --self-check
+
+      - name: Every tracked JSON parses
+        run: python3 tools/check_json_parses.py
