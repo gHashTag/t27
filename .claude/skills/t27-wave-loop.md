@@ -11851,6 +11851,24 @@ minutes; leaving it would have made the finding hypocritical.
 re-run and every log_sha256 differed, because nextpnr logs wall-clock timings. Say
 which fields pin a shipped file and which predict a re-run.
 
+**1291. READ THE CAPTION BEFORE OBJECTING TO THE NUMBERS.** I claimed sixteen
+frequencies were quoted without a seed count; four captions say "median of five
+placement seeds". Second time this session an objection died on a disclosure I had
+not read -- and in a session arguing that captions carry what tables cannot.
+
+**1292. A MEDIAN OF FIVE IS RIGHT; THE SPREAD IS STILL UNREPORTED.** Measured
+5.6%-20.5% across eleven designs with no obvious relation to size. That is a fair
+observation where "unstated seed count" was not.
+
+**1293. CHECK WHAT A HARNESS OBSERVES BEFORE TRUSTING ITS COST.** `d_*.v` folds
+only q[7:0]^q[31:24], so half the output word is dead and its logic is pruned. The
+under-count is 6.5% for posit16 and 80% for int8 -- biggest where the design is
+smallest.
+
+**1294. A TRAP IN SHIPPED RTL IS A FINDING; ATTRIBUTING IT TO A TABLE IS NOT.**
+Nothing references these harnesses and the paper's figures are 5-6x larger. Report
+the file, not the inference.
+
 ### How to update this tracker
 
 After closing a wave:

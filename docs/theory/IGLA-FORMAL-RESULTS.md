@@ -25951,6 +25951,72 @@ reproduced is a trap for the next reader**, who sees five hash mismatches and
 concludes the record is wrong. Now stated in the script, at the hashing line, and
 in a `reproducibility` field of the record itself.
 
+## W870 -- T698a withdrawn: the paper states the seed count, in four captions
+
+### T701 -- I RAISED AN OBJECTION THE CAPTION ANSWERS [measured]
+
+T698a held that sixteen frequencies printed to 0.01 MHz assert ~900x more
+precision than they reproduce, "unless they are medians over a stated seed count,
+which the table does not say". The captions say it:
+
+    tab:fullthroughput   "median of five placement seeds"
+    tab:cleandecode      "median of five seeds ... A bare wire in the same harness
+                          costs 112 LUT at 827.81 MHz"
+    tab:hierarchy        "median of five seeds"
+    tab:tnet             "median of five placement seeds, every accumulator bit observed"
+
+Only `tab:rejected` omits it. **T698a is withdrawn.** `tab:cleandecode` also
+reports its CONTROL in the caption, which I had said the table lacked -- it lacks
+a control ROW and states the control in prose.
+
+This is the same error as the literature survey's (T690): an objection produced
+without reading the disclosure that answers it. **Committed in a session whose
+central claim is that captions carry what tables cannot** -- I checked the numbers
+and not the caption governing them.
+
+### T701a -- WHAT SURVIVES: THE SPREAD A MEDIAN OF FIVE IS A MEDIAN OF [measured]
+
+Eleven decoder harnesses, five placer seeds each, xc7a200tfbg676-1:
+
+    d_baseline    10 LUT   1004.0 MHz   spread  7.9%
+    d_int8        10 LUT    995.0 MHz          5.6%
+    d_bin32       19 LUT    985.2 MHz          5.7%
+    d_tnf16       19 LUT    719.4 MHz         17.9%
+    d_bnf16       12 LUT    693.0 MHz         16.9%
+    d_gfternary   12 LUT    643.9 MHz         10.2%
+    d_lns16      132 LUT    304.9 MHz         20.5%
+    d_bin16       76 LUT    265.9 MHz          5.7%
+    d_ibmhfp     169 LUT    156.0 MHz         11.4%
+    d_posit16    156 LUT    129.1 MHz          7.8%
+    d_posit32    396 LUT     74.2 MHz          6.2%
+
+A median of five is the right estimator; **no table reports the spread it is a
+median of**, and that spread runs from 5.6% to 20.5% with no obvious relation to
+size. `d_posit8` did not synthesise (yosys error) and is excluded rather than
+scored zero.
+
+### T702 -- THE SHIPPED d_*.v HARNESSES OBSERVE 16 OF 32 OUTPUT BITS [measured]
+
+Every `fpga/tnet/d_*.v` ends `assign led = q[7:0] ^ q[31:24]`, so `q[23:8]` is
+never read and every decoder path feeding those bits is dead. Re-synthesised with
+all four bytes folded in:
+
+    posit16    123 -> 131 LC    +6.5%
+    bin32       11 ->  18 LC   +63.6%
+    gfternary    6 ->   9 LC   +50.0%
+    int8         5 ->   9 LC   +80.0%
+
+**The under-count is largest for the cheapest formats**, so a comparison built on
+these harnesses compresses the low end and flatters exactly the small formats TNF
+competes as.
+
+WHAT THIS IS NOT. It is not a finding about `tab:cleandecode`. Nothing in the tree
+references `d_gfternary` or `d_baseline` -- no workflow, no script, no caption --
+the paper's LUT figures are 5-6x larger than these, and `tab:tnet`'s caption says
+"every accumulator bit observed", which is the guard against precisely this. The
+finding is that RTL shipped in the tree carries the trap, and that its bias has a
+direction.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
