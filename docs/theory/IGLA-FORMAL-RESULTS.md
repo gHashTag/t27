@@ -25656,6 +25656,75 @@ survives: reach is 40/121/364 and comp. is 30/51/58.
 **So the command emits candidates, and says so in its own output.** Only
 reconstruction settles a column, which is why the two regenerators exist.
 
+## W867 -- the first literature survey in twenty-odd waves, and it corrects itself
+
+### T689 -- WEB SEARCH HAS NEVER WORKED, AND THAT IS A BLOCKER IN ITS OWN RIGHT [measured]
+
+Both survey agents attempted `WebSearch` and `WebFetch` first, as instructed, and
+both failed on every call with the identical error:
+
+    There's an issue with the selected model (glm-4.5-air).
+    It may not exist or you may not have access to it.
+
+So the survey is recall plus the paper's own text. **No citation in this paper has
+ever been checked against a source**, in this project, at any point. A referee
+checks related work first. This is a publication blocker independent of every
+number in the document, and it has been silently carried for twenty-odd waves
+because the survey was deferred each time rather than attempted and reported failed.
+
+### T690 -- THE STRONGEST OBJECTIONS ARE ONES THE PAPER ITSELF STATES [measured]
+
+The survey's headline threat was that TNF16's accuracy claim compares a 19-bit
+format against 16-bit formats, "corrected only 5,000 lines later". Checked
+directly, that framing is wrong:
+
+    line 95              "the adopted 16-bit rung (E_t,M)=(4,11) occupies 19
+                          physical bits"
+    line 97              "on the physical budget TNF holds no advantage at 16 or
+                          32 bits"
+    tab:acc's OWN caption "This table is stated at the nominal budget: the TNF16
+                          column occupies 19 physical bits against takum16's 16,
+                          so it is not an equal-storage comparison"
+
+Disclosed at the top of the paper AND in the caption of the very table concerned.
+My own arithmetic was also wrong -- I made it 20 bits by assuming two bits per
+trit; the paper packs `1 + ceil(4 log2 3) + 11 = 19`.
+
+Likewise `thm:nofree` -- that the ternary radix advantage vanishes on any existing
+fabric -- is a THEOREM IN THE PAPER, not an omission a referee would uncover.
+
+**The paper is unusually candid, and a survey run without sources will mistake
+candour for concealment**, because recall supplies the objection and cannot supply
+the disclosure.
+
+### T690a -- ONE THREAT SURVIVES THE CHECK, AND IT IS THE UNDISCLOSED ONE [measured]
+
+Six regenerators draw the exponent as `_rng.integers(-38, 39)` -- uniform over 77
+binades. The paper's central claim is flat precision across range, and a
+uniform-over-binades prior is precisely the prior under which flat precision wins.
+
+    "sampling prior" / "the prior" / "uniform over binades" /
+    "choice of workload" / "depends on the distribution"      0 occurrences
+
+The RANGE is visible: bins are labelled `|e|<8`, `|e| 8-20`, `|e| 20-38`, and line
+1049 says "inside |e| <= 38". The UNIFORMITY over that range, and its bearing on
+the result, is discussed nowhere. **That is the gap: not a hidden number, an
+unexamined dependency of the conclusion on the workload.**
+
+### T690b -- WHAT THE SURVEY IS WORTH, HONESTLY SCORED [derived]
+
+    threats raised                          9
+    disclosed by the paper already          6   (physical bits, no-advantage-at-16,
+                                                 thm:nofree, the takum RTL not
+                                                 synthesised, single flow, the
+                                                 M=9 ratios superseded)
+    survive as real gaps                    1   the sampling prior
+    unverifiable without sources            2   citation currency, competing recent work
+
+One real finding from nine. That is a poor yield -- and it is the yield of a survey
+that could not read anything. The correct conclusion is not "the literature is
+fine"; it is **that this check has not been performed and cannot be, here.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -11768,6 +11768,23 @@ now prints that these are candidates for reconstruction, not findings.
 both stored in a record and computable from the printed label. Finding it in the
 record alone confirms storage, not provenance.
 
+**1272. A SURVEY WITHOUT SOURCES MISTAKES CANDOUR FOR CONCEALMENT.** The
+headline "undisclosed" threat was stated at line 95 and in the caption of the very
+table concerned. Recall supplies the objection and cannot supply the disclosure --
+so check every threat against the document before repeating it.
+
+**1273. REPORT THE TOOL FAILURE AS THE FINDING.** WebSearch has failed on every
+attempt for twenty-odd waves. Deferring the survey each time hid a publication
+blocker: no citation in this paper has ever been checked against a source.
+
+**1274. THE UNDISCLOSED RISK IS THE ONE ABOUT THE PRIOR, NOT THE NUMBERS.** Six
+regenerators draw exponents uniformly over 77 binades, and the paper's claim is
+flat precision across range -- exactly what that prior rewards. Zero occurrences of
+"sampling prior" or "depends on the distribution" in the text.
+
+**1275. SCORE A SURVEY BY WHAT SURVIVES CHECKING.** Nine threats raised, six
+already stated by the paper, one real, two unverifiable. Report the yield.
+
 ### How to update this tracker
 
 After closing a wave:
