@@ -1,0 +1,10 @@
+# Occurrences that are text ABOUT a withdrawal, not a live claim.
+# Keyed path | pattern | sha1(line)[:12] -- editing the line re-opens the gate,
+# which is what we want for append-only documents like docs/NOW.md.
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 18f57dc20b45
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 700c6d6aca11
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | ce84017e739b
+docs/NUMERIC_FORMATS_SSOT.md | 323(\.[0-9]+)?\s*MHz | bbc2adf030a9
+docs/arxiv-trinity-gf16-draft.md | 322M\s*matmuls/sec | 1026a341042f
+docs/arxiv-trinity-gf16-draft.md | 323(\.[0-9]+)?\s*MHz | 6daf60f68b57
+docs/arxiv-trinity-gf16-draft.md | 41\.2\s*GOPS | 546e04c73288

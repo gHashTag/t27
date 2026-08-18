@@ -1,0 +1,42 @@
+name: Withdrawn Number Gate
+
+# Kills the bug class where a correction reaches the notes and never reaches the
+# reader. `323 MHz` was established on 2026-08-05 to be a ring-oscillator toggle
+# rate on a netlist containing none of the circuit being claimed. Three documents
+# recorded the withdrawal. The arXiv draft and its .tex kept the number in the
+# title, the abstract, the results table and a sentence asserting it came "from
+# actual FPGA hardware runs" -- for ten days, through an intervening honesty pass
+# over the same file that was looking at a different sentence.
+#
+# The registry is tools/withdrawn.txt: one regex per withdrawn number. Add the row
+# when the number is withdrawn, not when the paper is finally fixed -- those two
+# events were ten days apart, which is the whole reason this gate exists.
+#
+# Dated history under docs/reports/ is excluded on purpose: a record of what was
+# believed on a date is not a live claim. So is the claims registry, which has to
+# be able to state what it withdrew.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  withdrawn-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Negative control first. A gate nobody has seen fail is not a gate:
+      # this plants a withdrawn number in a temp tree and proves the scan fires
+      # on it and stays silent on a clean file.
+      - name: Negative control
+        run: python3 tools/check_withdrawn_live.py --self-check
+
+      - name: No withdrawn number in a live document
+        run: python3 tools/check_withdrawn_live.py

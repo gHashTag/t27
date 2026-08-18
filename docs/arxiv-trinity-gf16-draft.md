@@ -1,8 +1,8 @@
-# Trinity GF16: A phi-Anchored 16-bit Float with FPGA Implementation at 323 MHz
+# Trinity GF16: A phi-Anchored 16-bit Float, Synthesised with an Open-Source FPGA Toolchain
 
 ## Abstract
 
-We introduce Golden Float 16 (GF16), a 16-bit floating-point format with a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout (sign/exponent/mantissa) and achieves 323 MHz combinational throughput on a Xilinx Artix-7 XC7A100T FPGA using the open-source openXC7 toolchain (Yosys + nextpnr). We present a complete dot-product (N=4) and 4x4 matrix multiplication accelerator verified in FPGA synthesis and RTL simulation, with 35/35 tests passing and 0 timing violations at 100 MHz. The design has been submitted for ASIC fabrication on Sky130 via the TinyTapeout TTSKY26b TT4913 Gamma shuttle (submission closed May 2026); silicon has not yet been returned (expected late 2026), so no on-chip measurement is claimed.
+We introduce Golden Float 16 (GF16), a 16-bit floating-point format with a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout (sign/exponent/mantissa) and is synthesised for a Xilinx Artix-7 XC7A100T FPGA entirely with the open-source openXC7 toolchain (Yosys + nextpnr), with no vendor licence. No operating frequency is claimed: see §4.3. We present a complete dot-product (N=4) and 4x4 matrix multiplication accelerator verified in FPGA synthesis and RTL simulation, with 35/35 tests passing. The design has been submitted for ASIC fabrication on Sky130 via the TinyTapeout TTSKY26b TT4913 Gamma shuttle (submission closed May 2026); silicon has not yet been returned (expected late 2026), so no on-chip measurement is claimed.
 
 ## 1. Introduction
 
@@ -120,19 +120,37 @@ C[i][j] = dot4(A[i][0:3], B[0:3][j])
 
 ### 4.2 Resource Utilization
 
-| Design | LUTs | DSP48E1 | Max Freq | Tests |
-|--------|------|---------|----------|-------|
-| GF16 mul | ~650 | 1 | 330 MHz | 13/13 |
-| GF16 dot4 | 2,605 | 4 | 322 MHz | 6/6 |
-| GF16 matmul 4x4 | 40,350 | 64 | 323 MHz | 35/35 |
+| Design | LUTs | DSP48E1 | Tests |
+|--------|------|---------|-------|
+| GF16 mul | ~650 | 1 | 13/13 |
+| GF16 dot4 | 2,605 | 4 | 6/6 |
+| GF16 matmul 4x4 | 40,350 | 64 | 35/35 |
+
+Resource figures are `yosys stat` on the DUT. They are **not** from the placed
+wrapper that produced the bitstream: that wrapper feeds the DUT literal constants,
+so the arithmetic is constant-folded out and its synthesised design module holds
+55 cells and no DSP48E1. The two must not be presented as one measurement.
+A `Max Freq` column stood here and is withdrawn; see §4.3.
 
 ### 4.3 Timing
 
-All designs pass timing at 100 MHz with positive slack:
+**No operating frequency is claimed for GF16, and the figure previously reported
+here is withdrawn.**
 
-```
-Max frequency for clock 'chain[19]': 323.31 MHz (PASS at 100.00 MHz)
-```
+The reported clock, `chain[19]`, is the output of a 20-stage LUT1 ring oscillator
+that the test wrapper instantiates; it clocks a 23-bit counter and nothing else.
+The GF16 arithmetic is purely combinational -- `grep -c posedge` over
+`gf16_{mul,add,dot4,matmul4x4}.v` returns 0, 0, 0, 0 -- so it has no synchronous
+path to time, and the constraint file contains no `create_clock`, which makes
+"PASS at 100 MHz" a default target on an auto-inferred domain holding only the
+counter. The tell was visible without any of that: three designs whose sizes
+differ by 62x reported 330 / 322 / 323 MHz, a 2.5 % spread, and a real critical
+path cannot be invariant to a 62x change in size.
+
+Establishing a frequency for this design requires registering the datapath and
+constraining it. That work has not been done, so no number is offered in its
+place. Full analysis: `docs/nona-03-manifest/RESEARCH_CLAIMS.md`, Retraction
+2026-08-18.
 
 ### 4.4 Latch Elimination
 
@@ -151,10 +169,13 @@ All designs verified on FPGA via XVC programming:
 
 | Metric | Value |
 |--------|-------|
-| Dot4 throughput | 322M dot4/sec (combinational, 1-cycle) |
-| Matmul4x4 throughput | 322M matmuls/sec (fully parallel) |
-| GF16 ops/sec (matmul) | 41.2 GOPS @ 323 MHz |
-| GF16 ops/sec @ 100 MHz | 12.8 GOPS |
+| GF16 ops per matmul4x4 | 128 (64 multiplies + 64 adds) |
+| Throughput at a clock of *f* | 128 x *f* ops/sec, fully parallel, 1 cycle |
+
+Absolute throughput figures previously stood here -- 322M matmuls/sec and
+41.2 GOPS -- and are withdrawn with the frequency they were computed from
+(§4.3). The op count per matmul is a property of the design and stands; the
+rate is not known until a frequency is measured.
 
 ## 5. ASIC Path (TinyTapeout TTSKY26b TT4913 Gamma)
 
@@ -194,7 +215,7 @@ A complete Python reference (encode/decode/mul/add/dot4) is provided in `conform
 
 We have demonstrated a complete implementation of the Trinity GF16 floating-point format, from specification through FPGA verification to ASIC submission. The phi-anchored bias=31 provides a natural centering for ML and scientific computation values, while the 6/9 exponent/mantissa split offers 65x wider dynamic range than float16 with better precision than bfloat16.
 
-All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0 latches, 0 timing violations) are from actual FPGA hardware runs (Artix-7 XC7A100T), not ASIC silicon nor simulation estimates.
+What this work establishes, and no more: the design synthesises for the Artix-7 XC7A100T through an entirely open-source flow, its testbench passes 35/35, and Yosys infers no latches. The resource figures are synthesis statistics on the DUT. **No operating frequency, and therefore no throughput, is claimed** -- the figure previously reported was a ring-oscillator probe and is withdrawn (§4.3). No ASIC silicon has been measured.
 
 ## References
 

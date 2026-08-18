@@ -140,6 +140,45 @@ claim (`FALSIFIED_AS_EXACT`; no Standard Model derivation; ~65.7 deg vs PMNS
 spec. (Note: `specs/physics/formula_discovery.t27` uses a distinct expression
 9*phi^-2, which is a separate empirical fit, not this retracted claim.)
 
+**Retraction (2026-08-18).** The GF16 figure **323 MHz on Artix-7** is withdrawn
+(`FALSIFIED_AS_EXACT`), together with everything derived from it: **41.2 GOPS**,
+**322M matmuls/sec**, the **40,350 LUT / 64 DSP48E1** row it shares a table with,
+and the sentence asserting all of them came "from actual FPGA hardware runs".
+
+The number is the toggle rate of a **20-stage LUT1 ring oscillator** the test
+wrapper instantiates, not a path through any GF16 arithmetic. Four independent
+checks, each sufficient on its own:
+
+1. `fpga/vivado/gf16_matmul4x4_top.v:22` is the design's **only** sequential
+   statement -- `always @(posedge osc)` on a 23-bit counter, where
+   `osc = chain[19]` is the ring output.
+2. `grep -c posedge` over `gf16_{mul,add,dot4,matmul4x4}.v` returns **0, 0, 0, 0**.
+   The arithmetic contains no clocked logic, so it has no synchronous path to time.
+3. `gf16_matmul4x4_top.xdc` contains **no `create_clock`**. "PASS at 100 MHz" and
+   "0 timing violations" describe a default target on an auto-inferred domain
+   holding only the counter.
+4. The synthesised design module in `target/gf16-build/gf16_matmul4x4_top.json`
+   holds **55 logic cells** -- LUT1 19, FDRE 23, CARRY4 6, BUFG 1, INV 4, OBUF 2 --
+   which is exactly the ring, the counter, its carry chain and the LEDs.
+   **GF16 contributes zero cells and zero DSP48E1**, because the wrapper feeds the
+   DUT literal constants and the arithmetic is constant-folded away.
+   (When re-checking this: count the *design* module. The same JSON contains
+   `DSP48E1: 18 cells` for the Xilinx *cell-library model*, which is timing
+   metadata, not instances.)
+
+A tell was visible without any of the above: three designs whose claimed sizes
+differ by **62x** report 330 / 322 / 323 MHz, a 2.5 % spread. A real critical path
+cannot be invariant to a 62x change in design size.
+
+It must not be cited as evidence in any t27 first-party document or spec. No
+replacement frequency is offered, because none was measured; what the build does
+establish is that the design synthesises and that its testbench passes.
+
+The withdrawal was recorded in research notes on 2026-08-05 and 2026-08-08 and
+**never reached the papers** -- they still carried it ten days later, through an
+intervening honesty pass over the same file. Hence the gate: `tools/check_withdrawn_live.py`
+fails CI if a withdrawn number reappears in a live document.
+
 ---
 
 ## 6. Maintenance rules

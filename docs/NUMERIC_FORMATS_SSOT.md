@@ -222,7 +222,7 @@ The whitepaper's latest family table matches the canonical splits above.
 - **GF16 — VERIFIED + FROZEN SILICON.** Production Rust (`trios-trainer-igla`) +
   C codegen ([`../gen/c/numeric/gf16.c`](../gen/c/numeric/gf16.c)) + RTL
   ([`tt-trinity-gamma/src/gf16_v2_mul.v`](../../tt-trinity-gamma/src/gf16_v2_mul.v)
-  and `gf16_v2_add.v`); 35/35 FPGA testbench @ 323 MHz Artix-7; benchmarked
+  and `gf16_v2_add.v`); 35/35 FPGA testbench on Artix-7 (no operating frequency claimed — the 323 MHz figure is withdrawn, see docs/nona-03-manifest/RESEARCH_CLAIMS.md); benchmarked
   (97.67% MNIST MLP, 0.00% accuracy gap vs f32); fabricated in TTSKY26b TT4913 Gamma.
 - **GF4/8/12/20/24/32 — Verified.** Spec + Verilog RTL in `tt-trinity-gamma/src/`.
 - **GF64 — Verified.** Spec ([`gf64.t27`](../specs/numeric/gf64.t27), #916) +
