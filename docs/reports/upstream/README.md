@@ -121,7 +121,7 @@ differences. That is what two separate audit passes saw and could not account
 for. `recompute_ladder_exact.py` owns `tab:ladderacc`. The proposed header says
 so, in the file, so the next reader loses minutes instead of hours.
 
-## 8. `PROVENANCE-OPEN-QUESTION.md` — the one thing only you can answer
+## 8. Provenance — the paper does not state it, but the labels encode it
 
 `tnf_paper.tex` names none of its data: `.json` 0 occurrences, `measurements/` 0,
 `recompute_` 0, `gen_figures` 0. All twelve occurrences of "measurements" are the
@@ -129,16 +129,67 @@ English word. So of 59 tables carrying fractional numbers, **0 state which recor
 backs them**, and 4 have a regenerator a reader could run — 121 of 2,094
 fractional cells, **5.8 %**.
 
-We did not guess the mapping. Matching the README's prose against all 60 captions
-resolves one of eight; five tie and two have no candidate. A provenance table
-assembled from ties would be wrong in five rows and would read downstream as
-authoritative — the defect class Section 27 documents twenty times over.
+**Correction to an earlier draft of this note.** It said the mapping was not
+recoverable from outside and offered `gpt2_window -> tab:landing` as the one safe
+row. Both claims were wrong, and the cause was that the search read caption TEXT
+and never grepped `\label{tab:`. The labels are named after the records:
 
-The cheap fix, if you want it: one line per caption,
-`\emph{Data:} \texttt{measurements/per_rung_2026-08-13g.json}`. It is the least
-expensive change in this package and the largest gain in what a reader can check.
+    gpt2_window_2026-08-13e.json        ->  tab:gpt2window
+    centering_2026-08-13f.json          ->  tab:centring
+    tnf_downstream_bayesian_si_...json  ->  tab:downstream
+    workloads_strict_2026-08-13g.json   ->  tab:workloads
 
----
+`centring` also explains one "no candidate": the label uses the British spelling
+(13 occurrences) and the prose the American (148).
+
+### What numeric overlap adds, and where it stops
+
+Each record's numbers were matched against the cells of all 60 tables, with the
+median across all tables as the noise floor. Values 0, 1, 2, 100 and anything
+below 1e-3 excluded as non-distinctive:
+
+| record | best table | match | runner-up | noise floor |
+|---|---|---|---|---|
+| `workloads_strict` | `tab:workloads` | 93.3 % (89 cells) | 46.7 % | 22.9 % |
+| `centering` | `tab:centring` | 92.6 % (27 cells) | 73.3 % | 27.3 % |
+| `inside_window` | `tab:landing` | 78.8 % (33 cells) | 33.3 % | 8.2 % |
+| `crossover2` | `tab:window` | 96.6 % (29 cells) | 66.7 % | 24.4 % |
+| `tnf_downstream` | `tab:downstream` | 14.7 % (34 cells) | 13.3 % | 0.0 % |
+| `per_rung` | `tab:paretobudget` | 95.2 % | 82.8 % | **53.2 %** |
+| `strict_range` | `tab:invariant` | 100 % | 93.1 % | **56.5 %** |
+
+**The method fails on large records.** `per_rung` holds 408 distinct numbers and
+`strict_range` 563; at that size a record matches most of the paper and the noise
+floor rises above half. Those two rows are not evidence of anything.
+
+**And it is not stable under its own filter.** `gpt2_window` ranks
+`tab:gpt2window` at 44 % against `tab:landing` at 5.4 % unfiltered, but with the
+non-distinctive values excluded `tab:gpt2window` leaves the top two entirely. We
+report both rather than the one we prefer.
+
+### What we would actually assert
+
+Three mappings carry **two independent agreeing signals** — the label is named
+after the record, and the record is that table's numeric top-1:
+
+    centering_2026-08-13f.json         -> tab:centring
+    workloads_strict_2026-08-13g.json  -> tab:workloads
+    tnf_downstream_bayesian_si_....json -> tab:downstream
+
+One carries strong numeric separation without name support:
+
+    inside_window_2026-08-13f.json     -> tab:landing   (78.8 % vs 33.3 %, floor 8.2 %)
+
+The rest we leave to you. `per_rung` and `strict_range` in particular cannot be
+settled by this method at all.
+
+### The cheap fix, if you want it
+
+One line per caption — `\emph{Data:} \texttt{measurements/per_rung_2026-08-13g.json}` —
+turns 59 tables a PDF reader cannot check into 59 they can. The information
+already exists in your label names; it just does not survive into the rendered
+document. It is the least expensive change in this package and the largest gain
+in what a reader can confirm.
 
 ## What was verified, and what was not
 
