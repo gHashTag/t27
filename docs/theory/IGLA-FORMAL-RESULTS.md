@@ -25501,6 +25501,32 @@ table. `ratio == takum_err / tnf_err` holds to 1e-9 on all thirty rows; that
 identity is what named the column, and the script asserts it so a future reader
 does not have to trust the mapping either.
 
+### T685 -- THE PACKAGE WAS MERGED, AND THE THIRD COMMIT MISSED THE BOAT [measured]
+
+PR #601 opened 13:32Z, **merged by `gHashTag` at 13:42Z** -- ten minutes, squashed
+onto `tnf-publication-readiness` as `b68f39707`. Both commits are in: the three
+paper defects, the three gate corrections, and the five `\emph{Data:}` captions.
+
+The regenerator commit was pushed at 13:47Z and did NOT enter, which is why the
+PR head appeared frozen at `a9ec73d63` while the branch stood at `eb7b0d0c5`. I
+read that as a GitHub sync lag and polled it for two minutes before trying to
+reopen the PR -- which failed with "already merged". **The diagnosis was available
+in the first query I made**: `state` was the field to read, not `head.sha`.
+
+Re-cut from the merged base as `tnf-invariant-oracle`, cherry-picked clean, and
+opened as PR #603.
+
+### T685a -- WHAT A TEN-MINUTE MERGE MEASURES [derived]
+
+Six waves argued about whether the package was ready to send. It was reviewed and
+taken in ten minutes. **The cost of not sending was six waves of deliberation; the
+cost of sending was one PR.** The correction discipline that made it defensible
+was worth the effort; the hesitation about whether to offer it at all was not.
+
+    defects reported and accepted     3 paper, 3 gates
+    still open                        2 further defects, 1 regenerator (PR #603)
+    tables a reader can verify        4 -> 9 of 59
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

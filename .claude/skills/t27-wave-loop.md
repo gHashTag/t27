@@ -11721,6 +11721,15 @@ a plausible 26-row agreement. Check emphasis, not only values.
 produced 38 mismatches that would have read as a broken table. The identity
 ratio == takum_err/tnf_err named it, and the script now asserts that too.
 
+**1261. READ `state` BEFORE DIAGNOSING A SYNC LAG.** A PR head frozen behind its
+branch meant the PR was MERGED, not lagging. I polled for two minutes and tried to
+reopen it before the error message told me. The field was in the first response.
+
+**1262. A MERGE IN TEN MINUTES PRICES THE HESITATION.** Six waves debated whether
+the package was ready to send; the owner reviewed and merged it in ten minutes.
+Correction discipline made it defensible and was worth it -- deliberating about
+whether to offer it at all was not.
+
 ### How to update this tracker
 
 After closing a wave:

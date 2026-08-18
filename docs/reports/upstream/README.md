@@ -1,6 +1,10 @@
-# Proposed upstream, `gHashTag/trinity-fpga`, branch `tnf-publication-readiness`
+# Upstream, `gHashTag/trinity-fpga`, branch `tnf-publication-readiness`
 
-Seven items: three paper defects, two gate corrections, one superseded-script
+**STATUS.** Items 1-8 went out as PR #601 and were **merged by the repository
+owner on 2026-08-18 at 13:42Z**, ten minutes after opening. Item 9 is PR #603,
+open, built on the merged base.
+
+Nine items: three paper defects, two gate corrections, one superseded-script
 marker, one open question. Every claim below was measured on
 `origin/tnf-publication-readiness` at `9ce0d1129`, before and after, in the same
 environment.
