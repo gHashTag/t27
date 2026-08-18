@@ -38,6 +38,14 @@ pub enum PrCmd {
         /// Seconds between polls while waiting.
         #[arg(long, default_value_t = 30)]
         poll: u64,
+        /// Merge the pull request if — and only if — the verdict is safe.
+        ///
+        /// The verdict cannot gate anything if the caller puts `gh pr merge` in
+        /// the same batch as this command: it prints WAIT, the merge runs
+        /// anyway, and nobody reads the line. That happened four times in one
+        /// session. Handing the merge to the command makes the two inseparable.
+        #[arg(long)]
+        merge: bool,
     },
 }
 
@@ -49,7 +57,8 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             baseline,
             wait,
             poll,
-        } => ready(*number, repo.as_deref(), *baseline, *wait, *poll),
+            merge,
+        } => ready(*number, repo.as_deref(), *baseline, *wait, *poll, *merge),
     }
 }
 
@@ -120,7 +129,7 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
-fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64) -> Result<()> {
+fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, merge: bool) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
         None => gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?,
@@ -237,8 +246,24 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64) -> 
     println!();
     if pending > 0 {
         println!("VERDICT: WAIT — {pending} check(s) still running, the list is incomplete.");
+        if merge {
+            println!("Not merging: the list is incomplete. Re-run with --wait.");
+        }
     } else if new_here.is_empty() {
         println!("VERDICT: safe to merge — every failure is failing elsewhere too.");
+        if merge {
+            println!();
+            let out = Command::new("gh")
+                .args(["pr", "merge", &n.to_string(), "--repo", &repo,
+                       "--squash", "--delete-branch"])
+                .output()
+                .context("failed to run gh pr merge")?;
+            if out.status.success() {
+                println!("Merged.");
+            } else {
+                println!("Merge refused: {}", String::from_utf8_lossy(&out.stderr).trim());
+            }
+        }
     } else {
         println!(
             "VERDICT: DO NOT MERGE — {} failure(s) appear only here:",
