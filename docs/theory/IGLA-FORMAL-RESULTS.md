@@ -23783,6 +23783,104 @@ Design 11 carries two dot-product instances in 10,857 LUT against design 3's
 five instances in 12,724 -- yosys shares aggressively across instances, which is
 itself worth remembering next to T604.
 
+## W840 -- three hypotheses built, three refuted, and the gap is now small enough to hand over
+
+### T607 -- THE W839 CRITERION IS WRONG, AND A CONTROL I HAD NEVER BUILT SAYS SO [self-critical]
+
+W839 published: clauses comparing a DUT output against a CONSTANT hold; clauses
+comparing two DUT INSTANCES fail. Design 14 was built to test it with the control
+this bench had never had -- two instances of one function with the SAME operand
+order -- and it registered three forecasts. Two held. The third did not:
+
+    design 14   c_init=1  c_self=1  c_comm=1  c_ind=1   ok=1, on TWO dice
+
+**c_comm passed**, with a comparison textually identical to design 12's:
+
+    design 12   GftSmul u_c1(.a(live), .b(TWO))  vs  u_c2(.a(TWO), .b(live))
+    design 14   GftSmul u_comm_a(.a(live),.b(TWO)) vs u_comm_b(.a(TWO),.b(live))
+
+Same functions, same operands, same swap, one fails and one passes. **The failure
+is a property of the surrounding wrapper, not of the comparison** -- which is a
+different claim from the one W839 made, and it retires that criterion.
+
+`c_init=1` also settles a question this bench had never asked: register INIT
+values survive the openXC7 flow. A never-written register seeded 0x5A5A1234 read
+back 0x5A5A1234.
+
+### T608 -- THE SECOND-COUNTER HYPOTHESIS, BUILT AND REFUTED [measured]
+
+One property divided the sample without exception: designs 12 and 13 drive TWO
+counters, design 14 drives ONE. Design 15 is design 14 with a second counter and
+nothing else changed.
+
+    design 15   1111  ok=1     -- FORECAST c_comm=0 REFUTED
+
+### T609 -- THE FOLDABLE-NEIGHBOUR HYPOTHESIS, BUILT AND REFUTED [measured]
+
+Design 12 holds three instances that fold to constants -- `smul(0,live)` and
+`smul(live2,0)` vanish under the zero guard, `smul(1.0,1.0)` has no live operand
+-- and reports 1.57 DUT-equivalents against design 14's 2.21. Design 16 is design
+15 with two foldable instances added.
+
+    design 16   1111  ok=1     -- FORECAST c_comm=0 REFUTED
+
+Note also that DUT-equivalents did NOT drop as forecast: 2.30 against design 15's
+2.31. Adding foldable instances did not increase sharing, so the metric was
+measuring something other than what the hypothesis assumed.
+
+### T610 -- THE v2 DESIGN NIBBLE IS FOUR BITS AND IT IS NOW FULL [self-critical]
+
+Design 16 was written `4'd16`. Verilog truncated it to 0 without a diagnostic,
+the die answered as design 0, and the service -- looking for 16 -- refused to
+resolve rather than reporting a neighbour's PASS. **The W839 refusal caught my
+own arithmetic error on its first outing**, which is the strongest thing that can
+be said for a guard.
+
+Ids 1-15 were spent, so 0 is the last one v2 has. **The next wrapper this bench
+adds has nowhere to go.** The word has two hardcoded padding bits (`1'b0, 1'b1`)
+that a v3 layout could absorb into a six-bit field; that is a format change
+touching every wrapper and it is not this wave's to make.
+
+### T611 -- WHAT REPRODUCES, ON HOW MANY DICE [measured]
+
+    design                              clauses   dice   verdict
+    12 gft_smul        6 inst, 2 ctr     1010      2     c_comm=0, c_ind=0
+    13 gft_signed_mac  5 inst, 2 ctr     0011      2     c_zero=0, c_comm=0
+    14 gft_dup         5 inst, 1 ctr     1111      2     all hold
+    15 gft_dup2        + 2nd counter     1111      1     all hold
+    16 gft_dup3        + foldables       1111      1     all hold
+
+Both failures reproduce on two dice each; all three passes reproduce. This is not
+a flaky bench -- it is a deterministic difference between two groups of wrappers,
+and after three experiments the difference is smaller than it was but not named.
+
+`c_zero=0` in design 13 remains CONFIRMED and untouched by any of this: it is a
+constant comparison, it was forecast from source, and it reproduced on two dice.
+**The corpus split established in W839 stands.**
+
+### T612 -- COMMUTATIVITY OF `smul`, PROVED A THIRD WAY [derived]
+
+    reading      the operands enter only via (512+am)*(512+bm), ao+bo, sa^sb
+    Icarus       0 mismatches over 8,192 operand pairs across the band
+    yosys SAT    `sat -prove eq_comm 1` -- no model found: SUCCESS
+
+The SAT run used `flatten; opt -full`, which is NOT the flow's synthesis script,
+so it proves the arithmetic and not the built netlist. Recorded as a third
+independent confirmation of the algebra, not as a test of the pipeline.
+
+### T612a -- forecast count, twelfth entry [derived]
+
+    W840  (2 confirmed / 0 withdrawn / 3 refuted)
+
+Confirmed: `c_init` (INIT survives the flow), `c_self` (identical instances
+agree). Refuted: `c_comm` in all three constructed wrappers.
+
+**Three refutations in one wave is the wave working, not failing.** Each cost one
+40-second build and each removed a candidate that would otherwise have been
+carried forward as an assumption. What remains is a short enumerable list of
+differences between design 12 and design 16, on 800-LUT designs, which is a far
+better place to hand over from than W839's 12,724-LUT starting point.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

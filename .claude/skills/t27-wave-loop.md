@@ -11283,6 +11283,30 @@ excluded by proof and Icarus, timing excluded by a measured 3.7x margin,
 reproduced on 3 designs / 2 boards / 2 loads -- and the mechanism still unnamed.
 Publishing the bounded gap beats naming a mechanism to have named one.
 
+**1172. BUILD THE CONTROL YOU NEVER BUILT.** W839 concluded "instance comparisons
+fail" from three designs that all compared SWAPPED instances. One wrapper with two
+instances in the SAME order refuted it in forty seconds. Before generalising from
+a pattern, ask which cell of the table has never been filled.
+
+**1173. A REFUTED HYPOTHESIS COSTS ONE BUILD AND BUYS A CANDIDATE REMOVED.**
+W840 built three and lost three, and ended with a smaller gap on an 800-LUT design
+instead of a 12,724-LUT one. Cheap decisive experiments beat expensive careful
+reasoning when the build is under a minute.
+
+**1174. `4'd16` IS ZERO AND VERILOG WILL NOT TELL YOU.** A width-truncated literal
+is silent. The design-id guard caught it only because the guard compares against
+what the SOURCE declares; had it trusted the word, it would have reported a
+neighbour's PASS. Range-check every field you pack by hand.
+
+**1175. WHEN A METRIC DOES NOT MOVE WITH THE HYPOTHESIS, THE HYPOTHESIS WAS ABOUT
+SOMETHING ELSE.** Adding foldable instances was forecast to drop DUT-equivalents
+toward 1.57; it moved 2.31 -> 2.30. The metric was not measuring what the
+hypothesis assumed, and that is worth as much as the clause bits.
+
+**1176. A GUARD'S FIRST REAL CATCH SHOULD BE YOUR OWN MISTAKE.** The W839
+design-id refusal earned its place by refusing a wave that had mis-encoded its
+own identity -- not by refusing a hypothetical.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -141,6 +141,9 @@ def report(idx, reads=5, chain=3):
                 11: ("gft_dot4_comm", ['c_imm', 'c_settled', 'c_swept', 'c_ind']),
                 12: ("gft_smul (guarded zero)", ['c_zero', 'c_comm', 'c_gold', 'c_ind']),
                 13: ("gft_signed_mac (no guard)", ['c_zero', 'c_comm', 'c_cancel', 'c_ind']),
+                14: ("gft_dup (duplication control)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
+                15: ("gft_dup2 (+2nd counter)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
+                0:  ("gft_dup3 (+foldable neighbours)", ['c_init', 'c_self', 'c_comm', 'c_ind']),
             }
             nm, cn = DESIGNS.get(did, (f"design {did}", ["c3","c2","c1","c0"]))
             names = nm
