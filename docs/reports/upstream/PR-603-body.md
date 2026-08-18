@@ -1,4 +1,4 @@
-Follow-up to #601. Eleven commits, each independent — drop any without disturbing
+Follow-up to #601. Twelve commits, each independent — drop any without disturbing
 the rest. Rebased on `ae868cfe`.
 
 ## Paper corrections
@@ -70,6 +70,21 @@ Between-configuration spread reaches 96.7 % of the median; the widest
 within-configuration seed spread here is 41.7 %. **`placer` occurs 0 times in
 `tnf_paper.tex`, and so does `router`.** The captions name the tool and its commit,
 the part, the DSP setting and the seed count — everything except the largest knob.
+
+**Extended to all 21 designs (315 runs), the pair changes the *ranking*, not only
+the magnitudes.** With ties under 3 % excluded: 7 pairwise inversions between
+`heap/router1` and `heap/router2` — a router change alone — and **every one of the
+seven involves a TNF-family or GFTernary comparison against fp8**:
+
+    fp8e4m3 vs gfternary   647.2/675.7 → 597.4/509.9    winner flips
+    fp8e5m2 vs tnf16       594.2/642.7 → 607.5/584.1    winner flips
+    gfternary vs tnf16     675.7/642.7 → 509.9/584.1    winner flips
+
+Under `sa/router2`, fp8e5m2-vs-tnf16 goes from TNF ahead to fp8 ahead threefold
+(446.4 vs 148.3). A magnitude error scales; a ranking inversion is a wrong
+conclusion. These are decoder harnesses on a different part — no published row is
+contradicted — but the property belongs to the toolchain, and a caption that omits
+the pair pins its ranking to an unstated choice.
 
 This is not pedantry: `tnf-cost-sweep.yml` tries the three configurations **in order**
 and keeps the first that routes, so a published median is a median over seeds within
