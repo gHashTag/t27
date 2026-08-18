@@ -14,7 +14,7 @@ This file is the **human-facing queue**: what should go out **next**, and which 
 | P1 | Conformance corpus as dataset | *open `publication-task`* | none | Checksum manifest; `conformance/README.md` done |
 | P1 | GoldenFloat validation CSV bundle | *open `benchmark-task` + `publication-task`* | none | Fill `NUMERICS_VALIDATION.md` §5 |
 | **P0** | **TNF article** `docs/theory/TNF_ARTICLE_RU.md` | *open `publication-task`* | none | Three blockers in `PUBLICATION_AUDIT.md` §W845: seed-sweep the silicon table, re-declare the toolchain, add retractions |
-| P2 | LANGUAGE_SPEC v1 snapshot | *open `publication-task`* | none | Complete `docs/LANGUAGE_SPEC.md` |
+| P2 | LANGUAGE_SPEC v1 snapshot | *open `publication-task`* | none | Complete `docs/nona-02-organism/LANGUAGE_SPEC.md` |
 
 ---
 
