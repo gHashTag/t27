@@ -9,7 +9,7 @@ gf8_bfp,GF8-BFP (block FP atop GF8),8,1/3/4,3,1.5,1.8,0.132,GoldenFloat,experime
 gf10,GoldenFloat GF10 (10-bit),10,1/3/6,3,2.1,1.8,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact,8,0,0,specs/numeric/gf10.t27
 gf12,GF12,12,1/4/7,7,2.4,4.2,0.047,GoldenFloat,self,Verified,this work; L0/F3,mid-range / audio,bitexact,8,0,0,BENCH-007 (specs/numeric/gf12.t27)
 gf14,GoldenFloat GF14 (14-bit),14,1/5/8,15,2.7,9.0,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf14.t27
-gf16,GF16,16,1/6/9,31,3.0,18.7,0.049,GoldenFloat,self,Verified,this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7,training and inference (production),bitexact,,0,0,specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)
+gf16,GF16,16,1/6/9,31,3.0,18.7,0.049,GoldenFloat,self,Verified,this work; PHI_BIAS=60; FPGA 35/35 on Artix-7 (no frequency claimed; 323 MHz withdrawn),training and inference (production),bitexact,,0,0,specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)
 gf_lns_hybrid,GF + LNS hybrid (dual-space),16,1/6/9,31,3.0,18.7,0.049,GoldenFloat,experimental,Experimental,"this work; mul in log-space, accumulate Lucas-closed",OPEN R&D: dual-space arithmetic,bitexact,8,0,0,section12.5
 gf20,GF20,20,1/7/12,63,3.9,37.9,0.035,GoldenFloat,self,Experimental,this work; 17-squared empirical PHI_BIAS=289,high-precision edge,bitexact,8,0,0,specs/numeric/gf20.t27 (spec only)
 gf24,GF24,24,1/9/14,255,4.5,153.5,0.025,GoldenFloat,self,Experimental,this work; L15 PHI_BIAS=1364,server inference,bitexact,8,0,0,specs/numeric/gf24.t27 (spec only)

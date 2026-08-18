@@ -41,7 +41,7 @@ module GoldenFloatFamily {
     //
     // Status (v1.2):
     //   - Verified arithmetic (rule produces exact widths): 17/17.
-    //   - Frozen silicon anchor: GF16 = 1+6+9, bias = 31
+    //   - Frozen tape-out anchor: GF16 = 1+6+9, bias = 31
     //     (tt-trinity-gamma/src/gf16_v2_mul.v).
     //   - Whether the ladder is BETTER than an equally-tuned non-phi
     //     family (posit / OCP-MX / takum / LNS) stays [Open conjecture].

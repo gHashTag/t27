@@ -59,7 +59,7 @@ These four columns are mathematically exact and independently re-derived.
 | GF10  | 1+3+6   | 10   | 3                  | 7                  | 0.500 | 0.118 | Conj | [`gf10.t27`](../specs/numeric/gf10.t27) ‡ |
 | GF12  | 1+4+7   | 12   | 7                  | 15                 | 0.571 | 0.047 | Verified | [`gf12.t27`](../specs/numeric/gf12.t27) |
 | GF14  | 1+5+8   | 14   | 15                 | 31                 | 0.625 | 0.007 | Conj | [`gf14.t27`](../specs/numeric/gf14.t27) ‡ |
-| **GF16 (primary, frozen silicon)** | **1+6+9** | **16** | **31** | **63** | **0.667** | **0.049** | **Verified** | [`gf16.t27`](../specs/numeric/gf16.t27) |
+| **GF16 (primary, frozen tape-out design)** | **1+6+9** | **16** | **31** | **63** | **0.667** | **0.049** | **Verified** | [`gf16.t27`](../specs/numeric/gf16.t27) |
 | GF20  | 1+7+12  | 20   | 63                 | 127                | 0.583 | 0.035 | Verified | [`gf20.t27`](../specs/numeric/gf20.t27) |
 | GF24  | 1+9+14  | 24   | 255                | 511                | 0.643 | 0.025 | Verified | [`gf24.t27`](../specs/numeric/gf24.t27) |
 | GF32  | 1+12+19 | 32   | 2047               | 4095               | 0.632 | 0.014 | Verified | [`gf32.t27`](../specs/numeric/gf32.t27) |
@@ -219,11 +219,20 @@ The whitepaper's latest family table matches the canonical splits above.
 
 ## 6. Implementation status (claim discipline)
 
-- **GF16 — VERIFIED + FROZEN SILICON.** Production Rust (`trios-trainer-igla`) +
+- **GF16 — Verified (spec, codegen, RTL, FPGA testbench).** Production Rust (`trios-trainer-igla`) +
   C codegen ([`../gen/c/numeric/gf16.c`](../gen/c/numeric/gf16.c)) + RTL
   ([`tt-trinity-gamma/src/gf16_v2_mul.v`](../../tt-trinity-gamma/src/gf16_v2_mul.v)
   and `gf16_v2_add.v`); 35/35 FPGA testbench on Artix-7 (no operating frequency claimed — the 323 MHz figure is withdrawn, see docs/nona-03-manifest/RESEARCH_CLAIMS.md); benchmarked
-  (97.67% MNIST MLP, 0.00% accuracy gap vs f32); fabricated in TTSKY26b TT4913 Gamma.
+  against the fp32 reference on synthetic round-trip. **An MNIST figure of "97.67 %,
+  0.00 % accuracy gap vs f32" stood here and is withdrawn**: nothing in the tree
+  produces it, and the only MNIST run present
+  (`conformance/gf_family_bench.json`) has every format at accuracy 0.1187 with
+  loss 2.3631 — chance is 0.1000 and ln(10) is 2.3026, so the model is untrained.
+  Every format scoring identically to four decimals is itself the tell that the
+  scenario measures nothing about the format; one format scores 0.098, below
+  chance. Submitted to the TTSKY26b TT4913 Gamma shuttle; **no die has been
+  received**, and `STATUS.md` reserves SILICON for a physical die with written
+  bring-up and forbids the claim in this repository at all.
 - **GF4/8/12/20/24/32 — Verified.** Spec + Verilog RTL in `tt-trinity-gamma/src/`.
 - **GF64 — Verified.** Spec ([`gf64.t27`](../specs/numeric/gf64.t27), #916) +
   Verilog RTL in gamma; C codegen pending.
@@ -253,7 +262,7 @@ GF64=1+22+41 (should be 1+24+39), GF96=1+33+62 (should be 1+36+59),
 GF128=1+44+83 (should be 1+49+78), GF256=1+88+167 (should be 1+97+158). Corona
 is a registry chip; the on-die arithmetic for GF formats lives in Gamma
 (per `tt-trinity-corona/docs/goldenfloat_ladder_crossreference.md`), and
-Gamma's frozen silicon implements 1+6+9 for GF16. The CATALOG bug is tracked
+Gamma's frozen tape-out design implements 1+6+9 for GF16. The CATALOG bug is tracked
 in [`gHashTag/claim-audit-lab` CASE-09](https://github.com/gHashTag/claim-audit-lab).
 
 ## 7. Measured comparison (IGLA RACE v2 format sweep)

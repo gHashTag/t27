@@ -1189,7 +1189,10 @@ xc7frames2bit --frm_file m.frames --output_file m.bit \
 dlc10 sram m.bit         # => STAT 0x401079FC, DONE=HIGH (golden), CRC_ERROR=0
 ```
 
-Result: 70 LUTs, Fmax 322 MHz, `.bit` 3 825 964 B, `STAT=0x401079FC` (matches the
+Result: 70 LUTs, Fmax 322 MHz **[UNVERIFIED — shares its value with the withdrawn
+323/322/330 MHz ring-oscillator readings; this design's own clocking has not been
+re-checked, see RESEARCH_CLAIMS.md Retraction 2026-08-18]**, `.bit` 3 825 964 B,
+`STAT=0x401079FC` (matches the
 known-good golden value).
 
 **Correctness verified (2026-05-31, iverilog 13):** all four bench files

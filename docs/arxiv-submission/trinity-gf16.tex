@@ -309,20 +309,20 @@ Results}\label{fpga-implementation-results}
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}lllll@{}}
 \toprule\noalign{}
-Design & LUTs & DSP48E1 & Max Freq & Tests \\
+Design & LUTs & DSP48E1 & Tests \\
 \midrule\noalign{}
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-GF16 mul & \textasciitilde650 & 1 & 330 MHz & 13/13 \\
-GF16 dot4 & 2,605 & 4 & 322 MHz & 6/6 \\
-GF16 matmul 4x4 & 40,350 & 64 & --- & 35/35 \\
+GF16 mul & \textasciitilde650 & 1 & 13/13 \\
+GF16 dot4 & 2,605 & 4 & 6/6 \\
+GF16 matmul 4x4 & 40,350 & 64 & 35/35 \\
 \end{longtable}
 }
 
 \subsubsection{4.3 Timing}\label{timing}
 
-All designs pass timing at 100 MHz with positive slack:
+Resource figures are \texttt{yosys stat} on the DUT. They are \textbf{not} from the placed wrapper that produced the bitstream: that wrapper feeds the DUT literal constants, so the arithmetic is constant-folded out and its synthesised design module holds 55 cells and no DSP48E1. A \texttt{Max Freq} column stood here and is withdrawn --- all three of its entries came off the same ring-oscillator net:
 
 \begin{verbatim}
 [withdrawn: this clock is a ring-oscillator probe, not a GF16 path]

@@ -1,10 +1,22 @@
 # Occurrences that are text ABOUT a withdrawal, not a live claim.
 # Keyed path | pattern | sha1(line)[:12] -- editing the line re-opens the gate,
 # which is what we want for append-only documents like docs/NOW.md.
+docs/NOW.md | 322\s*MHz | 21a54d698621
+docs/NOW.md | 322\s*MHz | e01a7fd68109
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 18f57dc20b45
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 700c6d6aca11
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | ce84017e739b
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | e01a7fd68109
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | f81569f4b61c
+docs/NOW.md | 330\s*MHz | e01a7fd68109
+docs/NOW.md | 97\.67\s*%?\s*MNIST | 776e9a8ea0df
+docs/NOW.md | FROZEN\s+SILICON | f4b106440c67
 docs/NUMERIC_FORMATS_SSOT.md | 323(\.[0-9]+)?\s*MHz | bbc2adf030a9
 docs/arxiv-trinity-gf16-draft.md | 322M\s*matmuls/sec | 1026a341042f
 docs/arxiv-trinity-gf16-draft.md | 323(\.[0-9]+)?\s*MHz | 6daf60f68b57
 docs/arxiv-trinity-gf16-draft.md | 41\.2\s*GOPS | 546e04c73288
+docs/metrics/numeric_formats_83_metrics.csv | 323(\.[0-9]+)?\s*MHz | 708d88e59591
+fpga/HARDWARE_SSOT.md | 322\s*MHz | 65210d3dc292
+fpga/HARDWARE_SSOT.md | 330\s*MHz | 558353792f10
+specs/igla/coder/benchmark.t27 | 323(\.[0-9]+)?\s*MHz | da656d208e0a
+specs/numeric/formats_catalog.t27 | 323(\.[0-9]+)?\s*MHz | c83b3c67224c
