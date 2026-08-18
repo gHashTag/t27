@@ -5095,6 +5095,14 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             "gen_hash_c": hashes.gen_hash_c,
             "gen_hash_rust": hashes.gen_hash_rust,
             "sealed_at": now,
+            // WHICH COMPILER minted this certificate. The store holds seals from
+            // two compilers with different grammars: April's GF16 seal carries
+            // real hashes for a spec the bootstrap t27c cannot parse, because the
+            // META compiler minted it. An audit that cannot see the minter
+            // reports the grammar gap between the two as spec rot (W880). The
+            // compiler.rs hash pins the exact grammar, since the binary version
+            // alone does not change when the frozen file does.
+            "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
             "ring": 12
         });
 
