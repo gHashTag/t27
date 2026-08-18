@@ -20,6 +20,7 @@ on:
       # rewrites the C emitter merges with the cross-target proof never running.
       - "bootstrap/**"
       - "cli/**"
+      - "tools/check_specs_parse.py"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
       - "tools/verify_multitarget.py"
@@ -53,6 +54,15 @@ jobs:
 
       - name: Build t27c
         run: cargo build --release -p t27c
+
+      # Precondition for everything below. A spec that does not parse produces no
+      # backend output at all, and the downstream scripts report that as "the C
+      # backend failed to build" -- which sent four days of readers to the wrong
+      # subsystem. Ask the parser first, and print its own message.
+      - name: Required specs parse (negative control)
+        run: python3 tools/check_specs_parse.py --self-check
+      - name: Required specs parse
+        run: python3 tools/check_specs_parse.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py
