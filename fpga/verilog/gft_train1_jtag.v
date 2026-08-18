@@ -69,10 +69,16 @@ module gft_train1_jtag #(parameter integer JTAG_CHAIN_N = 3);
     // So the whole wrapper runs on a divided clock through a BUFG, which gives
     // the combinational path 16 raw periods and makes the timing question honest
     // rather than suppressed.
-    reg [3:0] div = 4'd0;
-    always @(posedge cfgmclk) div <= div + 4'd1;
+        // W844: /32, NOT /16. Measured 4.82 MHz against the 4.42 MHz /16 declares --
+    // a 1.09x margin, THINNER than the seed-to-seed spread W842 measured on a
+    // single netlist (15.83 to 18.29 MHz, about 15%). A margin smaller than the
+    // placer's own variance is not a margin; this one would fail on some seeds
+    // and pass on others, which is indistinguishable from the T616 defect and
+    // would have been misread as it.
+    reg [4:0] div = 5'd0;
+    always @(posedge cfgmclk) div <= div + 5'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(div[3]), .O(slowclk));
+    BUFG bufg_slow (.I(div[4]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);

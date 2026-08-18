@@ -24184,6 +24184,90 @@ the gate rather than from an experiment. **A gate is a standing experiment that
 runs itself.** That is a better return than a wave of hypotheses, and it is the
 argument for building gates instead of running checks.
 
+## W844 -- the margin audit: the defect was the method, not the wrapper
+
+### T625 -- NINE WRAPPERS MEASURED, THREE MISS THEIR DECLARED PERIOD [measured]
+
+FORECAST REGISTERED BEFORE THE AUDIT: `gft_sadd_sweep` is over its limit, because
+it carries the same four `GftSadd` instances as the wrapper W843 fixed and
+declared its period the same way. **CONFIRMED -- and the class is larger than the
+forecast named.**
+
+    wrapper            declared        achieved        margin    verdict
+    gft_sadd_sweep     17.70 MHz /4    17.26 MHz       0.97x     MISS
+    gft_xorpercep       2.21 MHz /32    2.08 MHz       0.94x     MISS
+    gft_sadd           17.70 MHz /4    17.39-17.53     0.98x     MISS (W843)
+    gft_signed_dot4     4.42 MHz /16    4.73 MHz       1.07x     thin
+    gft_train1          4.42 MHz /16    4.82 MHz       1.09x     thin
+    tnf17              70.77 MHz        198.45 MHz     2.80x     fine
+    phi_weights        70.77 MHz        188.50 MHz     2.66x     fine
+    ternary_link       70.77 MHz        182.88 MHz     2.58x     fine
+    ternary_node       70.77 MHz         88.21 MHz     1.25x     fine
+    e8m0               70.77 MHz         91.86 MHz     1.30x     fine
+
+**Every wrapper that DIVIDES its clock is at or below 1.1x. Every wrapper that
+does not divide is at 1.25x or better.** That is not a coincidence about the
+designs; it is a fact about how the dividers were chosen.
+
+### T626 -- THE DEFECT IS A METHOD, AND IT WAS APPLIED EVERYWHERE [self-critical]
+
+Each divided wrapper declared its period from the DUT's **standalone** Fmax --
+`sadd` alone at 24.59 MHz (T568), the four-term dot product alone at 7.16 MHz
+(T551) -- and then instantiated the DUT four, five or six times. Four instances
+of a 24.59 MHz module do not run at 24.59 MHz; they run at 17.4.
+
+So the divider always landed one step too fast, and each correction landed one
+step short of the next: `gft_xorpercep` went /16 -> /32 in W828 for exactly this
+reason and W844 finds it still short at /32.
+
+**Corrected this wave** -- `gft_sadd_sweep` /4 -> /8, `gft_xorpercep` /32 -> /64,
+`gft_train1` /16 -> /32, `gft_signed_dot4` /16 -> /32, and its two siblings
+`gft_dot4_comm` and `gft_signed_mac` slowed with it rather than left to be
+discovered one at a time.
+
+**A margin of 1.07x is not a margin.** W842 measured a 15% seed-to-seed spread on
+ONE netlist (15.83 to 18.29 MHz), so anything under about 1.2x will pass on some
+placements and fail on others -- which is indistinguishable from the T616 defect
+and would be misread as it.
+
+### T627 -- THE VACUITY GUARD FIRED, AND IT WAS RIGHT [measured]
+
+`gft_sadd_sweep` through the gate, at its corrected /8:
+
+    seed 1   0xa5a530b6  c_low=1 c_high=1 c_swept=0 c_ind=1  ok=0
+    seed 7   0xa5a530b6  same
+    seed 42  0xa5a530b6  same        AGREED ACROSS 3 PLACEMENTS
+
+`c_swept = 0`: the band was not finished before the read. The clause exists
+precisely so an unfinished sweep cannot satisfy `c_low` and `c_high` vacuously
+(T572), and halving the clock is what made it fire. **The guard was right and the
+wrapper was too slow** -- prescaler 24 -> 16 bits, which walks 21 offsets in
+~0.16 s instead of ~40 s.
+
+Note what the gate bought here: the same wrong answer three times is reported as
+an AGREED verdict of `ok=0`, not as a failure to read. Stable and false is a
+different thing from unstable, and the gate distinguishes them.
+
+### T628 -- THE UPSTREAM REPRODUCER, WRITTEN AND NOT SENT [derived]
+
+`docs/reports/OPENXC7-PNR-NOT-FUNCTION-PRESERVING.md` reduces T616 to two
+commands, a five-row table, and an exclusion list. What it does NOT do is open an
+issue: reporting a defect to another project is a publication, and that decision
+belongs to this repository's owner rather than to an autonomous wave.
+
+Left undone and named in the document: the two FASM files -- passing seed against
+failing seed -- have not been diffed, so the net that routes differently is still
+unidentified. That diff is what turns this from a reproducer into a report.
+
+### T628a -- forecast count, sixteenth entry [derived]
+
+    W844  (1 confirmed / 0 withdrawn / 0 refuted)
+
+The forecast named one wrapper; the audit found three misses and two thin margins.
+**Forecasting the instance and finding the class is the good direction to be
+wrong in** -- the reverse, forecasting a class and finding one instance, is what
+W623 did and what T102 was written about.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

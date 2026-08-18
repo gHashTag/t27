@@ -66,10 +66,16 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
     // series and measures **2.93 MHz**, against 7.16 for the four-term dot product
     // (T551). Depth, not width, sets the period here -- 10,893 LUT is smaller than
     // gft_signed_dot4's 12,724 and yet 2.4x slower.
-    reg [4:0] dv = 5'd0;
-    always @(posedge cfgmclk) dv <= dv + 5'd1;
+    // W844: /64, NOT /32. Measured 2.08 MHz against the 2.21 MHz /32 declares --
+    // a MISS, the third found by this audit. /32 was itself a correction (the
+    // header above records moving from /16 for the same reason), which is what a
+    // period derived from the DUT's Fmax instead of the WRAPPER's does: it is
+    // wrong by roughly a factor each time, so each correction lands one step
+    // short of the next one.
+    reg [5:0] dv = 6'd0;
+    always @(posedge cfgmclk) dv <= dv + 6'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(dv[4]), .O(slowclk));
+    BUFG bufg_slow (.I(dv[5]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);

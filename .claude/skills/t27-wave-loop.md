@@ -11386,6 +11386,32 @@ must carry its evidence. Hours later I wrote a new failure path from scratch tha
 discarded the child's output, and the first audit run cost exactly what 1165
 predicted. When adding an error path, go read the lessons about error paths.
 
+**1193. DECLARE A PERIOD FROM THE WRAPPER'S Fmax, NEVER FROM THE DUT'S.** Every
+divided wrapper on this bench was at or below 1.1x margin and three missed
+outright, because each divider was chosen from the DUT's STANDALONE number. Four
+instances of a 24.59 MHz module measure 17.4. Undivided wrappers, which had no
+number to misuse, were all at 1.25x or better.
+
+**1194. UNDER ~1.2x IS NOT A MARGIN ON THIS BENCH.** W842 measured a 15%
+seed-to-seed spread on one unchanged netlist. Anything tighter passes on some
+placements and fails on others, and that is indistinguishable from the T616
+routing defect -- so a thin margin does not just risk failure, it corrupts the
+diagnosis of every failure near it.
+
+**1195. WHEN A CORRECTION LANDS ONE STEP SHORT, SUSPECT THE METHOD.**
+gft_xorpercep went /16 -> /32 in W828 for this exact reason and W844 found it
+still short. A fix that has to be repeated is a symptom being treated.
+
+**1196. A GUARD FIRING AFTER A FIX IS THE FIX WORKING.** Halving gft_sadd_sweep's
+clock made `c_swept` report 0 -- the sweep no longer finished before the read.
+The vacuity guard was correct both times; only the wrapper's speed changed. Do
+not disable a clause that starts failing after an unrelated fix.
+
+**1197. STABLE-AND-FALSE IS NOT THE SAME AS UNSTABLE.** `t27c verdict` reported
+gft_sadd_sweep's `ok=0` as an AGREED verdict across three placements rather than
+as a failure to read. A gate that only says pass/fail loses this distinction, and
+it is the one that tells you whether to fix the design or the flow.
+
 ### How to update this tracker
 
 After closing a wave:

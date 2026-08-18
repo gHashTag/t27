@@ -8,4 +8,8 @@
 # The margin matters more here than anywhere else on this bench: this wrapper
 # exists to tell a settling race apart from an arithmetic fact, so a design that
 # quietly failed timing would answer its own question wrongly.
-create_clock -period 226.1 -name slowclk [get_nets slowclk]
+create_clock -period 452.2 -name slowclk [get_nets slowclk]
+
+# W844: was 226.1 ns (/16, 4.42 MHz). The measured margin in this family is
+# ~1.07x, thinner than the placer's own seed-to-seed spread. /32 gives
+# 2.21 MHz and a ~2.1x margin.

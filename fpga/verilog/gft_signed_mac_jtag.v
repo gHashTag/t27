@@ -53,10 +53,14 @@ module gft_signed_mac_jtag #(parameter integer JTAG_CHAIN_N = 3);
         .PACK(1'b0), .USRCCLKO(1'b0), .USRCCLKTS(1'b0),
         .USRDONEO(1'b1), .USRDONETS(1'b1));
 
-    reg [3:0] dv = 4'd0;
-    always @(posedge cfgmclk) dv <= dv + 4'd1;
+    // W844: /32, NOT /16. Its sibling gft_signed_dot4 measured 4.73 MHz against
+    // the 4.42 MHz /16 declares -- a 1.07x margin. This wrapper carries the same
+    // DUT and derived its period the same way, so it is slowed with it rather
+    // than left to be discovered separately (T625).
+    reg [4:0] dv = 5'd0;
+    always @(posedge cfgmclk) dv <= dv + 5'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(dv[3]), .O(slowclk));
+    BUFG bufg_slow (.I(dv[4]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);

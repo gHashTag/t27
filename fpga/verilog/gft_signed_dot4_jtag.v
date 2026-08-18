@@ -51,10 +51,15 @@ module gft_signed_dot4_jtag #(parameter integer JTAG_CHAIN_N = 3);
     // runs on CFGMCLK/16 through a BUFG. The ratio is DECLARED in
     // `gft_signed_dot4_jtag.xdc` -- a divider alone tells the timing engine
     // nothing (T541), which is the mistake W818 made and W819 fixed.
-    reg [3:0] dv = 4'd0;
-    always @(posedge cfgmclk) dv <= dv + 4'd1;
+    // W844: /32, NOT /16. Measured 4.73 MHz against the 4.42 MHz /16 declares --
+    // a 1.07x margin, thinner than the seed-to-seed spread W842 measured on ONE
+    // netlist (15.83 to 18.29 MHz, ~15%). Every wrapper whose period was derived
+    // from a DUT-alone Fmax lands in this band; the number was never the
+    // wrapper's to use (T623/T625).
+    reg [4:0] dv = 5'd0;
+    always @(posedge cfgmclk) dv <= dv + 5'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(dv[3]), .O(slowclk));
+    BUFG bufg_slow (.I(dv[4]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);

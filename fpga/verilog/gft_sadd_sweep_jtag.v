@@ -51,10 +51,16 @@ module gft_sadd_sweep_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     // /4: `sadd` alone measured 24.59 MHz (T568). The ratio is declared in
     // gft_sadd_sweep_jtag.xdc -- a divider alone tells the timing engine nothing.
-    reg [1:0] dv = 2'd0;
-    always @(posedge cfgmclk) dv <= dv + 2'd1;
+    // W844: /8, NOT /4 -- FORECAST BEFORE THE MEASUREMENT AND CONFIRMED. This
+    // wrapper carries the same four GftSadd instances as gft_sadd_jtag.v and
+    // declared its period the same way, from `sadd` ALONE at 24.59 MHz (T568).
+    // Measured here: 17.26 MHz against the 17.70 MHz that /4 declares -- a miss,
+    // exactly as the sibling missed at 17.39-17.53 (T623). The defect was never
+    // about gft_sadd; it was about deriving a WRAPPER's period from a DUT's Fmax.
+    reg [2:0] dv = 3'd0;
+    always @(posedge cfgmclk) dv <= dv + 3'd1;
     wire slowclk;
-    BUFG bufg_slow (.I(dv[1]), .O(slowclk));
+    BUFG bufg_slow (.I(dv[2]), .O(slowclk));
 
     reg [3:0] rstc = 4'd0;
     wire rst_n = (rstc == 4'hF);
@@ -66,13 +72,18 @@ module gft_sadd_sweep_jtag #(parameter integer JTAG_CHAIN_N = 3);
 
     // The sweep counter: one offset per prescaler tick, so each probe has ample
     // time to settle before it is judged.
-    reg [23:0] pre  = 24'd0;
+    // W844: 16 bits, not 24. At /8 the 24-bit prescaler needs ~40 s to walk 21
+    // offsets and the read happens sooner, so `c_swept` came back 0 on all three
+    // placements -- the vacuity guard (T572) correctly refusing to call an
+    // unfinished sweep a pass. 16 bits finishes the band in ~0.16 s, well inside
+    // the load-to-read window. The guard was right; the wrapper was too slow.
+    reg [15:0] pre  = 16'd0;
     reg        beat = 1'b0;
     reg [4:0]  off  = 5'd0;
     reg        swept = 1'b0;
     always @(posedge slowclk) begin
-        pre <= pre + 24'd1;
-        if (pre == 24'd0) begin
+        pre <= pre + 16'd1;
+        if (pre == 16'd0) begin
             beat <= ~beat;
             if (off == LAST_OFF) swept <= 1'b1;
             else                 off   <= off + 5'd1;
