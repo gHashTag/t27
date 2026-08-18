@@ -25807,6 +25807,87 @@ read as correctness.** Labels agreeing with prose, a record agreeing with a tabl
 a field agreeing with a formula. Every time, the fix was a source of truth outside
 the pair being compared.
 
+## W868 -- the base moved, and the comparison with the other track
+
+### T693 -- EVERY MEASUREMENT OF THIS WAVE WAS TAKEN ON A STALE TREE [measured]
+
+While this wave audited the bibliography and reported 89 entries, the upstream
+branch had advanced three commits:
+
+    ba01de89  Evidence Closure   +743 lines, proof blocks 25 -> 77, bibitem 86 -> 92
+    e7318b6b  merge of b68f39707 (PR #601)
+    ae868cfe  sec:provenance rebound, a Cyrillic label replaced
+
+    my tree   7,162 lines   89 bibitem   36 proof blocks
+    the base  7,746 lines   92 bibitem   77 proof blocks
+
+I checked `origin/tnf-publication-readiness` at the START of the wave and it read
+`b68f39707`, so the check was honest and the answer went stale inside the wave. The
+correct discipline is to re-fetch before REPORTING a count, not only before
+starting -- a number about a moving branch has a timestamp whether or not it is
+printed.
+
+### T694 -- THE OFF-BY-ONE PROPAGATED INTO THE NEW TEXT [measured]
+
+The reach defect (T692) is alive on the new base and the 743 added lines restate it
+three more times:
+
+    :6929  "the $\pm 40$ binade reach of the $(4,8)$ rung"
+    :7088  "$\pm 40$ binades and the $(5,23)$ rung $\pm 121$"
+    :7405  "The range is bounded at $\pm40$ in powers of two"
+
+Nine sites in total. **A defect in a stored constant reproduces wherever the
+constant is quoted**, so the count of sites grows with the paper until the constant
+is fixed. `per_rung.tnf_reach` is still 40/121/364.
+
+### T695 -- TWO WORKS APPEAR TWICE IN THE REFERENCE LIST, ONE DISAGREEING WITH ITSELF [measured]
+
+    fibbinary / fiandaca2025fibbinary        arXiv:2511.01921, cited :3461 and :6441
+    wintersteiger2025 / ...2025formal        doi:10.1109/ARITH64983.2025.00032,
+                                             cited :5993 and :6558
+
+Each pair gives one work two numbers in the printed list. The Wintersteiger pair
+**disagrees with itself about its own page range** -- 157--166 in one entry,
+157--160 in the other, at one DOI. A duplicate is not merely redundant: it is a
+place for two versions of a fact to live, and neither is marked as the doubtful one.
+
+Merged 92 -> 90 with 0 dangling and 0 uncited. `tools/check_bibliography.py` added,
+matching on normalised title AND on DOI/arXiv id -- an identifier pins two entries
+to one work more firmly than a title. Substring title matching was tried and
+rejected: it pairs "Posit arithmetic" with "Posit arithmetic hardware codec design".
+
+### T696 -- TWO INDEPENDENT TRACKS REACHED THE SAME ANTI-PATTERN [derived]
+
+The other track's `tools/freq_provenance.py` is described as *"a strict frequency
+registry with separator-based matching instead of substring"*. This track's
+`t27c provenance` compares record stems to labels by EXACT equality, having
+measured that containment would vote confidently wrong on a third of the corpus
+(`inside_window` contains `window` but backs `tab:landing`).
+
+**Two provenance instruments, built independently for different quantities --
+frequencies and tables -- and both had to reject substring matching to work.** That
+is not a coincidence of taste: a substring relation between identifiers is not a
+provenance relation, and any tool that assumes it is will be confidently wrong in
+proportion to how systematically the identifiers were named.
+
+### T697 -- THEIR BLOCKER OUTRANKS MY PERCENTAGE [derived]
+
+The other track's verdict is **NO-GO** on one named gate: `G8, post-route evidence
+absent` -- no place-and-route log anywhere in the tree, and sixteen frequency
+literals starred and quarantined in `tab:untraced` as illustrative.
+
+I have been reporting readiness as 74-85% on how many tables a reader can verify.
+**That metric cannot see G8 at all.** A paper whose every table reconstructs and
+whose hardware claims have no logs is not 85% ready; it is blocked on a specific,
+named, binary condition. The percentage measured real work and answered a question
+nobody would ask at submission.
+
+    what my metric counted    tables with a runnable oracle, defects found and fixed
+    what it could not count   whether a load-bearing class of claim has evidence AT ALL
+
+A readiness number should be the conjunction of the gates, not an average of the
+progress.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

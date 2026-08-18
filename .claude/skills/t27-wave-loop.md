@@ -11809,6 +11809,27 @@ SAME WAY.** Agreement between two things was read as correctness: labels with
 prose, record with table, field with formula. The fix is always a source of truth
 outside the compared pair.
 
+**1281. RE-FETCH BEFORE REPORTING A COUNT, NOT ONLY BEFORE STARTING.** I checked
+the upstream head at the start of the wave, it was current, and it went stale
+inside the wave. Every number I then reported described a tree three commits behind.
+
+**1282. A DEFECT IN A STORED CONSTANT REPRODUCES WHEREVER THE CONSTANT IS QUOTED.**
+The reach off-by-one was six sites; 743 new lines made it nine. The count grows
+with the document until the stored value is fixed.
+
+**1283. A DUPLICATE REFERENCE IS A PLACE FOR TWO VERSIONS OF A FACT.** The two
+Wintersteiger entries disagree about the page range at one DOI, and nothing marks
+either as doubtful.
+
+**1284. SUBSTRING MATCHING ON IDENTIFIERS IS NOT A PROVENANCE RELATION.** Two
+independent tracks built provenance tools for different quantities and both had to
+reject containment to work. It fails in proportion to how systematically the
+identifiers were named.
+
+**1285. A READINESS PERCENTAGE THAT AVERAGES PROGRESS CANNOT SEE A BINARY GATE.**
+The other track's NO-GO on "post-route evidence absent" outranks any figure I
+computed from tables-with-oracles. Report the conjunction of the gates.
+
 ### How to update this tracker
 
 After closing a wave:
