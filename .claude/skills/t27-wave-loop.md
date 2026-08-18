@@ -11893,6 +11893,19 @@ prior-art command's first version read only each gate's docstring and returned
 "(none)" for a phrase in the gate's output string. Same shape as the three
 withdrawals it was built to prevent.
 
+**1300. COUNT SAYS 86%, READING SAYS 8%.** Auditing 58 of my own claims for prior
+art, forty "hits" were captions that merely name the table the claim studies. Read
+the hits; never report the count.
+
+**1301. MENTION IS NOT ASSERTION, AND THAT ERROR SCALES WITH GOOD NAMING.** Three
+instruments here -- record provenance, column provenance, prior art -- each
+over-reported by an order of magnitude for the same reason. A well-named repository
+is the hardest place to match by containment.
+
+**1302. WEIGHT THE SIGNALS IN THE TOOL'S OWN OUTPUT.** baseline = strong, gate =
+medium, caption = weak. A tool that prints one total invites the error it was built
+to prevent.
+
 ### How to update this tracker
 
 After closing a wave:

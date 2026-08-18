@@ -26100,6 +26100,59 @@ failure is worth keeping in the record because it is the same shape, one level u
 as the three withdrawals it was written to prevent: a partial read, reported as an
 absence.
 
+## W871 -- the prior-art audit of my own work, and the pattern behind three instruments
+
+### T705 -- 86% BY COUNTING, 8% BY READING [measured]
+
+Ninety recorded claims about this paper; 58 carry an identifier a repository could
+already know. Queried with `t27c known`:
+
+    repository says something          50 of 58   86%
+        via a caption                        40
+        via a gate                            6
+        via a baseline                        4
+    says nothing                        8 of 58
+
+**Reading the hits instead of counting them gives about 8%.** Of the six gate
+hits, four are gates I wrote or repaired myself (`check_withdrawn_live`,
+`check_bibliography`) and two more cite `check_harness` only because they ARE the
+withdrawal of T702. The forty caption hits are captions that NAME the table a claim
+studies -- true of every claim about that table, and evidence of nothing.
+
+Genuine prior art is the W870 cluster: four claims, already withdrawn.
+
+### T705a -- THE SAME OVER-REPORT, THIRD INSTRUMENT, SAME ORDER OF MAGNITUDE [derived]
+
+    provenance, per record    substring stem matching would have voted confidently
+                              wrong on a THIRD of the corpus (inside_window -> window)
+    provenance, per column    29 of 60 tables "multi-record"; after a distinctness
+                              rule 18; of those, 8 explained by containment alone
+    prior art, this wave      50 of 58 "already known"; on reading, about 5
+
+Three instruments, built in different waves for different questions, and each
+inflated by roughly an order of magnitude. **The common cause is that all three
+score MENTION rather than ASSERTION.** A name appearing near a thing is not a claim
+about the thing, and the rate at which that confusion produces false positives
+scales with how systematically the corpus is named -- which is to say, with how
+well organised the project is.
+
+**A well-named repository is the hardest place to do containment matching**, and
+this one is very well named.
+
+### T705b -- WHAT THE AUDIT CLEARED [measured]
+
+Eight claims have no prior-art signal at all, and they include the load-bearing
+ones:
+
+    T694    the off-by-one propagated into 743 new lines -- three more sites
+    T699    ten of fourteen records cannot be rebuilt by anything in the tree
+    T692a   a reconstruction cannot detect a record that stores the wrong quantity
+    T699a   the standard applied to my own record
+
+Together with the merged PR #601 and the reach correction, that is the surviving
+contribution: **it is smaller than the theorem count suggests and larger than the
+withdrawal count implies.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

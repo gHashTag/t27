@@ -1817,10 +1817,26 @@ pub fn run_known(repo_root: &Path, dir: String, about: String) -> anyhow::Result
         println!("  (none)");
     }
 
-    println!("\n{} gate(s), {} baseline(s), {} caption(s) already speak to this.",
-             hits, bhits, chits);
-    if hits + bhits + chits > 0 {
-        println!("Read them before measuring. Three greps, under a minute.");
+    // THE THREE SIGNALS ARE NOT EQUAL, and saying so is the point. Run over 58
+    // recorded claims about this paper, mention-counting reported that 86% had
+    // prior art. Reading the hits, the real figure was about 8%: forty of the
+    // fifty were captions that merely NAME the table a claim studies, which is
+    // true of any claim about that table. Two earlier instruments in this project
+    // over-reported the same way and by the same order -- a containment signal
+    // inflates, every time.
+    println!("\n== how much of that is evidence ==");
+    println!("  baseline  {bhits:2}   STRONG -- your artefact is listed by name, with a verdict");
+    println!("  gate      {hits:2}   MEDIUM -- read it; the gate may state your defect, or merely share a word");
+    println!("  caption   {chits:2}   WEAK   -- naming the table a claim is about is not prior art");
+    if bhits > 0 {
+        println!("\nA baseline hit is the one to read first. It has already decided this.");
+    } else if hits > 0 {
+        println!("\nNo baseline hit. Read the gate before measuring -- it may already say it.");
+    } else if chits > 0 {
+        println!("\nCaptions only. That is weak: check what the caption actually discloses,");
+        println!("because an objection a caption answers is the commonest way to waste a wave.");
+    } else {
+        println!("\nNothing speaks to this. Measure -- and record the negative, it is a result.");
     }
     Ok(())
 }
