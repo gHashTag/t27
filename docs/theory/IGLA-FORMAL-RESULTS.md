@@ -26702,6 +26702,48 @@ consolidation that created and deleted seventeen numeric specs within ONE DAY,
 the morning's seals outliving the evening's deletion. Legitimate archaeology,
 left standing; the audit counts them separately without failing.
 
+## W882 -- the minter stamped, a claim withdrawn, and the dialect map
+
+### T723 -- T721a's "BACKEND COVERAGE" ATTRIBUTION WITHDRAWN [measured]
+
+A probe over every stale-set spec: **zero** parse-but-compile-to-none cases in
+the corpus. Every spec that parses also compiles and resealed cleanly; reseal
+refusals coincide exactly with parse failures. The "backend coverage majority"
+claim rested on one toy repro (`@floatFromInt` in a bare fn) that does not
+represent the corpus. **Third withdrawal-of-my-own-claim traced to generalising
+from a synthetic example instead of probing the population.**
+
+The 165 W880 reseals now carry `sealed_by` (the field landed after the reseal;
+the store's only bootstrap-minted seals were the only ones not saying so). The
+first date filter matched zero because `sealed_at` is UTC and the bench is +07 --
+late-evening stamps sit on yesterday's date.
+
+### T724 -- THE 35 REMAINING PARSE FAILURES ARE THREE DIALECTS, NOT THIRTY-FIVE BUGS [measured]
+
+One probe per failure line:
+
+    generic structs   11    pub const Map(K, V) = struct {     (tri/collections)
+    algorithm DSL      3    algorithm phi_rope {
+    Rust forms        ~7    let mut x: [T] = []; impl X {; for i in 1..=10
+    namespaced module  2    module github::tests::e2e_full_flow {
+    Zig continue-expr  1    while (i < n) : (i += 1) {
+    nested fn          1    gf16.t27 -- the L6 SSOT
+    misc/prose        ~10
+
+The corpus holds at least three surface languages; the bootstrap grammar is one
+of them; the meta compiler sealed them all. **Which dialect is canonical is an
+Architect decision that a patch series must not pre-empt** -- the only further
+GOLD-RING-sized item is the nested fn, because it blocks the SSOT specifically.
+
+### T724a -- WHAT THE SEAL STORE ACTUALLY IS [derived]
+
+Not a freshness ledger but a STRATIGRAPHY: 867 seals from Aug 6, a 165-seal
+bootstrap layer from Aug 18 (now labelled), April layers minted by the meta
+compiler, orphans from a one-day format consolidation, and dialects the current
+grammar cannot read. Each audit instrument built this session reads one stratum.
+The `sealed_by` field is the first piece of metadata that lets future audits
+tell the strata apart without archaeology.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

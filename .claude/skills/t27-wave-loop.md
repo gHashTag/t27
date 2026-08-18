@@ -12047,6 +12047,18 @@ magnitude, again, and again from reading one raw comparison.
 **1334. ONE GRAMMAR CHANGE PER GOLD-RING PROPOSAL.** A patch that grows until it
 fixes everything is a patch nobody can approve.
 
+**1335. NEVER GENERALISE FROM THE SYNTHETIC REPRO TO THE POPULATION.** One toy
+spec compiling to none became "most refusals are backend coverage"; the corpus
+probe found zero such cases. Probe the population before attributing.
+
+**1336. CLASSIFY FAILURES BY THEIR FIRST FAILING LINE BEFORE PATCHING ANY.** 35
+parse failures collapsed into three dialects plus one real gap. A patch series
+against dialects pre-empts a language-design decision that is not the patcher's.
+
+**1337. UTC STAMPS SIT ON YESTERDAY'S LOCAL DATE.** A +07 bench writing
+late-evening UTC seals filed them under the previous day; the first filter
+matched zero and looked like absence.
+
 ### How to update this tracker
 
 After closing a wave:

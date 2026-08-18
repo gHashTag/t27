@@ -34,8 +34,10 @@ Built cleanly; all four repros parse; existing repro suite unaffected.
 ## Honest blast radius — smaller than the wave that found it assumed
 
 Of the 201 unique stale-seal specs, **165 already parse** with the unpatched
-compiler: most reseal refusals are BACKEND coverage (compile to `none` for
-parseable specs), not grammar. Against the 36 that fail parse:
+compiler — and (corrected in W882) every one of those 165 also COMPILES and
+resealed cleanly: the earlier claim that "most refusals are backend coverage" was
+wrong; a probe over the whole stale set found **zero** parseable-but-none specs.
+Refusals coincide exactly with parse failures. Against the 36 that fail parse:
 
     fixed outright by this patch     1    specs/numeric/tf3.t27
     advanced but not through         1    specs/numeric/gf16.t27 (L6 SSOT):
@@ -44,9 +46,16 @@ parseable specs), not grammar. Against the 36 that fail parse:
                                           with an if-expression body
     untouched                       ~34   need nested fns / if-exprs / others
 
-So this patch is necessary for the L6 SSOT and sufficient for one spec. The
-nested-fn gap is the next [GOLD-RING] candidate and is deliberately not bundled:
-one grammar change per proposal keeps the Architect's decision reviewable.
+So this patch is necessary for the L6 SSOT and sufficient for one spec.
+
+**The remaining 34 are not gaps — they are DIALECTS** (measured W882, one probe
+per failure line): eleven `tri/collections` files open with generic structs
+(`pub const Map(K, V) = struct {`); three open with an `algorithm X {` DSL;
+several use Rust forms (`let mut x: [T] = []`, `impl X {`, `for i in 1..=10`);
+two use namespaced module headers; one uses Zig's `while (..) : (i += 1)`. The
+meta compiler sealed them all. Which dialect is canonical is an Architect
+decision that no patch series should pre-empt — the nested-fn gap (gf16's next
+blocker, one file) is the only further [GOLD-RING]-sized item.
 
 ## Reproduction
 
