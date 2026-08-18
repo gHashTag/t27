@@ -26153,6 +26153,55 @@ Together with the merged PR #601 and the reach correction, that is the surviving
 contribution: **it is smaller than the theorem count suggests and larger than the
 withdrawal count implies.**
 
+### T706 -- THE CORRECTED HARNESS FAMILY WAS BESIDE THE ONE I MEASURED, UNDER A DIFFERENT LETTER [measured]
+
+`fpga/tnet/` carries two harness families for the same designs:
+
+    d_*.v   assign led = q[7:0] ^ q[31:24]                      16 of 32 bits
+            all twelve listed in tools/harness_baseline.txt as partial
+    w_*.v   assign led = q[3:0]^q[7:4]^...^q[31:28]             all 32 bits
+            twenty-two of them, in no baseline
+
+W870 measured `d_*` and rediscovered a defect the baseline states. **The corrected
+family was in the same directory under a different prefix.** I chose `d_` because
+it looked like "decoder"; the project had already moved on to `w_`.
+
+Redone on `w_*`, 21 designs, five seeds each:
+
+    w_int8        14 LUT   +0 over control    1001.0 MHz    4.5% spread
+    w_baseline    14 LUT    control             997.0       2.6%
+    w_gfternary   16 LUT   +2                   675.7      13.2%
+    w_tnf16       23 LUT   +9                   642.7      28.8%
+    w_bnf16       16 LUT   +2                   718.9      41.7%
+    w_posit64    679 LUT  +665                   36.4       3.0%
+
+### T706a -- THE CONTROL IS THE FLOOR HERE, AND IN THE PAPER'S OWN CAPTION IT IS NOT [measured]
+
+**All 21 entries sit at or above the 14-LUT empty control.** That is the relation a
+decode-cost table must satisfy: instantiating a decoder cannot shrink an empty
+harness.
+
+`tab:cleandecode`'s caption states its control openly -- *"a bare wire in the same
+harness costs 112 LUT at 827.81 MHz"* -- and its two cheapest entries are GFTernary
+at 66 and int8 at 76. **Two entries below the stated floor.**
+
+The numbers are not comparable across flows and I do not offer mine as a
+correction. **The relation is flow-independent**: whatever the part, a harness
+containing a decoder cannot cost less than the same harness containing a wire,
+unless "the same harness" is not the same. That is the question the caption raises
+and does not answer.
+
+### T706b -- int8 EQUALS THE CONTROL EXACTLY, AND THAT IS A FACT ABOUT int8 [measured]
+
+`w_int8` is 14 LUT, the control to the LUT, with full observation and nothing
+pruned. An int8 decode is a sign-extend that the output register absorbs. So an
+int8 row in a decode-cost table measures the harness -- which W870 asserted for the
+wrong reason (blaming partial observation) and which survives on the corrected
+harness for the right one.
+
+**A claim can be right and its stated cause wrong, and only the corrected
+instrument separates them.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

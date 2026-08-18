@@ -11906,6 +11906,21 @@ is the hardest place to match by containment.
 medium, caption = weak. A tool that prints one total invites the error it was built
 to prevent.
 
+**1303. LOOK FOR A CORRECTED FAMILY UNDER A DIFFERENT PREFIX.** I measured
+`d_*.v` because the name suggested "decoder"; `w_*.v` sat in the same directory
+observing all 32 bits, in no baseline, twenty-two of them. Check whether the
+artefact you picked is the one the project still uses.
+
+**1304. THE CONTROL MUST BE THE FLOOR.** Adding a decoder cannot shrink an empty
+harness. All 21 entries cleared my control; two of tab:cleandecode's entries sit
+below its own stated 112-LUT control. That relation is flow-independent even when
+the numbers are not.
+
+**1305. A CLAIM CAN BE RIGHT WITH THE WRONG CAUSE.** W870 said int8's decoder folds
+away and blamed partial observation. On the full-observation harness it still folds
+away -- because a sign-extend is absorbed by the output register. Only the
+corrected instrument separated the claim from its explanation.
+
 ### How to update this tracker
 
 After closing a wave:
