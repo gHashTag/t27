@@ -1,23 +1,21 @@
 `default_nettype none
-// W828: a XOR perceptron's weight update on our die. LAYOUT v1.
+// W828: a XOR perceptron's weight update on our die. LAYOUT v2, DESIGN 4.
 //
 // `specs/ternary/gft_xorpercep.t27` is one training step of a two-hidden-unit
 // perceptron in signed GF-T float: form `s = x0 + x1`, take `h0 = relu(s)` and
 // `h1 = relu(s - 1)`, predict from `z = v0*h0 + v1*h1`, and step both weights
 // against the error. `on_comb` returns `(v0' << 32) | v1'`.
 //
-// THE CLAUSE THAT IS WORTH BUILDING THIS FOR. W821 found on silicon that
-// `smul` has no zero special case, so `0 * x != 0` in this arithmetic (T552).
-// The update rule is
+// THE CLAUSE THAT IS WORTH BUILDING THIS FOR. The update rule is
 //
 //     v0' = v0 - smul(eta, smul(g, h0))
 //
-// so a learning rate of ZERO does not leave the weights alone. **"Do not learn"
-// is not expressible in this numeric line**, and that is a consequence of the
-// W821 defect rather than a restatement of it: T552 showed an algebraic identity
-// failing, this shows it changing what a training step does.
+// so whether "do not learn" is expressible in this numeric line depends entirely
+// on whether `smul(0, x)` is zero -- and the corpus does not agree with itself
+// about that (W836: two normalised forms, nineteen specs guard zero, two do not).
 //
-// FORECAST REGISTERED before this file was synthesised: c_eta0 comes back ZERO.
+// FORECAST AS ORIGINALLY WRITTEN HERE: c_eta0 comes back ZERO. It was derived
+// from T552, which measured `gft_signed_dot4` -- the OTHER form. See below.
 //
 // W838 -- REFUTED ON THREE DICE. c_eta0 came back ONE. The paragraph above
 // derives its forecast from T552, and T552 measured `gft_signed_dot4`, whose
@@ -39,7 +37,7 @@
 //                = (19456 << 32) | 0, i.e. v0 moves to 0.25 and v1 stays put.
 //                A golden value is legitimate here because it is the SPEC's, not
 //                one I derived -- the same standing `e8m0_jtag.v` uses.
-//   2. ETA-ZERO  eta = 0 must leave (v0, v1) unchanged. Expected to FAIL.
+//   2. ETA-ZERO  eta = 0 must leave (v0, v1) unchanged. MEASURED W838: HOLDS.
 //   3. NON-TRIVIAL the gold case must actually MOVE v0 -- without this, a module
 //                returning its inputs satisfies clause 2 and looks correct.
 //   4. INDEPENDENT a live, independently-driven input yields a non-zero result,
@@ -109,7 +107,7 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
         .ready(y_g), .result(r_gold));
 
     // 2. ETA-ZERO: a zero learning rate must not move the weights.
-    //    Expected to FAIL -- smul has no zero case (T552).
+    //    W838 on three dice: it HOLDS -- this spec's smul guards zero.
     GftXorPercep u_eta0 (.clk(slowclk), .rst_n(rst_n), .en(1'b1),
         .v0(ONE), .v1(QTR), .x0(ONE), .x1(Z), .y(ONE), .eta(Z),
         .ready(y_e), .result(r_eta0));
@@ -146,10 +144,10 @@ module gft_xorpercep_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A5A1F4;
+    reg [31:0] sr = 32'hA5A524F4;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {20'hA5A5A, 4'd1, c_gold, c_eta0, c_non, c_ind,
+            if (capture) sr <= {16'hA5A5, 4'd2, 4'd4, c_gold, c_eta0, c_non, c_ind,
                                 1'b0, 1'b1, beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end

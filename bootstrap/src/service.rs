@@ -1373,7 +1373,7 @@ fn load_bitstream(bit: &Path, busdev: &str) -> (Option<i32>, Option<u8>, String)
 /// SET lets the caller do the honest thing: watch which index loses the magic
 /// when a known board is reprogrammed, and thereby DERIVE the mapping instead of
 /// assuming one.
-fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, String) {
+fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, String, Vec<(usize, u32)>) {
     let script = repo_root.join("tools/jtag/read_verdict.py");
     // W693: the chain is DERIVED from the FASM, never assumed. A wrong chain
     // reads all-zero, which is indistinguishable from a design that is not
@@ -1384,6 +1384,11 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
         .args(["--chain", &chain.to_string()])
         .current_dir(repo_root));
     let log = format!("{out}{err}");
+    // W839: this used to return ONE word for the whole bench, taking whichever
+    // cable answered first -- which is how W838 reported a neighbouring board's
+    // PASS as this board's. It now returns EVERY (index, word) pair, so the
+    // caller can select by design id instead of by arrival order.
+    let mut hits: Vec<(usize, u32)> = Vec::new();
     let mut idxs = Vec::new();
     let mut current: Option<usize> = None;
     let mut word = None;
@@ -1394,6 +1399,13 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
                 .split(':')
                 .next()
                 .and_then(|n| n.trim().parse::<usize>().ok());
+            if let (Some(i), Some(w)) = (
+                current,
+                t.split_whitespace()
+                    .find_map(|w| u32::from_str_radix(w, 16).ok().filter(|v| (v >> 16) == 0xA5A5)),
+            ) {
+                hits.push((i, w));
+            }
             if word.is_none() {
                 word = t.split_whitespace().find_map(|w| {
                     // W838: `(v >> 4) == 0xA5A5A5A` tests the LEGACY 28-bit
@@ -1423,7 +1435,28 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
         }
     }
     idxs.sort_unstable();
-    (idxs, word, log)
+    hits.sort_unstable();
+    hits.dedup();
+    (idxs, word, log, hits)
+}
+
+/// W839: which DESIGN should answer. Derived from the top wrapper's own capture
+/// line (`16'hA5A5, 4'd2, 4'd<N>`), never guessed -- the same discipline W693
+/// applied to the JTAG chain. Returns None for a wrapper still on layout v1,
+/// which carries no design id and therefore cannot be told apart from any other.
+fn design_id_from_top(repo_root: &Path, tops: &[String]) -> Option<u32> {
+    let top = tops.last()?;
+    let src = std::fs::read_to_string(repo_root.join(top))
+        .or_else(|_| std::fs::read_to_string(top))
+        .ok()?;
+    let key = "16'hA5A5, 4'd2, 4'd";
+    let at = src.find(key)? + key.len();
+    src[at..]
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse()
+        .ok()
 }
 
 pub fn run_silicon(
@@ -1894,7 +1927,19 @@ pub fn run_silicon(
 
     let chain = derived_chain.unwrap_or(3);
     println!("  reading USER{chain}, derived from the FASM");
-    let (before, word, read_log) = read_verdict(repo_root, chain);
+    let (before, word, read_log, hits) = read_verdict(repo_root, chain);
+    // W839: select the cable by DESIGN ID, not by arrival order. Now that every
+    // wrapper carries its own nibble, "which board is this" is a fact in the
+    // word rather than an assumption about libftdi ordering.
+    let want_did = design_id_from_top(repo_root, &tops);
+    let matching: Vec<(usize, u32)> = match want_did {
+        Some(d) => hits
+            .iter()
+            .copied()
+            .filter(|(_, w)| ((w >> 12) & 0xF) == 2 && ((w >> 8) & 0xF) == d)
+            .collect(),
+        None => Vec::new(),
+    };
     let ok = !before.is_empty();
     hw_ok &= ok;
     // W838: MEASURED false PASS. `gft_signed_dot4` was loaded on 1:4 and this
@@ -1907,7 +1952,28 @@ pub fn run_silicon(
     // The libftdi index is NOT the --busdev-num (the reader says so in its own
     // header), so the only honest options are: exactly one cable answers, or a
     // --control bitstream derives the mapping. Anything else is a guess.
-    if word.is_some() && before.len() > 1 && no_bscan_control.is_none() {
+    if matching.len() == 1 {
+        let (i, w) = matching[0];
+        let d = want_did.unwrap_or(0);
+        println!(
+            "  OK   B2 read            0x{w:08x}  design {d} on index {i}, clauses={}{}{}{}  ok={} beat={}",
+            (w >> 7) & 1, (w >> 6) & 1, (w >> 5) & 1, (w >> 4) & 1, w & 1, (w >> 1) & 1
+        );
+        if before.len() > 1 {
+            println!("  ({} cables answered; the design nibble picked this one -- W839)", before.len());
+        }
+        hw_ok &= (w & 1) == 1;
+    } else if want_did.is_some() && matching.len() > 1 {
+        hw_ok = false;
+        println!("  FAIL B2 read            {} cables carry design {:?} -- two boards run the SAME design",
+                 matching.len(), want_did.unwrap());
+        for line in read_log.lines() { println!("  | {line}"); }
+    } else if want_did.is_some() && matching.is_empty() {
+        hw_ok = false;
+        println!("  FAIL B2 read            no cable carries design {} -- ours did not answer",
+                 want_did.unwrap());
+        for line in read_log.lines() { println!("  | {line}"); }
+    } else if word.is_some() && before.len() > 1 && no_bscan_control.is_none() {
         hw_ok = false;
         println!(
             "  FAIL B2 read            {} cables carry magic {before:?} -- CANNOT SAY WHICH IS {busdev}",
@@ -1946,7 +2012,7 @@ pub fn run_silicon(
         // magic IS the libftdi handle for this --busdev-num, derived rather than
         // assumed.
         let (_, _, _) = load_bitstream(Path::new(nb), &busdev);
-        let (during, _, _) = read_verdict(repo_root, chain);
+        let (during, _, _, _) = read_verdict(repo_root, chain);
         let lost: Vec<usize> = before.iter().copied().filter(|i| !during.contains(i)).collect();
         let ok = lost.len() == 1;
         hw_ok &= ok;
@@ -1959,7 +2025,7 @@ pub fn run_silicon(
         }
 
         let (_, _, _) = load_bitstream(&bit_path, &busdev);
-        let (after, _, _) = read_verdict(repo_root, chain);
+        let (after, _, _, _) = read_verdict(repo_root, chain);
         let returned = lost.iter().all(|i| after.contains(i));
         hw_ok &= returned;
         println!(

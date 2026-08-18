@@ -67,10 +67,11 @@ module ternary_link_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A5A1F4;
+    reg [31:0] sr = 32'hA5A52AF4;
     always @(posedge drck)
         if (sel) begin
-            // W820 (T548): LAYOUT v1 -- the clause bits ride in the word.
+            // W820 (T548), migrated W839: LAYOUT v2, DESIGN 10 -- the clause
+            // bits ride in the word, and the design nibble names whose they are.
             // swept = every input symbol was presented. This wrapper folds its validity checks
     // into `sig` through a 16-bit `seen` mask rather than into named wires, so only
     // ONE clause can be surfaced honestly; the other three are PADDING and are
@@ -79,7 +80,7 @@ module ternary_link_jtag #(parameter integer JTAG_CHAIN_N = 3);
             // legacy 28-bit magic. W819 watched `t27c silicon` report PASS from
             // two boards carrying a different design, because a 28-bit magic
             // matches whatever follows it (T547).
-            if (capture)    sr <= {20'hA5A5A, 4'd1, swept, 1'b1, 1'b1, 1'b1,
+            if (capture)    sr <= {16'hA5A5, 4'd2, 4'd10, swept, 1'b1, 1'b1, 1'b1,
                                    1'b0, 1'b1, beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end

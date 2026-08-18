@@ -36,7 +36,7 @@
 //
 // WORD LAYOUT, AND IT CARRIES A VERSION (T535a).
 //
-//     {20'hA5A5A, 4'd1, c_fix, c_asc, c_mov, c_non, 1'b0, 1'b1, beat, ok}
+//     {16'hA5A5, 4'd2, 4'd5, c_fix, c_asc, c_mov, c_non, 1'b0, 1'b1, beat, ok}
 //
 // Every earlier wrapper used `{28'hA5A5A5A, 0, 1, beat, ok}`, and W814 found the
 // two indistinguishable when three dice held different builds -- two boards were
@@ -145,10 +145,10 @@ module gft_train1_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A5A1F4;
+    reg [31:0] sr = 32'hA5A525F4;
     always @(posedge drck)
         if (sel) begin
-            if (capture) sr <= {20'hA5A5A, 4'd1, c_fix, c_asc, c_mov, c_non,
+            if (capture) sr <= {16'hA5A5, 4'd2, 4'd5, c_fix, c_asc, c_mov, c_non,
                                 1'b0, 1'b1, beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end

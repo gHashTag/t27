@@ -124,8 +124,25 @@ def report(idx, reads=5, chain=3):
         if (w >> 16) == 0xA5A5 and ((w >> 12) & 0xF) == 2:
             did = (w >> 8) & 0xF
             c = [(w >> b) & 1 for b in (7, 6, 5, 4)]
-            names = {1: "gft_sadd boundary probe"}.get(did, f"design {did}")
-            print(f"           LAYOUT v2  {names}  clauses={''.join(map(str,c))}  "
+            # W838/W839: a design id is only half an identity -- the reader
+            # must also say WHICH clause is false. Before this, a verdict of
+            # `1011` sent the reader to the Verilog to count bit positions.
+            DESIGNS = {
+                1: ("gft_sadd boundary probe", ['c_move', 'c_abs', 'c_gold', 'c_ind']),
+                2: ("gft_sadd band sweep", ['c_low', 'c_high', 'c_swept', 'c_ind']),
+                3: ("gft_signed_dot4", ['c_can', 'c_ann', 'c_com', 'c_non']),
+                4: ("gft_xorpercep", ['c_gold', 'c_eta0', 'c_non', 'c_ind']),
+                5: ("gft_train1", ['c_fix', 'c_asc', 'c_mov', 'c_non']),
+                6: ("e8m0", ['acc', 'swept', 'PAD', 'PAD']),
+                7: ("phi_weights", ['antisym', 'annihil', 'nontriv', 'PAD']),
+                8: ("ternary_node", ['add_ok', 'moved', 'swept', 'PAD']),
+                9: ("tnf17", ['inv_acc', 'moved', 'swept', 'PAD']),
+                10: ("ternary_link", ['swept', 'PAD', 'PAD', 'PAD']),
+            }
+            nm, cn = DESIGNS.get(did, (f"design {did}", ["c3","c2","c1","c0"]))
+            names = nm
+            named = "  ".join(f"{n}={b}" for n, b in zip(cn, c) if n != "PAD")
+            print(f"           LAYOUT v2  {names}  {named}  "
                   f"beat={(w >> 1) & 1}  ok={w & 1}")
             print("           VERDICT: " + ("PASS -- every clause held on the die"
                                             if (w & 1) and all(c)

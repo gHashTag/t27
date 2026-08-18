@@ -92,10 +92,11 @@ module e8m0_jtag #(parameter integer JTAG_CHAIN_N = 3);
     BSCANE2 #(.JTAG_CHAIN(JTAG_CHAIN_N)) bscan (
         .CAPTURE(capture), .DRCK(drck), .RESET(), .RUNTEST(), .SEL(sel),
         .SHIFT(shift), .TCK(), .TDI(tdi), .TMS(), .UPDATE(), .TDO(tdo));
-    reg [31:0] sr = 32'hA5A5A1F4;
+    reg [31:0] sr = 32'hA5A526F4;
     always @(posedge drck)
         if (sel) begin
-            // W820 (T548): LAYOUT v1 -- the clause bits ride in the word.
+            // W820 (T548), migrated W839: LAYOUT v2, DESIGN 6 -- the clause
+            // bits ride in the word, and the design nibble names whose they are.
             // acc = every probe matched its expected word; swept = the sweep finished.
     // Two clauses and two PADDING bits. A padding bit is not a check; it is
     // written as a constant one so it can never mask a real failure.
@@ -103,7 +104,7 @@ module e8m0_jtag #(parameter integer JTAG_CHAIN_N = 3);
             // legacy 28-bit magic. W819 watched `t27c silicon` report PASS from
             // two boards carrying a different design, because a 28-bit magic
             // matches whatever follows it (T547).
-            if (capture)    sr <= {20'hA5A5A, 4'd1, acc, swept, 1'b1, 1'b1,
+            if (capture)    sr <= {16'hA5A5, 4'd2, 4'd6, acc, swept, 1'b1, 1'b1,
                                    1'b0, 1'b1, beat, ok};
             else if (shift) sr <= {tdi, sr[31:1]};
         end
