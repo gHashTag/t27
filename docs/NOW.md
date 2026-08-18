@@ -1,3 +1,16 @@
+# NOW -- fifteen copies of tmul, and nothing compared them (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: duplicated functions checked by BEHAVIOUR, not text (Closes #2207)
+
+- **`tmul` is defined in 14 specs, `dot27` in 9, `quantize` in 7**, and nothing checked that the copies still compute the same thing. Copies drift
+- **They agree.** One behaviour each: `tmul` `91a68892` across 14 specs -- the same digest the exhaustive checker gets for the ripple adder's copy, so all fifteen definitions in the tree are one function. `dot27` `8f8e7503` across 9, `quantize` `1f7b9105` across 7
+- A negative result, and that is the point: fifteen unchecked copies is a standing risk, now a tripwire
+- **Text comparison is the wrong instrument, and trying it first is why this exists.** My first pass hashed normalised source and reported "2 variants of tmul, 3 of dot27, 3 of quantize". All artefacts: `bitnet_mlp3.t27` writes functions on one line, so a regex ending at `
+}` swallowed **five following definitions**; and with balanced braces, `if(ta==1)` and `if (ta == 1)` still hash differently while computing the same thing
+- I nearly reported "tmul has diverged across the BitNet family" as a fact about the repository. It was a fact about my regex -- **the third time this session that the instrument, not the thing measured, produced the anomaly**
+
 # NOW -- three more primitives enumerated, and a width bug in the checker (2026-08-18)
 
 Last updated: 2026-08-18

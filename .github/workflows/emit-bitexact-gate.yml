@@ -22,6 +22,7 @@ on:
       - "cli/**"
       - "tools/check_specs_parse.py"
       - "tools/verify_exhaustive.py"
+      - "tools/check_duplicate_agreement.py"
       - "specs/ternary/**"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
@@ -75,6 +76,15 @@ jobs:
         run: python3 tools/verify_exhaustive.py --self-check
       - name: Exhaustive cross-target agreement
         run: python3 tools/verify_exhaustive.py
+
+      # tmul is defined in 14 specs, dot27 in 9, quantize in 7. Nothing checked that
+      # the copies still compute the same thing, and copies drift. Compares BEHAVIOUR,
+      # not text: hashing the source reported three "divergences" that were all
+      # artefacts of the comparison rather than facts about the tree.
+      - name: Duplicated functions agree (negative control)
+        run: python3 tools/check_duplicate_agreement.py --self-check
+      - name: Duplicated functions agree
+        run: python3 tools/check_duplicate_agreement.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py
