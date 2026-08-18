@@ -12001,6 +12001,16 @@ all 32 oracles and gates with true per-child exit codes; the ledger names the fi
 known failures. When the remaining work needs data only the author has, the honest
 move is a recorded stop, not ever-smaller findings.
 
+**1324. A workflow_dispatch-ONLY WORKFLOW OFF THE DEFAULT BRANCH CAN NEVER RUN.**
+GitHub registers dispatchable workflows from the default branch only. The G8
+closure path 404'd for its whole life and nobody had probed it. Probe every gate's
+closure path once, end to end -- it costs ten seconds.
+
+**1325. STRIP THE PREFIX, PIN THE PATH.** A seal storing "sha256:<hex>" broke a
+naive comparator; a case-insensitive filesystem handed rglob the wrong Router.
+Two more instrument artefacts caught by reading one raw comparison before
+believing the count -- six for the session, same cure every time.
+
 ### How to update this tracker
 
 After closing a wave:

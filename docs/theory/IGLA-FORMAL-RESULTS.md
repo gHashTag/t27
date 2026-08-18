@@ -26532,6 +26532,49 @@ An autonomous loop's failure mode is to keep finding smaller things forever. The
 honest terminal state of an audit is a ledger, a battery that reruns it in one
 command, and a stop.
 
+## W878 -- the undispatchable workflow, and the method coming home
+
+### T716 -- G8'S CLOSURE PATH WAS BROKEN BY CONSTRUCTION [measured]
+
+Attempting the sweep dispatch:
+
+    $ gh workflow run tnf-cost-sweep.yml --ref tnf-publication-readiness
+    HTTP 404: workflow not found on the default branch
+
+GitHub registers `workflow_dispatch` workflows exclusively from the DEFAULT
+branch. The sweep's only trigger is `workflow_dispatch`; the file exists only on
+`tnf-publication-readiness`; the default branch is `main`. **The workflow has
+been structurally undispatchable since it was written** -- which is why the other
+track recorded "push/dispatch развёртки цены не производились", and why G8 could
+not be closed by anyone, from anywhere, at any time.
+
+Fix: PR #612 to main, one file, copied verbatim. After merge, one dispatch
+against the branch closes the sole release blocker. Seventeenth finding, and the
+first about INFRASTRUCTURE rather than a document or a toolchain.
+
+### T716a -- A GATE WHOSE CLOSURE PATH IS UNTESTED IS TWO GATES [derived]
+
+G8 said "evidence absent"; nobody had checked that the MACHINE FOR PRODUCING the
+evidence could run. The checklist tracked the artefact and not the path to it.
+A release gate should be probed end-to-end once -- a dispatch that 404s is
+knowable in ten seconds and was unknown for the workflow's whole life.
+
+### T717 -- THE METHOD APPLIED TO t27'S OWN SEALS, AND BOTH FIRST-PASS FINDINGS WERE MINE [measured]
+
+First reconstruction inside t27: the 56 fpga_* seals against their specs.
+
+    first pass: "5 stale, 7 unmapped of 12" -- BOTH defect classes were artefacts:
+        the seal stores "sha256:<hex>" and my comparator kept the prefix;
+        rglob("Router.t27") on a case-insensitive FS matched specs/server/
+        first, while the seal's true spec sits at specs/fpga/router.t27
+    corrected: 19 of 19 mappable seals MATCH, zero stale;
+        37 unmapped only because my name-search is naive -- the sealing code
+        knows the real mapping and a next pass should use it
+
+Fifth and sixth instrument artefacts of the session (prefix handling, case
+collision), caught the same way as the previous four: by reading one raw
+comparison before believing the count.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
