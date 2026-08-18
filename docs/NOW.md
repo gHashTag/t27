@@ -1,3 +1,15 @@
+# NOW -- the wrappers threw the compiler's message away (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: print what the compiler said, instead of guessing which subsystem broke (Closes #2187)
+
+- **The four-day misdiagnosis in #2185 was the wrappers, not the brace.** An AST scan over `tools/*.py` found two patterns: 9 sites doing `run(..., capture_output=True).returncode` (exit code inspected, message discarded) and **18 doing `run(..., capture_output=True).stdout`** -- taking stdout while checking neither the exit code nor stderr
+- **The second is the one that cost the four days.** When `t27c gen-c` failed to parse, `.stdout` was the empty string; it flowed downstream and surfaced as `FAIL: C backend failed to build/run`, naming a subsystem that had never been reached
+- Two self-contained helpers per script, because these tools are deliberately import-free: `_build` prints a compiler's message on failure, `_gen` returns `None` and prints the reason when `t27c gen-<mode>` exits non-zero. Callers handle `None` so the run ends cleanly instead of with a traceback
+- **Verified by planting the original fault.** With a brace removed, the output now leads with `t27c gen-c ...: exited 1` and the compiler's own `parse error in fn '...' near line 1810: unexpected token after expression statement: KwTest`, before the misleading summary
+- **My first attempt fixed the wrong nine sites and changed nothing** -- the failure was upstream, in the `.stdout` calls the scan had not been written to find. The negative control caught it; the scan alone would have let me report a fix that fixed nothing
+
 # NOW -- one missing brace, and three layers that named the wrong subsystem (2026-08-18)
 
 Last updated: 2026-08-18
