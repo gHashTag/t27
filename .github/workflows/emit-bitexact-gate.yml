@@ -21,6 +21,8 @@ on:
       - "bootstrap/**"
       - "cli/**"
       - "tools/check_specs_parse.py"
+      - "tools/check_specs_generate.py"
+      - "specs/**"
       - "tools/verify_exhaustive.py"
       - "tools/check_duplicate_agreement.py"
       - "specs/ternary/**"
@@ -66,6 +68,15 @@ jobs:
         run: python3 tools/check_specs_parse.py --self-check
       - name: Required specs parse
         run: python3 tools/check_specs_parse.py
+
+      # 348 of 1114 specs do not generate with ANY backend -- 31.2% of what the
+      # constitution calls the single source of truth. Not one is a backend mismatch:
+      # on a 25-spec sample, zero generated with any of the four. They are recorded as
+      # debt so this holds the line, and the number can only go down.
+      - name: Every spec still generates (negative control)
+        run: python3 tools/check_specs_generate.py --self-check
+      - name: Every spec still generates
+        run: python3 tools/check_specs_generate.py
 
       # Ternary primitives have input spaces small enough to enumerate: a full adder
       # over three trits-in-a-byte is 16,777,216 inputs, about a second of CPU. A space

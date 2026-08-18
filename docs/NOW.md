@@ -1,3 +1,16 @@
+# NOW -- 348 of 1114 specs do not generate (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: measure what actually compiles, and stop re-sealing what does not (Closes #2210)
+
+- **The plan was to re-seal 113 stale seals. Testing ONE instead of batching stopped it.** `specs/ml/optimizer/adamw.t27` fails on all four backends, and `t27c seal --save` sealed it anyway with `gen_hash_rust=none`, into a **different filename** (`optimizer_AdamW.json`), leaving the original stale seal untouched. The batch would have made 113 duplicates, blessed the broken ones with `none`, and fixed nothing
+- **348 of 1114 specs (31.2%) do not generate with ANY backend**, in a repository whose constitution makes specs the single source of truth
+- **The alternative was checked and eliminated.** A spec written for one target should not count as broken because another rejects it, so the gate accepts any backend. On a 25-spec random sample of the 348, **zero** generated with any of the four -- they fail in the parser, before a backend is reached. Checked precisely because "31% of the source of truth does not compile" is alarming, and by `ci-gates` §7 an alarming claim is usually the instrument
+- `specs/tri/` 70, `specs/scratch/` 58, `specs/fpga/` 35, `specs/igla/` 15, `specs/numeric/` 15. Error classes: 120 module-level parse, 107 in-fn parse, 45 RBrace, 36 LBrace, 34 unknown cast target. **`specs/base/types.t27`** is among them, failing at `pack_trit` line 172
+- `tools/check_specs_generate.py` records the 348 as debt with each compiler message, fails when a working spec breaks, and **reports when a baselined spec starts working** so the list cannot rot in the other direction either
+- **The 113 stale seals stay unsealed.** 46 of the 95 specs behind them do not generate; sealing those records reproducibility for output that does not exist. That is now a measured reason rather than a hunch
+
 # NOW -- seal-coverage was an echo, and 207 seals do not hold (2026-08-18)
 
 Last updated: 2026-08-18
