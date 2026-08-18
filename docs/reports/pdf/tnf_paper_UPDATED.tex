@@ -68,6 +68,18 @@ ADC-native. The accumulator alone has a range to spend, and Ternary Network
 Floats spend it --- a sign, a balanced-ternary exponent of $E_t$ trits, an
 $M$-bit mantissa, $1+E_t+M=N$.
 
+\textbf{Budget convention, stated once and binding throughout.} $1+E_t+M=N$
+counts the exponent as $E_t$ \emph{trit positions}. It is a specification
+convention, not a storage claim, and this paper uses two budgets under two
+explicit names. The \emph{nominal} budget is $1+E_t+M=N$; the \emph{physical}
+budget is $1+\lceil E_t\log_2 3\rceil+M \le N$, which is what a packed binary word
+costs. The two differ by $\lceil E_t\log_2 3\rceil - E_t$ cells, three at $E_t=4$
+and seven at $E_t=11$, so the adopted 16-bit rung $(E_t,M)=(4,11)$ occupies 19
+physical bits. Every accuracy comparison against a binary format is stated with
+its budget named. Under the physical budget TNF holds no advantage at 16 or 32
+bits. Claims of the form ``TNF wins at equal width'' appear nowhere in this paper
+without the budget attached.
+
 The weight is \textbf{GFTernary}, a two-bit $\{-\varphi,0,+\varphi\}$ alphabet,
 and it is where the multiplier is decided. Removing one rather than cheapening
 it requires the weight lattice to be \emph{closed} under weight application and
@@ -94,7 +106,8 @@ Which rung follows from the budget --- $\varphi$ at four bits, $r^5{=}r^3{+}1$ a
 five, $r^6{=}r{+}1$ at six --- reaching $3.7\%$ of \texttt{fp32} at six bits and
 one adder. On the block axis the element is closed, the best eight-level
 codebook beating a deployed one by $0.9\%$, and the scale is not: a $\varphi$
-grid at four bits beats MXFP4 on two models at $0.125$ fewer bits per weight.
+grid at four bits yielded lower perplexity than MXFP4 in the two evaluated
+models, at $0.125$ fewer bits per weight.
 
 Five retractions are marked in place below.
 \end{abstract}
@@ -216,22 +229,28 @@ a ruler.
 Table~\ref{tab:law} tests both properties on this ladder.
 
 \begin{table}[t]\centering
-\caption{The precision law and the flatness, measured in exact rationals.
-``Flatness'' is the ratio of the worst magnitude band to the best: $1.000$ would
-mean the error does not depend on magnitude at all.}
+\caption{The precision law and the flatness, measured in exact rationals: 600
+values with 1{,}200-bit significands, seed 20260809, recomputed 2026-08-13 by
+\texttt{recompute\_law\_table.py}. ``Flatness'' is the ratio of the worst
+magnitude band to the best: $1.000$ would mean the error does not depend on
+magnitude at all, and the residual few per cent is the sampling noise of 600
+values, not a magnitude effect. Every row is a specification width --- the 16-bit
+rung at its reconciled $M{=}11$, TNF32 at the specification's $M{=}25$. The
+published version of this table carried TNF16 at the unfilled $M{=}9$ beside a
+TNF32 taken from the specification, which is two ladders in one table.}
 \label{tab:law}
 \begin{tabular}{lrrrrr}
 \toprule
 rung & $M$ & $2^{-(M+1)}$ & measured & ratio & flatness \\
 \midrule
-TNF8    & $4$    & $3.12\mathrm{e}{-2}$   & $1.22\mathrm{e}{-2}$   & $0.39$ & $1.000$ \\
-TNF16   & $9$    & $9.77\mathrm{e}{-4}$   & $3.60\mathrm{e}{-4}$   & $0.37$ & $1.070$ \\
-TNF32   & $25$   & $1.49\mathrm{e}{-8}$   & $5.49\mathrm{e}{-9}$   & $0.37$ & $1.070$ \\
-TNF64   & $52$   & $1.11\mathrm{e}{-16}$  & $4.22\mathrm{e}{-17}$  & $0.38$ & $1.050$ \\
-TNF128  & $115$  & $1.20\mathrm{e}{-35}$  & $4.44\mathrm{e}{-36}$  & $0.37$ & $1.070$ \\
-TNF256  & $242$  & $7.07\mathrm{e}{-74}$  & $2.69\mathrm{e}{-74}$  & $0.38$ & $1.050$ \\
-TNF512  & $497$  & $1.22\mathrm{e}{-150}$ & $4.51\mathrm{e}{-151}$ & $0.37$ & $1.070$ \\
-TNF1024 & $1006$ & $7.29\mathrm{e}{-304}$ & $2.77\mathrm{e}{-304}$ & $0.38$ & $1.050$ \\
+TNF8    & $4$    & $3.12\mathrm{e}{-2}$   & $1.11\mathrm{e}{-2}$   & $0.36$ & $1.082$ \\
+TNF16   & $11$   & $2.44\mathrm{e}{-4}$   & $8.51\mathrm{e}{-5}$   & $0.35$ & $1.048$ \\
+TNF32   & $25$   & $1.49\mathrm{e}{-8}$   & $5.17\mathrm{e}{-9}$   & $0.35$ & $1.090$ \\
+TNF64   & $52$   & $1.11\mathrm{e}{-16}$  & $3.96\mathrm{e}{-17}$  & $0.36$ & $1.074$ \\
+TNF128  & $115$  & $1.20\mathrm{e}{-35}$  & $4.42\mathrm{e}{-36}$  & $0.37$ & $1.109$ \\
+TNF256  & $242$  & $7.07\mathrm{e}{-74}$  & $2.43\mathrm{e}{-74}$  & $0.34$ & $1.031$ \\
+TNF512  & $497$  & $1.22\mathrm{e}{-150}$ & $4.16\mathrm{e}{-151}$ & $0.34$ & $1.032$ \\
+TNF1024 & $1006$ & $7.29\mathrm{e}{-304}$ & $2.63\mathrm{e}{-304}$ & $0.36$ & $1.065$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -751,7 +770,7 @@ rung & $E_t$ & $M$ & decades & rung & $E_t$ & $M$ & decades \\
 TNF4  & $2$ & $1$  & $2.4$ & TNF64   & $7$  & $52$   & $658$ \\
 TNF8  & $3$ & $4$  & $8$   & TNF128  & $8$  & $115$  & $1{,}975$ \\
 TNF16 & $4$ & $9$  & $24$  & TNF256  & $9$  & $242$  & $5{,}925$ \\
-TNF32 & $6$ & $25$ & $73$  & TNF512  & $10$ & $497$  & $17{,}775$ \\
+TNF32 & $6$ & $25$ & $219$ & TNF512  & $10$ & $497$  & $17{,}775$ \\
        &     &      &       & TNF1024 & $11$ & $1006$ & $53{,}326$ \\
 \bottomrule
 \end{tabular}

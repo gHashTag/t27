@@ -35,7 +35,12 @@ for m in WD.finditer(t):
     end = t.find("\n\n", m.end())
     zones.append((start, end if end > 0 else len(t)))
 
-NUM = re.compile(r"\$?(\d+\.\d{2,})\$?")
+# A number's UNIT is part of its identity. `2.44\%` (a retracted excess
+# reconstruction error) and `2.44\mathrm{e}{-4}` (a mean relative error in the
+# precision table) are different quantities; a regex stopping at the backslash
+# reads both as bare "2.44" and flags the second because the first was
+# withdrawn. Capture the LaTeX suffix so the two cannot be confused.
+NUM = re.compile(r"\$?(\d+\.\d{2,}(?:\\mathrm\{e\}\{-?\d+\}|\\%)?)\$?")
 withdrawn = collections.defaultdict(list)
 for s, e in zones:
     zone = t[s:e]
@@ -76,7 +81,10 @@ fails = []
 for val, _ in sorted(withdrawn.items()):
     # whole-number matching: 2.44 must not match 2.4455, and a value the
     # withdrawal itself introduces as the CORRECTED one is not withdrawn.
-    pat = re.compile(r"(?<![\d.])" + re.escape(val) + r"(?![\d])")
+    # A bare value must not match a suffixed one: "2.44" must not find
+    # "2.44\mathrm{e}{-4}". Forbid a LaTeX suffix after an unsuffixed value.
+    tail = r"(?![\d])" if ("\\" in val) else r"(?![\d]|\\mathrm|\\%)"
+    pat = re.compile(r"(?<![\d.])" + re.escape(val) + tail)
     live = [m.start() for m in pat.finditer(t) if not in_zone(m.start())]
     if not live: continue
     for pos in live:
