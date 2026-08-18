@@ -14,6 +14,25 @@ divergence exits 1.  Run:  python3 tools/verify_igla_race.py
 """
 import os, re, sys, shutil, subprocess, tempfile, random
 
+def _run_bin(cmd, what, cwd=None):
+    """Run a built binary and return its stdout, or None with the reason printed.
+
+    Taking `.stdout` without checking the exit code means a crash arrives as a
+    short or empty result list, which then surfaces as a NUMERIC MISMATCH between
+    targets -- the most alarming reading available, and the wrong one. A program
+    that died on signal 11 did not disagree about arithmetic.
+    """
+    r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
+                       capture_output=True, text=True, cwd=cwd)
+    if r.returncode == 0:
+        return r.stdout
+    sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
+    print(f"  {what}: exited {r.returncode}{sig}")
+    for line in (r.stderr or "").strip().splitlines()[:4]:
+        print(f"      {line}")
+    return None
+
+
 def _gen(t27c, mode, spec, root):
     """Run `t27c gen-<mode>` and return its output, or None with the reason printed.
 
@@ -197,7 +216,9 @@ def run_c(t27c, vecs, wd):
     open(os.path.join(wd, "m.c"), "w").write(src)
     if not _build(["cc", "-O2", "-o", os.path.join(wd, "cb"), os.path.join(wd, "m.c")], wd, "core C"):
         return None
-    out = subprocess.run([os.path.join(wd, "cb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "cb"), "core C run")
+    if out is None:
+        return None
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 
@@ -213,7 +234,9 @@ def run_rust(t27c, vecs, wd):
     rs = os.path.join(wd, "m.rs"); open(rs, "w").write(src)
     if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rb"), rs], wd, "core Rust"):
         return None
-    out = subprocess.run([os.path.join(wd, "rb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "rb"), "core Rust run")
+    if out is None:
+        return None
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 
@@ -251,7 +274,9 @@ def run_pe_c(t27c, vecs, wd):
     open(os.path.join(wd, "pe.c"), "w").write(src)
     if not _build(["cc", "-O2", "-o", os.path.join(wd, "peb"), os.path.join(wd, "pe.c")], wd, "systolic PE C"):
         return None
-    out = subprocess.run([os.path.join(wd, "peb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "peb"), "systolic PE C run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
@@ -279,7 +304,9 @@ def run_pe_rust(t27c, vecs, wd):
     rs = os.path.join(wd, "pe.rs"); open(rs, "w").write(src)
     if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "perb"), rs], wd, "systolic PE Rust"):
         return None
-    out = subprocess.run([os.path.join(wd, "perb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "perb"), "systolic PE Rust run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 

@@ -19,6 +19,42 @@ failure. A real cross-target divergence exits 1 in both modes.
 """
 import os, sys, shutil, subprocess, tempfile, importlib.util, random
 
+def _run_bin(cmd, what, cwd=None):
+    """Run a built binary and return its stdout, or None with the reason printed.
+
+    Taking `.stdout` without checking the exit code means a crash arrives as a
+    short or empty result list, which then surfaces as a NUMERIC MISMATCH between
+    targets -- the most alarming reading available, and the wrong one. A program
+    that died on signal 11 did not disagree about arithmetic.
+    """
+    r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
+                       capture_output=True, text=True, cwd=cwd)
+    if r.returncode == 0:
+        return r.stdout
+    sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
+    print(f"  {what}: exited {r.returncode}{sig}")
+    for line in (r.stderr or "").strip().splitlines()[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _gen(t27c, mode, spec, root):
+    """Run `t27c gen-<mode>` and return its output, or None with the reason printed.
+
+    Taking `.stdout` while checking neither the exit code nor stderr is how a spec
+    that failed to PARSE surfaced as "the C backend failed to build" for four days.
+    """
+    r = subprocess.run([t27c, "gen-" + mode, spec], capture_output=True, text=True, cwd=root)
+    if r.returncode == 0:
+        return r.stdout
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  t27c gen-{mode} {spec}: exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:4]:
+        print(f"      {line}")
+    return None
+
+
 def _build(cmd, cwd, what):
     """Run a compiler and, if it fails, print what IT said before giving up.
 
@@ -88,8 +124,9 @@ def py_ref(g, fn, pairs):
 
 
 def run_c(t27c, spec, fn, pairs, wd):
-    hdr = subprocess.run([t27c, "gen-c", f"specs/ternary/{spec}.t27"],
-                         capture_output=True, text=True, cwd=ROOT).stdout
+    hdr = _gen(t27c, "c", f"specs/ternary/{spec}.t27", ROOT)
+    if hdr is None:
+        return None
     if "GFTSMUL_H" not in hdr and "GFTSADD_H" not in hdr:
         return None
     open(os.path.join(wd, "mod.h"), "w").write(hdr)
@@ -102,13 +139,16 @@ def run_c(t27c, spec, fn, pairs, wd):
     open(os.path.join(wd, "main.c"), "w").write(main)
     if not _build(["cc", "-O2", "-o", os.path.join(wd, "cbin"), os.path.join(wd, "main.c")], wd, "C target"):
         return None
-    out = subprocess.run([os.path.join(wd, "cbin")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "cbin"), "C target run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
 def run_rust(t27c, spec, fn, pairs, wd):
-    src = subprocess.run([t27c, "gen-rust", f"specs/ternary/{spec}.t27"],
-                         capture_output=True, text=True, cwd=ROOT).stdout
+    src = _gen(t27c, "rust", f"specs/ternary/{spec}.t27", ROOT)
+    if src is None:
+        return None
     if "fn " not in src:
         return None
     a = ",".join(str(x) for x, _ in pairs); b = ",".join(str(y) for _, y in pairs)
@@ -117,7 +157,9 @@ def run_rust(t27c, spec, fn, pairs, wd):
     rs = os.path.join(wd, "m.rs"); open(rs, "w").write(src)
     if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rbin"), rs], wd, "Rust target"):
         return None
-    out = subprocess.run([os.path.join(wd, "rbin")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "rbin"), "Rust target run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
