@@ -1475,6 +1475,154 @@ fn design_id_from_top(repo_root: &Path, tops: &[String]) -> Option<u32> {
 ///
 /// T619a set the rule: agree across at least three seeds or it is not a verdict.
 /// A rule that has to be remembered is not a rule, so this is the gate.
+/// THE SERVICE: run every `check_*.py` gate in a tree and report what each one
+/// ACTUALLY did -- its true exit code, and whether it is capable of failing at
+/// all.
+///
+/// Two mistakes made by hand in W846, both of which this command exists to make
+/// impossible:
+///
+/// 1. **`rc=$?` after a pipeline reads the LAST command's status.** Running
+///    `python3 gate.py | tail -40` and capturing `$?` captures `tail`, which
+///    always succeeds. Thirteen gates reported rc=0 and two of them were failing.
+///
+/// 2. **A tree missing a directory makes every gate that reads it fail.** The
+///    same thirteen gates reported ten failures against a tree holding only
+///    `research/` and `tools/`; with `conformance/`, `fpga/`, `data/` and `docs/`
+///    restored the count fell to one. A gate failure is only a finding when the
+///    tree it reads is complete, so this prints what the tree contains.
+///
+/// It also separates GATES from REPORTS. A script ending in an unconditional
+/// `sys.exit(0)` cannot fail whatever it finds; two of this bench's thirteen do,
+/// and both had been counted among the green ones for thirteen iterations.
+pub fn run_gates(repo_root: &Path, dir: Option<String>) -> anyhow::Result<()> {
+    let root = match dir {
+        Some(d) => repo_root.join(d),
+        None => repo_root.to_path_buf(),
+    };
+    let tools = root.join("tools");
+    if !tools.is_dir() {
+        println!("no tools/ under {}", root.display());
+        std::process::exit(2);
+    }
+    // What the tree holds. A gate reading an absent directory fails for that
+    // reason and not for what it was written to catch.
+    let mut present: Vec<String> = Vec::new();
+    for d in ["research", "tools", "conformance", "fpga", "data", "docs", "src", "specs"] {
+        if root.join(d).is_dir() {
+            let n = walk_count(&root.join(d));
+            present.push(format!("{d}/{n}"));
+        }
+    }
+    println!("  tree: {}", present.join("  "));
+    println!();
+
+    let mut names: Vec<PathBuf> = std::fs::read_dir(&tools)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.file_name().and_then(|s| s.to_str())
+                .map(|s| s.starts_with("check_") && s.ends_with(".py"))
+                .unwrap_or(false)
+        })
+        .collect();
+    names.sort();
+
+    let (mut pass, mut fail, mut report) = (0, 0, 0);
+    for g in &names {
+        let src = std::fs::read_to_string(g).unwrap_or_default();
+        // an unconditional exit(0) at column zero: the script cannot fail
+        let is_report = src.lines().any(|l| l.trim_end() == "sys.exit(0)");
+        // NO PIPELINE. The child's own status, nothing else's.
+        let (code, out, err) = run_bounded(
+            Command::new("python3").arg(g).current_dir(&root),
+            Duration::from_secs(600),
+        );
+        let log = format!("{out}{err}");
+        let head = log
+            .lines()
+            .find(|l| l.contains("FAIL") || l.contains("OK") || l.contains(':'))
+            .unwrap_or("")
+            .trim()
+            .chars()
+            .take(58)
+            .collect::<String>();
+        let name = g.file_stem().and_then(|s| s.to_str()).unwrap_or("?");
+        let verdict = if is_report {
+            report += 1;
+            "REPORT  cannot fail"
+        } else if code == Some(0) {
+            pass += 1;
+            "pass"
+        } else {
+            fail += 1;
+            "*** FAIL ***"
+        };
+        println!("  {name:<28} rc={:<4} {verdict:<20} {head}",
+                 code.map(|c| c.to_string()).unwrap_or_else(|| "kill".into()));
+    }
+    println!();
+    println!("  {pass} pass, {fail} FAIL, {report} report(s) that cannot fail");
+    if report > 0 {
+        println!("  A report counted as a gate is a check nobody is running.");
+    }
+    if fail > 0 {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn walk_count(d: &Path) -> usize {
+    let mut n = 0;
+    let mut stack = vec![d.to_path_buf()];
+    while let Some(p) = stack.pop() {
+        if let Ok(rd) = std::fs::read_dir(&p) {
+            for e in rd.flatten() {
+                let path = e.path();
+                if path.is_dir() { stack.push(path); } else { n += 1; }
+            }
+        }
+    }
+    n
+}
+
+/// THE SERVICE: refuse an edit whose target is not exactly one place.
+///
+/// Every safe edit in W845-W846 rested on one property: the text being replaced
+/// occurs EXACTLY ONCE, byte for byte. A find that matches zero times is a
+/// silent no-op -- the file is unchanged and the tool reports success, which is
+/// indistinguishable in the output from an edit that worked. A find that matches
+/// twice changes the wrong one. Both happened by hand this session.
+pub fn run_editcheck(repo_root: &Path, file: String, needle: String) -> anyhow::Result<()> {
+    let p = repo_root.join(&file);
+    let body = match std::fs::read_to_string(&p) {
+        Ok(b) => b,
+        Err(e) => {
+            println!("REFUSED -- cannot read {}: {e}", p.display());
+            std::process::exit(2);
+        }
+    };
+    let n = body.matches(needle.as_str()).count();
+    let bytes = needle.len();
+    match n {
+        1 => {
+            let at = body.find(needle.as_str()).unwrap();
+            let line = body[..at].matches('\n').count() + 1;
+            println!("OK   1 match, {bytes} bytes, line {line} of {}", file);
+            Ok(())
+        }
+        0 => {
+            println!("REFUSED -- 0 matches. A replace against this target is a NO-OP:");
+            println!("  the file would be unchanged and the tool would report success.");
+            std::process::exit(1);
+        }
+        _ => {
+            println!("REFUSED -- {n} matches. A replace would change the first and leave");
+            println!("  the rest, which is how a corrected number survives in two places.");
+            std::process::exit(1);
+        }
+    }
+}
+
 pub fn run_verdict(
     repo_root: &Path,
     spec: &str,

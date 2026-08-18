@@ -156,6 +156,30 @@ enum Commands {
         pnr_seed: Option<u32>,
     },
 
+    /// THE SERVICE: run every `check_*.py` in a tree and report what each one
+    /// ACTUALLY did. Captures the child's OWN exit code -- `rc=$?` after a
+    /// pipeline reads `tail`'s status, which is how thirteen gates reported
+    /// green while two were failing (W846). Prints the tree's contents first,
+    /// because a gate reading an absent directory fails for that reason and not
+    /// for what it was written to catch. Separates GATES from REPORTS: a script
+    /// ending in an unconditional `sys.exit(0)` cannot fail whatever it finds.
+    Gates {
+        /// Directory holding tools/ (default: the repository root)
+        #[arg(long)]
+        dir: Option<String>,
+    },
+
+    /// THE SERVICE: refuse an edit whose target is not exactly one place. A find
+    /// matching zero times is a silent NO-OP -- unchanged file, successful exit,
+    /// indistinguishable from an edit that worked. A find matching twice changes
+    /// the wrong one. Both happened by hand in W845.
+    EditCheck {
+        /// File to search, relative to the repository root
+        file: String,
+        /// The exact text an edit would replace
+        needle: String,
+    },
+
     /// THE SERVICE: a verdict that agrees across several PLACEMENTS, or no
     /// verdict. W842 built one netlist five times changing only nextpnr's seed
     /// and got three placements computing the specified function and two not --
@@ -10374,6 +10398,10 @@ async fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::EditCheck { file, needle } => {
+            service::run_editcheck(&std::env::current_dir()?, file, needle)?
+        }
         Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
             service::run_verdict(
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
@@ -10760,6 +10788,10 @@ fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
         )?,
+        Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::EditCheck { file, needle } => {
+            service::run_editcheck(&std::env::current_dir()?, file, needle)?
+        }
         Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
             service::run_verdict(
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,

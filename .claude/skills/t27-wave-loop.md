@@ -11426,6 +11426,31 @@ addressed two cables that no longer existed. `t27c boards` costs three seconds.
 because the design-id guard refused when two cables carried magic. That is the
 guard working. Record it as "not read" and say why, never as "did not pass".
 
+**1201. `rc=$?` AFTER A PIPELINE READS THE LAST COMMAND.** `python3 gate.py |
+tail -40` then `$?` captures `tail`, which always succeeds. Thirteen gates read
+green while two were failing. Use `t27c gates`, which captures the child's own
+status, or redirect to a file and check rc before reading it.
+
+**1202. A GATE READING AN ABSENT DIRECTORY FAILS FOR THAT REASON.** Ten of
+thirteen "failures" came from a tree holding only two of the eight directories
+the gates read. `t27c gates` prints the tree's contents first, so the reader can
+see whether a failure is a finding.
+
+**1203. A REPORT COUNTED AS A GATE IS A CHECK NOBODY IS RUNNING.** Two of
+thirteen end in an unconditional `sys.exit(0)`; one of them reports 174 unsourced
+numbers and exits zero. Detect them mechanically -- a script that cannot fail
+should never sit in a green column.
+
+**1204. FIXING A GATE CAN BLIND IT, AND ONLY THE NEGATIVE TEST SAYS SO.** My
+symmetric keyword fix let a withdrawn PAIR read as a replacement. Inject a known
+violation after EVERY change to a checker, and assert the file changed before
+believing the run.
+
+**1205. A LESSON AS A COMMAND CANNOT BE SKIPPED.** Lesson 1165 was written down
+and I reintroduced its defect hours later (T624). The same lesson as
+`t27c edit-check` refuses at the point of use. Prefer encoding a rule in a tool
+over recording it in a file.
+
 ### How to update this tracker
 
 After closing a wave:

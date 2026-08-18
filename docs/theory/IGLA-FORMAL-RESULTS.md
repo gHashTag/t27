@@ -24330,6 +24330,86 @@ No forecast was registered because the work was an audit and a repair, not a
 hypothesis. The number worth carrying forward is the **21 of 24 rejection rate on
 generated corrections** -- a measurement of the method, not of the article.
 
+## W846 -- the gates audited by using them, and two commands that encode the errors
+
+### T632 -- ONE GATE, THREE DEFECTS, ALL FOUND BY RUNNING IT [measured]
+
+`check_withdrawn_live` exists to catch a withdrawn number still asserted live.
+Running it against the paper found three ways it was wrong, in this order:
+
+1. **The replacement heuristic looked only BEHIND the number.** "scores $0.180$
+   MHz/LUT **at a median of five placement seeds**" puts the qualifier after, so
+   the gate flagged the AUDITED figure as the withdrawn one -- the exact
+   inversion it exists to catch.
+2. **The context key spanned table rows.** The baseline recorded
+   `all 131072  14`; the same UNCHANGED row now keyed `... 13`, because the
+   window reached past `\\` into the next row's index, which shifted when a row
+   was added elsewhere. The file's own header warns that a line-number key rots;
+   a key crossing rows rots identically.
+3. **A number's UNIT is part of its identity.** The regex stopped at the
+   backslash, so `2.44\%` (a retracted reconstruction error) and
+   `2.44\mathrm{e}{-4}` (a mean relative error) both read as bare `2.44`.
+
+**MY FIRST FIX MADE IT BLIND.** Putting the full keyword set on both sides let
+`0.189 against 0.177` -- a withdrawn PAIR -- read as a replacement. The negative
+test the file's own header demands caught it: an injected `0.189` returned rc=0.
+The sets are now asymmetric, BEFORE wider than AFTER.
+
+### T633 -- I MEASURED THE GATES WRONG TWICE BEFORE MEASURING THEM [self-critical]
+
+    first reading    10 of 13 failing
+    second reading   13 of 13 green
+    true reading     10 pass, 1 fail, 2 reports that cannot fail
+
+The first was a tree holding only `research/` and `tools/`; the gates read
+`conformance/` (585 files), `fpga/` (4,944), `data/` (28) and `docs/` (832), so
+ten failed for the tree and not for the paper. The second captured `rc=$?` after
+a pipeline through `tail`, which always succeeds.
+
+**Both errors are the same error**: reporting a number the instrument produced
+without asking what the instrument was measuring. It is the fourth and fifth
+instance in this programme (T500, T557, T603, and now these).
+
+### T634 -- TWO COMMANDS THAT MAKE BOTH ERRORS IMPOSSIBLE [derived]
+
+    t27c gates [--dir D]
+      Runs every check_*.py, captures the CHILD's exit code with no pipeline,
+      prints the tree's contents first, and separates GATES from REPORTS by
+      detecting an unconditional `sys.exit(0)`.
+
+    t27c edit-check <file> <needle>
+      Refuses unless the target occurs EXACTLY ONCE. Zero matches is a silent
+      no-op -- unchanged file, successful exit, indistinguishable from a working
+      edit. Two matches changes the wrong one.
+
+Both are two-screen commands, and each would have saved a wave. **A lesson
+written in a file did not transfer (T624); a lesson written as a command cannot
+be skipped.**
+
+### T635 -- TWO OF THIRTEEN CHECKS CANNOT FAIL [measured]
+
+`check_harness` and `check_paper_numbers` end in an unconditional `sys.exit(0)`.
+The second reports **174 unsourced literals** and exits zero. Both were counted
+among the green ones. `t27c gates` now names them:
+
+> *A report counted as a gate is a check nobody is running.*
+
+### T635a -- PUBLICATION READINESS, MEASURED [measured]
+
+    build            61 pages, 0 errors, 0 undefined references
+    paper gates      10 of 10 pass
+    traceability     632 of 714 distinctive literals sourced   88.5%
+    verified findings resolved                        7 of 8   87.5%
+    -> mechanical readiness  (10/10 + 632/714 + 7/8)/3 =        92%
+
+**Publication readiness is lower and the gap is not mechanical.** The canonical
+revision -- 128 pages, 88 figures of which 70 are canon plates, twenty
+retractions enumerated in Section 27 -- **is on no branch of `trinity-fpga`**.
+What builds here is a 61-page, 7-figure, five-retraction ancestor. Updating the
+document the author actually has needs its own source.
+
+Discounting for that and for the two reports counted as gates: **≈55%**.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
