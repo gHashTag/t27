@@ -26575,6 +26575,40 @@ Fifth and sixth instrument artefacts of the session (prefix handling, case
 collision), caught the same way as the previous four: by reading one raw
 comparison before believing the count.
 
+## W879 -- the class of one, and 281 stale seals at home
+
+### T718 -- THE "CLASS OF SIX" WAS A PAGINATION ARTEFACT; THE CLASS HAS ONE MEMBER [measured]
+
+Probing all workflows for the undispatchable pattern, the first pass reported six
+dispatch-only files absent from main. Direct per-file verification: **five of the
+six exist on main**; the registry API returns 401 workflows and my probe read one
+page of 100. Only `tnf-cost-sweep.yml` is genuinely undispatchable -- already
+fixed by PR #612. Seventh instrument artefact of the session, the same shape as
+the first six: a partial read presented as a total.
+
+### T719 -- seal-audit EXISTED, AND "HEALTHY" DID NOT MEAN "FRESH" [measured]
+
+Writing a new `t27c seals` command, the CLI's own error tip named `seal-audit` --
+the prior-art lesson enforcing itself. The existing audit checks vacuous seals and
+missing specs but NOT whether the sealed `spec_hash` still matches the file.
+Extended with staleness (mapping by the module name declared inside the spec, as
+the sealing code derives it; `spec_path` where present):
+
+    1,715 seals: 1,341 healthy, 2 vacuous, 91 missing spec, 281 STALE
+
+**Sixteen percent of all seals certify a hash their spec no longer has.** Spot
+checks by dates: FPGA_Bridge sealed 08-06, edited 08-08; ZeroDSP_UART sealed
+08-06, edited 08-14; AdamW sealed APRIL 14, edited August 17 -- four months of
+drift. The seal step runs at sealing time and nothing ever re-checks it; the same
+one-way bookkeeping as the paper's captions, at home.
+
+### T719a -- AN ALWAYS-RED GATE IS AN IGNORED GATE [derived]
+
+The first draft failed unconditionally on stale. With 281 standing, that makes
+`seal-audit` permanently red and therefore ignored -- the exact anti-pattern the
+orphan handling already avoided. Moved under `--strict`: the default run reports
+the number; the ratchet is opt-in until the backlog is resealed.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

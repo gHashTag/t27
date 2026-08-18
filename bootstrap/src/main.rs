@@ -6068,7 +6068,34 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
     let mut total = 0usize;
     let mut vacuous: Vec<String> = Vec::new();
     let mut missing_spec: Vec<String> = Vec::new();
+    let mut stale: Vec<String> = Vec::new();
     let mut healthy = 0usize;
+
+    // module name -> every spec carrying it, hashed. Needed because the fpga_*
+    // seals predate the spec_path field and carry only `module` -- and the module
+    // is the name DECLARED INSIDE the spec, exactly as compute_seal_hashes derives
+    // it. Filename matching is wrong twice over on this case-insensitive
+    // filesystem: fpga_Router paired with specs/server/router.t27 and reported a
+    // stale seal that was not stale.
+    let mut mod2: std::collections::HashMap<String, Vec<(PathBuf, String)>> =
+        std::collections::HashMap::new();
+    let mut stack = vec![repo_root.join("specs")];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for e in rd.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().and_then(|s| s.to_str()) == Some("t27") {
+                let Ok(src) = fs::read_to_string(&p) else { continue };
+                let name = extract_module_name(&src).unwrap_or_else(|| {
+                    p.file_stem().unwrap_or_default().to_string_lossy().to_string()
+                });
+                let h = sha256_hex(src.as_bytes());
+                mod2.entry(name).or_default().push((p, h));
+            }
+        }
+    }
 
     let mut entries: Vec<PathBuf> = fs::read_dir(&dir)?
         .filter_map(|e| e.ok())
@@ -6105,6 +6132,34 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
             missing_spec.push(format!("{}  ({})", name, spec_path));
             continue;
         }
+        // STALENESS: does the sealed spec_hash still match the spec on disk?
+        // "healthy" used to mean only "not vacuous, file exists" -- two seals
+        // whose specs were edited 2 and 8 days AFTER sealing counted healthy.
+        let want = get("spec_hash");
+        let want = want.strip_prefix("sha256:").unwrap_or(want);
+        if want != "missing" && !want.is_empty() {
+            let cands: Vec<String> = if spec_path != "missing" {
+                fs::read_to_string(repo_root.join(spec_path))
+                    .map(|s| vec![sha256_hex(s.as_bytes())])
+                    .unwrap_or_default()
+            } else {
+                mod2.get(get("module"))
+                    .map(|v| v.iter().map(|(_, h)| h.clone()).collect())
+                    .unwrap_or_default()
+            };
+            if !cands.is_empty() && !cands.iter().any(|h| h == want) {
+                let whereat = if spec_path != "missing" {
+                    spec_path.to_string()
+                } else {
+                    mod2.get(get("module"))
+                        .and_then(|v| v.first())
+                        .map(|(p, _)| p.display().to_string())
+                        .unwrap_or_default()
+                };
+                stale.push(format!("{}  ({})", name, whereat));
+                continue;
+            }
+        }
         healthy += 1;
     }
 
@@ -6113,6 +6168,7 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
     println!("  healthy              : {}", healthy);
     println!("  VACUOUS (all 'none') : {}", vacuous.len());
     println!("  spec file missing    : {}", missing_spec.len());
+    println!("  STALE (spec edited)  : {}", stale.len());
 
     if !vacuous.is_empty() {
         println!("\nVacuous seals -- every gen_hash is \"none\", so they verify green");
@@ -6134,11 +6190,24 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
         }
     }
 
-    if strict && (!vacuous.is_empty() || !missing_spec.is_empty()) {
+    if !stale.is_empty() {
+        println!("\nSTALE seals -- the spec was edited after sealing and never resealed,");
+        println!("so the seal certifies a file that no longer exists in that form:");
+        for s_ in stale.iter().take(20) {
+            println!("  {}", s_);
+        }
+    }
+
+    // Stale fails under --strict, like the other classes. The first draft failed
+    // unconditionally on stale -- measured immediately after: 281 of 1,715 seals
+    // are stale, so an unconditional failure makes the command permanently red
+    // and therefore ignored. The number is the finding; the ratchet is --strict.
+    if strict && (!vacuous.is_empty() || !missing_spec.is_empty() || !stale.is_empty()) {
         anyhow::bail!(
-            "seal audit failed: {} vacuous, {} orphaned",
+            "seal audit failed: {} vacuous, {} orphaned, {} stale",
             vacuous.len(),
-            missing_spec.len()
+            missing_spec.len(),
+            stale.len()
         );
     }
     Ok(())

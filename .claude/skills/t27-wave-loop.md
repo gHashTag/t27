@@ -12011,6 +12011,18 @@ naive comparator; a case-insensitive filesystem handed rglob the wrong Router.
 Two more instrument artefacts caught by reading one raw comparison before
 believing the count -- six for the session, same cure every time.
 
+**1326. PAGINATE OR PERISH.** The workflow registry holds 401 entries; my probe
+read page one of 100 and manufactured a class of six from a class of one. Check
+total_count before believing any API listing.
+
+**1327. HEALTHY IS NOT FRESH.** seal-audit's healthy bucket admitted seals whose
+specs were edited months after sealing. 281 of 1,715 seals are stale -- 16% drift
+that no existing check could see, because nothing ever re-hashed the spec.
+
+**1328. AN ALWAYS-RED GATE IS AN IGNORED GATE.** Fail unconditionally only on
+defects with a zero-standing backlog; put the rest behind --strict and report the
+number. The number is the finding; the ratchet is opt-in.
+
 ### How to update this tracker
 
 After closing a wave:
