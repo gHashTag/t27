@@ -1756,8 +1756,30 @@ pub fn run_silicon(
             pnr_args.push(x.to_string_lossy().into_owned());
         }
         let (c, _, err) = run(Command::new(&pnr).args(&pnr_args));
+        // W839 (T603): this stage printed the frequency it ASKED FOR as if it
+        // were the frequency it GOT. nextpnr reports an achieved Fmax per clock
+        // on stderr and the whole report was discarded except for ERROR lines,
+        // so "nextpnr @70.77MHz + XDC / OK" meant only that the tool exited zero.
+        // MEASURED W839: designs whose clauses compare a DUT output against a
+        // CONSTANT passed on silicon while clauses comparing against a LIVE
+        // signal failed -- the exact signature of a path that never settles
+        // inside its period, on a bench where every build had been reporting OK.
+        // A target printed as a result is the same defect as T500 (a 22 ms
+        // failure timed as a fast success) and T557 (byte counts for a killed
+        // stage), in the one place those fixes did not reach.
+        let fmax: Vec<String> = err
+            .lines()
+            .filter(|l| l.contains("Max frequency for clock"))
+            .map(|l| l.trim().trim_start_matches("Info: ").to_string())
+            .collect();
+        let timing_fail = fmax.iter().any(|l| l.contains("FAIL"));
+        let fmax_note = if fmax.is_empty() {
+            "NO Fmax REPORTED -- cannot say the design met timing".to_string()
+        } else {
+            fmax.join(" | ")
+        };
         pnr_stage = Some(Stage {
-            name: if xdc.is_some() { "nextpnr @70.77MHz + XDC" } else { "nextpnr @70.77MHz (T495 measured)" },
+            name: if xdc.is_some() { "nextpnr + XDC, Fmax" } else { "nextpnr @70.77MHz, Fmax" },
             secs: t.elapsed().as_secs_f64(),
             code: c,
             // W823 (T557): a KILLED stage has no artefact, whatever is on disk.
@@ -1768,10 +1790,21 @@ pub fn run_silicon(
             // the same defect T500, T513 and T523a were, in the one place the
             // earlier fix did not reach.
             artefact: if c == Some(0) { file_len(&fasm_path) } else { None },
-            note: err.lines().find(|l| l.starts_with("ERROR")).unwrap_or("").to_string(),
+            note: match err.lines().find(|l| l.starts_with("ERROR")) {
+                Some(e) => e.to_string(),
+                None => fmax_note.clone(),
+            },
         });
         if c != Some(0) {
             break;
+        }
+        // A design that does not meet its own declared period cannot be asked a
+        // question about arithmetic: it will answer about settling instead.
+        if timing_fail {
+            println!("FAIL -- nextpnr reports the design MISSES its declared period:");
+            for l in &fmax { println!("  {l}"); }
+            println!("Nothing was loaded. Slow the wrapper's divider or declare the period it can hold.");
+            std::process::exit(1);
         }
 
         let fasm = std::fs::read_to_string(&fasm_path).unwrap_or_default();

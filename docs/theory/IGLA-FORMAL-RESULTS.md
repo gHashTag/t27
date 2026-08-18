@@ -23648,6 +23648,141 @@ twenty-one, and this deserves the same.
 Both large designs met timing at the declared divider (/16 and /32) against a
 70.77 MHz CFGMCLK -- the XDC ratio doing the work T541 said it must.
 
+## W839 -- all three options; the corpus split shown on silicon, and a divergence I cannot yet name
+
+### T601 -- OPTION B: EVERY WRAPPER NOW NAMES ITSELF AND ITS CLAUSES [measured]
+
+Eight wrappers migrated from layout v1 to v2 with design nibbles 3-10. The
+substitution is bit-exact -- v1 spends 20 magic + 4 version, v2 spends 16 + 4 + 4
+-- so no clause bit moved. The reader gained a table of all thirteen designs AND
+their clause names, and `t27c silicon` now DERIVES the expected design id from
+the top wrapper's own capture line and picks the answering cable by that nibble.
+
+    OK B2 read  0xa5a525f7  design 5 on index 2, clauses=1111  ok=1
+    (2 cables answered; the design nibble picked this one -- W839)
+
+This is W693's discipline (derive the chain, never assume it) applied to board
+identity, and it closes the hole that produced W838's false PASS.
+
+### T602 -- OPTION C: THE CORPUS SPLIT, ASKED DIRECTLY, ANSWERED BY THE DIE [measured]
+
+Two minimal wrappers, same four clause slots, opposite `smul`:
+
+    design 12  gft_smul        19-spec form, guards zero    0xa5a52ca6  1010
+    design 13  gft_signed_mac   2-spec form, no guard       0xa5a52d36  0011
+
+    clause     design 12 (guarded)   design 13 (unguarded)   forecast
+    c_zero            1                      0               BOTH CONFIRMED
+    c_comm            0                      0               design 13 refuted
+    c_gold/c_cancel   1                      1
+    c_ind             0                      1
+
+**`0 * x == 0` holds in the majority form and fails in the minority form, read
+off two boards minutes apart.** W838 showed this as a by-product of testing two
+unrelated designs; this asks the question directly, on 629 LUT and 6,632 LUT
+instead of 12,724, with the clause sets matched so nothing else differs.
+
+The mechanism is T596: with no guard, `smul(0,x)` reduces to `magmul(0, x&65535)`,
+where `am = 0` gives `q = 512+bm` and `mant = bm` -- the other operand's mantissa,
+returned intact.
+
+### T603 -- THE PIPELINE PRINTED THE FREQUENCY IT ASKED FOR AS THE ONE IT GOT [self-critical]
+
+The stage was named `nextpnr @70.77MHz + XDC` and reported OK whenever nextpnr
+exited zero. nextpnr writes an achieved Fmax per clock to stderr and the whole
+report was discarded except for lines beginning `ERROR`. **A target printed as a
+result** -- the same defect as T500 (a 22 ms failure timed as a fast success) and
+T557 (byte counts for a killed stage), in the one place those fixes did not reach.
+
+Now captured, and a timing miss stops the run before anything is loaded, because
+a design that misses its period cannot be asked about arithmetic -- it will
+answer about settling instead. First measurement through the repaired stage:
+
+    Max frequency for clock 'slowclk': 32.87 MHz (PASS at 8.85 MHz)
+                                       47.37 MHz (PASS at 8.85 MHz)
+    Max frequency for clock 'cfgmclk': 846.02 MHz (PASS at 70.77 MHz)
+    Max frequency for clock    'drck': 1086.96 MHz (PASS at 70.77 MHz)
+
+### T604 -- SILICON AND ICARUS DISAGREE, AND TIMING IS EXCLUDED BY MEASUREMENT [measured]
+
+The same four predicates the die answered, run on the generated RTL:
+
+    ICARUS   c_zero 1   c_comm 1   c_gold 1   c_ind 1
+    SILICON  c_zero 1   c_comm 0   c_gold 1   c_ind 0
+
+Reproduced across two loads of design 12 on board 1:6. Not timing: 3.7x margin,
+measured through the stage repaired in T603 rather than assumed.
+
+**The failing clauses share a shape.** Every clause that compares a DUT output
+against a CONSTANT held -- c_zero, c_gold, c_cancel. Every clause that compares
+one DUT instance against ANOTHER failed -- c_comm in designs 12 and 13, c_imm and
+c_settled in design 11, and c_com in `gft_signed_dot4` (W838).
+
+### T605 -- MY SYMMETRY FORECAST WAS REFUTED BY THE DIE [self-critical]
+
+`gft_dot4_comm_jtag.v` (design 11) was built to tell a settling race from an
+arithmetic fact, and its header registered:
+
+>     c_imm      MAY come back 0
+>     c_settled  MUST come back 1
+
+on the grounds that every place the operands enter `magmul` is commutative --
+`(512+am)*(512+bm)`, `ao+bo`, `sa^sb` -- so `smul(a,b) == smul(b,a)` identically.
+Icarus agreed: 0 mismatches over 8,192 operand pairs across the band.
+
+    SILICON: 0xa5a52b16  design 11  c_imm=0  c_settled=0  c_swept=0  c_ind=1
+
+**c_settled came back 0.** The proof is not wrong -- it is a proof about the
+arithmetic, and the arithmetic is not what failed. What the forecast got wrong
+was assuming that the only two candidates were "arithmetic" and "settling". A
+third had been in front of me since W838 and I named it only after the die
+refused both: something between yosys and the bitstream is producing two
+non-equivalent implementations of one function instantiated twice.
+
+`c_swept = 0` says the band was not finished before the read, so c_imm and
+c_settled report the portion swept -- they are sticky, so "failed somewhere in
+the first part of the band" is sound, and "failed everywhere" is not claimed.
+
+### T605a -- WHAT IS AND IS NOT ESTABLISHED [derived]
+
+    EXCLUDED by proof and by Icarus:   the arithmetic (smul is exactly commutative)
+    EXCLUDED by measurement:            timing (3.7x margin, T603)
+    REPRODUCED:                         3 designs, 2 arithmetic forms, 2 boards,
+                                        2 loads each
+    NOT IDENTIFIED:                     the mechanism
+
+**The mechanism is open and this wave does not name it.** What can be stated is a
+criterion: a clause comparing a DUT output against a constant has behaved; a
+clause comparing two DUT instances has not. Every standing verdict should be
+re-read against that criterion before it is relied on -- which is a job, not a
+claim, and it belongs to the next wave.
+
+W838's "intermittent commutativity" is retired as a separate mystery. It is this,
+seen once in a design too large to isolate it in.
+
+### T605b -- forecast count, eleventh entry [derived]
+
+    W839  (2 confirmed / 0 withdrawn / 2 refuted)
+
+Both `c_zero` forecasts confirmed -- the corpus split predicted from source and
+read off the die. Both symmetry-derived forecasts refuted. **The refutations are
+the more valuable half**: a confirmed forecast closes a question, a refuted one
+opens a better question than the one that was asked.
+
+### T606 -- RESOURCE NUMBERS, SIX DESIGNS, ZERO DSP THROUGHOUT [measured]
+
+    design                        LUT    CARRY4  DSP  DUT-equiv   P&R
+    11 gft_dot4_comm            10857     1715    0     1.66     254 s
+    12 gft_smul                   629      135    0     1.57       8 s
+    13 gft_signed_mac            6632     1236    0     3.10      -
+     3 gft_signed_dot4          12724     2018    0     1.96     259 s
+     4 gft_xorpercep            10914     1885    0     1.01     337 s
+     1 gft_sadd                  1335      260    0     1.08      20 s
+
+Design 11 carries two dot-product instances in 10,857 LUT against design 3's
+five instances in 12,724 -- yosys shares aggressively across instances, which is
+itself worth remembering next to T604.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

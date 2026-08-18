@@ -11255,6 +11255,34 @@ load and 1 after two others. That is an intermittent, and 64 simulated values
 cannot see what millions of silicon cycles do. Record it as open; do not promote
 it to a defect without a dedicated sweep.
 
+**1167. A STAGE NAMED FOR ITS TARGET WILL BE READ AS ITS RESULT.**
+`nextpnr @70.77MHz + XDC / OK` meant only that nextpnr exited zero; the achieved
+Fmax was on stderr and discarded. Name stages for what they MEASURE
+(`nextpnr + XDC, Fmax`) and put the number in the note. Third instance of this
+exact defect (T500, T557, T603).
+
+**1168. TWO CANDIDATE EXPLANATIONS IS USUALLY TOO FEW.** Design 11 was built to
+separate "arithmetic" from "settling race", and the die refused BOTH -- because
+the real candidate, a flow that miscompiles one of two identical instances, was
+never on the list. When building a discriminator, ask what it reports if neither
+option is true; if the answer is "nothing", add a third.
+
+**1169. SORT FAILING CLAUSES BY SHAPE, NOT BY DESIGN.** Across three designs and
+two arithmetic forms, every clause comparing a DUT output to a CONSTANT held and
+every clause comparing two DUT INSTANCES failed. Neither design nor arithmetic
+predicted it; the shape of the comparison did. Group results by what they
+compare before concluding anything about what they compute.
+
+**1170. A REFUTED FORECAST IS WORTH MORE THAN A CONFIRMED ONE.** W839 registered
+four: two confirmed (the corpus split, read off the die exactly as predicted from
+source) and two refuted. The confirmations closed questions; the refutations
+opened a better one than had been asked. Register forecasts you expect to lose.
+
+**1171. EXCLUDE CAUSES BY MEASUREMENT, THEN SAY THE REST IS OPEN.** Arithmetic
+excluded by proof and Icarus, timing excluded by a measured 3.7x margin,
+reproduced on 3 designs / 2 boards / 2 loads -- and the mechanism still unnamed.
+Publishing the bounded gap beats naming a mechanism to have named one.
+
 ### How to update this tracker
 
 After closing a wave:

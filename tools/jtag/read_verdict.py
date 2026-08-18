@@ -138,6 +138,9 @@ def report(idx, reads=5, chain=3):
                 8: ("ternary_node", ['add_ok', 'moved', 'swept', 'PAD']),
                 9: ("tnf17", ['inv_acc', 'moved', 'swept', 'PAD']),
                 10: ("ternary_link", ['swept', 'PAD', 'PAD', 'PAD']),
+                11: ("gft_dot4_comm", ['c_imm', 'c_settled', 'c_swept', 'c_ind']),
+                12: ("gft_smul (guarded zero)", ['c_zero', 'c_comm', 'c_gold', 'c_ind']),
+                13: ("gft_signed_mac (no guard)", ['c_zero', 'c_comm', 'c_cancel', 'c_ind']),
             }
             nm, cn = DESIGNS.get(did, (f"design {did}", ["c3","c2","c1","c0"]))
             names = nm
