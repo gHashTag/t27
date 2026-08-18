@@ -131,8 +131,30 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64) -> 
     let mut pending = in_flight(&repo, n)?.0;
     if wait {
         let mut quiet = 0;
+        let mut blips = 0;
         loop {
-            let (p, total) = in_flight(&repo, n)?;
+            // A transient API failure must not end the wait. The first time
+            // this loop met a TLS handshake timeout it propagated the error,
+            // the caller's merge ran anyway, and the gate protected nothing --
+            // the third time in this project that a verdict failed to gate.
+            let (p, total) = match in_flight(&repo, n) {
+                Ok(v) => {
+                    blips = 0;
+                    v
+                }
+                Err(e) => {
+                    blips += 1;
+                    if blips > 5 {
+                        return Err(e).context(
+                            "the check API failed six times running; refusing to \
+                             report a verdict rather than guess at the state",
+                        );
+                    }
+                    println!("  waiting: check API failed ({blips}/5), retrying");
+                    std::thread::sleep(std::time::Duration::from_secs(poll));
+                    continue;
+                }
+            };
             if p > 0 {
                 quiet = 0;
                 println!("  waiting: {p} of {total} check(s) still running");
@@ -149,7 +171,12 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64) -> 
             }
             std::thread::sleep(std::time::Duration::from_secs(poll));
         }
-        pending = in_flight(&repo, n)?.0;
+        pending = match in_flight(&repo, n) {
+            Ok(v) => v.0,
+            // Unknown is not zero. If the final read fails, say so and let the
+            // verdict be WAIT rather than inventing a clean list.
+            Err(_) => 1,
+        };
         println!();
     }
 
