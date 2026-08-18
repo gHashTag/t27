@@ -11577,6 +11577,17 @@ stale in one table (W851) because a reconciliation skipped it; TNF8's middle ban
 differs in another. When a defect has a known mechanism, look for the same rung
 elsewhere before looking for a new mechanism.
 
+**1231. A SHARED SEED IS NOT A SHARED DEFINITION.** The script and the caption
+name the same generator, seed and precision, and the two cells still differ --
+because one counts values INSIDE the range and the other counts values CLIPPED.
+Matching provenance says the input is the same; it says nothing about what was
+measured on it.
+
+**1232. A SUPERSEDED TOOL THAT STILL RUNS IS WORSE THAN A DELETED ONE, BECAUSE IT
+ANSWERS.** Two audit passes ran a regenerator whose table the paper had replaced
+and read its output as unexplained differences. Mark it in its own header, where
+the next runner will see it before the output.
+
 ### How to update this tracker
 
 After closing a wave:

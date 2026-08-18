@@ -24944,6 +24944,52 @@ explain it, and neither has been ruled out. This one is the author's to settle.
     candidates open        2   TNF8's middle band; the unprinted 68.17
     tables verified        3   tab:law, tab:field, tab:ladderacc (23-24 of 24)
 
+## W856 -- the third count, and why it does not close the candidate
+
+### T663 -- THE REGENERATOR IS DETERMINISTIC AND THE CAPTION DECLARES ITS SEED [measured]
+
+`recompute_ladder_exact` builds its workload with `random.Random(20260809)` at
+`PREC = 1200`, and three consecutive runs produce byte-identical output. The
+table's caption declares the same provenance: *"600 values with 1,200-bit
+significands, seed 20260809"*.
+
+So the paper and the script name the same generator, the same seed and the same
+precision, and the script reproduces itself exactly. That removes the two easiest
+explanations for W855's TNF8 discrepancy: it is not a re-run drifting, and it is
+not a different harness by declaration.
+
+### T664 -- AND THE TWO SIDES COUNT DIFFERENT THINGS, WHICH IS WHY IT STAYS OPEN [self-critical]
+
+    script  TNF8 middle band  ('2.02e-02', 102)
+    paper   TNF8 middle band   1.16e-2 (82/187)
+
+The caption defines its fraction: *"Fractions in a cell are the values that fell
+INSIDE the rung's range out of the values in that band."* So `82/187` is 82
+inside, implying **105 outside**. The script's `102` is a count of values it
+CLIPPED -- outside.
+
+105 against 102. Close, and not equal, and **not the same quantity** until
+someone shows the two definitions coincide.
+
+**I nearly closed this candidate on the strength of the seed matching.** The seed
+matching says the workload is the same; it says nothing about whether the two
+numbers printed from that workload measure the same thing. A shared input is not
+a shared definition.
+
+The candidate stands, better evidenced and still open: same generator, same seed,
+same precision, two cells differing, and one pair of counts whose definitions
+have not been reconciled.
+
+### T665 -- THE SUPERSEDED REGENERATOR IS NOW MARKED [derived]
+
+`recompute_ladder_table.py` carries a header naming what it is: a script for the
+specification-sourced table the paper replaced, whose decades (26, 80, 242) appear
+nowhere in the text. Two audit passes ran it against the current paper and read
+its output as unexplained differences.
+
+A superseded tool that still runs is worse than one that is deleted, because it
+answers.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
