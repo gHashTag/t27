@@ -14,6 +14,12 @@ on:
   pull_request:
     branches: [master]
     paths:
+      # The four backends this gate proves equivalent all live in ONE file,
+      # bootstrap/src/compiler.rs -- gen_zig:3437, gen_verilog:6741, gen_c:10522,
+      # gen_rust:14382, in 31,077 lines. Without bootstrap/** here, a PR that
+      # rewrites the C emitter merges with the cross-target proof never running.
+      - "bootstrap/**"
+      - "cli/**"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
       - "tools/verify_multitarget.py"
@@ -52,7 +58,7 @@ jobs:
         run: python3 tools/verify_emit_bitexact.py
 
       - name: Prove GF-T primitives bit-exact across C + Rust + model
-        run: python3 tools/verify_multitarget.py
+        run: python3 tools/verify_multitarget.py --require
 
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
         run: python3 tools/verify_trainer_c.py
