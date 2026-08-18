@@ -11785,6 +11785,16 @@ flat precision across range -- exactly what that prior rewards. Zero occurrences
 **1275. SCORE A SURVEY BY WHAT SURVIVES CHECKING.** Nine threats raised, six
 already stated by the paper, one real, two unverifiable. Report the yield.
 
+**1276. ASK WHY A CELL IS ABSENT, NOT ONLY WHETHER THE PRESENT ONES ARE RIGHT.**
+Every printed number in tab:window is correct. The finding was that a 50.1% clip
+rate suppresses the competitor's cell while a 49.6% rate publishes the paper's,
+and that two measured rows are silently missing. No numeric check can see this.
+
+**1277. AN ASYMMETRIC STANDARD IS A FINDING EVEN WHEN THE STANDARD IS SOUND.**
+Suppressing a mean taken over the unclipped half of a sample is defensible.
+Applying it to one format and not the other is not, and here both asymmetries run
+the same way.
+
 ### How to update this tracker
 
 After closing a wave:

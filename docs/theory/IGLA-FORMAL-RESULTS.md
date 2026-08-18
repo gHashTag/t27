@@ -25725,6 +25725,46 @@ One real finding from nine. That is a poor yield -- and it is the yield of a sur
 that could not read anything. The correct conclusion is not "the literature is
 fine"; it is **that this check has not been performed and cannot be, here.**
 
+### T691 -- tab:window SUPPRESSES ON A STANDARD IT DOES NOT APPLY TO ITSELF [measured]
+
+Every row of `crossover2_2026-08-13e.json` against what `tab:window` prints:
+
+    c=16   binary16 clipped 4509/9000 = 50.1%   value SUPPRESSED to an em-dash
+                                                (the record holds 1.677e-4)
+    c=40   TNF      clipped 4465/9000 = 49.6%   value PRINTED
+
+The same clipping fraction hides the competitor's number and publishes the
+paper's. And the suppressed cell is one where `binary16` is **four times more
+accurate** on its unclipped half -- the ratio at c=16 is 0.2479, the same 0.25 the
+prose elsewhere calls "exactly the two mantissa bits" of advantage.
+
+Two further rows are measured and not printed at all:
+
+    c in record    0 4 8 12 16 20 24 28 32 36 40
+    c printed      0 4 8 12 16 20    28    36 40
+
+`c=24` and `c=32` have binary16 clipped 100%, exactly like `c=20`, `c=28` and
+`c=36` -- which ARE printed. So their omission follows no stated rule either.
+
+**The suppression standard is defensible; a mean over the unclipped half of a
+sample is a biased estimate.** What is not defensible is applying it in one
+direction. Both asymmetries here run the same way.
+
+### T691a -- THIS IS THE FIRST FINDING OF THIS SESSION THAT AFFECTS A CONCLUSION [derived]
+
+    W849  twelve refs bound to figure counters    presentation
+    W851  tab:law TNF8 row                        one rung's numbers
+    W857  tab:ladderacc TNF8 cell                 the same rung
+    W865  caption said 7000 samples, record 5000  provenance
+    W865  tab:window c=4 printed 1.69 for 1.68    one digit
+    W867  tab:window suppression is one-sided     A COMPARISON'S DIRECTION
+
+Every earlier defect was a number or a pointer. This one changes what a reader
+concludes from a comparison table, and it changes it in the author's favour. It is
+the one finding in the sequence that a referee would treat as more than an erratum
+-- and it was invisible to every numeric check, because every printed number in
+the table is correct. Only asking *why is this cell absent* found it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
