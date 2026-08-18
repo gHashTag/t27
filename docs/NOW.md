@@ -1,3 +1,26 @@
+# NOW -- one arm is exhaustive now, and the other three say they are samples (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: make ternary_mul exhaustive, and state where t27 actually stands (Closes #2197)
+
+- **Both axes of "one spec, four targets, bit-exact" are occupied.** Chisel/FIRRTL/CIRCT emits Verilog *and* a C++ simulator from one source; HLS has done C→RTL for twenty years. Equivalence between an RTL design and a C model is industrial practice -- HECTOR, and the ACL2/RAC line producing mechanically checked proofs over **all** inputs. Multi-target emission is table stakes and formal equivalence is stronger than what we do
+- **`ternary_mul` was sampling a domain it could enumerate**: 800 random draws from a space of 256 x 256 = 65,536, missing about 22 % of it by chance, when enumeration costs milliseconds. It is now exhaustive -- C and Rust each sweep all 65,536 `(a, code)` pairs and match the model's FNV-1a digest `6b2724c5`
+- **Negative control has full resolution:** perturbing the model at exactly one input out of 65,536 is caught by both backends
+- `ternary_mac` stays sampled and now says so -- its i32 accumulator puts the space at ~2.8e14. `gft_smul`/`gft_sadd` sample 600 of ~4.3e9, which is 1.4e-7 of it
+- **The Coq work is real and is about something else.** 11 developments under `coq/`, gated against `Admitted`, concerning the kernel and phi -- **not** backend equivalence, and not to be cited as if they were
+- `docs/POSITIONING.md`: what is occupied, what we prove precisely, and the three things that are not occupied -- the target *set* (no one else emits a standalone Rust or Zig library from the same source as the RTL), a path with no vendor licence, and the one place ternary buys a **verification** advantage rather than an area claim: small domains make complete cross-target agreement affordable
+
+# NOW -- how a gate lies, written down (2026-08-18)
+
+Last updated: 2026-08-18
+
+## skills: six confirmed ways a CI gate produces a wrong signal (Closes #2195)
+
+- **The day's arithmetic: one missing brace cost four days of a red gate**, and the days went to three layers of diagnostics each naming a different subsystem, only the innermost right
+- Six ways recorded with paths: a gate that **cannot fail** (two required checks were one `echo`; a third asserted `phi**2 + phi**-2 == 3`); a gate green because **under-scoped** (975 documents scanned, blind to the canonical catalog row); a wrapper that **swallows the tool's message** (27 sites); a **crash reported as a numeric disagreement**; a **partial repair reported as complete**, twice; and **renaming a job silently breaking branch protection**
+- Construction rules alongside: negative control as its own CI step; the rule set as data, so a row is added when a number is withdrawn rather than when the document is fixed -- ten days apart in the case that started this; baselines keyed to the **line** rather than the file, since an append-only document widens the hole every entry; and reporting what could not be established instead of inventing it
+- `.claude/skills/ci-gates/SKILL.md`
 # NOW -- a dead simulator is not a design that emitted nothing (2026-08-18)
 
 Last updated: 2026-08-18

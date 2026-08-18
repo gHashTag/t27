@@ -109,6 +109,27 @@ def ref_mul(a, code):
 def ref_mac(acc, a, code): return i32(i32(acc) + ref_mul(a, code))
 
 
+def exhaustive_mul_digest():
+    """FNV-1a over ternary_mul(a, code) for EVERY (a, code) pair.
+
+    The input space of ternary_mul is 256 x 256 = 65,536 -- small enough to
+    enumerate. gen_vectors() samples 800 triples from it, which is a subsample of
+    a space that can be covered completely, and "agree on 800 random operands" is
+    a strictly weaker statement than "agree on every possible input" when the
+    latter costs milliseconds.
+
+    ternary_mac is NOT exhaustible: its accumulator is i32, so the space is
+    256 x 256 x 2^32 ~ 2.8e14. It stays sampled, with its edge cases, and the
+    verdict line says which of the two it is.
+    """
+    h = 2166136261
+    for a in range(-128, 128):
+        for c in range(256):
+            v = ref_mul(a, c) & 0xFF
+            h = ((h ^ v) * 16777619) & 0xFFFFFFFF
+    return h
+
+
 def gen_vectors():
     r = random.Random(7777)
     A = [-128, -1, 0, 1, 127]; C = [0, 1, 2, 3, 255]; ACC = [0, (1 << 31) - 1, -(1 << 31), 1000000]
@@ -202,6 +223,69 @@ def _core_rust(t27c):
     if st is None:
         return None
     return "#[derive(Clone, Copy)]\n" + st + "\n" + "\n".join(blocks)
+
+
+def exhaustive_c(t27c, wd):
+    """ternary_mul over EVERY (a, code) pair, in C. 256 x 256 = 65,536 inputs.
+
+    gen_vectors() samples 800 triples out of that space. Sampling a space you can
+    enumerate is a weaker statement than enumerating it, and here enumeration costs
+    milliseconds -- so this is not a sample, it is the whole domain.
+
+    ternary_mac is deliberately NOT covered this way: its accumulator is i32, so its
+    space is 256 x 256 x 2^32 ~ 2.8e14. It stays sampled, and the verdict says so.
+    """
+    core = _core_c(t27c)
+    if core is None:
+        return None
+    main = [
+        "int main(void){",
+        "  unsigned h = 2166136261u;",
+        "  for (int a = -128; a < 128; a++) {",
+        "    for (int c = 0; c < 256; c++) {",
+        "      TernaryWeight w; w.code = (uint8_t)c;",
+        "      unsigned v = (unsigned)((int)ternary_mul((int8_t)a, w) & 0xFF);",
+        "      h = (h ^ v) * 16777619u;",
+        "    }",
+        "  }",
+        '  printf("%08x\\n", h);',
+        "  return 0;",
+        "}",
+    ]
+    src = core + "\n" + "\n".join(main) + "\n"
+    f = os.path.join(wd, "exh.c")
+    open(f, "w").write(src)
+    if not _build(["cc", "-O2", "-o", os.path.join(wd, "exhc"), f], wd, "exhaustive C"):
+        return None
+    out = _run_bin(os.path.join(wd, "exhc"), "exhaustive C run")
+    return None if out is None else out.strip()
+
+
+def exhaustive_rust(t27c, wd):
+    """The same whole-domain sweep, in Rust."""
+    core = _core_rust(t27c)
+    if core is None:
+        return None
+    main = [
+        "fn main(){",
+        "  let mut h: u32 = 2166136261;",
+        "  for a in -128i32..128 {",
+        "    for c in 0u32..256 {",
+        "      let w = TernaryWeight { code: c as u8 };",
+        "      let v = ((ternary_mul(a as i8, w) as i32) & 0xFF) as u32;",
+        "      h = (h ^ v).wrapping_mul(16777619);",
+        "    }",
+        "  }",
+        '  println!("{:08x}", h);',
+        "}",
+    ]
+    src = core + "\n" + "\n".join(main) + "\n"
+    f = os.path.join(wd, "exh.rs")
+    open(f, "w").write(src)
+    if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "exhr"), f], wd, "exhaustive Rust"):
+        return None
+    out = _run_bin(os.path.join(wd, "exhr"), "exhaustive Rust run")
+    return None if out is None else out.strip()
 
 
 def run_c(t27c, vecs, wd):
@@ -341,7 +425,25 @@ def main():
                 print(f"FAIL: {tgt} != ref in {len(mism)}/{len(ref)}; first vec {vecs[i]} ref={r} {tgt}={g}")
                 ok = False
             else:
-                print(f"OK ternary_mul/mac: {tgt} == reference BIT-EXACT over {len(ref)} vectors (edges incl.)")
+                print(f"OK ternary_mul/mac: {tgt} == reference over {len(ref)} SAMPLED vectors "
+                      f"(edge cases included; ternary_mac's i32 accumulator makes its space "
+                      f"~2.8e14, so this arm is a sample and says so)")
+
+        # ternary_mul alone has a space of 256 x 256 = 65,536 -- small enough to enumerate.
+        # Sampling a domain you can exhaust is a weaker claim than exhausting it, and here
+        # exhausting it costs milliseconds. This arm is therefore not a sample.
+        want = f"{exhaustive_mul_digest():08x}"
+        for tgt, runner in (("C", exhaustive_c), ("Rust", exhaustive_rust)):
+            got = runner(t27c, wd)
+            if got is None:
+                print(f"FAIL: exhaustive {tgt} failed to build/run"); ok = False; continue
+            if got != want:
+                print(f"FAIL: exhaustive {tgt} digest {got} != model {want} -- the two disagree "
+                      f"on at least one of the 65,536 possible (a, code) inputs")
+                ok = False
+            else:
+                print(f"OK ternary_mul: {tgt} == reference on ALL 65,536 possible inputs "
+                      f"(exhaustive, FNV-1a digest {got})")
         # systolic PE: extends the check up the datapath (ternary_mac -> systolic PE)
         if os.path.exists(os.path.join(ROOT, SYS_SPEC)):
             print("NOTE systolic_ternary imports ternary_mul but the import is NOT emitted "
@@ -362,7 +464,8 @@ def main():
                     ok = False
                 else:
                     print(f"OK systolic_ternary_pe: {tgt} == reference BIT-EXACT over {len(pref)} vectors (i16 psum, edges)")
-    print("IGLA RACE ternary MAC + systolic PE BIT-EXACT ACROSS TARGETS (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
+    print("IGLA RACE: ternary_mul EXHAUSTIVE over all 65,536 inputs; mac + systolic PE agree on "
+          "sampled vectors (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
     sys.exit(0 if ok else 1)
 
 
