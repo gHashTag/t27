@@ -22,7 +22,7 @@
 
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Subcommand)]
@@ -48,34 +48,40 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
     }
 }
 
-/// Refuse to touch a file whose current contents are not recoverable.
+/// Make the file recoverable before touching it, and say where the copy is.
 ///
-/// This command writes to the file under test and restores it afterwards. If
-/// the process dies between those two steps the user needs a way back, and
-/// `git checkout` is that way — but only if the file was committed first.
-fn insist_the_file_is_recoverable(file: &Path) -> Result<()> {
-    let out = Command::new("git")
+/// The earlier version of this refused to run unless git said the file was
+/// clean. That was safe and it was also the wrong trade: every mutation run on
+/// work-in-progress needed a throwaway commit first, and a throwaway commit is
+/// how a `wip-for-mutation` subject reached a repository whose format gate
+/// rejects it -- twice.
+///
+/// A sibling backup gives the same recovery guarantee without asking the caller
+/// to commit anything. Git cleanliness is still reported, because `git checkout`
+/// is the nicer recovery path when it is available.
+fn make_recoverable(file: &Path, original: &str) -> Result<PathBuf> {
+    let backup = file.with_extension(format!(
+        "{}.tri-mutate-backup",
+        file.extension().and_then(|e| e.to_str()).unwrap_or("bak")
+    ));
+    std::fs::write(&backup, original)
+        .with_context(|| format!("cannot write a backup at {}", backup.display()))?;
+
+    let clean = Command::new("git")
         .args(["status", "--porcelain", "--"])
         .arg(file)
         .output()
-        .context("git is not installed or not on PATH")?;
-    if !out.status.success() {
-        bail!(
-            "{} is not inside a git repository — refusing to edit a file that \
-             cannot be restored if this command is interrupted",
-            file.display()
-        );
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().is_empty())
+        .unwrap_or(false);
+
+    if clean {
+        println!("Recovery: `git checkout -- {}` (also copied to {}).", file.display(), backup.display());
+    } else {
+        println!("Recovery: {} (the file has uncommitted changes, so git cannot restore it).", backup.display());
     }
-    let s = String::from_utf8_lossy(&out.stdout);
-    if !s.trim().is_empty() {
-        bail!(
-            "{} has uncommitted changes. Commit or stash them first: this \
-             command rewrites the file and restores it, and an interrupted run \
-             would lose your edits.",
-            file.display()
-        );
-    }
-    Ok(())
+    Ok(backup)
 }
 
 struct Mutant {
@@ -240,9 +246,9 @@ fn passes(cmd: &str) -> Result<bool> {
 }
 
 fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
-    insist_the_file_is_recoverable(file)?;
     let original = std::fs::read_to_string(file)
         .with_context(|| format!("cannot read {}", file.display()))?;
+    let backup = make_recoverable(file, &original)?;
 
     // A checker that is already failing cannot tell us anything about a
     // mutant: every mutant would "survive" by looking exactly like the
@@ -286,12 +292,11 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
             .with_context(|| format!("cannot re-read {} after restoring it", file.display()))?;
         if back != original {
             bail!(
-                "{} was NOT restored after mutating line {}. Recover it with \
-                 `git checkout -- {}` before trusting any measurement taken \
-                 against it.",
+                "{} was NOT restored after mutating line {}. Recover it from {} \
+                 before trusting any measurement taken against it.",
                 file.display(),
                 m.line,
-                file.display()
+                backup.display()
             );
         }
 
@@ -305,6 +310,7 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     }
     println!("\r                    ");
 
+    let _ = std::fs::remove_file(&backup);
     if survivors.is_empty() {
         println!(
             "Every one of the {} literals changed the outcome. Nothing in this \
