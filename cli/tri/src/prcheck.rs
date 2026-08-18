@@ -100,15 +100,23 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
 /// count too, and the caller waits for it to stop growing.
 fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     let sha = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".head.sha"])?;
-    let counts = gh(&[
+    // Two plain queries rather than one clever @tsv: the combined form failed
+    // with "expected an object but got: array" the first time it ran, and a
+    // wait loop that errors out is worse than no wait loop.
+    let path = format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim());
+    let pending: usize = gh(&[
         "api",
-        &format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim()),
+        &path,
         "--jq",
-        r#"[[.check_runs[]|select(.status!="completed")]|length, [.check_runs[]]|length]|@tsv"#,
-    ])?;
-    let mut it = counts.split_whitespace();
-    let pending = it.next().unwrap_or("0").parse().unwrap_or(0);
-    let total = it.next().unwrap_or("0").parse().unwrap_or(0);
+        r#"[.check_runs[]|select(.status!="completed")]|length"#,
+    ])?
+    .trim()
+    .parse()
+    .unwrap_or(0);
+    let total: usize = gh(&["api", &path, "--jq", ".check_runs|length"])?
+        .trim()
+        .parse()
+        .unwrap_or(0);
     Ok((pending, total))
 }
 
