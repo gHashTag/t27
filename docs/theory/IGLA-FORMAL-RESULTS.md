@@ -24410,6 +24410,75 @@ document the author actually has needs its own source.
 
 Discounting for that and for the two reports counted as gates: **≈55%**.
 
+## W847 -- the canonical revision measured, and my own gate fixes measured too
+
+### T636 -- THE CANONICAL SOURCE IS ON GITHUB, AND HAS BEEN [measured]
+
+Branch `tnf-publication-readiness` of `gHashTag/trinity-fpga` carries **129
+files** under `research/arxiv_tnf` against `main`'s 19:
+
+    tnf_paper.tex   382 KB, 7,169 lines, \date{7 August 2026}
+    canon/          80 plate PNGs, 29 MB
+    "Canon plate"   70          \includegraphics  89
+    measurements/   18 files
+
+Built with XeLaTeX, one package installed: **136 pages, zero undefined
+references**. This is the document the 128-page PDF came from.
+
+**The mission context has asserted for many waves that this branch "is not on
+GitHub, 264 files, local only, do not restore piecewise."** It is there, and a
+`git ls-remote` costs three seconds. A standing fact nobody re-checked cost this
+programme several waves of building on an ancestor.
+
+### T637 -- THE CANONICAL REVISION FAILS FIVE OF ELEVEN GATES [measured]
+
+    check_self_consistency  claims 20 retractions, the body marks 12
+    check_withdrawn_live    withdrawn numbers still asserted live
+    check_ref_kinds         19 `Section~\ref{X}` sitting INSIDE section X
+    check_orphan_artefacts  81 artefacts no code produces -- the canon plates
+    check_doc_refs          repo-scoped, not the paper's
+
+The first is decisive: Section 27 enumerates twenty retractions **each naming
+where it is recorded**, and twelve are marked in place. Eight are enumerated
+without being marked where they were made -- which is the promise the section
+makes about itself.
+
+### T638 -- MY THREE GATE FIXES ARE NET-NEUTRAL ON THE CANONICAL PAPER [self-critical]
+
+W846 recorded three defects fixed in `check_withdrawn_live` and reported the
+repair as an improvement. Measured on the canonical paper by (value, line) pairs,
+independent of key format:
+
+    original gate    25 violations
+    fixed gate       25 violations
+    removed          0.1736 at :4652   -- correctly reclassified as a replacement
+    added            0.1651 at :4344
+
+**One false positive out, one in.** The fixes are defensible individually -- each
+addressed a demonstrable misreading -- but the claim that they made the gate
+better rests on the ancestor, where the sample was smaller and the baseline was
+mine to regenerate. On the document that matters they are a wash.
+
+The reported counts of 14 and 17 were **baseline-filtered**: they count only what
+is NEW against a stored list. The raw figure is 25 by either gate, and changing
+the key format re-labels almost all of them as new. **A baseline-filtered count
+is not a measurement of the document; it is a measurement of the diff since
+someone last pressed update.**
+
+### T638a -- READINESS, RE-MEASURED ON THE RIGHT DOCUMENT [measured]
+
+    build            136 pages, 0 errors, 0 undefined references
+    paper gates      6 of 11 pass
+    self-consistency FAILS: 20 claimed, 12 marked
+    withdrawn-live   25 (value, line) violations, most baselined
+    traceability     210 unsourced unit-carrying literals (now gated, 76 baselined)
+
+    -> publication readiness  ~45%
+
+Lower than the 55% and 92% reported in W845-W846, and not a regression: those
+measured a 61-page ancestor because the canonical was not in hand. **The first
+honest figure for this document is the first one taken on it.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

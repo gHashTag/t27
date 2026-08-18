@@ -11451,6 +11451,22 @@ and I reintroduced its defect hours later (T624). The same lesson as
 `t27c edit-check` refuses at the point of use. Prefer encoding a rule in a tool
 over recording it in a file.
 
+**1206. RE-CHECK A STANDING FACT BEFORE BUILDING ON IT.** The mission context
+said `tnf-publication-readiness` was not on GitHub. It is, with 129 files against
+main's 19, and `git ls-remote` costs three seconds. Several waves were spent
+improving an ancestor because nobody re-ran the check that produced the claim.
+
+**1207. A BASELINE-FILTERED COUNT MEASURES THE DIFF, NOT THE DOCUMENT.** The same
+paper reports 14, 17 or 25 violations depending on which baseline is stored and
+whether the key format changed. Quote the RAW count when describing a document,
+and the filtered one only when describing what changed.
+
+**1208. MEASURE YOUR OWN FIX ON THE DOCUMENT THAT MATTERS.** Three gate fixes
+looked like a clear improvement on the ancestor, where the sample was small and I
+regenerated the baseline myself. On the canonical paper they remove one false
+positive and add one. A fix validated only where you can move the goalposts is
+not validated.
+
 ### How to update this tracker
 
 After closing a wave:
