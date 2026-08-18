@@ -1,3 +1,16 @@
+# NOW -- exhaust the input space wherever it is small (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: 33.7M inputs across five ternary primitives, C == Rust, no sampling (Closes #2198)
+
+- **`docs/POSITIONING.md` named the one thing that is ours: ternary primitives have input spaces small enough to enumerate.** A space you can exhaust needs neither a sample nor a prover, where a 32-bit float datapath forces one or the other
+- **Coverage was four specs.** `ternary_ripple_adder.t27` generates 167 lines of C and had **no cross-target check at all**, despite containing the ternary full adder -- the core combinational cell of the line
+- `full_adder` and `maj3` at **16,777,216 inputs each**, `tmul` and `pack2` at 65,536, `negate` at 256. **33.7 million inputs in about seven seconds**
+- **What it does not prove, printed on every run:** C against Rust only. A fault shared by both backends -- a spec bug, or shared lowering -- is invisible. `verify_igla_race.py` keeps the stronger form for `ternary_mul`, where a Python model is the third opinion
+- **Negative control:** perturbing C at exactly one input in 65,536 moves the digest `91a68892` -> `b7b51485`. Runs as its own CI step, ahead of the check
+- Two costs worth recording: the generated C emits `assert_eq()` from `test` blocks undeclared (same shim the existing harness uses), and my first failure output truncated to five stderr lines that were all **warnings**, hiding the real error beneath. The helper now prefers lines containing `error:` -- a diagnostic that truncates can hide the thing it exists to show
+
 # NOW -- one arm is exhaustive now, and the other three say they are samples (2026-08-18)
 
 Last updated: 2026-08-18

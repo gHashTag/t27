@@ -21,6 +21,8 @@ on:
       - "bootstrap/**"
       - "cli/**"
       - "tools/check_specs_parse.py"
+      - "tools/verify_exhaustive.py"
+      - "specs/ternary/**"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
       - "tools/verify_multitarget.py"
@@ -63,6 +65,16 @@ jobs:
         run: python3 tools/check_specs_parse.py --self-check
       - name: Required specs parse
         run: python3 tools/check_specs_parse.py
+
+      # Ternary primitives have input spaces small enough to enumerate: a full adder
+      # over three trits-in-a-byte is 16,777,216 inputs, about a second of CPU. A space
+      # you can exhaust needs neither a sample nor a prover, and docs/POSITIONING.md
+      # names this as the one place the ternary choice buys a VERIFICATION advantage
+      # rather than an area claim.
+      - name: Exhaustive cross-target agreement (negative control)
+        run: python3 tools/verify_exhaustive.py --self-check
+      - name: Exhaustive cross-target agreement
+        run: python3 tools/verify_exhaustive.py
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py
