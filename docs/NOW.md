@@ -3,6 +3,8 @@
 Last updated: 2026-08-18
 
 ## ci: give seal-coverage a body, and measure what it finds (Closes #2209)
+- **The 89 dangling, characterised:** 74 name specs that DID exist in history (16 of them removed by one commit, \`692ba5263\` DARPA CLARA); **15 name specs found in no commit under any path**, each recording a spec_hash and all four gen_hashes -- reproducibility claims nobody can check. Four of those 15 are GF16 comparison/claims specs, in a repository whose GF16 claims have been withdrawn twice. Stated as found, not further
+- **A correction to my own first pass:** I tested existence with \`git log --diff-filter=D -- <exact path>\`, which only sees a deletion recorded at that same path, and reported **73** never-existed. By basename across all history it is **15** -- my instrument overstated fivefold, and "73 seals reference specs that never existed" would have been a serious unsupported accusation. **Fourth time this session an anomaly came from the instrument, not the thing measured**
 
 - **The last decorative required check.** `seal-coverage.yml` was `echo "Running SEAL coverage analysis..."`
 - **Two attempts to establish what it should assert.** In #2191 I matched seal FILENAMES against spec filenames and got "1668 orphans of 1714" -- a finding about my assumption. Seals are keyed by MODULE name; the spec is named inside, in `spec_path`. I wrote neither check nor deletion then and said so; this returns to it
