@@ -8,7 +8,7 @@ the paper now takes the ORACLE's throughout. The table's own caption records the
 repair -- "Mixing the two sources in one table is the defect being repaired: the
 rows are now the oracle throughout".
 
-Use `recompute_ladder_exact.py`, which owns `\label{tab:ladderacc}`. Running this
+Use `recompute_ladder_exact.py`, which owns the tab:ladderacc table. Running this
 one against the current paper reports a table's worth of false differences, which
 is what two separate audit passes saw and could not account for.
 """

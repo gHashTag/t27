@@ -24990,6 +24990,51 @@ its output as unexplained differences.
 A superseded tool that still runs is worse than one that is deleted, because it
 answers.
 
+## W857 -- the candidate closes: TNF8 was skipped twice by the same reconciliation
+
+### T666 -- THE DEFINITIONS DO COINCIDE, AND THE BAND SIZE PROVES THE WORKLOAD IS ONE [measured]
+
+W856 left the candidate open because the script printed a CLIPPED count and the
+caption defined an INSIDE count, and matching seeds do not make matching
+definitions. Instrumenting the script to print both settles it:
+
+    script  TNF8 band 2   ('2.02e-02', out=102, n=85, total=187)
+    paper   TNF8 band 2    1.16e-2 (82/187)
+
+**The band total is 187 on both sides.** That is the reconciliation: the same
+workload, partitioned the same way, so `n` and the caption's numerator measure
+the same quantity. The two definitions agree; the numbers do not.
+
+    inside count   script 85   paper 82
+    mean error     script 2.02e-2   paper 1.16e-2
+
+And on the same table, TNF16's row agrees to the last digit --
+`8.26e-5 / 8.61e-5 / 8.66e-5`, exactly as printed.
+
+### T667 -- THIRD DOCUMENT DEFECT, SAME RUNG, SAME MECHANISM [measured]
+
+W851 found TNF8's row stale in `tab:law`: the reconciliation updated TNF16 and
+TNF32 and did not re-run the 8-bit rung. This is the same rung, in a different
+table, with the wider rungs again correct.
+
+**A reconciliation that skips a rung skips it everywhere.** Once W851 established
+the mechanism, the second instance was predictable and it took three waves to
+look for it -- because each wave chased whichever gate had fired instead.
+
+Corrected to `2.02e-2 (85/187)`. `t27c recompute-diff` now reports OK on that
+table at 0.1% tolerance; 136 pages, zero undefined references, unchanged.
+
+### T668 -- THE LEDGER TURNS [derived]
+
+    document findings      3   twelve labels, tab:law's TNF8 row, tab:ladderacc's TNF8 cell
+    instrument findings   13
+    tables verified        3   tab:law, tab:field, tab:ladderacc -- all now clean
+    candidates open        1   the unprinted 68.17
+
+The three document defects came from: reading LaTeX, running a regenerator, and
+running a regenerator with its counting instrumented. **None came from a gate**,
+and all three were within reach of a person who ran the scripts the paper ships.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

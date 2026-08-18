@@ -11588,6 +11588,16 @@ ANSWERS.** Two audit passes ran a regenerator whose table the paper had replaced
 and read its output as unexplained differences. Mark it in its own header, where
 the next runner will see it before the output.
 
+**1233. INSTRUMENT THE SCRIPT RATHER THAN ARGUING ABOUT ITS OUTPUT.** Two waves
+went to whether a clipped count and an inside count were the same quantity. Adding
+`n` and `n+out` to one print statement settled it in one run: the band totals
+matched at 187, so the partitions were identical and the counts comparable.
+
+**1234. A RECONCILIATION THAT SKIPS A RUNG SKIPS IT EVERYWHERE.** TNF8 was stale
+in one table (W851) and stale again in another (W857), both times because a fix
+pass updated the wider rungs. When a defect has a mechanism, search for the same
+key in every table before chasing the next alarm.
+
 ### How to update this tracker
 
 After closing a wave:
