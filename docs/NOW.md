@@ -1,3 +1,14 @@
+# NOW -- the honest diagnostic, not the cheap fix (2026-08-19)
+
+Last updated: 2026-08-19
+
+## lang: float casts named truthfully; seal_handler keeps its reasons (Closes #2213)
+
+- **30 cast errors (16 f32 + 14 f64) among the non-generating specs, and the cheap fix was wrong.** `var x: f32` parses and the type tables know floats in four places -- but the C generator emits the literal token `f32` (not a C type, 5 cc errors on a one-line probe) and Verilog treats it as 32 plain bits. Adding f32/f64 to VALID_CAST_TYPES would turn a visible parse error into uncompilable C -- the compound-assignment lesson at a scale where the missing half is 'implement floating point in three backends', an owner decision
+- The parser now says the true state: *cast to f32 is not supported: the language accepts float declarations, but no backend lowers float arithmetic... This spec assumes a float-capable target that does not exist yet.* Integer casts untouched; nonsense targets keep the old message
+- **The last named instance of the swallowing pattern is closed.** `seal_handler` kept `Err(_) => "none"` after #2211 fixed the CLI path. Done additively: existing response fields unchanged, new `gen_failures` array carries {backend, error} so a consumer sees WHY a hash is "none"
+- M5 ceremony performed again for the compiler.rs change
+
 # NOW -- only += existed (2026-08-19)
 
 Last updated: 2026-08-19

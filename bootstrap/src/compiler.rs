@@ -2743,6 +2743,21 @@ impl Parser {
             "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
         ];
         if !VALID_CAST_TYPES.contains(&base.as_str()) {
+            // f32/f64 parse in DECLARATIONS, so "unknown type" would be a lie here.
+            // The truth is narrower: no backend lowers float arithmetic -- the C
+            // generator emits the literal token `f32`, which is not a C type, and
+            // Verilog treats it as 32 plain bits. A cast that parses and then
+            // produces uncompilable C would be worse than this error, which is why
+            // f32/f64 are named here rather than added to the list.
+            if matches!(base.as_str(), "f32" | "f64") {
+                return Err(format!(
+                    "cast to `{}` is not supported: the language accepts float \
+                     declarations, but no backend lowers float arithmetic (the C \
+                     generator emits `{}` verbatim, which is not a C type). This spec \
+                     assumes a float-capable target that does not exist yet.",
+                    base, base
+                ));
+            }
             return Err(format!(
                 "unknown cast target type `{}`; expected one of {:?}",
                 base, VALID_CAST_TYPES

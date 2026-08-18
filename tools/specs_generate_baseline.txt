@@ -95,18 +95,18 @@ specs/github/prs.t27 | Error: Compile error: parse error at module level near li
 specs/github/tests/e2e_full_flow.t27 | Error: Compile error: parse error at module level near line 8: Unexpected token in expression: Colon (':') at line 8:14
 specs/graph/knowledge_graph.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 101:59
 specs/hslm/forward_pass.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 82:134
-specs/igla/coder/arch.t27 | Error: Compile error: parse error in fn 'apply_rope_q' near line 211: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16
-specs/igla/coder/bench_proxy.t27 | Error: Compile error: parse error in fn 'compute_pass_at_1' near line 109: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16",
-specs/igla/coder/benchmark.t27 | Error: Compile error: parse error in fn 'sacrebleu_precision' near line 127: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16
-specs/igla/coder/dataset.t27 | Error: Compile error: parse error in fn 'round_trip_accuracy' near line 627: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16
-specs/igla/coder/eval.t27 | Error: Compile error: parse error in fn 'pass_at_k' near line 108: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", 
-specs/igla/coder/pipeline.t27 | Error: Compile error: parse error in fn 'compute_team_match_reward' near line 598: unknown cast target type `f32`; expected one of ["bool", "u8", "i8"
-specs/igla/coder/prm.t27 | Error: Compile error: parse error in fn 'char_match_ratio' near line 196: parse error near line 196: unknown cast target type `f32`; expected one of [
+specs/igla/coder/arch.t27 | Error: Compile error: parse error in fn 'apply_rope_q' near line 211: cast to `f32` is not supported: the language accepts float declarations, but no 
+specs/igla/coder/bench_proxy.t27 | Error: Compile error: parse error in fn 'compute_pass_at_1' near line 109: cast to `f32` is not supported: the language accepts float declarations, bu
+specs/igla/coder/benchmark.t27 | Error: Compile error: parse error in fn 'sacrebleu_precision' near line 127: cast to `f32` is not supported: the language accepts float declarations, 
+specs/igla/coder/dataset.t27 | Error: Compile error: parse error in fn 'round_trip_accuracy' near line 627: cast to `f32` is not supported: the language accepts float declarations, 
+specs/igla/coder/eval.t27 | Error: Compile error: parse error in fn 'pass_at_k' near line 108: cast to `f32` is not supported: the language accepts float declarations, but no bac
+specs/igla/coder/pipeline.t27 | Error: Compile error: parse error in fn 'compute_team_match_reward' near line 598: cast to `f32` is not supported: the language accepts float declarat
+specs/igla/coder/prm.t27 | Error: Compile error: parse error in fn 'char_match_ratio' near line 196: parse error near line 196: cast to `f32` is not supported: the language acce
 specs/igla/coder/tokenizer.t27 | Error: Compile error: parse error in fn 'next_word_inner' near line 286: parse error near line 286: Expected RBracket, got Colon (':') at line 286:26
-specs/igla/coder/training.t27 | Error: Compile error: parse error in fn 'compute_lr' near line 120: parse error near line 120: unknown cast target type `f32`; expected one of ["bool"
+specs/igla/coder/training.t27 | Error: Compile error: parse error in fn 'compute_lr' near line 120: parse error near line 120: cast to `f32` is not supported: the language accepts fl
 specs/igla/race/backend.t27 | Error: Compile error: parse error at module level near line 394: unexpected token after expression statement: KwFn
-specs/igla/race/eda.t27 | Error: Compile error: parse error in fn 'compute_backend_realizability' near line 39: unknown cast target type `f32`; expected one of ["bool", "u8", "
-specs/igla/race/formal.t27 | Error: Compile error: parse error in fn 'compute_coverage' near line 241: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", 
+specs/igla/race/eda.t27 | Error: Compile error: parse error in fn 'compute_backend_realizability' near line 39: cast to `f32` is not supported: the language accepts float decla
+specs/igla/race/formal.t27 | Error: Compile error: parse error in fn 'compute_coverage' near line 241: cast to `f32` is not supported: the language accepts float declarations, but
 specs/igla/race/opcodes.t27 | Error: Compile error: parse error in fn 'module_identity_latency_1' near line 336: unexpected token after expression statement: Ident
 specs/igla/race/rtl.t27 | Error: Compile error: Unexpected top-level token: KwModule ('module') at line 448:26
 specs/igla/race/yosys.t27 | Error: Compile error: parse error at module level near line 228: unexpected token after expression statement: KwFn
@@ -125,14 +125,14 @@ specs/isa/ternary_sorting.t27 | Error: Compile error: parse error in fn 'bubble_
 specs/lsp/language.t27 | Error: Compile error: parse error in fn 'symbol_kind_to_string' near line 311: Unexpected token in expression: KwModule ('module') at line 311:10
 specs/lsp/protocol.t27 | Error: Compile error: parse error in fn 'response_error_create' near line 200: Expected RBrace, got PlusPlus ('++') at line 200:31
 specs/math/constants.t27 | Error: Compile error: parse error in fn 'pow' near line 98: Expected LParen, got Ident ('negative') at line 98:22
-specs/math/e8_lie_algebra.t27 | Error: Compile error: parse error in fn 'cos' near line 221: parse error near line 221: unknown cast target type `f64`; expected one of ["bool", "u8",
+specs/math/e8_lie_algebra.t27 | Error: Compile error: parse error in fn 'cos' near line 221: parse error near line 221: cast to `f64` is not supported: the language accepts float dec
 specs/math/gf_competitive.t27 | Error: Compile error: parse error in fn 'decode_complexity_returns_3_formats' near line 55: unexpected token after expression statement: Bang
 specs/math/pellis_precision_verify.t27 | Error: Compile error: parse error in fn 'count_significant_digits' near line 88: Expected LBrace, got LParen ('(') at line 88:24
-specs/math/phi_split_optimality.t27 | Error: Compile error: parse error in fn 'optimal_ratio_by_self_similarity' near line 53: unknown cast target type `f64`; expected one of ["bool", "u8"
-specs/math/phi_universal_attractor.t27 | Error: Compile error: parse error in fn 'bit_allocation_attractor' near line 166: unknown cast target type `f64`; expected one of ["bool", "u8", "i8",
+specs/math/phi_split_optimality.t27 | Error: Compile error: parse error in fn 'optimal_ratio_by_self_similarity' near line 53: cast to `f64` is not supported: the language accepts float de
+specs/math/phi_universal_attractor.t27 | Error: Compile error: parse error in fn 'bit_allocation_attractor' near line 166: cast to `f64` is not supported: the language accepts float declarati
 specs/math/property_test_template.t27 | Error: Compile error: parse error at module level near line 429: unexpected token after expression statement: Ident
-specs/math/radix_economy.t27 | Error: Compile error: parse error in fn 'ternary_range' near line 56: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", "i16
-specs/math/zamolodchikov_e8.t27 | Error: Compile error: parse error in fn 'cos' near line 178: parse error near line 178: unknown cast target type `f64`; expected one of ["bool", "u8",
+specs/math/radix_economy.t27 | Error: Compile error: parse error in fn 'ternary_range' near line 56: cast to `f64` is not supported: the language accepts float declarations, but no 
+specs/math/zamolodchikov_e8.t27 | Error: Compile error: parse error in fn 'cos' near line 178: parse error near line 178: cast to `f64` is not supported: the language accepts float dec
 specs/memory/formula_embed.t27 | Error: Compile error: parse error in fn 'pad_features' near line 109: Expected LBrace, got Colon (':') at line 109:31
 specs/memory/semantic_search.t27 | Error: Compile error: parse error in fn 'semantic_search' near line 95: Expected LBrace, got Colon (':') at line 95:28
 specs/ml/optimizer/adamw.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 93:65
@@ -144,24 +144,24 @@ specs/ml/transformer/multi_head_attn.t27 | Error: Compile error: Expected LBrace
 specs/ml/transformer/norm.t27 | Error: Compile error: Expected LBrace, got Colon (':') at line 135:68
 specs/ml/transformer/positional_enc.t27 | Error: Compile error: Expected LBrace, got KwStruct ('struct') at line 67:40
 specs/neural/forward_pass.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
-specs/nn/attention.t27 | Error: Compile error: parse error in fn 'sacred_attention_init' near line 84: parse error near line 84: parse error near line 84: unknown cast target 
-specs/nn/hslm.t27 | Error: Compile error: parse error in fn 'rms_norm_forward' near line 212: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", 
+specs/nn/attention.t27 | Error: Compile error: parse error in fn 'sacred_attention_init' near line 84: parse error near line 84: parse error near line 84: cast to `f64` is not
+specs/nn/hslm.t27 | Error: Compile error: parse error in fn 'rms_norm_forward' near line 212: cast to `f64` is not supported: the language accepts float declarations, but
 specs/nn/phi_rope.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
 specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
 specs/numeric/bigint.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 50:31
 specs/numeric/formats.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 61:39
-specs/numeric/gf12.t27 | Error: Compile error: parse error in fn 'decode' near line 88: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
+specs/numeric/gf12.t27 | Error: Compile error: parse error in fn 'decode' near line 88: cast to `f32` is not supported: the language accepts float declarations, but no backend
 specs/numeric/gf16.t27 | Error: Compile error: parse error in fn 'gf16_log' near line 848: Expected RParen, got Ident ('e38') at line 848:20
-specs/numeric/gf20.t27 | Error: Compile error: parse error in fn 'decode' near line 89: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf24.t27 | Error: Compile error: parse error in fn 'decode' near line 89: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf32.t27 | Error: Compile error: parse error in fn 'decode' near line 90: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf4.t27 | Error: Compile error: parse error in fn 'decode' near line 97: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf64.t27 | Error: Compile error: parse error in fn 'decode' near line 80: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf8.t27 | Error: Compile error: parse error in fn 'decode' near line 98: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
+specs/numeric/gf20.t27 | Error: Compile error: parse error in fn 'decode' near line 89: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf24.t27 | Error: Compile error: parse error in fn 'decode' near line 89: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf32.t27 | Error: Compile error: parse error in fn 'decode' near line 90: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf4.t27 | Error: Compile error: parse error in fn 'decode' near line 97: cast to `f32` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf64.t27 | Error: Compile error: parse error in fn 'decode' near line 80: cast to `f64` is not supported: the language accepts float declarations, but no backend
+specs/numeric/gf8.t27 | Error: Compile error: parse error in fn 'decode' near line 98: cast to `f32` is not supported: the language accepts float declarations, but no backend
 specs/numeric/goldenfloat_family.t27 | Error: Compile error: parse error in fn 'get_format_by_name' near line 232: Unexpected token in expression: KwConst ('const') at line 232:14
-specs/numeric/lucas_accumulator.t27 | Error: Compile error: parse error in fn 'phi_acc' near line 55: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", "i16", "u3
-specs/numeric/phi_ratio.t27 | Error: Compile error: parse error in fn 'phi_split' near line 52: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", "i16", "
-specs/numeric/posit_ladder_control.t27 | Error: Compile error: parse error in fn 'useed' near line 52: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32"
+specs/numeric/lucas_accumulator.t27 | Error: Compile error: parse error in fn 'phi_acc' near line 55: cast to `f64` is not supported: the language accepts float declarations, but no backen
+specs/numeric/phi_ratio.t27 | Error: Compile error: parse error in fn 'phi_split' near line 52: cast to `f64` is not supported: the language accepts float declarations, but no back
+specs/numeric/posit_ladder_control.t27 | Error: Compile error: parse error in fn 'useed' near line 52: cast to `f64` is not supported: the language accepts float declarations, but no backend 
 specs/numeric/tf3.t27 | Error: Compile error: parse error in fn 'tf3_from_f32' near line 139: parse error near line 139: Unexpected token in expression: Equals ('=') at line 
 specs/physics/chimera_best_gamma.t27 | Error: Compile error: parse error in fn 'formula' near line 14: unexpected token after expression statement: RParen
 specs/physics/e8_lqg_bridge.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
@@ -172,15 +172,15 @@ specs/physics/lqg_cs_bridge.t27 | Error: Compile error: parse error at module le
 specs/physics/p2_brain_physics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 53:55
 specs/physics/quantum.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
 specs/physics/sacred_verification.t27 | Error: Compile error: parse error in fn 'verify_formula' near line 388: Expected LParen, got Ident ('abs_error') at line 388:28
-specs/physics/su2_chern_simons.t27 | Error: Compile error: parse error in fn 's_matrix_element' near line 113: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", 
+specs/physics/su2_chern_simons.t27 | Error: Compile error: parse error in fn 's_matrix_element' near line 113: cast to `f64` is not supported: the language accepts float declarations, but
 specs/pins/parser.t27 | Error: Compile error: parse error at module level near line 40: Unexpected token in expression: Comma (',') at line 40:10
 specs/pipeline/benchmarks.t27 | Error: Compile error: parse error in fn 'percentile_sample' near line 66: Unexpected token in expression: RBracket (']') at line 66:46
-specs/pipeline/e2e_test.t27 | Error: Compile error: parse error in fn 'pipeline_progress' near line 79: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", 
+specs/pipeline/e2e_test.t27 | Error: Compile error: parse error in fn 'pipeline_progress' near line 79: cast to `f64` is not supported: the language accepts float declarations, but
 specs/portable/relay_observer.t27 | Error: Compile error: parse error at module level near line 6: Unexpected token in expression: Colon (':') at line 6:16
 specs/provider/adapters.t27 | Error: Compile error: parse error in fn 'adapter_config_create' near line 209: Expected RBrace, got Semicolon (';') at line 209:36
 specs/provider/schema.t27 | Error: Compile error: parse error in fn 'provider_config_create' near line 268: Expected RBrace, got Semicolon (';') at line 268:36
 specs/provider/transform.t27 | Error: Compile error: parse error in fn 'transform_messages' near line 201: parse error near line 201: parse error near line 201: Unexpected token in 
-specs/queen/lotus.t27 | Error: Compile error: parse error in fn 'evaluate_quality' near line 304: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16", 
+specs/queen/lotus.t27 | Error: Compile error: parse error in fn 'evaluate_quality' near line 304: cast to `f64` is not supported: the language accepts float declarations, but
 specs/queen/task_analysis.t27 | Error: Compile error: parse error at module level near line 9: Unexpected token in expression: LBrace ('{') at line 9:27
 specs/runtime/execute.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 238:77
 specs/runtime/instance.t27 | Error: Compile error: parse error at module level near line 13: Expected RBrace, got Ident ('ProcessID') at line 13:23
@@ -341,7 +341,7 @@ specs/tri/utils/template.t27 | Error: Compile error: Expected RBrace, got Eof ('
 specs/tri/utils/utf8.t27 | Error: Compile error: Expected RBrace, got Eof ('') at line 70:1
 specs/vm/jit_semantics.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 73:58
 specs/vsa/jones_polynomial.t27 | Error: Compile error: parse error in fn 'writhe' near line 24: unexpected token after expression statement: Colon
-specs/vsa/ops.t27 | Error: Compile error: parse error in fn 'hamming_similarity' near line 175: unknown cast target type `f64`; expected one of ["bool", "u8", "i8", "u16"
+specs/vsa/ops.t27 | Error: Compile error: parse error in fn 'hamming_similarity' near line 175: cast to `f64` is not supported: the language accepts float declarations, b
 specs/vsa/packed_vsa.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 58:74
 specs/vsa/sequence_hdc.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:88
 specs/vsa/vsa_core.t27 | Error: Compile error: parse error in fn 'vsa_bind_self_inverse_property' near line 705: unexpected token after expression statement: KwFor

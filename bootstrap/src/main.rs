@@ -2331,21 +2331,34 @@ async fn seal_handler(
 ) -> impl IntoResponse {
     let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
 
+    let mut gen_failures: Vec<serde_json::Value> = Vec::new();
     let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "zig", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "verilog", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "c", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_rust = match compiler::Compiler::compile_rust(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "rust", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
 
     let output = serde_json::json!({
@@ -2354,6 +2367,9 @@ async fn seal_handler(
         "gen_hash_verilog": gen_hash_verilog,
         "gen_hash_c": gen_hash_c,
         "gen_hash_rust": gen_hash_rust,
+        // Additive: existing consumers keep their fields; new ones can see WHY a
+        // hash is "none" instead of treating the word as if it were a digest.
+        "gen_failures": gen_failures,
     });
 
     (
