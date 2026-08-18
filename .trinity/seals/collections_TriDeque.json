@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:54278e6e0625d053adfafc42d66357ca891372628fc0b506231c4488c4ccfb6a",
-  "gen_hash_rust": "sha256:51ebc846cdfb3e8fcd8c35399f9f620aed7b4859d13ef7db0e184e6d71a7678d",
-  "gen_hash_verilog": "sha256:a5d605b130790d2ce1c0b251e18f69f5f4d6c2511775c0ec1470432b8690e101",
-  "gen_hash_zig": "sha256:96f8cd469eb3f2675d125047fa55dc1351450f3f1c7657846032b9dd458f2a33",
+  "gen_hash_c": "sha256:0ce119d1623946e3a6f716b0c59cfa9f5fbfe0a2662cd1fc6238395819bbc9a1",
+  "gen_hash_rust": "sha256:e3437cdc3d5893f6c748eca0a86a9ba3aa68b9de7c078296213b60b43317deb3",
+  "gen_hash_verilog": "sha256:b8e3b8d2f5e5faacef71002092ea5cb0bf88dd55b40219c6ce82159cb74826f8",
+  "gen_hash_zig": "sha256:0043fbcb797bc68affbcdf0d848cd698f06eb59f99ca7bd55ddb8fcfb9f3c2f3",
   "module": "TriDeque",
   "ring": 12,
-  "sealed_at": "2026-08-08T21:10:56Z",
-  "spec_hash": "sha256:fb0847bc6830de127b65aae25d700f6c7821178320b086829188f8c9a9bc4ca3",
+  "sealed_at": "2026-08-18T19:36:52Z",
+  "spec_hash": "sha256:90ea646b1c7dd08e161b4da050eef9fc3f35e864726f9e4ada54c09cfa29153f",
   "spec_path": "specs/tri/collections/deque.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fef5c97fe95304b788e0033a723e6768e3a3c7656cb998d39fbbc9309524cde6",
-  "gen_hash_rust": "sha256:709e53d48a59fcc32c71d9ffd9c561d8042874b182385f7f70bba3a5c79ea8d9",
-  "gen_hash_verilog": "sha256:ec94405e2e91a90869dcc2a00734b3598a42722047629ae13741b5ab56382080",
-  "gen_hash_zig": "sha256:3153a7a530fc2390c6fbd10c488161d2b78099b63158f7e2a0379e8b5fdb0910",
+  "gen_hash_c": "sha256:677b4b71ddf360d11ef30092720bc333eec4fb13e63d7617f2e053eeed02d57c",
+  "gen_hash_rust": "sha256:f1de5a80cb56e691346557637b863facc2c9cfdb61f40587a4b973bda34c4d1c",
+  "gen_hash_verilog": "sha256:ee5ed2d507ffc326c963796958b3940a40831adfb9a407db44f7389d69114bf1",
+  "gen_hash_zig": "sha256:53848e2422d231abe26f2e785704e00412c8e2f70c7c8ad672ada0e8c13f6b21",
   "module": "TernaryMac",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:27457daab18863f147e98c1fbfbfb1881e1534122ee7604c20449a0495bfbd44",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:54be6db52c95054eb2850c805fe15244d3e4fa7efab696ae26b3f2ca5bfa4ab7",
   "spec_path": "specs/ternary/ternary_mac.t27"
 }

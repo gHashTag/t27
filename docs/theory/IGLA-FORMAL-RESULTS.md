@@ -26609,6 +26609,54 @@ The first draft failed unconditionally on stale. With 281 standing, that makes
 orphan handling already avoided. Moved under `--strict`: the default run reports
 the number; the ratchet is opt-in until the backlog is resealed.
 
+## W880 -- the reseal, and what refused it
+
+### T720 -- 226 SEALS RESEALED; 138 REFUSED BECAUSE THE SPEC NO LONGER COMPILES [measured]
+
+The 281 stale seals were fed back through `t27c seal --save`:
+
+    resealed cleanly                 226
+    refused by the vacuity guard      55 spec files -> 138 seal records
+    legacy duplicates removed          2
+    audit after                      1,714 seals: 1,445 healthy, 176 stale
+
+The refusals are the finding. `t27c seal` refuses to write a seal when no backend
+produces output -- and for 55 specs, none does. Among them: `specs/numeric/gf16.t27`,
+**the L6 numeric SSOT**, failing to parse at `fn gf16_exp` line 824.
+
+### T720a -- MINIMAL REPRO: THE BOOTSTRAP GRAMMAR HAS `+=` AND NOTHING ELSE [measured]
+
+Six single-construct probe files against `t27c parse`:
+
+    for (0..n) |i|      PASS        t += x      PASS
+    for (xs) |x|        PASS        t -= x      FAIL
+    pub fn f(x) T {}    PASS        t *= x      FAIL
+    @as/@floatFromInt   PASS        t /= x      FAIL
+                                    t %= x      FAIL
+
+`git log -S'"*="' -- bootstrap/src/compiler.rs` is EMPTY: compound assignment
+other than `+=` was never in the bootstrap grammar. Not a regression -- a gap
+that nothing ever measured, because nothing ever re-parsed sealed specs.
+
+### T720b -- TWO COMPILERS, ONE SEAL STORE [measured]
+
+The April seal for GF16 carries real zig/verilog/c hashes, and the April spec
+already contained `*=`. The seal's own git history explains it: it was written by
+commits extending the META compiler ("add GF16-native Rust codegen backend to
+meta_compiler"). **The seals were minted by one compiler and audited today
+against another.** The 138 refusals are therefore not spec rot; they are the
+measured GRAMMAR GAP between meta_compiler and the bootstrap t27c -- with the L6
+SSOT sitting inside the gap.
+
+### T720c -- THE FIX IS GOLD-RING, AND IS THEREFORE NOT APPLIED [derived]
+
+Adding `-= *= /= %=` to the bootstrap grammar touches `bootstrap/src/compiler.rs`,
+which is FROZEN_HASH-enforced at build.rs:206; FROZEN.md requires a [GOLD-RING]
+PR with Architect approval, and W780's precedent is verify, document, do not
+apply. This wave delivers the minimal repro, the exact missing tokens, and the
+measured blast radius (55 specs, 138 seals, one SSOT) -- the patch itself belongs
+to the ring.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

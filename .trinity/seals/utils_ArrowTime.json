@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9109b4174bb3add7ccb2fbfad393074f86c37e270ada8a833463556e6bfa5811",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:6cd6d9a603735ed16bc861823a996506add5ac4b508f20d87da75bfbe6470365",
+  "gen_hash_verilog": "sha256:f03de89235d8245fc954ea14e08478824eb4536b42241d23eda88eda48250bd9",
   "gen_hash_zig": "sha256:04b0893f1395214dac9e4469c3fdb89fcd528425271e08bc84ec2e54e055e092",
   "module": "ArrowTime",
   "ring": 12,
-  "sealed_at": "2026-08-08T21:53:57Z",
+  "sealed_at": "2026-08-18T19:36:53Z",
   "spec_hash": "sha256:8e07fb0816cb06ab42ba9af99164200de1bd2d929f3e16052c946d70dcb3ddc2",
   "spec_path": "specs/tri/utils/arrow_time.t27"
 }

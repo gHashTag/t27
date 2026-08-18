@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c99d5033cda8ac531e46ca9f407d40b45cba58a6b354c251480577ad4ae1fc5a",
-  "gen_hash_rust": "sha256:0e46406568c64a00c9b61b96387cd834ffdfaa2357efb106c60c0ebeb2af927d",
-  "gen_hash_verilog": "sha256:07e58b9f2e8e61622227b10c20117087699716033376c9a4e68ec0c70b479030",
-  "gen_hash_zig": "sha256:a11b6ffa0d2080663ad2fd65de84af1ad787de616164e39cda183a918a0c74c7",
+  "gen_hash_c": "sha256:9d9e4492deb7ad2362a361223c845a2cf56118dd3143dfde0ac39ef493f13591",
+  "gen_hash_rust": "sha256:b8958d437546fc2e9a69c0725b6b92419215dd34a10246b5c27c553ab341e74b",
+  "gen_hash_verilog": "sha256:9a4ff8bb83c480f9285c2ebe38188e65a16b32a93b703d8e388d785efec9acf5",
+  "gen_hash_zig": "sha256:e764cd8923cc495ba4b83a7980566f658b38eae9280d48a3b6a6222932944740",
   "module": "GftMlp2",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:170f70722ff0f92853a18de595ad41c55dabd46a9f4815c6ae445eee846c9f79",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:3e87dab9734df475d53b8013449de746e3f32a40c721723946cca15f0244df37",
   "spec_path": "specs/ternary/gft_mlp2.t27"
 }

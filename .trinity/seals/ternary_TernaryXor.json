@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8f7c86e3e00ea8429d45fcd15bcc36db8c67f9965900b7fdce513d582ed59bd4",
-  "gen_hash_rust": "sha256:d290f50cc5981cea7d998d7ce76e58701d59220dd8dd07a8a9b1714e2ce66178",
-  "gen_hash_verilog": "sha256:3a6638eb34e498021701296b3b087be2d6f384acde823350b06c8a293e4ce0a9",
-  "gen_hash_zig": "sha256:5f370102c3f5441024b042535ae8b832700452963666e62b039f49e30a6697e9",
+  "gen_hash_c": "sha256:51636a01e98905735fb86455c5ad879d4f83da2d69c3d14d365862775057bf82",
+  "gen_hash_rust": "sha256:708cf936a4fc1e3c9c7f8f0ff7ce4838df0a505f20278f27310ed8a0b50dbc12",
+  "gen_hash_verilog": "sha256:384f3fa0295d155100f8bf16568cb5f10203511bfbacac5f4d38bba4ca0e81cb",
+  "gen_hash_zig": "sha256:b8dd989661887dad88fbc86008b0823b2f9fd962da1204efbbed8de33d40c743",
   "module": "TernaryXor",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:55c11f1e34587b8020b7c8af7cad2c1768eda245bc988fc1ea54c698c9e21292",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:e2dff6a23bc9bc46d15d01692cc8c0901ce6ecc2fb33e9f74dcd218bd7b77c14",
   "spec_path": "specs/ternary/ternary_xor.t27"
 }

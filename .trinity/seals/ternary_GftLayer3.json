@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ba76130ca19741e7e88d76709c0eec318a900cc169a12b10a276f3cc0cad6452",
-  "gen_hash_rust": "sha256:f75916011ad8053b1370103f3bfe054248581a465d5337ef6e7205987187a6a6",
-  "gen_hash_verilog": "sha256:4bb64e4c2f7bf1676d0df7edc19b20a73e65b799e90aafc5082c8345c00badb0",
-  "gen_hash_zig": "sha256:2e8bc5cb34cce12c70fe4d47b472cfa62db433594731c99669c79077d143c520",
+  "gen_hash_c": "sha256:921d71cf17c590b628da6df5a8ca589dd64e47bf64e1dc4d2704cf00de0a10fe",
+  "gen_hash_rust": "sha256:b75ef6d85413de4c711528aec51127c7029ee58b8d08fa31e8e6d16793f2963d",
+  "gen_hash_verilog": "sha256:8b1fab6b67aceb5501b28ea8abf5d15d54d9748b287f2116109069f007c6ef16",
+  "gen_hash_zig": "sha256:5571092a9136e85beff6b557a090cf5477701cab48360477e974082bc4cd6434",
   "module": "GftLayer3",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:6905e7734c36fc9d8ff2dff9518822b957c91ede5996f6379b2243ef2b6d588d",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:63e47ac5ad1debf3f67aa872cb4418c39a903c509df0c6c53ee6b4b19e1eb22a",
   "spec_path": "specs/ternary/gft_layer3.t27"
 }

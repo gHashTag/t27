@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:03653b6ce4f6c4bea1c603fe811a34d159d94688de9bb2d566d1271149e9dd5f",
-  "gen_hash_rust": "sha256:63fd1b231fb30fe7e369b692aba33f2bf092bf9e62482896d686632c322bd367",
-  "gen_hash_verilog": "sha256:2f14100a7d6f8d57090b9f8f002f3cc388a95aae18b84902a4cbec5dc2e810ff",
-  "gen_hash_zig": "sha256:2d6f59bb8d69c3a7c6190e4b8c217f0e150d684ab08f6d50cc9eed98009f06d1",
+  "gen_hash_c": "sha256:45af0ae62e8083b3e233df09a13d466df5b5d612b035cd28c3d0d0d2bd9d5d90",
+  "gen_hash_rust": "sha256:50fca82d9b2c62ac18085c50d7f25944b8e352f0080feba17a76b876b5b2151c",
+  "gen_hash_verilog": "sha256:a6b19d35a1c602938e0f32ca2fed5d8e1c0135d944b77c47089ecfbe4c081613",
+  "gen_hash_zig": "sha256:c17a2b2e0cf761f8b6d57fbefa667b34ddfca2cb70e5dd0cb77f130d00d753d5",
   "module": "TernaryIsa",
   "ring": 12,
-  "sealed_at": "2026-08-09T05:31:58Z",
+  "sealed_at": "2026-08-18T19:36:51Z",
   "spec_hash": "sha256:040d3cdec243fde652aa9fb3cc81f1675508f8c1b485900003734245624c6d23",
   "spec_path": "specs/fpga/ternary_isa.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:09033f6f85659b726786191deed411f5d6cc2855bf38eb1951df1a7ec9db8647",
-  "gen_hash_rust": "sha256:1c0a46c6a9420f79c8b36d6950efcdedf285f13ccce8a3c7b87acc41155f99e1",
-  "gen_hash_verilog": "sha256:3b4774a4f1305fbb3654de379eb550bcfb469966ffdbb2bf6772cc4e6c683712",
-  "gen_hash_zig": "sha256:979976ad1d5b45228a77d883c6d1213be658ad37f3ec049d59999f45af51b4f0",
+  "gen_hash_c": "sha256:a0b987c5db5522b55a61d990b1db8e59164240722ed78f6ce2011cc9eaa772ec",
+  "gen_hash_rust": "sha256:b0754b3ccd2dde42b20e1672e7d61a92b62071c0d895a85e65c786790c13192f",
+  "gen_hash_verilog": "sha256:f70c08c4cd1f900cc223d58ee2e550d3b02ad321144a659f3dcc4cb1452be32b",
+  "gen_hash_zig": "sha256:61c3b8be8c0d68a47a955391e9480b70e5a6ef7eb170de0b200a65126f919ac7",
   "module": "TriMsgpack",
   "ring": 12,
-  "sealed_at": "2026-08-08T21:10:56Z",
+  "sealed_at": "2026-08-18T19:36:51Z",
   "spec_hash": "sha256:eb6c433fe01f1e6b9fd3a83a79c6575f3e1431b8cccfd78ac6d8db6d0e699eea",
   "spec_path": "specs/tri/encoding/msgpack.t27"
 }

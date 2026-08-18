@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:de2e3a755d45d211a3ebef8ef7bf07d073adbe6c556d19c9a76be74aba01a196",
-  "gen_hash_rust": "sha256:3f409bfc09ce6dfb8e86657608bd123c27f53eea410c7eeb26557a80cf7a1e9d",
-  "gen_hash_verilog": "sha256:9ef06b3a9e526a44d67eea5b9a439f0639abeaf62900ab310fac7287db2c5551",
-  "gen_hash_zig": "sha256:10cf4efee5b65e92194c15e9606bb07c809ea6a4de819734b531f7c68c732196",
+  "gen_hash_c": "sha256:80ac1cbb5522aea93eef49a68c27452cb0102292de86d1304466c989ee1cd970",
+  "gen_hash_rust": "sha256:f4bb8ff015defad14227c57a77199e542f010d8cad877e232e9483b7e509991a",
+  "gen_hash_verilog": "sha256:8571118cf544aa9f98028f6ead0d20b5d56c3b5c4089c7c4c579d1f652aa1c7e",
+  "gen_hash_zig": "sha256:8308dfce2d01e1fcbcaca5a46dd0b66e375198925ac1544e50a05e2d4e83bb5e",
   "module": "ActivationQuantizer",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:a911eccefdb5ddc3cc09c3acc5bdbf0bbb3775c638bc5ef17a54d75d4a774590",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:31d8e97942af2ca10445cc7bcf58e77c8e5d48e28fffb90798cfa7137a3ca245",
   "spec_path": "specs/ternary/activation_quantizer.t27"
 }

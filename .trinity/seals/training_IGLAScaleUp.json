@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:476e37cc37d646a6b863b2c3a3b4d792ae5a2fdc701581c0ee3fd489d88197a5",
-  "gen_hash_rust": "sha256:3710e8c9b4fdfa37d8f074487fed771ef465239d646952c0f5536e6d0bb32841",
-  "gen_hash_verilog": "sha256:9122da98500787243e03b5ac31eb688dc0eb73681a002d0641015868c47ee62d",
-  "gen_hash_zig": "sha256:500bdca712e5550a666be59fb70ac479c816fec2e5884095f576c52f221b6df7",
+  "gen_hash_c": "sha256:32257e7d6f428d2cd82dc2c506bbd7b2c6ade8e79c971d623889cc18f7bfdc30",
+  "gen_hash_rust": "sha256:e2ade539267d69ce3a7b9ad48ced23251524c656d3aebccc4f3cff75a575c7a4",
+  "gen_hash_verilog": "sha256:3fa17e7c17262a55897c756ca2b418d3cc12fcad0e433716f29f4c214c3bb49f",
+  "gen_hash_zig": "sha256:6fd2b69eb11a1e537fbb568212a1659ecedd8884c36705085b9f157b1ca2ba24",
   "module": "IGLAScaleUp",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:c126cb5a3a5abe830917b78d33df0998b58efd6c37b62cbc27efbfe7e1ac9806",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:eef7ff2a5ea1d0b9a6071f460170f8b0f9091199a6973402056f9af579e08c5c",
   "spec_path": "specs/igla/training/scale_up.t27"
 }

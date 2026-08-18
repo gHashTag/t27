@@ -12023,6 +12023,18 @@ that no existing check could see, because nothing ever re-hashed the spec.
 defects with a zero-standing backlog; put the rest behind --strict and report the
 number. The number is the finding; the ratchet is opt-in.
 
+**1329. WHEN A RESEAL IS REFUSED, THE REFUSAL IS THE FINDING.** 55 specs produce
+no output on any backend today; the vacuity guard caught every one. Feed stale
+artefacts back through their producer and read what bounces.
+
+**1330. PIN A PARSER GAP WITH SINGLE-CONSTRUCT PROBES.** Six five-line files
+separated `+=` (works) from `-= *= /= %=` (never in the bootstrap grammar) in two
+minutes, after file-level errors pointed only at a line number.
+
+**1331. ONE SEAL STORE, TWO COMPILERS IS AN AUDIT TRAP.** Seals minted by
+meta_compiler audited against bootstrap t27c report grammar gaps as spec rot.
+Record WHICH tool minted a certificate inside the certificate.
+
 ### How to update this tracker
 
 After closing a wave:

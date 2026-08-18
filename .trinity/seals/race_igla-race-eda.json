@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f6c6f441636bc23caf69c92f0f4ff696494f5781c9abf7e477119e9e1d7a3415",
-  "gen_hash_rust": "sha256:04ba56a92b2c87cb6d4e5e8c5e32da7f1c71e92c5e7cfe8ed4d86349c9dde146",
-  "gen_hash_verilog": "sha256:bc704f39217033f0f4bdb272d16bb69bb8119fad2792680cd5d6cc0095042aaf",
-  "gen_hash_zig": "sha256:b5b6859a516b1538a8ae99961e4cd1b7a90fc8de91fc914b3aa9bf66e4818c3c",
+  "gen_hash_c": "sha256:26bf48c9990cc4fd114bcce8ad82ab4d60fa16369f576d1cf40522f486edcac4",
+  "gen_hash_rust": "sha256:ccee723d6f5a88d942396c4a6fe8e22f86f21d5ed583caf97708240e10c1d615",
+  "gen_hash_verilog": "sha256:fc2eabeb33bbeec89898f4ac583886e16549422e4a537b23549e843a3d03ee6c",
+  "gen_hash_zig": "sha256:dc034c76bf49b8d5c14a5626555b054c6e9686759063fbffd4d95a57d3ba8ffd",
   "module": "igla-race-eda",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:59381d0911fac7ca192a39d2e39ade07c4353517b69d898059d7415196f045fa",
+  "sealed_at": "2026-08-18T19:36:53Z",
+  "spec_hash": "sha256:9186a51e1e2c230d896970b28a68df19376ca396a7a74fd13bd4e99a3c2b2412",
   "spec_path": "specs/igla/race/eda.t27"
 }
