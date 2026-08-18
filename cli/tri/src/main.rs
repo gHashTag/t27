@@ -65,7 +65,6 @@ enum Commands {
         #[command(subcommand)]
         action: fpga::FpgaCmd,
     },
-    /// What is failing on the default branch right now, and since when.
     /// Find the constants in a checker that nothing actually checks.
     Mutate {
         #[command(subcommand)]
@@ -86,6 +85,7 @@ enum Commands {
         #[command(subcommand)]
         action: synth::SynthCmd,
     },
+    /// What is failing on the default branch right now, and since when.
     Red {
         #[command(subcommand)]
         action: red::RedCmd,
