@@ -11562,6 +11562,21 @@ values against `tab:field` were TNF-vs-GF ratios; that table carries errors and
 has no ratio column. Before calling an unmatched value a defect, check whether
 the target table has a column for it.
 
+**1228. MATCH BY COLUMNS, NOT BY OVERLAP.** "Best numeric overlap" put a script
+against a table at 3 of 12. The column shape -- `rung, decades, three |e| bands`
+against `rung & decades & |e|<8 & ...` -- names the owner in one look and cannot
+be fooled by coincidence.
+
+**1229. A REPAIR LEAVES ITS SUPERSEDED REGENERATOR BEHIND.** Two scripts emitted
+the same shape; one's decades appear ZERO times in the paper. The caption records
+the repair that replaced it. Before treating a regenerator's output as ground
+truth, check that the paper still contains the table it makes.
+
+**1230. THE SAME ROW FAILING TWICE IS A PATTERN, NOT A COINCIDENCE.** TNF8 was
+stale in one table (W851) because a reconciliation skipped it; TNF8's middle band
+differs in another. When a defect has a known mechanism, look for the same rung
+elsewhere before looking for a new mechanism.
+
 ### How to update this tracker
 
 After closing a wave:

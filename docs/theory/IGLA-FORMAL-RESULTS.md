@@ -24882,6 +24882,68 @@ deliberate is the author's to say.
 suspected**: at document scope this apparatus cannot distinguish a present number
 from an absent one, so every check that runs at that scope reports agreement.
 
+## W855 -- a regenerator with no table, and TNF8 again
+
+### T660 -- MATCH A REGENERATOR TO A TABLE BY ITS COLUMNS, NOT BY OVERLAP [derived]
+
+W854 mapped scripts to tables by "best numeric overlap" and put
+`recompute_ladder_table` against `tab:acc` at 3 of 12 -- a mapping no reader would
+make. The column shapes settle it in one look:
+
+    script prints   rung, M, decades, three |e| bands
+    tab:ladderacc   rung & decades & |e|<8 & |e| 8-20 & |e| 20-38
+
+Structural match, and it names the owner immediately.
+
+### T661 -- ONE REGENERATOR CORRESPONDS TO NO TABLE IN THE PAPER [measured]
+
+Two scripts emit the same shape and differ in one column:
+
+    recompute_ladder_table   decades  8, 26, 80, 242
+    recompute_ladder_exact   decades  2,  8, 24,  73
+
+`tab:ladderacc` prints **2, 8, 24, 73** -- the exact script's. And the other
+script's decades appear **nowhere**: `26`, `80`, `242` occur ZERO times in the
+paper.
+
+The caption explains why. It records the repair: *"the oracle ships $E_t{=}5$,
+$M{=}21$ at that rung; the specification's $E_t{=}6$, $M{=}25$ spans 219 decades
+... Mixing the two sources in one table is the defect being repaired: the rows are
+now the oracle throughout."*
+
+**`recompute_ladder_table` regenerates the superseded, specification-sourced
+version.** It is not a defect in the paper; it is a script the repair left behind,
+and any future run of it against the current text will report a table's worth of
+false differences -- which is exactly what W852 and W854 saw and could not
+explain.
+
+### T662 -- TNF8 AGAIN, AND THIS ONE IS A CANDIDATE [measured]
+
+`recompute_ladder_exact` against its own table: **23 of 24 agree**. The one that
+does not is TNF8's middle band:
+
+    script   TNF8  [('1.07e-02', 0), ('2.02e-02', 102), ('out', 285)]
+    paper    TNF8   1.07e-2      |  1.16e-2 (82/187)  |  beyond range
+
+Both the value and the clip count differ -- `2.02e-2` with 102 clipped against
+`1.16e-2` with 82 of 187. The first and third bands agree.
+
+**W851's stale row was also TNF8**, in a different table, and its cause was a
+reconciliation that updated TNF16 and TNF32 and did not re-run the 8-bit rung.
+The same rung differing again, in the same direction (the script computing a
+larger error than the paper prints), is the pattern that finding predicted.
+
+**Recorded as a candidate, not a defect.** Twenty-three of twenty-four agreeing is
+what makes it worth reading; a second harness or a deliberate re-measurement would
+explain it, and neither has been ruled out. This one is the author's to settle.
+
+### T662a -- LEDGER [derived]
+
+    instrument findings   12   (W855 adds: a regenerator with no table)
+    document findings      2   unchanged
+    candidates open        2   TNF8's middle band; the unprinted 68.17
+    tables verified        3   tab:law, tab:field, tab:ladderacc (23-24 of 24)
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
