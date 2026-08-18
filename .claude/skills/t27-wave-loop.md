@@ -11672,6 +11672,24 @@ directory. Understating your own package by half is a defect in the package.
 reference list; that broke a `git stash pop` mid-audit. Revert generated files
 before any stash or commit.
 
+**1250. A NEGATIVE CONCLUSION NEEDS A POSITIVE CONTROL.** Four waves concluded,
+with rising confidence, that a record-to-table mapping did not exist. It was in
+the `\label{}` identifiers; my search only ever read caption TEXT. One known-good
+pair run through the instrument would have failed on the first wave.
+
+**1251. GREP THE IDENTIFIERS, NOT ONLY THE PROSE.** `tab:gpt2window`,
+`tab:centring`, `tab:downstream` -- the labels were named after the data files.
+Semantic identifiers are documentation that no prose search will find.
+
+**1252. SPELLING VARIANTS READ AS ABSENCE.** The paper writes `centring` in the
+label and `centering` in the text. Searching the American form returned nothing
+and I recorded NO CANDIDATE.
+
+**1253. THE CONFIDENT ROW IS THE DANGEROUS ONE.** Of eight mappings I published
+only the one I was sure of -- and measurement put it on the wrong table by an
+eightfold margin. Refusing to guess protected the seven; it did not protect the
+one.
+
 ### How to update this tracker
 
 After closing a wave:

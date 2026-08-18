@@ -25318,6 +25318,69 @@ environment.
     the built PDF differs in size   31,730,993 vs the shipped 32,303,608 -- the
                                     toolchain is not theirs, so ours is not sent
 
+## W863 -- T676 WITHDRAWN: the mapping is reconstructible, and I never looked at the labels
+
+### T680 -- THE SEARCH THAT PRODUCED "UNRECONSTRUCTIBLE" NEVER EXAMINED THE LABELS [measured]
+
+W861 concluded the record-to-table link is *unreconstructible by a reader*, from a
+keyword match of the README's prose against the 60 CAPTIONS. That search resolved
+one of eight and I recorded the refusal to guess as the result.
+
+The labels themselves carry the mapping:
+
+    gpt2_window_2026-08-13e.json          ->  tab:gpt2window
+    centering_2026-08-13f.json            ->  tab:centring
+    tnf_downstream_bayesian_si_...json    ->  tab:downstream
+    workloads_strict_2026-08-13g.json     ->  tab:workloads
+
+All four labels exist in the file. `tab:gpt2window` is the record's own name. I
+searched caption TEXT and never grepped `\label{tab:`, so a mapping written into
+the identifiers was invisible to the instrument I built.
+
+`centering` explains the "NO CANDIDATE" specifically: the paper spells the label
+`centring` (13 occurrences) while using `centering` in prose (148). A search
+keyed on the American spelling of a British label returns nothing and reads as
+absence.
+
+### T680a -- MY ONE "UNAMBIGUOUS" MATCH WAS THE WRONG TABLE [measured]
+
+W861 reported `gpt2_window -> tab:landing` at 3/3 against 1/3 and offered it as the
+single mapping safe to publish. Measured by numeric overlap against the record:
+
+    tab:gpt2window   25 cells   11 matched   44.0%
+    tab:landing      37 cells    2 matched    5.4%
+
+An eightfold separation, the other way. **The one row I was confident enough to
+send upstream was wrong**, and it is now in a published PR body that must be
+corrected.
+
+### T680b -- WHAT SURVIVES OF T673 AND WHAT DOES NOT [derived]
+
+    T673  the paper names no .json, no recompute_, no measurements/   STANDS
+    T674  0 of 59 tables state a data source in prose                 STANDS
+    T676  the link is unreconstructible by a reader                   WITHDRAWN
+    T676a a completed mapping only the author can supply              WITHDRAWN
+
+The provenance is not *stated* -- that finding holds and is worth reporting. But
+it is *recoverable*, because the labels were named after the records. The correct
+claim is narrower and more useful: the paper encodes its provenance in
+identifiers rather than in text, so a reader who greps the source can follow it
+and a reader of the PDF cannot.
+
+### T680c -- THE FIFTH METHOD ERROR IN THIS SEQUENCE, AND THE FIRST TO REACH A PUBLIC ARTEFACT [derived]
+
+    W854/855/859  mapped by filename guess               3 waves
+    W859          64% mismatch read as document defect
+    W860          concluded the mapping was unread
+    W861          concluded the mapping was unwritten
+    W863          the mapping was in the labels
+
+Each step was a reasonable inference from the previous instrument, and every
+instrument shared one blind spot. **Four waves of increasingly confident negative
+conclusions rested on a search that had never been checked against a positive
+control** -- a record whose table was known. One such control would have failed
+immediately on `tab:gpt2window` and ended the sequence at W854.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
