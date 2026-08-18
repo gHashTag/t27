@@ -1,3 +1,14 @@
+# NOW -- the bit-exactness gate could not see the compiler (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: let the cross-target gate see bootstrap/, and make its skip loud (Closes #2183)
+
+- **The gate that proves "one spec, four targets, bit-exact" was blind to the compiler.** `emit-bitexact-gate.yml` listed 11 paths and `bootstrap/**` was not one of them, while all four backends live in a single file: `bootstrap/src/compiler.rs`, `gen_zig:3437`, `gen_verilog:6741`, `gen_c:10522`, `gen_rust:14382`, 31,077 lines. A PR rewriting the C emitter merged with the proof never running
+- **Green did not mean proved.** `tools/verify_multitarget.py` exits 0 when `t27c`, `cc` or `rustc` is missing. The job builds `t27c` itself and the runner ships the other two, so a skip there means the environment broke -- and exit 0 makes *proved* indistinguishable from *never ran*
+- `--require` turns every skip into a failure and is now what CI passes; without it the script stays tolerant, so a contributor without `rustc` is not blocked. Verified both ways: tolerant exits 0, `--require` exits 1 with the reason
+- The path filter carries a negative control in this commit's own verification: `bootstrap/src/compiler.rs`, `cli/tri/src/main.rs` and `tools/verify_multitarget.py` all match; `docs/README.md` does not. A filter that matches everything is as useless as one that matches nothing
+
 # NOW -- the withdrawal gate was green because it was blind (2026-08-18)
 
 Last updated: 2026-08-18

@@ -7,9 +7,15 @@ Verilog == the independent Python GF-T model over a full training run; this prov
 C == model and Rust == model on the same random operands -- closing the
 "one spec -> any target, bit-exact" claim across {Verilog, C, Rust, model}.
 
-Self-contained + CI-friendly: SKIPs (exit 0) if t27c / a C compiler / rustc is
-missing; a real cross-target divergence exits 1. Run:
-    python3 tools/verify_multitarget.py
+Self-contained. Locally it SKIPs (exit 0) when t27c, a C compiler or rustc is
+absent, because a contributor without rustc should not be blocked. In CI that
+tolerance is wrong: the workflow builds t27c itself and the runner ships cc and
+rustc, so a skip there means the environment broke, and exit 0 makes "proved"
+indistinguishable from "never ran". Pass --require to turn every skip into a
+failure. A real cross-target divergence exits 1 in both modes.
+
+    python3 tools/verify_multitarget.py             # local, tolerant
+    python3 tools/verify_multitarget.py --require   # CI, asserts it actually ran
 """
 import os, sys, shutil, subprocess, tempfile, importlib.util, random
 
@@ -18,7 +24,16 @@ SPECS = {"gft_smul": "smul", "gft_sadd": "sadd"}   # spec file -> top function
 N = 600
 
 
+REQUIRE = "--require" in sys.argv
+
+
 def skip(msg):
+    if REQUIRE:
+        print(f"FAIL verify_multitarget: {msg}")
+        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
+        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
+        print("  absent the environment is broken and this check did not run.")
+        sys.exit(1)
     print(f"SKIP verify_multitarget: {msg}")
     sys.exit(0)
 
