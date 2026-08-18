@@ -1,3 +1,13 @@
+# NOW -- how a gate lies, written down (2026-08-18)
+
+Last updated: 2026-08-18
+
+## skills: six confirmed ways a CI gate produces a wrong signal (Closes #2195)
+
+- **The day's arithmetic: one missing brace cost four days of a red gate**, and the days went to three layers of diagnostics each naming a different subsystem, only the innermost right
+- Six ways recorded with paths: a gate that **cannot fail** (two required checks were one `echo`; a third asserted `phi**2 + phi**-2 == 3`); a gate green because **under-scoped** (975 documents scanned, blind to the canonical catalog row); a wrapper that **swallows the tool's message** (27 sites); a **crash reported as a numeric disagreement**; a **partial repair reported as complete**, twice; and **renaming a job silently breaking branch protection**
+- Construction rules alongside: negative control as its own CI step; the rule set as data, so a row is added when a number is withdrawn rather than when the document is fixed -- ten days apart in the case that started this; baselines keyed to the **line** rather than the file, since an append-only document widens the hole every entry; and reporting what could not be established instead of inventing it
+- `.claude/skills/ci-gates/SKILL.md`
 # NOW -- a dead simulator is not a design that emitted nothing (2026-08-18)
 
 Last updated: 2026-08-18
