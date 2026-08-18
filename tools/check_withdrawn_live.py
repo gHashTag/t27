@@ -18,7 +18,10 @@ not propagate to documents, and nothing was checking. So this checks.
                      dated history under docs/reports/ (a record of what was
                      believed then is not a live claim), and this gate's own data
   baseline           tools/withdrawn_live_baseline.txt -- occurrences that are
-                     text ABOUT the withdrawal, listed one per line as path:regex
+                     text ABOUT the withdrawal, keyed by path + pattern + a hash
+                     of the LINE. Keying on the line and not just the file matters
+                     for append-only documents such as docs/NOW.md: baselining the
+                     file wholesale would let a future genuine claim through.
 
 Usage:
   tools/check_withdrawn_live.py                 gate; exits non-zero on any new hit
@@ -28,6 +31,7 @@ Usage:
 
 Exits non-zero on any failure.
 """
+import hashlib
 import pathlib
 import re
 import subprocess
@@ -88,7 +92,9 @@ def scan(root=ROOT, registry=None):
                 continue
             for i, line in enumerate(text.splitlines(), 1):
                 if pat.search(line):
-                    hits.append((rel, i, pat.pattern, reason, where, line.strip()[:110]))
+                    key = hashlib.sha1(" ".join(line.split()).encode()).hexdigest()[:12]
+                    hits.append((rel, i, pat.pattern, reason, where,
+                                 line.strip()[:110], key))
     return hits
 
 
@@ -125,18 +131,21 @@ def main():
     if "--update-baseline" in sys.argv:
         BASELINE.write_text(
             "# Occurrences that are text ABOUT a withdrawal, not a live claim.\n"
-            + "".join(f"{rel}:{pat}\n" for rel, pat in sorted({(h[0], h[2]) for h in hits})),
+            "# Keyed path | pattern | sha1(line)[:12] -- editing the line re-opens the gate,\n"
+            "# which is what we want for append-only documents like docs/NOW.md.\n"
+            + "".join(f"{rel} | {pat} | {key}\n"
+                      for rel, pat, key in sorted({(h[0], h[2], h[6]) for h in hits})),
             encoding="utf-8")
-        print(f"  baseline written: {len({(h[0], h[2]) for h in hits})} entries")
+        print(f"  baseline written: {len({(h[0], h[2], h[6]) for h in hits})} entries")
         return 0
     known = baseline()
-    new = [h for h in hits if f"{h[0]}:{h[2]}" not in known]
+    new = [h for h in hits if f"{h[0]} | {h[2]} | {h[6]}" not in known]
     if not new:
         print(f"OK: no withdrawn number is stated in a live document "
               f"({len(list(live_documents()))} documents scanned)")
         return 0
     print(f"FAIL: {len(new)} withdrawn number(s) stated in a live document\n")
-    for rel, line, pat, reason, where, text in new:
+    for rel, line, pat, reason, where, text, _key in new:
         print(f"  {rel}:{line}")
         print(f"      matches /{pat}/ -- {reason}")
         print(f"      see {where}")
