@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:63f2a1124f66d804b4a2b3f30e032144c2c93c0a1fd05208091293b6eaf05045",
   "module": "AgentMemory",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:0ad836431b5b70772112f6f3025589ce1f77208ca6e2eef8b2115057eab7b495",
   "spec_path": "specs/tri/agent/memory.t27"
 }

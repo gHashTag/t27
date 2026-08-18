@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:818359085c3241047423fee8998fb6a127b82916aa7b77162c703d330fc31681",
   "module": "BitnetLayer",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:2760dfd2dbff243837b30c3df806449620407dcd5faba535f977a09ecae47d4a",
   "spec_path": "specs/ternary/bitnet_layer.t27"
 }

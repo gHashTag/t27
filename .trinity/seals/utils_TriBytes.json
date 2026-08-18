@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:10c4968a461ec13adb0727ede8d24b61eeac692eb35c9b6529da264a4d5039ee",
   "module": "TriBytes",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a3ab6aec3a806403d4c098509b8a12fbaadbf61d70ae0485b598be864bede97b",
   "spec_path": "specs/tri/utils/bytes.t27"
 }

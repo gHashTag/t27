@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:75675cc0a05c32b50a38ceb469284990f4a24c61f7f0a8fc078b5f5464cebe23",
   "module": "triformat-gaternary",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5d15f9ef5b075492d27dc7f58b33bf12d030fdf821239ec62e419787513e2374",
   "spec_path": "specs/numeric/gfternary.t27"
 }

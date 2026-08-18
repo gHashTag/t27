@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:e71c692b9e800c038d45fd45c29877726bdf8278446381947cb6fda165a2e6e4",
   "module": "TriRegex",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8abd26751440f427be68a60fa3e08c27d1f14d09909fb39c84a689669e182c93",
   "spec_path": "specs/tri/search/regex.t27"
 }

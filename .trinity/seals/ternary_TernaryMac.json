@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:53848e2422d231abe26f2e785704e00412c8e2f70c7c8ad672ada0e8c13f6b21",
   "module": "TernaryMac",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:54be6db52c95054eb2850c805fe15244d3e4fa7efab696ae26b3f2ca5bfa4ab7",
   "spec_path": "specs/ternary/ternary_mac.t27"
 }

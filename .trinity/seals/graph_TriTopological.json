@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:15edf29ec7cb510b9bb504b7e63a8936fea5919b83487836995854c280eb319e",
   "module": "TriTopological",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3bfd60b0a6b6dbdddebdb5a5a5d0750b8058892126e151fa05f4a6125ea0dd79",
   "spec_path": "specs/tri/graph/topological_sort.t27"
 }

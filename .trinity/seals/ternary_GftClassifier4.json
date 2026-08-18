@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:152ada1785c8ad4aac4794adb8519b3b12015bcf5021a8e86f6a4a3e9ab5740c",
   "module": "GftClassifier4",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:138a62838d44acac9ecdbf7cb53e980b3884af10da968540d24e656138aa4767",
   "spec_path": "specs/ternary/gft_classifier4.t27"
 }

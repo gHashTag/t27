@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:2229036e131bd6411d223bf5700c2ccf73538b3cb626d85bb97538557c46cb43",
   "module": "TriUrl",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7b2395a369c1777ca0333086c29266630d5335628190e6e46c253b9390af9f33",
   "spec_path": "specs/tri/net/url.t27"
 }

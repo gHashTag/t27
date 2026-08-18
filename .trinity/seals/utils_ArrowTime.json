@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:04b0893f1395214dac9e4469c3fdb89fcd528425271e08bc84ec2e54e055e092",
   "module": "ArrowTime",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8e07fb0816cb06ab42ba9af99164200de1bd2d929f3e16052c946d70dcb3ddc2",
   "spec_path": "specs/tri/utils/arrow_time.t27"
 }

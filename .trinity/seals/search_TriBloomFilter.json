@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:634e2072c98cd1d9dc8e08eeea0f4303b4903c6492e895acba6e82399afafac1",
   "module": "TriBloomFilter",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1d3566b76489aba82ed0353281a052a571e64b4ca51c4dbd2744cf982dd37735",
   "spec_path": "specs/tri/search/bloom_filter.t27"
 }

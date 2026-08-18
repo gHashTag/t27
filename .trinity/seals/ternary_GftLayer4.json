@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:13576194a971d291dc8297a08ced2edd8a3debfa893ef1568a1fa024d854b1ec",
   "module": "GftLayer4",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:bc950d5eb4085dffedcbfd2cb065f927cb6b7386a997fffc1a350516458d87a2",
   "spec_path": "specs/ternary/gft_layer4.t27"
 }

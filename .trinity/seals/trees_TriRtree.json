@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:5a3654e221f3b2734a538fa7915915a93fad0b63850b9c7f252f305baf2bfbc6",
   "module": "TriRtree",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ee8ecc6ee599567979a46dc51bccd9cd04cf4aca2af157874eb528ad877353e9",
   "spec_path": "specs/tri/trees/rtree.t27"
 }

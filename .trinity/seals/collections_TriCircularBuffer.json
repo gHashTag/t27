@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:20259fafb50bf74eb913ddfd848eae84475d6016cd4ddc1e621ef911ac8c387a",
   "module": "TriCircularBuffer",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:9a8156c31cf1ff378730d53a4e55d2265fb101558dabfa1c3cf9f3c9e3e3ed5a",
   "spec_path": "specs/tri/collections/circular_buffer.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:0b5576e1c05218050c15eb01ce4e60321fb56f2137e5d2aa3677ec3cd28303ef",
   "module": "TriBoyerMoore",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:949befe08d74fbddd4b1f79be2e36be09900c171edf1361e97ebf4973c682edb",
   "spec_path": "specs/tri/search/boyer_moore.t27"
 }

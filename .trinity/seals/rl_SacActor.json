@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:772911adcf76477f10a97e27f1a95d09ba7bc419c0df2b05d0855b5dc9f503ad",
   "module": "SacActor",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8bf789ec0849acf8c11d339deddeaace0fb2c99e444c72f11b32bb922af544cf",
   "spec_path": "specs/ml/rl/sac_actor.t27"
 }

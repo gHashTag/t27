@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:dc5b7eac55e59cc08d9f922811f58cc908cec6e170cb849582c918fb0d21ff7d",
   "module": "DarkMatter",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b3ad9a90feacac048e38fccd041005f144d9a5c7a2ad52b23ec20b6a163339b0",
   "spec_path": "specs/sacred/dark_matter.t27"
 }

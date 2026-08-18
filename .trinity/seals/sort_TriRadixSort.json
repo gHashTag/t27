@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:f06149bee6f29394e318714c0d2f1b973290145826d69b3f3fd30eedf3b1b040",
   "module": "TriRadixSort",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b7538d332141732ec58bda9a10caf10a04d000aef901752fe67a03b1dbd73daa",
   "spec_path": "specs/tri/sort/radix_sort.t27"
 }

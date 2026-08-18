@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:8308dfce2d01e1fcbcaca5a46dd0b66e375198925ac1544e50a05e2d4e83bb5e",
   "module": "ActivationQuantizer",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:31d8e97942af2ca10445cc7bcf58e77c8e5d48e28fffb90798cfa7137a3ca245",
   "spec_path": "specs/ternary/activation_quantizer.t27"
 }

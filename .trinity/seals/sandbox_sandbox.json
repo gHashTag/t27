@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:ca69f457ac354f027e7b9e9d569373213c952fa52a755df3ce721e87b01e4163",
   "module": "sandbox",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:76cb6542be88ac777ede9539d338199a0786d480608ce8358b1d20d01551f559",
   "spec_path": "specs/sandbox/sandbox.tri"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:4997c698b08829a9566d53947a16675c43f136da75bb78dcb1b9dfbd338c6c4b",
   "module": "QuantumGravity",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:737d4c04a9ed568aa611bd4933a163cd511ba730d3a145643ab0ae8d986fb0fd",
   "spec_path": "specs/sacred/quantum_gravity.t27"
 }

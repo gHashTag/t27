@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:3a028d3cb35bdf15056c1efa9ae155bb3a3f2440200a423db884064725a86089",
   "module": "SpecWriter",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e667e57809adfe5076ba3c1eeb9ac53e5058dc7506a9a013919782ed8e55cef9",
   "spec_path": "specs/tri/pipeline/spec_writer.t27"
 }

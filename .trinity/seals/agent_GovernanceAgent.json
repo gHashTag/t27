@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:73bd645a1e35caca2c2ca4377a6561f5b6aed872b20038bf215d8ab45238d648",
   "module": "GovernanceAgent",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3141c84ac07b0e0278a98f2c175f0eb68d499eca57a2a936bdc41cf5a0de85eb",
   "spec_path": "specs/tri/agent/governance_agent.t27"
 }

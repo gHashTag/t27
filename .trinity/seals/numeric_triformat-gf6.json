@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:6566f4105ca0c6120dea23fdff49d6cfd077b65f07777bace1809a6fe8bbc695",
   "module": "triformat-gf6",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a00bd702944132e0f90601345516da4a46ff4edc7d602a4e9b337a6ad4fb3982",
   "spec_path": "specs/numeric/gf6.t27"
 }

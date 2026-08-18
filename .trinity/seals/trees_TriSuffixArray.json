@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:f0ab2796cb6938cf68d259a7c2529463d6e154e52c1e7e3049cec72ed6f95036",
   "module": "TriSuffixArray",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:46eb92bbb340ff3345a79d44ec05cd0169c5c2b8ae064619690c31479ac3e2c0",
   "spec_path": "specs/tri/trees/suffix_array.t27"
 }

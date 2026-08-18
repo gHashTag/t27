@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:6c8aee77161c6f9b7176185b4916ec87078731cfc6c58e17396464401fbe57bf",
   "module": "w535_bounded_while_module",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e58c713814db7a42b22fa996d3aee2815af783080bf6b98db6fbafad489330f4",
   "spec_path": "specs/igla/w535_bounded_while_module.t27"
 }

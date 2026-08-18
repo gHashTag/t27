@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:83d695a0efae73221211f452818a1352f07ccf0d6d78acdb3fb1beaa08916172",
   "module": "TriDisjointSet",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:57308c312e2d9233223984d19e928d0583684571434c32a42d5c66810c8a07da",
   "spec_path": "specs/tri/graph/disjoint_set.t27"
 }

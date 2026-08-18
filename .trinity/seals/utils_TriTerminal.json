@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:e2be6923a950eb2b2ca4d8ce4991d9ffe22975b00667347dae372105f6566698",
   "module": "TriTerminal",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:803ff8d37f9f4f1c3e5119e70d5c9210cd884b6b63b4117996e5401e6bb46448",
   "spec_path": "specs/tri/utils/terminal.t27"
 }

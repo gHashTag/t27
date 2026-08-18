@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:f818034cbd558a44967fdfe7c5b6557adc4a8aaec8e499651d146597ab890d04",
   "module": "TriTimSort",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1bf58267963a4114d3b9f6ed017a10b942789add7f8196b5a058812b7c4f50db",
   "spec_path": "specs/tri/sort/tim_sort.t27"
 }

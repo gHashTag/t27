@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:559d0c82ed4bf9f46bdedf0d6b0088cc3ef45358c44bf5fc73ff371dce148c56",
   "module": "TriJson",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:324d8917e25b095ffde85d09bbb631eec1b5ed14cc876299cda6d1e6f8ee2e0c",
   "spec_path": "specs/tri/encoding/json.t27"
 }

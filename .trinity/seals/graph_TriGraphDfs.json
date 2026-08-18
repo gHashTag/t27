@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:a4dc9f76eebc0836a583805a14ec8691935245fdfce6b70de77c5f40b05fe9af",
   "module": "TriGraphDfs",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:52f14c10cd747985da3a530220dbcd8de5079ded7c63466f3524939c07beee1c",
   "spec_path": "specs/tri/graph/graph_dfs.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:2d81b1d0e655b490a763d49be411d6709fd788d9ab40d88988c42c839dfc3be5",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:005aca7192dd2440f953faf827420141efa2da5f70dfad8b1fc409066fe1c62f",
   "spec_path": "specs/tri/pipeline/workflow.t27"
 }

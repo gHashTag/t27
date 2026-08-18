@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:1d4fbafb4021c51db8589e0e46d7693a16dc1ca80e1f5e89615d10694ad3bbe4",
   "module": "FeedForwardNetwork",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:f6130cb4fb3292dcf0c8a59031b018b2078fb1add5260b24a1f651af62834312",
   "spec_path": "specs/ml/transformer/feed_forward_network.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:ced0a7500125d56bfde6bbf0465eabb344acb193a3c8ed10e0f914618c31b6df",
   "module": "BitnetMlp",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:9d464252d2dde474735df22e6f84c74959316ce9f17c7ae6299091287e0867d7",
   "spec_path": "specs/ternary/bitnet_mlp.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:cee12f33eb7567680cc6853f65cfa1a4ed28f3616b7bc8ec97fa4e1cc4b66e00",
   "module": "PpoCritic",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3f170da0db86ecb829c46e88c0a8fad260f37ad3de7a61d87b514c68c8d8c720",
   "spec_path": "specs/ml/rl/ppo_critic.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:753d3f2deae33e806fdf56a198297abee43cd55e5785e533f84b8d1c5f3e4645",
   "module": "GftSoftmax4",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:275f814351a1bfa986f446fbaec1661786d07df44eaf73de58c9c0878c5d40b2",
   "spec_path": "specs/ternary/gft_softmax4.t27"
 }

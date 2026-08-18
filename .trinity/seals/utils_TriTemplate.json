@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:bad1bbdac17e8b1dfef640514a060904adf9251dd8658abf201bcf5829d3e4eb",
   "module": "TriTemplate",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:51c140fd215a3cca5cf1fe479e531f1d39706abf2b670a8ecd6cdd4bd56037f0",
   "spec_path": "specs/tri/utils/template.t27"
 }

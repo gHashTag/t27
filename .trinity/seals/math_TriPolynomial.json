@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:e7a3561c401a5c06d17c6602fb754b8f7fcc40ee4fd9fad737b5386fef4b660c",
   "module": "TriPolynomial",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8eba8906c7b3363610d70611c47190e3a0c577758540669ca80a7c6e383c64da",
   "spec_path": "specs/tri/math/polynomial.t27"
 }

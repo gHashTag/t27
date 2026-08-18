@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:4d9f1667773fe718beb9d20a30aa16b173e16e2026e4acc5bdf7f82ffe76eb78",
   "module": "TriSegmentTree",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d4fff09b1c7e86fca582abd18362a0dafd271e3e11b8bbdbe13f257d8e71a17d",
   "spec_path": "specs/tri/trees/segment_tree.t27"
 }

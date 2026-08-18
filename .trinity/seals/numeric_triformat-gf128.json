@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:4313cfacc8b66afe57ebe38cee2a730883a60a81a9424beb04ee2b447e3436cd",
   "module": "triformat-gf128",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:2677ca7baf25df8c84d3370f519d73f134f0091770cab803ce7ef332beef5ae5",
   "spec_path": "specs/numeric/gf128.t27"
 }

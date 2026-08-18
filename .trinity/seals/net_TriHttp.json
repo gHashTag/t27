@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:16e7592347cdbf0b1498fbb9f9972637cef5c2dcd5a60b24fa8a887d0e5f638c",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:53b65f5dc6e1f5dc9f3ecc755cc31e2fdcf455106dba6d59c1423ea0ddda0214",
   "spec_path": "specs/tri/net/http.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:b38b8ee61a08e741dac77d09d60c95a9b0f568c2b5556c33a56a269329d74531",
   "module": "ExperienceHooks",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:4a36751ee547427463eb6c2addcfb67293a623fc469f5e22fe5af9118a63740a",
   "spec_path": "specs/tri/agent/experience_hooks.t27"
 }

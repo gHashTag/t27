@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:e99f4d9a53d3219e376efd9d2fbb7bb40586a3abf769806f845bc6060a84c2dd",
   "module": "igla-coder-benchmark",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:58Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:0c6490d1d5a9de41dc0d7ee356b91c17ca9a9fd5fe49c3f6263e6d944593799f",
   "spec_path": "specs/igla/coder/benchmark.t27"
 }

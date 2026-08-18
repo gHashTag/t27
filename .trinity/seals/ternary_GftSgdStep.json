@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:85e4acf7949f16c57fd395269eba85628ab6964aaaa0a1e4a63024c7551e44af",
   "module": "GftSgdStep",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5047ea1190cda85e3c57cdf6e65be0ed4fa22c52702ce20c446cf3b50f301b59",
   "spec_path": "specs/ternary/gft_sgd_step.t27"
 }

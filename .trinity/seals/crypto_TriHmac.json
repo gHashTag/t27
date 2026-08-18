@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:6c17e5b4829b6db8cb4cccca63f892116a338184a0a865cce7b800ac1a4dc8ea",
   "module": "TriHmac",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c9c294acdc2a491ad74598e51c3b2137b1b51b970d326765ce489445e76df2a8",
   "spec_path": "specs/tri/crypto/hmac.t27"
 }

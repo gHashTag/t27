@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:1b097a45b76e6f85f81910e3a42c82934f1cf49867227d4c4b94fffc936c62ee",
   "module": "SearchMatch",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:12299009a56b6404c248457a5d524f02615a7898a3155bc991a36dd702986ac0",
   "spec_path": "specs/tri/search/match.t27"
 }

@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:60e25f56dbfa00eaf0b5cbeb0b4fd43e9f0a0af583f866eec3fd440531084924",
   "module": "server-mdns",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:53Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:0c558f36ccaa222e6da0edd224b43599dc41bccc897a1d5fa61fde68d509e90b",
   "spec_path": "specs/server/mdns.t27"
 }

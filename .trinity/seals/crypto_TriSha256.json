@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:93c605d0ab9d7ad2b3fbb0370c3fb35b41f40c57203cac36e4cbc323bd694f07",
   "module": "TriSha256",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:cd90917937862636ffbcfab0896cb640ea0e6e439fcd7a4280333872f4e5abae",
   "spec_path": "specs/tri/crypto/sha256.t27"
 }

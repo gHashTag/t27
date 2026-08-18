@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:25ab596549dce4bec798a199d9e31c2070cbc89071374bfc9e4207cb492a876f",
   "module": "TriDijkstra",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:80644bdb5652ccafba32d06857d8f4d260863c4e91590cd6fbc7737350a090b6",
   "spec_path": "specs/tri/graph/dijkstra.t27"
 }

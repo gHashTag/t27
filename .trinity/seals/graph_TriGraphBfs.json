@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:7a22de1e8ecbcd2255015dded14e6ad85a8c69f2ff1d44c83a689b47c09f1d21",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e098fd7e733d1fafb47a4230c00df3953ea1a5eaa43977ef39a363ec0079cc08",
   "spec_path": "specs/tri/graph/graph_bfs.t27"
 }

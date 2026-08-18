@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:563c29b47043e5fc764e88bcb037d37cfa411930a8edeeb13e05498cb8868bc1",
   "module": "TriUtf8",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5e3cef83fe71fa8bdec4c2ef91200565a5461f4de0225a11d9544c366afdc65d",
   "spec_path": "specs/tri/utils/utf8.t27"
 }

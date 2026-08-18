@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:c1cfb004d174d6b708089a0fe13fabccedc6bad35eddc53693bbf1bef658419c",
   "module": "TriCsv",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:51Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c9417445533676df65424ac0b373d1c1c21d3f92542dfbd77e61a06a0a2f60d1",
   "spec_path": "specs/tri/encoding/csv.t27"
 }

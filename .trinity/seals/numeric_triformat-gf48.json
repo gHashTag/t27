@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:d1de60ca17a8d362f29b74d3df22d6bbab44a13a409a4c621affeb48adb168c1",
   "module": "triformat-gf48",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:77346585fb0fb4befeba1c4f3233a3dbf8d4cbb3107df4f29cb3ca3f916c96cc",
   "spec_path": "specs/numeric/gf48.t27"
 }

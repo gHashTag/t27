@@ -5,7 +5,8 @@
   "gen_hash_zig": "sha256:bb2eb26df8770228b720f36afd8b5eb0225a97cd657a9d65b85e6b8b36ddb414",
   "module": "Agents",
   "ring": 12,
-  "sealed_at": "2026-08-18T19:36:52Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ee2c014c00caceaf27b81474757f674c961bc4930613a8aabf75dad6dbed65ba",
   "spec_path": "specs/tri/agent/agents.t27"
 }
