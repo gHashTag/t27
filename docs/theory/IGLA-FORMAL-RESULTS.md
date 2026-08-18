@@ -26017,6 +26017,59 @@ the paper's LUT figures are 5-6x larger than these, and `tab:tnet`'s caption say
 finding is that RTL shipped in the tree carries the trap, and that its bias has a
 direction.
 
+### T703 -- T702 WITHDRAWN TOO: THE GATE FOUND IT FIRST, AND BASELINED THESE EXACT FILES [measured]
+
+`tools/check_harness.py` exists, and its docstring states the defect I spent this
+wave measuring, with a sharper example than mine:
+
+    "A harness observing four output bits pruned an unobserved 32-bit datapath to
+     15% of itself, and pruned an unrelated 6-bit design barely at all -- an
+     unequal cut that reversed a 2.34x conclusion."
+
+It runs clean: *"harness files scanned: 3529. OK: no new partial-observation
+harnesses (88 known)"*. And `tools/harness_baseline.txt` lists **all twelve**
+`d_*.v` files by name -- `d_baseline.v`, `d_int8.v`, `d_gfternary.v`, `d_posit16.v`
+and the rest.
+
+So the finding is a rediscovery of something already found, already quantified,
+already gated, already baselined. **T702 withdrawn.**
+
+### T703a -- THREE WITHDRAWALS IN ONE WAVE, ALL THE SAME METHOD ERROR [derived]
+
+    T698a   "the seed count is unstated"     four captions state it
+    (int8)  "its decoder is a no-op"          the harness prunes half the word
+    T702    "the harnesses observe 16 bits"   known, gated, baselined by name
+
+Each began with a real measurement and ended somewhere the repository already
+was. **I measured before checking what was already known** -- and the repository
+was unusually well equipped to tell me: fourteen gates, an 88-line baseline, and
+four captions carrying the disclosures.
+
+The cost is not the wrong conclusions -- they were caught. It is that a wave of
+compute produced one new fact.
+
+### T703b -- WHAT IS ACTUALLY NEW FROM W870 [measured]
+
+    eleven decoder harnesses, five placer seeds each, xc7a200tfbg676-1
+    Fmax spread 5.6% (d_int8) to 20.5% (d_lns16), no relation to design size
+
+Every hardware caption states "median of five seeds", which is the right
+estimator. **None reports the dispersion that median summarises.** That remains
+fair, unclaimed, and small -- one observation, where the wave began expecting to
+close a release gate.
+
+### T703c -- THE PROCEDURE THAT WOULD HAVE SAVED THE WAVE [derived]
+
+Before measuring anything about this repository, in this order:
+
+    1. run every gate whose NAME touches the question      check_harness.py
+    2. read the caption of every table the claim concerns  "median of five seeds"
+    3. grep the baselines for the artefacts by name        harness_baseline.txt
+    4. only then measure
+
+Steps 1-3 cost under a minute together. This wave spent 55 place-and-route runs
+reaching the answer they hold.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

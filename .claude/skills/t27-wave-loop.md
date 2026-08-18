@@ -11869,6 +11869,20 @@ smallest.
 Nothing references these harnesses and the paper's figures are 5-6x larger. Report
 the file, not the inference.
 
+**1295. RUN THE GATE WHOSE NAME TOUCHES THE QUESTION BEFORE MEASURING.**
+check_harness.py already stated the partial-observation defect, quantified it more
+sharply, and baselines all twelve d_*.v files BY NAME. I spent 55 place-and-route
+runs rediscovering it.
+
+**1296. THREE WITHDRAWALS IN ONE WAVE MEANS THE METHOD, NOT THE LUCK.** Seeds
+unstated (four captions state them), int8 a no-op (the harness prunes), harnesses
+unobserved (gated and baselined). Every one began with a real measurement and ended
+where the repository already was.
+
+**1297. THE ORDER IS: GATES, CAPTIONS, BASELINES, THEN MEASURE.** The first three
+cost under a minute. A repository this well instrumented answers most questions
+before a single run.
+
 ### How to update this tracker
 
 After closing a wave:
