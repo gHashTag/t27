@@ -25765,6 +25765,48 @@ the one finding in the sequence that a referee would treat as more than an errat
 -- and it was invisible to every numeric check, because every printed number in
 the table is correct. Only asking *why is this cell absent* found it.
 
+### T692 -- T688 WITHDRAWN: THE REACH COLUMN IS OFF BY ONE, AND MY CHECK CONFIRMED THE WRONG QUANTITY [measured]
+
+T688 verified that `tab:rungthr`'s reach column equals `(3^E-1)/2` -- 40, 121, 364
+-- against both `per_rung.tnf_reach` and a closed form, and called the column
+identified. The shipped oracle says the reach is one less:
+
+    TNFFormat(4,8)    decode(encode(2^39))  finite      decode(encode(2^40))  special
+    TNFFormat(5,23)   2^120 finite                      2^121 special
+    TNFFormat(6,21)   2^363 finite                      2^364 special
+
+**The paper already says so.** Proposition `prop:uncentred`: *"the representable
+binade indices are -(Delta-1) ... +(Delta-1)"*, with a proof -- the offset field
+takes 3^E values, top row reserved for the special value, bottom for zero, leaving
+3^E-2 rows. `tnf_reach` records Delta, the OFFSET constant. Six sites print it as
+the reach: three table cells and three prose statements.
+
+### T692a -- A RECONSTRUCTION CANNOT DETECT A RECORD THAT STORES THE WRONG THING [derived]
+
+My regenerator checked 18 of 18 cells and passed. It was right: the table faithfully
+reproduces its record. **Both hold the same wrong quantity**, so every internal
+check agrees and the defect is invisible to all of them.
+
+    what a reconstruction proves      the table matches its source
+    what it cannot prove              the source measures what the column claims
+
+The escape was an INDEPENDENT DEFINITION, and the paper supplied one in its own
+proposition. Two signals agreeing (`tnf_reach` and the closed form) looked like
+corroboration and were one signal counted twice -- the same shape as W864's three
+readers sharing a blind spot, now inside a single column.
+
+### T692b -- THE SEQUENCE OF MY OWN WITHDRAWALS, WHICH IS THE REAL RESULT [derived]
+
+    T676   "the mapping is unreconstructible"        withdrawn W863 -- it was in the labels
+    T681   "strict_range -> tab:invariant rejected"  withdrawn W865 -- size correction misapplied
+    T688   "the reach column is identified"          withdrawn W867 -- confirmed the offset
+
+Three confident conclusions, each built on a real measurement, each wrong in the
+same way: **an instrument was asked whether two things agree, and agreement was
+read as correctness.** Labels agreeing with prose, a record agreeing with a table,
+a field agreeing with a formula. Every time, the fix was a source of truth outside
+the pair being compared.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

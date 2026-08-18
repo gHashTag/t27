@@ -11795,6 +11795,20 @@ Suppressing a mean taken over the unclipped half of a sample is defensible.
 Applying it to one format and not the other is not, and here both asymmetries run
 the same way.
 
+**1278. A RECONSTRUCTION PROVES THE TABLE MATCHES ITS SOURCE, NOT THAT THE SOURCE
+IS RIGHT.** 18 of 18 cells passed while every one of the reach cells was off by
+one, because the record stores the offset constant and the table prints it. Only
+an independent definition -- here the paper's own proposition -- can catch it.
+
+**1279. TWO SIGNALS FROM ONE QUANTITY ARE ONE SIGNAL.** `tnf_reach` and the closed
+form (3^E-1)/2 are the same number by construction; checking both felt like
+corroboration and was counting once twice.
+
+**1280. THREE OF MY CONFIDENT CONCLUSIONS WERE WITHDRAWN THIS SESSION, ALL THE
+SAME WAY.** Agreement between two things was read as correctness: labels with
+prose, record with table, field with formula. The fix is always a source of truth
+outside the compared pair.
+
 ### How to update this tracker
 
 After closing a wave:
