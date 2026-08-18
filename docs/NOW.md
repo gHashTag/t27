@@ -1,3 +1,16 @@
+# NOW -- only += existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## feat(lang): five missing compound assignments, and the three backends that would have miscompiled them (Closes #2212)
+
+- **`specs/base/types.t27`, a base module, did not parse.** `result |= encoding << bit_pos;` at `pack_trit` line 172. The cause is a missing language feature: only `+=` existed, and `-= *= |= &= ^=` lexed as two tokens and died in `parse_expr` on the bare `=`
+- **The part that mattered most.** All three code generators did `if extra_op == "+=" { " += " } else { " = " }`, so teaching the *parser* `|=` without touching them would have emitted **`x = rhs`** for `x |= rhs` -- silently dropping the operator. A miscompilation is worse than the parse error it replaces. The change touches four places together: token enum, lexer, parser, and all three backends via a shared `compound_binop()`
+- Verified by **reading the generated code**, not assuming: C emits `x |= 3`, Verilog expands to `x = x | 3`, for all six operators
+- **Honest yield: 2 of 346, not the ~11 I estimated.** Six specs use `-=`, four `*=`, one `|=`, but only `specs/base/types.t27` and `compiler/runtime/runtime.t27` are fixed by this; the rest have further errors
+- **M5 freeze ceremony performed.** `build.rs` refuses to build when `compiler.rs` changes without a seal update -- a deliberate gate making a change to the compiler core explicit. The seal is exactly `sha256(compiler.rs)`
+- **A dead arm in my own checker, found on the way:** `check_specs_generate.py` ran `gen-zig`, and **there is no such subcommand** -- the Zig backend is `gen`. It always returned non-zero and never contributed a verdict. Corrected count: **768 generate, 346 do not**, against 766/348 before
+
 # NOW -- seal --save refuses a spec no backend accepts (2026-08-19)
 
 Last updated: 2026-08-19

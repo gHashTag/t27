@@ -203,6 +203,14 @@ pub enum TokenKind {
     ShiftLeft,
     ShiftRight,
     PlusEquals,
+    // Only += existed. -=, *=, |=, &=, ^= lexed as two tokens and the parser died
+    // on the bare '='. Among the 348 specs that do not generate, 6 use -=, 4 use *=
+    // and 1 uses |= -- including specs/base/types.t27 at pack_trit line 172.
+    MinusEquals,
+    StarEquals,
+    PipeEquals,
+    AmpEquals,
+    CaretEquals,
     PlusPercent,
     MinusPercent,
     StarPercent,
@@ -592,6 +600,61 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusEquals,
                     lexeme: String::from("+="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+        if two == [b'-', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusEquals,
+                    lexeme: String::from("-="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+        if two == [b'*', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarEquals,
+                    lexeme: String::from("*="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+        if two == [b'|', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PipeEquals,
+                    lexeme: String::from("|="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+        if two == [b'&', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::AmpEquals,
+                    lexeme: String::from("&="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+        if two == [b'^', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::CaretEquals,
+                    lexeme: String::from("^="),
                     line: start_line,
                     col: start_col,
                 };
@@ -2027,15 +2090,24 @@ impl Parser {
         }
 
         // Check for += assignment
-        if self.current.kind == TokenKind::PlusEquals {
-            self.advance(); // consume +=
+        let compound_op = match self.current.kind {
+            TokenKind::PlusEquals => Some("+="),
+            TokenKind::MinusEquals => Some("-="),
+            TokenKind::StarEquals => Some("*="),
+            TokenKind::PipeEquals => Some("|="),
+            TokenKind::AmpEquals => Some("&="),
+            TokenKind::CaretEquals => Some("^="),
+            _ => None,
+        };
+        if let Some(cop) = compound_op {
+            self.advance(); // consume the compound operator
             let rhs = self.parse_expr()?;
             if self.current.kind == TokenKind::Semicolon {
                 self.advance();
             }
             let mut assign = Node::new(NodeKind::StmtAssign);
             assign.line = self.current.line as u32;
-            assign.extra_op = "+=".to_string();
+            assign.extra_op = cop.to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
             return Ok(assign);
@@ -4120,8 +4192,8 @@ impl Codegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" += ");
+                    if let Some(op) = compound_binop(&node.extra_op) {
+                        self.write(&format!(" {}= ", op));
                     } else {
                         self.write(" = ");
                     }
@@ -9523,10 +9595,10 @@ impl VerilogCodegen {
                         self.in_lvalue = true;
                         self.gen_verilog_expr(lhs);
                         self.in_lvalue = false;
-                        if node.extra_op == "+=" {
+                        if let Some(op) = compound_binop(&node.extra_op) {
                             self.write(asn);
                             self.gen_verilog_expr(lhs);
-                            self.write(" + ");
+                            self.write(&format!(" {} ", op));
                         } else {
                             self.write(asn);
                         }
@@ -11384,8 +11456,8 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[1]);
                     } else {
                         self.gen_c_expr(&node.children[0]);
-                        if node.extra_op == "+=" {
-                            self.write(" += ");
+                        if let Some(op) = compound_binop(&node.extra_op) {
+                            self.write(&format!(" {}= ", op));
                         } else {
                             self.write(" = ");
                         }
@@ -12079,6 +12151,22 @@ fn resolve_import_path(
 // ============================================================================
 // Compiler Interface
 // ============================================================================
+
+/// The binary operator inside a compound assignment: "|=" -> "|".
+/// All three backends tested `extra_op == "+="` and fell through to " = " otherwise,
+/// so accepting a new compound operator without touching them would have emitted
+/// `x = rhs` for `x |= rhs` -- a miscompilation rather than an error.
+fn compound_binop(extra_op: &str) -> Option<&'static str> {
+    match extra_op {
+        "+=" => Some("+"),
+        "-=" => Some("-"),
+        "*=" => Some("*"),
+        "|=" => Some("|"),
+        "&=" => Some("&"),
+        "^=" => Some("^"),
+        _ => None,
+    }
+}
 
 pub struct Compiler;
 

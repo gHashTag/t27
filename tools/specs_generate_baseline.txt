@@ -10,7 +10,6 @@ compiler/codegen/verilog/fpga_emission.t27 | Error: Compile error: parse error i
 compiler/codegen/zig/runtime.t27 | Error: Compile error: parse error in fn 'generate_main' near line 15: Unexpected token in expression: PlusPlus ('++') at line 15:80
 compiler/parser/parser.t27 | Error: Compile error: parse error in fn 'Parser.new' near line 36: Expected RBrace, got KwConst ('const') at line 36:38
 compiler/runtime/commands.t27 | Error: Compile error: parse error in fn 'spec_create' near line 33: Unexpected token in expression: LBrace ('{') at line 33:42
-compiler/runtime/runtime.t27 | Error: Compile error: parse error in fn 'setup_stack_frame' near line 121: Unexpected token in expression: Equals ('=') at line 121:23
 compiler/runtime/validation.t27 | Error: Compile error: parse error in fn 'validate_policy_matrix' near line 216: parse error near line 216: parse error near line 216: Expected RBrace,
 compiler/skill/registry.t27 | Error: Compile error: parse error in fn 'create_skill' near line 200: Expected RBrace, got KwConst ('const') at line 200:31
 examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at module level near line 1: unexpected token after expression statement: Ident
@@ -34,7 +33,6 @@ specs/base/ring_32.t27 | Error: Compile error: parse error at module level near 
 specs/base/ternary_add.t27 | Error: Compile error: parse error in fn 'max_value' near line 64: Expected LBrace, got Colon (':') at line 64:19
 specs/base/ternary_encoding.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 37:34
 specs/base/ternary_memory.t27 | Error: Compile error: Expected LBrace, got Number ('257') at line 45:25
-specs/base/types.t27 | Error: Compile error: parse error in fn 'pack_trit' near line 172: Unexpected token in expression: Equals ('=') at line 172:13
 specs/benchmarks/bench_main.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
 specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
 specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 2: unexpected token after expression statement: Ident
@@ -153,7 +151,7 @@ specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module leve
 specs/numeric/bigint.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 50:31
 specs/numeric/formats.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 61:39
 specs/numeric/gf12.t27 | Error: Compile error: parse error in fn 'decode' near line 88: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
-specs/numeric/gf16.t27 | Error: Compile error: parse error in fn 'gf16_exp' near line 824: parse error near line 824: parse error near line 824: Unexpected token in expression
+specs/numeric/gf16.t27 | Error: Compile error: parse error in fn 'gf16_log' near line 848: Expected RParen, got Ident ('e38') at line 848:20
 specs/numeric/gf20.t27 | Error: Compile error: parse error in fn 'decode' near line 89: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
 specs/numeric/gf24.t27 | Error: Compile error: parse error in fn 'decode' near line 89: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32
 specs/numeric/gf32.t27 | Error: Compile error: parse error in fn 'decode' near line 90: unknown cast target type `f32`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32

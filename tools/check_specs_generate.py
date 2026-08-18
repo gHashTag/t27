@@ -50,7 +50,12 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tools/specs_generate_baseline.txt"
-BACKENDS = ("c", "rust", "verilog", "zig")
+# The Zig backend is `gen`, not `gen-zig` -- there is no gen-zig subcommand, so the
+# first version of this list had a dead arm that always returned non-zero. It did not
+# change the count (a spec passing any other backend still passed) but it meant the
+# Zig backend never actually contributed a verdict.
+BACKENDS = ("c", "rust", "verilog")
+ZIG = "gen"
 
 
 def t27c():
@@ -70,8 +75,8 @@ def generates(t, sp):
     """(ok, first message). ok if ANY backend accepts it -- a spec written for one
     target should not be reported as broken because another target rejects it."""
     first = ""
-    for m in BACKENDS:
-        r = subprocess.run([t, "gen-" + m, sp], capture_output=True, text=True, cwd=ROOT)
+    for cmd in [["gen-" + m] for m in BACKENDS] + [[ZIG]]:
+        r = subprocess.run([t] + cmd + [sp], capture_output=True, text=True, cwd=ROOT)
         if r.returncode == 0:
             return True, ""
         if not first:
