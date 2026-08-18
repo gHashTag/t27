@@ -11467,6 +11467,21 @@ regenerated the baseline myself. On the canonical paper they remove one false
 positive and add one. A fix validated only where you can move the goalposts is
 not validated.
 
+**1209. A GATE'S FINDING IS A HYPOTHESIS ABOUT THE DOCUMENT UNTIL THE GATE IS
+READ.** Five consecutive waves aimed at a paper landed on its tooling instead:
+the tree, the exit code, three heuristics, my own fixes, and a regex covering 12
+of ~20 phrasings. Read the checker before believing what it says about the text.
+
+**1210. TWO COUNTS OF THE SAME THING MAY NOT BE IN BIJECTION.** One sentence can
+withdraw two enumerated claims, and a claim removed in an earlier revision is
+enumerated but cannot be marked in a body that no longer makes it. A gate
+requiring enumerated == marked is wrong in principle, not tuned wrong.
+
+**1211. WIDEN A REGEX ONLY TO UNAMBIGUOUS FORMS.** `we withdraw` and a
+`\paragraph` naming a retraction are withdrawals. `does not survive`, `was wrong`
+and `narrowed` are qualifications; folding them in would let the gate agree with
+any number at all. A checker that can be made to agree is not a checker.
+
 ### How to update this tracker
 
 After closing a wave:

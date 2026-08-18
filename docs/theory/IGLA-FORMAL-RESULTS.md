@@ -24479,6 +24479,78 @@ Lower than the 55% and 92% reported in W845-W846, and not a regression: those
 measured a 61-page ancestor because the canonical was not in hand. **The first
 honest figure for this document is the first one taken on it.**
 
+## W848 -- there are no eight missing marks; the gate's vocabulary was the gap
+
+### T639 -- THE PAPER'S WITHDRAWAL VOCABULARY IS WIDER THAN THE GATE'S [measured]
+
+`check_self_consistency` reported the canonical revision inconsistent: an
+abstract claiming twenty retractions against **12** marks in the body. Counting
+every withdrawal-ish form in the same file:
+
+    is/are withdrawn              13   MATCHED
+    is retracted                   1   MATCHED
+    \paragraph{...Withdrawn}       2   MATCHED
+    \paragraph{...Retract...}      1   NOT matched -- regex has Withdrawn only
+    we withdraw                    4   NOT matched
+    does not survive               8   not matched
+    was wrong                      7   not matched
+    narrowed                       4   not matched
+
+Widening to the two unambiguous first-person classes -- `we withdraw` and a
+`\paragraph` heading naming a retraction -- takes the count **12 -> 17**. The
+weaker forms are deliberately left out: *does not survive*, *was wrong* and
+*narrowed* qualify a claim without withdrawing it, and folding them in would let
+the gate agree with any number at all.
+
+**There are no eight unmarked retractions.** Most of the gap was the instrument.
+
+### T640 -- AND THE REMAINING GAP IS NOT A GAP: THE TWO COUNTS ARE NOT IN BIJECTION [derived]
+
+Section 27 item 3 withdraws a $5.1\times$ LUT ratio and item 4 withdraws *its
+replacement*, $3.1\times$ at 16 bits. Both are closed by ONE sentence in the body
+(`:2444`): *"...and is withdrawn. The version after that reported $3.1\times$..."*
+
+**One mark can withdraw two enumerated claims.** And the paper withdraws claims
+that are no longer in it at all -- `previous revision` appears 6 times,
+`earlier version` 7, `An earlier` 5. A claim removed in an earlier revision is
+enumerated in Section 27 and cannot be marked in a body that no longer makes it.
+
+So the gate's equality requirement -- enumerated count == body marks -- **is
+wrong in principle**, not merely tuned wrong. It is the same scope error the
+translation carried with its 5 / 10 / 11 / 16: two populations counted as one.
+
+### T641 -- FIFTH CONSECUTIVE FINDING THAT LANDED ON THE INSTRUMENT [self-critical]
+
+    W846  10-of-13 gate failures        the tree, not the paper
+    W846  13-of-13 green                rc captured after a pipeline
+    W846  check_withdrawn_live x3       heuristic, key, unit
+    W847  my own three fixes            net-neutral on the document that matters
+    W848  8 missing retraction marks    the regex, not the paper
+
+**Five waves aimed at a document have landed on the tools that measure it.** That
+is not a run of bad luck: a paper this heavily gated is mostly reported on by
+machinery, and machinery written once against one revision rots against the next.
+The useful reading is that **a gate's finding is a hypothesis about the paper
+until the gate itself has been read.**
+
+The widened regex is saved as
+`docs/reports/gates/check_self_consistency.WIDENED.py` and **not applied to the
+canonical tree**, which is not mine to edit.
+
+### T641a -- READINESS, UNCHANGED AT ~45% AND FOR A BETTER REASON [measured]
+
+    build            136 pages, 0 errors, 0 undefined references
+    paper gates      6 of 11 pass -- but of the five failures, FOUR are now
+                     known or suspected instrument defects rather than paper
+                     defects (self_consistency proven, withdrawn_live shown
+                     net-neutral, orphan_artefacts flags the hand-drawn plates,
+                     doc_refs is repo-scoped)
+    genuinely open   check_ref_kinds: 19 `Section~\ref{X}` inside section X
+
+The number does not move because the evidence moved sideways: fewer paper
+defects, and correspondingly less confidence that the gates are measuring the
+paper at all.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
