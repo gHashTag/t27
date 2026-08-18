@@ -12072,6 +12072,15 @@ grammar fails.
 copy's FROZEN_HASH rejected the second edit; the old binary then 'passed' the
 new test. After any build, confirm it FINISHED before believing the binary.
 
+**1341. A CAPTURE CHECK'S SCOPE IS THE SCOPE THE TRANSFORM CROSSES.** Hoisting
+crosses one boundary, so check only the enclosing fn's bindings. Asking "is it
+module-level?" rejected the SSOT for an imported constant -- a soundness check
+with the wrong scope reads as a defect in the checked thing.
+
+**1342. LABEL EXPERIMENTAL CERTIFICATES AS THEIR OWN STRATUM.** GF16/TF3 sealed
+under sealed_by=goldring-proto beside the bootstrap layer: the 'after' evidence
+sits next to the patch and the strata never mix.
+
 ### How to update this tracker
 
 After closing a wave:

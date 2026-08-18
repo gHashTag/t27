@@ -26791,6 +26791,43 @@ and only re-running the build surfaced it. The freeze mechanism works, including
 against the person prototyping around it; the two-minute confusion it cost is
 the price of the guarantee.
 
+## W884 -- the capture check finds its scope, and the wrong question rejected the SSOT first
+
+### T727 -- HOISTING'S ONLY HAZARD IS THE ENCLOSING FUNCTION'S OWN BINDINGS [derived, then measured]
+
+The first capture check asked *"does every free name resolve at module level?"*
+and rejected gf16 -- for `PHI_INV`, an IMPORTED constant the file never declares.
+The right question is narrower: hoisting moves the nested fn out of one scope
+only, so the only names it can unbind are the ENCLOSING fn's parameters and the
+locals declared before it. A free name that is not such a binding resolves
+identically before and after the move.
+
+    negative   nested fn reading an enclosing `const scale`
+               -> "captures enclosing locals [\"scale\"]", rc=1
+    control    same shape, SCALE a module const            -> rc=0
+    corpus     gf16 (imports PHI_INV)  rc=0;  tf3  rc=0
+    seal       gf16: zero `none` backends
+
+**A soundness check with the wrong scope is indistinguishable from a defect in
+the thing it checks** -- it rejected the very SSOT the patch exists to serve.
+
+### T727a -- 0002 IS NOW A PATCH, NOT A PROTOTYPE [measured]
+
+The check lives at the interception point (no deferred pass, no second walk), the
+negative test fails with a message naming the captured local, and the cumulative
+patch stands at 279 lines. GF16 and TF3 are sealed under a labelled proto stratum
+(`sealed_by: t27c-goldring-proto-0001+0002@0.1.0`) beside the bootstrap layer, so
+the Architect reads the "after" certificates next to the patch without the strata
+mixing.
+
+### T727b -- TWO REGEX SURGERIES, TWO SELF-INFLICTED WOUNDS, ONE LESSON RE-PAID [self-critical]
+
+The deferred-check removal ate a closing brace (unbalanced delimiters, caught by
+rustc); the first insertion attempt died on a context mismatch and left a call
+without its callee. Both were repaired by READING the damaged region rather than
+by another regex. The session's standing lesson -- edit by exact extraction, not
+by pattern -- was paid for a third time by the tool that wrote it down.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
