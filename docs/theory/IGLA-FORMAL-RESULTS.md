@@ -25094,6 +25094,66 @@ an artefact. **What remains is not a finding but a decision**: three patches, th
 gate corrections and one superseded-script marker sit in `docs/reports/upstream/`
 and cannot be sent by a wave.
 
+## W859 -- the denominator, and it reframes everything before it
+
+### T671 -- COVERAGE IS 5.8 PERCENT, MEASURED [measured]
+
+Eight waves of auditing rested on an unstated denominator. Counted:
+
+    tables carrying a label                    60
+    tables carrying fractional numbers         59
+    fractional cells in them                2,094
+
+    covered by a regenerator            4 tables,   121 cells
+    NOT covered                        55 tables, 1,973 cells
+
+**121 of 2,094 is 5.8%.** Three document defects were found in that 5.8%.
+
+Everything said about this paper's readiness in eight waves -- including my
+refusals to give a percentage -- described six percent of its numbers. The
+refusals were right for the wrong reason: I declined because the gates were
+unreliable, when the larger fact was that almost nothing had been checked at all.
+
+The ten largest uncovered tables: `tab:invariant` (128 cells), `tab:rungthr` (99),
+`tab:workloads` (93), `tab:downstream` (81), `tab:window` (80),
+`tab:scalefrontier` (73), `tab:meff` (71), `tab:tailsweep` (66),
+`tab:fullthroughput` (63), `tab:blockbound` (59).
+
+### T672 -- THE MEASUREMENT RECORDS ARE NOT A DROP-IN ORACLE [self-critical]
+
+`measurements/` ships 13 machine-written JSON records and 5 generators, and its
+README maps each record to what it backs. That looked like coverage for a dozen
+uncovered tables.
+
+First attempt asked whether every RECORD value appears in the table: 142 of 217
+absent for one pair, 1,071 of 1,270 for another. Wrong direction -- a record holds
+the full sweep and a table prints a selection.
+
+Inverted to ask whether every PRINTED value appears in the record:
+
+    printed 376 cells across six tables, 239 with no counterpart -- 64%
+
+**A 64% mismatch rate is not a finding about a paper; it is a broken comparison.**
+The unmatched values are percentages (`99.9`, `0.1`), rounded derivations (`2.2`,
+`0.5`) and LUT-per-weight figures (`28.0`, `32.4`) -- quantities computed from the
+record rather than stored in it. And the record-to-table mapping was guessed from
+filenames, which is the same error W854 and W855 both made.
+
+**Fourteenth instrument finding, and the third that is mine.** Nothing is claimed
+about those six tables.
+
+### T672a -- WHAT THE DENOMINATOR DOES TO THE LEDGER [derived]
+
+    document findings          3   in 5.8% of the cells
+    instrument findings       14
+    cells verified           121 of 2,094
+    cells with no oracle    1,973
+
+The honest statement of readiness is now available and it is not a percentage of
+correctness: **94% of this paper's numeric cells have no regenerator, and no
+statement about them has been earned.** Three defects in the six percent that
+could be checked is the only rate anyone has.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

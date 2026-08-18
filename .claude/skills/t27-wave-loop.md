@@ -11608,6 +11608,21 @@ question, not a wasted wave.
 quantities at different magnitudes. That is exactly the defect I had spent three
 waves documenting in the withdrawn-live gate, committed while auditing it.
 
+**1237. MEASURE THE DENOMINATOR BEFORE THE EIGHTH WAVE, NOT AFTER.** Eight waves
+of auditing covered 121 of 2,094 numeric cells -- 5.8%. Every readiness claim and
+every refusal to give one described six percent of the document. Count what could
+be checked before reporting what was.
+
+**1238. A RECORD HOLDS THE SWEEP; A TABLE PRINTS A SELECTION.** Asking whether
+every record value appears in the table gave 1,071 of 1,270 absent. The question
+runs the other way, and even then a printed cell may be derived from the record
+rather than stored in it.
+
+**1239. A 64% MISMATCH RATE IS A BROKEN COMPARISON, NOT A BROKEN DOCUMENT.** When
+a check fires on two thirds of what it examines, stop and read the check. Three
+waves in a row I mapped data to tables by guessing filenames and each time the
+mapping was the defect.
+
 ### How to update this tracker
 
 After closing a wave:
