@@ -185,14 +185,18 @@ under recall alone. Only mappings that pass BOTH are asserted.
     tab:workloads   <- workloads_strict_2026-08-13g.json    F=0.537   asserted
     tab:gpt2window  <- gpt2_window_2026-08-13e.json         F=0.446   asserted
     tab:downstream  <- tnf_downstream_bayesian_si_...json   F=0.155   too weak
-    tab:invariant   <- strict_range_2026-08-13g.json        REJECTED
+    tab:invariant   <- strict_range_2026-08-13g.json        RECONSTRUCTED
     per_rung_2026-08-13g.json                               backs no table
 
-`tab:invariant` is the case the second instrument was built for. `strict_range`
-covers **100 % of that table's 71 cells** — and holds 563 numbers, precision 0.13,
-ranking third behind `crossover2` once size is corrected for. Under the forward
-test alone it looked like the strongest mapping in the set. Full coverage by a
-large record is not evidence.
+`tab:invariant` is where **both statistics fail, in opposite directions**, and it
+is worth stating plainly. Forward: `strict_range` covers 100 % of the table's 71
+cells — true, and worthless, since it holds 563 numbers and covers most of the
+paper. Size-corrected: it ranks *third*, because two thirds of the record belong
+to other format pairs. We rejected the mapping on that basis and were wrong.
+
+Neither statistic was the right tool. The table is a **filtered view** of the
+record — `pair == "TNF(4,8)/takum16" AND comparable == true` selects 30 rows for
+30 printed rows — and a reconstruction either returns them or does not. Item 9.
 
 ### Delivered, as the second commit on this branch
 
@@ -204,6 +208,40 @@ would rather state provenance a different way, or if you want the remaining 54
 tables filled in before any are. The information already exists in your label
 names; it simply does not survive into the rendered document, where a reader who
 cannot grep the source is left with 59 tables and no way to check one.
+
+## 9. `recompute_invariant_table.py` — an oracle for a 71-cell table that had none
+
+`tab:invariant` carried 71 numeric cells and nothing runnable. It needs no
+re-measurement: the table is a filtered view of a record already in the tree.
+
+    rows in strict_range_2026-08-13g.json     180
+    pair == "TNF(4,8)/takum16"                 60
+    ... and comparable == true                 30   <- exactly the printed rows
+
+The script reproduces all 90 data cells at printed precision, and the row
+**formatting**: at the record's tolerance of 0.02 the rows split 12 wins / 4 ties
+/ 14 losses, and the table prints 12 bold, 4 daggered, 14 plain. That lock caught
+a parser here that silently dropped the four daggered rows and still reported a
+plausible 26-row agreement.
+
+The third column is `tnf_err`, not `takum_err`. It was identified rather than
+assumed: `ratio == takum_err / tnf_err` holds to 1e-9 on all thirty rows, which
+the script asserts.
+
+### Two defects, both found on its first clean run
+
+**Caption sample count.** The caption said `$7000$ samples per row`; the record
+carries `n=5000` under the same seed `20260813`, so it is the same run and the
+caption misstates its size. Changed to `$5000$`, and the check is now inside the
+script so it cannot drift again silently.
+
+**`tab:window`, row c=4, binary16 column.** Printed `1.69e-4`; the record holds
+`1.684663e-4`, which rounds to `1.68e-4`. The other five cells of that row are
+exact — `6.802740e-4 -> 6.80e-4`, `2.958324e-4 -> 2.96e-4`, `0.434872 -> 0.43`,
+`0.247645 -> 0.25` — so this is one mis-rounded digit, not a different run.
+
+Coverage after this commit: **9 of 59 tables** a reader can verify by running a
+shipped script, against 4 before.
 
 ## What was verified, and what was not
 

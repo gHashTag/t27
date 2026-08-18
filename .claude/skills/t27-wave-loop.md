@@ -11704,6 +11704,23 @@ the one that was wrong.
 and "which record best explains this table" disagree exactly where the size
 confound lives.
 
+**1257. A SIZE-CORRECTION ASSUMES ONE SOURCE SERVES ONE CONSUMER.** I rejected a
+correct mapping because precision was 0.13 -- two thirds of the record belongs to
+other format pairs. Penalising a record for being complete is the same error as
+rewarding it for being large, with the sign flipped.
+
+**1258. RECONSTRUCTION BEATS ANY STATISTIC.** Forward overlap said 100%,
+size-corrected said third place, and both were wrong. Filtering 180 rows to 30 and
+getting 30 printed rows back settles it in one run.
+
+**1259. FORMATTING IS DATA.** The bold/dagger/plain split 12/4/14 matched the
+record's own tolerance and caught a parser that dropped four rows while reporting
+a plausible 26-row agreement. Check emphasis, not only values.
+
+**1260. IDENTIFY THE COLUMN, DO NOT ASSUME IT.** Assuming column 3 was takum_err
+produced 38 mismatches that would have read as a broken table. The identity
+ratio == takum_err/tnf_err named it, and the script now asserts that too.
+
 ### How to update this tracker
 
 After closing a wave:

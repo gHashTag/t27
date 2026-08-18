@@ -25448,6 +25448,59 @@ The second commit is droppable without the first. A cover letter that first went
 out understating the package by half, and then carrying a withdrawn claim for
 eleven minutes, was corrected in place both times.
 
+## W865 -- T681's rejection withdrawn, and the table reconstructed instead
+
+### T683 -- BOTH STATISTICS ARE WRONG ABOUT tab:invariant, IN OPPOSITE DIRECTIONS [measured]
+
+W864 rejected `strict_range -> tab:invariant` because a size-corrected score
+ranked it third. That rejection is **withdrawn**. The table is a FILTERED VIEW of
+the record:
+
+    rows in strict_range_2026-08-13g.json     180
+    pair == "TNF(4,8)/takum16"                 60
+    ... and comparable == true                 30   <- exactly the printed rows
+
+    forward overlap          100% of 71 cells   -- true and worthless: 563 numbers
+                                                   cover most of the paper
+    size-corrected           ranks THIRD        -- penalises the record for serving
+                                                   three format pairs
+    reconstruction           30 for 30, 90/90   -- decisive
+
+**My precision term assumed a record backs exactly one table.** Two thirds of this
+record belongs elsewhere, so correcting for size punished it for being complete.
+That is the same error as the one it was built to catch, with the sign flipped.
+
+### T683a -- THE TYPOGRAPHIC LOCK IS A STRONGER CHECK THAN THE NUMBERS [measured]
+
+The caption marks wins bold and exact ties with a dagger. At the record's own
+tolerance of 0.02 the thirty rows split **12 / 4 / 14**, and the table prints
+**12 bold, 4 daggered, 14 plain**.
+
+This caught what no numeric comparison could: a parser of mine that silently
+dropped the four daggered rows and still reported a plausible 26-row agreement.
+**Formatting is data.** A regenerator that checks only cell values will pass a
+table whose emphasis has drifted away from its own criterion.
+
+### T684 -- THE ORACLE WAS EXTENDED AND FOUND TWO DEFECTS ON ITS FIRST CLEAN RUN [measured]
+
+    caption of tab:invariant   "$7000$ samples per row"   record n=5000, same seed
+    tab:window row c=4         binary16 printed 1.69e-4   record 1.684663e-4 -> 1.68e-4
+
+The second is one mis-rounded digit: the other five cells of that row are exact.
+The first is now asserted inside the script, so it cannot drift again silently.
+
+**Coverage: 9 of 59 tables verifiable by a shipped script, against 4 before.**
+The eighth and ninth document defects of this sequence, and both were invisible
+to every instrument until a reconstruction existed.
+
+### T684a -- THE COLUMN WAS IDENTIFIED, NOT ASSUMED [measured]
+
+The third column is `tnf_err`, not `takum_err` -- my first regenerator assumed the
+latter and reported 38 mismatches, which would have read as a defect-riddled
+table. `ratio == takum_err / tnf_err` holds to 1e-9 on all thirty rows; that
+identity is what named the column, and the script asserts it so a future reader
+does not have to trust the mapping either.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
