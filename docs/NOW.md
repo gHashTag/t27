@@ -1,3 +1,18 @@
+# NOW -- formal now tests the RTL it just built (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(fpga): fresh generated RTL preferred over April-vintage committed copies (Closes #2261)
+
+- Formal layer 6, the real one behind the surviving TOK_INITIAL: the copy chain
+  preferred committed specs/fpga/{mac,fifo,uart}.v -- April-14 vintage, with
+  same-line translate_off comments the current emitter no longer writes -- over
+  the artifact generated minutes earlier in the same run. yosys hot-comment
+  skipping consumes the matching 'end', so the next initial is a syntax error
+- The chain now prefers build/fpga/generated/*.v, warns loudly on a stale
+  fallback, and fails when neither exists. The 30 stale committed .v files
+  under specs/fpga are an owner question (#2261), not a unilateral deletion
+
 # NOW -- the formal configs are visible to their own CI (2026-08-20)
 
 Last updated: 2026-08-20
