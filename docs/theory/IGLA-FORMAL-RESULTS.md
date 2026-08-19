@@ -27820,10 +27820,21 @@ to exist -- three independent tripwires for one failure class.
 Run 32263875250 routed ALL 19 tnet tracts -- the first post-route rows G8
 ever had -- and 14 of 15 instrumented published frequencies reproduce at
 0.90-1.32x, inside the toolchain's own audited seed band; binary16 lands at
-1.00x exactly. The two exceptions are NAMED, not vague: LNS16 does not
+1.00x exactly. The two exceptions were NAMED, not vague: LNS16 does not
 reproduce (1.46x, and the published 43.04 has no in-tree record -- the CI
 row is now the only sourced number), and plastic-16bit was never in this
-experiment. The path there took five iterations in ~six hours: missing
+experiment.
+
+**ERRATUM (W935).** The LNS16 half of that sentence is WITHDRAWN and its
+mechanism is T766. MATRIX.md:35 lists LNS16 at 43.11 MHz, 0.16% from the
+published 43.04; the "no in-tree record" reading came from six `None` cells in
+our own reporting table. The band arithmetic was also applied with the wrong
+denominator (T767): by the band's own definition the pair sits at 37.1%, inside
+1.6-41.7%. The honest count for this run is FIFTEEN of fifteen instrumented
+rows reproducing within the band as the band is defined, with LNS16 carrying a
+flag of its own -- it is the most configuration-sensitive design in the set
+(4.66x) and the sweep did not control configuration until W935. plastic-16bit
+remains uninstrumented, and that half stands. The path there took five iterations in ~six hours: missing
 generator -> wrong experiment -> euphemism status -> self-executing glob +
 blind grep -> measurement. Every iteration was driven by reading ONE
 artefact, and no iteration could have been skipped: each produced the
@@ -27865,6 +27876,91 @@ fix-one-read-one. Where it landed: 19/19 format tracts routed, 14/15
 published frequencies reproduced within the toolchain's own noise, and the
 first genuine (E_t, M) routing attempt in the sweep's history is in the
 queue as this theorem is written.
+
+### T764 -- A MARGIN BELOW THE INSTRUMENT'S OWN STATED RESOLUTION IS NOT A RANKING [measured]
+
+A paper may carry its own refutation and still publish the claim. The TNF
+manuscript states its instrument's resolution in one place -- "under placement-seed
+variation LUT count is invariant and achieved frequency moves by 11.4%, so ... a
+ranking resolves only rows separated by more than that" (tnf_paper.tex:5638-5641) --
+and states its headline result in another: 0.1797 MHz/LUT for the winner against
+0.1631 for the runner-up (abstract, :116-119). The margin between them is 10.2%.
+The claim is therefore unresolved BY THE PAPER'S OWN STATED CRITERION, in the same
+document, and against this project's independently audited run-to-run band of
+1.6-41.7% it is unresolved against most of the table, not just against rank 2.
+Both numbers were verified here by direct arithmetic on the published quotients
+and by reading both passages, not by trusting a reviewer's report of them.
+
+The general form: a self-audit that states a resolution limit converts every
+ordinal claim in the document into a checkable inequality, and the check is
+arithmetic a referee performs in one minute. Writing the limit down is honest;
+publishing a narrower margin as a ranking after writing it down is the failure
+mode -- the paper had already written the review that rejects it.
+
+### T765 -- THE BIGGEST KNOB IN A TOOLCHAIN EXPERIMENT IS THE ONE THE TEXT NEVER NAMES [measured]
+
+Across 7,858 source lines and sixty tables, the words "placer" and "router" occur
+ZERO times (verified by grep -ci on the manuscript). The measured effect of that
+unnamed choice, from this project's own sweep, is a factor of 3.71 on one candidate
+and 4.33 on another, and it is unequal across candidates -- so it does not cancel in
+a ratio and it reorders the table. It is four times the seed effect the paper does
+name, and forty times the winning margin the paper claims.
+
+The invariant: what an experimental section omits is not random. A knob goes
+unnamed precisely when it was never varied, and it was never varied precisely when
+the author did not know it was a knob. Therefore the omissions of a methods section
+are a ranked list of its untested assumptions -- read them first, before any table.
+Corollary, measured on the same document: package and speed grade appear once in
+7,858 lines for a device whose Fmax depends on both, and no caption in the paper
+carries a dispersion statistic (0 hits for "confidence interval", 0 for "standard
+deviation") while frequencies are printed to 0.01 MHz on a quantity with up to
+41.7% spread.
+
+### T766 -- A BLANK CELL IN YOUR OWN INSTRUMENT IS READ AS ABSENCE OF EVIDENCE [measured]
+
+The G8 verdict named one row of fifteen as the published frequency that does not
+reproduce: LNS16, CI 62.66 MHz against a published 43.04 MHz, "the published
+figure has no in-tree record". The record existed the whole time --
+`fpga/tnet/MATRIX.md:35`, LNS16 at 43.11 MHz, 0.16% from the published value --
+and an issue was filed asking the author for archaeology that was never needed.
+
+The mechanism is exact and general. The comparison table inside the reporting
+workflow carried `None` in the MATRIX column for SIX formats that MATRIX.md
+lists, and no entry at all for a seventh arm the sweep routes. The report then
+printed an em-dash for each, and the em-dash was read as "no such number exists"
+rather than "this instrument was never given that number". The verdict was
+written from the report, not from the tree.
+
+A missing input and a measured absence render identically in every table that
+does not distinguish them. Therefore an instrument that can print a blank MUST
+say which kind of blank it is, or every conclusion drawn over its blanks is a
+conclusion about the instrument's configuration. The correction is cheap where
+the claim is not: seven table entries, against a published exception, an issue
+filed to a third party, and a theorem (T762) that quoted the false count.
+
+### T767 -- A TOLERANCE BAND CARRIES ITS DENOMINATOR, AND SWAPPING IT IS NOT A ROUNDING CHOICE [measured]
+
+The same withdrawal turned on arithmetic that looked like bookkeeping. The
+audited dispersion band 1.6-41.7% was computed as (max - min) / median over
+per-seed sets, verified on all 21 designs (w_bin32 -> 1.59% -> stored 1.6;
+w_bnf16 -> 41.71% -> stored 41.7). The verdict then applied that band to a pair
+of values using (CI - published) / published, and obtained 45.6% -- outside.
+Under the band's own convention the same pair is |62.66 - 43.04| / 52.85 =
+37.1% -- inside. One in/out call, one exception headline, one issue to an
+author, all resting on which of two denominators a later reader happened to
+choose.
+
+The general statement: a dispersion figure is not a scalar, it is a scalar plus
+the estimator that produced it, and the estimator must travel with it into every
+document that reuses the number. A band quoted without its denominator is an
+invitation to a sign error of the most respectable kind -- everyone can check
+the arithmetic, nobody checks the definition.
+
+Corollary, measured on the same data: the band is itself a full range used as a
+one-sided tolerance. The largest above-median single-seed deviation actually
+observed is +18.2%, so a one-sided reading puts 12 of 15 rows inside rather than
+14 -- and the honest statement is that this instrument cannot discriminate at
+all in that regime, not that it discriminates and one row fails.
 
 ---
 

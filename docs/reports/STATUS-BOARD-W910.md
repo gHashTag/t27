@@ -14,9 +14,11 @@ committed, and waiting on FIVE human actions; nothing else blocks.
 
 ## Track 1 — the TNF paper (`gHashTag/trinity-fpga`): NO-GO on one gate
 
-Work done: 20 of 59 tables under runnable regenerators; 16 document defects
-found, fixed, confirmed (PR #601 merged by owner); 8 further findings reported
-for the author's judgement; toolchain properties measured (seed dispersion
+Work done: 20 of 59 tables under runnable regenerators; document defects found,
+fixed and confirmed (PR #601 merged by owner) — **the ledger enumerates twelve:
+nine numbered paper defects plus three gate corrections; earlier pages said
+"16", which no enumeration in the tree supports (W935 audit)**; 8 further
+findings reported for the author's judgement; toolchain properties measured (seed dispersion
 1.6–41.7 %, placer/router flips fp8-vs-TNF winners). Full ledger:
 `docs/reports/upstream/TNF-FINDINGS-LEDGER.md`.
 
@@ -24,7 +26,7 @@ for the author's judgement; toolchain properties measured (seed dispersion
 |---|---|---|---|
 | 1 | merge PR **tf#603** (19-commit paper audit) | owner | one review |
 | 2 | merge PR **tf#612** (one-file workflow registration) — **the only thing between G8 and a green release checklist** | owner | one click |
-| 3 | after #612: one `tnf-cost-sweep` dispatch; if the sixteen `tab:untraced` frequencies reproduce, **GO** | anyone | one CI run |
+| 3 | ~~after #612: one `tnf-cost-sweep` dispatch closes G8~~ — **superseded W920/W935**: the cost sweep measures (E_t, M) ladder arms, and `tab:untraced`'s sixteen are format-comparison tracts, so that dispatch could never have closed G8. It was closed by the tract sweep instead (19/19 routed) | done | — |
 
 Also standing: three leaked credentials (trinity#601, trios-dwagent#1,
 trios-railway#124) still need human rotation.

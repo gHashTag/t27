@@ -50,22 +50,22 @@ baseline regenerated 15→25, negative test passing), `check_self_consistency`
 | `tab:window` caption states a rule the table doesn't follow | "no representation from c=20 upward, marked —" — but c=16 is dashed too; prose repeats the wrong reason |
 | `tab:tailsweep` stops before the failure point | printed sweep ends at σ=6 (worst ratio 0.71); the record continues to σ=8 where two clips of 12,000 blow TNF's mean to **2.48e+35**. Both subsets are now count-disclosed; the *rule* is still unstated |
 | `tab:cleandecode` control exceeds two entries | caption: bare wire = 112 LUT; GFTernary = 66, int8 = 76. A decoder cannot shrink an empty harness — either "same harness" isn't, or revisions differ. One caption sentence closes it |
-| sampling prior undisclosed | six regenerators draw `_rng.integers(-38, 39)` — uniform over 77 binades, precisely the prior flat-precision wins under. "sampling prior" / "depends on the distribution": 0 occurrences |
+| sampling prior undisclosed | four regenerators draw `_rng.integers(-38, 39)` (three live, one SUPERSEDED) — uniform over 77 binades, precisely the prior flat-precision wins under. "sampling prior" / "depends on the distribution": 0 occurrences |
 | `measurements/README.md` misdescribes 3 entries | `inside_window` holds the GPT-2 intermediates the README attributes to `gpt2_window`; all 11 of its rows carry `inside:false`; "qualifying-pair count" belongs to `workloads_strict` |
 | `per_rung.tnf_reach` stores the offset, not the reach | and **no generator exists to fix it in** — the oracle-side assertion is the only available defence |
-| 10 of 14 records cannot be rebuilt | four have generators, two have only readers, eight are mentioned by nothing in the tree |
+| 10 of 14 records cannot be rebuilt | four have generators; the rest have readers only — **W935: the earlier clause "eight are mentioned by nothing in the tree" is withdrawn, every one of the 14 has a named consumer** |
 
 ## 4. Toolchain properties (measured here; different part, not comparable to published rows — the *properties* transfer)
 
 | property | measurement |
 |---|---|
 | seed dispersion | 21 designs × 5 seeds: Fmax spread **1.6 %–41.7 %**, area identical across seeds. Captions state median-of-five (correct) but never the dispersion |
-| configuration dominates seed | 3 placer/router pairs: Fmax moves up to **4.3×**; **32 pairwise ranking inversions**, incl. fp8-vs-TNF winners flipping on a router change alone. `placer`/`router`: **0 occurrences** in the paper; the CI's ordered fallback makes the choice silent |
+| configuration dominates seed | 3 placer/router pairs: Fmax moves up to **4.66×** (w_lns16; the 4.3× quoted earlier was the maximum of a 6-design subset, recomputed W935 over the full 21-design record); **32 pairwise ranking inversions**, incl. fp8-vs-TNF winners flipping on a router change alone. `placer`/`router`: **0 occurrences** in the paper; the CI's ordered fallback makes the choice silent |
 | verdicts below seed noise | 25–37 of 210 pairwise winners alternate across the five seeds of a *single* configuration, at median margins up to ~38 %. The project's three-seed rule, needed for rankings too |
 
 ## 5. Oracle coverage
 
-Before this audit: 4 of 59 numeric tables regenerable. Now: **11+** —
+Before this audit: 4 of 59 numeric tables regenerable. Now: **20** —
 `tab:invariant` (90 cells + formatting lock), `tab:rungthr` (two-record table,
 summary re-derived from raw rows, reach from the oracle), `tab:tailsweep`
 (selection disclosed, 10 unprinted rows listed on every run), plus five more in
@@ -126,9 +126,18 @@ carried, in order, a missing file, a wrong experiment, and a euphemism.
 Run 32263875250: all 19 tnet tracts ROUTED on xc7a200tfbg484-2 — G8's first
 post-route rows. **14 of 15 instrumented untraced frequencies reproduce
 within the audited seed band** (0.90×–1.32×; binary16 at 1.00× exactly).
-Named exceptions: **LNS16 does not reproduce** (CI 62.66 vs published 43.04,
-1.46×; no in-tree record — issue filed for the author) and **plastic-16bit**
-remains uninstrumented. The W920 map's "no hex32 harness" claim was wrong —
+Named exceptions **as first reported**: LNS16 and plastic-16bit.
+
+> **W935 correction — the LNS16 exception is withdrawn.** MATRIX.md:35 lists
+> LNS16 at 43.11 MHz, 0.16 % from the published 43.04, so the "no in-tree
+> record" premise was false; it came from six `None` cells in our own reporting
+> table (fixed, #632). The in/out call also used `(CI−published)/published`
+> where the band is defined as `(max−min)/median`; by its own definition the
+> pair is 37.1 %, inside 1.6–41.7 %. Issue #625 to the author is closed as not
+> planned. What survives: the CI row disagrees with two agreeing in-tree numbers,
+> and LNS16 is the most configuration-sensitive design measured (4.66×) — which
+> is a job for the reference-configuration re-measurement enabled by #630, not
+> for the author. **plastic-16bit** remains uninstrumented; that half stands. The W920 map's "no hex32 harness" claim was wrong —
 s_ibmhfp.v existed and routed (1.11×); corrected in the verdict (#624).
 
 G8 status: **unsourced → measured-with-two-exceptions.** The instrument path
