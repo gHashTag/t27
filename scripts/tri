@@ -46,6 +46,7 @@ Compiler commands (forwarded to t27c):
 Local commands (no compiler needed):
   tri audit                   every pre-wave invariant in one exit code (disk, tree, push, numbering)
   tri recall PATTERN          search lesson and theorem HEADINGS for a pattern
+  tri cells TOP FILE.v ...    cell census of a Verilog top via local yosys (LUT/CARRY4/MUXF/FF)
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
   tri ci [SLUG ...]           live (non-completed) CI runs; defaults to this repo's origin
@@ -135,6 +136,33 @@ case "$cmd" in
     printf 'theorem   last T%s -> next T%s\n' "$theorem" \
       "$([ "$theorem" = '-' ] && echo '-' || echo $((theorem + 1)))"
     printf 't27c      %s\n' "${t27c_path:-not built (compiler commands unavailable)}"
+    exit 0
+    ;;
+
+  cells)
+    # The cell census of a Verilog top, via local yosys. Used constantly for
+    # area work and it never needed the t27c compiler, so it lives here.
+    command -v yosys >/dev/null 2>&1 || die "cells: yosys not found"
+    top="${2:?tri cells needs TOP then one or more .v files}"
+    shift 2
+    [ "$#" -gt 0 ] || die "cells: give at least one .v file"
+    log="$(mktemp "${TMPDIR:-/tmp}/tri-cells.XXXXXX")"
+    if ! yosys -p "read_verilog $*; synth_xilinx -nodsp -top $top; stat" > "$log" 2>&1; then
+      echo "tri cells: yosys failed" >&2
+      grep -E '^ERROR|error:' "$log" | head -3 >&2
+      rm -f "$log"
+      exit 1
+    fi
+    awk -v top="$top" '
+      /Printing statistics/ { inblock = 1; delete c; next }
+      inblock && /^ *[0-9]+ +[A-Z]/ { gsub(/^ +/, ""); split($0, f, / +/); c[f[2]] += f[1] }
+      END {
+        lut = 0; for (k in c) if (k ~ /^LUT[1-6]$/) lut += c[k]
+        cy = c["CARRY4"] + 0; mux = c["MUXF7"] + c["MUXF8"]
+        ff = c["FDRE"] + c["FDSE"] + c["FDCE"] + c["FDPE"]
+        printf "%s: LUT %d  CARRY4 %d  MUXF %d  FF %d  (LUT+CARRY4 = %d)\n", top, lut, cy, mux, ff, lut + cy
+      }' "$log"
+    rm -f "$log"
     exit 0
     ;;
 
