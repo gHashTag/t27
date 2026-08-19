@@ -22,6 +22,33 @@ use std::process::Command;
 #[derive(Subcommand)]
 pub enum PrCmd {
     /// Classify every failing check and say plainly whether it is safe to merge.
+    /// Did this pull request's content actually reach the default branch?
+    ///
+    /// "merged" and "closed" both read as success in a pull-request list. A
+    /// stack taught this the expensive way: the base squash-merged, its
+    /// branch was deleted, the pull request stacked on it auto-closed, and
+    /// four commits reached nothing while the list looked fine. Only a
+    /// content probe distinguishes the two.
+    Landed {
+        /// Pull request number.
+        number: u64,
+        /// owner/repo. Defaults to the repository in the current directory.
+        #[arg(long)]
+        repo: Option<String>,
+        /// A string the pull request introduced. Repeatable. Each is looked
+        /// for in the default branch's copy of the files the PR touched.
+        ///
+        /// Choose something the change ALONE introduced, and copy it exactly.
+        /// Three real misses on first use, all of them the probe's fault and
+        /// not the tool's: `0x3E00` was already in the codec's own source (a
+        /// probe the repository can satisfy without the change proves
+        /// nothing); a probe spanning a line break failed until whitespace
+        /// was flattened on both sides; and one differed only in the case of
+        /// its first letter. Case is text and stays significant; line wrapping
+        /// is formatting and does not.
+        #[arg(long = "probe", required = true)]
+        probes: Vec<String>,
+    },
     Ready {
         /// Pull request number.
         number: u64,
@@ -59,7 +86,124 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             poll,
             merge,
         } => ready(*number, repo.as_deref(), *baseline, *wait, *poll, *merge),
+        PrCmd::Landed {
+            number,
+            repo,
+            probes,
+        } => landed(*number, repo.as_deref(), probes),
     }
+}
+
+/// Check that what the pull request introduced is present in the default
+/// branch, file by file. Status is not content: a merged pull request whose
+/// stack-mate was auto-closed leaves a list that reads as success.
+fn landed(n: u64, repo: Option<&str>, probes: &[String]) -> Result<()> {
+    let repo = match repo {
+        Some(r) => r.to_string(),
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ])?,
+    };
+    let merged = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".merged"])?;
+    let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
+    let branch = branch.trim();
+
+    println!("{repo}#{n} — merged: {merged}");
+
+    let files = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}/files?per_page=100"),
+        "--paginate",
+        "--jq",
+        ".[].filename",
+    ])?;
+    let files: Vec<&str> = files.lines().filter(|l| !l.is_empty()).collect();
+    println!("files the pull request touched: {}", files.len());
+
+    // Fetch each file once from the default branch; a file the PR deleted or
+    // that never landed simply is not there, which is itself an answer.
+    let mut corpus = String::new();
+    let mut missing_files = 0usize;
+    for f in &files {
+        match gh(&[
+            "api",
+            &format!("repos/{repo}/contents/{f}?ref={branch}"),
+            "--jq",
+            ".content",
+        ]) {
+            Ok(b64) => {
+                let cleaned: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
+                if let Ok(bytes) = base64_decode(&cleaned) {
+                    corpus.push_str(&String::from_utf8_lossy(&bytes));
+                    corpus.push('\n');
+                }
+            }
+            Err(_) => missing_files += 1,
+        }
+    }
+    if missing_files > 0 {
+        println!("  ({missing_files} of them are not on {branch} at all)");
+    }
+
+    // Prose gets re-wrapped, so a probe that spans a line break would fail
+    // against text that is actually present -- which happened on the first
+    // real use. Compare with whitespace flattened on both sides.
+    let flat_corpus = flatten_ws(&corpus);
+
+    let mut absent = Vec::new();
+    for p in probes {
+        if flat_corpus.contains(&flatten_ws(p)) {
+            println!("  PRESENT  {p}");
+        } else {
+            println!("  ABSENT   {p}");
+            absent.push(p.clone());
+        }
+    }
+    println!();
+    if absent.is_empty() {
+        println!("VERDICT: the content landed on {branch}.");
+        return Ok(());
+    }
+    println!("VERDICT: {} probe(s) are NOT on {branch}.", absent.len());
+    println!("A pull request can read as merged while its content reached nothing —");
+    println!("that is what a squash-merged stack does to whatever sat on top of it.");
+    anyhow::bail!("{} probe(s) absent from {branch}", absent.len())
+}
+
+/// Collapse every run of whitespace to a single space, so a probe matches
+/// text that has since been re-wrapped.
+fn flatten_ws(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Minimal base64 decode: the GitHub contents API returns file bodies this
+/// way and pulling a crate in for one call is not worth the dependency.
+fn base64_decode(s: &str) -> Result<Vec<u8>> {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for c in s.bytes() {
+        if c == b'=' {
+            break;
+        }
+        let v = match T.iter().position(|&t| t == c) {
+            Some(v) => v as u32,
+            None => continue,
+        };
+        buf = (buf << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    Ok(out)
 }
 
 fn gh(args: &[&str]) -> Result<String> {

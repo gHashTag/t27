@@ -1,3 +1,13 @@
+# NOW -- tri pr landed: status is not content (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri pr landed: status is not content (Closes #2249)
+
+- tri pr landed <PR> --probe <string>: fetches the default branch's copy of every file the PR touched and reports PRESENT/ABSENT per probe -- because 'merged' and 'closed' both read as success in a list, and a squash-merged stack orphans whatever sat on top of it
+- Validated on the real case that prompted it: the closed stack-mate reports ABSENT, the merged rescue reports PRESENT on all three probes
+- Probes compare with whitespace flattened (prose gets re-wrapped) but case-sensitively (case is text); a probe the repository could satisfy without the change proves nothing
+
 # NOW -- the gate says which pull request it is watching (2026-08-20)
 
 Last updated: 2026-08-20
