@@ -27518,6 +27518,35 @@ lower as statement clauses under indent + clean-termination guards. Inventory
 after remeasure: 98.5% of 23,033 BDD lines READ (356 dropped); corpus
 67,760 -> 26,713 (-60.6%) at twelve rungs.
 
+## W905 -- scope theft, and the frontier formally priced
+
+### T748 -- AN INDENTATION HEURISTIC CAN STEAL SCOPE SILENTLY [measured]
+
+The 0012 statement arms, guarded by column comparison alone, ABSORBED module
+declarations into blocks: at a column-1 tie a module const the NEXT test read
+became a block-local -- rc=0, "nothing discarded", and dataflow corrupted
+with no instrument lighting up. Scope rules earned four more guards, each
+from a reproduced break: column-1 disable (module and body are
+indistinguishable there), minimum-column anchor, line-adjacency (a blank line
+means module scope), and landing measured against the last CONSUMED token
+(the statement-line rule blessed a mid-line stop one line down and split a
+physical line into two minted statements). Corpus unchanged to the token
+under all four -- the guards cost nothing the corpus contains.
+
+### T748a -- THE RESIDUE, CAUSALLY PRICED: 72% IS ONE DECISION [measured]
+
+Six intervention readers over all 66 remaining files (206 tool calls,
+reconciliation 26,713 = 26,713): forall bodies 19,127 tokens (71.6% -- the
+Architect's word, FORALL-DECISION.md); imperative Zig bodies 3,747 (a dialect
+policy, not a grammar rung -- `var x : [N]T = undefined;` convicted by
+removal); block-fallback 3,328 with NAMED convicted causes: keyword-as-field
+(`Contract { invariant: "..." }` kills its block), inline lambdas in
+then-clauses, dotted/indexed lvalue steps (`state.gamma[0] = 2.0`), `var` as
+a binding NAME, unit phrases (`> 1000 steps/sec`), given-comprehensions.
+Fixable-by-rung estimate: ~3.3k tokens across six small causes -- diminishing
+returns against 41,047 already recovered (60.6%). The ladder's terminal
+state has arrived: THE REMAINING WORK IS TWO DECISIONS AND A TAIL.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

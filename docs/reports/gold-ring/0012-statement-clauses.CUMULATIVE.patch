@@ -1,5 +1,5 @@
 --- bootstrap/src/compiler.rs	2026-08-15 21:11:30
-+++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 14:46:56
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 15:23:36
 @@ -214,6 +214,10 @@
      ShiftLeft,
      ShiftRight,
@@ -11,7 +11,7 @@
      PlusPercent,
      MinusPercent,
      StarPercent,
-@@ -690,6 +694,50 @@
+@@ -690,11 +694,55 @@
                  return Token {
                      kind: TokenKind::PlusEquals,
                      lexeme: String::from("+="),
@@ -48,21 +48,26 @@
 +                return Token {
 +                    kind: TokenKind::SlashEquals,
 +                    lexeme: String::from("/="),
-+                    line: start_line,
-+                    col: start_col,
-+                };
-+            }
-+
+                     line: start_line,
+                     col: start_col,
+                 };
+             }
+ 
 +            if two == [b'%', b'='] {
 +                self.advance();
 +                self.advance();
 +                return Token {
 +                    kind: TokenKind::PercentEquals,
 +                    lexeme: String::from("%="),
-                     line: start_line,
-                     col: start_col,
-                 };
-@@ -978,6 +1026,14 @@
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
+             if two == [b'+', b'%'] {
+                 self.advance();
+                 self.advance();
+@@ -978,6 +1026,15 @@
      /// -- for input that was consumed AND THROWN AWAY. Counting them is what
      /// makes that population visible. See T42.
      dropped_top_level_tokens: usize,
@@ -74,10 +79,11 @@
 +    last_line: usize,
 +    bdd_last_was_assertion: bool,
 +    bdd_role_preset: bool,
++    bdd_first_col_preset: Option<usize>,
      /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
      /// told us 55,563 tokens vanish; only reading them can say whether any of
      /// it is content a theorem depends on. See T43.
-@@ -992,6 +1048,39 @@
+@@ -992,6 +1049,39 @@
      pending_pragma: String,
  }
  
@@ -117,7 +123,7 @@
  impl Parser {
      pub fn new(mut lexer: Lexer) -> Self {
          let first = lexer.next_token();
-@@ -1003,6 +1092,11 @@
+@@ -1003,6 +1093,12 @@
              pending_pragma: String::new(),
              no_struct_literal: 0,
              dropped_top_level_tokens: 0,
@@ -126,10 +132,11 @@
 +            last_line: 0,
 +            bdd_last_was_assertion: false,
 +            bdd_role_preset: false,
++            bdd_first_col_preset: None,
              dropped_spans: Vec::new(),
          }
      }
-@@ -1026,6 +1120,7 @@
+@@ -1026,6 +1122,7 @@
      }
  
      fn advance(&mut self) {
@@ -137,7 +144,7 @@
          self.current = self.peek.clone();
          self.peek = self.lexer.next_token();
      }
-@@ -1071,7 +1166,15 @@
+@@ -1071,7 +1168,15 @@
              // discarded. T42's counter lived only in `skip_to_next_top_level`,
              // making 55,563 a lower bound over one of four discard channels.
              // See T56.
@@ -153,11 +160,10 @@
              self.advance();
          }
          Ok(())
-@@ -1086,6 +1189,58 @@
-             if self.current.kind == TokenKind::Semicolon && bracket_depth == 0 && paren_depth == 0 {
+@@ -1087,6 +1192,58 @@
                  self.advance();
                  return Ok(());
-+            }
+             }
 +            // W902 (0008): a LINE-LEADING const/var at depth 0 is the next
 +            // declaration, not expression tail. is_top_level_start excludes
 +            // const/var on purpose (they appear inside keyword blocks), so a
@@ -209,10 +215,11 @@
 +            if self.dropped_spans.len() < 20000 {
 +                self.dropped_spans
 +                    .push((self.current.line as u32, self.current.lexeme.clone()));
-             }
++            }
              if self.current.kind == TokenKind::LBrace {
                  self.advance();
-@@ -1309,6 +1464,7 @@
+                 self.skip_brace_body()?;
+@@ -1309,6 +1466,7 @@
          Ok(module)
      }
  
@@ -220,7 +227,7 @@
      fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
          self.reject_unterminated_string()?;
          while self.current.kind != TokenKind::Eof
-@@ -1547,6 +1703,11 @@
+@@ -1547,6 +1705,11 @@
                  match self.parse_top_level_decl() {
                      Ok(decl) => {
                          module.children.push(decl);
@@ -232,7 +239,7 @@
                      }
                      Err(e) => {
                          // A malformed declaration is a HARD error: the old
-@@ -1946,6 +2107,16 @@
+@@ -1946,6 +2109,16 @@
              decl.children.push(val_node);
          }
  
@@ -249,7 +256,7 @@
          if self.current.kind == TokenKind::Semicolon {
              self.advance();
          }
-@@ -2555,6 +2726,45 @@
+@@ -2555,6 +2728,45 @@
      /// Parse function body statements until closing brace
      fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
          while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
@@ -295,7 +302,7 @@
              match self.parse_body_stmt() {
                  Ok(stmt) => decl.children.push(stmt),
                  Err(e) => {
-@@ -2579,8 +2789,13 @@
+@@ -2579,8 +2791,13 @@
          loop {
              // W646: statement-level recovery is the second discard channel.
              // Everything it walks past is a statement the AST never sees.
@@ -309,7 +316,7 @@
              }
              match self.current.kind {
                  TokenKind::Eof => break,
-@@ -2766,15 +2981,26 @@
+@@ -2766,15 +2983,26 @@
          }
  
          // Check for += assignment
@@ -339,7 +346,7 @@
              assign.children.push(expr);
              assign.children.push(rhs);
              return Ok(assign);
-@@ -3244,6 +3470,33 @@
+@@ -3244,6 +3472,33 @@
          while self.current.kind == TokenKind::KwAnd
              || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
          {
@@ -373,7 +380,7 @@
              self.advance();
              let right = self.parse_expr_comparison()?;
              left = Node {
-@@ -3259,6 +3512,40 @@
+@@ -3259,6 +3514,40 @@
      /// Parse comparison expressions (==, !=, <, >, <=, >=)
      fn parse_expr_comparison(&mut self) -> Result<Node, String> {
          let mut left = self.parse_expr_bitor()?;
@@ -414,7 +421,7 @@
          while matches!(
              self.current.kind,
              TokenKind::Eq
-@@ -4055,10 +4342,12 @@
+@@ -4055,10 +4344,12 @@
          self.advance(); // consume first '['
  
          let mut dims: Vec<String> = Vec::new();
@@ -427,7 +434,7 @@
                  self.advance();
              } else {
                  let mut bracket_content = String::new();
-@@ -4078,6 +4367,7 @@
+@@ -4078,6 +4369,7 @@
                      self.advance();
                  }
                  dims.push(bracket_content.trim().to_string());
@@ -435,7 +442,7 @@
                  self.expect(TokenKind::RBracket)?;
              }
              // Another leading bracket -> multi-dimensional literal.
-@@ -4089,9 +4379,45 @@
+@@ -4089,9 +4381,45 @@
          }
          node.extra_size = dims.join("][");
  
@@ -484,11 +491,11 @@
          }
  
          if self.current.kind == TokenKind::LBrace {
-@@ -4353,6 +4679,13 @@
+@@ -4353,6 +4681,13 @@
          let entry = self.save_state();
          let start_children = block.children.len();
          let mut lowered = 0usize;
-+        let mut first_clause_col: Option<usize> = None;
++        let mut first_clause_col: Option<usize> = self.bdd_first_col_preset.take();
 +        // W903: callers that already lowered an assertion head (bench-colon)
 +        // pre-set the role; everyone else starts a fresh block.
 +        if !self.bdd_role_preset {
@@ -498,7 +505,7 @@
  
          loop {
              // A non-identifier here is normally the end of the block, because
-@@ -4360,18 +4693,176 @@
+@@ -4360,18 +4695,187 @@
              // keyword. But it can also mean we stopped mid-clause -- e.g. on the
              // comma of `given clk = true, rst_n = false`. Only a real boundary
              // ends the block; anything else falls back.
@@ -520,12 +527,17 @@
 +            // and only at that clause's indent or deeper -- a shallower
 +            // const/var is a real module declaration and still ends the block.
 +            // (A body OPENING with const keeps the old hoist edge, documented.)
++            // W905 panel: a blank line before the const meant "module scope"
++            // to every reader, and the arm captured it into the block anyway.
++            // Statement clauses must sit on the line immediately after the
++            // previous clause; a gap returns the old boundary reading.
++            let adjacent = self.current.line <= self.last_line + 1;
 +            if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
-+                && first_clause_col.is_some()
-+                && self.current.col >= first_clause_col.unwrap()
++                && adjacent
++                && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
 +            {
 +                let st_entry = self.save_state();
-+                let st_line = self.current.line;
++                let _st_line = self.current.line;
 +                let mutable = self.current.kind == TokenKind::KwVar;
 +                self.advance();
 +                let mut ok_stmt = false;
@@ -550,9 +562,15 @@
 +                            // mid-line junk and cost the whole block. A
 +                            // statement counts only if it ends CLEANLY: at a
 +                            // semicolon, a new line, a boundary, or EOF.
++                            // W905 panel: `line > st_line` blessed a MID-LINE
++                            // landing on a later line -- `x = a +` newline
++                            // `2 y = 3` split one physical line into two
++                            // minted statements. Clean means current OPENS its
++                            // line: its line is beyond the last CONSUMED
++                            // token's line.
 +                            let clean = self.current.kind == TokenKind::Semicolon
 +                                || self.current.kind == TokenKind::Eof
-+                                || self.current.line > st_line
++                                || self.current.line > self.last_line
 +                                || Self::is_block_boundary(self.current.kind);
 +                            if clean {
 +                                if self.current.kind == TokenKind::Semicolon {
@@ -639,12 +657,12 @@
 +                // sibling. `Ident =` at clause indent parses as a statement
 +                // clause under the same clean-termination rule as const/var,
 +                // in the fn-body StmtAssign shape (lhs expr child, rhs child).
-+                if first_clause_col.is_some()
-+                    && clause_col >= first_clause_col.unwrap()
++                if first_clause_col.map_or(false, |c| c > 1 && clause_col >= c)
++                    && self.current.line <= self.last_line + 1
 +                    && self.peek.kind == TokenKind::Equals
 +                {
 +                    let st_entry = self.save_state();
-+                    let st_line = self.current.line;
++                    let _st_line = self.current.line;
 +                    let mut lhs = Node::new(NodeKind::ExprIdentifier);
 +                    lhs.name = self.current.lexeme.clone();
 +                    self.advance(); // ident
@@ -656,14 +674,14 @@
 +                    if let Ok(expr) = r {
 +                        let clean = self.current.kind == TokenKind::Semicolon
 +                            || self.current.kind == TokenKind::Eof
-+                            || self.current.line > st_line
++                            || self.current.line > self.last_line
 +                            || Self::is_block_boundary(self.current.kind);
 +                        if clean {
 +                            if self.current.kind == TokenKind::Semicolon {
 +                                self.advance();
 +                            }
 +                            let mut assign = Node::new(NodeKind::StmtAssign);
-+                            assign.line = st_line as u32;
++                            assign.line = _st_line as u32;
 +                            assign.children.push(lhs);
 +                            assign.children.push(expr);
 +                            block.children.push(assign);
@@ -679,7 +697,7 @@
                  // An identifier that is not a clause means this body has a shape
                  // we do not model. Falling through with the parser positioned
                  // mid-block is what broke 19 specs on the first attempt.
-@@ -4379,9 +4870,69 @@
+@@ -4379,9 +4883,69 @@
                  return;
              }
  
@@ -751,7 +769,7 @@
                      Ok(expr) => {
                          let mut call = Node::new(NodeKind::ExprCall);
                          call.name = "assert".to_string();
-@@ -4395,16 +4946,96 @@
+@@ -4395,16 +4959,96 @@
                  }
              } else {
                  self.advance();
@@ -851,7 +869,7 @@
                              Ok(expr) => {
                                  let mut decl = Node::new(NodeKind::StmtLocal);
                                  decl.name = name;
-@@ -4420,11 +5051,32 @@
+@@ -4420,11 +5064,39 @@
  
              // `parse_expr` is greedy across newlines, so a binding value can
              // swallow the next clause's name (`FPGA_PART_35T and p100`) and
@@ -880,13 +898,20 @@
 +            if clause != "and" {
 +                self.bdd_last_was_assertion = is_assertion;
 +            }
-+            if first_clause_col.is_none() {
-+                first_clause_col = Some(clause_col);
-+            }
++            // W905 panel: the anchor is the MINIMUM accepted clause column
++            // (an over-indented first given at col 9 made a col-5 statement
++            // look "shallower" and hoisted it); and at a column-1 tie the
++            // statement arms are DISABLED entirely -- an unindented block
++            // makes module declarations and body statements indistinguishable
++            // by column, and the arm stole module consts other tests read.
++            first_clause_col = Some(match first_clause_col {
++                Some(c) if c <= clause_col => c,
++                _ => clause_col,
++            });
              lowered += 1;
          }
  
-@@ -4529,6 +5181,12 @@
+@@ -4529,6 +5201,12 @@
          start_children: usize,
          entry: ParserCheckpoint,
      ) {
@@ -899,7 +924,7 @@
          block.children.truncate(start_children);
          self.restore_state(entry);
          self.skip_to_next_top_level();
-@@ -4598,7 +5256,27 @@
+@@ -4598,7 +5276,27 @@
              }
          }
  
@@ -928,7 +953,7 @@
              self.restore_bdd_fallback(block, start_children, entry);
          }
      }
-@@ -4614,9 +5292,59 @@
+@@ -4614,9 +5312,66 @@
              self.advance(); // consume {
              self.parse_fn_body(&mut block)?;
              self.expect(TokenKind::RBrace)?;
@@ -964,9 +989,16 @@
 +                    // shared clause parser.
 +                    if self.current.kind == TokenKind::Ident
 +                        || self.current.kind == TokenKind::KwAnd
++                        || self.current.kind == TokenKind::KwConst
++                        || self.current.kind == TokenKind::KwVar
 +                    {
 +                        self.bdd_last_was_assertion = true;
 +                        self.bdd_role_preset = true;
++                        // W905 panel: continuation statements need the column
++                        // anchor the head never set -- without it the arms
++                        // stayed dark and a `let` after the head minted a
++                        // module const holding a conjunction.
++                        self.bdd_first_col_preset = Some(self.current.col);
 +                        self.parse_bdd_clauses(&mut block);
 +                    } else if !Self::is_block_boundary(self.current.kind) {
 +                        self.restore_bdd_fallback(&mut block, start_children, entry);
@@ -990,7 +1022,7 @@
          }
          Ok(block)
      }
-@@ -6681,10 +7409,13 @@
+@@ -6681,10 +7436,13 @@
                  self.write_indent();
                  if node.children.len() >= 2 {
                      self.gen_expr(&node.children[0]);
@@ -1008,7 +1040,7 @@
                      }
                      self.gen_expr(&node.children[1]);
                  }
-@@ -12932,10 +13663,18 @@
+@@ -12932,10 +13690,18 @@
                          self.in_lvalue = true;
                          self.gen_verilog_expr(lhs);
                          self.in_lvalue = false;
@@ -1029,7 +1061,7 @@
                          } else {
                              self.write(asn);
                          }
-@@ -15085,10 +15824,13 @@
+@@ -15085,10 +15851,13 @@
                          self.gen_c_expr(&node.children[1]);
                      } else {
                          self.gen_c_expr(&node.children[0]);
@@ -1048,7 +1080,7 @@
                          self.gen_c_expr(&node.children[1]);
                      }
 --- bootstrap/stage0/FROZEN_HASH	2026-08-15 01:42:51
-+++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 14:46:56
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 15:23:36
 @@ -1 +1 @@
 -7db97938202977477abd1e80a82b9f5f5d7b40e1c1d1d1999aa006aec71412b3  bootstrap/src/compiler.rs
-+7422354aac385794f8935d9979bc7a747d3df9806e9c2acacd34bfb8f61ab030  bootstrap/src/compiler.rs
++3a9e94fc0951ea5c36566a5745f7b0cf7c19a228747d64e2108bfc58f073b1fb  bootstrap/src/compiler.rs

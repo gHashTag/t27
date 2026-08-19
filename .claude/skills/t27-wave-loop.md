@@ -12285,6 +12285,19 @@ the cursor LANDED (semicolon, new line, boundary, EOF) before counting the
 result -- the partial-Ok is the parser-level twin of the zombie parse, and it
 turned a rung's improvement into a regression until the landing check existed.
 
+**1386. SCOPE RULES NEED A TIE POLICY.** Column comparison stole module
+constants into blocks at a column-1 tie -- and the corruption was invisible to
+every instrument (rc=0, nothing discarded) because both readings PARSE. When
+a heuristic decides ownership, the tie case must have an explicit, safe
+answer (here: disable and keep the old reading), and cross-scope dataflow is
+the probe that makes the theft observable.
+
+**1387. PRICE THE FRONTIER BEFORE MINING IT.** The causal map priced the
+whole residue: 72% one Architect decision, 14% a dialect policy, ~12% six
+small convicted causes. Without the price, the loop would have kept mining
+3%-yield rungs; with it, the honest next move is to hand the decisions over
+and stop. A recovery ladder ENDS, and its end is a priced map, not zero.
+
 ### How to update this tracker
 
 After closing a wave:
