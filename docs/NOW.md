@@ -1,3 +1,24 @@
+# NOW -- the vacuous greens are gates again (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga)+fix: formal/conformance/lint/readiness now fail when they find nothing (Closes #2239)
+
+- Adversarial self-audit over the green master run (each finding survived two
+  independent refutation passes): fpga-formal verified ZERO properties (sby
+  pseudo-block configs + workspace-escaping paths + missing pipefail + a
+  continue-on-error cap -- three independent layers each guaranteeing green);
+  fpga-conformance compiled 0/32 (bare -g2005) behind a warning, and never runs
+  vvp at all (#2241); fpga-lint absorbed 'NOT READY' and 1/32 invalid Verilog
+  as warnings
+- Fixed: canonical per-line .sby task conditionals + local [files] paths;
+  set -o pipefail + continue-on-error removed + FAIL fails; iverilog -g2012
+  -DSIMULATION + exit 1; lint exit 1; synth-readiness bails on NOT READY
+- These jobs may now go honestly red on master: the lint red has a named cause
+  -- a live gen-verilog regression gluing a struct-field onto a part-select in
+  fifo.v (#2240), absorbed by the old warning-gate 40 minutes after the 32/32
+  claim. A refusal on the record beats a vacuous green
+
 # NOW -- the mismatch now fails where the cause is (2026-08-19)
 
 Last updated: 2026-08-19
