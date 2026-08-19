@@ -1,4 +1,4 @@
-# Session summary, W846–W898 — one page over both ledgers
+# Session summary, W846–W903 — one page over both ledgers
 
 Input document for the five decisions now waiting on humans. Details live in
 `docs/reports/upstream/TNF-FINDINGS-LEDGER.md` (the paper) and
@@ -53,14 +53,22 @@ went under the ladder discipline: one cause, one probe, one measured rung.
 | 0003 | tuple-`when` + per-clause recovery | 67,760 → 58,187 tokens dropped |
 | 0004a | braceless `bench` joins the shared clause parser | → 57,680 |
 | 0005 | **`and` clause never worked** — keyword collision (unreachable at clause position) + greedy conjunction loop (devoured the next clause). ddmin: 80-line "contextual" repro → 4 lines | → **42,926 (−37 % from base)**; parse-fails 173 → 171; consume-all 314 → 327 |
+| 0006 | array literal ate the next clause keyword as a Zig "type" across newlines; 72-attempt panel closed a forged-brace silent false-green | → 37,786 |
+| 0007 | expression clauses (bare calls, comparisons; measure/target keyword form); panel v1→v2: line-leading `and` is a clause, Gherkin role inheritance | → 34,175 |
+| 0008 | the FOURTH discard channel (skip_to_semicolon) recorded nothing — a semicolon-less const pair made the corpus's largest file a ZOMBIE parse (AST of one declaration); channel records, line-leading const/var stops the skip; two zombies now fail HONESTLY | → 30,023 |
+| 0009+0010 | colon family: `bench name: expr` asserts, `measure:`/`target:` prose captured verbatim, invariant trailing `;` eaten | → **27,452**; consume-all 385; discarding files 66 |
+| 0011 | `value in [...]` / `x in {...}` membership operator | → **27,421 (−59.5 % from base)** |
 
-0003's per-clause skip was withdrawn by its own regressions (four files handed
-clause junk to module level, which errors hard where the old fallback skipped
-safely) — the and-fix keeps the win by making most blocks lower completely.
-Zero regressions at every shipped rung; each rung is one commit on
-`gold-ring/0001-0002-compound-assign-nested-fn` with its cumulative patch in
-`docs/reports/gold-ring/`. The inventory (`LOST-TESTS-INVENTORY.md`, rebuilt
-from spec text: 23,033 BDD lines / 9,300 scenarios) is the insurance either way.
+0003's per-clause skip was withdrawn by its own regressions; every later rung
+carried an adversarial break panel after its corpus sweep (lesson 1376), and
+the W901 map put an INTERVENTION DUTY on every reader — delete the suspect,
+re-measure (lesson 1379: presence is not causality). Inventory:
+**22,601+ of 23,033 BDD lines READ (98.1 %)**, from 55 % dropped at W890.
+One disclosed membership change: two zombie parses (files whose AST held one
+declaration while an unaccounted channel ate the rest) now fail honestly.
+Each rung is one commit on `gold-ring/0001-0002-compound-assign-nested-fn`
+with cumulative patches in `docs/reports/gold-ring/`; two decisions remain —
+forall bodies (FORALL-DECISION.md) and the specs/ar dialect.
 
 ## The five decisions waiting
 
