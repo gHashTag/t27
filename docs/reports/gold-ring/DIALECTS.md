@@ -48,3 +48,28 @@ non-generic files, and design generics separately — they are the only genuinel
 open language question in the set. Options 2 and 3 both leave the L6 SSOT
 unverifiable by the repository's own compiler, which is the state that let a
 `*=` gap sit unmeasured for the grammar's whole life.
+
+
+---
+
+## Addendum (W886): the CORPUS-WIDE numbers, and they re-rank the problem
+
+The table above was measured on the stale-seal subset. Over the whole corpus
+(1,079 specs; scratch excluded from this breakdown), 171 non-scratch files fail
+to parse, and the first-failing-line map says:
+
+| class | files | note |
+|---|---|---|
+| prose/doc-shaped ("Zig-backed FFI bridge…", no failing line at all) | **~117** | the NOT-CODE class `t27c classify` exists for — these are documents in `.t27` clothing, not dialect source |
+| generic structs `pub const X(T) = struct {` | **27** | 2.5× the subset count |
+| Rust forms | 12 | |
+| namespaced modules `module a::b {` / `module x;` | 9 | |
+| `for (const X) \|x\|` capture variant | 3 | |
+| `algorithm` DSL | 3 | design cards (strands, biological analogs, pseudocode notes) — **not translatable without authoring the implementation** |
+
+**Re-ranking:** the largest cleanup is not a grammar question at all — it is
+classifying ~117 documents out of the parse corpus (a `classify`-driven manifest,
+no ring needed). The largest *grammar* question is generics (27 files, a live
+collections library). The `algorithm` trio should be reclassified as design
+documents rather than rewritten: translating a design card into source is
+authorship, not normalization.

@@ -26862,6 +26862,46 @@ pushed branch. Binaries a sweep depends on must be COPIED OUT before their
 build tree is reclaimed -- the save command that would have done it was itself
 killed by the full disk it was trying to prevent.
 
+## W886 -- the corpus-wide failure map re-ranks the dialect problem
+
+### T729 -- MOST PARSE FAILURES ARE DOCUMENTS, NOT DIALECTS [measured]
+
+The stale-seal subset (W882) said "three dialects plus one gap". The whole
+corpus says something different. Of 1,079 specs, 171 non-scratch files fail to
+parse; by first failing line:
+
+    prose/doc-shaped or no failing line     ~117   documents in .t27 clothing --
+                                                   the NOT-CODE class t27c
+                                                   classify exists for
+    generic structs (pub const X(T)=struct)   27   2.5x the subset count
+    Rust forms                                12
+    namespaced modules                         9
+    for (const X) |x| capture variant          3
+    algorithm DSL (design cards)               3
+
+**The subset undercounted the generics by 2.5x and missed the document majority
+entirely** -- sealed specs skew toward real source, so a map drawn from them
+inherits that skew. Third denominator lesson of the audit: the subset you can
+measure is not the population you speak about.
+
+### T729a -- THE ALGORITHM TRIO IS NOT TRANSLATABLE, AND SAYING SO IS THE RESULT [derived]
+
+Read in full, the three `algorithm` files are DESIGN CARDS: strands, biological
+analogs, pseudocode in a notes block. Translating one into the executable
+dialect means WRITING the implementation -- authorship wearing normalization's
+clothes. The honest disposition is reclassification as design documents, and
+DIALECTS.md now says so. A wave that had "translated" them would have shipped
+three new implementations nobody reviewed as such.
+
+### T729b -- THE LARGEST CLEANUP NEEDS NO RING [derived]
+
+Re-ranked by size: (1) ~117 documents out of the parse corpus via a
+classify-driven manifest -- no compiler change, no ring; (2) generics for 27
+files -- the one real language-design question; (3) the small dialects. The
+grammar work already shipped (0001+0002) covered exactly what blocked the SSOT.
+`specs/scratch` separately holds 455 generated files at 579 MB, 87k lines each
+at the top -- the corpus's weight problem is not its language problem.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -12094,6 +12094,16 @@ space is the emergency.
 **1345. AT DISK-ZERO EVEN rm FAILS.** The harness must open an output file to run
 any command; keep a floor of free space or lose the ability to free space.
 
+**1346. A MAP DRAWN FROM THE MEASURABLE SUBSET INHERITS ITS SKEW.** Sealed specs
+skew toward real source; the corpus-wide map found a document MAJORITY the subset
+missed and 2.5x the generics. Redraw the map on the population before ranking
+work.
+
+**1347. TRANSLATING A DESIGN CARD IS AUTHORSHIP, NOT NORMALIZATION.** The
+algorithm-DSL files are strands-and-analogs design documents; rewriting one as
+source means writing an implementation nobody reviewed as such. Reclassify, do
+not transliterate.
+
 ### How to update this tracker
 
 After closing a wave:
