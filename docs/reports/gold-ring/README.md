@@ -126,3 +126,54 @@ bounded by `is_block_boundary`, and the over-consumption case (a greedy
 grammar rejects — e.g. `given results = []EvalResult{}` (an empty typed-array
 literal). That is an expression-grammar item, not a lowering item, and is left
 for a measured 0004 rather than bundled.
+
+---
+
+# 0004a — braceless `bench` joins the shared clause parser
+
+One-line lowering change: `bench` blocks without braces route through
+`parse_bdd_clauses` exactly as `test` and `invariant` do. Corpus:
+58,187 → 57,680 discarded tokens. Zero regressions.
+
+# 0005 — the `and` clause never worked, and now it does
+
+ddmin reduced an 80-line "contextual parser-state" repro to FOUR lines, and the
+context was one `and` clause. Two mechanisms, both fixed:
+
+1. `and` lexes as the logical-operator token (KwAnd), never Ident — the clause
+   keyword the lowering claimed to accept was unreachable for the function's
+   whole life; every block OPENING with `and` fell back wholesale.
+2. After any successful clause, `parse_expr`'s greedy and-loop consumed the next
+   `and` clause as a conjunction, stopped on its `=`, and the whole block fell
+   back — every MID-BLOCK `and` clause died this way. In clause-value mode an
+   `and` followed by `ident =` now terminates the expression (bounded three-token
+   lookahead via the parser's own save/restore); genuine logical `and` in clause
+   values still parses as the operator — probed in both directions.
+
+**Recorded revision:** 0003's per-clause skip is withdrawn by its own
+regressions — its boundary set stopped at `}` and `fn` inside clause junk (a
+lambda in a `then`, struct literals in `given`s) and handed fragments to module
+level, which errors HARD where the old whole-block fallback skipped safely.
+Four files that parsed before regressed; all four recover with the fallback
+restored. The collateral win survives because the and-fix makes most blocks
+lower completely.
+
+**Measured (624 non-scratch specs):**
+
+    base    67,760 discarded, 137 files, 173 parse-fails
+    0005    42,926 (−37 %),   126 files, 171 parse-fails (−2: the SSOT pair)
+    consume-all 314 → 327; zero regressions at every rung
+
+# Instrument — every discard channel records its spans
+
+`parse-complete --show` printed "nothing discarded" for a file the corpus mode
+charged 2,438 tokens — same binary, same file. The counter increments in three
+places; the span recorder lived in one. Skipped brace bodies and statement-level
+recovery counted without recording — the mechanism behind the first inventory
+missing 311+ BDD lines in one file (W892). All channels record now; per-file
+span totals equal the corpus counter exactly: 42,926 = 42,926 over 126 files.
+
+With the honest instrument, the lost-tests inventory was remeasured line-by-line
+under 0005: **21,444 of 23,033 BDD lines are READ (93.1 %); 1,589 remain
+dropped; 0 files unparse.** The migrate-vs-teach decision now weighs 1,589
+lines, not 4,665.
