@@ -12298,6 +12298,12 @@ small convicted causes. Without the price, the loop would have kept mining
 3%-yield rungs; with it, the honest next move is to hand the decisions over
 and stop. A recovery ladder ENDS, and its end is a priced map, not zero.
 
+**1388. CONVICTIONS COMPILE.** A causal map whose rows carry interventions
+(delete-and-remeasure) converts to fixes with no re-diagnosis: four causes
+went map-to-shipped in one wave. Classification maps rot; conviction maps
+compile. Spend fan-out tokens on the intervention, and the next wave's
+implementation is free.
+
 ### How to update this tracker
 
 After closing a wave:

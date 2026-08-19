@@ -27547,6 +27547,30 @@ Fixable-by-rung estimate: ~3.3k tokens across six small causes -- diminishing
 returns against 41,047 already recovered (60.6%). The ladder's terminal
 state has arrived: THE REMAINING WORK IS TWO DECISIONS AND A TAIL.
 
+## W906 -- the tail collected, the ladder closed
+
+### T749 -- A PRICED FRONTIER CONVERTS DIRECTLY INTO A RUNG [measured]
+
+Because W905's map carried convictions (not suspicions), rung 0013 needed no
+diagnosis: four of the six convicted causes -- lvalue steps, keyword field
+labels, `var` as a name, unit phrases -- went from map row to shipped fix in
+one wave, each with its probe from the conviction record. Corpus:
+26,713 -> 25,905 (-61.8% from base), consume-all 387, zero new fails. The two
+smallest causes (~235 tokens: inline lambdas, given-comprehensions) stay
+priced, not smuggled. THE LADDER'S ACCOUNT: 41,855 of 67,760 tokens recovered
+(61.8%), 98.5%+ of BDD test lines readable, thirteen rungs, every one probed,
+panelled, and measured; the 25,905-token residue is 74% one Architect word
+(forall), 14% a dialect policy, 12% priced tail.
+
+### T749a -- KEYWORD COLLISIONS ARE A FAMILY, NOT INCIDENTS [measured]
+
+The arc's ledger now holds five: `and` (operator vs clause), `let`/`const`
+(one token, two spellings), `invariant` (block opener vs field label), `var`
+(declaration vs name), `then` (clause vs element type after `]`). One
+diagnosis template each time: find WHERE the token stands (position,
+follow-set, line), and give the parser that rule. A DSL that reuses surface
+words must budget for a position rule per word -- or lex contextually.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
