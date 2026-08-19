@@ -4679,6 +4679,7 @@ impl Parser {
         let entry = self.save_state();
         let start_children = block.children.len();
         let mut lowered = 0usize;
+        let mut first_clause_col: Option<usize> = None;
         // W903: callers that already lowered an assertion head (bench-colon)
         // pre-set the role; everyone else starts a fresh block.
         if !self.bdd_role_preset {
@@ -4701,6 +4702,76 @@ impl Parser {
             let and_kw = self.current.kind == TokenKind::KwAnd
                 || (self.current.kind != TokenKind::Ident
                     && self.current.lexeme == "and");
+            // W904 (0012): `const h = 5` / `var v : u32 = 7` BETWEEN clauses.
+            // KwConst sits in is_block_boundary, so the block ENDED there and
+            // the binding parsed at MODULE scope -- a test-local name became a
+            // global for every backend, and the block's remaining clauses
+            // dropped. Scope guards: only after at least one accepted clause,
+            // and only at that clause's indent or deeper -- a shallower
+            // const/var is a real module declaration and still ends the block.
+            // (A body OPENING with const keeps the old hoist edge, documented.)
+            if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
+                && first_clause_col.is_some()
+                && self.current.col >= first_clause_col.unwrap()
+            {
+                let st_entry = self.save_state();
+                let st_line = self.current.line;
+                let mutable = self.current.kind == TokenKind::KwVar;
+                self.advance();
+                let mut ok_stmt = false;
+                if self.current.kind == TokenKind::Ident {
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    let ty = if self.current.kind == TokenKind::Colon {
+                        self.advance();
+                        self.parse_type_annotation()
+                    } else {
+                        String::new()
+                    };
+                    if self.current.kind == TokenKind::Equals {
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        if let Ok(expr) = r {
+                            // W904: parse_expr can return Ok having consumed
+                            // only PART of the line (a brace-if value, W578) --
+                            // accepting that "success" left the loop on
+                            // mid-line junk and cost the whole block. A
+                            // statement counts only if it ends CLEANLY: at a
+                            // semicolon, a new line, a boundary, or EOF.
+                            let clean = self.current.kind == TokenKind::Semicolon
+                                || self.current.kind == TokenKind::Eof
+                                || self.current.line > st_line
+                                || Self::is_block_boundary(self.current.kind);
+                            if clean {
+                                if self.current.kind == TokenKind::Semicolon {
+                                    self.advance();
+                                }
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.name = name;
+                                decl.extra_type = ty;
+                                decl.extra_mutable = mutable;
+                                decl.children.push(expr);
+                                block.children.push(decl);
+                                ok_stmt = true;
+                            }
+                        }
+                    }
+                }
+                if ok_stmt {
+                    lowered += 1;
+                    continue;
+                }
+                // W904: a statement this arm cannot read (a brace-if value,
+                // W578 territory) must NOT cost the whole block -- restore and
+                // END the block, exactly what the boundary did before this
+                // rung: module-level statement parsing reads what it can and
+                // the accounting stays per-line. (`let` lexes as KwVar, so
+                // this arm sees every let-statement too.)
+                self.restore_state(st_entry);
+                break;
+            }
             if self.current.kind != TokenKind::Ident && !and_kw {
                 if Self::is_block_boundary(self.current.kind) {
                     break;
@@ -4712,6 +4783,7 @@ impl Parser {
             // one unsupported clause lose its siblings -- most of the corpus's
             // dropped test lines were collateral, not themselves unsupported.
             let clause_entry = self.save_state();
+            let clause_col = self.current.col;
             let clause = self.current.lexeme.clone();
             // W901 (0007 v2): Gherkin semantics -- `and` inherits the ROLE of
             // the clause before it, but CONTENT WINS: `and ident = ...` is a
@@ -4748,6 +4820,49 @@ impl Parser {
                 && block.kind == NodeKind::BenchBlock;
 
             if !is_binding && !is_assertion && !is_expr_clause {
+                // W904 (0012): a bare ASSIGNMENT statement between clauses --
+                // `sum = if (...) ...;` -- is an Ident that is no clause, and
+                // the whole-block fallback here cost every already-lowered
+                // sibling. `Ident =` at clause indent parses as a statement
+                // clause under the same clean-termination rule as const/var,
+                // in the fn-body StmtAssign shape (lhs expr child, rhs child).
+                if first_clause_col.is_some()
+                    && clause_col >= first_clause_col.unwrap()
+                    && self.peek.kind == TokenKind::Equals
+                {
+                    let st_entry = self.save_state();
+                    let st_line = self.current.line;
+                    let mut lhs = Node::new(NodeKind::ExprIdentifier);
+                    lhs.name = self.current.lexeme.clone();
+                    self.advance(); // ident
+                    self.advance(); // =
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    let mut ok_stmt = false;
+                    if let Ok(expr) = r {
+                        let clean = self.current.kind == TokenKind::Semicolon
+                            || self.current.kind == TokenKind::Eof
+                            || self.current.line > st_line
+                            || Self::is_block_boundary(self.current.kind);
+                        if clean {
+                            if self.current.kind == TokenKind::Semicolon {
+                                self.advance();
+                            }
+                            let mut assign = Node::new(NodeKind::StmtAssign);
+                            assign.line = st_line as u32;
+                            assign.children.push(lhs);
+                            assign.children.push(expr);
+                            block.children.push(assign);
+                            ok_stmt = true;
+                        }
+                    }
+                    if ok_stmt {
+                        lowered += 1;
+                        continue;
+                    }
+                    self.restore_state(st_entry);
+                }
                 // An identifier that is not a clause means this body has a shape
                 // we do not model. Falling through with the parser positioned
                 // mid-block is what broke 19 specs on the first attempt.
@@ -4958,6 +5073,9 @@ impl Parser {
             }
             if clause != "and" {
                 self.bdd_last_was_assertion = is_assertion;
+            }
+            if first_clause_col.is_none() {
+                first_clause_col = Some(clause_col);
             }
             lowered += 1;
         }
