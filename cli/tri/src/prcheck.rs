@@ -45,7 +45,10 @@ pub enum PrCmd {
         /// nothing); a probe spanning a line break failed until whitespace
         /// was flattened on both sides; and one differed only in the case of
         /// its first letter. Case is text and stays significant; line wrapping
-        /// is formatting and does not.
+        /// is formatting and does not. A fourth appeared during a sweep of
+        /// older merges: probing pull request N with wording a LATER pull
+        /// request rewrote. Probe with the string as that pull request
+        /// introduced it, not as the file reads today.
         #[arg(long = "probe", required = true)]
         probes: Vec<String>,
     },
