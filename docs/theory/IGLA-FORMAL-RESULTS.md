@@ -28559,6 +28559,47 @@ detector for the most likely error. And a physical width must be read from the
 format object that defines it -- here `sign_shift + 1` -- never from the module
 name, the paper's prose, or a previous theorem of one's own.
 
+### T788 -- GENERATE EVERY COMPETITOR FROM ITS OWN ORACLE, AND THE COMPARISON STOPS BEING ABOUT ENGINEERING [measured]
+
+Two defects had survived every previous comparison in this project: the baselines
+were somebody's implementation, and the widths came from module names. Both close
+with one procedure -- enumerate all 2^n codes through the format's OWN reference
+oracle, emit the result as a case statement, and read the width from the format
+object rather than the module name.
+
+Measured that way, with the consumer that pays for the alphabet:
+
+    fp4 e2m1   4 bits    15 values    consumer  19.14 cells
+    GF4        4         15                     21.14
+    TNF4       6         58                     51.29
+    GF8        8        255                    145.57
+    fp8 e4m3   8        253                    152.57
+    posit8     8        255                    165.14
+    TNF8      11       2018                    270.57
+
+And with WEIGHTS AND ACTIVATIONS both quantised, five seeds, two tasks:
+
+    eight-bit formats   -0.06 .. +0.04 pp     (the null survives activations)
+    TNF4                +0.33 MNIST, +1.05 Fashion
+    fp4 e2m1 / GF4     +70.50 / +71.32        (collapse)
+
+The Pareto point that falls out is the project's result: **TNF4 delivers fp8-class
+accuracy at 51.29 cells against fp8's 152.57 -- 2.97x cheaper for a third of a
+point on MNIST and one point on Fashion -- and it is the only sub-eight-bit format
+measured that works at all.**
+
+The methodological claim is the durable one. A comparison whose implementations
+differ measures engineering; a comparison whose implementations are all generated
+by one procedure from each format's own specification measures the FORMATS. The
+procedure costs an afternoon at small widths, is conformant by construction, and
+its bias is stated rather than hidden: a truth table flatters small alphabets, so
+rows above ten bits are omitted instead of estimated.
+
+Corollary on the null: quantising activations was the standing suspicion about
+every flat 8-bit result reported here, and it does not survive contact -- five
+formats stay inside 0.06 pp with the data path quantised too. A null that survives
+the experiment designed to break it is evidence, not absence of it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
