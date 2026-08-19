@@ -27845,6 +27845,27 @@ yosys-json ports. The arc's instrument ledger now reads: five layers, five
 artefact-driven fixes, zero fabric limits observed so far -- the (E_t, M)
 sweep's first REAL routing attempt starts with this run.
 
+## W934 -- the instrument era, one theorem
+
+### T763 -- SIX LAYERS BETWEEN A GREEN CHECKMARK AND A MEASUREMENT [measured]
+
+The full ledger of what stood between "the CI run succeeded" and an actual
+number, in the order the artefacts revealed it: (1) the workflow's generator
+had never reached the default branch; (2) the pipeline targeted a different
+experiment sharing the fabric and the vocabulary; (3) a catch-all status
+absorbed every failure with no logs; (4) a source glob swept in
+elaboration-time self-checks and an anchored grep read their death as
+success; (5) the borrowed XDC constrained another top's ports -- the
+"fabric limit" that shaped a workflow's own comments was a missing
+IOSTANDARD; (6) a heredoc terminator sat one indent too deep. Three layers
+were inherited, three were MINE, made the same week -- the era's honest
+ratio. Each layer was invisible until the previous one fell, so no audit
+could have listed them in advance: the only working method was
+fix-one-read-one. Where it landed: 19/19 format tracts routed, 14/15
+published frequencies reproduced within the toolchain's own noise, and the
+first genuine (E_t, M) routing attempt in the sweep's history is in the
+queue as this theorem is written.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
