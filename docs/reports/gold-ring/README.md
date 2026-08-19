@@ -177,3 +177,34 @@ With the honest instrument, the lost-tests inventory was remeasured line-by-line
 under 0005: **21,444 of 23,033 BDD lines are READ (93.1 %); 1,589 remain
 dropped; 0 files unparse.** The migrate-vs-teach decision now weighs 1,589
 lines, not 4,665.
+
+# 0006 — the array literal ate the next clause's keyword as a "type"
+
+The residual map blamed struct literals; exact-line probes ACQUITTED them.
+ddmin found the killer three clauses later: `parse_array_literal` consumed a
+following Ident unconditionally as the Zig element type (`[3]u8`), across
+newlines — `and params = [1.0]` + `when result = ...` ate `when`. `and`
+survived only because KwAnd is not an Ident, which made 0005 hide this bug
+behind the struct literal one clause earlier. **Presence is not causality.**
+
+Rule: Ident-after-`]` is a type only same-line (legacy corpus shapes keep
+parsing) or when an initialiser brace follows — and in clause-value mode a
+clause keyword is never a type. A 72-attempt adversarial panel broke v1 twice
+(one-line pairs still eaten; `then {1} == xs` forging the brace test into a
+SILENT false-green with the assertion vanishing) — both closed, the forged
+probe kept as a negative test.
+
+**Measured:** 42,926 → 37,786 (−44 % from base); parse-fails 171, zero new;
+inventory 96.9 % READ (22,329 / 23,033 BDD lines; was 4,665 dropped at W892).
+
+# The residual map correction (W900)
+
+The map's "0006 candidate — struct literal in clause value" dissolved on
+probing: both literal syntaxes ALREADY parse. Reader classifications named the
+first discarded clause's construct; the CAUSE sat in a later clause whose
+array value ate the following keyword. The verifiers confirmed the constructs
+exist at the cited lines — presence, not causality; only intervention (ddmin,
+variant probes) assigns cause. Remaining true queue: bare-call given clauses
+(`given uart_tx_send(0x55)`), `measure`/`target` bench pairs, one-line
+`invariant name : EXPR;` — then forall (the ring question, see
+FORALL-DECISION.md) and dialect bodies.

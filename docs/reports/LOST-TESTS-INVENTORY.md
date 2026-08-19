@@ -16,6 +16,8 @@ Marks are now line-level VERDICTS from the honest instrument:
 
 **Remeasured total: 9300 scenarios, 23033 BDD lines across 106 files;
 21444 READ (93.1%), 1589 still dropped, 0 files unparsed.**
+**W900 addendum, rung 0006 (array-type lookahead): 22329 READ (96.9%),
+704 still dropped. Line marks below remain the 0005 measurement.**
 (W892 said 4,665 confirmed-dropped -- measured with the frozen grammar AND the
 channel-blind instrument, so the two [D] sets are not directly comparable; the
 honest current loss set is the 1,589 below.)
