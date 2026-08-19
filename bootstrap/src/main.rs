@@ -358,6 +358,14 @@ enum Commands {
         /// List every file under each heading instead of only the counts.
         #[arg(long)]
         verbose: bool,
+        /// ACTUALLY PARSE every file (heuristics cannot see prose inside a
+        /// module-headed file) and compare against this baseline; exit 1 on any
+        /// file that parsed at baseline time but fails now.
+        #[arg(long)]
+        baseline: Option<String>,
+        /// Write specs/parse_baseline.txt for --baseline to check against.
+        #[arg(long)]
+        write_baseline: bool,
     },
 
     /// THE SERVICE: read cell counts out of a yosys log WITHOUT re-inventing the
@@ -10401,7 +10409,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
+        Commands::Classify { ref specs_dir, include_scratch, verbose, ref baseline, write_baseline } => run_classify(specs_dir, include_scratch, verbose, baseline.as_deref(), write_baseline)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::LexConform => run_lex_conform()?,
@@ -10803,7 +10811,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
+        Commands::Classify { ref specs_dir, include_scratch, verbose, ref baseline, write_baseline } => run_classify(specs_dir, include_scratch, verbose, baseline.as_deref(), write_baseline)?,
         Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::LexConform => run_lex_conform()?,
@@ -11244,7 +11252,7 @@ fn run_yostat(log: &str) -> anyhow::Result<()> {
 
 /// Classify every `.t27` file by whether it is ordinary source. See the
 /// `Classify` doc comment for why this must run before the parser.
-fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool, baseline: Option<&str>, write_baseline: bool) -> anyhow::Result<()> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
         if let Ok(rd) = std::fs::read_dir(dir) {
             for e in rd.flatten() {
@@ -11318,5 +11326,64 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
     println!("  A .t27 extension is a filename, not a type declaration. Anything");
     println!("  outside SOURCE cannot parse, and counting it as a failing spec");
     println!("  inflates every corpus ratio in a knowable direction.");
+
+    // --write-baseline / --baseline: the heuristics above bucket by SHAPE, but
+    // W886 measured ~117 failing files whose first line IS a module header and
+    // whose body is prose -- shape says SOURCE, the parser says otherwise. The
+    // only classifier that cannot be fooled is the parser itself, in-process:
+    // each file is parsed once, the verdict recorded, and the baseline becomes a
+    // RATCHET -- a file that parsed at baseline time and fails now is a parse
+    // regression somebody must explain; a file that newly parses is a prompt to
+    // refresh the baseline, never an error.
+    if write_baseline || baseline.is_some() {
+        let mut fails: Vec<String> = Vec::new();
+        let mut okc = 0usize;
+        for p in &files {
+            let src = std::fs::read_to_string(p).unwrap_or_default();
+            if compiler::Compiler::parse_ast(&src).is_ok() {
+                okc += 1;
+            } else {
+                fails.push(p.display().to_string());
+            }
+        }
+        println!();
+        println!("  parsed {} files in-process: {} OK, {} fail", files.len(), okc, fails.len());
+        if write_baseline {
+            let path = std::path::Path::new(specs_dir).join("parse_baseline.txt");
+            let mut out = String::from(
+                "# t27c classify --write-baseline: files that FAIL to parse.\n# A file leaving this list newly parses (refresh the baseline).\n# A file failing that is NOT listed here is a parse REGRESSION.\n");
+            for f in &fails {
+                out.push_str(f);
+                out.push('\n');
+            }
+            std::fs::write(&path, out)?;
+            println!("  baseline written: {} ({} known failures)", path.display(), fails.len());
+        }
+        if let Some(bp) = baseline {
+            let known: std::collections::BTreeSet<String> = std::fs::read_to_string(bp)?
+                .lines()
+                .filter(|l| !l.trim_start().starts_with('#') && !l.trim().is_empty())
+                .map(|l| l.trim().to_string())
+                .collect();
+            let new_fails: Vec<&String> = fails.iter().filter(|f| !known.contains(*f)).collect();
+            let recovered: Vec<&String> =
+                known.iter().filter(|k| !fails.iter().any(|f| f == *k)).collect();
+            if !recovered.is_empty() {
+                println!("  {} baselined failure(s) now PARSE -- refresh the baseline:", recovered.len());
+                for r in recovered.iter().take(10) {
+                    println!("    {r}");
+                }
+            }
+            if !new_fails.is_empty() {
+                println!();
+                println!("  FAIL: {} parse regression(s) vs {}", new_fails.len(), bp);
+                for f in new_fails.iter().take(20) {
+                    println!("    {f}");
+                }
+                std::process::exit(1);
+            }
+            println!("  OK: no parse regressions vs {bp}");
+        }
+    }
     Ok(())
 }
