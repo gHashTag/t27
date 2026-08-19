@@ -28391,6 +28391,47 @@ at t = 3.8) is statistically real and practically irrelevant -- the honest repor
 states both halves in one sentence, because "significant" and "matters" are
 different predicates and a small enough sample of neither is a result.
 
+### T783 -- THE CONSUMER PAYS FOR THE ALPHABET, NOT FOR THE DECODER [measured]
+
+Each decoder measured twice under one rig: bare, and followed by an identical
+12x8 multiply.
+
+    format      in bits   decoder   +multiply   the multiply alone
+    GFTernary       2       2.000       6.104        4.104
+    int8            8       0.000     129.739      129.739
+    fp8 e4m3        8      12.000     141.739      129.739
+    TNF16          16       2.000     384.417      382.417
+    BNF16          16      10.000     392.417      382.417
+    posit16        16     125.000     507.452      382.452
+
+Two results, and the second is the larger.
+
+**The decode gap survives fusion exactly.** TNF16 and BNF16 differ by 8.000 cells
+bare and by 8.000 cells fused; posit16's consumer costs 382.452 against TNF16's
+382.417, the same figure to three decimals. So the surrounding logic does NOT
+absorb the format difference -- the LUT-absorption argument does not erase it
+here. But eight cells sit inside three hundred and ninety: the decode ratio is
+true and it is 2% of the unit, so quoting 5x or 46x without a denominator is a
+true number in a misleading unit.
+
+**The consumer's own cost is set by the alphabet.** With identical RTL the
+multiply costs 382.4 cells behind a 16-bit input, 129.7 behind 8 bits, and 4.1
+behind GFTernary's two-bit alphabet -- the synthesiser propagates the small
+alphabet through the multiplier and deletes nearly all of it. That is a 93x effect
+on the consumer against an 8-cell effect on the decoder.
+
+The general law: a number format's area cost is dominated by what its alphabet
+does to everything downstream, not by what its decoder costs standing alone. A
+decoder is measured once per format; an alphabet is paid at every operator it
+feeds. Measure the format inside its consumer, and quote the decoder as a fraction
+of that -- otherwise the argument is being made two orders of magnitude away from
+where the area is.
+
+Caveat carried in the same breath: the alphabet effect is a WIDTH effect, so it
+must be quoted against the accuracy that width costs (T782: four-bit TNF loses
+0.32 pp on MNIST and 0.85 on Fashion), and the equal-width comparison -- TNF16
+against BNF16 against posit16 -- has an identical consumer cost to three decimals.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
