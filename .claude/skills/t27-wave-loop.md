@@ -12185,6 +12185,16 @@ climbing.
 unverified cause; the map flags it instead of guessing. The most expensive wrong
 guess lives in the biggest unexplained bucket.
 
+**1367. THE BIGGEST UNEXPLAINED BUCKET IS USUALLY CONTAINER COLLATERAL.** 1,463
+assert lines traced to benches skipped wholesale -- the third time clause-level
+counts pointed at a block-level cause. Trace the container before theorising
+about the contents.
+
+**1368. A SHARED LOWERING PAYS THREE TIMES.** parse_bdd_clauses now serves
+tests, invariants and benches; 0003's granularity fix improved all three at
+once. Route sibling constructs through one parser and every rung lifts them
+together.
+
 ### How to update this tracker
 
 After closing a wave:

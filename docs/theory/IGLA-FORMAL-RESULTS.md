@@ -27199,6 +27199,31 @@ plausible next-step.
 guessing -- the wrong guess there costs more than everywhere else combined, and
 the ladder's rule (one probe file before any code) exists precisely for that row.
 
+## W896 -- the dangerous row collapses into containers; bench joins the lowerings
+
+### T739 -- ONE RAW CASE COLLAPSED THE 1,463-LINE MYSTERY [measured]
+
+`assert weights_fit_flash() == false` lives inside a braceless `bench` block, and
+`parse_bench_block`'s keyword path was `skip_to_next_top_level()` -- WHOLESALE.
+The catalog's biggest unexplained bucket was container collateral again: benches
+skipped entirely, invariants already routed to the shared clause parser (so 0003
+had silently helped them too), foralls deliberately non-runtime-checkable.
+
+The unprobed row was flagged, not guessed (T738b); the probe then cost one grep
+and one read, and the answer was none of the guessed causes.
+
+### T739a -- 0004a: BENCH GOES TO THE SHARED CLAUSE PARSER [measured]
+
+    wukong_v1.t27      whole bench section dropped -> "nothing discarded"
+    corpus             58,187 -> 57,680 tokens; 131 discarding files (-4)
+    ladder to date     67,760 -> 57,680 (15% recovered), zero regressions at
+                       every rung, each rung one cause, one measure
+
+A modest rung by tokens and a complete one by files: asserts lower,
+measure:/target: metadata is per-clause skipped with honest accounting. The
+remaining mass is forall (a deliberate non-lowering) and the clause-expression
+tail -- both catalogued, neither guessed.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
