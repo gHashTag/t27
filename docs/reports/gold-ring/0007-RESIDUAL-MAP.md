@@ -1,5 +1,11 @@
 # The residual map under 0007 — every suspect convicted by intervention (W901)
 
+> **STALE AS OF W905.** This map predates rungs 0008–0012; the corpus residue
+> it prices (34,175 tokens) is now 26,713 and several of its queue items are
+> SHIPPED (0008 const poisoning, 0009 colon forms, 0010 invariant semicolons,
+> 0011 in-membership, 0012 statement clauses). Kept for the conviction record;
+> the current map is the W905 remeasure in the ladder README and theorems.
+
 34,175 tokens still discarded after rung 0007 (125 files). This map differs
 from its W899 predecessor in one decisive way: after lesson 1375 ("presence is
 not causality"), every reader carried an INTERVENTION DUTY — copy the block to
