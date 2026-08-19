@@ -12204,6 +12204,20 @@ per-construct probes -- bisect the CONTEXT, not the constructs.
 The RHS-first-token table ascribed inner causes to outer forms and every row
 acquitted -- the twelfth artefact, inside a map that warned against guessing.
 
+**1371. DDMIN BEFORE THEORY.** An 80-line "parser state leak" reduced to a
+four-line file in one mechanical pass, and the mystery was a keyword-vs-token
+collision plus a greedy operator loop. Minimise first; theorise about what
+remains.
+
+**1372. A KEYWORD THAT IS ALSO AN OPERATOR NEEDS A POSITION RULE.** `and` the
+clause opener collided with `and` the conjunction twice over -- unreachable at
+clause position, devouring at value position. Disambiguate by position with
+bounded lookahead, and probe BOTH readings after.
+
+**1373. LET A RUNG'S REGRESSIONS WITHDRAW THE RUNG.** The per-clause skip
+regressed four files; the and-fix made it unnecessary anyway. Keeping a
+withdrawn mechanism's wins while dropping its risks is what the ladder is for.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -27259,6 +27259,43 @@ declarations -- the class of defect no per-construct probe can see and no
 per-construct patch can fix. The repro file is the entire deliverable: 0005
 starts from reproduction, proceeds by deletion, and only then reads code.
 
+## W898 -- ddmin to four lines: the `and` clause never worked
+
+### T741 -- THE CONTEXTUAL BUG WAS ONE CLAUSE, TWO MECHANISMS [measured]
+
+ddmin took the 80-line ensemble repro to FOUR lines: a lone `and` clause.
+
+    mechanism 1   `and` lexes as KwAnd, not Ident -- the clause keyword the
+                  lowering claimed to accept was UNREACHABLE its whole life
+    mechanism 2   after a successful clause, parse_expr's greedy and-loop ate
+                  the NEXT `and` clause as a conjunction, stopped on its `=`,
+                  and the Equals guard dropped the whole block
+
+Fixed both: the keyword token is accepted at clause position, and in
+clause-value mode `and` + `ident =` terminates the expression (genuine logical
+`and` in values still parses -- probed both directions).
+
+### T741a -- 0003's PER-CLAUSE SKIP WITHDRAWN BY ITS OWN REGRESSIONS [measured]
+
+Four files that parsed under the frozen compiler failed under the proto: the
+skip's boundary set stopped at `}` and `fn` inside clause junk (a lambda in a
+then-expr, struct literals in givens) and handed fragments to module level,
+which errors HARD where skip_to_next_top_level skipped safely. Whole-block
+fallback restored on clause failure; all four recover. **The collateral win
+survives anyway** -- the and-fix makes most blocks lower completely, never
+reaching the fallback.
+
+### T741b -- THE LADDER AT FIVE RUNGS [measured]
+
+    base    67,760 tokens dropped   137 files   173 parse-fails
+    0005    42,926 (-37%)           126         171 (-2: the SSOT pair)
+    consume-all 314 -> 327          zero regressions at every rung
+
+The "ensemble bug" of W897 dissolved: the ensemble was needed only because the
+header's fns ended in a block whose next test contained an `and`. Every
+mystified wave of this arc -- 55% tests dropped, containers, context -- traces
+to one two-mechanism defect in one clause keyword.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
