@@ -12389,6 +12389,8 @@ FAILED build trees; the merged-branch worktree is its sneakier sibling --
 it looks active, its work is done, and it erodes the floor silently. Remove
 a worktree in the same wave its branch merges.
 
+**1402. A NUMBERING AUDITOR MUST ANCHOR ON THE WHOLE IDENTIFIER.** The first run of `tri theorem --check` reported 180+ duplicate theorems and `tri lesson --check` reported two out-of-order lessons. Every one was the checker's own regex: `T709a`/`T709b` are distinct sub-theorems, not a triple collision on T709, and `**88.03% on Fashion**` is bold prose, not lesson 88. Anchored on the full token (`T[0-9]+[a-z]*`) and on the space only a real header has (`**N.` + space), both corpora came back clean: 997 theorem headings, monotonic, zero collisions; 629 lessons, no gaps. A checker that invents anomalies is worse than no checker -- it teaches you to ignore it, and the one true anomaly then arrives inside noise you have already learned to skip.
+
 ### How to update this tracker
 
 After closing a wave:
