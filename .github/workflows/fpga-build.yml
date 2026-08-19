@@ -379,12 +379,30 @@ jobs:
       
       - name: Download prjxray database
         run: |
-          mkdir -p ~/prjxray-db
-          cd ~/prjxray-db
-          if [ ! -d "artix7" ]; then
-            git clone --depth 1 https://github.com/SymbiFlow/prjxray-db artix7
+          # t27c resolves the db at build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7
+          # relative to the repo root. The old step cloned the WHOLE prjxray-db repo into
+          # ~/prjxray-db/artix7 -- a path nothing reads, with the real artix7 db one
+          # level deeper than the directory name claimed.
+          mkdir -p build/nextpnr-xilinx/xilinx/external
+          if [ ! -d build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7 ]; then
+            git clone --depth 1 https://github.com/SymbiFlow/prjxray-db build/nextpnr-xilinx/xilinx/external/prjxray-db
           fi
-      
+
+      - name: Stage prjxray where t27c expects it
+        run: |
+          # Layer 11 of the onion: t27c hardcodes build/fpga/prjxray (clone location AND
+          # PYTHONPATH) and build/fpga/prjxray/build/tools/xc7frames2bit; everything this
+          # job built so far lived under ~/, so fasm2frames.py could never be found.
+          # fasm2frames needs no prjxray submodules; its import chain resolves with the
+          # packages below (verified by running --help against this exact list).
+          if [ ! -f build/fpga/prjxray/utils/fasm2frames.py ]; then
+            git clone --depth 1 https://github.com/SymbiFlow/prjxray.git build/fpga/prjxray
+          fi
+          mkdir -p build/fpga/prjxray/build/tools
+          cp ~/prjxray-build/xc7frames2bit build/fpga/prjxray/build/tools/
+          pip3 install fasm simplejson pyyaml intervaltree parse progressbar2 \
+            || pip3 install --break-system-packages fasm simplejson pyyaml intervaltree parse progressbar2
+
       - name: Generate real chipdb (xc7a100t)
         run: |
           # This step used to write 1 MB of /dev/zero and call it a chipdb. A
