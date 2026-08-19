@@ -11,6 +11,15 @@ Last updated: 2026-08-19
 - `t27c fpga-build --docker false --synth-only` -- the exact step red in CI -- exits 0 locally with a 9.4 MB synth.json
 - **Every job in fpga-build.yml and emit-bitexact-gate.yml now carries timeout-minutes: 45** -- a hung apt ran 6h0m16s to the GitHub ceiling on 2026-08-18 and read as a red PR whose own steps were all skipped
 - Left open in #2214: `pip install sby` packaging in fpga-formal
+# NOW -- the ten-layer lesson, recorded (2026-08-19)
+
+Last updated: 2026-08-19
+
+## skills: a job that always failed early has a tail that never ran (Closes #2219)
+
+- `ci-gates` §9: the ten layers of `fpga-bitstream`, one CI round-trip each, and why -- every step past the historical failure point had never executed
+- The key finding: **a fake artefact masks real bugs downstream.** The /dev/zero chipdb could not reject pin C18, which the device does not have -- the placeholder was hiding wrong design constants, same class as the ring-oscillator MHz figure, in infrastructure rather than a paper
+- Rules: dry-run the whole job's shell locally, not just the fixed part; every line past the historical failure point is unreviewed code; everything downstream of a fake artefact is unvalidated; YAML by line number with parser re-validation; a ceiling clears the honest worst case, not the median
 
 # NOW -- the honest diagnostic, not the cheap fix (2026-08-19)
 

@@ -191,3 +191,42 @@ gate's vocabulary is part of its output.
 5. **Say what the gate does not cover.** `external/` is excluded from the JSON gate because
    tsconfig is JSONC by convention — flagging it would be the gate making the mistake it
    exists to catch.
+
+## 9. A job that has always failed early contains a tail that has never run
+
+`fpga-bitstream` had been red since its creation. Fixing it took **ten layers**, one
+CI round-trip each, because every step after the historical point of failure had
+*never executed* — each was a fresh landmine, not a regression:
+
+| layer | defect | had it ever run? |
+|---|---|---|
+| 1 | cloned `YosysHQ/nextpnr`, which has no xilinx arch (it lives in `openXC7/nextpnr-xilinx`) | failed every run |
+| 2 | `libboost-dev` is headers-only; cmake needs component libs + Eigen3 | never |
+| 3 | `cp bba/bbasm` — in-tree cmake puts binaries at the build root *(mine)* | never |
+| 4 | bare prjxray clone; its yaml-cpp is a submodule | never |
+| 5 | `cp xc7frames2bit` from `build/` — the binary is in `build/tools/` | never |
+| 6 | `cp` into a directory nobody ever created | never |
+| 7 | `cd` inside an if-branch made the final copy path relative to the wrong tree *(mine)* | never |
+| 8 | the driver binary looks for nextpnr at a hardcoded path; pass `--nextpnr` | never |
+| 9 | my own 45-min ceiling killed a healthy 46-min job — **a ceiling must clear the honest worst case, not the median** | n/a |
+| 10 | the emitted XDC named pin `C18`, which the device does not have | never |
+
+Layer 10 is the important one. The job's "chipdb" had been **1 MB of `/dev/zero`**,
+and a zeroed database cannot reject a wrong pin — so the placeholder was not merely
+failing to produce a bitstream, it was **masking wrong design constants**. A fake
+artefact in a pipeline hides real bugs downstream of it; that is the same class as
+the ring-oscillator MHz figure, in infrastructure instead of a paper.
+
+Rules that would have cut ten round-trips to about three:
+
+- **Dry-run the whole job's shell locally before pushing, not just the part you are
+  fixing.** Paths, `mkdir`, clone URLs and `cp` targets are checkable on any OS. The
+  three layers I did test locally were found before CI; the six I did not each cost a
+  round-trip.
+- **Treat every line after the historical failure point as unreviewed code**, because
+  it is: nothing has ever executed it.
+- **When a fake artefact is found (placeholder chipdb, stub data), assume everything
+  downstream of it is also unvalidated** — including constants that look unrelated,
+  like pin assignments.
+- Text anchors for patching workflows mis-hit on indentation constantly; **edit YAML
+  by line number and re-validate with a parser**, never by matched-string replace.
