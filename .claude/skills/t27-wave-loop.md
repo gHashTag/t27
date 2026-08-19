@@ -12256,6 +12256,17 @@ intervenes produces convictions -- same agent count.
 NOT asserts -- a bench target is not an invariant, and inventing check
 semantics in a parser is how instruments start lying about intent.
 
+**1381. EVERY RECOVERY PATH FEEDS BOTH ACCOUNTS.** Three channels recorded;
+the fourth ate a file's middle unseen and manufactured a zombie parse (AST of
+one declaration, green light, 2,438-token undercount). When you find N-1 of N
+channels, the Nth is where the next mystery lives -- reconcile sum(spans) ==
+counter after EVERY instrument change.
+
+**1382. COUNT STABILITY CAN HIDE MEMBERSHIP CHURN.** Parse-fails stayed 173
+while two zombies left and two SSOT files entered. Certificates must report
+the DIFF, not the count -- the count alone said "nothing happened" about the
+wave's most consequential change.
+
 ### How to update this tracker
 
 After closing a wave:

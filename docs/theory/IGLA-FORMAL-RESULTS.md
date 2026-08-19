@@ -27425,6 +27425,41 @@ exonerated by the const finding. The fixable-by-probe frontier is now smaller
 than the decision frontier -- the ladder's terminal state was always a set of
 QUESTIONS, and it is close.
 
+## W902 -- the fourth channel and the zombie parses
+
+### T745 -- AN UNACCOUNTED RECOVERY PATH MANUFACTURES ZOMBIE PARSES [measured]
+
+skip_to_semicolon -- the fourth of T56's four discard channels, the only one
+still feeding NEITHER account -- ate from a semicolon-less `const` through
+declarations, functions and blocks to the next stray `;` or EOF. The corpus's
+largest "discarder" (2,438 counted tokens) was a ZOMBIE: its AST held one
+declaration; the counted tokens were only what channels 1-3 happened to see
+on the way. A file can thus "parse" while existing almost nowhere. The
+instrument rule generalises: EVERY recovery path must feed both accounts, and
+sum(spans) == counter is the oracle that finds the one that does not.
+
+### T745a -- HONESTY CAN COST A GREEN LIGHT, AND THE LADDER MUST SAY SO [measured]
+
+Restoring the eaten regions surfaced hard errors that were always in those
+files (`for..in`, `match ::` -- never parsed in the files' lives): two zombie
+parses became honest failures, disclosed in the rung's own certificate rather
+than smoothed over. Parse-fail count stays 173 -- two zombies out, two SSOT
+files in -- but the MEMBERSHIP changed, and a certificate that only reports
+the count would have hidden exactly the thing that matters.
+
+### T745b -- THE LADDER AT TEN RUNGS [measured]
+
+    base    67,760 discarded   137 discarding files   314 consume-all
+    0010    27,452 (-59.5%)     66                    385
+    inventory: 22,601 / 23,033 BDD lines READ (98.1%); dropped
+    4,665 (W892) -> 1,589 (0005) -> 704 (0006) -> 432 (0010)
+
+Convicted-and-fixed this wave: the const tail-skip, bench-colon one-liners
+(FORM convicted -- trivial expressions dropped too), measure:/target: prose
+(captured verbatim, no invented semantics), invariant trailing semicolons.
+The residue is now dominated by the two DECISIONS (forall; specs/ar dialect)
+plus small expression-grammar items (`value in [...]` membership).
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

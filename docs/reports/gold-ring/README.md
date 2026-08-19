@@ -208,3 +208,25 @@ variant probes) assigns cause. Remaining true queue: bare-call given clauses
 (`given uart_tx_send(0x55)`), `measure`/`target` bench pairs, one-line
 `invariant name : EXPR;` — then forall (the ring question, see
 FORALL-DECISION.md) and dialect bodies.
+
+# 0008 — the fourth channel, and the zombie parses it was hiding
+
+`skip_to_semicolon` was the fourth discard channel T56 counted — eating tokens
+with NO count and NO span. A semicolon-less top-level `const` followed by
+another const/var sent it through the next declaration, the next fn, and
+everything to the next stray `;` or EOF. The corpus's largest "discarder"
+(coa_planning, 2,438 counted tokens) actually retained ONE declaration in its
+AST. Fix: the channel records; a line-leading const/var at depth 0 ends the
+skip. **Disclosed:** coa_planning and restraint now FAIL honestly (their
+never-parsed bodies hold `for..in`/`match ::`); parse-fails stay 173 — two
+zombies out, the two SSOT files in.
+
+# 0009 + 0010 — the colon family, convicted by intervention
+
+`bench name: expr` lowers like invariant-colon (assert); `measure:`/`target:`
+prose is captured VERBATIM into the node value (read, not interpreted);
+`invariant name : EXPR;` eats its trailing semicolon. Batch effect:
+30,023 → **27,452 discarded (−59.5 % from base)**; consume-all 326 → **385**;
+discarding files 125 → **66**; inventory **98.1 % READ** (432 lines left).
+Remaining known causes: `value in [...]` membership under bench-colon, forall
+(the ring question), specs/ar dialect bodies (now honest hard errors).
