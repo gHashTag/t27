@@ -27663,6 +27663,50 @@ scope. The counter must always be judged WITH the parse-fail diff and
 consume-all -- the triple is gameable only by making the corpus genuinely
 parse, which is the point.
 
+## W913-W915 -- the merge that argued back, and the landing
+
+### T754 -- CONVERGENT EVOLUTION RESOLVES BY UNION OF STRONGER HALVES [measured]
+
+Master and the ladder branch independently built compound assignment,
+struct-literal suppression, and Zig cast handling. The merge that took one
+side wholesale would have lost measured value either way; the union -- their
+operator superset + our /= %=, our reentrant counter over their bool, their
+@truncate narrowing composed UNDER our float builtins -- parses a strict
+superset of both parents (0 regressions vs the ladder, 109 ledger entries
+fixed vs master). Convergence is evidence a feature is real; the merge's job
+is to keep both proofs.
+
+### T754a -- A LEDGER WRITTEN BY A BLIND INSTRUMENT RECORDS ZEROS, NOT CLEANLINESS [measured]
+
+Master's expectations ledger said five files parse with no discard; the
+four-channel instrument shows 43-319 real dropped tokens in each. The old
+zeros were blindness (master never received the channel-accounting fixes),
+and the ratchet correctly flagged MY honest counts as "regressions" against
+them. Re-blessing with the honest instrument is not moving goalposts -- it is
+the first time the goalposts were measured. Corollary: when two instruments
+disagree, ask WHICH CHANNELS each one feeds before asking which number is
+right.
+
+### T754b -- AN OWNER DECISION OUTRANKS A CONVENIENCE PATCH, EVEN IN A MERGE [measured]
+
+Master's NOW.md records float-cast refusal as an owner decision; the merge
+had silently revived acceptance (a dead refusal branch), and W914 added
+untracked aliases on top. Honoring the decision wholesale failed 39 specs the
+branch had legitimately taught; the resolution kept the branch's f32/f64
+acceptance, DROPPED the untracked aliases, normalised the two alias-using
+specs by master's own spec-fix precedent, and FLAGGED the conflict in NOW.md
+with both rationales. A merge is not just code reconciliation -- it is
+reconciliation of recorded decisions, and the flag is the honest output when
+they genuinely conflict.
+
+### T755 -- THE LANDING [measured]
+
+t27#2217 MERGED 2026-08-19T12:24:15Z: fourteen rungs, the master merge, the
+honest instrument, ratchet 221/221 CLEAN, four required checks green (two
+fixed in flight: an issue reference in the PR body, a NOW.md freshness
+entry). The frozen compiler changed through its own GOLD-RING process,
+end to end, with every certificate it demanded of itself.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

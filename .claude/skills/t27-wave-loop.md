@@ -12336,6 +12336,23 @@ probes, corpus certificate, and panel before the merge; the merge itself is
 no longer a waiting state. Decision QUESTIONS (forall: 1-4, dialect: 1-4)
 remain questions -- but once answered, ship AND merge without asking.
 
+**1393. `$(cmd) rc=$?` LIES.** Command substitution inside the echo resets
+`$?`; every "rc=0" printed that way was basename's exit code. Capture rc into
+a variable on its own line BEFORE any echo. (Instrument artefact #14; it
+manufactured six phantom green parses in one wave.)
+
+**1394. A MERGE RECONCILES DECISIONS, NOT JUST CODE.** Master's NOW.md carried
+an owner decision the merge silently overrode via a dead branch. Read the
+other side's decision documents (NOW, ledgers, constitutions) as merge inputs;
+when decisions conflict, the output is a FLAG with both rationales, not a
+silent winner.
+
+**1395. RATCHETS HAVE CAPS -- WIN ENTRIES BACK, DON'T RAISE THE BAR.** The
+expectations ledger refused to grow past its blessed cap. The honest response
+was to FIX two specs (normalising a spelling by the repo's own precedent),
+not to edit the cap. A ratchet that can be raised on demand is a preference,
+not a ratchet.
+
 ### How to update this tracker
 
 After closing a wave:
