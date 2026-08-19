@@ -28497,6 +28497,33 @@ cheaper, it is unusable. The honest pair of sentences is therefore -- above four
 bits choose on cost, and fp8 wins by being genuinely eight bits wide; at four bits
 choose on survival, and TNF4 is what survives.
 
+### T786 -- THE ALPHABET EFFECT SATURATES AT THE CONSUMER'S OWN PRECISION [measured]
+
+Completing the sweep to eighteen decoders extends T785's curve past sixteen bits
+and changes its shape:
+
+    2 bits 3.43 | 8 128.31 | 10 212.57 | 14 341.29 | 16 385.29 | 17 402.86 | 32 426.57
+
+Two to sixteen bits is 112x. Sixteen to THIRTY-TWO is 11%. The consumer slices
+twelve bits out of the decoded word, so once the alphabet's image exceeds the
+consumer's own precision there is nothing further to constant-propagate away, and
+the curve flattens against that ceiling.
+
+So the alphabet effect is a property of the PAIR (format, consumer), never of the
+format alone, and it is largest exactly in the region compact formats occupy --
+below the consumer's width. A paper quoting an alphabet advantage must therefore
+name the consumer's precision in the same sentence, because the same format shows
+a 112x advantage against a 12-bit consumer and a negligible one against a consumer
+narrow enough to be saturated by everything.
+
+**And a correction to T785, made from its own principle.** T785's frontier priced
+TNF16 through `tnf16_decode`, a 16-bit module, when TNF16's physical width is 17 --
+the naming error the theorem exists to expose, committed inside the theorem. The
+width-honest row is `tnf17_decode` at 424.86 cells. The conclusion survives and
+improves: at its TRUE width TNF16 beats binary16 (438.57), posit16 (511.00) and
+takum16 (546.00). One bit wider than binary16 and three percent cheaper -- which is
+a fair claim, unlike the one it replaces.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

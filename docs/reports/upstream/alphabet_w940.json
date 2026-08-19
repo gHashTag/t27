@@ -110,5 +110,37 @@
   "multiply_alone": 386.0,
   "r2_bare": 1.0,
   "r2_fused": 1.0
+ },
+ "takum16_decode": {
+  "alphabet_bits": 16,
+  "decoder_cells": 160.0,
+  "consumer_cells": 546.0,
+  "multiply_alone": 386.0,
+  "r2_bare": 1.0,
+  "r2_fused": 1.0
+ },
+ "tnf17_decode": {
+  "alphabet_bits": 17,
+  "decoder_cells": 22.0,
+  "consumer_cells": 424.857,
+  "multiply_alone": 402.857,
+  "r2_bare": 1.0,
+  "r2_fused": 0.999995
+ },
+ "bnf16s_decode": {
+  "alphabet_bits": 17,
+  "decoder_cells": 22.0,
+  "consumer_cells": 424.857,
+  "multiply_alone": 402.857,
+  "r2_bare": 1.0,
+  "r2_fused": 0.999995
+ },
+ "vax_f_decode": {
+  "alphabet_bits": 32,
+  "decoder_cells": 41.0,
+  "consumer_cells": 467.571,
+  "multiply_alone": 426.571,
+  "r2_bare": 1.0,
+  "r2_fused": 0.999999
  }
 }
