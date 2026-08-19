@@ -27384,6 +27384,47 @@ Remaining fixable queue, probe-identified: bare-call given clauses,
 measure/target bench pairs, one-line `invariant name : EXPR;`. The forall mass
 (~18,750 tokens, half the residue) is the ring question -- FORALL-DECISION.md.
 
+## W901 -- the panel that rewrote the rung, and the map that convicts
+
+### T744 -- EXPRESSION CLAUSES, AND THE THREE HOLES THE PANEL PUT IN v1 [measured]
+
+Rung 0007 (bare-call/comparison given-when-and clauses; keyword-form
+measure/target as named StmtExpr, never asserts) survived the full corpus
+sweep and fell to an 84-attempt adversarial panel three ways: (1) conjunction
+absorption -- two side-effect clauses folded into one `and` expression, making
+the second call CONDITIONAL on the first, under "nothing discarded";
+(2) role loss -- `and` after `then` shed its assert; (3) paren asymmetry --
+`given (x+1) == 2` died in the tuple gate while measure parsed the same value.
+v2: a line-leading `and` in clause-value mode is a clause (the operator lives
+on the line it operates on); `and` inherits Gherkin role with CONTENT WINNING
+(`and ident =` binds anywhere, without breaking the assertion chain); a failed
+tuple shape restores into an expression clause. Corpus: 34,175 discarded
+(-50% from base), 171 parse-fails, zero new, at six shipped rungs.
+
+### T744a -- THE CONVICTION STANDARD: EVERY SUSPECT REMOVED AND RE-MEASURED [measured]
+
+The W901 residual map put an INTERVENTION DUTY on every reader: delete the
+suspect in a scratch copy, re-run, report causal only if the drops vanish.
+Headline conviction: the corpus's largest discarder (coa_planning, 2,438
+tokens, bucketed "Rust-form bodies" by two generations of readers) is poisoned
+by TWO SEMICOLON-LESS top-level `const` declarations -- add `;` twice and
+every "Rust-form" drop vanishes. The bodies were innocent. Also convicted:
+colon-form measure/target AS FORMS (drops persist with trivial expressions),
+bench-colon one-liners (invariant-colon parses, bench-colon does not), the
+trailing `;` on one-line invariants (colon and `||` exonerated), block-top
+assignment statements, forall-in-clause-position. Exonerated: struct-literal
+returns, `.push()`, `if/else`, `let` -- everything the poisoned state made
+look broken.
+
+### T744b -- A RECOVERY LADDER'S MAP CONVERGES TO DECISIONS, NOT RUNGS [measured]
+
+After seven rungs the residue is 56% forall (one Architect word), 26% mapped
+grammar causes with a priced queue (0008: const poisoning ~3,600; 0009: bench
+colon forms ~700; 0010: invariant semicolons ~100), 18% dialect bodies partly
+exonerated by the const finding. The fixable-by-probe frontier is now smaller
+than the decision frontier -- the ladder's terminal state was always a set of
+QUESTIONS, and it is close.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

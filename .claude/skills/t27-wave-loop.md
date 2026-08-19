@@ -12240,6 +12240,22 @@ literal's type-Ident consumption crossed newlines with no guard, so ordinary
 clause layout fed it keywords. Any lookahead that can consume the OPENING
 token of a sibling construct needs a line rule, a follow-set test, or both.
 
+**1378. A DSL KEYWORD THAT IS ALSO AN OPERATOR NEEDS A LAYOUT RULE, NOT JUST
+A LOOKAHEAD.** The `and ident =` look caught bindings and missed every other
+and-clause, folding side-effect calls into conjunctions. The durable rule used
+the LAYOUT: a line-leading `and` in clause position is a clause. Grammar
+ambiguity between operator and keyword resolves by where the token stands.
+
+**1379. GIVE EVERY MAP-READER AN INTERVENTION DUTY.** Classification ranked
+coa_planning "Rust-form" twice; the reader ordered to DELETE the suspect and
+re-measure found two semicolon-less consts poisoning 2,438 tokens of innocent
+bodies in minutes. A fan-out that only reads produces suspects; a fan-out that
+intervenes produces convictions -- same agent count.
+
+**1380. LOWER GOALS AS GOALS.** measure/target became named StmtExpr nodes,
+NOT asserts -- a bench target is not an invariant, and inventing check
+semantics in a parser is how instruments start lying about intent.
+
 ### How to update this tracker
 
 After closing a wave:
