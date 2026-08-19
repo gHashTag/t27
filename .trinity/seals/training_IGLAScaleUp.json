@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 97,
   "gen_hash_c": "sha256:32257e7d6f428d2cd82dc2c506bbd7b2c6ade8e79c971d623889cc18f7bfdc30",
   "gen_hash_rust": "sha256:e2ade539267d69ce3a7b9ad48ced23251524c656d3aebccc4f3cff75a575c7a4",
   "gen_hash_verilog": "sha256:3fa17e7c17262a55897c756ca2b418d3cc12fcad0e433716f29f4c214c3bb49f",
   "gen_hash_zig": "sha256:6fd2b69eb11a1e537fbb568212a1659ecedd8884c36705085b9f157b1ca2ba24",
   "module": "IGLAScaleUp",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:18:52Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:eef7ff2a5ea1d0b9a6071f460170f8b0f9091199a6973402056f9af579e08c5c",
   "spec_path": "specs/igla/training/scale_up.t27"

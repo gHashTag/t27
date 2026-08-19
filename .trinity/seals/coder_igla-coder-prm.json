@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 960,
   "gen_hash_c": "sha256:1b4c99140d16f5f529d53765ff1f9edda993a70bd88f528b8b4c019fad419cc3",
   "gen_hash_rust": "sha256:276b683fcde14b2129e6446bf27fae04e755cd67e794e04142e63138e0a3da1a",
   "gen_hash_verilog": "sha256:a197f0408bacb13f8ae3e95776305f2991d5013cb3c644810e66e5b8ac448eff",
   "gen_hash_zig": "sha256:b337a665b582d3091d5d4a95f26c50dcd15c420b274091fb67f73a6cbf381d64",
   "module": "igla-coder-prm",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:58Z",
+  "sealed_at": "2026-08-19T04:18:52Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:2e96929f7fd9749f55d7ae36de5c77457fd81789fcdb79f804245c023e91af67",
   "spec_path": "specs/igla/coder/prm.t27"

@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 836,
   "gen_hash_c": "sha256:9173361218b76a69685a8ebf9a30172d8d50e9b4aa8621287dd10dd9ab55dd1c",
   "gen_hash_rust": "sha256:755d61539c5b89a2c34fd995b864609133f775d97a78aca1af1371a4cfcebe59",
   "gen_hash_verilog": "sha256:e730d81187cd5e6d3875eb9a829ff2c2496ea283783f0a95958d835493e13c06",
   "gen_hash_zig": "sha256:76d079f0a63cf6b99138951ade08818fc7deaa3a07a5420c8bedee1f3b101680",
   "module": "igla-race-gemm",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:58Z",
+  "sealed_at": "2026-08-19T04:18:52Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:11e1b69f199e7fb70f35d1046456e21c06b2111d9f5d62ea1378915385a7160b",
   "spec_path": "specs/igla/race/gemm.t27"

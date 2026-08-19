@@ -5094,6 +5094,24 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
 
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
+        // W888: a parse can reach EOF having thrown tokens away, and a seal
+        // minted from it certifies a TRUNCATED reading while verifying green --
+        // 49 of the first 165 bootstrap reseals did exactly that (43,875 tokens
+        // discarded under valid-looking certificates). The certificate now
+        // carries the number, so honesty does not depend on anyone re-running
+        // parse-complete.
+        let discarded = compiler::Compiler::parse_ast_accounted(
+            &fs::read_to_string(&hashes.spec_path).unwrap_or_default(),
+        )
+        .map(|(_, n)| n)
+        .unwrap_or(0);
+        if discarded > 0 {
+            eprintln!(
+                "warning: parser DISCARDED {discarded} top-level token(s) of {} -- \
+                 the seal records this; the certificate covers what was read, not the file",
+                hashes.spec_path
+            );
+        }
         let seal_obj = serde_json::json!({
             "module": hashes.module,
             "spec_path": hashes.spec_path,
@@ -5111,6 +5129,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
+            "discarded_top_level_tokens": discarded,
             "ring": 12
         });
 

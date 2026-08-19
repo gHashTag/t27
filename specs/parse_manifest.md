@@ -1,0 +1,338 @@
+# Parse manifest — why each non-parsing or truncated file is that way
+
+Generated W888 from `parse_baseline.txt` + `t27c parse-complete`. Three tiers:
+clean (314), parse-with-DISCARD (137 files, 67,760 tokens), fail (173).
+A file moving between tiers should be a deliberate act, not drift.
+
+## Tier: fails to parse (173)
+
+### document (prose body) — 81
+- specs/api/c_api_contract.t27
+- specs/api/sdk_contract.t27
+- specs/api/tri_net_api.t27
+- specs/ar/datalog_engine.t27
+- specs/ar/proof_trace.t27
+- specs/ar/ternary_logic.t27
+- specs/base/ternary_add.t27
+- specs/base/types.t27
+- specs/benchmarks/bench_main.t27
+- specs/benchmarks/bench_nn.t27
+- specs/benchmarks/gf16_bfloat16_nmse.t27
+- specs/benchmarks/ternary_vs_binary.t27
+- specs/brain/brain.t27
+- specs/brain/neural_gamma.t27
+- specs/bus/pubsub.t27
+- specs/compiler/linker.t27
+- specs/compiler/optimizer.t27
+- specs/compiler/parser.t27
+- specs/compiler/typechecker.t27
+- specs/config/load.t27
+- specs/config/migrate.t27
+- specs/config/paths.t27
+- specs/conformance/e2e_scenarios.t27
+- specs/file/schema.t27
+- specs/fpga/fifo.t27
+- specs/fpga/partition.t27
+- specs/fpga/power_analysis.t27
+- specs/fpga/spi.t27
+- specs/fpga/testbench/mac_tb.t27
+- specs/fpga/testbench/power_analysis_tb.t27
+- specs/fpga/testbench/uart_tb.t27
+- specs/fpga/testbench/vcd_conformance_compare_tb.t27
+- specs/fpga/vcd_conformance_compare.t27
+- specs/igla/coder/weights.t27
+- specs/interop/gf_cross_language.t27
+- specs/isa/ternary_hash.t27
+- specs/isa/ternary_pattern_matching.t27
+- specs/isa/ternary_search.t27
+- specs/isa/ternary_set.t27
+- specs/isa/ternary_sorting.t27
+- specs/jit/jit.t27
+- specs/lsp/language.t27
+- specs/math/constants.t27
+- specs/math/gf_competitive.t27
+- specs/math/phi_universal_attractor.t27
+- specs/math/radix_economy.t27
+- specs/memory/formula_embed.t27
+- specs/memory/semantic_search.t27
+- specs/ml/transformer/multi_head_attn.t27
+- specs/neural/forward_pass.t27
+- specs/numeric/gf16.t27
+- specs/numeric/tf3.t27
+- specs/physics/chimera_best_gamma.t27
+- specs/physics/e8_lqg_bridge.t27
+- specs/physics/hslm_benchmark.t27
+- specs/physics/quantum.t27
+- specs/physics/sacred_verification.t27
+- specs/pipeline/benchmarks.t27
+- specs/pipeline/e2e_test.t27
+- specs/provider/adapters.t27
+- specs/provider/schema.t27
+- specs/runtime/instance.t27
+- specs/runtime/process.t27
+- specs/sandbox/https_enforce.t27
+- specs/sandbox/orphan_detection.t27
+- specs/sandbox/session_timeout.t27
+- specs/server/project.t27
+- specs/server/provider.t27
+- specs/server/router.t27
+- specs/server/routes.t27
+- specs/server/session.t27
+- specs/server/sse.t27
+- specs/server/vm.t27
+- specs/shell/schema.t27
+- specs/sync/index.t27
+- specs/ternary/hybrid_arithmetic.t27
+- specs/ternary/hybrid_bigint.t27
+- specs/test_framework/graph_drift_detection.t27
+- specs/test_framework/verilog_bench_harness.t27
+- specs/tools/registry.t27
+- specs/tools/schema.t27
+
+### document (no failing line) — 38
+- specs/account/repo.t27
+- specs/account/schema.t27
+- specs/auth/config.t27
+- specs/base/ternary_encoding.t27
+- specs/base/ternary_memory.t27
+- specs/file/watcher.t27
+- specs/fpga/formal.t27
+- specs/fpga/linker.t27
+- specs/fpga/vcd_trace.t27
+- specs/graph/knowledge_graph.t27
+- specs/hslm/forward_pass.t27
+- specs/isa/ternary_arithmetic.t27
+- specs/isa/ternary_bitwise.t27
+- specs/isa/ternary_deque.t27
+- specs/isa/ternary_gates.t27
+- specs/isa/ternary_shift.t27
+- specs/ml/transformer/feed_forward.t27
+- specs/ml/transformer/positional_enc.t27
+- specs/numeric/bigint.t27
+- specs/numeric/formats.t27
+- specs/physics/gamma-conflict.t27
+- specs/physics/lqg_cs_bridge.t27
+- specs/physics/p2_brain_physics.t27
+- specs/pins/ir.t27
+- specs/pins/parser.t27
+- specs/runtime/execute.t27
+- specs/sandbox/health.t27
+- specs/sandbox/modules.t27
+- specs/shell/process.t27
+- specs/storage/kv.t27
+- specs/ternary/packed_trit.t27
+- specs/test_framework/core.t27
+- specs/test_framework/property_test_template.t27
+- specs/tri/collections/bitset.t27
+- specs/tri/graph/graph.t27
+- specs/vm/jit_semantics.t27
+- specs/vsa/packed_vsa.t27
+- specs/vsa/sequence_hdc.t27
+
+### generic library (no consumers -- see GENERICS.md) — 27
+- specs/tri/collections/array.t27
+- specs/tri/collections/btree.t27
+- specs/tri/collections/either.t27
+- specs/tri/collections/list.t27
+- specs/tri/collections/lru.t27
+- specs/tri/collections/map.t27
+- specs/tri/collections/maybe.t27
+- specs/tri/collections/option.t27
+- specs/tri/collections/queue.t27
+- specs/tri/collections/result.t27
+- specs/tri/collections/ring_buffer.t27
+- specs/tri/collections/set.t27
+- specs/tri/collections/skip_list.t27
+- specs/tri/collections/stack.t27
+- specs/tri/collections/state.t27
+- specs/tri/collections/tuple.t27
+- specs/tri/collections/variant.t27
+- specs/tri/io/io.t27
+- specs/tri/io/reader.t27
+- specs/tri/io/writer.t27
+- specs/tri/io/zip.t27
+- specs/tri/net/async.t27
+- specs/tri/net/async_stream.t27
+- specs/tri/net/channel.t27
+- specs/tri/pipeline/builder.t27
+- specs/tri/trees/tree.t27
+- specs/tri/trees/trie.t27
+
+### Rust-form dialect — 12
+- specs/ar/asp_solver.t27
+- specs/ar/composition.t27
+- specs/ar/explainability.t27
+- specs/numeric/gf12.t27
+- specs/numeric/gf20.t27
+- specs/numeric/gf24.t27
+- specs/numeric/gf32.t27
+- specs/numeric/gf8.t27
+- specs/numeric/phi_ratio.t27
+- specs/physics/formula_discovery.t27
+- specs/test_framework/runner.t27
+- specs/vsa/jones_polynomial.t27
+
+### namespaced module — 9
+- specs/automation/wrapup-auto.t27
+- specs/enrichment/audio_overview.t27
+- specs/enrichment/youtube_transcript.t27
+- specs/github/auth.t27
+- specs/github/comments.t27
+- specs/github/issues.t27
+- specs/github/prs.t27
+- specs/github/tests/e2e_full_flow.t27
+- specs/portable/relay_observer.t27
+
+### design-card (algorithm DSL) — 3
+- specs/isa/ternary_encoding.t27
+- specs/nn/phi_rope.t27
+- specs/nn/sacred_attention.t27
+
+### capture variant — 3
+- specs/numeric/goldenfloat_family.t27
+- specs/ternary/bigint.t27
+- specs/vsa/vsa_core.t27
+
+## Tier: parses but DISCARDS top-level tokens (137)
+
+The parse reaches EOF having thrown tokens away; a seal minted from it
+certifies the READ PART only (each such seal now carries
+`discarded_top_level_tokens`). Worst offenders:
+
+-  5913 tokens  specs/igla/race/systolic_ternary.t27
+-  3209 tokens  specs/igla/race/cordic_top.t27
+-  3160 tokens  specs/vsa/ops.t27
+-  2438 tokens  specs/ar/coa_planning.t27
+-  2234 tokens  specs/ml/optimizer/adamw.t27
+-  2004 tokens  specs/igla/race/ternary_gemm.t27
+-  1847 tokens  specs/igla/race/cordic.t27
+-  1812 tokens  specs/igla/race/ternary_inference.t27
+-  1657 tokens  specs/math/property_test_template.t27
+-  1421 tokens  specs/fpga/mac.t27
+-  1396 tokens  specs/ml/transformer/norm.t27
+-  1353 tokens  specs/fpga/stdlib.t27
+-  1293 tokens  specs/igla/coder/arch.t27
+-  1225 tokens  specs/nn/attention.t27
+-  1213 tokens  specs/ar/restraint.t27
+-  1199 tokens  specs/igla/race/bram_weights.t27
+-  1183 tokens  specs/igla/race/systolic_array.t27
+-  1167 tokens  specs/isa/ternary_memory.t27
+-  1155 tokens  specs/igla/race/adder_tree.t27
+-  1034 tokens  specs/vsa/sdk.t27
+-  1031 tokens  specs/vsa/similarity_search.t27
+-  1012 tokens  specs/igla/coder/_tmp_pipeline_import.t27
+-  1012 tokens  specs/igla/coder/pipeline.t27
+-   963 tokens  specs/igla/race/ternary_mac.t27
+-   960 tokens  specs/igla/coder/prm.t27
+-   918 tokens  specs/ml/optimizer/sgd_momentum.t27
+-   911 tokens  specs/igla/race/rtl.t27
+-   876 tokens  specs/igla/coder/bench_proxy.t27
+-   851 tokens  specs/ml/transformer/mha_block.t27
+-   836 tokens  specs/igla/race/gemm.t27
+-   833 tokens  specs/igla/coder/eval.t27
+-   807 tokens  specs/memory/notebooklm.t27
+-   765 tokens  specs/nn/hslm.t27
+-   751 tokens  specs/igla/coder/training.t27
+-   748 tokens  specs/queen/brain_summaries.t27
+-   746 tokens  specs/igla/coder/tokenizer.t27
+-   719 tokens  specs/nn/gla.t27
+-   711 tokens  specs/queen/lotus.t27
+-   700 tokens  specs/igla/race/eda.t27
+-   694 tokens  specs/igla/coder/dataset.t27
+-   690 tokens  specs/isa/registers.t27
+-   675 tokens  specs/igla/race/backend.t27
+-   655 tokens  specs/igla/race/yosys.t27
+-   604 tokens  specs/igla/race/opcodes.t27
+-   576 tokens  specs/igla/race/ternary_dot_sw.t27
+-   551 tokens  specs/igla/coder/benchmark.t27
+-   539 tokens  specs/igla/race/formal.t27
+-   517 tokens  specs/fpga/hir.t27
+-   515 tokens  specs/demos/jones_topology_decision_gate.t27
+-   414 tokens  specs/isa/ternary_control_flow.t27
+-   369 tokens  specs/demos/jones_topology_filter.t27
+-   349 tokens  specs/math/phi_split_optimality.t27
+-   332 tokens  specs/physics/gamma_conjecture.t27
+-   329 tokens  specs/fpga/bridge.t27
+-   310 tokens  specs/math/sacred_physics.t27
+-   293 tokens  specs/fpga/memory.t27
+-   264 tokens  specs/numeric/gf4.t27
+-   259 tokens  specs/ml/optimizer/lr_scheduler.t27
+-   245 tokens  specs/igla/race/cordic_fixed.t27
+-   226 tokens  specs/fpga/top_level.t27
+-   209 tokens  specs/numeric/lucas_accumulator.t27
+-   198 tokens  specs/pins/emitter_xdc.t27
+-   197 tokens  specs/ml/igla_champion_capsule.t27
+-   164 tokens  specs/fpga/uart.t27
+-   161 tokens  specs/numeric/posit_ladder_control.t27
+-   160 tokens  specs/fpga/bootrom.t27
+-   148 tokens  specs/boards/xc7a100t_full.t27
+-   147 tokens  specs/math/e8_lie_algebra.t27
+-   144 tokens  specs/boards/xc7a100t_minimal.t27
+-   141 tokens  specs/physics/su2_chern_simons.t27
+-   141 tokens  specs/tools/tri_to_t27_converter.t27
+-   133 tokens  specs/igla/evaluation/multi_lang_harness.t27
+-   129 tokens  specs/igla/training/roadmap.t27
+-   120 tokens  specs/math/pellis_precision_verify.t27
+-   112 tokens  specs/igla/integration/publication.t27
+-   109 tokens  specs/igla/training/pilot_pretraining.t27
+-   108 tokens  specs/fpga/timing.t27
+-   103 tokens  specs/ml/optimizer/race_config.t27
+-    99 tokens  specs/fpga/placement.t27
+-    97 tokens  specs/igla/training/low_bit_ternary.t27
+-    97 tokens  specs/igla/training/scale_up.t27
+-    96 tokens  specs/math/zamolodchikov_e8.t27
+-    94 tokens  specs/fpga/clock_domain.t27
+-    93 tokens  specs/physics/gi1_analysis.t27
+-    92 tokens  specs/boards/arty_a7.t27
+-    88 tokens  specs/fpga/testbench/top_tb.t27
+-    68 tokens  specs/igla/race/ternary_mac_group.t27
+-    48 tokens  specs/fpga/gf16_accel.t27
+-    48 tokens  specs/igla/race/ternary_lut_table.t27
+-    40 tokens  specs/fpga/crossopt.t27
+-    39 tokens  specs/fpga/boards/arty_a7_integration.t27
+-    34 tokens  specs/fpga/axi4.t27
+-    33 tokens  specs/physics/zamolodchikov_4d_conjecture.t27
+-    30 tokens  specs/compiler/pipeline.t27
+-    28 tokens  specs/physics/pellis-formulas.t27
+-    24 tokens  specs/fpga/bpsk.t27
+-    24 tokens  specs/fpga/router.t27
+-    24 tokens  specs/fpga/ternary_isa.t27
+-    23 tokens  specs/fpga/hw_types.t27
+-    22 tokens  specs/fpga/cts.t27
+-    21 tokens  specs/fpga/power.t27
+-    19 tokens  specs/fpga/boards/qmtech_a100t_integration.t27
+-    18 tokens  specs/fpga/apb_bridge.t27
+-    18 tokens  specs/fpga/assembler.t27
+-    18 tokens  specs/fpga/testbench/axi4_tb.t27
+-    18 tokens  specs/numeric/gf64.t27
+-    17 tokens  specs/boards/wukong_v1.t27
+-    16 tokens  specs/fpga/simulator.t27
+-    15 tokens  specs/fpga/e2e_demo.t27
+-    15 tokens  specs/fpga/verification/build_verify.t27
+-    15 tokens  specs/numeric/e8m0.t27
+-    14 tokens  specs/fpga/testbench/placement_tb.t27
+-    14 tokens  specs/fpga/testbench/power_tb.t27
+-    14 tokens  specs/fpga/testbench/ternary_isa_tb.t27
+-    13 tokens  specs/fpga/dft.t27
+-    13 tokens  specs/fpga/testbench.t27
+-    10 tokens  specs/fpga/testbench/apb_bridge_tb.t27
+-    10 tokens  specs/fpga/testbench/assembler_tb.t27
+-    10 tokens  specs/fpga/testbench/bridge_tb.t27
+-    10 tokens  specs/fpga/testbench/cts_tb.t27
+-    10 tokens  specs/fpga/testbench/dft_tb.t27
+-    10 tokens  specs/fpga/testbench/fifo_tb.t27
+-    10 tokens  specs/fpga/testbench/formal_tb.t27
+-    10 tokens  specs/fpga/testbench/hir_tb.t27
+-    10 tokens  specs/fpga/testbench/partition_tb.t27
+-    10 tokens  specs/fpga/testbench/router_tb.t27
+-    10 tokens  specs/fpga/testbench/timing_tb.t27
+-    10 tokens  specs/fpga/testbench/vcd_trace_tb.t27
+-     8 tokens  specs/fpga/testbench/spi_tb.t27
+-     5 tokens  specs/fpga/testbench/bootrom_tb.t27
+-     5 tokens  specs/fpga/testbench/clock_domain_tb.t27
+-     5 tokens  specs/fpga/testbench/gf16_accel_tb.t27
+-     5 tokens  specs/fpga/testbench/integration_tb.t27
+-     5 tokens  specs/fpga/testbench/linker_tb.t27
+-     5 tokens  specs/fpga/testbench/memory_tb.t27
+-     5 tokens  specs/fpga/testbench/simulator_tb.t27
+-     5 tokens  specs/fpga/testbench/stdlib_tb.t27

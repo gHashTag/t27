@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 1657,
   "gen_hash_c": "sha256:60bb9851aea69580c279cf9c1c20b84000244b0ac13b226dc37c2ea795696888",
   "gen_hash_rust": "sha256:6277d818ef1724bd3c25c5a3bc728cd3acad6403f4a7bf2804bf6db78826de93",
   "gen_hash_verilog": "sha256:a1bb2f8af87521a60ebe1282622b3ed32f770f000202dd8d70354994671442b4",
   "gen_hash_zig": "sha256:21076c98b2fff35e90ebdd7a1db1efd7138a19c3b99ace2d72e036c3b9fe263c",
   "module": "PropertyTestTemplate",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:18:52Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ab6e8c022ffb7bc5a4123ef9df4975ec2063fd92b2b61aa2176c6035378d831b",
   "spec_path": "specs/math/property_test_template.t27"
