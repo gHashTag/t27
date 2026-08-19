@@ -12367,6 +12367,14 @@ zero: a hard floor (>=2 GB) is an invariant, not a preference.
 dumps" freed 4 MB and left 8 GB of regenerable build trees standing. A cleanup
 report names BYTES FREED and BYTES REMAINING by category, or it is a mood.
 
+**1399. A CATCH-ALL STATUS IS A EUPHEMISM UNLESS IT SHIPS ITS EVIDENCE.**
+"routing-pending" absorbed constraint errors, crashes and timeouts alongside
+genuine fabric limits, and pending arms uploaded no logs -- so the smallest
+adder in the sweep "hit a fabric limit". When a pipeline folds failures into
+one status, the artefact must carry the first error line and the raw log, or
+every diagnosis starts from zero. (Found in the upstream sweep; the same hole
+was already copied into my own day-old instrument.)
+
 ### How to update this tracker
 
 After closing a wave:

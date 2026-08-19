@@ -27773,6 +27773,22 @@ comparison was unfair"), so the sixteen untraced values are best read as the
 PRE-correction run. The instrument will say which series CI lands nearer --
 and that answer is informative about the paper either way.
 
+## W922 -- e2m1 cannot be a fabric limit
+
+### T760 -- A STATUS THAT ABSORBS EVERY FAILURE MODE EXPLAINS NONE [measured]
+
+Run 3 marked the five SMALLEST sweep arms routing-pending -- including e2m1,
+a near-empty adder no fabric limit can reject. The status was designed for
+honest fabric limits ("not a zero, not a defect") but absorbed every nextpnr
+failure -- constraint mismatch, crash, OOM, timeout -- because pending arms
+recorded no reason and uploaded no log: the diagnosis-blocking pattern of
+T757's capture-file, one layer up. Both sweeps now write the first error line
+into the pnr artefact and ship the log for pending arms; the format sweep
+also gains the --xdc it never had (a defect this rule caught in MY
+one-wave-old instrument before its first pnr ran). Wave-loop law: any
+catch-all status must carry the evidence that DISCRIMINATES its causes, or
+it is a euphemism.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
