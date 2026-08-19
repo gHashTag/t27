@@ -516,3 +516,38 @@ four withdrawals, and what no measurement here can settle.
 **Readiness 63 % → 68 %.** The frontier is closed at every rung with verified
 decoders, the one real advantage is isolated and quantified, and the project now
 ships a single page a referee can audit against committed records.
+
+
+## 17. W943 — the advantage is conditional on not retraining
+
+Landed as **tf#646**. Two experiments aimed at this project's own best result.
+
+| setting | TNF4 − fp4 e2m1 | SE | t | seeds |
+|---|---:|---:|---:|---:|
+| MLP, PTQ, MNIST | +37.88 | 3.07 | 12.4 | 5/5 |
+| MLP, PTQ, Fashion | +64.42 | 2.61 | 24.7 | 5/5 |
+| CNN, PTQ, MNIST | +12.98 | 6.11 | 2.1 | 5/5 |
+| CNN, PTQ, Fashion | +24.90 | 5.10 | 4.9 | 5/5 |
+| **MLP, QAT, MNIST** | **+0.19** | 0.03 | 6.5 | 5/5 |
+| **MLP, QAT, Fashion** | **+0.89** | 0.20 | 4.6 | 5/5 |
+
+**QAT closes the gap 44× on MNIST and 31× on Fashion** (T790). The advantage stays
+positive, 5/5 and significant — the variances collapse with the means — but changes
+category. The claim is now conditional and more useful:
+
+> For a fixed model that cannot be retrained, the coarse grid costs **13–65 points**.
+> Where retraining is available, it costs **under one**.
+
+On convolutions the fp4 collapse is **smaller and far more variable** (−13.13 ±
+13.66 and −25.21 ± 11.31), consistent with a per-tensor scale spanning fewer
+magnitudes per filter. **The 8-bit null survives convolutions too** — three formats
+within 0.03 pp — and has now held across MLP and CNN, weights-only and
+weights+activations, two tasks, two sizes and five seeds.
+
+**Branch C (hardware) is blocked locally:** the Docker daemon does not respond, so
+no bitstream can be built on this machine; the three attached boards remain
+unmeasured.
+
+**Readiness 68 % → 71 %.** Up for two architectures, two training modes and a null
+that has survived every attempt to break it; not further, because the headline
+narrowed and the hardware axis is still empty.

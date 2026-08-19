@@ -1,4 +1,15 @@
-# Full status, both tracks — one page for whoever wakes up (W942, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W943, 2026-08-20)
+
+> **W943 — THE ADVANTAGE IS CONDITIONAL ON NOT RETRAINING.** Training through the
+> quantiser closes the 4-bit gap **44×**: TNF4 − fp4 falls from **+37.88 → +0.19 pp**
+> (MNIST) and **+64.42 → +0.89** (Fashion). Still positive, still 5/5 seeds, still
+> significant — but it changes category. The claim is now conditional: **13–65
+> points for a fixed model that cannot be retrained, under one point where
+> retraining is available.** On a CNN the collapse is smaller and unstable
+> (−13.13 ± 13.66, −25.21 ± 11.31); **the 8-bit null survives convolutions too**.
+> Landed as **tf#646**. Hardware branch blocked: the Docker daemon does not
+> respond, so no bitstream builds here. **Readiness 68 % → 71 %.** Theorem T790;
+> lesson 1422.
 
 > **W942 — THE FRONTIER IS CLOSED, AND THE ADVANTAGE IS AT ONE RUNG.** Structural
 > decoders generated from each format object and verified against the oracle over
