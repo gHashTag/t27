@@ -28633,6 +28633,42 @@ Method note, measured rather than declared: truth-table and structural decoders
 differ by under 8% and NOT in one direction -- the table flattered TNF4 by 7.2% and
 penalised TNF8 by 3.8%. Neither the 2.76x nor the 1.71x is inside that band.
 
+### T790 -- A FORMAT ADVANTAGE MEASURED WITHOUT RETRAINING IS AN ADVANTAGE ABOUT RETRAINING [measured]
+
+The project's best result -- TNF4 holding accuracy where fp4 e2m1 collapses -- was
+measured entirely under post-training quantisation. Training through the quantiser
+with a straight-through estimator, same seeds, same architecture, same tasks:
+
+    setting               TNF4 - fp4 e2m1     SE      t     seeds
+    MLP  PTQ  MNIST            +37.88        3.07   12.4     5/5
+    MLP  PTQ  Fashion          +64.42        2.61   24.7     5/5
+    CNN  PTQ  MNIST            +12.98        6.11    2.1     5/5
+    CNN  PTQ  Fashion          +24.90        5.10    4.9     5/5
+    MLP  QAT  MNIST             +0.19        0.03    6.5     5/5
+    MLP  QAT  Fashion           +0.89        0.20    4.6     5/5
+
+QAT closes the gap by 44x on MNIST and 31x on Fashion. The advantage stays
+positive, stays significant (the variances collapse with the means, so t remains 6.5
+and 4.6) and stays 5/5 -- but it changes category, from "the only format that works"
+to "a fraction of a point".
+
+The honest statement is therefore conditional on the deployment: for a fixed model
+that cannot be retrained the coarse grid costs 13 to 65 points, and where retraining
+is available it costs under one. A format comparison that reports only the PTQ
+number is reporting the cost of NOT retraining, and attributing it to the number
+system.
+
+The general form: whenever an intervention is applied to a system that could have
+adapted to it, measure both -- adapted and unadapted -- because the difference
+between those two IS the claim, and reporting one of them alone silently picks a
+deployment story for the reader.
+
+Two corroborations from the same wave. On convolutions the fp4 collapse is smaller
+(13-25 pp) and far more variable (sigma 11-14 against 3-7), consistent with a
+per-tensor scale spanning fewer magnitudes per filter. And the eight-bit null now
+holds across MLP and CNN, weights-only and weights-plus-activations, two tasks, two
+sizes and five seeds -- a null that has survived every experiment built to break it.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
