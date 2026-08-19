@@ -27813,6 +27813,25 @@ error grep reads clean. Rules: exclude self-check families by NAME
 (tb_*, tw_*), match ERROR anywhere in the line, and require the OUTPUT FILE
 to exist -- three independent tripwires for one failure class.
 
+## W927 -- the gate is measured
+
+### T762 -- FROM "UNSOURCED" TO MEASURED-WITH-TWO-EXCEPTIONS IN FIVE INSTRUMENT ITERATIONS [measured]
+
+Run 32263875250 routed ALL 19 tnet tracts -- the first post-route rows G8
+ever had -- and 14 of 15 instrumented published frequencies reproduce at
+0.90-1.32x, inside the toolchain's own audited seed band; binary16 lands at
+1.00x exactly. The two exceptions are NAMED, not vague: LNS16 does not
+reproduce (1.46x, and the published 43.04 has no in-tree record -- the CI
+row is now the only sourced number), and plastic-16bit was never in this
+experiment. The path there took five iterations in ~six hours: missing
+generator -> wrong experiment -> euphemism status -> self-executing glob +
+blind grep -> measurement. Every iteration was driven by reading ONE
+artefact, and no iteration could have been skipped: each produced the
+evidence the next one needed. Also: the W920 map's "no hex32 harness" claim
+was WRONG (s_ibmhfp.v existed and routed) -- corrected in the verdict, the
+arc's second self-falsified claim in two days, caught the same way it was
+made: by an instrument, not an argument.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
