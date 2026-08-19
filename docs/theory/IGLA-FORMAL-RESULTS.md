@@ -27168,6 +27168,37 @@ recovers the siblings even where a clause stays unsupported. **Granularity of
 recovery is a design choice with a measurable cost, and the default (drop the
 enclosing unit) is usually the expensive one.**
 
+## W895 -- the ladder pushed upstream, and the 0004 map re-ranks the remainder
+
+### T738 -- THE RING BRANCH CARRIES THE WHOLE LADDER [measured]
+
+0003 committed and pushed to #2217's branch with its probes; the PR comment
+carries the three-rung table (SSOT unblocked -> SSOT seals -> worst file -73%,
+corpus -14%, zero regressions each rung). The Architect reviews a ladder, not a
+patch pile.
+
+### T738a -- WHAT STILL FALLS IS MOSTLY BLOCKS, NOT EXPRESSIONS [measured]
+
+The 0004 catalog over the 58,187 remaining tokens:
+
+    forall        777 lines    a whole quantified-test idiom
+    invariant     598 lines    L4'S OWN KEYWORD, silently discarded
+    measure/target 296 lines   bench blocks, also L4-mandated
+    assert+call  1,463 lines   cause NOT probed -- flagged, not guessed
+    array/struct/field/multi-binding/:: -- the long tail, each with an example
+
+**598 dropped invariant lines is the tests' disease one keyword over**: the law
+mandates test/invariant/bench, and two of the three mandated block kinds leak.
+The expression-grammar guess from W894 ranked fourth at best -- the probe
+catalog re-ranked the work again, third time a measured map has overturned a
+plausible next-step.
+
+### T738b -- THE UNPROBED ROW IS MARKED AS THE DANGEROUS ONE [derived]
+
+1,463 assert-with-call lines share no verified cause. The map says so instead of
+guessing -- the wrong guess there costs more than everywhere else combined, and
+the ladder's rule (one probe file before any code) exists precisely for that row.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -12176,6 +12176,15 @@ expensive granularity.
 have an identified probe-confirmed cause (expression grammar inside clauses),
 so 0004 starts from a file, not from a mystery.
 
+**1365. RE-RANK AFTER EVERY RUNG.** The plausible next cause (expressions)
+ranked fourth once measured; blocks (forall/invariant/bench) dominate. Three
+times now a measured map has overturned the obvious next step -- catalog before
+climbing.
+
+**1366. MARK THE UNPROBED ROW AS THE DANGEROUS ONE.** 1,463 lines share an
+unverified cause; the map flags it instead of guessing. The most expensive wrong
+guess lives in the biggest unexplained bucket.
+
 ### How to update this tracker
 
 After closing a wave:
