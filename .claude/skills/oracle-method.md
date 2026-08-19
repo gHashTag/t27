@@ -88,3 +88,62 @@ on divergence, per-column mode for multi-record tables), `t27c battery` (run
 every oracle and gate with per-script exit codes — never read `rc=$?` after a
 pipeline), `t27c editcheck`, `t27c recompute-diff --label` (whole-file mode is a
 false-pass generator).
+
+
+---
+
+# Part II — certificates and stores (learned bringing the method home, W878–W890)
+
+## A certificate answers four questions
+
+Who minted it (`sealed_by`), from which text (`spec_hash`), what came out of each
+backend (`gen_hash_*`), and **how much of the file the parse silently skipped**
+(`discarded_top_level_tokens`). A green light answering fewer is a mood, not a
+verdict. Paid for by: 49 of my own reseals certifying truncated readings — the
+parser reached EOF having thrown 43,875 tokens away, 55 % of them tests.
+
+## Truncation is vacuity's subtler sibling
+
+Vacuity certifies nothing; truncation certifies less than it looks like. Both
+belong INSIDE the certificate, not in a report someone must remember to run.
+Reaching EOF is not reading everything — use the accounted parse, and read what
+was dropped line by line (`parse-complete --show`): the content class matters
+(here it was the L4-mandated tests).
+
+## Ratchets, not always-red gates
+
+A gate that is permanently red is ignored; a defect class with a standing backlog
+goes behind `--strict` or a baseline, and the ratchet bites only on GROWTH:
+parse regressions (`classify --baseline`), seal staleness, truncation growth.
+Refresh on recovery is a prompt, never an error.
+
+## Stores are stratigraphies
+
+One store minted by two compilers reports their grammar gap as data rot unless
+the minter is recorded. Verify strata separately (bootstrap layer 165/165; meta
+layer 11/100 — one blended number would have said "mostly broken" and meant
+nothing). Two independent instruments agreeing on one boundary is the check:
+reseal-guard refusals ≡ parse-baseline failures, 234 = 234.
+
+## Freezes, prototypes, and scope
+
+Validate a frozen-file patch in a detached copy (update the copy's FROZEN_HASH;
+a failed build's leftover binary is a false-positive factory). One grammar change
+per ring proposal. A soundness check's scope is the scope the transform crosses —
+the capture check that asked "is it module-level?" rejected the SSOT for an
+imported constant. And measure a feature's CONSUMPTION before designing it:
+33 generic types, zero concrete instantiations — the question dissolved.
+
+## Insure content before debating containers
+
+1,766 scenarios extracted into a transfer checklist BEFORE the
+grammar-vs-migration debate. The reverse order loses content exactly when the
+debate drags.
+
+## Instrument artefacts — the standing tax
+
+Nine in one session: substring containment (thrice), sha-prefix, case-insensitive
+glob, API pagination, parallel starvation read as regression, wrong-scope checks,
+synthetic-repro generalisation. One cure every time: **read one raw case before
+believing any count.** A timeout under load is a fact about the load; UTC stamps
+sit on yesterday's local date; `rc=$?` after a pipeline is the tail's status.
