@@ -3961,6 +3961,21 @@ impl Parser {
 
     /// Parse primary expressions
     fn parse_expr_primary(&mut self) -> Result<Node, String> {
+        // W906 (0013): `var` as a NAME inside clause values -- the binding
+        // `given var = 5` lowers, but `then var == 5` died on KwVar in operand
+        // position. In clause-value mode only, a var/const keyword NOT opening
+        // a declaration (no `Ident =`/`Ident :` after it) reads as an
+        // identifier.
+        if self.in_bdd_clause_value
+            && matches!(self.current.kind, TokenKind::KwVar | TokenKind::KwConst)
+            && !(self.peek.kind == TokenKind::Ident)
+        {
+            let name = self.current.lexeme.clone();
+            self.advance();
+            let mut node = Node::new(NodeKind::ExprIdentifier);
+            node.name = name;
+            return Ok(node);
+        }
         match self.current.kind {
             // Number literal
             TokenKind::Number => {
@@ -4187,10 +4202,18 @@ impl Parser {
                 } else {
                     String::new()
                 };
-            } else if self.current.kind == TokenKind::Ident {
-                // Allow field = expr without dot prefix
+            } else if self.current.kind == TokenKind::Ident
+                || (self.current.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                    && !self.current.lexeme.is_empty()
+                    && (self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon))
+            {
+                // Allow field = expr without dot prefix.
+                // W906 (0013): a KEYWORD as a field label -- `Contract { ...,
+                // invariant: "..." }` -- broke out of this loop and the whole
+                // block fell. Any word-shaped token followed by `=`/`:` is a
+                // field label here; `invariant` the keyword never appears in
+                // that position otherwise.
                 let n = self.current.lexeme.clone();
-                // Peek: only treat as field init if followed by '=' or ':'
                 if self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon {
                     field_name = n;
                     self.advance(); // consume field name
@@ -4934,6 +4957,22 @@ impl Parser {
                             let mut stmt = Node::new(NodeKind::StmtExpr);
                             stmt.name = clause.clone();
                             stmt.children.push(expr);
+                            // W906 (0013): a UNIT PHRASE after the bound --
+                            // `target throughput > 1000 steps/sec` -- left
+                            // `steps/sec` as junk that felled the block. The
+                            // same-line residue is captured verbatim into the
+                            // node's value, like the colon form's prose.
+                            let mut unit = String::new();
+                            while self.current.kind != TokenKind::Eof
+                                && self.current.line == self.last_line
+                            {
+                                if !unit.is_empty() {
+                                    unit.push(' ');
+                                }
+                                unit.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
+                            stmt.value = unit;
                             block.children.push(stmt);
                             true
                         }
@@ -5017,6 +5056,30 @@ impl Parser {
                             Err(_) => false,
                         }
                     }
+                } else if matches!(
+                    self.current.kind,
+                    TokenKind::KwVar | TokenKind::KwConst
+                ) && self.peek.kind == TokenKind::Equals
+                {
+                    // W906 (0013): `given var = 5` -- `var` as a binding NAME.
+                    // The keyword collision felled the block; a keyword
+                    // directly before `=` in a binding clause is a name.
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    self.advance();
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    match r {
+                        Ok(expr) => {
+                            let mut decl = Node::new(NodeKind::StmtLocal);
+                            decl.name = name;
+                            decl.children.push(expr);
+                            block.children.push(decl);
+                            true
+                        }
+                        Err(_) => false,
+                    }
                 } else if self.current.kind != TokenKind::Ident {
                     false
                 } else {
@@ -5030,6 +5093,60 @@ impl Parser {
                     self.advance();
                     if self.current.kind != TokenKind::Equals {
                         self.restore_state(bind_look);
+                        // W906 (0013): a DOTTED/INDEXED LVALUE step --
+                        // `and state.gamma[0] = 2.0`, `when buffers.scores[0..4]
+                        // = scores` -- is an assignment, not an expression; the
+                        // expression path parsed the lvalue, stopped on `=`,
+                        // and the over-consumption guard felled the block.
+                        // Parse the lvalue, and if the cursor lands on a plain
+                        // `=`, lower the clause as StmtAssign.
+                        if self.current.kind == TokenKind::Ident
+                            && (self.peek.kind == TokenKind::Dot
+                                || self.peek.kind == TokenKind::LBracket)
+                        {
+                            let lv_look = self.save_state();
+                            self.in_bdd_clause_value = true;
+                            let lv = self.parse_expr();
+                            self.in_bdd_clause_value = false;
+                            let mut done = false;
+                            if let Ok(lhs) = lv {
+                                if self.current.kind == TokenKind::Equals {
+                                    self.advance();
+                                    self.in_bdd_clause_value = true;
+                                    let rv = self.parse_expr();
+                                    self.in_bdd_clause_value = false;
+                                    if let Ok(rhs) = rv {
+                                        let clean = self.current.kind
+                                            == TokenKind::Semicolon
+                                            || self.current.kind == TokenKind::Eof
+                                            || self.current.line > self.last_line
+                                            || Self::is_block_boundary(
+                                                self.current.kind,
+                                            );
+                                        if clean {
+                                            if self.current.kind
+                                                == TokenKind::Semicolon
+                                            {
+                                                self.advance();
+                                            }
+                                            let mut assign =
+                                                Node::new(NodeKind::StmtAssign);
+                                            assign.children.push(lhs);
+                                            assign.children.push(rhs);
+                                            block.children.push(assign);
+                                            done = true;
+                                        }
+                                    }
+                                }
+                            }
+                            if !done {
+                                self.restore_state(lv_look);
+                            } else {
+                                self.bdd_last_was_assertion = false;
+                                lowered += 1;
+                                continue;
+                            }
+                        }
                         self.in_bdd_clause_value = true;
                         let r = self.parse_expr();
                         self.in_bdd_clause_value = false;
