@@ -27832,6 +27832,19 @@ was WRONG (s_ibmhfp.v existed and routed) -- corrected in the verdict, the
 arc's second self-falsified claim in two days, caught the same way it was
 made: by an instrument, not an argument.
 
+### T762a -- THE "FABRIC LIMIT" WAS A MISSING IOSTANDARD [measured]
+
+The cost-diag reason lines closed the last instrument question: every
+routing-pending arm -- including the historical five that shaped the
+"takum-class cells fail routing on this fabric" story -- died on nextpnr's
+"port clk of type PAD has no IOSTANDARD property": the sweep borrowed
+corona_decode's XDC, which constrains a DIFFERENT top's ports. The fabric-
+limit narrative was written into the workflow's own comments and was never
+once tested. Fix (#626): the XDC is generated per arm from the arm's own
+yosys-json ports. The arc's instrument ledger now reads: five layers, five
+artefact-driven fixes, zero fabric limits observed so far -- the (E_t, M)
+sweep's first REAL routing attempt starts with this run.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
