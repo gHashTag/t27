@@ -387,3 +387,48 @@ the accuracy that width costs.
 **Readiness 47 % → 52 %.** The accuracy axis now carries a paired, multi-seed,
 two-task result at p < 0.05, and the area argument has both a denominator and a
 larger effect to lead with.
+
+
+## 14. W940 — two scaling axes, and the frontier priced in physical bits
+
+Landed as **tf#641** with both records and both rigs.
+
+### The 4-bit effect scales on a second, orthogonal axis
+
+| network | task | base | TNF4 − fp4 e2m1 | t (df=4) |
+|---|---|---:|---:|---:|
+| 784-32-10 | MNIST | 93.76 | +8.40 | 3.7 |
+| 784-32-10 | Fashion | 84.20 | +27.75 | 4.5 |
+| **784-256-256-10** | MNIST | **97.26** | **+37.88** | **12.4** |
+| **784-256-256-10** | Fashion | **86.85** | **+64.42** | **24.7** |
+
+Monotone along difficulty **and** capacity, 5/5 seeds throughout (T784). The bigger
+baseline also answers W938's objection: 97.26 % matches FINN's own fp32 MLP and
+beats its binarised SFC. The **8-bit null survives both axes** at 0.02–0.04 pp, so
+it is a property of the width rather than of an easy benchmark.
+
+### The frontier, and it does not favour the naming convention
+
+Fourteen decoders priced alone and behind an identical 12×8 multiply. The
+multiply's own surviving cost is monotone in alphabet width and spans **112×**:
+3.43 cells at 2 bits, 128.31 at 8, 212.57 at 10, 341.29 at 14, 385.14 at 16. The
+decoder is **2 %** of that.
+
+| format | physical bits | consumer cells | MNIST | Fashion |
+|---|---:|---:|---:|---:|
+| **fp8 e4m3** | 8 | **138.57** | +0.00 | −0.01 |
+| fp8 e5m2 | 8 | 138.57 | −0.02 | −0.04 |
+| **TNF8** | **10** | **230.57** | −0.00 | −0.02 |
+
+**At zero accuracy loss fp8 is the cheapest measured and TNF8 costs 1.66× more**,
+because TNF8 stores ten bits while named for eight (T785). The manuscript concedes
+the premise in its own caption; this is the consequence — a name-matched table
+flatters, a width-matched table decides.
+
+**Where TNF wins is not on cost:** at four bits fp4 loses 38–65 points while TNF4
+holds within 0.33 pp. Not cheaper versus dearer — usable versus not.
+
+**Readiness 52 % → 57 %.** The project now has a measured cost–quality frontier on
+one substrate, two scaling axes behind its headline effect, and a finding that runs
+against its own naming convention — which is the kind of evidence referees weight
+most.

@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W939, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W940, 2026-08-20)
+
+> **W940 — TWO SCALING AXES, AND A FRONTIER THAT CONTRADICTS THE RUNG NAMES.** On a
+> 269 k-parameter MLP the 4-bit gap is **+37.88 pp (t = 12.4)** on MNIST and
+> **+64.42 pp (t = 24.7)** on Fashion, 5/5 seeds — monotone along difficulty *and*
+> capacity. The bigger baseline (97.26 %) now matches FINN's own fp32 MLP, and the
+> 8-bit null survives both axes at 0.02–0.04 pp.
+>
+> Fourteen decoders priced behind an identical multiply give a monotone curve
+> spanning **112×** (3.43 cells at 2 bits → 385.14 at 16), with the decoder at 2 %
+> of the unit. Joined with accuracy: **at zero accuracy loss fp8 costs 138.57 cells
+> and TNF8 costs 230.57 — 1.66× more, because TNF8 stores ten bits while named for
+> eight.** Where TNF wins is four bits, where fp4 is not cheaper but unusable.
+> Landed as **tf#641**. **Readiness 52 % → 57 %.** Theorems T784–T785; lessons
+> 1415–1416; `tri frontier` added.
 
 > **W939 — THE 4-BIT RESULT IS NOW SIGNIFICANT, AND THE ALPHABET IS THE ARGUMENT.**
 > Five seeds, MNIST and Fashion-MNIST, paired: TNF4 − fp4 e2m1 = **+8.40 pp
