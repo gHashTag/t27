@@ -56,7 +56,8 @@ def idx(path, kind):
 
 def train(Xtr, ytr, seed):
     torch.manual_seed(seed)
-    net = nn.Sequential(nn.Linear(784, 32), nn.ReLU(), nn.Linear(32, 10))
+    H = int(__import__("os").environ.get("HID", "32"))
+    net = nn.Sequential(nn.Linear(784, H), nn.ReLU(), nn.Linear(H, H), nn.ReLU(), nn.Linear(H, 10)) if H > 32 else nn.Sequential(nn.Linear(784, H), nn.ReLU(), nn.Linear(H, 10))
     opt = torch.optim.Adam(net.parameters(), lr=1e-3)
     lf = nn.CrossEntropyLoss()
     Xt, yt = torch.from_numpy(Xtr), torch.from_numpy(ytr)
@@ -69,7 +70,7 @@ def train(Xtr, ytr, seed):
 
 
 def main():
-    out = {"seeds": SEEDS, "epochs": 4, "arch": "784-32-10",
+    out = {"seeds": SEEDS, "epochs": 4, "arch": __import__("os").environ.get("ARCH", "784-32-10"),
            "quantisation": "weights-only PTQ with per-tensor max scale; activations fp32",
            "test_set_size": 10000, "tasks": {}}
     for task, d in TASKS.items():
@@ -84,7 +85,7 @@ def main():
                 base = (net(Xv).argmax(1) == yv).float().mean().item()
             per["baseline"].append(base)
             W = [p.detach().numpy().copy() for p in net.parameters()]
-            for width, bank in BANKS.items():
+            for width, bank in ({4: BANKS[4], 8: BANKS[8]} if __import__("os").environ.get("HID","32") != "32" else BANKS).items():
                 for name, fn in bank.items():
                     key = f"{width}b/{name}"
                     qs = []
@@ -107,7 +108,7 @@ def main():
             drop = (b - a) * 100
             print(f"   {key:14} {a.mean()*100:6.2f} +- {a.std(ddof=1)*100:4.2f}   "
                   f"падение {drop.mean():+6.2f} +- {drop.std(ddof=1):4.2f} п.п.", flush=True)
-    p = SC / "accuracy_seeds.json"
+    p = SC / ("accuracy_seeds" + __import__("os").environ.get("TAG","") + ".json")
     p.write_text(json.dumps(out, indent=1))
     print("\nWROTE " + str(p), flush=True)
 

@@ -12415,6 +12415,8 @@ a worktree in the same wave its branch merges.
 
 **1414. MEASURE THE UNIT INSIDE ITS CONSUMER, OR THE RATIO IS TRUE AND USELESS.** Three waves were spent measuring decoder cost in isolation: 2 cells for TNF, 12 for fp8, 125 for posit16, ratios up to 46x. Putting the same decoders behind one identical multiply showed the ratios survive exactly -- TNF16 and BNF16 differ by 8.000 cells bare and 8.000 fused -- and that eight cells sit inside three hundred and ninety, so the celebrated ratio is 2 % of the unit. The same run found the effect that actually matters: the multiply itself costs 382 cells behind a 16-bit input and 4.1 behind a two-bit alphabet, because the synthesiser propagates the alphabet through the consumer. A component ratio is only actionable next to the whole it belongs to; measure the smallest complete thing a user would instantiate, and report the component as a fraction of it.
 
+**1415. WHEN AN EFFECT MIGHT BE AN ARTEFACT, ADD AN AXIS, NOT SAMPLES.** A 4-bit format advantage was suspected of being a split or seed artefact. Ten more seeds would have shrunk the standard error of a possibly-biased estimate without testing the bias. Adding two orthogonal axes instead -- a harder task, then a 10x larger network -- made the effect grow monotonically along both (8.40 -> 27.75 -> 37.88 -> 64.42 pp, t from 3.7 to 24.7), which no artefact of splitting, seeding or scaling has a reason to do. The same two axes made the neighbouring NULL trustworthy: the 8-bit result stayed at 0.02-0.04 pp on the larger network and harder task, so it is a property of the width and not of an easy benchmark. Cost: one extra dataset and one hidden-layer width.
+
 ### How to update this tracker
 
 After closing a wave:

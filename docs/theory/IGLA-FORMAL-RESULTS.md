@@ -28432,6 +28432,38 @@ must be quoted against the accuracy that width costs (T782: four-bit TNF loses
 0.32 pp on MNIST and 0.85 on Fashion), and the equal-width comparison -- TNF16
 against BNF16 against posit16 -- has an identical consumer cost to three decimals.
 
+### T784 -- AN EFFECT THAT TRACKS TWO INDEPENDENT AXES IS NOT AN ARTEFACT [measured]
+
+T782 established that the 4-bit format effect grows with task difficulty. Adding a
+second, orthogonal axis -- network capacity, 25k parameters to 269k -- under the
+identical protocol, five seeds, paired:
+
+    network            task      base    TNF4 - fp4     SE      t      seeds
+    784-32-10          MNIST     93.76      +8.40      2.25    3.7      5/5
+    784-32-10          Fashion   84.20     +27.75      6.21    4.5      5/5
+    784-256-256-10     MNIST     97.26     +37.88      3.07   12.4      5/5
+    784-256-256-10     Fashion   86.85     +64.42      2.61   24.7      5/5
+
+The effect multiplies by 3.3 along difficulty and by 2.3-4.5 along capacity, and t
+climbs from 3.7 to 24.7. This is the strongest form of falsification available
+without new instruments: a split artefact, a seed artefact, a scaling bug or a
+quantisation-code error has no reason to track EITHER axis, and no reason at all to
+track both monotonically.
+
+The method generalises past this experiment. When an effect is suspected of being
+an artefact, do not add more samples along the axis you already have -- add an
+axis. Samples reduce the standard error of a possibly-biased estimate; a second
+axis tests whether the estimate is measuring the thing it names. Two cheap axes are
+worth more than ten expensive repetitions, and here they cost one dataset and one
+hidden-layer width.
+
+Corollary, and it is the reason to trust the null next to it: the 8-bit null
+SURVIVES both axes. On the 269k-parameter network the largest absolute drop across
+five 8-bit formats is 0.02 pp on MNIST and 0.04 on Fashion, against a binomial
+standard error near 0.16 pp. The instrument that resolves a 64-point separation at
+four bits sees nothing at eight -- so the null is a property of the width, not of a
+task that was too easy.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
