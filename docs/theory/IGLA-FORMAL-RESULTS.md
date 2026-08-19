@@ -27023,6 +27023,45 @@ edit, no ring, but rewrites tests nobody reviewed as rewrites). Both are priced
 in DIALECTS.md; neither is taken. **The audit's job was to make the silence
 visible and hold the line; choosing between grammars is the ring's.**
 
+## W890 -- the store speaks for itself, and the scenarios are insured
+
+### T734 -- THE FULL RESEAL: 780 CERTIFICATES NOW SAY WHO AND HOW MUCH [measured]
+
+The remaining 1,014 unlabelled seals through the guarded reseal:
+
+    resealed with minter + truncation fields    780
+    refused by the guards (non-compiling)       234   left honestly stale
+    store now: sealed_by on 838, nonzero truncation recorded on 143
+    truncation ratchet                          0 grew
+
+Every certificate the current compiler can honestly mint now names its minter and
+its blind spot. The 234 refusals ARE the parse-failure set -- the guard and the
+baseline agree exactly, which is what two independent instruments measuring one
+boundary should do.
+
+### T734a -- 1,766 SCENARIOS INSURED BEFORE THE FORM IS CHOSEN [measured]
+
+docs/reports/LOST-TESTS-INVENTORY.md: every silently-discarded test line, grouped
+into scenarios --
+
+    1,766 scenarios, 4,665 lines, 86 files
+    top: systolic_ternary 436, cordic_top 198, cordic 97, coder/arch 73, adamw 62
+
+The ring's choice (teach given/when/then, or migrate to test{}) can now be made
+without content risk: the inventory is the transfer checklist either way.
+**Insure the content before debating the container** -- the reverse order loses
+scenarios exactly when the debate drags.
+
+### T734b -- WHAT THE STORE HAS BECOME [derived]
+
+Three waves ago the seal store was a pile of green lights: 1,715 files, all
+"verified", meaning unknown. It is now a labelled stratigraphy where every
+certificate answers four questions -- who minted it, from which spec text, what
+came out of each backend, and how much of the file the parse silently skipped --
+and three ratchets (parse regressions, staleness under --strict, truncation
+growth) hold each answer in place. The store no longer requires an archaeologist;
+it requires only a reader.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

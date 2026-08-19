@@ -12137,6 +12137,18 @@ minutes and reframed the whole discard problem.
 the guard holds the line while the grammar decision stays open, tightening as the
 store reseals, never retroactively red.
 
+**1356. INSURE THE CONTENT BEFORE DEBATING THE CONTAINER.** 1,766 scenarios
+extracted into a transfer checklist before the ring chooses grammar-vs-migration;
+the reverse order loses scenarios exactly when the debate drags.
+
+**1357. TWO INDEPENDENT INSTRUMENTS AGREEING ON ONE BOUNDARY IS THE CHECK.** The
+reseal guard refused exactly the parse-baseline set -- 234 = 234. When they
+diverge, one instrument is lying.
+
+**1358. A CERTIFICATE ANSWERS FOUR QUESTIONS.** Who minted it, from what text,
+what came out, and what was silently skipped. A green light that answers fewer is
+a mood, not a verdict.
+
 ### How to update this tracker
 
 After closing a wave:
