@@ -1033,6 +1033,7 @@ pub struct Parser {
     in_bdd_clause_value: bool,
     last_line: usize,
     bdd_last_was_assertion: bool,
+    bdd_role_preset: bool,
     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
@@ -1095,6 +1096,7 @@ impl Parser {
             in_bdd_clause_value: false,
             last_line: 0,
             bdd_last_was_assertion: false,
+            bdd_role_preset: false,
             dropped_spans: Vec::new(),
         }
     }
@@ -1195,13 +1197,43 @@ impl Parser {
             // loop through B, the next fn, and everything to EOF -- the corpus's
             // single largest discard (2,438 tokens) traced here. Same-line
             // `[]const u8` shapes stay intact (W568): the line test spares them.
-            if (self.current.kind == TokenKind::KwConst
-                || self.current.kind == TokenKind::KwVar)
-                && bracket_depth == 0
+            // W903 panel: the stop's first version fired on var, on INDENTED
+            // const inside keyword-test bodies (hoisting a test-local binding
+            // to module scope), and on the wrapped tail of a pointer type
+            // (`const P = *` newline `const u8;` minted a module const named
+            // u8). v2 narrows it to what the corpus shape actually is: a
+            // COLUMN-1 `const` opening a real declaration head
+            // (`const Ident :` or `const Ident =`). Everything else keeps the
+            // old swallow -- now COUNTED, which is the honesty that matters.
+            if bracket_depth == 0
                 && paren_depth == 0
                 && self.current.line > self.last_line
             {
-                return Ok(());
+                // W903 v3: a line-leading TOP-LEVEL opener (test/fn/...) ends
+                // the skip -- without this, the skip after a bad const ran
+                // THROUGH `test t` into its body and the recovery minted
+                // module consts from test-local bindings. And a line-leading
+                // const/var counts only with a DECLARATION HEAD after it
+                // (`Ident :` / `Ident =`): the wrapped pointer type
+                // `const P = *` newline `const u8;` has no head and stays
+                // swallowed instead of minting a module const named u8.
+                if self.is_top_level_start() {
+                    return Ok(());
+                }
+                if self.current.kind == TokenKind::KwConst
+                    || self.current.kind == TokenKind::KwVar
+                {
+                    let look = self.save_state();
+                    self.advance();
+                    let head = self.current.kind == TokenKind::Ident && {
+                        self.advance();
+                        matches!(self.current.kind, TokenKind::Colon | TokenKind::Equals)
+                    };
+                    self.restore_state(look);
+                    if head {
+                        return Ok(());
+                    }
+                }
             }
             // W902: this loop was the FOURTH discard channel T56 counted --
             // and the only one still invisible to both accounts. Record.
@@ -2075,6 +2107,16 @@ impl Parser {
             decl.children.push(val_node);
         }
 
+        // W903 (0008 v3): var had NO tail-skip, so junk after a recovered
+        // `var` (`then v == 2` at module level) hard-errored the whole module
+        // where const's tail swallowed it. Mirror const's tail exactly.
+        if self.current.kind != TokenKind::Semicolon
+            && self.current.kind != TokenKind::RBrace
+            && !self.is_top_level_start()
+            && self.current.kind != TokenKind::Eof
+        {
+            self.skip_to_semicolon()?;
+        }
         if self.current.kind == TokenKind::Semicolon {
             self.advance();
         }
@@ -3470,6 +3512,40 @@ impl Parser {
     /// Parse comparison expressions (==, !=, <, >, <=, >=)
     fn parse_expr_comparison(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_bitor()?;
+        // W903: `value in [-1, 0, 1]` / `x in {0, 1, 2}` -- list/set membership.
+        // KwIn only ever appeared in for-loop headers, so the clause forms that
+        // used it as an OPERATOR dropped their blocks. Same-line only: a `for
+        // .. in` never reaches expression position, and a line-leading `in`
+        // does not exist in the corpus. The brace-set RHS is parsed here
+        // directly ({ is otherwise W578 territory).
+        while self.current.kind == TokenKind::KwIn && self.current.line == self.last_line {
+            self.advance();
+            let right = if self.current.kind == TokenKind::LBrace {
+                let mut set = Node::new(NodeKind::ExprArrayLiteral);
+                set.extra_kind = "set".to_string();
+                self.advance();
+                if self.current.kind != TokenKind::RBrace {
+                    set.children.push(self.parse_expr_bitor()?);
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance();
+                        if self.current.kind == TokenKind::RBrace {
+                            break;
+                        }
+                        set.children.push(self.parse_expr_bitor()?);
+                    }
+                }
+                self.expect(TokenKind::RBrace)?;
+                set
+            } else {
+                self.parse_expr_bitor()?
+            };
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: "in".to_string(),
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
         while matches!(
             self.current.kind,
             TokenKind::Eq
@@ -4603,7 +4679,12 @@ impl Parser {
         let entry = self.save_state();
         let start_children = block.children.len();
         let mut lowered = 0usize;
-        self.bdd_last_was_assertion = false;
+        // W903: callers that already lowered an assertion head (bench-colon)
+        // pre-set the role; everyone else starts a fresh block.
+        if !self.bdd_role_preset {
+            self.bdd_last_was_assertion = false;
+        }
+        self.bdd_role_preset = false;
 
         loop {
             // A non-identifier here is normally the end of the block, because
@@ -4660,7 +4741,11 @@ impl Parser {
             // what FORALL-DECISION.md declines to do. The colon-prose form
             // (`measure: nanoseconds to ...`) stays a fallback -- prose is not
             // an expression.
-            let is_expr_clause = clause == "measure" || clause == "target";
+            // W903 panel: in a TEST block a stray `measure:` captured the
+            // block's only then-assert into inert prose -- a vacuous test
+            // under a green light. The clause pair belongs to bench blocks.
+            let is_expr_clause = (clause == "measure" || clause == "target")
+                && block.kind == NodeKind::BenchBlock;
 
             if !is_binding && !is_assertion && !is_expr_clause {
                 // An identifier that is not a clause means this body has a shape
@@ -4681,12 +4766,26 @@ impl Parser {
                     // rest of the LINE verbatim into the node's value: the
                     // tokens are READ and preserved, and no semantics are
                     // invented for them.
+                    // W903 panel: the capture stops at a same-line CLAUSE WORD
+                    // -- `measure: 5 target: 6` was one node with target
+                    // flattened into prose, and a same-line `then x == 1`
+                    // lost its assert into the value. Prose keeps its words;
+                    // sibling clauses keep their nodes.
                     let line = self.current.line;
                     self.advance(); // consume ':'
                     let mut text = String::new();
                     while self.current.kind != TokenKind::Eof
                         && self.current.line == line
                     {
+                        if !text.is_empty()
+                            && matches!(
+                                self.current.lexeme.as_str(),
+                                "measure" | "target" | "given" | "when"
+                                    | "then" | "assert" | "and"
+                            )
+                        {
+                            break;
+                        }
                         if !text.is_empty() {
                             text.push(' ');
                         }
@@ -5047,7 +5146,19 @@ impl Parser {
             self.advance();
         }
 
-        if !Self::is_block_boundary(self.current.kind) {
+        // W903 panel: is_block_boundary omits var/enum/struct/using, so an
+        // invariant followed by any of those dropped its OWN assert. They end
+        // the block here as cleanly as const/fn do; the GLOBAL boundary set is
+        // left alone (adding KwVar there would hoist keyword-test-body vars).
+        let clean_end = Self::is_block_boundary(self.current.kind)
+            || matches!(
+                self.current.kind,
+                TokenKind::KwVar
+                    | TokenKind::KwEnum
+                    | TokenKind::KwStruct
+                    | TokenKind::KwUsing
+            );
+        if !clean_end {
             self.restore_bdd_fallback(block, start_children, entry);
         }
     }
@@ -5072,7 +5183,13 @@ impl Parser {
             let entry = self.save_state();
             let start_children = block.children.len();
             self.advance(); // consume ':'
-            match self.parse_expr() {
+            // W903 panel: without the clause flag, a next-line `and y == 3`
+            // was absorbed under `or` precedence into a strictly WEAKER
+            // assertion. Same flag as every clause value.
+            self.in_bdd_clause_value = true;
+            let head = self.parse_expr();
+            self.in_bdd_clause_value = false;
+            match head {
                 Ok(expr) => {
                     let mut call = Node::new(NodeKind::ExprCall);
                     call.name = "assert".to_string();
@@ -5083,7 +5200,17 @@ impl Parser {
                     if self.current.kind == TokenKind::Semicolon {
                         self.advance();
                     }
-                    if !Self::is_block_boundary(self.current.kind) {
+                    // W903 panel: `bench b: x >= 0` followed by indented
+                    // measure:/then clauses lost EVERYTHING to the boundary
+                    // check. A clause word here continues the block in the
+                    // shared clause parser.
+                    if self.current.kind == TokenKind::Ident
+                        || self.current.kind == TokenKind::KwAnd
+                    {
+                        self.bdd_last_was_assertion = true;
+                        self.bdd_role_preset = true;
+                        self.parse_bdd_clauses(&mut block);
+                    } else if !Self::is_block_boundary(self.current.kind) {
                         self.restore_bdd_fallback(&mut block, start_children, entry);
                     }
                 }
