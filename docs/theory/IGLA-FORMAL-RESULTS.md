@@ -27733,6 +27733,33 @@ corpse held ~5 GB for two waves); and quote CLEANUPS at their honest size --
 W909 manifested 4 MB of dumps as "the cleanup" while leaving 8 GB of
 regenerable targets, the cleanup-mirror of lesson 1391's guarded ceilings.
 
+## W920 -- a green instrument for the wrong experiment
+
+### T758 -- VERIFY THE INSTRUMENT-EXPERIMENT MAPPING BEFORE CELEBRATING GREEN [measured]
+
+Two clean cost-sweep runs (106 jobs green) later, reading the sixteen
+untraced rows against the sweep manifest showed the sweep CANNOT close G8 in
+principle: the sixteen are FORMAT designs (posit/takum/binary/GF/LNS/VAX/
+hex/int8) whose harnesses live in fpga/tnet/, while the sweep synthesizes
+(E_t, M) ladder arms -- a different experiment sharing a fabric and a
+vocabulary. The gate's blocker narrowed three times in one day: "no CI
+workflow" (pre-#612) -> "workflow lacks its generator" (run 1) -> "pipeline
+green, fabric limit on five arms" (run 2) -> "pipeline green FOR THE WRONG
+TOPS" (the map). Each narrowing came from reading artefacts, not statuses.
+The missing instrument is now specified in one page (G8-INSTRUMENT-MAP.md,
+merged upstream): a format-throughput sweep over the tnet tops.
+
+### T758a -- POST-MERGE RE-CERTIFICATION IS PART OF THE MERGE [measured]
+
+The ladder's intentional codegen changes invalidated 558 seals -- discovered
+by the suite, not assumed. Resealed 401 with the merged binary (5/5 sampled
+seal --verify MATCH, checked BEFORE the claim shipped -- the first phrasing
+of the NOW entry asserted a spot-check that had not yet run, caught in the
+same wave); 157 refusals stand under the four-backend policy, refusal-on-
+record beating vacuous green. A merge that changes outputs is not done until
+the certificates that reference those outputs are re-minted or honestly
+refused.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
