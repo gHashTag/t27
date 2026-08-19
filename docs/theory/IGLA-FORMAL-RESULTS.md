@@ -27707,6 +27707,32 @@ fixed in flight: an issue reference in the PR body, a NOW.md freshness
 entry). The frozen compiler changed through its own GOLD-RING process,
 end to end, with every certificate it demanded of itself.
 
+## W916-W919 -- the always-red check, and the disk that ate the loop
+
+### T756 -- AN ALWAYS-RED CHECK HIDES REAL BREAKAGE BETTER THAN NO CHECK [measured]
+
+Nine .lake build-cache paths committed as gitlinks with no .gitmodules entry
+(#1304) killed every submodules:recursive checkout for months. Nobody read
+the coverage check because it was never green; the damage surfaced only when
+landing #2217 forced a required-check triage that separated "your PR broke
+it" from "it was always broken". Fixed by removal + ignore (t27#2221, merged).
+Corollary: an always-red gate is worse than an absent one -- it trains every
+reader to skip the channel where the next real failure will appear.
+
+### T757 -- A FULL DISK DISABLES THE TOOLS THAT FREE DISKS [measured]
+
+The ENOSPC saga in mechanism: (1) the harness opens a capture file BEFORE
+executing any command, so at zero free bytes even `rm` cannot run -- seven
+consecutive attempts died at open(2); (2) the atomic-write tools (Write,
+Edit) create tmp+rename files, so they cannot truncate anything on a full
+volume either; (3) recovery came from the outside -- kilobytes freed by the
+system/user let ONE capture file open, and the first rm then cascaded
+gigabytes. Rules extracted: keep a hard free-space floor BEFORE builds, not
+after; delete a failed build tree the moment it fails (the masterwt sqlite
+corpse held ~5 GB for two waves); and quote CLEANUPS at their honest size --
+W909 manifested 4 MB of dumps as "the cleanup" while leaving 8 GB of
+regenerable targets, the cleanup-mirror of lesson 1391's guarded ceilings.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

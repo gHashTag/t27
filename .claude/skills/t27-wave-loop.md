@@ -12353,6 +12353,20 @@ was to FIX two specs (normalising a spelling by the repo's own precedent),
 not to edit the cap. A ratchet that can be raised on demand is a preference,
 not a ratchet.
 
+**1396. DELETE A FAILED BUILD TREE IMMEDIATELY.** A build that died left ~5 GB
+of corpse for two waves and then took the whole loop down mid-flight. The
+moment cargo/make fails terminally, its target directory is garbage -- remove
+it in the same breath, and check `df` BEFORE every build, not after.
+
+**1397. AT ZERO FREE BYTES, EVERY TOOL IS DEAD -- INCLUDING rm.** The harness
+opens a capture file before exec; atomic writers need tmp+rename space. The
+unwedge comes from outside (system purge, the user) -- so never LET it reach
+zero: a hard floor (>=2 GB) is an invariant, not a preference.
+
+**1398. QUOTE A CLEANUP AT ITS HONEST SIZE.** "Manifested and deleted the
+dumps" freed 4 MB and left 8 GB of regenerable build trees standing. A cleanup
+report names BYTES FREED and BYTES REMAINING by category, or it is a mood.
+
 ### How to update this tracker
 
 After closing a wave:
