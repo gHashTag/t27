@@ -1,11 +1,12 @@
 {
   "gen_hash_c": "sha256:4cd70f0e661e513e7732b2d488a273cb185db829eddadbbdeb52bc8f65a11ee5",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:124d50ca8d112e4e2d6438eb63469d6860ebe3ecc49b5be4bb95699b750ff0b0",
-  "gen_hash_zig": "sha256:0e9b6d85c9a2e8d3c507250825ba4a95b4b13a832482d8bceabac8d7c60b1621",
+  "gen_hash_verilog": "sha256:1a78f7af64bf8e34df790fda231fe7f86db15f0da1cab6bae4a1ecb93dadf314",
+  "gen_hash_zig": "sha256:be6b38e91a45d2436896b58dc348757d277562b06bb6eb6837b58af59a3d2ee3",
   "module": "AutonomousUniverse",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
+  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:bfbbc8dbd82391b975ea357722e3f95ffabb551f4ae40985354b4bcd0afac17b",
   "spec_path": "specs/tri/agent/autonomous_universe.t27"
 }

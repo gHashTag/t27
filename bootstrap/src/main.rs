@@ -6778,6 +6778,24 @@ fn run_fpga_build(
     prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
+    // #2225: P&R against a database for a different part is silent poison — the
+    // router succeeds against whatever database it is handed, and the mismatch
+    // surfaces two steps later in fasm2frames as "Part None not found". Check the
+    // pair HERE, before minutes of synthesis, where the cause is still visible.
+    if let Some(p) = chipdb_path {
+        let stem = Path::new(p)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        if stem != device {
+            anyhow::bail!(
+                "chipdb/device mismatch: --chipdb names '{}' but --device is '{}'.\n\
+                 nextpnr would place-and-route against the wrong database and the\n\
+                 build would fail two steps later in fasm2frames. Pass a matching pair.",
+                stem, device
+            );
+        }
+    }
     let specs_dir = repo_root.join("specs/fpga");
     let build_dir = repo_root.join(output);
     let gen_dir = build_dir.join("generated");
@@ -6992,7 +7010,11 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                // -sv: the emitter uses SV static casts. -DSIMULATION: strips `ifndef
+                // SIMULATION` bench blocks whose $display carries non-constant
+                // args that synthesis cannot evaluate (mac.v:535; the repo
+                // convention, see suite.rs and verify_emit_bitexact.py).
+                "read_verilog -sv -DSIMULATION {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
                 files = verilog_files,
                 top = top,
                 json = synth_json.display(),
@@ -7017,7 +7039,11 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                // -sv: the emitter uses SV static casts. -DSIMULATION: strips `ifndef
+                // SIMULATION` bench blocks whose $display carries non-constant
+                // args that synthesis cannot evaluate (mac.v:535; the repo
+                // convention, see suite.rs and verify_emit_bitexact.py).
+                "read_verilog -sv -DSIMULATION {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
                 files = verilog_files,
                 top = top,
                 json = synth_json.display(),
@@ -7061,7 +7087,10 @@ endmodule
     let chipdb = match chipdb_path {
         Some(p) => PathBuf::from(p),
         None => {
-            let default = PathBuf::from("build/fpga/chipdb/xc7a100tcsg324-1.bin");
+            // Derive the default from --device instead of naming one part: a
+            // hardcoded 100T filename here is exactly how the 200T default flip
+            // survived P&R against the wrong database (#2225).
+            let default = PathBuf::from(format!("build/fpga/chipdb/{}.bin", device));
             if repo_root.join(&default).exists() {
                 repo_root.join(&default)
             } else {
@@ -7078,9 +7107,12 @@ endmodule
         let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
  set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
  create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
- set_property -dict { PACKAGE_PIN C18   IOSTANDARD LVCMOS33 } [get_ports rst_n]
-set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx]
-set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
+ # C18/T14/T15 had never met a real chipdb (the placeholder was zeroes) and
+ # nextpnr rejects C18: the device has no such pin. Arty A7-100T: ck_rst=C2,
+ # uart_txd_in(host->FPGA)=A9, uart_rxd_out(FPGA->host)=D10; clk=E3 was right.
+ set_property -dict { PACKAGE_PIN C2    IOSTANDARD LVCMOS33 } [get_ports rst_n]
+set_property -dict { PACKAGE_PIN A9    IOSTANDARD LVCMOS33 } [get_ports uart_rx]
+set_property -dict { PACKAGE_PIN D10   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
 set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports led[0]]
 set_property -dict { PACKAGE_PIN K15   IOSTANDARD LVCMOS33 } [get_ports led[1]]
 set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports led[2]]

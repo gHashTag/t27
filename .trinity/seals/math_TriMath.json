@@ -1,11 +1,12 @@
 {
   "gen_hash_c": "sha256:a0d1ae6d6b889af498166a1b0b2df9c8abbe95bd3ac9099b148b0729be094690",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:d0d25b0f5f91125e669a3ce950c36333e3498c0df3b17f8f8dc9196c41fdcc3d",
-  "gen_hash_zig": "sha256:41929594b8434fee2cf74ee8068ec755ba9fca90da36c2eb5a78b25f763cd68a",
+  "gen_hash_verilog": "sha256:2b329fbd0bc25be71f101207263833afcb94b43651f5f7008eeda527f94baf02",
+  "gen_hash_zig": "sha256:ac65e34877d46c40cea9632ef7c44d243956e4c6337d3e9738d11d7d0823f76a",
   "module": "TriMath",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:19Z",
+  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7acc3ed7813ca1bf6b8aa5e0836279f1221cb7beab5596b9c03feae7e141857f",
   "spec_path": "specs/tri/math/math.t27"
 }

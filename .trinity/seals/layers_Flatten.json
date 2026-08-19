@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:a54a4217b1a1353679dfce2ef5f92893d6b99284a2ae185f6ec3f3a501eeb2ad",
-  "gen_hash_rust": "sha256:87997babbe70daf8d2ac6d12398be08523a5f9acbf450324f3bf4bf37ecd3845",
-  "gen_hash_verilog": "sha256:688c3a1d452cc3499c7b44cda6510cc6fef695bdc5c1002ea390bcb40c359f11",
-  "gen_hash_zig": "sha256:3a6ce784215b7dcd65c2588fcb914d1518b3517871743914c25faf3ae16d5711",
+  "gen_hash_c": "sha256:e88917b9c6398ba10febc3f731092bb7aa5f84f9f0d745f31cbb6d89943aa296",
+  "gen_hash_rust": "sha256:f0d292a08dfd3d7766db8c4a3a7f69601b11eb9ade106e674601a64e5e9c3011",
+  "gen_hash_verilog": "sha256:ad332bdcab96e18f32f6f7bcabf15f1f40bf55e2d45325dbea1e2c3652463d59",
+  "gen_hash_zig": "sha256:2de2937231c6c98e6ac4089a0bd1fcb34d8f0da7031384702fbf3e73daaee7a6",
   "module": "Flatten",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:05a1e633c80c5eb5e8f7f6f24a57c741492f5cc920591b8e5db7b48d51bcf0ed",
   "spec_path": "specs/ml/layers/flatten_layer.t27"
 }

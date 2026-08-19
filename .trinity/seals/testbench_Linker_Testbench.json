@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:69f1f51f1b9b66ca43b10b3cd28043a18ef3c570749039fba9833bced9dca1e0",
-  "gen_hash_rust": "sha256:083001a079b50fa1fe8536de57248afc1402528cd27701b239934f0d34a81446",
-  "gen_hash_verilog": "sha256:aeb571770cd48eb401fdd016440687caec6a66f95f91dd9ebfc1a8c14cc99b54",
-  "gen_hash_zig": "sha256:af52e9557f026c7988c326ef545f9bd1fac4b020d7cd5332d186188c3887a6c3",
+  "gen_hash_c": "sha256:c45c48de08669fe6cecbe1a203410dfafff2cb12eedea1843a37f8f9d12e2680",
+  "gen_hash_rust": "sha256:73ec6deb44da42befb38ba793de40573546c811c7cc83fb7a0ac284696bb55da",
+  "gen_hash_verilog": "sha256:ff436b2fa630082376371355b3d0df36f93ee7a8f336ac0b1028c8e2b4b79580",
+  "gen_hash_zig": "sha256:3bdfd73574bcf6846fefe29b70d6d831baa2a497f9afdb4b3ffb6e4205abe0ed",
   "module": "Linker_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ad278f2c5876f7f6c78a0fd9bd181c12fe7311b243653275b18fc045a8afcb37",
   "spec_path": "specs/fpga/testbench/linker_tb.t27"
 }
