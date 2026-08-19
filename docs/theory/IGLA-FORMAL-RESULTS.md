@@ -28108,6 +28108,51 @@ a 2-LUT decoder becomes a 128-LUT signal against a 14-LUT floor -- a generate
 loop, not a new experiment, and the only cheap route from "unresolvable" to
 "measured" for the leading group.
 
+### T775 -- REPLICATION DISSOLVES A FIXTURE THAT SUBTRACTION ONLY ARGUES ABOUT [measured]
+
+T774 showed the leading formats' differential cost sitting at 0-2 cells against a
+one-cell quantum, so no basis -- total or subtracted -- could rank them. The fix
+is not a better convention. Instantiate the cell N times in a chain inside the
+same fixture and fit cells(N) = fixture + cost*N: the slope is the isolated cost,
+the fixture leaves as the intercept, and nobody has to agree on how to subtract
+anything.
+
+Measured here at N = 1, 2, 4, 8 on nineteen decoders, eighteen fits exact to five
+decimals with integer slopes:
+
+    int8 0.000 | GFTernary 2.000 | TNF16/32/64 2.000 | binary32 5.000
+    BNF16 10.000 | fp8 e4m3 12.000 | fp8 e5m2 12.000 | GF10 26 | minifloat 31
+    GF14 36 | VAX F 41 | binary16 54 | GF+8 56.3 (R2 0.997) | posit16 125
+    IBM hex32 129 | LNS16 159 | posit32 304
+
+Three results that no published table in this project's history contains:
+
+1. **The ternary exponent field decodes 5x cheaper than the binary one.** BNF and
+   TNF differ, by their own source comment, EXACTLY in that field: 10.000 against
+   2.000. The mechanism is legible in eight lines -- BNF pays 8 cells for a
+   subnormal special case (`(e == 0) ? 0 : ...`), TNF's offset needs none and
+   collapses to a constant add on the carry chain.
+2. **TNF's decode cost is width-independent.** TNF16, TNF32 and TNF64 all measure
+   2.000 with identical fixtures.
+3. **int8 decodes for exactly zero.** Sign-extension is wiring. Any table putting
+   int8 in a decode-cost column with formats that have real decoders is measuring
+   its harness.
+
+The separations are 6x against fp8, 62x against posit16, 80x against LNS16, 152x
+against posit32 -- none of them near any noise source measured on this project,
+against a headline claim of 10.2% that is inside all of them.
+
+The general method: when a differential sits under an instrument's resolution,
+scale the SIGNAL rather than refining the SUBTRACTION. Replication is available
+whenever the unit under test is instantiable, it converts a convention dispute
+into a regression, and the residual then reports honestly on whether the model
+was linear at all -- which is how GF+8 declared itself the one non-linear case
+here instead of hiding inside a subtraction.
+
+Caveat carried in the same breath: this is synthesis, not place-and-route; it is
+decoders, not datapaths; and every row inherits its decoder's verification
+status, because A WRONG DECODER IS A CHEAP DECODER.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
