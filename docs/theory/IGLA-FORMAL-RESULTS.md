@@ -27597,6 +27597,29 @@ cycles need a terminal test: when the next unit of work is a DECISION only a
 human can make, the loop's job is to make that decision maximally cheap, then
 hold quietly.
 
+## W908 -- the decision rehearsed, and priced to the token
+
+### T751 -- REHEARSE THE DECISION YOU ARE ASKING FOR [measured]
+
+FORALL-DECISION asked the Architect to choose between four priced options;
+this wave BUILT option 2 (verbatim parse-only capture, 58 patch lines),
+measured it on the full corpus -- 25,670 -> 6,592 discarded tokens (-90.3%
+from the original base), consume-all 411, zero new parse-fails -- and
+REVERTED it, shipping only the patch file and the numbers into the decision
+document. The ask changed in kind: from "choose an option and someone will
+build it" to "say '2' and a measured, reverted, one-wave rung lands". A
+decision request that carries its own rehearsal is the cheapest possible
+human interaction -- and rehearsing WITHOUT applying respects that the
+decision was never the loop's to make.
+
+### T751a -- THE THREE MASSES, FINAL PRICES [measured]
+
+forall 19,078 (rehearsed, -90.3% available on a word); dialect ~3,700
+(policy); everything else -- brace-if innards included -- bounded by ~2,900
+tokens spread thin (W578-BRACE-IF-DECISION.md: status quo recommended while
+the two larger masses wait). Nothing in the residue now lacks a page, a
+price, and an owner.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

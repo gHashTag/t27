@@ -49,6 +49,19 @@ inline comma-form one-liners (`forall e : EDA, e.utilization >= 0.0`).
    need migration once the grammar was taught (23,033 → 1,589); the same
    argument applies here.
 
+## The rehearsal (W908) — option 2 is one wave from shipped
+
+A verbatim parse-only capture (58-line patch,
+`FORALL-OPTION2-REHEARSAL.patch` in this directory) was built and measured on
+the full corpus, then REVERTED pending the decision:
+
+    0014 baseline   25,670 discarded tokens, 62 discarding files
+    with option 2    6,592 discarded tokens (-90.3% from the original
+                     67,760), 40 files, consume-all 389 -> 411,
+                     parse-fails unchanged (173, zero new)
+
+The rung ships in one wave on a "2" from the Architect.
+
 ## The ask
 
 One word on option 2 (or a number 1–4) on t27#2217. Everything else in the

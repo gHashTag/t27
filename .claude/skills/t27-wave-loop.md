@@ -12309,6 +12309,12 @@ only a human can make, stop mining and make the decision cheap: one page, the
 options priced, a single word to answer. Then hold quietly -- watch, ratchet,
 react. Running past that point converts value into noise.
 
+**1390. REHEARSE THE DECISION YOU ASK FOR.** Build the recommended option in
+scratch, measure it on the full corpus, REVERT it, and attach the patch and
+numbers to the decision page. "Say '2' and a measured rung lands in one wave"
+is a cheaper human interaction than "choose and we shall see" -- and the
+revert is what keeps the choice genuinely the human's.
+
 ### How to update this tracker
 
 After closing a wave:

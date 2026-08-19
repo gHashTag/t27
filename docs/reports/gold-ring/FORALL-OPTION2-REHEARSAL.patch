@@ -1,0 +1,58 @@
+--- /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/compiler_0014_backup.rs	2026-08-19 15:44:08
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 15:44:37
+@@ -4728,6 +4728,32 @@
+     /// shape it does not fully understand restores the entry checkpoint and
+     /// falls back to the original skip, so a spec that parsed before still
+     /// parses.
++    /// W908 REHEARSAL of FORALL-DECISION option 2 (parse-only lowering):
++    /// capture a quantifier body VERBATIM into a node value -- tokens read,
++    /// no semantics. Body extent: lines at the forall's column or deeper.
++    fn capture_forall_verbatim(&mut self) -> Node {
++        let start_col = self.current.col;
++        let mut text = String::new();
++        loop {
++            if self.current.kind == TokenKind::Eof {
++                break;
++            }
++            let opens_line = self.current.line > self.last_line;
++            if opens_line && self.current.col < start_col {
++                break;
++            }
++            if !text.is_empty() {
++                text.push(' ');
++            }
++            text.push_str(&self.current.lexeme);
++            self.advance();
++        }
++        let mut node = Node::new(NodeKind::StmtExpr);
++        node.name = "forall".to_string();
++        node.value = text;
++        node
++    }
++
+     fn parse_bdd_clauses(&mut self, block: &mut Node) {
+         let entry = self.save_state();
+         let start_children = block.children.len();
+@@ -4883,6 +4909,12 @@
+             let is_expr_clause = (clause == "measure" || clause == "target")
+                 && block.kind == NodeKind::BenchBlock;
+ 
++            if clause == "forall" {
++                let node = self.capture_forall_verbatim();
++                block.children.push(node);
++                lowered += 1;
++                continue;
++            }
+             if !is_binding && !is_assertion && !is_expr_clause {
+                 // W904 (0012): a bare ASSIGNMENT statement between clauses --
+                 // `sum = if (...) ...;` -- is an Ident that is no clause, and
+@@ -5423,7 +5455,8 @@
+         self.advance(); // consume ':'
+ 
+         if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+-            self.restore_bdd_fallback(block, start_children, entry);
++            let node = self.capture_forall_verbatim();
++            block.children.push(node);
+             return;
+         }
+ 
