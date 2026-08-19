@@ -35,8 +35,11 @@ jobs:
 
       # From a clean checkout, with nothing copied in by hand. That is the
       # condition that was broken and the only one worth asserting.
-      - name: cargo build -p tri
-        run: cargo build -p tri
+      - name: cargo build -p tri --all-targets
+        # Tests are targets too. The plain build stayed green twice while the
+        # test build was broken on master (#2227, #2236) -- every PR inherited
+        # a break no gate reported. --all-targets closes that gap.
+        run: cargo build -p tri --all-targets
 
       - name: cargo test -p tri
         run: cargo test -p tri
