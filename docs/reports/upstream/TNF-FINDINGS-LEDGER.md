@@ -119,3 +119,19 @@ same hole was already copied into the day-old instrument, plus a missing
 Standing lesson for the ledger: **a green pipeline is evidence about the
 pipeline, not about the experiment** — three consecutive "successes" here
 carried, in order, a missing file, a wrong experiment, and a euphemism.
+
+
+## 8. The gate, measured (W927)
+
+Run 32263875250: all 19 tnet tracts ROUTED on xc7a200tfbg484-2 — G8's first
+post-route rows. **14 of 15 instrumented untraced frequencies reproduce
+within the audited seed band** (0.90×–1.32×; binary16 at 1.00× exactly).
+Named exceptions: **LNS16 does not reproduce** (CI 62.66 vs published 43.04,
+1.46×; no in-tree record — issue filed for the author) and **plastic-16bit**
+remains uninstrumented. The W920 map's "no hex32 harness" claim was wrong —
+s_ibmhfp.v existed and routed (1.11×); corrected in the verdict (#624).
+
+G8 status: **unsourced → measured-with-two-exceptions.** The instrument path
+took five iterations (missing generator → wrong experiment → euphemism
+status → self-executing glob + anchored grep → measurement), each driven by
+one artefact, none skippable.
