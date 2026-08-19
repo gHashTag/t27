@@ -27460,6 +27460,42 @@ Convicted-and-fixed this wave: the const tail-skip, bench-colon one-liners
 The residue is now dominated by the two DECISIONS (forall; specs/ar dialect)
 plus small expression-grammar items (`value in [...]` membership).
 
+## W903 -- the panel as a standing instrument
+
+### T746 -- EVERY RUNG'S FIRST VERSION HAS PANEL-FINDABLE HOLES [measured]
+
+Four consecutive rungs (0006, 0007, 0008-0010, and their revisions) each
+survived the full 624-spec corpus sweep and each fell to a 3-lens adversarial
+panel within ~70 probe attempts: a forged brace test, conjunction absorption,
+invented module globals from test bodies, prose swallowing sibling asserts, a
+strictly-weaker assertion from operator precedence across a clause boundary.
+The corpus tests what EXISTS; the panel tests what CAN BE WRITTEN. For grammar
+changes the second set is where the silent false-greens live -- every
+worst-class find (assertions vanishing under "nothing discarded") came from
+the panel, none from the corpus.
+
+### T746a -- RECOVERY RULES WANT THREE GUARDS: LAYOUT, HEAD, SCOPE [measured]
+
+The const-stop stabilised only when it tested all three: LAYOUT (line-leading,
+depth 0), HEAD (`Ident :` / `Ident =` follows -- a declaration, not a wrapped
+type tail), and SCOPE (stop first at top-level openers so a keyword-block body
+is never entered). v1 (layout only) minted globals from test bodies and a
+const named u8 from a pointer type; v2 (layout+column) lost the corpus's
+indented consts and resurrected the zombies. Each guard exists because its
+absence was a measured break, not a conjecture.
+
+### T746b -- THE LADDER AT ELEVEN RUNGS [measured]
+
+    base     67,760 discarded   173 parse-fails   314 consume-all
+    0011+v3  26,749 (-60.5%)    173 (2 zombies -> honest, 2 SSOT -> parsing)
+             consume-all 385; discarding files 137 -> 66
+    inventory: 98.1% of 23,033 BDD lines READ (was 55% dropped share at W890)
+
+Residue: ~19k forall (Architect word), specs/ar dialect (honest hard errors,
+its own decision), statement-clauses-in-blocks (the documented pre-existing
+hoist edge), scattered small causes. The probe-fixable frontier is nearly
+exhausted; what remains is decisions.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

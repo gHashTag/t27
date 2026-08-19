@@ -12267,6 +12267,18 @@ while two zombies left and two SSOT files entered. Certificates must report
 the DIFF, not the count -- the count alone said "nothing happened" about the
 wave's most consequential change.
 
+**1383. THE CORPUS TESTS WHAT EXISTS; THE PANEL TESTS WHAT CAN BE WRITTEN.**
+Four rungs in a row passed 624 specs and fell to ~70 adversarial probes each.
+Make the 3-lens break panel a standing part of every grammar rung: corpus
+sweep -> panel -> fix -> re-both. Budget it like the build, not like a luxury.
+
+**1384. A RECOVERY STOP NEEDS LAYOUT + HEAD + SCOPE.** Line-position alone
+minted globals out of test bodies; adding a column test threw away the true
+positives. The stable rule tested where the token stands (line-leading, depth
+0), what follows it (a declaration head), and what it would enter (stop at
+top-level openers before a keyword body). Guards earn their place by a
+measured break each.
+
 ### How to update this tracker
 
 After closing a wave:
