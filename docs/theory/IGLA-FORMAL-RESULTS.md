@@ -27296,6 +27296,34 @@ header's fns ended in a block whose next test contained an `and`. Every
 mystified wave of this arc -- 55% tests dropped, containers, context -- traces
 to one two-mechanism defect in one clause keyword.
 
+## W899 -- the counter and the recorder walked different channels
+
+### T742 -- INSTRUMENT ARTEFACT #13: SHOW WAS BLIND TO TWO OF THREE CHANNELS [measured]
+
+`parse-complete --show` printed "nothing discarded" for a file the corpus mode
+charged 2,438 tokens -- same binary, same file. The discard COUNTER increments
+in three places; the span RECORDER lived in one (`skip_to_next_top_level`).
+Skipped brace bodies and statement-level recovery counted without recording.
+This is the mechanism behind W892's finding that the first inventory missed
+311+ BDD lines in one file -- that wave diagnosed the symptom and rebuilt from
+spec text; this wave found the cause in the instrument. Fix: every channel
+records under the same cap. Check: per-file span totals equal the corpus
+counter exactly, 42,926 = 42,926 across all 126 discarding files.
+
+An instrument whose aggregate and itemised accounts come from different code
+paths will eventually disagree; the reconciliation (sum of items == total) is
+itself an oracle, and it ran green only after the fix.
+
+### T742a -- THE INVENTORY REMEASURED: 93.1% OF BDD LINES ARE READ [measured]
+
+Line-level verdicts with the honest instrument under the 0005 grammar:
+of 23,033 BDD lines across 106 files, **21,444 are lowered into the AST,
+1,589 remain inside discarded spans, 0 files fail to parse.** The
+migrate-vs-teach decision (board item 4) now weighs 1,589 lines, not 4,665 --
+and the 18,368 lines W892 could only mark "at-risk" are settled: read.
+(The two [D] sets are not directly comparable: W892 measured with the frozen
+grammar AND the channel-blind instrument; both changed.)
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -12218,6 +12218,12 @@ bounded lookahead, and probe BOTH readings after.
 regressed four files; the and-fix made it unnecessary anyway. Keeping a
 withdrawn mechanism's wins while dropping its risks is what the ladder is for.
 
+**1374. AGGREGATE AND ITEMISED ACCOUNTS MUST SHARE A CODE PATH -- OR BE
+RECONCILED.** The discard counter incremented in three channels; the span
+recorder lived in one, so the read-what-vanished tool answered "nothing" for a
+file charged 2,438 tokens. `sum(items) == total` is an oracle in its own right;
+run it before trusting either account. (Instrument artefact #13.)
+
 ### How to update this tracker
 
 After closing a wave:

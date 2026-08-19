@@ -142,8 +142,12 @@ debate drags.
 
 ## Instrument artefacts — the standing tax
 
-Nine in one session: substring containment (thrice), sha-prefix, case-insensitive
-glob, API pagination, parallel starvation read as regression, wrong-scope checks,
-synthetic-repro generalisation. One cure every time: **read one raw case before
-believing any count.** A timeout under load is a fact about the load; UTC stamps
+Thirteen and counting: substring containment (thrice), sha-prefix,
+case-insensitive glob, API pagination, parallel starvation read as regression,
+wrong-scope checks, synthetic-repro generalisation, RHS-first-token
+misattribution -- and the sharpest: an instrument whose aggregate counter and
+itemised recorder walk DIFFERENT code paths (the discard counter incremented in
+three channels, the span recorder in one, so "show" answered "nothing" for a
+file charged 2,438 tokens). Two cures: **read one raw case before believing any
+count**, and **reconcile sum(items) == total before trusting either account.** A timeout under load is a fact about the load; UTC stamps
 sit on yesterday's local date; `rc=$?` after a pipeline is the tail's status.
