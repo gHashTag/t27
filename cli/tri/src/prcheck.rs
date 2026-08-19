@@ -49,8 +49,15 @@ pub enum PrCmd {
         /// older merges: probing pull request N with wording a LATER pull
         /// request rewrote. Probe with the string as that pull request
         /// introduced it, not as the file reads today.
-        #[arg(long = "probe", required = true)]
+        #[arg(long = "probe")]
         probes: Vec<String>,
+        /// A path the pull request added, asserted to exist on the default
+        /// branch. Separate from --probe because a filename is not content:
+        /// probing for "CITED_NUMBERS" reported ABSENT while
+        /// research/CITED_NUMBERS_2026-08-20.md was present — the file simply
+        /// does not contain its own name.
+        #[arg(long = "file")]
+        files_present: Vec<String>,
     },
     Ready {
         /// Pull request number.
@@ -93,14 +100,15 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             number,
             repo,
             probes,
-        } => landed(*number, repo.as_deref(), probes),
+            files_present,
+        } => landed(*number, repo.as_deref(), probes, files_present),
     }
 }
 
 /// Check that what the pull request introduced is present in the default
 /// branch, file by file. Status is not content: a merged pull request whose
 /// stack-mate was auto-closed leaves a list that reads as success.
-fn landed(n: u64, repo: Option<&str>, probes: &[String]) -> Result<()> {
+fn landed(n: u64, repo: Option<&str>, probes: &[String], files_present: &[String]) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
         None => gh(&[
@@ -167,6 +175,22 @@ fn landed(n: u64, repo: Option<&str>, probes: &[String]) -> Result<()> {
             absent.push(p.clone());
         }
     }
+    for f in files_present {
+        let exists = gh(&[
+            "api",
+            &format!("repos/{repo}/contents/{f}?ref={branch}"),
+            "--jq",
+            ".name",
+        ])
+        .is_ok();
+        if exists {
+            println!("  EXISTS   {f}");
+        } else {
+            println!("  MISSING  {f}");
+            absent.push(format!("file {f}"));
+        }
+    }
+
     println!();
     if absent.is_empty() {
         println!("VERDICT: the content landed on {branch}.");
