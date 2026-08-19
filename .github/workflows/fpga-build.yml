@@ -356,7 +356,8 @@ jobs:
               cmake . -DARCH=xilinx -DUSE_OPENMP=OFF -DCMAKE_BUILD_TYPE=Release
               make -j4 nextpnr-xilinx bbasm
               mkdir -p ~/.local/bin
-              cp nextpnr-xilinx bba/bbasm ~/.local/bin/
+              # In-tree cmake puts both binaries at the build root, not under bba/.
+              cp nextpnr-xilinx bbasm ~/.local/bin/
             fi
       
       - name: Build prjxray tools
