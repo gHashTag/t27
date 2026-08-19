@@ -12115,6 +12115,19 @@ grep. Measure consumption before designing for it.
 **1350. LET THE FIRST REAL CONSUMER DRIVE THE DESIGN.** Speculative feature notes
 rank below the measurement that shows nobody calls the feature.
 
+**1351. A GREEN PARSE MAY BE A PARTIAL READ.** 137 files parse while discarding
+67,760 tokens; 49 of my own seals certified those truncated readings. Reaching
+EOF is not reading everything -- check the accounted variant, and put the number
+in the certificate.
+
+**1352. TRUNCATION IS VACUITY'S SUBTLER SIBLING.** Vacuity certifies nothing;
+truncation certifies less than it looks like. Both belong inside the
+certificate, not in a report someone must remember to run.
+
+**1353. A MANIFEST TURNS A FAILURE LIST INTO AN EXPLANATION.** 173 fails in
+seven named classes plus 137 counted discards: drift between tiers is now
+visible, and every red has a stated reason.
+
 ### How to update this tracker
 
 After closing a wave:

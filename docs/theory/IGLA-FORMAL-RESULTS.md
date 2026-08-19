@@ -26949,6 +26949,44 @@ seal stratigraphy with its minter now recorded. Nine instrument artefacts of my
 own, five withdrawn claims, every one traced to the same move: believing a
 count, a name, or a subset before reading one raw case.
 
+## W888 -- the certificate covers what was read, not the file
+
+### T732 -- 49 OF MY OWN SEALS CERTIFY TRUNCATED READINGS [measured]
+
+`t27c parse-complete` (W633/W634's instrument, found by prior-art search rather
+than rebuilt) over the corpus:
+
+    624 specs: 314 consume all, 137 parse-but-DISCARD (67,760 tokens), 173 fail
+
+Cross-joined with the seal store: **49 of the 165 bootstrap reseals certify
+truncated readings** -- 43,875 tokens thrown away under valid-looking
+certificates. `adamw.t27` alone: 2,234 tokens. T725's "165/165 MATCH end to end"
+verified the REPRODUCIBILITY of a truncated parse, not the completeness of the
+reading -- the claim stands only with that qualification, and this is the audit's
+instrument turning on the auditor for the second time.
+
+### T732a -- HONESTY MOVES INTO THE CERTIFICATE [measured]
+
+`t27c seal --save` now records `discarded_top_level_tokens` (with a stderr
+warning when nonzero); the 49 are resealed carrying their numbers. A green
+verdict that silently covers a partial reading is the vacuous seal's subtler
+sibling: **vacuity certifies nothing; truncation certifies less than it looks
+like.** Both now live IN the certificate rather than in a report someone must
+remember to run.
+
+### T732b -- THE MANIFEST CLOSES THE LOOP [measured]
+
+`specs/parse_manifest.md`: every one of the 173 non-parsing files explained by
+class --
+
+    81 document (prose body)      12 Rust-form dialect
+    38 document (no failing line)  9 namespaced module
+    27 generic library, no consumers  3 design cards  3 capture variants
+
+-- and all 137 discarders listed with counts. Three tiers (clean 314 / discard
+137 / fail 173), each movement between tiers now a visible, deliberate act. The
+parse corpus finally says what it is instead of what its filenames claim.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
