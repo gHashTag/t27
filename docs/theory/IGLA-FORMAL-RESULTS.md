@@ -27324,6 +27324,27 @@ and the 18,368 lines W892 could only mark "at-risk" are settled: read.
 (The two [D] sets are not directly comparable: W892 measured with the frozen
 grammar AND the channel-blind instrument; both changed.)
 
+### T742b -- THE RESIDUE IS TWO MASSES, AND ONLY ONE IS A DEFECT [measured]
+
+Nine independent readers over all 126 dumps (every span read, none scored),
+three adversarial verifiers re-reading the top nine files against the specs:
+4 CONFIRMED, 5 PARTIAL (share corrections only), 0 REFUTED. The 42,926
+residual tokens decompose:
+
+    BDD block fallback   ~48%   first clause holds an expression the grammar
+                                rejects; struct literals in clause values are
+                                the top offender, then array-literal forms,
+                                bench measure/target pairs, one-line invariants
+    forall bodies        ~44%   DELIBERATE non-lowering -- the ring question
+    Rust-form bodies      ~4%   specs/ar dialect content
+    other                 ~4%
+
+So the fixable defect mass after 0005 is ~48% of the residue, and it is an
+EXPRESSION-GRAMMAR queue (0006: struct literals; 0007: array family), not a
+lowering queue -- the lowering itself is now sound for every clause whose value
+the expression grammar accepts. Full map with offender inventory:
+docs/reports/gold-ring/0005-RESIDUAL-MAP.md.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
