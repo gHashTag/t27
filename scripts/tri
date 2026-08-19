@@ -44,6 +44,7 @@ Compiler commands (forwarded to t27c):
   tri <anything else>         forwarded to t27c unchanged (gen, seal, fpga-build, ...)
 
 Local commands (no compiler needed):
+  tri audit                   every pre-wave invariant in one exit code (disk, tree, push, numbering)
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
   tri ci [SLUG ...]           live (non-completed) CI runs; defaults to this repo's origin
@@ -134,6 +135,43 @@ case "$cmd" in
       "$([ "$theorem" = '-' ] && echo '-' || echo $((theorem + 1)))"
     printf 't27c      %s\n' "${t27c_path:-not built (compiler commands unavailable)}"
     exit 0
+    ;;
+
+  audit)
+    # Everything an unattended wave must check before it starts changing things.
+    # One exit code, so a cron loop can gate on it.
+    bad=0
+    free="$(free_gib)"
+    if awk -v f="$free" -v fl="$DISK_FLOOR_GIB" 'BEGIN { exit !(f + 0 < fl + 0) }'; then
+      echo "FAIL  disk      ${free} GiB free, below the ${DISK_FLOOR_GIB} GiB floor"; bad=1
+    else
+      echo "ok    disk      ${free} GiB free"
+    fi
+    dirty="$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "$dirty" != "0" ]; then echo "warn  tree      $dirty uncommitted file(s)"; else echo "ok    tree      clean"; fi
+    # Compare against origin/<this branch>, not @{upstream}: a worktree branch is
+    # often configured to track master, and counting commits against master and
+    # calling them "not pushed" is a true number about the wrong ref. The ref is
+    # printed either way, because a count without its reference point is noise.
+    br="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    ref="origin/$br"
+    git -C "$REPO_ROOT" rev-parse --verify -q "$ref" >/dev/null 2>&1 || \
+      ref="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo '')"
+    if [ -n "$ref" ]; then
+      up="$(git -C "$REPO_ROOT" log --oneline "$ref..HEAD" 2>/dev/null | wc -l | tr -d ' ')"
+      if [ "${up:-0}" != "0" ]; then echo "warn  push      $up commit(s) ahead of $ref"
+      else echo "ok    push      in sync with $ref"; fi
+    else
+      echo "warn  push      no remote ref for $br"
+    fi
+    if [ -f "$WAVE_SKILL" ]; then
+      out="$("$0" lesson --check 2>&1)" && echo "ok    lessons   $out" || { echo "FAIL  lessons   $out"; bad=1; }
+    fi
+    if [ -f "$THEORY_DOC" ]; then
+      out="$("$0" theorem --check 2>&1)" && echo "ok    theorems  $out" || { echo "FAIL  theorems  $out"; bad=1; }
+    fi
+    [ "$bad" = "0" ] && echo "audit: pass" || echo "audit: FAIL"
+    exit "$bad"
     ;;
 
   ci)
