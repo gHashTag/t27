@@ -27962,6 +27962,113 @@ observed is +18.2%, so a one-sided reading puts 12 of 15 rows inside rather than
 14 -- and the honest statement is that this instrument cannot discriminate at
 all in that regime, not that it discriminates and one row fails.
 
+### T768 -- WHEN THE COMMON-MODE TERM IS MOST OF THE MEASUREMENT, THE EXPERIMENT MEASURES THE HARNESS [measured]
+
+The headline comparison reports 463 LUT for the winner and 472 for the runner-up
+on a fixture whose empty control, measured under the same rule in the same
+project, costs almost all of it: the full-observation record gives control = 14
+LUT with the same design at +2. The reported ordering is therefore decided by
+single-digit differences carried on top of a fixture shared by every candidate,
+and the paper's own methodology section calls a shared component a confound
+rather than a constant.
+
+The failure has a cheap and decisive diagnostic signature, verified here by
+reading the table: `tab:cleandecode` states in its caption that "a bare wire in
+the same harness costs 112 LUT at 827.81 MHz" and then prints row 1 at 66 LUT /
+974.66 MHz and row 2 at 76 LUT / 925.93 MHz. Adding a decoder cannot shrink an
+empty harness or speed it up. When a treatment measures SMALLER or FASTER than
+the control, the control is not a control -- the synthesiser is deleting
+different amounts of the fixture per treatment, and what the column ranks is how
+much of the harness each candidate lets the tool remove.
+
+The rule: publish the control as a row, and subtract it. An experiment that
+cannot state its common-mode term cannot state its differences either.
+
+### T769 -- AN INCLUSION RULE WRITTEN AFTER THE MEASUREMENT IS A RESULT, NOT A METHOD [measured]
+
+The eligibility criterion is "formats carrying their own range"; `int8` is
+excluded for e = 0 (`tab:rejected`, "learned per-tensor scale"). The admitted
+winner also has e = 0, and the criterion is redefined in a paragraph titled "Why
+GFTernary is not in Table~\ref{tab:rejected} despite e=0": the distinction
+becomes whether the scale is "external and learned or intrinsic and exact".
+The excluded row measures 0.1736 MHz/LUT against the winner's 0.1797 -- 3.5%,
+which the paper elsewhere calls unseparated by this flow.
+
+The general test is arithmetic and anyone can run it: compute the claim with the
+criterion and without it. When the difference between the two exceeds the claim
+itself, the criterion carries the result, and the honest abstract is about the
+rule. A criterion is a method only if it was written before the numbers; a
+criterion introduced to explain why the measurement should not include a row is
+a finding about the author's expectations.
+
+### T770 -- A SETTING APPLIED TO EVERY ARM CANNOT BE A PROPERTY OF ONE ARM [measured]
+
+"Zero DSP" appears in this paper's title material, abstract and four captions.
+It is a flag: "hard multipliers disabled so the figures describe fabric alone"
+(:1195), `-nodsp` (:4276), "DSP inference off" (:4704, :4966). Under that
+setting every one of the twenty-one candidates reports zero DSP by
+construction, so the column cannot distinguish anything.
+
+Worse, the uniformity is not neutral. The setting removes exactly the resource
+that only the BASELINES would have used -- a float mantissa multiplier maps to
+DSP48E1; a ternary datapath has nothing to map -- so a flag presented as
+neutral methodology transfers area from the baselines' DSP column into their LUT
+column, in the direction that flatters the proposal. A uniform setting is
+reportable as a constraint of the flow; it is never reportable as a discovery
+about one arm.
+
+### T771 -- A FREQUENCY HARVESTED UNDER A SLACK CONSTRAINT MEASURES LEFTOVER HEADROOM [measured]
+
+Every arm in the sweep is routed with `--freq 50.0 ... --timing-allow-fail`
+(tnf-format-throughput.yml:112) and the reported figures are 43-318 MHz -- from
+six to one hundred times above the constraint the router was optimising
+against. Place-and-route stops improving once the stated constraint is met, so
+what such a run reports is not achievable frequency but the slack each design
+happened to be left with after the tool stopped trying. The distortion is not a
+constant offset: it grows with the gap between constraint and result, and it
+differs by design depth, so it reorders as well as displaces.
+
+This one is ours. The workflow header discloses it; the documents quoting the
+numbers did not, until now. The field's own practice is the opposite -- targets
+of 1-2 ns periods precisely so the tool is pushed to the design's limit -- and
+the correction is a per-arm search for the highest constraint that still routes
+with non-negative slack, reported together with that constraint.
+
+### T772 -- SORT CLAIMS BY EFFECT OVER DISPERSION BEFORE WRITING THE ABSTRACT [derived]
+
+Given an instrument with a measured dispersion band, the set of publishable
+claims is determined, not chosen: it is the claims whose effect exceeds the
+band. The author's headline is a poor predictor of membership, because the
+headline is selected by the hypothesis under test while membership is selected
+by the noise. In the case at hand the headline effect is 10.2% against a stated
+resolution of 11.4% (T764) and fails; the fixed-field-versus-tapered separation
+is 6.08x published and 8.93x on the corrected in-tree harness, and passes by two
+orders of magnitude.
+
+Operationally: run the sort first, then write the abstract from whatever
+survives it. The reordering is one editing decision and needs no new
+measurement -- which is why an abstract that fails this test is evidence about
+process rather than about the artefact.
+
+### T773 -- A ROW WHOSE DEFINING REFERENCE IS UNCITED CANNOT SEPARATE THE SUBJECT FROM ITS COMPARATOR [derived]
+
+The comparison contains rows for fp8 e4m3/e5m2, posit8/16/32, takum16 and LNS16.
+Verified by grep on the manuscript: `Micikevicius` 0 hits (the paper that defines
+E4M3/E5M2), `Jaiswal` 0 (the de facto posit hardware baseline), `Baalen` 0 (the
+canonical INT-beats-FP result bearing on the excluded row), `Umuroglu`,
+`Constantinides`, `Leong` 0 (the LUT-per-weight line the 28-LUT figure would be
+ranked against) -- against controls `Etiemble` 9, `Hunhold` 6, which show the
+greps work.
+
+Citing the defining reference is not courtesy: together with synthesising the
+baseline's published RTL, it is the only public evidence that the baseline was
+built to its own specification. Without it an advantage over that baseline is
+formally indistinguishable from an implementation-quality difference -- and the
+ambiguity resolves in the author's favour by default, because an unverified or
+incorrect decoder is smaller and faster than a correct one. Eight baselines here
+are marked "not swept" and three are marked known-incorrect, including the two
+rows directly below the winner.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
