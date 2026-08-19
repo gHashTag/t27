@@ -1,0 +1,92 @@
+# W780 -- Zig backend: assert_eq is emitted and never defined
+#
+# STATUS: READY TO APPLY, BLOCKED AT THE M5 GATE. Not applied.
+#
+# THE DEFECT. The Zig backend emits `assert_eq(a, b)` in test and invariant
+# bodies and never defines it, so the generated Zig cannot compile even in
+# principle. The C backend received exactly this shim in W583
+# (bootstrap/src/compiler.rs, `#define assert_eq` beside `t27_assert`, with the
+# comment "the backend emits calls to assert_eq in test bodies (59 headers) and
+# never defined it"). The Verilog backend lowers assert_eq to an SV assertion.
+# Zig is the only backend that never got it.
+#
+# MEASURED, not inferred. Prepending a three-line assert_eq to the generated Zig
+# for all 446 zig-generating specs and re-running `t27c corpus`:
+#
+#     zig_build   215 -> 275   (+60, zero regressions)
+#     both_build  181 -> 241   (+60; all 60 already had verilog_build=1)
+#
+# The newly-building set is IDENTICAL to the assert_eq cohort, verified by set
+# difference rather than assumed.
+#
+# DO NOT SHIP THIS ALONE. `zig test` on the same 60 gives 28 pass / 32 fail, all
+# on one error class:
+#
+#     error: expected type 'i32', found 'u32'
+#         var hf: i32 = @as(u32, 1) << @intCast(d);
+#     from specs/ternary/gft_sadd.t27:25   ->   var hf : i32 = 1 << d;
+#
+# The shift literal is hardcoded u32 regardless of the annotated i32, and all 32
+# are in specs/ternary/. `build-obj` misses it because Zig does not semantically
+# analyse functions reachable only from `test` blocks -- so `both_build` would
+# report +60 while 32 of them are still broken. Ship the signedness fix in the
+# same commit or the metric is a mirage.
+#
+# WHY IT IS NOT APPLIED. bootstrap/src/compiler.rs is under the FROZEN_HASH seal.
+# FROZEN.md section 5 (ceremony M5) step 2 requires "PR states [GOLD-RING] and
+# milestone (or Architect-approved hotfix)" -- a human intent gate. Repo law
+# overrides autonomous execution, so the seal was left intact and the change is
+# delivered here instead.
+#
+#
+# W781 ADDENDUM -- the exact scope of part 0b, measured.
+#
+# `grep -rlF 'i32 = 1 <' specs --include='*.t27'` returns 33 specs, every one of
+# them under specs/ternary/:
+#   gft_signed_dot4, gft_sadd, gft_dot4_rne, gft_classifier4, gft_train2,
+#   gft_softmax4, and 27 more.
+# The same count is returned by the wider pattern `i32 = <expr> <<`, so the
+# population is 33 and there is no second shape hiding behind the first.
+# 32 of those 33 are inside the 60-spec assert_eq cohort, which is why part 0a
+# alone moves both_build to 241 while `zig test` stays at 28/60.
+#
+# The failing lowering, from the spec source specs/ternary/gft_sadd.t27:25 --
+#     var t : i32 = rem << 1; var hf : i32 = 1 << d;
+# -- becomes `var hf: i32 = @as(u32, 1) << @intCast(d);`. The literal is typed
+# u32 regardless of the annotation on the binding.
+#
+# TO APPLY:
+#     git apply docs/reports/W780-ZIG-ASSERT-EQ.patch
+#     # then the signedness fix for `1 << d` under an i32 annotation
+#     cd bootstrap && cargo run --release -- frozen-digest
+#     # copy the printed line into bootstrap/stage0/FROZEN_HASH
+#     cargo build --release          # must succeed
+#     ./target/release/t27c corpus   # must read zig_build=275, both_build=241
+#     # honesty gate: zig test over the 60-spec cohort must be 60/60, not 28/60
+#
+diff --git a/bootstrap/src/compiler.rs b/bootstrap/src/compiler.rs
+index 86d7717dd..2f86b85b3 100644
+--- a/bootstrap/src/compiler.rs
++++ b/bootstrap/src/compiler.rs
+@@ -5239,6 +5239,21 @@ impl Codegen {
+             self.write_line("        @panic(\"assertion failed\");");
+             self.write_line("    }");
+             self.write_line("}");
++            // W780: the backend emits `assert_eq(a, b)` in test and invariant
++            // bodies and never defined it, so 60 of the 619 specs produced Zig
++            // that Zig rejects -- every one of them already passing iverilog.
++            // The C backend got exactly this shim in W583 (see the
++            // `#define assert_eq` beside `t27_assert`), and the Verilog backend
++            // lowers assert_eq to an SV assertion. Zig was the only backend that
++            // never got it. `anytype` rather than a concrete width because the
++            // call sites mix u32, i32 and bool.
++            self.write_line("fn assert_eq(a: anytype, b: anytype) void {");
++            self.write_line("    if (a != b) {");
++            self.write_line(
++                "        __t27_assert_fail(\"assert_eq failed: {any} != {any}\\n\", .{ a, b });",
++            );
++            self.write_line("    }");
++            self.write_line("}");
+             self.write_line("");
+         }
+ 

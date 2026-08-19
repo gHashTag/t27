@@ -13,7 +13,7 @@ module TriLru;
     pub const LRU(K, V) = struct {
         capacity : "usize",
         entries : "std.HashMap(K, V)",
-        access_list : [[]K",
+        access_list : []K,
     };
 
     // ═══════════════════════════════════════════════════════════

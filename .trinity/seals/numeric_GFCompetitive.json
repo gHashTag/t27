@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:fd07734dc757193cc9ca140078d25339cf492b9b5dae616df776015472fa4d93",
-  "gen_hash_rust": "sha256:d8ffe45b28c9f08ae6779a52c10231261fe32bdd9695a1a6267766e82818a033",
-  "gen_hash_verilog": "sha256:0270ba119e4963f2e9f92acdb4a2f80cfefe87924b89193a89431a61ab993a9b",
-  "gen_hash_zig": "sha256:5d6ce627fa039672894a3149ef9b33134cdc03105d19188d50690e2768032f6d",
+  "gen_hash_c": "sha256:198f578e2068ccb45611a459bc3d18ed003b80a36ec5faca9d535be7fd306b12",
+  "gen_hash_rust": "sha256:bc86d25f683426ad8ffa167db631e4d7c6a1f8014b2d0c6924d95bc2e6386d2c",
+  "gen_hash_verilog": "sha256:b1647c6fda8d8faddb1fde530d97ea2ed2a3e44de5bd270fae451d6d89dab729",
+  "gen_hash_zig": "sha256:3b8f8b783f4b9bcfb0b220dc1f8c46a273edebb5bdc8f1ee989507e905a1ad42",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8deff6f95e04a674b0b6677969b4a46c704f13ec0ac17816ce356230eae6b487",
   "spec_path": "specs/numeric/gf_competitive.t27"
 }

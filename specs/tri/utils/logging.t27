@@ -40,8 +40,8 @@ module TriLogging;
         // TODO: Implement from .tri spec
     }
 
-    // format_entry(allocator: Std.mem.Allocator) → void
-    fn format_entry(allocator: Std.mem.Allocator) -> void {
+    // format_entry(allocator: std.mem.Allocator) → void
+    fn format_entry(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

@@ -13,7 +13,8 @@ This file is the **human-facing queue**: what should go out **next**, and which 
 | P0 | First `gHashTag/t27` GitHub Release + Zenodo | *open `publication-task`* | none | Enable Zenodo on repo; tag `v0.x.y` |
 | P1 | Conformance corpus as dataset | *open `publication-task`* | none | Checksum manifest; `conformance/README.md` done |
 | P1 | GoldenFloat validation CSV bundle | *open `benchmark-task` + `publication-task`* | none | Fill `NUMERICS_VALIDATION.md` §5 |
-| P2 | LANGUAGE_SPEC v1 snapshot | *open `publication-task`* | none | Complete `docs/LANGUAGE_SPEC.md` |
+| **P0** | **TNF article** `docs/theory/TNF_ARTICLE_RU.md` | *open `publication-task`* | none | Three blockers in `PUBLICATION_AUDIT.md` §W845: seed-sweep the silicon table, re-declare the toolchain, add retractions |
+| P2 | LANGUAGE_SPEC v1 snapshot | *open `publication-task`* | none | Complete `docs/nona-02-organism/LANGUAGE_SPEC.md` |
 
 ---
 
@@ -24,3 +25,10 @@ Each row **must** have a **living issue** (`publication-task`, `benchmark-task`,
 ---
 
 *Queue without issues is a wishlist, not a programme.*
+
+---
+
+*W845: the TNF article was missing from this queue entirely while being the
+largest artefact in the programme. Added at P0 because its blockers are ordinary
+work, not research — and because a queue that omits the biggest item is not
+describing the programme.*

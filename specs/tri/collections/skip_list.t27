@@ -12,7 +12,7 @@ module TriSkipList;
 
     pub const SkipNode(T) = struct {
         value : "T",
-        forward : [[]?SkipNode(T)",
+        forward : []?SkipNode(T),
         level : "usize",
     };
 

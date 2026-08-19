@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:306bce58c4f693dc78c8fc73ddcd9e9d77e689cdaa9305e5531bcd48eb77d9bb",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:d09325cb44ae2ab4d9e33f6cc91661fe8e8c8daf07ae2484f7ec78caeaf7f75a",
-  "gen_hash_zig": "sha256:8bf2fe1c0c1b973f2cb88d3c8bf3deae01fefbd367ceea5f45bba35facffe976",
+  "gen_hash_c": "sha256:d5c3e7f8846e3019a4d7851820ff67d5a2d88a26e9ed5ad7ba1614eff8eef79c",
+  "gen_hash_rust": "sha256:8aca12e1516484a4fb611f31f433c8cf635a8f0c0a46582cadac9cf4b21ff960",
+  "gen_hash_verilog": "sha256:c1f0afec0673c3db6f521e9b37b4add257f355a964bb55b153707616595c93e3",
+  "gen_hash_zig": "sha256:df61c18a061ed6c4fa275ae86261f38cca70b8c6986c0a2fa0087cb1c9f39834",
   "module": "TriKdTree",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:ac3052b6c5dab2c3ee103ce3f0cc6941865cd766c1fd12a1c4cc712c283b7c32",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:338dda6bd5fe68db61f018bc4216fd6ab671562bcfc3cf92f1692fbdc2440abd",
   "spec_path": "specs/tri/trees/kd_tree.t27"
 }

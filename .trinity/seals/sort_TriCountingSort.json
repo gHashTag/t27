@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:c1a43242b8897299aa46483bde9ecad54412c98a5ec5fbd5335e62a542f4425f",
-  "gen_hash_rust": "sha256:d98aa489ce798d23abded54cd0d3137850eb37565413f0f8961690979693b297",
-  "gen_hash_verilog": "sha256:bd262a1cac3e2679fbd2098639c04f371b12665ead052075b2c8de4bb3a68eca",
-  "gen_hash_zig": "sha256:74618dafacf27bb257fb816f4098806a7f6311d813b9ed6a4a35d5575d54fd29",
+  "gen_hash_c": "sha256:8696187828cc5f3764dda88c0957523b9b4a540d4e5fbdc0a36c242c0f4cbd8c",
+  "gen_hash_rust": "sha256:8a069b1616bef91ba10a93d27a9c8db2d5579c36e44acbf1bf0461ad7b0f98c6",
+  "gen_hash_verilog": "sha256:1d90b16c1020f977fe76a42f90881b250d9f564bf45faf891d4058ba48a9a686",
+  "gen_hash_zig": "sha256:ece3ca4a7663b3553a159e3aa974e3e3ba796ef7156d8798537302251112eded",
   "module": "TriCountingSort",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:62e6774bc24fab424ef39fbd6ca274ef382086eb52f7c1ae50ae7869e7783bb1",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:e9b76a6307da8010148eccb359fed5cfa1757cf3d28368fab4a3b0765fd3fec0",
   "spec_path": "specs/tri/sort/counting_sort.t27"
 }

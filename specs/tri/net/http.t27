@@ -62,8 +62,8 @@ module TriHttp;
         // TODO: Implement from .tri spec
     }
 
-    // parse_url(allocator: Std.mem.Allocator) → void
-    fn parse_url(allocator: Std.mem.Allocator) -> void {
+    // parse_url(allocator: std.mem.Allocator) → void
+    fn parse_url(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

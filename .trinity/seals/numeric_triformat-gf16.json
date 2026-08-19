@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:3d772aba350f54a7e51b6536279404e11692d6ec30c4ab8f6287c84d240a32e2",
-  "gen_hash_rust": "sha256:7f5261f6d190c1bc0066cfbbeaa61a33d21316ff7a5083e1563a90e58bd963f8",
-  "gen_hash_verilog": "sha256:c671c5a3c0e7284bcb3d3b7b377d4bd18841c5dc2bd1561b22a6d98f856e8958",
-  "gen_hash_zig": "sha256:7a372d12fde82265814bed7e366ab9da517a323dd8e46ecbeed986040fe91137",
+  "gen_hash_c": "sha256:feea47e94045abaf38da3157242db666b55866a62393d50f8cef07d563e017a0",
+  "gen_hash_rust": "sha256:7274ee965a8a07cd072287783e2d0402c71c56e125e2ea5272c69483b0098a97",
+  "gen_hash_verilog": "sha256:248276b16214c394fbd633fa98a59aaad5e291814cfdd80bab11e5ea42860dca",
+  "gen_hash_zig": "sha256:9c29096b84cf8beb57718a0310ebbbe036d8a26d11dcc9bf09af07f7de2a82ab",
   "module": "triformat-gf16",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-18T20:44:17Z",
+  "sealed_by": "t27c-goldring-proto-0001+0002@0.1.0",
   "spec_hash": "sha256:7562c551cdb7682c77bfade157a535f6b724a815a0d933054f5cf423b78920b2",
   "spec_path": "specs/numeric/gf16.t27"
 }

@@ -19,9 +19,9 @@ module TriMsgpack;
         int_value : "i64",
         uint_value : "u64",
         float_value : "f64",
-        str_value : [[]Const u8",
-        bin_value : [[]Const u8",
-        array_value : [[]MsgPackValue",
+        str_value : []const u8,
+        bin_value : []const u8,
+        array_value : []MsgPackValue,
         map_value : "std.StringHashMap(MsgPackValue)",
     };
 

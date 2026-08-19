@@ -10,6 +10,162 @@
 
 ---
 
+## W796-W799 — five specifications answered from silicon
+
+`t27c silicon` carries a `.t27` spec through Verilog, yosys, nextpnr on
+`xc7a200tfbg676`, FASM and `xc7frames2bit` to a die, brackets the load with a
+**wrong-part bitstream that must force `Done` to 0 first**, and reads a verdict
+back through a JTAG USER register. Every row below is three boards
+(`--busdev-num 1:4 / 1:6 / 1:8`), each with that control.
+
+| spec | LUT | CARRY4 | DSP48E1 / SRL16E | BSCAN chain | verdict |
+|---|---:|---:|---:|---:|---|
+| `specs/fpga/ternary_link.t27` | 118 | 16 | **0 / 0** | 4 | `0xa5a5a5a7` ok=1, 3/3 |
+| `specs/numeric/e8m0.t27` | 98 | 56 | **0 / 0** | 1 | ok=1, 3/3 |
+| `specs/numeric/tnf17.t27` | 86 | 16 | **0 / 0** | 4 | ok=1, 3/3 |
+| `specs/igla/race/phi_weights.t27` | 86 | 16 | **0 / 0** | 3 | ok=1, 3/3 |
+| `specs/igla/race/ternary_node.t27` | 92 | 16 | **0 / 0** | 3 | ok=1, 3/3 |
+
+**Fifteen spec-to-die verdicts. Zero DSP48E1 and zero SRL16E in every design**, so
+none is exposed to the openXC7 primitive defects of T246/T250 and T342.
+
+**Wrappers are in `fpga/verilog/*_jtag.v`** and none uses a golden constant table.
+Each checks an algebraic property the spec itself claims — involution,
+antisymmetry, annihilation, exact additivity — and each carries its own
+**non-triviality clause**, because the dead answer differs per property: a wire
+passes an involution, a zero-returning module passes antisymmetry, and a module
+returning `acc` unchanged passes additivity.
+
+**The BSCAN chain is derived, never typed.** `t27c silicon` places once, reads the
+site out of the FASM and rebuilds with `chparam` if they disagree. The cell moves
+when the parameter changes, so this is a fixed-point iteration: it was written
+with two attempts and needed up to four (W796). Chains 1, 3 and 4 all occur above.
+
+**Read timing is NOT characterised.** The verdict is read up to three times and
+the indices that returned the magic word are reported. Four designs read
+`[2] / [1,2] / [0,1,2]` on boards 1:4 / 1:6 / 1:8; the fifth read `[0,1,2]` on all
+three. **A single-shot read would have reported board 1:4 as a failure on four
+designs out of five.** Whether this tracks configuration-to-read delay is
+**unmeasured** — do not state a cause. **W800 constrains it, though:** every
+wrapper's `beat` bit toggles once per `2^24` CFGMCLK cycles ≈ **258 ms**, so it
+timestamps the read, and the one design that answered on index `[0]` was captured
+with `beat` still **0** on two boards — read *earlier*, not later. **Evidence
+against a settling story; mechanism still unnamed.**
+
+**`specs/numeric/golden_sieve.t27` has no data port and correctly cannot reach a
+die**: it is predicates and comptime invariants, eight proved at compile time,
+with nothing to move across a boundary. Any "fraction of the corpus on silicon"
+must exclude proof-only specs from its denominator.
+
+## W791 verification (2026-08-17) — SRAM path confirmed on all three dice
+
+Executed with `openFPGALoader 1.1.1` (Homebrew), profile `digilent_hs2`:
+
+```
+--scan-usb   001:004 / 001:006 / 001:008   0x0403:0x6014  Digilent  210512180081
+--detect     idcode 0x3636093  xilinx  artix a7 200t  xc7a200
+```
+
+**Acceptance criterion (drop Done with a foreign bitstream, then raise it):**
+
+| board | `ternary_mac_demo_top.bit` (xc7a100t) | `ternary_mac_demo_top_200t.bit` |
+|---|---|---|
+| `--busdev-num 1:4` | `Done 0x0`, `ID Error` | `isc_done 1 ... done 1` |
+| `--busdev-num 1:6` | `Done 0x0`, `ID error` | `done 1` |
+| `--busdev-num 1:8` | `Done 0x0`, `ID error` | `done 1` |
+
+Also reaching `done 1` on 1:4: `ternary_mac_demo_top_v2_200t.bit`,
+`mvp_ternary_classifier_top_200t.bit`, `mvp_ternary_classifier_jtag_200t.bit`.
+
+**Flash: RESOLVED W792.** The bridge is shipped under the *other package name* —
+`spiOverJtag_xc7a200tfbg676.bit.gz` — and this file's own §2026-07-05 already
+records that `fbg676` is the same die and pinout as `fgg676`. Use:
+
+```
+openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 --detect -f
+  SOJ version: 2.000000
+  JEDEC ID: 0x20ba18
+  Detected: micron N25Q128_3V  256 sectors  size: 128Mb
+```
+
+Non-volatile programming is available. It is **not** performed autonomously —
+writing flash changes what the board boots on power-up — but it was executed by
+the owner on 2026-08-17 and verified here:
+
+```
+openFPGALoader -c digilent_hs2 --busdev-num 1:4 --fpga-part xc7a200tfbg676 \
+               -f fpga/verilog/mvp_ternary_classifier_top_200t.bit
+```
+
+**Readback check (W794):** dumped 9,730,892 bytes; sync word `0xAA995566` sits at
+`.bit` offset 288 and flash offset 48; the 9,730,604-byte payload matches
+**100.0000 %** on a every-97th-byte sample and the first 4096 bytes are identical.
+
+Note: `--reset` is a modifier to an operation, not a standalone command, and
+`--detect` does not report DONE — so **boot-from-flash cannot be confirmed over
+JTAG alone**; it needs a power cycle.
+
+**Superseded note —** `--detect -f` aborts on a missing
+`spiOverJtag_xc7a200tfgg676.bit.gz`; Homebrew ships no 200T/fgg676 bridge and
+`fpga/tools/` carries only the **xc7a100t** one. Build the bridge for the correct
+die and the non-volatile path opens.
+
+**`CLAUDE.md` corrected the same day**: it forbade `openFPGALoader` on the grounds
+that it cannot drive a `0x03FD` cable — true, and irrelevant here, since no
+`0x03FD` cable is attached. That sentence was quoted as a hardware blocker for
+thirteen waves.
+
+
+## ⚠ W818 CORRECTION — the W814 neuron verdict below is WITHDRAWN (T543)
+
+`gft_bitnet_neuron` meets timing at **11.26 MHz** and these dice run CFGMCLK at
+**70.77 / 68.49 / 67.20 MHz** (T495). It was placed against nextpnr's unstated
+**12 MHz** default and is therefore six times over its limit. The `ok=1` read from
+three boards is not evidence about the arithmetic — the BSCAN readback runs on
+DRCK, a different clock, so an unsettled latch reads out cleanly.
+
+**What stands:** the spec synthesises, places, loads, and the die answers — the
+compilation and load path is sound. **What does not:** any claim about the
+computation. `ternary_node` (216 MHz) and `e8m0` (78.6 MHz) pass at the measured
+clock and are unaffected.
+
+`t27c silicon` now passes `--freq 70.77` — the fastest of the three dice, because
+a design that must run on all of them has to survive the shortest period.
+
+---
+
+## W814 verification (2026-08-18) — a GFTernary float neuron on all three dice
+
+`specs/ternary/gft_bitnet_neuron.t27` — a four-tap BitNet neuron over signed GF-T
+activations with round-to-nearest-even — **could not be synthesised at all before
+W813**, when removing yosys's `share` pass took the `gft_*` family from "never" to
+seconds (T529/T532). It is the first of those 25 to reach silicon.
+
+```
+yosys      2,047 LUT, 371 CARRY4, 0 DSP48E1, BSCANE2 x1
+nextpnr    OK — BSCAN chain == site, agree
+hardware   Done 1 on 1:4, 1:6, 1:8
+
+readback, chain 1, all three cables:
+  idx 0  0xa5a5a5f5    idx 1  0xa5a5a5f7    idx 2  0xa5a5a5f7
+  c_can=1  c_ann=1  c_non=1  c_ant=1  ok=1
+```
+
+Word layout is `{24'hA5A5A5, c_can, c_ann, c_non, c_ant, 0, 1, beat, ok}` — four
+clause bits, because one `ok` bit cannot localise a four-clause conjunction
+(T535a). **Note the hazard this exposed:** the magic is 24 bits here and 28 bits
+in every earlier wrapper, and the two layouts are not distinguishable from the
+word alone. Decode with the layout of the build you loaded, and prefer a version
+field when a fleet can hold more than one build.
+
+**A wrapper reporting ~43 LUT is measuring nothing (T534).** That figure is
+STARTUPE2 + reset counter + prescaler + BSCAN and no datapath at all: with every
+probe a compile-time constant, Yosys folds the DUT away. This design measured
+43 LUT until one activation was driven from a counter, then 2,047. `phi_weights`
+and `tnf17` sit at that floor in the W805 census.
+
+---
+
 ## 1. Target board (the one we build & flash for)
 
 | Field | Value |
@@ -18,6 +174,64 @@
 | FPGA | **XC7A200T-FGG676** |
 | Vivado part string | **`xc7a200tfgg676-1`** |
 | JTAG IDCODE | **`0x03636093`** (XC7A200T) |
+| Block RAM | **1.682 MB** (365 × 36 Kb), datasheet |
+| LUT / DSP48E1 | **215,360 / 740**, datasheet |
+| SPI flash | **16 MiB** — Micron N25Q128, JEDEC `0x20ba18`, measured on all three dice 2026-08-17 |
+| CFGMCLK, measured | **70.77 / 68.49 / 67.20 MHz** on busdev 1:4 / 1:6 / 1:8 — mean 68.82, spread 5.19% (T495) |
+| **On-board DRAM** | **NOT MEASURED.** See §"DRAM is unmeasured" below. Do not fill this in from another board's datasheet. |
+
+> **W805 (2026-08-17):** the four rows above did not exist. The board this project
+> builds for, flashes and reads verdicts off had no recorded memory capacity of
+> any kind, while `specs/boards/` described an XC7A100T and an Arty A7 — neither
+> of which is on this bench. `specs/boards/wukong_v1.t27` now carries the same
+> facts as comptime invariants (11 tests, 7 invariants, typecheck clean).
+
+### DRAM is unmeasured — and that is a load-bearing gap
+
+A partner analysis concluded a 1.7-billion-weight ternary LLM "fits the board":
+457.3 MB of weights against **1 GB of DDR3 on an Alinx AX7203**. That is a
+different board. This one is a QMTech Wukong V1, and **nothing in this repository
+records its DRAM capacity**. The fit question is therefore `not-evaluated` here,
+not answered — and `specs/boards/wukong_v1.t27` keeps `DRAM_BYTES = 0` with
+`DRAM_BYTES_MEASURED = false` so that every predicate depending on it refuses to
+answer rather than returning a plausible number.
+
+What *is* measured says enough to plan by:
+
+| Quantity | Value | Source |
+|---|---:|---|
+| SPI flash, per die | 16 MiB | JEDEC `0x20ba18`, read on 1:4, 1:6, 1:8 |
+| Ternary-Bonsai-1.7B weights (Q2_0) | 457.3 MB | partner GGUF metadata |
+| Shortfall, weights vs flash | **27×** | derived |
+| Block RAM, three dice | 5.05 MB | datasheet |
+| Ternary parameters that fit on-chip, 1.58 b/w | **25.5 M** | derived |
+
+The last row is the useful one: ~25 M parameters is simultaneously the largest
+model that fits the fabric and a model that fits the 16 MiB flash with room over,
+so below that size the bench is host-free after boot. See
+`docs/reports/W805-TERNARY-FPGA-FIELD-SURVEY.md`.
+
+#### W806: the DRAM search came back empty — do not repeat it
+
+Searched and found nothing usable, recorded so the next wave spends its time
+elsewhere:
+
+- No QMTech public repository carries a Wukong V1 constraint file. `gh api
+  search/repositories q="QMTech Wukong xc7a200t"` returns zero rows.
+- `gh api search/code` for `QMTech Wukong MT41` and `wukong ddr3 xdc` both return
+  `total_count: 0`.
+- The capacity cannot be probed over JTAG. Reading a DDR3 device needs a memory
+  controller, Artix-7 has no hardened one, and the open toolchain has no MIG.
+  There is no SPD EEPROM on a soldered-down FPGA-board DRAM.
+
+**Two paths remain, and both need a human at the bench.** (a) Read the part
+marking off the DDR3 chip — one photograph settles it. (b) Build LiteDRAM for
+this part, which self-calibrates and reports geometry; that is a project, not a
+command.
+
+Until one of those happens, `specs/boards/wukong_v1.t27` keeps `DRAM_BYTES = 0`
+and `DRAM_BYTES_MEASURED = false`, and `weights_fit_dram()` returns false for
+lack of input. **That is the correct answer, not a placeholder.**
 
 > **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
 

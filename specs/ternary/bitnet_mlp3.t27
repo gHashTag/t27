@@ -29,4 +29,19 @@ test dot27_all_n { assert_eq(dot27(0, 0), 27); }
 test neuron1_p_p { assert_eq(neuron1(12009599006321322, 12009599006321322, 10), 2); }
 test pack3_zzz { assert_eq(pack3(1, 1, 1), 6004799503160661); }
 test quantize_band { assert_eq(quantize(5, 10), 1); }
+// W699: the hardware boundary, with a width the EMITTER can produce.
+//
+// W698 accepted `[8]u64` while the port emitter still sized entry ports with
+// `type_to_width`, whose last arm is `_ => 32`. This parameter became
+// `input wire [31:0]` -- a silent 16x narrowing, and the banner, the census,
+// the corpus column and yosys all reported success. It was retracted the same
+// wave.
+//
+// W699 replaced that call with `entry_port_width`, which returns None rather
+// than a plausible number and makes the entry point refuse LOUDLY in the
+// generated source. Verified end to end: this parameter now emits
+// `input wire [511:0]`, and `on_comb` and the function it forwards to both
+// take [511:0], so nothing is truncated between the boundary and the body.
+fn on_comb(acts: [8]u64, wa0: [8]u64, wa1: [8]u64, wa2: [8]u64, wb0: u64, wb1: u64, wb2: u64, wc0: u64, wc1: u64, l1chunks: u32, threshold: i16) -> u8 { return mlp3(acts, wa0, wa1, wa2, wb0, wb1, wb2, wc0, wc1, l1chunks, threshold); }
+
 endmodule

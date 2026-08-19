@@ -150,7 +150,12 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                eprintln!("cargo:warning={msg}");
+                // W689: this was `eprintln!`. Cargo parses `cargo:` directives
+                // from a build script's STDOUT only, so every Markdown language
+                // violation was written to a stream nobody reads -- the check
+                // ran, found the files, and reported to no one. Lesson 384 even
+                // asserts these "emit build warnings"; they never did.
+                println!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -163,7 +168,12 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                eprintln!("cargo:warning={msg}");
+                // W689: this was `eprintln!`. Cargo parses `cargo:` directives
+                // from a build script's STDOUT only, so every Markdown language
+                // violation was written to a stream nobody reads -- the check
+                // ran, found the files, and reported to no one. Lesson 384 even
+                // asserts these "emit build warnings"; they never did.
+                println!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -182,7 +192,12 @@ fn main() {
         let path = root.join(name);
         if path.is_file() {
             if let Err(msg) = scan_cyrillic(&path, name, &allow) {
-                eprintln!("cargo:warning={msg}");
+                // W689: this was `eprintln!`. Cargo parses `cargo:` directives
+                // from a build script's STDOUT only, so every Markdown language
+                // violation was written to a stream nobody reads -- the check
+                // ran, found the files, and reported to no one. Lesson 384 even
+                // asserts these "emit build warnings"; they never did.
+                println!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }

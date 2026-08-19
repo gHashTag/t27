@@ -11,7 +11,7 @@ module TriPrimsMst;
     // ═══════════════════════════════════════════════════════════
 
     pub const MSTResult = struct {
-        edges : [[]Edge",
+        edges : []Edge,
         total_weight : "i64",
         allocator : "std.mem.Allocator",
     };

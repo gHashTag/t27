@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:09cbb6f37c40ff9bd5cd97d7a76d16e75c493995319e4bf4c3fef078080a87dd",
-  "gen_hash_rust": "sha256:531d6594f7b7539374fb04033413262b5a05b59bf5141a5f3553478293c7166d",
-  "gen_hash_verilog": "sha256:e61e6beea075215c80e7b266e4f074bdeec42d612ed2947566115f02abfefd06",
-  "gen_hash_zig": "sha256:aa1a85d090bfb79ad4b1804840ce81c533f388e534f7da2f34f79bc30db2da3a",
+  "gen_hash_c": "sha256:15f8c1ac1105adb928e806e11622efbcc686621c62e24f6fd5a4a658fb084bbd",
+  "gen_hash_rust": "sha256:1d87917b0e861b194335cb54906766c975777298b5b33655584557b8326ce0a8",
+  "gen_hash_verilog": "sha256:54462887c18bf12944026904ed876bd3ddb3ab67c6996d26e15a46c17a2deefe",
+  "gen_hash_zig": "sha256:a7d00d9fe3e6c83c47a9cbb64323d7197366510f7f660a70a852aea0f3afc73f",
   "module": "TernaryRippleAdder",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:a03b620c1848281acec4fde91e253fa9381ab96636cc11dae51aa83e5dc683ad",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:a83c6908f56dff1e15cc256e2a5230eafc57bbda16908f5618b1a690bf34d4b8",
   "spec_path": "specs/ternary/ternary_ripple_adder.t27"
 }

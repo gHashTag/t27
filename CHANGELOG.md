@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### FPGA — measured, W746-W761 (2026-08-14/15)
+
+#### Added
+- **A trained ternary network running across three XC7A200T dice** — 232 LUT
+  total, zero DSP, zero SRL, **100/100 layer agreement** with the reference model
+  on 100 real UNSW-NB15 rows. Weights come from the trainer, not from a seed.
+- **Trainer-to-silicon export path** (`experiments/gfternary-line/gen_trained.py`).
+  Before it, every silicon result in this repository ran `random.Random(seed)`
+  weights and proved transport rather than computation.
+- **`t27c yostat` refuses known-bad primitives** — exits 2 on `SRL16E`,
+  `SRLC32E` or `DSP48E1`, naming the yosys flag to add.
+- **33-bit BSCANE2 data register**, so a full 32-bit payload survives the
+  Exit1-DR clock. The previous 31-bit limit silently truncated one ternary symbol
+  and flipped 6 of 100 decisions.
+- `docs/reports/OPENXC7-SRL16E-DEFECT.md` — reproduction, toolchain versions and
+  diagnosis path for a new openXC7 defect.
+
+#### Fixed
+- **openXC7 emits a wrong bitstream for `SRL16E`** while the netlist is correct:
+  0/6 rows agreed with the model, **24/24 with `synth_xilinx -nosrl`**, source
+  byte-identical. Same class as the known DSP48E1 defect. Three waves of hardware
+  debugging trace to this one cause.
+- Every LUT figure published before W752 counted hidden layers only and **omitted
+  the decision neuron** (87 LUT at fan-in 16). Corrected in `BENCHMARKS.md`.
+
+#### Changed — claims narrowed
+- **The golden alphabet is measured at +0.735 pp** (size) and +0.149 pp (shape,
+  significant on 1 of 3 tasks), against inter-layer normalisation at **+29.15 pp**.
+  The multiplier `phi` removes from weight application **returns in the pair
+  resolve**, costing 8 DSP48E1 or ~2750 LUT. The algebra stands; the practical
+  advantage does not.
+- **No accuracy figure from before W749 is comparable** — the pre-activation
+  scale was uncontrolled, inflating the alphabet-size effect by 39%.
+- **No claim that this datapath suits any task.** The sparse penalty ranges over
+  a factor of fifty across eleven measured tasks and no predictor survived a
+  confirmation split.
+- **No `LUT*ns` comparison** with any published system: the field's Fmax is not
+  in this repository and the column stays empty rather than guessed.
+
+
 ### Added
 - Repository best practices configuration (git hooks, CODEOWNERS, Dependabot, PR template)
 - Pull request template with Issue Gate checklist

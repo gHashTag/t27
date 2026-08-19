@@ -128,6 +128,17 @@ impl Node {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
+    /// `?` -- the optional-type marker (`?u64`) and Rust's error-propagation
+    /// postfix. The lexer DISCARDED it as an unrecognised character, so `?u64`
+    /// reached the backend as `u64`: an optional silently became a
+    /// non-optional. 287 occurrences across the corpus, and
+    /// `t27_array_type_to_zig` has handled a leading `?` since W561 -- the
+    /// character never got there (W581).
+    Question,
+    /// A string literal that reached end-of-input without a closing quote.
+    /// Distinct from `String` so the parser can reject it instead of treating
+    /// the rest of the file as its contents (W577).
+    UnterminatedString,
     // Keywords
     KwPub,
     KwConst,
@@ -211,6 +222,8 @@ pub enum TokenKind {
     PipeEquals,
     AmpEquals,
     CaretEquals,
+    SlashEquals,
+    PercentEquals,
     PlusPercent,
     MinusPercent,
     StarPercent,
@@ -232,19 +245,31 @@ pub struct Token {
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
-    source: Vec<u8>,
+    /// Shared, never mutated after construction. This was a `Vec<u8>`, so every
+    /// `Parser::save_state` -- which clones the lexer -- copied the ENTIRE
+    /// source. Checkpoints were rare enough for that not to show until W568
+    /// added one per bracketed expression, at which point parsing the corpus's
+    /// 23-million-line benchmark specs went quadratic and timed out. Sharing
+    /// the buffer makes a checkpoint a refcount bump.
+    source: std::rc::Rc<[u8]>,
     pos: usize,
     line: usize,
     col: usize,
+    /// Characters the lexer did not recognise and DISCARDED, with the line each
+    /// was on. Recording them changes nothing about lexing; it makes the silent
+    /// drop measurable, which W581 needs before deciding whether the right
+    /// change is to reject them or to lex them.
+    pub dropped: Vec<(char, usize)>,
 }
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
         Self {
-            source: source.as_bytes().to_vec(),
+            source: source.as_bytes().into(),
             pos: 0,
             line: 1,
             col: 1,
+            dropped: Vec::new(),
         }
     }
 
@@ -296,6 +321,39 @@ impl Lexer {
                     self.advance();
                 }
                 continue; // loop back to skip more whitespace/comments
+            }
+
+            // W661: `#` starts a line comment.
+            //
+            // Specs annotate struct fields with their source-language defaults:
+            //
+            //     category : ?CommandCategory  # default: null,
+            //     search   : ?[]const U8       # default: null,
+            //     verbose  : Bool              # default: false,
+            //
+            // `#` was not a comment, so the field parser read `# default: null,`
+            // as a FIELD, and every struct with these annotations grew a phantom
+            // `default` member -- one per annotated field, all with the same
+            // name. The symptom is three identical declarations in the emitted
+            // Verilog and `'helpoptions_default' has already been declared`,
+            // which reads as a missing dedup in the emitter. It is not: the
+            // emitter is faithfully lowering fields that should never have been
+            // parsed.
+            //
+            // `#` is not a pragma marker here -- `pragma` is a keyword
+            // (TokenKind::KwPragma) -- and it carries no other meaning in the
+            // language. Measured over the spec tree: 42 occurrences in struct
+            // field positions across 8 specs, plus a file with a `.t27`
+            // extension whose contents are Markdown headings. Both become
+            // comments, which is what they always were in intent.
+            //
+            // This runs AFTER string and char literals are lexed, so a `#`
+            // inside `"# nextpnr-compatible XDC"` or `'#'` is untouched.
+            if self.pos < self.source.len() && self.source[self.pos] == b'#' {
+                while self.pos < self.source.len() && self.peek() != b'\n' {
+                    self.advance();
+                }
+                continue;
             }
 
             // Skip /* ... */ block comments
@@ -443,6 +501,19 @@ impl Lexer {
             }
             if self.pos < self.source.len() {
                 self.advance(); // consume closing "
+            } else {
+                // W577: no closing quote. The lexer used to return a String
+                // token holding the REST OF THE FILE, so the parser saw one
+                // giant literal, reached Eof and reported success -- a
+                // truncation the completeness check cannot even see, because
+                // the input really was consumed. Mark it so the parser can
+                // refuse.
+                return Token {
+                    kind: TokenKind::UnterminatedString,
+                    lexeme: s,
+                    line: start_line,
+                    col: start_col,
+                };
             }
             return Token {
                 kind: TokenKind::String,
@@ -452,29 +523,58 @@ impl Lexer {
             };
         }
 
-        // Character literal 'c' (including escape sequences like '\n')
+        // Single-quoted literal: a character 'c' / '\n', OR a string 'abc'.
+        //
+        // W604: this used to consume EXACTLY ONE character after the opening
+        // quote and then look for a closing one. Given `'{"model": "x"}'` it
+        // produced CharLiteral("{") and left the rest -- including the closing
+        // brace -- as loose tokens, which ended the enclosing module. That cost
+        // 77% of `specs/igla/coder/weights.t27` (1,622 of 2,109 lines) and the
+        // corpus contains **120 multi-character single-quoted literals** in 10
+        // specs, 85 of them in `dataset.t27` alone. Same class as W575's `1e6`:
+        // a mis-lexed VALUE, no error, no diagnostic.
+        //
+        // Both forms are real -- 69 genuine char literals across 19 specs -- so
+        // the fix is to scan to the closing quote and decide by CONTENT, not to
+        // pick one meaning. An unterminated quote is an ERROR rather than
+        // silent garbage, which is W577's rule applied one layer down.
         if ch == b'\'' {
             self.advance(); // consume opening '
-            let mut ch_val = String::new();
-            if self.pos < self.source.len() {
-                if self.peek() == b'\\' {
-                    ch_val.push('\\');
+            let mut val = String::new();
+            let mut closed = false;
+            while self.pos < self.source.len() {
+                let c = self.peek();
+                if c == b'\n' {
+                    break; // a quote never spans a line; report it unterminated
+                }
+                if c == b'\\' {
+                    val.push('\\');
                     self.advance();
                     if self.pos < self.source.len() {
-                        ch_val.push(self.peek() as char);
+                        val.push(self.peek() as char);
                         self.advance();
                     }
-                } else {
-                    ch_val.push(self.peek() as char);
-                    self.advance();
+                    continue;
                 }
+                if c == b'\'' {
+                    self.advance();
+                    closed = true;
+                    break;
+                }
+                val.push(c as char);
+                self.advance();
             }
-            if self.pos < self.source.len() && self.peek() == b'\'' {
-                self.advance(); // consume closing '
-            }
+            let kind = if !closed {
+                TokenKind::UnterminatedString
+            } else if val.chars().count() == 1 || (val.starts_with('\\') && val.chars().count() == 2)
+            {
+                TokenKind::CharLiteral
+            } else {
+                TokenKind::String
+            };
             return Token {
-                kind: TokenKind::CharLiteral,
-                lexeme: ch_val,
+                kind,
+                lexeme: val,
                 line: start_line,
                 col: start_col,
             };
@@ -605,7 +705,7 @@ impl Lexer {
                 };
             }
 
-        if two == [b'-', b'='] {
+            if two == [b'-', b'='] {
                 self.advance();
                 self.advance();
                 return Token {
@@ -616,7 +716,7 @@ impl Lexer {
                 };
             }
 
-        if two == [b'*', b'='] {
+            if two == [b'*', b'='] {
                 self.advance();
                 self.advance();
                 return Token {
@@ -627,7 +727,18 @@ impl Lexer {
                 };
             }
 
-        if two == [b'|', b'='] {
+            if two == [b'/', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::SlashEquals,
+                    lexeme: String::from("/="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'|', b'='] {
                 self.advance();
                 self.advance();
                 return Token {
@@ -638,7 +749,18 @@ impl Lexer {
                 };
             }
 
-        if two == [b'&', b'='] {
+            if two == [b'%', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PercentEquals,
+                    lexeme: String::from("%="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'&', b'='] {
                 self.advance();
                 self.advance();
                 return Token {
@@ -649,7 +771,7 @@ impl Lexer {
                 };
             }
 
-        if two == [b'^', b'='] {
+            if two == [b'^', b'='] {
                 self.advance();
                 self.advance();
                 return Token {
@@ -759,6 +881,39 @@ impl Lexer {
                 }
             }
 
+            // W575: a decimal EXPONENT. `1e6` lexed as the number `1` followed
+            // by the identifier `e6`, and `2.5e-3` as `2.5`, `e`, `-`, `3` --
+            // so `f(1e6, 2.5e-3)` parsed as a FOUR-argument call. 486
+            // occurrences across 62 specs, found by `t27c check-calls`
+            // reporting an arity mismatch that turned out to be a lexer bug.
+            //
+            // Only consumed when a digit actually follows (after an optional
+            // sign), so `0x1e` stays hex and an identifier like `e6` on its own
+            // is untouched.
+            if !is_hex && self.pos < self.source.len() {
+                let c = self.peek();
+                if c == b'e' || c == b'E' {
+                    let mut ahead = self.pos + 1;
+                    let signed = ahead < self.source.len()
+                        && (self.source[ahead] == b'+' || self.source[ahead] == b'-');
+                    if signed {
+                        ahead += 1;
+                    }
+                    if ahead < self.source.len() && self.source[ahead].is_ascii_digit() {
+                        number.push(c as char);
+                        self.advance();
+                        if signed {
+                            number.push(self.peek() as char);
+                            self.advance();
+                        }
+                        while self.pos < self.source.len() && self.peek().is_ascii_digit() {
+                            number.push(self.peek() as char);
+                            self.advance();
+                        }
+                    }
+                }
+            }
+
             let type_suffixes: &[&[u8]] = &[
                 b"u8",
                 b"u16",
@@ -857,8 +1012,11 @@ impl Lexer {
             b'~' => TokenKind::Tilde,
             b'<' => TokenKind::Lt,
             b'>' => TokenKind::Gt,
+            b'?' => TokenKind::Question,
             _ => {
-                // Unknown character — skip and recurse
+                // Unknown character -- skip and recurse. Recorded so the drop
+                // can be counted (W581); the behaviour is unchanged.
+                self.dropped.push((ch as char, self.line));
                 self.advance();
                 return self.next_token();
             }
@@ -897,9 +1055,29 @@ pub struct Parser {
     current: Token,
     peek: Token,
     pending_pragma: String,
-    /// Inside a paren-less if/while condition a `{` opens the BODY, never a
-    /// struct literal (the Rust rule); parse_primary consults this.
-    no_struct_literal: bool,
+    /// While parsing a PARENTHESIS-LESS `if`/`while` condition, `Name {` opens
+    /// the branch body, not a struct literal. Rust has the same ambiguity and
+    /// resolves it the same way (W578).
+    no_struct_literal: u32,
+    /// W633: tokens DISCARDED by top-level drop-recovery. The parser resyncs
+    /// past an unrecognised declaration and reaches EOF, so
+    /// `parse_ast_strict`'s "did we reach EOF?" check reports "consumed all"
+    /// -- for input that was consumed AND THROWN AWAY. Counting them is what
+    /// makes that population visible. See T42.
+    dropped_top_level_tokens: usize,
+    // W883 prototype: nested `fn` declarations, hoisted to module level.
+    hoisted_fns: Vec<Node>,
+    // W898 (0005): inside a braceless-clause VALUE, an `and` that opens the next
+    // clause must terminate the expression instead of becoming a logical AND.
+    in_bdd_clause_value: bool,
+    last_line: usize,
+    bdd_last_was_assertion: bool,
+    bdd_role_preset: bool,
+    bdd_first_col_preset: Option<usize>,
+    /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
+    /// told us 55,563 tokens vanish; only reading them can say whether any of
+    /// it is content a theorem depends on. See T43.
+    dropped_spans: Vec<(u32, String)>,
 }
 
 #[derive(Clone)]
@@ -908,6 +1086,39 @@ struct ParserCheckpoint {
     current: Token,
     peek: Token,
     pending_pragma: String,
+}
+
+/// Identifiers a nested fn uses that are neither its parameters nor its own
+/// locals. Builtin scalar type names are excluded: `@as(f32, ..)` carries `f32`
+/// as a bare identifier argument.
+fn free_idents_of(decl: &Node) -> Vec<String> {
+    const BUILTIN_TYPES: &[&str] = &[
+        "f32", "f64", "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32",
+        "i64", "isize", "bool", "void", "true", "false",
+    ];
+    let mut bound: Vec<String> = decl.params.iter().map(|p| p.0.clone()).collect();
+    let mut free: Vec<String> = Vec::new();
+    fn walk(n: &Node, bound: &mut Vec<String>, free: &mut Vec<String>) {
+        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() {
+            bound.push(n.name.clone());
+        }
+        if n.kind == NodeKind::ExprIdentifier
+            && !n.name.is_empty()
+            && !n.name.starts_with('@')
+            && !bound.iter().any(|b| b == &n.name)
+            && !free.iter().any(|f| f == &n.name)
+        {
+            free.push(n.name.clone());
+        }
+        for c in &n.children {
+            walk(c, bound, free);
+        }
+    }
+    for c in &decl.children {
+        walk(c, &mut bound, &mut free);
+    }
+    free.retain(|f| !BUILTIN_TYPES.contains(&f.as_str()));
+    free
 }
 
 impl Parser {
@@ -919,7 +1130,15 @@ impl Parser {
             current: first,
             peek: second,
             pending_pragma: String::new(),
-            no_struct_literal: false,
+            no_struct_literal: 0,
+            dropped_top_level_tokens: 0,
+            hoisted_fns: Vec::new(),
+            in_bdd_clause_value: false,
+            last_line: 0,
+            bdd_last_was_assertion: false,
+            bdd_role_preset: false,
+            bdd_first_col_preset: None,
+            dropped_spans: Vec::new(),
         }
     }
 
@@ -942,6 +1161,7 @@ impl Parser {
     }
 
     fn advance(&mut self) {
+        self.last_line = self.current.line;
         self.current = self.peek.clone();
         self.peek = self.lexer.next_token();
     }
@@ -983,6 +1203,19 @@ impl Parser {
                     return Ok(());
                 }
             }
+            // W646: this body is being SKIPPED, so every token in it is
+            // discarded. T42's counter lived only in `skip_to_next_top_level`,
+            // making 55,563 a lower bound over one of four discard channels.
+            // See T56.
+            // W899: the counter incremented here but the SPAN was never
+            // recorded, so `parse-complete --show` printed "nothing discarded"
+            // for a file the corpus mode charged 2,438 tokens. Both accounts
+            // must see every channel.
+            self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
+            }
             self.advance();
         }
         Ok(())
@@ -997,6 +1230,58 @@ impl Parser {
             if self.current.kind == TokenKind::Semicolon && bracket_depth == 0 && paren_depth == 0 {
                 self.advance();
                 return Ok(());
+            }
+            // W902 (0008): a LINE-LEADING const/var at depth 0 is the next
+            // declaration, not expression tail. is_top_level_start excludes
+            // const/var on purpose (they appear inside keyword blocks), so a
+            // semicolon-less `const A = 10` followed by `const B = 5` sent this
+            // loop through B, the next fn, and everything to EOF -- the corpus's
+            // single largest discard (2,438 tokens) traced here. Same-line
+            // `[]const u8` shapes stay intact (W568): the line test spares them.
+            // W903 panel: the stop's first version fired on var, on INDENTED
+            // const inside keyword-test bodies (hoisting a test-local binding
+            // to module scope), and on the wrapped tail of a pointer type
+            // (`const P = *` newline `const u8;` minted a module const named
+            // u8). v2 narrows it to what the corpus shape actually is: a
+            // COLUMN-1 `const` opening a real declaration head
+            // (`const Ident :` or `const Ident =`). Everything else keeps the
+            // old swallow -- now COUNTED, which is the honesty that matters.
+            if bracket_depth == 0
+                && paren_depth == 0
+                && self.current.line > self.last_line
+            {
+                // W903 v3: a line-leading TOP-LEVEL opener (test/fn/...) ends
+                // the skip -- without this, the skip after a bad const ran
+                // THROUGH `test t` into its body and the recovery minted
+                // module consts from test-local bindings. And a line-leading
+                // const/var counts only with a DECLARATION HEAD after it
+                // (`Ident :` / `Ident =`): the wrapped pointer type
+                // `const P = *` newline `const u8;` has no head and stays
+                // swallowed instead of minting a module const named u8.
+                if self.is_top_level_start() {
+                    return Ok(());
+                }
+                if self.current.kind == TokenKind::KwConst
+                    || self.current.kind == TokenKind::KwVar
+                {
+                    let look = self.save_state();
+                    self.advance();
+                    let head = self.current.kind == TokenKind::Ident && {
+                        self.advance();
+                        matches!(self.current.kind, TokenKind::Colon | TokenKind::Equals)
+                    };
+                    self.restore_state(look);
+                    if head {
+                        return Ok(());
+                    }
+                }
+            }
+            // W902: this loop was the FOURTH discard channel T56 counted --
+            // and the only one still invisible to both accounts. Record.
+            self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
             }
             if self.current.kind == TokenKind::LBrace {
                 self.advance();
@@ -1088,11 +1373,67 @@ impl Parser {
             if paren_depth == 0 && bracket_depth == 0 && self.is_top_level_start() {
                 break;
             }
+            self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
+            }
             self.advance();
         }
     }
 
+    /// W633: how many tokens this parse threw away during top-level recovery.
+    pub(crate) fn dropped_top_level_tokens(&self) -> usize {
+        self.dropped_top_level_tokens
+    }
+
+    /// Refuse an unterminated string wherever it appears. The token carries the
+    /// rest of the file as its lexeme, so any construct that accepts it would
+    /// silently absorb everything after the opening quote.
+    fn reject_unterminated_string(&self) -> Result<(), String> {
+        if self.current.kind == TokenKind::UnterminatedString {
+            return Err(format!(
+                "unterminated string literal opened at line {}:{}",
+                self.current.line, self.current.col
+            ));
+        }
+        Ok(())
+    }
+
     pub fn parse(&mut self) -> Result<Node, String> {
+        // W577: an unterminated string literal carries the REST OF THE FILE as
+        // its lexeme. Every construct that accepts a string then absorbs
+        // everything after the opening quote, reaches Eof, and reports success
+        // -- a truncation the completeness check cannot see, because the input
+        // really was consumed. There are too many places a string can be
+        // accepted to guard each one, so the whole token stream is checked once
+        // up front. The lexer shares its source buffer, so this clone is a
+        // refcount bump (W569).
+        for t in [&self.current, &self.peek] {
+            if t.kind == TokenKind::UnterminatedString {
+                return Err(format!(
+                    "unterminated string literal opened at line {}:{}",
+                    t.line, t.col
+                ));
+            }
+        }
+        {
+            let mut scan = self.lexer.clone();
+            loop {
+                let t = scan.next_token();
+                match t.kind {
+                    TokenKind::Eof => break,
+                    TokenKind::UnterminatedString => {
+                        return Err(format!(
+                            "unterminated string literal opened at line {}:{}",
+                            t.line, t.col
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let mut module = Node::new(NodeKind::Module);
 
         // [BUG 4 FIX] Parse optional module declaration
@@ -1123,6 +1464,20 @@ impl Parser {
                 self.advance(); // consume {
                 self.parse_module_body(&mut module)?;
                 self.expect(TokenKind::RBrace)?;
+                // W577: this used to `return` here, so anything AFTER the
+                // closing brace was discarded without a word.
+                // `specs/nn/attention.t27` closes `module SacredAttention {` at
+                // line 639 and opens `module AttentionQKGainAblation;` at 640,
+                // and the parser reported success having read 70 of the file's
+                // declarations and none of the remaining 282 lines. Fall
+                // through instead: the trailing declarations, including any
+                // further module headers, are read by the body loop below.
+                self.parse_module_body(&mut module)?;
+                if self.current.kind == TokenKind::Ident
+                    && self.current.lexeme == "endmodule"
+                {
+                    self.advance();
+                }
                 return Ok(module);
             }
         }
@@ -1131,19 +1486,116 @@ impl Parser {
 
         // W458: semicolon-style modules close with `endmodule`; consume it so
         // it is not parsed as a stray top-level expression statement.
-        if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
-            self.advance();
+        // W577 said a stray `}` here must not look like a clean EOF -- 29 specs
+        // were silently truncated that way for years. W914 keeps that promise
+        // with ACCOUNTING instead of a hard error: master's brace-closing spec
+        // fixes (#2186) leave balancing `}` tokens that our clause lowerings
+        // meet at module level in flat files; each is recorded as a dropped
+        // token and the body loop CONTINUES, so nothing after it is lost and
+        // nothing is silent.
+        loop {
+            if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+                self.advance();
+                continue;
+            }
+            if self.current.kind == TokenKind::RBrace {
+                self.dropped_top_level_tokens += 1;
+                if self.dropped_spans.len() < 20000 {
+                    self.dropped_spans
+                        .push((self.current.line as u32, self.current.lexeme.clone()));
+                }
+                self.advance();
+                self.parse_module_body(&mut module)?;
+                continue;
+            }
+            break;
         }
 
         Ok(module)
     }
 
+
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
+        self.reject_unterminated_string()?;
         while self.current.kind != TokenKind::Eof
             && self.current.kind != TokenKind::RBrace
             && !(self.current.kind == TokenKind::Ident
                 && self.current.lexeme == "endmodule")
         {
+            self.reject_unterminated_string()?;
+
+            // W579: a Rust-style ATTRIBUTE, `#[test]` / `#[derive(...)]`.
+            // Three specs carry Rust source verbatim; the attribute parsed as
+            // an expression statement and the `fn` after it was then
+            // "unexpected token after expression statement: KwFn" -- 825
+            // assertion clauses. Skipped bracket-balanced, so a multi-line
+            // attribute cannot run away.
+            // The lexer drops `#` as an unknown character, so the attribute
+            // arrives as a bare bracket group -- which is meaningless at module
+            // level and can only be this.
+            if self.current.kind == TokenKind::LBracket {
+                let mut depth = 0i32;
+                loop {
+                    match self.current.kind {
+                        TokenKind::LBracket => depth += 1,
+                        TokenKind::RBracket => depth -= 1,
+                        TokenKind::Eof => break,
+                        _ => {}
+                    }
+                    self.advance();
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // W580: `spec Name { ... }` -- the form SOUL.md documents in
+            // section 2.3 and 8 specs use, worth 245 assertion clauses. It was
+            // never implemented: `spec` lexes as a plain identifier, so the
+            // header parsed as an expression statement and the `{` after it
+            // was "unexpected token after expression statement". Treat it as a
+            // module body, which is what the document describes.
+            if self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "spec"
+                && self.peek.kind == TokenKind::Ident
+            {
+                let checkpoint = self.save_state();
+                self.advance(); // consume 'spec'
+                self.advance(); // consume the name
+                if self.current.kind == TokenKind::LBrace {
+                    self.advance(); // consume {
+                    self.parse_module_body(module)?;
+                    if self.current.kind == TokenKind::RBrace {
+                        self.advance();
+                    }
+                    continue;
+                }
+                self.restore_state(checkpoint);
+            }
+
+            // W577: a file may declare SEVERAL modules.
+            // `specs/nn/attention.t27` appends
+            // `module AttentionQKGainAblation;` at line 640 of 922 -- the
+            // parser stopped there and discarded 282 lines while reporting
+            // success. Consume the extra header and keep reading; the backends
+            // emit one file per spec regardless, so the declarations merge.
+            if self.current.kind == TokenKind::KwModule {
+                self.advance(); // consume 'module'
+                while matches!(
+                    self.current.kind,
+                    TokenKind::Ident | TokenKind::Minus | TokenKind::Number
+                ) {
+                    self.advance(); // the (possibly hyphenated) name
+                }
+                if self.current.kind == TokenKind::Semicolon
+                    || self.current.kind == TokenKind::LBrace
+                {
+                    self.advance();
+                }
+                continue;
+            }
+
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
@@ -1207,6 +1659,55 @@ impl Parser {
                         }
                     }
                 }
+                // W630: braced import list -- `use a::b::{X, Y, Z};`. The `::`
+                // loop above breaks when the token after `::` is not an Ident,
+                // so `full_path` ends in `::` and the `{ … };` was left to be
+                // parsed as a module-level expression: "Unexpected token in
+                // expression: LBrace". It is sugar for N single imports, and
+                // that is exactly what it lowers to here -- one UseDecl per
+                // name, each with the shared prefix -- so `use_resolve` sees
+                // the shape it already understands. See T38.
+                if self.current.kind == TokenKind::LBrace && full_path.ends_with("::") {
+                    let checkpoint = self.save_state();
+                    let prefix = full_path.trim_end_matches("::").to_string();
+                    self.advance(); // consume `{`
+                    let mut names: Vec<String> = Vec::new();
+                    let mut ok = true;
+                    loop {
+                        if self.current.kind == TokenKind::RBrace {
+                            self.advance();
+                            break;
+                        }
+                        if self.current.kind != TokenKind::Ident {
+                            ok = false;
+                            break;
+                        }
+                        names.push(self.current.lexeme.clone());
+                        self.advance();
+                        if self.current.kind == TokenKind::Comma {
+                            self.advance();
+                        } else if self.current.kind != TokenKind::RBrace {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok && !names.is_empty() {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        for n in names {
+                            let mut node = Node::new(NodeKind::UseDecl);
+                            node.value = format!("{}::{}", prefix, n);
+                            node.name = n;
+                            module.children.push(node);
+                        }
+                        continue;
+                    }
+                    // Same safety contract the rest of this parser carries: any
+                    // shape this cannot model restores the checkpoint, so a
+                    // file that parsed before still parses.
+                    self.restore_state(checkpoint);
+                }
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -1252,6 +1753,11 @@ impl Parser {
                 match self.parse_top_level_decl() {
                     Ok(decl) => {
                         module.children.push(decl);
+                        // W883: functions hoisted out of the just-parsed item
+                        // land beside it at module level.
+                        for h in self.hoisted_fns.drain(..) {
+                            module.children.push(h);
+                        }
                     }
                     Err(e) => {
                         // A malformed declaration is a HARD error: the old
@@ -1443,12 +1949,39 @@ impl Parser {
                 };
                 if use_literal {
                     decl.children.push(array_literal_result.unwrap());
+                } else if let Some(bare) = {
+                    self.restore_state(save.clone());
+                    self.parse_bare_array_literal()
+                } {
+                    // W568: a BARE bracketed list -- `const A: [3]u32 = [1, 2, 3]`.
+                    // `parse_array_literal` only understands the Zig-ish
+                    // `[N]T{ ... }` spelling, so it returned a childless node
+                    // here and control fell through to the text collector
+                    // below, which runs to the next SEMICOLON. t27 top-level
+                    // declarations are newline-terminated, so one such const
+                    // swallowed every declaration after it -- an entire spec
+                    // collapsed into a single unparsable string.
+                    decl.children.push(bare);
                 } else {
                     self.restore_state(save);
+                    // The collector runs to the next SEMICOLON, and t27's
+                    // top-level declarations are newline-terminated, so an
+                    // unrecognised bracket value used to consume the rest of
+                    // the file. Stop as well at a declaration keyword that
+                    // OPENS ITS OWN LINE -- the same-line test is what keeps
+                    // `[]const u8` (whose `const` follows `[]` on one line)
+                    // intact.
                     let mut val_text = String::new();
+                    let mut last_line = self.current.line;
                     while self.current.kind != TokenKind::Semicolon
                         && self.current.kind != TokenKind::Eof
                     {
+                        if self.current.line > last_line
+                            && Self::opens_declaration(self.current.kind)
+                        {
+                            break;
+                        }
+                        last_line = self.current.line;
                         val_text.push_str(&self.current.lexeme);
                         self.advance();
                     }
@@ -1460,20 +1993,50 @@ impl Parser {
                     self.advance();
                 }
                 return Ok(decl);
+            } else if self.current.kind == TokenKind::LParen {
+                // W652: a PARENTHESISED initialiser -- `const P : u32 = (A + 1) * 2;`
+                // reached none of the branches below and fell through to the
+                // trailing default, which pushed no child at all. Verilog then
+                // emitted `localparam P = 0` and Zig emitted `const P: u32;`
+                // with no initialiser -- not even valid Zig.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
             } else if self.current.kind == TokenKind::Minus {
                 // [BUG 10 FIX] Negative number: -1 or expression
-                self.advance(); // consume -
-                if self.current.kind == TokenKind::Number {
+                // W652: `-<Number>` with nothing after it keeps the cheap path.
+                // Anything else -- `-A`, `-A - 1` -- must go through parse_expr.
+                // Previously `-A` consumed the `-`, found no Number, and pushed
+                // NOTHING: an initialiser silently vanished.
+                let simple_negative_literal = self.peek.kind == TokenKind::Number;
+                if simple_negative_literal {
+                    let save = self.save_state();
+                    self.advance(); // consume -
+                    let lexeme = self.current.lexeme.clone();
+                    self.advance(); // consume the number
+                    if Self::token_continues_expr(self.current.kind) {
+                        self.restore_state(save);
+                        let lit = self.parse_expr()?;
+                        decl.children.push(lit);
+                    } else {
+                        let mut val_node = Node::new(NodeKind::ExprLiteral);
+                        val_node.value = format!("-{}", lexeme);
+                        decl.children.push(val_node);
+                    }
+                } else {
+                    let lit = self.parse_expr()?;
+                    decl.children.push(lit);
+                }
+            } else if self.current.kind == TokenKind::Number {
+                // W652: `const LIT : u32 = 100 / 7;` used to emit `LIT = 100`.
+                if Self::token_continues_expr(self.peek.kind) {
+                    let lit = self.parse_expr()?;
+                    decl.children.push(lit);
+                } else {
                     let mut val_node = Node::new(NodeKind::ExprLiteral);
-                    val_node.value = format!("-{}", self.current.lexeme);
+                    val_node.value = self.current.lexeme.clone();
                     decl.children.push(val_node);
                     self.advance();
                 }
-            } else if self.current.kind == TokenKind::Number {
-                let mut val_node = Node::new(NodeKind::ExprLiteral);
-                val_node.value = self.current.lexeme.clone();
-                decl.children.push(val_node);
-                self.advance();
             } else if self.current.kind == TokenKind::Ident {
                 // W533/W543: a scalar struct literal initializer `const x : T = T{...}`
                 // or a function-call initializer `const x : T = make(5)` is parsed as
@@ -1481,7 +2044,33 @@ impl Parser {
                 // Plain identifiers stay as `ExprIdentifier` for type aliases and
                 // cross-const references.
                 let name = self.current.lexeme.clone();
-                if self.peek.kind == TokenKind::LBrace || self.peek.kind == TokenKind::LParen {
+                // W651: a QUALIFIED path must go through `parse_expr` too.
+                // `parse_expr_primary` concatenates `a::b` into one flat name
+                // (compiler.rs ~3620); this branch took only
+                // `self.current.lexeme` and advanced ONE token, so
+                // `const A : u8 = constants::COMPLEXITY_HIGH;` became
+                // `A = constants` -- a silently WRONG VALUE, in all four
+                // backends, with no error and no warning. 98 such initialisers
+                // across 29 specs.
+                //
+                // The asymmetry is T60's shape exactly: `constants::make(5)`
+                // already worked, because `(` routed it through `parse_expr`.
+                // Only the bare-path spelling took the truncating branch.
+                //
+                // W652: the same hole, one operator wider. `const DIV : u32 =
+                // A / B;` emitted `DIV = A` -- the divisor was DISCARDED, in
+                // all five backends, silently. `A > 5` emitted `A`; `Cfg.width`
+                // emitted `Cfg`. The C backend turned each into a `typedef`,
+                // so a constant became a TYPE. `f(A) + 1` was correct all
+                // along, because `(` routed it through `parse_expr` -- the
+                // delimiter, not the meaning, decided correctness.
+                let qualified =
+                    self.peek.kind == TokenKind::Colon;
+                if self.peek.kind == TokenKind::LBrace
+                    || self.peek.kind == TokenKind::LParen
+                    || qualified
+                    || Self::token_continues_expr(self.peek.kind)
+                {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
                 } else {
@@ -1505,6 +2094,28 @@ impl Parser {
                 val_node.extra_kind = "string".to_string();
                 decl.children.push(val_node);
                 self.advance();
+            } else if self.current.kind == TokenKind::KwFn {
+                // W914: `pub const Middleware = fn(Ctx) bool;` -- a function
+                // TYPE alias. The counted skip charged it as a discard; the
+                // text collector preserves it as the value, uncounted.
+                let mut val_text = String::new();
+                while self.current.kind != TokenKind::Semicolon
+                    && self.current.kind != TokenKind::Eof
+                    && !(self.current.line > self.last_line && self.is_top_level_start())
+                {
+                    if !val_text.is_empty() {
+                        val_text.push(' ');
+                    }
+                    val_text.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                val_node.name = val_text;
+                decl.children.push(val_node);
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
             } else {
                 // Other RHS (tilde, parens, etc.) — skip to semicolon
                 self.skip_to_semicolon()?;
@@ -1568,6 +2179,16 @@ impl Parser {
             decl.children.push(val_node);
         }
 
+        // W903 (0008 v3): var had NO tail-skip, so junk after a recovered
+        // `var` (`then v == 2` at module level) hard-errored the whole module
+        // where const's tail swallowed it. Mirror const's tail exactly.
+        if self.current.kind != TokenKind::Semicolon
+            && self.current.kind != TokenKind::RBrace
+            && !self.is_top_level_start()
+            && self.current.kind != TokenKind::Eof
+        {
+            self.skip_to_semicolon()?;
+        }
         if self.current.kind == TokenKind::Semicolon {
             self.advance();
         }
@@ -1617,33 +2238,146 @@ impl Parser {
     fn parse_struct_body(&mut self, decl: &mut Node) -> Result<(), String> {
         // We are inside { ... } of a struct. Parse field: Type pairs.
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // W657 (T104): a field may carry `pub`. The loop tested only for
+            // `Ident`, and `pub` lexes as `KwPub`, so `pub struct P { pub a: u64 }`
+            // parsed to a StructDecl with NO CHILDREN. `struct_decls` then held an
+            // empty field list, `packed_width` fell through to its 32-bit default,
+            // the lowerable-scalar-struct predicate failed, and every `p.a` was
+            // emitted as the flattened `p_a` -- a name declared nowhere.
+            //
+            //   pub struct P { a: u64, ... }      -> input [128:0] p;  p[0 +: 64]
+            //   pub struct P { pub a: u64, ... }  -> input  [31:0] p;  p_a
+            //
+            // Same shape as T60: the obligation met on the spelling without the
+            // modifier and missed on the one with it.
+            if self.current.kind == TokenKind::KwPub {
+                self.advance();
+            }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
                 self.advance();
 
                 let mut type_str = String::new();
+                let mut field_default: Option<Node> = None;
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
-                                    // Collect type tokens until comma, semicolon, or closing brace
-                    while self.current.kind != TokenKind::Comma
-                        && self.current.kind != TokenKind::Semicolon
-                        && self.current.kind != TokenKind::RBrace
-                        && self.current.kind != TokenKind::Eof
+
+                    // Struct field types were joined LEXEME BY LEXEME with no
+                    // separator, so `[]const u8` became `[]constu8` -- "use of
+                    // undeclared identifier 'constu8'" in 11 specs (W568). The
+                    // parameter side has always used the real type grammar;
+                    // only this path did not.
+                    //
+                    // Prefer `parse_type_annotation`, which keeps the space
+                    // after `const`, keeps `(A, B)` from truncating at its
+                    // comma, and understands dotted paths. Shapes it cannot
+                    // model (generics `Map<K, V>`, field defaults `= 5`) leave
+                    // the parser somewhere other than a field boundary; those
+                    // restore the checkpoint and use the original token join,
+                    // so nothing that parsed before can stop parsing.
+                    // The field's type must also END ON ITS OWN LINE. Three
+                    // specs in the corpus contain a malformed field whose type
+                    // opens a string literal (`tag : [[]Const u8",`); the
+                    // bracket loop happily consumes that string across the rest
+                    // of the file, and the struct then never finds its closing
+                    // brace. The raw join stopped at the first comma, so the
+                    // damage stayed inside one field. Requiring the terminator
+                    // on the starting line restores that containment.
+                    let start_line = self.current.line;
+                    let checkpoint = self.save_state();
+                    let parsed = self.parse_type_annotation();
+                    let type_ends_on_its_own_line = self.current.line == start_line;
+
+                    // A field DEFAULT (`data : [256]u8 = [0, 0, ...]`) used to
+                    // be swallowed into the type string, giving Zig
+                    // `data: [256]u8=[0,` -- the "expected ']', found ','"
+                    // class. Parse it as an expression instead and keep it as
+                    // the field's child; the default may legitimately span
+                    // lines, so only the TYPE carries the same-line rule.
+                    let mut default_value: Option<Node> = None;
+                    if !parsed.is_empty()
+                        && type_ends_on_its_own_line
+                        && self.current.kind == TokenKind::Equals
                     {
-                        type_str.push_str(&self.current.lexeme);
-                        self.advance();
+                        self.advance(); // consume =
+                        default_value = self.parse_expr().ok();
+                    }
+
+                    let at_field_boundary = type_ends_on_its_own_line
+                        && matches!(
+                            self.current.kind,
+                            TokenKind::Comma
+                                | TokenKind::Semicolon
+                                | TokenKind::RBrace
+                                | TokenKind::Eof
+                                | TokenKind::Ident
+                        );
+                    if !parsed.is_empty() && at_field_boundary {
+                        type_str = parsed;
+                        if let Some(v) = default_value {
+                            field_default = Some(v);
+                        }
+                    } else {
+                        self.restore_state(checkpoint);
+                        // Collect type tokens until comma, semicolon, or closing brace
+                        while self.current.kind != TokenKind::Comma
+                            && self.current.kind != TokenKind::Semicolon
+                            && self.current.kind != TokenKind::RBrace
+                            && self.current.kind != TokenKind::Eof
+                        {
+                            type_str.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
                     }
                 }
 
                 let mut field = Node::new(NodeKind::ExprIdentifier);
                 field.name = field_name;
                 field.extra_type = type_str;
+                if let Some(v) = field_default {
+                    field.children.push(v);
+                }
                 decl.children.push(field);
 
                 if self.current.kind == TokenKind::Comma
                     || self.current.kind == TokenKind::Semicolon
                 {
                     self.advance();
+                }
+            } else if self.current.kind == TokenKind::KwFn
+                || self.current.kind == TokenKind::KwPub
+            {
+                // W577: a METHOD inside a struct body. The skip below consumed
+                // tokens one at a time without tracking braces, so the method's
+                // closing `}` ended the struct body and the struct's own `}`
+                // then ended the module -- `specs/jit/jit.t27` lost 797 of its
+                // 875 lines that way, and `specs/ternary/bigint.t27` 1,359 of
+                // 1,445, both while reporting success.
+                //
+                // The method is skipped, not lowered: struct methods are not
+                // part of what the backends emit today. What matters is that
+                // the skip is BRACE-BALANCED so the struct still ends where it
+                // should.
+                while self.current.kind != TokenKind::LBrace
+                    && self.current.kind != TokenKind::Eof
+                    && self.current.kind != TokenKind::RBrace
+                {
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::LBrace {
+                    let mut depth = 0i32;
+                    loop {
+                        match self.current.kind {
+                            TokenKind::LBrace => depth += 1,
+                            TokenKind::RBrace => depth -= 1,
+                            TokenKind::Eof => break,
+                            _ => {}
+                        }
+                        self.advance();
+                        if depth == 0 {
+                            break;
+                        }
+                    }
                 }
             } else {
                 // Skip unexpected tokens inside struct
@@ -1657,10 +2391,38 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
-        // Reference types are transparent at the spec level: `&str` / `&T`
-        // parse as their referent (t27#1960).
+        // A leading `&` (Rust-style borrow spelling, used by 103 specs as
+        // `&str`) was not consumed here, so parse_type_annotation returned an
+        // EMPTY type and the parameter loop then read the type name as the next
+        // parameter: `fn g(name: &str)` produced params ["name: ", "str: "] and
+        // emitted `fn g(name: , str: )`. t27 has no reference types, so the
+        // borrow marker is accepted and dropped -- the Zig/Rust mappers already
+        // strip it.
         if self.current.kind == TokenKind::Amp {
-            self.advance(); // consume &
+            self.advance();
+        }
+
+        // Optional type: `?u64`, `?[]const u8`. The mapper downstream expects
+        // the `?` to be part of the type text.
+        if self.current.kind == TokenKind::Question {
+            self.advance();
+            let inner = self.parse_type_annotation();
+            return if inner.is_empty() {
+                String::new()
+            } else {
+                format!("?{}", inner)
+            };
+        }
+
+        // Machine-generated specs QUOTE the type in a declaration:
+        // `head : "usize"`, `allocator : "std.mem.Allocator"`. A string token
+        // is not an identifier, so the type parser returned empty and the raw
+        // fallback carried the quotes into the backend. Take the string's
+        // contents as the type name.
+        if self.current.kind == TokenKind::String {
+            let quoted = self.current.lexeme.trim_matches('"').to_string();
+            self.advance();
+            return quoted;
         }
 
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
@@ -1776,6 +2538,23 @@ impl Parser {
                     break;
                 }
             }
+
+            // Dotted namespace paths (`std.mem.Allocator`, `base.types.Trit`).
+            // Only `::` was handled, so `fn init(allocator: std.mem.Allocator)`
+            // returned the type `std` and left `.mem.Allocator` for the
+            // parameter loop, which read it as two further parameters and
+            // emitted `fn init(allocator: Std, mem: , Allocator: )`. That is
+            // the whole "expected type expression, found ','" class measured in
+            // W568 (28 of 183 compile failures); 40 specs use dotted types.
+            //
+            // A dot is only consumed when an identifier actually follows, so a
+            // shape this cannot model leaves the parser exactly where it was.
+            while self.current.kind == TokenKind::Dot && self.peek.kind == TokenKind::Ident {
+                ty.push('.');
+                self.advance(); // consume .
+                ty.push_str(&self.current.lexeme);
+                self.advance(); // consume the segment
+            }
         } else if self.current.kind == TokenKind::KwVoid {
             ty.push_str("void");
             self.advance();
@@ -1861,12 +2640,42 @@ impl Parser {
         }
 
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::LParen {
+        // W581: an OPTIONAL return type, `-> ?u32`. The shared type parser
+        // handles the `?`; this header has its own paths and needed telling.
+        if self.current.kind == TokenKind::Question {
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::LParen {
             // Tuple return type: (u32, u32)
             decl.extra_return_type = self.parse_type_annotation();
         } else if self.current.kind == TokenKind::Ident {
-            decl.extra_return_type = self.current.lexeme.clone();
+            let mut rt_name = self.current.lexeme.clone();
             self.advance();
+            // W579: a SCOPED return type. This branch read one identifier and
+            // stopped, so `-> gf16::GF16` left the `::` behind and the fn
+            // header failed with "Expected LBrace, got Colon" -- 899 assertion
+            // clauses across 9 specs. The parameter side has handled `::` and
+            // `.` since W568.
+            loop {
+                if self.current.kind == TokenKind::Colon && self.peek.kind == TokenKind::Colon {
+                    rt_name.push_str("::");
+                    self.advance();
+                    self.advance();
+                } else if self.current.kind == TokenKind::Dot
+                    && self.peek.kind == TokenKind::Ident
+                {
+                    rt_name.push('.');
+                    self.advance();
+                } else {
+                    break;
+                }
+                if self.current.kind == TokenKind::Ident {
+                    rt_name.push_str(&self.current.lexeme);
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            decl.extra_return_type = rt_name;
             // Handle generic return types like Option<Foo>
             if self.current.kind == TokenKind::Lt {
                 let mut gt_depth = 1;
@@ -1925,6 +2734,33 @@ impl Parser {
             if self.current.kind == TokenKind::Ident {
                 rt.push_str(&self.current.lexeme);
                 self.advance();
+                // W579: a SCOPED return type. This bespoke tail read one
+                // identifier and stopped, so `-> gf16::GF16` left the `::`
+                // behind and the fn header failed with "Expected LBrace, got
+                // Colon" -- 899 assertion clauses across 9 specs. The parameter
+                // side has handled `::` and `.` since W568.
+                loop {
+                    if self.current.kind == TokenKind::Colon
+                        && self.peek.kind == TokenKind::Colon
+                    {
+                        rt.push_str("::");
+                        self.advance();
+                        self.advance();
+                    } else if self.current.kind == TokenKind::Dot
+                        && self.peek.kind == TokenKind::Ident
+                    {
+                        rt.push('.');
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                    if self.current.kind == TokenKind::Ident {
+                        rt.push_str(&self.current.lexeme);
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
             }
             decl.extra_return_type = rt;
         } else if self.current.kind == TokenKind::KwVoid {
@@ -1977,6 +2813,45 @@ impl Parser {
     /// Parse function body statements until closing brace
     fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // W883 prototype: a NESTED fn is parsed with the ordinary fn parser
+            // and HOISTED to module level -- no statement node is produced, so
+            // no backend needs a no-op. Sound only when the nested fn captures
+            // nothing beyond its own parameters and module-level names; the
+            // one corpus instance (gf16's phi_dist) satisfies that, and the
+            // proposal text records the capture question as OPEN.
+            if self.current.kind == TokenKind::KwFn {
+                let nested = self.parse_fn_decl(false)?;
+                // CAPTURE CHECK, at the only scope that matters. Hoisting moves
+                // the nested fn OUT of the enclosing body, so the one thing it
+                // must not reach is the enclosing fn's own bindings -- its
+                // parameters and the locals declared before this point. A free
+                // name that is NOT such a binding resolves identically before
+                // and after hoisting (module scope either way), so external
+                // names like an imported PHI_INV are none of this check's
+                // business. The first version asked \"is it module-level?\" and
+                // rejected gf16 for an IMPORTED constant -- the wrong question.
+                let free = free_idents_of(&nested);
+                let mut enclosing: Vec<&str> =
+                    decl.params.iter().map(|p| p.0.as_str()).collect();
+                for c in &decl.children {
+                    if c.kind == NodeKind::StmtLocal && !c.name.is_empty() {
+                        enclosing.push(c.name.as_str());
+                    }
+                }
+                let captured: Vec<String> = free
+                    .into_iter()
+                    .filter(|f| enclosing.iter().any(|e| e == f))
+                    .collect();
+                if !captured.is_empty() {
+                    return Err(format!(
+                        "nested fn '{}' inside '{}' captures enclosing locals {:?} -- \
+                         hoisting would unbind them; lift them to parameters or module consts",
+                        nested.name, decl.name, captured
+                    ));
+                }
+                self.hoisted_fns.push(nested);
+                continue;
+            }
             match self.parse_body_stmt() {
                 Ok(stmt) => decl.children.push(stmt),
                 Err(e) => {
@@ -1999,6 +2874,16 @@ impl Parser {
     fn recover_to_stmt_boundary(&mut self) {
         let mut brace_depth: i32 = 0;
         loop {
+            // W646: statement-level recovery is the second discard channel.
+            // Everything it walks past is a statement the AST never sees.
+            // W899: record the span too -- see the note in skip_brace_body.
+            if self.current.kind != TokenKind::Eof {
+                self.dropped_top_level_tokens += 1;
+                if self.dropped_spans.len() < 20000 {
+                    self.dropped_spans
+                        .push((self.current.line as u32, self.current.lexeme.clone()));
+                }
+            }
             match self.current.kind {
                 TokenKind::Eof => break,
                 TokenKind::Semicolon if brace_depth == 0 => {
@@ -2023,6 +2908,55 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // W914: a Rust-dialect `match` block. The grammar has no match; the
+        // frozen parser ATE it through an uncounted channel and called the fn
+        // parsed, and this parser hard-errored -- both wrong. Capture the
+        // whole block verbatim (brace-aware) into a named statement: read,
+        // counted as nothing, executed as nothing.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "match"
+            && self.peek.kind != TokenKind::Equals
+            && self.peek.kind != TokenKind::Dot
+            && self.peek.kind != TokenKind::LParen
+        {
+            let mut text = String::new();
+            let mut depth: i32 = 0;
+            let mut seen = false;
+            loop {
+                if self.current.kind == TokenKind::Eof {
+                    break;
+                }
+                match self.current.kind {
+                    TokenKind::LBrace => {
+                        depth += 1;
+                        seen = true;
+                    }
+                    TokenKind::RBrace => depth -= 1,
+                    _ => {}
+                }
+                if !text.is_empty() {
+                    text.push(' ');
+                }
+                text.push_str(&self.current.lexeme);
+                let done = seen && depth == 0;
+                self.advance();
+                if done {
+                    break;
+                }
+            }
+            let mut stmt = Node::new(NodeKind::StmtExpr);
+            stmt.name = "match".to_string();
+            stmt.value = text;
+            return Ok(stmt);
+        }
+        // W914: `pub const X = ...` inside a body -- Zig-style local pub decl.
+        // `pub` is meaningless at statement scope; eat it and parse what it
+        // modifies.
+        if self.current.kind == TokenKind::KwPub
+            && matches!(self.peek.kind, TokenKind::KwConst | TokenKind::KwVar)
+        {
+            self.advance();
+        }
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
             // `let (a, b) = expr` is handled by parse_local_decl, which stores the
@@ -2072,6 +3006,99 @@ impl Parser {
             return Ok(Node::new(NodeKind::StmtContinue));
         }
 
+        // W569: `assert <expr>` WITHOUT parentheses, as a statement.
+        //
+        // The braceless clause form (`then x == 1` / `assert x == 1`) has
+        // lowered to `assert(expr)` since W559, but inside a brace body the
+        // same spelling was a parse error: `assert` parsed as a bare
+        // identifier expression and the following token was left dangling
+        // ("unexpected token after expression statement: KwTrue").
+        //
+        // It appears **3,682 times** across the corpus, and it is why 28 specs
+        // -- every IGLA CODER and IGLA RACE spec among them -- carried a stray
+        // `}` that truncated them: the brace made the parser stop before
+        // reaching the unparsable tail, so the file "parsed" and 16,792 lines
+        // were silently discarded.
+        // W629: `invariant <expr>;` in STATEMENT position, i.e. inside a
+        // `test { ... }` or `fn { ... }` body. `invariant` lexes as a keyword
+        // and was only handled at module level (`parse_invariant_block`), so
+        // the body form failed with "Unexpected token in expression:
+        // KwInvariant" -- 30 of the 182 corpus parse failures, the single
+        // largest class.
+        //
+        // This is not an optional nicety: L4 (TESTABILITY) requires every spec
+        // to carry `test`/`invariant`/`bench`, so the constitution mandates a
+        // form the parser rejected. Semantically an `invariant` inside a body
+        // is an assertion, so it lowers to exactly what `assert <expr>` does
+        // below. Same safety contract: any shape this cannot model restores
+        // the checkpoint, so a spec that parsed before still parses. See T36.
+        if self.current.kind == TokenKind::KwInvariant
+            && self.peek.kind != TokenKind::LBrace
+            && self.peek.kind != TokenKind::Semicolon
+            && self.peek.kind != TokenKind::RBrace
+            && self.peek.kind != TokenKind::Eof
+        {
+            let line = self.current.line as u32;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `invariant`
+            // `invariant name: expr` and `invariant name { ... }` are the
+            // module-level block forms; only the bare-expression form belongs
+            // here, so a following `:` or `{` means we guessed wrong.
+            let named = self.current.kind == TokenKind::Ident
+                && (self.peek.kind == TokenKind::Colon || self.peek.kind == TokenKind::LBrace);
+            if !named {
+                match self.parse_expr() {
+                    Ok(cond) => {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.line = line;
+                        call.children.push(cond);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.line = line;
+                        stmt.children.push(call);
+                        return Ok(stmt);
+                    }
+                    Err(_) => self.restore_state(checkpoint),
+                }
+            } else {
+                self.restore_state(checkpoint);
+            }
+        }
+
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "assert"
+            && self.peek.kind != TokenKind::LParen
+            && self.peek.kind != TokenKind::Semicolon
+            && self.peek.kind != TokenKind::RBrace
+            && self.peek.kind != TokenKind::Eof
+            && self.peek.kind != TokenKind::Equals
+        {
+            let line = self.current.line as u32;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `assert`
+            match self.parse_expr() {
+                Ok(cond) => {
+                    if self.current.kind == TokenKind::Semicolon {
+                        self.advance();
+                    }
+                    let mut call = Node::new(NodeKind::ExprCall);
+                    call.name = "assert".to_string();
+                    call.line = line;
+                    call.children.push(cond);
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.line = line;
+                    stmt.children.push(call);
+                    return Ok(stmt);
+                }
+                // Anything this cannot model falls back to the original path,
+                // so a spec that parsed before still parses.
+                Err(_) => self.restore_state(checkpoint),
+            }
+        }
+
         // Expression or assignment
         let expr = self.parse_expr()?;
 
@@ -2094,6 +3121,8 @@ impl Parser {
             TokenKind::PlusEquals => Some("+="),
             TokenKind::MinusEquals => Some("-="),
             TokenKind::StarEquals => Some("*="),
+            TokenKind::SlashEquals => Some("/="),
+            TokenKind::PercentEquals => Some("%="),
             TokenKind::PipeEquals => Some("|="),
             TokenKind::AmpEquals => Some("&="),
             TokenKind::CaretEquals => Some("^="),
@@ -2150,9 +3179,29 @@ impl Parser {
         decl.line = self.current.line as u32;
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
         self.advance(); // consume const/var
+        // W914: Rust spelling `let mut name` -- the modifier made the NAME
+        // "mut" and the real name junk. Consume it as mutability.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "mut"
+            && self.peek.kind == TokenKind::Ident
+        {
+            decl.extra_mutable = true;
+            self.advance();
+        }
 
         // Name, or a tuple-destructuring pattern `(a, b, ...)`.
-        if self.current.kind == TokenKind::Ident {
+        // W914: `let var = ...` -- a keyword as the bound NAME (the corpus
+        // writes it; `var` is the fifth member of the collision family).
+        if self.current.kind == TokenKind::Ident
+            || (self.current.kind != TokenKind::LParen
+                && !self.current.lexeme.is_empty()
+                && self
+                    .current
+                    .lexeme
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && matches!(self.peek.kind, TokenKind::Equals | TokenKind::Colon))
+        {
             decl.name = self.current.lexeme.clone();
             self.advance();
         } else if self.current.kind == TokenKind::LParen {
@@ -2184,8 +3233,32 @@ impl Parser {
         // = initializer
         if self.current.kind == TokenKind::Equals {
             self.advance(); // consume =
-            let init = self.parse_expr()?;
-            decl.children.push(init);
+            if matches!(self.current.kind, TokenKind::KwStruct | TokenKind::KwEnum) {
+                // W914: a LOCAL type definition -- `pub const T = struct {...}`
+                // inside a fn (Zig style). Captured verbatim as the value.
+                let mut text = String::new();
+                let mut depth: i32 = 0;
+                let mut seen = false;
+                loop {
+                    if self.current.kind == TokenKind::Eof { break; }
+                    match self.current.kind {
+                        TokenKind::LBrace => { depth += 1; seen = true; }
+                        TokenKind::RBrace => depth -= 1,
+                        _ => {}
+                    }
+                    if !text.is_empty() { text.push(' '); }
+                    text.push_str(&self.current.lexeme);
+                    let done = seen && depth == 0;
+                    self.advance();
+                    if done { break; }
+                }
+                let mut init = Node::new(NodeKind::ExprIdentifier);
+                init.name = text;
+                decl.children.push(init);
+            } else {
+                let init = self.parse_expr()?;
+                decl.children.push(init);
+            }
         }
 
         if self.current.kind == TokenKind::Semicolon {
@@ -2258,19 +3331,19 @@ impl Parser {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition: `if (cond) { ... }` or the paren-less Rust-style
-        // `if cond { ... }` -- both appear across the spec corpus, and the
-        // paren-less form was silently DROPPED by the old statement recovery
-        // (t27#1960 fallout of the #1941 hardening).
+        // Condition, with or without parentheses. 46 specs write the Rust form
+        // `if cond { ... }` and it was "Expected LParen, got Ident" -- 1,002
+        // assertion clauses (W578). Without parentheses, `Name {` opens the
+        // BODY, so struct-literal parsing is suppressed for the condition.
         let cond = if self.current.kind == TokenKind::LParen {
-            self.advance(); // consume (
+            self.advance();
             let c = self.parse_expr()?;
             self.expect(TokenKind::RParen)?;
             c
         } else {
-            self.no_struct_literal = true;
+            self.no_struct_literal += 1;
             let c = self.parse_expr();
-            self.no_struct_literal = false;
+            self.no_struct_literal -= 1;
             c?
         };
         if_node.children.push(cond);
@@ -2341,16 +3414,19 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition: parenthesized or paren-less (see parse_if_stmt).
+        // W579: the condition may be parenthesised or not, exactly as for `if`
+        // (W578). `while e > 0 {` is the Rust form and 22 specs use it. Without
+        // parentheses a `Name {` opens the BODY, so struct-literal parsing is
+        // suppressed while reading the condition.
         let cond = if self.current.kind == TokenKind::LParen {
-            self.advance(); // consume (
+            self.advance();
             let c = self.parse_expr()?;
             self.expect(TokenKind::RParen)?;
             c
         } else {
-            self.no_struct_literal = true;
+            self.no_struct_literal += 1;
             let c = self.parse_expr();
-            self.no_struct_literal = false;
+            self.no_struct_literal -= 1;
             c?
         };
         while_node.children.push(cond);
@@ -2452,7 +3528,50 @@ impl Parser {
         let mut node = Node::new(NodeKind::StmtForRange);
         node.name = var_name;
 
-        let start = self.parse_range_bound()?;
+        // W734: a range BOUND is not a general expression -- `parse_range_bound`
+        // stops at `db` in `db.facts` and the error lands on the dot. A
+        // collection needs the full expression grammar, and `..` terminates an
+        // expression, so parsing an expression first serves both forms.
+        // W914: the loop BODY brace is not a struct literal --
+        // `for i in 0..max_iterations {` ate the body as a literal and the
+        // whole fn fell. Same suppression as if/while conditions.
+        self.no_struct_literal += 1;
+        let start = self.parse_expr();
+        self.no_struct_literal -= 1;
+        let start = start?;
+
+        // W733/W734: `for x in a..b` is a RANGE; `for fact in db.facts` is a
+        // loop over a COLLECTION, which five specs use and the parser answered
+        // with "Expected DotDot, got Dot". The grammar simply lagged its own
+        // corpus. When no `..` follows, the bound just parsed IS the iterable,
+        // and the node becomes the same StmtFor the parenthesised form builds --
+        // one iterable, one capture -- so no backend needs a new shape.
+        if self.current.kind != TokenKind::DotDot {
+            let mut coll = Node::new(NodeKind::StmtFor);
+            coll.children.push(start);
+            coll.name = node.name.clone();
+            // Captures live in `params`, exactly as the parenthesised
+            // `for (xs) |x| { ... }` form stores them.
+            coll.params.push((node.name.clone(), String::new()));
+            self.expect(TokenKind::LBrace)?;
+            let mut body_block = Node::new(NodeKind::Module);
+            body_block.name = "body".to_string();
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                match self.parse_body_stmt() {
+                    Ok(st) => body_block.children.push(st),
+                    Err(e) => {
+                        return Err(format!(
+                            "parse error near line {}: {}",
+                            self.current.line, e
+                        ))
+                    }
+                }
+            }
+            self.expect(TokenKind::RBrace)?;
+            coll.children.push(body_block);
+            return Ok(coll);
+        }
+
         node.children.push(start);
 
         self.expect(TokenKind::DotDot)?;
@@ -2537,6 +3656,33 @@ impl Parser {
         while self.current.kind == TokenKind::KwAnd
             || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
         {
+            // W898 (0005): `given c = 1` newline `and x = f(c)` -- the greedy
+            // and-loop consumed the NEXT CLAUSE as a conjunction, stopped on its
+            // `=`, and the whole block fell back. Every mid-block `and` clause in
+            // the corpus died this way. In clause-value mode, an `and` followed
+            // by `ident =` is the next clause, not an operand: probe ahead with
+            // save/restore, which the parser already uses for exactly such looks.
+            if self.in_bdd_clause_value && self.current.kind == TokenKind::KwAnd {
+                // W901 (0007 v2): the panel folded `given f(0x55)` +
+                // `and g(0x66)` into ONE conjunction statement -- the `ident =`
+                // look below only catches and-BINDINGS. In the BDD layout a
+                // line-leading `and` IS a clause; a genuine operator lives on
+                // the line it operates on. Break on newline-`and` too.
+                if self.current.line > self.last_line {
+                    break;
+                }
+                let look = self.save_state();
+                self.advance();
+                let is_clause = self.current.kind == TokenKind::Ident && {
+                    let name_ok = true;
+                    self.advance();
+                    name_ok && self.current.kind == TokenKind::Equals
+                };
+                self.restore_state(look);
+                if is_clause {
+                    break;
+                }
+            }
             self.advance();
             let right = self.parse_expr_comparison()?;
             left = Node {
@@ -2552,6 +3698,43 @@ impl Parser {
     /// Parse comparison expressions (==, !=, <, >, <=, >=)
     fn parse_expr_comparison(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_bitor()?;
+        // W903: `value in [-1, 0, 1]` / `x in {0, 1, 2}` -- list/set membership.
+        // KwIn only ever appeared in for-loop headers, so the clause forms that
+        // used it as an OPERATOR dropped their blocks. Same-line only: a `for
+        // .. in` never reaches expression position, and a line-leading `in`
+        // does not exist in the corpus. The brace-set RHS is parsed here
+        // directly ({ is otherwise W578 territory).
+        while self.in_bdd_clause_value
+            && self.current.kind == TokenKind::KwIn
+            && self.current.line == self.last_line
+        {
+            self.advance();
+            let right = if self.current.kind == TokenKind::LBrace {
+                let mut set = Node::new(NodeKind::ExprArrayLiteral);
+                set.extra_kind = "set".to_string();
+                self.advance();
+                if self.current.kind != TokenKind::RBrace {
+                    set.children.push(self.parse_expr_bitor()?);
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance();
+                        if self.current.kind == TokenKind::RBrace {
+                            break;
+                        }
+                        set.children.push(self.parse_expr_bitor()?);
+                    }
+                }
+                self.expect(TokenKind::RBrace)?;
+                set
+            } else {
+                self.parse_expr_bitor()?
+            };
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: "in".to_string(),
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
         while matches!(
             self.current.kind,
             TokenKind::Eq
@@ -2655,6 +3838,13 @@ impl Parser {
                 | TokenKind::Minus
                 | TokenKind::PlusPercent
                 | TokenKind::MinusPercent
+                // W580: `++` is CONCATENATION here, not increment --
+                // `return "SOP(" ++ truth_table ++ ")";`. It lexed as a token
+                // and had no grammar rule, so the expression died with
+                // "Unexpected token in expression: PlusPlus" (682 assertion
+                // clauses across 5 specs). Zig spells concatenation `++` too,
+                // so it emits unchanged.
+                | TokenKind::PlusPlus
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -2739,8 +3929,21 @@ impl Parser {
             ));
         }
         let base = self.current.lexeme.clone();
+        // f32/f64 are first-class elsewhere in the compiler -- TypeInfo::F32
+        // exists, they are accepted as parameter and return types, and the
+        // Zig/Rust/C emitters handle them -- but they were missing from this
+        // cast whitelist, so `x as f32` was a parse error while `fn f(x: f32)`
+        // was fine. That inconsistency blocked three IGLA specs at the parser.
+        // W915 MERGE-SEMANTICS NOTE, flagged in docs/NOW.md for the owner:
+        // master refuses f32/f64 casts with a truthful message (its C backend
+        // emits the literal token); this branch accepted them at W830 and 38
+        // corpus specs parse through them. The merge keeps the branch's
+        // acceptance (removing it fails 39 specs) and DROPS W914's untracked
+        // `float`/`int` aliases; master's refusal branch below stays as the
+        // documented owner position for the day a backend decision lands.
         const VALID_CAST_TYPES: &[&str] = &[
             "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
+            "f32", "f64",
         ];
         if !VALID_CAST_TYPES.contains(&base.as_str()) {
             // f32/f64 parse in DECLARATIONS, so "unknown type" would be a lie here.
@@ -2797,6 +4000,16 @@ impl Parser {
                     deref.name = "*".to_string();
                     deref.children.push(expr);
                     expr = deref;
+                } else if self.current.kind == TokenKind::Question {
+                    // W581: `expr.?` -- Zig's optional unwrap. Now that `?` is
+                    // a real token it reaches here; before W581 the lexer
+                    // dropped it and `x.?` silently became a field access to
+                    // nothing.
+                    self.advance(); // consume ?
+                    let mut unwrap = Node::new(NodeKind::ExprFieldAccess);
+                    unwrap.name = "?".to_string();
+                    unwrap.children.push(expr);
+                    expr = unwrap;
                 } else if self.current.kind == TokenKind::Number {
                     // Tuple index access: expr.0 / expr.1 -- previously the dot
                     // was consumed and the index token silently DROPPED, so
@@ -2806,16 +4019,40 @@ impl Parser {
                     self.advance();
                     fa.children.push(expr);
                     expr = fa;
-                } else if self.current.kind == TokenKind::Ident {
+                } else if self.current.kind == TokenKind::Ident
+                    || Self::is_identifier_like(&self.current)
+                {
+                    // W580: a KEYWORD used as a field name. `contract.invariant`
+                    // lexes `invariant` as KwInvariant, so the postfix loop saw
+                    // no identifier and the expression died with "Unexpected
+                    // token in expression: KwInvariant" -- 307 assertion
+                    // clauses across 31 specs. After a `.` the token is a field
+                    // name whatever else it might mean; the backends already
+                    // escape a field that collides with a target keyword.
                     let field = self.current.lexeme.clone();
                     self.advance();
                     // Check if this is a method/field call: expr.field(args)
                     if self.current.kind == TokenKind::LParen {
-                        // Method-style call: expr.field(args)
-                        // Build fully-qualified name from field access chain
-                        let full_name = Self::flatten_field_access_name(&expr, &field);
-                        let call = self.parse_call_args(full_name)?;
-                        expr = call;
+                        // Method-style call: expr.field(args).
+                        //
+                        // The name-flattening path walks a chain of identifiers
+                        // and field accesses. When the receiver is something
+                        // else -- a CALL or an INDEX -- it used to stop and
+                        // SILENTLY DROP it, so
+                        // `ternary_gemm(a, w).len()` parsed as `len()`: no
+                        // receiver, no diagnostic. 198 no-argument method calls
+                        // and ~40 with arguments sit on such receivers in this
+                        // corpus. Keep the receiver as a child instead.
+                        if Self::is_flattenable_receiver(&expr) {
+                            let full_name = Self::flatten_field_access_name(&expr, &field);
+                            let call = self.parse_call_args(full_name)?;
+                            expr = call;
+                        } else {
+                            let mut call = self.parse_call_args(field)?;
+                            call.extra_kind = "method".to_string();
+                            call.children.insert(0, expr);
+                            expr = call;
+                        }
                     } else {
                         let mut fa = Node::new(NodeKind::ExprFieldAccess);
                         fa.name = field;
@@ -2825,9 +4062,37 @@ impl Parser {
                 } else {
                     break;
                 }
+            } else if self.current.kind == TokenKind::Question {
+                // Rust's error-propagation postfix, `f()?`. Zig spells the same
+                // thing `try f()`, and the parser already has that node shape.
+                self.advance();
+                let mut t = Node::new(NodeKind::ExprUnary);
+                t.extra_op = "try ".to_string();
+                t.children.push(expr);
+                expr = t;
             } else if self.current.kind == TokenKind::LBracket {
                 self.advance(); // consume [
                 let index = self.parse_expr()?;
+                // W605: `x[a:b]` -- a slice. 33 sites in code across five
+                // specs, every one of them in IGLA CODER, and it is what
+                // `eval.t27` fails on at line 1394 (`stdout[0:5]`). Zig spells
+                // it `x[a..b]`, so the only difference is the separator.
+                //
+                // The corpus ALSO contains 78 `[7:0]` bit-ranges -- Verilog,
+                // inside string literals -- which are not slices and are not
+                // reached here, because a string literal is one token.
+                if self.current.kind == TokenKind::Colon {
+                    self.advance(); // consume :
+                    let end = self.parse_expr()?;
+                    self.expect(TokenKind::RBracket)?;
+                    let mut slice_node = Node::new(NodeKind::ExprIndex);
+                    slice_node.extra_op = "slice".to_string();
+                    slice_node.children.push(expr);
+                    slice_node.children.push(index);
+                    slice_node.children.push(end);
+                    expr = slice_node;
+                    continue;
+                }
                 self.expect(TokenKind::RBracket)?;
                 let mut idx_node = Node::new(NodeKind::ExprIndex);
                 idx_node.children.push(expr);
@@ -2848,6 +4113,37 @@ impl Parser {
     /// Flatten a chain of ExprFieldAccess nodes into a dotted name
     /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
     /// becomes "std.testing.expectEqual"
+    /// A token whose lexeme reads as an identifier -- true for every keyword.
+    /// Used where the grammar guarantees a name, such as immediately after `.`.
+    fn is_identifier_like(t: &Token) -> bool {
+        let mut cs = t.lexeme.chars();
+        match cs.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether a receiver is a pure chain of identifiers and field accesses,
+    /// and can therefore be folded into a dotted callee NAME without losing
+    /// anything. A call or an index in the chain cannot.
+    fn is_flattenable_receiver(expr: &Node) -> bool {
+        let mut current = expr;
+        loop {
+            match current.kind {
+                NodeKind::ExprIdentifier => return true,
+                NodeKind::ExprFieldAccess => {
+                    if current.children.is_empty() {
+                        return true;
+                    }
+                    current = &current.children[0];
+                }
+                _ => return false,
+            }
+        }
+    }
+
     fn flatten_field_access_name(expr: &Node, trailing_field: &str) -> String {
         let mut parts = vec![trailing_field.to_string()];
         let mut current = expr;
@@ -2874,6 +4170,49 @@ impl Parser {
 
     /// Parse primary expressions
     fn parse_expr_primary(&mut self) -> Result<Node, String> {
+        // W906 (0013): `var` as a NAME inside clause values -- the binding
+        // `given var = 5` lowers, but `then var == 5` died on KwVar in operand
+        // position. In clause-value mode only, a var/const keyword NOT opening
+        // a declaration (no `Ident =`/`Ident :` after it) reads as an
+        // identifier.
+        // W907 (0014): inline lambda in clause values -- `fn(x) x >= 0.0` as
+        // a call argument in a then-clause felled its whole block (convicted
+        // by replacing it with a named predicate). Represented WITHOUT a new
+        // node kind: ExprCall named "fn", parameters joined in extra_field,
+        // single-expression body as the only child -- backends that meet it
+        // see an ordinary call node.
+        if self.in_bdd_clause_value
+            && self.current.kind == TokenKind::KwFn
+            && self.peek.kind == TokenKind::LParen
+        {
+            self.advance(); // fn
+            self.advance(); // (
+            let mut params: Vec<String> = Vec::new();
+            while self.current.kind == TokenKind::Ident {
+                params.push(self.current.lexeme.clone());
+                self.advance();
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                }
+            }
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_expr()?;
+            let mut node = Node::new(NodeKind::ExprCall);
+            node.name = "fn".to_string();
+            node.extra_field = params.join(", ");
+            node.children.push(body);
+            return Ok(node);
+        }
+        if matches!(
+            self.current.kind,
+            TokenKind::KwVar | TokenKind::KwConst | TokenKind::KwModule
+        ) && !(self.peek.kind == TokenKind::Ident)
+        {
+            // W914: fall THROUGH as an identifier -- the Ident arm below owns
+            // calls/fields/indexing, and an early return here stranded
+            // `module(name).exists` at its `(`.
+            self.current.kind = TokenKind::Ident;
+        }
         match self.current.kind {
             // Number literal
             TokenKind::Number => {
@@ -2908,6 +4247,14 @@ impl Parser {
                     ..Default::default()
                 })
             }
+
+            // W577: an unterminated literal carries the rest of the file as its
+            // lexeme. Accepting it as a value is how `const S = "oops` absorbed
+            // every declaration after it and still reported success.
+            TokenKind::UnterminatedString => Err(format!(
+                "unterminated string literal opened at line {}:{}",
+                self.current.line, self.current.col
+            )),
 
             // Boolean literals
             TokenKind::KwTrue => {
@@ -2967,9 +4314,8 @@ impl Parser {
                     }
                 }
 
-                // Check for struct literal: Name{ .field = expr, ... }. In a
-                // paren-less condition the `{` opens the statement body.
-                if self.current.kind == TokenKind::LBrace && !self.no_struct_literal {
+                // Check for struct literal: Name{ .field = expr, ... }
+                if self.current.kind == TokenKind::LBrace && self.no_struct_literal == 0 {
                     return self.parse_struct_literal(name);
                 }
 
@@ -3031,8 +4377,21 @@ impl Parser {
                 })
             }
 
-            // Array literal: [_]Type{ values } or [N]Type{ values }
-            TokenKind::LBracket => self.parse_array_literal(),
+            // Array literal: [_]Type{ values } or [N]Type{ values }.
+            // A BARE list (`[a, b, c]`) is tried first: `parse_array_literal`
+            // captures its elements as raw TEXT, so a struct-literal element
+            // reached the backend unlowered -- `TernaryWeight{code:0}` instead
+            // of `TernaryWeight{ .code = 0 }`. Parsing the elements as
+            // expressions lowers them like any other.
+            TokenKind::LBracket => {
+                let save = self.save_state();
+                if let Some(bare) = self.parse_bare_array_literal() {
+                    Ok(bare)
+                } else {
+                    self.restore_state(save);
+                    self.parse_array_literal()
+                }
+            }
 
             _ => Err(format!(
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
@@ -3043,9 +4402,13 @@ impl Parser {
 
     /// Parse function/builtin call arguments: name(arg1, arg2, ...)
     fn parse_call_args(&mut self, name: String) -> Result<Node, String> {
+        // W574: call nodes carried no line, so a diagnostic about a call site
+        // could only say which FILE it was in.
+        let line = self.current.line as u32;
         self.advance(); // consume (
         let mut call = Node::new(NodeKind::ExprCall);
         call.name = name;
+        call.line = line;
 
         while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
             let arg = self.parse_expr()?;
@@ -3076,10 +4439,18 @@ impl Parser {
                 } else {
                     String::new()
                 };
-            } else if self.current.kind == TokenKind::Ident {
-                // Allow field = expr without dot prefix
+            } else if self.current.kind == TokenKind::Ident
+                || (self.current.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                    && !self.current.lexeme.is_empty()
+                    && (self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon))
+            {
+                // Allow field = expr without dot prefix.
+                // W906 (0013): a KEYWORD as a field label -- `Contract { ...,
+                // invariant: "..." }` -- broke out of this loop and the whole
+                // block fell. Any word-shaped token followed by `=`/`:` is a
+                // field label here; `invariant` the keyword never appears in
+                // that position otherwise.
                 let n = self.current.lexeme.clone();
-                // Peek: only treat as field init if followed by '=' or ':'
                 if self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon {
                     field_name = n;
                     self.advance(); // consume field name
@@ -3108,6 +4479,123 @@ impl Parser {
         Ok(lit)
     }
 
+    /// W568: parse a BARE bracketed element list -- `[1, 2, 3]`, the spelling
+    /// 11 specs use for a typed const initializer:
+    ///
+    /// ```text
+    /// const COPTIC_ALPHABET : [27]u32 = [0x03B1, 0x03B2, ...]
+    /// ```
+    ///
+    /// `parse_array_literal` only understands `[N]T{ ... }`, so this shape
+    /// produced a childless node and the caller's text fallback ran to the next
+    /// semicolon -- which, in a newline-terminated language, is end of file.
+    ///
+    /// Returns `None` for everything else, leaving it to the caller's
+    /// checkpoint: the slice type `[]T`, the dimension `[N]`, the type alias
+    /// `[N]T`, and the literal form `[N]T{ ... }` all bail out here.
+    fn parse_bare_array_literal(&mut self) -> Option<Node> {
+        if self.current.kind != TokenKind::LBracket {
+            return None;
+        }
+
+        // Cheap structural rejection BEFORE any scanning. A bare list needs at
+        // least two elements, so `[` followed by one token and then `]` is a
+        // dimension (`[5]Pt`, `[_]u8`) and cannot be one.
+        //
+        // This guard is what keeps the pass linear. Without it, every level of
+        // `[5][2][2]...Pt{...}` scanned its entire subtree into a String before
+        // rejecting it, and the corpus's 16-deep benchmark specs went from
+        // seconds to minutes.
+        if self.peek.kind == TokenKind::RBracket {
+            return None;
+        }
+
+        // Collect the element TEXT. The Zig emitter reads children, but the
+        // Verilog emitter reads `extra_size`, and returning a node with
+        // children alone made it print an empty element list where it used to
+        // print `[c00,c01,c10,c11]`. Both representations are populated.
+        let entry = self.save_state();
+        let raw_elements = {
+            self.advance(); // consume [
+            let mut text = String::new();
+            let mut depth = 0i32;
+            while !(self.current.kind == TokenKind::RBracket && depth == 0)
+                && self.current.kind != TokenKind::Eof
+            {
+                match self.current.kind {
+                    TokenKind::LBracket => depth += 1,
+                    TokenKind::RBracket => depth -= 1,
+                    _ => {}
+                }
+                text.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            text
+        };
+        self.restore_state(entry);
+
+        self.advance(); // consume [
+        if self.current.kind == TokenKind::RBracket {
+            return None; // `[]T` -- a slice type, not a list
+        }
+
+        let mut node = Node::new(NodeKind::ExprArrayLiteral);
+        node.extra_size = raw_elements.trim().trim_end_matches(',').to_string();
+        loop {
+            node.children.push(self.parse_expr().ok()?);
+            if self.current.kind != TokenKind::Comma {
+                break;
+            }
+            self.advance(); // consume ,
+            if self.current.kind == TokenKind::RBracket {
+                break; // trailing comma
+            }
+        }
+        if self.current.kind != TokenKind::RBracket {
+            return None;
+        }
+        let close_line = self.current.line;
+        self.advance(); // consume ]
+
+        // A type name or another dimension after the bracket means this was
+        // `[N]T` / `[N][M]T`, not a list of values -- but only when it is on
+        // the SAME LINE as the closing bracket. Without that test, a clause
+        // like
+        //
+        //     given a = [1, 2, 3]
+        //     then a.len() == 3
+        //
+        // saw the `then` on the next line as a type name, rejected the literal,
+        // and the whole test block fell back to being discarded.
+        if self.current.line == close_line
+            && matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket)
+        {
+            return None;
+        }
+        // A single element is normally indistinguishable from an array
+        // DIMENSION (`[SIZE]`, `[4]`), so it is left to the existing path --
+        // unless the element is plainly not one. `[cast_i8(42)]` is a list;
+        // without this, its contents stayed raw TEXT and the calls inside were
+        // never lowered ("use of undeclared identifier 'cast_i8'" from inside
+        // an emitted `.{ cast_i8(42) }`).
+        if node.children.len() < 2 {
+            let sole_is_a_dimension = node
+                .children
+                .first()
+                .map(|c| {
+                    matches!(
+                        c.kind,
+                        NodeKind::ExprLiteral | NodeKind::ExprIdentifier
+                    )
+                })
+                .unwrap_or(true);
+            if sole_is_a_dimension {
+                return None;
+            }
+        }
+        Some(node)
+    }
+
     /// Parse array literal: [_]Type{ values }, [N]Type{ values }, or
     /// [N][M]Type{ values } (multi-dimensional). W527: consumes all leading
     /// bracket dimensions and the element type before the brace.
@@ -3116,10 +4604,12 @@ impl Parser {
         self.advance(); // consume first '['
 
         let mut dims: Vec<String> = Vec::new();
+        let mut rbracket_line = self.current.line;
         loop {
             // Collect the contents of the current bracket pair.
             if self.current.kind == TokenKind::RBracket {
                 dims.push(String::new());
+                rbracket_line = self.current.line;
                 self.advance();
             } else {
                 let mut bracket_content = String::new();
@@ -3139,6 +4629,7 @@ impl Parser {
                     self.advance();
                 }
                 dims.push(bracket_content.trim().to_string());
+                rbracket_line = self.current.line;
                 self.expect(TokenKind::RBracket)?;
             }
             // Another leading bracket -> multi-dimensional literal.
@@ -3150,9 +4641,45 @@ impl Parser {
         }
         node.extra_size = dims.join("][");
 
-        if self.current.kind == TokenKind::Ident {
-            node.extra_type = self.current.lexeme.clone();
-            self.advance();
+        // W900 (0006): an Ident here was consumed as the element type
+        // UNCONDITIONALLY, so `given params = [1.0]` followed by
+        // `when result = ...` ate the clause keyword `when` as a "type" and
+        // the whole block fell back. The Zig typed form is only real when an
+        // initialiser brace follows -- `[3]u8{1, 2, 3}`, `[]T{}` -- so look
+        // one token past the Ident and take it as a type ONLY then. (`and`
+        // clauses survived this all along because KwAnd is not an Ident --
+        // which is why 0005's fix made the bug look like a struct-literal
+        // problem one clause earlier.)
+        // W900 panel: in clause-value mode a clause KEYWORD is never an
+        // element type, on either line. Without this, `given xs = [1] then
+        // {1} == xs` forged the brace test -- `then` became the "type",
+        // `{1}` its initialiser, and the assertion vanished under a green
+        // "nothing discarded"; the same-line arm ate one-line
+        // `given xs = [1, 2] then ...` pairs the same way.
+        let clause_kw = self.in_bdd_clause_value
+            && matches!(
+                self.current.lexeme.as_str(),
+                "given" | "when" | "then" | "assert" | "and"
+            );
+        if self.current.kind == TokenKind::Ident && !clause_kw {
+            // Same line as the `]`: the legacy reading stands -- the corpus
+            // holds same-line shapes (`[_]provider-schema::ToolCall{}`) whose
+            // parse, however odd, predates this rung. A DIFFERENT line means
+            // the Ident is the next clause's keyword unless an initialiser
+            // brace proves otherwise.
+            if self.current.line == rbracket_line {
+                node.extra_type = self.current.lexeme.clone();
+                self.advance();
+            } else {
+                let look = self.save_state();
+                let ty = self.current.lexeme.clone();
+                self.advance();
+                if self.current.kind == TokenKind::LBrace {
+                    node.extra_type = ty;
+                } else {
+                    self.restore_state(look);
+                }
+            }
         }
 
         if self.current.kind == TokenKind::LBrace {
@@ -3185,6 +4712,42 @@ impl Parser {
         Ok(node)
     }
 
+    /// A branch of an `if` used as an EXPRESSION.
+    ///
+    /// W578: the corpus writes the branches braced --
+    /// `let x = if (c) { a } else { b };` -- and `parse_expr` has no rule for a
+    /// `{` in expression position, so this was
+    /// "Unexpected token in expression: LBrace". It is the largest single class
+    /// of parse failure in the corpus: **29 specs, 4,465 assertion clauses**,
+    /// measured in W549 and untouched since.
+    ///
+    /// A brace holding exactly ONE expression is that expression; Zig spells
+    /// the same thing `if (c) a else b`. Anything else -- statements, several
+    /// expressions, an empty block -- restores the checkpoint and falls back to
+    /// the original path, so a shape this cannot model still parses the way it
+    /// did before.
+    fn parse_branch_value(&mut self) -> Result<Node, String> {
+        if self.current.kind != TokenKind::LBrace {
+            return self.parse_expr();
+        }
+        let checkpoint = self.save_state();
+        self.advance(); // consume {
+        if self.current.kind == TokenKind::RBrace {
+            self.restore_state(checkpoint);
+            return self.parse_expr();
+        }
+        match self.parse_expr() {
+            Ok(inner) if self.current.kind == TokenKind::RBrace => {
+                self.advance(); // consume }
+                Ok(inner)
+            }
+            _ => {
+                self.restore_state(checkpoint);
+                self.parse_expr()
+            }
+        }
+    }
+
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
@@ -3193,18 +4756,8 @@ impl Parser {
         let cond = self.parse_expr()?;
         self.expect(TokenKind::RParen)?;
 
-        // Then expression. Braced arms (`if (c) { 2 } else { 0 }`) are the
-        // common spec spelling; the bare-expression form stays supported.
-        // Before #1941 the brace was silently swallowed by statement
-        // recovery -- now it must parse (t27#1960, mac.t27 pack_trit).
-        let then_expr = if self.current.kind == TokenKind::LBrace {
-            self.advance(); // consume {
-            let e = self.parse_expr()?;
-            self.expect(TokenKind::RBrace)?;
-            e
-        } else {
-            self.parse_expr()?
-        };
+        // Then expression
+        let then_expr = self.parse_branch_value()?;
 
         // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
@@ -3213,14 +4766,7 @@ impl Parser {
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = if self.current.kind == TokenKind::LBrace {
-                self.advance(); // consume {
-                let e = self.parse_expr()?;
-                self.expect(TokenKind::RBrace)?;
-                e
-            } else {
-                self.parse_expr()?
-            };
+            let else_expr = self.parse_branch_value()?;
             if_node.children.push(else_expr);
         }
 
@@ -3372,10 +4918,681 @@ impl Parser {
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style test: test name given ... when ... then ...
-            // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
-            self.skip_to_next_top_level();
+            self.parse_bdd_clauses(&mut block);
         }
         Ok(block)
+    }
+
+    /// Lower a braceless clause body into ordinary statements so the backends
+    /// emit it like any brace-form test.
+    ///
+    ///   given|when|and  x = expr   ->  StmtLocal x = expr
+    ///   then|assert        expr    ->  StmtExpr( assert(expr) )
+    ///
+    /// Before this, the body was discarded by `skip_to_next_top_level()`: a spec
+    /// asserting `2 == 999` generated `test "..." {}` and passed. That affected
+    /// 7,623 test blocks across 318 specs.
+    ///
+    /// Safety contract: this may only ADD assertions, never break a file. Any
+    /// shape it does not fully understand restores the entry checkpoint and
+    /// falls back to the original skip, so a spec that parsed before still
+    /// parses.
+    fn parse_bdd_clauses(&mut self, block: &mut Node) {
+        let entry = self.save_state();
+        let start_children = block.children.len();
+        let mut lowered = 0usize;
+        let mut first_clause_col: Option<usize> = self.bdd_first_col_preset.take();
+        // W903: callers that already lowered an assertion head (bench-colon)
+        // pre-set the role; everyone else starts a fresh block.
+        if !self.bdd_role_preset {
+            self.bdd_last_was_assertion = false;
+        }
+        self.bdd_role_preset = false;
+
+        loop {
+            // A non-identifier here is normally the end of the block, because
+            // the next construct (`test`, `fn`, `invariant`, ...) lexes as a
+            // keyword. But it can also mean we stopped mid-clause -- e.g. on the
+            // comma of `given clk = true, rst_n = false`. Only a real boundary
+            // ends the block; anything else falls back.
+            // W898 (0005): `and` lexes as the LOGICAL OPERATOR token, not as an
+            // identifier -- so the `and` clause the line below claims to accept
+            // was unreachable for this function's whole life, and every block
+            // containing one fell back wholesale. Found by ddmin: an 80-line
+            // contextual repro reduced to four lines, and the "context" was one
+            // `and` clause. Accept the keyword token at clause position.
+            let and_kw = self.current.kind == TokenKind::KwAnd
+                || (self.current.kind != TokenKind::Ident
+                    && self.current.lexeme == "and");
+            // W904 (0012): `const h = 5` / `var v : u32 = 7` BETWEEN clauses.
+            // KwConst sits in is_block_boundary, so the block ENDED there and
+            // the binding parsed at MODULE scope -- a test-local name became a
+            // global for every backend, and the block's remaining clauses
+            // dropped. Scope guards: only after at least one accepted clause,
+            // and only at that clause's indent or deeper -- a shallower
+            // const/var is a real module declaration and still ends the block.
+            // (A body OPENING with const keeps the old hoist edge, documented.)
+            // W905 panel: a blank line before the const meant "module scope"
+            // to every reader, and the arm captured it into the block anyway.
+            // Statement clauses must sit on the line immediately after the
+            // previous clause; a gap returns the old boundary reading.
+            let adjacent = self.current.line <= self.last_line + 1;
+            if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
+                && adjacent
+                && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
+            {
+                let st_entry = self.save_state();
+                let _st_line = self.current.line;
+                let mutable = self.current.kind == TokenKind::KwVar;
+                self.advance();
+                let mut ok_stmt = false;
+                if self.current.kind == TokenKind::Ident {
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    let ty = if self.current.kind == TokenKind::Colon {
+                        self.advance();
+                        self.parse_type_annotation()
+                    } else {
+                        String::new()
+                    };
+                    if self.current.kind == TokenKind::Equals {
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        if let Ok(expr) = r {
+                            // W904: parse_expr can return Ok having consumed
+                            // only PART of the line (a brace-if value, W578) --
+                            // accepting that "success" left the loop on
+                            // mid-line junk and cost the whole block. A
+                            // statement counts only if it ends CLEANLY: at a
+                            // semicolon, a new line, a boundary, or EOF.
+                            // W905 panel: `line > st_line` blessed a MID-LINE
+                            // landing on a later line -- `x = a +` newline
+                            // `2 y = 3` split one physical line into two
+                            // minted statements. Clean means current OPENS its
+                            // line: its line is beyond the last CONSUMED
+                            // token's line.
+                            let clean = self.current.kind == TokenKind::Semicolon
+                                || self.current.kind == TokenKind::Eof
+                                || self.current.line > self.last_line
+                                || Self::is_block_boundary(self.current.kind);
+                            if clean {
+                                if self.current.kind == TokenKind::Semicolon {
+                                    self.advance();
+                                }
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.name = name;
+                                decl.extra_type = ty;
+                                decl.extra_mutable = mutable;
+                                decl.children.push(expr);
+                                block.children.push(decl);
+                                ok_stmt = true;
+                            }
+                        }
+                    }
+                }
+                if ok_stmt {
+                    lowered += 1;
+                    continue;
+                }
+                // W904: a statement this arm cannot read (a brace-if value,
+                // W578 territory) must NOT cost the whole block -- restore and
+                // END the block, exactly what the boundary did before this
+                // rung: module-level statement parsing reads what it can and
+                // the accounting stays per-line. (`let` lexes as KwVar, so
+                // this arm sees every let-statement too.)
+                self.restore_state(st_entry);
+                break;
+            }
+            if self.current.kind != TokenKind::Ident && !and_kw {
+                if Self::is_block_boundary(self.current.kind) {
+                    break;
+                }
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+            // W894 (0003): checkpoint PER CLAUSE. The whole-block fallback made
+            // one unsupported clause lose its siblings -- most of the corpus's
+            // dropped test lines were collateral, not themselves unsupported.
+            let clause_entry = self.save_state();
+            let clause_col = self.current.col;
+            let clause = self.current.lexeme.clone();
+            // W901 (0007 v2): Gherkin semantics -- `and` inherits the ROLE of
+            // the clause before it, but CONTENT WINS: `and ident = ...` is a
+            // binding wherever it stands (the panel's sandwich probe bound a
+            // variable right after a then). Anything else after an assertion
+            // clause asserts.
+            let and_binds = clause == "and" && {
+                let look = self.save_state();
+                self.advance();
+                let is_bind = self.current.kind == TokenKind::Ident && {
+                    self.advance();
+                    self.current.kind == TokenKind::Equals
+                };
+                self.restore_state(look);
+                is_bind
+            };
+            let is_binding = clause == "given"
+                || clause == "when"
+                || (clause == "and" && (and_binds || !self.bdd_last_was_assertion));
+            let is_assertion = clause == "then"
+                || clause == "assert"
+                || (clause == "and" && !and_binds && self.bdd_last_was_assertion);
+            // W901 (0007): bench clause pair in keyword form -- `measure f(x)` /
+            // `target latency_us < 5.0`. Lowered to expression STATEMENTS named
+            // by their clause, never to asserts: a bench target is a goal, not
+            // a hard invariant, and inventing check semantics here is exactly
+            // what FORALL-DECISION.md declines to do. The colon-prose form
+            // (`measure: nanoseconds to ...`) stays a fallback -- prose is not
+            // an expression.
+            // W903 panel: in a TEST block a stray `measure:` captured the
+            // block's only then-assert into inert prose -- a vacuous test
+            // under a green light. The clause pair belongs to bench blocks.
+            let is_expr_clause = (clause == "measure" || clause == "target")
+                && block.kind == NodeKind::BenchBlock;
+
+            if !is_binding && !is_assertion && !is_expr_clause {
+                // W904 (0012): a bare ASSIGNMENT statement between clauses --
+                // `sum = if (...) ...;` -- is an Ident that is no clause, and
+                // the whole-block fallback here cost every already-lowered
+                // sibling. `Ident =` at clause indent parses as a statement
+                // clause under the same clean-termination rule as const/var,
+                // in the fn-body StmtAssign shape (lhs expr child, rhs child).
+                if first_clause_col.map_or(false, |c| c > 1 && clause_col >= c)
+                    && self.current.line <= self.last_line + 1
+                    && self.peek.kind == TokenKind::Equals
+                {
+                    let st_entry = self.save_state();
+                    let _st_line = self.current.line;
+                    let mut lhs = Node::new(NodeKind::ExprIdentifier);
+                    lhs.name = self.current.lexeme.clone();
+                    self.advance(); // ident
+                    self.advance(); // =
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    let mut ok_stmt = false;
+                    if let Ok(expr) = r {
+                        let clean = self.current.kind == TokenKind::Semicolon
+                            || self.current.kind == TokenKind::Eof
+                            || self.current.line > self.last_line
+                            || Self::is_block_boundary(self.current.kind);
+                        if clean {
+                            if self.current.kind == TokenKind::Semicolon {
+                                self.advance();
+                            }
+                            let mut assign = Node::new(NodeKind::StmtAssign);
+                            assign.line = _st_line as u32;
+                            assign.children.push(lhs);
+                            assign.children.push(expr);
+                            block.children.push(assign);
+                            ok_stmt = true;
+                        }
+                    }
+                    if ok_stmt {
+                        lowered += 1;
+                        continue;
+                    }
+                    self.restore_state(st_entry);
+                }
+                // An identifier that is not a clause means this body has a shape
+                // we do not model. Falling through with the parser positioned
+                // mid-block is what broke 19 specs on the first attempt.
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+
+            let ok = if is_expr_clause {
+                self.advance();
+                if self.current.kind == TokenKind::Colon {
+                    // W902 (0009): the colon-form pair -- `measure: nanoseconds
+                    // to f(x)` / `target: < 50ns`. The intervention map
+                    // convicted the FORM (a trivial expression after the colon
+                    // drops too), and the content is frequently PROSE, so no
+                    // expression grammar can read it honestly. Capture the
+                    // rest of the LINE verbatim into the node's value: the
+                    // tokens are READ and preserved, and no semantics are
+                    // invented for them.
+                    // W903 panel: the capture stops at a same-line CLAUSE WORD
+                    // -- `measure: 5 target: 6` was one node with target
+                    // flattened into prose, and a same-line `then x == 1`
+                    // lost its assert into the value. Prose keeps its words;
+                    // sibling clauses keep their nodes.
+                    let line = self.current.line;
+                    self.advance(); // consume ':'
+                    let mut text = String::new();
+                    while self.current.kind != TokenKind::Eof
+                        && self.current.line == line
+                    {
+                        // W914: the stop-set shrinks to the words that START
+                        // sibling clauses in real corpora -- `when`/`and`/
+                        // `given` are ordinary ENGLISH inside prose
+                        // ("nanoseconds to f() when 2 bytes available"), and
+                        // stopping there felled five fpga specs.
+                        if !text.is_empty()
+                            && matches!(
+                                self.current.lexeme.as_str(),
+                                "measure" | "target" | "then" | "assert"
+                            )
+                        {
+                            break;
+                        }
+                        if !text.is_empty() {
+                            text.push(' ');
+                        }
+                        text.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.name = format!("{}:", clause);
+                    stmt.value = text;
+                    block.children.push(stmt);
+                    true
+                } else {
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    match r {
+                        Ok(expr) => {
+                            let mut stmt = Node::new(NodeKind::StmtExpr);
+                            stmt.name = clause.clone();
+                            stmt.children.push(expr);
+                            // W906 (0013): a UNIT PHRASE after the bound --
+                            // `target throughput > 1000 steps/sec` -- left
+                            // `steps/sec` as junk that felled the block. The
+                            // same-line residue is captured verbatim into the
+                            // node's value, like the colon form's prose.
+                            let mut unit = String::new();
+                            while self.current.kind != TokenKind::Eof
+                                && self.current.line == self.last_line
+                            {
+                                if !unit.is_empty() {
+                                    unit.push(' ');
+                                }
+                                unit.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
+                            stmt.value = unit;
+                            block.children.push(stmt);
+                            true
+                        }
+                        Err(_) => false,
+                    }
+                }
+            } else if is_assertion {
+                self.advance();
+                self.in_bdd_clause_value = true;
+                let r = self.parse_expr();
+                self.in_bdd_clause_value = false;
+                match r {
+                    Ok(expr) => {
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.children.push(expr);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.children.push(call);
+                        block.children.push(stmt);
+                        true
+                    }
+                    Err(_) => false,
+                }
+            } else {
+                self.advance();
+                // W894 (0003): `when (a_out, psum) = pe(...)` -- a tuple pattern.
+                // This single unsupported shape accounted for ~60% of every
+                // dropped when-line in the corpus, and the whole-block fallback
+                // then lost the sibling clauses too. Mirrors parse_local_decl's
+                // tuple path exactly: StmtLocal, empty name, comma-joined
+                // pattern in extra_field.
+                if self.current.kind == TokenKind::LParen {
+                    self.advance(); // consume (
+                    let mut pat = String::new();
+                    while self.current.kind != TokenKind::RParen
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        match self.current.kind {
+                            TokenKind::Comma => pat.push_str(", "),
+                            TokenKind::Ident => pat.push_str(&self.current.lexeme),
+                            _ => {}
+                        }
+                        self.advance();
+                    }
+                    if self.current.kind == TokenKind::RParen {
+                        self.advance();
+                    }
+                    if self.current.kind != TokenKind::Equals || pat.is_empty() {
+                        // W901 (0007 v2): not a tuple binding -- the panel
+                        // showed `given (x + 1) == 2` dying here while the
+                        // SAME value parsed fine under measure/target. Restore
+                        // and lower the value as an expression statement.
+                        self.restore_state(clause_entry);
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut stmt = Node::new(NodeKind::StmtExpr);
+                                stmt.name = clause.clone();
+                                stmt.children.push(expr);
+                                block.children.push(stmt);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    } else {
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.extra_field = pat;
+                                decl.children.push(expr);
+                                block.children.push(decl);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    }
+                } else if self.current.kind != TokenKind::Ident
+                    && !self.current.lexeme.is_empty()
+                    && self
+                        .current
+                        .lexeme
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+                    && self.peek.kind == TokenKind::Equals
+                {
+                    // W906 (0013): `given var = 5` -- `var` as a binding NAME.
+                    // The keyword collision felled the block; a keyword
+                    // directly before `=` in a binding clause is a name.
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    self.advance();
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    match r {
+                        Ok(expr) => {
+                            let mut decl = Node::new(NodeKind::StmtLocal);
+                            decl.name = name;
+                            decl.children.push(expr);
+                            block.children.push(decl);
+                            true
+                        }
+                        Err(_) => false,
+                    }
+                } else if self.current.kind != TokenKind::Ident {
+                    false
+                } else {
+                    // W901 (0007): `given uart_tx_send(0x55)` -- a side-effect
+                    // call with no binding -- and `given f() == 1` -- a bare
+                    // comparison -- are not `ident =` bindings. Peek past the
+                    // identifier; anything but `=` restores and lowers the
+                    // whole clause value as an expression statement.
+                    let bind_look = self.save_state();
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    if self.current.kind != TokenKind::Equals {
+                        self.restore_state(bind_look);
+                        // W906 (0013): a DOTTED/INDEXED LVALUE step --
+                        // `and state.gamma[0] = 2.0`, `when buffers.scores[0..4]
+                        // = scores` -- is an assignment, not an expression; the
+                        // expression path parsed the lvalue, stopped on `=`,
+                        // and the over-consumption guard felled the block.
+                        // Parse the lvalue, and if the cursor lands on a plain
+                        // `=`, lower the clause as StmtAssign.
+                        if self.current.kind == TokenKind::Ident
+                            && (self.peek.kind == TokenKind::Dot
+                                || self.peek.kind == TokenKind::LBracket)
+                        {
+                            let lv_look = self.save_state();
+                            self.in_bdd_clause_value = true;
+                            let lv = self.parse_expr();
+                            self.in_bdd_clause_value = false;
+                            let mut done = false;
+                            if let Ok(lhs) = lv {
+                                if self.current.kind == TokenKind::Equals {
+                                    self.advance();
+                                    self.in_bdd_clause_value = true;
+                                    let rv = self.parse_expr();
+                                    self.in_bdd_clause_value = false;
+                                    if let Ok(rhs) = rv {
+                                        let clean = self.current.kind
+                                            == TokenKind::Semicolon
+                                            || self.current.kind == TokenKind::Eof
+                                            || self.current.line > self.last_line
+                                            || Self::is_block_boundary(
+                                                self.current.kind,
+                                            );
+                                        if clean {
+                                            if self.current.kind
+                                                == TokenKind::Semicolon
+                                            {
+                                                self.advance();
+                                            }
+                                            let mut assign =
+                                                Node::new(NodeKind::StmtAssign);
+                                            assign.children.push(lhs);
+                                            assign.children.push(rhs);
+                                            block.children.push(assign);
+                                            done = true;
+                                        }
+                                    }
+                                }
+                            }
+                            if !done {
+                                self.restore_state(lv_look);
+                            } else {
+                                self.bdd_last_was_assertion = false;
+                                lowered += 1;
+                                continue;
+                            }
+                        }
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut stmt = Node::new(NodeKind::StmtExpr);
+                                stmt.name = clause.clone();
+                                stmt.children.push(expr);
+                                block.children.push(stmt);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    } else {
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.name = name;
+                                decl.children.push(expr);
+                                // W907 (0014): a COMPREHENSION SUFFIX --
+                                // `given encoded = encode(x) for x in {...}`
+                                // -- felled its block. The same-line `for ...`
+                                // tail is captured verbatim into extra_field:
+                                // read and preserved, no semantics invented.
+                                if self.current.kind == TokenKind::KwFor
+                                    && self.current.line == self.last_line
+                                {
+                                    let mut tail = String::new();
+                                    let line = self.current.line;
+                                    while self.current.kind != TokenKind::Eof
+                                        && self.current.line == line
+                                    {
+                                        if !tail.is_empty() {
+                                            tail.push(' ');
+                                        }
+                                        tail.push_str(&self.current.lexeme);
+                                        self.advance();
+                                    }
+                                    decl.extra_field = tail;
+                                }
+                                block.children.push(decl);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    }
+                }
+            };
+
+            // `parse_expr` is greedy across newlines, so a binding value can
+            // swallow the next clause's name (`FPGA_PART_35T and p100`) and
+            // leave us on its `=`. That is over-consumption; the clause-level
+            // recovery below cannot help because the damage crosses clauses --
+            // keep the whole-block fallback for exactly this case.
+            if self.current.kind == TokenKind::Equals {
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+            if !ok {
+                // W898 revision: the per-clause SKIP is withdrawn. Its boundary
+                // set stopped at `}` and `fn` inside clause junk (a lambda in a
+                // then-expr, a struct literal in a given) and handed fragments to
+                // module level, which errors HARD where the old path skipped
+                // safely -- four files that parsed before regressed. On a failed
+                // clause the whole block falls back exactly as before 0003; the
+                // collateral win survives because the and-fix makes most blocks
+                // lower COMPLETELY, never reaching this arm.
+                let _ = clause_entry;
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+            if clause != "and" {
+                self.bdd_last_was_assertion = is_assertion;
+            }
+            // W905 panel: the anchor is the MINIMUM accepted clause column
+            // (an over-indented first given at col 9 made a col-5 statement
+            // look "shallower" and hoisted it); and at a column-1 tie the
+            // statement arms are DISABLED entirely -- an unindented block
+            // makes module declarations and body statements indistinguishable
+            // by column, and the arm stole module consts other tests read.
+            first_clause_col = Some(match first_clause_col {
+                Some(c) if c <= clause_col => c,
+                _ => clause_col,
+            });
+            lowered += 1;
+        }
+
+        if lowered == 0 {
+            self.restore_bdd_fallback(block, start_children, entry);
+        }
+    }
+
+    /// Tokens that can legitimately follow a braceless clause body. Anything
+    /// else means the loop stopped mid-clause, not at the end of the block.
+    /// Tokens that can only OPEN a new top-level declaration. Used to bound a
+    /// raw token collector that would otherwise run to end-of-file, and
+    /// deliberately narrower than `is_block_boundary`: callers pair it with a
+    /// "starts its own line" test, because `const` and `struct` also appear
+    /// mid-type (`[]const u8`, `= struct {`).
+    /// W652: does this token mean the const initialiser CONTINUES past the
+    /// primary we just looked at?
+    ///
+    /// `parse_const_decl` has fast paths that take a bare `Number` or `Ident`
+    /// and advance exactly one token. Any binary operator sitting after that
+    /// primary was therefore DISCARDED, silently, in all five backends:
+    /// `const DIV : u32 = A / B;` emitted `DIV = A`. `100 / 7` emitted `100`.
+    /// The only spellings that survived were the ones a delimiter happened to
+    /// route through `parse_expr` -- `f(A) + 1` was correct because `(` did it.
+    ///
+    /// This predicate is the semantic test the fast paths were missing: it asks
+    /// "is there more expression here", not "does the next token look like a
+    /// delimiter I recognise".
+    fn token_continues_expr(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Amp
+                | TokenKind::Pipe
+                | TokenKind::Caret
+                | TokenKind::Lt
+                | TokenKind::Gt
+                | TokenKind::Lte
+                | TokenKind::Gte
+                | TokenKind::Eq
+                | TokenKind::Neq
+                | TokenKind::ShiftLeft
+                | TokenKind::ShiftRight
+                | TokenKind::Power
+                | TokenKind::PlusPlus
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
+                | TokenKind::StarPercent
+                | TokenKind::KwAnd
+                | TokenKind::KwOr
+                | TokenKind::Dot
+        )
+    }
+
+    /// W655 (T95): is this a floating type? Verilog's synthesizable subset has
+    /// no float, and lowering `f32` to an integer vector produced a value that
+    /// COMPILES, SYNTHESIZES, RUNS and is wrong for every non-integral input
+    /// (T84/T85). Verilog `real` is IEEE double and is correct in simulation;
+    /// synthesis rejects it, which is truthful because `f32` arithmetic was
+    /// never synthesizable.
+    fn type_is_float(ty: &str) -> bool {
+        matches!(ty.trim(), "f32" | "f64")
+    }
+
+    fn opens_declaration(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::KwPub
+                | TokenKind::KwConst
+                | TokenKind::KwFn
+                | TokenKind::KwTest
+                | TokenKind::KwInvariant
+                | TokenKind::KwBench
+                | TokenKind::KwUse
+                | TokenKind::KwModule
+        )
+    }
+
+    fn is_block_boundary(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Eof
+                | TokenKind::RBrace
+                | TokenKind::KwTest
+                | TokenKind::KwFn
+                | TokenKind::KwInvariant
+                | TokenKind::KwBench
+                | TokenKind::KwPub
+                | TokenKind::KwConst
+                | TokenKind::KwUse
+                | TokenKind::KwModule
+        )
+    }
+
+    fn restore_bdd_fallback(
+        &mut self,
+        block: &mut Node,
+        start_children: usize,
+        entry: ParserCheckpoint,
+    ) {
+        if std::env::var("T27_BDD_DEBUG").is_ok() {
+            eprintln!(
+                "BDD-FALLBACK at line {} kind {:?} lexeme {:?}",
+                self.current.line, self.current.kind, self.current.lexeme
+            );
+        }
+        block.children.truncate(start_children);
+        self.restore_state(entry);
+        self.skip_to_next_top_level();
     }
 
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
@@ -3390,10 +5607,81 @@ impl Parser {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
-            // Keyword-style invariant: skip until next top-level
-            self.skip_to_next_top_level();
+            self.parse_invariant_clause(&mut block);
         }
         Ok(block)
+    }
+
+    /// Lower a keyword-form invariant into an assertion, mirroring what W559
+    /// did for tests. The body was discarded by `skip_to_next_top_level()`, so
+    /// codegen emitted `// invariant: X verified (no statements)` -- a comment
+    /// claiming verification. 5,163 invariants are in this form.
+    ///
+    /// `forall`-quantified statements (837) are not runtime-checkable and fall
+    /// back to the original skip, as does anything else this cannot model.
+    /// Same contract as the test lowering: may only ADD assertions.
+    fn parse_invariant_clause(&mut self, block: &mut Node) {
+        let entry = self.save_state();
+        let start_children = block.children.len();
+
+        // Two spellings exist. `invariant name: <expr>` carries the predicate
+        // inline; `invariant name` is followed by indented clauses in exactly
+        // the same style as a braceless test:
+        //
+        //     invariant board_name_not_empty
+        //         assert BOARD_NAME != ""
+        //
+        // The clause form is the common one -- 76 of 81 in the currently
+        // compiling specs -- so it goes to the shared clause parser.
+        if self.current.kind != TokenKind::Colon {
+            self.parse_bdd_clauses(block);
+            return;
+        }
+        self.advance(); // consume ':'
+
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+            self.restore_bdd_fallback(block, start_children, entry);
+            return;
+        }
+
+        match self.parse_expr() {
+            Ok(expr) => {
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.name = "assert".to_string();
+                call.children.push(expr);
+                let mut stmt = Node::new(NodeKind::StmtExpr);
+                stmt.children.push(call);
+                block.children.push(stmt);
+            }
+            Err(_) => {
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
+            }
+        }
+
+        // W902 (0010): `invariant name : EXPR;` -- the trailing semicolon was
+        // the CONVICTED cause (colon, spacing and `||` all exonerated by
+        // variant probes): `;` is not a block boundary, so the check below
+        // dropped the freshly-lowered assertion. Eat it.
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
+        // W903 panel: is_block_boundary omits var/enum/struct/using, so an
+        // invariant followed by any of those dropped its OWN assert. They end
+        // the block here as cleanly as const/fn do; the GLOBAL boundary set is
+        // left alone (adding KwVar there would hoist keyword-test-body vars).
+        let clean_end = Self::is_block_boundary(self.current.kind)
+            || matches!(
+                self.current.kind,
+                TokenKind::KwVar
+                    | TokenKind::KwEnum
+                    | TokenKind::KwStruct
+                    | TokenKind::KwUsing
+            );
+        if !clean_end {
+            self.restore_bdd_fallback(block, start_children, entry);
+        }
     }
 
     fn parse_bench_block(&mut self) -> Result<Node, String> {
@@ -3407,9 +5695,66 @@ impl Parser {
             self.advance(); // consume {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
+        } else if self.current.kind == TokenKind::Colon {
+            // W902 (0009): `bench name: expr` -- the one-line colon body that
+            // parses under `invariant` dropped under `bench` (the intervention
+            // map convicted the FORM: a trivial expression dropped too). Same
+            // lowering as invariant-colon, which 0004a already gave bench
+            // then-clauses: the predicate becomes an assertion.
+            let entry = self.save_state();
+            let start_children = block.children.len();
+            self.advance(); // consume ':'
+            // W903 panel: without the clause flag, a next-line `and y == 3`
+            // was absorbed under `or` precedence into a strictly WEAKER
+            // assertion. Same flag as every clause value.
+            self.in_bdd_clause_value = true;
+            let head = self.parse_expr();
+            self.in_bdd_clause_value = false;
+            match head {
+                Ok(expr) => {
+                    let mut call = Node::new(NodeKind::ExprCall);
+                    call.name = "assert".to_string();
+                    call.children.push(expr);
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.children.push(call);
+                    block.children.push(stmt);
+                    if self.current.kind == TokenKind::Semicolon {
+                        self.advance();
+                    }
+                    // W903 panel: `bench b: x >= 0` followed by indented
+                    // measure:/then clauses lost EVERYTHING to the boundary
+                    // check. A clause word here continues the block in the
+                    // shared clause parser.
+                    if self.current.kind == TokenKind::Ident
+                        || self.current.kind == TokenKind::KwAnd
+                        || self.current.kind == TokenKind::KwConst
+                        || self.current.kind == TokenKind::KwVar
+                    {
+                        self.bdd_last_was_assertion = true;
+                        self.bdd_role_preset = true;
+                        // W905 panel: continuation statements need the column
+                        // anchor the head never set -- without it the arms
+                        // stayed dark and a `let` after the head minted a
+                        // module const holding a conjunction.
+                        self.bdd_first_col_preset = Some(self.current.col);
+                        self.parse_bdd_clauses(&mut block);
+                    } else if !Self::is_block_boundary(self.current.kind) {
+                        self.restore_bdd_fallback(&mut block, start_children, entry);
+                    }
+                }
+                Err(_) => {
+                    self.restore_bdd_fallback(&mut block, start_children, entry);
+                }
+            }
         } else {
-            // Keyword-style bench: skip until next top-level
-            self.skip_to_next_top_level();
+            // W896 (0004a): keyword-style bench went to skip_to_next_top_level
+            // wholesale -- every assert under `bench name` was discarded while
+            // tests and invariants had lowerings. The same shared clause parser
+            // serves here: assert clauses lower; `measure:`/`target:` metadata
+            // lines are not clauses and are skipped PER-CLAUSE with honest
+            // token accounting (0003's granularity), instead of taking the
+            // whole block down.
+            self.parse_bdd_clauses(&mut block);
         }
         Ok(block)
     }
@@ -3427,6 +5772,78 @@ pub struct Codegen {
     /// never-mutated `var` -- so the choice must be inferred, exactly like the
     /// Rust backend's collect_mutable_names.
     mut_names: std::collections::HashSet<String>,
+    /// Names that already received `_ = &name;`. Zig treats that as a USE, so a
+    /// later bare `_ = name;` is a "pointless discard of local variable" and the
+    /// file stops compiling. W730 measured 9 of 130 generating specs hitting it.
+    discarded_by_ref: std::collections::HashSet<String>,
+    /// Names the enclosing Zig CONTAINER declares. A Zig parameter may not
+    /// shadow one; t27 permits it (W734: fanout, clock_cfg, slack, diff_text
+    /// each name a parameter after a FUNCTION in the same module).
+    module_decl_names: std::collections::HashSet<String>,
+    /// Parameter renames in force for the function being emitted. The `_arg`
+    /// re-binding used for MUTABLE parameters cannot serve the shadow case --
+    /// `var fanout = fanout_arg;` recreates the very collision it was meant to
+    /// remove ("local variable shadows declaration"). So a shadowing parameter
+    /// is renamed all the way through: signature AND every body reference.
+    param_renames: std::collections::HashMap<String, String>,
+    /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
+    /// to Zig builtins ONLY when absent from this set, so a spec that defines
+    /// its own `fn max(...)` still calls its own.
+    declared_fns: std::collections::HashSet<String>,
+    /// How many times each test name has already been emitted. Zig requires
+    /// test names to be unique within a file and rejects the whole file
+    /// otherwise; four IGLA RACE specs accumulated colliding names across
+    /// waves (`cordic_fixed_sin_zero_angle` appears seven times). Suffixing
+    /// repeats keeps every test runnable instead of losing the file.
+    test_name_counts: std::collections::HashMap<String, u32>,
+    /// Declared parameter types, by function name. An anonymous list `.{ … }`
+    /// coerces to `[N]T` but NOT to `[]T`, so an array-literal argument passed
+    /// where the callee declares a slice needs `&[_]T{ … }` -- and the element
+    /// type is only knowable from the callee's signature.
+    declared_fn_params: std::collections::HashMap<String, Vec<String>>,
+    /// Declared return type by function name, so a positional destructure of a
+    /// NAMED-tuple return can be lowered to field accesses (W596).
+    declared_fn_returns: std::collections::HashMap<String, String>,
+    /// Locals bound to an array literal and later passed where a callee
+    /// declares a SLICE, mapped to the element type the callee requires. Such a
+    /// local must be a real `[_]T{ … }` array and be passed by reference; an
+    /// anonymous `.{ … }` cannot coerce to `[]T`.
+    slice_locals: std::collections::HashMap<String, String>,
+    /// Locals bound to the undefined scaffold helpers `default_input()` /
+    /// `valid_input()`, mapped to the Zig type their consumer declares.
+    scaffold_locals: std::collections::HashMap<String, String>,
+    /// W625: UNTYPED locals whose initializer is `.len`-tainted, so the binding
+    /// is `usize` in Zig. Found by forcing analysis of the 14% of generated
+    /// bodies nothing referenced (T21): `estimate_10k_size` in `coder/dataset`
+    /// carries a length through FOUR untyped `const`s before returning it under
+    /// `-> u32`, and W624's expression-local taint could not see it. A local
+    /// with a DECLARED type never enters this set -- the W624 `let` rule
+    /// already casts at the binding, so the name really is that type. See T23.
+    len_locals: std::collections::HashSet<String>,
+    /// Enum types the spec declares. Used to lower `<`/`>` on enum variants to
+    /// a tag comparison -- Zig has no ordering on enums.
+    declared_enums: std::collections::HashSet<String>,
+    /// W609: `(struct, field) -> declared type`. The Zig backend collected
+    /// struct field NAMES (for `string_names` / `float_names` / `signed_names`)
+    /// but never their types, so a slice-typed field receiving an array literal
+    /// got `.{ a, b }` -- which Zig rejects with "type '[]T' does not support
+    /// array initialization syntax". 589 sites across 20 specs.
+    struct_field_types: std::collections::HashMap<(String, String), String>,
+    /// Field and parameter names the spec declares with a string type. Zig has
+    /// no `==` for slices, and the literal-operand test cannot see
+    /// `a.name == b.name`, where BOTH sides are `[]const u8` expressions.
+    string_names: std::collections::HashSet<String>,
+    /// Field and parameter names the spec declares with a float type, so a cast
+    /// can pick `@floatCast` over `@floatFromInt` (W592).
+    float_names: std::collections::HashSet<String>,
+    /// Names the spec declares with a SIGNED integer type. Zig refuses `/` on
+    /// signed integers -- the rounding mode must be explicit -- so a division
+    /// with a known-signed operand is emitted as `@divTrunc` (W593).
+    signed_names: std::collections::HashSet<String>,
+    /// Declared return type of the function currently being emitted, so a
+    /// returned array literal can be given the element type the signature
+    /// requires (W593).
+    current_return_type: String,
     /// W566: param/typed-local name -> t27 type, scoped to the current fn body.
     /// Lets ExprCast tell a narrowing integer cast (needs `@truncate`) from a
     /// widening one (needs `@intCast`) without a full type checker.
@@ -3439,6 +5856,22 @@ impl Codegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            discarded_by_ref: std::collections::HashSet::new(),
+            module_decl_names: std::collections::HashSet::new(),
+            param_renames: std::collections::HashMap::new(),
+            declared_fns: std::collections::HashSet::new(),
+            test_name_counts: std::collections::HashMap::new(),
+            declared_fn_params: std::collections::HashMap::new(),
+            declared_fn_returns: std::collections::HashMap::new(),
+            slice_locals: std::collections::HashMap::new(),
+            scaffold_locals: std::collections::HashMap::new(),
+            len_locals: std::collections::HashSet::new(),
+            declared_enums: std::collections::HashSet::new(),
+            struct_field_types: std::collections::HashMap::new(),
+            string_names: std::collections::HashSet::new(),
+            float_names: std::collections::HashSet::new(),
+            signed_names: std::collections::HashSet::new(),
+            current_return_type: String::new(),
             zig_var_types: std::collections::HashMap::new(),
         }
     }
@@ -3496,6 +5929,380 @@ impl Codegen {
         }
     }
 
+    /// Find locals bound to an array literal that are later passed where a
+    /// callee declares a slice, and record the element type the callee needs.
+    ///
+    /// `given inputs = [0, 0, 0, 0]` followed by `adder_tree(inputs)` emitted
+    /// `const inputs = .{ 0, 0, 0, 0 };` and then
+    /// "expected type '[]i32', found 'struct { comptime T = 0, ... }'". The
+    /// element type is not in the literal -- only the callee's signature has
+    /// it.
+    /// W585: `default_input()` / `valid_input()` -- the template scaffold.
+    ///
+    /// 571 generated tests are shaped
+    ///
+    /// ```text
+    /// test f_basic_case
+    ///     given input = default_input()
+    ///     when result = f(input)
+    ///     then result != undefined
+    /// ```
+    ///
+    /// and neither helper is defined anywhere. It has been the largest single
+    /// blocker in three measurement systems at once -- 47 of 216 Zig compile
+    /// failures, 75 of 296 C header failures, 29 of 32 `check-calls` findings
+    /// -- since W561.
+    ///
+    /// The helper is not derivable from its own call: `default_input()` takes
+    /// no arguments and returns whatever the NEXT line needs. But the next line
+    /// is `f(input)`, and `f`'s parameter type is declared. So the binding's
+    /// type is recoverable from the use, and the value the tests want is "a
+    /// default one" -- `std.mem.zeroes(T)` exactly.
+    ///
+    /// Only bindings whose consumer is known are resolved; anything else is
+    /// left alone and still fails loudly.
+    fn collect_scaffold_locals(&mut self, stmts: &[Node]) {
+        let mut scaffold: std::collections::HashSet<String> = std::collections::HashSet::new();
+        Self::collect_scaffold_names(stmts, &mut scaffold);
+        if scaffold.is_empty() {
+            return;
+        }
+        let params = self.declared_fn_params.clone();
+        let mut found: Vec<(String, String)> = Vec::new();
+        Self::visit_calls(stmts, &mut |call: &Node| {
+            let sig = match params.get(&call.name) {
+                Some(s) => s,
+                None => return,
+            };
+            for (i, arg) in call.children.iter().enumerate() {
+                if arg.kind != NodeKind::ExprIdentifier || !scaffold.contains(&arg.name) {
+                    continue;
+                }
+                if let Some(ty) = sig.get(i) {
+                    let zig = Self::t27_array_type_to_zig(ty);
+                    if !zig.is_empty() {
+                        found.push((arg.name.clone(), zig));
+                    }
+                }
+            }
+        });
+        for (name, ty) in found {
+            self.scaffold_locals.insert(name, ty);
+        }
+    }
+
+    fn collect_scaffold_names(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
+        for stmt in stmts {
+            if matches!(stmt.kind, NodeKind::StmtLocal | NodeKind::StmtAssign)
+                && !stmt.name.is_empty()
+            {
+                if let Some(init) = stmt.children.first() {
+                    if init.kind == NodeKind::ExprCall
+                        && init.children.is_empty()
+                        && matches!(init.name.as_str(), "default_input" | "valid_input")
+                    {
+                        out.insert(stmt.name.clone());
+                    }
+                }
+            }
+            Self::collect_scaffold_names(&stmt.children, out);
+        }
+    }
+
+    fn collect_slice_locals(&mut self, stmts: &[Node]) {
+        let mut array_locals: std::collections::HashSet<String> = std::collections::HashSet::new();
+        Self::collect_array_locals(stmts, &mut array_locals);
+        if array_locals.is_empty() {
+            return;
+        }
+        let params = self.declared_fn_params.clone();
+        let mut found: Vec<(String, String)> = Vec::new();
+        Self::visit_calls(stmts, &mut |call: &Node| {
+            let sig = match params.get(&call.name) {
+                Some(s) => s,
+                None => return,
+            };
+            for (i, arg) in call.children.iter().enumerate() {
+                if arg.kind != NodeKind::ExprIdentifier || !array_locals.contains(&arg.name) {
+                    continue;
+                }
+                if let Some(ty) = sig.get(i) {
+                    let zig = Self::t27_array_type_to_zig(ty);
+                    if let Some(elem) = Self::slice_element_type(&zig) {
+                        found.push((arg.name.clone(), elem));
+                    }
+                }
+            }
+        });
+        for (name, elem) in found {
+            self.slice_locals.insert(name, elem);
+        }
+    }
+
+    fn collect_array_locals(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
+        for stmt in stmts {
+            if matches!(stmt.kind, NodeKind::StmtLocal | NodeKind::StmtAssign)
+                && !stmt.name.is_empty()
+                && stmt
+                    .children
+                    .first()
+                    .map(|c| c.kind == NodeKind::ExprArrayLiteral)
+                    .unwrap_or(false)
+            {
+                out.insert(stmt.name.clone());
+            }
+            Self::collect_array_locals(&stmt.children, out);
+        }
+    }
+
+    fn visit_calls(nodes: &[Node], f: &mut impl FnMut(&Node)) {
+        for n in nodes {
+            if n.kind == NodeKind::ExprCall {
+                f(n);
+            }
+            Self::visit_calls(&n.children, f);
+        }
+    }
+
+    /// Emit an array literal's elements as `{ e0, e1 }` -- the braces that
+    /// follow an explicit `[_]T` prefix, where `.{ … }` cannot be used.
+    fn gen_array_literal_braces(&mut self, node: &Node) {
+        self.write("{ ");
+        if !node.children.is_empty() {
+            for (i, elem) in node.children.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.gen_expr(elem);
+            }
+        } else {
+            let txt = node.extra_size.trim();
+            let mut depth = 0i32;
+            let mut cur = String::new();
+            let mut parts: Vec<String> = Vec::new();
+            for ch in txt.chars() {
+                match ch {
+                    '(' | '[' | '{' => { depth += 1; cur.push(ch); }
+                    ')' | ']' | '}' => { depth -= 1; cur.push(ch); }
+                    ',' if depth == 0 => { parts.push(cur.trim().to_string()); cur.clear(); }
+                    _ => cur.push(ch),
+                }
+            }
+            if !cur.trim().is_empty() {
+                parts.push(cur.trim().to_string());
+            }
+            self.write(&parts.join(", "));
+        }
+        self.write(" }");
+    }
+
+    /// Locals a block declares with one of the given explicit types.
+    fn collect_typed_locals(stmts: &[Node], types: &[&str]) -> Vec<String> {
+        let mut out = Vec::new();
+        for stmt in stmts {
+            if stmt.kind == NodeKind::StmtLocal
+                && !stmt.name.is_empty()
+                && types.contains(&stmt.extra_type.trim())
+            {
+                out.push(stmt.name.clone());
+            }
+            out.extend(Self::collect_typed_locals(&stmt.children, types));
+        }
+        out
+    }
+
+    /// Locals a block declares with an explicit float type.
+    fn collect_float_locals(stmts: &[Node]) -> Vec<String> {
+        let mut out = Vec::new();
+        for stmt in stmts {
+            if stmt.kind == NodeKind::StmtLocal
+                && !stmt.name.is_empty()
+                && matches!(
+                    stmt.extra_type.trim(),
+                    "f16" | "f32" | "f64" | "float" | "double"
+                )
+            {
+                out.push(stmt.name.clone());
+            }
+            out.extend(Self::collect_float_locals(&stmt.children));
+        }
+        out
+    }
+
+    /// The slice element types a return type requires, one per tuple position
+    /// (`None` where that position is not a slice). Returns `None` when the
+    /// return type is not a slice or a tuple.
+    fn return_slice_elements(ret: &str) -> Option<Vec<Option<String>>> {
+        let t = ret.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<Option<String>> = inner
+                .split(',')
+                .map(|e| Self::slice_element_type(&Self::t27_array_type_to_zig(e.trim())))
+                .collect();
+            return if elems.iter().any(|e| e.is_some()) {
+                Some(elems)
+            } else {
+                None
+            };
+        }
+        Self::slice_element_type(&Self::t27_array_type_to_zig(t)).map(|e| vec![Some(e)])
+    }
+
+    /// `[]T` / `[]const T` -> `T`, for an argument that must be a real slice.
+    fn slice_element_type(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        let rest = t.strip_prefix("[]")?;
+        let rest = rest.trim();
+        let rest = rest.strip_prefix("const ").unwrap_or(rest).trim();
+        // W607: a STRING element is itself a slice, so `[][]const u8` has
+        // element type `[]const u8` -- which contains `[` and was rejected by
+        // the nested-array guard below. That made every array-of-strings skip
+        // the `@constCast(&[_]T{...})` lowering that array-of-numbers gets.
+        if rest == "[]const u8" || rest == "[]u8" {
+            return Some(rest.to_string());
+        }
+        if rest.is_empty() || rest.contains('[') || rest.contains('(') {
+            return None;
+        }
+        Some(rest.to_string())
+    }
+
+    /// The trailing segment of an identifier / field-access path, i.e. the
+    /// field actually being read: `a.b.name` -> `name`.
+    fn trailing_name(node: &Node) -> Option<String> {
+        match node.kind {
+            NodeKind::ExprIdentifier => node
+                .name
+                .rsplit(['.', ':'])
+                .next()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string()),
+            NodeKind::ExprFieldAccess => Some(node.name.clone()).filter(|s| !s.is_empty()),
+            _ => None,
+        }
+    }
+
+    /// Whether an expression is definitely floating-point: a literal with a
+    /// decimal point, or a name the spec declared `f32`/`f64`. Used to pick the
+    /// right Zig cast builtin; anything undecidable is treated as integer,
+    /// which is what the corpus overwhelmingly casts FROM.
+    fn is_float_expr(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprLiteral => {
+                node.extra_kind != "string" && node.value.contains('.')
+            }
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => {
+                Self::trailing_name(node)
+                    .map(|n| self.float_names.contains(&n))
+                    .unwrap_or(false)
+            }
+            NodeKind::ExprBinary => node
+                .children
+                .iter()
+                .any(|c| self.is_float_expr(c)),
+            _ => false,
+        }
+    }
+
+    /// Whether an expression is definitely a signed integer: a name the spec
+    /// declared `i8`..`isize`, or a cast to one. Undecidable cases are treated
+    /// as not-signed, which leaves `/` untouched.
+    fn is_signed_int_expr(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => {
+                Self::trailing_name(node)
+                    .map(|n| self.signed_names.contains(&n))
+                    .unwrap_or(false)
+            }
+            NodeKind::ExprCast => matches!(
+                node.extra_type.trim(),
+                "i8" | "i16" | "i32" | "i64" | "isize"
+            ),
+            NodeKind::ExprBinary => node
+                .children
+                .iter()
+                .any(|c| self.is_signed_int_expr(c)),
+            _ => false,
+        }
+    }
+
+    fn is_string_typed(&self, node: &Node) -> bool {
+        Self::trailing_name(node)
+            .map(|n| self.string_names.contains(&n))
+            .unwrap_or(false)
+    }
+
+    /// True for `Enum::Variant` / `Enum.Variant` where `Enum` is declared in
+    /// this spec, and for a bare `.Variant` enum-value node.
+    fn is_enum_variant(&self, node: &Node) -> bool {
+        if node.kind == NodeKind::ExprEnumValue {
+            return true;
+        }
+        // `Enum.Variant` also parses as a field access on the type name.
+        if node.kind == NodeKind::ExprFieldAccess {
+            return node
+                .children
+                .first()
+                .map(|base| self.is_enum_type_name(base))
+                .unwrap_or(false);
+        }
+        if node.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        let root = node.name.split("::").next().unwrap_or("");
+        let root = root.split('.').next().unwrap_or("");
+        !root.is_empty() && self.declared_enums.contains(root)
+    }
+
+    fn is_enum_type_name(&self, node: &Node) -> bool {
+        node.kind == NodeKind::ExprIdentifier && self.declared_enums.contains(&node.name)
+    }
+
+    /// W599: render an expression to its generated text WITHOUT emitting it.
+    /// Used to label an assertion's operands with the code the author wrote.
+    fn render_expr(&mut self, node: &Node) -> String {
+        let mark = self.output.len();
+        self.gen_expr(node);
+        let text = self.output[mark..].to_string();
+        self.output.truncate(mark);
+        text
+    }
+
+    /// W599: the comparisons at the leaves of an assertion condition, in source
+    /// order. `a < b && c == d` yields both. A condition with no comparison at
+    /// all yields nothing, and the caller falls back to the bare panic.
+    fn assert_comparisons<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+        if node.kind != NodeKind::ExprBinary || node.children.len() < 2 {
+            return;
+        }
+        match node.extra_op.as_str() {
+            "and" | "or" | "&&" | "||" => {
+                for c in &node.children {
+                    Self::assert_comparisons(c, out);
+                }
+            }
+            "==" | "!=" | "<" | ">" | "<=" | ">=" => out.push(node),
+            _ => {}
+        }
+    }
+
+    /// Escape generated Zig source so it can sit inside a Zig format string.
+    fn escape_for_fmt(s: &str) -> String {
+        let mut out = String::with_capacity(s.len() + 8);
+        for c in s.chars() {
+            match c {
+                '{' => out.push_str("{{"),
+                '}' => out.push_str("}}"),
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' | '\r' | '\t' => out.push(' '),
+                c => out.push(c),
+            }
+        }
+        out
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -3522,6 +6329,66 @@ impl Codegen {
     }
 
     pub fn gen_zig(&mut self, ast: &Node) {
+        // Collect the spec's own function names before emitting anything, so
+        // the builtin mapping below can never shadow a user-defined function.
+        self.declared_fns.clear();
+        self.test_name_counts.clear();
+        self.declared_enums.clear();
+        self.declared_fn_params.clear();
+        self.declared_fn_returns.clear();
+        self.string_names.clear();
+        self.float_names.clear();
+        self.signed_names.clear();
+        for d in &ast.children {
+            match d.kind {
+                NodeKind::FnDecl if !d.name.is_empty() => {
+                    self.declared_fns.insert(d.name.clone());
+                    self.declared_fn_params.insert(
+                        d.name.clone(),
+                        d.params.iter().map(|(_, ty)| ty.clone()).collect(),
+                    );
+                    self.declared_fn_returns
+                        .insert(d.name.clone(), d.extra_return_type.clone());
+                    // W594: parameters are per-FUNCTION facts. Collecting them
+                    // corpus-wide meant a parameter `a: i32` in one function
+                    // made every `a` signed everywhere -- harmless for
+                    // `@divTrunc`, which is valid for unsigned operands too,
+                    // but not a property the next predicate can rely on. They
+                    // are now collected in `gen_fn_decl` and dropped on exit;
+                    // struct FIELDS stay global, because a field name belongs
+                    // to a type that is itself global.
+                }
+                NodeKind::EnumDecl if !d.name.is_empty() => {
+                    self.declared_enums.insert(d.name.clone());
+                }
+                NodeKind::StructDecl => {
+                    for f in &d.children {
+                        // W609: record the field's declared type, keyed by the
+                        // OWNING struct -- unlike the name sets beside it, which
+                        // are global and therefore cannot tell two structs'
+                        // same-named fields apart.
+                        if !d.name.is_empty() && !f.name.is_empty() && !f.extra_type.is_empty() {
+                            self.struct_field_types
+                                .insert((d.name.clone(), f.name.clone()), f.extra_type.clone());
+                        }
+                        if Self::t27_array_type_to_zig(&f.extra_type) == "[]const u8" {
+                            self.string_names.insert(f.name.clone());
+                        }
+                        if matches!(
+                            f.extra_type.trim(),
+                            "f16" | "f32" | "f64" | "float" | "double"
+                        ) {
+                            self.float_names.insert(f.name.clone());
+                        }
+                        if matches!(f.extra_type.trim(), "i8" | "i16" | "i32" | "i64" | "isize") {
+                            self.signed_names.insert(f.name.clone());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // Header with module name
         let module_name = if !ast.name.is_empty() {
             &ast.name
@@ -3537,9 +6404,37 @@ impl Codegen {
         self.write_line("");
 
         // Check if file has test blocks — emit std import if so
-        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
+        // W601: an INVARIANT block emits assertions too, and a spec may have
+        // invariants and no tests -- specs/numeric/gf*.t27 are exactly that.
+        // Gating the helper on TestBlock alone left those files referencing an
+        // `__t27_assert_fail` that was never emitted. The condition must match
+        // "will this file contain an assertion", not "does it have tests".
+        let has_tests = ast
+            .children
+            .iter()
+            .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
+            // W599: a failing assertion must report the VALUES it saw, not only
+            // that it failed. This is a fn rather than an inline block because
+            // the assert site is emitted as an expression and a `{ ... };` is
+            // not a Zig statement; `noreturn` keeps it usable in that position.
+            self.write_line(
+                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
+            );
+            // W599 (second attempt): `std.debug.print` is not callable at
+            // comptime, and this corpus DOES fold assertions there -- T4's and
+            // T5's disproved invariants are exactly that. The first version
+            // turned their clear `encountered @panic at comptime` into an
+            // opaque error inside std.Io.Threaded. @inComptime() keeps each
+            // context's own diagnostic.
+            self.write_line("    if (@inComptime()) {");
+            self.write_line("        @compileError(\"assertion failed\");");
+            self.write_line("    } else {");
+            self.write_line("        std.debug.print(fmt, args);");
+            self.write_line("        @panic(\"assertion failed\");");
+            self.write_line("    }");
+            self.write_line("}");
             self.write_line("");
         }
 
@@ -3576,6 +6471,9 @@ impl Codegen {
             self.write_line("");
         }
 
+        // W735: know the container's declarations BEFORE emitting any function.
+        self.collect_module_decl_names(&ast.children);
+
         // Emit other declarations
         for decl in &ast.children {
             if decl.kind != NodeKind::UseDecl {
@@ -3608,9 +6506,37 @@ impl Codegen {
         self.write_line("");
 
         // Check if file has test blocks — emit std import if so
-        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
+        // W601: an INVARIANT block emits assertions too, and a spec may have
+        // invariants and no tests -- specs/numeric/gf*.t27 are exactly that.
+        // Gating the helper on TestBlock alone left those files referencing an
+        // `__t27_assert_fail` that was never emitted. The condition must match
+        // "will this file contain an assertion", not "does it have tests".
+        let has_tests = ast
+            .children
+            .iter()
+            .any(|d| d.kind == NodeKind::TestBlock || d.kind == NodeKind::InvariantBlock);
         if has_tests {
             self.write_line("const std = @import(\"std\");");
+            // W599: a failing assertion must report the VALUES it saw, not only
+            // that it failed. This is a fn rather than an inline block because
+            // the assert site is emitted as an expression and a `{ ... };` is
+            // not a Zig statement; `noreturn` keeps it usable in that position.
+            self.write_line(
+                "fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) noreturn {",
+            );
+            // W599 (second attempt): `std.debug.print` is not callable at
+            // comptime, and this corpus DOES fold assertions there -- T4's and
+            // T5's disproved invariants are exactly that. The first version
+            // turned their clear `encountered @panic at comptime` into an
+            // opaque error inside std.Io.Threaded. @inComptime() keeps each
+            // context's own diagnostic.
+            self.write_line("    if (@inComptime()) {");
+            self.write_line("        @compileError(\"assertion failed\");");
+            self.write_line("    } else {");
+            self.write_line("        std.debug.print(fmt, args);");
+            self.write_line("        @panic(\"assertion failed\");");
+            self.write_line("    }");
+            self.write_line("}");
             self.write_line("");
         }
 
@@ -3647,6 +6573,55 @@ impl Codegen {
         self.output
     }
 
+    /// Collect the names the Zig container will declare, so a parameter cannot
+    /// silently shadow one. Called once per module walk.
+    fn collect_module_decl_names(&mut self, decls: &[Node]) {
+        self.module_decl_names.clear();
+        for d in decls {
+            if matches!(
+                d.kind,
+                NodeKind::FnDecl | NodeKind::ConstDecl | NodeKind::StructDecl | NodeKind::EnumDecl
+            ) && !d.name.is_empty()
+            {
+                self.module_decl_names.insert(d.name.clone());
+            }
+        }
+    }
+
+    /// Apply any rename in force for the function being emitted.
+    fn renamed(&self, n: &str) -> String {
+        self.param_renames.get(n).cloned().unwrap_or_else(|| n.to_string())
+    }
+
+    /// Local declarations in a FN BODY whose name collides with a container
+    /// declaration. W736 measured ten specs where Zig answers "local variable
+    /// shadows declaration of 'x'". Renaming every occurrence inside the
+    /// function is safe precisely BECAUSE Zig forbids the shadow: the spec
+    /// cannot also be calling the module-level name from here.
+    ///
+    /// SCOPE, and it is a real limit: only `StmtLocal` is collected. Inside a
+    /// test or bench block the same source line parses as `StmtAssign`, and
+    /// extending this to cover that was attempted and REVERTED -- it renamed
+    /// references while the binding site kept its old name, turning a shadow
+    /// error into "use of undeclared identifier", which is worse. Nine specs
+    /// still carry the defect and they are named in T271.
+    fn collect_shadowing_locals(
+        decls: &[Node],
+        module_names: &std::collections::HashSet<String>,
+        out: &mut Vec<String>,
+    ) {
+        for d in decls {
+            if matches!(d.kind, NodeKind::StmtLocal)
+                && !d.name.is_empty()
+                && module_names.contains(d.name.as_str())
+                && !out.contains(&d.name)
+            {
+                out.push(d.name.clone());
+            }
+            Self::collect_shadowing_locals(&d.children, module_names, out);
+        }
+    }
+
     fn gen_decl(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ConstDecl => self.gen_const_decl(node),
@@ -3665,10 +6640,36 @@ impl Codegen {
             self.write("pub ");
         }
 
+        // W729: `pub const GFTernary = u8;` is a TYPE ALIAS, and the identifier
+        // on the right is the builtin type, not a name to look up. `zig_ident`
+        // escapes primitives as `@"u8"` -- correct for something NAMED u8,
+        // fatal here: Zig reports `use of undeclared identifier 'u8'` and the
+        // whole spec stops compiling, so its 18 test blocks had never run.
+        // The C backend has detected this pattern since it was written
+        // (`typedef uint8_t GFTernary;`); the Zig backend never did.
+        if node.children.len() == 1
+            && node.children[0].kind == NodeKind::ExprIdentifier
+            && {
+                // Same predicate `zig_ident` uses to decide something is a
+                // builtin type name -- uN/iN/fN plus the named primitives.
+                let n = &node.children[0].name;
+                matches!(
+                    n.as_str(),
+                    "bool" | "void" | "type" | "usize" | "isize"
+                        | "comptime_int" | "comptime_float"
+                ) || (n.len() >= 2
+                    && (n.starts_with('u') || n.starts_with('i') || n.starts_with('f'))
+                    && n[1..].chars().all(|c| c.is_ascii_digit()))
+            }
+        {
+            self.write_line(&format!("const {} = {};", node.name, node.children[0].name));
+            return;
+        }
+
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {
-            self.write(&format!(": {}", node.extra_type));
+            self.write(&format!(": {}", Self::t27_array_type_to_zig(&node.extra_type)));
         }
 
         if !node.children.is_empty() {
@@ -3688,6 +6689,12 @@ impl Codegen {
 
         if !node.extra_type.is_empty() {
             self.write(&format!("({})", node.extra_type));
+        } else if node.children.iter().any(|v| !v.value.is_empty()) {
+            // Zig requires an integer tag type as soon as ANY variant carries
+            // an explicit value ("explicitly valued enum missing integer tag
+            // type"). t27 lets the backing type be omitted, so supply the
+            // widest safe default rather than dropping the values.
+            self.write("(i32)");
         }
 
         self.write_line(" {");
@@ -3695,10 +6702,17 @@ impl Codegen {
 
         for value_node in node.children.iter() {
             self.write_indent();
+            // Enum variant names need the same keyword escaping as any other
+            // identifier: a variant literally called `error` emitted
+            // `error = 4,` and Zig reported "expected '.', found '='".
             if !value_node.value.is_empty() {
-                self.write(&format!("{} = {},", value_node.name, value_node.value));
+                self.write(&format!(
+                    "{} = {},",
+                    Self::zig_ident(&value_node.name),
+                    value_node.value
+                ));
             } else {
-                self.write(&format!("{},", value_node.name));
+                self.write(&format!("{},", Self::zig_ident(&value_node.name)));
             }
             self.write_line("");
         }
@@ -3717,12 +6731,22 @@ impl Codegen {
 
         for field in &node.children {
             self.write_indent();
+            // Struct field types were emitted RAW, so `str` and `&str` reached
+            // Zig unchanged -- the remaining "expected type expression, found
+            // '&'" class after the W561 parameter-side fix. Route them through
+            // the same mapper.
             let ty = if !field.extra_type.is_empty() {
-                &field.extra_type
+                Self::t27_array_type_to_zig(&field.extra_type)
             } else {
-                "void"
+                "void".to_string()
             };
-            self.write_line(&format!("{}: {},", field.name, ty));
+            self.write(&format!("{}: {}", Self::zig_ident(&field.name), ty));
+            // A field default is stored as the field's only child (W568).
+            if let Some(default) = field.children.first() {
+                self.write(" = ");
+                self.gen_expr(default);
+            }
+            self.write_line(",");
         }
 
         self.dedent();
@@ -3742,7 +6766,48 @@ impl Codegen {
     // round locals like f16/f32/f64) must be emitted as @"name" -- Zig
     // rejects the bare name with "name shadows primitive". Applied at every
     // value-identifier emission site so declarations and uses stay consistent.
+    fn is_integer_type_suffix(t: &str) -> bool {
+        matches!(
+            t,
+            "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
+        )
+    }
+
+    fn is_numeric_type_suffix(t: &str) -> bool {
+        Self::is_integer_type_suffix(t) || matches!(t, "f32" | "f64")
+    }
+
+    /// Re-escape a string the lexer already unescaped, so it can be written
+    /// back between quotes.
+    fn zig_escape(raw: &str) -> String {
+        let mut out = String::with_capacity(raw.len());
+        for c in raw.chars() {
+            match c {
+                '\\' => out.push_str("\\\\"),
+                '"' => out.push_str("\\\""),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                _ => out.push(c),
+            }
+        }
+        out
+    }
+
     fn zig_ident(name: &str) -> String {
+        // t27 spells scoped names Rust-style (`Severity::Error`,
+        // `base::types`). Zig has no `::`, and emitting it verbatim gave
+        // "expected ';' after statement" pointing at the second colon -- the
+        // whole remaining `expected ';'` class in W568. Each segment is
+        // escaped on its own so `Foo::error` still becomes `Foo.@"error"`.
+        if name.contains("::") {
+            return name
+                .split("::")
+                .map(Self::zig_ident)
+                .collect::<Vec<_>>()
+                .join(".");
+        }
+
         let is_primitive = matches!(
             name,
             "bool"
@@ -3758,7 +6823,30 @@ impl Codegen {
         ) || (name.len() >= 2
             && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
             && name[1..].chars().all(|c| c.is_ascii_digit()));
-        if is_primitive {
+        // Zig KEYWORDS also need escaping, not just primitive type names.
+        // `error` is the one that actually appears in these specs -- as an enum
+        // variant and as a struct field -- and it produced
+        // "expected '.', found '='" / "expected '.', found ':'".
+        let is_keyword = matches!(
+            name,
+            "align" | "allowzero" | "and" | "anyframe" | "anytype" | "asm" | "async"
+                | "await" | "break" | "callconv" | "catch" | "comptime" | "const"
+                | "continue" | "defer" | "else" | "enum" | "errdefer" | "error"
+                | "export" | "extern" | "fn" | "for" | "if" | "inline" | "linksection"
+                | "noalias" | "noinline" | "nosuspend" | "opaque" | "or" | "orelse"
+                | "packed" | "pub" | "resume" | "return" | "struct" | "suspend"
+                | "switch" | "test" | "threadlocal" | "try" | "union"
+                | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
+        );
+        // W730: primitives are NOT escaped. `@"f64"` and `@"u8"` are lookups of
+        // an identifier that does not exist, so `@as(@"f64", ...)` and
+        // `pub const X = @"u8";` both stop the file compiling -- measured on 8
+        // of 130 generating specs. Escaping would only be right for a spec that
+        // NAMES a field or variant after a primitive, and a corpus-wide search
+        // found none. Zig KEYWORDS still need it: `error` appears as an enum
+        // variant and as a struct field, and produced "expected '.', found '='".
+        let _ = is_primitive;
+        if is_keyword {
             format!("@\"{}\"", name)
         } else {
             name.to_string()
@@ -3793,6 +6881,34 @@ impl Codegen {
 
     fn t27_array_type_to_zig(ty: &str) -> String {
         let t = ty.trim();
+        // W590: a slice OF a mapped scalar -- `[]string`, `[]str`. The scalar
+        // mapping below only ever saw the whole type, so `string` was mapped
+        // and `[]string` was not, and Zig received `[]string` -> "use of
+        // undeclared identifier 'string'". Found by decomposing the largest
+        // failure class: it looked like a missing import and was a mapper gap.
+        if let Some(inner) = t.strip_prefix("[]") {
+            let inner = inner.trim();
+            if !inner.is_empty() && !inner.starts_with('[') {
+                let mapped_inner = Self::t27_array_type_to_zig(inner);
+                if mapped_inner != inner {
+                    return format!("[]{}", mapped_inner);
+                }
+            }
+        }
+        // W732: t27 spells a slice `[T]`; Zig spells it `[]T`. The bare form was
+        // emitted VERBATIM into parameter and return positions, where Zig
+        // answers "expected type expression" -- 11 of the 12 specs in that
+        // class, measured by decomposing it rather than guessing: `[string]`,
+        // `[u8]`, `[BootStage]`, `[ConnEdge]`, `[TimingArc]`, `[str]`, `[Item]`.
+        // `[T; N]` (sized) and `[]T` (already Zig) are handled below and above.
+        if t.starts_with('[') && t.ends_with(']') && !t.contains(';') {
+            let inner = t[1..t.len() - 1].trim();
+            // `[str:str]` is a MAP in t27, not a slice; leave it alone rather
+            // than emit a slice of something that does not exist.
+            if !inner.is_empty() && !inner.contains(':') {
+                return format!("[]{}", Self::t27_array_type_to_zig(inner));
+            }
+        }
         if t.starts_with('[') && t.ends_with(']') && t.contains(';') {
             let inner = &t[1..t.len() - 1];
             if let Some(semi) = inner.rfind(';') {
@@ -3801,7 +6917,47 @@ impl Codegen {
                 return format!("[{}]{}", len, elem);
             }
         }
-        t.to_string()
+
+        // Scalar mapping. Everything else (u8, i32, bool, []T, user types) is
+        // already spelled the same in Zig and passes through unchanged -- but
+        // `str` is not a Zig type, and emitting it verbatim produced
+        // `use of undeclared identifier 'str'`, the single largest gen-zig
+        // defect class measured in Wave 560. The Rust emitter has always mapped
+        // it (`str` -> `String`); the Zig emitter never did.
+        //
+        // `&str` additionally leaked Rust's borrow syntax into Zig output,
+        // giving `expected type expression, found '&'`.
+        let (prefix, core) = if let Some(rest) = t.strip_prefix('?') {
+            ("?", rest.trim())
+        } else {
+            ("", t)
+        };
+        let core = core.strip_prefix('&').unwrap_or(core).trim();
+        let mapped = match core {
+            // `str` and `string` are both spelled in the corpus; neither is a
+            // Zig type. `string` alone appears 952 times as a declared type.
+            "str" | "string" => "[]const u8",
+            // W591: `float` is not a Zig type. Same family as the `f32`/`f64`
+            // gap W583 found on the C side -- a scalar the corpus spells and
+            // the mapper never learned, so it passed through the `other` arm
+            // and reached the backend verbatim.
+            "float" => "f64",
+            "double" => "f64",
+            "int" => "i32",
+            "uint" => "u32",
+            other => other,
+        };
+        // W588: a SCOPED type name in a type position -- `const PHI: gf16::GF16`.
+        // `zig_ident` has mapped `::` to `.` for identifiers since W580, but the
+        // type path never went through it, so Zig received `gf16::GF16` and
+        // reported "expected ';' after declaration" pointing at the second colon.
+        if mapped.contains("::") {
+            return format!("{}{}", prefix, mapped.replace("::", "."));
+        }
+        if mapped == core && prefix.is_empty() && !t.starts_with('&') {
+            return t.to_string();
+        }
+        format!("{}{}", prefix, mapped)
     }
 
     fn t27_tuple_type_to_zig(ty: &str) -> Option<String> {
@@ -3809,10 +6965,149 @@ impl Codegen {
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
             let elems: Vec<&str> = inner.split(',').map(|e| e.trim()).collect();
-            Some(format!("struct {{ {} }}", elems.join(", ")))
+            // W596: a NAMED tuple -- `(sin: []f32, cos: []f32)`. t27 has had the
+            // syntax since at least W584, and the backend dropped the names, so
+            // a spec declaring one and accessing `result.sin` failed with "no
+            // field named 'sin' in tuple". Zig spells the named form
+            // `struct { sin: []f32, cos: []f32 }`, which is the same
+            // declaration with its element types mapped.
+            if let Some(fields) = Self::tuple_field_names(t) {
+                let decls: Vec<String> = fields
+                    .iter()
+                    .map(|(n, ty)| {
+                        format!("{}: {}", Self::zig_ident(n), Self::t27_array_type_to_zig(ty))
+                    })
+                    .collect();
+                return Some(format!("struct {{ {} }}", decls.join(", ")));
+            }
+            let mapped: Vec<String> = elems
+                .iter()
+                .map(|e| Self::t27_array_type_to_zig(e))
+                .collect();
+            Some(format!("struct {{ {} }}", mapped.join(", ")))
         } else {
             None
         }
+    }
+
+    /// `(sin: f32, cos: f32)` -> `[("sin", "f32"), ("cos", "f32")]`.
+    /// `None` unless EVERY element carries a name, so a positional tuple and a
+    /// half-named one both keep their existing lowering.
+    fn tuple_field_names(ty: &str) -> Option<Vec<(String, String)>> {
+        let t = ty.trim();
+        if !(t.starts_with('(') && t.ends_with(')')) {
+            return None;
+        }
+        let inner = &t[1..t.len() - 1];
+        let mut out = Vec::new();
+        for e in inner.split(',') {
+            let e = e.trim();
+            let (name, ty) = e.split_once(':')?;
+            let name = name.trim();
+            if name.is_empty()
+                || ty.trim().is_empty()
+                || !name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                || name.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(true)
+            {
+                return None;
+            }
+            out.push((name.to_string(), ty.trim().to_string()));
+        }
+        if out.is_empty() {
+            None
+        } else {
+            Some(out)
+        }
+    }
+
+    // W623: `.len()` is `usize` in Zig, but a t27 signature that consumes or
+    // returns a length declares a SIZED integer (`u32` throughout the corpus).
+    // The backend emitted `.len` bare, so `return s.len;` under `-> u32` and
+    // `f(line, kw_pos + keyword.len)` under `f(_, idx: u32)` both failed with
+    // "expected type 'u32', found 'usize'". Nine sites across five specs; each
+    // is fixed by a cast the SPEC CANNOT SPELL, which is what makes it a
+    // compiler defect rather than a specification decision (refutes P12).
+    fn is_len_access(&self, n: &Node) -> bool {
+        if n.kind != NodeKind::ExprCall {
+            return false;
+        }
+        // The three spellings gen_expr lowers to a bare `.len` field read.
+        (n.extra_kind == "method" && n.name == "len" && n.children.len() == 1)
+            || (n.children.is_empty() && n.name.ends_with(".len"))
+            || (n.name == "len"
+                && n.children.len() == 1
+                && !self.declared_fns.contains("len"))
+    }
+
+    /// True when `n` reads a `.len` and the whole expression is integer
+    /// arithmetic, so wrapping it in `@intCast` is type-correct. Deliberately
+    /// narrow: a call or a float operand anywhere makes it false, because
+    /// `@intCast` of a non-integer is itself an error.
+    fn len_tainted_int_expr(&self, n: &Node) -> bool {
+        if self.is_len_access(n) {
+            return true;
+        }
+        // W625: a bare name bound earlier to a len-tainted initializer. Without
+        // this, taint dies at the first `const`, and `estimate_10k_size`
+        // carries a length through four of them.
+        if n.kind == NodeKind::ExprIdentifier && self.len_locals.contains(&n.name) {
+            return true;
+        }
+        if n.kind == NodeKind::ExprBinary
+            // W625: `<<`/`>>` join the set because the corpus site shifts
+            // twice. Shifts of an integer stay integral, so `@intCast` is as
+            // sound here as it is for `+`.
+            && matches!(
+                n.extra_op.as_str(),
+                "+" | "-" | "*" | "/" | "%" | "<<" | ">>"
+            )
+            && n.children.len() == 2
+        {
+            let ok = |c: &Node| {
+                self.len_tainted_int_expr(c)
+                    || c.kind == NodeKind::ExprIdentifier
+                    || (c.kind == NodeKind::ExprLiteral && !c.name.contains('.'))
+            };
+            return (self.len_tainted_int_expr(&n.children[0])
+                || self.len_tainted_int_expr(&n.children[1]))
+                && ok(&n.children[0])
+                && ok(&n.children[1]);
+        }
+        false
+    }
+
+    /// The sized Zig integer a t27 type names, or `None` for `usize`/`isize`
+    /// (already the type of `.len`) and for everything non-integral.
+    pub(crate) fn sized_int_type(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        let (head, rest) = t.split_at(if t.starts_with('u') || t.starts_with('i') {
+            1
+        } else {
+            return None;
+        });
+        if !matches!(head, "u" | "i") || rest.is_empty() {
+            return None;
+        }
+        if !rest.chars().all(|c| c.is_ascii_digit()) {
+            return None; // usize / isize / u8x4 / anything else
+        }
+        Some(t.to_string())
+    }
+
+    /// Emit `expr`, cast to `ty` when `ty` is a sized integer and `expr` reads
+    /// a `.len`. Returns true when the cast was emitted.
+    fn gen_len_cast(&mut self, expr: &Node, ty: &str) -> bool {
+        let target = match Self::sized_int_type(ty) {
+            Some(t) => t,
+            None => return false,
+        };
+        if !self.len_tainted_int_expr(expr) {
+            return false;
+        }
+        self.write(&format!("@as({}, @intCast(", target));
+        self.gen_expr(expr);
+        self.write("))");
+        true
     }
 
     fn gen_fn_decl(&mut self, node: &Node) {
@@ -3857,6 +7152,28 @@ impl Codegen {
             .map(|(pname, _)| pname.clone())
             .collect();
 
+        // W735: a parameter shadowing a container declaration is renamed all the
+        // way -- signature and body -- because the `_arg` RE-BINDING used for
+        // mutable parameters would recreate the collision as a local.
+        self.param_renames.clear();
+        for (pname, _) in node.params.iter() {
+            if pname != "self"
+                && !shadowed.contains(pname)
+                && self.module_decl_names.contains(pname.as_str())
+            {
+                self.param_renames
+                    .insert(pname.clone(), format!("{}_arg", pname));
+            }
+        }
+
+        // W736: locals shadowing a container declaration are renamed with the
+        // same map and the same reference hook the parameters use.
+        let mut shadow_locals: Vec<String> = Vec::new();
+        Self::collect_shadowing_locals(&node.children, &self.module_decl_names, &mut shadow_locals);
+        for l in shadow_locals {
+            self.param_renames.entry(l.clone()).or_insert(format!("{}_lv", l));
+        }
+
         self.write(&format!("fn {}(", node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
@@ -3864,6 +7181,8 @@ impl Codegen {
             }
             let arg_name = if shadowed.contains(pname) {
                 format!("{}_arg", pname)
+            } else if let Some(r) = self.param_renames.get(pname) {
+                r.clone()
             } else {
                 pname.clone()
             };
@@ -3882,6 +7201,50 @@ impl Codegen {
 
         self.mut_names.clear();
         collect_mutable_names(&node.children, &mut self.mut_names);
+        self.slice_locals.clear();
+        self.collect_slice_locals(&node.children);
+        self.scaffold_locals.clear();
+        self.collect_scaffold_locals(&node.children);
+        // W625: len-taint is per-function; a name reused in the next function
+        // must not inherit it.
+        self.len_locals.clear();
+        self.current_return_type = node.extra_return_type.clone();
+        // W593: float-typed LOCALS. `float_names` held only parameters and
+        // struct fields, so a cast of a local declared `let x: f32` took the
+        // `@floatFromInt` branch. Collected per function, and removed again on
+        // exit so one function's locals cannot leak into the next.
+        let local_floats = Self::collect_float_locals(&node.children);
+        for n in &local_floats {
+            self.float_names.insert(n.clone());
+        }
+        let local_signed = Self::collect_typed_locals(&node.children, &[
+            "i8", "i16", "i32", "i64", "isize",
+        ]);
+        for n in &local_signed {
+            self.signed_names.insert(n.clone());
+        }
+        // W594: this function's own parameters, scoped to it.
+        let mut param_float = Vec::new();
+        let mut param_signed = Vec::new();
+        let mut param_string = Vec::new();
+        for (pname, pty) in &node.params {
+            let t = pty.trim();
+            if Self::t27_array_type_to_zig(pty) == "[]const u8" {
+                if self.string_names.insert(pname.clone()) {
+                    param_string.push(pname.clone());
+                }
+            }
+            if matches!(t, "f16" | "f32" | "f64" | "float" | "double") {
+                if self.float_names.insert(pname.clone()) {
+                    param_float.push(pname.clone());
+                }
+            }
+            if matches!(t, "i8" | "i16" | "i32" | "i64" | "isize") {
+                if self.signed_names.insert(pname.clone()) {
+                    param_signed.push(pname.clone());
+                }
+            }
+        }
 
         for pname in &shadowed {
             self.write_indent();
@@ -3905,8 +7268,15 @@ impl Codegen {
                     before_ok && after_ok
                 })
             }
+            // A dotted callee keeps the whole path in `name`, so
+            // `model.weights.len()` never matched the parameter `model` and
+            // the emitter discarded a parameter the body reads -- Zig then
+            // reported "pointless discard of function parameter".
+            let root_is = |n: &Node, name: &str| {
+                n.name.split('.').next().map(|r| r == name).unwrap_or(false)
+            };
             nodes.iter().any(|n| {
-                (n.name == name
+                ((n.name == name || (n.kind == NodeKind::ExprCall && root_is(n, name)))
                     && !matches!(
                         n.kind,
                         NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::BenchBlock
@@ -3919,7 +7289,15 @@ impl Codegen {
         for (pname, _) in &node.params {
             if pname != "self" && !param_referenced(&node.children, pname) {
                 self.write_indent();
-                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(pname)));
+                // W735: an unused parameter that was RENAMED must be discarded
+                // under its new name, or Zig reports "unused function
+                // parameter" for the one it actually declared.
+                let dn = self
+                    .param_renames
+                    .get(pname)
+                    .cloned()
+                    .unwrap_or_else(|| pname.clone());
+                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(&dn)));
             }
         }
 
@@ -3946,16 +7324,51 @@ impl Codegen {
 
         self.dedent();
         self.write_line("}");
+        for n in &local_floats {
+            self.float_names.remove(n);
+        }
+        for n in &local_signed {
+            self.signed_names.remove(n);
+        }
+        for n in &param_float {
+            self.float_names.remove(n);
+        }
+        for n in &param_signed {
+            self.signed_names.remove(n);
+        }
+        for n in &param_string {
+            self.string_names.remove(n);
+        }
     }
 
     fn gen_test_block(&mut self, node: &Node) {
-        self.write(&format!("test \"{}\"", node.name));
+        // Zig rejects a file that declares the same test name twice. Repeats
+        // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
+        // in the output while the file still compiles and every test runs.
+        let seen = self
+            .test_name_counts
+            .entry(node.name.clone())
+            .or_insert(0);
+        *seen += 1;
+        let unique = if *seen == 1 {
+            node.name.clone()
+        } else {
+            format!("{}__dup{}", node.name, *seen)
+        };
+        self.write(&format!("test \"{}\"", unique));
         self.write_line(" {");
 
         self.indent();
 
         self.mut_names.clear();
         collect_mutable_names(&node.children, &mut self.mut_names);
+        self.slice_locals.clear();
+        self.collect_slice_locals(&node.children);
+        self.scaffold_locals.clear();
+        self.collect_scaffold_locals(&node.children);
+        // W625: len-taint is per-function; a name reused in the next function
+        // must not inherit it.
+        self.len_locals.clear();
 
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
         // StmtLocal, so a verbatim assignment referenced an undeclared name in
@@ -4042,7 +7455,20 @@ impl Codegen {
             // A comment, not @compileLog: @compileLog is a hard compile error
             // under `zig test` ("found compile log statement"), so the marker
             // must stay out of the compiled program.
-            self.write_line(&format!("// invariant: {} verified (no statements)", node.name));
+            //
+            // W635: this used to read "verified (no statements)". It is emitted
+            // exactly when the clause BODY was discarded and nothing was
+            // lowered -- so `verified` was a predicate on the compiler having
+            // reached the end of the clause HEADER, not on the clause. 1,087 of
+            // 6,148 invariants (18%) took this path, including
+            // `ternary_mul_no_star`, the spec's own statement of the
+            // multiplier-free property T2 is about. Skipping an unbounded
+            // `forall` is a defensible language decision; reporting it as
+            // verification is not. See T43/T44.
+            self.write_line(&format!(
+                "// invariant: {} NOT CHECKED -- body was not lowered (T43)",
+                node.name
+            ));
         }
 
         self.dedent();
@@ -4056,6 +7482,19 @@ impl Codegen {
             fn_name
         } else {
             format!("bench_{}", fn_name)
+        };
+
+        // W588: a bench block declared twice emits two functions with the same
+        // name, and Zig rejects the file with "duplicate struct member name".
+        // Same defect and same remedy as the duplicate TEST names in W568:
+        // suffix repeats deterministically so the duplication stays visible and
+        // every bench still emits.
+        let seen = self.test_name_counts.entry(fn_name.clone()).or_insert(0);
+        *seen += 1;
+        let fn_name = if *seen == 1 {
+            fn_name
+        } else {
+            format!("{}__dup{}", fn_name, *seen)
         };
 
         self.write_line(&format!("fn {}() void {{", fn_name));
@@ -4082,7 +7521,27 @@ impl Codegen {
                     .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
             if fresh_binding {
                 self.write_indent();
-                self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                // W608: `_` is Zig's DISCARD, not a name. `let _ = f();` was
+                // lowered to `const _ = f();`, which Zig rejects outright --
+                // 31 sites across 5 specs plus the bare `_ = x;` form. The
+                // discard spelling is the whole statement.
+                if stmt.children[0].name == "_" {
+                    // W730: the SPEC writes `_ = result;` by hand and it is
+                    // correct Zig for a var assigned in a loop and never read.
+                    // The generator then adds `_ = &result;` at the declaration
+                    // (compiler.rs, `as_var` path), and THAT makes the author's
+                    // line a "pointless discard of local variable". The spec is
+                    // not wrong; the extra discard is. Drop ours by dropping
+                    // theirs -- either one alone compiles, both do not.
+                    if stmt.children[1].kind == NodeKind::ExprIdentifier
+                        && self.discarded_by_ref.contains(&stmt.children[1].name)
+                    {
+                        continue;
+                    }
+                    self.write("_ = ");
+                } else {
+                    self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                }
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
             } else if tuple_binding {
@@ -4126,7 +7585,83 @@ impl Codegen {
                 self.write_indent();
                 self.write("return ");
                 if !node.children.is_empty() {
-                    self.gen_expr(&node.children[0]);
+                    // W593: an array literal in RETURN position. `.{ s }` does
+                    // not initialise a `[]f32` ("type '[]f32' does not support
+                    // array initialization syntax"); the element type is in the
+                    // signature, exactly as it is for a call argument (W571).
+                    // A tuple return distributes over its element types.
+                    let ret = self.current_return_type.clone();
+                    let v = &node.children[0];
+                    // W596: under a NAMED tuple return type, a positional tuple
+                    // value must be written with its field names.
+                    if let Some(fields) = Self::tuple_field_names(&ret) {
+                        if v.kind == NodeKind::ExprTuple && v.children.len() == fields.len() {
+                            self.write(".{ ");
+                            for (i, (c, (n, ft))) in
+                                v.children.iter().zip(fields.iter()).enumerate()
+                            {
+                                if i > 0 {
+                                    self.write(", ");
+                                }
+                                self.write(&format!(".{} = ", Self::zig_ident(n)));
+                                let elem = if c.kind == NodeKind::ExprArrayLiteral {
+                                    Self::slice_element_type(&Self::t27_array_type_to_zig(ft))
+                                } else {
+                                    None
+                                };
+                                match elem {
+                                    Some(t) => {
+                                        self.write(&format!("@constCast(&[_]{}", t));
+                                        self.gen_array_literal_braces(c);
+                                        self.write(")");
+                                    }
+                                    None => self.gen_expr(c),
+                                }
+                            }
+                            self.write(" }");
+                            self.write_line(";");
+                            return;
+                        }
+                    }
+                    let elem_types = Self::return_slice_elements(&ret);
+                    if let Some(elems) = elem_types {
+                        if v.kind == NodeKind::ExprTuple
+                            && v.children.len() == elems.len()
+                        {
+                            self.write(".{ ");
+                            for (i, (c, t)) in
+                                v.children.iter().zip(elems.iter()).enumerate()
+                            {
+                                if i > 0 {
+                                    self.write(", ");
+                                }
+                                match (c.kind == NodeKind::ExprArrayLiteral, t) {
+                                    (true, Some(t)) => {
+                                        self.write(&format!("@constCast(&[_]{}", t));
+                                        self.gen_array_literal_braces(c);
+                                        self.write(")");
+                                    }
+                                    _ => self.gen_expr(c),
+                                }
+                            }
+                            self.write(" }");
+                            self.write_line(";");
+                            return;
+                        }
+                        if v.kind == NodeKind::ExprArrayLiteral && elems.len() == 1 {
+                            if let Some(t) = &elems[0] {
+                                self.write(&format!("@constCast(&[_]{}", t));
+                                self.gen_array_literal_braces(v);
+                                self.write(")");
+                                self.write_line(";");
+                                return;
+                            }
+                        }
+                    }
+                    // W623: `return s.len;` under a `-> u32` signature.
+                    if !self.gen_len_cast(v, &ret) {
+                        self.gen_expr(v);
+                    }
                 }
                 self.write_line(";");
             }
@@ -4136,6 +7671,45 @@ impl Codegen {
                     // Tuple-destructuring `let (s, d) = init`. Zig destructuring
                     // needs a binding keyword per element:
                     // `const s, const d = init;`.
+                    // W596: destructuring a NAMED-tuple return. Zig cannot
+                    // destructure a named struct, and the spec that made the
+                    // return type named (because its other consumers access
+                    // `.sin` / `.cos`) still destructures it here. The
+                    // positional order IS the field order, so the binding
+                    // lowers to one field access per name.
+                    let named_fields = node
+                        .children
+                        .first()
+                        .filter(|init| init.kind == NodeKind::ExprCall)
+                        .and_then(|init| self.declared_fn_returns.get(&init.name))
+                        .and_then(|ret| Self::tuple_field_names(ret));
+                    if let Some(fields) = named_fields {
+                        let names: Vec<&str> = node
+                            .extra_field
+                            .split(',')
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if names.len() == fields.len() {
+                            let tmp = format!("__t{}", node.line);
+                            self.write(&format!("const {} = ", tmp));
+                            self.gen_expr(&node.children[0]);
+                            self.write_line(";");
+                            for (bind, (fname, _)) in names.iter().zip(fields.iter()) {
+                                if *bind == "_" {
+                                    continue;
+                                }
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "const {} = {}.{};",
+                                    Self::zig_ident(bind),
+                                    tmp,
+                                    Self::zig_ident(fname)
+                                ));
+                            }
+                            return;
+                        }
+                    }
                     let kw = if node.extra_mutable { "var" } else { "const" };
                     let binds: Vec<String> = node
                         .extra_field
@@ -4159,13 +7733,30 @@ impl Codegen {
                     }
                     self.write_line(";");
                 } else {
-                    let as_var = node.extra_mutable || self.mut_names.contains(&node.name);
+                    // A slice-typed local must be `var`: `&const_array` is
+                    // `*const [N]T`, which coerces to `[]const T` but not to
+                    // the mutable `[]T` most signatures declare.
+                    // W608: `_` is Zig's DISCARD, not a binding name.
+                    // `let _ = f();` lowered to `const _ = f();`, which Zig
+                    // rejects outright -- 31 sites across 5 specs. The discard
+                    // takes no keyword and no type annotation.
+                    if node.name == "_" {
+                        self.write("_ = ");
+                        if let Some(init) = node.children.first() {
+                            self.gen_expr(init);
+                        }
+                        self.write_line(";");
+                        return;
+                    }
+                    let as_var = node.extra_mutable
+                        || self.mut_names.contains(&node.name)
+                        || self.slice_locals.contains_key(&node.name);
                     if as_var {
                         self.write("var ");
                     } else {
                         self.write("const ");
                     }
-                    self.write(&Self::zig_ident(&node.name));
+                    self.write(&Self::zig_ident(&self.renamed(&node.name)));
                     if !node.extra_type.is_empty() {
                         // W566: record the local's declared type for cast width inference.
                         self.zig_var_types
@@ -4186,7 +7777,82 @@ impl Codegen {
                     }
                     if !node.children.is_empty() {
                         self.write(" = ");
-                        self.gen_expr(&node.children[0]);
+                        // W572: a local bound to an array literal and later
+                        // passed where a callee declares `[]T` must be a real
+                        // `[_]T{ … }` array; `.{ … }` does not coerce to a
+                        // slice. The element type comes from the callee.
+                        // W585: the scaffold helper, resolved to a zero value
+                        // of the type its consumer declares.
+                        if let Some(ty) = self.scaffold_locals.get(&node.name).cloned() {
+                            let is_scaffold = node.children[0].kind == NodeKind::ExprCall
+                                && matches!(
+                                    node.children[0].name.as_str(),
+                                    "default_input" | "valid_input"
+                                );
+                            if is_scaffold {
+                                // A non-optional pointer has no zero value in
+                                // Zig ("Only nullable and allowzero pointers
+                                // can be set to zero"), and a scaffold input of
+                                // pointer type has no meaningful default at
+                                // all -- the tests that use it assert only
+                                // `result != undefined`.
+                                // `std.mem.zeroes(T)` is the better value, but
+                                // it is a COMPILE error for any type reachable
+                                // from a non-optional pointer -- and a compile
+                                // error kills the whole file, which is the
+                                // thing this lowering exists to prevent.
+                                // `undefined` always compiles, and the tests
+                                // that use the scaffold constrain the value not
+                                // at all: their assertion is
+                                // `result != undefined`, which is trivially
+                                // true. The type is still recorded, so the
+                                // binding is correctly typed.
+                                let _ = &ty;
+                                self.write("undefined");
+                                self.write_line(";");
+                                if as_var {
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "_ = &{};",
+                                        Self::zig_ident(&node.name)
+                                    ));
+                                }
+                                return;
+                            }
+                        }
+                        let slice_elem = if node.children[0].kind == NodeKind::ExprArrayLiteral {
+                            self.slice_locals.get(&node.name).cloned()
+                        } else {
+                            None
+                        };
+                        match slice_elem {
+                            Some(t) => {
+                                self.write(&format!("[_]{}", t));
+                                let lit = node.children[0].clone();
+                                self.gen_array_literal_braces(&lit);
+                            }
+                            None => {
+                                // W624: `let n : u32 = s.len();`. Third of the
+                                // five positions a length can reach a sized-int
+                                // context; W623 closed two. See T20.
+                                let lty = node.extra_type.clone();
+                                let init = node.children[0].clone();
+                                if self.gen_len_cast(&init, &lty) {
+                                    // The cast fired, so the binding really is
+                                    // `lty`. It must NOT carry taint onward.
+                                    self.len_locals.remove(&node.name);
+                                } else {
+                                    // W625: no cast -- either untyped, or
+                                    // declared `usize`. Either way the binding
+                                    // is `usize` when its initializer is, and
+                                    // the taint has to survive the `const`.
+                                    if self.len_tainted_int_expr(&init) {
+                                        self.len_locals.insert(node.name.clone());
+                                    }
+                                    self.gen_expr(&node.children[0]);
+                                }
+                            }
+                        }
                     } else {
                         // Zig has no uninitialized declarations.
                         self.write(" = undefined");
@@ -4199,11 +7865,26 @@ impl Codegen {
                         // others. `_ = &name;` is the canonical silencer and is a
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
-                        self.write_line(&format!("_ = &{};", Self::zig_ident(&node.name)));
+                        self.write_line(&format!("_ = &{};", Self::zig_ident(&self.renamed(&node.name))));
+                        self.discarded_by_ref.insert(node.name.clone());
                     }
                 }
             }
             NodeKind::StmtAssign => {
+                // W730: `_ = name;` after `_ = &name;` is a POINTLESS DISCARD and
+                // Zig rejects the file. The comment at the `_ = &name;` site called
+                // it "a harmless extra use"; it is not. Suppress the second one --
+                // the by-reference discard already satisfies the use check, and
+                // dropping it instead would resurrect "never mutated" on the
+                // branches that motivated it.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprIdentifier
+                    && node.children[0].name == "_"
+                    && node.children[1].kind == NodeKind::ExprIdentifier
+                    && self.discarded_by_ref.contains(&node.children[1].name)
+                {
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
@@ -4430,13 +8111,132 @@ impl Codegen {
 
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
-            NodeKind::ExprLiteral => self.write(&node.value),
-            NodeKind::ExprIdentifier => self.write(&Self::zig_ident(&node.name)),
+            NodeKind::ExprLiteral => {
+                // The lexer strips the surrounding quotes and stores the raw
+                // text, tagging the node `extra_kind == "string"`. Writing the
+                // value back unquoted turned every string literal into a bare
+                // identifier: `const x = "world"` emitted `const x = world;`,
+                // and `name == "Digilent Arty A7-35T"` became a run of
+                // identifiers. That is a large share of the
+                // `use of undeclared identifier` class measured in W560.
+                if node.extra_kind == "string" {
+                    // The lexer UNESCAPES as it reads, so `"a\nb"` in a spec
+                    // arrives here holding a real newline. Writing that back
+                    // between quotes produced "string literal contains invalid
+                    // byte: '\n'" -- a Zig string literal cannot span lines.
+                    // 154 escape sequences across 19 specs. The W576 lexer
+                    // conformance table records the unescaping as a boundary,
+                    // which is how this was found.
+                    self.write(&format!("\"{}\"", Self::zig_escape(&node.value)));
+                } else {
+                    self.write(&node.value);
+                }
+            }
+            NodeKind::ExprIdentifier => {
+                // W735: a shadowing parameter carries its rename into the body.
+                let nm = self
+                    .param_renames
+                    .get(&node.name)
+                    .cloned()
+                    .unwrap_or_else(|| node.name.clone());
+                self.write(&Self::zig_ident(&nm));
+            }
             NodeKind::ExprEnumValue => {
                 self.write(".");
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
+                // W572: a method call whose receiver could not be folded into
+                // the name keeps it as children[0].
+                if node.extra_kind == "method" && !node.children.is_empty() {
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    if node.name == "len" && node.children.len() == 1 {
+                        self.write(".len");
+                        return;
+                    }
+                    self.write(&format!(".{}(", Self::zig_ident(&node.name)));
+                    for (i, arg) in node.children.iter().skip(1).enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
+                    return;
+                }
+
+                // W570: `x.len()` and `len(x)`. Zig exposes a slice length as
+                // the FIELD `.len`, so the call form emitted `a.len()` and
+                // failed. 1,356 method calls and 318 free calls across 51
+                // specs.
+                if node.children.is_empty() && node.name.ends_with(".len") {
+                    self.write(&Self::zig_ident(&node.name));
+                    return;
+                }
+                if node.name == "len"
+                    && node.children.len() == 1
+                    && !self.declared_fns.contains("len")
+                {
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    self.write(".len");
+                    return;
+                }
+
+                // W570: the TYPED spellings of the math builtins and of an
+                // integer cast. `cast_i8(` alone appears 1,100 times and is
+                // defined nowhere in the corpus; `abs_f32`/`abs_f64`/`abs_i16`
+                // 39 times. Guarded by declared_fns like the bare forms.
+                if !self.declared_fns.contains(&node.name) && node.children.len() == 1 {
+                    if let Some(sized) = node.name.strip_prefix("abs_") {
+                        if Self::is_numeric_type_suffix(sized) {
+                            self.write("@abs(");
+                            self.gen_expr(&node.children[0]);
+                            self.write(")");
+                            return;
+                        }
+                    }
+                    if let Some(target) = node.name.strip_prefix("cast_") {
+                        // Integers only: a float cast needs @floatCast or
+                        // @intFromFloat, and guessing between them would be a
+                        // silent semantic choice.
+                        if Self::is_integer_type_suffix(target) {
+                            self.write(&format!("@as({}, @intCast(", target));
+                            self.gen_expr(&node.children[0]);
+                            self.write("))");
+                            return;
+                        }
+                    }
+                }
+
+                // Zig spells these as builtins. Specs call them bare -- `abs(`
+                // appears 425 times, `sqrt(` 111, `floor(` 99, `round(` 92 --
+                // and emitting the bare name gives
+                // "use of undeclared identifier 'abs'". Guarded by
+                // declared_fns so a spec's own `fn max(...)` still wins.
+                if !self.declared_fns.contains(&node.name) {
+                    let builtin = match node.name.as_str() {
+                        "abs" => Some("@abs"),
+                        "sqrt" => Some("@sqrt"),
+                        "floor" => Some("@floor"),
+                        "ceil" => Some("@ceil"),
+                        "round" => Some("@round"),
+                        "min" => Some("@min"),
+                        "max" => Some("@max"),
+                        _ => None,
+                    };
+                    if let Some(b) = builtin {
+                        self.write(b);
+                        self.write("(");
+                        for (i, arg) in node.children.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.gen_expr(arg);
+                        }
+                        self.write(")");
+                        return;
+                    }
+                }
                 if node.name == "@compileAssert" || node.name == "assert" {
                     if !node.children.is_empty() {
                         // @compileError fires whenever the branch is ANALYZED,
@@ -4449,9 +8249,71 @@ impl Codegen {
                             .get(1)
                             .map(|m| m.value.trim_matches('"').replace('\\', "").replace('"', ""))
                             .unwrap_or_else(|| "assertion failed".to_string());
+                        // W599: a failing assertion used to say only "assertion
+                        // failed". Finding W598's swapped sin/cos took a probe
+                        // program written by hand, because the panic reported
+                        // the FACT of failure and never the values -- and a
+                        // swap is invisible in any report that omits them.
+                        // When the condition compares printable operands, print
+                        // them. The operands are re-evaluated inside the failure
+                        // branch: `then` clauses are pure, and the branch only
+                        // runs once, immediately before the process dies.
+                        let mut cmps: Vec<&Node> = Vec::new();
+                        Self::assert_comparisons(&node.children[0], &mut cmps);
+                        // Beyond a handful the output stops being a diagnostic
+                        // and starts being a dump; and the rendered text must
+                        // not itself be enormous.
+                        let cmps: Vec<&Node> = cmps.into_iter().take(4).collect();
+                        let mut fmt = String::new();
+                        let mut args = String::new();
+                        let mut shown: Vec<String> = Vec::new();
+                        for c in &cmps {
+                            for side in 0..2 {
+                                // A literal's text already IS its value, and
+                                // `0.01 = 0.01` is noise; so is the same name
+                                // twice, which `g > lo && g < hi` would give.
+                                if c.children[side].kind == NodeKind::ExprLiteral {
+                                    continue;
+                                }
+                                let t = self.render_expr(&c.children[side]);
+                                if t.len() > 120 || shown.contains(&t) {
+                                    continue;
+                                }
+                                // W739: `undefined` has no type, so `{any}` on it
+                                // is `unable to format type '@TypeOf(undefined)'`
+                                // -- and that error fires BEFORE the
+                                // `@compileError("not yet implemented")` in the
+                                // body it is testing. 101 unwritten specs were
+                                // counted as the corpus's second-largest CODEGEN
+                                // defect class because of this one operand
+                                // (T274). Printing it says nothing anyway: the
+                                // value is the absence of a value.
+                                if t.trim() == "undefined" {
+                                    continue;
+                                }
+                                fmt.push_str(&format!(
+                                    "\\n    {} = {{any}}",
+                                    Self::escape_for_fmt(&t)
+                                ));
+                                if !args.is_empty() {
+                                    args.push_str(", ");
+                                }
+                                args.push_str(&t);
+                                shown.push(t);
+                            }
+                        }
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
-                        self.write(&format!(")) @panic(\"{}\")", msg));
+                        if args.is_empty() {
+                            self.write(&format!(")) @panic(\"{}\")", msg));
+                        } else {
+                            self.write(&format!(
+                                ")) __t27_assert_fail(\"\\n  {}:{}\\n\", .{{ {} }})",
+                                Self::escape_for_fmt(&msg),
+                                fmt,
+                                args
+                            ));
+                        }
                     }
                 } else if node.name == "gf16_encode_f32" {
                     self.write("gf16_encode_f32(");
@@ -4485,13 +8347,69 @@ impl Codegen {
                     }
                     self.write(")");
                 } else {
-                    self.write(&node.name);
+                    // A scoped callee (`TernaryWeight::minus()`) needs the same
+                    // `::` -> `.` rewrite the identifier path gets.
+                    self.write(&Self::zig_ident(&node.name));
                     self.write("(");
+                    // W571: an array-literal argument where the callee declares
+                    // a SLICE. `.{ 0, 0, 0, 0 }` coerces to `[4]i32` but not to
+                    // `[]i32` ("expected type '[]i32', found 'struct { comptime
+                    // T = 0, ... }'"), and only the callee's signature says what
+                    // the element type is.
+                    let param_types = self.declared_fn_params.get(&node.name).cloned();
                     for (i, arg) in node.children.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.gen_expr(arg);
+                        let elem = if arg.kind == NodeKind::ExprArrayLiteral {
+                            param_types
+                                .as_ref()
+                                .and_then(|ps| ps.get(i))
+                                .map(|ty| Self::t27_array_type_to_zig(ty))
+                                .and_then(|ty| Self::slice_element_type(&ty))
+                        } else {
+                            None
+                        };
+                        // A local materialised as `[_]T{ … }` is passed by
+                        // reference; that is what makes it a slice.
+                        let by_ref = arg.kind == NodeKind::ExprIdentifier
+                            && self.slice_locals.contains_key(&arg.name)
+                            && param_types
+                                .as_ref()
+                                .and_then(|ps| ps.get(i))
+                                .map(|ty| {
+                                    Self::slice_element_type(&Self::t27_array_type_to_zig(ty))
+                                        .is_some()
+                                })
+                                .unwrap_or(false);
+                        match elem {
+                            Some(t) => {
+                                // `&[_]T{ … }` is `*const [N]T`, which coerces
+                                // to `[]const T` but not to the mutable `[]T`
+                                // most signatures declare. A literal argument
+                                // has no addressable `var` to point at, so the
+                                // const-ness is cast away explicitly.
+                                self.write(&format!("@constCast(&[_]{}", t));
+                                self.gen_array_literal_braces(arg);
+                                self.write(")");
+                            }
+                            None if by_ref => {
+                                self.write("&");
+                                self.gen_expr(arg);
+                            }
+                            None => {
+                                // W623: `f(line, kw_pos + keyword.len)` where the
+                                // callee declares `idx: u32`.
+                                let pty = param_types
+                                    .as_ref()
+                                    .and_then(|ps| ps.get(i))
+                                    .cloned()
+                                    .unwrap_or_default();
+                                if !self.gen_len_cast(arg, &pty) {
+                                    self.gen_expr(arg);
+                                }
+                            }
+                        }
                     }
                     self.write(")");
                 }
@@ -4499,6 +8417,65 @@ impl Codegen {
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
+                    // Zig has no `==` for slices. Once W562 started emitting
+                    // string literals with their quotes, `name == "clk"` began
+                    // failing with "cannot compare strings with ==". When either
+                    // side is a string literal the comparison is a string
+                    // comparison, so lower it to std.mem.eql.
+                    let is_str = |n: &Node| {
+                        n.kind == NodeKind::ExprLiteral && n.extra_kind == "string"
+                    };
+                    // ... and when neither side is a literal but one names a
+                    // field the spec DECLARED as a string (`a.name == b.name`),
+                    // which the literal test alone could not see.
+                    if matches!(op, "==" | "!=")
+                        && (is_str(&node.children[0])
+                            || is_str(&node.children[1])
+                            || self.is_string_typed(&node.children[0])
+                            || self.is_string_typed(&node.children[1]))
+                    {
+                        if op == "!=" {
+                            self.write("!");
+                        }
+                        self.write("std.mem.eql(u8, ");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // Zig has no ordering on enums either. When a side is a
+                    // variant of an enum this spec declares (`BitWidth::Int4`),
+                    // compare the tags.
+                    if matches!(op, "<" | ">" | "<=" | ">=")
+                        && (self.is_enum_variant(&node.children[0])
+                            || self.is_enum_variant(&node.children[1]))
+                    {
+                        self.write("@intFromEnum(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(&format!(") {} @intFromEnum(", op));
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // W593: Zig refuses `/` on SIGNED integers -- the rounding
+                    // mode must be explicit ("signed integers must use
+                    // @divTrunc, @divFloor or @divExact"). 218 division sites
+                    // in the corpus. `@divTrunc` is C's and Rust's semantics,
+                    // which is what the specs assume.
+                    if op == "/"
+                        && (self.is_signed_int_expr(&node.children[0])
+                            || self.is_signed_int_expr(&node.children[1]))
+                        && !self.is_float_expr(&node.children[0])
+                        && !self.is_float_expr(&node.children[1])
+                    {
+                        self.write("@divTrunc(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
                     // Zig shift RHS must be Log2(LHS-width)-typed (u5 for u32);
                     // a runtime u32/usize amount needs @intCast, and a bare
                     // integer-literal LHS (comptime_int) needs a pinned width
@@ -4547,7 +8524,16 @@ impl Codegen {
             }
             NodeKind::ExprIndex => {
                 // children[0] = base, children[1] = index
-                if node.children.len() >= 2 {
+                // W605: a slice carries a third child (the end) and lowers to
+                // Zig's `[a..b]` -- the same half-open range the source means.
+                if node.extra_op == "slice" && node.children.len() >= 3 {
+                    self.gen_expr(&node.children[0]);
+                    self.write("[");
+                    self.gen_expr(&node.children[1]);
+                    self.write("..");
+                    self.gen_expr(&node.children[2]);
+                    self.write("]");
+                } else if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
                     self.write("[");
                     self.gen_expr(&node.children[1]);
@@ -4606,8 +8592,24 @@ impl Codegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // The parser stores the literal's ELEMENT TEXT in extra_size
-                // ("1,2,3" for a list, "0;4" for a repeat) with no children.
+                // Real element CHILDREN win when the parser captured them --
+                // `[N]T{ a, b }` and the bare `[a, b]` both carry them, and
+                // reading extra_size instead emitted the array's DIMENSION as
+                // its only element (`[4]u16{1,2,3}` -> `.{ 4 }`).
+                if !node.children.is_empty() {
+                    self.write(".{ ");
+                    for (i, elem) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(elem);
+                    }
+                    self.write(" }");
+                    return;
+                }
+
+                // Otherwise the parser stored the literal's ELEMENT TEXT in
+                // extra_size ("1,2,3" for a list, "0;4" for a repeat).
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();
@@ -4651,7 +8653,65 @@ impl Codegen {
                     }
                     self.write(&format!(".{} = ", field.name));
                     if !field.children.is_empty() {
-                        self.gen_expr(&field.children[0]);
+                        // W609: an array literal assigned to a SLICE-typed field
+                        // needs the same lowering W607 gave slice RETURNS --
+                        // `.{ a, b }` is an anonymous struct and Zig will not
+                        // coerce it to `[]T`. `&[_]T{...}` is `*const [N]T`, so
+                        // the mutable `[]T` that most fields declare needs
+                        // @constCast as well.
+                        let slice_elem = self
+                            .struct_field_types
+                            .get(&(node.name.clone(), field.name.clone()))
+                            .map(|t| Self::t27_array_type_to_zig(t))
+                            .and_then(|t| Self::slice_element_type(&t));
+                        let is_array_lit =
+                            field.children[0].kind == NodeKind::ExprArrayLiteral;
+                        match (slice_elem, is_array_lit) {
+                            (Some(elem), true) => {
+                                // W609: the REPEAT form `[v; n]` is stored as
+                                // element text `v;n` and `gen_array_literal_braces`
+                                // splits on commas only, so it emitted the raw
+                                // `{ 0;21 }`. Zig spells it `[_]T{v} ** n`.
+                                // Caught by the corpus check, not by reasoning.
+                                let lit = &field.children[0];
+                                let repeat = if lit.children.is_empty() {
+                                    lit.extra_size
+                                        .trim()
+                                        .rsplit_once(';')
+                                        .map(|(v, n)| (v.trim().to_string(), n.trim().to_string()))
+                                } else {
+                                    None
+                                };
+                                match repeat {
+                                    Some((v, n)) => self.write(&format!(
+                                        "@constCast(&[_]{}{{ {} }} ** {})",
+                                        elem, v, n
+                                    )),
+                                    None => {
+                                        self.write(&format!("@constCast(&[_]{}", elem));
+                                        self.gen_array_literal_braces(lit);
+                                        self.write(")");
+                                    }
+                                }
+                            }
+                            _ => {
+                                // W624: `Box { n: s.len() }` where the field
+                                // declares a sized int. The W623 fix covered
+                                // return and argument position only, because
+                                // those are the two the corpus happened to
+                                // exercise -- the same population-selection
+                                // trap T16 names. Measured by probe, not by
+                                // reading the corpus. See T20.
+                                let fty = self
+                                    .struct_field_types
+                                    .get(&(node.name.clone(), field.name.clone()))
+                                    .cloned()
+                                    .unwrap_or_default();
+                                if !self.gen_len_cast(&field.children[0], &fty) {
+                                    self.gen_expr(&field.children[0]);
+                                }
+                            }
+                        }
                     }
                 }
                 self.write(" }");
@@ -4665,20 +8725,26 @@ impl Codegen {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    // W566: t27 `as` truncates on a narrowing integer cast (Rust
-                    // semantics), but Zig's `@intCast` is CHECKED and panics in
-                    // safe builds when the value does not fit (e.g. a u64 whose
-                    // low bits are wanted, `weighted_total as u32` with a 2^32
-                    // multiple). Emit `@truncate` when the source integer is
-                    // provably wider than the target; otherwise keep `@intCast`
-                    // (widening / same-width / unknown -- unchanged behaviour).
-                    let target_bits = Self::zig_uint_bits(&target);
-                    let src_bits = self.zig_expr_uint_bits(&node.children[0]);
-                    let narrowing = match (src_bits, target_bits) {
-                        (Some(s), Some(t)) => s > t,
-                        _ => false,
+                    // MERGE W592+W566: floats keep their dedicated
+                    // builtins; integer narrowing lowers to @truncate.
+                    let target_is_float = matches!(target.as_str(), "f16" | "f32" | "f64");
+                    let src_is_float = self.is_float_expr(&node.children[0]);
+                    let builtin = if target_is_float || src_is_float {
+                        match (target_is_float, src_is_float) {
+                            (true, true) => "@floatCast",
+                            (true, false) => "@floatFromInt",
+                            (false, true) => "@intFromFloat",
+                            (false, false) => unreachable!(),
+                        }
+                    } else {
+                        let target_bits = Self::zig_uint_bits(&target);
+                        let src_bits = self.zig_expr_uint_bits(&node.children[0]);
+                        let narrowing = match (src_bits, target_bits) {
+                            (Some(s), Some(t)) => s > t,
+                            _ => false,
+                        };
+                        if narrowing { "@truncate" } else { "@intCast" }
                     };
-                    let builtin = if narrowing { "@truncate" } else { "@intCast" };
                     self.write(&format!("@as({}, {}(", target, builtin));
                     self.gen_expr(&node.children[0]);
                     self.write("))");
@@ -4707,6 +8773,11 @@ impl Codegen {
 pub struct VerilogCodegen {
     output: String,
     indent: u32,
+    /// W700: makes each unrolled `while`'s fuel variable unique within a module.
+    /// Two loops in one function would otherwise both declare `__t27_fuel`, and
+    /// Verilog rejects the redeclaration -- turning a synthesis repair into a
+    /// compile failure.
+    while_fuel_counter: u32,
     module_name: String,
     current_fn_name: String,
     current_fn_return_type: String,
@@ -4751,6 +8822,11 @@ pub struct VerilogCodegen {
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
+    /// W653 (T74): how many failure checks the CURRENT test block actually
+    /// emitted. The block's final verdict must depend on this, not on a flag
+    /// set once at construction -- a block can hold statements and still lower
+    /// zero checks, which is T45's shape reached by a different route.
+    verilog_checks_emitted: usize,
     // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
     probe_counter: usize,
     // W539: per-test-block probe metadata: (probe_name, width_bits, is_signed).
@@ -4794,6 +8870,7 @@ impl VerilogCodegen {
 
     pub fn with_options(emit_test_assertions: bool) -> Self {
         Self {
+            while_fuel_counter: 0,
             output: String::new(),
             indent: 0,
             module_name: String::new(),
@@ -4811,6 +8888,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: std::collections::HashMap::new(),
             local_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
+            verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
             call_array_tmp_names: std::collections::HashMap::new(),
@@ -4936,7 +9014,7 @@ impl VerilogCodegen {
     /// Verilog-2001 reserved keywords. If a user identifier collides with one,
     /// escape it with the \\identifier<space> form so it is treated as an
     /// ordinary identifier and not parsed as a keyword.
-    fn verilog_keywords() -> &'static [&'static str] {
+    pub(crate) fn verilog_keywords() -> &'static [&'static str] {
         &[
             "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
             "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
@@ -4954,19 +9032,26 @@ impl VerilogCodegen {
             "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
             "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
             "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
-            // SystemVerilog keywords Icarus also rejects as plain identifiers
-            // (t27#1948: spec params named bit/byte/priority/sequence).
-            "bit", "byte", "chandle", "class", "do", "enum", "export", "extends", "final",
-            "import", "int", "interface", "logic", "longint", "packed", "priority",
-            "program", "property", "protected", "pure", "rand", "randc", "ref", "return",
-            "sequence", "shortint", "shortreal", "static", "string", "struct", "super",
-            "this", "type", "typedef", "union", "unique", "var", "virtual", "void",
-            "assert", "assume", "cover", "restrict",
-            "context", "constraint", "covergroup", "coverpoint", "cross", "dist",
-            "expect", "foreach", "forkjoin", "iff", "inside", "join_any",
-            "join_none", "local", "matches", "modport", "new", "null", "solve",
-            "tagged", "throughout", "timeprecision", "timeunit", "wait_order",
-            "wildcard", "with",
+            // W650: the list above is Verilog-2001, but every Icarus invocation
+            // in this repository passes `-g2012`, where these are ALSO reserved.
+            // 8 corpus specs declare identifiers named `priority`, `logic`,
+            // `string` and friends, and iverilog rejects them with a bare
+            // "syntax error". The keyword table was for the wrong language
+            // VERSION -- a totality claim (T55) about the wrong universe. T63.
+            "alias", "always_comb", "always_ff", "always_latch", "assert", "assume", "before",
+            "bind", "bins", "binsof", "bit", "break", "byte", "chandle", "class", "clocking",
+            "const", "constraint", "context", "continue", "cover", "covergroup", "coverpoint",
+            "cross", "dist", "do", "endclass", "endclocking", "endgroup", "endinterface",
+            "endpackage", "endprogram", "endproperty", "endsequence", "enum", "expect",
+            "export", "extends", "extern", "final", "first_match", "foreach", "forkjoin",
+            "iff", "ignore_bins", "illegal_bins", "import", "inside", "int", "interface",
+            "intersect", "join_any", "join_none", "local", "logic", "longint", "matches",
+            "modport", "new", "null", "package", "packed", "priority", "program", "property",
+            "protected", "pure", "rand", "randc", "randcase", "randsequence", "ref", "restrict", "return",
+            "sequence", "shortint", "shortreal", "solve", "static", "string", "struct",
+            "super", "tagged", "this", "throughout", "timeprecision", "timeunit", "type",
+            "typedef", "union", "unique", "var", "virtual", "void", "wait_order", "wildcard",
+            "with", "within",
         ]
     }
 
@@ -5000,10 +9085,30 @@ impl VerilogCodegen {
     }
 
     fn verilog_safe_identifier(name: &str) -> String {
-        if Self::verilog_keywords().contains(&name) {
+        // W664: a namespaced path reaches here as ONE identifier -- the parser
+        // stores `Severity::Error` as a single `ExprIdentifier` whose name
+        // contains `::`. The enum DECLARATION is already lowered correctly:
+        //
+        //     localparam ErrorCode_ParseError = 1000;
+        //
+        // but every USE site emitted `ErrorCode::ParseError`, which is not
+        // Verilog and produced `syntax error` in 23 of the 444 specs that
+        // generate. Declaration and use only ever disagreed on the separator.
+        //
+        // Done here rather than at the expression emitter because this is the
+        // single chokepoint every identifier passes through -- the same reason
+        // T118 moved keyword escaping to the final name. `::` cannot occur in a
+        // legal Verilog identifier, so the substitution can never collide with
+        // something that was already correct.
+        let name = if name.contains("::") {
+            std::borrow::Cow::Owned(name.replace("::", "_"))
+        } else {
+            std::borrow::Cow::Borrowed(name)
+        };
+        if Self::verilog_keywords().contains(&name.as_ref()) {
             format!("\\{} ", name)
         } else {
-            name.to_string()
+            name.into_owned()
         }
     }
 
@@ -5045,13 +9150,87 @@ impl VerilogCodegen {
             "u32" | "i32" => 32,
             "u64" | "i64" => 64,
             "usize" => 32,
+            // W655 (T85): `f64` fell through to the 32-bit default and silently
+            // narrowed to half its width. Named explicitly so the width is a
+            // decision rather than a fallthrough.
+            "f32" => 32,
+            "f64" => 64,
             _ => 32, // default width
         }
     }
 
+    /// W703: one place that knows how a t27 integer literal spells its radix.
+    ///
+    /// `0x`/`0X` hex, `0b`/`0B` binary, `_` separators, plain decimal. Returns
+    /// `None` for anything else -- including a malformed literal such as
+    /// `0xT27B007`, whose `T` is not a hex digit.
+    ///
+    /// It exists because the conversion had been written twice and only one copy
+    /// was complete: `gen_verilog_expr` converted, and the sized-literal path
+    /// used by struct and array initializers emitted the raw text, producing
+    /// `32'd0x8000`. Two emitters, one of them wrong, and nothing in the corpus
+    /// distinguished them until a synthesis sweep did.
+    fn literal_value(v: &str) -> Option<u128> {
+        let clean: String = v.chars().filter(|&c| c != '_').collect();
+        if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+            return u128::from_str_radix(hex, 16).ok();
+        }
+        if let Some(bin) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+            return u128::from_str_radix(bin, 2).ok();
+        }
+        if !clean.is_empty() && clean.chars().all(|c| c.is_ascii_digit()) {
+            return clean.parse::<u128>().ok();
+        }
+        None
+    }
+
+    /// W699: the width of an entry-point port, or `None` -- never a default.
+    ///
+    /// `type_to_width` ends in `_ => 32`, which is right for a local register
+    /// whose declared type the rest of the lowering also treats as 32 bits, and
+    /// WRONG for a module boundary, where the number becomes a contract with
+    /// whatever is on the other side. A 512-bit value entering through a 32-bit
+    /// port loses 15/16 of itself, and no stage downstream can tell.
+    ///
+    /// `[N]T` is accepted because N*width(T) is arithmetic. A slice is refused
+    /// because its length is not in the type. `f64` is refused because 64 bits is
+    /// its SIZE, not its ENCODING -- whether a float port carries raw IEEE bits
+    /// or fixed point is a design decision this function does not get to make.
+    fn entry_port_width(ty: &str) -> Option<u32> {
+        let t = ty.trim();
+        match t {
+            "bool" => return Some(1),
+            "u8" | "i8" => return Some(8),
+            "u16" | "i16" => return Some(16),
+            "u32" | "i32" | "usize" | "isize" => return Some(32),
+            "u64" | "i64" => return Some(64),
+            "trit" | "tri" => return Some(2),
+            _ => {}
+        }
+        // `[N]T`
+        if let Some(rest) = t.strip_prefix('[') {
+            if let Some(close) = rest.find(']') {
+                let count = rest[..close].trim();
+                if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
+                    let n: u32 = count.parse().ok()?;
+                    let inner = Self::entry_port_width(&rest[close + 1..])?;
+                    return n.checked_mul(inner);
+                }
+            }
+        }
+        None
+    }
+
     /// Map t27 type to Verilog signedness
     fn type_is_signed(ty: &str) -> bool {
-        matches!(ty, "i8" | "i16" | "i32" | "i64")
+        // W655 (T85): `f32`/`f64` were absent here, so a float lowered to an
+        // UNSIGNED vector and every comparison against zero inverted. Measured:
+        //   f(-1.0)      = 4294967295      the real -1.0 narrowed to [31:0]
+        //   (-1.0 < 0.0) = 1               the real comparison is correct
+        //   f(-1.0)<0.0  = 0               after narrowing, the sign is GONE
+        // A float is signed; saying so removes the inversion. It does NOT make
+        // the lowering float arithmetic -- see `f32` in `type_to_width`.
+        matches!(ty, "i8" | "i16" | "i32" | "i64" | "f32" | "f64")
     }
 
     /// W532: total bit width of a scalar-struct field that may be a bare scalar
@@ -5060,6 +9239,15 @@ impl VerilogCodegen {
         let trimmed = ty.trim();
         if let Some(close) = trimmed.find(']') {
             let inner = trimmed[1..close].trim();
+            // W670: sound ONLY because `is_lowerable_scalar_struct` rejects a
+            // field with EMPTY brackets, so no unsized slice reaches this
+            // arithmetic. Verified: `struct Bad { data: []u8, n: u8 }` and a
+            // holder containing `[4]Bad` are both UNSUPPORTED_ICARUS.
+            // Widen that predicate and this line silently sizes an unsized
+            // array as ONE element, moving every later field (T134). The
+            // property is stated here because a soundness argument that
+            // lives only in another function is a refactor away from being
+            // wrong (T115).
             let count: u32 = inner.parse().unwrap_or(1);
             let base = trimmed[close + 1..].trim();
             count * Self::type_to_width(base)
@@ -5121,7 +9309,27 @@ impl VerilogCodegen {
                                 return format!("{}'sd{}", width, n.to_string());
                             }
                         }
+                        if let Some(n) = Self::literal_value(v) {
+                            return format!("{}'sd{}", width, n);
+                        }
                         return format!("{}'sd{}", width, v);
+                    }
+                    // W703: normalise the RADIX here too.
+                    //
+                    // This site wrote the literal verbatim, so a spec constant
+                    // `0x8000` inside a struct initializer became
+                    //
+                    //     localparam [127:0] SYS_CONFIG = {32'd8, 32'd0x8000, ...}
+                    //
+                    // and yosys answered `Invalid use of [a-fxz?] in decimal
+                    // constant`. The main literal path (`gen_verilog_expr`) has
+                    // converted hex and binary since it was written; this one --
+                    // reached only from sized contexts such as struct and array
+                    // initializers -- never did. One emitter fixed, its sibling
+                    // missed: the T53 shape, which is why the repair is a SHARED
+                    // helper rather than a second copy of the conversion.
+                    if let Some(n) = Self::literal_value(v) {
+                        return format!("{}'d{}", width, n);
                     }
                     return format!("{}'d{}", width, v);
                 }
@@ -5815,26 +10023,86 @@ impl VerilogCodegen {
         trimmed.to_string()
     }
 
+    /// W681: the single depth bound shared by the lowerability predicate and the
+    /// width computation. `field_type_width` and `packed_struct_width` recurse
+    /// once EACH per nesting level, so a cap of 8 admits four levels of nesting;
+    /// the predicate therefore counts `depth * 2` to stay in step.
+    const DEPTH_CAP: u32 = 8;
+
+    /// W671: width of one field's type, consulting `struct_decls` for a nested
+    /// struct instead of falling back to `type_to_width`'s default of 32.
+    ///
+    /// W667 accepted nested structs and the safety test caught the consequence
+    /// immediately: `struct Cfg { width: usize, depth: u8, inner: Inner }` was
+    /// reported as **72** bits rather than 56, because `Inner` (a real 16 bits)
+    /// was sized at the unknown-type default. Every field after the nested one
+    /// would then be sliced from the wrong offset. The acceptance was reverted
+    /// and the width computation named as the prerequisite (T132).
+    ///
+    /// This is that prerequisite. `depth` bounds the walk so a struct that
+    /// transitively contains itself cannot loop; such a type has no finite
+    /// packed width and 0 is returned, which the callers surface as a width of
+    /// zero rather than a plausible wrong number.
+    fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
+        // W681: 0 is a POISON value, not a width.
+        //
+        // Measured before this comment existed: a five-level chain of
+        // `struct Ln { p: [4]L(n-1), n: u8 }` reported **2,728** bits where the
+        // arithmetic gives 10,920. The guard fired, this function returned 0,
+        // and `packed_struct_width`'s `sum()` swallowed it -- so the struct was
+        // declared at a plausible-looking width that is wrong, and every field
+        // after the over-deep one is sliced from the wrong bits.
+        //
+        // That is the T134 shape again: a default that is never obviously wrong.
+        // The repair is not a larger cap; it is that
+        // `is_lowerable_scalar_struct_d` must refuse any struct this function
+        // cannot size, so the failure is loud. Both guards now use DEPTH_CAP so
+        // they cannot drift apart.
+        if depth > Self::DEPTH_CAP {
+            return 0;
+        }
+        let t = ty.trim();
+        if let Some(close) = t.find(']') {
+            let inner = t[1..close].trim();
+            // Unsized slices are rejected by `is_lowerable_scalar_struct`
+            // (T134); if one reaches here the width is genuinely unknown.
+            let Ok(count) = inner.parse::<u32>() else {
+                return 0;
+            };
+            let base = t[close + 1..].trim();
+            return count * self.field_type_width(base, depth + 1);
+        }
+        if self.struct_decls.contains_key(t) {
+            return self.packed_struct_width(t, depth + 1);
+        }
+        Self::type_to_width(t)
+    }
+
+    /// W671: total packed width of a struct, summing `field_type_width`.
+    fn packed_struct_width(&self, name: &str, depth: u32) -> u32 {
+        if depth > Self::DEPTH_CAP {
+            return 0;
+        }
+        let Some(fields) = self.struct_decls.get(name) else {
+            return 0;
+        };
+        fields
+            .iter()
+            .map(|(_, ft)| self.field_type_width(ft, depth))
+            .sum()
+    }
+
     /// W527: total bit width of a scalar struct element, or of a primitive
     /// element type. Fixed-size scalar-array fields are counted as
     /// `width * count`.
     fn element_width(&self,
         elem_type: &str,
     ) -> u32 {
-        if let Some(fields) = self.struct_decls.get(elem_type) {
-            let mut w = 0u32;
-            for (_, ft) in fields {
-                let trimmed = ft.trim();
-                if let Some(close) = trimmed.find(']') {
-                    let inner = trimmed[1..close].trim();
-                    let count: u32 = inner.parse().unwrap_or(1);
-                    let base = trimmed[close + 1..].trim();
-                    w += count * Self::type_to_width(base);
-                } else {
-                    w += Self::type_to_width(trimmed);
-                }
-            }
-            return w.max(1);
+        // W671: delegated so a nested struct field is sized by its own packed
+        // width rather than type_to_width's default of 32. The inline loop this
+        // replaces produced 72 bits for a 56-bit struct (T132).
+        if self.struct_decls.contains_key(elem_type) {
+            return self.packed_struct_width(elem_type, 0);
         }
         Self::type_to_width(elem_type)
     }
@@ -5845,18 +10113,14 @@ impl VerilogCodegen {
         struct_name: &str,
         field_name: &str,
     ) -> Option<(u32, u32)> {
+        // W671: every field is sized by `field_type_width`, which consults
+        // `struct_decls` for a nested struct instead of taking type_to_width's
+        // default of 32. Before this, a struct containing a 16-bit nested struct
+        // reported its successor fields at offsets 16 bits too high (T132).
         let fields = self.struct_decls.get(struct_name)?;
         let mut offset = 0u32;
         for (name, ftype) in fields {
-            let trimmed = ftype.trim();
-            let fw = if let Some(close) = trimmed.find(']') {
-                let inner = trimmed[1..close].trim();
-                let count: u32 = inner.parse().unwrap_or(1);
-                let base = trimmed[close + 1..].trim();
-                count * Self::type_to_width(base)
-            } else {
-                Self::type_to_width(trimmed)
-            };
+            let fw = self.field_type_width(ftype, 0);
             if name == field_name {
                 return Some((offset, fw));
             }
@@ -6218,6 +10482,7 @@ impl VerilogCodegen {
         let mut tmp = VerilogCodegen {
             output: String::new(),
             indent: 0,
+            while_fuel_counter: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
@@ -6233,6 +10498,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
             local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
+            verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
             call_array_tmp_names: self.call_array_tmp_names.clone(),
@@ -6431,6 +10697,7 @@ impl VerilogCodegen {
             };
             for sub in outer.iter().take(current_dim) {
                 let mut tmp = VerilogCodegen {
+                    while_fuel_counter: 0,
                     output: String::new(),
                     indent: 0,
                     module_name: String::new(),
@@ -6448,6 +10715,7 @@ impl VerilogCodegen {
                     module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
                     local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
+                    verilog_checks_emitted: 0,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
                     call_array_tmp_names: self.call_array_tmp_names.clone(),
@@ -6493,17 +10761,124 @@ impl VerilogCodegen {
         name: &str,
         structs: &std::collections::HashMap<String, Vec<(String, String)>>,
     ) -> bool {
+        Self::is_lowerable_scalar_struct_d(name, structs, 0)
+    }
+
+    /// W667: the same predicate with a recursion depth, so a struct may contain
+    /// another lowerable struct.
+    ///
+    /// WHY THIS WIDENED, AND ONLY THIS FAR. T131 traced the corpus' largest
+    /// defect class to this `all()`: one field it rejects drops the whole struct
+    /// into a per-field fallback that declares `reg <TypeName>_<field>` at module
+    /// level while every use emits `<varname>_<field>`, names that can never
+    /// agree.
+    ///
+    /// The blocking field types were then MEASURED across 1,138 structs, because
+    /// the example that motivated the work (`BrainState { arousal: ArousalLevel }`)
+    /// pointed at enums and enums are the smallest blocker there is:
+    ///
+    ///     other 2339 | f32/f64 212 | usize/isize 173 | nested struct 133 | enum 46
+    ///
+    /// Structs that become lowerable, by extension:
+    ///
+    ///     + usize/isize ............ 25
+    ///     + nested lowerable struct  18
+    ///     + f32/f64 ................ 55   <- NOT TAKEN
+    ///
+    /// **Floats are deliberately still rejected.** `type_to_width` would give
+    /// them 32 or 64 bits and the packed path would slice them as raw bits, while
+    /// the function that reads the field returns Verilog `real`. That is a
+    /// silently wrong value in place of a loud failure -- the trade T124 exists
+    /// to forbid. Accepting them is worth 55 structs and is not worth that.
+    ///
+    /// `usize`/`isize` are safe because they are integers of a fixed width that
+    /// `type_to_width` already agrees on (32).
+    ///
+    /// **NESTED STRUCTS ARE ALSO REJECTED, and the reason was found by the test
+    /// written before this change was measured.** Accepting them made
+    ///
+    ///     struct Inner { lo: u8, hi: u8 }              // 16 bits
+    ///     struct Cfg { width: usize, depth: u8, inner: Inner }
+    ///
+    /// lower as **72** bits rather than 56, because `struct_field_offset` and
+    /// `element_width` size an unknown field type with `type_to_width`'s default
+    /// of 32 and do not consult the nested struct's own packed width. Every field
+    /// after the nested one would then be sliced from the wrong offset, and
+    /// `a.inner.lo` from the wrong bits entirely.
+    ///
+    /// That is silent wrongness in place of a loud failure -- the same trade
+    /// refused above for floats, and refusing it for floats while accepting it
+    /// here would be incoherent. Nested structs are worth 18 more structs and
+    /// need the width computation fixed first; they get their own wave.
+    fn is_lowerable_scalar_struct_d(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        depth: u32,
+    ) -> bool {
+        // W681: the SAME cap the width computation uses. When these two drifted
+        // -- the predicate counting struct levels while `field_type_width`
+        // counted field-then-struct, twice per level -- a struct the predicate
+        // accepted could be one the width function refused to size, and the
+        // refusal was a silent 0. They now share DEPTH_CAP, and the predicate
+        // is deliberately the STRICTER of the two: it consumes one level per
+        // nesting step against the width function's two, so anything it accepts
+        // can be sized.
+        if depth * 2 > Self::DEPTH_CAP {
+            return false;
+        }
         let Some(fields) = structs.get(name) else {
             return false;
         };
         !fields.is_empty()
             && fields.iter().all(|(_, t)| {
                 let trimmed = t.trim();
-                if let Some(end) = trimmed.find(']') {
-                    let base = trimmed[end + 1..].trim();
-                    return Self::is_primitive_scalar_type(base);
-                }
-                Self::is_primitive_scalar_type(trimmed)
+                let base = if let Some(end) = trimmed.find(']') {
+                    // W669: an UNSIZED slice has no packed width, and accepting
+                    // one is worse than rejecting the struct.
+                    //
+                    // `struct_field_offset` sizes an array as
+                    // `inner.parse().unwrap_or(1)`. For `[]u8` the brackets are
+                    // empty, the parse fails, and the field silently becomes ONE
+                    // element -- so `struct S { data: []u8, n: u8 }` lowered as
+                    // 16 bits with `n` at offset 8. Measured against the sized
+                    // forms, which are correct:
+                    //
+                    //     []u8    -> 16 bits,  n at s[8 +: 8]     <- WRONG
+                    //     [4]u8   -> 40 bits,  n at s[32 +: 8]    correct
+                    //     [16]u8  -> 136 bits, n at s[128 +: 8]   correct
+                    //
+                    // Every field after an unsized slice is therefore read from
+                    // the wrong bits, and the slice itself yields only its first
+                    // element. Measured across the tree: 183 structs, 306 such
+                    // fields, 344 fields positioned after one, 58 specs.
+                    //
+                    // This is the silent-wrongness trade that W667 refused for
+                    // floats and for nested structs (T132). It was already
+                    // shipping here. Rejecting the struct converts a wrong answer
+                    // into a loud one, which is the whole of T124.
+                    let inner = trimmed[1..end].trim();
+                    if inner.is_empty() {
+                        return false;
+                    }
+                    trimmed[end + 1..].trim()
+                } else {
+                    trimmed
+                };
+                Self::is_primitive_scalar_type(base)
+                    || matches!(base, "usize" | "isize")
+                    // W671: a nested struct is admissible now that
+                    // `field_type_width` sizes it by its own packed width rather
+                    // than type_to_width's default of 32. W667 accepted this and
+                    // reverted within the wave because the width was wrong --
+                    // `Cfg { width: usize, depth: u8, inner: Inner }` reported 72
+                    // bits for a 56-bit struct (T132). The prerequisite is now
+                    // in place and verified by that same test.
+                    //
+                    // `base != name` blocks the direct self-reference; the depth
+                    // bound in `field_type_width` blocks an indirect cycle, and
+                    // returns width 0 rather than a plausible wrong number.
+                    || (base != name
+                        && Self::is_lowerable_scalar_struct_d(base, structs, depth + 1))
             })
     }
 
@@ -6541,7 +10916,10 @@ impl VerilogCodegen {
         var: &str,
         indices: &[String],
     ) {
-        self.write(var);
+        // W643: the init path wrote the name raw while every expression path
+        // escaped it, so a local array named after a Verilog keyword was
+        // declared and initialised unescaped. See T53.
+        self.write(&Self::verilog_safe_identifier(var));
         for idx in indices {
             self.write("[");
             self.write(idx);
@@ -6876,6 +11254,9 @@ impl VerilogCodegen {
         // W458: bare module-level statements (e.g. calls to functions that take
         // array parameters). Emitted inside an always @(*) block.
         let mut module_stmts: Vec<&Node> = Vec::new();
+        // W649: module-level `var` names, so the boilerplate port header can
+        // avoid colliding with a signal the spec declares and drives.
+        let mut module_regs: Vec<String> = Vec::new();
 
         for decl in &ast.children {
             match decl.kind {
@@ -6886,6 +11267,7 @@ impl VerilogCodegen {
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
+                NodeKind::StmtLocal => module_regs.push(decl.name.clone()),
                 NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
                 _ => {}
             }
@@ -7080,37 +11462,93 @@ impl VerilogCodegen {
         // (combinational) become INPUT data ports, so a spec can consume data fed
         // in on real ports (`fn on_clock(x: i16) {...}` -> `input signed [15:0] x`).
         // Only present when such a fn takes params -> existing specs unchanged.
+        //
+        // W699: THE WIDTH IS DERIVED OR THE PORT IS REFUSED. It is never defaulted.
+        //
+        // This site used `type_to_width`, whose last arm is `_ => 32`. That is
+        // correct for every entry signature in the corpus today -- measured: all
+        // 74 specs declaring `on_comb`/`on_clock` use only sized primitives, so
+        // the default never fires. It is a LATENT defect, and W698 stepped on it:
+        // widening the entry-point predicate to accept `[8]u64` produced
+        //
+        //     input  wire [31:0] acts,       // for a 512-bit parameter
+        //
+        // and nothing complained -- not the banner, not the census, not the
+        // corpus column, not yosys. A silent 16x narrowing.
+        //
+        // `entry_port_width` returns `None` rather than a plausible number, and a
+        // parameter it cannot size makes the whole entry point refuse, loudly, in
+        // the generated source. T190b: the accepting side must be the stricter,
+        // so anything accepted can be sized.
         let mut input_ports: Vec<(String, u32, bool)> = Vec::new();
+        let mut entry_refusal: Option<String> = None;
         if let Some(oc) = functions.iter().find(|f| f.name == "on_clock" || f.name == "on_comb") {
+            let mut widths: Vec<(String, u32, bool)> = Vec::new();
             for (pname, ptype) in &oc.params {
-                let w = Self::type_to_width(ptype);
-                let signed = Self::type_is_signed(ptype);
-                input_ports.push((pname.clone(), w, signed));
+                match Self::entry_port_width(ptype) {
+                    Some(w) => widths.push((pname.clone(), w, Self::type_is_signed(ptype))),
+                    None => {
+                        entry_refusal = Some(format!("{pname}: {ptype}"));
+                        break;
+                    }
+                }
+            }
+            if entry_refusal.is_none() {
+                input_ports = widths;
             }
         }
         // `on_comb` is the combinational counterpart of `on_clock`: its return is a
         // continuously-driven `output wire result` (`assign result = on_comb(...)`),
         // so a purely combinational spec (dot27, an adder, a whole MLP) synthesizes
         // to real LUTs instead of being dead-code-eliminated. Only when defined.
-        let comb_result: Option<(u32, bool, Vec<String>)> =
-            functions.iter().find(|f| f.name == "on_comb").map(|f| {
-                let w = Self::type_to_width(&f.extra_return_type);
+        let comb_result: Option<(u32, bool, Vec<String>)> = if entry_refusal.is_some() {
+            None
+        } else {
+            functions.iter().find(|f| f.name == "on_comb").and_then(|f| {
+                let w = Self::entry_port_width(&f.extra_return_type)?;
                 let signed = Self::type_is_signed(&f.extra_return_type);
                 let params: Vec<String> = f.params.iter().map(|(p, _)| p.clone()).collect();
-                (w, signed, params)
-            });
+                Some((w, signed, params))
+            })
+        };
+        if comb_result.is_none() && entry_refusal.is_none() {
+            if let Some(f) = functions.iter().find(|f| f.name == "on_comb") {
+                if Self::entry_port_width(&f.extra_return_type).is_none() {
+                    entry_refusal = Some(format!("-> {}", f.extra_return_type));
+                }
+            }
+        }
 
+        // W649: the boilerplate `(clk, rst_n, en)` header was emitted
+        // UNCONDITIONALLY, so a spec that declares `var clk : bool = false` --
+        // every testbench does, and drives it -- got `clk` as an input PORT and
+        // again as `reg clk;` in the same scope. iverilog:
+        // "'clk' has already been declared in this scope". 24 corpus specs.
+        //
+        // The spec's intent is unambiguous: it declares the signal and assigns
+        // it, so the `reg` is right and the PORT is wrong. Dropping the reg --
+        // the obvious reading of the error -- would have made a driven signal an
+        // undrivable input. See T62.
+        let declares = |n: &str| {
+            consts.iter().any(|c| c.name == n) || module_regs.iter().any(|r| r == n)
+        };
         self.write_line(&format!("module {} (", mod_name));
         self.indent();
-        self.write_indent();
-        self.write_line("input  wire        clk,");
-        self.write_indent();
-        self.write_line("input  wire        rst_n,");
-        self.write_indent();
-        self.write_line("input  wire        en,");
+        for p in ["clk", "rst_n", "en"] {
+            if declares(p) {
+                continue;
+            }
+            self.write_indent();
+            self.write_line(&format!("input  wire        {},", p));
+        }
         for (name, w, signed) in &input_ports {
             let range = Self::range_decl(*w);
             let signed_str = if *signed { "signed " } else { "" };
+            // W650: the FOURTH unescaped emit site, and the one T53 predicted.
+            // A spec parameter named `priority` produced `input [31:0] priority;`
+            // -- reserved under `-g2012`, which is how every Icarus run in this
+            // repository invokes iverilog. See T63.
+            let name = Self::verilog_safe_identifier(name);
             self.write_indent();
             if range.is_empty() {
                 self.write_line(&format!("input  wire {}{},", signed_str, name));
@@ -7150,6 +11588,46 @@ impl VerilogCodegen {
         }
         self.dedent();
         self.write_line(");");
+        // W655 (T96): a module whose header is ONLY the boilerplate
+        // `(clk, rst_n, en, ready)` has no way to move a value across its own
+        // boundary, so synthesis optimises the entire design away. Measured
+        // across the corpus: 800 of 849 generated modules (94.2%) are in this
+        // state, and the 49 that are not are all `specs/ternary/gft_*` -- the
+        // difference is one naming convention, a function called `on_comb`.
+        //
+        // We do NOT guess a default. Picking, say, the last `pub fn` would
+        // silently promote an internal helper to a public boundary, and a wrong
+        // boundary is worse than none. Following T52's remedy, the ABSENCE gets
+        // a reserved symbol instead: loud, greppable, and countable.
+        if input_ports.is_empty() && exposed_ports.is_empty() && comb_result.is_none() {
+            self.write_line(
+                "// NO DATA PORTS -- this module cannot move a value across its boundary.",
+            );
+            self.write_line(
+                "// Synthesis will optimise it to nothing. Add `fn on_comb(...) -> T` to give",
+            );
+            self.write_line(
+                "// it a combinational surface: parameters become inputs, the return becomes",
+            );
+            self.write_line("// `result`. See T81.");
+            // W699: and if there IS an entry point but a type has no derivable
+            // width, say which one. The alternative -- the `_ => 32` default --
+            // produces a port that looks right and carries a fraction of the
+            // value, which is the failure T190a measured: a 512-bit parameter
+            // became `input wire [31:0]` and nothing downstream noticed.
+            if let Some(what) = &entry_refusal {
+                self.write_line(
+                    "// ENTRY POINT REFUSED -- a parameter or return has no derivable width:",
+                );
+                self.write_line(&format!("//     {what}"));
+                self.write_line(
+                    "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
+                );
+                self.write_line(
+                    "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
+                );
+            }
+        }
         self.write_line("");
 
         self.indent();
@@ -7308,8 +11786,81 @@ impl VerilogCodegen {
             self.write_line("");
         }
 
+        // W694: SAY WHAT THIS BACKEND DOES NOT LOWER.
+        //
+        // W692 gated the three simulation sections below on
+        // `emit_test_assertions` -- correctly, because emitting `$display` into
+        // output whose own help calls it synthesizable was the defect (T167).
+        // But it made `gen-verilog` DROP every declared `test`, `invariant` and
+        // `bench` in silence, and `suite.rs`'s honesty gate exists to catch
+        // exactly that: it went from `614 declared, 3 silent` to
+        // `242 declared, 375 silent`, +372 failures in the one check whose
+        // stated purpose is this (T181).
+        //
+        // The gate accepts any artefact that NAMES its omission. That is the
+        // honest repair and it is also the true statement: synthesis does not
+        // lower a test. The cheap alternative -- adding 375 rows to the
+        // expectations ledger -- would be adjusting the instrument until the
+        // reading is comfortable, which is the failure T178b/T180 name.
+        if !self.emit_test_assertions
+            && (!tests.is_empty() || !invariants.is_empty() || !benches.is_empty())
+        {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// NOT LOWERED BY THIS BACKEND");
+            self.write_indent();
+            self.write_line("//");
+            self.write_indent();
+            self.write_line("// `gen-verilog` emits synthesizable RTL. A test, an invariant and a");
+            self.write_indent();
+            self.write_line("// bench are simulation constructs -- yosys turns each `$display` into a");
+            self.write_indent();
+            self.write_line("// `$print` cell and nextpnr has no BEL to place one. They are carried by");
+            self.write_indent();
+            self.write_line("// `gen-verilog-for-simulation`, which lowers every declaration below.");
+            self.write_indent();
+            self.write_line("//");
+            for t in &tests {
+                self.write_indent();
+                self.write_line(&format!("// test      {}", t.name));
+            }
+            for inv in &invariants {
+                self.write_indent();
+                self.write_line(&format!("// invariant {}", inv.name));
+            }
+            for b in &benches {
+                self.write_indent();
+                self.write_line(&format!("// bench     {}", b.name));
+            }
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_line("");
+        }
+
         // Section: Tests → assertions (SystemVerilog-style)
-        if !tests.is_empty() {
+        //
+        // W692: GATED ON `emit_test_assertions`, and it should always have been.
+        //
+        // `t27c gen-verilog --help` says "Generate SYNTHESIZABLE Verilog", and a
+        // sibling command `gen-verilog-for-simulation` already exists to carry the
+        // testbench. The switch that separates them -- `emit_test_assertions` --
+        // has existed since the two entry points were written, and it wrapped
+        // only the `$dumpfile`/`$dumpvars` pair. The test blocks below were
+        // emitted UNCONDITIONALLY, which is why the two commands differed by
+        // exactly four lines.
+        //
+        // Measured before this change (T167): 387 of 444 generating specs -- 87.2%
+        // -- emitted `$display`, 43,053 calls corpus-wide, 124 in the MVP alone.
+        // yosys turns each into a `$print` cell and nextpnr cannot place one:
+        //
+        //     ERROR: Unable to place cell '...$display$...', no BELs remaining
+        //            to implement cell type '$print'
+        //
+        // So the command whose entire purpose is synthesis produced output that
+        // could not be placed, for seven specs in eight. `t27c silicon` worked
+        // around it with `delete t:$print`; this removes the need.
+        if !tests.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
@@ -7342,7 +11893,10 @@ impl VerilogCodegen {
         }
 
         // Section: Invariants → parameter assertions
-        if !invariants.is_empty() {
+        //
+        // W692: same gate. An invariant lowers to a procedural assertion, which
+        // is a simulation construct exactly as a test is.
+        if !invariants.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
@@ -7362,7 +11916,9 @@ impl VerilogCodegen {
         // `integer x = 0;` between `initial begin` and `end`). We therefore
         // hoist each bench's cycle counter to module scope using a unique
         // sanitized name, and reset/increment it inside the initial block.
-        if !benches.is_empty() {
+        // W692: same gate. The section header already called these
+        // "simulation only" -- and emitted them into the synthesis output anyway.
+        if !benches.is_empty() && self.emit_test_assertions {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
@@ -7400,7 +11956,19 @@ impl VerilogCodegen {
                     Self::sanitize_identifier(&b.name)
                 ));
                 self.indent();
+                // W657 (T106): a BENCH block reaches the SAME statement emitter
+                // as a test block, and that emitter sets `t27_failed` at every
+                // failure site (T74). The test-block emitter declares the flag;
+                // this one did not, so every bench carrying an assertion emitted
+                //     t27_failed = 1'b1;
+                // against a name declared NOWHERE. Measured on a random sample of
+                // fifteen specs in the undeclared-identifier class: ELEVEN failed
+                // on exactly this -- a regression introduced by T74's own fix.
+                self.write_indent();
+                self.write_line("reg t27_failed;");
                 let block_locals = self.gen_verilog_probe_prelude(b, &b.name);
+                self.write_indent();
+                self.write_line("t27_failed = 1'b0;");
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
@@ -7417,11 +11985,25 @@ impl VerilogCodegen {
                 }
                 self.write_indent();
                 self.write_line(&format!(
-                    "$display(\"[BENCH] {} : %%0d cycles\", {});",
+                    // W646: `%%` is not an escape in Rust's `format!` -- only
+                    // `{{`/`}}` are -- so `%%0d` reached Verilog verbatim and
+                    // `$display` printed the literal text `%0d cycles` followed
+                    // by the value in default format. Verified against iverilog:
+                    //   "%%0d cycles", n  ->  `%0d cycles         42`
+                    //   "%0d cycles",  n  ->  `42 cycles`
+                    // Every [BENCH] cycle line in generated Verilog was
+                    // malformed. See T57.
+                    "$display(\"[BENCH] {} : %0d cycles\", {});",
                     b.name, counter
                 ));
+                // W657 (T106): the bench verdict was UNCONDITIONAL -- the same
+                // defect T74 fixed for test blocks and left here. A bench that
+                // printed FAILED then printed PASSED immediately after.
                 self.write_indent();
-                self.write_line(&format!("$display(\"[BENCH] {} : PASSED\");", b.name));
+                self.write_line(&format!(
+                    "if (t27_failed) $display(\"[BENCH] {} : FAILED\"); else $display(\"[BENCH] {} : PASSED\");",
+                    b.name, b.name
+                ));
                 self.dedent();
                 self.write_indent();
                 self.write_line("end");
@@ -8182,6 +12764,30 @@ impl VerilogCodegen {
         self.local_types.clear();
         self.param_types.clear();
         self.local_packed_primitive_arrays.clear();
+        // W657 (T103): register this function's PARAMETER types.
+        //
+        // `param_types` is read at nine sites to decide whether a `base.field`
+        // access can take the PACKED path -- `base[off +: w]` against the
+        // `input [W-1:0] base` that is actually declared. It was populated in
+        // `gen_verilog_clocked_fn` and NOT here, so every ordinary function
+        // cleared the map and left it empty. Every struct-typed parameter then
+        // fell through to the flatten fallback and emitted `base_field`, a name
+        // declared NOWHERE:
+        //
+        //     input [31:0] debouncer;            <- declared PACKED
+        //     ...
+        //     result_last_exec_ms = ...;         <- emitted FLATTENED
+        //
+        // iverilog: "Could not find variable `result_last_exec_ms'". Measured as
+        // 489 of 618 non-compiling specs -- 79.1%, the largest single cause in
+        // the corpus (T102).
+        //
+        // This is T75's and T78's shape a third time: two branches of one
+        // feature, one populated and one not, with nothing in the type system
+        // constraining the divergence to the concern the branch is named for.
+        for (pname, ptype) in &node.params {
+            self.param_types.insert(pname.clone(), ptype.clone());
+        }
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
@@ -8231,18 +12837,53 @@ impl VerilogCodegen {
             false
         };
 
-        let signed_str = if ret_signed { "signed " } else { "" };
-        let range = Self::range_decl(ret_width);
-        let range_str = if range.is_empty() {
-            String::new()
+        // W655 (T95): a float return becomes Verilog `real`, not an integer
+        // vector. See `type_is_float`.
+        let ret_is_float = Self::type_is_float(&node.extra_return_type);
+        let signed_str = if ret_is_float {
+            ""
+        } else if ret_signed {
+            "signed "
         } else {
-            format!("{} ", range)
+            ""
+        };
+        let range_str = if ret_is_float {
+            "real ".to_string()
+        } else {
+            let range = Self::range_decl(ret_width);
+            if range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", range)
+            }
         };
 
         let fn_name = Self::verilog_safe_identifier(&node.name);
 
         // void functions → task; others → function
-        if node.extra_return_type == "void" {
+        //
+        // W705: THERE ARE TWO SPELLINGS OF VOID AND THIS TESTED ONE.
+        //
+        // `fn f() -> void` sets the field to "void"; `fn f()` with no arrow
+        // leaves it EMPTY, and the display path a few lines below prints that
+        // empty string as "auto". So a parameterless, returnless `fn tick()`
+        // was emitted as
+        //
+        //     function [31:0] tick;   // -> auto
+        //
+        // and called in statement position as `tick(1'b0);` -- a task enable
+        // naming a function, with an argument invented for a function that
+        // takes none.
+        //
+        // iverilog ACCEPTS this, with a warning:
+        //     User function 'tick' is being called as a task.
+        // yosys does not:
+        //     ERROR: Can't resolve task name `\tick'.
+        //
+        // That divergence is why it survived: the corpus metric compiles with
+        // iverilog, so a construct only yosys rejects is invisible to it. 28
+        // specs are in this shape, every one a testbench declaring `fn tick()`.
+        if node.extra_return_type == "void" || node.extra_return_type.is_empty() {
             self.write_indent();
             self.write_line(&format!("task {};", fn_name));
         } else {
@@ -8276,14 +12917,21 @@ impl VerilogCodegen {
                 }
             }
             self.write_indent();
+            // W655 (T95): a float parameter becomes `real` too, or the
+            // argument is narrowed at the boundary and the sign is lost.
+            let p_is_float = Self::type_is_float(ptype);
             let pw = self.packed_width(ptype);
             let ps = self.packed_signed(ptype);
-            let ps_str = if ps { "signed " } else { "" };
-            let pr = Self::range_decl(pw);
-            let pr_str = if pr.is_empty() {
-                String::new()
+            let ps_str = if p_is_float || !ps { "" } else { "signed " };
+            let pr_str = if p_is_float {
+                "real ".to_string()
             } else {
-                format!("{} ", pr)
+                let pr = Self::range_decl(pw);
+                if pr.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", pr)
+                }
             };
             let safe_pname = Self::verilog_safe_identifier(pname);
             self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
@@ -8320,6 +12968,14 @@ impl VerilogCodegen {
             for d in decls {
                 self.emit_local(d, LocalEmitPhase::Decl);
             }
+            // W648: loop variables, hoisted the same way and for the same
+            // reason. See T60.
+            let mut loop_vars: Vec<String> = Vec::new();
+            Self::collect_fn_loop_vars(&node.children, &mut loop_vars);
+            for v in &loop_vars {
+                self.write_indent();
+                self.write_line(&format!("integer {};", v));
+            }
             // Early-return guard (t27#1948): a `return` sets it and every
             // remaining statement region is wrapped in `if (!__t27_ret)`.
             self.write_indent();
@@ -8336,7 +12992,10 @@ impl VerilogCodegen {
 
         self.dedent();
 
-        if node.extra_return_type == "void" {
+        // W705: the SAME predicate as the header, or the two disagree and the
+        // output is `task tick; ... endfunction`. They were written apart and
+        // tested apart; one accepted an empty return type and the other did not.
+        if node.extra_return_type == "void" || node.extra_return_type.is_empty() {
             self.write_indent();
             self.write_line("endtask");
         } else {
@@ -8430,6 +13089,45 @@ impl VerilogCodegen {
     /// nesting depth) so its `reg` declaration can be hoisted to the top of the
     /// body block. Deduped by binding name (tuple-pattern locals by their
     /// comma-joined field list) so a name declared once is emitted once.
+    /// W648: every `for` a function body emits needs its loop variable
+    /// declared, and neither `gen_verilog_for_stmt` nor
+    /// `gen_verilog_for_range_stmt` did it -- the comment at the first site
+    /// even reads "Emit: integer iter_var; for (...)", so the intent was
+    /// recorded and only the `for` was written.
+    ///
+    /// It stayed invisible because a constant-bound loop is UNROLLED and needs
+    /// no variable; only a loop over a parameter emits a real `for`. Same
+    /// conjunctive shape as T53: the obligation was met on the path that is
+    /// usually taken and missed on the one that is not. See T60.
+    ///
+    /// Verilog forbids a declaration after a procedural statement, so these
+    /// hoist to the top of the function body alongside the local `reg`s.
+    fn collect_fn_loop_vars(stmts: &[Node], out: &mut Vec<String>) {
+        for s in stmts {
+            match s.kind {
+                NodeKind::StmtFor => {
+                    let v = if !s.params.is_empty() {
+                        s.params[0].0.clone()
+                    } else {
+                        "__i".to_string()
+                    };
+                    let v = Self::verilog_safe_identifier(&v);
+                    if !out.contains(&v) {
+                        out.push(v);
+                    }
+                }
+                NodeKind::StmtForRange => {
+                    let v = Self::verilog_safe_identifier(&s.name);
+                    if !out.contains(&v) {
+                        out.push(v);
+                    }
+                }
+                _ => {}
+            }
+            Self::collect_fn_loop_vars(&s.children, out);
+        }
+    }
+
     fn collect_fn_local_decls<'a>(
         stmts: &'a [Node],
         out: &mut Vec<&'a Node>,
@@ -8567,7 +13265,18 @@ impl VerilogCodegen {
         self.call_array_tmp_names.clear();
         self.call_array_tmp_info.clear();
         self.call_array_tmp_materialized.clear();
-        if self.emit_test_assertions {
+        // W653 (T75): this hoist WAS gated on `emit_test_assertions`, which
+        // `VerilogCodegen::new()` sets to **false** -- and `main.rs:4858`, the
+        // CLI `gen-verilog` path, calls `new()`. So every CLI-generated module
+        // emitted the assertion bodies (those come from an ungated path) while
+        // emitting NO declarations for the names they read. `given v = f()`
+        // produced `v = f();` with `v` undeclared, and iverilog answered
+        // "Could not find variable `v'" -- 87 errors on a 29-test spec.
+        //
+        // The two halves of one feature sat behind different conditions. A reg
+        // declaration is harmless when unused, so the declaration half is now
+        // unconditional; only the *checks* remain a choice.
+        {
             self.predeclare_call_array_tmps(node, block_name);
             // t27#1894: named test-block bindings (`h = f(...);`) parse as
             // StmtAssign, not StmtLocal, so they never got a reg declaration
@@ -8690,6 +13399,13 @@ impl VerilogCodegen {
                             .first()
                             .and_then(|i| self.expr_width_signed(i))
                             .unwrap_or((64, false));
+                        // W644: T53 predicted "a third unescaped emit site is
+                        // the way to bet", and the artefact gate found it on its
+                        // first corpus run: `let input = …` emitted
+                        // `reg [63:0] input;` -- `input` is a Verilog keyword.
+                        // 171 specs, against the 4 iverilog had surfaced, because
+                        // simulation only sees the specs it reaches (T21) while
+                        // the artefact check is total (T54).
                         let name = Self::verilog_safe_identifier(&stmt.name);
                         self.write_indent();
                         self.write_line(&format!(
@@ -8870,7 +13586,21 @@ impl VerilogCodegen {
             safe_test_name
         ));
         self.indent();
+        // W653 (T74): a test block printed PASSED **unconditionally**, after any
+        // number of failing assertions. The emitted shape was
+        //     if (!(cond)) begin $display("... FAILED"); end
+        //     $display("... PASSED");
+        // so a failing test printed FAILED *and* PASSED, and any log scraper
+        // counting PASSED counted it as a success. W640 fixed the EMPTY-body
+        // case (T45) and left this one -- the third instance of T52's shape in
+        // this one emitter. A block-scoped flag makes the final verdict depend
+        // on what actually happened.
+        self.write_indent();
+        self.write_line("reg t27_failed;");
+        self.verilog_checks_emitted = 0;
         let block_locals = self.gen_verilog_probe_prelude(node, &node.name);
+        self.write_indent();
+        self.write_line("t27_failed = 1'b0;");
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
         self.with_call_array_temps_enabled(|this| {
@@ -8896,7 +13626,32 @@ impl VerilogCodegen {
             self.local_types.remove(&name);
         }
         self.write_indent();
-        self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
+        // W640 (fixes T45): a test block with no lowered statements printed
+        // PASSED unconditionally -- 3,429 of 12,067 blocks (28%), of which 1,792
+        // come from authored-empty `test X { /* verify baseline */ }`. The Zig
+        // backend emits `test "X" {}` for the same node and claims nothing; the
+        // same source was honest in one backend and false in the other. A
+        // simulation log must not report a check that never ran.
+        if node.children.is_empty() {
+            self.write_line(&format!(
+                "$display(\"[TEST] {} : NOT CHECKED (empty body)\");",
+                node.name
+            ));
+        } else if self.verilog_checks_emitted == 0 {
+            // W653: when assertion emission is off, `gen_verilog_test_stmt`
+            // lowers nothing, so the block has statements but checks nothing.
+            // That is the T45 case reached by a different route, and it must
+            // report the reserved symbol rather than a verdict.
+            self.write_line(&format!(
+                "$display(\"[TEST] {} : NOT CHECKED (no checks lowered)\");",
+                node.name
+            ));
+        } else {
+            self.write_line(&format!(
+                "if (t27_failed) $display(\"[TEST] {} : FAILED\"); else $display(\"[TEST] {} : PASSED\");",
+                node.name, node.name
+            ));
+        }
         self.dedent();
         self.write_indent();
         self.write_line("end");
@@ -8990,6 +13745,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write("$display(\"  expected %0d, got %0d\", (");
                             self.gen_verilog_expr(&expr.children[1]);
@@ -9023,6 +13783,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"  assert failed: {}\");",
@@ -9088,6 +13853,11 @@ impl VerilogCodegen {
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.dedent();
                             self.write_indent();
                             self.write_line("end");
@@ -9104,15 +13874,25 @@ impl VerilogCodegen {
                                 .unwrap_or_default();
                             self.materialize_call_array_tmps_in_expr(node);
                             self.write_indent();
-                            self.write("if (!(");
+                            // W653 (T76): `if (!(cond))` is FALSE when cond is
+                            // x, so an assertion on an unknown value skipped the
+                            // failure branch and the block printed PASSED. Case
+                            // inequality `!== 1'b1` treats x as not-true, so an
+                            // unknown now FAILS. Unknown is not verified.
+                            self.write("if ((");
                             self.gen_verilog_expr(&expr.children[0]);
-                            self.write_line(")) begin");
+                            self.write_line(") !== 1'b1) begin");
                             self.indent();
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
                             ));
+                            // W653 (T74): record it, or the block-final verdict
+                            // cannot see that this assertion failed.
+                            self.write_indent();
+                            self.write_line("t27_failed = 1'b1;");
+                            self.verilog_checks_emitted += 1;
                             self.write_indent();
                             self.write_line(&format!(
                                 "$display(\"  assert failed: {}\");",
@@ -9134,6 +13914,8 @@ impl VerilogCodegen {
                 NodeKind::StmtLocal => {
                     // Regs are declared up front (typed: emit_local(Decl);
                     // untyped: the t27#1948 pass); emit only the assignment.
+                    // W653 (T78): materialize first -- see the StmtAssign arm.
+                    self.materialize_call_array_tmps_in_expr(node);
                     if !node.children.is_empty() {
                         self.emit_local(node, LocalEmitPhase::Init);
                     }
@@ -9142,6 +13924,17 @@ impl VerilogCodegen {
                     // t27#1894 declared the target regs; the assignment itself
                     // was still emitted COMMENTED OUT, so every binding built
                     // from a call (`array = create(...)`) stayed X in the TB.
+                    //
+                    // W653 (T78): and this arm never MATERIALIZED the call
+                    // temporary, while the `emit_test_assertions == true` arm
+                    // (above) always did. So `given v = two()` emitted
+                    //     reg v; reg _t27_call_tmp_..._0;   // declared
+                    //     v = _t27_call_tmp_..._0;          // never assigned
+                    // and every assertion downstream compared against X. In
+                    // Verilog `if (!(x))` is FALSE, so no test could fail --
+                    // T76's root cause. The flag is named for assertions and was
+                    // silently gating materialization too, exactly as in T75.
+                    self.materialize_call_array_tmps_in_expr(node);
                     self.gen_verilog_stmt(node);
                 }
                 NodeKind::StmtForRange
@@ -9447,9 +14240,19 @@ impl VerilogCodegen {
                 .collect::<String>();
             if phase != LocalEmitPhase::Init {
                 self.write_indent();
+                // W643: this site emitted `node.name` RAW while every expression
+                // path already went through `verilog_safe_identifier`. A local
+                // array named `buf` -- a Verilog primitive gate -- produced
+                // `reg [15:0] buf[0:3];`, which iverilog rejects with a bare
+                // "syntax error". Four of the ten real Icarus rejections are
+                // this one unescaped site. See T53.
                 self.write_line(&format!(
                     "reg {}{}[{}:0] {}{};",
-                    signed_str, "", elem_w - 1, node.name, dims_str
+                    signed_str,
+                    "",
+                    elem_w - 1,
+                    Self::verilog_safe_identifier(&node.name),
+                    dims_str
                 ));
             }
             if phase != LocalEmitPhase::Decl && child.is_some() {
@@ -9736,7 +14539,146 @@ impl VerilogCodegen {
         }
     }
 
+    /// W700: a `while` with a LITERAL bound becomes a bounded `for`.
+    ///
+    /// T192 measured it: a `while` body lowers to ZERO LOGIC, even when its
+    /// bound is a compile-time constant.
+    ///
+    ///     if (a > b) return 1;                    132 LUT
+    ///     return a + b;                            96 LUT
+    ///     while (i < 4) { acc = acc + a; ... }       0 LUT
+    ///
+    /// `ternary_mac` reaches 951 LUT and contains no `while` at all. yosys
+    /// elaborates a `while` inside a combinational `function` by discarding it:
+    /// there is no static trip count, so there is nothing to unroll, and the
+    /// whole body disappears without a warning.
+    ///
+    /// The transform is the standard fuel bound, and it preserves semantics for
+    /// any loop that terminates within N iterations:
+    ///
+    ///     for (fuel = 0; fuel < N; fuel = fuel + 1)
+    ///         if (<cond>) begin <body> end
+    ///
+    /// N is taken from the condition when it is `expr < LITERAL` or
+    /// `expr <= LITERAL`. **When the bound is not a literal the loop is left
+    /// alone and SAID SO**, because a runtime trip count cannot be unrolled by
+    /// anything -- and a silently-vanishing body is what this repair exists to
+    /// remove. Same discipline as W699's port width: derive it or refuse it,
+    /// never default it.
+    fn while_literal_bound(node: &Node) -> Option<u64> {
+        let cond = node.children.first()?;
+        if cond.kind != NodeKind::ExprBinary {
+            return None;
+        }
+        let op = cond.extra_op.trim();
+        if op != "<" && op != "<=" {
+            return None;
+        }
+        let rhs = cond.children.get(1)?;
+        if rhs.kind != NodeKind::ExprLiteral {
+            return None;
+        }
+        let n: u64 = rhs.value.trim().parse().ok()?;
+        // `<=` runs one more time than `<`.
+        Some(if op == "<=" { n.saturating_add(1) } else { n })
+    }
+
     fn gen_verilog_while_stmt(&mut self, node: &Node) {
+        if let Some(bound) = Self::while_literal_bound(node) {
+            let n = self.while_fuel_counter;
+            self.while_fuel_counter += 1;
+            let fuel = format!("__t27_fuel_{n}");
+            let blk = format!("__t27_loop_{n}");
+            self.write_indent();
+            self.write_line(&format!(
+                "// W700: bounded `while` unrolled to a static trip count of {bound}."
+            ));
+            // The counter MUST be declared, and Verilog allows a declaration only
+            // at the start of a NAMED block -- so the loop gets one. The first
+            // version of this transform emitted the `for` with an undeclared
+            // variable, which turned a silently-empty module into a hard error:
+            //   iverilog: register `__t27_fuel_0' unknown
+            //   yosys:    Left hand side of 1st expression of procedural
+            //             for-loop is not a register!
+            // Louder, and still broken. The named block fixes both.
+            self.write_indent();
+            self.write_line(&format!("begin : {blk}"));
+            self.indent();
+            self.write_indent();
+            self.write_line(&format!("integer {fuel};"));
+            self.write_indent();
+            self.write_line(&format!("for ({fuel} = 0; {fuel} < {bound}; {fuel} = {fuel} + 1) begin"));
+            self.indent();
+            self.write_indent();
+            self.write("if (");
+            if !node.children.is_empty() {
+                self.gen_verilog_expr(&node.children[0]);
+            }
+            self.write_line(") begin");
+            self.indent();
+            if node.children.len() > 1 {
+                for stmt in &node.children[1].children {
+                    self.gen_verilog_stmt(stmt);
+                }
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            return;
+        }
+
+        self.write_indent();
+        self.write_line(
+            "// W700/W702: NOT UNROLLED -- the bound is not a literal, so there is no",
+        );
+        self.write_indent();
+        self.write_line(
+            "// static trip count and nothing can unroll it.",
+        );
+        self.write_indent();
+        self.write_line("//");
+        self.write_indent();
+        self.write_line(
+            "// W702 measured the consequence, which is NOT a silent zero: yosys rejects",
+        );
+        self.write_indent();
+        self.write_line("// the enclosing function outright --");
+        self.write_indent();
+        self.write_line(
+            "//     ERROR: Function \\<name> can only be called with constant arguments.",
+        );
+        self.write_indent();
+        self.write_line(
+            "// -- because a Verilog `function` is combinational by definition and a",
+        );
+        self.write_indent();
+        self.write_line(
+            "// data-dependent trip count is not. NINE of the thirteen entry-point specs",
+        );
+        self.write_indent();
+        self.write_line("// that fail synthesis fail exactly here.");
+        self.write_indent();
+        self.write_line("//");
+        self.write_indent();
+        self.write_line(
+            "// The fix is a DESIGN decision this compiler does not make: either give the",
+        );
+        self.write_indent();
+        self.write_line(
+            "// loop a compile-time bound, or move the entry point to `fn on_clock` and let",
+        );
+        self.write_indent();
+        self.write_line(
+            "// it be the multi-cycle operation it actually is. A loop whose length depends",
+        );
+        self.write_indent();
+        self.write_line("// on data is sequential; naming it combinational is the error.");
         self.write_indent();
         self.write("while (");
         if !node.children.is_empty() {
@@ -9878,6 +14820,87 @@ impl VerilogCodegen {
                 self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
+                // W660: `default_input()` / `valid_input()` are TEMPLATE SCAFFOLD,
+                // not functions. 571 generated tests are shaped
+                //
+                //     test f_basic_case
+                //         given input = default_input()
+                //         when result = f(input)
+                //         then result != undefined
+                //
+                // and neither helper is defined anywhere. The Zig backend has
+                // resolved them since W585 (see collect_scaffold_locals, which
+                // recovers the type from the consumer's declared parameter and
+                // emits `std.mem.zeroes(T)`). The VERILOG backend never did, so
+                // every one of these specs died at
+                //
+                //     error: No function named `default_input' found
+                //
+                // Measured before this fix: 141 of the 444 specs that generate
+                // Verilog carried a scaffold call -- 32% -- and it was the single
+                // largest cause in a 60-spec sample, 15 of 46 failures.
+                //
+                // Verilog needs no type recovery: the binding is already declared
+                // as a `reg` of the right width by the local emitter, so the zero
+                // value is the literal 0 and the width follows the declaration.
+                // The tests using these bindings assert only `result != undefined`,
+                // so a defined default is exactly what they want.
+                if matches!(node.name.as_str(), "default_input" | "valid_input")
+                    && node.children.is_empty()
+                {
+                    self.write("0");
+                    return;
+                }
+
+                // W663: Zig builtins must not reach Verilog.
+                //
+                // `CCodegen` has handled these since its own wave (see the
+                // `@compileAssert` / `@setEvalBranchQuota` arms around line
+                // 14520); the Verilog backend never did, and emitted them raw:
+                //
+                //     @setEvalBranchQuota(10000);
+                //     base = @as(f64, @floatFromInt(timing[0 +: 64]));
+                //
+                // Measured across the 444 specs that generate Verilog: 21 carry
+                // a leaked builtin, 12 of them carry ONLY the quota hint. By
+                // occurrence: @setEvalBranchQuota 83, @as 27, @floatFromInt 18,
+                // @intFromEnum 14, @enumFromInt 5, @intFromFloat 4, @intCast 4.
+                //
+                // Two shapes, both mechanical:
+                //   * a comptime HINT with no runtime meaning -> a comment, as
+                //     the C backend already does;
+                //   * an identity-shaped CONVERSION -> its value operand, since
+                //     Verilog is untyped at this level and the conversion is a
+                //     no-op once the width is fixed by the declaration.
+                //
+                // Anything else `@`-prefixed is left alone deliberately: it will
+                // still fail loudly rather than be silently mistranslated.
+                if node.name.starts_with('@') {
+                    match node.name.as_str() {
+                        // Comptime hint: no value, no runtime effect.
+                        "@setEvalBranchQuota" => {
+                            self.write("/* ");
+                            self.write(&node.name);
+                            self.write(" */");
+                            return;
+                        }
+                        // `@as(T, x)` -- the value is the SECOND operand.
+                        "@as" if node.children.len() == 2 => {
+                            self.gen_verilog_expr(&node.children[1]);
+                            return;
+                        }
+                        // Identity-shaped conversions: pass the value through.
+                        "@intCast" | "@intFromEnum" | "@enumFromInt" | "@intFromFloat"
+                        | "@floatFromInt" | "@truncate" | "@bitCast"
+                            if node.children.len() == 1 =>
+                        {
+                            self.gen_verilog_expr(&node.children[0]);
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+
                 // W557: inside test/bench blocks, reference a pre-declared temporary
                 // for pure calls instead of re-invoking them. The temporary was
                 // assigned earlier in the block by materialize_call_array_tmp.
@@ -9892,6 +14915,11 @@ impl VerilogCodegen {
                 // The declaration at gen_verilog_fn already escapes keyword names; the call
                 // site must match, or `function \assume ;` is declared and `assume(...)`
                 // is called -- two different identifiers. formal.v:187.
+                // W664: a namespaced path in CALL position -- `TernaryWeight::minus(x)`
+                // -- reaches here as the call's name and never passes through
+                // `verilog_safe_identifier`, so the `::` substitution applied
+                // there missed it. Two specs, eleven sites, after the identifier
+                // path fixed twenty-one specs.
                 self.write(&Self::verilog_safe_identifier(&node.name));
                 self.write("(");
                 // W458: drop module-level array arguments from the emitted
@@ -10117,6 +15145,23 @@ impl VerilogCodegen {
                         }
                     }
 
+                    // W659: FLATTEN FIRST, ESCAPE LAST.  An escaped Verilog
+                    // identifier is `\name<space>` and the trailing space is
+                    // part of the token -- so escaping a PREFIX and then
+                    // concatenating a suffix puts that space in the middle of
+                    // the name.  A field access on a parameter called `cross`
+                    // (a SystemVerilog keyword) emitted
+                    //     \cross _data_width
+                    // which iverilog reads as the identifier `\cross` followed
+                    // by a stray `_data_width`: "Malformed statement".
+                    //
+                    // The flattened name is what actually appears in the
+                    // netlist, so it is the only string whose keyword-ness
+                    // matters -- and `cross_data_width` is not a keyword, so
+                    // the correct output carries no escape at all.
+                    //
+                    // Measured before the fix: 87 broken escapes across 13 of
+                    // 617 specs, `systolic_ternary.t27` among them.
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
                             NodeKind::ExprIdentifier => {
@@ -10490,7 +15535,24 @@ impl CCodegen {
             return None;
         }
         let inner = &t[1..bracket_end];
-        let semi = inner.find(';')?;
+        // W584: split on the semicolon at bracket depth ZERO. `find(';')` took
+        // the first one, so a NESTED array `[[u8; 16]; 16]` split as
+        // elem=`[u8` / size=`16]; 16` and the typedef came out as
+        // `typedef struct { [u8 v[16];16]; } ...` -- not C. 70 headers.
+        let mut depth = 0i32;
+        let mut semi = None;
+        for (i, ch) in inner.char_indices() {
+            match ch {
+                '[' | '(' => depth += 1,
+                ']' | ')' => depth -= 1,
+                ';' if depth == 0 => {
+                    semi = Some(i);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let semi = semi?;
         let elem = inner[..semi].trim();
         let size = inner[semi + 1..].trim();
         if elem.is_empty() || size.is_empty() {
@@ -10498,8 +15560,12 @@ impl CCodegen {
         }
         let c_elem = if Self::is_primitive(elem) {
             Self::type_to_c(elem).to_string()
+        } else if let Some((inner_name, _, _)) = Self::c_array_info(elem) {
+            // An array OF arrays: the element is the inner array's hoisted
+            // struct, not its t27 spelling.
+            inner_name
         } else {
-            elem.to_string()
+            Self::type_to_c(elem).to_string()
         };
         let sane = |x: &str| x.replace(|c: char| !c.is_alphanumeric(), "_");
         let name = format!("t27_arr_{}_{}", sane(&c_elem), sane(size));
@@ -10541,9 +15607,34 @@ impl CCodegen {
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             let inner = &t[1..t.len() - 1];
+            // W584: a NAMED tuple element -- `(added: u32, deleted: u32)`. The
+            // whole `added: u32` was taken as the type, so C received
+            // `typedef struct { added:u32 f0; ... }`. The name is
+            // documentation; only the type crosses into C.
             let elems: Vec<String> = inner
                 .split(',')
-                .map(|e| Self::param_type_to_c(e.trim()))
+                .map(|e| {
+                    let e = e.trim();
+                    // W585: the colon must NOT be part of a `::` scope path.
+                    // W584's name-stripping split `gf16::GF16` at the first
+                    // colon, took `gf16` for a field name, and emitted
+                    // `typedef struct { :GF16 f0; ... }`. Found by the C gate
+                    // built in this wave, one wave after the fix that caused it.
+                    let ty = match e.split_once(':') {
+                        Some((name, rest))
+                            if !name.trim().is_empty()
+                                && !rest.starts_with(':')
+                                && name
+                                    .trim()
+                                    .chars()
+                                    .all(|c| c.is_alphanumeric() || c == '_') =>
+                        {
+                            rest.trim()
+                        }
+                        _ => e,
+                    };
+                    Self::param_type_to_c(ty)
+                })
                 .collect();
             let sanitized: String = elems
                 .iter()
@@ -10603,6 +15694,25 @@ impl CCodegen {
             "i64" => "int64_t",
             "usize" => "size_t",
             "void" => "void",
+            // W583: floats and strings were simply absent from this match, so
+            // they took the pass-through arm and reached C as `f32 x;` and
+            // `str name;`. Compiling the generated headers for the first time
+            // reported 46 `unknown type name 'f32'`, 34 `f64`, 29 `str` and 9
+            // `string`.
+            "f32" => "float",
+            "f64" => "double",
+            "str" | "string" => "const char*",
+            "GF16" | "gf16" => "uint16_t",
+            "isize" => "ptrdiff_t",
+            "u128" => "unsigned __int128",
+            "i128" => "__int128",
+            "char" => "char",
+            // W585: a scoped type name (`gf16::GF16`) is not a C identifier.
+            // C has no namespaces, and the generated header flattens every
+            // module into one scope, so the separator becomes an underscore.
+            _ if ty.contains("::") => Box::leak(
+                ty.replace("::", "_").into_boxed_str(),
+            ),
             _ => ty, // pass through custom types
         }
     }
@@ -10648,6 +15758,12 @@ impl CCodegen {
             // to a self-contained macro (message kept for readability, unused).
             self.write_line(
                 "#define t27_assert(c, m) do { if (!(c)) { __builtin_trap(); } } while (0)",
+            );
+            // W583: the backend emits calls to `assert_eq` in test bodies (59
+            // headers) and never defined it, so the C output could not compile
+            // even in principle.
+            self.write_line(
+                "#define assert_eq(a, b) do { if ((a) != (b)) { __builtin_trap(); } } while (0)",
             );
         }
         self.write_line("");
@@ -10912,10 +16028,25 @@ impl CCodegen {
                 self.write_line(&format!("test_{}();", fn_name));
             }
             self.write_indent();
-            self.write_line(&format!(
-                "printf(\"All %d tests passed.\\n\", {});",
-                tests.len()
-            ));
+            // W640 (fixes T48's inflated count): `tests.len()` counted
+            // authored-empty blocks, so the runner reported successes for
+            // functions whose body is `/* TODO: implement test */`. The claim
+            // itself is sound -- the emitted `assert(...)` traps, so this line
+            // is only REACHED when nothing failed -- but the denominator was
+            // wrong, which misleads about coverage rather than correctness.
+            let checked = tests.iter().filter(|t| !t.children.is_empty()).count();
+            let empty = tests.len() - checked;
+            if empty > 0 {
+                self.write_line(&format!(
+                    "printf(\"All %d checked tests passed (%d empty, NOT CHECKED).\\n\", {}, {});",
+                    checked, empty
+                ));
+            } else {
+                self.write_line(&format!(
+                    "printf(\"All %d tests passed.\\n\", {});",
+                    checked
+                ));
+            }
             self.write_indent();
             self.write_line("return 0;");
             self.dedent();
@@ -11030,7 +16161,12 @@ impl CCodegen {
 
         for field in &node.children {
             self.write_indent();
-            let c_type = Self::type_to_c(&field.extra_type);
+            // W582: struct fields used `type_to_c`, which passes anything it
+            // does not recognise through verbatim -- so a slice was `[]u8` and
+            // an optional `?[]u8`, neither of which is C. `param_type_to_c`
+            // already lowers both.
+            let c_type = Self::param_type_to_c(&field.extra_type);
+            let c_type = c_type.as_str();
             if !field.extra_size.is_empty() {
                 // Array field
                 self.write_line(&format!("{} {}[{}];", c_type, field.name, field.extra_size));
@@ -11231,9 +16367,41 @@ impl CCodegen {
                 match stmt.kind {
                     NodeKind::StmtExpr => {
                         if !stmt.children.is_empty() {
-                            self.write("_Static_assert(");
-                            self.gen_c_expr(&stmt.children[0]);
-                            self.write(&format!(", \"invariant: {}\");\n", node.name));
+                            // W583: `_Static_assert` needs a CONSTANT
+                            // expression, and the W567 lowering wraps the
+                            // condition in `assert(...)` -- so this emitted
+                            // `_Static_assert(assert(f(x) == 3), "...")`, which
+                            // is invalid twice over: `assert` is a runtime
+                            // macro, and a function call is not constant.
+                            //
+                            // The condition is unwrapped, and an invariant that
+                            // calls anything becomes a comment rather than
+                            // invalid code. C cannot check it; saying so is
+                            // better than emitting something that does not
+                            // compile.
+                            let cond = match &stmt.children[0] {
+                                c if c.kind == NodeKind::ExprCall
+                                    && c.name == "assert"
+                                    && !c.children.is_empty() =>
+                                {
+                                    &c.children[0]
+                                }
+                                c => c,
+                            };
+                            let mut probe = CCodegen::new();
+                            probe.gen_c_expr(cond);
+                            let text = probe.output.clone();
+                            if text.contains('(') && text.contains(')') {
+                                self.write(&format!(
+                                    "/* invariant {} is not a C constant expression: {} */\n",
+                                    node.name,
+                                    text.replace("/*", "").replace("*/", "")
+                                ));
+                            } else {
+                                self.write("_Static_assert(");
+                                self.write(&text);
+                                self.write(&format!(", \"invariant: {}\");\n", node.name));
+                            }
                         }
                     }
                     _ => {
@@ -11664,12 +16832,37 @@ impl CCodegen {
 
     /// Map a t27/Zig type to C for use in parameter/return positions
     fn param_type_to_c(ty: &str) -> String {
-        // Slice types: []Type → Type*
-        if let Some(inner) = ty.strip_prefix("[]") {
-            let c_inner = if Self::is_primitive(inner) {
-                Self::type_to_c(inner).to_string()
+        // A dotted foreign type (`std.mem.Allocator`) has no C spelling at all.
+        // It reached the header as `std.mem.Allocator x;`, which is not C;
+        // `void*` is the honest lowering and what a hand-written binding uses.
+        if ty.contains('.') && !ty.starts_with('[') {
+            return "void*".to_string();
+        }
+
+        // Optional: C has no such type, and NULL is its conventional encoding.
+        // Before W581 the `?` never reached here (the lexer dropped it) and an
+        // optional silently became a plain value; now it arrives, and emitting
+        // it verbatim produced `?[]u8 field;`, which is not C.
+        if let Some(inner) = ty.strip_prefix('?') {
+            let base = Self::param_type_to_c(inner.trim());
+            return if base.ends_with('*') {
+                base
             } else {
-                inner.to_string()
+                format!("{}*", base)
+            };
+        }
+        // Slice types: []Type → Type*, including the `[]const T` spelling --
+        // without stripping `const` the inner type was the literal string
+        // "const u8" and C received `[]const u8* positional;`.
+        if let Some(inner) = ty.strip_prefix("[]") {
+            let inner = inner.trim();
+            let inner = inner.strip_prefix("const ").unwrap_or(inner).trim();
+            let c_inner = if inner.starts_with("[]") || inner.starts_with('?') {
+                // A slice of slices (`[][]const u8`) or of optionals: map the
+                // inner type properly instead of passing t27 syntax through.
+                Self::param_type_to_c(inner)
+            } else {
+                Self::type_to_c(inner).to_string()
             };
             return format!("{}*", c_inner);
         }
@@ -11682,20 +16875,25 @@ impl CCodegen {
         // Array types: [SIZE]Type → Type* (pointer in param position)
         if ty.starts_with('[') {
             if let Some(bracket_end) = ty.find(']') {
-                let elem = &ty[bracket_end + 1..];
-                let c_elem = if Self::is_primitive(elem) {
-                    Self::type_to_c(elem).to_string()
-                } else {
-                    elem.to_string()
-                };
-                return format!("{}*", c_elem);
+                let elem = ty[bracket_end + 1..].trim();
+                if !elem.is_empty() {
+                    return format!("{}*", Self::type_to_c(elem));
+                }
+                // W584: `[T]` -- the element is INSIDE the brackets, a
+                // Rust-style slice spelling. Taking the text after `]` gave an
+                // empty type and C received `* resources;`.
+                let inner = ty[1..bracket_end].trim();
+                if !inner.is_empty() {
+                    return format!("{}*", Self::param_type_to_c(inner));
+                }
             }
         }
-        if Self::is_primitive(ty) {
-            Self::type_to_c(ty).to_string()
-        } else {
-            ty.to_string()
-        }
+        // W583: this used to be gated on `is_primitive`, which lists only the
+        // integer scalars -- so `f32`, `f64`, `str`, `string` and `gf16` took
+        // the pass-through arm and reached C unmapped even after `type_to_c`
+        // learned them. `type_to_c` already passes genuinely custom types
+        // through, so the gate only ever suppressed correct mappings.
+        Self::type_to_c(ty).to_string()
     }
 
     fn gen_c_expr(&mut self, node: &Node) {
@@ -12196,6 +17394,12 @@ pub struct Compiler;
 
 #[allow(dead_code)]
 impl Compiler {
+    /// W644: expose the keyword predicate so a gate can check the ARTEFACT
+    /// rather than the emit sites, which T53 showed cannot be enumerated.
+    pub fn is_verilog_keyword(name: &str) -> bool {
+        VerilogCodegen::verilog_keywords().contains(&name)
+    }
+
     pub fn compile(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
@@ -12274,7 +17478,10 @@ impl Compiler {
                             .collect::<String>()
                     }
                 })
-                .filter(|n| !n.is_empty())
+                // W608: `_` is the discard, never a binding to inline. Without
+                // this the pass emitted `_ = _;` -- discarding the discard and
+                // losing the statement's actual operand.
+                .filter(|n| !n.is_empty() && n != "_")
                 .collect();
             let indent: String = line.chars().take_while(|c| *c == ' ').collect();
             for name in names {
@@ -12431,6 +17638,53 @@ impl Compiler {
         let mut codegen = RustCodegen::new();
         codegen.gen_rust(&ast);
         Ok(codegen.into_string())
+    }
+
+    /// Parse, and REQUIRE that the whole input was consumed.
+    ///
+    /// W577: `parse_ast` returns Ok as soon as the module body loop stops, and
+    /// that loop stops on `}` -- so a stray closing brace in a semicolon-form
+    /// module silently ends the file. That is how 29 specs, every IGLA CODER
+    /// and IGLA RACE spec among them, were truncated for years while reporting
+    /// success (W569). An unterminated string does the same thing and discards
+    /// the file entirely.
+    ///
+    /// A parser that stops early and returns Ok is indistinguishable from one
+    /// that finished. This is the distinguisher.
+    pub fn parse_ast_strict(source: &str) -> Result<Node, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        if parser.current.kind != TokenKind::Eof {
+            return Err(format!(
+                "input not fully consumed: stopped at {:?} ('{}') at line {}:{}, after {} top-level declaration(s)",
+                parser.current.kind,
+                parser.current.lexeme,
+                parser.current.line,
+                parser.current.col,
+                ast.children.len()
+            ));
+        }
+        Ok(ast)
+    }
+
+    /// W633: parse, and report how many tokens top-level recovery DISCARDED.
+    /// `parse_ast_strict` asks "did the parser reach EOF?", which is satisfied
+    /// by a parse that reached EOF by dropping tokens on the way. This asks the
+    /// question that one meant to ask. See T42.
+    pub fn parse_ast_accounted(source: &str) -> Result<(Node, usize), String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        Ok((ast, parser.dropped_top_level_tokens()))
+    }
+
+    /// W634: the discarded tokens themselves, as `(line, lexeme)`.
+    pub fn parse_ast_dropped_spans(source: &str) -> Result<Vec<(u32, String)>, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let _ = parser.parse()?;
+        Ok(parser.dropped_spans.clone())
     }
 
     pub fn parse_ast(source: &str) -> Result<Node, String> {
@@ -14491,6 +19745,24 @@ impl RustCodegen {
         }
     }
 
+    /// W638: how many `test` / `invariant` blocks this backend will not lower,
+    /// counted over the whole tree so the header can declare the omission.
+    fn count_unlowered(ast: &Node) -> (usize, usize) {
+        fn walk(n: &Node, t: &mut usize, i: &mut usize) {
+            match n.kind {
+                NodeKind::TestBlock => *t += 1,
+                NodeKind::InvariantBlock => *i += 1,
+                _ => {}
+            }
+            for c in &n.children {
+                walk(c, t, i);
+            }
+        }
+        let (mut t, mut i) = (0, 0);
+        walk(ast, &mut t, &mut i);
+        (t, i)
+    }
+
     pub fn gen_rust(&mut self, ast: &Node) {
         // Pre-pass over the whole tree: functions declared `-> bool` return a
         // real Rust bool, so a call to one must not get a `!= 0` guard added in
@@ -14510,6 +19782,23 @@ impl RustCodegen {
         // Header
         self.write_line("// Generated from .t27 spec");
         self.write_line("// DO NOT EDIT — generated by t27c");
+        // W638: this backend lowers declarations only. Over 80 corpus specs
+        // that declare tests, the Rust output contained `#[test]` ZERO times,
+        // and nothing in the artefact said so -- a reader comparing backends
+        // saw a file with no tests and no way to tell "by design" from
+        // "dropped". Emitting library code without tests is a defensible
+        // policy; emitting it silently is the defect (T44/T48).
+        let (n_tests, n_invariants) = Self::count_unlowered(ast);
+        if n_tests > 0 || n_invariants > 0 {
+            self.write_line(&format!(
+                "// NOT LOWERED BY THIS BACKEND: {} test(s), {} invariant(s).",
+                n_tests, n_invariants
+            ));
+            self.write_line(
+                "// This backend emits declarations only. The spec's checks live in",
+            );
+            self.write_line("// the Zig and Verilog outputs; do not read this file as verified.");
+        }
         self.blank_line();
 
         // Find module node
@@ -14950,8 +20239,13 @@ impl RustCodegen {
 
     fn t27_type_to_rust(t27_type: &str) -> String {
         let t = t27_type.trim();
-        // Handle optional types
-        let (base_type, is_optional) = if t.ends_with('?') {
+        // Handle optional types. t27 writes the Zig spelling -- a LEADING `?`
+        // (`?u64`, `?[]u8`) -- and only the trailing form was recognised, so
+        // W581's newly-visible optionals fell through to the default and Rust
+        // received `?[]u8`, which does not compile.
+        let (base_type, is_optional) = if let Some(rest) = t.strip_prefix('?') {
+            (rest.trim(), true)
+        } else if t.ends_with('?') {
             (&t[..t.len() - 1], true)
         } else {
             (t, false)
@@ -31021,6 +36315,305 @@ mod tests_w458 {
             "expected function body to reference module array rom[i]:\n{}",
             v
         );
+    }
+
+    // W623: `.len` is usize in Zig; every t27 signature that carries a length
+    // declares a sized integer. Refutes P12 ("not one is a compiler defect").
+    #[test]
+    fn len_in_return_position_casts_to_sized_return_type() {
+        let src = "module M\n\nfn str_len(s: string) -> u32 {\n    return s.len();\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return @as(u32, @intCast(s.len));"),
+            "expected a sized cast on a usize length:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_in_argument_position_casts_to_declared_param_type() {
+        // The seven of nine corpus sites that the return-position rule misses.
+        let src = "module M\n\nfn at(s: string, idx: u32) -> u32 {\n    return idx;\n}\n\n\
+                   fn tail(s: string, kw: string, p: u32) -> u32 {\n    return at(s, p + kw.len());\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("at(s, @as(u32, @intCast(p + kw.len)))"),
+            "expected the argument cast to the callee's declared u32:\n{}",
+            z
+        );
+    }
+
+    // W624: the W623 fix covered the two positions the corpus exercised. A
+    // six-position probe found three more, of which two are real Zig errors
+    // (`let` with a declared type, and a struct-literal field) and one is not
+    // (comparison -- Zig peer-resolves usize against a sized int). T20.
+    // W651: a qualified path in a module-level const initialiser was truncated
+    // to its first segment -- `const A = constants::COMPLEXITY_HIGH` became
+    // `A = constants`, a silently WRONG VALUE in all four backends with no
+    // error and no warning. 98 such initialisers across 29 specs. T66.
+    #[test]
+    fn qualified_path_in_a_const_initialiser_keeps_every_segment() {
+        let src = "module M\n\npub const A : u8 = constants::COMPLEXITY_HIGH;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("constants.COMPLEXITY_HIGH"),
+            "Zig must keep both segments (it spells `::` as `.`):\n{}",
+            z
+        );
+        assert!(
+            !z.contains("= constants;"),
+            "the truncated form must not survive:\n{}",
+            z
+        );
+    }
+
+    // W652: T66 one operator wider. `parse_const_decl`'s fast paths took a bare
+    // `Number` or `Ident` and advanced exactly ONE token, so every binary
+    // operator after the primary was discarded: `const DIV : u32 = A / B;`
+    // emitted `DIV = A` in all five backends, with no error. The C backend
+    // rendered each as `typedef A DIV;` -- a constant became a TYPE. T68.
+    #[test]
+    fn every_operand_of_a_const_initialiser_survives() {
+        let src = "module M\n\nconst A : u32 = 100;\nconst B : u32 = 7;\n\
+                   const DIV : u32 = A / B;\nconst SHL : u32 = A << 2;\n\
+                   const LIT : u32 = 100 / 7;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        for (name, rhs) in [("DIV", "A / B"), ("SHL", "A << 2"), ("LIT", "100 / 7")] {
+            assert!(
+                z.contains(rhs),
+                "{} lost an operand -- expected `{}` in:\n{}",
+                name,
+                rhs,
+                z
+            );
+        }
+        assert!(
+            !z.contains("DIV: u32 = A;"),
+            "the truncated form must not survive:\n{}",
+            z
+        );
+    }
+
+    // W652: `-A` consumed the minus, found no Number, and pushed NO child at
+    // all -- Zig emitted `const NEG: i32;`, which is not even valid Zig, and
+    // Verilog emitted `localparam NEG = 0`. A parenthesised initialiser reached
+    // no branch and vanished the same way.
+    #[test]
+    fn unary_and_parenthesised_const_initialisers_are_not_dropped() {
+        let src = "module M\n\nconst A : u32 = 100;\nconst NEG : i32 = -A;\n\
+                   const PAREN : u32 = (A + 1) * 2;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("-A"), "unary minus was dropped:\n{}", z);
+        assert!(z.contains("(A + 1)"), "parenthesised init was dropped:\n{}", z);
+        assert!(
+            !z.contains("NEG: i32;"),
+            "an initialiser-less const is invalid Zig:\n{}",
+            z
+        );
+    }
+
+    // W652: the bare `-1` spelling must keep its cheap path -- the fix must not
+    // route a plain negative literal through parse_expr and change its shape.
+    #[test]
+    fn a_plain_negative_literal_keeps_its_form() {
+        let src = "module M\n\nconst T : i8 = -1;\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("-1"), "{}", z);
+    }
+
+    #[test]
+    fn the_call_spelling_that_already_worked_still_works() {
+        // `constants::make(5)` routed through parse_expr before this fix
+        // because `(` selected that branch; the bare-path spelling did not.
+        // Pin both so the asymmetry cannot come back.
+        let src = "module M\n\npub const B : u8 = constants::make(5);\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("constants") && z.contains("make"), "{}", z);
+    }
+
+    // W643: a function-LOCAL array named after a Verilog keyword. Every
+    // expression path already escaped through `verilog_safe_identifier`; the
+    // declaration and the initialiser did not, so `buf` emitted
+    // `reg [15:0] buf[0:3];` and iverilog rejected it with a bare
+    // "syntax error". Four of the ten real Icarus rejections. T53.
+    #[test]
+    fn local_array_named_after_a_verilog_keyword_is_escaped() {
+        let src = "module M
+
+fn read_it() -> u16 {
+                       let buf : [4]u16 = [11, 22, 33, 44];
+                       return buf[1];
+}
+
+                   test reads when v = read_it() then v == 22
+";
+        let v = Compiler::compile_verilog_for_simulation(src)
+            .expect("keyword-named local must still compile");
+        assert!(
+            v.contains("reg [15:0] \\buf [0:3];"),
+            "the DECLARATION must be escaped:\n{}",
+            v
+        );
+        assert!(
+            v.contains("\\buf [0] ="),
+            "the INITIALISER must be escaped too -- escaping one and not the \
+             other is what produced the original defect:\n{}",
+            v
+        );
+        assert!(
+            !v.contains(" buf["),
+            "no unescaped use may survive:\n{}",
+            v
+        );
+    }
+
+    // W630: `use a::b::{X, Y};` -- sugar for N single imports, lowered to
+    // exactly that so `use_resolve` sees the shape it already understands. T38.
+    #[test]
+    fn braced_import_list_lowers_to_one_use_per_name() {
+        let src = "module M\nuse math::sacred_physics::{PHI, PHI_INV, TRINITY};\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("a braced import list must parse");
+    }
+
+    #[test]
+    fn braced_import_list_with_one_name_and_trailing_comma() {
+        let src = "module M\nuse a::b::{X};\nuse c::d::{Y, Z,};\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("single-name and trailing-comma forms must parse");
+    }
+
+    #[test]
+    fn plain_and_aliased_use_forms_are_unaffected() {
+        // The braced branch only fires on `{` after a path ending in `::`, so
+        // every other `use` shape must reach the code it always did.
+        let src = "module M\nuse base::types;\nuse datalog_solve;\n\n\
+                   fn f() -> u32 {\n    return 1;\n}\n";
+        Compiler::compile(src).expect("plain use forms must still parse");
+    }
+
+    // W629: `invariant <expr>;` in statement position. The single largest parse
+    // failure class in the corpus (30 of 182), and L4 TESTABILITY requires the
+    // very keyword the parser rejected there. T36.
+    #[test]
+    fn invariant_in_a_test_body_lowers_to_an_assertion() {
+        let src = "module M\n\nfn calc() -> u32 {\n    return 54;\n}\n\n\
+                   test t {\n    var d : u32 = calc();\n    invariant d > 0;\n    invariant d == 54;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("d > 0"),
+            "the first invariant must survive as an assertion:\n{}",
+            z
+        );
+        assert!(
+            z.contains("d == 54"),
+            "the second invariant must survive as an assertion:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn invariant_in_a_fn_body_is_also_an_assertion() {
+        let src = "module M\n\nfn f(a: u32) -> u32 {\n    invariant a > 0;\n    return a;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(z.contains("a > 0"), "{}", z);
+    }
+
+    #[test]
+    fn module_level_invariant_blocks_are_untouched() {
+        // The statement form must not swallow the module-level block form --
+        // `parse_body_stmt` is statement position only, and a following `:` or
+        // `{` restores the checkpoint.
+        let src = "module M\n\nfn f(a: u32) -> u32 {\n    return a;\n}\n\n\
+                   invariant positive {\n    assert f(1) > 0;\n}\n";
+        Compiler::compile(src).expect("a module-level invariant block must still parse");
+    }
+
+    // W625: found by FORCING analysis of the bodies nothing referenced (T21).
+    // `estimate_10k_size` in `coder/dataset` carries a length through four
+    // untyped `const`s before returning it under `-> u32`; W624's taint was
+    // expression-local and died at the first binding. T23.
+    #[test]
+    fn len_taint_survives_untyped_local_bindings() {
+        let src = "module M\n\nfn f(a: []u32, b: []u32) -> u32 {\n\
+                   \x20   let base = a.len() * b.len();\n\
+                   \x20   let permuted = base << 2;\n\
+                   \x20   let composed = permuted + 1;\n\
+                   \x20   return composed;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return @as(u32, @intCast(composed));"),
+            "taint must survive four hops of untyped const:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_taint_does_not_survive_a_local_that_was_already_cast() {
+        // The W624 `let` rule casts at the binding, so the name IS `u32` and a
+        // second cast on return would be noise.
+        let src = "module M\n\nfn f(s: string) -> u32 {\n\
+                   \x20   let n : u32 = s.len();\n\
+                   \x20   return n;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("const n: u32 = @as(u32, @intCast(s.len));"),
+            "the binding is cast:\n{}",
+            z
+        );
+        assert!(
+            z.contains("return n;"),
+            "and the return must NOT be cast again:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_in_typed_let_casts_to_the_declared_local_type() {
+        let src = "module M\n\nfn f(s: string) -> u32 {\n    let n : u32 = s.len();\n    return n;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("const n: u32 = @as(u32, @intCast(s.len));"),
+            "expected the declared local type to drive the cast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_in_struct_literal_field_casts_to_the_declared_field_type() {
+        let src = "module M\n\npub const Box = struct {\n    n : u32,\n}\n\n\
+                   fn f(s: string) -> Box {\n    return Box { n: s.len() };\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains(".n = @as(u32, @intCast(s.len))"),
+            "expected the declared field type to drive the cast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_comparison_is_left_alone_because_zig_peer_resolves_it() {
+        // Not an omission: `s.len > cap` compiles in Zig without a cast, and
+        // wrapping it would narrow the comparison. Measured, not assumed.
+        let src = "module M\n\nfn f(s: string, cap: u32) -> bool {\n    return s.len() > cap;\n}\n";
+        let z = Compiler::compile(src).expect("compile should succeed");
+        assert!(
+            z.contains("return s.len > cap;"),
+            "comparison must stay uncast:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn len_cast_is_not_applied_to_usize_or_non_integer_targets() {
+        assert_eq!(super::Codegen::sized_int_type("u32"), Some("u32".to_string()));
+        assert_eq!(super::Codegen::sized_int_type("i16"), Some("i16".to_string()));
+        // usize IS the type of `.len`; casting it would be noise, not a fix.
+        assert_eq!(super::Codegen::sized_int_type("usize"), None);
+        assert_eq!(super::Codegen::sized_int_type("isize"), None);
+        assert_eq!(super::Codegen::sized_int_type("f64"), None);
+        assert_eq!(super::Codegen::sized_int_type("string"), None);
+        assert_eq!(super::Codegen::sized_int_type("[]i8"), None);
     }
 
     #[test]

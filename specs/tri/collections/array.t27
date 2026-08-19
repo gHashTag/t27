@@ -60,13 +60,13 @@ module TriArray;
         // TODO: Implement from .tri spec
     }
 
-    // reverse(allocator: Std.mem.Allocator) → void
-    fn reverse(allocator: Std.mem.Allocator) -> void {
+    // reverse(allocator: std.mem.Allocator) → void
+    fn reverse(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // concat(allocator: Std.mem.Allocator) → void
-    fn concat(allocator: Std.mem.Allocator) -> void {
+    // concat(allocator: std.mem.Allocator) → void
+    fn concat(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

@@ -1,0 +1,218 @@
+{
+ "slug": "fifty-eight-percent-belongs-to-the-substrate",
+ "title": "58% of every LUT belongs to the substrate, not the design",
+ "summary": "A ternary neuron reading three symbols needs 27 table entries. The binary LUT6 holding it has 64. We had been measuring our datapath in the units of the machine we happened to own, and the moment we recounted in trits the project's founding choice turned out to be the optimal one.",
+ "date": "2026-08-15",
+ "readingMinutes": 7,
+ "tags": [
+  "ternary",
+  "fpga",
+  "radix",
+  "measurement",
+  "trits"
+ ],
+ "published": true,
+ "receipts": [
+  {
+   "label": "T367-T370 — the ternary accounting, in the theorem file",
+   "href": "https://github.com/gHashTag/t27/blob/master/docs/theory/IGLA-FORMAL-RESULTS.md"
+  },
+  {
+   "label": "t27#2173 — openXC7 emits a wrong bitstream for SRL16E",
+   "href": "https://github.com/gHashTag/t27/issues/2173"
+  },
+  {
+   "label": "BENCHMARKS.md §4 — every FPGA number, with what is not claimed",
+   "href": "https://github.com/gHashTag/t27/blob/master/BENCHMARKS.md"
+  }
+ ],
+ "openQuestions": [
+  "The 58% figure is the cost of emitting a ternary specification onto binary silicon. Nobody has measured what a real ternary cell would return, because no such substrate exists to measure on -- the number is an accounting of waste, not a promise of speedup.",
+  "The step from one trit to two is worth 0.1-0.75 pp depending on task and architecture, and the low end is not statistically significant. Whether two trits is worth its storage is therefore still open.",
+  "Accuracy is untouched by any of this. Our best single-die network sits 10.6 points behind TreeLUT on UNSW-NB15 and the ternary accounting says nothing about that gap."
+ ],
+ "body": [
+  {
+   "kind": "p",
+   "text": "For nine waves this project measured its ternary datapath in LUT counts. A LUT is a lookup table inside a Xilinx FPGA: six binary inputs, sixty-four entries, one output bit. It is the unit the tools report and the unit every published comparison uses, so it never occurred to us to ask whether it was the right unit for what we were building."
+  },
+  {
+   "kind": "p",
+   "text": "Then Dmitrii said: measure it for the ternary world."
+  },
+  {
+   "kind": "h",
+   "text": "The picture that made it obvious"
+  },
+  {
+   "kind": "p",
+   "text": "A neuron in our design reads three ternary symbols. Each symbol carries one of three values -- minus one, zero, plus one -- and we encode it in two bits, because that is what a binary machine offers. Three symbols at two bits each is six bits, which fits a LUT6 exactly. Neat."
+  },
+  {
+   "kind": "p",
+   "text": "Except a LUT6 has 64 entries and three ternary symbols have 3^3 = 27 combinations. The other 37 rows correspond to the bit pattern 2'b10 appearing somewhere -- a code that means nothing in our encoding and can never occur. They sit in the silicon, configured, powered, and permanently unreachable."
+  },
+  {
+   "kind": "code",
+   "text": "binary LUT6, 64 entries          ternary table, 27 entries\n\n     0  1  2  3  4  5  6  7\n 0   #  #  .  #  #  #  .  #      trit1=0   ### ### ###\n 8   .  .  .  .  #  #  .  #      trit1=1   ### ### ###\n16   #  #  .  #  #  #  .  #      trit1=2   ### ### ###\n24   .  .  .  .  #  #  .  #\n32   .  .  .  .  .  .  .  .      27 / 27 = 100%\n40   .  .  .  .  .  .  .  .\n48   #  #  .  #  #  #  .  #\n56   .  .  .  .  #  #  .  #\n\n27 / 64 = 42%"
+  },
+  {
+   "kind": "p",
+   "text": "Fifty-eight percent of every lookup table in the datapath is wasted. Not by our design -- by the encoding the substrate forces on a ternary value."
+  },
+  {
+   "kind": "h",
+   "text": "Recounting the alphabet"
+  },
+  {
+   "kind": "p",
+   "text": "The same recount applies to weight storage, and there the arithmetic is cleaner. A weight alphabet with L levels needs ceil(log2 L) bits or ceil(log3 L) trits. The sizes that waste nothing in trits are exactly the powers of three: 3, 9, 27."
+  },
+  {
+   "kind": "code",
+   "text": "levels   bits  wasted   trits  wasted\n     3      2     21%       1      0%\n     5      3     41%       2     44%\n     7      3     14%       2     22%\n     9      4     21%       2      0%\n    27      5      5%       3      0%"
+  },
+  {
+   "kind": "p",
+   "text": "Two of those numbers had already been singled out by measurement, months before anyone counted in trits. Three levels is the project's founding alphabet -- minus one, zero, plus one. Nine is where our accuracy ceiling sits: across eight tasks, no step above nine levels was ever statistically significant. And nine is 3^2, exactly two trits, zero waste."
+  },
+  {
+   "kind": "p",
+   "text": "The two sizes the experiments chose are the two sizes ternary storage packs perfectly. In binary both are wasteful -- nine levels burn 7 of 16 codes."
+  },
+  {
+   "kind": "h",
+   "text": "And the rule we had measured was already ternary"
+  },
+  {
+   "kind": "p",
+   "text": "Earlier we measured a hard cost cliff: a neuron reading six or fewer input bits costs 2.00 LUT, and one reading twelve costs 39 to 54. We called it the six-bit rule and treated it as a fact about Xilinx. It is not. A ternary symbol is two bits, so a fan-in of three ternary inputs is six bits is exactly three trits -- and a three-trit table is 27 entries. The empirical hardware law we had found was the three-trit rule wearing binary clothes."
+  },
+  {
+   "kind": "h",
+   "text": "What we then checked, and what it cost us"
+  },
+  {
+   "kind": "p",
+   "text": "If 3, 9 and 27 all pack perfectly, is the ceiling really nine, or is nine just where our ladder happened to stop? We measured 27 levels against 9 on two tasks, five seeds each. UNSW: +0.15 pp, not significant. Fashion: minus 0.13 pp, not significant, and negative. The third trit buys nothing."
+  },
+  {
+   "kind": "p",
+   "text": "The same run was less kind to a claim of our own. The step from three levels to nine -- one trit to two -- had been recorded elsewhere in our files at +0.735 pp. On this bench it is +0.10 on UNSW (not significant) and +0.25 on Fashion (significant). The honest range is 0.1 to 0.75 pp depending on architecture and task, and the low end does not clear the noise. Two trits may not be worth its storage. We had been quoting the top of that range."
+  },
+  {
+   "kind": "h",
+   "text": "The sentence we got wrong"
+  },
+  {
+   "kind": "p",
+   "text": "When the picture above was first drawn, the ternary table was captioned: the thing we do not have. Dmitrii's reply was one question -- what was this language built for?"
+  },
+  {
+   "kind": "p",
+   "text": "The repository answers it in its own constitution: t27 is a spec-first architecture where mathematical truth, not implementation, is the source of truth. A specification names the object. The compiler emits it onto whatever substrate exists. Today that substrate is binary and the emission costs 58 percent."
+  },
+  {
+   "kind": "p",
+   "text": "So the 27-entry table is not something we lack. It is the thing the language exists to state, and the 58 percent is not an apology -- it is the measured price of running a ternary specification on binary silicon, which is exactly the number that says what a ternary substrate would return. It belongs in the case for the chip, not in a list of shortcomings."
+  },
+  {
+   "kind": "h",
+   "text": "What this does not say"
+  },
+  {
+   "kind": "p",
+   "text": "None of it touches accuracy. Across every weight base we measured -- dyadic, golden, plastic, silver, tribonacci, base three, e -- the entire spread of accuracy is 0.49 pp on UNSW and 0.36 on Fashion. The number you pick decides area, not correctness, and our best single-die network is still 10.6 points behind the published state of the art on that benchmark. The ternary case is an efficiency case. It is a real one, and it is not an accuracy case."
+  }
+ ],
+ "ru": {
+  "title": "58% каждого LUT принадлежит подложке, а не дизайну",
+  "summary": "Троичному нейрону на три символа нужно 27 записей таблицы. В двоичном LUT6, который его держит, их 64. Мы девять волн мерили датапат в единицах машины, которая у нас случайно есть — а стоило пересчитать в тритах, и основополагающий выбор проекта оказался оптимальным.",
+  "body": [
+   {
+    "kind": "p",
+    "text": "Девять волн этот проект мерил свой троичный датапат в LUT. LUT — это таблица внутри FPGA: шесть двоичных входов, шестьдесят четыре записи, один выходной бит. Это единица, которую печатают инструменты и в которой ведутся все опубликованные сравнения, поэтому никому не пришло в голову спросить, та ли это единица для того, что мы строим."
+   },
+   {
+    "kind": "p",
+    "text": "Потом Дмитрий сказал: мерь для троичного мира."
+   },
+   {
+    "kind": "h",
+    "text": "Картинка, после которой стало очевидно"
+   },
+   {
+    "kind": "p",
+    "text": "Нейрон в нашей схеме читает три троичных символа. Каждый несёт одно из трёх значений — минус один, ноль, плюс один — и кодируется двумя битами, потому что двоичная машина другого не предлагает. Три символа по два бита — шесть бит, ровно один LUT6. Аккуратно."
+   },
+   {
+    "kind": "p",
+    "text": "Только вот в LUT6 шестьдесят четыре записи, а у трёх троичных символов 3^3 = 27 комбинаций. Остальные 37 строк — это случаи, где где-то стоит битовый код 2'b10, не означающий в нашей кодировке ничего и не возникающий никогда. Они лежат в кремнии: сконфигурированные, под питанием и навсегда недостижимые."
+   },
+   {
+    "kind": "p",
+    "text": "Пятьдесят восемь процентов каждой таблицы в датапате потеряно. Не нашим дизайном — кодировкой, которую подложка навязывает троичному значению."
+   },
+   {
+    "kind": "h",
+    "text": "Пересчёт алфавита"
+   },
+   {
+    "kind": "p",
+    "text": "Тот же пересчёт работает для хранения весов, и там арифметика чище. Алфавит из L уровней требует ceil(log2 L) бит или ceil(log3 L) тритов. Без потерь в тритах упаковываются ровно степени тройки: 3, 9, 27."
+   },
+   {
+    "kind": "p",
+    "text": "Два из этих чисел измерение выделило задолго до того, как кто-то стал считать в тритах. Три уровня — основополагающий алфавит проекта. Девять — там, где стоит потолок точности: на восьми задачах ни один шаг выше девяти уровней не был статистически значим. А девять — это 3^2, ровно два трита, ноль потерь."
+   },
+   {
+    "kind": "p",
+    "text": "Две величины, которые выбрали эксперименты, — это две величины, которые троичная память упаковывает идеально. В двоичной обе расточительны: девять уровней жгут 7 кодов из 16."
+   },
+   {
+    "kind": "h",
+    "text": "И правило, которое мы уже измерили, было троичным"
+   },
+   {
+    "kind": "p",
+    "text": "Раньше мы намерили резкий обрыв цены: нейрон на шесть входных бит и меньше стоит 2.00 LUT, а на двенадцать — от 39 до 54. Мы назвали это правилом шести бит и считали фактом про Xilinx. Это не так. Троичный символ — два бита, значит фан-ин из трёх троичных входов есть шесть бит есть ровно три трита, а таблица на три трита — 27 записей. Эмпирический закон, который мы нашли, был правилом трёх тритов в двоичной одежде."
+   },
+   {
+    "kind": "h",
+    "text": "Что мы проверили дальше и чего это стоило нам"
+   },
+   {
+    "kind": "p",
+    "text": "Если 3, 9 и 27 упаковываются идеально, то потолок действительно девять — или девять просто там, где остановилась наша лестница? Померили 27 уровней против 9 на двух задачах, по пять семян. UNSW: +0.15 пп, незначимо. Fashion: минус 0.13 пп, незначимо и отрицательно. Третий трит не покупает ничего."
+   },
+   {
+    "kind": "p",
+    "text": "Тот же прогон обошёлся дороже с нашим собственным заявлением. Шаг от трёх уровней к девяти — от одного трита к двум — записан у нас в файлах как +0.735 пп. На этом стенде он даёт +0.10 на UNSW (незначимо) и +0.25 на Fashion (значимо). Честный диапазон — от 0.1 до 0.75 пп в зависимости от архитектуры и задачи, и нижний край не выходит из шума. Два трита могут не окупать своё хранение. Мы цитировали верх этого диапазона."
+   },
+   {
+    "kind": "h",
+    "text": "Фраза, которую я сказал неверно"
+   },
+   {
+    "kind": "p",
+    "text": "Когда картинка выше рисовалась впервые, троичная таблица была подписана: то, чего у нас нет. Дмитрий ответил одним вопросом — а для чего создавался этот язык?"
+   },
+   {
+    "kind": "p",
+    "text": "Репозиторий отвечает в собственной конституции: t27 — spec-first архитектура, где источник истины математическая правда, а не реализация. Спецификация называет объект. Компилятор эмитит его на ту подложку, которая есть. Сегодня эта подложка двоичная, и эмиссия стоит 58 процентов."
+   },
+   {
+    "kind": "p",
+    "text": "Значит таблица на 27 записей — не то, чего нам недостаёт. Это ровно то, ради чего язык существует, а 58 процентов — не извинение, а измеренная цена исполнения троичной спецификации на двоичном кремнии, то есть в точности число, говорящее, что вернула бы троичная подложка. Ему место в аргументе за чип, а не в списке недостатков."
+   },
+   {
+    "kind": "h",
+    "text": "Чего это не говорит"
+   },
+   {
+    "kind": "p",
+    "text": "Ничего из этого не касается точности. По всем измеренным основаниям веса — дyадическому, золотому, пластическому, серебряному, трибоначчи, тройке, e — весь разброс точности составляет 0.49 пп на UNSW и 0.36 на Fashion. Выбранное число решает площадь, а не правильность, и наша лучшая однокристалльная сеть по-прежнему на 10.6 пункта позади опубликованного уровня на этом бенчмарке. Троичный аргумент — аргумент об эффективности. Он настоящий, и он не про точность."
+   }
+  ]
+ }
+}

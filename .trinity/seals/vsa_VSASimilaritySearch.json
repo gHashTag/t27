@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:9be1604e1decebf14adb4e943fc36a75f79ce08bf7ba932baab7b227cdbba406",
-  "gen_hash_rust": "sha256:2b3b8f7caf20a1c4de70921a127286c7837d6a07d71032ea6fd94a5969bf38a9",
-  "gen_hash_verilog": "sha256:8cd1fff373ec26b928c7db9dbaa90587c173e77375ddd8c0d562f39515889833",
-  "gen_hash_zig": "sha256:243eb5e46a7c7e30b6526b168e22ed897ff41fd23b5ec193c7bba1188a389f34",
+  "gen_hash_c": "sha256:b87a676775504a4616c4fb94d300b99114b796546bd2bc710f8923dc0090a80b",
+  "gen_hash_rust": "sha256:4c067005cc9f1aa01aca67c53952f9b900f11844319d63cac302b151f77db832",
+  "gen_hash_verilog": "sha256:dfb47eb132ae23e6053ec0423a3991e1aa0fa7852a02867371f3e5edd5ea2c37",
+  "gen_hash_zig": "sha256:d7a644bab9f9d71f34e7575bca1de5476e132e038c969d5f10aef2453f378f89",
   "module": "VSASimilaritySearch",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c1edcb8c97ce142ec4a72bdc684676bc69c5eafb7b4b96479b6743736cc657b6",
   "spec_path": "specs/vsa/similarity_search.t27"
 }

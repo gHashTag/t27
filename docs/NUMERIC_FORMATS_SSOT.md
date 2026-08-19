@@ -20,7 +20,7 @@ bias = 2^(e - 1) - 1           // for e >= 1
 exp_max = 2^e - 1
 ```
 
-Applicability: `N ≥ 4` (binary ladder). `N = 2` is reserved for **GFTernary**
+Applicability: `N ≥ 4` (binary ladder). `N = 2` is reserved for **GA-T**
 (2-bit `{-φ, 0, +φ}` code, no E/M split). The rule is the single closed law
 across the entire 4-to-1024-bit ladder; it is what `conformance/FORMAT-SPEC-001.json`
 v1.2 promotes to normative.
@@ -46,13 +46,43 @@ for the public self-audit.
 
 ---
 
+
+## Naming — GF-T and GA-T are different objects (W722)
+
+Two φ-anchored ladders exist in this ecosystem, on the same anchor
+`φ² + φ⁻² = 3`, and they were nearly identically named. **They are settled as:**
+
+| | **GF-T** | **GA-T** |
+|---|---|---|
+| stands for | **G**olden**F**loat, **T**ernary | **G**olden **A**lphabet, **T**ernary |
+| what it is | a floating-point **format** with a balanced-ternary exponent | a weight **alphabet**, a finite level set, no exponent |
+| lives in | `gHashTag/tri-net` | this repository |
+| indexed by | **width in bits**: GF-T4 / 8 / 16 / 32 … 1024 | **rung** = highest power of φ: GA-T0 … GA-T4 |
+| definition | `sign · significand · 2^e`, `e` balanced ternary | `GA-T_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, `2n+3` levels |
+| on silicon | GF-T8/16/32 multiply, bit-exact (AX7203) | GA-T0…GA-T4 placed and loaded (XC7A200T) |
+
+**Read the index and you know which object it is:** GF-T indices are bit widths,
+GA-T indices are small rung numbers. `GF-T16` stores a value; `GA-T2` is what a
+weight may be.
+
+**`{−φ, 0, +φ}` is not a rung of GA-T.** It is `φ · GA-T0` — the alphabet's own
+spec has said so since it was written (`specs/numeric/gfternary.t27`, line 4:
+*"the phi-scaled limit of the ternary-weight family: GFTernary = phi \* {-1,0,+1}"*).
+
+**What was NOT renamed, and why.** The spec module `triformat-gfternary`, its
+constants `GFT_ZERO/POS/NEG`, and the path `specs/numeric/gfternary.t27` keep
+their names: `.trinity/seals/numeric_triformat-gfternary.json` seals the
+generated C, Rust, Verilog and Zig by hash, and renaming any of them changes
+those artefacts. That rename is a separate wave with a re-seal.
+
+
 ## 1. Verified family constants
 
 These four columns are mathematically exact and independently re-derived.
 
 | Format | S+E+M | Bits | BIAS = 2^(E−1)−1 | EXP_MAX = 2^E−1 | E/M | φ-distance \|E/M−1/φ\| | Claim | Spec |
 |---|---|---|---|---|---|---|---|---|
-| GFTernary | 2-bit code | 2 | — | — | — | 0.000 | Conj | [`gfternary.t27`](../specs/numeric/gfternary.t27) |
+| GA-T | 2-bit code | 2 | — | — | — | 0.000 | Conj | [`gfternary.t27`](../specs/numeric/gfternary.t27) |
 | GF4   | 1+1+2   | 4    | 0                  | 1                  | 0.500 | 0.118 | Verified | [`gf4.t27`](../specs/numeric/gf4.t27) |
 | GF6   | 1+2+3   | 6    | 1                  | 3                  | 0.667 | 0.049 | Conj | [`gf6.t27`](../specs/numeric/gf6.t27) ‡ |
 | GF8   | 1+3+4   | 8    | 3                  | 7                  | 0.750 | 0.132 | Verified | [`gf8.t27`](../specs/numeric/gf8.t27) |
@@ -86,13 +116,13 @@ RTL stub remains at `tt-trinity-gamma/specs/fpga/gf256.t27`.
 
 The last two rows are **not** float-ladder rungs: **TF3** is an 8-bit
 ternary-weight container reusing GF8's 1:3:4 geometry (so it shares GF8's
-constants); **GFTernary** is the 2-bit {−φ, 0, +φ} limit — no exponent/mantissa
+constants); **GA-T** is the 2-bit {−φ, 0, +φ} limit — no exponent/mantissa
 split (columns N/A), φ-distance 0 by construction.
 
 Family base: [`goldenfloat_family.t27`](../specs/numeric/goldenfloat_family.t27).
 Closest *split* to 1/φ in the ≤256-bit range is **GF64 (0.0026)**, then
 **GF48 (0.0027)**, then GF256 (0.004). Among ≤16-bit: GF14 (0.007) is best,
-then GF20 (0.035), then GF12 (0.047). GFTernary's 0.000 is by construction.
+then GF20 (0.035), then GF12 (0.047). GA-T's 0.000 is by construction.
 The **extrapolated extension** GF512 (0.0009) and GF1024 (0.0006) push closer
 to 1/φ as N → ∞ — by design, since `round((N−1)/φ²) / (N−1−round(…)) → 1/φ`
 as N grows. GF64 carries `PHI_BIAS = 8388608` — the one format where it
@@ -128,7 +158,7 @@ do not use them to generate PHI_BIAS for new formats.
 | GF256 float (ratio) | `tt-trinity-gamma/specs/fpga/gf256.t27` | 256-bit φ-ratio float | `[S1 E97 M158]`, E/M 0.614, φ-dist 0.004 — **bias constant OPEN** (`0x7F:0xFFFF…` ≈ 2⁷¹ ≠ 2⁹⁶−1) |
 | GF256 (range) | `zig-golden-float` whitepaper | proposed binary256-range φ float | candidate only — NOT CLAIMED |
 
-## 4. Ternary members (TF3 ≠ GFTernary) and candidates
+## 4. Ternary members (TF3 ≠ GA-T) and candidates
 
 Two **distinct** objects — do not conflate (the spec is authoritative):
 
@@ -136,7 +166,7 @@ Two **distinct** objects — do not conflate (the spec is authoritative):
   geometry as GF8), BIAS 3, used to encode ternary neural-network *weights*. It
   is a storage container, **not** a 2-bit format. Spec:
   [`tf3.t27`](../specs/numeric/tf3.t27) (line 3: "8-bit representation").
-- **GFTernary** — the **2-bit** member, values in {−φ, 0, +φ} = φ·{−1, 0, +1}:
+- **GA-T** — the **2-bit** member, values in {−φ, 0, +φ} = φ·{−1, 0, +1}:
   a ternary-weight quantizer with the scale fixed at φ (cf. TWN / BitNet b1.58,
   whose scale α is learned per layer). φ-distance **0.000** by construction (its
   nonzero magnitude is exactly the anchor φ); the {−1, 0, +1} substrate of the

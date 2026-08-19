@@ -1,6 +1,6 @@
 # Trinity Framework Publications — index (t27 hub)
 
-**Purpose:** Single **publisher-facing** index for DOIs, publication **series**, and links between the **t27** repo and the broader **Trinity** monorepo. This is not a substitute for [`CITATION.cff`](../CITATION.cff) or [`docs/RESEARCH_CLAIMS.md`](../docs/RESEARCH_CLAIMS.md) — it is the **catalog and pipeline entrypoint**.
+**Purpose:** Single **publisher-facing** index for DOIs, publication **series**, and links between the **t27** repo and the broader **Trinity** monorepo. This is not a substitute for [`CITATION.cff`](../CITATION.cff) or [`docs/nona-03-manifest/RESEARCH_CLAIMS.md`](../docs/nona-03-manifest/RESEARCH_CLAIMS.md) — it is the **catalog and pipeline entrypoint**.
 
 **Maintainer:** Dmitrii Vasilev — [ORCID 0009-0008-4294-6159](https://orcid.org/0009-0008-4294-6159).
 

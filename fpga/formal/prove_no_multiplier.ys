@@ -1,0 +1,16 @@
+# Theorem T2 (R-SI-1, "no star"): the shipped ternary MAC synthesizes to a
+# netlist containing ZERO multiplier cells and ZERO DSP48 primitives, while
+# the golden reference -- which computes the same function (see T1) -- needs a
+# multiplier.  This is the structural half of the ternary claim: T1 says the
+# function is exact integer MAC, T2 says we get it without a multiplier.
+#
+# Run: yosys -s prove_no_multiplier.ys
+
+read_verilog ../verilog/ternary_mac_synth.v
+synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_top
+tee -o dut_stat.txt stat
+design -reset
+
+read_verilog ternary_mac_golden.v
+synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_golden
+tee -o golden_stat.txt stat

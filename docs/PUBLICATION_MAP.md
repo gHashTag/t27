@@ -17,6 +17,7 @@
 | FPGA / MAC / Verilog | FPL, DATE, FPGA journal | Resource / timing vs spec |
 | PHI LOOP, seals, FROZEN, CI | SE / reproducibility / governance | Integrity constraints on research software |
 | Physics-flavored specs (labeled empirical) | Physics / interdisciplinary | **Only** with honest tier labels |
+| **Low-precision benchmark methodology** (TNF article) | **ML systems / reproducibility** (MLSys, or a numerics venue) | Two trainer defects each *reversing* a reported effect; parity reached by removing them, not by architecture (T456b) |
 
 ---
 
@@ -33,3 +34,11 @@ See `docs/PHD-RESEARCH-PROGRAM-AND-DISSERTATION.md` for WP decomposition.
 ---
 
 *Do not submit the entire monorepo as one paper — slice by falsifiable unit.*
+
+---
+
+*W845: the TNF article had no row here. Its own reconciliation (§6) concluded it
+is a **methods paper**, not a format paper — "low-precision benchmarks manufacture
+orderings that do not exist" — which routes it away from FPL/DATE and toward a
+venue that takes negative and methodological results. **That routing is a human
+decision and is recorded here as a proposal, not a settled choice.***

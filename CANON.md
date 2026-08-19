@@ -102,7 +102,7 @@ Each **ring increment** is a **micro-iteration**. Minimum bar before a commit cl
 | Step | Command / artifact                                           | Pass criterion                                                                                                         |
 | ---- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | M1   | `cd bootstrap && cargo build` (or `--release`)               | **Must succeed** — runs `build.rs` language guard + builds `t27c`.                                                     |
-| M2   | `./bootstrap/target/release/t27c parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR.                                                                         |
+| M2   | `./target/release/t27c parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR.                                                                         |
 | M3   | `cargo test` in `bootstrap/`                                 | **All tests green** for compiler changes.                                                                              |
 | M4   | `bash tests/run_all.sh` (CI)                                 | Full spec parse/gen sweep as defined by the repo.                                                                      |
 | M5   | Update `**stage0/FROZEN_HASH`**                              | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see `docs/SEED-RINGS.md` step 8). |
@@ -190,13 +190,17 @@ Everything here is **acknowledged non-gold**. Do **not** copy patterns into new 
 ## 8. Single-command cheat sheet (local micro-iteration)
 
 ```bash
-cd bootstrap && cargo build --release \
-  && ./target/release/t27c parse ../specs/base/types.t27
+cargo build --release -p t27c && ./target/release/t27c parse specs/base/types.t27
 ```
 
-Regenerate **canonical** Zig tree (default output `**gen/zig`**, no flags needed): from repo root, `./bootstrap/target/release/t27c compile-all`. Use `--backend verilog` / `c` for `**gen/verilog**` / `**gen/c**`.
+Run from the **repo root**. `bootstrap/` is a workspace member, so the binary is
+emitted to the workspace-root `target/`, never to `bootstrap/target/`.
 
-Substitute your changed spec paths. Full sweep: `**bash tests/run_all.sh**`.
+Regenerate **canonical** Zig tree (default output `**gen/zig`**, no flags needed): from repo root, `./target/release/t27c compile-all`. Use `--backend verilog` / `c` for `**gen/verilog**` / `**gen/c**`.
+
+Substitute your changed spec paths. Full sweep: `./scripts/tri test`, or
+`./target/release/t27c suite --repo-root .`. There is **no** shell test harness
+under `tests/` (L7 UNITY); the Rust runner is the only sweep entry point.
 
 ---
 

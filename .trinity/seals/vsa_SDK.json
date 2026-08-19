@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:c6399c6bacf1a2117d951ff24e5d829687c15f3204c06114c732fb29251ff396",
-  "gen_hash_rust": "sha256:2d0b6f03b0f40be9896618aa92af9a8d0a4d2bdd8bb49af4f0b83ca09fe3c4a5",
-  "gen_hash_verilog": "sha256:af1a823b611e9abadbfae8c9adfe6b064e249d0b01d0d61fd032345c92422ef9",
-  "gen_hash_zig": "sha256:ef16db1b701c630deb519eb4fbd68a4133a696bd67d1b78af9dcafe91d177b02",
+  "gen_hash_c": "sha256:675597cd8d1aed08119f82e1e88298c6c6079312b7722cb1155e8389c6db2be8",
+  "gen_hash_rust": "sha256:3840b7cf3c44136bc65a9eb3b587d69a6b4a6b8388bb66c016ee6e5436bdec8d",
+  "gen_hash_verilog": "sha256:6c6e94d5b8622c0589f7401de7c6f36228864f7f30960281ad3edd4d1f664489",
+  "gen_hash_zig": "sha256:c1d06866d1e014f0f82bf64935a9c56c3cc6d84ab9b466e19f99858b5c258665",
   "module": "SDK",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:e8103e313f55a9f2a1093ae9f26e02fad9ea7649246b9f9a09d489a76d6c7726",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:7843aca460336f24ba9026067e1e642e110cb6d2a995064bf9613eaed662c115",
   "spec_path": "specs/vsa/sdk.t27"
 }

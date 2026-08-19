@@ -107,7 +107,7 @@ spec ProofTrace {
                                     step.operation,
                                     input_str,
                                     trit_to_string(step.output),
-                                    step.timestamp as float / 1000.0);
+                                    step.timestamp as f64 / 1000.0);
             lines.push(line);
         }
 

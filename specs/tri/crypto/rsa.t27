@@ -21,8 +21,8 @@ module TriRsa;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate(allocator: Std.mem.Allocator) → void
-    fn generate(allocator: Std.mem.Allocator) -> void {
+    // generate(allocator: std.mem.Allocator) → void
+    fn generate(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

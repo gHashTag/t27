@@ -112,6 +112,26 @@ spec vsa_ops {
 }
 ```
 
+> **Implementation status (verified 2026-08-09, Wave Loop 557).** The example
+> above — `test name { given ... when ... then ... }` — **does not parse**.
+> `t27c parse` rejects it with *"unexpected token after expression statement"*
+> at the first `given`. The brace body is parsed as a function body, and
+> `given`/`when`/`then` are not statements there.
+>
+> The *braceless* variant shown in
+> [`docs/nona-03-manifest/TDD-CONTRACT.md`](TDD-CONTRACT.md) does parse, but its
+> body is discarded: `parse_test_block` calls `skip_to_next_top_level()` for the
+> keyword form, so codegen emits an empty test. A spec asserting `2 == 999`
+> compiles to `test "..." {}` and passes. Repo-wide this affects **7,623 test
+> blocks** and, via the same path in `parse_invariant_block`, **5,163
+> invariants** (which emit `// invariant: X verified (no statements)`).
+>
+> Neither form currently executes. See
+> [`docs/reports/WAVE_LOOP_555_REPORT.md`](../reports/WAVE_LOOP_555_REPORT.md).
+> Until this is resolved, use brace-form tests with ordinary `assert`
+> statements — the form the backends do emit.
+
+
 ---
 
 ## Article III: No Prototype Mode
@@ -220,7 +240,7 @@ Additionally, the **Language Policy** (Article I) ensures universality and clari
 ### §8.3. NO-PYTHON / NO-SHELL (critical path)
 - **All** validation, conformance gates, doc language checks, and φ binary64 cross-checks live in **`t27c`** (Rust) — **`lint-docs`**, **`validate-phi`**, **`suite`**, **`validate-conformance`**, etc.
 - **Python** is **not** permitted on the engineering critical path; legacy scripts are removed once a **`t27c`** subcommand exists.
-- **CI** invokes **`./scripts/tri <subcommand>`** or **`bootstrap/target/release/t27c --repo-root . <subcommand>`** — not ad-hoc **`.sh`** wrappers.
+- **CI** invokes **`./scripts/tri <subcommand>`** or **`target/release/t27c --repo-root . <subcommand>`** — not ad-hoc **`.sh`** wrappers.
 
 ### §8.4. Rationale
 Aligns the repository with **TDD-MANDATE** and **SSOT-MATH**: behavior lives in specs + compiler, not in untested bash. Reduces macOS/Linux drift (`realpath`, `find`, `readlink`) and quoting/glob hazards. A single **TCB** for tooling (**`rustc` + `t27c`**) supports tool-qualification discipline (e.g. DO-330-style narratives).

@@ -11,6 +11,49 @@ Last updated: 2026-08-19
 - `t27c fpga-build --docker false --synth-only` -- the exact step red in CI -- exits 0 locally with a 9.4 MB synth.json
 - **Every job in fpga-build.yml and emit-bitexact-gate.yml now carries timeout-minutes: 45** -- a hung apt ran 6h0m16s to the GitHub ceiling on 2026-08-18 and read as a red PR whose own steps were all skipped
 - Left open in #2214: `pip install sby` packaging in fpga-formal
+
+# NOW -- nine dangling gitlinks, one broken checkout for everyone (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci: lean4_bridge/.lake gitlinks removed; .lake ignored (Refs #1959)
+
+- Since #1304, nine `lean4_bridge/.lake/packages/*` paths were committed as
+  SUBMODULE gitlinks with no `.gitmodules` entries -- Lake's build cache, not
+  sources. Every workflow that checks out with `submodules: recursive`
+  (coverage) has died at `fatal: No url found for submodule path ...` ever
+  since; it failed on the ladder PR and on every other PR the same way
+- The gitlinks are removed from the index and `lean4_bridge/.lake/` is
+  ignored; the three real submodules (chips/phi, chips/euler, chips/gamma)
+  are untouched
+- Found while landing #2217: a required-check triage that separated "your PR
+  broke it" from "it was always broken" -- the second class hides in green
+  repos precisely because nobody reads a check that always failed
+
+# NOW -- the grammar ladder lands, and the merge that argued back (2026-08-19)
+
+Last updated: 2026-08-19
+
+## gold-ring: fourteen rungs + master, ratchet CLEAN at 221/221 (Refs #1959)
+
+- The W891-W914 recovery ladder merges with master: 67,760 -> 25,670 silently
+  discarded tokens on the branch corpus; on the MERGED tree the composition of
+  master's spec fixes and the ladder leaves 6,782; consume-all 421
+- Convergent evolution reconciled by UNION: compound assignment (8 operators),
+  struct-literal suppression (reentrant counter), Zig casts (master's
+  @truncate narrowing composed with the branch's float builtins)
+- Master's own corpus ratchet driven 33 -> 0 across eight local iterations;
+  the expectations ledger re-blessed: 109 entries removed as fixed, and the
+  four-channel instrument now counts what the frozen one could not see
+- **Flagged for the owner**: master's NOW records float-cast REFUSAL as an
+  owner decision; this branch accepted `as f32/f64` at W830 and 38 specs
+  parse through them. The merge keeps acceptance (removal fails 39 specs),
+  drops W914's untracked `float`/`int` aliases, normalises the two specs that
+  used them (`as float` -> `as f64`, master's own spec-fix precedent #2186),
+  and leaves the refusal branch in place as the documented owner position
+- Instrument artefact #14 recorded: `echo "$(basename $f) rc=$?"` reports
+  basename's exit code -- capture rc before echo, always
+
 # NOW -- the ten-layer lesson, recorded (2026-08-19)
 
 Last updated: 2026-08-19

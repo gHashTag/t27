@@ -11,13 +11,13 @@ module TriTemplate;
     // ═══════════════════════════════════════════════════════════
 
     pub const Template = struct {
-        parts : [[]TemplatePart",
+        parts : []TemplatePart,
     };
 
     pub const TemplatePart = struct {
         is_literal : "bool",
-        text : [[]Const u8",
-        variable : [[]Const u8",
+        text : []const u8,
+        variable : []const u8,
     };
 
     // ═══════════════════════════════════════════════════════════

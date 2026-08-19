@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:ce7ac38a4ba75c0750a836cf927fe7bc33c79db5766928cd910ce8bb24f6b4e9",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:57879a0b67f4f4bb6f5aff75a64ad10470da429b9eefbbafcce5d7982d47d7a4",
-  "gen_hash_zig": "sha256:945d0a015240151ffb1045fbd0d38882fd3c046196e5855a65fbc872f04cac16",
+  "gen_hash_c": "sha256:6c395f59f6a0ce5ae2616209cfed374298c7a3f5d3ec33ed46c4787487318828",
+  "gen_hash_rust": "sha256:0d6c52962ea1b8a23b3e66d25ed6a088724dd6511a26e17c27f2727383369d10",
+  "gen_hash_verilog": "sha256:d7267b3d85310890a8b98b7e7a88e0a3a9510d47454662919810455d61821d53",
+  "gen_hash_zig": "sha256:ca69f457ac354f027e7b9e9d569373213c952fa52a755df3ce721e87b01e4163",
   "module": "sandbox",
   "ring": 12,
-  "sealed_at": "2026-06-18T14:19:45Z",
-  "spec_hash": "sha256:bffaa35f4c900ef1de965625359834cfeaa7bc51394a48367559b9d0535bb3b4",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:76cb6542be88ac777ede9539d338199a0786d480608ce8358b1d20d01551f559",
   "spec_path": "specs/sandbox/sandbox.tri"
 }

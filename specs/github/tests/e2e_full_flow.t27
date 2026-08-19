@@ -118,4 +118,3 @@ bench e2e_full_flow_bench
         const sync = sync::full_sync();
         _ = sync;
     }
-}

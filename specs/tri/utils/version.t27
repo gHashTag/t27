@@ -14,8 +14,8 @@ module TriVersion;
         major : "usize",
         minor : "usize",
         patch : "usize",
-        prerelease : [[]Const u8",
-        build : [[]Const u8",
+        prerelease : []const u8,
+        build : []const u8,
     };
 
     // ═══════════════════════════════════════════════════════════
