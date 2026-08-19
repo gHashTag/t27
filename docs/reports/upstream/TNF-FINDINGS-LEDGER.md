@@ -479,3 +479,40 @@ negative number.
 by one procedure, with weights and activations quantised, on two tasks and five
 seeds — and its cost side is generated from specifications rather than written by
 the party the outcome favours.
+
+
+## 16. W942 — the frontier closed at nineteen bits, and the sign flips
+
+Landed as **tf#645**; the width question filed as **tf#644**.
+
+Structural decoders generated from each `TNFFormat`'s own fields and **verified
+against the oracle over every code** — 64, 2,048 and **524,288**, zero mismatches.
+
+| rung | phys bits | codes | mismatches | decoder | consumer |
+|---|---:|---:|---:|---:|---:|
+| TNF4 | 6 | 64 | 0 | 12.00 | **55.29** |
+| TNF8 | 11 | 2,048 | 0 | 16.00 | 260.57 |
+| **TNF16** | **19** | **524,288** | 0 | 27.00 | **450.29** |
+
+**The advantage lives at exactly one rung.** Against the cheapest *working* option
+per class: `binary16` 438.57 vs TNF16 450.29 (**TNF 2.7 % dearer**), `fp8 e4m3`
+152.57 vs TNF8 260.57 (**1.71× dearer**), and at four bits `fp4` 19.14 loses 70 pp
+while **TNF4 at 55.29 loses 0.33–1.05** — **2.76× cheaper than fp8 for fp8-class
+accuracy, and the only sub-8-bit format measured that works** (T789).
+
+**The chain, kept on purpose:** W940 priced TNF16 by module name (386.57), W940b
+corrected to the caption's 17 bits (424.86) and had TNF16 beating `binary16`, W942
+finds 19 bits (450.29) and **inverts** it. Three corrections, each forced by the
+previous one's own principle, each moving the number against this project's
+interest.
+
+**Method bias measured rather than declared:** truth table vs structural differs by
+under 8 % and not in one direction — the table flattered TNF4 by 7.2 % and
+penalised TNF8 by 3.8 %. Neither headline ratio is inside that band.
+
+Also landed: `docs/REFEREE-PAGE.md` — every claim, its record, its limitation, the
+four withdrawals, and what no measurement here can settle.
+
+**Readiness 63 % → 68 %.** The frontier is closed at every rung with verified
+decoders, the one real advantage is isolated and quantified, and the project now
+ships a single page a referee can audit against committed records.

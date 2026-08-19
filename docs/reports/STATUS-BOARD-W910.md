@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W941, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W942, 2026-08-20)
+
+> **W942 — THE FRONTIER IS CLOSED, AND THE ADVANTAGE IS AT ONE RUNG.** Structural
+> decoders generated from each format object and verified against the oracle over
+> **every** code (64 / 2,048 / **524,288**, zero mismatches): TNF4 **55.29** cells,
+> TNF8 260.57, TNF16 **450.29**. Against the cheapest working option per class:
+> `binary16` 438.57 vs TNF16 450.29 (**TNF 2.7 % dearer**), `fp8` 152.57 vs TNF8
+> 260.57 (**1.71× dearer**), and at four bits `fp4` loses 70 pp while **TNF4 loses
+> 0.33–1.05 at 2.76× less cost than fp8**. Landed as **tf#645**; the three-widths
+> question as **tf#644**.
+>
+> **The 16-bit comparison inverted for the third time**, each correction forced by
+> the previous one's own principle and each moving against us: 386.57 → 424.86 →
+> **450.29**. Method bias measured at under 8 % and not one-directional. A
+> **referee page** now lists every claim, its record, its limitation and the four
+> withdrawals. **Readiness 63 % → 68 %.** Theorem T789; lesson 1421.
 
 > **W941 — THE PARETO POINT.** Every decoder regenerated from its own conformance
 > oracle by exhaustive enumeration, so no implementation-quality difference can
