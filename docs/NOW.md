@@ -1,3 +1,13 @@
+# NOW -- asof reads the claims from a declaration in the repository (2026-08-20)
+
+Last updated: 2026-08-20
+
+## asof reads the claims from a declaration in the repository (Closes #2249)
+
+- tri fleet asof --from .tri/environments.json: each capability claim names the environments it rests on, and the check answers per claim -- 'is the project fine' has no answer, claims fail independently
+- Live on this repository's own declaration: 3 of 5 claims SAYABLE (t27.ai, the hiking site, GitHub), 2 STALE with the reason printed (bus empty), exit 1
+- The declaration lives next to the code because remembering which URL backs which claim is exactly the step that gets skipped
+
 # NOW -- tri fleet asof generalises the bus check to every environment (2026-08-20)
 
 Last updated: 2026-08-20

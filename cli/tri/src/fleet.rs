@@ -16,6 +16,7 @@
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use std::path::PathBuf;
 use std::process::Command;
 
 #[derive(Subcommand)]
@@ -39,7 +40,30 @@ pub enum FleetCmd {
         /// Also require hardware on the bus.
         #[arg(long)]
         needs_hardware: bool,
+        /// Read the claims from a declaration instead of the command line.
+        ///
+        /// Remembering which URLs back which claim is exactly the step that
+        /// gets skipped, so the claims live in the repository next to the
+        /// code they describe. Format:
+        ///
+        /// {"claims":[{"name":"...","urls":["..."],"needs_hardware":false}]}
+        #[arg(long)]
+        from: Option<PathBuf>,
     },
+}
+
+#[derive(serde::Deserialize)]
+struct Claim {
+    name: String,
+    #[serde(default)]
+    urls: Vec<String>,
+    #[serde(default)]
+    needs_hardware: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct Claims {
+    claims: Vec<Claim>,
 }
 
 pub fn run(cmd: &FleetCmd) -> Result<()> {
@@ -48,8 +72,63 @@ pub fn run(cmd: &FleetCmd) -> Result<()> {
         FleetCmd::Asof {
             urls,
             needs_hardware,
-        } => asof(urls, *needs_hardware),
+            from,
+        } => match from {
+            Some(path) => asof_declared(path),
+            None => asof(urls, *needs_hardware),
+        },
     }
+}
+
+/// Check every claim in a declaration and report per claim, because "is the
+/// project fine" has no answer — each claim rests on its own environments and
+/// they fail independently.
+fn asof_declared(path: &PathBuf) -> Result<()> {
+    let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let decl: Claims =
+        serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
+
+    let mut stale: Vec<String> = Vec::new();
+    for c in &decl.claims {
+        let mut missing: Vec<String> = Vec::new();
+        for u in &c.urls {
+            let (ok, code) = head(u);
+            if !ok {
+                missing.push(format!("{u} (HTTP {code})"));
+            }
+        }
+        if c.needs_hardware {
+            match probe_usb() {
+                Ok(b) if !b.is_empty() => {}
+                Ok(_) => missing.push("hardware (bus empty)".to_string()),
+                Err(_) => missing.push("hardware (cannot tell)".to_string()),
+            }
+        }
+        if missing.is_empty() {
+            println!("SAYABLE  {}", c.name);
+        } else {
+            println!("STALE    {}", c.name);
+            for m in &missing {
+                println!("           needs {m}");
+            }
+            stale.push(c.name.clone());
+        }
+    }
+
+    println!();
+    if stale.is_empty() {
+        println!(
+            "VERDICT: all {} claim(s) rest on reachable environments.",
+            decl.claims.len()
+        );
+        return Ok(());
+    }
+    println!(
+        "VERDICT: {} of {} claim(s) may NOT be stated in the present tense today.",
+        stale.len(),
+        decl.claims.len()
+    );
+    anyhow::bail!("{} stale claim(s)", stale.len())
 }
 
 /// HEAD one URL. A timeout is a failure to verify, not a failure of the site —
