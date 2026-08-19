@@ -1,4 +1,4 @@
-# Session summary, W846–W890 — one page over both ledgers
+# Session summary, W846–W898 — one page over both ledgers
 
 Input document for the five decisions now waiting on humans. Details live in
 `docs/reports/upstream/TNF-FINDINGS-LEDGER.md` (the paper) and
@@ -42,6 +42,25 @@ correctness). 9 instrument artefacts (substring, prefix, case, pagination,
 parallel-starvation…), every one caught the same way: **reading one raw case
 before believing a count**. 41 % of recorded theorems are about the method, not
 the subject — the price and the yield of self-correction.
+
+## Track 3 — the ladder (W891–W898, after this summary's window)
+
+The dialect map's sharpest finding — 55 % of drops are `given/when/then` tests —
+went under the ladder discipline: one cause, one probe, one measured rung.
+
+| rung | cause | corpus effect |
+|---|---|---|
+| 0003 | tuple-`when` + per-clause recovery | 67,760 → 58,187 tokens dropped |
+| 0004a | braceless `bench` joins the shared clause parser | → 57,680 |
+| 0005 | **`and` clause never worked** — keyword collision (unreachable at clause position) + greedy conjunction loop (devoured the next clause). ddmin: 80-line "contextual" repro → 4 lines | → **42,926 (−37 % from base)**; parse-fails 173 → 171; consume-all 314 → 327 |
+
+0003's per-clause skip was withdrawn by its own regressions (four files handed
+clause junk to module level, which errors hard where the old fallback skipped
+safely) — the and-fix keeps the win by making most blocks lower completely.
+Zero regressions at every shipped rung; each rung is one commit on
+`gold-ring/0001-0002-compound-assign-nested-fn` with its cumulative patch in
+`docs/reports/gold-ring/`. The inventory (`LOST-TESTS-INVENTORY.md`, rebuilt
+from spec text: 23,033 BDD lines / 9,300 scenarios) is the insurance either way.
 
 ## The five decisions waiting
 
