@@ -1,3 +1,19 @@
+# NOW -- apt attempts are bounded, and the onion's lessons are a skill (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga)+skills: bounded apt retries; ci-gates section 10 (Closes #2229)
+
+- All 9 apt install points across fpga-build.yml and emit-bitexact-gate.yml now run
+  as timeout-bounded attempts (420s update / 600s install) with 3 retries and a loud
+  fail -- apt on a dead mirror HANGS, so plain Acquire::Retries never fired and 5/5
+  jobs burned whole 45-90m ceilings at once on 2026-08-19
+- ci-gates skill section 10: layers 11-14 of the fpga-bitstream onion -- consumer
+  path contracts, import chains verified by execution not by requirements.txt, the
+  duplicate upload-artifact name landmine, the L1 regex as contract, and the device
+  default that flipped under a textually clean merge (an absence cannot conflict)
+
+
 # NOW -- master's tri build restored: seven lost definitions returned (2026-08-19)
 
 Last updated: 2026-08-19

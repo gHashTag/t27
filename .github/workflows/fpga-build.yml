@@ -45,8 +45,16 @@ jobs:
 
       - name: Install Yosys
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
 
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -103,8 +111,16 @@ jobs:
 
       - name: Install Yosys
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
 
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -174,8 +190,16 @@ jobs:
 
       - name: Install Yosys
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
 
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -286,8 +310,16 @@ jobs:
 
       - name: Install Yosys
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
 
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -337,8 +369,16 @@ jobs:
       
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys git cmake g++ pkg-config libboost-all-dev libeigen3-dev python3-pip
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys git cmake g++ pkg-config libboost-all-dev libeigen3-dev python3-pip \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
         
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -501,12 +541,25 @@ jobs:
 
       - name: Install Yosys + SymbiYosys
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yosys
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 yosys \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
           # SymbiYosys is not on PyPI as 'sby' -- pip has failed here on every run
           # since the job existed (#2214). Install from source; it is pure Python plus
           # a Makefile. smtbmc engines need an SMT solver: z3 from apt.
-          sudo apt-get install -y z3
+          for i in 1 2 3; do
+            timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 z3 && break
+            echo "::warning::apt attempt $i (z3) failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
           git clone --depth 1 https://github.com/YosysHQ/sby.git /tmp/sby
           sudo make -C /tmp/sby install
 
@@ -578,8 +631,16 @@ jobs:
 
       - name: Install Icarus Verilog
         run: |
-          sudo apt-get update
-          sudo apt-get install -y iverilog
+          # apt on a dead mirror HANGS (no error): five jobs burned whole 45-90m
+          # ceilings on Install steps 2026-08-19. Bound each attempt, retry, fail fast.
+          for i in 1 2 3; do
+            timeout 420 sudo apt-get update -o Acquire::http::Timeout=30 -o Acquire::Retries=2 \
+              && timeout 600 sudo apt-get install -y -o Acquire::http::Timeout=30 -o Acquire::Retries=2 iverilog \
+              && break
+            echo "::warning::apt attempt $i failed or hung; retrying in 45s"
+            [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
+            sleep 45
+          done
 
       - name: Build t27c
         run: cargo build --release -p t27c
