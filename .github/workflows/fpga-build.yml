@@ -338,7 +338,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y yosys git cmake g++ pkg-config libboost-dev python3-pip
+          sudo apt-get install -y yosys git cmake g++ pkg-config libboost-all-dev libeigen3-dev python3-pip
         
       - name: Build t27c
         run: cargo build --release -p t27c
