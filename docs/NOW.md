@@ -145,6 +145,14 @@ Last updated: 2026-08-19
   fifo.v (#2240), absorbed by the old warning-gate 40 minutes after the 32/32
   claim. A refusal on the record beats a vacuous green
 
+# NOW -- tri pr ready walks the branch; tri now writes this file (2026-08-19)
+
+Last updated: 2026-08-19
+
+## tri pr ready walks the branch; tri now writes this file (Closes #2235)
+
+- pr ready: a check absent from the default branch HEAD is no longer 'green on the branch' -- each check is scored by the most recent of the last 15 default-branch commits it actually ran on; the illusion that hid the broken master build (#2227) cannot recur
+- tri now: prepends this exact entry frame (title, date, Closes ref, bullets) -- this entry was written by the command it documents
 
 # NOW -- the tri CLI wave lands: mutate, pr ready, synth/sweep area (2026-08-20)
 

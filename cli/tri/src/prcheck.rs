@@ -108,11 +108,19 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
 /// merged while ten checks were still running. So this returns the completed
 /// count too, and the caller waits for it to stop growing.
 fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
-    let sha = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".head.sha"])?;
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".head.sha",
+    ])?;
     // Two plain queries rather than one clever @tsv: the combined form failed
     // with "expected an object but got: array" the first time it ran, and a
     // wait loop that errors out is worse than no wait loop.
-    let path = format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim());
+    let path = format!(
+        "repos/{repo}/commits/{}/check-runs?per_page=100",
+        sha.trim()
+    );
     let pending: usize = gh(&[
         "api",
         &path,
@@ -129,10 +137,24 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
-fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, merge: bool) -> Result<()> {
+fn ready(
+    n: u64,
+    repo: Option<&str>,
+    baseline: usize,
+    wait: bool,
+    poll: u64,
+    merge: bool,
+) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
-        None => gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?,
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ])?,
     };
 
     // Anything still running makes the answer provisional, so say so rather
@@ -195,22 +217,42 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
     // few merged pull requests. A check red in both places is the repository's
     // problem, not this change's.
     let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
-    let head = gh(&[
-        "api",
-        &format!("repos/{repo}/commits/{branch}"),
-        "--jq",
-        ".sha",
-    ])?;
+    // The default branch's HEAD is not the default branch. A check that did
+    // not run on HEAD -- a docs-only commit, a path filter -- shows neither
+    // green nor red there, and reading HEAD alone once made a broken build
+    // look "green on master" because the check-run was attached to an older
+    // commit. So walk the last few default-branch commits and score each check
+    // by the MOST RECENT commit on which it actually ran.
     let mut seen: BTreeMap<String, usize> = BTreeMap::new();
-    for name in gh(&[
+    let recent = gh(&[
         "api",
-        &format!("repos/{repo}/commits/{}/check-runs?per_page=100", head.trim()),
+        &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
         "--jq",
-        r#".check_runs[]|select(.conclusion=="failure")|.name"#,
-    ])?
-    .lines()
-    {
-        *seen.entry(name.to_string()).or_insert(0) += 1;
+        ".[].sha",
+    ])?;
+    let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
+    for sha in recent.lines() {
+        let runs = gh(&[
+            "api",
+            &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+            "--jq",
+            r#".check_runs[]|select(.status=="completed")|[.name,.conclusion]|@tsv"#,
+        ])
+        .unwrap_or_default();
+        for line in runs.lines() {
+            let mut it = line.splitn(2, '\t');
+            let (Some(name), Some(conc)) = (it.next(), it.next()) else {
+                continue;
+            };
+            decided
+                .entry(name.to_string())
+                .or_insert(conc == "failure" || conc == "timed_out");
+        }
+    }
+    for (name, failing) in &decided {
+        if *failing {
+            *seen.entry(name.clone()).or_insert(0) += 1;
+        }
     }
     let merged = gh(&[
         "api",
@@ -236,9 +278,11 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
     let mut new_here = Vec::new();
     for name in &mine {
         match seen.get(name) {
-            Some(k) => println!("  {name}\n      also failing in {k} other place(s) — pre-existing"),
+            Some(k) => {
+                println!("  {name}\n      also failing in {k} other place(s) — pre-existing")
+            }
             None => {
-                println!("  {name}\n      NOT failing on {branch} or in the last {baseline} merged PRs");
+                println!("  {name}\n      NOT failing on recent {branch} commits or in the last {baseline} merged PRs");
                 new_here.push(name.clone());
             }
         }
@@ -254,14 +298,24 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
         if merge {
             println!();
             let out = Command::new("gh")
-                .args(["pr", "merge", &n.to_string(), "--repo", &repo,
-                       "--squash", "--delete-branch"])
+                .args([
+                    "pr",
+                    "merge",
+                    &n.to_string(),
+                    "--repo",
+                    &repo,
+                    "--squash",
+                    "--delete-branch",
+                ])
                 .output()
                 .context("failed to run gh pr merge")?;
             if out.status.success() {
                 println!("Merged.");
             } else {
-                println!("Merge refused: {}", String::from_utf8_lossy(&out.stderr).trim());
+                println!(
+                    "Merge refused: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                );
             }
         }
     } else {
@@ -318,6 +372,9 @@ mod tests {
         } else {
             "DO NOT MERGE"
         };
-        assert_eq!(verdict, "WAIT", "pending must outrank an empty failure list");
+        assert_eq!(
+            verdict, "WAIT",
+            "pending must outrank an empty failure list"
+        );
     }
 }

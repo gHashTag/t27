@@ -12,11 +12,12 @@ mod fpga;
 mod gates;
 mod hooks;
 mod mutate;
+mod nownote;
 mod prcheck;
-mod sweep;
-mod synth;
 mod red;
 mod rtl;
+mod sweep;
+mod synth;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -69,6 +70,11 @@ enum Commands {
     Mutate {
         #[command(subcommand)]
         action: mutate::MutateCmd,
+    },
+    /// Prepend a docs/NOW.md entry without hand-writing the frame.
+    Now {
+        #[command(subcommand)]
+        action: nownote::NowCmd,
     },
     /// Is this pull request actually safe to merge?
     Pr {
@@ -699,6 +705,7 @@ fn main() -> Result<()> {
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Now { action } => nownote::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Sweep { action } => sweep::run(action)?,
         Commands::Synth { action } => synth::run(action)?,
