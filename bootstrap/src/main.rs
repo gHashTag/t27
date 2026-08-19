@@ -6132,6 +6132,12 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
         }
     }
 
+    #[allow(unused_variables)]
+    let entries2: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("json"))
+        .collect();
     let mut entries: Vec<PathBuf> = fs::read_dir(&dir)?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
@@ -6205,6 +6211,41 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
     println!("  spec file missing    : {}", missing_spec.len());
     println!("  STALE (spec edited)  : {}", stale.len());
 
+    // W889: TRUNCATION RATCHET. A seal minted from a parse that discarded
+    // tokens records the number (W888); nothing yet noticed the number GROWING
+    // -- more of the file silently falling off the AST between seals. Measured
+    // at birth: 55% of all discarded tokens corpus-wide are given/when/then
+    // test lines and most of the rest are bench blocks, i.e. the exact content
+    // L4 TESTABILITY mandates. Only seals that carry the field are checked, so
+    // the ratchet tightens as the store is resealed, never retroactively.
+    let mut trunc_grew: Vec<String> = Vec::new();
+    for p in &entries2 {
+        let Ok(txt) = fs::read_to_string(p) else { continue };
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&txt) else { continue };
+        let Some(recorded) = v.get("discarded_top_level_tokens").and_then(|x| x.as_u64())
+        else { continue };
+        let Some(sp) = v.get("spec_path").and_then(|x| x.as_str()) else { continue };
+        let Ok(src) = fs::read_to_string(repo_root.join(sp)) else { continue };
+        let now = compiler::Compiler::parse_ast_accounted(&src)
+            .map(|(_, n)| n as u64)
+            .unwrap_or(recorded);
+        if now > recorded {
+            trunc_grew.push(format!(
+                "{}: discards {} -> {} (spec {})",
+                p.file_name().unwrap_or_default().to_string_lossy(),
+                recorded, now, sp
+            ));
+        }
+    }
+    println!("  TRUNCATION grew      : {}", trunc_grew.len());
+    if !trunc_grew.is_empty() {
+        println!();
+        println!("Seals whose parse now discards MORE than when sealed:");
+        for t in trunc_grew.iter().take(20) {
+            println!("  {t}");
+        }
+    }
+
     if !vacuous.is_empty() {
         println!("\nVacuous seals -- every gen_hash is \"none\", so they verify green");
         println!("while recording that nothing was ever generated:");
@@ -6237,12 +6278,13 @@ fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Re
     // unconditionally on stale -- measured immediately after: 281 of 1,715 seals
     // are stale, so an unconditional failure makes the command permanently red
     // and therefore ignored. The number is the finding; the ratchet is --strict.
-    if strict && (!vacuous.is_empty() || !missing_spec.is_empty() || !stale.is_empty()) {
+    if strict && (!vacuous.is_empty() || !missing_spec.is_empty() || !stale.is_empty() || !trunc_grew.is_empty()) {
         anyhow::bail!(
-            "seal audit failed: {} vacuous, {} orphaned, {} stale",
+            "seal audit failed: {} vacuous, {} orphaned, {} stale, {} truncation-grew",
             vacuous.len(),
             missing_spec.len(),
-            stale.len()
+            stale.len(),
+            trunc_grew.len()
         );
     }
     Ok(())
