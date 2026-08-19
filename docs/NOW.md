@@ -1,3 +1,19 @@
+# NOW -- the first real formal verdicts: fifo and mac PROVE (2026-08-20)
+
+Last updated: 2026-08-20
+
+## feat(formal)+skills: DUT-bound property sets; fifo+mac Status PASSED under z3 (Closes #2265)
+
+- First property sets in the repo's history that INSTANTIATE the DUT: yosys
+  subset only (immediate assertions), proven locally through the full chain
+  (yosys prep -> write_smt2 -> yosys-smtbmc -s z3): fifo PASSED, mac PASSED
+- uart's props are written and cross-checked by exhaustive simulation (256/256
+  bytes -> result==1), but its .sby is parked as .blocked: the module carries
+  an LDCE with a combinational feedback loop (module-var writes in the comb
+  lowering, #) that no SMT model can accept -- an emitter-level repair
+- ci-gates section 11: the seven formal layers, the artifact-logfile rule, the
+  run-the-chain-locally rule, and the self-healing watch pattern
+
 # NOW -- the NOW gate matched a path nobody edits (2026-08-20)
 
 Last updated: 2026-08-20

@@ -1,40 +1,15 @@
+// v1 (2026-08-20, #2265): first DUT-bound property set; see uart_formal_props.v
+// header for the history. The generated ZeroDSP_MAC currently exposes NO data ports
+// (#2238), so the one non-vacuous provable property is the handshake constant.
+// This file exists to keep the harness real and ready to grow with the ports.
 module mac_formal_props (
     input wire clk,
     input wire rst_n,
-    input wire [26:0] a,
-    input wire [26:0] b,
-    input wire [31:0] acc_in,
-    input wire enable,
-    output wire [31:0] acc_out,
-    output wire valid
+    input wire en
 );
+    wire ready;
+    ZeroDSP_MAC dut (.clk(clk), .rst_n(rst_n), .en(en), .ready(ready));
 
-    default clocking fp @(posedge clk); endclocking
-    default disable !rst_n;
-
-    // P1: After reset, accumulator is zero
-    assert property (rst_n |-> acc_out == 32'd0)
-        else $error("P1 FAILED: acc_out not zero after reset");
-
-    // P2: When enable is low, accumulator does not change
-    assume property (!enable |=> $stable(acc_out));
-
-    // P3: valid output only after enable was asserted
-    assert property (valid |-> $past(enable, 8))
-        else $error("P3 FAILED: valid without prior enable");
-
-    // P4: Accumulator output width never exceeds 32 bits (overflow check)
-    cover property (acc_out == 32'hFFFFFFFF);
-
-    // P5: Ternary LUT correctness: trit values are only 0, 1, or 2 (encoded)
-    assume property (a >= 0 && b >= 0);
-
-    // P6: valid signal deasserts after one cycle
-    assert property (valid |=> !valid)
-        else $error("P6 FAILED: valid held more than one cycle");
-
-    // P7: Enable pulse causes valid within 8 cycles
-    assert property (enable |-> ##[1:8] valid)
-        else $error("P7 FAILED: valid not seen within 8 cycles of enable");
-
+    // P1: the handshake line is constant-high in the current lowering.
+    always @(*) assert (ready == 1'b1);
 endmodule
