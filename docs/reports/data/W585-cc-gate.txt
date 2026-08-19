@@ -1,0 +1,30 @@
+--- C gate (cc -fsyntax-only) ---
+     75  call to undeclared function 'X'; ISO CN and later do not support implicit function declarations
+     60  unknown type name 'X'
+     36  use of undeclared identifier 'X'
+     31  type name requires a specifier or qualifier
+     28  type specifier missing, defaults to 'X'; ISO CN and later do not support implicit int
+     13  expected expression
+      8  unexpected type name 'X': expected expression
+      7  expected identifier or 'X'
+      6  initializing 'X' with an expression of incompatible type 'X'
+      5  brackets are not allowed here; to declare an array, place the brackets after the identifier
+      5  call to undeclared library function 'X' with type 'X'; ISO CN and later do not support implicit function declarations
+      5  member reference base type 'X' (aka 'X') is not a structure or union
+      3  expression is not assignable
+      3  field has incomplete type 'X'
+      2  unknown type name 'X'; did you mean 'X'?
+      1  declaration of anonymous union must be a definition
+      1  expected 'X'
+      1  expected member name or 'X' after declaration specifiers
+      1  field designator cannot initialize a non-struct, non-union type 'X'
+      1  function cannot return array type 'X' (aka 'X')
+      1  incompatible integer to pointer conversion returning 'X' from a function with result type 'X'
+      1  initialization of non-aggregate type 'X' with a designated initializer list
+      1  initializing 'X' (aka 'X') with an expression of incompatible type 'X'
+      1  passing 'X' to parameter of incompatible type 'X' (aka 'X')
+
+  specs scanned          608
+  headers that COMPILE   101
+  headers that FAIL      296
+  no header generated    211

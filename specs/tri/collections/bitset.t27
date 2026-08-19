@@ -11,7 +11,7 @@ module TriBitset;
     // ═══════════════════════════════════════════════════════════
 
     pub const Bitset = struct {
-        data : [[]Usize",
+        data : []usize,
         size : "usize",
         allocator : "std.mem.Allocator",
     };
@@ -20,8 +20,8 @@ module TriBitset;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: Std.mem.Allocator) → void
-    fn init(allocator: Std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator) → void
+    fn init(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

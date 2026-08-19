@@ -1,0 +1,19 @@
+# W560 — gen-zig defect taxonomy over 194 non-compiling BDD specs
+
+count  first error (normalized)
+ 104 use of undeclared identifier Q
+  38 expected type expression, found Q
+  27 expected Q, found Q
+   5 expected Q after statement
+   5 duplicate test name Q
+   4 tuple field has a name
+   2 expected expression, found Q
+   1 local variable is never mutated
+   1 function parameter shadows declaration of Q
+   1 expected Q, Q, Q, or Q, found Q
+   1 expected Q after initializer
+   1 expected Q after field
+   1 expected Q after declaration
+   1 expected Q after argument
+   1 duplicate struct member name Q
+   1 cannot assign to constant

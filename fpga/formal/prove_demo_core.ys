@@ -1,0 +1,30 @@
+# Theorem T3 -- the demo accumulator invariant.
+#
+# Claim: once the power-on reset is released, ternary_mac_demo_core's
+# accumulator is confined to {0, +1}; it is therefore never negative, the sign
+# LED (led_t23) never lights, and the activity LED is exactly the
+# "accumulator non-zero" predicate.
+#
+# This is what makes the on-board pass criterion in
+# docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md falsifiable rather than aspirational.
+#
+# The properties live inside ternary_mac_demo_core.v behind `ifdef FORMAL.
+# PRESCALE_BITS is overridden to 2 so a bounded run covers many datapath steps;
+# the invariant does not depend on the prescaler width.
+#
+# Run: yosys -s prove_demo_core.ys
+
+read_verilog -formal -DFORMAL ../verilog/ternary_mac_synth.v
+read_verilog -formal -DFORMAL ../verilog/ternary_mac_demo_core.v
+
+chparam -set PRESCALE_BITS 2 ternary_mac_demo_core
+prep -top ternary_mac_demo_core -flatten
+async2sync
+
+# Step 1 -- bounded model check: 64 clocks == 16 datapath steps == reset plus
+# more than three complete {+1, 0, -1, 0} weight cycles.
+sat -verify -prove-asserts -seq 64 -set-init-zero ternary_mac_demo_core
+
+# Step 2 -- unbounded proof by temporal induction.  If this passes, the
+# invariant holds for ALL time, not merely the first 64 cycles.
+sat -verify -prove-asserts -tempinduct -set-init-zero ternary_mac_demo_core

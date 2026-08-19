@@ -1,0 +1,6 @@
+
+--- parse completeness ---
+  specs scanned            608
+  parse and consume all    348
+  parse but TRUNCATE       0
+  do not parse             260

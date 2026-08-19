@@ -26,7 +26,6 @@ futures-util = "0.3"
 uuid = { version = "1", features = ["v4", "serde"] }
 tower = "0.5"
 ignore = "0.4"
-rusqlite = { version = "0.40", features = ["bundled"] }
 jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "hmac", "sha2", "use_pem"] }
 serde_urlencoded = "0.7"
 hyper = { version = "1", features = ["full"] }

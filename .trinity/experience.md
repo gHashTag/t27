@@ -19718,3 +19718,2856 @@ Sources:
 - Do not run the full `./scripts/tri test --fast` suite as the only check when
   adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
   dedicated `icarus_lowerable` test instead.
+---
+
+## Wave Loop 549 — IGLA CODER / IGLA RACE + real-FPGA route (2026-08-09)
+
+### Core insight
+
+Five of the six blockers on the road to running IGLA on real silicon were not
+hardware problems and not research problems. They were **untested claims**: a
+build command that failed on stable Rust, a binary path that did not exist, a
+CLI subcommand marked "Done" that was never written, a smoke-test doc naming
+the wrong board, and a demo design whose success was indistinguishable from
+its failure. The hardware was never the bottleneck; the absence of checking
+was.
+
+### Measured facts (this host, 2026-08-09)
+
+- `cargo build --release -p t27c` failed on stable rustc 1.94.1: dead
+  `rusqlite 0.40` dep -> `libsqlite3-sys 0.38.1` -> nightly-only `cfg_select!`
+  (`E0658`). Zero references to `rusqlite` in `bootstrap/src` or
+  `bootstrap/tests`. Removing it made the build green in 1m58s.
+- `./bootstrap/target/release/t27c` does not exist — `bootstrap/` is a
+  workspace member, artifacts land in the workspace-root `target/`. 67
+  occurrences repo-wide including SOUL.md, CANON.md, T27-CONSTITUTION.md.
+- IGLA spec vacuity: 2160/3788 (57.0%) test+bench blocks are `assert true`;
+  1917/3314 (57.8%) invariants are the literal `true`. Uniform per file
+  (80 and 71) — a mechanical appender, not engineering. IGLA is 2160 of the
+  2165 vacuous tests and 1917 of the 1918 vacuous invariants tree-wide.
+  CORRECTION: an earlier scan reported 99.3% of invariants vacuous; its
+  denominator counted only single-line `invariant x: expr` and missed the
+  multi-line `forall`-quantified form, which is the genuinely good half.
+- `openFPGALoader --scan-usb` -> "No USB devices found". No board attached.
+- `ternary_mac_demo_top_v2`: 12/12 iverilog self-checks pass; yosys
+  `synth_xilinx -abc9 -nocarry -arch xc7` clean at 113 LUT / 60 FF / 1
+  STARTUPE2 / 190 cells.
+
+### Anti-patterns to avoid
+
+- Do not adopt the previous wave's recommended variant without re-measuring
+  its premise; W548's Variant A was already invalidated by commit `e5b171e7`.
+- Do not conclude a file is missing from a relative-path shell command; a
+  persisted `cd` produced a confident, wrong "the compiler source is gone from
+  master". Confirm with `git ls-tree` / `cargo metadata` / a direct read.
+- Do not close a wave by appending `assert true` tests or `invariant: true`.
+- Do not call a hardware design "ready to flash" until its pass criterion is
+  stated in observable terms, together with what failure would look like.
+- Do not trust a documented command; run it. `t27c fpga-flash` was documented
+  in two places and implemented in none.
+
+### Carried forward
+
+- W550 Variant A (recommended): build the v2 bitstream (needs
+  `nextpnr-xilinx` or the openXC7 Docker image), fix the `fpga-build --device`
+  default (Arty package on a Wukong flow), then gates G2/G3 once a board is
+  attached.
+- W550 Variant B: `t27c validate-vacuity` as a reporting gate, then retrofit
+  `specs/igla/race/ternary_inference.t27` (80/140 vacuous, 0 real benches).
+- W550 Variant C: score IGLA CODER on VerilogEval; merge the two colliding
+  wave-loop counters.
+
+### Wave 549 science track — addendum (2026-08-09)
+
+**The largest finding was invisible to every existing gate.** All 27 IGLA
+CODER + RACE specs (~69,000 lines) had never compiled. No gate ran the backend
+over them: `synth-readiness` scans statically and reported them healthy. The
+new `t27c synth-gate` (which actually invokes yosys) returned 0/17 on first
+run.
+
+Cause, two layers:
+1. Wave Loop 339 appended a `test` block with NO closing brace to all 27 specs.
+   One brace per file: gen-verilog 0/27 -> 8/27.
+2. The rest fail on two SPELLINGS, not missing features: a brace-delimited
+   block-expression (`if (c) { a } else { b }` -- `parse_if_expr` exists at
+   compiler.rs:3056 but takes bare-expression arms) and `as f32`/`as f64`
+   casts (`TypeInfo::F32` exists; only the cast whitelist omits them).
+
+**Method lesson that paid for itself:** the research report's falsification
+section overturned its own §4.2. The first draft said "the specs target a
+language that does not exist"; checking it showed both features exist and the
+gap is two productions. The recommended next-wave variant changed as a result.
+Write the falsification list first, then run it.
+
+**Second method lesson:** cross-check headline numbers with a second
+implementation. Invariant vacuity was published at 99.3% from a Python scan and
+corrected to 57.8% by the Rust validator, whose denominator included multi-line
+`forall` invariants. The test figure (57.0%) agreed across both.
+
+**Three theorems now machine-checked with yosys alone** (no Coq/Lean/sby):
+T1 ternary_mac_top == real-`*` golden model for all inputs (miter+SAT);
+T2 same function at 0 DSP48 vs 1 DSP48E1; T3 demo accumulator confined to
+{0,+1}, proved UNBOUNDED via temporal induction at length 10. See
+fpga/formal/README.md. T2 is the quantified ternary argument in one line.
+
+**Blocker for the next wave:** bootstrap/build.rs watches compiler.rs but not
+main.rs, and it PANICS on six committed docs violating L3/LANG-EN that are not
+allowlisted. The build has been latently broken since 2026-06-28 for anyone
+touching the compiler. docs/.legacy-non-english-docs is Architect-approval-only
+-- do not self-approve.
+
+**Also:** the locally installed .git/hooks/pre-commit (not the repo's tracked
+.githooks/pre-commit, which has no seal check) demands
+.trinity/seals/<basename>.json while every repo tool writes
+.trinity/seals/<parentdir>_<module>.json. The gate is unsatisfiable, not
+unsatisfied.
+
+## Wave Loop 550 — corpus repair (2026-08-09)
+
+**Result:** 700 -> 737 of 1063 specs parse (65.9% -> 69.3%), 37 previously
+failing specs repaired, 0 regressions.
+
+### The lesson: the error message names where the parser gave up, not where
+### the file went wrong
+
+W549 labelled 38 specs failing `Expected RBrace, got Eof` as "unterminated
+blocks, same class as the W339 brace bug". Wrong twice over:
+
+1. Brace depth in all 38 is ZERO (verified with a lexer-faithful counter that
+   ignores comments and string literals).
+2. A second hypothesis -- an unimplemented given/when/then BDD dialect, used by
+   35 of the 38 and documented in SOUL.md and the language RFC -- also failed:
+   158 OTHER specs use the same form and parse fine, and a `when` clause
+   appears in 76% of failures vs 77% of passes. It discriminates nothing.
+
+The real defect was a CORRUPTED TYPE ANNOTATION with a stray double quote,
+opening a string literal that swallowed the rest of the file:
+
+    bits     : [[]Usize",           ->  bits     : []usize,
+    log_file : [?[]Const u8",       ->  log_file : ?[]const u8,
+    opad     : [[64]U8",            ->  opad     : [64]u8,
+    children : [[256]?*ACTrieNode", ->  children : [256]?*ACTrieNode,
+
+Three hypotheses, two refuted by cheap measurement BEFORE any code changed.
+
+### Anti-patterns to avoid
+
+- Do not trust a parse error's category. Verify brace/quote parity yourself and
+  compare against specs that PASS with the same shape.
+- Do not apply a repo-wide regex without re-parsing every previously-passing
+  file it touched. The first pass here REGRESSED two files (html/xml.t27) that
+  had a fourth corruption shape; repairing three of their four bad lines
+  flipped quote parity from even to odd. Reverted and left untouched rather
+  than half-repaired.
+- Watch for normalization bugs in the fix itself: the generalized pattern glued
+  `[]` to the type token, so `Const` never lowercased and 15 specs got
+  `[]Const u8` instead of `[]const u8`.
+
+### Open question carried to W551
+
+327 specs (a third of the corpus) use given/when/then, which has NO parser
+production but IS specified in SOUL.md, docs/rfc/tri-language-core.md and
+TDD-CONTRACT.md. They parse only because the parser tolerates the shape
+incidentally. Nobody has established what it actually does with those blocks --
+recognised as tests, silently skipped, or mis-parsed. Every "N tests in spec X"
+claim depends on the answer.
+
+## Wave Loop 551 — the seal mechanism certifies files the compiler rejects (2026-08-09)
+
+### Headline
+
+`t27c seal --save` succeeds on a spec that cannot parse. It writes
+gen_hash_* = "none" for every backend, and `seal --verify` then reports
+"all hashes MATCH" -- because none matches none. A green seal that certifies
+nothing.
+
+Demonstrated on specs/api/c_api_contract.t27, which is a MARKDOWN document with
+a .t27 extension. Sealing it destroyed four real gen hashes from 2026-08-06.
+
+**Self-inflicted at scale:** auditing my own W549/W550 reseals showed I had done
+this 30 times. Those seals previously FAILED verification with
+`gen_hash_zig: MISMATCH (saved=sha256:..., current=none)` -- exactly the signal
+that a spec stopped generating. After my reseal they PASSED. I converted 30
+mismatch-flagging seals into vacuous passing ones. All restored to 079ed21ab.
+
+### Corpus composition (measured)
+
+- 221 of the 326 unparseable specs carry a seal file.
+- 15 .t27 files are MARKDOWN documents (`# Heading`, prose). All 15 fail to
+  parse; all 15 have seals; they are referenced 104 times across the repo, so
+  renaming them to .md is not a unilateral change.
+- 11 files use foreign dialects the compiler does not implement:
+  `spec X { struct Y { field: string } }` (8) and `algorithm X { }` (3).
+  All 11 fail.
+- 7 files declare `module ;` -- an EMPTY module name -- and all 7 PARSE FINE.
+  The parser accepts an anonymous module.
+
+### Anti-patterns to avoid
+
+- Never reseal without gating on `t27c parse` first (skill rule 13).
+- Do not infer dialect diversity from a regex census without checking the
+  regex: my first pass reported "325 files in neither dialect" when 316 of
+  them simply had namespaced module names (`module depin.prove;`,
+  `module github::issues {`) that the pattern did not allow.
+
+## Wave Loop 552 — L2 hardened (2026-08-09)
+
+**Delivered:** `seal --save` now refuses to write a seal whose every gen_hash
+would be "none" (exit 1, `--force` to override); `seal --verify` treats an
+all-none saved seal as FAILURE instead of MATCH; new `t27c seal-audit` reports
+the seal store, with `--strict` as a hard gate.
+
+**Why this was doable while the LANG-EN gate blocks everything else:**
+bootstrap/build.rs watches FROZEN_HASH, compiler.rs, docs/.legacy-non-english-docs
+and build.rs -- NOT main.rs. Seal logic lives in main.rs. Anything in main.rs is
+editable today; anything in compiler.rs is not.
+
+**Falsification run BEFORE enforcing:** checked whether any legitimate spec
+class is expected to seal all-none. Zero of the all-none seals had a spec that
+parses, so no carve-out was needed. Enforcing without this check could have
+broken a valid workflow.
+
+**Audit of the current store:**
+    seals total 1714 | healthy 1621 | vacuous 2 | spec file missing 91
+
+**New finding:** 91 orphaned seals reference spec paths that do not exist AND
+have no git history at that path (specs/numeric/binary16.t27,
+specs/network/d2d_conformance.t27, ...). Something wrote seals for specs that
+were never committed. Cause unknown -- W553 Variant A.
+
+**Attribution discipline that mattered:** three healthy specs failed
+verification during regression testing. Before reporting a regression I checked
+the detail: `spec_hash: MATCH` with differing gen hashes, no mention of the new
+vacuous check, and the W549 suite had already counted 1035 such failures. The
+backends evolved since those seals were recorded. Pre-existing, not mine.
+Always read the mismatch detail before claiming a regression -- and always
+check whether a prior run already recorded the same failure.
+
+## Wave Loop 553 — GATE G1 DONE: the ternary MAC has a bitstream (2026-08-09)
+
+### The result
+
+fpga/verilog/ternary_mac_demo_top_v2_200t.bit, 9,730,764 bytes, part
+xc7a200tfbg676-1. Place-and-route 0 errors.
+
+    Max frequency 'cfgmclk' : 150.63 MHz  (PASS at 80.00 MHz) -- 1.88x margin
+    SLICE_LUTX              : 120 / 269200  (0%)
+    SLICE_FFX               :  60 / 269200  (0%)
+
+Until now EVERY frequency figure attached to IGLA RACE was a projection from a
+model. This one is from place-and-route.
+
+### The lesson: re-test a blocker when the constraint is environmental
+
+W549-W552 recorded G1 as blocked and moved to other tracks. The blocker was
+real but it was DOCKER'S memory ceiling, not the machine's. Running the
+memory-heavy step natively:
+
+    bbaexport peak memory : 7,064,369,664 B  (7.06 GB)
+    Docker allocation     :         3.83 GiB
+    host RAM              :         8 GB
+
+7.06 GB against 3.83 GiB -- no Docker tuning short of ~7.5 GiB could have
+fixed it, and the host had the RAM all along. Split the pipeline: heavy step
+native, tool steps in Docker.
+
+**Generalize:** when a blocker is environmental (memory, sandbox, tool
+absence), ask which specific environment imposes it and whether another one is
+available. Do not carry "blocked" forward across waves without re-testing the
+premise.
+
+### Two gotchas worth remembering
+
+- bbaexport.py prints NOTHING when the OOM killer takes it. Check $? -- 137
+  means OOM. Piping through `tail` hides the exit code, which is what caused
+  W549's two misdiagnoses (first "missing prjxray database", then "unset
+  XRAY_DATABASE_DIR"; both wrong).
+- nextpnr-xilinx's XDC reader supports ONLY get_ports and get_nets. A
+  Vivado-legal `create_clock ... [get_pins startup/CFGMCLK]` errors with
+  "targets other than 'get_ports' or 'get_nets' are not supported". Use
+  [get_nets <net>]; Vivado accepts that form too.
+
+### Also this wave
+
+13 corrupted module declarations repaired (`module "[]const u8";`,
+`module Str = "",;`, `module ;`). All PARSED FINE -- the parser accepts a
+string literal, a type annotation, an assignment expression and an empty name
+as a module name. The only visible symptom was pathological seal filenames
+(`"[]const u8".json`, `Str = "",.json`). Intended names recovered from the seal
+store, which recorded them before the corruption. No spec `use`s any of them,
+so renaming was safe.
+
+Seal store: 1714 seals for 1063 specs. 548 spec_paths carry MORE THAN ONE seal
+(585 redundant files) because the filename convention changed from `<Module>`
+to `<parentdir>_<Module>` without cleanup. 91 orphans: 89 whose spec was
+deleted (real hashes, left behind), 2 whose spec never existed in history.
+
+## Wave Loop 554 — my own metric was overstating (2026-08-09)
+
+### Delivered
+
+- `t27c fpga-chipdb`: the W553 chipdb recipe as a command. Extracts inputs from
+  the image, runs bbaexport NATIVELY (the ~7 GB step), bbasm in Docker,
+  idempotent, and reports exit 137 as "KILLED by the OOM killer" because the
+  tool prints nothing when that happens.
+- `t27c synth-gate` now parses yosys's "Estimated number of LCs" and flags
+  HOLLOW designs.
+
+### The finding: 0 of 7 "synthesising" IGLA RACE specs produce hardware
+
+specs/igla/race/ternary_gemm.t27 synthesises cleanly to:
+
+    463 cells = 459 $print + 3 IBUF + 1 OBUF
+    Estimated number of LCs: 0
+
+The generated module has a FIXED clk/rst_n/en/ready interface, drives only
+`assign ready = 1'b1;`, and emits the spec's arithmetic as Verilog `function`
+definitions that NOTHING INSTANTIATES -- so synthesis optimises it all away.
+
+Measured across specs/igla/race: 8 generate, 7 synthesise, **0 produce logic**.
+
+**The consequence for IGLA RACE:** the ternary MAC that works, that T1-T3
+prove, and that is inside the W553 bitstream, is HAND-WRITTEN Verilog
+(fpga/verilog/ternary_mac_synth.v, 59 LUT / 32 FF). The .t27 spec of the same
+name generates no hardware. For this line the spec-to-RTL claim is not
+demonstrated.
+
+### The lesson
+
+This is the FIFTH integrity claim in this chain found satisfiable by content
+that means nothing -- after vacuous tests (57% assert true), static readiness
+(never invoked a synthesiser), vacuous seals (none matches none) and inflated
+invariant counts. **This one was mine**: W549 introduced synth-gate precisely
+to stop metrics overstating readiness, and it overstated readiness.
+
+Generalise: when you add a metric to catch overstatement, ask immediately what
+its own hollow-success case looks like. "The tool exited 0" is never the
+measurement; find the quantity that would be zero if nothing happened, and
+report THAT. For synthesis it is logic cells, not exit status.
+
+## Wave Loop 555 — 65.3% of test blocks assert nothing (2026-08-09)
+
+### The experiment that settles it
+
+    test bdd_obviously_false
+        given x = two()      // two() returns 2
+        then x == 999
+
+parses; ast-dump shows a TestBlock IS created (so it is counted); `t27c gen`
+emits `test "bdd_obviously_false" {}` -- an EMPTY body, `999` appears nowhere;
+`zig test` reports "All 2 tests passed."
+
+**A test asserting that 2 equals 999 passes.**
+
+### Scale
+
+    brace-form test blocks : 3159
+    BDD-form  test blocks  : 7623   <- discarded, always pass
+    tests that assert nothing: 9788 of 14996  (65.3%)
+
+    brace-form invariants   :  825
+    keyword-form invariants : 5163  (86.2%) <- body skipped; codegen emits
+                                              "// invariant: X verified (no statements)"
+
+### It is deliberate, and it is in the source
+
+parse_test_block:
+    } else {
+        // Keyword-style test: test name given ... when ... then ...
+        // Skip until we hit a top-level keyword or EOF or RBrace
+        self.skip_to_next_top_level();
+    }
+
+parse_invariant_block does the same. The clauses never reach the AST -- the
+TestBlock node has NO children -- so capturing them is a PARSER change, not a
+lowering. My W556 Variant A estimated a lowering and its own step 1 falsified
+that.
+
+### Two corrections to my own earlier work
+
+1. validate-vacuity (W550) counted only brace-form blocks. It was blind to
+   7,623 tests. Every vacuity figure I published understated the problem.
+2. W549 argued the multi-line forall-quantified invariants were "the genuinely
+   good half" and used that to soften the vacuity finding. They are keyword-form,
+   so they are skipped and generate a comment claiming verification. That
+   defence was wrong and is withdrawn.
+
+### Anti-patterns
+
+- Do not trust a census tool without enumerating the FORMS of the thing counted
+  and confirming the tool sees each one.
+- When documentation promises a construct, write the smallest spec that MUST
+  fail and check that it does. SOUL.md, the language RFC and TDD-CONTRACT.md all
+  specify given/when/then; nothing executes it.
+
+## Wave Loops 556-557 — IGLA CODER audited; findings made permanent (2026-08-09)
+
+### W556: the IGLA CODER dataset
+
+dataset/igla-coder/v0.1: 8 pairs, **0 with a generated-code half** (every
+gen_path_in_t27 is null), held_out_eval_defined false, 2 of 8 source specs
+missing from the repo. The manifest says so plainly -- honest labelling of an
+incomplete artifact, unlike the six findings before it.
+
+**The good news is real:** the dataset specs are the best-written in the repo.
+All 8 use brace-form tests with real multi-assertion bodies; L4 claim
+(>=3 invariants, >=8 tests, >=2 bench) holds exactly. They are markedly better
+than the main IGLA .t27 corpus.
+
+**But they are .tri.** My first conclusion -- ".tri is a documented format with
+no implementation" -- was WRONG and one query refuted it: gHashTag/trinity has
+744 .tri files and src/tri/parser.zig. .tri is trinity's language; t27's 17 .tri
+files are imports (headers literally say "Source repo: gHashTag/trinity").
+
+**Third blind spot in my own tooling:** validate-vacuity scanned only .t27, so
+17 specs were outside every census -- the corpus is 1,080, not the 1,063 I had
+been quoting. (W554: exit-status-as-success. W555: brace-form only. W556: .t27
+only.) Now reported as NOT ANALYSED rather than skipped silently.
+
+**Migration is gated too:** converting dna.tri mechanically moved the failure
+from line 1 to line 13, on `pub type Bytes32 = [32]u8`. t27 REJECTS pub type
+(pub const/struct/enum/fn are all fine), and .tri uses it 64 times. Adding it
+means compiler.rs -> LANG-EN gate.
+
+### W557: both documented test formats are broken
+
+- SOUL.md 2.3 shows `test name { given ... then ... }` -- **does not parse**.
+- TDD-CONTRACT.md shows the braceless form -- parses, body discarded.
+
+SOUL.md is the canonical law and its test example is a hard parse error. Both
+docs now carry implementation-status notes (specifications unchanged -- which
+way to close the gap is the maintainer's call).
+
+Suite Phase 6 added: prints vacuity, BDD, seal and .tri numbers every run,
+REPORTING ONLY (excluded from TOTAL FAILURES -- making them hard gates is a
+maintainer decision). suite.rs is outside build.rs's watch list, so it landed
+despite the gate.
+
+### The standing lesson
+
+Every substantive track now routes through one approval (LANG-EN). Eight waves
+of measurement produced a queue of evidence-backed fixes that cannot be applied.
+When a loop reaches this state, the useful output is: make the findings
+permanent (Phase 6), correct the documentation that misleads, and say plainly
+what decision is needed -- not manufacture busywork.
+
+## Wave Loop 558 — the gate that blocked five waves did not exist (2026-08-09)
+
+### The correction
+
+W549-W557 recorded four tracks as blocked by "the LANG-EN gate". WRONG, for
+five waves. build.rs treats Markdown language violations as cargo:warning; only
+SPEC files panic. The actual panic:
+
+    thread 'main' panicked at bootstrap/build.rs:220:9:
+    t27c FROZEN HASH violation: bootstrap/src/compiler.rs has changed
+    without a seal update.
+
+FROZEN_HASH is a documented two-step ceremony (CANON.md M5), not an approval. I
+saw a wall of LANGUAGE POLICY warnings above the failure in W549 and attributed
+the panic to them without reading the panic line. Everything downstream
+inherited it.
+
+### Landed
+
+- `t27c frozen-digest` -- the ceremony tool referenced in FROZEN.md:108/110/128,
+  CANON.md:37 and build.rs:224 that DID NOT EXIST. Validated by reproducing the
+  existing seal byte-for-byte before any edit.
+- `as f32`/`as f64` casts: 9 of 326 known-failing specs now parse (326 -> 317).
+  A one-line change that sat blocked for five waves on a gate that was not there.
+
+### Attempted, verified, REVERTED
+
+BDD lowering (given/when -> StmtLocal, then -> assert). The lowering is CORRECT:
+the false-assertion spec finally generated
+`if (!(x == 999)) @panic("assertion failed")` and zig test ABORTED.
+
+But the census gave PARSE OK=726 FAIL=337 vs a 317 baseline -- 19 regressions.
+Reverted as promised. Two mechanisms found:
+  1. `and` continuation clauses in a binding list (fixed).
+  2. parse_expr is GREEDY ACROSS NEWLINES: a binding value swallows the next
+     clause's name and stops on its `=`.
+  3. A third remains undiagnosed -- the 19.
+
+Diff + 19-spec fixture set kept in docs/patches/W559-bdd-lowering.md. Next
+attempt should make the clause value LINE-BOUNDED rather than detecting
+over-consumption after the fact.
+
+### The standing lessons
+
+- Read the panic line, not the warnings above it.
+- State the revert condition before starting, then honour it. Preserving the
+  failing fixture set is what makes the next attempt cheap.
+- Nothing in this project is waiting on an approval any more. The only external
+  dependency left is a physical board for G2/G3.
+
+## Wave Loop 559 — 7,623 inert tests now execute (2026-08-09)
+
+### Result
+
+    tests that assert nothing: 9788/14996 (65.3%) -> 2165/14996 (14.4%)
+    full census: PARSE OK=746 FAIL=317 (baseline 317), REGRESSIONS 0
+
+The lowering:
+    given|when|and x = expr  ->  StmtLocal x = expr
+    then|assert       expr   ->  StmtExpr( assert(expr) )
+
+Proven: the false-assertion fixture now generates
+`if (!(x == 999)) @panic("assertion failed")` and zig test ABORTS. Before it
+reported "All 2 tests passed".
+
+### Why W558 failed and W559 worked
+
+W558 reverted on 19 regressions AND KEPT THEM AS A FIXTURE. That is the entire
+reason this wave was cheap. Diagnosing the fixture (not guessing) found three
+shapes:
+  1. `and` continuation clauses in a binding list.
+  2. `assert <expr>` as a bare clause -- 525 occurrences; the loop broke on it
+     and stranded the parser. This caused most of the 19.
+  3. Comma-separated bindings: `given clk = true, rst_n = false`.
+
+Root cause of 2 and 3: the loop assumed ANY non-clause token ended the block.
+Fixed with a BOUNDARY PREDICATE -- the block ends only on Eof/RBrace/KwTest/
+KwFn/KwInvariant/KwBench/KwPub/KwConst/KwUse/KwModule. Anything else means we
+stopped mid-clause, so restore the entry checkpoint and fall back to the old
+skip.
+
+Safety contract that made this landable: the change may only ADD assertions,
+never break a file. Every unmodelled shape restores and skips.
+
+### My metric went stale in the OPPOSITE direction
+
+After landing, validate-vacuity still said "assertions DISCARDED" and 65.3% --
+understating the FIX rather than the problem. Corrected to 14.4%, with a note
+that shapes which fall back are indistinguishable to a static scan, so the
+figure is a LOWER BOUND on what executes.
+
+Lesson: when you fix something a tool measures, the tool's message is now a
+claim about the fix. Re-read it.
+
+### The number nobody has yet
+
+7,623 tests that could not fail can now fail. How many DO is the real,
+previously-hidden defect count of this project -- obtainable for the first time,
+and the most valuable measurement available. That is W560.
+
+## Wave Loop 560 — the tests do not fail; 169 specs test a function nobody wrote (2026-08-09)
+
+### The answer to W559's open question
+
+Ran all 199 parsing BDD specs through gen-zig + `zig test`:
+
+    ALL_PASS        5   (45 tests genuinely executing and passing)
+    COMPILE_FAIL  194
+    TEST_FAIL       0
+
+They do not fail. They do not COMPILE. Dominant cause, resolved precisely:
+
+    104 of 194 first errors = "use of undeclared identifier"
+    44 of a 90-sample       = `default_input`
+    169 SPECS call default_input() WITHOUT DEFINING IT ANYWHERE
+
+The shape is always:
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
+
+A template-generated test scaffold referencing a helper nobody implemented.
+Before W559 the bodies were discarded so they compiled to `test "..." {}` and
+passed. The lowering did not create the defect -- it revealed it.
+
+**45 of 14,996 test blocks actually execute today.** That is the honest figure.
+
+### Also surfaced
+
+- 5 specs have DUPLICATE TEST NAMES (zig rejects them).
+- gen-zig defects, cleanly separated from spec defects: `str` emitted verbatim
+  into Zig (no such type), `&str` in struct fields (Rust syntax), and enum
+  comparison without @intFromEnum.
+
+### TWO corrections to my own instrumentation in ONE wave
+
+1. The first classifier reported 2 TEST_FAIL. Both were misclassified: it
+   grepped for `panic|assertion failed`, which matches the SOURCE LINE
+   `@panic("assertion failed")` that zig echoes inside a compile error. Fixed by
+   requiring a `file:line:col: error:` prefix. True count: 0.
+2. From a 70-spec sample I claimed str/&str was the dominant compile failure.
+   Across all 194 it is 15, against 104 undeclared identifiers. The sample was
+   unrepresentative.
+
+Four waves running where my own instrumentation was what needed correcting
+(W554 exit-status, W555 brace-only, W556 .t27-only, W559 stale message, W560
+both of the above). When a measurement surprises you, suspect the measurement
+first.
+
+## Wave Loop 561 — my own recommendation was wrong, and measuring said so (2026-08-09)
+
+### The pivot
+
+W560 recommended defining default_input() because "one missing helper blocks
+169 of 194 compile failures". Its own falsification condition was checked first,
+and the recommendation did not survive:
+
+    assertion clauses across the corpus : 11,853
+      trivial `result != undefined`     :    571  (4.8%)
+      substantive                       : 11,282  (95.2%)
+
+    substantive assertions hostage to default_input : 183
+    substantive assertions blocked by other causes  : 11,099
+
+All 571 template tests are IDENTICAL: `then result != undefined`. Defining the
+helper would produce 571 tests with almost no discriminating power -- a THIRD
+vacuity class after `assert true` and discarded-BDD. The leverage was never
+there; it is in the 11,099.
+
+Also: I nearly reported a test-name/function mismatch in reed_solomon.t27 from
+eyeballing a `grep -A3` window that had spanned two adjacent tests. Measured
+across the population: 0%.
+
+### Landed
+
+gen-zig mapped `str`/`&str` -> []const u8. The Zig emitter passed unknown type
+names through verbatim, so t27's `str` landed in Zig (no such type) and `&str`
+leaked Rust borrow syntax. The RUST emitter has always mapped it
+(compiler.rs:14463); the Zig one never did. 103 specs declare str/&str.
+
+                     before   after
+    ALL_PASS              5       7
+    COMPILE_FAIL        194     192
+    tests executing      45      54
+
+Modest, and that is the expected shape: fixing a spec's FIRST error reveals the
+next. Verified no parse regression is POSSIBLE by call-site inspection --
+t27_array_type_to_zig is reachable only from gen_fn_decl and gen_stmt.
+
+### The standing lesson
+
+A recommendation carried from the previous wave is a hypothesis, not a plan.
+W560's was written from a first-error taxonomy; W561 measured the POPULATION and
+found the leverage was elsewhere by two orders of magnitude. Check the previous
+wave's recommendation against fresh measurement before executing it -- that is
+rule 1 restated, and it has now paid off twice (W548's stale variant, W560's).
+
+## Wave Loop 562 — string literals had no quotes (2026-08-09)
+
+                     W560   W561   W562
+    ALL_PASS            5      7      9
+    COMPILE_FAIL      194    192    190
+    tests executing    45     54     64     (+42% since W560)
+
+### The defect
+
+The lexer strips a string's quotes and stores the raw text with
+extra_kind == "string". The ZIG emitter wrote node.value back UNQUOTED, so
+every string literal became a bare identifier:
+
+    pub const NAME: str = "hello";  ->  pub const NAME = hello;
+    assert(x == "world")            ->  if (!(x == world))
+    name == "Digilent Arty A7-35T"  ->  if (!(name == Digilent Arty A7-35T))
+
+The C and Rust paths already handled extra_kind == "string"
+(compiler.rs:3701, 9470). The Zig path never did. This was a large share of the
+"use of undeclared identifier" class (104 of 194 first errors in W560).
+
+Also fixed: struct field and const-decl types bypassed t27_array_type_to_zig,
+so &str still reached Zig there after W561's parameter-side fix.
+
+### default_input() is NOT mechanically fixable -- settled
+
+Of the 169 specs: 48 have a uniform first-param type (one helper would work),
+96 have MIXED types one helper cannot satisfy, and 25 call functions that do
+not exist in the spec at all. The 571 template tests need rewriting or removal,
+not patching -- and that is a maintainer's decision because it changes intent.
+
+### Method note
+
+Following the taxonomy DOWN rather than sideways paid off: fixing the
+first-error class exposed the next, and the string-literal defect was only
+visible after the type mapping was fixed. A first-error histogram is a queue to
+be drained in order, not a ranking of importance (rule 26).
+
+## Wave Loop 563 — 45 -> 167 executing tests (2026-08-09)
+
+                     W560   W561   W562   W563
+    ALL_PASS            5      7      9     14
+    tests executing    45     54     64    167    (+271% since W560)
+
+### Two fixes
+
+1. `&T` in a parameter type produced TWO parameters. parse_type_annotation
+   never consumed a leading `&`, so it returned an EMPTY type and the param
+   loop read the type name as the next param:
+       fn find_pin_by_port(name: &str) -> fn find_pin_by_port(name: , str: )
+   103 specs use str/&str. Parser change -> full census mandatory:
+   PARSE OK=746 FAIL=317, REGRESSIONS 0. Taxonomy: the class went 11 -> 0.
+
+2. String `==` lowered to std.mem.eql. Zig has no == for slices, and W562's
+   quoting fix CREATED this class (7 cases). **This was the unlock: 64 -> 167.**
+
+### Two lessons
+
+- **A fix can create the next error class.** W562 made string literals correct,
+  which immediately produced "cannot compare strings with ==". That is progress,
+  not regression -- but it must be measured and attributed, not assumed.
+- **The top-line metric can stay flat while a fix lands.** The `&T` fix moved
+  ALL_PASS not at all; the evidence it worked was the taxonomy (11 -> 0). When
+  draining a first-error queue, each fix buys the next diagnosis, not
+  necessarily a passing spec. Report the taxonomy shift, not just the headline.
+
+## Wave Loop 564 — the first genuine test failures (2026-08-09)
+
+                     W560   W561   W562   W563   W564
+    ALL_PASS            5      7      9     14     14
+    TEST_FAIL           0      0      0      0      2   <- FIRST real failures
+    tests passing      45     54     64    167    175
+
+### The defect
+
+specs/fpga/ternary_isa.t27 test validate_r_type_format asserts
+validate_instr_format(fmt) == 0 and FAILS. r_type_format() declares
+opcode 6 + rd 5 + rs1 5 + rs2 5 + imm 0 = 21 bits, but total_bits = 32.
+**11 bits unaccounted for in the R-type encoding.** A genuine SPEC defect, not
+a codegen artefact. It could not fail before W559 because the body was
+discarded. specs/fpga/simulator.t27 also aborts; uncharacterised.
+
+Not fixed: whether total_bits or the field widths are wrong is a specification
+decision, not a compiler one.
+
+### What unblocked it
+
+zig_ident escaped primitive TYPE names but not Zig KEYWORDS, and was not
+applied to enum variants or struct fields at all. A variant/field named `error`
+emitted `error = 4,` / `error: bool,`. Small yield in compile terms (184->183)
+but it released the two specs that then RAN.
+
+### Third instrumentation correction in five waves
+
+The harness reported those two as UNKNOWN because it did not recognise
+"terminated with signal ABRT" / "panic: assertion failed" as a failure -- the
+same gap as W560's, in the opposite direction. A classifier that cannot express
+the outcome you are hunting for will report it as noise. Harness + raw results
+now committed under docs/reports/data/ so the measurement is reproducible.
+
+## Wave Loop 565 — the first defects found AND fixed (2026-08-09)
+
+                     W560   W561   W562   W563   W564   W565
+    ALL_PASS            5      7      9     14     14     16
+    TEST_FAIL           0      0      0      0      2      0
+    tests passing      45     54     64    167    175    209
+
+### Three real defects
+
+1. validate_instr_format required fields to exactly FILL the instruction word.
+   W564 left this as a spec decision rather than guessing. The AUTHORITATIVE
+   ENCODER settled it -- assembler.t27 encode_r_type is
+   (opcode<<26)|(rd<<21)|(rs1<<16)|(rs2<<11) = 21 used bits of a 32-bit word,
+   bits 10..0 reserved; encode_i_type is 6+5+5+16 = 32, matching i_type_format
+   exactly. So total_bits and the field widths are both right and the VALIDATOR
+   was wrong: `!=` -> `>`.
+2/3. sim_time_ns and cycles_for_time_ns both overflow u32 on the intermediate
+   product (100_000_000_000 vs a 4.29e9 max). Widened to u64. The second was
+   only visible after fixing the first.
+
+Result: ternary_isa 29/29 pass, simulator 13/13 pass.
+
+### The lesson that produced this
+
+W564 found the mismatch and REFUSED to guess which number was wrong, deferring
+it as a specification decision. W565 then found the encoder, which decided it
+unambiguously. Deferring a decision is not the same as dropping it -- record
+what evidence WOULD settle it, and the next wave can go find that evidence
+instead of guessing. Guessing at W564 would probably have "fixed" total_bits to
+21 and silently broken the word-width contract.
+
+## Wave Loop 566 — invariant lowering works, not shippable yet (2026-08-09)
+
+State unchanged: 16 specs passing, 209 tests, 0 failures.
+
+### Measured BEFORE writing code (rule 26)
+
+Of 5,163 keyword-form invariants: 1,998 tautologies, 1,981 multiline
+expressions, 825 multiline forall, 347 inline expressions, 12 inline forall.
+~2,328 (45%) carry a real executable predicate. Worth doing.
+
+### The discovery
+
+The first implementation required `invariant name: <expr>` and lowered 3 of 81.
+The COMMON spelling has NO COLON:
+
+    invariant board_name_not_empty
+        assert BOARD_NAME != ""
+
+76 of 81 are this clause form -- identical to a braceless test. Handing it to
+the shared W559 clause parser made it fire: arty_a7 went 16 -> 23 assertions.
+
+Invariants lower into `comptime` blocks, so a FALSE invariant becomes a compile
+error, not a test failure. None was found.
+
+### Why reverted
+
+race_config.t27 regressed on `use of undeclared identifier 'abs'` -- NOT a false
+invariant, a missing builtin mapping (Zig spells it @abs). Corpus-wide: abs 425,
+sqrt 111, floor 99, round 92, max 62, min 50.
+
+I implemented the mapping and reverted THAT too: doing it safely needs a set of
+spec-declared function names so a user-written `fn max(...)` still wins, and the
+generator has no such set. Mapping unconditionally would silently shadow user
+functions -- the exact defect class this chain has been removing.
+
+Contract: "may only ADD assertions, never break a file". One regression
+violates it. Reverted with diff + prerequisite preserved.
+
+### The lesson
+
+Two reverts in this chain (W558, W566) both produced a cheaper next attempt
+because the failing evidence AND the prerequisite were written down. A revert
+that records "what must be true first" is worth more than a merge that breaks
+one file.
+
+## Wave Loop 567 — the last inert population, landed (2026-08-09)
+
+    harness : ALL_PASS 16, COMPILE_FAIL 183, tests 209   -- 0 regressions
+    census  : PARSE OK=746 FAIL=317 (baseline 317)       -- 0 regressions
+    65 invariants now emit a real compile-time check (16 specs)
+
+### The pattern that made this cheap
+
+W566 implemented the lowering, hit ONE regression, reverted, and WROTE DOWN THE
+PREREQUISITE (a guarded builtin mapping). W567 did the prerequisite first and
+re-applied the diff unchanged. Both gates green on the first attempt.
+
+That is the second time in this chain (W558->W559, W566->W567) that a
+disciplined revert produced a one-wave landing next time. The rule is not
+"revert when it breaks" -- it is "revert, keep the evidence, and name what must
+be true first".
+
+### The prerequisite itself
+
+839 bare calls to abs/sqrt/floor/round/min/max. Codegen now collects the spec's
+OWN fn names into declared_fns at the top of gen_zig and maps to @abs/@sqrt/...
+only when absent from that set. Verified both directions -- a spec's own
+`fn max` still wins. Mapping unconditionally would have silently shadowed user
+functions, which is the defect class this whole chain has been removing.
+
+### Invariant semantics worth remembering
+
+Invariants lower into `comptime` blocks, so a FALSE invariant is a COMPILE
+ERROR, not a test failure. That is the correct semantics for an invariant, and
+it means the lowering is self-policing: if any of the 65 were false, the spec
+would not build. None was.
+
+## Wave Loop 568 -- the queue drained, and the wall behind it was not the named one (2026-08-09)
+
+    ALL_PASS 16 -> 22   tests 209 -> 280   COMPILE_FAIL 183 -> 177   REGRESSIONS 0
+
+Nine backend defects plus one corpus typo, each diagnosed from the FIRST Zig error
+of all 183 failing specs -- not a sample. Dotted type paths, struct-field types,
+bare array literals, field defaults, duplicate test names, `::`, enum tag types,
+enum/string comparisons, quoted type annotations, and 81 occurrences of a
+`Std.mem.Allocator` that resolves nowhere.
+
+### The lesson that cost the most
+
+I have carried "decide the fate of default_input()" as the big lever since W561, on
+the strength of a SPEC COUNT: 110 of 177 remaining failures. Measured by assertions:
+
+    blocked by default_input : 110 specs,  169 substantive assertions
+    blocked by anything else :  67 specs, 3197 substantive assertions
+
+Nineteen to one, the other way. Skill rule 26 already says "rank by what the fix
+releases, not by error frequency" -- I applied it to the backlog and never applied
+it to my own standing recommendation. A recommendation carried across waves stops
+being re-derived; it needs re-measuring on the same schedule as everything else.
+
+### Two mechanisms worth remembering
+
+1. A raw token collector with a terminator that the language never emits is not a
+   parser bug, it is a FILE-EATING bug. The const-value collector ran "until
+   semicolon" in a newline-terminated language: one unrecognised `[1, 2, 3]` ate
+   every declaration after it. Bounding it at a declaration keyword that opens its
+   own line turned "destroys the spec" into "affects one declaration".
+2. Replacing a sloppy scan with a correct grammar can REDUCE robustness. Routing
+   struct fields through the real type parser broke 9 specs, because 3 of them
+   contain a malformed field that opens a string literal, and the correct parser
+   happily consumed it across the file while the sloppy one stopped at a comma.
+   The fix was to keep the grammar and add the containment the sloppy version had
+   by accident: the type must end on its line.
+
+### Where the corpus now stands
+
+The compile-failure queue is empty of mechanical defects. What remains is a FEATURE
+gap: `use a::b::c` is parsed and then ignored, so 16 specs fail on names their own
+imports define. 1,029 substantive assertions sit behind that, most of them in the
+IGLA RACE kernels (systolic_ternary 304, cordic_fixed 279, cordic_top 277,
+ternary_mac 274, ternary_gemm 271, cordic 271, adder_tree 270).
+
+## Wave Loop 569 -- every IGLA CODER and IGLA RACE spec was silently truncated (2026-08-09)
+
+    non-scratch parse OK 341 -> 351   (+10, 0 regressions)
+    recovered: 5,661 lines / 918 test blocks / 720 assertion clauses
+    w582 benchmark parse 313s -> 228s (W568 had regressed it past 600s)
+
+### The finding
+
+29 specs carry a stray `}` with no matching `{`, in files that open `module X;` and
+have no module brace at all. The parser stops there and REPORTS SUCCESS: 16,792
+lines and 2,080 assertion clauses were never seen. All nine IGLA CODER specs and all
+seventeen IGLA RACE specs are among them, each losing exactly 629 lines and 80
+assertions -- one templated wave-loop append repeated across a family.
+
+This was invisible for as long as it existed because "the spec parses" was treated as
+"the spec was read". A parser that stops early and returns Ok is indistinguishable
+from one that finished, unless something measures the file.
+
+### Removing the brace made it worse first
+
+All 28 stopped parsing: the brace had been MASKING a real error in the tail. Bare
+`assert <expr>` inside a brace body was a parse error (3,682 occurrences repo-wide),
+even though the clause form has lowered since W559. Adding the statement form brought
+9 of 28 back -- every IGLA RACE kernel.
+
+Lesson: when a truncation marker is removed and the file gets worse, that is not a
+reason to revert. It is the first honest error message the file has ever produced.
+
+### The performance regression, and the cheap thing that caused it
+
+W568's scratch sweep reported three benchmark specs "changing state" -- all three to
+exit 142, SIGALRM. Not a parse change, a timeout.
+
+`Parser::save_state` clones the lexer, and `Lexer::source` was a `Vec<u8>`: a FULL
+COPY OF THE FILE per checkpoint. Rare checkpoints hid it until W568 added one per
+bracketed expression; on a spec nesting array literals fifteen deep, every level
+copied the whole source. `Rc<[u8]>` makes a checkpoint a refcount bump, and w582 went
+313s (base) -> 228s -- faster than what it regressed.
+
+Rule: before adding a checkpoint to a hot path, check what the checkpoint COSTS. A
+save/restore pattern is only cheap if the state it saves is cheap to clone.
+
+## Wave Loop 570 -- assertions emitted 1,323 -> 4,374 (2026-08-09)
+
+    assertions emitted, 201 BDD specs : 1,323 -> 4,374  (x3.3)
+    non-scratch parse OK              :   341 ->   351  (0 regressions)
+    verilog                           : 17 identical, 1 strictly larger
+
+### Most "missing functions" were missing SPELLINGS
+
+`cast_i8(` appears 1,100 times and is defined nowhere -- because it was never meant
+to be written. Same for `abs_f32`, `x.len()` (Zig exposes slice length as a FIELD),
+and the type `string`. Five lowerings, 3,800+ occurrences, zero new spec code.
+
+Before writing a function a corpus references thousands of times and never defines,
+ask whether it is a spec gap or a BACKEND gap. The frequency is the tell: nobody
+forgets to define something 1,100 times.
+
+### The bug worth remembering
+
+    test t
+        given a = [1, 2, 3]
+        then a.len() == 3      <- generated an EMPTY test body
+
+`parse_bare_array_literal` rejects a literal followed by an identifier, because
+`[5]Pt` is a type. It did not check the identifier was on the SAME LINE, so the
+`then` on the next line read as a type name and the whole clause block was discarded.
+Single largest contributor to the +3,051.
+
+Lookahead rules that mean "this token continues the construct" need a LINE test in a
+newline-significant grammar. Same root cause as the W568 struct-field containment bug
+-- third time this chain that a line boundary was the missing predicate.
+
+### What could not be written, and why that is the finding
+
+`systolic_ternary_array` is tested and undeclared like `adder_tree_2`, but its tests
+CONTRADICT each other: an invariant says `len() == size` while a test asserts
+`len() == 0` for size 2, and the element semantics fit neither elementwise product nor
+running accumulation. `adder_tree_2` was writable because `3+4==7` plus a commutativity
+invariant fully determines it.
+
+The deciding artefact is named: `fpga/verilog/` has a systolic implementation, and
+whichever behaviour it implements is what the spec should assert. Deferring WITH the
+artefact named is worth more than a guess that makes the gate green.
+
+## Wave Loop 571 -- four functions written from their own tests, two that could not be (2026-08-09)
+
+    assertions emitted 4,374 -> 4,393 | parse 341 -> 351 (0 regressions)
+
+Written, each determined by assertions already in its own file: cordic_sin/cordic_cos
+(the scalar projections of cordic_sin_cos), adder_tree (the N-input form its
+fixed-width trees specialise), ternary_gemm (a length dispatcher over the 2x2/4x4/8x8
+forms already defined and tested), and `use igla::race::cordic;` in cordic_fixed --
+a dependency its tests assumed and it never declared.
+
+### The two that could not be, and why that is the deliverable
+
+systolic_ternary_array: an invariant asserts `len() == size` while a test asserts
+`len() == 0` for size 2, and the element semantics fit neither elementwise product nor
+running accumulation. DECIDING ARTEFACT: the systolic RTL in fpga/verilog/.
+
+OP_ADD / OP_SUB: `validate_opcode_chain([OP_ADD, OP_SUB])` is asserted true, which
+requires both to be SACRED opcodes -- but the sacred set is eleven specific opcodes
+with OPCODE_COUNT = 11, and neither name exists anywhere in the repo. DECIDING
+ARTEFACT: the ISA encoding table in specs/isa/.
+
+Writing either would have made a gate green by inventing semantics. The difference
+from adder_tree_2 (which WAS writable) is not difficulty -- it is that `3+4==7` plus a
+commutativity invariant leaves exactly one function, and these leave a choice.
+
+### The bug worth carrying forward
+
+    ternary_gemm([...], [...]).len() == 4     ->  emits  len()
+
+Postfix `.method()` on a CALL RESULT loses its receiver: the parser builds a dotted
+callee name by concatenating identifiers and silently drops a receiver that is itself
+a call. It fails loudly only because `len` is undeclared; with a method name that
+resolves, it would call the wrong thing on nothing.
+
+Second time this chain has found the compiler discarding input without saying so (the
+first was W569's truncation). When a parser builds a NAME by concatenation rather than
+a NODE by structure, ask what happens to the parts that are not identifiers.
+
+## Wave Loop 572 -- the first real test failure this project has ever produced (2026-08-09)
+
+    harness  ALL_PASS 22   TEST_FAIL 1   COMPILE_FAIL 178
+    adder_tree.t27: compiles, runs 335 tests, 32 pass, #33 fails
+
+Since W549 this chain has chased ONE number -- how many tests fail once they can run --
+and every wave answered "unknown, they don't compile". The answer for the first RACE
+kernel to get there:
+
+    33/335 adder_tree_4_i32_max_overflow ... panic: integer overflow
+
+The test asserts two's-complement wrap (2147483647 + 2 == -2147483647). The backend
+emits `+`, which traps. 206 specs mention overflow/wrapping; 43 tests are named for it.
+This is a numeric-semantics question for the LANGUAGE, decided by FORMAT-SPEC-001.json
+and gf16.t27 (the L6 SSOT) -- not by whichever choice makes the gate green.
+
+### The silent-wrong-code bug that got it there
+
+    ternary_gemm([...], [...]).len() == 4   ->  emitted  len()
+
+`flatten_field_access_name` folds a receiver into a dotted callee NAME, walking
+identifiers and field accesses; on a call or an index it stopped and dropped the
+receiver with no diagnostic. 198 no-arg method calls and ~40 with args sit on such
+receivers. It failed loudly only because `len` is undeclared -- with a method that
+resolves it would have called the wrong thing on nothing.
+
+### What `use` resolution made visible
+
+ternary_mac.t27 declares `fn ternary_mac(acc: i32, a: i8, w: TernaryWeight)`.
+ternary_gemm.t27 calls `ternary_mac(a[0], w[0], acc)`. The argument ORDER does not
+match, and it was undetectable before W569 because nothing crossed a module boundary
+-- each spec generated a file where the callee was simply undeclared.
+
+Turning on cross-module resolution turns every call site into a type check. Expect a
+wave of newly-visible signature mismatches, and audit rather than patch.
+
+## Wave Loop 573 -- 335 tests green; the corpus is split on how to call its own MAC (2026-08-09)
+
+    tests executing and passing  280 -> 615   (+335)
+    specs fully passing           22 ->  23
+    TEST_FAIL                      1 ->   0
+    adder_tree.t27: All 335 tests passed  -- first RACE kernel fully green
+
+### The overflow question was already answered, just not where I looked
+
+W572 named FORMAT-SPEC-001.json and gf16.t27 as the deciding artefacts. Both are
+SILENT on integer overflow (gf16 specifies FLOAT overflow -> Inf). By W572's own
+falsification condition that made it a constitutional amendment.
+
+It was not: docs/NOW.md records that the wrapping-operator family (+% -% *%) already
+exists with full backend support, and that "+/-/* stay infix -> same overflow-panic
+semantics as the Zig backend". The language HAD decided. Plain + traps, +% wraps.
+
+Lesson: when naming a deciding artefact, name the CHANGE LOG too. A decision can be
+recorded where the work landed rather than where the spec would put it.
+
+### Why the fix was free
+
+adder_tree/ternary_mac/systolic_ternary model FPGA datapaths, which wrap by width.
+Switching their arithmetic to +% and regenerating the RTL:
+
+    adder_tree.t27       byte-identical (3,641 lines)
+    ternary_mac.t27      one line: -a -> (0 - a), same operation and width
+    systolic_ternary.t27 one temp's line-numbered name, from the added comment
+
+Only the software backends change, and only on overflow. That is the whole safety
+argument, and it is CHECKABLE -- regenerate and diff, do not assert it.
+
+### The finding
+
+ternary_mac.t27 declares (acc, a, w). 126 call sites pass (a, w, acc) and 117 pass
+(acc, a, w) -- the corpus is split down the middle on its own most important function,
+with tests written for both. Undetectable before W569 made `use` real: every generated
+file simply had no ternary_mac in it.
+
+fpga/formal/ternary_mac_golden.v -- the model T1 and T2 are proved against -- declares
+its ports a, w_code, acc_in. The machine-checked hardware says (a, w, acc), which
+makes the .t27 declaration the outlier.
+
+Falsification to run FIRST: Verilog ports are named, not positional, so check whether
+prove_ternary_mac.ys binds by name or by position before treating port ORDER as
+normative.
+
+## Wave Loop 574 -- the falsification check fired, so I built the arbiter instead (2026-08-09)
+
+    t27c check-calls   38 findings (35 arity, 3 aggregate-vs-scalar)
+    suite Phase 6      reports them on every run
+    parse 341 -> 351, 0 regressions | T1/T2/T3 re-proved
+
+### The check fired, and that is the wave
+
+W573 recommended unifying ternary_mac's convention on the authority of the golden RTL
+port order, WITH a falsification condition: Verilog ports are named, not positional --
+check whether prove_ternary_mac.ys binds by name or position.
+
+`miter -equiv` binds BY NAME. Port order carries no meaning; reordering either module
+would not change what T1 proves. W573's conclusion is withdrawn.
+
+Writing the falsification condition into the report is what made this a five-minute
+check instead of a wasted wave. Keep doing it, and RUN IT FIRST.
+
+### What the evidence actually says
+
+Re-counted by argument TYPE (a call whose 2nd arg is a weight is (a,w,acc); whose 3rd
+is a weight is (acc,a,w)):
+
+    ternary_mac.t27  -- the OWNING module --   91 declared-order  vs  80 other
+    ternary_gemm.t27                            0                     72
+    systolic_ternary.t27                        1                      0
+
+The module that declares the function is itself split 91/80. Both conventions have
+substantial test bases inside the owning spec. With the RTL out as arbiter, this is a
+specification decision, not a repair.
+
+### Build the thing that would have caught it
+
+This survived because NOTHING in the project ever compared a call to the declaration
+it targets -- before W569 a foreign callee was simply absent from every generated
+file, so a wrong call and a missing one were indistinguishable. Even now a mismatch is
+caught only in the 23 specs that compile through Zig.
+
+`t27c check-calls` reports only what is decidable from the AST: arity (sound) and
+aggregate-vs-scalar (a struct literal where a scalar is declared). No inference, no
+semantic choices. 35 arity findings, every one an unambiguous defect -- 7 arguments to
+a 4-parameter function, `init(input)` against `fn init()`.
+
+When a finding turns out to be a decision you cannot make, the deliverable is the
+instrument that surfaces the whole class -- not a guess that closes the instance.
+
+## Wave Loop 575 -- the new check found a lexer bug on its first run (2026-08-09)
+
+    t27c check-calls   38 -> 32   (every remaining finding is a pending decision)
+    assertions emitted 4,393 -> 4,403 | parse 341 -> 351, 0 regressions
+
+### 1e6 was three tokens
+
+W574's arity check reported "verify_gamma_conjecture -- 7 arguments passed, 4
+declared". The call passes four. The LEXER was splitting scientific notation:
+
+    f(1e6, 2.5e-3)   ->   f(1, e6, 2.5, e - 3)
+
+486 occurrences across 62 specs, wrong for the entire life of the project, never
+reported -- because a mis-lexed VALUE is only visible if something checks it. 19 of
+the 62 specs now generate different code.
+
+An instrument built for one class routinely finds a different, worse one. That is the
+argument for building instruments rather than fixing instances (rule 44), and this is
+the second time it has paid off in two waves.
+
+### Driving a check to zero means driving it to the DECISIONS
+
+32 findings remain and not one is mine: 29 are `f(input)` against `fn f()` from the
+default_input scaffold (a facet of the decision open since W561 -- dropping the
+argument would change nothing, the spec still would not compile), and 3 are the
+ternary_mac convention split 91/80 inside its own module.
+
+The right end state for a checker is not zero findings. It is zero findings that a
+machine could have resolved.
+
+## Wave Loop 576 -- writing down what the lexer does found the next bug immediately (2026-08-09)
+
+    t27c lex-conform        26 cases, 26 passing
+    string-literal defects   1 -> 0
+    parse 341 -> 351, 0 regressions | harness ALL_PASS 23, 615 passing
+
+### The table found a bug by being WRITTEN, not by being run
+
+Stating that `"a\nb"` lexes to String(a<newline>b) -- the lexeme is UNESCAPED -- forced
+the question of what the backend does with it. Answer: W562 taught the Zig emitter to
+write string literals back between quotes without re-escaping, so a spec newline
+became a literal newline inside a Zig string literal:
+
+    return "line1
+                 ^ error: string literal contains invalid byte: '\n'
+
+154 escape sequences across 19 specs. It had been sitting in the W568 error taxonomy
+as a single unexplained `string literal contains invalid byte` -- visible, counted,
+and never chased.
+
+Writing down what a component DOES is a different activity from testing that it works,
+and it finds a different class of bug: the mismatch between two components' beliefs
+about the same value.
+
+### Boundary cases are the valuable half
+
+Contract cases (1e6, 0x1e, a +% b, a.b.c) protect what the corpus depends on. BOUNDARY
+cases record what was measured rather than designed:
+
+    1x2     -> Number(1x2)     `x` accepted anywhere in a number
+    0b12    -> Number(0b12)    binary literal with a non-binary digit, not rejected
+    1.2.3   -> Number(1.2.3)   two decimal points, one number
+    "a\nb"  -> String(a\nb)    UNESCAPED  <- this one was a live defect
+
+A boundary failing does not mean the component is wrong. It means someone changed
+behaviour nobody had written down.
+
+## Wave Loop 577 -- silent truncation is now zero (2026-08-09)
+
+    parse-complete   specs that parse but TRUNCATE:  3 -> 0
+    parse-conform    13 cases, 13 passing
+    harness          ALL_PASS 23, 615 passing, 0 regressions
+    parse census     351 -> 348  (three specs now report their REAL error)
+
+### The distinguisher
+
+`parse_ast` returns Ok as soon as the module body loop stops, and that loop stops on
+`}`. `parse_ast_strict` parses and then REQUIRES that the stream reached Eof. That one
+predicate found three specs being read at a fraction of their length while reporting
+success:
+
+    ternary/bigint.t27    86 of 1,445 lines   (1,359 discarded)  struct method
+    jit/jit.t27           78 of   875        (  797 discarded)  struct method
+    nn/attention.t27     640 of   922        (  282 discarded)  a second `module`
+
+2,438 lines nobody had ever parsed. W569 found 29 specs truncated by a stray brace;
+these are two DIFFERENT mechanisms the brace scan could not see. One measurement of
+"did the parser consume its input" beat a targeted scan for a known pattern.
+
+### The reject half of a conformance table is the half that does not exist yet
+
+11 of 13 parser cases passed on the first run. Both failures were `Rejected` cases:
+
+  * a stray `}` was Truncated -- the W569 defect, still live in the parser after the
+    SPECS were repaired. Repairing the data does not repair the reader.
+  * an unterminated string was FULL -- worse than truncation. The lexer returned a
+    String token holding the rest of the file, so the parser consumed one giant
+    literal, reached Eof, and looked complete. Invisible to the completeness check,
+    because the input really was consumed.
+
+Whenever you write a conformance table, the cases that say "this must be REFUSED" are
+the ones the component has never been asked about.
+
+## Wave Loop 578 -- the largest parse-failure class had been sitting there since W549 (2026-08-09)
+
+    specs that parse      341 -> 373  (+32)
+    specs fully passing    23 ->  28
+    tests passing         615 -> 683
+    assertions emitted  4,389 -> 7,859  (+79%)
+    assertions locked   9,635 -> 6,541
+
+### Ranking the failure list was the whole wave
+
+W577 made the parser fail HONESTLY -- truncation zero, both conformance tables green.
+That made the 260 non-parsing specs rankable for the first time. Weighting each first
+error by the substantive assertions it locks up:
+
+    4,465  29 specs  Unexpected token in expression: LBrace   <- 46% of everything
+    1,002  46        Expected LParen, got Ident
+      899   9        Expected LBrace, got Colon
+
+The top class is `if (c) { a } else { b }` -- braces around an if-expression branch.
+W549 measured it at "~40 specs" and nobody touched it for thirty waves, because until
+now there was no way to say what it was WORTH. A brace holding exactly one expression
+IS that expression; Zig spells it without braces. +25 specs.
+
+The second is the Rust form `if cond { ... }` without parentheses. Making the paren
+optional reopens Rust's own ambiguity -- is `Name { ... }` a struct literal or a
+condition plus a body? -- resolved the same way: suppress struct-literal parsing while
+reading a paren-less condition. +10 specs.
+
+### The lesson
+
+A backlog only becomes a queue when each entry carries what it releases. The same
+taxonomy existed in W549; what changed is that (a) the parser stopped lying, so every
+first error is real, and (b) each class is weighted by assertions rather than by spec
+count -- the correction skill rule 26 and rule 29 have both been about.
+
+## Wave Loop 579 -- three classes, forty-nine specs, and the taxonomy has no head left (2026-08-09)
+
+    specs that parse       373 -> 390   (+49 since W568's 341)
+    assertions emitted   7,859 -> 8,867
+    assertions locked    6,541 -> 4,946
+    largest class        4,465 (W578 start) -> 379
+
+Three fixes, each named by the ranked taxonomy:
+
+  899 / 9 specs   `-> gf16::GF16`  -- the RETURN type had its own bespoke tail that
+                  read one identifier and stopped, while the parameter side has
+                  understood `::` and `.` since W568. There were TWO return-type paths
+                  in the header; my first fix went into the one not being taken, and
+                  the fixture caught it immediately. Always have the fixture.
+  556 / 22        `while cond { }` -- the five-line repeat of W578's `if`.
+  825 / 3         `#[test]`       -- Rust source carried verbatim.
+
+### The lexer silently drops unknown characters
+
+`#` never reaches the parser: the lexer has a `_ =>` arm that advances and recurses.
+So `#[test]` arrives as a bare bracket group, and the attribute skip had to be keyed on
+that instead. This is the SAME defect shape the last three waves have been removing
+from the parser -- a component discarding input without saying so -- and it is not in
+the W576 conformance table.
+
+Deliberately NOT added to the table in the same wave that depends on it: adding a case
+to a table while fixing the thing it describes is how a table stops being a check.
+
+## Wave Loop 580 -- the documented syntax was never implemented (2026-08-09)
+
+    specs that parse    390 -> 395  (+54 since W568's 341)
+    assertions emitted 8,867 -> 9,229 | locked 4,946 -> 4,613
+    lex-conform 26 -> 29 cases, all passing
+
+Four fixes:
+  31 specs  `contract.invariant` -- a KEYWORD used as a field name. After a dot the
+            token is a field name whatever else it means.
+   8 specs  `spec Name { ... }` -- the form SOUL.md section 2.3 documents as THE test
+            format. W557 recorded that it does not parse and left it alone. The
+            specification was right and the compiler was behind it; implementing the
+            canonical law is different from amending it.
+   5 specs  `"SOP(" ++ x ++ ")"` -- concatenation, not increment. Zig spells it `++`
+            too, so it emits unchanged.
+   -        the lexer's silent drop, recorded as three BOUNDARY cases (W579's Variant
+            B, deliberately deferred one wave from the fix that depended on it).
+
+### Writing the boundary case corrected me again
+
+I wrote `#[test]` as LBracket Ident(test) RBracket. It is LBracket KEYWORD(test)
+RBracket -- which is exactly why the W579 attribute skip had to be bracket-keyed and
+not name-keyed. Second time a conformance table has corrected my model of a component
+while I was writing it down.
+
+### The finding that is not a fix
+
+The widest remaining class (33 specs) splits: 15 are MARKDOWN DOCUMENTS with a .t27
+extension, 8 are the `spec` form, 10 unclassified. The 15 are not defective specs --
+they are not specs. They inflate every denominator this chain reports and were raised
+in W557 Variant C as a maintainer decision. With the backlog down to 213, they are now
+7% of everything still failing and they can never be fixed.
+
+A denominator that includes things that can never pass makes every rate a lie by a
+fixed, unknown amount. Say the number.
+
+## Wave Loop 581 -- the lexer was deleting `?` (2026-08-09)
+
+    specs that parse   395 -> 397  (+56 since W568's 341)
+    lexer discards   1,422 -> 1,135 characters
+    assertions emitted 9,229 -> 9,267
+
+### The falsification condition fired, and it was right to
+
+W580 proposed making the unknown-character arm an error, with the condition: "if the
+dropped characters are overwhelmingly in positions the corpus depends on, the right
+change is to LEX them, not reject them, and the count will say which."
+
+Measured: 583 backticks and 512 `#` -- Markdown punctuation in the 15 mis-named
+documents. Rejecting would have rejected files that already fail, and broken W579's
+attribute skip. But 287 were `?`.
+
+### `?` was corrupting MEANING, not just losing it
+
+    condition : ?[]const u8
+
+`?` marks an optional. The lexer deleted it, so `?u64` reached the backend as `u64` --
+an optional silently became a NON-OPTIONAL. No error anywhere. Every other
+silent-discard this chain found lost code; this one changed what the code SAID.
+
+And `t27_array_type_to_zig` has stripped and preserved a leading `?` since W561. The
+mapper was ready for twenty waves; the character never got there. When a downstream
+component handles a case that never occurs, ask who is eating it.
+
+### The gate found the third construct
+
+Making `?` a token immediately regressed sync/schema.t27, which uses
+`session.end_time_ms.?`. Before this wave the `?` was dropped and `x.?` silently became
+a field access to nothing. Three constructs, one character: `?T` (optional type),
+`x.?` (unwrap), `f()?` (error propagation -> Zig `try`).
+
+## Wave Loop 582 -- 409 invalid C field declarations, found while looking for 13 (2026-08-09)
+
+    C struct fields with raw t27 type syntax   409 -> 3
+    Rust struct fields with a raw `?`           13 -> 0
+    specs whose C output changed                      199 of 608
+
+### The falsification condition did NOT fire
+
+W581 asked: "if no spec that declares an optional reaches a non-Zig backend, the audit
+is empty." All 13 optional-declaring specs generate Zig, Rust, C AND Verilog. Not
+empty.
+
+    Zig      ?[]u8            correct
+    Rust     ?[]u8            not Rust
+    C        ?[]u8 field;     not C
+    Verilog  reg [31:0] ...   valid syntax, meaningless semantics
+
+Rust's mapper HAS an optional branch -- testing for a TRAILING `?` (`T?`) while t27
+writes the Zig leading form. Same shape as W581 one level up: a component with a branch
+for a case that never occurred, because an earlier stage spelled it differently.
+
+### The defect the audit exposed
+
+`gen_c_struct` did not use the C type mapper at all. It used `type_to_c`, a small match
+that PASSES ANYTHING IT DOES NOT RECOGNISE THROUGH VERBATIM -- so every slice field had
+been `[]u8 field;` for the whole life of the C backend. The optionals were 13 of 409.
+The other 396 were slices, and nothing had ever looked.
+
+### Why it was invisible, and the general rule
+
+Every gate this chain built measures the ZIG path: the harness runs `zig test`, the
+assertion count reads Zig output, the conformance tables cover lexing and parsing. The
+Rust, C and Verilog backends have ONE gate between them -- does `gen-<backend>` exit
+zero -- and emitting `[]u8 field;` exits zero perfectly well.
+
+A backend with no consumer has no gate. The Zig path is checked because something runs
+it.
+
+## Wave Loop 583 -- nobody had ever compiled the C backend's output (2026-08-09)
+
+    generated C headers that COMPILE   36 -> 101  of 397
+    `unknown type name` first errors  187 ->  64
+
+W582 measured "409 invalid C field declarations" with a REGEX and said so -- a proxy
+for validity, not validity. W583 ran `cc -fsyntax-only` over every generated header for
+the first time in the project's life. 36 of 397 compiled.
+
+    187  unknown type name        ->  f32 (46), f64 (34), str (29), std (17), string (9)
+     79  call to undeclared fn    ->  assert_eq (59), default_input (47)
+     32  type name requires a specifier or qualifier
+
+`f32` and `f64` were simply ABSENT from `type_to_c`. `assert_eq` is emitted in every C
+test body and was never defined. `_Static_assert(assert(f(x) == 3), ...)` is invalid
+twice over -- `assert` is a runtime macro AND a call is not a constant expression.
+
+### The structural fix that mattered more than the mappings
+
+`param_type_to_c` gated its scalar lowering behind `is_primitive`, which lists only the
+integers -- so even after `type_to_c` learned f32, the GATE suppressed it. `type_to_c`
+already passes genuinely custom types through, so the guard only ever prevented correct
+mappings. Removing it is what moved the number.
+
+A guard that exists to "only map things we know" in front of a mapper that already
+handles the unknown case is pure loss.
+
+### The measurement principle
+
+W582's regex said 409 -> 3 and W583's compiler said 36 of 397 compile. Both are true;
+they measure different things. When you report a proxy, say it is a proxy AND name the
+real measurement -- W582 did, which is why W583 existed.
+
+## Wave Loop 584 -- four C defects fixed and the header count did not move (2026-08-09)
+
+    headers that compile             101 -> 101  of 397
+    unknown type name                 64 ->  59
+    type name requires a specifier    38 ->  32
+    type specifier missing            32 ->  28
+    use resolution now reaches       gen -> gen, gen-c, gen-rust
+
+Fixed: nested array typedefs (`c_array_info` split on the FIRST semicolon, so
+`[[u8; 16]; 16]` became `typedef struct { [u8 v[16];16]; }`), named tuple elements
+(`(added: u32, ...)` used the whole `added: u32` as the type), `[T]` with the element
+INSIDE the brackets (emitted `* resources;`), and `use` resolution for gen-c/gen-rust
+-- W569's resolver is a source-to-source pass and was always backend-agnostic; only
+`gen` was calling it.
+
+### The finding is the number that did not move
+
+A header must clear EVERY class to compile. With 296 failures over eight classes,
+fixing one moves a spec from failing on A to failing on B -- visible as
+`use of undeclared identifier` going 28 -> 36 while everything else went down.
+
+At this stage the CLASS counts are the honest metric and the header count is not. Say
+which metric is load-bearing at the current stage, and change it when the stage
+changes -- I kept reporting a number that had stopped being informative.
+
+### And the largest class is not a defect
+
+75 of 296 C failures are `default_input`/`valid_input` -- the template scaffold,
+pending since W561. It is now the top blocker in THREE measurement systems (C headers,
+Zig compile failures, check-calls). No amount of backend work moves the header count
+while it stands. That is the cost of a deferred decision becoming visible.
+
+## Wave Loop 585 -- the default_input wall was a mask over 571 empty functions (2026-08-09)
+
+All three variants taken, plus a formal-results document.
+
+    t27c cc-gate          the C measurement is a command now, wired into Phase 6
+    default_input         first-error count 109 -> 0
+    board                 still BLOCKED -- no programmer on USB
+
+### The finding
+
+`default_input()` is not derivable from its own call -- it takes no arguments and
+returns whatever the next line needs. But the next line is `f(input)` and `f`'s
+parameter type is DECLARED, so the binding's type is recoverable from its USE, and the
+tests constrain the value not at all (`result != undefined`).
+
+Removing it revealed:
+
+    169 specs carrying "// TODO: Implement from .tri spec"
+    571 functions with an EMPTY BODY
+    571 template tests
+
+One generated test per unimplemented function. The scaffold generated a test for every
+function it also left unimplemented, and the missing helper stood in front of that fact
+for twenty-five waves. default_input was never a blocker -- it was a MASK.
+
+Third time in this chain that removing a mask made a counter worse and the project
+better (W569 stray brace, W577 truncations, this).
+
+### The instrument caught my own regression, one wave later
+
+`t27c cc-gate` immediately found that W584's named-tuple fix split `gf16::GF16` at the
+first colon and emitted `typedef struct { :GF16 f0; ... }`. Build the instrument; it
+catches you too.
+
+### The conclusion of eighteen waves, written down
+
+Every large finding in this chain has one shape: a component accepted input, produced a
+smaller or different program, and REPORTED SUCCESS. Parser four times, lexer once
+(changing meaning, not losing code), C backend once (409 invalid declarations nobody
+compiled), and the scaffold mask.
+
+NOT ONE was found by a test failing. Each was found by asking a component to account
+for its input.
+
+    A stage that cannot fail cannot be trusted.
+
+The FPGA track is the counter-example: correct since W553 because yosys and nextpnr are
+consumers that refuse nonsense. The only part never wrong, and the only part with a
+real consumer.
+
+## Wave Loop 586 -- more than half the "compile failures" are specs nobody has written (2026-08-10)
+
+    harness   COMPILE_FAIL 216  ->  COMPILE_FAIL 98 + UNIMPLEMENTED 118
+    impl-status: 232 implemented, 6 partial, 159 UNWRITTEN, 211 unparsable
+                 667 of 2,854 declared functions have NO BODY (23%)
+
+### The falsification check killed Variant A, which is what it is for
+
+W585 proposed regenerating the 571 empty bodies from the `.tri` sources every spec
+names in its header ("Implement from .tri spec"), with the condition "if the sources
+exist and contain the bodies this is one regeneration -- check first".
+
+    26 .tri files in the repo
+     1 empty-body spec has a same-named .tri  -- and it is a basename collision with
+       an architecture diagram
+    94 fn declarations across all 26 .tri files, 5 with bodies
+
+The sources do not exist. The header comment points at something that is not there.
+
+### The finding
+
+159 of the 397 parsing specs -- 40% -- have NO implementation at all. Every function
+empty. 118 of the 216 "compile failures" were that. The number this chain has been
+driving down since W560 was more than half composed of specs nobody had written, and
+no compiler work could ever have moved that half.
+
+### The pattern, second time in three waves
+
+W580: 15 Markdown documents named *.t27, 7% of parse failures, can never pass.
+W586: 118 unwritten specs, 55% of compile failures, no compiler change can fix them.
+
+Same shape: A DENOMINATOR CONTAINING THINGS THAT CAN NEVER PASS. Every rate quoted
+against it is wrong by a fixed, unknown amount. Split the population before ranking
+the work.
+
+## Wave Loop 587 -- the first clean failure list, and an import that resolved to nothing (2026-08-10)
+
+All three variants.
+
+    A  taxonomy of the 98 genuinely broken   8,072 assertions, ranked
+    B  C gate split                          296 -> 159 unwritten + 137 broken
+    C  the board                             verified, still BLOCKED
+
+### The bug worth remembering
+
+cordic_fixed.t27 still failed on cordic_gain -- a function I connected in W571 by
+adding the import that declares it:
+
+    use igla::race::cordic;   // W571: cordic_gain, tested here and declared there
+
+`use_targets` strips a trailing `;` then splits on `::`. The semicolon is not at the
+end of the line -- THE COMMENT IS -- so the module path became
+`igla::race::cordic;   // W571: ...`, resolved to no file, and the import quietly did
+nothing.
+
+THE COMMENT THAT BROKE THE IMPORT WAS THE ONE I WROTE TO EXPLAIN THE IMPORT.
+
+26 use lines in the corpus carry a trailing comment. Seventh instance of the chain's
+recurring shape, and the first where the input I broke was my own.
+
+Rule: when a line-oriented parser strips a terminator, strip COMMENTS FIRST. The
+terminator is only at the end of the line in the absence of one.
+
+### Two measurement systems, one definition
+
+The C gate counted 296 failing headers without knowing which were unwritten. Both it
+and the harness now share `impl_status::spec_is_unwritten`. Before this they would
+have reported different totals for the same population -- which is how a project ends
+up with two numbers for one fact.
+
+## Wave Loop 588 -- three classes closed, and 809 references to modules nobody imported (2026-08-10)
+
+All three variants.
+
+    A  `const PHI: gf16::GF16` -- a SCOPED type in a type position. zig_ident has
+       mapped `::` to `.` since W580; the TYPE path never went through it. 6 specs.
+       Duplicate bench blocks -- same defect and same remedy as W568's duplicate
+       test names (__dupN suffix). 2 specs -> 1.
+    B  use_resolve now follows QUALIFIED references (splice the trailing name,
+       rewrite the reference to the bare name, longest-match first).
+    C  the board: BLOCKED -- no programmer on USB.
+
+### The measurement that made Variant B a finding rather than a fix
+
+    qualified `m::name` where m IS imported     :  59
+    qualified `m::name` where m is NOT imported : 809
+
+93% of qualified references name a module the spec never declared a dependency on.
+yosys.t27 calls eval::has_substring while importing only base::types, igla::race::rtl
+and igla::race::formal.
+
+The tempting rule -- treat an unimported qualifier as a repository-wide lookup -- would
+work, and would also mean `use` declares NOTHING. W568 measured what that costs in one
+15-spec closure: 38 colliding top-level names, PHI declared in four of them.
+
+Build the machinery, measure whether the corpus needs it, and report the answer even
+when it is "mostly no". The machinery still helps 59 sites and the 809 are now a named
+defect (P9) instead of an undifferentiated part of the largest class.
+
+## Wave Loop 589 -- the falsification check falsified my own measurement (2026-08-10)
+
+W588's Variant A carried the condition "if most of the 809 modules do not exist as
+files, this is a naming convention, not an import to add -- measure first". Measured:
+602 do not exist, and the top entry is `base` (386), which is a DIRECTORY.
+
+Which meant the MEASUREMENT was wrong, not just the plan.
+
+    W588 matched  ([a-z_]\w*)::([A-Za-z_]\w*)  -- the first TWO segments of a path.
+    base::types::Trit  counted as a reference to a module `base`   (a directory)
+    TokenKind::KwFn    counted as a reference to a module `TokenKind` (an ENUM)
+
+Re-measured on full paths:
+
+    908 qualified references
+     11 module IS imported
+      5 module is a real spec file, not imported
+    399 root is a type declared in the SAME spec -- enum-variant access
+    493 remaining, dominated by lexer::TokenKind:: and parser::NodeKind::
+
+`::` in this corpus is overwhelmingly ENUM-VARIANT ACCESS, which W580 already
+handles. 16 of 908 are cross-module in the sense W588 assumed.
+
+### The rule
+
+Fifth time my own instrument, not the code, needed correcting (W559 vacuity tool,
+W560 classifier twice, W561 sample, this).
+
+    A regex that matches a PREFIX of a structured name will silently report on a
+    different population than the one intended. `a::b` is not the head of `a::b::c`
+    in any sense that matters -- it is a different thing.
+
+Every instance was caught the same way: by a falsification condition written into the
+previous wave's report and RUN BEFORE THE WORK. That habit has now saved four waves.
+
+### No code changed
+
+That is the correct outcome when the finding is that a measurement was wrong. The
+repair is to the record: P9 rewritten, the W588 report annotated at its head, the
+issue corrected publicly.
+
+## Wave Loop 590 -- the top class decomposed: half of it is not a compiler problem (2026-08-10)
+
+`use of undeclared identifier` -- top class for four waves, 4,811 assertions / 51 specs,
+never resolved into its parts:
+
+    2,323  26 specs  declared NOWHERE in the corpus
+    2,257  22        declared elsewhere, in a module the spec does not import
+      194   2        declared in a module it DOES import -- a resolver gap
+       37   1        declared in the SAME spec -- a resolver/codegen gap
+
+### The actionable half is smaller than it looks
+
+Of the 22 "not imported": 10 name something declared in SEVERAL specs (`pow` in 10,
+`count` in 5) -- not determinable, and picking the first match is the W588 error again.
+Of the 9 with a unique declaration, THREE OF FOUR dependencies do not themselves parse,
+and use_resolve only splices from dependencies that parse (a W569 rule kept
+deliberately) -- so adding the import would change nothing.
+
+### The compiler gap hiding inside the class
+
+    fn expand_family_variants(family: []const u8) -> []string
+
+`string` maps to []const u8. `[]string` did NOT -- the scalar mapping only ever saw the
+whole type. It looked like a missing import for two of the corpus's heaviest specs (481
+assertions) and was a four-line mapper gap.
+
+That is why decomposing a class matters. For four waves the label said "missing
+identifier" and every plan said "imports"; the measurement says half is unwritten code,
+a quarter is undeterminable, and inside the rest was a bug nobody would have looked for.
+
+## Wave Loop 591 -- the three "unwritten" numbers are three different facts (2026-08-10)
+
+W590 proposed merging them WITH a condition: "if the populations are disjoint they are
+three facts -- measure the overlap before merging."
+
+    169  specs carrying "// TODO: Implement from .tri spec"
+     26  specs whose first error names something declared nowhere
+      3  OVERLAP
+
+Nearly disjoint. Merging would have collapsed three distinct facts into one misleading
+total. Second wave running that a falsification check killed the variant before the
+work, and both times the check cost ten minutes.
+
+### The 23 non-overlapping specs all have REAL implementations
+
+They average nine written functions and hold 2,306 assertions, and they are themselves
+three things:
+
+    1,680  genuinely absent functions/types in six IGLA RACE kernels
+      330  a MODULE QUALIFIER read as a name (constants, vsa, su2_chern_simons)
+       80  a TYPE THE MAPPER NEVER LEARNED (float, String)
+
+### Second wave running that decomposing a class found a mapper gap
+
+`float` is not a Zig type and reached the backend verbatim -- exactly as f32/f64 did on
+the C side in W583. W590's `[]string` was the first. A missing NAME and a missing
+MAPPING look identical from the error message; only decomposition tells them apart.
+
+## Wave Loop 592 -- six names, three written, and a cast wrong since W558 (2026-08-10)
+
+The six RACE names this chain has circled since W571, judged by whether their own
+tests determine them:
+
+    WRITTEN   cordic_sqrt_approx   sqrt(9)∈[2.9,3.1], sqrt(16)∈[3.9,4.1]
+              cordic_cos_fixed     cos_fixed(0)==1.0 fixes the scaling exactly
+              compute_cosine       header states Q14 units (1.0 = PI); cos(0) uncompensated
+              + cordic_tan, cordic_sin_fixed, compute_sine (all determined)
+    DECISION  PpaMetrics           the bench's type has different fields from the
+                                   function's; adding the struct would not type-check
+              OP_ADD               the sacred set is eleven named opcodes (W571)
+              systolic_ternary_array  its tests contradict each other (W571)
+
+### The cast bug
+
+Writing a fixed-point-to-real conversion produced
+
+    @as(f32, @intCast(raw))    error: expected integer or vector, found 'f32'
+
+Zig has no universal cast: @intCast is int->int, @floatFromInt is int->float,
+@intFromFloat float->int, @floatCast float->float. The ExprCast arm emitted @intCast
+unconditionally, and f32/f64 were added to the cast whitelist in W558. 293 `as f32`
+casts in the corpus have been wrong ever since.
+
+THIRD CONSECUTIVE WAVE where writing or decomposing something exposed a compiler gap
+that had been mislabelled: W590's []string, W591's float, and now this. The pattern:
+a construct nothing exercises is a construct nothing checks -- and the whitelist that
+permitted `as f32` was added five waves before anything used it.
+
+## Wave Loop 593 -- a cordic spec reached `@panic at comptime`, which means it COMPILED (2026-08-10)
+
+Three general codegen gaps closed:
+
+  * array literal in RETURN position -- `return ([s], [c])` from `-> ([]f32, []f32)`
+    emitted `.{ .{ s }, .{ c } }`. The element type is in the SIGNATURE, exactly as
+    for a call argument (W571). Return type now tracked per function; tuple returns
+    distribute over element types; `&[_]T{...}` needs the same @constCast as W571.
+  * SIGNED INTEGER DIVISION -- Zig refuses `/` on signed ints, the rounding mode must
+    be explicit. 218 sites in the corpus. Now @divTrunc, inferred from declared
+    parameter/field/local types and casts.
+  * float-typed LOCALS -- W592 inferred float-ness from parameters and fields only.
+
+### The result
+
+    cordic_top.t27:  @panic at comptime: assertion failed
+
+It COMPILES. Its invariants are being evaluated at comptime and one is FALSE. After
+twenty-five waves of "does not compile", an IGLA RACE kernel has produced a real
+mathematical verdict about itself.
+
+### The thing to say out loud
+
+Three waves have now added a `*_names` set to the Zig codegen -- strings (W582),
+floats (W592), signed ints (W593) -- each collected from declarations, each used to
+pick a spelling that depends on a type the AST does not carry.
+
+THIS IS A TYPE CHECKER BEING GROWN ONE PREDICATE AT A TIME. Its known flaw is already
+visible: parameter names are collected corpus-wide, so `a: i32` in one function makes
+every `a` signed. Harmless for @divTrunc (valid for unsigned too); the next predicate
+may not be so lucky.
+
+t27 has no type checker and the backends are accumulating a partial one. Better to
+write that down than to rediscover it a fourth time.
+
+## Wave Loop 594 -- T4: `cordic_sin(0) == 0` is unsatisfiable (2026-08-10)
+
+W593 left cordic_top.t27 compiling and failing a comptime assertion, WITH the condition
+"check the provenance before drawing any conclusion -- if it is an invariant I wrote it
+is my defect, not a finding".
+
+Checked: `invariant cordic_top_sin_zero_zero: cordic_sin(0) == 0`, introduced in commit
+a0828089d (W397-W401). The corpus's claim, not mine.
+
+### The disproof, from the spec's own constants
+
+    CORDIC_GAIN_Q14 = 9953
+    ATAN_0..7 = 4096, 2418, 1274, 647, 325, 163, 81, 41   (Q14, 1.0 = PI)
+
+    from (K, 0, 0):  cos(0) = 16390 = 1.00037     sin(0) = 117 = 0.00714     z = -41
+
+By-hand evaluation reproduces the compiler's comptime failure exactly.
+
+WHY it cannot be zero: sigma = sign(z) is never zero -- cordic.t27 spells it
+`if (z >= 0.0) return 1.0; return -1.0;` -- so from z = 0 the algorithm rotates a full
++45 degrees and cannot stand still. Seven more steps bring z back only to -41, one
+ATAN_7, the finest step the table has. The residual sine is bounded BELOW by that step.
+
+Not an implementation defect: a property of fixed-point CORDIC in rotation mode. The
+invariant asserts something the algorithm cannot deliver.
+
+|sin(0)| = 117 < 128 = 2^-7 in Q14 is the standard convergence bound, and the corpus's
+own convention is already bounds -- the neighbouring test asserts cordic_cos(0) in
+(9900, 10000). Choosing the tolerance is the maintainer's.
+
+### The lesson
+
+An exact equality over a FIXED-POINT ITERATIVE algorithm is suspect on its face. This
+one survived since W397 because nothing ever evaluated it. The first spec to compile
+disproved it in one comptime step.
+
+## Wave Loop 595 -- T5: the corpus's assertion discipline is sound, CORDIC is the exception (2026-08-10)
+
+W594's audit condition: "if every other exact equality is over a CLOSED-FORM function,
+T4 is a singleton -- check what fraction are iterative first."
+
+    453  invariants of the form f(args) == literal
+      7  over an ITERATIVE function
+      1  of those over an APPROXIMATION (exp_approx(0.0) == 1.0)
+         ...and it holds exactly: 1.0 + 0 + 0/2 + 0/6 + 0/24
+
+The other six iterative ones are exact COUNTING functions -- count_assigns,
+count_substring, count_passed_at_5 -- where equality is entirely correct.
+
+So of 453 exact equalities the only false ones are the CORDIC coordinates at zero.
+
+### The rule sharpened
+
+The suspect class is not "iterative". It is ITERATIVE AND APPROXIMATING. A counting
+loop is iterative and exact; a Taylor polynomial is closed-form and exact at its
+expansion point; a CORDIC rotation is neither. W594's rule as written would have
+flagged six correct invariants.
+
+### And T4 generalises within CORDIC
+
+cordic_fixed.t27 now compiles (its `given a = 0.5` was the normalized REAL angle
+written where the Q14 INTEGER belongs -- 0.5*PI = 8192, determined by the file's own
+documented convention and by every neighbouring test passing an integer).
+
+It disproves two more:
+
+    cordic_sin(0) == 0                    asserted 0      actual 117
+    cordic_cos(0) == CORDIC_GAIN_Q14      asserted 9953   actual 16390
+
+The second is T4 in the OPPOSITE direction: the seed IS the gain, but eight rotations
+move x just as they move y. The algorithm cannot leave either coordinate untouched.
+
+## Wave Loop 596 -- all three cordic kernels compile, and the third one RUNS (2026-08-10)
+
+    COMPILE_FAIL 98 -> 97 · TEST_FAIL 0 -> 1
+    cordic.t27: 336 tests, 4 pass, then cordic_cos_zero fails
+
+### Named tuple return types, three changes that had to serve both consumers
+
+cordic.t27 declared `-> ([]f32, []f32)` while every consumer accessed
+`result.sin`/`result.cos`. t27 has had the named-tuple SYNTAX since at least W584; the
+Zig backend dropped the names.
+
+  * the TYPE   `(sin: []f32, cos: []f32)` -> `struct { sin: []f32, cos: []f32 }`,
+               only when EVERY element is named
+  * the VALUE  a positional tuple returned under a named type is written with its
+               field names, including W593's slice coercion
+  * the DESTRUCTURE  Zig cannot destructure a named struct, and the same spec still
+               writes `let (s_arr, c_arr) = f()`. The positional order IS the field
+               order, so it lowers to one field access per name.
+
+That last one is the lesson: MAKING THE TYPE NAMED BROKE THE OTHER CONSUMPTION STYLE,
+and the fix had to serve both. A spec that reads a value two ways is not a defect --
+it is a language that supports both, minus a backend that does.
+
+### The verdicts so far
+
+    cordic_top.t27    compiles; disproves cordic_sin(0) == 0 at comptime         (T4)
+    cordic_fixed.t27  compiles; disproves that AND cordic_cos(0) == GAIN          (T5)
+    cordic.t27        compiles and RUNS 336 tests -- 4 pass, cordic_cos_zero fails
+
+All from commit a0828089d. Same family, three specs, one mathematical fact: fixed-point
+CORDIC at angle zero does not give exact coordinates.
+
+## Wave 597 — 321 of 336
+
+The first per-test correctness figure for an IGLA RACE kernel: `cordic.t27`
+passes **321 of 336 (95.5%)**. W596 could only say "4 pass, then it stops",
+because Zig's runner aborts on the first panic — a floor, not a measurement.
+336 isolated invocations turned the floor into a number.
+
+The 15 failures partition into exactly three families, and all three were
+already proved: 10 are assertions of exact values at special angles (**T4**),
+3 are gain assertions (**T5**), 2 are arctan-table roundings. **Not one is a
+compiler defect.**
+
+Paired with Variant B's survey — every remaining blocker across the other five
+kernels is a specification decision, not a defect (P12) — the shape of the work
+has changed. Twenty-nine waves asked "does it compile?". That question is
+answered. What is left is fifteen assertions somebody wrote that were never
+true, and five decisions only a maintainer can make.
+
+The lesson that generalises: **a measurement that requires a shell loop is a
+measurement that stops being taken.** Every number this chain trusts —
+`lex-conform`, `parse-conform`, `cc-gate`, `check-calls`, `impl-status`,
+`parse-complete` — became routine the wave it became a command. This one is
+still a loop.
+
+## Wave 598 — sin and cos were exchanged, and W597 was read from the names
+
+W597 published `cordic.t27` at 321/336 and sorted the 15 failures into T4/T5/
+rounding. **The sort was made from the test identifiers.** W598's first act was
+to read the assertions instead, and they already carried tolerances — so T4,
+*"CORDIC does not reach exact values"*, could not be the cause. The
+recommendation died on its own falsification check.
+
+Executing the functions found the real cause in one command:
+
+    cordic_sin_cos(0, 8)  ->  sin[0] = 0.999975   cos[0] = 0.007032
+
+**sin and cos were exchanged.** `cordic_inner` returns `(x, y)` and, seeded with
+(K, 0, angle), drives x -> cos and y -> sin — which is why every other caller in
+the file names the pair `(nx, ny)`. One line bound it backwards. Fixing it took
+330/336 (98.2%), up from 321.
+
+Three things were worth more than the fix:
+
+1. **T4 already contained the disproof.** It had recorded, by hand, one wave
+   earlier: `sin(0) achieved = 117 = 0.00714`. The corrected kernel returns
+   0.007032; the inverted one returned 0.999975. A number proved by hand agreed
+   with the fix and disagreed with the running code, and nothing compared them —
+   because T4 was filed as a negative result rather than as a prediction.
+   **A disproof is also a prediction.**
+2. **The lint I was about to propose was falsified before publishing it.** 21
+   tuple destructurings in the corpus, zero name/position mismatches — including
+   the one just fixed, because `(s, c)` and `(x, y)` share no vocabulary. Run
+   the check before writing the variant.
+3. **T6 separated three kinds of failing test** — false assertion (the test is
+   wrong), real gap (the code is incomplete), defect (the code is wrong). Of the
+   six remaining failures, five are the first and exactly one is the second:
+   `cordic_sin(pi)` cannot work because pi = 3.1416 exceeds CORDIC's convergence
+   domain A_inf = 1.7432866 rad, and the spec performs no argument reduction.
+   None is the third. The three have different owners; until this wave they were
+   one bucket.
+
+Sixth instance in this chain of an *instrument*, not the code, being wrong.
+
+## Wave 599 — a failing assertion now says what it saw, and the measurement became a command
+
+Two deliverables, the second forced by the first.
+
+**1. Assertions print their operands.** For this project's whole life every
+assertion lowered to `if (!(cond)) @panic("assertion failed")`. That is the
+entire reason W598's swapped sin/cos needed a hand-written probe program, a
+re-export of every function as `pub`, and an hour, to find something one line of
+output makes obvious:
+
+    1/1 test.cordic_sin_exact_pi...
+      assertion failed:
+        @abs(s) = 0.98524404
+
+**The falsification check was insufficient, and re-measuring caught it.** F1 was
+"`std.debug.print` is not comptime-callable". A probe cleared it for assertions
+inside a `test` body — where a constant-folded condition still runs at runtime.
+But this corpus ALSO folds assertions at comptime: T4's and T5's disproved
+invariants are exactly that. The first version turned cordic_top's clear
+`error: encountered @panic at comptime` into an opaque error inside
+std.Io.Threaded. **I tested the case I thought of, not the case the corpus
+contains.** Fixed with `@inComptime()`, which keeps each context's diagnostic.
+Seventh instance of the instrument, not the code, being wrong.
+
+**2. `t27c test-report <spec>`.** W597's per-test figure came from driving
+`zig test --test-filter` in a shell loop, once per test. That cost ~45 minutes
+and 6.1 GB of build cache **and filled the disk**, because `--test-filter`
+recompiles the whole file for every filter — 336 tests meant 336 compilations of
+one 65 KB spec.
+
+The command compiles ONCE with a custom runner that runs one test per process by
+index. Same tests, same answer, **5 seconds**.
+
+| | shell loop | command |
+|---|---:|---:|
+| wall clock | ~45 min | 5 s |
+| compilations | 336 | 1 |
+| cache | 6.1 GB | one binary |
+
+**The disk exhaustion was the clue, not the accident.** A measurement whose cost
+scales with the number of tests is one that stops being taken — which is the
+same lesson as rule 90, arriving with a number attached.
+
+## Wave 600 — 1018 of 1024, and every failure in one file
+
+The first per-test measurement over the whole tree:
+
+    MEASURED  30   (29 of them at 100%)
+    NO TESTS  38   <- L4 TESTABILITY violation
+    BLOCKED  540
+    1024 tests / 1018 pass / 6 fail / 99.4%
+
+**Every failing test in the entire corpus is in `cordic.t27`.** The corpus has
+no long tail of subtly-wrong specs: 540 that do not run, 38 that run and check
+nothing, 30 that run and check something — 29 perfect, one with six assertions
+whose arithmetic is already written down.
+
+**I made the exact mistake my own module doc warns against.** The command's
+first version reported "68 measured", of which 38 were `0/0 = 0.0%` — specs
+that compile and declare no tests. Averaging those in as zeroes is the collapse
+W586 removed from the harness, reintroduced in a file whose doc comment says not
+to. Eighth instance of the instrument being wrong, and the first where the
+warning and the violation were written by the same hand in the same file.
+**Writing the rule down does not execute it.**
+
+**The FPGA family is the healthiest part of the corpus.** `specs/fpga/` (14
+specs, 246 tests) and `specs/boards/` (3, 54) are at 300/300. Against the
+standing FPGA goal that is the number that matters: nothing measured stands
+between the specs and the board.
+
+## Wave 601 — nine specs that named their own falsification and never ran it
+
+W600 recommended giving tests to the 38 specs that compile while asserting
+nothing. **Two thirds of that target did not exist.** Measured before writing
+anything: 25 of the 38 are 327-byte stubs -- a module header, two `use` lines,
+and an empty banner reading `TDD: Tests (from .tri behaviors)`. Those are
+UNWRITTEN specs, W586's category, whose `.tri` sources W586 proved do not exist.
+The real remaining work is **4 files, not 38**.
+
+The nine that were real are the GF format tables, and each **ends with its own
+falsification path in a comment**:
+
+    ; Fpath: closed-form rule mis-applied (verify e = round((10-1)/phi^2) = 3, m = 6)
+
+Written down precisely, years before anything ran it. 44 invariants now do,
+including the rounding rule stated as bounds -- `e = round(x) <=> e-1/2 <= x <=
+e+1/2` -- because comptime has no `round`.
+
+**Three things worth keeping:**
+
+1. **Adding the invariants found a defect in the specs they were added to.**
+   `gf1024` declared `EXP_BITS : u8 = 391`; u8 stops at 255. The value is right
+   (round(1023/phi^2) = 391) and every other rung fits, so the annotation was
+   copied without checking. It compiled for as long as nothing consumed the
+   constant. **An invariant is not documentation -- it is what makes the
+   compiler look.**
+
+2. **Verify enforcement by breaking it.** gf10's EXP_BITS 3 -> 4 must stop the
+   build at the invariant's own line, and 4 -> 3 must restore it. Without that
+   check you have decoration you believe is a test.
+
+3. **445 invariants were already being proved and nothing reported it.** They
+   lower to comptime asserts and never reach `builtin.test_functions`, so every
+   invariant-only spec read as "0 tests" and was filed as an L4 violation. If
+   the spec compiled, every invariant held. A fourth population --
+   INVARIANTS ONLY -- now separates *checked by compiling* from *unchecked*.
+
+Also fixed: a W599 regression. The `__t27_assert_fail` helper was gated on
+TestBlock alone, so a spec with invariants and no tests referenced a helper
+never emitted. The gate must match "will this file contain an assertion".
+
+## Wave 602 — all three variants; the catalog's payload was invisible to the compiler
+
+**A — `t27c catalog-gate`.** `formats_catalog.t27` calls itself "Single source of
+truth for every numeric format" and feeds six codegen targets, and **all 83 of
+its functions are `fn binary16() -> str { return "binary16"; }`** -- the payload
+is entirely in `// CATALOG:` comments. Nothing the compiler does could check any
+of it. 83 records, 0 checks, until this wave.
+
+**The exceptions were the deliverable.** A naive `s+e+m == bits` reports 13
+violations and twelve are not: 8 tapered formats (posit/takum have a
+variable-length regime, so there is no fixed m) and 4 parametric families
+(bits=0). A gate that emits thirteen false alarms is switched off within a wave.
+
+**And skipping them was worse than the false alarms.** The first version just
+exempted the non-fixed shapes -> zero findings. Turning "exempt" into "must not
+CLAIM a layout it does not have" found **5 real defects**, including `gfternary`
+(status=Verified, bits=2, but s=1 e=0 m=2 summing to 3).
+
+**T7 -- check the property, not the procedure.** `e = round((N-1)/phi^2)` solves
+`e/m = 1/phi` exactly and then rounds; the ratio is nonlinear, so rounding is not
+minimising. Exhaustive over N in [4,4000]: it fails at **N = 5, 73, 1293**. No
+published rung is one of them. But the gate now searches for the minimiser
+instead of re-running the formula.
+
+**B -- the stub population.** `specs/tri/` reports 17 STUBS, 2 NO TESTS. Calling
+a 327-byte file with no declarations an L4 violation overstates the debt; it is
+UNWRITTEN, W586's category.
+
+**C -- the board.** `dlc10 idcode` -> `DLC10 cable not found (VID=0x03FD)`.
+Verified with the real tool, not assumed. Wrote
+`docs/fpga/IGLA-FPGA-LAUNCH-PLAN.md`: Phase 0 is complete, and the ordered
+Phase 1 exists so the first hardware session is not improvised.
+
+**Literature.** GF puts phi in the FIELD SPLIT; Bergman's base-phi (1957) and
+Zeckendorf put it in the RADIX. Stating that makes GF less novel and more usable
+-- every GF value is an ordinary binary float. Both halves belong in the claim.
+
+## Wave 603 — the check was wrong, not the catalog
+
+**W603's first act was to refute W602's own headline finding.** W602 reported
+five catalog records asserting "a layout they do not have". Four were correct.
+The catalog uses `s` to record whether a family is SIGNED, independently of
+whether its width is fixed:
+
+    s=1   q_format, minifloat, unum_i, tapered_fp        -- all signed
+    s=0   bcd, block_fp, shared_exp, stochastic_rounding, unum_ii
+
+That split is exactly the signed / not-a-signed-scalar line. And the catalog
+already had a documented "not applicable" sentinel -- `phi_distance=-1.0`, used
+by **46 records** -- which W602 never looked for before calling the data wrong.
+**Tenth instance of the instrument being wrong; second published finding refuted
+by its own data** (W588 was the first, and the failure mode is identical:
+asserting what data means before asking what it means here).
+
+One finding survives: `gfternary`, `bits=2` concrete but `s+e+m = 3`. Reported,
+not changed -- what an alphabet should record for s/e/m is a spec decision.
+
+**Then the real work: does the EMITTED artifact still say what the SSOT says?**
+History says this is the failure that actually happened -- commit `aa01dd4f1`:
+*"untrack stale gen/numeric catalog artifacts (drift 77 vs SSOT 83)"*. The
+emitted files fell six formats behind and **the remedy was to delete them**,
+which removes the symptom and prevents nothing.
+
+Three defects found and fixed:
+1. The generator's defaults were cwd-relative, so it **failed from the repo
+   root** -- the only place anyone runs it -- with FileNotFoundError.
+2. Its own header documented six output languages; it emits **sixteen**.
+3. **My own check under-measured 4x and reported success.** It looked up
+   `s`/`e`/`m`; the emitter renames them `s_bits`/`e_bits`/`m_bits`. It silently
+   compared only `bits` -- 83 fields where 332 were available. Print what you
+   compared, not that you compared.
+
+Verified by breaking it: corrupt one field and drop one record, and the gate
+reports count drift, the corrupted value, and the missing record.
+
+## Wave 604 — the half of IGLA nobody had measured, and a mis-lexed quote
+
+**W603's recommendation was already half-built.** "Make the gates a suite" --
+five of the eight were ALREADY in `t27c suite`. The real gap was better: they
+ran under **"Phase 6: Integrity metrics (reporting only)"**, so `lex-conform`,
+whose own comment says *"a non-zero count is a real regression"*, printed FAIL
+lines while the suite said ALL TESTS PASSED. Added **Phase 7: Gates (failures
+count)** -- lexer/parser conformance and the catalog gate now contribute to
+`total_fail`, with `gfternary` allowed BY NAME so the allowance is visible and
+expires when somebody settles it.
+
+**Then: thirty-six waves on IGLA RACE, zero on IGLA CODER.** One command:
+
+    10 specs . 28,988 lines . ZERO measurable
+    4 fail at PARSE, 6 at COMPILE
+
+And the six are not six problems. `dataset` and `prm` both fail on `undeclared
+identifier 'eval'`; both `use igla::coder::eval`; `eval.t27` does not parse, so
+`use_resolve`'s compile-or-fall-back splices nothing. **Fixing one parse failure
+unblocks three specs.** Read the `use` edges before counting blockers.
+
+**And a corpus-wide lexer defect nobody was looking for.** `weights.t27`
+reported "stray `}` at 487 -- everything after discarded", 77% of the file. The
+brace is inside a string:
+
+    given header = '{"model": "test", "shape": [2,2]}'
+
+The lexer treated `'` as opening a CHARACTER literal -- consume exactly one
+char, then look for the close. It emitted `CharLiteral("{")` and left the rest,
+including the brace, as loose tokens.
+
+    120 multi-character '...' literals in 10 specs (85 in dataset.t27)
+     69 genuine single-char 'c' / '\n' in 19 specs
+
+**Both are real, so do not pick one meaning: scan to the delimiter and decide by
+content.** One char (or one escape) -> CharLiteral; more -> String; unterminated
+-> ERROR, not silent garbage (W577's rule one layer down). lex-conform 29 -> 34.
+
+Same class as W575's `1e6`, and found the same way: by measuring something for a
+different reason. Effect measured, not assumed -- weights.t27 advances from
+line 487 to line 690; the other nine are unchanged; corpus parse count is
+unchanged at 397/608. **This fixed a value, not a parse.**
+
+## Wave 605 — slice syntax, a reserved word, and what "unblocks three" actually bought
+
+**Two defects, measured before either was fixed.**
+
+`eval.t27` failed at line 1394 on `stdout[0:5]` -- **`x[a:b]` slice syntax was
+not parsed**. The naive count said **321 sites**. Stripping string literals
+first said **33**; the other 78 were Verilog `[7:0]` bit-ranges inside strings.
+**Third instance of the identical mistake** -- W588 matched path prefixes, W602
+read a convention as a defect -- and the first caught BEFORE publishing. *A
+regex over source text measures the text, not the language.* Blank out strings
+and comments before counting anything syntactic.
+
+Zig spells the same half-open range `x[a..b]`, so the lowering is one separator.
+Two parse-conform cases added (slice parses; ordinary indexing still does).
+
+Second: **`var` is a t27 keyword** and eval.t27 used it as a binding name. Two
+sites, the only ones in the corpus. A spec repair, not a language change.
+
+**What it bought, stated precisely -- because the leverage claim was mine.**
+P19 predicted fixing eval.t27's parse would unblock three specs:
+
+    eval       parse error @1394  ->  PARSES; compile: SimResult undeclared
+    tokenizer  parse error @286   ->  PARSES; compile: invalid escape '0'
+    prm        undeclared 'eval'  ->  undeclared 'BeamCandidate'   (edge resolved)
+    dataset    undeclared 'eval'  ->  still 'eval', at a new line
+
+**Half-confirmed.** prm's dependency did resolve. dataset's did not, for a
+specific reason: it calls `eval.has_substring(...)` -- a module-QUALIFIED
+reference. `use_resolve` splices contents into the namespace; it does not create
+a module object, so a qualified call has nothing to bind to. **That is the W589
+class**, a different gap from the one this wave fixed.
+
+    parse-complete   397 -> 399 of 608     CODER specs measurable: still 0
+
+Two specs began parsing, one dependency edge resolved, and the honest summary of
+a corpus-wide parser feature plus a spec repair is **two files moved from one
+failure class to another.** Report the before/after table, not the headline.
+
+## Wave 606 — one missing disjunct, and a string that appears in no source file
+
+**W605's diagnosis was wrong, and tracing the string is what showed it.** W605
+said dataset.t27 was blocked because "the spec uses a module-qualified call
+`eval.has_substring` that splicing cannot satisfy". **That string appears in NO
+SPEC FILE.** The compiler synthesises it: the source says
+`eval::has_substring(...)`, use_resolve is supposed to rewrite that to the bare
+name, and codegen lowers any surviving `::` to `.`. One grep replaced a wrong
+architectural story with a one-line fix.
+
+**The rewrite had one missing disjunct:**
+
+    .filter(|(_, name)| pulled_names.contains(name))                          // before
+    .filter(|(_, name)| pulled_names.contains(name) || local.contains(name))  // after
+
+dataset.t27 declares its OWN `has_substring` -- its header says "inline copies
+of eval.t27 templates to avoid circular imports" -- and the fixpoint skips local
+names by design, so it never entered `pulled_names`. **Three other qualified
+refs in the same file, whose declarations WERE pulled, rewrote correctly.** When
+a rule works for some sites and not others *in the same file*, the predicate is
+incomplete, not the design.
+
+**The population was counted three times before being believed:**
+
+    1538  mod.fn() anywhere        -- 1381 of them Zig's testing.expect
+      29  mod.fn() where imported  -- missed the `::` spelling entirely
+     616  mod::fn()                -- of which 187 are imported modules
+
+The other 429 are TYPE-qualified (`TernaryWeight::from`, `HybridBigInt::...`)
+and must NOT be rewritten. **Fourth consecutive wave where the first count was
+wrong and the check caught it.**
+
+**Two brace defects in arch.t27, found in sequence:** a missing `}` at 666, and
+then -- only visible once that was fixed -- a STRAY `}` at 2352 where brace
+depth goes negative. Compute the running depth over the whole file rather than
+trusting the first error location.
+
+**IGLA CODER, start of wave -> end:**
+
+    parse failures     4 -> 1   (only weights.t27)
+    compile failures   6 -> 9
+    parse-complete   397 -> 400 of 608
+    MEASURABLE SPECS   0 -> 0
+
+prm moved off `BeamCandidate` -- the arch dependency resolved. **No CODER spec
+produces a test binary yet, and that remains the headline.**
+
+## Wave 607 — 76 calls to a function nobody wrote, and two speculative fixes reverted
+
+**`eval.t27`: 113 compile errors -> 32.** Three things, and one honest failure.
+
+**1. `SimResult` was used and declared nowhere.** Two other specs declare that
+name and they are NOT the same type:
+
+    specs/fpga/simulator.t27   { cycles, state, errors, assertions_fired, coverage_points }
+    specs/igla/coder/prm.t27   { passed, total }
+
+eval constructs `{passed, total}`, so it means prm's -- but prm IMPORTS eval, so
+importing prm is circular, and importing fpga::simulator binds the wrong shape.
+**The type belongs to the lower layer that uses it.** Declared it in eval;
+prm is unaffected because the resolver's fixpoint skips names the importer
+declares locally.
+
+**2. `accuracy` was called 76 times and declared NOWHERE IN THE CORPUS.** Its
+contract is fully determined by its own tests, so it was written from them:
+
+    accuracy([1,2,3],[1,2,3]) == 1.0     accuracy([],[]) == 0.0
+
+**The two invariants beside those tests contradict each other on the empty
+input** -- `preds == refs ==> 1.0` and `len == 0 ==> 0.0` both apply to
+`([],[])`. The explicit TEST says 0.0, so 0/0 is defined as 0.0 and
+`eval_accuracy_perfect_inv` is FALSE for the empty case. Same shape as T4,
+recorded rather than papered over. 76 errors gone.
+
+**3. Array-of-strings never got the slice lowering.** `slice_element_type`
+rejected any element type containing `[` -- a guard for nested arrays that also
+rejects `[]const u8`, which is what a STRING is. So `[]string` returns skipped
+the `@constCast(&[_]T{...})` form that `[]u32` returns get. Fixed.
+
+**AND THE HONEST PART: two speculative fixes reverted.** A single-element array
+of strings still emits `{ a }` instead of `{ "a" }`. I twice theorised a cause
+(a dimension-guard in parse_bare_array_literal; unquoted lexemes in the
+element-text collection), patched, rebuilt, and BOTH LEFT THE OUTPUT UNCHANGED.
+Rather than keep guessing at a frozen file, both were reverted and the defect is
+documented with everything learned. **A fix you cannot demonstrate is not a fix,
+and keeping it because it is "correct in principle" is how a compiler acquires
+changes nobody can explain.**
+
+## Wave 608 — the discard, a second reserved word, and an import that needed a parse fix first
+
+**eval.t27: 32 -> 30 errors. parse-complete 400 -> 401.**
+
+**1. `_` is Zig's DISCARD, not a name.** `let _ = f();` lowered to
+`const _ = f();`, which Zig rejects outright. Worse, the const-inliner then
+matched `_` as a variable and emitted **`_ = _;`** -- discarding the discard and
+losing the statement's actual operand. Both fixed. 31 `let _ =` sites across 5
+specs.
+
+**Honest caveat: those five specs all fail at PARSE**, so the fix delivers no
+measurable improvement today. It is correct and it will matter when they parse;
+saying that plainly is better than quoting "31 sites" as though it were 31 wins.
+
+**2. A second reserved word used as a binding.** W605 found `var`; this wave
+found **`module`** -- `given module = RtlModule { ... }` in
+`specs/igla/race/backend.t27` and `specs/igla/race/rtl.t27`, 3 sites. Renaming
+made **backend.t27 parse for the first time** (parse-complete 400 -> 401).
+
+**3. The import chain, in the right order.** `substring_match` was called in
+eval.t27 and declared in `igla::race::backend` with no import. Adding the import
+alone would have done nothing -- **use_resolve only splices from dependencies
+that PARSE**, and backend.t27 did not, because of finding (2). Fix the parse,
+then add the import: `substring_match` resolves.
+
+The general shape, third time this chain has hit it (arch -> prm, eval -> prm,
+backend -> eval): **a missing-import diagnosis is incomplete until you check
+whether the target parses.**
+
+**What remains in eval.t27, measured:** 6 `pointer and pointer` from string
+concatenation with `+` (needs an allocator -- a language decision), 5
+array-literal-into-slice at STRUCT FIELD position (needs a struct field-type map
+the Zig backend does not have), plus type mismatches and two more missing
+imports.
+
+## Wave 609 — a struct field-type map, and a regression the corpus check caught
+
+**589 sites in 20 specs**, not the 5 in eval.t27 that prompted it. The Zig
+backend collected struct field NAMES (`string_names`, `float_names`,
+`signed_names`) but never their TYPES, so a slice-typed field receiving an array
+literal got `.{ a, b }` -- which Zig rejects with *"type '[]T' does not support
+array initialization syntax"*.
+
+    struct fields declared      3949
+      of those, SLICE-typed      649
+    array literal -> slice field 589 sites, 20 specs
+
+The map is keyed by `(struct, field)`, deliberately unlike the three name sets
+beside it: those are GLOBAL, so they cannot tell two structs' same-named fields
+apart. eval.t27: 30 -> 27 errors.
+
+**AND THE CORPUS CHECK CAUGHT A REGRESSION I INTRODUCED.** `bram_weights.t27`
+started reporting `expected ',' after initializer`:
+
+    data = @constCast(&[_]i16{ 0;21 })
+
+The array-REPEAT form `[v; n]` is stored as element text `v;n`, and
+`gen_array_literal_braces` splits on COMMAS ONLY -- so it emitted the raw
+`{ 0;21 }`. `gen_expr` handles the repeat correctly (`.{v} ** n`); the helper I
+reused does not. Zig spells it `[_]T{v} ** n`. Fixed and verified compiling.
+
+**I would not have found this by reasoning about the change.** The five sites in
+eval.t27 that motivated the work contain no repeat forms; the defect lived in a
+spec I touched only through a corpus-wide sweep. **Run the sweep before
+believing a lowering is right, not after shipping it.**
+
+## Wave 610 — 82% of what blocks IGLA is functions nobody wrote
+
+**W609's recommendation was falsified by W609's own rule.** It proposed the
+usize/u32 cast class as "the largest remaining". Measured first: **~7 errors**
+-- 4 in eval, 2 in prm, 1 in ternary_inference, 0 in the four heaviest specs.
+**The recommendation you wrote last wave is exactly as unmeasured as any other
+guess.**
+
+Aggregating every compile error across specs/igla/** instead:
+
+    1458 errors total
+     886 (61%) use of undeclared identifier   <- the dominant class
+     208 (14%) expected type X, found Y
+      87 (6%)  assertion failed (comptime)
+
+And the 886 decompose into 76 names:
+
+    158 errors from 13 names DECLARED somewhere  -> import/resolve
+    728 errors from 63 names DECLARED NOWHERE    -> UNWRITTEN
+
+**82% of the dominant class is functions called and never written.** That is
+W586's *unwritten* category, established at spec granularity, measured for the
+first time at FUNCTION granularity. Not a compiler defect, not a lowering gap,
+not an import graph.
+
+**Two written from their tests; one that could not be.** `is_prefix` (55) and
+`booth_mul_i32` (84) are fully determined and were written to match their
+neighbours' style. **`throughput` (60) could not be**: its four tests are
+satisfied ONLY by `f(ops, ns) = ops`, ignoring the duration argument -- no
+scaled form fits all four. **The tests determine a projection, not a
+throughput.** Reported, not written. Do not write a degenerate implementation to
+make a number go down.
+
+**gemm.t27: 90 -> 2 errors.** booth_mul_i32 plus three spec repairs: an untyped
+`sign` Zig reads as comptime_int under runtime control flow (2 sites, one
+pre-existing), an i32/u32 product mismatch, and two lowercase `mat2x2` literals
+against the declared `Mat2x2`. The last two errors are design questions --
+booth_mul_i16 returns i32 while Mat2x2 fields are i16 -- and stay decisions.
+
+## Wave 611 — three written from their tests, the fourth contradicts itself
+
+W610 predicted "roughly one of the four comes back as a decision". **Exactly one
+did.**
+
+    param_bounds_saturate  53 -> 0   written (signed 8-bit saturation)
+    smt_check_bool         43 -> 0   written (true -> "SAT", false -> "UNSAT")
+    bram_weights_width     28 -> 0   written (its own invariant states == len)
+    bram_weights_depth     50        NOT WRITTEN -- tests contradict
+
+**bram_weights_depth, quantified:** 30 test points -- 24 consistent with
+`depth == len`, 6 with `depth == len/2`, 0 with neither. Lengths **1, 2 and 4
+carry BOTH expectations**. No function satisfies the suite. Same shape as
+`ternary_mac`'s argument order (91 vs 80) and `systolic_ternary_array`'s
+contradictory tests. The 24-6 split suggests identity was intended, **and noting
+that is not the same as deciding it.**
+
+**Aggregate: IGLA 1458 -> 1192 errors; undeclared 886 -> 622.** 266 removed by
+writing three functions, none requiring a judgement call.
+
+**The method's value is not that it writes functions -- it is that it separates
+the determined from the under-determined BEFORE writing anything.** Nine
+examined across W610-W611, two were decisions. Writing either would have meant
+inventing a contract and calling it an implementation.
+
+**Quantify a contradiction before handing it back.** "The tests disagree" is a
+complaint. "30 points, 24 for identity, 6 for len/2, lengths 1/2/4 carry both"
+is a decision brief.
+
+## Wave 612 — the yield falls to 2 of 9, and an adversarial pass refutes my own verdict
+
+Nine remaining unwritten functions, classified by INDEPENDENT agents (one per
+function), with every DETERMINED verdict then handed to a SEPARATE agent told to
+refute it and to default to refuted when uncertain.
+
+    DETERMINED, survived   2   placement_area_positive, smt_assert_true
+    DETERMINED, REFUTED    1   count_admitted
+    CONTRADICTORY          2   select_top (29 points), smt_check (13)
+    UNDERDETERMINED        4   shuffle, route_wire_length_non_negative,
+                               batch, get_cycles
+
+**Yield fell from 7 of 9 (W610-W611) to 2 of 9.** The determined ones get taken
+first; what remains is progressively less determined. Say that, rather than let
+a falling number read as regression.
+
+**The refutation was correct and I would have shipped the error.**
+`count_admitted` was classified DETERMINED as `status == admitted`. Three
+independent reasons it is not: (1) no test exercises an obligation with status
+disproved/in_progress/withdrawn, so `status == admitted` and `status != proved`
+are INDISTINGUISHABLE on the data; (2) all three obligation-producing functions
+in the file emit `disproved` and never `admitted`; (3) `generate_report` defines
+the quantity arithmetically as `total - proved`, not by a status test.
+
+It would have compiled, passed every test in the file, and been wrong. **This is
+the pattern the chain has catalogued for forty waves -- caught before shipping
+rather than a wave later, because a separate agent was told to attack it.**
+
+**"Every test expects true" is not a specification.** All 33 assertion sites for
+`route_wire_length_non_negative` expect true and none expects false, so
+`return true;` satisfies the suite. A test set with no negative case cannot pin
+a predicate.
+
+IGLA: 1192 -> 1125 errors; undeclared 622 -> 555.
+
+## Wave 613 — one unlowerable line, and a total that rose while the wave removed 53
+
+**The measure-first rule redirected the wave again.** W612 recommended
+classifying the ~45-name unwritten tail. Measured: **106 errors across 45 names
+-- 2.4 each**, against single names worth 84 and 60 earlier. The other bucket
+was better: **158 errors from 13 names**, three of them types declared in
+exactly ONE file -- `RtlModule` (39), `BeamCandidate` (20), `Assignment` (14) --
+73 errors with no ambiguity and no decision. **Comparing buckets took one
+command.**
+
+**The blocker was one line.** `rtl.t27` -- 2,109 lines, declaring both RtlModule
+and Assignment -- did not parse because of:
+
+    bench rtl_module_exists: module(name).exists == true
+
+Three independent reasons no backend can lower it: `module` is a KEYWORD and
+cannot name a function; no `exists` field or function exists in the corpus;
+`name` is unbound. Isolated first (a one-line bench parses fine; `module(...)`
+is what breaks). **Disabled with its text preserved, not deleted** -- restoring
+it needs an owner to say what it meant.
+
+**Then two missing imports, and neither would have worked earlier:**
+
+    formal.t27      + use igla::race::rtl     RtlModule 34 -> 0, total 105 -> 74
+    bench_proxy.t27 + use igla::coder::arch   BeamCandidate 20 -> 0
+
+rtl.t27 did not parse until this wave; arch.t27 did not until W606. Fourth
+instance of the ordering constraint: **use_resolve splices only from
+dependencies that PARSE.**
+
+**THE METRIC IS NOT MONOTONE UNDER PROGRESS.**
+
+    before                          1125
+    after rtl.t27 began parsing     1163   <- ROSE
+    after both imports              1111
+
+The rise was progress: a spec that does not parse produces no code and
+contributes NO errors; the moment it parses it contributes 39. Excluding it from
+both sides, **1125 -> 1072, a reduction of 53.** Reporting the headline alone
+would have shown +38 for a wave that removed 53. **Always separate "newly
+counted" from "newly broken".**
+
+## Wave 614 — a round-trip between two unknowns pins neither
+
+**W613's recommendation was falsified by measuring it.** It proposed a resolver
+rule -- *where exactly one imported module declares an ambiguous name, the
+choice is forced*. Measured: for every such name there is **no imported declarer
+at all**. The rule would fire zero times, and the "ambiguous" bucket was
+mis-bucketed by name-based grouping. Third time.
+
+**`encode` -- 23 sites, ONE of which constrains the output.**
+
+    concrete output              1   encode("") == []
+    length only                  2   encode("a").len() == 1
+    round-trip through `decode`  20  NOTHING -- decode is also undeclared
+
+**A round-trip `decode(encode(x)) == x` between two undeclared functions
+constrains the PAIR, not either member.** Twenty constraints that look like
+evidence and are not. Three non-equivalent candidates satisfy everything else,
+including a degenerate length-encoder -- the seven test inputs have pairwise
+distinct lengths, so it closes all 20 round-trips too.
+
+**And the naming argument fails independently**: in the same wave block,
+`tokenize` is called on token ARRAYS with BOS-prepend semantics, contradicting
+its own declaration `fn tokenize(text: string) -> []u32`.
+
+**`decode` -- contradictory, and I verified it myself rather than trusting the
+agent:**
+
+    L1025  decode([65, 66, 67]) == "ABC"    ASCII = A,B,C   consistent
+    L1038  decode([66, 67, 68]) == "ABC"    ASCII = B,C,D   NOT "ABC"
+
+Plus `decode([1]) == "if"` (keyword table) against `decode([65]) == "A"`
+(ASCII), and sites passing the scalar `encode_keyword(code)` where the rest pass
+a slice.
+
+**`eval` was three problems, not one.** 2 self-qualified sites (measured
+corpus-wide: exactly 2, one line, one spec -- so no resolver change is
+warranted) and 24 from four specs calling `eval::` without importing it. Three
+imports added; the fourth (`backend`) is a genuine cycle, because eval imports
+backend -- a consequence of my own W608 change.
+
+IGLA 1111 -> 1093; undeclared 505 -> 484.
+
+## Wave 615 — one generation of tests carries 61% of the failures at 18% of the volume
+
+**Re-deriving the distribution redirected the wave a fourth time.** W614
+recommended the unwritten tail. Measured: 484 undeclared errors, but 341 were
+already classified as decisions, leaving **143 across 61 names -- 2.3 each**.
+Meanwhile `expected type X, found Y` had grown to **221 from just 12 distinct
+pairs**, two of which dominate:
+
+    92  expected 'i8', found 'TernaryWeight'   <- the ternary_mac decision (entry 1)
+    84  expected '[]f32', found 'comptime_float'
+
+The second is `sgd_update`, declared `(weights: []f32, grads: []f32, lr: f32)`
+and called with SCALARS in 82 places against 10 vector sites. **Unlike
+bram_weights_depth, the declaration backs the minority.**
+
+**Then the real finding, and the trap I nearly fell into.** Four contradictions
+(`sgd_update`, `bits_to_u64`, `bram_weights_depth`, `param_bounds_saturate`) all
+sat in `_wNNN`-suffixed tests. **But I found them by reading errors, so that
+enrichment is guaranteed by construction and proves nothing.**
+
+The unbiased test: attribute EVERY generated compile error to its enclosing
+generated `test "..."` block, across every IGLA spec.
+
+    _wNNN tests   1610 (18%)   537 errors (61%)   0.334 per test
+    other tests   7488 (82%)   337 errors (39%)   0.045 per test
+    ENRICHMENT                                    7.4x
+
+**These are not four independent defects -- they are ONE EVENT**: a generation
+of tests written against a mental model the declarations do not share. That
+turns several register questions into one: which model is canonical?
+
+Recorded as P30; register entries 14 and 15.
+
+## Wave 616 — the falsification I designed caught my own explanation
+
+W615 recommended this audit **because it carried its own falsification**: if the
+537 errors inside `_wNNN` tests were ordinary type errors rather than
+declaration conflicts, P30's EXPLANATION would be wrong even though its
+STATISTIC held.
+
+Enumerated, and it was:
+
+    declaration conflicts   236   44% of _wNNN errors   18.0x enriched
+    undeclared identifiers  285   53%                    6.7x enriched
+
+**P30 claimed the enrichment was "a generation calling functions in ways their
+declarations forbid". That covers 44%, not the majority.** The dominant failure
+is not "called it wrongly" but **"called something that was never written"**.
+
+The corrected account: the `_wNNN` generation was **written ahead of the
+implementation**, and fails two ways at once -- 285 calls to functions that do
+not exist (the P25 population, now localised to one generation) and 236 calls
+that contradict declarations (register entries 2, 14, 15). **Different remedies:
+write the functions or withdraw the tests, versus decide the canonical model.**
+
+**And the enrichment is NOT uniform.** `struct X has no member Y` (40) and
+`array init` (14) appear ONLY in _wNNN tests -- but `expected N argument(s)`
+(18) and `incompatible types` (9) appear ONLY OUTSIDE them. A blanket "this
+generation is worse" would be false.
+
+**A variant that can only confirm you is not worth a wave.**
+
+## Wave 617 — a diagnosis, not a fix, and I say so
+
+W616 flagged `struct 'X' has no member named 'Y'` as the cleanest signal: **40
+occurrences, zero outside the _wNNN generation.** Characterised completely:
+
+    ONE type: TernaryWeight   missing plus (24), minus (9), zero (7)
+    5 specs: ternary_mac, ternary_gemm, ternary_inference, formal, yosys
+
+The source writes TYPE-ASSOCIATED CONSTRUCTORS -- `TernaryWeight::plus()` -- and
+**the encoding is fully determined by the file's own decoder**:
+
+    ternary_decode: code == 1 -> +1, code == 2 -> -1, else 0
+    so plus() = {code:1}, minus() = {code:2}, zero() = {code:0}
+
+**Nothing here needs a decision.** Unlike every other _wNNN finding, this one is
+determined.
+
+**Why it is blocked anyway**, both measured:
+1. A free `fn plus()` does NOT satisfy `W::plus()` -- the call lowers to
+   `W.plus()`, which needs a MEMBER.
+2. **The parser silently discards methods declared inside a struct.**
+   `parse_struct_body` handles only Ident field names; everything else hits
+   `// Skip unexpected tokens inside struct`. **That is the W577 class living
+   inside the struct body** -- and it is why parse-conform's
+   `struct_with_method` case can assert the file PARSES since W577: it parses by
+   throwing the method away.
+
+**THREE ATTEMPTS CLOSED NOTHING** -- emitter branch, parser branch, both --
+producing no change in generated output, so the cause is upstream of both. All
+reverted. **And the hand-revert over-cut by 35 lines and broke
+`struct_with_method`**, caught by the gate and restored with `git checkout`.
+
+Two rules earned: **revert with git checkout, not by hand-cutting what you think
+you added**; and **a wave that only diagnoses is still a wave, if it says so.**
+
+## Wave 618 — all three variants; instrumented, and a fourth failing-test state
+
+**A -- instrumented the struct-method gap, as W617 said to.** `t27c parse` is
+the oracle; no code change needed to look.
+
+    parse_struct_body reached?          YES (traced)
+    loop sees the method's token?       YES -- exactly one KwFn "fn"
+    an `else if KwFn` branch fires?     NO  -- a probe inside it never prints
+    a FnDecl child appears?             NO  -- StructDecl has zero children
+    loop iterates again?                NO  -- one token, then exit
+
+**That eliminates the two hypotheses W617 could not choose between**: the parser
+IS reached and the emitter was never the issue. Reverted with `git checkout`;
+no compiler change survives.
+
+Two instrumentation errors worth keeping: the first trace landed in
+**parse_enum_body** (non-unique `while` anchor + first-match replace), and
+`2>&1 >/dev/null` binds stderr to the terminal and stdout to the void -- the
+opposite of the intent. Write `>/dev/null 2>file`.
+
+**B -- `no field named`: 51 errors across ~8 structs**, dominated by
+`DataSample.quality_score` (25). `dataset.t27` declares
+`DataSample { prompt, rtl, template }` and its OWN tests construct it with
+`quality_score`, `bits`... 50 errors in one file. A second, unrelated
+`DataSample` lives in `training.t27`.
+
+**C -- the board**: `dlc10 idcode` -> cable not found. Verified with the tool.
+
+**THE SCIENCE: T9 completes a four-state taxonomy of failing tests.**
+
+    false assertion   K(12) > K(8)               fix the test       measurement
+    real gap          cordic_sin(pi)             write the code     nobody
+    underdetermined   throughput, encode         choose a contract  an owner
+    UNSATISFIABLE     DataSample{quality_score}  DROP ONE OF TWO    an owner
+
+**Underdetermined admits MANY implementations; unsatisfiable admits NONE.** It
+cannot be closed by writing code. Reporting both as "needs a decision" hides the
+difference.
+
+**Literature**: this is schema divergence -- nominal vs structural typing
+(Cardelli; Pierce TAPL), schema evolution in OO databases (Banerjee et al.
+1987), forward/backward compatibility in Protocol Buffers and Avro. The gap is
+NOT the type system (nominal is right for a language lowering to Verilog, where
+a struct IS a bit layout) -- it is PROCESS: two generations diverged with no
+compatibility rule and no migration step.
+
+## Wave 619 — all three; T10 turns an "unsatisfiable" case into a migration
+
+**A -- DataSample migrated. IGLA 1093 -> 1072; no-field-named 51 -> 24.**
+
+T9 said the case was unsatisfiable and one of the two artefacts must go. **T10
+is the constructive complement**: widen the declared field set with DEFAULTS and
+both survive.
+
+    187 DataSample literals:
+      rtl 147 . template 147 . prompt 86   -- all declared, none dead
+      quality_score 61 . bits 4 . 4 singletons -- used, NOT declared
+
+**The declaration was right and INCOMPLETE** -- a count decided it, not a
+preference. And **defaulting only the ADDED fields was not enough**: 101 of 187
+literals omit `prompt`, which was already declared. With EVERY field defaulted,
+any subset is a valid literal.
+
+That is exactly Protocol Buffers' and Avro's forward/backward compatibility
+rule, derived for t27's nominal structs -- **21 errors, no test edited, no data
+discarded**, where T9 alone suggested deleting something.
+
+**B -- the struct-method anomaly, narrowed to a CONTRADICTION.** One build, two
+probes:
+
+    [loop] KwFn "fn"       <- loop top sees KwFn
+    (nothing)              <- `else if ... == TokenKind::KwFn` never fires
+
+An if/else-if chain over one field cannot fail both `== Ident` and `== KwFn` for
+a token printing as KwFn. So the else-if is not in the chain it appears to be
+in. A brace-depth calc hinted at that -- **but that measurement is unreliable**
+(it counts braces in strings and comments, and my own `{:?}` inflated it), so it
+is recorded as a caution, not an answer. Reverted; gates restored.
+
+**Three waves of edit-and-observe have reduced this to a contradiction between
+two printed facts. It needs a debugger, not a fourth hypothesis.**
+
+**C -- board**: `dlc10 idcode` -> cable not found. Verified.
+
+## Wave 620 — T11 dissolves the register's largest entry
+
+**B -- `ternary_mac`'s argument order was never a decision.**
+
+`ternary_mac(acc: i32, a: i8, w: TernaryWeight)` has PAIRWISE DISTINCT parameter
+types. **T11**: when parameter types are pairwise distinct, each argument type
+equals exactly one parameter type, so the assignment is a bijection -- **every
+permutation of a correctly-typed argument list denotes the same call.**
+
+So the three spellings are not three intents. And the register's numbers were
+wrong too: it recorded "91 vs 80, two shapes"; measured over all 171 call sites
+it is **81 / 53 / 20 across THREE shapes**, and the third -- `(acc, w, a)` -- is
+the one the compile errors actually report.
+
+**Entry 1 -- called "the largest decidable-by-a-human item in the project" for
+forty-six waves -- is dissolved. It needs a COMPILER FEATURE, not an answer**:
+type-directed argument resolution (Ada, C++ overload resolution) or named
+arguments (Python, Swift). t27 has neither.
+
+**A -- T12: widening and renaming are different remedies.** T10 absorbs a
+genuinely new field; but when the undeclared name is a variant SPELLING,
+widening creates two fields for one concept. The discriminator is
+**co-occurrence**: if `g` and `f` never appear in the same literal, renaming
+`g -> f` is well-defined and lossless; if they co-occur they are distinct.
+
+    DataSample   quality_score (61)   genuinely new     -> WIDEN
+    BenchResult  pass (6) vs passed (27)  0 of 33 co-occur -> RENAME
+
+no-field-named 24 -> 21. **IGLA total unchanged at 1072** -- the rename cleared
+its own class and those literals then failed on another. Saying so.
+
+**C -- board**: cable not found. Verified.
+
+## Wave 621 — the decision register was 15-of-16 wrong
+
+W620 dissolved register entry 1 by re-measuring it. W621 applied the same
+procedure to the other sixteen -- one independent agent per entry, each told not
+to trust the recorded claim.
+
+    DISSOLVED      12   never a decision at all
+    NUMBERS_WRONG   2   still a decision, every count wrong
+    ALREADY_FIXED   1   a later wave shipped it
+    SURVIVES        0
+    stalled         1
+
+**NOT ONE ENTRY SURVIVED AS WRITTEN.**
+
+I created that file in W612 and called it, in every wave report since, the
+highest-value artefact in the project -- "what sits at the top of the pile is a
+small number of sentences from someone who owns the spec". **Twelve of those
+sentences did not need to be said.**
+
+**Four mechanisms, each reproducible:**
+
+1. A number copied from the WRONG COLUMN. Entry 2's "30 points, 24 for
+   depth==len" -- there are 54 points, and the 24 is the count of INVARIANT
+   blocks, a population the tally had excluded. True split: 51 vs 3.
+2. A table row with NO EVIDENCE. Entry 2's "length 1 expects {0,1}" -- no
+   assertion in the corpus pairs a non-empty input with 0. Contradictory lengths
+   are TWO, not three.
+3. A premise that MISREAD THE CODE. `is_sacred_opcode` is a byte-range
+   predicate, not membership in eleven names. `PpaMetrics` has ZERO declarations
+   -- no declared fields to mismatch.
+4. A DILEMMA WHOSE SECOND BRANCH IS EMPTY. Entries 7, 8, 10, 17. Entry 10's two
+   options were the same operation. Entry 17's own source report says it "would
+   not go to the decision register" -- I added it anyway.
+
+**The general result: a measurement written once and quoted thereafter becomes
+true by repetition.** This is the same failure catalogued eleven times in the
+CODE -- an instrument reporting success while producing something smaller than
+intended -- now found in the project's own record-keeping. **The register was
+the instrument, and nothing was checking it because I wrote it.**
+
+Corollary: every artefact carrying a number should state when it was last
+re-derived. A count without a date is a claim about the past presented as a
+claim about the present.
+
+## Wave 622 — T14: my own theorem, misapplied, and the number went green anyway
+
+**B -- I applied T11 wrongly and it produced a semantically incorrect change
+that LOWERED the error count.**
+
+T11 says: with pairwise-distinct parameter types, every permutation of a
+correctly-typed argument list denotes the same call. I used that to license a
+SOURCE REWRITE -- move the weight-looking argument last, keep the others in
+relative order -- across 100 call sites. `ternary_mac.t27` went 56 -> 0 errors.
+
+**It was wrong.** `ternary_mac(a[1], w[2], 0)` became `ternary_mac(a[1], 0, w[2])`
+-- acc = a[1], a = 0. Zig widens i8 -> i32, so it TYPE-CHECKS. **A green number
+produced by a wrong change.** Caught by reading the generated code; reverted.
+
+**T14, in two parts:**
+
+(a) **The hypothesis is about ARGUMENT types, not parameter types alone.** An
+untyped numeric literal is `comptime_int` and inhabits BOTH i32 and i8, so the
+multiset equality has no unique witness. 47 of 186 ternary_mac sites (25%) are
+outside T11's scope for this reason.
+
+(b) **The licence is for the COMPILER, not a rewriting tool.** T11 says a unique
+type-correct assignment EXISTS; recovering it needs each argument's type, which
+the compiler has and a text transformation does not.
+
+**A heuristic that reproduces a theorem's conclusion on the easy cases is not an
+implementation of that theorem.** The 86 sites already in declared order were
+unaffected -- all the risk was in the 100 it had to guess on, and it guessed
+positionally.
+
+**C -- board**: cable not found. Verified.

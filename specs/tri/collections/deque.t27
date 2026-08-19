@@ -11,7 +11,7 @@ module TriDeque;
     // ═══════════════════════════════════════════════════════════
 
     pub const Deque = struct {
-        data : [[]I64",
+        data : []i64,
         front : "usize",
         back : "usize",
         size : "usize",
@@ -22,8 +22,8 @@ module TriDeque;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: Std.mem.Allocator) → void
-    fn init(allocator: Std.mem.Allocator) -> void {
+    // init(allocator: std.mem.Allocator) → void
+    fn init(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

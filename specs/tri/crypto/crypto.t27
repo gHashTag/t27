@@ -11,16 +11,16 @@ module TriCrypto;
     // ═══════════════════════════════════════════════════════════
 
     pub const KeyPair = struct {
-        public_key : [[]U8",
-        private_key : [[]U8",
+        public_key : []u8,
+        private_key : []u8,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate_key_pair(allocator: Std.mem.Allocator) → void
-    fn generate_key_pair(allocator: Std.mem.Allocator) -> void {
+    // generate_key_pair(allocator: std.mem.Allocator) → void
+    fn generate_key_pair(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

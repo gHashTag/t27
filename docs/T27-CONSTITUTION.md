@@ -71,7 +71,7 @@ These seven laws are the **constitutional bedrock** of Trinity S³AI / t27. They
 | Law # | Name | Body | Enforcement |
 |-------|------|------|-------------|
 | **L1** | **TRACEABILITY** | No code merged without `Closes #N` — every PR must reference a GitHub issue | `.github/workflows/issue-gate.yml` |
-| **L2** | **GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead | `./bootstrap/target/release/t27c validate-gen-headers` |
+| **L2** | **GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead | `./target/release/t27c validate-gen-headers` |
 | **L3** | **PURITY** | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments | `SOUL.md`, `ADR-004`, build.rs language checks |
 | **L4** | **TESTABILITY** | Every `.t27` spec must contain `test` / `invariant` / `bench` | Ring 037 / #132, parser enforcement |
 | **L5** | **IDENTITY** | **K2 core:** φ² = φ + 1 on ℝ; consequence φ² + φ⁻² = 3; IEEE f64 checks use tolerance | `NUMERIC-CORE-PALETTE-REGISTRY.md`, `specs/math/constants.t27` |

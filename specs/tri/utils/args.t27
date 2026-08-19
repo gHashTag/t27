@@ -2,7 +2,7 @@
 // t27/specs/
 // -- separates options from positional args | φ² + 1/φ² = 3 | TRINITY
 
-module []const u8;
+module TriArgs;
     use base::types;
     use math::constants;
 
@@ -31,8 +31,8 @@ module []const u8;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(allocator: Std.mem.Allocator) → void
-    fn parse(allocator: Std.mem.Allocator) -> void {
+    // parse(allocator: std.mem.Allocator) → void
+    fn parse(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

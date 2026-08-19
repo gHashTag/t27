@@ -1,0 +1,1554 @@
+{
+  "schema_version": 1,
+  "generated_by": "t27c suite --bless-expectations",
+  "max_entries": 221,
+  "entries": [
+    {
+      "path": "specs/account/repo.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got LParen ('(')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/account/schema.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got LParen ('(')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/api/c_api_contract.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/api/sdk_contract.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/api/tri_net_api.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/asp_solver.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/composition.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/datalog_engine.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/explainability.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ar/ternary_logic.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/auth/config.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got LParen ('(')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/automation/wrapup-auto.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/base/ternary_add.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/base/ternary_encoding.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/base/ternary_memory.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/benchmarks/bench_main.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/benchmarks/bench_nn.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/benchmarks/gf16_bfloat16_nmse.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/benchmarks/ternary_vs_binary.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/brain/brain.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Number",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/brain/neural_gamma.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/bus/pubsub.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/compiler/parser.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/compiler/pipeline.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/compiler/typechecker.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/config/load.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('Config')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/config/migrate.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected RBrace, got Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/config/paths.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/conformance/e2e_scenarios.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/demos/jones_topology_decision_gate.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/demos/jones_topology_filter.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/enrichment/audio_overview.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/enrichment/youtube_transcript.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/file/watcher.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got LParen ('(')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/linker.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/mac.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/power_analysis.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/spi.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/testbench/bootrom_tb.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/testbench/mac_tb.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/testbench/power_analysis_tb.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/testbench/uart_tb.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/testbench/vcd_conformance_compare_tb.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/top_level.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/uart.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/fpga/vcd_conformance_compare.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/github/auth.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/github/comments.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/github/issues.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/github/prs.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/github/tests/e2e_full_flow.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/graph/knowledge_graph.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/hslm/forward_pass.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/_tmp_pipeline_import.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/arch.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/bench_proxy.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/benchmark.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/dataset.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/eval.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/pipeline.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/prm.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/tokenizer.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/training.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/coder/weights.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/evaluation/multi_lang_harness.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/integration/publication.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/adder_tree.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/backend.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/bram_weights.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/cordic.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/cordic_fixed.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/cordic_top.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/eda.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/formal.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/gemm.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/opcodes.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/rtl.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/systolic_array.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/systolic_ternary.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/ternary_dot_sw.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/ternary_gemm.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/ternary_inference.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/ternary_mac.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/yosys.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/training/low_bit_ternary.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/training/pilot_pretraining.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/training/roadmap.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/training/scale_up.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/interop/gf_cross_language.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/registers.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_arithmetic.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_bitwise.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_control_flow.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_deque.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_encoding.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_gates.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_hash.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_memory.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_pattern_matching.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_search.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_set.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_shift.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Number ('257')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/isa/ternary_sorting.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/jit/jit.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: LParen",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/lsp/language.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/constants.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LParen, got Ident ('negative')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/gf_competitive.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Bang",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/phi_split_optimality.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/phi_universal_attractor.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/property_test_template.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/radix_economy.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LParen, got Ident ('negative')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/math/sacred_physics.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/memory/formula_embed.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/memory/notebooklm.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/memory/semantic_search.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ml/optimizer/race_config.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ml/transformer/feed_forward.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ml/transformer/multi_head_attn.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ml/transformer/positional_enc.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/neural/forward_pass.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/nn/attention.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/nn/gla.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/nn/hslm.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/nn/phi_rope.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/nn/sacred_attention.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/bigint.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/formats.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gf12.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gf20.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gf24.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gf32.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/gf8.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/goldenfloat_family.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwConst ('const')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/lucas_accumulator.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/phi_ratio.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/posit_ladder_control.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/chimera_best_gamma.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: RParen",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/e8_lqg_bridge.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/formula_discovery.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/gamma-conflict.t27",
+      "phase": "parse",
+      "reason": "unterminated string literal opened",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/hslm_benchmark.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/lqg_cs_bridge.t27",
+      "phase": "parse",
+      "reason": "unterminated string literal opened",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/p2_brain_physics.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/quantum.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/sacred_verification.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected LParen, got Ident ('abs_error')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/pins/parser.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Comma (',')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/pipeline/benchmarks.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/pipeline/e2e_test.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/portable/relay_observer.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/provider/adapters.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/provider/schema.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/queen/brain_summaries.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/queen/lotus.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/runtime/execute.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got RParen (')')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/runtime/instance.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('ProcessID')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/runtime/process.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Expected identifier after '.', got KwContinue",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sandbox/health.t27",
+      "phase": "parse",
+      "reason": "Unexpected top-level token: Ident ('trait')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sandbox/https_enforce.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sandbox/modules.t27",
+      "phase": "parse",
+      "reason": "Unexpected top-level token: KwUse ('use')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sandbox/orphan_detection.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sandbox/session_timeout.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/project.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/provider.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/router.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/routes.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/session.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/sse.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: KwFn ('fn')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/server/vm.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/shell/process.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got LParen ('(')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/shell/schema.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/storage/kv.t27",
+      "phase": "parse",
+      "reason": "Expected LParen, got Lt ('<')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/sync/index.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('SyncID')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ternary/bigint.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: KwFor",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ternary/hybrid_arithmetic.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ternary/hybrid_bigint.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ternary/packed_trit.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/test_framework/core.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/test_framework/graph_drift_detection.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/test_framework/property_test_template.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/test_framework/runner.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/test_framework/verilog_bench_harness.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tools/registry.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tools/schema.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tools/tri_to_t27_converter.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/array.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/bitset.t27",
+      "phase": "parse",
+      "reason": "Expected LParen, got KwTest ('test')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/btree.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/either.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/list.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/lru.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/map.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/maybe.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/option.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/queue.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/result.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/ring_buffer.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/set.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/skip_list.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/stack.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/state.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/tuple.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/collections/variant.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/graph/graph.t27",
+      "phase": "parse",
+      "reason": "unterminated string literal opened",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/io/io.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/io/reader.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/io/writer.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/io/zip.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/net/async.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/net/async_stream.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/net/channel.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/pipeline/builder.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/trees/tree.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/trees/trie.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: KwStruct ('struct')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vm/jit_semantics.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/jones_polynomial.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/ops.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/packed_vsa.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/sdk.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/sequence_hdc.t27",
+      "phase": "parse",
+      "reason": "Expected LBrace, got Semicolon (';')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/similarity_search.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/vsa/vsa_core.t27",
+      "phase": "parse",
+      "reason": "parse error in fn near line N: unexpected token after expression statement: KwFor",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    }
+  ]
+}

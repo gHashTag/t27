@@ -12,6 +12,15 @@
 
 mod bridge;
 mod compiler;
+mod use_resolve;
+mod check_calls;
+mod cc_gate;
+mod entry_points;
+mod impl_status;
+mod test_report;
+mod catalog_gate;
+mod lex_conform;
+mod parse_conform;
 mod enrichment;
 mod suite;
 mod railway;
@@ -30,6 +39,7 @@ mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod behavior_sva_v2;
+mod service;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -79,6 +89,401 @@ enum Commands {
     },
 
     /// Generate Zig code from .t27 file
+    /// THE SERVICE: run the whole path from a spec to gates, judging every
+    /// stage by its exit code and its artefact -- never by elapsed time.
+    /// A stage that "finished" in 0.0 s did not finish; it did not start.
+    Path {
+        /// The .t27 spec to carry to hardware
+        input: String,
+        /// Continue past the two software backends into synthesis
+        #[arg(long, default_value_t = false)]
+        synth: bool,
+    },
+
+    /// THE SERVICE: for every spec WITHOUT a hardware boundary, is the entry
+    /// point FORCED? T187 measured an exact equivalence -- a module has a data
+    /// port iff the spec declares `on_comb` or `on_clock` -- leaving 387 specs
+    /// that generate Verilog and cannot move a value across their boundary. The
+    /// standing rule is that the default must NOT be guessed, so this reports
+    /// where no guess is needed and leaves everything else alone.
+    EntryPoints {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every forced-scalar spec and the signature it would get
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+        /// W709: print the FORCED_ROOT suggestions for human review. W708 demoted
+        /// the call-graph-root rule to a suggestion and then printed nothing;
+        /// this is the list that demotion was supposed to produce.
+        #[arg(long, default_value_t = false)]
+        suggest: bool,
+    },
+
+    /// THE SERVICE: carry a spec all the way to a verdict READ BACK OFF THE DIE.
+    /// Strips the `$display` cells `gen-verilog` emits (T167), refuses to build a
+    /// bitstream from empty frames (T169), CHECKS THAT THE BSCAN CHAIN EQUALS THE
+    /// SITE nextpnr placed the cell at -- the mismatch that hid the readback for
+    /// six waves and that every other tool in the chain reports as success
+    /// (T172a) -- and brackets the read with a control bitstream, because a read
+    /// without its control is not a result.
+    Silicon {
+        /// The .t27 spec whose verdict should be read
+        input: String,
+        /// Verilog wrappers, in dependency order; the LAST one is the top module
+        #[arg(long)]
+        top: Vec<String>,
+        /// Which cable. All three share serial 210512180081, so this is the only
+        /// handle -- and it changes on replug. Take it from `t27c boards`.
+        #[arg(long, default_value = "1:4")]
+        busdev_num: String,
+        /// A bitstream for the WRONG PART, to force Done low before loading ours
+        #[arg(long)]
+        wrong_part: Option<String>,
+        /// A bitstream containing NO BSCANE2, to prove the magic can disappear
+        #[arg(long)]
+        control: Option<String>,
+        /// Build only; do not touch the boards
+        #[arg(long, default_value_t = false)]
+        skip_hardware: bool,
+        /// W842: nextpnr's placer/router seed. W841 measured a verdict that
+        /// flipped when the netlist was perturbed by a change that cannot affect
+        /// the arithmetic (T614), which puts the cause below the front end.
+        /// Sweeping this separates PLACEMENT from everything under it: a clause
+        /// that moves with the seed was decided by place-and-route; one that
+        /// holds across seeds has its cause in FASM or bitstream generation.
+        #[arg(long)]
+        pnr_seed: Option<u32>,
+    },
+
+    /// THE SERVICE: compare a table PRINTED in a paper against the script that
+    /// REGENERATES it. Six such scripts shipped beside the TNF paper and sat
+    /// unused for eight waves; the first one run found a stale row (W851). It
+    /// REFUSES to compare when either side yields no numbers -- a hand-written
+    /// version of this check read zero cells and reported eight-of-eight
+    /// mismatched, which in the output is indistinguishable from the truth.
+    RecomputeDiff {
+        /// The regenerating script, relative to the repository root
+        #[arg(long)]
+        script: String,
+        /// The .tex carrying the printed table
+        #[arg(long)]
+        tex: String,
+        /// \label{...} of the table; omit to search the whole file
+        #[arg(long)]
+        label: Option<String>,
+        /// Relative tolerance in percent. Default 0.1, not 2.0: W854 measured the
+        /// false-match rate against population size, and at a 50-number table
+        /// 2.0% masks about 17% of stale cells while 0.1% masks about 3%. On the
+        /// correct table there were ZERO false rejections at any tolerance from
+        /// 5% down to 0.01%, so tightening costs nothing here.
+        #[arg(long, default_value_t = 0.1)]
+        tol: f64,
+    },
+
+    /// THE SERVICE: run every `check_*.py` in a tree and report what each one
+    /// ACTUALLY did. Captures the child's OWN exit code -- `rc=$?` after a
+    /// pipeline reads `tail`'s status, which is how thirteen gates reported
+    /// green while two were failing (W846). Prints the tree's contents first,
+    /// because a gate reading an absent directory fails for that reason and not
+    /// for what it was written to catch. Separates GATES from REPORTS: a script
+    /// ending in an unconditional `sys.exit(0)` cannot fail whatever it finds.
+    Gates {
+        /// Directory holding tools/ (default: the repository root)
+        #[arg(long)]
+        dir: Option<String>,
+    },
+
+    /// THE SERVICE: run every reconstruction oracle and every gate with each
+    /// child's OWN exit status -- `rc=$?` after a pipeline reads the tail's
+    /// status, a mistake made three times in one session including while testing
+    /// the tool built to prevent it. Exits 1 if any child failed.
+    Battery {
+        /// Document directory holding recompute_*/adjudicate_* scripts
+        #[arg(long)]
+        dir: String,
+    },
+
+    /// THE SERVICE: has this project already found what you are about to measure?
+    /// Three claims were withdrawn in one wave, each after real measurement, each
+    /// landing where the repository already stood -- a seed count called unstated
+    /// that four captions state, a decoder called a no-op that was a harness
+    /// pruning half its output word, and a defect already gated with the twelve
+    /// affected files baselined BY NAME. Fifty-five place-and-route runs reached
+    /// an answer three greps hold. Greps gate docstrings, gate baselines and table
+    /// captions, in that order.
+    Known {
+        /// Directory holding tools/ and tnf_paper.tex
+        #[arg(long)]
+        dir: String,
+        /// What you are about to measure, as a keyword
+        #[arg(long)]
+        about: String,
+    },
+
+    /// THE SERVICE: which record backs which table, asked in BOTH directions, and
+    /// silent when they disagree. Coverage alone says a 563-number record backs a
+    /// 71-cell table -- true, and worthless, since it covers most of the paper.
+    /// Correcting for record size then REJECTS that same correct mapping, because
+    /// two thirds of the record serves other formats. Both were measured on
+    /// tab:invariant and each produced a confident wrong answer (W864, W865).
+    /// Exits 1 while anything is undecided: the refusal names what a human must
+    /// settle, which takes the author a minute and no amount of text matching.
+    Provenance {
+        /// Directory holding tnf_paper.tex and measurements/
+        #[arg(long)]
+        dir: String,
+    },
+
+    /// THE SERVICE: refuse an edit whose target is not exactly one place. A find
+    /// matching zero times is a silent NO-OP -- unchanged file, successful exit,
+    /// indistinguishable from an edit that worked. A find matching twice changes
+    /// the wrong one. Both happened by hand in W845.
+    EditCheck {
+        /// File to search, relative to the repository root
+        file: String,
+        /// The exact text an edit would replace
+        needle: String,
+    },
+
+    /// THE SERVICE: a verdict that agrees across several PLACEMENTS, or no
+    /// verdict. W842 built one netlist five times changing only nextpnr's seed
+    /// and got three placements computing the specified function and two not --
+    /// deterministically, with the FAILING seeds holding the better timing
+    /// margin. Every verdict before W842 was one placement's opinion.
+    Verdict {
+        /// The .t27 spec whose verdict should be read
+        input: String,
+        /// Verilog wrappers, in dependency order; the LAST one is the top module
+        #[arg(long)]
+        top: Vec<String>,
+        /// Which cable. Take it from `t27c boards`.
+        #[arg(long, default_value = "1:4")]
+        busdev_num: String,
+        /// A bitstream for the WRONG PART, to force Done low before loading ours
+        #[arg(long)]
+        wrong_part: Option<String>,
+        /// Placer seeds. T619a requires at least three; fewer is refused.
+        #[arg(long, value_delimiter = ',', default_value = "1,7,42")]
+        seeds: Vec<u32>,
+    },
+
+    /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
+    /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
+    /// agreement, that the nextpnr source is the openXC7 fork and not the
+    /// vendored copy, and that every downstream tool is on PATH.
+    Preflight {
+        /// Path to the openXC7 nextpnr-xilinx clone
+        #[arg(long)]
+        nextpnr_src: Option<String>,
+    },
+
+    /// THE SERVICE: the only corpus metric that does not lie. For every spec,
+    /// does it GENERATE and does the generated artefact COMPILE -- binary
+    /// outcomes per backend, no diagnostic counts. A parser error count moves
+    /// three orders of magnitude from one character and RISES when a real defect
+    /// is fixed (T119); the gap between "generates" and "compiles" is the real
+    /// backlog. Every step is separately timed out.
+    Corpus {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Stop after N specs (0 = all). Use for a quick check.
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+        /// Emit one JSON line instead of the table, for wave-to-wave comparison
+        #[arg(long, default_value_t = false)]
+        json: bool,
+        /// W707: also run `yosys synth_xilinx` on each generated module.
+        ///
+        /// Nothing measured this before: `corpus` compiles with `iverilog`, and
+        /// iverilog ACCEPTS constructs yosys rejects (T198b), so the headline has
+        /// never been a statement about hardware. RUN THIS ALONE -- synthesis
+        /// time is quadratic in design size (T199a), and the first sweeps to try
+        /// it measured machine load rather than the specs (T199b).
+        #[arg(long, default_value_t = false)]
+        synth: bool,
+        /// Per-spec cap for the synthesis stage, in seconds. Measured: the
+        /// corpus's largest members take 10-352 s alone (T199).
+        #[arg(long, default_value_t = 420)]
+        synth_secs: u64,
+    },
+
+    /// THE SERVICE: how many DISTINCT defect classes stand between each spec
+    /// and a clean compile. T120 measured why frequency cannot answer this:
+    /// removing the single most frequent cause (435 sites, 140 specs, 133 of
+    /// all failures) moved the compiling count 151 -> 151, because 94% of those
+    /// specs were four or more classes deep. Also separates UNWRITTEN specs,
+    /// whose every diagnostic is a missing function, from real defects.
+    Backlog {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Stop after N specs (0 = all)
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+    },
+
+    /// One spec's status as one word: IMPLEMENTED, PARTIAL, UNWRITTEN,
+    /// NOPARSE or NOFN. Exposes the AST answer `impl-status` already computes,
+    /// so a census does not have to reimplement it with a regex -- three waves
+    /// tried and all three got a different number.
+    SpecStatus {
+        /// The .t27 spec to classify
+        input: String,
+    },
+
+    /// THE SERVICE: report the Digilent cables attached RIGHT NOW, with each
+    /// board's IDCODE read from the silicon. All three cables in this project
+    /// share one serial, so bus position is the only handle -- and it changes
+    /// on replug. Never hardcode what this prints.
+    Boards,
+
+    /// THE SERVICE: answer "is this file source?" BEFORE the parser is asked.
+    /// A `.t27` extension is a filename, not a type declaration. W733 measured
+    /// 34 of 618 non-scratch files that are not ordinary source -- 14 Markdown
+    /// documents (`# TITLE`, `## Specification`, prose), 8 opening with
+    /// `spec X {` instead of `module`, 11 neither -- and every one of them
+    /// produces the same red as a genuinely broken spec. Thirty percent of the
+    /// sampled parse failures came from files that cannot be code, and every
+    /// corpus ratio this project quotes used 618 as the denominator where 584
+    /// is honest. `impl-status` separates UNWRITTEN; this separates NOT-CODE.
+    Classify {
+        /// Directory to walk (default: specs).
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch/, which is generated and normally excluded.
+        #[arg(long)]
+        include_scratch: bool,
+        /// List every file under each heading instead of only the counts.
+        #[arg(long)]
+        verbose: bool,
+    },
+
+    /// THE SERVICE: read cell counts out of a yosys log WITHOUT re-inventing the
+    /// parser. `stat` prints ONE TABLE PER MODULE and then the design-wide
+    /// total; summing `findall` over the whole log adds every table again.
+    /// W719 audited 3x, 2x and 4x inflations across five waves from exactly
+    /// that, and W726 hit it a sixth time reading nextpnr output. This reads
+    /// the LAST section of the LAST stat block and refuses to answer when there
+    /// is no stat block at all -- because an empty log and an empty design look
+    /// identical to a regex, and only one of them is a result.
+    Yostat {
+        /// The yosys log file (`yosys -l <file>`).
+        log: String,
+    },
+
+    /// THE SERVICE: discharge the equivalence miter between the generated
+    /// multiplier-free RTL and a golden model containing a real `*`.
+    /// Proves the whole input space at once, where a test proves the points
+    /// it lists.
+    Prove {
+        /// The .t27 spec whose generated RTL is the DUT
+        input: String,
+        /// Perturb the golden and REQUIRE the proof to fail. A proof that
+        /// cannot fail is not evidence.
+        #[arg(long, default_value_t = false)]
+        mutate: bool,
+    },
+
+    /// Run the lexer conformance table: each input against the exact token
+    /// sequence it must produce
+    LexConform,
+    /// Verify specs/numeric/formats_catalog.t27, whose 83 records live in
+    /// structured comments the compiler cannot see
+    CatalogGate {
+        /// Path to the catalog spec
+        #[arg(long, default_value = "specs/numeric/formats_catalog.t27")]
+        catalog: String,
+        /// Root of the spec tree, for resolving `source=`
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every record with its shape classification
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
+    /// Run every test in ONE spec in isolation and report the pass/fail table.
+    /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
+    /// floor rather than a count.
+    TestReport {
+        /// The .t27 spec to measure. Omit with --all to measure the tree.
+        #[arg(default_value = "")]
+        spec: String,
+        /// Measure every spec under --specs-dir instead of one file
+        #[arg(long, default_value_t = false)]
+        all: bool,
+        /// Include specs/scratch when using --all
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+        /// Root of the spec tree, for `use` resolution
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// List every test, not only the failures
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
+    /// Separate specs that are UNWRITTEN (functions with no bodies) from specs
+    /// that are BROKEN (do not parse)
+    ImplStatus {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+        /// List every spec with an empty function body
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
+    /// Compile every generated C header with `cc -fsyntax-only` and report the
+    /// first-error class table
+    CcGate {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+        /// Print every failing spec and its first error, not just the classes
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
+    /// Report every character the lexer silently DISCARDS, by character and by
+    /// spec
+    LexDropped {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
+    /// Run the parser conformance table: each input against the verdict it
+    /// must produce (Full / Truncated / Rejected)
+    ParseConform,
+    /// Report specs the parser accepts WITHOUT consuming the whole file --
+    /// silent truncation
+    ParseComplete {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+
+        /// W634: print the tokens top-level drop-recovery DISCARDED in this
+        /// one spec, grouped by line. Counting says how much vanished;
+        /// only reading says whether any of it mattered.
+        #[arg(long)]
+        show: Option<String>,
+    },
+    /// Check call sites against the signatures they call (arity and
+    /// aggregate-vs-scalar), across a spec tree
+    CheckCalls {
+        /// Root of the spec tree
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+        /// Include specs/scratch (generated benchmark fixtures)
+        #[arg(long, default_value_t = false)]
+        include_scratch: bool,
+    },
     Gen {
         /// Input file path
         input: String,
@@ -833,6 +1238,27 @@ enum Commands {
         /// Write the machine-readable suite summary to this path.
         #[arg(long = "json")]
         json_out: Option<PathBuf>,
+
+        /// W628: gate the exit code on docs/reports/suite_expectations.json
+        /// (unexpected failure / unexpected pass / expired entry) instead of on
+        /// total_failures != 0. Without it the suite behaves exactly as before.
+        #[arg(long, default_value_t = false)]
+        ratchet: bool,
+
+        /// W628: rewrite the expectations ledger from this run. The only writer.
+        #[arg(long, default_value_t = false)]
+        bless_expectations: bool,
+
+        /// W640: record a missing Icarus baseline instead of failing. The only
+        /// way to acquire one; verification never blesses (T31).
+        #[arg(long, default_value_t = false)]
+        bless_baselines: bool,
+
+        /// W632: walk only the hand-written corpus, excluding specs/scratch/.
+        /// The ratchet gates on primary corpus failures only, so this drops
+        /// 98.89% of the bytes without changing the verdict.
+        #[arg(long, default_value_t = false)]
+        corpus_only: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -1245,8 +1671,11 @@ enum Commands {
         #[arg(long)]
         minimal: bool,
 
-        /// FPGA device identifier (default: xc7a100tcsg324-1)
-        #[arg(long, default_value = "xc7a100tcsg324-1")]
+        /// FPGA device identifier. Defaults to the board named in
+        /// `fpga/HARDWARE_SSOT.md` (QMTech Wukong V1, XC7A200T-FGG676).
+        /// The Arty A7 is a *different* board -- pass `xc7a100tcsg324-1`
+        /// explicitly for it; the SSOT forbids mixing csg324 into Wukong flows.
+        #[arg(long, default_value = "xc7a200tfgg676-1")]
         device: String,
 
         /// Top-level module name (default: zerodsp_top)
@@ -1288,6 +1717,110 @@ enum Commands {
         /// Output directory (default: build/fpga)
         #[arg(short, long, default_value = "build/fpga")]
         output: String,
+    },
+
+    /// Synthesis-in-the-loop gate: actually run yosys on generated Verilog
+    #[command(name = "synth-gate")]
+    SynthGate {
+        /// Directory of .t27 specs to gate (default: specs/igla/race)
+        #[arg(long, default_value = "specs/igla/race")]
+        specs_dir: String,
+
+        /// Target architecture passed to synth_xilinx (default: xc7)
+        #[arg(long, default_value = "xc7")]
+        arch: String,
+
+        /// Fail with exit 1 if the synthesis pass rate is below this fraction
+        #[arg(long)]
+        min_pass_rate: Option<f64>,
+
+        /// Path to the yosys binary
+        #[arg(long, default_value = "yosys")]
+        yosys: String,
+    },
+
+    /// Audit .trinity/seals: find seals whose spec no longer generates
+    #[command(name = "seal-audit")]
+    SealAudit {
+        /// Seals directory (default: .trinity/seals)
+        #[arg(long, default_value = ".trinity/seals")]
+        seals_dir: String,
+
+        /// Fail with exit 1 if any vacuous seal is found
+        #[arg(long)]
+        strict: bool,
+    },
+
+    /// Report vacuous tests (`assert true`) and tautological invariants in .t27 specs
+    #[command(name = "validate-vacuity")]
+    ValidateVacuity {
+        /// Directory to scan (default: specs)
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+
+        /// Fail with exit 1 if any spec's vacuous-test ratio exceeds this
+        /// fraction (0.0-1.0). Omit to report without failing.
+        #[arg(long)]
+        max_ratio: Option<f64>,
+
+        /// How many of the worst specs to list (default: 20)
+        #[arg(long, default_value = "20")]
+        top: usize,
+    },
+
+    /// Print the FROZEN_HASH operational line for the compiler core (freeze ceremony M5)
+    #[command(name = "frozen-digest")]
+    FrozenDigest {
+        /// File to digest (default: bootstrap/src/compiler.rs)
+        path: Option<String>,
+    },
+
+    /// Build an openXC7/nextpnr chipdb for a Xilinx 7-series part
+    #[command(name = "fpga-chipdb")]
+    FpgaChipdb {
+        /// Part to build the chipdb for (must exist in the bundled prjxray-db)
+        #[arg(long, default_value = "xc7a200tfbg676-1")]
+        device: String,
+
+        /// Docker image carrying the openXC7 toolchain and prjxray database
+        #[arg(long, default_value = "regymm/openxc7")]
+        image: String,
+
+        /// Working directory for extracted inputs and generated chipdb
+        #[arg(long, default_value = "build/fpga/openxc7")]
+        work: String,
+
+        /// Rebuild even if the chipdb already exists
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Flash a bitstream to a connected FPGA board via openFPGALoader
+    #[command(name = "fpga-flash")]
+    FpgaFlash {
+        /// Bitstream (.bit) to load. Defaults to the board profile's canonical demo bitstream.
+        #[arg(long)]
+        bitstream: Option<String>,
+
+        /// Board profile: wukong-a200t (default) | wukong-a100t | arty-a7
+        #[arg(long, default_value = "wukong-a200t")]
+        board: String,
+
+        /// openFPGALoader cable profile (default: from board profile)
+        #[arg(long)]
+        cable: Option<String>,
+
+        /// Target: sram (volatile, default) | flash (persistent SPI boot)
+        #[arg(long, default_value = "sram")]
+        mode: String,
+
+        /// Print the exact command and pre-flight verdict without touching hardware
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Path to the openFPGALoader binary
+        #[arg(long, default_value = "openFPGALoader")]
+        loader: String,
     },
 
     /// FormulaOS: evaluate and search Trinity formulas
@@ -2980,14 +3513,491 @@ fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_catalog_gate(catalog: &str, specs_dir: &str, verbose: bool) -> anyhow::Result<()> {
+    let r = catalog_gate::run(Path::new(catalog), Path::new(specs_dir))?;
+    println!("--- catalog gate: {} ---", catalog);
+    if verbose {
+        for (k, v) in &r.by_cluster {
+            println!("  {:<20} {}", k, v);
+        }
+        println!();
+    }
+    println!("  records            {}", r.records);
+    println!("  fn getters         {}", r.getters);
+    println!();
+    println!("  shape classification (the exceptions ARE the work):");
+    for (k, v) in &r.by_shape {
+        println!("    {:<14} {}", k, v);
+    }
+    println!();
+    println!("  checks run:");
+    for (k, v) in &r.checked {
+        println!("    {:<24} {}", k, v);
+    }
+    println!();
+    match &r.emitted {
+        Some(msg) => println!("  emitted artifacts: {}", msg),
+        None => println!("  emitted artifacts: not checked"),
+    }
+    println!();
+    if r.findings.is_empty() {
+        println!("  FINDINGS  none");
+    } else {
+        println!("  FINDINGS  {}", r.findings.len());
+        for f in &r.findings {
+            println!("    [{}] {}: {}", f.check, f.id, f.detail);
+        }
+    }
+    Ok(())
+}
+
+fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let t = test_report::run_tree(root, include_scratch);
+    for r in &t.reports {
+        match &r.blocked {
+            Some(why) if verbose => {
+                println!("  BLOCKED  {}  ({})", r.spec, why.lines().next().unwrap_or(""))
+            }
+            Some(_) => {}
+            None if r.total == 0 && r.invariants > 0 => println!(
+                "  {:>4} inv   proved  {}",
+                r.invariants, r.spec
+            ),
+            None if r.total == 0 => {
+                if verbose {
+                    println!(
+                        "  {}  {}",
+                        if r.stub { "STUB     " } else { "NO TESTS " },
+                        r.spec
+                    )
+                }
+            }
+            None => println!(
+                "  {:>4}/{:<4} {:>5.1}%  {}",
+                r.passed,
+                r.total,
+                (r.passed as f64) * 100.0 / (r.total as f64),
+                r.spec
+            ),
+        }
+    }
+    println!();
+    println!("--- per-test measurement over the tree ---");
+    println!("  specs MEASURED           {}", t.measured);
+    println!("    of those, 100%          {}", t.perfect);
+    println!("  specs INVARIANTS ONLY    {}   (comptime -- compiling IS the check)", t.invariants_only);
+    println!("  specs with NO TESTS      {}   <- L4 TESTABILITY", t.no_tests);
+    println!("  specs that are STUBS     {}   (declare nothing -- UNWRITTEN, not untested)", t.stubs);
+    println!("  specs BLOCKED            {}", t.blocked);
+    println!();
+    println!("  tests run                {}", t.tests);
+    println!("  pass                     {}", t.passed);
+    println!("  FAIL                     {}", t.failed);
+    println!("  invariants proved         {}", t.invariants);
+    if t.tests > 0 {
+        println!(
+            "  rate                     {:.1}%",
+            (t.passed as f64) * 100.0 / (t.tests as f64)
+        );
+    }
+    println!();
+    println!("  Five populations, deliberately not merged. BLOCKED never produced");
+    println!("  a binary. INVARIANTS ONLY has no test functions but its invariants");
+    println!("  are comptime -- it COMPILED, so they held. A STUB declares nothing");
+    println!("  at all: it is UNWRITTEN (W586's category), and calling it an L4");
+    println!("  violation overstates the debt. NO TESTS has declarations and");
+    println!("  checks none of them -- that is the L4 violation. Only MEASURED");
+    println!("  specs have a rate.");
+    Ok(())
+}
+
+fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result<()> {
+    let path = Path::new(spec);
+    if !path.is_file() {
+        anyhow::bail!("not a file: {}", spec);
+    }
+    let r = test_report::run(path, Path::new(specs_dir));
+    println!("--- test report: {} ---", r.spec);
+    if let Some(why) = &r.blocked {
+        println!("  BLOCKED  {}", why);
+        println!();
+        println!("  A blocked spec is not a failing one. It never produced a");
+        println!("  binary, so it has no per-test result to report.");
+        return Ok(());
+    }
+    for o in &r.outcomes {
+        if !o.passed {
+            println!("  FAIL  {}", o.name);
+        } else if verbose {
+            println!("  pass  {}", o.name);
+        }
+    }
+    println!();
+    println!("  tests       {}", r.total);
+    println!("  pass        {}", r.passed);
+    println!("  FAIL        {}", r.failed);
+    if r.invariants > 0 {
+        println!(
+            "  invariants  {}   proved -- comptime, so compiling IS the check",
+            r.invariants
+        );
+    }
+    if r.total > 0 {
+        println!(
+            "  rate    {:.1}%",
+            (r.passed as f64) * 100.0 / (r.total as f64)
+        );
+    }
+    Ok(())
+}
+
+fn run_impl_status(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let r = impl_status::run(root, include_scratch);
+    if verbose {
+        for (f, empty, total) in &r.detail {
+            println!("{}: {} of {} function(s) have no body", f, empty, total);
+        }
+        println!();
+    }
+    println!("--- implementation status ---");
+    println!("  specs fully implemented   {}", r.implemented);
+    println!("  specs with NO functions   {}", r.bodiless);
+    println!("  specs PARTLY written      {}", r.partial);
+    println!("  specs entirely UNWRITTEN  {}", r.unwritten);
+    println!("  specs that do not parse   {}", r.unparsable);
+    let total = r.implemented + r.bodiless + r.partial + r.unwritten + r.unparsable;
+    println!("  ------------------------  ---");
+    println!("  specs total               {}", total);
+    println!();
+    println!("  functions declared        {}", r.total_fns);
+    println!("  functions with NO BODY    {}", r.empty_fns);
+    println!();
+    println!("  An unwritten spec is not a broken one. Before W586 both were");
+    println!("  reported as COMPILE_FAIL and counted together.");
+    println!();
+    println!("  W689: a spec with NO functions is counted separately. It used to");
+    println!("  be added to `fully implemented` -- it has no MISSING bodies, so");
+    println!("  the arithmetic was sound and the label was not. That merge put");
+    println!("  61 specs holding one module line and two `use`s into the headline");
+    println!("  number, overstating it by 21%.");
+    Ok(())
+}
+
+fn run_cc_gate(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let report = match cc_gate::run(root, include_scratch) {
+        Some(r) => r,
+        None => {
+            println!("--- C gate ---");
+            println!("  SKIPPED: no C compiler found (tried cc, clang, gcc)");
+            return Ok(());
+        }
+    };
+    if verbose {
+        for (f, e) in &report.failures {
+            println!("{}: {}", f, e);
+        }
+        println!();
+    }
+    // The CLASS table is the load-bearing metric while the classes are large:
+    // a header must clear every one of them to compile, so fixing a class moves
+    // specs from failing on A to failing on B without moving the header count
+    // at all (W584).
+    println!("--- C gate ({} -fsyntax-only) ---", report.cc);
+    let mut classes: Vec<_> = report.classes.iter().collect();
+    classes.sort_by(|a, b| b.1.cmp(a.1));
+    for (class, n) in &classes {
+        println!("  {:>5}  {}", n, class);
+    }
+    println!();
+    println!("  specs scanned          {}", report.total);
+    println!("  headers that COMPILE   {}", report.compiled);
+    println!("  headers that FAIL      {}", report.failed);
+    println!(
+        "    of those, UNWRITTEN  {}   (every function body empty -- not a header defect)",
+        report.unwritten
+    );
+    println!(
+        "    genuinely broken     {}",
+        report.failed.saturating_sub(report.unwritten)
+    );
+    println!("  no header generated    {}", report.gen_failed);
+    Ok(())
+}
+
+fn run_lex_dropped(specs_dir: &str) -> anyhow::Result<()> {
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    let mut stack = vec![std::path::PathBuf::from(specs_dir)];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                if p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("t27") {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    let mut by_char: std::collections::BTreeMap<char, usize> = std::collections::BTreeMap::new();
+    let mut by_file: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for f in &files {
+        let src = match std::fs::read_to_string(f) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let mut lexer = compiler::Lexer::new(&src);
+        loop {
+            let t = lexer.next_token();
+            if t.kind == compiler::TokenKind::Eof {
+                break;
+            }
+        }
+        if !lexer.dropped.is_empty() {
+            *by_file.entry(f.display().to_string()).or_insert(0) += lexer.dropped.len();
+            for (c, _) in &lexer.dropped {
+                *by_char.entry(*c).or_insert(0) += 1;
+            }
+        }
+    }
+    println!("--- characters the lexer silently discards ---");
+    let total: usize = by_char.values().sum();
+    let mut chars: Vec<_> = by_char.into_iter().collect();
+    chars.sort_by(|a, b| b.1.cmp(&a.1));
+    for (c, n) in &chars {
+        println!("  {:>8}  {:?}", n, c);
+    }
+    println!("  {:>8}  TOTAL across {} spec(s)", total, by_file.len());
+    let mut top: Vec<_> = by_file.into_iter().collect();
+    top.sort_by(|a, b| b.1.cmp(&a.1));
+    println!("  most affected specs:");
+    // W637: a capped list must say it is capped (T46).
+    let __total = top.len();
+    for (f, n) in top.iter().take(10) {
+        println!("    {:>6}  {}", n, f);
+    }
+    if __total > 10 {
+        println!("    ... and {} more not shown", __total - 10);
+    }
+    Ok(())
+}
+
+fn run_parse_conform() -> anyhow::Result<()> {
+    let failures = parse_conform::run();
+    let total = parse_conform::total();
+    for f in &failures {
+        println!("case     {}", f.name);
+        println!("  expected {}", f.expected);
+        println!("  actual   {}", f.actual);
+        println!("  note     {}", f.note);
+        println!();
+    }
+    println!("--- parser conformance ---");
+    println!("  cases      {}", total);
+    println!("  passing    {}", total - failures.len());
+    println!("  failing    {}", failures.len());
+    if !failures.is_empty() {
+        anyhow::bail!("{} parser conformance failure(s)", failures.len());
+    }
+    Ok(())
+}
+
+fn run_parse_complete(
+    specs_dir: &str,
+    include_scratch: bool,
+    show: Option<&str>,
+) -> anyhow::Result<()> {
+    // W634: single-file mode -- print what was discarded, grouped by line, so a
+    // human can decide whether any of it is content a theorem depends on.
+    if let Some(path) = show {
+        let src = std::fs::read_to_string(path)?;
+        let spans = compiler::Compiler::parse_ast_dropped_spans(&src)
+            .map_err(|e| anyhow::anyhow!("{} does not parse: {}", path, e))?;
+        if spans.is_empty() {
+            println!("{}: nothing discarded", path);
+            return Ok(());
+        }
+        let lines: Vec<&str> = src.lines().collect();
+        let mut by_line: std::collections::BTreeMap<u32, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for (l, lex) in &spans {
+            by_line.entry(*l).or_default().push(lex.clone());
+        }
+        println!("{}: {} token(s) DISCARDED across {} line(s)", path, spans.len(), by_line.len());
+        println!();
+        for (l, toks) in &by_line {
+            let text = lines.get((*l as usize).saturating_sub(1)).unwrap_or(&"");
+            println!("  {:5}| {}", l, text.trim_end());
+            println!("        dropped: {}", toks.join(" "));
+        }
+        return Ok(());
+    }
+
+    let mut files: Vec<std::path::PathBuf> = Vec::new();
+    let mut stack = vec![std::path::PathBuf::from(specs_dir)];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                if !include_scratch && p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.extension().and_then(|e| e.to_str()) == Some("t27") {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    let (mut ok, mut truncated, mut rejected) = (0usize, 0usize, 0usize);
+    let (mut discarded, mut discarded_tokens) = (0usize, 0usize);
+    for f in &files {
+        let src = match std::fs::read_to_string(f) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if compiler::Compiler::parse_ast(&src).is_err() {
+            rejected += 1;
+            continue;
+        }
+        match compiler::Compiler::parse_ast_strict(&src) {
+            Ok(_) => {
+                // W633: reaching EOF is NOT the same as reading everything.
+                // Top-level drop-recovery resyncs past an unrecognised
+                // declaration, so a parse can reach EOF having thrown tokens
+                // away -- and `parse_ast_strict` calls that "consume all".
+                match compiler::Compiler::parse_ast_accounted(&src) {
+                    Ok((_, 0)) => ok += 1,
+                    Ok((_, n)) => {
+                        discarded += 1;
+                        discarded_tokens += n;
+                        println!("{}: DISCARDED {} top-level token(s)", f.display(), n);
+                    }
+                    Err(_) => ok += 1,
+                }
+            }
+            Err(e) => {
+                truncated += 1;
+                println!("{}: {}", f.display(), e);
+            }
+        }
+    }
+    println!();
+    println!("--- parse completeness ---");
+    println!("  specs scanned            {}", files.len());
+    println!("  parse and consume all    {}", ok);
+    println!("  parse but TRUNCATE       {}", truncated);
+    println!("  parse but DISCARD        {} ({} token(s))", discarded, discarded_tokens);
+    println!("  do not parse             {}", rejected);
+    Ok(())
+}
+
+fn run_lex_conform() -> anyhow::Result<()> {
+    let failures = lex_conform::run();
+    let total = lex_conform::total();
+    for f in &failures {
+        println!("input    {:?}", f.input);
+        println!("  expected {}", f.expected);
+        println!("  actual   {}", f.actual);
+        println!("  note     {}", f.note);
+        println!();
+    }
+    println!("--- lexer conformance ---");
+    println!("  cases      {}", total);
+    println!("  passing    {}", total - failures.len());
+    println!("  failing    {}", failures.len());
+    if failures.iter().any(|f| f.boundary) {
+        println!(
+            "  ({} of the failures are BOUNDARY cases: behaviour that was measured,",
+            failures.iter().filter(|f| f.boundary).count()
+        );
+        println!("   not designed. A boundary failure means someone changed it silently.)");
+    }
+    if !failures.is_empty() {
+        anyhow::bail!("{} lexer conformance failure(s)", failures.len());
+    }
+    Ok(())
+}
+
+fn run_check_calls(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()> {
+    let root = Path::new(specs_dir);
+    if !root.is_dir() {
+        anyhow::bail!("not a directory: {}", specs_dir);
+    }
+    let findings = check_calls::check_tree(root, !include_scratch);
+    let mut by_kind: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    let mut by_callee: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for f in &findings {
+        *by_kind.entry(f.kind).or_insert(0) += 1;
+        *by_callee.entry(f.callee.clone()).or_insert(0) += 1;
+        println!("{}:{}: {}: {} -- {}", f.file, f.line, f.kind, f.callee, f.detail);
+    }
+    println!();
+    println!("--- call-site check ---");
+    for (k, n) in &by_kind {
+        println!("  {:<22} {}", k, n);
+    }
+    println!("  {:<22} {}", "TOTAL", findings.len());
+    if !by_callee.is_empty() {
+        println!("  most affected callees:");
+        let mut top: Vec<_> = by_callee.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1));
+        // W637: a capped list must say it is capped (T46).
+        let __total = top.len();
+        for (name, n) in top.iter().take(8) {
+            println!("    {:<28} {}", name, n);
+        }
+        if __total > 8 {
+            println!("    ... and {} more not shown", __total - 8);
+        }
+    }
+    Ok(())
+}
+
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile(&source) {
-        Ok(zig_code) => print!("{}", zig_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W569: `use a::b::c` was parsed and then ignored, so a spec failed on
+    // names declared in exactly the module it imported. Splice in the
+    // declarations this spec actually needs before compiling.
+    //
+    // Safety contract, the same one the W559 lowering carries: this may only
+    // ADD declarations, never break a spec. If the spliced source stops
+    // compiling, the original is used and the spec generates exactly what it
+    // generated before.
+    let resolved = use_resolve::resolve(path, &raw);
+    let zig_code = match compiler::Compiler::compile(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", zig_code);
     Ok(())
 }
 
@@ -3835,23 +4845,37 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
 
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile_c(&source) {
-        Ok(c_code) => print!("{}", c_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W584: `use` resolution is a source-to-source pass (W569), so it is
+    // backend-agnostic -- only `gen` was calling it, which is why the C headers
+    // failed on types declared in modules they import. Same safety contract:
+    // if the spliced source stops compiling, the original is used.
+    let resolved = use_resolve::resolve(path, &raw);
+    let c_code = match compiler::Compiler::compile_c(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile_c(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", c_code);
     Ok(())
 }
 
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    match compiler::Compiler::compile_rust(&source) {
-        Ok(rust_code) => print!("{}", rust_code),
-        Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
+    let raw = fs::read_to_string(path)?;
+    // W584: same as gen-c -- `use` resolution is backend-agnostic and only
+    // `gen` was calling it.
+    let resolved = use_resolve::resolve(path, &raw);
+    let rust_code = match compiler::Compiler::compile_rust(&resolved) {
+        Ok(code) => code,
+        Err(spliced_err) => match compiler::Compiler::compile_rust(&raw) {
+            Ok(code) => code,
+            Err(_) => anyhow::bail!("Compile error: {}", spliced_err),
+        },
+    };
+    print!("{}", rust_code);
     Ok(())
 }
 
@@ -4004,6 +5028,20 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
 
+    // A seal whose every backend hash is "none" records that NOTHING was
+    // generated. It then verifies green, because none matches none -- turning
+    // the integrity gate from a mismatch alarm into a rubber stamp. Wave 551
+    // found 30 seals degraded exactly this way, including by its own reseals.
+    let is_vacuous = |z: &str, v: &str, c: &str, r: &str| {
+        z == "none" && v == "none" && c == "none" && r == "none"
+    };
+    let current_vacuous = is_vacuous(
+        &hashes.gen_hash_zig,
+        &hashes.gen_hash_verilog,
+        &hashes.gen_hash_c,
+        &hashes.gen_hash_rust,
+    );
+
     if verify {
         // --verify: load saved seal and compare
         let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
@@ -4036,6 +5074,25 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                 println!("{}: MISMATCH (saved={}, current={})", field, saved, current);
                 all_match = false;
             }
+        }
+
+        // A saved seal with no generated output for any backend cannot
+        // certify anything, so matching it is not evidence of integrity.
+        let saved_str = |k: &str| {
+            saved_json.get(k).and_then(|v| v.as_str()).unwrap_or("missing").to_string()
+        };
+        if is_vacuous(
+            &saved_str("gen_hash_zig"),
+            &saved_str("gen_hash_verilog"),
+            &saved_str("gen_hash_c"),
+            &saved_str("gen_hash_rust"),
+        ) {
+            println!(
+                "\nVERIFICATION FAILED -- the saved seal is vacuous: every gen_hash is \"none\",\n\
+                 so it records that no backend ever generated output for this spec.\n\
+                 Matching it proves nothing. Fix the spec so it generates, then reseal."
+            );
+            std::process::exit(1);
         }
 
         if all_match {
@@ -4080,6 +5137,14 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             "gen_hash_c": hashes.gen_hash_c,
             "gen_hash_rust": hashes.gen_hash_rust,
             "sealed_at": now,
+            // WHICH COMPILER minted this certificate. The store holds seals from
+            // two compilers with different grammars: April's GF16 seal carries
+            // real hashes for a spec the bootstrap t27c cannot parse, because the
+            // META compiler minted it. An audit that cannot see the minter
+            // reports the grammar gap between the two as spec rot (W880). The
+            // compiler.rs hash pins the exact grammar, since the binary version
+            // alone does not change when the frozen file does.
+            "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
             "ring": 12
         });
 
@@ -4760,6 +5825,940 @@ fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
     } else {
         anyhow::bail!("L5 PHI-IDENTITY CHECK FAILED: phi^2 + phi^-2 = {:.15} (expected 3.0, delta = {:.2e})", identity, (identity - 3.0).abs())
     }
+}
+
+/// Synthesis-in-the-loop gate.
+///
+/// `synth-readiness` scans specs statically (parse / typecheck / gen succeeded).
+/// That is exactly the measurement the literature warns is optimistic: Fu et al.,
+/// "Synthesis-in-the-Loop Evaluation of LLMs for RTL Generation" (arXiv:2603.11287),
+/// report that simulation-level pass rates materially overstate true hardware
+/// readiness, because code can simulate and still fail to synthesize.
+///
+/// This gate closes that gap for t27's own backend: it emits Verilog for each
+/// spec and then actually invokes yosys `synth_xilinx`, reporting the fraction
+/// that survives to a gate-level netlist along with the cell count.
+fn run_synth_gate(
+    repo_root: &Path,
+    specs_dir: &str,
+    arch: &str,
+    min_pass_rate: Option<f64>,
+    yosys: &str,
+) -> anyhow::Result<()> {
+    let dir = repo_root.join(specs_dir);
+    if !dir.is_dir() {
+        anyhow::bail!("not a directory: {}", dir.display());
+    }
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+
+    let mut specs: Vec<PathBuf> = walkdir::WalkDir::new(&dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |x| x == "t27"))
+        .filter(|e| !e.path().to_string_lossy().contains("testbench"))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    specs.sort();
+
+    let work = repo_root.join("build/synth-gate");
+    fs::create_dir_all(&work).context("create build/synth-gate")?;
+
+    println!("=== Synthesis-in-the-loop gate: {} ===", dir.display());
+    println!("Emitting Verilog, then running `{} synth_xilinx -arch {}` on each.\n", yosys, arch);
+    println!("{:<48} {:>10} {:>10}", "spec", "gen", "synth");
+
+    let (mut gen_ok, mut synth_ok, mut total) = (0usize, 0usize, 0usize);
+    let (mut hollow, mut with_logic) = (0usize, 0usize);
+    let mut failures: Vec<(String, String)> = Vec::new();
+
+    for spec in &specs {
+        total += 1;
+        let stem = spec.file_stem().and_then(|s| s.to_str()).unwrap_or("spec");
+        let vpath = work.join(format!("{}.v", stem));
+        let rel = spec.strip_prefix(repo_root).unwrap_or(spec).display().to_string();
+        let short = if rel.len() > 46 { rel[rel.len() - 46..].to_string() } else { rel.clone() };
+
+        // Stage 1 -- emit Verilog.
+        let vfile = match fs::File::create(&vpath) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("{:<48} {:>10} {:>10}", short, "IO-ERR", "-");
+                failures.push((rel, format!("create output: {}", e)));
+                continue;
+            }
+        };
+        let gen = std::process::Command::new(&t27c)
+            .arg("gen-verilog")
+            .arg(spec)
+            .stdout(vfile)
+            .stderr(std::process::Stdio::null())
+            .status();
+        let gen_good = matches!(gen, Ok(s) if s.success())
+            && fs::metadata(&vpath).map(|m| m.len() > 0).unwrap_or(false);
+        if !gen_good {
+            println!("{:<48} {:>10} {:>10}", short, "FAIL", "-");
+            failures.push((rel, "gen-verilog failed or produced no output".to_string()));
+            continue;
+        }
+        gen_ok += 1;
+
+        // Stage 2 -- real synthesis.
+        let script = format!(
+            "read_verilog -sv {}; synth_xilinx -abc9 -nocarry -arch {}; stat",
+            vpath.display(),
+            arch
+        );
+        let out = std::process::Command::new(yosys)
+            .arg("-p")
+            .arg(&script)
+            .output();
+        match out {
+            Ok(o) if o.status.success() => {
+                synth_ok += 1;
+                // "Synthesized" is not the same as "produced hardware". A spec
+                // whose functions are emitted but never instantiated yields a
+                // netlist of $print cells and I/O buffers that yosys reports as
+                // 0 logic cells. Counting that as a success is exactly the kind
+                // of overstatement this gate exists to prevent.
+                let text = String::from_utf8_lossy(&o.stdout);
+                let lcs = text
+                    .lines()
+                    .rev()
+                    .find_map(|l| {
+                        let t = l.trim();
+                        t.strip_prefix("Estimated number of LCs:")
+                            .and_then(|n| n.trim().parse::<u64>().ok())
+                    })
+                    .unwrap_or(0);
+                if lcs == 0 {
+                    hollow += 1;
+                    println!("{:<48} {:>10} {:>10}  {}", short, "ok", "ok", "HOLLOW (0 logic cells)");
+                } else {
+                    with_logic += 1;
+                    println!("{:<48} {:>10} {:>10}  {} LC", short, "ok", "ok", lcs);
+                }
+            }
+            Ok(o) => {
+                let err = String::from_utf8_lossy(&o.stderr);
+                let first = err
+                    .lines()
+                    .find(|l| l.contains("ERROR"))
+                    .unwrap_or("synthesis failed")
+                    .trim()
+                    .to_string();
+                println!("{:<48} {:>10} {:>10}", short, "ok", "FAIL");
+                failures.push((rel, first));
+            }
+            Err(e) => {
+                println!("{:<48} {:>10} {:>10}", short, "ok", "NO-YOSYS");
+                failures.push((rel, format!("cannot run {}: {}", yosys, e)));
+            }
+        }
+    }
+
+    let rate = if total > 0 { synth_ok as f64 / total as f64 } else { 0.0 };
+    println!(
+        "\nTOTAL {} specs: gen-verilog ok {} ({:.1}%), synthesized {} ({:.1}%)",
+        total,
+        gen_ok,
+        if total > 0 { 100.0 * gen_ok as f64 / total as f64 } else { 0.0 },
+        synth_ok,
+        100.0 * rate
+    );
+    println!(
+        "  of those synthesized: {} produced logic, {} are HOLLOW (0 logic cells)",
+        with_logic, hollow
+    );
+    if hollow > 0 {
+        println!(
+            "\nA HOLLOW result means yosys accepted the Verilog and emitted a netlist with\n\
+             ZERO logic cells -- typically the spec's functions are emitted as Verilog\n\
+             `function` definitions that nothing instantiates, so synthesis optimises them\n\
+             away. Such a spec produces no hardware; do not count it as silicon-ready."
+        );
+    }
+
+    if !failures.is_empty() {
+        println!("\nFailures ({}):", failures.len());
+        for (path, why) in failures.iter().take(20) {
+            println!("  {} -- {}", path, why);
+        }
+        if failures.len() > 20 {
+            println!("  ... and {} more", failures.len() - 20);
+        }
+    }
+
+    println!(
+        "\nA spec that parses and generates is not a spec that synthesizes.\n\
+         Static readiness (`synth-readiness`) overstates hardware readiness --\n\
+         see Fu et al., arXiv:2603.11287."
+    );
+
+    if let Some(limit) = min_pass_rate {
+        if rate < limit {
+            anyhow::bail!(
+                "synthesis pass rate {:.1}% is below the required {:.1}%",
+                100.0 * rate,
+                100.0 * limit
+            );
+        }
+        println!("\nPASS: {:.1}% >= required {:.1}%", 100.0 * rate, 100.0 * limit);
+    }
+    Ok(())
+}
+
+/// Per-spec vacuity counts. A block is *vacuous* when every statement in it is
+/// `assert true`; an invariant is vacuous when its expression is the literal
+/// `true`. Such a check accepts every possible implementation, so it carries
+/// zero information about correctness while still satisfying L4 TESTABILITY by
+/// letter.
+#[derive(Default, Clone)]
+struct VacuityCounts {
+    tests_total: usize,
+    tests_vacuous: usize,
+    inv_total: usize,
+    inv_vacuous: usize,
+    /// Braceless `test name` followed by given/when/then. The parser creates a
+    /// TestBlock for these -- so they are COUNTED as tests -- but the backends
+    /// emit an empty body, so the assertion is discarded and the test always
+    /// passes. Verified in W555: a spec asserting `x == 999` where x is 2
+    /// generates `test "..." {}` and zig reports "All tests passed".
+    tests_bdd: usize,
+}
+
+/// Strip a `//` line comment, honouring nothing else -- `.t27` has no string
+/// literals containing `//` in test bodies, and a false strip would only make
+/// the scan more conservative (fewer blocks judged vacuous).
+fn strip_line_comment(line: &str) -> &str {
+    match line.find("//") {
+        Some(i) => &line[..i],
+        None => line,
+    }
+}
+
+/// True when the statement is exactly `assert true`, with optional semicolon.
+fn is_vacuous_stmt(stmt: &str) -> bool {
+    let s = stmt.trim().trim_end_matches(';').trim();
+    s == "assert true"
+}
+
+fn scan_vacuity(src: &str) -> VacuityCounts {
+    let lines: Vec<&str> = src.lines().collect();
+    let mut c = VacuityCounts::default();
+    let mut i = 0usize;
+
+    while i < lines.len() {
+        let raw = lines[i];
+        let line = strip_line_comment(raw);
+        let trimmed = line.trim_start();
+
+        let is_block = (trimmed.starts_with("test ") || trimmed.starts_with("bench "))
+            && line.contains('{');
+
+        // Braceless `test <name>` with a given/when/then body: counted by the
+        // parser, discarded by every backend.
+        if !is_block && trimmed.starts_with("test ") && !line.contains('{') {
+            let looks_bdd = lines
+                .iter()
+                .skip(i + 1)
+                .take(4)
+                .any(|l| {
+                    let t = l.trim_start();
+                    t.starts_with("given ") || t.starts_with("when ") || t.starts_with("then ")
+                });
+            if looks_bdd {
+                c.tests_bdd += 1;
+            }
+        }
+
+        if is_block {
+            c.tests_total += 1;
+            // Walk to the matching close brace, collecting the body.
+            let mut depth: i32 =
+                line.matches('{').count() as i32 - line.matches('}').count() as i32;
+            let mut body: Vec<String> = Vec::new();
+            let mut j = i;
+            while depth > 0 && j + 1 < lines.len() {
+                j += 1;
+                let b = strip_line_comment(lines[j]);
+                depth += b.matches('{').count() as i32 - b.matches('}').count() as i32;
+                body.push(b.to_string());
+            }
+            // Drop blanks and the trailing brace line, then decide.
+            let stmts: Vec<String> = body
+                .iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty() && s != "}")
+                .collect();
+            if !stmts.is_empty() && stmts.iter().all(|s| is_vacuous_stmt(s)) {
+                c.tests_vacuous += 1;
+            }
+            i = j;
+        } else if trimmed.starts_with("invariant ") {
+            if let Some(colon) = line.find(':') {
+                c.inv_total += 1;
+                let expr = line[colon + 1..].trim().trim_end_matches(';').trim();
+                if expr == "true" || expr == "1 == 1" {
+                    c.inv_vacuous += 1;
+                }
+            }
+        }
+        i += 1;
+    }
+    c
+}
+
+/// Audit the seal store.
+///
+/// A seal whose every `gen_hash_*` is "none" records that no backend produced
+/// output. Such a seal VERIFIES GREEN (none matches none) while certifying
+/// nothing -- it converts the integrity gate from a mismatch alarm into a
+/// rubber stamp. Wave 551 found 30 seals degraded that way, and the wave-loop
+/// that found them had caused all 30 itself by resealing unparseable specs.
+///
+/// This also reports seals whose spec file has gone missing, and seals whose
+/// spec no longer generates any backend output (the live version of the same
+/// problem).
+fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Result<()> {
+    let dir = repo_root.join(seals_dir);
+    if !dir.is_dir() {
+        anyhow::bail!("not a directory: {}", dir.display());
+    }
+
+    let mut total = 0usize;
+    let mut vacuous: Vec<String> = Vec::new();
+    let mut missing_spec: Vec<String> = Vec::new();
+    let mut stale: Vec<String> = Vec::new();
+    let mut healthy = 0usize;
+
+    // module name -> every spec carrying it, hashed. Needed because the fpga_*
+    // seals predate the spec_path field and carry only `module` -- and the module
+    // is the name DECLARED INSIDE the spec, exactly as compute_seal_hashes derives
+    // it. Filename matching is wrong twice over on this case-insensitive
+    // filesystem: fpga_Router paired with specs/server/router.t27 and reported a
+    // stale seal that was not stale.
+    let mut mod2: std::collections::HashMap<String, Vec<(PathBuf, String)>> =
+        std::collections::HashMap::new();
+    let mut stack = vec![repo_root.join("specs")];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for e in rd.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().and_then(|s| s.to_str()) == Some("t27") {
+                let Ok(src) = fs::read_to_string(&p) else { continue };
+                let name = extract_module_name(&src).unwrap_or_else(|| {
+                    p.file_stem().unwrap_or_default().to_string_lossy().to_string()
+                });
+                let h = sha256_hex(src.as_bytes());
+                mod2.entry(name).or_default().push((p, h));
+            }
+        }
+    }
+
+    let mut entries: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("json"))
+        .collect();
+    entries.sort();
+
+    for path in &entries {
+        total += 1;
+        let txt = match fs::read_to_string(path) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let v: serde_json::Value = match serde_json::from_str(&txt) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let get = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("missing");
+        let gens = [
+            get("gen_hash_zig"),
+            get("gen_hash_verilog"),
+            get("gen_hash_c"),
+            get("gen_hash_rust"),
+        ];
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let spec_path = get("spec_path");
+
+        if gens.iter().all(|g| *g == "none") {
+            vacuous.push(format!("{}  ({})", name, spec_path));
+            continue;
+        }
+        if spec_path != "missing" && !repo_root.join(spec_path).exists() {
+            missing_spec.push(format!("{}  ({})", name, spec_path));
+            continue;
+        }
+        // STALENESS: does the sealed spec_hash still match the spec on disk?
+        // "healthy" used to mean only "not vacuous, file exists" -- two seals
+        // whose specs were edited 2 and 8 days AFTER sealing counted healthy.
+        let want = get("spec_hash");
+        let want = want.strip_prefix("sha256:").unwrap_or(want);
+        if want != "missing" && !want.is_empty() {
+            let cands: Vec<String> = if spec_path != "missing" {
+                fs::read_to_string(repo_root.join(spec_path))
+                    .map(|s| vec![sha256_hex(s.as_bytes())])
+                    .unwrap_or_default()
+            } else {
+                mod2.get(get("module"))
+                    .map(|v| v.iter().map(|(_, h)| h.clone()).collect())
+                    .unwrap_or_default()
+            };
+            if !cands.is_empty() && !cands.iter().any(|h| h == want) {
+                let whereat = if spec_path != "missing" {
+                    spec_path.to_string()
+                } else {
+                    mod2.get(get("module"))
+                        .and_then(|v| v.first())
+                        .map(|(p, _)| p.display().to_string())
+                        .unwrap_or_default()
+                };
+                stale.push(format!("{}  ({})", name, whereat));
+                continue;
+            }
+        }
+        healthy += 1;
+    }
+
+    println!("=== Seal audit: {} ===", dir.display());
+    println!("  seals total          : {}", total);
+    println!("  healthy              : {}", healthy);
+    println!("  VACUOUS (all 'none') : {}", vacuous.len());
+    println!("  spec file missing    : {}", missing_spec.len());
+    println!("  STALE (spec edited)  : {}", stale.len());
+
+    if !vacuous.is_empty() {
+        println!("\nVacuous seals -- every gen_hash is \"none\", so they verify green");
+        println!("while recording that nothing was ever generated:");
+        for v in vacuous.iter().take(40) {
+            println!("  {}", v);
+        }
+        if vacuous.len() > 40 {
+            println!("  ... and {} more", vacuous.len() - 40);
+        }
+    }
+    if !missing_spec.is_empty() {
+        println!("\nSeals whose spec file no longer exists:");
+        for m in missing_spec.iter().take(20) {
+            println!("  {}", m);
+        }
+        if missing_spec.len() > 20 {
+            println!("  ... and {} more", missing_spec.len() - 20);
+        }
+    }
+
+    if !stale.is_empty() {
+        println!("\nSTALE seals -- the spec was edited after sealing and never resealed,");
+        println!("so the seal certifies a file that no longer exists in that form:");
+        for s_ in stale.iter().take(20) {
+            println!("  {}", s_);
+        }
+    }
+
+    // Stale fails under --strict, like the other classes. The first draft failed
+    // unconditionally on stale -- measured immediately after: 281 of 1,715 seals
+    // are stale, so an unconditional failure makes the command permanently red
+    // and therefore ignored. The number is the finding; the ratchet is --strict.
+    if strict && (!vacuous.is_empty() || !missing_spec.is_empty() || !stale.is_empty()) {
+        anyhow::bail!(
+            "seal audit failed: {} vacuous, {} orphaned, {} stale",
+            vacuous.len(),
+            missing_spec.len(),
+            stale.len()
+        );
+    }
+    Ok(())
+}
+
+fn run_validate_vacuity(
+    repo_root: &Path,
+    specs_dir: &str,
+    max_ratio: Option<f64>,
+    top: usize,
+) -> anyhow::Result<()> {
+    let root = repo_root.join(specs_dir);
+    if !root.exists() {
+        anyhow::bail!("specs directory not found: {}", root.display());
+    }
+
+    let mut rows: Vec<(String, VacuityCounts)> = Vec::new();
+    let mut total = VacuityCounts::default();
+    // `.tri` is documented in SOUL.md as "TRI high-level specifications", but it
+    // is a DIFFERENT language (`spec X`, `--` comments, `pub const NAME u32 = 1`)
+    // and no tool in this repository parses it. Counting them with the .t27
+    // scanner would produce nonsense, and silently skipping them is how they
+    // stayed invisible to every census. Report them instead.
+    let mut tri_skipped: Vec<String> = Vec::new();
+
+    for entry in walkdir::WalkDir::new(&root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let p = entry.path();
+        let ext = p.extension().and_then(|s| s.to_str());
+        if ext == Some("tri") {
+            tri_skipped.push(
+                p.strip_prefix(repo_root).unwrap_or(p).display().to_string(),
+            );
+            continue;
+        }
+        if ext != Some("t27") {
+            continue;
+        }
+        let src = match fs::read_to_string(p) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let c = scan_vacuity(&src);
+        total.tests_total += c.tests_total;
+        total.tests_vacuous += c.tests_vacuous;
+        total.inv_total += c.inv_total;
+        total.inv_vacuous += c.inv_vacuous;
+        total.tests_bdd += c.tests_bdd;
+
+        if c.tests_total > 0 || c.inv_total > 0 || c.tests_bdd > 0 {
+            let rel = p.strip_prefix(repo_root).unwrap_or(p).display().to_string();
+            rows.push((rel, c));
+        }
+    }
+
+    rows.sort_by(|a, b| b.1.tests_vacuous.cmp(&a.1.tests_vacuous));
+
+    println!("=== Vacuity report: {} ===", root.display());
+    println!(
+        "{:<58} {:>6} {:>8} {:>7} {:>6} {:>6}",
+        "spec", "tests", "vacuous", "%", "inv", "vac"
+    );
+    for (path, c) in rows.iter().take(top) {
+        let pct = if c.tests_total > 0 {
+            100.0 * c.tests_vacuous as f64 / c.tests_total as f64
+        } else {
+            0.0
+        };
+        println!(
+            "{:<58} {:>6} {:>8} {:>6.1}% {:>6} {:>6}",
+            path, c.tests_total, c.tests_vacuous, pct, c.inv_total, c.inv_vacuous
+        );
+    }
+    if rows.len() > top {
+        println!("... and {} more specs", rows.len() - top);
+    }
+
+    let test_pct = if total.tests_total > 0 {
+        100.0 * total.tests_vacuous as f64 / total.tests_total as f64
+    } else {
+        0.0
+    };
+    let inv_pct = if total.inv_total > 0 {
+        100.0 * total.inv_vacuous as f64 / total.inv_total as f64
+    } else {
+        0.0
+    };
+    println!(
+        "\nTOTAL over {} specs: tests={} vacuous={} ({:.1}%)  invariants={} vacuous={} ({:.1}%)",
+        rows.len(),
+        total.tests_total,
+        total.tests_vacuous,
+        test_pct,
+        total.inv_total,
+        total.inv_vacuous,
+        inv_pct
+    );
+
+    if !tri_skipped.is_empty() {
+        println!(
+            "\n  NOT ANALYSED: {} `.tri` file(s). SOUL.md documents .tri as a spec\n\
+             \x20 format, but it is a different language and no tool here parses it,\n\
+             \x20 so these are outside every count above:",
+            tri_skipped.len()
+        );
+        for t in tri_skipped.iter().take(10) {
+            println!("      {}", t);
+        }
+        if tri_skipped.len() > 10 {
+            println!("      ... and {} more", tri_skipped.len() - 10);
+        }
+    }
+
+    // Until W559 a braceless given/when/then body was discarded by the parser
+    // and the test always passed, so those blocks counted as asserting nothing.
+    // They now lower to real assertions, so only `assert true` bodies remain
+    // vacuous. Shapes the lowering cannot model still fall back to the old
+    // skip; this static scan cannot tell those apart, so the figure below is a
+    // lower bound on what executes.
+    let dead = total.tests_vacuous;
+    let all_blocks = total.tests_total + total.tests_bdd;
+    println!(
+        "  BDD-form tests (given/when/then, lowered to assertions since W559): {}",
+        total.tests_bdd
+    );
+    if all_blocks > 0 {
+        println!(
+            "\n  tests that assert nothing: {} of {} ({:.1}%)",
+            dead,
+            all_blocks,
+            100.0 * dead as f64 / all_blocks as f64
+        );
+    }
+
+    println!(
+        "\nA body that is only `assert true` passes for EVERY implementation, so it\n\
+         contributes zero discriminating power while satisfying L4 by letter.\n\
+         Braceless given/when/then bodies were also inert until W559 -- the parser\n\
+         discarded them and the test always passed -- and now lower to real\n\
+         assertions. Shapes the lowering cannot model still fall back to a skip,\n\
+         so the ratio above is a lower bound on what actually executes."
+    );
+
+    if let Some(limit) = max_ratio {
+        let offenders: Vec<&(String, VacuityCounts)> = rows
+            .iter()
+            .filter(|(_, c)| {
+                c.tests_total > 0
+                    && (c.tests_vacuous as f64 / c.tests_total as f64) > limit
+            })
+            .collect();
+        if !offenders.is_empty() {
+            eprintln!(
+                "\nFAIL: {} spec(s) exceed the vacuity limit of {:.1}%:",
+                offenders.len(),
+                limit * 100.0
+            );
+            for (path, c) in offenders.iter().take(top) {
+                eprintln!(
+                    "  {} -- {}/{} vacuous",
+                    path, c.tests_vacuous, c.tests_total
+                );
+            }
+            anyhow::bail!("vacuity gate failed");
+        }
+        println!("\nPASS: no spec exceeds the vacuity limit of {:.1}%", limit * 100.0);
+    }
+
+    Ok(())
+}
+
+/// Board bring-up profile. Values are the SSOT from `fpga/HARDWARE_SSOT.md`;
+/// when that file and this table disagree, the file wins -- fix this table.
+struct BoardProfile {
+    name: &'static str,
+    part: &'static str,
+    /// JTAG IDCODE as reported by `openFPGALoader --detect`.
+    idcode: &'static str,
+    /// openFPGALoader `--cable` profile for the programmer wired to this board.
+    cable: &'static str,
+    /// Canonical demo bitstream, relative to the repo root.
+    default_bitstream: &'static str,
+}
+
+fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
+    match name {
+        // The physically connected board: QMTech Wukong V1 carrying an XC7A200T.
+        "wukong-a200t" => Ok(BoardProfile {
+            name: "QMTech Wukong V1 (XC7A200T-FGG676)",
+            part: "xc7a200tfgg676-1",
+            idcode: "0x03636093",
+            cable: "digilent_hs2",
+            // v2 supersedes v1: v1's LEDs are driven at ~10^8 Hz from a ring
+            // oscillator and its accumulate path is tied off, so a successful
+            // flash is indistinguishable from a dead datapath (see
+            // docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md section 2).
+            default_bitstream: "fpga/verilog/ternary_mac_demo_top_v2_200t.bit",
+        }),
+        // Legacy 100T build kept for the pre-2026-07-03 assumption.
+        "wukong-a100t" => Ok(BoardProfile {
+            name: "QMTech Wukong V1 (XC7A100T-FGG676, legacy)",
+            part: "xc7a100tfgg676-1",
+            idcode: "0x13631093",
+            cable: "digilent_hs2",
+            default_bitstream: "fpga/verilog/ternary_mac_demo_top.bit",
+        }),
+        // A different board entirely -- never mix its csg324 package into Wukong flows.
+        "arty-a7" => Ok(BoardProfile {
+            name: "Digilent Arty A7-100T (XC7A100T-CSG324)",
+            part: "xc7a100tcsg324-1",
+            idcode: "0x13631093",
+            cable: "digilent",
+            default_bitstream: "fpga/openxc7-synth/blink_j26.bit",
+        }),
+        other => anyhow::bail!(
+            "unknown board '{}' (known: wukong-a200t, wukong-a100t, arty-a7)",
+            other
+        ),
+    }
+}
+
+/// Build a nextpnr-xilinx chipdb.
+///
+/// This encodes the flow Wave 553 established after Waves 549-552 recorded the
+/// step as permanently blocked. The blocker was never the machine: `bbaexport`
+/// peaks at ~7.06 GB, Docker Desktop was allocated 3.83 GiB, and the host had
+/// 8 GB. So the memory-hungry step runs NATIVELY and only the small assembly
+/// step goes back into the container.
+///
+/// Two failure modes are handled explicitly because they cost two waves:
+///   * `bbaexport.py` prints NOTHING when the OOM killer takes it -- exit 137.
+///   * the prjxray database is not at /prjxray/database (that holds only
+///     settings.sh); it ships under nextpnr-xilinx/xilinx/external.
+/// Freeze ceremony (M5). `CANON.md` says: "Do not silently edit FROZEN_HASH --
+/// update only via freeze ceremony per FROZEN.md section 5 (use
+/// `cargo run --release -- frozen-digest` to print a fresh line)."
+///
+/// That command was referenced in FROZEN.md, CANON.md and build.rs's own panic
+/// message, but did not exist -- the same documented-but-missing class as
+/// `fpga-flash` before Wave 549. It exists now, so the ceremony can actually be
+/// performed instead of hand-editing the seal.
+///
+/// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
+/// `bootstrap/stage0/FROZEN_HASH` expects.
+fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
+    use sha2::{Digest, Sha256};
+    let rel = path.unwrap_or("bootstrap/src/compiler.rs");
+    let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
+    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    Ok(())
+}
+
+fn run_fpga_chipdb(
+    repo_root: &Path,
+    device: &str,
+    image: &str,
+    work: &str,
+    force: bool,
+) -> anyhow::Result<()> {
+    let workdir = repo_root.join(work);
+    let bba = workdir.join(format!("{}.bba", device));
+    let bin = workdir.join(format!("{}.bin", device));
+
+    println!("=== FPGA chipdb: {} ===", device);
+    println!("  work dir : {}", workdir.display());
+
+    if bin.exists() && !force {
+        let sz = fs::metadata(&bin).map(|m| m.len()).unwrap_or(0);
+        println!("  chipdb   : already present ({} bytes) -- pass --force to rebuild", sz);
+        return Ok(());
+    }
+    fs::create_dir_all(&workdir).context("create chipdb work dir")?;
+
+    // ---- Stage 1: extract the toolchain inputs from the image (once) -------
+    let py = workdir.join("python/bbaexport.py");
+    if !py.exists() {
+        println!("\n  [1/3] extracting prjxray-db + metadata from {} ...", image);
+        let create = std::process::Command::new("docker")
+            .args(["create", image])
+            .output()
+            .context("docker create -- is Docker running?")?;
+        if !create.status.success() {
+            anyhow::bail!(
+                "docker create failed: {}",
+                String::from_utf8_lossy(&create.stderr).trim()
+            );
+        }
+        let cid = String::from_utf8_lossy(&create.stdout).trim().to_string();
+
+        let copies: [(&str, PathBuf); 4] = [
+            ("/nextpnr-xilinx/xilinx/python", workdir.clone()),
+            ("/nextpnr-xilinx/xilinx/constids.inc", workdir.clone()),
+            (
+                "/nextpnr-xilinx/xilinx/external/prjxray-db/artix7",
+                workdir.join("prjxray-db"),
+            ),
+            (
+                "/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/artix7",
+                workdir.join("meta"),
+            ),
+        ];
+        for (src, dst) in &copies {
+            fs::create_dir_all(dst).ok();
+            let st = std::process::Command::new("docker")
+                .arg("cp")
+                .arg(format!("{}:{}", cid, src))
+                .arg(dst)
+                .status();
+            match st {
+                Ok(s) if s.success() => println!("        got {}", src),
+                _ => {
+                    let _ = std::process::Command::new("docker").args(["rm", &cid]).output();
+                    anyhow::bail!("docker cp failed for {}", src);
+                }
+            }
+        }
+        let _ = std::process::Command::new("docker").args(["rm", &cid]).output();
+    } else {
+        println!("\n  [1/3] inputs already extracted");
+    }
+
+    // ---- Stage 2: bbaexport, NATIVELY (this is the ~7 GB step) ------------
+    if !bba.exists() || force {
+        println!("  [2/3] bbaexport (native -- needs ~7 GB RAM, several minutes) ...");
+        let status = std::process::Command::new("python3")
+            .arg(workdir.join("python/bbaexport.py"))
+            .arg("--xray").arg(workdir.join("prjxray-db/artix7"))
+            .arg("--metadata").arg(workdir.join("meta/artix7"))
+            .arg("--constids").arg(workdir.join("constids.inc"))
+            .arg("--device").arg(device)
+            .arg("--bba").arg(&bba)
+            .status()
+            .context("running python3 bbaexport.py")?;
+
+        if !status.success() {
+            let code = status.code().unwrap_or(-1);
+            if code == 137 || code == -9 {
+                anyhow::bail!(
+                    "bbaexport was KILLED (exit {}), which means the OOM killer took it.\n\
+                     It peaks around 7 GB for a 200T part. This step must run natively --\n\
+                     inside Docker it dies against the Desktop memory allocation.\n\
+                     Free memory or use a larger host; note the tool prints nothing when killed.",
+                    code
+                );
+            }
+            anyhow::bail!("bbaexport failed with exit {}", code);
+        }
+        let sz = fs::metadata(&bba).map(|m| m.len()).unwrap_or(0);
+        if sz == 0 {
+            anyhow::bail!("bbaexport exited 0 but produced an empty .bba -- treat as failure");
+        }
+        println!("        .bba {} bytes", sz);
+    } else {
+        println!("  [2/3] .bba already present");
+    }
+
+    // ---- Stage 3: bbasm, in Docker (small) --------------------------------
+    println!("  [3/3] bbasm (Docker) ...");
+    let status = std::process::Command::new("docker")
+        .arg("run").arg("--rm")
+        .arg("-v").arg(format!("{}:/out", workdir.display()))
+        .arg(image)
+        .arg("bbasm").arg("--le")
+        .arg(format!("/out/{}.bba", device))
+        .arg(format!("/out/{}.bin", device))
+        .status()
+        .context("running bbasm in Docker")?;
+    if !status.success() {
+        anyhow::bail!("bbasm failed with exit {}", status.code().unwrap_or(-1));
+    }
+
+    let sz = fs::metadata(&bin).map(|m| m.len()).unwrap_or(0);
+    if sz == 0 {
+        anyhow::bail!("bbasm exited 0 but produced an empty chipdb");
+    }
+    println!("\n=== chipdb ready: {} ({} bytes) ===", bin.display(), sz);
+    println!("Feed it to nextpnr-xilinx with --chipdb {}", bin.display());
+    Ok(())
+}
+
+fn run_fpga_flash(
+    repo_root: &Path,
+    bitstream: Option<&str>,
+    board: &str,
+    cable: Option<&str>,
+    mode: &str,
+    dry_run: bool,
+    loader: &str,
+) -> anyhow::Result<()> {
+    let profile = board_profile(board)?;
+    let cable = cable.unwrap_or(profile.cable);
+
+    let write_flash = match mode {
+        "sram" => false,
+        "flash" => true,
+        other => anyhow::bail!("unknown --mode '{}' (expected 'sram' or 'flash')", other),
+    };
+
+    let bit_rel = bitstream.unwrap_or(profile.default_bitstream);
+    let bit_path = if Path::new(bit_rel).is_absolute() {
+        PathBuf::from(bit_rel)
+    } else {
+        repo_root.join(bit_rel)
+    };
+
+    println!("=== FPGA Flash ===");
+    println!("  board      : {} [{}]", profile.name, board);
+    println!("  part       : {}", profile.part);
+    println!("  expect id  : {}", profile.idcode);
+    println!("  cable      : {}", cable);
+    println!("  mode       : {}", if write_flash { "flash (persistent SPI boot)" } else { "sram (volatile)" });
+    println!("  bitstream  : {}", bit_path.display());
+
+    // Pre-flight 1: the bitstream must exist and be non-empty.
+    let meta = fs::metadata(&bit_path)
+        .with_context(|| format!("bitstream not found: {}", bit_path.display()))?;
+    if meta.len() == 0 {
+        anyhow::bail!("bitstream is empty: {}", bit_path.display());
+    }
+    println!("  size       : {} bytes  [OK]", meta.len());
+
+    // Pre-flight 2: the loader must be on PATH.
+    let scan = std::process::Command::new(loader).arg("--scan-usb").output();
+    let scan = match scan {
+        Ok(out) => out,
+        Err(e) => anyhow::bail!(
+            "cannot run '{}': {}. Install it (brew install openfpgaloader) or pass --loader <path>.",
+            loader, e
+        ),
+    };
+    let scan_txt = format!(
+        "{}{}",
+        String::from_utf8_lossy(&scan.stdout),
+        String::from_utf8_lossy(&scan.stderr)
+    );
+
+    // Pre-flight 3: a programmer must actually be attached.
+    let cable_present = !scan_txt.contains("No USB devices found");
+
+    let argv = {
+        let mut v = vec![format!("--cable {}", cable)];
+        if write_flash {
+            v.push("--write-flash".to_string());
+        }
+        v.push(bit_path.display().to_string());
+        v.join(" ")
+    };
+
+    if dry_run {
+        println!("  cable link : {}", if cable_present { "PRESENT" } else { "ABSENT" });
+        println!("\n  would run  : {} {}", loader, argv);
+        println!(
+            "\n  verdict    : {}",
+            if cable_present {
+                "READY -- rerun without --dry-run to program the board"
+            } else {
+                "BLOCKED -- no programmer on USB; connect the cable, then rerun"
+            }
+        );
+        return Ok(());
+    }
+
+    if !cable_present {
+        anyhow::bail!(
+            "no USB programmer detected -- '{} --scan-usb' reports no devices.\n\
+             Connect the {} cable to the board and the host, then retry.\n\
+             Use --dry-run to validate the bitstream and command without hardware.",
+            loader, cable
+        );
+    }
+
+    println!("\n  running    : {} {}", loader, argv);
+    let mut cmd = std::process::Command::new(loader);
+    cmd.arg("--cable").arg(cable);
+    if write_flash {
+        cmd.arg("--write-flash");
+    }
+    cmd.arg(&bit_path);
+    let status = cmd
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .with_context(|| format!("{} invocation failed", loader))?;
+    if !status.success() {
+        anyhow::bail!("{} exited with {}", loader, status);
+    }
+    println!("\n=== Flash OK ({}) ===", if write_flash { "flash" } else { "sram" });
+    Ok(())
 }
 
 fn run_fpga_build(
@@ -8454,7 +10453,34 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::Yostat { log } => run_yostat(&log)?,
+        Commands::LexConform => run_lex_conform()?,
+        Commands::CatalogGate { catalog, specs_dir, verbose } => {
+            run_catalog_gate(&catalog, &specs_dir, verbose)?
+        }
+        Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
+            if all || spec.is_empty() {
+                run_test_report_tree(&specs_dir, include_scratch, verbose)?
+            } else {
+                run_test_report(&spec, &specs_dir, verbose)?
+            }
+        }
+        Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
+            run_impl_status(&specs_dir, include_scratch, verbose)?
+        }
+        Commands::CcGate { specs_dir, include_scratch, verbose } => {
+            run_cc_gate(&specs_dir, include_scratch, verbose)?
+        }
+        Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
+        Commands::ParseConform => run_parse_conform()?,
+        Commands::ParseComplete { specs_dir, include_scratch, show } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        }
+        Commands::CheckCalls { specs_dir, include_scratch } => {
+            run_check_calls(&specs_dir, include_scratch)?
+        }
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
@@ -8543,6 +10569,68 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Path { input, synth } => {
+            service::run_path(&std::env::current_dir()?, &input, synth)?
+        }
+        Commands::EntryPoints { specs_dir, verbose, suggest } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose, suggest)?
+        }
+        Commands::Silicon {
+            input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+            pnr_seed,
+        } => service::run_silicon(
+            &std::env::current_dir()?,
+            &input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+            pnr_seed,
+        )?,
+        Commands::RecomputeDiff { script, tex, label, tol } => {
+            service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
+        }
+        Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Battery { dir } => {
+            service::run_battery(&std::env::current_dir()?, dir)?
+        }
+        Commands::Known { dir, about } => {
+            service::run_known(&std::env::current_dir()?, dir, about)?
+        }
+        Commands::Provenance { dir } => {
+            service::run_provenance(&std::env::current_dir()?, dir)?
+        }
+        Commands::EditCheck { file, needle } => {
+            service::run_editcheck(&std::env::current_dir()?, file, needle)?
+        }
+        Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
+            service::run_verdict(
+                &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
+            )?
+        }
+        Commands::Preflight { nextpnr_src } => {
+            service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
+        }
+        Commands::Boards => service::run_boards()?,
+        Commands::SpecStatus { input } => {
+            let src = std::fs::read_to_string(&input)?;
+            println!("{}", impl_status::spec_status(&src));
+        }
+        Commands::Backlog { specs_dir, limit } => {
+            service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
+        }
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
+        }
+        Commands::Prove { input, mutate } => {
+            service::run_prove(&std::env::current_dir()?, &input, mutate)?
+        }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
@@ -8565,6 +10653,10 @@ async fn main() -> anyhow::Result<()> {
             cocotb,
             fast,
             json_out,
+            ratchet,
+            bless_expectations,
+            corpus_only,
+            bless_baselines,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -8573,6 +10665,10 @@ async fn main() -> anyhow::Result<()> {
                 cocotb,
                 fast,
                 json_out,
+                ratchet,
+                bless_expectations,
+                corpus_only,
+                bless_baselines,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -8643,6 +10739,29 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
+         Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
+             let repo_root = std::env::current_dir()?;
+             run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::SealAudit { seals_dir, strict } => {
+             let repo_root = std::env::current_dir()?;
+             run_seal_audit(&repo_root, &seals_dir, strict)?;
+         }
+         Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
+             let repo_root = std::env::current_dir()?;
+             run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
+         }
+         Commands::FrozenDigest { path } => {
+             run_frozen_digest(path.as_deref())?;
+         }
+         Commands::FpgaChipdb { device, image, work, force } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
+         }
+         Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
+         }
          Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
          Commands::TriStatus => {
              println!("TRI PHI LOOP: status pending implementation");
@@ -8736,7 +10855,34 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Classify { ref specs_dir, include_scratch, verbose } => run_classify(specs_dir, include_scratch, verbose)?,
+        Commands::Yostat { log } => run_yostat(&log)?,
         Commands::Parse { input, json } => run_parse(&input, json)?,
+        Commands::LexConform => run_lex_conform()?,
+        Commands::CatalogGate { catalog, specs_dir, verbose } => {
+            run_catalog_gate(&catalog, &specs_dir, verbose)?
+        }
+        Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
+            if all || spec.is_empty() {
+                run_test_report_tree(&specs_dir, include_scratch, verbose)?
+            } else {
+                run_test_report(&spec, &specs_dir, verbose)?
+            }
+        }
+        Commands::ImplStatus { specs_dir, include_scratch, verbose } => {
+            run_impl_status(&specs_dir, include_scratch, verbose)?
+        }
+        Commands::CcGate { specs_dir, include_scratch, verbose } => {
+            run_cc_gate(&specs_dir, include_scratch, verbose)?
+        }
+        Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
+        Commands::ParseConform => run_parse_conform()?,
+        Commands::ParseComplete { specs_dir, include_scratch, show } => {
+            run_parse_complete(&specs_dir, include_scratch, show.as_deref())?
+        }
+        Commands::CheckCalls { specs_dir, include_scratch } => {
+            run_check_calls(&specs_dir, include_scratch)?
+        }
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
@@ -8825,6 +10971,68 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Path { input, synth } => {
+            service::run_path(&std::env::current_dir()?, &input, synth)?
+        }
+        Commands::EntryPoints { specs_dir, verbose, suggest } => {
+            entry_points::run(std::path::Path::new(&specs_dir), verbose, suggest)?
+        }
+        Commands::Silicon {
+            input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+            pnr_seed,
+        } => service::run_silicon(
+            &std::env::current_dir()?,
+            &input,
+            top,
+            busdev_num,
+            wrong_part,
+            control,
+            skip_hardware,
+            pnr_seed,
+        )?,
+        Commands::RecomputeDiff { script, tex, label, tol } => {
+            service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
+        }
+        Commands::Gates { dir } => service::run_gates(&std::env::current_dir()?, dir)?,
+        Commands::Battery { dir } => {
+            service::run_battery(&std::env::current_dir()?, dir)?
+        }
+        Commands::Known { dir, about } => {
+            service::run_known(&std::env::current_dir()?, dir, about)?
+        }
+        Commands::Provenance { dir } => {
+            service::run_provenance(&std::env::current_dir()?, dir)?
+        }
+        Commands::EditCheck { file, needle } => {
+            service::run_editcheck(&std::env::current_dir()?, file, needle)?
+        }
+        Commands::Verdict { input, top, busdev_num, wrong_part, seeds } => {
+            service::run_verdict(
+                &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
+            )?
+        }
+        Commands::Preflight { nextpnr_src } => {
+            service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
+        }
+        Commands::Boards => service::run_boards()?,
+        Commands::SpecStatus { input } => {
+            let src = std::fs::read_to_string(&input)?;
+            println!("{}", impl_status::spec_status(&src));
+        }
+        Commands::Backlog { specs_dir, limit } => {
+            service::run_depth(&std::env::current_dir()?, &specs_dir, limit)?
+        }
+        Commands::Corpus { specs_dir, limit, json, synth, synth_secs } => {
+            service::run_corpus(&std::env::current_dir()?, &specs_dir, limit, json, synth, synth_secs)?
+        }
+        Commands::Prove { input, mutate } => {
+            service::run_prove(&std::env::current_dir()?, &input, mutate)?
+        }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
@@ -8846,6 +11054,10 @@ fn main() -> anyhow::Result<()> {
             cocotb,
             fast,
             json_out,
+            ratchet,
+            bless_expectations,
+            corpus_only,
+            bless_baselines,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -8854,6 +11066,10 @@ fn main() -> anyhow::Result<()> {
                 cocotb,
                 fast,
                 json_out,
+                ratchet,
+                bless_expectations,
+                corpus_only,
+                bless_baselines,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -8927,6 +11143,29 @@ fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
+         Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
+             let repo_root = std::env::current_dir()?;
+             run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::SealAudit { seals_dir, strict } => {
+             let repo_root = std::env::current_dir()?;
+             run_seal_audit(&repo_root, &seals_dir, strict)?;
+         }
+         Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
+             let repo_root = std::env::current_dir()?;
+             run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
+         }
+         Commands::FrozenDigest { path } => {
+             run_frozen_digest(path.as_deref())?;
+         }
+         Commands::FpgaChipdb { device, image, work, force } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
+         }
+         Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
+         }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
          }
@@ -8988,5 +11227,148 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Read cell counts from a yosys log, from the LAST section of the LAST stat
+/// block only. See the `Yostat` doc comment for why this exists.
+fn run_yostat(log: &str) -> anyhow::Result<()> {
+    let text = std::fs::read_to_string(log)
+        .map_err(|e| anyhow::anyhow!("cannot read {log}: {e}"))?;
+    let blocks: Vec<&str> = text.split("Printing statistics").collect();
+    if blocks.len() < 2 {
+        println!("  NO STAT BLOCK in {log}");
+        println!("  An empty log and an empty design look identical to a regex.");
+        println!("  This is the first, not the second -- yosys never got that far.");
+        std::process::exit(1);
+    }
+    let last = blocks[blocks.len() - 1];
+    // Sections inside one stat block are separated by `=== <module> ===`; the
+    // design-wide total is the last of them.
+    let section = last.rsplit_once("\n=== ").map(|(_, rest)| rest).unwrap_or(last);
+    let count = |name: &str| -> u64 {
+        section
+            .lines()
+            .filter_map(|l| {
+                let t = l.trim();
+                let (n, rest) = t.split_once(char::is_whitespace)?;
+                if rest.trim() == name { n.parse::<u64>().ok() } else { None }
+            })
+            .sum()
+    };
+    let lut: u64 = (1..=6).map(|k| count(&format!("LUT{k}"))).sum();
+    let ff = count("FDRE") + count("FDSE") + count("FDCE") + count("FDPE");
+    println!("  stat blocks in log : {}", blocks.len() - 1);
+    println!("  LUT (LUT1..LUT6)   : {lut}");
+    println!("  CARRY4             : {}", count("CARRY4"));
+    println!("  DSP48E1            : {}", count("DSP48E1"));
+    println!("  MUXF7 / MUXF8      : {} / {}", count("MUXF7"), count("MUXF8"));
+    println!("  FF (FDRE/SE/CE/PE) : {ff}");
+    println!("  BSCANE2            : {}", count("BSCANE2"));
+
+    // W755: primitives whose NETLIST is correct and whose BITSTREAM openXC7 gets
+    // wrong. Both were found the expensive way -- DSP48E1 in W723 (T246/T250) and
+    // SRL16E in W754 (T342), the latter after THREE waves of hardware debugging
+    // during which every upstream tool reported success and the wrong-part -> ours
+    // acceptance criterion passed on every attempt. The cell list carried the
+    // answer for a whole wave before anyone read past the LUT line, so the tool
+    // now reads it for them and refuses to stay quiet.
+    let srl = count("SRL16E") + count("SRLC32E") + count("SRL16") + count("SRLC16E");
+    let dsp = count("DSP48E1");
+    println!("  SRL16E / SRLC32E   : {srl}");
+    if srl > 0 || dsp > 0 {
+        println!();
+        println!("  !! KNOWN-BAD PRIMITIVES FOR openXC7 !!");
+        if srl > 0 {
+            println!("  {srl} shift-register LUT(s). T342: the bitstream is wrong while the");
+            println!("     netlist is right. Re-synthesise with `synth_xilinx -nosrl`.");
+        }
+        if dsp > 0 {
+            println!("  {dsp} DSP48E1. T246/T250: a live operand yields a wrong bitstream.");
+            println!("     Re-synthesise with `synth_xilinx -nodsp`.");
+        }
+        println!("  A bitstream built from this netlist will load, pass the 0->1");
+        println!("  acceptance criterion, and compute the wrong answer.");
+        std::process::exit(2);
+    }
+    Ok(())
+}
+
+/// Classify every `.t27` file by whether it is ordinary source. See the
+/// `Classify` doc comment for why this must run before the parser.
+fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow::Result<()> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        if let Ok(rd) = std::fs::read_dir(dir) {
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, out);
+                } else if p.extension().map(|x| x == "t27").unwrap_or(false) {
+                    out.push(p);
+                }
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(std::path::Path::new(specs_dir), &mut files);
+    files.retain(|p| include_scratch || !p.to_string_lossy().contains("/scratch/"));
+    files.sort();
+
+    let mut buckets: std::collections::BTreeMap<&str, Vec<String>> = Default::default();
+    for p in &files {
+        let t = std::fs::read_to_string(p).unwrap_or_default();
+        let has_module = t.lines().any(|l| {
+            let l = l.trim_start().trim_start_matches("pub ").trim_start();
+            l.starts_with("module ") && (l.ends_with(';') || l.contains('{'))
+        });
+        let has_spec = t
+            .lines()
+            .any(|l| l.trim_start().starts_with("spec ") && l.contains('{'));
+        // A Markdown heading in the first 40 lines, `# ` or `## `, with no `fn`.
+        let head: Vec<&str> = t.lines().take(40).collect();
+        let md = head.iter().any(|l| {
+            let l = l.trim_start();
+            (l.starts_with("# ") || l.starts_with("## ") || l.starts_with("### "))
+                && l.len() > 3
+        });
+        let has_fn = t
+            .lines()
+            .any(|l| l.trim_start().trim_start_matches("pub ").starts_with("fn "));
+        let k = if has_module {
+            "SOURCE          module ..."
+        } else if has_spec {
+            "ALT-SYNTAX      spec X { ... }"
+        } else if md && !has_fn {
+            "NOT-CODE        Markdown document"
+        } else if md {
+            "MIXED           Markdown + fn"
+        } else {
+            "UNCLASSIFIED    neither module, spec nor Markdown"
+        };
+        buckets.entry(k).or_default().push(p.display().to_string());
+    }
+    let total = files.len();
+    println!();
+    println!("  {:<48}{:>7}{:>8}", "class", "files", "share");
+    println!("  {}", "-".repeat(63));
+    let mut source = 0usize;
+    for (k, v) in &buckets {
+        if k.starts_with("SOURCE") {
+            source = v.len();
+        }
+        println!("  {:<48}{:>7}{:>7.1}%", k, v.len(), 100.0 * v.len() as f64 / total as f64);
+        if verbose {
+            for f in v.iter().take(if v.len() > 40 { 40 } else { v.len() }) {
+                println!("      {f}");
+            }
+        }
+    }
+    println!("  {}", "-".repeat(63));
+    println!("  {:<48}{:>7}", "total .t27 files", total);
+    println!("  {:<48}{:>7}", "HONEST DENOMINATOR (source only)", source);
+    println!();
+    println!("  A .t27 extension is a filename, not a type declaration. Anything");
+    println!("  outside SOURCE cannot parse, and counting it as a failing spec");
+    println!("  inflates every corpus ratio in a knowable direction.");
     Ok(())
 }

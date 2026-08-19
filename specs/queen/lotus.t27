@@ -490,8 +490,8 @@ module QueenLotus {
         const cycle_result = CycleResult{
             .context = observe_state(),
             .evaluation = evaluate_(),
-            .plan = generate_plan(),
-            .action = execute_action(),
+            .plan = generate_plan_(),      // W575: the zero-argument wrapper, like evaluate_() above
+            .action = execute_action_(),   // W575: same -- generate_plan/execute_action each take one argument
             .outcome = OUTCOME_UNKNOWN,
             .total_time_ms = 0,
         };
@@ -801,3 +801,24 @@ module QueenLotus {
         measure: nanoseconds to record_episode_(true)
         target: < 5000ns
 }
+
+// W708: NO ENTRY POINT. The boundary W697 derived here was WRONG, and it is
+// removed rather than corrected.
+//
+// W697's call-graph-root rule picked `lotus_spawn(agent_type: u8, count: u8)`
+// because it is the only candidate this module has: `lotus_orchestrate()` --
+// the module's actual subject, the six-phase Observe/Recall/Evaluate/Plan/Act/
+// Record cycle -- takes NO parameters, so the rule cannot see it.
+//
+// The pick was mechanically forced and semantically wrong. `lotus_spawn` is a
+// primitive the cycle calls; exposing it as THE hardware boundary says this
+// module is a spawner, which it is not.
+//
+// T197a defended the root rule on the grounds that its two known bad picks were
+// excluded by the width filter (`f64`, `GF4`). This is a third case, and the
+// width filter does NOT help: `(u8, u8) -> bool` is entirely scalar. So the
+// filter composition narrows the failure mode without closing it.
+//
+// A stateful multi-phase cycle whose driver takes no data is not combinational
+// at all. If this module is ever given a boundary it will be `fn on_clock`, and
+// choosing it is a design decision, not a derivation.

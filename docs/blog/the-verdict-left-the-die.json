@@ -1,0 +1,166 @@
+{
+ "slug": "the-verdict-left-the-die",
+ "title": "The verdict left the die",
+ "summary": "A ternary classifier had been running on an FPGA for six waves and the only thing carrying its answer out was a lamp. Four attempts to read it by machine were refuted. The fifth blamed an upstream database. The cause was one parameter, and every tool in the chain reported success while it was wrong.",
+ "date": "2026-08-14",
+ "readingMinutes": 9,
+ "tags": [
+  "fpga",
+  "jtag",
+  "verification",
+  "openxc7"
+ ],
+ "published": true,
+ "receipts": [
+  {
+   "label": "openXC7/nextpnr-xilinx #126 — filed, then withdrawn with hardware proof",
+   "href": "https://github.com/openXC7/nextpnr-xilinx/issues/126"
+  },
+  {
+   "label": "f4pga/prjxray #2569 — the gap that is still real",
+   "href": "https://github.com/f4pga/prjxray/issues/2569"
+  }
+ ],
+ "openQuestions": [
+  "The classifier reports `ok = 1`, meaning it found no misclassification across all 256 inputs since power-up. That is the design checking itself against a table compiled into the same bitstream. It is not an accuracy figure on any published benchmark, and this project has never produced one.",
+  "The design costs 244 LUT and 114 CARRY4. On UNSW-NB15 — the benchmark whose inputs are already binary and therefore the natural fit — the published state of the art is 89 to 91 LUT at 92 to 93 percent accuracy. Area was never the claim that needed making.",
+  "The chain-to-site agreement is now checked by one command and by nothing else. If place-and-route ever chooses a different site, nothing in synthesis, FASM generation, bitstream assembly or loading will say so."
+ ],
+ "body": [
+  {
+   "kind": "p",
+   "text": "A small ternary classifier has been running on a Xilinx Artix-7 for weeks. It sweeps all 256 of its inputs about a quarter of a million times a second and compares each result against a golden table. An equivalence proof already covered the arithmetic for every input. What none of that gave us was a way to ask the chip what it found: the only channel out was an LED."
+  },
+  {
+   "kind": "p",
+   "text": "`Done 0x1` does not help. These boards boot from SPI flash and assert DONE unaided — a bitstream with four kilobytes of its payload XOR-inverted still produced `done 1` and a status register indistinguishable from success. The lamp says a thing is configured. It does not say what the thing computed."
+  },
+  {
+   "kind": "h",
+   "text": "Four refutations, then a wrong diagnosis"
+  },
+  {
+   "kind": "p",
+   "text": "The obvious channel is BSCANE2, the 7-series boundary-scan primitive: a user register readable over JTAG that needs no package pin, no board schematic and no pin map. Four attempts to read it were refuted, each more strongly than the last. A four-bit verdict word looked right — until ten reads of a bitstream containing no BSCANE2 at all returned the same two values in the same proportions."
+  },
+  {
+   "kind": "p",
+   "text": "The fifth attempt fed FASM to the bitstream assembler one line at a time and found that all six of BSCANE2's routing entries produced zero configuration bits. Only the chain-select bit produced anything. The conclusion written down was that the open toolchain could not express the primitive's connections, and an issue was filed upstream."
+  },
+  {
+   "kind": "p",
+   "text": "That conclusion inverted the meaning of its own measurement. Those six entries are pseudo-pips — always-on routing that requires no configuration bits by construction. Zero bits is what a working pseudo-pip looks like. The upstream issue was withdrawn three days later with an A/B showing the real cause had been a stale database checkout in our own tree."
+  },
+  {
+   "kind": "quote",
+   "text": "An absence measured through a mechanism that produces absence when working is not evidence."
+  },
+  {
+   "kind": "h",
+   "text": "One parameter"
+  },
+  {
+   "kind": "p",
+   "text": "The CFG_CENTER_MID tile holds four BSCAN sites and four independent chain-enable bits. Place-and-route puts a lone BSCANE2 at site BSCAN3. The design asked for chain 1. So the bitstream enabled chain 1 and wired site 3:"
+  },
+  {
+   "kind": "code",
+   "text": "CFG_CENTER_MID_X61Y136.BSCAN.JTAG_CHAIN_1\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_TDI\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_TDO\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_DRCK\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_SEL\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_CAPTURE\nCFG_CENTER_MID_X61Y136.…CFG_CENTER_BSCAN3_SHIFT"
+  },
+  {
+   "kind": "p",
+   "text": "Chain 1 selects a site nothing is wired to. Site 3 is wired to a chain nothing selects. Changing one constant so the parameter matches the placement is the whole fix:"
+  },
+  {
+   "kind": "table",
+   "head": [
+    "build",
+    "USER1",
+    "USER2",
+    "USER3",
+    "USER4"
+   ],
+   "rows": [
+    [
+     "JTAG_CHAIN(1), site BSCAN3",
+     "ffffffff",
+     "00000000",
+     "00000000",
+     "00000000"
+    ],
+    [
+     "JTAG_CHAIN(3), site BSCAN3",
+     "00000000",
+     "00000000",
+     "a5a5a5a7",
+     "00000000"
+    ]
+   ]
+  },
+  {
+   "kind": "p",
+   "text": "Pinning the placement instead does not work: nextpnr routes BSCANE2 through its IO packer and rejects a BEL constraint outright. Matching the parameter to the placement is what works, and it must be rechecked after every place-and-route run, because nothing enforces it."
+  },
+  {
+   "kind": "h",
+   "text": "The read, with a control on both sides"
+  },
+  {
+   "kind": "p",
+   "text": "The verdict word is 32 bits: a 28-bit magic constant, two fixed bits, a heartbeat, and the answer. The magic is not decoration. An earlier four-bit version could not be distinguished from a JTAG artefact, so it was widened — and on the very first mismatched build it earned that: USER1 returned a perfect-looking `ok = 1`, correct constant bits, a toggling heartbeat, and twenty-eight zeros above them. Without the magic that would have been recorded as success."
+  },
+  {
+   "kind": "p",
+   "text": "The load is bracketed by a bitstream for the wrong part, which forces DONE low, so the transition to 1 means something. The read is bracketed by a design containing no BSCANE2 at all:"
+  },
+  {
+   "kind": "code",
+   "text": "A   our design      a5a5a5a7  a5a5a5a7  a5a5a5a5\nB   no BSCANE2      00000000  00000000  00000000\nA'  ours again      a5a5a5a7  a5a5a5a5  a5a5a5a5"
+  },
+  {
+   "kind": "p",
+   "text": "Three boards, twenty-seven reads, no exception. The magic returns, the constant bits return, the heartbeat toggles between reads — the sweep is running, not frozen — and `ok` is 1 every time."
+  },
+  {
+   "kind": "h",
+   "text": "What made this hard to find"
+  },
+  {
+   "kind": "p",
+   "text": "Every tool in the chain returned zero while the design was wrong. Synthesis, place-and-route, FASM-to-frames, frames-to-bitstream and the loader all succeeded on a build whose readback register nothing could select. The mismatch is invisible to the entire toolchain and visible only in the read."
+  },
+  {
+   "kind": "p",
+   "text": "Two other traps surfaced on the way, both of the same shape. The frames-to-bitstream tool accepts a zero-byte input, returns zero, and writes a 9,730,899-byte bitstream — one byte away from a real build. And a Python traceback from the FASM tool leads with a circular-import error from its own parser while the actual cause, a missing input from a stage that already failed, sits on the last line."
+  },
+  {
+   "kind": "quote",
+   "text": "An artefact produced unconditionally cannot testify to the process that produced it."
+  },
+  {
+   "kind": "h",
+   "text": "It is a command now"
+  },
+  {
+   "kind": "p",
+   "text": "All of this first worked inside a scratch shell script, which is one `rm -rf /tmp` away from being a claim again. It is now a single command that carries a specification to a verdict and fails on any of its own guards: it strips the simulation constructs the code generator emits, refuses to build a bitstream from empty frames, checks that the enabled chain equals the placed site, and brackets the read with a control."
+  },
+  {
+   "kind": "p",
+   "text": "Its first run failed, and it was right to. The control stage required the magic to vanish from every cable — but the control bitstream goes onto one board, and the other two still held the real design. The manual experiment had hidden that by loading the control everywhere. The repair is not to load everywhere: require that exactly one cable falls silent, which derives the mapping between the loader's bus addressing and the JTAG transport's index instead of assuming one exists."
+  },
+  {
+   "kind": "p",
+   "text": "The command found a defect in the experiment it was built from. That is the argument for building it."
+  }
+ ],
+ "ru": {
+  "title": "Вердикт покинул кристалл",
+  "summary": "Троичный классификатор шесть волн работал на FPGA, и единственным каналом наружу была лампочка. Четыре попытки прочитать ответ машиной были опровергнуты, пятая обвинила чужую базу данных. Причиной оказался один параметр — и все инструменты цепочки рапортовали успех, пока он был неверен.",
+  "openQuestions": [
+   "Классификатор сообщает `ok = 1` — он не нашёл ни одной ошибки на всех 256 входах с момента подачи питания. Это проверка дизайна против таблицы, вкомпилированной в тот же битстрим. Это не показатель точности на опубликованном бенчмарке, а такого проект не давал никогда.",
+   "Дизайн стоит 244 LUT и 114 CARRY4. На UNSW-NB15 — бенчмарке, чьи входы уже двоичные и потому подходят естественно, — опубликованный уровень техники составляет 89–91 LUT при точности 92–93%. Площадь никогда не была тем утверждением, которое требовалось.",
+   "Согласование цепи и сайта проверяет теперь одна команда и больше ничто. Если размещение когда-нибудь изменится, ни синтез, ни генерация FASM, ни сборка битстрима, ни загрузчик об этом не скажут."
+  ]
+ }
+}

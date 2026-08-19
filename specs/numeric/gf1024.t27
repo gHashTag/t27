@@ -14,7 +14,12 @@ module triformat-gf1024;
 
 pub const TOTAL_BITS : u16 = 1024;
 pub const SIGN_BITS  : u8 = 1;
-pub const EXP_BITS   : u8 = 391;
+// W601: was `u8`, which cannot represent 391. The VALUE is right --
+// round((1024-1)/phi^2) = 391 -- and every other rung's exponent width does fit
+// in u8 (195, 97, 49, 36, 18), so this is the one place the annotation was
+// copied without checking. Invisible until an invariant used the constant in
+// arithmetic and forced the compiler to represent it.
+pub const EXP_BITS   : u16 = 391;
 pub const MANT_BITS  : u16 = 632;
 
 pub const SIGN_SHIFT : u16 = 1023;
@@ -36,6 +41,37 @@ pub const PHI_BIAS_STATUS : str = "OPEN -- not derivable from closed form; empir
 // PHI_BIAS = EXP_MAX - BIAS reproduces GF64 only and is RETRACTED as a general law.
 // Do NOT invent a value via Fibonacci/Lucas/square coincidence; those are
 // descriptive, not prescriptive.
+
+// ============================================================================
+// Invariants -- the Fpath below, made executable (W601)
+//
+// This file declared its own falsification path in a comment and nothing
+// checked it. W600's per-test measurement found 38 specs that compile while
+// asserting nothing; this is one, and the rule it is derived from is stated
+// precisely enough to be a test.
+// ============================================================================
+
+invariant gf1024_field_widths_partition_the_word {
+    @compileAssert(SIGN_BITS + EXP_BITS + MANT_BITS == TOTAL_BITS);
+}
+
+invariant gf1024_closed_form_mantissa {
+    // m = N - 1 - e, the second half of the generating rule
+    @compileAssert(MANT_BITS == TOTAL_BITS - 1 - EXP_BITS);
+}
+
+invariant gf1024_closed_form_exponent {
+    // e = round((N-1)/phi^2)  <=>  (e - 1/2)*phi^2 <= N-1 <= (e + 1/2)*phi^2
+    // Stated as bounds because the rule rounds; phi^2 = 2.618033988749895.
+    @compileAssert((EXP_BITS as f64 - 0.5) * 2.618033988749895 <= TOTAL_BITS as f64 - 1.0);
+    @compileAssert(TOTAL_BITS as f64 - 1.0 <= (EXP_BITS as f64 + 0.5) * 2.618033988749895);
+}
+
+invariant gf1024_shifts_follow_the_layout {
+    @compileAssert(SIGN_SHIFT == TOTAL_BITS - 1);
+    @compileAssert(EXP_SHIFT == MANT_BITS);
+    @compileAssert(MANT_SHIFT == 0);
+}
 
 ; ============================================================================
 ; Claim-status: Conj

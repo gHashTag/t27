@@ -68,8 +68,8 @@ Do **not** add parallel math/physics implementations in ad-hoc scripts when the 
 
 ## 2. Engineering workflow
 
-- **Bootstrap compiler:** `cd bootstrap && cargo build --release` (runs `build.rs` language checks).
-- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c suite --repo-root .` (Rust runner; no shell test harness under `tests/`).
+- **Bootstrap compiler:** from repo root, `cargo build --release -p t27c` (runs `build.rs` language checks). `bootstrap/` is a **workspace member**, so the binary lands at the workspace root: `./target/release/t27c` — *not* `./bootstrap/target/release/t27c`.
+- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./target/release/t27c suite --repo-root .` (Rust runner; no shell test harness under `tests/`).
 - **Generated code:** under `gen/` — do not hand-edit for routine fixes; change specs and regenerate.
 - **Pull requests:** follow project Issue Gate and linking policy; **do not approve** PRs unless explicitly authorized.
 
@@ -128,10 +128,23 @@ Load these skills when their functionality matches the task.
 for the FPGA board, JTAG cable, host toolchain, and program/flash path. Read it
 before touching anything under `fpga/`. Non-negotiables:
 
-- Target board is **QMTech Wukong V1 / XC7A100T-FGG676** (`xc7a100tfgg676-1`),
-  IDCODE `0x13631093`. Not the Arty A7 (`csg324`).
-- Flash via the in-repo Rust driver **`cli/dlc10`** (`dlc10 idcode|sram|flash|reload`).
-  **Do not use `openFPGALoader`** — it cannot drive the `0x03FD` Xilinx cable.
+- Target board is **QMTech Wukong V1 / XC7A200T-FGG676** (`xc7a200tfgg676-1`),
+  IDCODE `0x03636093`. Not the Arty A7 (`csg324`), and **not the 100T** — this
+  file said `XC7A100T` / `0x13631093` until 2026-08-14, contradicting the SSOT
+  it points to. Measured on all three attached boards: `idcode 0x3636093`,
+  `family artix a7 200t`. For place-and-route use the `fbg676` chipdb
+  (`xc7a200tfbg676-1`) — same die and pinout, per HARDWARE_SSOT.md §2026-07-05.
+- **Flash with `openFPGALoader -c digilent_hs2`.** The attached cables are
+  **Digilent FTDI `0x0403:0x6014`**, not the Xilinx `0x03FD` Platform Cable, and
+  `cli/dlc10` speaks only to `0x03FD` — it answers `DLC10 cable not found` on this
+  bench. Address the three boards with `--busdev-num 1:4 / 1:6 / 1:8`; they share
+  serial `210512180081`, so serial-based addressing cannot separate them.
+  See `fpga/HARDWARE_SSOT.md` §"Note" and §"Programming".
+  *Corrected W791 (T460/T461): the previous text here forbade `openFPGALoader` on
+  the grounds that it cannot drive a `0x03FD` cable — true, and irrelevant, since
+  no `0x03FD` cable is attached. That sentence contradicted the SSOT this file
+  names as authoritative, and it was reported as a hardware blocker for thirteen
+  waves. `cli/dlc10` remains correct for a DLC10 bench and is not removed.*
 - No native macOS Vivado exists. Synthesis is Vivado-in-Docker or OpenXC7 only.
 - If any other FPGA doc contradicts the SSOT, the SSOT wins — fix the other doc.
 

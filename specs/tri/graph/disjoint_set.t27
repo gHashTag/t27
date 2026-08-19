@@ -11,8 +11,8 @@ module TriDisjointSet;
     // ═══════════════════════════════════════════════════════════
 
     pub const DisjointSet = struct {
-        parent : [[]Usize",
-        rank : [[]Usize",
+        parent : []usize,
+        rank : []usize,
         count : "usize",
     };
 

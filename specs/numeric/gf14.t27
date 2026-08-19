@@ -35,8 +35,50 @@ pub const PHI_BIAS_STATUS : str = "OPEN -- not derivable from closed form; empir
 // Do NOT invent a value via Fibonacci/Lucas/square coincidence; those are
 // descriptive, not prescriptive.
 
+// ============================================================================
+// Invariants -- the Fpath below, made executable (W601)
+//
+// This file declared its own falsification path in a comment and nothing
+// checked it. W600's per-test measurement found 38 specs that compile while
+// asserting nothing; this is one, and the rule it is derived from is stated
+// precisely enough to be a test.
+// ============================================================================
+
+invariant gf14_field_widths_partition_the_word {
+    @compileAssert(SIGN_BITS + EXP_BITS + MANT_BITS == TOTAL_BITS);
+}
+
+invariant gf14_closed_form_mantissa {
+    // m = N - 1 - e, the second half of the generating rule
+    @compileAssert(MANT_BITS == TOTAL_BITS - 1 - EXP_BITS);
+}
+
+invariant gf14_closed_form_exponent {
+    // e = round((N-1)/phi^2)  <=>  (e - 1/2)*phi^2 <= N-1 <= (e + 1/2)*phi^2
+    // Stated as bounds because the rule rounds; phi^2 = 2.618033988749895.
+    @compileAssert((EXP_BITS as f64 - 0.5) * 2.618033988749895 <= TOTAL_BITS as f64 - 1.0);
+    @compileAssert(TOTAL_BITS as f64 - 1.0 <= (EXP_BITS as f64 + 0.5) * 2.618033988749895);
+}
+
+invariant gf14_shifts_follow_the_layout {
+    @compileAssert(SIGN_SHIFT == TOTAL_BITS - 1);
+    @compileAssert(EXP_SHIFT == MANT_BITS);
+    @compileAssert(MANT_SHIFT == 0);
+}
+
+invariant gf14_bias_identity {
+    // BIAS = 2^(E-1) - 1, as the declaration's own comment states
+    @compileAssert(BIAS == (1 << (EXP_BITS - 1)) - 1);
+}
+
+invariant gf14_exp_max_identity {
+    // EXP_MAX = 2^E - 1
+    @compileAssert(EXP_MAX == (1 << EXP_BITS) - 1);
+}
+
 ; ============================================================================
 ; Claim-status: Conj
 ; Fpath: closed-form rule mis-applied (verify e = round((14-1)/phi^2) = 5, m = 8)
 ;        or RTL emission diverges from this constant set.
+;        As of W601 the Fpath above is CHECKED by the invariants in this file.
 ; ============================================================================

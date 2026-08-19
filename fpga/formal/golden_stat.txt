@@ -1,0 +1,22 @@
+
+6. Printing statistics.
+
+=== ternary_mac_golden ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      173 wires
+      368 wire bits
+        9 public wires
+      141 public wire bits
+        7 ports
+       77 port bits
+      114 cells
+        1   BUFG
+        1   DSP48E1
+       32   FDCE
+       45   IBUF
+        1   INV
+        2   LUT2
+       32   OBUF
+

@@ -25,13 +25,13 @@ module TriStatistics;
         // TODO: Implement from .tri spec
     }
 
-    // median(allocator: Std.mem.Allocator) → void
-    fn median(allocator: Std.mem.Allocator) -> void {
+    // median(allocator: std.mem.Allocator) → void
+    fn median(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 
-    // percentile(allocator: Std.mem.Allocator) → void
-    fn percentile(allocator: Std.mem.Allocator) -> void {
+    // percentile(allocator: std.mem.Allocator) → void
+    fn percentile(allocator: std.mem.Allocator) -> void {
         // TODO: Implement from .tri spec
     }
 

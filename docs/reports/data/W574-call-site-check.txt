@@ -1,0 +1,52 @@
+specs/igla/race/cordic.t27:555: arity: cordic_gain -- 0 argument(s) passed, 1 declared in self
+specs/igla/race/ternary_mac.t27:1232: aggregate-vs-scalar: ternary_mac -- argument 2 is a `TernaryWeight` literal; parameter `a` is declared `i8` in self
+specs/igla/race/ternary_mac.t27:1249: aggregate-vs-scalar: ternary_mac -- argument 2 is a `TernaryWeight` literal; parameter `a` is declared `i8` in self
+specs/igla/race/ternary_mac.t27:1284: aggregate-vs-scalar: ternary_mac -- argument 2 is a `TernaryWeight` literal; parameter `a` is declared `i8` in self
+specs/physics/gamma_conjecture.t27:211: arity: verify_gamma_conjecture -- 7 argument(s) passed, 4 declared in self
+specs/queen/lotus.t27:493: arity: generate_plan -- 0 argument(s) passed, 1 declared in self
+specs/queen/lotus.t27:494: arity: execute_action -- 0 argument(s) passed, 1 declared in self
+specs/server/mdns.t27:238: arity: concat -- 3 argument(s) passed, 2 declared in self
+specs/tri/collections/bitvector.t27:68: arity: empty -- 1 argument(s) passed, 0 declared in self
+specs/tri/collections/linked_list.t27:61: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/collections/lockfree_stack.t27:47: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/base32.t27:43: arity: standard -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/base64.t27:58: arity: standard -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/base64.t27:63: arity: url_safe -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/hex.t27:47: arity: lower_case -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/hex.t27:52: arity: upper_case -- 1 argument(s) passed, 0 declared in self
+specs/tri/crypto/sha256.t27:49: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:99: arity: max_path_len -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:104: arity: max_line_len -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:109: arity: max_args -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:114: arity: max_env_vars -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:119: arity: get_p_h_i -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:124: arity: get_p_i -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:129: arity: get_e -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:134: arity: get_s_q_r_t2 -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:139: arity: get_s_q_r_t3 -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:144: arity: get_golden_ratio -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:149: arity: get_system_limits -- 1 argument(s) passed, 0 declared in self
+specs/tri/math/constants.t27:154: arity: get_sacred_constants -- 1 argument(s) passed, 0 declared in self
+specs/tri/search/aho_corasick.t27:71: arity: match -- 1 argument(s) passed, 0 declared in self
+specs/tri/trees/avl_tree.t27:58: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/trees/red_black_tree.t27:63: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/trees/splay_tree.t27:58: arity: init -- 1 argument(s) passed, 0 declared in self
+specs/tri/utils/bytes.t27:68: arity: empty -- 1 argument(s) passed, 0 declared in self
+specs/tri/utils/terminal.t27:46: arity: get_size -- 1 argument(s) passed, 0 declared in self
+specs/tri/utils/terminal.t27:56: arity: reset -- 1 argument(s) passed, 0 declared in self
+specs/tri/utils/time.t27:58: arity: now -- 1 argument(s) passed, 0 declared in self
+specs/vsa/sdk.t27:445: arity: hypervector_set -- 2 argument(s) passed, 3 declared in self
+
+--- call-site check ---
+  aggregate-vs-scalar    3
+  arity                  35
+  TOTAL                  38
+  most affected callees:
+    init                         6
+    ternary_mac                  3
+    empty                        2
+    standard                     2
+    concat                       1
+    cordic_gain                  1
+    execute_action               1
+    generate_plan                1

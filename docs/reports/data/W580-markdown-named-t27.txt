@@ -1,0 +1,15 @@
+specs/benchmarks/gf16_bfloat16_nmse.t27
+specs/benchmarks/bench_main.t27
+specs/benchmarks/bench_nn.t27
+specs/benchmarks/ternary_vs_binary.t27
+specs/api/sdk_contract.t27
+specs/api/c_api_contract.t27
+specs/api/tri_net_api.t27
+specs/brain/neural_gamma.t27
+specs/automation/wrapup-auto.t27
+specs/physics/gamma-conflict.t27
+specs/physics/e8_lqg_bridge.t27
+specs/physics/hslm_benchmark.t27
+specs/physics/lqg_cs_bridge.t27
+specs/physics/quantum.t27
+specs/conformance/e2e_scenarios.t27

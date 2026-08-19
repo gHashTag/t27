@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:b78a19e6a2aecec10b4170690ce52a7d6369bee29f37acd0a46bda691dedd8c7",
-  "gen_hash_rust": "sha256:f14431b33c224a77eb209e96785ca73ac0415732bc9cefe5dee38fb7696990cf",
-  "gen_hash_verilog": "sha256:8369d0783f722cac19baabdd747b46662ef6a467468e635fbfb001225d8594c6",
-  "gen_hash_zig": "sha256:ecc25623958b855b1e8f2d1ca1f4518bf3183083004b74b436f30103369ec943",
+  "gen_hash_c": "sha256:60bb9851aea69580c279cf9c1c20b84000244b0ac13b226dc37c2ea795696888",
+  "gen_hash_rust": "sha256:6277d818ef1724bd3c25c5a3bc728cd3acad6403f4a7bf2804bf6db78826de93",
+  "gen_hash_verilog": "sha256:a1bb2f8af87521a60ebe1282622b3ed32f770f000202dd8d70354994671442b4",
+  "gen_hash_zig": "sha256:21076c98b2fff35e90ebdd7a1db1efd7138a19c3b99ace2d72e036c3b9fe263c",
   "module": "PropertyTestTemplate",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ab6e8c022ffb7bc5a4123ef9df4975ec2063fd92b2b61aa2176c6035378d831b",
   "spec_path": "specs/math/property_test_template.t27"
 }

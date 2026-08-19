@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:d4b49b982e03d27275b9eb3694d62325f3f95750d26c2a834890ca323226612b",
-  "gen_hash_rust": "sha256:71efd622a8c7279d92ced36f44b1b5d567985430f66f843ea6ba26a8f6673122",
-  "gen_hash_verilog": "sha256:f998ad0945f9b6b5782384ecafe7ad89d6dae1ce3befa6a9a090482a501d1e8e",
-  "gen_hash_zig": "sha256:ff6a821b8c8e18920fbd748d85bb820c4139bd3d82cab6c19bdbee5bf836e949",
+  "gen_hash_c": "sha256:d731ae3c0cc38f69b29ed4c06941d3ca3e839d66eeef6f201167741c30b20094",
+  "gen_hash_rust": "sha256:eb0e1b293d47c7b4727f1dbec6d33cf3db2fe86df0ae906adb0863199712e381",
+  "gen_hash_verilog": "sha256:bfdd79ebab78682b40028db81ce198b51da58b7c5cb959580165fc9fa01f276d",
+  "gen_hash_zig": "sha256:dc3f84b8c0a6933b049342e335e13060bdae1e621c15ec35eee468d9c75b8033",
   "module": "TriOctree",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:d2cf6df1b58bd432a6a45baf815781216cfad662bbbbb64e090248d8d00c80f3",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:63216e4dbe843da95dd62bfc13b7741e6bf343e3bcf3d407e084d6be61e84dfe",
   "spec_path": "specs/tri/trees/octree.t27"
 }

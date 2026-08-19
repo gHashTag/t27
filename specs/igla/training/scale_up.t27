@@ -78,7 +78,7 @@ module IGLAScaleUp;
         assert m.throughput_tok_s >= 0.0 && m.latency_p99_ms > 0.0 && m.memory_gb > 0.0 && m.flops_utilization >= 0.0 && m.flops_utilization <= 1.0
 
     test scale_config_gpu_count
-        given cfg = ScalingConfig { base_checkpoint: \"ckpt_200M\", target_size: DeploySize.Large_1B, dist_strategy: \"fsdp\", gpu_count: 8, gradient_accum: 4 }
+        given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
         assert cfg.gpu_count >= 1
 
     // ===========================================================
@@ -86,11 +86,11 @@ module IGLAScaleUp;
     // ===========================================================
 
     bench scale_up_1b_latency
-        given cfg = ScalingConfig { base_checkpoint: \"ckpt_200M\", target_size: DeploySize.Large_1B, dist_strategy: \"fsdp\", gpu_count: 8, gradient_accum: 4 }
+        given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
         measure scale_up(cfg)
         target latency_ms < 86400000.0
 
     bench distill_500m_latency
-        given teacher = \"ckpt_1B\"
+        given teacher = "ckpt_1B"
         measure distill(teacher, DeploySize.Mid_500M)
         target latency_ms < 43200000.0

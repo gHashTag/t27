@@ -222,7 +222,7 @@ spec Restraint {
             }
         }
 
-        return unknown_count as float / len(values) as float
+        return unknown_count as f64 / len(values) as f64
     }
 
     // Check if unknown ratio exceeds threshold

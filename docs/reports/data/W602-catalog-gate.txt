@@ -1,0 +1,25 @@
+--- catalog gate: specs/numeric/formats_catalog.t27 ---
+  records            83
+  fn getters         83
+
+  shape classification (the exceptions ARE the work):
+    Alphabet       1
+    FixedLayout    65
+    Parametric     9
+    Tapered        8
+
+  checks run:
+    gf-closed-form       21
+    gf-phi-distance      21
+    gf-ratio-optimal     21
+    mandatory-field      83
+    no-spurious-layout   10
+    source-agrees        10
+    widths-partition     65
+
+  FINDINGS  5
+    [no-spurious-layout] gfternary: shape is Alphabet -- s/e/m do not apply -- yet the record states s=1 e=0 m=2 (sum 3) against bits=2
+    [no-spurious-layout] q_format: shape is Parametric -- s/e/m do not apply -- yet the record states s=1 e=0 m=0 (sum 1) against bits=0
+    [no-spurious-layout] minifloat: shape is Parametric -- s/e/m do not apply -- yet the record states s=1 e=0 m=0 (sum 1) against bits=0
+    [no-spurious-layout] unum_i: shape is Parametric -- s/e/m do not apply -- yet the record states s=1 e=0 m=0 (sum 1) against bits=0
+    [no-spurious-layout] tapered_fp: shape is Parametric -- s/e/m do not apply -- yet the record states s=1 e=0 m=0 (sum 1) against bits=0

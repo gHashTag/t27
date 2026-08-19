@@ -1,0 +1,24 @@
+--- catalog gate: specs/numeric/formats_catalog.t27 ---
+  records            83
+  fn getters         83
+
+  shape classification (the exceptions ARE the work):
+    Alphabet       1
+    FixedLayout    65
+    Parametric     9
+    Tapered        8
+
+  checks run:
+    emitted-agrees           332
+    fields-fit-concrete-width 1
+    gf-closed-form           21
+    gf-phi-distance          21
+    gf-ratio-optimal         21
+    mandatory-field          83
+    source-agrees            10
+    widths-partition         65
+
+  emitted artifacts: 83 records, 332 numeric fields compared
+
+  FINDINGS  1
+    [fields-fit-concrete-width] gfternary: bits=2 is concrete, but s+e+m = 1+0+2 = 3 exceeds it

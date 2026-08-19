@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:38c0d6666fdd66aaa0df67e06082b573c13329908940bd24e3b68d90bf17eb1e",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:00bae4a680b9d4c9e41e8bce5672c4015075ad564863ef3124ba5113d2994f76",
-  "gen_hash_zig": "sha256:5523f0b85f004fa78a9dbd4b56019f46613389dbf823cebffa014ffc5a6f616f",
+  "gen_hash_c": "sha256:d5df3e802e6355e8c4ec48755b5161e3cd50e2f30c40a49048c8f5f94da38abf",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:a934e4c04748897b6ad9fe1d107b9ea0c3eb9cf14a10db806141224a57f8dec8",
+  "gen_hash_zig": "sha256:4997c698b08829a9566d53947a16675c43f136da75bb78dcb1b9dfbd338c6c4b",
   "module": "QuantumGravity",
   "ring": 12,
-  "sealed_at": "2026-06-18T14:06:14Z",
-  "spec_hash": "sha256:9640a074c7bb9f9f09f15a1baee7714f03b725a758000bd8de60061a6a5faaa4",
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:737d4c04a9ed568aa611bd4933a163cd511ba730d3a145643ab0ae8d986fb0fd",
   "spec_path": "specs/sacred/quantum_gravity.t27"
 }

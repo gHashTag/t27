@@ -53,4 +53,19 @@ test neuron_all_p_x_n { assert_eq(neuronN([8]u64{12009599006321322, 120095990063
 test neuron_all_z { assert_eq(neuronN([8]u64{6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661}, [8]u64{6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661, 6004799503160661}, 8, 10), 1); }
 test neuron_two_chunks { assert_eq(neuronN([8]u64{12009599006321322, 12009599006321322, 0, 0, 0, 0, 0, 0}, [8]u64{12009599006321322, 12009599006321322, 0, 0, 0, 0, 0, 0}, 2, 10), 2); }
 test neuron_zero_chunks { assert_eq(neuronN([8]u64{12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322}, [8]u64{12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322, 12009599006321322}, 0, 10), 1); }
+// W699: the hardware boundary, with a width the EMITTER can produce.
+//
+// W698 accepted `[8]u64` while the port emitter still sized entry ports with
+// `type_to_width`, whose last arm is `_ => 32`. This parameter became
+// `input wire [31:0]` -- a silent 16x narrowing, and the banner, the census,
+// the corpus column and yosys all reported success. It was retracted the same
+// wave.
+//
+// W699 replaced that call with `entry_port_width`, which returns None rather
+// than a plausible number and makes the entry point refuse LOUDLY in the
+// generated source. Verified end to end: this parameter now emits
+// `input wire [511:0]`, and `on_comb` and the function it forwards to both
+// take [511:0], so nothing is truncated between the boundary and the body.
+fn on_comb(acts: [8]u64, weights: [8]u64, nchunks: u32, threshold: i16) -> u8 { return neuronN(acts, weights, nchunks, threshold); }
+
 endmodule

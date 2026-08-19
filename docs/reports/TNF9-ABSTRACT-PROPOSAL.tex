@@ -1,0 +1,138 @@
+% W745: proposed replacement abstract for tnf_paper.tex, under the Nine-Rung Law.
+% NOT applied to the paper. Review, then splice between \begin{abstract} and
+% \end{abstract}. Every number below has a run behind it; provenance is listed
+% at the end of this file.
+
+\begin{abstract}
+A ternary node has three sites that could carry a number format; one needs to.
+The weight is a code: multiplying by it is a sign-select. The sample arrives
+ADC-native. The accumulator alone has a range to spend, and Ternary Network
+Floats spend it --- a sign, a balanced-ternary exponent of $E_t$ trits, an
+$M$-bit mantissa, $1+E_t+M=N$.
+
+\paragraph{Budget convention, stated once and binding throughout.}\label{sec:budget}
+$1+E_t+M=N$ counts the exponent as $E_t$ \emph{trit positions}. It is a
+specification convention, not a storage claim, and this paper uses two budgets
+under two explicit names. The \textbf{nominal} budget is $1+E_t+M=N$; the
+\textbf{physical} budget is $1+\lceil E_t\log_2 3\rceil+M \le N$, which is what a
+packed binary word costs. The two differ by
+$\lceil E_t\log_2 3\rceil - E_t$ cells, three at $E_t=4$ and seven at $E_t=11$, so
+the adopted 16-bit rung $(E_t,M)=(4,11)$ occupies $19$ physical bits. Every
+accuracy comparison against a binary format is stated with its budget named. Under
+the physical budget TNF holds no advantage at $16$ or $32$ bits ---
+Section~\ref{sec:threeresults} measures this, Table~\ref{tab:accphys} states it
+for the accuracy table specifically, and Theorem~\ref{thm:rangeperbit} says why it
+cannot be otherwise. Claims of the form ``TNF wins at equal width'' appear nowhere
+in this paper without the budget attached.
+
+\paragraph{The Nine-Rung Law, and what it replaces.}\label{sec:ninerung}
+The weight half of this paper began as a claim about a \emph{set}: that the
+alphabet $\{-\varphi,0,+\varphi\}$ is where a multiplier is decided, because
+$\mathbb{Z}[\varphi]$ is closed under weight application and accumulation alike
+and $\varphi^2=\varphi+1$ makes a weight the Fibonacci step
+$(a,b)\mapsto(b,a+b)$. That closure is proved and machine-checked in Coq, and it
+is retained below. \textbf{The claim built on it is withdrawn.} To test it we
+constructed the \emph{golden ladder}
+$\mathrm{GA\text{-}T}_n=\{0\}\cup\{\pm\varphi^k: 0\le k\le n\}$, of cardinality
+$2n{+}3$, and measured it on five axes. The ladder answered against itself, and
+the measurement it made possible is the result this paper now reports
+\textup{[measured]}:
+
+\begin{enumerate}
+\item \textbf{Cardinality dominates shape by an order of magnitude.} Across three
+binarised tasks (UNSW-NB15, MNIST, Fashion-MNIST), seven alphabets and $30$ seeds
+each --- $630$ trained runs, paired $t$-tests, inverse-variance pooled --- the
+\emph{size} of the alphabet is worth $+0.844$\,pp from three levels to nine
+($z=33.9$, direction identical on all three tasks), while its \emph{shape} at
+fixed size is worth $+0.085$\,pp ($z=5.7$, homogeneous at seven levels,
+$Q=2.2$; heterogeneous at nine, $Q=6.9$).
+
+\item \textbf{The return saturates, and never later than the ninth rung.} Eight
+rungs, three tasks, $30$ seeds --- a further $720$ runs --- then five
+same-dataset tasks of graded difficulty at five rungs and $20$ seeds, a further
+$500$. \textbf{Across eight tasks and $1220$ runs no step above nine levels is
+significant anywhere.} The last significant rung is nine on UNSW-NB15 and
+Fashion-MNIST and \emph{five} on MNIST: the ceiling is a constant, the rung is a
+property of the task, and we cannot predict which: task difficulty was proposed
+as the mechanism and refuted ($r=-0.35$, $n=5$, non-monotone), so the ceiling is
+reported as an empirical regularity with no mechanism claimed. The first step,
+three levels to five, is the largest everywhere ($+0.547$, $+1.622$, $+0.511$\,pp).
+
+\item \textbf{Therefore the alphabet is chosen on cost, not on accuracy.} At
+equal cardinality the difference between alphabets is under a tenth of a point,
+and the difference in area is not: on an XC7A200T, nine dyadic levels place in
+$1200$ LUT against the golden ladder's $1677$, with no DSP in either
+\textup{[measured, post-route]}. A power-of-two weight is a shift into one
+accumulator; a $\varphi^k$ weight is $F(k{-}1)x$ into one lane and $F(k)x$ into a
+second, and pays for both. \emph{Multiplier-free is not the same as free.}
+\end{enumerate}
+
+\paragraph{GA-T is reported here as an instrument.}
+The golden ladder is not this paper's answer and is the reason the paper has one.
+Nothing in the dyadic result was reachable without a graded family to compare
+against: the ladder is what turned ``is $\varphi$ special?'' --- unanswerable ---
+into ``how much does the shape of an alphabet buy at fixed size?'', which
+$1350$ runs answer. It is named, its rungs are defined by the powers of the
+fundamental unit of $\mathbb{Z}[\varphi]$, its cost is measured at every rung,
+and it has been placed, routed and read back off three XC7A200T dice. It is
+reported in full, including the five measurements that exclude it.
+
+\paragraph{The remaining ternary claims.}
+Closure does not single out $\varphi$; enumeration does. A scale is
+multiplier-free exactly when it is an algebraic integer whose companion matrix
+has entries in $\{0,\pm1\}$; degree two admits $\varphi$ alone, and nothing lies
+between the shift and $\varphi$. The family $r^d=r+1$ reaches any granularity at
+\emph{one addition} and $d$ registers: fineness costs registers, not adders. This
+is a statement about \emph{which scales are multiplier-free}, and the Nine-Rung
+Law is a statement about \emph{how much any of them buys}. The first survives the
+second.
+
+On an XC7A200T the folded ternary neuron costs $28.0$ LUT per weight at fan-in
+$8$, rising to $33.1$ and $33.2$ at fan-in $16$ and $32$, with \emph{no DSP at
+any fan-in} (Table~\ref{tab:node}).
+
+Applicability of the accumulator format is stated as a threshold and then tested
+against it. The scalar is $D=\operatorname{mean}(\lvert\log_2|x|\rvert)$; the
+threshold is a property of the rung, not of the family --- $D \gtrsim 9.5$ at
+sixteen physical cells and $D \gtrsim 21.9$ at thirty-two, with a third rung
+admitting no threshold at all --- and it is a conjunction with the range
+condition, which does most of the excluding. Eleven intermediate quantities of a
+real GPT-2 block satisfy none of it, because normalisation is what destroys the
+property. Seven of twenty-two candidate pairs outside neural inference do satisfy
+it, at $1.23\times$ to $4.00\times$. \texttt{takum} reaches $\pm 599$ binades at
+both widths compared and never leaves range where TNF does, so the format that
+wins inside the window is the one that has to be selected into it. One task
+outcome rather than a round-trip error is also reported: on a
+maximum-a-posteriori estimate in raw SI units with a fixed \texttt{float32}
+accumulator, TNF32 lands $1.60\times$ closer to the \texttt{float64} solution than
+\texttt{takum32} and settles in $21$ iterations against $27$, while
+\texttt{binary32} beats both by a factor of thirty-three.
+
+\paragraph{Retractions.}
+Twenty-three retractions of our own claims are marked in place below and
+enumerated in Section~\ref{sec:selfcheck}. Three are new to this revision and all
+three concern the weight alphabet: that $\{-\varphi,0,+\varphi\}$ decides the
+multiplier question, that the golden ladder's representation efficiency predicts
+its trained accuracy, and that a dyadic advantage measured on one task
+generalises. Each was refuted by the experiment proposed to confirm it.
+\end{abstract}
+
+% ---------------------------------------------------------------------------
+% PROVENANCE, so every number above can be checked rather than trusted.
+%
+%  +0.844 pp / z=33.9   size effect, pooled over 3 tasks        T286
+%  +0.085 pp / z=5.7    shape effect, pooled; Q=2.2 at K=7      T286
+%  9 / 5 / 9            last significant rung per task          T288
+%  +0.547/+1.622/+0.511 the 3->5 step per task                  T288
+%  1200 vs 1677 LUT     placed, XC7A200T, one 64->8 layer       T280, T283
+%  630 + 720 runs       3 tasks x 7 arms x 30, then 8 rungs     T286, T288
+%  silicon readback     Done 0x0 -> done 1, magic 0xA5A5A5A     T219, T281
+%
+% All in docs/theory/IGLA-FORMAL-RESULTS.md of gHashTag/t27, branch
+% claude/igla-fpga-improvements-3f5e1a. Raw runs in
+% experiments/gfternary-line/*.json.
+%
+% NOT APPLIED and NOT PUSHED: the handoff rule is that Dmitrii confirms before
+% any push or merge. The title change to TNF-9 is proposed separately and is not
+% made here, because the \title block carries the canon plate and the logo.
+% ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 ; (a ternary-weight quantizer, cf. TWN / BitNet, with the scale fixed at phi).
 ; phi^2 + phi^-2 = 3 | TRINITY
 
-module triformat-gfternary;
+module triformat-gaternary;
 
 // ============================================================================
 // Constants
@@ -17,10 +17,10 @@ pub const PHI_INV : f64 = 0.6180339887498949;
 
 // 2-bit code points, stored in the low two bits of a u8 container.
 pub const CODE_MASK : u8 = 0x03;
-pub const GFT_ZERO : u8 = 0x00;   // 0b00 -> 0
-pub const GFT_POS  : u8 = 0x01;   // 0b01 -> +phi
-pub const GFT_NEG  : u8 = 0x02;   // 0b10 -> -phi
-pub const GFT_RSVD : u8 = 0x03;   // 0b11 -> reserved (folds to zero)
+pub const GAT_ZERO : u8 = 0x00;   // 0b00 -> 0
+pub const GAT_POS  : u8 = 0x01;   // 0b01 -> +phi
+pub const GAT_NEG  : u8 = 0x02;   // 0b10 -> -phi
+pub const GAT_RSVD : u8 = 0x03;   // 0b11 -> reserved (folds to zero)
 
 // ============================================================================
 // Types
@@ -32,90 +32,90 @@ pub const GFTernary = u8;
 // Core functions
 // ============================================================================
 
-// gft_canonical(code) GFTernary
+// gat_canonical(code) GFTernary
 // Mask to the low two bits and fold the reserved code 0b11 onto zero.
-pub fn gft_canonical(code: GFTernary) GFTernary {
+pub fn gat_canonical(code: GFTernary) GFTernary {
     const c = code & CODE_MASK;
-    return if (c == GFT_RSVD) GFT_ZERO else c;
+    return if (c == GAT_RSVD) GAT_ZERO else c;
 }
 
-// gft_is_zero(code) bool
-pub fn gft_is_zero(code: GFTernary) bool {
-    return gft_canonical(code) == GFT_ZERO;
+// gat_is_zero(code) bool
+pub fn gat_is_zero(code: GFTernary) bool {
+    return gat_canonical(code) == GAT_ZERO;
 }
 
-// gft_sign(code) i8 -> -1, 0, +1
-pub fn gft_sign(code: GFTernary) i8 {
-    const c = gft_canonical(code);
-    return if (c == GFT_POS) 1 else if (c == GFT_NEG) -1 else 0;
+// gat_sign(code) i8 -> -1, 0, +1
+pub fn gat_sign(code: GFTernary) i8 {
+    const c = gat_canonical(code);
+    return if (c == GAT_POS) 1 else if (c == GAT_NEG) -1 else 0;
 }
 
-// gft_from_sign(s) GFTernary  (s in {-1, 0, +1})
-pub fn gft_from_sign(s: i8) GFTernary {
-    return if (s > 0) GFT_POS else if (s < 0) GFT_NEG else GFT_ZERO;
+// gat_from_sign(s) GFTernary  (s in {-1, 0, +1})
+pub fn gat_from_sign(s: i8) GFTernary {
+    return if (s > 0) GAT_POS else if (s < 0) GAT_NEG else GAT_ZERO;
 }
 
-// gft_negate(code) GFTernary  -- flips +phi <-> -phi, zero is fixed.
-pub fn gft_negate(code: GFTernary) GFTernary {
-    const c = gft_canonical(code);
-    return if (c == GFT_POS) GFT_NEG else if (c == GFT_NEG) GFT_POS else GFT_ZERO;
+// gat_negate(code) GFTernary  -- flips +phi <-> -phi, zero is fixed.
+pub fn gat_negate(code: GFTernary) GFTernary {
+    const c = gat_canonical(code);
+    return if (c == GAT_POS) GAT_NEG else if (c == GAT_NEG) GAT_POS else GAT_ZERO;
 }
 
-// gft_to_f64(code) f64 -> { +PHI, -PHI, 0.0 }
-pub fn gft_to_f64(code: GFTernary) f64 {
-    const c = gft_canonical(code);
-    return if (c == GFT_POS) PHI else if (c == GFT_NEG) -PHI else 0.0;
+// gat_to_f64(code) f64 -> { +PHI, -PHI, 0.0 }
+pub fn gat_to_f64(code: GFTernary) f64 {
+    const c = gat_canonical(code);
+    return if (c == GAT_POS) PHI else if (c == GAT_NEG) -PHI else 0.0;
 }
 
-// gft_from_f64(value, threshold) GFTernary
+// gat_from_f64(value, threshold) GFTernary
 // Ternary-weight quantizer with fixed phi scale (TWN with alpha = phi):
 //   |value| <= |threshold|        -> 0
 //   value   >  |threshold|        -> +phi
 //   value   < -|threshold|        -> -phi
-pub fn gft_from_f64(value: f64, threshold: f64) GFTernary {
+pub fn gat_from_f64(value: f64, threshold: f64) GFTernary {
     const t = if (threshold < 0.0) -threshold else threshold;
-    if (value > t) return GFT_POS;
-    if (value < -t) return GFT_NEG;
-    return GFT_ZERO;
+    if (value > t) return GAT_POS;
+    if (value < -t) return GAT_NEG;
+    return GAT_ZERO;
 }
 
 // ============================================================================
 // Tests (L4 TESTABILITY). f64 checks use a tolerance (L5 IDENTITY).
 // ============================================================================
 
-test "gft_three_representable_values" {
-    const dp = gft_to_f64(GFT_POS) - PHI;
-    const dn = gft_to_f64(GFT_NEG) + PHI;
-    try std.testing.expect(gft_to_f64(GFT_ZERO) == 0.0);
+test "gat_three_representable_values" {
+    const dp = gat_to_f64(GAT_POS) - PHI;
+    const dn = gat_to_f64(GAT_NEG) + PHI;
+    try std.testing.expect(gat_to_f64(GAT_ZERO) == 0.0);
     try std.testing.expect(dp > -1e-12 and dp < 1e-12);
     try std.testing.expect(dn > -1e-12 and dn < 1e-12);
 }
 
-test "gft_reserved_code_folds_to_zero" {
-    try std.testing.expect(gft_is_zero(GFT_RSVD));
-    try std.testing.expect(gft_to_f64(GFT_RSVD) == 0.0);
+test "gat_reserved_code_folds_to_zero" {
+    try std.testing.expect(gat_is_zero(GAT_RSVD));
+    try std.testing.expect(gat_to_f64(GAT_RSVD) == 0.0);
 }
 
-test "gft_negate_symmetry" {
-    const d = gft_to_f64(gft_negate(GFT_POS)) + PHI;
+test "gat_negate_symmetry" {
+    const d = gat_to_f64(gat_negate(GAT_POS)) + PHI;
     try std.testing.expect(d > -1e-12 and d < 1e-12);
-    try std.testing.expect(gft_negate(GFT_ZERO) == GFT_ZERO);
+    try std.testing.expect(gat_negate(GAT_ZERO) == GAT_ZERO);
 }
 
-test "gft_sign_roundtrip" {
-    try std.testing.expect(gft_from_sign(gft_sign(GFT_POS)) == GFT_POS);
-    try std.testing.expect(gft_from_sign(gft_sign(GFT_NEG)) == GFT_NEG);
-    try std.testing.expect(gft_from_sign(gft_sign(GFT_ZERO)) == GFT_ZERO);
+test "gat_sign_roundtrip" {
+    try std.testing.expect(gat_from_sign(gat_sign(GAT_POS)) == GAT_POS);
+    try std.testing.expect(gat_from_sign(gat_sign(GAT_NEG)) == GAT_NEG);
+    try std.testing.expect(gat_from_sign(gat_sign(GAT_ZERO)) == GAT_ZERO);
 }
 
-test "gft_quantizer_threshold" {
-    try std.testing.expect(gft_from_f64(2.0, 0.5) == GFT_POS);
-    try std.testing.expect(gft_from_f64(-2.0, 0.5) == GFT_NEG);
-    try std.testing.expect(gft_from_f64(0.1, 0.5) == GFT_ZERO);
+test "gat_quantizer_threshold" {
+    try std.testing.expect(gat_from_f64(2.0, 0.5) == GAT_POS);
+    try std.testing.expect(gat_from_f64(-2.0, 0.5) == GAT_NEG);
+    try std.testing.expect(gat_from_f64(0.1, 0.5) == GAT_ZERO);
 }
 
 // L5 IDENTITY: phi^2 = phi + 1; phi^2 + phi^-2 = 3; phi * phi^-1 = 1.
-test "gft_phi_identity_l5" {
+test "gat_phi_identity_l5" {
     const d1 = PHI * PHI - (PHI + 1.0);
     const d2 = PHI * PHI + PHI_INV * PHI_INV - 3.0;
     const d3 = PHI * PHI_INV - 1.0;
@@ -133,9 +133,9 @@ bench "bench_gft_decode_latency" {
     // target: < 20ns (mask + two compares)
     @setEvalBranchQuota(10000);
     var result: f64 = 0.0;
-    const code: GFTernary = GFT_NEG;
+    const code: GFTernary = GAT_NEG;
     for (0..1000) |_| {
-        result = gft_to_f64(code);
+        result = gat_to_f64(code);
     }
     _ = result;
 }
@@ -148,7 +148,7 @@ bench "bench_gft_quantize_latency" {
     const v: f64 = 1.3;
     const thr: f64 = 0.5;
     for (0..1000) |_| {
-        result = gft_from_f64(v, thr);
+        result = gat_from_f64(v, thr);
     }
     _ = result;
 }
@@ -172,16 +172,16 @@ pub const SCALED_TERNARY_INIT_ALPHA : f64 = PHI;
 pub const MC_ERROR_BPB : f64 = 0.003;
 
 // GFTernary weight L2-norm per element (for normalisation comparison).
-// gft_weight_l2 = phi (non-zero arms); int_ternary_weight_l2 = 1.0.
+// gat_weight_l2 = phi (non-zero arms); int_ternary_weight_l2 = 1.0.
 // A scale factor of phi inflates norms -- must be tracked in comparison.
-pub const GFT_WEIGHT_NORM : f64 = PHI;
+pub const GAT_WEIGHT_NORM : f64 = PHI;
 pub const INT_TERNARY_WEIGHT_NORM : f64 = INT_TERNARY_SCALE;
 
 // ============================================================================
 // C1 Tests (L4 TESTABILITY)
 // ============================================================================
 
-test "gft_control_arm_definitions" {
+test "gat_control_arm_definitions" {
     // Arm A: GFTernary scale is phi
     const arm_a_scale : f64 = PHI;
     // Arm B: IntTernary scale is exactly 1.0
@@ -196,7 +196,7 @@ test "gft_control_arm_definitions" {
     try std.testing.expect(d_ac > -1e-12 and d_ac < 1e-12);
 }
 
-test "gft_falsification_criterion_bpb_gap" {
+test "gat_falsification_criterion_bpb_gap" {
     // Given: bpb_gft (arm A) and bpb_int (arm B) from a hypothetical run.
     // The test checks the logic: claim survives iff gap > MC_ERROR_BPB.
     //
@@ -219,23 +219,23 @@ test "gft_falsification_criterion_bpb_gap" {
     try std.testing.expect(gap_worse < 0.0);
 }
 
-test "gft_weight_norm_ratio" {
+test "gat_weight_norm_ratio" {
     // GFT weights have L2 norm phi per non-zero element.
     // Int-ternary weights have L2 norm 1.0.
     // Ratio = phi; must be accounted for in effective learning-rate comparison.
-    const ratio = GFT_WEIGHT_NORM / INT_TERNARY_WEIGHT_NORM;
+    const ratio = GAT_WEIGHT_NORM / INT_TERNARY_WEIGHT_NORM;
     const expected_ratio = PHI;
     const d = ratio - expected_ratio;
     try std.testing.expect(d > -1e-12 and d < 1e-12);
 }
 
-test "gft_mc_error_threshold_positive" {
+test "gat_mc_error_threshold_positive" {
     // MC_ERROR_BPB must be strictly positive and small.
     try std.testing.expect(MC_ERROR_BPB > 0.0);
     try std.testing.expect(MC_ERROR_BPB < 0.01);
 }
 
-test "gft_phi_l5_identity_in_ablation_context" {
+test "gat_phi_l5_identity_in_ablation_context" {
     // L5 IDENTITY: phi^2 + phi^-2 = 3 holds exactly for the scale constant.
     // [Verified] -- the ONLY verified phi fact.
     const phi2 = PHI * PHI;
@@ -249,30 +249,30 @@ test "gft_phi_l5_identity_in_ablation_context" {
 // C1 Invariants (L4 TESTABILITY)
 // ============================================================================
 
-invariant "gft_phi_scale_distinct_from_unit" {
+invariant "gat_phi_scale_distinct_from_unit" {
     // phi != 1.0 -- the ternary arms are numerically different.
     // [Verified trivially from phi definition; not a conjecture.]
     @compileAssert(PHI > 1.5);          // phi ~ 1.618
     @compileAssert(INT_TERNARY_SCALE == 1.0);
 }
 
-invariant "gft_integer_ternary_scale_unit" {
+invariant "gat_integer_ternary_scale_unit" {
     // The integer ternary baseline (BitNet b1.58) uses scale exactly 1.0.
     @compileAssert(INT_TERNARY_SCALE == 1.0);
 }
 
-invariant "gft_mc_error_positive" {
+invariant "gat_mc_error_positive" {
     // MC error threshold must be positive to be a valid falsification bound.
     @compileAssert(MC_ERROR_BPB > 0.0);
 }
 
-invariant "gft_arm_scales_distinct" {
+invariant "gat_arm_scales_distinct" {
     // Arms A and B must have different scales to be a real ablation.
     // PHI > 1.0 == INT_TERNARY_SCALE is guaranteed by phi > 1.
     @compileAssert(PHI > INT_TERNARY_SCALE);
 }
 
-invariant "gft_claim_status_open_conjecture" {
+invariant "gat_claim_status_open_conjecture" {
     // [Open conjecture]: phi ternary scale superiority over int-ternary is NOT
     // proven by any theorem in this repo. The claim requires the control test.
     // This invariant enforces that no assertion in this file claims it proven.
@@ -309,7 +309,7 @@ pub const MAX_LATENCY_RATIO : f64 = 2.0;
 // C2 Tests
 // ============================================================================
 
-test "gft_cpu_bench_constants_sane" {
+test "gat_cpu_bench_constants_sane" {
     // Hidden dim = 384 matches the SmolLM2/IGLA champion config.
     try std.testing.expect(BENCH_HIDDEN_DIM == 384);
     // Non-zero fraction is approximately 1/3.
@@ -319,7 +319,7 @@ test "gft_cpu_bench_constants_sane" {
     try std.testing.expect(MAX_LATENCY_RATIO == 2.0);
 }
 
-test "gft_cpu_latency_ratio_gate" {
+test "gat_cpu_latency_ratio_gate" {
     // Simulated scenario: ratio 1.05 (GFT 5% slower than IntTernary).
     // A ratio below MAX_LATENCY_RATIO is acceptable.
     const simulated_ratio : f64 = 1.05;
@@ -338,7 +338,7 @@ bench "bench_gft_vs_int_ternary_mac" {
     // Measures: MAC throughput for a ternary-weight matrix-vector product
     //   of shape (BENCH_HIDDEN_DIM x BENCH_HIDDEN_DIM) at ~1/3 sparsity.
     // Compares two code paths:
-    //   (a) GFTernary: decode GFT_NEG/GFT_POS to +/-phi, multiply.
+    //   (a) GFTernary: decode GAT_NEG/GAT_POS to +/-phi, multiply.
     //   (b) IntTernary: decode to +/-1, multiply (same branch structure).
     // Difference: GFTernary multiplies by phi (a float multiply) vs 1.0
     //   (which compilers may elide). This bench quantifies that overhead.
@@ -352,12 +352,12 @@ bench "bench_gft_vs_int_ternary_mac" {
     const N : usize = BENCH_HIDDEN_DIM;
     var sum_gft : f64 = 0.0;
     var sum_int : f64 = 0.0;
-    const codes : [4]GFTernary = [GFT_ZERO, GFT_POS, GFT_NEG, GFT_ZERO];
+    const codes : [4]GFTernary = [GAT_ZERO, GAT_POS, GAT_NEG, GAT_ZERO];
     const signs : [4]i8 = [0, 1, -1, 0];
     for (0..N) |i| {
         const idx = i & 3;
         // GFTernary path: multiply by phi
-        sum_gft += gft_to_f64(codes[idx]) * 0.5;
+        sum_gft += gat_to_f64(codes[idx]) * 0.5;
         // IntTernary path: multiply by sign (no phi scale)
         sum_int += @as(f64, @floatFromInt(signs[idx])) * 0.5;
     }
@@ -374,11 +374,11 @@ bench "bench_gft_cpu_inference_bitnet_baseline" {
     @setEvalBranchQuota(100000);
     const N : usize = BENCH_HIDDEN_DIM;
     var acc : f64 = 0.0;
-    var code : GFTernary = GFT_POS;
+    var code : GFTernary = GAT_POS;
     for (0..N) |_| {
         // GFTernary decode + multiply (the critical inner loop operation)
-        acc += gft_to_f64(code) * 0.25;
-        code = gft_canonical(code + 1);
+        acc += gat_to_f64(code) * 0.25;
+        code = gat_canonical(code + 1);
     }
     _ = acc;
 }

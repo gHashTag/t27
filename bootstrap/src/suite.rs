@@ -23,6 +23,23 @@ pub struct SuiteOptions {
     pub fast: bool,
     /// Write the machine-readable suite summary to this path (Wave Loop 440).
     pub json_out: Option<PathBuf>,
+    /// W628: gate the exit code on `docs/reports/suite_expectations.json`
+    /// instead of on `total_failures != 0`. Without this the suite behaves
+    /// exactly as it did before, so existing CI is unaffected.
+    pub ratchet: bool,
+    /// W628: rewrite the expectations ledger from this run. The ONLY writer --
+    /// acquisition is never a side effect of verification (T31).
+    pub bless_expectations: bool,
+    /// W640: record a missing Icarus baseline instead of failing. The ONLY
+    /// way to acquire one -- verification never blesses (T31).
+    pub bless_baselines: bool,
+    /// W632: restrict every spec-walking phase to the hand-written corpus,
+    /// excluding `specs/scratch/`. The ratchet already gates on primary CORPUS
+    /// failures only, so this removes work whose result the verdict ignores --
+    /// and `specs/scratch/` is 606,113,688 of the 612,924,235 bytes the walk
+    /// covers (98.89%). T24 said cost is set by the widest glob; this narrows
+    /// the glob to the artefacts under test. See T40.
+    pub corpus_only: bool,
 }
 
 fn t27c_exe() -> anyhow::Result<PathBuf> {
@@ -141,6 +158,213 @@ fn run_phase(
     Ok((pass, fail))
 }
 
+/// W627: `specs/scratch/` is generator output -- 455 files and 98.89% of the
+/// 612,924,235 bytes `collect_t27(repo/specs)` returns, against 6,810,547 bytes
+/// of hand-written corpus. Every phase count in this suite has been a sum over
+/// those two populations, which mean entirely different things: a parse failure
+/// in the corpus is a defect, one in a generated benchmark is a fixture. See
+/// T24 and T29.
+fn is_scratch(rel: &str) -> bool {
+    rel.starts_with("specs/scratch/")
+}
+
+/// A phase's failures, split by the population they came from.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct PhaseSplit {
+    /// Failing paths under `specs/` but NOT under `specs/scratch/`.
+    corpus: Vec<String>,
+    /// Failing paths under `specs/scratch/`.
+    scratch: Vec<String>,
+}
+
+impl PhaseSplit {
+    fn from_failures(failures: &[String]) -> Self {
+        let mut s = PhaseSplit::default();
+        for f in failures {
+            if is_scratch(f) {
+                s.scratch.push(f.clone());
+            } else {
+                s.corpus.push(f.clone());
+            }
+        }
+        s
+    }
+
+    fn total(&self) -> usize {
+        self.corpus.len() + self.scratch.len()
+    }
+}
+
+/// W627: a per-file outcome that distinguishes "this phase disagreed" from
+/// "this phase never had a chance". `typecheck`, `gen-*` and friends run on
+/// files that never parsed, so one unparseable spec produced SIX failure
+/// counters. `BLOCKED` is not a failure and must never enter a ledger.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct PhaseAttribution {
+    /// Failures at this phase on files that cleared every earlier phase.
+    primary: PhaseSplit,
+    /// Failures on files already failing an earlier phase. Counted, not blamed.
+    blocked: Vec<String>,
+}
+
+impl PhaseAttribution {
+    /// Split `failures` against the set of paths that already failed upstream.
+    fn attribute(failures: &[String], already_failed: &std::collections::HashSet<String>) -> Self {
+        let (blocked, fresh): (Vec<String>, Vec<String>) = failures
+            .iter()
+            .cloned()
+            .partition(|f| already_failed.contains(f));
+        PhaseAttribution {
+            primary: PhaseSplit::from_failures(&fresh),
+            blocked,
+        }
+    }
+}
+
+// =========================================================================
+// W628: the expectations ledger.
+//
+// T27 proved a gate whose baseline is already non-zero detects nothing: a new
+// break lands inside 2614 and moves the exit code not at all. T32 surveyed how
+// the field solves this and found one invariant across every system that does
+// it correctly -- lit's XFAIL, DejaGnu's XFAIL/XPASS, Chromium's
+// TestExpectations, `@ts-expect-error`, Rust's `#[expect]`: **the unit of
+// amnesty is an IDENTITY paired with an expected outcome, and the verdict is
+// observed-versus-expected per identity.** None of them reports a total and
+// asks a human to remember what the total used to be.
+//
+// So: a set of `(path, phase)` pairs, not a count. T30 is why this is only
+// 206 entries and not ~1236 -- attribution must precede amnesty.
+//
+// Three anti-rot rules, all from T32's survey, all enforced here rather than
+// left to review:
+//   * an UNEXPECTED PASS is a failure (pytest's `xfail_strict`, made default);
+//   * every entry carries a mandatory `expires`, and a past-due entry FAILS;
+//   * `max_entries` is a monotone-downward cap -- growing it is a hand edit.
+// =========================================================================
+
+/// One amnestied failure: an identity, why, who owns it, and when the amnesty
+/// runs out.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+struct ExpectationEntry {
+    /// Repo-relative spec path.
+    path: String,
+    /// The phase that FIRST rejected it. Never a downstream, gated phase.
+    phase: String,
+    /// Why this is amnestied. Free text, for the human reading the diff.
+    reason: String,
+    /// Tracking issue number.
+    issue: u64,
+    /// `YYYY-MM-DD`. A past-due entry fails the run -- this is the only thing
+    /// in the design that pushes back on normalisation of deviance.
+    expires: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct SuiteExpectations {
+    schema_version: u32,
+    generated_by: String,
+    /// Monotone-downward cap on `entries.len()`. Raising it is a hand edit and
+    /// therefore a reviewable event.
+    max_entries: usize,
+    /// Sorted by `(path, phase)` so diffs stay line-local.
+    entries: Vec<ExpectationEntry>,
+}
+
+impl Default for SuiteExpectations {
+    fn default() -> Self {
+        SuiteExpectations {
+            schema_version: 1,
+            generated_by: "t27c suite --bless-expectations".to_string(),
+            max_entries: 0,
+            entries: Vec::new(),
+        }
+    }
+}
+
+fn expectations_path(repo: &Path) -> PathBuf {
+    repo.join("docs/reports/suite_expectations.json")
+}
+
+/// Load the ledger. **A missing file is `Ok(None)`, never an empty ledger.**
+/// T31 is the bug where a gate treats "no oracle" as "pass"; the caller must
+/// decide explicitly what absence means, so absence is not silently blessed.
+fn load_expectations(path: &Path) -> anyhow::Result<Option<SuiteExpectations>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("reading expectations {}", path.display()))?;
+    let parsed: SuiteExpectations = serde_json::from_str(&raw)
+        .with_context(|| format!("parsing expectations {}", path.display()))?;
+    Ok(Some(parsed))
+}
+
+fn save_expectations(path: &Path, exp: &SuiteExpectations) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, format!("{}\n", serde_json::to_string_pretty(exp)?))
+        .with_context(|| format!("writing expectations {}", path.display()))?;
+    Ok(())
+}
+
+/// The verdict: what the run observed against what the ledger expected.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+struct RatchetVerdict {
+    /// Observed primary corpus failures with no ledger entry. Regressions.
+    unexpected_failures: Vec<String>,
+    /// Ledger entries that did NOT fail. Fixed -- and a failure, per
+    /// `xfail_strict`, because otherwise the ledger silently rots.
+    unexpected_passes: Vec<String>,
+    /// Entries whose `expires` is in the past.
+    expired: Vec<String>,
+    /// True when `entries.len()` exceeds the declared cap.
+    over_cap: bool,
+    ledger_size: usize,
+    max_entries: usize,
+}
+
+impl RatchetVerdict {
+    fn clean(&self) -> bool {
+        self.unexpected_failures.is_empty()
+            && self.unexpected_passes.is_empty()
+            && self.expired.is_empty()
+            && !self.over_cap
+    }
+}
+
+/// Compare observed primary corpus failures against the ledger.
+/// `observed` is a set of `(path, phase)`; `today` is `YYYY-MM-DD`.
+fn ratchet_compare(
+    observed: &std::collections::BTreeSet<(String, String)>,
+    exp: &SuiteExpectations,
+    today: &str,
+) -> RatchetVerdict {
+    let expected: std::collections::BTreeSet<(String, String)> = exp
+        .entries
+        .iter()
+        .map(|e| (e.path.clone(), e.phase.clone()))
+        .collect();
+
+    let fmt = |(p, ph): &(String, String)| format!("{} [{}]", p, ph);
+
+    RatchetVerdict {
+        unexpected_failures: observed.difference(&expected).map(fmt).collect(),
+        unexpected_passes: expected.difference(observed).map(fmt).collect(),
+        // Lexicographic comparison is correct for zero-padded ISO-8601 dates.
+        expired: exp
+            .entries
+            .iter()
+            .filter(|e| e.expires.as_str() < today)
+            .map(|e| format!("{} [{}] expired {}", e.path, e.phase, e.expires))
+            .collect(),
+        over_cap: exp.entries.len() > exp.max_entries,
+        ledger_size: exp.entries.len(),
+        max_entries: exp.max_entries,
+    }
+}
+
 /// Like `run_phase`, but also returns the relative paths of failing files so the
 /// suite summary can expose them to CI consumers.
 fn run_phase_with_failures(
@@ -171,6 +395,386 @@ fn run_phase_with_failures(
         }
     }
     Ok((pass, fail, failures))
+}
+
+/// W633: a parse that REACHED EOF is not a parse that read everything.
+/// Top-level drop-recovery resyncs past an unrecognised declaration, so
+/// `parse` returns success on input it consumed and threw away -- measured at
+/// 55,563 tokens across 130 corpus specs, invisible to every gate this project
+/// has ever run. Runs in-process: no subprocess, so the phase is nearly free.
+/// See T42.
+fn cmd_parse_no_discard(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    match crate::compiler::Compiler::parse_ast_accounted(&src) {
+        // A file that does not parse at all is the `parse` phase's business,
+        // not this one; do not double-report it (T30).
+        Err(_) => Ok(()),
+        Ok((_, 0)) => Ok(()),
+        Ok((_, n)) => anyhow::bail!(
+            "parser reached EOF but DISCARDED {} top-level token(s);              they never reach codegen",
+            n
+        ),
+    }
+}
+
+/// W635: an `invariant` whose body was never lowered. The backend used to
+/// report these as "verified (no statements)" -- a positive verification claim
+/// whose truth-maker was the absence of content (T43). The message is now
+/// honest; this phase makes the population gated, so it cannot grow unnoticed.
+/// In-process, so the phase costs nothing.
+fn cmd_no_vacuous_invariant(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let zig = match crate::compiler::Compiler::compile(&src) {
+        // A file that does not compile is another phase's business (T30).
+        Err(_) => return Ok(()),
+        Ok(z) => z,
+    };
+    let n = zig.matches("NOT CHECKED -- body was not lowered").count();
+    if n == 0 {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} invariant(s) declared but not lowered: the clause body was discarded          and nothing is checked",
+        n
+    )
+}
+
+/// W636: a generated Verilog test block that prints `[TEST] X : PASSED` with
+/// no check between "starting" and "PASSED". Measured at 3,429 of 12,067 blocks
+/// (28%); 1,792 trace to `test X { /* verify baseline */ }` -- authored-empty
+/// placeholders carrying an identical generator comment.
+///
+/// The Zig backend emits `test "X" {}` for the same AST -- empty, claiming
+/// nothing. **The same source is honest in one backend and false in the other**,
+/// which isolates the defect to the Verilog reporting convention. See T45.
+///
+/// This phase REPORTS; it does not change the emitted text. Changing it would
+/// invalidate 108 committed Icarus baselines (44% of whose recorded lines are
+/// PASSED), and re-blessing golden output is an explicit human step (T31).
+fn cmd_no_vacuous_verilog_test(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog(&src) {
+        Err(_) => return Ok(()), // another phase's business (T30)
+        Ok(v) => v,
+    };
+    let mut vacuous = 0usize;
+    let mut in_block = false;
+    let (mut has_check, mut has_passed) = (false, false);
+    for line in v.lines() {
+        let t = line.trim();
+        if t.starts_with("initial begin :") {
+            in_block = true;
+            has_check = false;
+            has_passed = false;
+            continue;
+        }
+        if !in_block {
+            continue;
+        }
+        if t == "end" {
+            if has_passed && !has_check {
+                vacuous += 1;
+            }
+            in_block = false;
+            continue;
+        }
+        if t.starts_with("if (") || t.contains("assert") || t.contains("FAILED") {
+            has_check = true;
+        }
+        if t.contains(": PASSED") {
+            has_passed = true;
+        }
+    }
+    if vacuous == 0 {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} generated test block(s) print PASSED with no check; a simulation log          reports them as successes",
+        vacuous
+    )
+}
+
+/// W639: T48's differential, as a gate. For every `test` / `invariant` a spec
+/// declares, each backend must either LOWER it (the name appears in the output)
+/// or DECLARE the omission in the artefact. Silence -- emitting neither the
+/// construct nor a notice -- is the one failure mode with no local evidence: it
+/// is indistinguishable from "the source had nothing to lower", and only a
+/// cross-backend comparison can see it.
+///
+/// Conditioned on backends that produced output at all; an empty output is a
+/// different failure and belongs to another phase (T35/T49).
+fn cmd_backends_declare_omissions(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let names: Vec<String> = src
+        .lines()
+        .filter_map(|l| {
+            let t = l.trim_start();
+            for kw in ["test ", "invariant "] {
+                if let Some(rest) = t.strip_prefix(kw) {
+                    let n: String = rest
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
+                        .collect();
+                    if !n.is_empty() {
+                        return Some(n);
+                    }
+                }
+            }
+            None
+        })
+        .collect();
+    if names.is_empty() {
+        return Ok(());
+    }
+    let backends: [(&str, fn(&str) -> Result<String, String>); 3] = [
+        ("gen", crate::compiler::Compiler::compile),
+        ("gen-rust", crate::compiler::Compiler::compile_rust),
+        ("gen-verilog", crate::compiler::Compiler::compile_verilog),
+    ];
+    let mut complaints: Vec<String> = Vec::new();
+    for (label, f) in backends {
+        let out = match f(&src) {
+            Err(_) => continue,          // no output: another phase's business
+            Ok(o) if o.trim().is_empty() => continue,
+            Ok(o) => o,
+        };
+        // An artefact that names its omission is honest, whatever it omits.
+        if out.contains("NOT LOWERED BY THIS BACKEND") {
+            continue;
+        }
+        let missing = names.iter().filter(|n| !out.contains(n.as_str())).count();
+        if missing > 0 {
+            complaints.push(format!("{}: {} of {} silently absent", label, missing, names.len()));
+        }
+    }
+    if complaints.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "backend(s) dropped declared constructs without saying so -- {}",
+        complaints.join("; ")
+    )
+}
+
+/// W644: T53 found an escape that exists, is tested, and was omitted at two of
+/// its emit sites -- and its real finding was that **nobody can enumerate the
+/// sites**. Correctness is a conjunctive obligation over a set that grows
+/// whenever an emitter is added, so no amount of care at the known sites is
+/// evidence about the unknown ones.
+///
+/// So this checks the ARTEFACT, not the code paths. You cannot enumerate emit
+/// sites; you can enumerate the output's declared identifiers. Any declaration
+/// whose name is a Verilog keyword and is not backslash-escaped fails, wherever
+/// in the backend it came from. See T54.
+fn cmd_verilog_declares_no_keyword(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()), // another phase's business (T30)
+        Ok(v) => v,
+    };
+    let mut bad: Vec<String> = Vec::new();
+    for (i, line) in v.lines().enumerate() {
+        for ident in verilog_declared_names(line.trim()) {
+            if crate::compiler::Compiler::is_verilog_keyword(&ident) {
+                bad.push(format!("line {}: `{}` declared unescaped", i + 1, ident));
+            }
+        }
+    }
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "generated Verilog declares {} identifier(s) that are Verilog keywords: {}",
+        bad.len(),
+        bad.join("; ")
+    )
+}
+
+/// W645: the declaration forms this backend actually emits, ENUMERATED FROM ITS
+/// OUTPUT rather than guessed. Over three representative specs:
+///
+/// ```text
+///   965 reg      59 input     17 function    14 integer
+///    12 localparam  5 task     3 output
+/// ```
+///
+/// The W644 scanner parsed `reg`/`wire`/`integer` -- two of the seven forms in
+/// use, plus one (`wire`) the backend never emits. A checker that claims
+/// totality and covers 2 of 7 is T43's shape applied to the checker, which is
+/// why the coverage is now derived from the artefact and written down here.
+///
+/// **Known limits**, stated rather than implied: multi-name declarations
+/// (`reg a, b;`) yield only the first name, and a declaration split across
+/// lines is not seen. Both are absent from this backend's output today; if it
+/// starts emitting them this comment is the record of what stopped being true.
+fn verilog_declared_names(t: &str) -> Vec<String> {
+    const FORMS: [&str; 7] = [
+        "reg", "wire", "integer", "input", "output", "localparam", "genvar",
+    ];
+    // `function [63:0] name;` and `task name;` put the name last before `;`.
+    for kw in ["function", "task"] {
+        if let Some(rest) = t.strip_prefix(kw).and_then(|r| r.strip_prefix(' ')) {
+            let head = rest.split(';').next().unwrap_or("");
+            if let Some(n) = head.split_whitespace().last() {
+                return vec_of_ident(n);
+            }
+            return Vec::new();
+        }
+    }
+    for kw in FORMS {
+        let Some(rest) = t.strip_prefix(kw).and_then(|r| r.strip_prefix(' ')) else {
+            continue;
+        };
+        // Skip width/sign/direction qualifiers to reach the identifier.
+        // W645: the qualifier set must include TYPE keywords, not just sign
+        // and storage. `localparam real ZERO = 0.0;` declares `ZERO`; the
+        // first draft read `real` as the identifier and reported 49 false
+        // positives -- the third detector this session to need its precision
+        // checked before its count was believed (cf. T47).
+        let name = rest.split_whitespace().find(|w| {
+            !w.starts_with('[')
+                && !matches!(
+                    *w,
+                    "signed"
+                        | "unsigned"
+                        | "reg"
+                        | "wire"
+                        | "integer"
+                        | "real"
+                        | "realtime"
+                        | "time"
+                        | "logic"
+                        | "bit"
+                        | "byte"
+                        | "int"
+                        | "shortint"
+                        | "longint"
+                )
+        });
+        return name.map(vec_of_ident).unwrap_or_default();
+    }
+    Vec::new()
+}
+
+/// `\buf ` is the escape and is exactly what this gate wants to see, so an
+/// escaped name yields nothing to complain about.
+fn vec_of_ident(tok: &str) -> Vec<String> {
+    if tok.starts_with('\\') {
+        return Vec::new();
+    }
+    let id: String = tok
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if id.is_empty() {
+        Vec::new()
+    } else {
+        vec![id]
+    }
+}
+
+/// W647: T57 asserted that no static check could distinguish `%%0d` from `%0d`
+/// "without modelling `$display`'s format grammar, i.e. being a Verilog
+/// interpreter". **That was too strong, and its own falsification condition is
+/// met by three lines.** The relevant fact is not about Verilog's grammar but
+/// about this generator: it never intends a literal percent. Every `%` it emits
+/// is a directive -- verified over the corpus, where the only `%`-bearing text
+/// is `%0d cycles`. So `%%` in emitted Verilog is unconditionally a defect, and
+/// deciding that needs no grammar at all. See T58.
+fn cmd_verilog_no_double_percent(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()),
+        Ok(v) => v,
+    };
+    let bad: Vec<String> = v
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| l.contains("%%"))
+        .map(|(i, l)| format!("line {}: {}", i + 1, l.trim()))
+        .collect();
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{} emitted line(s) contain `%%`, which $display prints as a LITERAL \
+         percent -- the value is never formatted into the sentence (T57): {}",
+        bad.len(),
+        bad.join("; ")
+    )
+}
+
+/// W647: the OUTPUT stratum. T57 was a defect that is well-formed Rust,
+/// well-formed Verilog, compiles and runs in both, and is wrong only when a
+/// human reads what it printed. Static checks stratify -- shape, type, output --
+/// and every gate built in this session lives in the first two.
+///
+/// This runs `iverilog` + `vvp` on the generated testbench and reads the
+/// printed lines, asserting each `[TEST]`/`[BENCH]` line is well formed: no
+/// unconsumed format directive, and a recognised verdict token.
+///
+/// **Bounded and named, not total** (T55): running the corpus through a
+/// simulator costs 10-20 minutes against the gate's 5, so this walks the specs
+/// passed to it and the caller decides which. Its coverage claim is exactly
+/// "the specs it was given", stated rather than implied.
+fn cmd_simulated_output_wellformed(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let exe_ok = |p: &str| {
+        Command::new(p)
+            .arg("-V")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    };
+    if !exe_ok("iverilog") {
+        // T51: a phase that did not run must not be reported as one that ran
+        // clean. The caller prints SKIPPED for this.
+        return Ok(());
+    }
+    let src = fs::read_to_string(repo.join(rel))
+        .with_context(|| format!("reading {}", rel))?;
+    let v = match crate::compiler::Compiler::compile_verilog_for_simulation(&src) {
+        Err(_) => return Ok(()),
+        Ok(v) => v,
+    };
+    let dir = std::env::temp_dir().join(format!("t27_outstratum_{}", std::process::id()));
+    fs::create_dir_all(&dir)?;
+    let vpath = dir.join("tb.v");
+    let opath = dir.join("tb.out");
+    fs::write(&vpath, &v)?;
+    let build = Command::new("iverilog")
+        .args(["-g2012", "-o"])
+        .arg(&opath)
+        .arg(&vpath)
+        .output()?;
+    if !build.status.success() {
+        // iverilog rejection is the Icarus phase's business, not this one.
+        return Ok(());
+    }
+    let run = Command::new("vvp").arg(&opath).output()?;
+    let text = String::from_utf8_lossy(&run.stdout);
+    let mut bad: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if !(line.contains("[TEST]") || line.contains("[BENCH]")) {
+            continue;
+        }
+        // An unconsumed directive means the value was never substituted.
+        if line.contains('%') {
+            bad.push(format!("unformatted directive survives to output: {}", line.trim()));
+        }
+    }
+    let _ = fs::remove_dir_all(&dir);
+    if bad.is_empty() {
+        return Ok(());
+    }
+    anyhow::bail!("simulated output is malformed: {}", bad.join("; "))
 }
 
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
@@ -424,7 +1028,7 @@ fn is_icarus_lowerable(repo: &Path, rel: &str) -> bool {
     compile.status.success()
 }
 
-fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str) -> anyhow::Result<()> {
+fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str, bless: bool) -> anyhow::Result<()> {
     let out = cmd_icarus_simulate(repo, rel)?;
     let baseline = icarus_baseline_path(repo, rel);
     let actual = normalize_icarus_output(&out);
@@ -438,9 +1042,20 @@ fn cmd_icarus_simulate_with_baseline(repo: &Path, rel: &str) -> anyhow::Result<(
                 actual
             );
         }
-    } else {
+    } else if bless {
         save_icarus_baseline(&baseline, &actual)?;
-        println!("  recorded Icarus baseline: {}", baseline.display());
+        println!("  BLESSED Icarus baseline: {}", baseline.display());
+    } else {
+        // W640 (fixes T31): a verification mode that acquires its own oracle is
+        // a no-op exactly once per item -- on the only run where that item's
+        // behaviour has never been reviewed -- and the artefact it writes makes
+        // every later run look earned. Acquisition is now an explicit,
+        // human-invoked mode. Absence is not amnesty.
+        anyhow::bail!(
+            "no Icarus baseline at {} -- run with --bless-baselines to record one, \
+             and review the diff before committing it (T31)",
+            baseline.display()
+        );
     }
     Ok(())
 }
@@ -923,6 +1538,30 @@ struct SuiteSummary {
     passed: bool,
     /// True when the only observed failures are within the documented baseline.
     acceptable: bool,
+    // ---- W627: population split and gating attribution -------------------
+    /// Failures at the phase that first rejected the file, outside
+    /// `specs/scratch/` and excluding seal staleness. The real defect count.
+    #[serde(default)]
+    primary_corpus_failures: usize,
+    /// The same, for generator scaffolding under `specs/scratch/`.
+    #[serde(default)]
+    primary_scratch_failures: usize,
+    /// Failures on files already failing an earlier, gating phase. These are
+    /// not defects; they are the same defect counted again downstream.
+    #[serde(default)]
+    blocked_failures: usize,
+    /// Distinct spec files failing at least one phase.
+    #[serde(default)]
+    distinct_failing_specs: usize,
+    /// The same, restricted to the hand-written corpus.
+    #[serde(default)]
+    distinct_failing_corpus_specs: usize,
+    /// Per-phase corpus/scratch/blocked breakdown, in phase order.
+    #[serde(default)]
+    population_split: Vec<(String, PhaseAttribution)>,
+    /// W628: observed-versus-expected verdict, present only under `--ratchet`.
+    #[serde(default)]
+    ratchet: Option<RatchetVerdict>,
 }
 
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
@@ -945,6 +1584,29 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     let specs_only = collect_t27(&repo.join("specs"))?;
     let specs_scratch = collect_t27(&repo.join("specs/scratch"))?;
 
+    // W632: narrow the walk to the population the verdict is about. Scratch
+    // files can only ever block themselves, so corpus attribution is unchanged
+    // -- which is the claim the wave measures rather than assumes.
+    let (specs_compiler, specs_only) = if opts.corpus_only {
+        let keep = |v: Vec<PathBuf>| -> Vec<PathBuf> {
+            v.into_iter()
+                .filter(|p| {
+                    rel_arg(&repo, p)
+                        .map(|r| !is_scratch(&r))
+                        .unwrap_or(true)
+                })
+                .collect()
+        };
+        println!(
+            "[suite] --corpus-only: {} of {} specs walked (specs/scratch excluded)",
+            keep(specs_compiler.clone()).len(),
+            specs_compiler.len()
+        );
+        (keep(specs_compiler), keep(specs_only))
+    } else {
+        (specs_compiler, specs_only)
+    };
+
     let mut summary = SuiteSummary {
         repo: repo.display().to_string(),
         ..Default::default()
@@ -958,14 +1620,95 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         });
     };
 
+    // W627: the population ledger. Every spec-walking phase records WHICH files
+    // failed, so the summary can split corpus from scaffolding (T24/T29) and
+    // separate a primary failure from one merely gated on an earlier one (T27).
+    let mut ledger: Vec<(String, PhaseAttribution)> = Vec::new();
+    let mut upstream_failed: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut record = |name: &str,
+                      failures: Vec<String>,
+                      ledger: &mut Vec<(String, PhaseAttribution)>,
+                      upstream: &mut std::collections::HashSet<String>| {
+        let att = PhaseAttribution::attribute(&failures, upstream);
+        for f in failures {
+            upstream.insert(f);
+        }
+        ledger.push((name.to_string(), att));
+    };
+
     println!("--- Phase 1: Parse ---");
-    let (p1p, p1f) = run_phase(&repo, "parse", cmd_parse, &specs_compiler)?;
+    let (p1p, p1f, p1fail) = run_phase_with_failures(&repo, "parse", cmd_parse, &specs_compiler)?;
     println!("Parse: {} passed, {} failed", p1p, p1f);
+    record("parse", p1fail, &mut ledger, &mut upstream_failed);
     push_phase("parse", p1p, p1f, 0);
 
+    println!("--- Phase 1a2: Parse completeness (no silent discard) ---");
+    let (p1cp, p1cf, p1cfail) =
+        run_phase_with_failures(&repo, "parse-no-discard", cmd_parse_no_discard, &specs_compiler)?;
+    println!("Parse completeness: {} clean, {} discarding", p1cp, p1cf);
+    record("parse-no-discard", p1cfail, &mut ledger, &mut upstream_failed);
+    push_phase("parse-no-discard", p1cp, p1cf, 0);
+
+    println!("--- Phase 1a3: Invariants lowered (no vacuous checks) ---");
+    let (p1dp, p1df, p1dfail) = run_phase_with_failures(
+        &repo,
+        "no-vacuous-invariant",
+        cmd_no_vacuous_invariant,
+        &specs_compiler,
+    )?;
+    println!("Invariant lowering: {} clean, {} with vacuous invariants", p1dp, p1df);
+    record("no-vacuous-invariant", p1dfail, &mut ledger, &mut upstream_failed);
+    push_phase("no-vacuous-invariant", p1dp, p1df, 0);
+
+    println!("--- Phase 1a4: Verilog tests actually check something ---");
+    let (p1ep, p1ef, p1efail) = run_phase_with_failures(
+        &repo,
+        "no-vacuous-verilog-test",
+        cmd_no_vacuous_verilog_test,
+        &specs_compiler,
+    )?;
+    println!("Verilog test bodies: {} clean, {} with unconditional PASSED", p1ep, p1ef);
+    record("no-vacuous-verilog-test", p1efail, &mut ledger, &mut upstream_failed);
+    push_phase("no-vacuous-verilog-test", p1ep, p1ef, 0);
+
+    println!("--- Phase 1a5: Backends declare their omissions ---");
+    let (p1gp, p1gf, p1gfail) = run_phase_with_failures(
+        &repo,
+        "backends-declare-omissions",
+        cmd_backends_declare_omissions,
+        &specs_compiler,
+    )?;
+    println!("Backend omissions: {} declared, {} silent", p1gp, p1gf);
+    record("backends-declare-omissions", p1gfail, &mut ledger, &mut upstream_failed);
+    push_phase("backends-declare-omissions", p1gp, p1gf, 0);
+
+    println!("--- Phase 1a6: Verilog declares no bare keyword ---");
+    let (p1hp, p1hf, p1hfail) = run_phase_with_failures(
+        &repo,
+        "verilog-no-keyword-decl",
+        cmd_verilog_declares_no_keyword,
+        &specs_compiler,
+    )?;
+    println!("Verilog keyword decls: {} clean, {} with a bare keyword", p1hp, p1hf);
+    record("verilog-no-keyword-decl", p1hfail, &mut ledger, &mut upstream_failed);
+    push_phase("verilog-no-keyword-decl", p1hp, p1hf, 0);
+
+    println!("--- Phase 1a7: No literal-percent format strings ---");
+    let (p1ip, p1if, p1ifail) = run_phase_with_failures(
+        &repo,
+        "verilog-no-double-percent",
+        cmd_verilog_no_double_percent,
+        &specs_compiler,
+    )?;
+    println!("Format strings: {} clean, {} with `%%`", p1ip, p1if);
+    record("verilog-no-double-percent", p1ifail, &mut ledger, &mut upstream_failed);
+    push_phase("verilog-no-double-percent", p1ip, p1if, 0);
+
     println!("--- Phase 1b: Typecheck ---");
-    let (p1bp, p1bf) = run_phase(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
+    let (p1bp, p1bf, p1bfail) =
+        run_phase_with_failures(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
     println!("Typecheck: {} passed, {} failed", p1bp, p1bf);
+    record("typecheck", p1bfail, &mut ledger, &mut upstream_failed);
     push_phase("typecheck", p1bp, p1bf, 0);
 
     println!("--- Phase 1c: GF16 Conformance ---");
@@ -991,33 +1734,36 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     );
 
     println!("--- Phase 2: Gen Zig ---");
-    let (p2p, p2f) = run_phase(
+    let (p2p, p2f, p2fail) = run_phase_with_failures(
         &repo,
         "gen-zig",
         |r, rel| cmd_gen(r, rel, "gen"),
         &specs_compiler,
     )?;
     println!("Gen Zig: {} passed, {} failed", p2p, p2f);
+    record("gen-zig", p2fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-zig", p2p, p2f, 0);
 
     println!("--- Phase 2b: Gen Rust ---");
-    let (p2bp, p2bf) = run_phase(
+    let (p2bp, p2bf, p2bfail) = run_phase_with_failures(
         &repo,
         "gen-rust",
         |r, rel| cmd_gen(r, rel, "gen-rust"),
         &specs_compiler,
     )?;
     println!("Gen Rust: {} passed, {} failed", p2bp, p2bf);
+    record("gen-rust", p2bfail, &mut ledger, &mut upstream_failed);
     push_phase("gen-rust", p2bp, p2bf, 0);
 
     println!("--- Phase 3: Gen Verilog ---");
-    let (p3p, p3f) = run_phase(
+    let (p3p, p3f, p3fail) = run_phase_with_failures(
         &repo,
         "gen-verilog",
         |r, rel| cmd_gen(r, rel, "gen-verilog"),
         &specs_only,
     )?;
     println!("Gen Verilog: {} passed, {} failed", p3p, p3f);
+    record("gen-verilog", p3fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-verilog", p3p, p3f, 0);
 
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
@@ -1138,7 +1884,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
             let (p3dp, p3df) = run_phase(
                 &repo,
                 "icarus-simulate",
-                cmd_icarus_simulate_with_baseline,
+                |r, rel| cmd_icarus_simulate_with_baseline(r, rel, opts.bless_baselines),
                 &sim_targets,
             )?;
             println!("Icarus Simulation: {} passed, {} failed", p3dp, p3df);
@@ -1180,18 +1926,25 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     }
 
     println!("--- Phase 4: Gen C ---");
-    let (p4p, p4f) = run_phase(
+    let (p4p, p4f, p4fail) = run_phase_with_failures(
         &repo,
         "gen-c",
         |r, rel| cmd_gen(r, rel, "gen-c"),
         &specs_only,
     )?;
     println!("Gen C: {} passed, {} failed", p4p, p4f);
+    record("gen-c", p4fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-c", p4p, p4f, 0);
 
     println!("--- Phase 5: Seal Verify ---");
-    let (p5p, p5f) = run_phase(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
+    let (p5p, p5f, p5fail) =
+        run_phase_with_failures(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
     println!("Seal Verify: {} passed, {} failed", p5p, p5f);
+    // W627: seal staleness is golden-file drift, not a defect population --
+    // 1056 of 1064 are stale and ~940 have an UNCHANGED spec_hash. It is
+    // recorded in the ledger for visibility and excluded from the corpus
+    // defect count below, because listing it as expected failure is debt.
+    record("seal-verify", p5fail, &mut ledger, &mut upstream_failed);
     push_phase("seal-verify", p5p, p5f, 0);
 
     println!("--- Phase 6: Fixed Point ---");
@@ -1213,10 +1966,287 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Fixed Point: {} divergences", fp_diff);
     push_phase("fixed-point", 0, fp_diff, 0);
 
+    // --- Phase 6: Integrity metrics (reporting only) --------------------
+    //
+    // Seven waves of auditing established that several of this project's
+    // integrity claims are satisfiable by content that means nothing: tests
+    // whose body is `assert true`, braceless given/when/then tests whose
+    // assertions the parser discards, seals whose every gen_hash is "none",
+    // and specs that synthesise to zero logic cells. Each was invisible until
+    // measured. Surfacing the numbers on every suite run is what stops them
+    // becoming invisible again.
+    //
+    // These are REPORTING metrics, deliberately excluded from total_fail: the
+    // current values are large, and turning them into hard failures is a
+    // maintainer's decision, not the suite's.
+    // W604: gates that MUST be zero, counted separately from the metrics that
+    // merely report. The distinction is not new -- `lex_conform`'s own comment
+    // has said since W576 that "a non-zero count is a real regression" -- but
+    // nothing acted on it: a broken conformance table printed FAIL lines and
+    // the suite still said ALL TESTS PASSED.
+    let mut gate_fail = 0usize;
+    println!("--- Phase 6: Integrity metrics (reporting only) ---");
+    {
+        let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+        for (label, args) in [
+            ("vacuity", vec!["validate-vacuity", "--specs-dir", "specs", "--top", "0"]),
+            ("seals", vec!["seal-audit"]),
+        ] {
+            match std::process::Command::new(&exe).args(&args).output() {
+                Ok(o) => {
+                    let text = String::from_utf8_lossy(&o.stdout);
+                    for line in text.lines() {
+                        let t = line.trim();
+                        if t.starts_with("tests that assert nothing")
+                            || t.starts_with("BDD-form tests")
+                            || t.starts_with("NOT ANALYSED")
+                            || t.starts_with("VACUOUS (all 'none')")
+                            || t.starts_with("spec file missing")
+                        {
+                            println!("  {}", t);
+                        }
+                    }
+                }
+                Err(e) => println!("  [{}] could not run: {}", label, e),
+            }
+        }
+        // W568: duplicate test names. The Zig backend now suffixes repeats so
+        // the file still compiles, which means the duplication no longer
+        // announces itself as a build error -- exactly the kind of finding that
+        // goes invisible once it stops hurting. Count it here instead.
+        let mut dup_specs = 0usize;
+        let mut dup_names = 0usize;
+        let mut stack = vec![std::path::PathBuf::from("specs")];
+        while let Some(dir) = stack.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().and_then(|e| e.to_str()) != Some("t27") {
+                    continue;
+                }
+                let text = match std::fs::read_to_string(&path) {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                let mut seen: std::collections::HashMap<&str, u32> =
+                    std::collections::HashMap::new();
+                for line in text.lines() {
+                    let t = line.trim_start();
+                    if let Some(rest) = t.strip_prefix("test ") {
+                        let name = rest.trim().trim_matches('"');
+                        let name = name.split_whitespace().next().unwrap_or("");
+                        let name = name.trim_end_matches('{').trim();
+                        if !name.is_empty() {
+                            *seen.entry(name).or_insert(0) += 1;
+                        }
+                    }
+                }
+                let dups = seen.values().filter(|c| **c > 1).count();
+                if dups > 0 {
+                    dup_specs += 1;
+                    dup_names += dups;
+                }
+            }
+        }
+        println!(
+            "  duplicate test names: {} name(s) across {} spec(s) (backend suffixes repeats)",
+            dup_names, dup_specs
+        );
+        // W574: call sites checked against the signatures they call. Nothing
+        // in this project compared the two until `use` resolution landed, and
+        // the first comparison found calls passing the wrong NUMBER of
+        // arguments -- unambiguous defects, invisible for as long as they
+        // existed.
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let findings = crate::check_calls::check_tree(root, true);
+                let arity = findings.iter().filter(|f| f.kind == "arity").count();
+                let types = findings.len() - arity;
+                println!(
+                    "  call-site mismatches: {} arity, {} aggregate-vs-scalar (t27c check-calls)",
+                    arity, types
+                );
+            }
+        }
+        // W576: the lexer conformance table. Unlike the other Phase 6 metrics
+        // this one SHOULD be zero -- every case is either a form the corpus
+        // depends on or a measured boundary -- so a non-zero count is a real
+        // regression and is reported as such.
+        {
+            let failures = crate::lex_conform::run();
+            gate_fail += failures.len();
+            println!(
+                "  lexer conformance: {}/{} cases passing",
+                crate::lex_conform::total() - failures.len(),
+                crate::lex_conform::total()
+            );
+            for f in &failures {
+                println!("    FAIL {:?}: expected {}, got {}", f.input, f.expected, f.actual);
+            }
+        }
+        // W577: the parser conformance table, and the corpus-wide count of
+        // specs the parser ACCEPTS without consuming. Both should be zero.
+        {
+            let failures = crate::parse_conform::run();
+            gate_fail += failures.len();
+            println!(
+                "  parser conformance: {}/{} cases passing",
+                crate::parse_conform::total() - failures.len(),
+                crate::parse_conform::total()
+            );
+            for f in &failures {
+                println!("    FAIL {}: expected {}, got {}", f.name, f.expected, f.actual);
+            }
+        }
+        // W581: characters the lexer discards without a diagnostic. `?` was
+        // 287 of them until this wave -- an optional type silently becoming a
+        // non-optional. What remains is Markdown punctuation in mis-named
+        // files and non-ASCII bytes (L3 PURITY violations).
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let mut total = 0usize;
+                let mut files = 0usize;
+                let mut stack = vec![root.to_path_buf()];
+                while let Some(dir) = stack.pop() {
+                    if let Ok(entries) = std::fs::read_dir(&dir) {
+                        for e in entries.flatten() {
+                            let p = e.path();
+                            if p.is_dir() {
+                                if p.file_name().map(|n| n == "scratch").unwrap_or(false) {
+                                    continue;
+                                }
+                                stack.push(p);
+                            } else if p.extension().and_then(|x| x.to_str()) == Some("t27") {
+                                if let Ok(src) = std::fs::read_to_string(&p) {
+                                    let mut lx = crate::compiler::Lexer::new(&src);
+                                    while lx.next_token().kind != crate::compiler::TokenKind::Eof {}
+                                    if !lx.dropped.is_empty() {
+                                        total += lx.dropped.len();
+                                        files += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                println!(
+                    "  lexer silently discards: {} character(s) across {} spec(s) (t27c lex-dropped)",
+                    total, files
+                );
+            }
+        }
+        // W585: the C gate, as a command rather than a shell loop. The CLASS
+        // table is what matters while the classes are large -- a header must
+        // clear every one of them, so fixing a class moves specs from failing
+        // on A to failing on B without moving the header count (W584).
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                match crate::cc_gate::run(root, false) {
+                    Some(r) => {
+                        println!(
+                            "  C headers compiling: {} of {} ({} fail, {} not generated)",
+                            r.compiled,
+                            r.compiled + r.failed,
+                            r.failed,
+                            r.gen_failed
+                        );
+                        let mut top: Vec<_> = r.classes.iter().collect();
+                        top.sort_by(|a, b| b.1.cmp(a.1));
+                        // W637: a capped list must say it is capped (T46).
+                        let __total = top.len();
+                        for (class, n) in top.iter().take(3) {
+                            println!("    {:>5}  {}", n, class);
+                        }
+                        if __total > 3 {
+                            println!("    ... and {} more class(es) not shown", __total - 3);
+                        }
+                    }
+                    None => println!("  C headers: SKIPPED (no C compiler)"),
+                }
+            }
+        }
+        // W586: an UNWRITTEN spec is not a BROKEN one. Both were reported as
+        // COMPILE_FAIL and counted together for twenty-five waves.
+        {
+            let root = std::path::Path::new("specs");
+            if root.is_dir() {
+                let r = crate::impl_status::run(root, false);
+                println!(
+                    "  implementation: {} implemented, {} NO-FN, {} partial, {} UNWRITTEN, {} unparsable",
+                    r.implemented, r.bodiless, r.partial, r.unwritten, r.unparsable
+                );
+                println!(
+                    "    {} of {} declared functions have NO BODY",
+                    r.empty_fns, r.total_fns
+                );
+            }
+        }
+        println!("  (reporting only -- not counted in TOTAL FAILURES)");
+    }
+
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff;
+    // --- Phase 7: gates that must be zero -------------------------------
+    //
+    // W604. Eight instruments exist and five were already run here, but all of
+    // them under "reporting only" -- so a regression in a table designed to be
+    // zero was indistinguishable from a metric designed to be large. These are
+    // the ones whose own documentation says they must be zero.
+    println!("--- Phase 7: Gates (failures count) ---");
+    {
+        // The numeric catalog: 83 records the compiler cannot see. `gfternary`
+        // is a KNOWN OPEN specification decision (P18), so it is allowed by
+        // name -- an allowance that is visible, counted, and will stop applying
+        // the moment somebody settles it.
+        const CATALOG_ALLOWED: &[&str] = &["gfternary"];
+        let cat = std::path::Path::new("specs/numeric/formats_catalog.t27");
+        if cat.is_file() {
+            match crate::catalog_gate::run(cat, std::path::Path::new("specs")) {
+                Ok(r) => {
+                    let unexpected: Vec<_> = r
+                        .findings
+                        .iter()
+                        .filter(|f| !CATALOG_ALLOWED.contains(&f.id.as_str()))
+                        .collect();
+                    gate_fail += unexpected.len();
+                    println!(
+                        "  catalog gate: {} record(s), {} finding(s), {} allowed, {} unexpected",
+                        r.records,
+                        r.findings.len(),
+                        r.findings.len() - unexpected.len(),
+                        unexpected.len()
+                    );
+                    for f in unexpected {
+                        println!("    FAIL [{}] {}: {}", f.check, f.id, f.detail);
+                    }
+                }
+                Err(e) => println!("  catalog gate: could not run ({})", e),
+            }
+        }
+        println!("  gate failures: {}", gate_fail);
+        if gate_fail == 0 {
+            println!("  (lexer/parser conformance and the catalog gate are all clean)");
+        }
+    }
+
+    let total_fail = p1f + p1cf + p1df + p1ef + p1gf + p1hf + p1if + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff + gate_fail;
     println!("Parse failures:           {}", p1f);
+    println!("Parse DISCARD fails:      {}", p1cf);
+    println!("Vacuous invariant specs:  {}", p1df);
+    println!("Vacuous verilog tests:    {}", p1ef);
+    println!("Silent backend drops:     {}", p1gf);
+    println!("Verilog keyword decls:    {}", p1hf);
+    println!("Literal-percent formats:  {}", p1if);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
     println!("Gen Zig failures:         {}", p2f);
@@ -1224,17 +2254,250 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Gen Verilog fails:        {}", p3f);
     println!("Gen Verilog smoke fails:  {}", p3b_fail);
     println!("FPGA smoke fails:         {}", p3c_fail);
-    println!("Icarus simulation fails:  {}", p3d_fail);
-    println!("Cocotb reference fails:   {}", p3e_fail);
+    // W641: `p3d_fail` and `p3e_fail` are initialised to 0 and assigned ONLY
+    // when their opt-in flag is set, so a phase that never ran printed `0` in
+    // the same slot as a phase that ran clean. Every summary in this session
+    // reported `Icarus simulation fails: 0`; with --icarus-simulate the true
+    // figure is 31. A skipped phase must not be reported as a passing one.
+    // See T51.
+    let skipped_note = |ran: bool, n: usize| -> String {
+        if ran {
+            n.to_string()
+        } else {
+            "SKIPPED (not run -- pass the flag to enable)".to_string()
+        }
+    };
+    println!(
+        "Icarus simulation fails:  {}",
+        skipped_note(opts.icarus_simulate, p3d_fail)
+    );
+    println!(
+        "Cocotb reference fails:   {}",
+        skipped_note(opts.cocotb, p3e_fail)
+    );
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
+    println!("GATE FAILURES:     {}", gate_fail);
     println!("TOTAL FAILURES:    {}", total_fail);
     println!("BASELINE FAILURES: {}", summary.baseline_failures);
+
+    // ---------------------------------------------------------------------
+    // W627: the partition. Every number above is a sum over two populations
+    // that mean different things, and over phases that are GATED on each
+    // other -- so one unparseable spec contributes six counters. T27 measured
+    // 1494 of 2614 to be one fact reported six times. See T29/T30.
+    // ---------------------------------------------------------------------
+    let mut distinct: std::collections::BTreeSet<&String> = std::collections::BTreeSet::new();
+    let mut distinct_corpus: std::collections::BTreeSet<&String> =
+        std::collections::BTreeSet::new();
+    let mut primary_corpus = 0usize;
+    let mut primary_scratch = 0usize;
+    let mut blocked_total = 0usize;
+    println!();
+    println!("--- Population split (W627) ---");
+    println!(
+        "{:<16} {:>8} {:>8} {:>9}",
+        "phase", "corpus", "scratch", "blocked"
+    );
+    for (name, att) in &ledger {
+        println!(
+            "{:<16} {:>8} {:>8} {:>9}",
+            name,
+            att.primary.corpus.len(),
+            att.primary.scratch.len(),
+            att.blocked.len()
+        );
+        // Seal staleness is golden-file drift, not a defect population: 1056 of
+        // 1064 are stale and ~940 carry an UNCHANGED spec_hash. Counted and
+        // shown, excluded from the corpus defect figure.
+        if name != "seal-verify" {
+            primary_corpus += att.primary.corpus.len();
+            primary_scratch += att.primary.scratch.len();
+            for f in &att.primary.corpus {
+                distinct_corpus.insert(f);
+            }
+        }
+        blocked_total += att.blocked.len();
+        for f in att
+            .primary
+            .corpus
+            .iter()
+            .chain(att.primary.scratch.iter())
+            .chain(att.blocked.iter())
+        {
+            distinct.insert(f);
+        }
+    }
+    println!();
+    println!("PRIMARY (corpus):        {}", primary_corpus);
+    println!("PRIMARY (scratch):       {}", primary_scratch);
+    println!("BLOCKED (gated upstream):{:>4}", blocked_total);
+    println!("DISTINCT FAILING SPECS:  {}", distinct.len());
+    println!("  of them, corpus:       {}", distinct_corpus.len());
+    println!(
+        "NOTE: TOTAL FAILURES sums GATED phases, so a single unparseable spec is\n\
+         counted once per phase. PRIMARY + BLOCKED is the honest decomposition."
+    );
+
+    // W627 (P0): `total_failures`, `passed` and `acceptable` were DECLARED and
+    // never assigned, so every suite_summary.json ever written reported
+    // `total_failures: 0` for runs that printed 2614, and `acceptable` printed
+    // "no" only because `false` is its Default. The unit test that appears to
+    // cover this re-implements the rule on local variables and never touches
+    // the production path. See T31.
+    summary.total_failures = total_fail;
+    summary.passed = total_fail == 0;
+    summary.acceptable = summary.passed
+        || (summary
+            .known_failures
+            .iter()
+            .cloned()
+            .collect::<std::collections::HashSet<String>>()
+            .len()
+            == summary.baseline_failures
+            && total_fail == summary.known_failures.len());
+    summary.primary_corpus_failures = primary_corpus;
+    summary.primary_scratch_failures = primary_scratch;
+    summary.blocked_failures = blocked_total;
+    summary.distinct_failing_specs = distinct.len();
+    summary.distinct_failing_corpus_specs = distinct_corpus.len();
+    summary.population_split = ledger
+        .iter()
+        .map(|(n, a)| (n.clone(), a.clone()))
+        .collect();
+
     println!(
         "ACCEPTABLE:        {} (known failures match baseline, no other failures)",
         if summary.acceptable { "yes" } else { "no" }
     );
+
+    // ---------------------------------------------------------------------
+    // W628: the expectations ledger. Identity-keyed amnesty over the PRIMARY
+    // CORPUS failures only -- scratch scaffolding and seal staleness are
+    // reported and gate nothing, because a ledger over 455 generated files or
+    // 807 stale golden files is debt, not a defect list. See T33.
+    // ---------------------------------------------------------------------
+    let observed: std::collections::BTreeSet<(String, String)> = ledger
+        .iter()
+        .filter(|(name, _)| name != "seal-verify")
+        .flat_map(|(name, att)| {
+            att.primary
+                .corpus
+                .iter()
+                .map(move |p| (p.clone(), name.clone()))
+        })
+        .collect();
+
+    let exp_path = expectations_path(&repo);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    if opts.bless_expectations {
+        let prior = load_expectations(&exp_path)?;
+        // The cap only ever moves DOWN. Blessing a larger population must be a
+        // hand edit, which is the reviewable event that resists baseline rot.
+        let cap = match &prior {
+            // Monotone DOWNWARD only. If this run observes more than the cap
+            // allows, blessing writes a ledger that immediately fails its own
+            // cap check -- which is the intended, reviewable event: raising the
+            // cap must be a hand edit in the pull request, never a side effect
+            // of running the blessing command.
+            Some(p) => p.max_entries.min(observed.len()),
+            None => observed.len(),
+        };
+        let prior_by_key: std::collections::BTreeMap<(String, String), ExpectationEntry> = prior
+            .map(|p| {
+                p.entries
+                    .into_iter()
+                    .map(|e| ((e.path.clone(), e.phase.clone()), e))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut entries: Vec<ExpectationEntry> = observed
+            .iter()
+            .map(|k| {
+                prior_by_key.get(k).cloned().unwrap_or(ExpectationEntry {
+                    path: k.0.clone(),
+                    phase: k.1.clone(),
+                    reason: "unclassified: blessed by --bless-expectations".to_string(),
+                    issue: 1959,
+                    expires: "2026-11-30".to_string(),
+                })
+            })
+            .collect();
+        entries.sort();
+        let exp = SuiteExpectations {
+            max_entries: cap,
+            entries,
+            ..Default::default()
+        };
+        save_expectations(&exp_path, &exp)?;
+        println!();
+        println!(
+            "[suite] blessed {} expectation(s) -> {}",
+            exp.entries.len(),
+            exp_path.display()
+        );
+    }
+
+    let mut ratchet_clean = true;
+    if opts.ratchet {
+        println!();
+        println!("--- Ratchet (W628) ---");
+        match load_expectations(&exp_path)? {
+            // T31: absence is NOT amnesty. A verification mode with no oracle
+            // is a hard failure, never a silent self-blessing.
+            None => {
+                println!(
+                    "RATCHET: FAIL -- no ledger at {}.\n\
+                     Run `t27c suite --repo-root . --bless-expectations` once, review the\n\
+                     file, and commit it. Absence is not amnesty (T31).",
+                    exp_path.display()
+                );
+                ratchet_clean = false;
+            }
+            Some(exp) => {
+                let v = ratchet_compare(&observed, &exp, &today);
+                println!("  ledger:              {} / {} cap", v.ledger_size, v.max_entries);
+                println!("  observed (primary):  {}", observed.len());
+                // W636: these lists used to stop at 25 with NO indication, and
+                // a ledger was built from the truncated output as though it
+                // were complete -- the T26/T41 failure mode, in the tool
+                // written to detect it. A truncating printer must say so.
+                fn show(label: &str, mark: char, items: &[String], note: &str) {
+                    println!("  {}: {}", label, items.len());
+                    const CAP: usize = 25;
+                    for f in items.iter().take(CAP) {
+                        println!("    {} {}{}", mark, f, note);
+                    }
+                    if items.len() > CAP {
+                        println!(
+                            "    ... and {} more NOT SHOWN -- read the ledger or the \
+                             --json summary, never this list (T46)",
+                            items.len() - CAP
+                        );
+                    }
+                }
+                show("UNEXPECTED FAILURES", '+', &v.unexpected_failures, "");
+                show(
+                    "UNEXPECTED PASSES  ",
+                    '-',
+                    &v.unexpected_passes,
+                    " (fixed -- remove from the ledger)",
+                );
+                show("EXPIRED ENTRIES    ", '!', &v.expired, "");
+                if v.over_cap {
+                    println!("  OVER CAP: {} > {}", v.ledger_size, v.max_entries);
+                }
+                ratchet_clean = v.clean();
+                println!(
+                    "RATCHET: {}",
+                    if ratchet_clean { "CLEAN" } else { "FAIL" }
+                );
+                summary.ratchet = Some(v);
+            }
+        }
+    }
     println!();
 
     if let Some(path) = opts.json_out.as_ref() {
@@ -1245,6 +2508,17 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         println!("[suite] JSON summary: {}", path.display());
     }
 
+    if opts.ratchet {
+        // W628: in ratchet mode the verdict is observed-versus-expected per
+        // identity, not the level of a total. This is the whole point: a total
+        // that is already 2614 cannot move when something new breaks (T27).
+        if ratchet_clean {
+            println!("RATCHET CLEAN -- no unexpected failures, passes, or expiries");
+            println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+            return Ok(());
+        }
+        anyhow::bail!("RATCHET FAILED")
+    }
     if total_fail == 0 {
         println!("ALL TESTS PASSED");
         println!("phi^2 + 1/phi^2 = 3 | TRINITY");
@@ -1575,6 +2849,9 @@ mod tests {
             total_failures: 2,
             passed: false,
             acceptable: true,
+            // W627: new population-split fields; Default keeps these tests
+            // about the fields they were written to cover.
+            ..Default::default()
         };
         let json = serde_json::to_string_pretty(&summary).unwrap();
         let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
@@ -1613,6 +2890,9 @@ mod tests {
             total_failures: 0,
             passed: false,
             acceptable: true,
+            // W627: new population-split fields; Default keeps these tests
+            // about the fields they were written to cover.
+            ..Default::default()
         };
         let json = serde_json::to_string_pretty(&summary).unwrap();
         let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
@@ -1625,6 +2905,209 @@ mod tests {
             value["fpga_smoke_failure_reason"].as_str(),
             Some("demo bitstream not found")
         );
+    }
+
+    // W627: these test the PRODUCTION functions. The neighbouring
+    // `test_suite_summary_acceptable_computation` re-implements its rule on
+    // local variables and never calls anything under test -- which is why
+    // `total_failures` could sit unassigned at 0 for a run printing 2614 with
+    // a green test suite. See T31.
+    // ---- W645: the widened declaration scanner. These call the production
+    // extractor -- listing cases in a table without running them is exactly
+    // T29's defect, and I nearly shipped it again this wave. ---------------
+    fn names(line: &str) -> Vec<String> {
+        super::verilog_declared_names(line.trim())
+    }
+
+    #[test]
+    fn scanner_covers_every_declaration_form_the_backend_emits() {
+        // Enumerated from the backend's OUTPUT, not guessed: reg 965,
+        // input 59, function 17, integer 14, localparam 12, task 5, output 3.
+        assert_eq!(names("reg [7:0] buf;"), vec!["buf"]);
+        assert_eq!(names("integer time;"), vec!["time"]);
+        assert_eq!(names("input wire [7:0] event,"), vec!["event"]);
+        assert_eq!(names("output reg [7:0] table,"), vec!["table"]);
+        assert_eq!(names("localparam force = 3;"), vec!["force"]);
+        assert_eq!(names("function [63:0] disable;"), vec!["disable"]);
+        assert_eq!(names("task release;"), vec!["release"]);
+        assert_eq!(names("genvar small;"), vec!["small"]);
+    }
+
+    #[test]
+    fn scanner_skips_type_qualifiers_and_reads_the_real_name() {
+        // The W645 false positive: `real` is the TYPE, `ZERO` is the name.
+        assert_eq!(names("localparam real ZERO = 0.0;"), vec!["ZERO"]);
+        assert_eq!(names("reg signed [7:0] acc;"), vec!["acc"]);
+        assert_eq!(names("input wire [7:0] clk,"), vec!["clk"]);
+        assert_eq!(names("localparam integer WIDTH = 8;"), vec!["WIDTH"]);
+    }
+
+    #[test]
+    fn scanner_ignores_an_already_escaped_name() {
+        // `\\buf ` is the escape and is precisely what the gate wants to see.
+        assert!(names("reg [7:0] \\buf ;").is_empty());
+        assert!(names("input [7:0] \\event ;").is_empty());
+    }
+
+    #[test]
+    fn scanner_does_not_fire_on_ordinary_identifiers() {
+        assert_eq!(names("reg [7:0] counter;"), vec!["counter"]);
+        assert!(!super::super::compiler::Compiler::is_verilog_keyword("counter"));
+        // and a non-declaration line yields nothing at all
+        assert!(names("counter = counter + 1;").is_empty());
+        assert!(names("$display(\"hello\");").is_empty());
+    }
+
+    // ---- W628: the ratchet. These call the production comparator. ---------
+    fn mk_exp(pairs: &[(&str, &str)], expires: &str, cap: usize) -> super::SuiteExpectations {
+        super::SuiteExpectations {
+            max_entries: cap,
+            entries: pairs
+                .iter()
+                .map(|(p, ph)| super::ExpectationEntry {
+                    path: p.to_string(),
+                    phase: ph.to_string(),
+                    reason: "test".into(),
+                    issue: 1959,
+                    expires: expires.to_string(),
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn obs(pairs: &[(&str, &str)]) -> std::collections::BTreeSet<(String, String)> {
+        pairs
+            .iter()
+            .map(|(p, ph)| (p.to_string(), ph.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn ratchet_is_clean_when_observed_equals_expected() {
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert!(v.clean(), "{:?}", v);
+    }
+
+    #[test]
+    fn ratchet_reports_a_new_break_as_an_unexpected_failure() {
+        // The regression signal this suite has never had: a total of 2614
+        // cannot move, but a set can.
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
+            &e,
+            "2026-08-12",
+        );
+        assert_eq!(v.unexpected_failures, vec!["specs/b.t27 [parse]".to_string()]);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_treats_a_fix_as_a_failure_so_the_ledger_cannot_rot() {
+        // pytest's `xfail_strict`, made the default. Without this the ledger
+        // accumulates entries for defects that were fixed years ago.
+        let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 2);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert_eq!(v.unexpected_passes, vec!["specs/b.t27 [parse]".to_string()]);
+        assert!(!v.clean(), "an unexpected pass must fail the run");
+    }
+
+    #[test]
+    fn ratchet_fails_on_a_past_due_entry_even_when_the_sets_agree() {
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2026-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "parse")]), &e, "2026-08-12");
+        assert!(v.unexpected_failures.is_empty());
+        assert!(v.unexpected_passes.is_empty());
+        assert_eq!(v.expired.len(), 1);
+        assert!(!v.clean(), "expiry is the only brake on normalisation of deviance");
+    }
+
+    #[test]
+    fn ratchet_fails_when_the_ledger_outgrows_its_cap() {
+        let e = mk_exp(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(
+            &obs(&[("specs/a.t27", "parse"), ("specs/b.t27", "parse")]),
+            &e,
+            "2026-08-12",
+        );
+        assert!(v.over_cap);
+        assert!(!v.clean());
+    }
+
+    #[test]
+    fn ratchet_distinguishes_the_same_path_at_different_phases() {
+        // The identity is (path, phase), not path. A file amnestied at `parse`
+        // that starts failing `gen-c` is a NEW defect.
+        let e = mk_exp(&[("specs/a.t27", "parse")], "2099-01-01", 1);
+        let v = super::ratchet_compare(&obs(&[("specs/a.t27", "gen-c")]), &e, "2026-08-12");
+        assert_eq!(v.unexpected_failures, vec!["specs/a.t27 [gen-c]".to_string()]);
+        assert_eq!(v.unexpected_passes, vec!["specs/a.t27 [parse]".to_string()]);
+    }
+
+    #[test]
+    fn a_missing_ledger_is_none_not_an_empty_ledger() {
+        // T31: absence must never be silently blessed. An empty ledger would
+        // mean "everything is a regression"; None means "the caller decides".
+        let missing = std::env::temp_dir().join("t27_no_such_expectations_628.json");
+        let _ = std::fs::remove_file(&missing);
+        assert!(super::load_expectations(&missing).unwrap().is_none());
+    }
+
+    #[test]
+    fn scratch_is_recognised_only_under_the_scratch_prefix() {
+        assert!(super::is_scratch("specs/scratch/w590_bench.t27"));
+        assert!(!super::is_scratch("specs/igla/race/ternary_mac.t27"));
+        // Not a prefix match on the basename, and not on a lookalike dir.
+        assert!(!super::is_scratch("specs/scratchpad/x.t27"));
+        assert!(!super::is_scratch("docs/specs/scratch/x.t27"));
+    }
+
+    #[test]
+    fn phase_split_partitions_corpus_from_scaffolding() {
+        let f = vec![
+            "specs/igla/a.t27".to_string(),
+            "specs/scratch/b.t27".to_string(),
+            "specs/numeric/c.t27".to_string(),
+        ];
+        let s = super::PhaseSplit::from_failures(&f);
+        assert_eq!(s.corpus.len(), 2);
+        assert_eq!(s.scratch.len(), 1);
+        assert_eq!(s.total(), 3);
+    }
+
+    #[test]
+    fn attribution_blames_the_first_phase_and_marks_the_rest_blocked() {
+        // The measured shape of this repo: one unparseable spec produces a
+        // failure in six phases. Only the first is a defect.
+        let broken = "specs/api/c_api_contract.t27".to_string();
+        let mut upstream: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        let parse = super::PhaseAttribution::attribute(&[broken.clone()], &upstream);
+        assert_eq!(parse.primary.corpus, vec![broken.clone()]);
+        assert!(parse.blocked.is_empty(), "nothing is upstream of parse");
+        upstream.insert(broken.clone());
+
+        for phase in ["typecheck", "gen-zig", "gen-rust", "gen-verilog", "gen-c"] {
+            let a = super::PhaseAttribution::attribute(&[broken.clone()], &upstream);
+            assert_eq!(a.primary.total(), 0, "{} must blame nothing", phase);
+            assert_eq!(a.blocked, vec![broken.clone()], "{} must be blocked", phase);
+        }
+    }
+
+    #[test]
+    fn attribution_still_blames_a_genuinely_new_downstream_failure() {
+        // A file that parses but fails codegen is a real, separate defect and
+        // must NOT be laundered into `blocked`.
+        let mut upstream: std::collections::HashSet<String> = std::collections::HashSet::new();
+        upstream.insert("specs/a.t27".to_string());
+        let a = super::PhaseAttribution::attribute(
+            &["specs/a.t27".to_string(), "specs/b.t27".to_string()],
+            &upstream,
+        );
+        assert_eq!(a.blocked, vec!["specs/a.t27".to_string()]);
+        assert_eq!(a.primary.corpus, vec!["specs/b.t27".to_string()]);
     }
 
     #[test]

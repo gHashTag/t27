@@ -12,13 +12,13 @@ module String;
 
     pub const WorkflowStep = struct {
         command : String,
-        depends_on : [[]Const [,
-        condition : [?[]Const u8",
+        depends_on : [[]const [,
+        condition : ?[]const u8,
     };
 
     pub const Workflow = struct {
         version : String,
-        steps : [[]Const WorkflowStep",
+        steps : []const WorkflowStep,
     };
 
     // ═══════════════════════════════════════════════════════════

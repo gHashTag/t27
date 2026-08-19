@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:702542f576bbb4c9af031de26a667809164d9444636a5ecfee90fa52defa3d26",
+  "gen_hash_rust": "sha256:dca1412c02bcd8a8e53d523a531f75b60aa468ca5a5679fd47674a88f3f0e318",
+  "gen_hash_verilog": "sha256:67c93307f3482147f3f59e8856952f4a4c463bec0011fc1f3818799609bcd598",
+  "gen_hash_zig": "sha256:75675cc0a05c32b50a38ceb469284990f4a24c61f7f0a8fc078b5f5464cebe23",
+  "module": "triformat-gaternary",
+  "ring": 12,
+  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:5d15f9ef5b075492d27dc7f58b33bf12d030fdf821239ec62e419787513e2374",
+  "spec_path": "specs/numeric/gfternary.t27"
+}

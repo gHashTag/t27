@@ -24,7 +24,7 @@ Every significant output should be classified as one of:
 | Type | Zenodo `resource_type` (typical) | Must include |
 |------|----------------------------------|--------------|
 | `software` | software | License, install/run, README, tagged release |
-| `technical-report` | publication / report | Methods, limitations, claim table or pointer to `RESEARCH_CLAIMS.md` |
+| `technical-report` | publication / report | Methods, limitations, claim table or pointer to `docs/nona-03-manifest/RESEARCH_CLAIMS.md` |
 | `benchmark-report` | publication / report | CSV + methodology + environment |
 | `dataset` | dataset | Schema, checksums, version string |
 | `repro-bundle` | other / software | Pinned commands, inputs, output hashes |
@@ -33,7 +33,7 @@ Every significant output should be classified as one of:
 
 - Root [`CITATION.cff`](../CITATION.cff) kept in sync with releases (authors, ORCID, identifiers).  
 - **Release notes** / changelog entry per tag.  
-- Pointer to **claim status** ([`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md)) when the artifact implies science or numerics.  
+- Pointer to **claim status** ([`docs/nona-03-manifest/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md)) when the artifact implies science or numerics.  
 - **Reproducibility:** documented commands ([`repro/README.md`](../repro/README.md)) or explicit “not yet reproducible”.  
 - **Limitations** section in reports (JOSS-style honesty).
 
@@ -63,7 +63,7 @@ Adjust cadence by maintainer capacity; the **rule** is **predictability**, not s
 | 3. Version | Maintainer | Semantic or ring-based tag (see `CANON.md`) |
 | 4. GitHub Release | Maintainer | Release notes + assets if any |
 | 5. Zenodo | Automation | Version DOI issued; concept DOI updated |
-| 6. Registry | Maintainer | `publications/README.md` + `CITATION.cff` + `RESEARCH_CLAIMS.md` if claims change |
+| 6. Registry | Maintainer | `publications/README.md` + `CITATION.cff` + `docs/nona-03-manifest/RESEARCH_CLAIMS.md` if claims change |
 
 ---
 
@@ -77,3 +77,10 @@ Adjust cadence by maintainer capacity; the **rule** is **predictability**, not s
 ---
 
 *Regular publishing beats occasional hero uploads.*
+
+
+---
+
+*W845: the pointer above said `docs/RESEARCH_CLAIMS.md`, which does not exist —
+the file is under `docs/nona-03-manifest/`. As written, no artefact could satisfy
+this mandatory gate. Path corrected; the gate itself is unchanged.*

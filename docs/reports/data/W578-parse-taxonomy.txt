@@ -1,0 +1,8 @@
+   899     9  Expected LBrace, got Colon (X) 
+   825     3  parse error at module level : unexpected token after expression statement: KwFn
+   556    22  parse error : Expected LParen, got Ident (X) 
+   379    33  parse error at module level : unexpected token after expression statement: Ident
+   378     2  parse error : Unexpected token in expression: PlusPlus (X) 
+   329     7  parse error : Expected RParen, got Dot (X) 
+   298    14  parse error : Unexpected token in expression: KwInvariant (X) 
+   283     9  Expected LBrace, got Semicolon (X) 

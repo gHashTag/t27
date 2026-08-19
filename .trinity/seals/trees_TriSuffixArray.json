@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:7c66c348b8447820cca59fbd794b5c50ea68887b89cdcae3f581998309c74e78",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:1908faaf0d80bcbe68a645477230170e711d0ac9ae64c00a7307b5180fb8b863",
-  "gen_hash_zig": "sha256:c1fa60ea8aa0ddfb6b8921f1fd4caed565efa393b4091c63e7e2512746caa098",
+  "gen_hash_c": "sha256:6883fbfc5938a74090852635c21bdfba35ebc4d0ce0d940c1507c3bfccc49cac",
+  "gen_hash_rust": "sha256:3b7c218c0f5d60b2726aec5b6407228c11882af420b6131a130cbe9678b141ac",
+  "gen_hash_verilog": "sha256:6a6bad8ad2fc82fd2da6f4dce46659a97792547bb6b348e5226c626be60a3571",
+  "gen_hash_zig": "sha256:f0ab2796cb6938cf68d259a7c2529463d6e154e52c1e7e3049cec72ed6f95036",
   "module": "TriSuffixArray",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
-  "spec_hash": "sha256:f9a84a52ce9586dd5e0ba1bc9a768a0e942871ab1cc63b61712304e9c48dfc55",
+  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:46eb92bbb340ff3345a79d44ec05cd0169c5c2b8ae064619690c31479ac3e2c0",
   "spec_path": "specs/tri/trees/suffix_array.t27"
 }

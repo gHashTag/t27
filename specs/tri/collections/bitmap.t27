@@ -11,7 +11,7 @@ module TriBitmap;
     // ═══════════════════════════════════════════════════════════
 
     pub const Bitmap = struct {
-        bits : [[]Usize",
+        bits : []usize,
         capacity : usize,
     };
 
