@@ -28034,6 +28034,25 @@ of 1-2 ns periods precisely so the tool is pushed to the design's limit -- and
 the correction is a per-arm search for the highest constraint that still routes
 with non-negative slack, reported together with that constraint.
 
+**ERRATUM (W936), from the toolchain source rather than from reasoning.** The
+statement above is TRUE FOR router1 AND FALSE FOR router2, and this project uses
+both. In nextpnr-xilinx, `--freq` sets `target_freq`, which reaches placement and
+routing only through criticality and budgets: router1 consumes it, while router2
+-- the xc7 default -- does not, so under router2 the reported critical path is
+independent of the constraint and `--freq 50` versus `--freq 500` prints the same
+number. Our reference configuration is `heap/router1`, so for reference rows the
+original statement holds and the headroom concern is real; for the fallback rows
+it does not, and the number is instead an unconstrained critical path that no
+timing effort shaped at all. Neither reading is comfortable, and the two are not
+comparable to each other -- which is a second, independent reason the
+cross-configuration ranking refused in #630 was never a ranking.
+
+A sharper hazard sits underneath: until an openXC7 commit of 2026-08-11, the
+router2 flow ended WITHOUT a timing analysis, so the only "Max frequency" lines
+in a router2 log came from placer1's mid-flow pre-route estimates. A scraper that
+takes the last match (ours does) reads a post-route figure under router1 and a
+pre-route estimate under router2 -- from identically-formatted lines.
+
 ### T772 -- SORT CLAIMS BY EFFECT OVER DISPERSION BEFORE WRITING THE ABSTRACT [derived]
 
 Given an instrument with a measured dispersion band, the set of publishable
@@ -28152,6 +28171,41 @@ here instead of hiding inside a subtraction.
 Caveat carried in the same breath: this is synthesis, not place-and-route; it is
 decoders, not datapaths; and every row inherits its decoder's verification
 status, because A WRONG DECODER IS A CHEAP DECODER.
+
+### T776 -- A TIMING MODEL WITH ONE CONSTANT AND ONE CORNER RANKS DESIGNS BY THEIR SHAPE [measured]
+
+Read out of the toolchain's own source, not inferred. In nextpnr-xilinx,
+`xilinx/arch.cc:2507-2509` sets, for EVERY flip-flop of every kind:
+
+    info.setup     = getDelayFromNS(0.1);
+    info.hold      = getDelayFromNS(0.1);
+    info.clockToQ  = getDelayFromNS(0.1);
+
+and `xilinx/python/bbaexport.py:356` emits `bba.u32(1)  # only one speed grade
+currently`. Two consequences follow with no modelling assumptions at all.
+
+**Speed grade is decorative.** The chipdb carries a single timing corner, so an
+XC7A200T-1 and an XC7A200T-3 produce byte-identical delays and byte-identical
+Fmax. Any part string qualified by speed grade -- ours included, `-1` on the
+bench and `-2` in CI -- describes the silicon and not the number, and the
+apparent discrepancy between the two is not a discrepancy in the results.
+
+**The bias is unequal across subjects, so it reorders.** Every register-to-register
+path carries exactly 0.2 ns of endpoint delay, the same for every design. A
+shallow, register-dominated datapath spends a large fraction of its period on
+that constant; a deep, logic-dominated one spends a small fraction. Real Artix-7
+clock-to-Q plus setup is several times 0.2 ns, so the model systematically
+flatters the shallow designs -- and "shallow versus deep" is exactly the axis a
+format comparison varies. The error is therefore not a constant offset that
+cancels in a ratio; it is a rotation of the ranking.
+
+The general statement: a timing model's constants are a prior over which designs
+win. When those constants are placeholders rather than measurements, the
+resulting order is a statement about the model, and the only way to learn its
+direction and magnitude is to calibrate one design against a vendor flow. Until
+that calibration exists, frequencies from this substrate are self-consistent and
+externally uncalibrated -- publishable as such, and not comparable to any Fmax in
+the literature.
 
 ---
 
