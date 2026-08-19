@@ -151,3 +151,53 @@ three channels, the span recorder in one, so "show" answered "nothing" for a
 file charged 2,438 tokens). Two cures: **read one raw case before believing any
 count**, and **reconcile sum(items) == total before trusting either account.** A timeout under load is a fact about the load; UTC stamps
 sit on yesterday's local date; `rc=$?` after a pipeline is the tail's status.
+
+
+---
+
+# Part III — grammar recovery at scale (the ladder, W891–W907)
+
+## The rung discipline
+
+One convicted cause -> one probe file -> one measured rung. A rung ships with:
+exact-line probes (synthetic repros lie — artefact #8), a full-corpus
+certificate (discard total, parse-fail DIFF not count, consume-all), and an
+adversarial break panel. Fourteen rungs recovered 62.1 % of 67,760 discarded
+tokens and took BDD-line readability from ~45 % to 98.5 % with zero
+undisclosed regressions.
+
+## The corpus tests what exists; the panel tests what can be written
+
+Four consecutive rungs passed 624 specs and fell to ~70 adversarial probe
+attempts each. Every worst-class find — assertions vanishing under "nothing
+discarded", scope theft with corrupted dataflow — came from a panel, none
+from the corpus. Three lenses, ~8 probes each, AFTER the corpus sweep, every
+grammar rung, no exceptions.
+
+## Conviction maps compile
+
+A fan-out that only reads produces suspects; give every reader an INTERVENTION
+DUTY (copy to scratch, delete the suspect, re-measure) and the map's rows are
+convictions that convert to fixes with no re-diagnosis. Presence is not
+causality: the top offender of one map was fully acquitted by exact-line
+probes; ddmin and single-variable variants assign cause, classification only
+ranks suspects.
+
+## The keyword-collision family
+
+Five members here: `and` (operator vs clause), `let`/`const` (one token),
+`invariant` (opener vs field label), `var` (declaration vs name), `then`
+(clause vs element type). One template: find where the token STANDS (position,
+follow-set, line, column) and give the parser that rule. Ambiguity resolves by
+layout; ties need an explicit safe answer (scope theft at a column tie was
+invisible to every instrument because both readings parse).
+
+## Instrument law
+
+Every recovery path feeds BOTH accounts (counter and spans) — the fourth
+unaccounted channel manufactured zombie parses (a green file whose AST held
+one declaration). `sum(items) == total` is an oracle; run it after every
+instrument change. `Ok` is not done: a sub-parse that lands mid-line is a
+truncation wearing a success. And a ladder ENDS: price the frontier
+(intervention map), ship the tail, and hand the residue to its decision-makers
+— 74 % of this one's residue is a single Architect word.

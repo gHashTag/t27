@@ -12304,6 +12304,11 @@ went map-to-shipped in one wave. Classification maps rot; conviction maps
 compile. Spend fan-out tokens on the intervention, and the next wave's
 implementation is free.
 
+**1389. A LOOP'S TERMINAL TEST.** When the next unit of work is a decision
+only a human can make, stop mining and make the decision cheap: one page, the
+options priced, a single word to answer. Then hold quietly -- watch, ratchet,
+react. Running past that point converts value into noise.
+
 ### How to update this tracker
 
 After closing a wave:

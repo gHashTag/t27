@@ -1,0 +1,1273 @@
+--- bootstrap/src/compiler.rs	2026-08-15 21:11:30
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 15:36:52
+@@ -214,6 +214,10 @@
+     ShiftLeft,
+     ShiftRight,
+     PlusEquals,
++    MinusEquals,
++    StarEquals,
++    SlashEquals,
++    PercentEquals,
+     PlusPercent,
+     MinusPercent,
+     StarPercent,
+@@ -690,6 +694,50 @@
+                 return Token {
+                     kind: TokenKind::PlusEquals,
+                     lexeme: String::from("+="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'-', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::MinusEquals,
++                    lexeme: String::from("-="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'*', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::StarEquals,
++                    lexeme: String::from("*="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'/', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::SlashEquals,
++                    lexeme: String::from("/="),
++                    line: start_line,
++                    col: start_col,
++                };
++            }
++
++            if two == [b'%', b'='] {
++                self.advance();
++                self.advance();
++                return Token {
++                    kind: TokenKind::PercentEquals,
++                    lexeme: String::from("%="),
+                     line: start_line,
+                     col: start_col,
+                 };
+@@ -978,6 +1026,15 @@
+     /// -- for input that was consumed AND THROWN AWAY. Counting them is what
+     /// makes that population visible. See T42.
+     dropped_top_level_tokens: usize,
++    // W883 prototype: nested `fn` declarations, hoisted to module level.
++    hoisted_fns: Vec<Node>,
++    // W898 (0005): inside a braceless-clause VALUE, an `and` that opens the next
++    // clause must terminate the expression instead of becoming a logical AND.
++    in_bdd_clause_value: bool,
++    last_line: usize,
++    bdd_last_was_assertion: bool,
++    bdd_role_preset: bool,
++    bdd_first_col_preset: Option<usize>,
+     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
+     /// told us 55,563 tokens vanish; only reading them can say whether any of
+     /// it is content a theorem depends on. See T43.
+@@ -992,6 +1049,39 @@
+     pending_pragma: String,
+ }
+ 
++/// Identifiers a nested fn uses that are neither its parameters nor its own
++/// locals. Builtin scalar type names are excluded: `@as(f32, ..)` carries `f32`
++/// as a bare identifier argument.
++fn free_idents_of(decl: &Node) -> Vec<String> {
++    const BUILTIN_TYPES: &[&str] = &[
++        "f32", "f64", "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32",
++        "i64", "isize", "bool", "void", "true", "false",
++    ];
++    let mut bound: Vec<String> = decl.params.iter().map(|p| p.0.clone()).collect();
++    let mut free: Vec<String> = Vec::new();
++    fn walk(n: &Node, bound: &mut Vec<String>, free: &mut Vec<String>) {
++        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() {
++            bound.push(n.name.clone());
++        }
++        if n.kind == NodeKind::ExprIdentifier
++            && !n.name.is_empty()
++            && !n.name.starts_with('@')
++            && !bound.iter().any(|b| b == &n.name)
++            && !free.iter().any(|f| f == &n.name)
++        {
++            free.push(n.name.clone());
++        }
++        for c in &n.children {
++            walk(c, bound, free);
++        }
++    }
++    for c in &decl.children {
++        walk(c, &mut bound, &mut free);
++    }
++    free.retain(|f| !BUILTIN_TYPES.contains(&f.as_str()));
++    free
++}
++
+ impl Parser {
+     pub fn new(mut lexer: Lexer) -> Self {
+         let first = lexer.next_token();
+@@ -1003,6 +1093,12 @@
+             pending_pragma: String::new(),
+             no_struct_literal: 0,
+             dropped_top_level_tokens: 0,
++            hoisted_fns: Vec::new(),
++            in_bdd_clause_value: false,
++            last_line: 0,
++            bdd_last_was_assertion: false,
++            bdd_role_preset: false,
++            bdd_first_col_preset: None,
+             dropped_spans: Vec::new(),
+         }
+     }
+@@ -1026,6 +1122,7 @@
+     }
+ 
+     fn advance(&mut self) {
++        self.last_line = self.current.line;
+         self.current = self.peek.clone();
+         self.peek = self.lexer.next_token();
+     }
+@@ -1071,7 +1168,15 @@
+             // discarded. T42's counter lived only in `skip_to_next_top_level`,
+             // making 55,563 a lower bound over one of four discard channels.
+             // See T56.
++            // W899: the counter incremented here but the SPAN was never
++            // recorded, so `parse-complete --show` printed "nothing discarded"
++            // for a file the corpus mode charged 2,438 tokens. Both accounts
++            // must see every channel.
+             self.dropped_top_level_tokens += 1;
++            if self.dropped_spans.len() < 20000 {
++                self.dropped_spans
++                    .push((self.current.line as u32, self.current.lexeme.clone()));
++            }
+             self.advance();
+         }
+         Ok(())
+@@ -1087,6 +1192,58 @@
+                 self.advance();
+                 return Ok(());
+             }
++            // W902 (0008): a LINE-LEADING const/var at depth 0 is the next
++            // declaration, not expression tail. is_top_level_start excludes
++            // const/var on purpose (they appear inside keyword blocks), so a
++            // semicolon-less `const A = 10` followed by `const B = 5` sent this
++            // loop through B, the next fn, and everything to EOF -- the corpus's
++            // single largest discard (2,438 tokens) traced here. Same-line
++            // `[]const u8` shapes stay intact (W568): the line test spares them.
++            // W903 panel: the stop's first version fired on var, on INDENTED
++            // const inside keyword-test bodies (hoisting a test-local binding
++            // to module scope), and on the wrapped tail of a pointer type
++            // (`const P = *` newline `const u8;` minted a module const named
++            // u8). v2 narrows it to what the corpus shape actually is: a
++            // COLUMN-1 `const` opening a real declaration head
++            // (`const Ident :` or `const Ident =`). Everything else keeps the
++            // old swallow -- now COUNTED, which is the honesty that matters.
++            if bracket_depth == 0
++                && paren_depth == 0
++                && self.current.line > self.last_line
++            {
++                // W903 v3: a line-leading TOP-LEVEL opener (test/fn/...) ends
++                // the skip -- without this, the skip after a bad const ran
++                // THROUGH `test t` into its body and the recovery minted
++                // module consts from test-local bindings. And a line-leading
++                // const/var counts only with a DECLARATION HEAD after it
++                // (`Ident :` / `Ident =`): the wrapped pointer type
++                // `const P = *` newline `const u8;` has no head and stays
++                // swallowed instead of minting a module const named u8.
++                if self.is_top_level_start() {
++                    return Ok(());
++                }
++                if self.current.kind == TokenKind::KwConst
++                    || self.current.kind == TokenKind::KwVar
++                {
++                    let look = self.save_state();
++                    self.advance();
++                    let head = self.current.kind == TokenKind::Ident && {
++                        self.advance();
++                        matches!(self.current.kind, TokenKind::Colon | TokenKind::Equals)
++                    };
++                    self.restore_state(look);
++                    if head {
++                        return Ok(());
++                    }
++                }
++            }
++            // W902: this loop was the FOURTH discard channel T56 counted --
++            // and the only one still invisible to both accounts. Record.
++            self.dropped_top_level_tokens += 1;
++            if self.dropped_spans.len() < 20000 {
++                self.dropped_spans
++                    .push((self.current.line as u32, self.current.lexeme.clone()));
++            }
+             if self.current.kind == TokenKind::LBrace {
+                 self.advance();
+                 self.skip_brace_body()?;
+@@ -1309,6 +1466,7 @@
+         Ok(module)
+     }
+ 
++
+     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
+         self.reject_unterminated_string()?;
+         while self.current.kind != TokenKind::Eof
+@@ -1547,6 +1705,11 @@
+                 match self.parse_top_level_decl() {
+                     Ok(decl) => {
+                         module.children.push(decl);
++                        // W883: functions hoisted out of the just-parsed item
++                        // land beside it at module level.
++                        for h in self.hoisted_fns.drain(..) {
++                            module.children.push(h);
++                        }
+                     }
+                     Err(e) => {
+                         // A malformed declaration is a HARD error: the old
+@@ -1946,6 +2109,16 @@
+             decl.children.push(val_node);
+         }
+ 
++        // W903 (0008 v3): var had NO tail-skip, so junk after a recovered
++        // `var` (`then v == 2` at module level) hard-errored the whole module
++        // where const's tail swallowed it. Mirror const's tail exactly.
++        if self.current.kind != TokenKind::Semicolon
++            && self.current.kind != TokenKind::RBrace
++            && !self.is_top_level_start()
++            && self.current.kind != TokenKind::Eof
++        {
++            self.skip_to_semicolon()?;
++        }
+         if self.current.kind == TokenKind::Semicolon {
+             self.advance();
+         }
+@@ -2555,6 +2728,45 @@
+     /// Parse function body statements until closing brace
+     fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
+         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
++            // W883 prototype: a NESTED fn is parsed with the ordinary fn parser
++            // and HOISTED to module level -- no statement node is produced, so
++            // no backend needs a no-op. Sound only when the nested fn captures
++            // nothing beyond its own parameters and module-level names; the
++            // one corpus instance (gf16's phi_dist) satisfies that, and the
++            // proposal text records the capture question as OPEN.
++            if self.current.kind == TokenKind::KwFn {
++                let nested = self.parse_fn_decl(false)?;
++                // CAPTURE CHECK, at the only scope that matters. Hoisting moves
++                // the nested fn OUT of the enclosing body, so the one thing it
++                // must not reach is the enclosing fn's own bindings -- its
++                // parameters and the locals declared before this point. A free
++                // name that is NOT such a binding resolves identically before
++                // and after hoisting (module scope either way), so external
++                // names like an imported PHI_INV are none of this check's
++                // business. The first version asked \"is it module-level?\" and
++                // rejected gf16 for an IMPORTED constant -- the wrong question.
++                let free = free_idents_of(&nested);
++                let mut enclosing: Vec<&str> =
++                    decl.params.iter().map(|p| p.0.as_str()).collect();
++                for c in &decl.children {
++                    if c.kind == NodeKind::StmtLocal && !c.name.is_empty() {
++                        enclosing.push(c.name.as_str());
++                    }
++                }
++                let captured: Vec<String> = free
++                    .into_iter()
++                    .filter(|f| enclosing.iter().any(|e| e == f))
++                    .collect();
++                if !captured.is_empty() {
++                    return Err(format!(
++                        "nested fn '{}' inside '{}' captures enclosing locals {:?} -- \
++                         hoisting would unbind them; lift them to parameters or module consts",
++                        nested.name, decl.name, captured
++                    ));
++                }
++                self.hoisted_fns.push(nested);
++                continue;
++            }
+             match self.parse_body_stmt() {
+                 Ok(stmt) => decl.children.push(stmt),
+                 Err(e) => {
+@@ -2579,8 +2791,13 @@
+         loop {
+             // W646: statement-level recovery is the second discard channel.
+             // Everything it walks past is a statement the AST never sees.
++            // W899: record the span too -- see the note in skip_brace_body.
+             if self.current.kind != TokenKind::Eof {
+                 self.dropped_top_level_tokens += 1;
++                if self.dropped_spans.len() < 20000 {
++                    self.dropped_spans
++                        .push((self.current.line as u32, self.current.lexeme.clone()));
++                }
+             }
+             match self.current.kind {
+                 TokenKind::Eof => break,
+@@ -2766,15 +2983,26 @@
+         }
+ 
+         // Check for += assignment
+-        if self.current.kind == TokenKind::PlusEquals {
+-            self.advance(); // consume +=
++        // Compound assignment. `+=` was the grammar's only member for its whole
++        // life; W880 measured the gap -- 55 specs, 138 seals and the L6 SSOT
++        // (gf16.t27's Taylor loop) unparseable for want of `*=` alone.
++        let compound = match self.current.kind {
++            TokenKind::PlusEquals => Some("+="),
++            TokenKind::MinusEquals => Some("-="),
++            TokenKind::StarEquals => Some("*="),
++            TokenKind::SlashEquals => Some("/="),
++            TokenKind::PercentEquals => Some("%="),
++            _ => None,
++        };
++        if let Some(op) = compound {
++            self.advance(); // consume the compound operator
+             let rhs = self.parse_expr()?;
+             if self.current.kind == TokenKind::Semicolon {
+                 self.advance();
+             }
+             let mut assign = Node::new(NodeKind::StmtAssign);
+             assign.line = self.current.line as u32;
+-            assign.extra_op = "+=".to_string();
++            assign.extra_op = op.to_string();
+             assign.children.push(expr);
+             assign.children.push(rhs);
+             return Ok(assign);
+@@ -3244,6 +3472,33 @@
+         while self.current.kind == TokenKind::KwAnd
+             || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
+         {
++            // W898 (0005): `given c = 1` newline `and x = f(c)` -- the greedy
++            // and-loop consumed the NEXT CLAUSE as a conjunction, stopped on its
++            // `=`, and the whole block fell back. Every mid-block `and` clause in
++            // the corpus died this way. In clause-value mode, an `and` followed
++            // by `ident =` is the next clause, not an operand: probe ahead with
++            // save/restore, which the parser already uses for exactly such looks.
++            if self.in_bdd_clause_value && self.current.kind == TokenKind::KwAnd {
++                // W901 (0007 v2): the panel folded `given f(0x55)` +
++                // `and g(0x66)` into ONE conjunction statement -- the `ident =`
++                // look below only catches and-BINDINGS. In the BDD layout a
++                // line-leading `and` IS a clause; a genuine operator lives on
++                // the line it operates on. Break on newline-`and` too.
++                if self.current.line > self.last_line {
++                    break;
++                }
++                let look = self.save_state();
++                self.advance();
++                let is_clause = self.current.kind == TokenKind::Ident && {
++                    let name_ok = true;
++                    self.advance();
++                    name_ok && self.current.kind == TokenKind::Equals
++                };
++                self.restore_state(look);
++                if is_clause {
++                    break;
++                }
++            }
+             self.advance();
+             let right = self.parse_expr_comparison()?;
+             left = Node {
+@@ -3259,6 +3514,40 @@
+     /// Parse comparison expressions (==, !=, <, >, <=, >=)
+     fn parse_expr_comparison(&mut self) -> Result<Node, String> {
+         let mut left = self.parse_expr_bitor()?;
++        // W903: `value in [-1, 0, 1]` / `x in {0, 1, 2}` -- list/set membership.
++        // KwIn only ever appeared in for-loop headers, so the clause forms that
++        // used it as an OPERATOR dropped their blocks. Same-line only: a `for
++        // .. in` never reaches expression position, and a line-leading `in`
++        // does not exist in the corpus. The brace-set RHS is parsed here
++        // directly ({ is otherwise W578 territory).
++        while self.current.kind == TokenKind::KwIn && self.current.line == self.last_line {
++            self.advance();
++            let right = if self.current.kind == TokenKind::LBrace {
++                let mut set = Node::new(NodeKind::ExprArrayLiteral);
++                set.extra_kind = "set".to_string();
++                self.advance();
++                if self.current.kind != TokenKind::RBrace {
++                    set.children.push(self.parse_expr_bitor()?);
++                    while self.current.kind == TokenKind::Comma {
++                        self.advance();
++                        if self.current.kind == TokenKind::RBrace {
++                            break;
++                        }
++                        set.children.push(self.parse_expr_bitor()?);
++                    }
++                }
++                self.expect(TokenKind::RBrace)?;
++                set
++            } else {
++                self.parse_expr_bitor()?
++            };
++            left = Node {
++                kind: NodeKind::ExprBinary,
++                extra_op: "in".to_string(),
++                children: vec![left, right],
++                ..Default::default()
++            };
++        }
+         while matches!(
+             self.current.kind,
+             TokenKind::Eq
+@@ -3672,6 +3961,49 @@
+ 
+     /// Parse primary expressions
+     fn parse_expr_primary(&mut self) -> Result<Node, String> {
++        // W906 (0013): `var` as a NAME inside clause values -- the binding
++        // `given var = 5` lowers, but `then var == 5` died on KwVar in operand
++        // position. In clause-value mode only, a var/const keyword NOT opening
++        // a declaration (no `Ident =`/`Ident :` after it) reads as an
++        // identifier.
++        // W907 (0014): inline lambda in clause values -- `fn(x) x >= 0.0` as
++        // a call argument in a then-clause felled its whole block (convicted
++        // by replacing it with a named predicate). Represented WITHOUT a new
++        // node kind: ExprCall named "fn", parameters joined in extra_field,
++        // single-expression body as the only child -- backends that meet it
++        // see an ordinary call node.
++        if self.in_bdd_clause_value
++            && self.current.kind == TokenKind::KwFn
++            && self.peek.kind == TokenKind::LParen
++        {
++            self.advance(); // fn
++            self.advance(); // (
++            let mut params: Vec<String> = Vec::new();
++            while self.current.kind == TokenKind::Ident {
++                params.push(self.current.lexeme.clone());
++                self.advance();
++                if self.current.kind == TokenKind::Comma {
++                    self.advance();
++                }
++            }
++            self.expect(TokenKind::RParen)?;
++            let body = self.parse_expr()?;
++            let mut node = Node::new(NodeKind::ExprCall);
++            node.name = "fn".to_string();
++            node.extra_field = params.join(", ");
++            node.children.push(body);
++            return Ok(node);
++        }
++        if self.in_bdd_clause_value
++            && matches!(self.current.kind, TokenKind::KwVar | TokenKind::KwConst)
++            && !(self.peek.kind == TokenKind::Ident)
++        {
++            let name = self.current.lexeme.clone();
++            self.advance();
++            let mut node = Node::new(NodeKind::ExprIdentifier);
++            node.name = name;
++            return Ok(node);
++        }
+         match self.current.kind {
+             // Number literal
+             TokenKind::Number => {
+@@ -3898,10 +4230,18 @@
+                 } else {
+                     String::new()
+                 };
+-            } else if self.current.kind == TokenKind::Ident {
+-                // Allow field = expr without dot prefix
++            } else if self.current.kind == TokenKind::Ident
++                || (self.current.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
++                    && !self.current.lexeme.is_empty()
++                    && (self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon))
++            {
++                // Allow field = expr without dot prefix.
++                // W906 (0013): a KEYWORD as a field label -- `Contract { ...,
++                // invariant: "..." }` -- broke out of this loop and the whole
++                // block fell. Any word-shaped token followed by `=`/`:` is a
++                // field label here; `invariant` the keyword never appears in
++                // that position otherwise.
+                 let n = self.current.lexeme.clone();
+-                // Peek: only treat as field init if followed by '=' or ':'
+                 if self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon {
+                     field_name = n;
+                     self.advance(); // consume field name
+@@ -4055,10 +4395,12 @@
+         self.advance(); // consume first '['
+ 
+         let mut dims: Vec<String> = Vec::new();
++        let mut rbracket_line = self.current.line;
+         loop {
+             // Collect the contents of the current bracket pair.
+             if self.current.kind == TokenKind::RBracket {
+                 dims.push(String::new());
++                rbracket_line = self.current.line;
+                 self.advance();
+             } else {
+                 let mut bracket_content = String::new();
+@@ -4078,6 +4420,7 @@
+                     self.advance();
+                 }
+                 dims.push(bracket_content.trim().to_string());
++                rbracket_line = self.current.line;
+                 self.expect(TokenKind::RBracket)?;
+             }
+             // Another leading bracket -> multi-dimensional literal.
+@@ -4089,9 +4432,45 @@
+         }
+         node.extra_size = dims.join("][");
+ 
+-        if self.current.kind == TokenKind::Ident {
+-            node.extra_type = self.current.lexeme.clone();
+-            self.advance();
++        // W900 (0006): an Ident here was consumed as the element type
++        // UNCONDITIONALLY, so `given params = [1.0]` followed by
++        // `when result = ...` ate the clause keyword `when` as a "type" and
++        // the whole block fell back. The Zig typed form is only real when an
++        // initialiser brace follows -- `[3]u8{1, 2, 3}`, `[]T{}` -- so look
++        // one token past the Ident and take it as a type ONLY then. (`and`
++        // clauses survived this all along because KwAnd is not an Ident --
++        // which is why 0005's fix made the bug look like a struct-literal
++        // problem one clause earlier.)
++        // W900 panel: in clause-value mode a clause KEYWORD is never an
++        // element type, on either line. Without this, `given xs = [1] then
++        // {1} == xs` forged the brace test -- `then` became the "type",
++        // `{1}` its initialiser, and the assertion vanished under a green
++        // "nothing discarded"; the same-line arm ate one-line
++        // `given xs = [1, 2] then ...` pairs the same way.
++        let clause_kw = self.in_bdd_clause_value
++            && matches!(
++                self.current.lexeme.as_str(),
++                "given" | "when" | "then" | "assert" | "and"
++            );
++        if self.current.kind == TokenKind::Ident && !clause_kw {
++            // Same line as the `]`: the legacy reading stands -- the corpus
++            // holds same-line shapes (`[_]provider-schema::ToolCall{}`) whose
++            // parse, however odd, predates this rung. A DIFFERENT line means
++            // the Ident is the next clause's keyword unless an initialiser
++            // brace proves otherwise.
++            if self.current.line == rbracket_line {
++                node.extra_type = self.current.lexeme.clone();
++                self.advance();
++            } else {
++                let look = self.save_state();
++                let ty = self.current.lexeme.clone();
++                self.advance();
++                if self.current.kind == TokenKind::LBrace {
++                    node.extra_type = ty;
++                } else {
++                    self.restore_state(look);
++                }
++            }
+         }
+ 
+         if self.current.kind == TokenKind::LBrace {
+@@ -4353,6 +4732,13 @@
+         let entry = self.save_state();
+         let start_children = block.children.len();
+         let mut lowered = 0usize;
++        let mut first_clause_col: Option<usize> = self.bdd_first_col_preset.take();
++        // W903: callers that already lowered an assertion head (bench-colon)
++        // pre-set the role; everyone else starts a fresh block.
++        if !self.bdd_role_preset {
++            self.bdd_last_was_assertion = false;
++        }
++        self.bdd_role_preset = false;
+ 
+         loop {
+             // A non-identifier here is normally the end of the block, because
+@@ -4360,18 +4746,187 @@
+             // keyword. But it can also mean we stopped mid-clause -- e.g. on the
+             // comma of `given clk = true, rst_n = false`. Only a real boundary
+             // ends the block; anything else falls back.
+-            if self.current.kind != TokenKind::Ident {
++            // W898 (0005): `and` lexes as the LOGICAL OPERATOR token, not as an
++            // identifier -- so the `and` clause the line below claims to accept
++            // was unreachable for this function's whole life, and every block
++            // containing one fell back wholesale. Found by ddmin: an 80-line
++            // contextual repro reduced to four lines, and the "context" was one
++            // `and` clause. Accept the keyword token at clause position.
++            let and_kw = self.current.kind == TokenKind::KwAnd
++                || (self.current.kind != TokenKind::Ident
++                    && self.current.lexeme == "and");
++            // W904 (0012): `const h = 5` / `var v : u32 = 7` BETWEEN clauses.
++            // KwConst sits in is_block_boundary, so the block ENDED there and
++            // the binding parsed at MODULE scope -- a test-local name became a
++            // global for every backend, and the block's remaining clauses
++            // dropped. Scope guards: only after at least one accepted clause,
++            // and only at that clause's indent or deeper -- a shallower
++            // const/var is a real module declaration and still ends the block.
++            // (A body OPENING with const keeps the old hoist edge, documented.)
++            // W905 panel: a blank line before the const meant "module scope"
++            // to every reader, and the arm captured it into the block anyway.
++            // Statement clauses must sit on the line immediately after the
++            // previous clause; a gap returns the old boundary reading.
++            let adjacent = self.current.line <= self.last_line + 1;
++            if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
++                && adjacent
++                && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
++            {
++                let st_entry = self.save_state();
++                let _st_line = self.current.line;
++                let mutable = self.current.kind == TokenKind::KwVar;
++                self.advance();
++                let mut ok_stmt = false;
++                if self.current.kind == TokenKind::Ident {
++                    let name = self.current.lexeme.clone();
++                    self.advance();
++                    let ty = if self.current.kind == TokenKind::Colon {
++                        self.advance();
++                        self.parse_type_annotation()
++                    } else {
++                        String::new()
++                    };
++                    if self.current.kind == TokenKind::Equals {
++                        self.advance();
++                        self.in_bdd_clause_value = true;
++                        let r = self.parse_expr();
++                        self.in_bdd_clause_value = false;
++                        if let Ok(expr) = r {
++                            // W904: parse_expr can return Ok having consumed
++                            // only PART of the line (a brace-if value, W578) --
++                            // accepting that "success" left the loop on
++                            // mid-line junk and cost the whole block. A
++                            // statement counts only if it ends CLEANLY: at a
++                            // semicolon, a new line, a boundary, or EOF.
++                            // W905 panel: `line > st_line` blessed a MID-LINE
++                            // landing on a later line -- `x = a +` newline
++                            // `2 y = 3` split one physical line into two
++                            // minted statements. Clean means current OPENS its
++                            // line: its line is beyond the last CONSUMED
++                            // token's line.
++                            let clean = self.current.kind == TokenKind::Semicolon
++                                || self.current.kind == TokenKind::Eof
++                                || self.current.line > self.last_line
++                                || Self::is_block_boundary(self.current.kind);
++                            if clean {
++                                if self.current.kind == TokenKind::Semicolon {
++                                    self.advance();
++                                }
++                                let mut decl = Node::new(NodeKind::StmtLocal);
++                                decl.name = name;
++                                decl.extra_type = ty;
++                                decl.extra_mutable = mutable;
++                                decl.children.push(expr);
++                                block.children.push(decl);
++                                ok_stmt = true;
++                            }
++                        }
++                    }
++                }
++                if ok_stmt {
++                    lowered += 1;
++                    continue;
++                }
++                // W904: a statement this arm cannot read (a brace-if value,
++                // W578 territory) must NOT cost the whole block -- restore and
++                // END the block, exactly what the boundary did before this
++                // rung: module-level statement parsing reads what it can and
++                // the accounting stays per-line. (`let` lexes as KwVar, so
++                // this arm sees every let-statement too.)
++                self.restore_state(st_entry);
++                break;
++            }
++            if self.current.kind != TokenKind::Ident && !and_kw {
+                 if Self::is_block_boundary(self.current.kind) {
+                     break;
+                 }
+                 self.restore_bdd_fallback(block, start_children, entry);
+                 return;
+             }
+-            let clause = self.current.lexeme.clone();
+-            let is_binding = clause == "given" || clause == "when" || clause == "and";
+-            let is_assertion = clause == "then" || clause == "assert";
++            // W894 (0003): checkpoint PER CLAUSE. The whole-block fallback made
++            // one unsupported clause lose its siblings -- most of the corpus's
++            // dropped test lines were collateral, not themselves unsupported.
++            let clause_entry = self.save_state();
++            let clause_col = self.current.col;
++            let clause = self.current.lexeme.clone();
++            // W901 (0007 v2): Gherkin semantics -- `and` inherits the ROLE of
++            // the clause before it, but CONTENT WINS: `and ident = ...` is a
++            // binding wherever it stands (the panel's sandwich probe bound a
++            // variable right after a then). Anything else after an assertion
++            // clause asserts.
++            let and_binds = clause == "and" && {
++                let look = self.save_state();
++                self.advance();
++                let is_bind = self.current.kind == TokenKind::Ident && {
++                    self.advance();
++                    self.current.kind == TokenKind::Equals
++                };
++                self.restore_state(look);
++                is_bind
++            };
++            let is_binding = clause == "given"
++                || clause == "when"
++                || (clause == "and" && (and_binds || !self.bdd_last_was_assertion));
++            let is_assertion = clause == "then"
++                || clause == "assert"
++                || (clause == "and" && !and_binds && self.bdd_last_was_assertion);
++            // W901 (0007): bench clause pair in keyword form -- `measure f(x)` /
++            // `target latency_us < 5.0`. Lowered to expression STATEMENTS named
++            // by their clause, never to asserts: a bench target is a goal, not
++            // a hard invariant, and inventing check semantics here is exactly
++            // what FORALL-DECISION.md declines to do. The colon-prose form
++            // (`measure: nanoseconds to ...`) stays a fallback -- prose is not
++            // an expression.
++            // W903 panel: in a TEST block a stray `measure:` captured the
++            // block's only then-assert into inert prose -- a vacuous test
++            // under a green light. The clause pair belongs to bench blocks.
++            let is_expr_clause = (clause == "measure" || clause == "target")
++                && block.kind == NodeKind::BenchBlock;
+ 
+-            if !is_binding && !is_assertion {
++            if !is_binding && !is_assertion && !is_expr_clause {
++                // W904 (0012): a bare ASSIGNMENT statement between clauses --
++                // `sum = if (...) ...;` -- is an Ident that is no clause, and
++                // the whole-block fallback here cost every already-lowered
++                // sibling. `Ident =` at clause indent parses as a statement
++                // clause under the same clean-termination rule as const/var,
++                // in the fn-body StmtAssign shape (lhs expr child, rhs child).
++                if first_clause_col.map_or(false, |c| c > 1 && clause_col >= c)
++                    && self.current.line <= self.last_line + 1
++                    && self.peek.kind == TokenKind::Equals
++                {
++                    let st_entry = self.save_state();
++                    let _st_line = self.current.line;
++                    let mut lhs = Node::new(NodeKind::ExprIdentifier);
++                    lhs.name = self.current.lexeme.clone();
++                    self.advance(); // ident
++                    self.advance(); // =
++                    self.in_bdd_clause_value = true;
++                    let r = self.parse_expr();
++                    self.in_bdd_clause_value = false;
++                    let mut ok_stmt = false;
++                    if let Ok(expr) = r {
++                        let clean = self.current.kind == TokenKind::Semicolon
++                            || self.current.kind == TokenKind::Eof
++                            || self.current.line > self.last_line
++                            || Self::is_block_boundary(self.current.kind);
++                        if clean {
++                            if self.current.kind == TokenKind::Semicolon {
++                                self.advance();
++                            }
++                            let mut assign = Node::new(NodeKind::StmtAssign);
++                            assign.line = _st_line as u32;
++                            assign.children.push(lhs);
++                            assign.children.push(expr);
++                            block.children.push(assign);
++                            ok_stmt = true;
++                        }
++                    }
++                    if ok_stmt {
++                        lowered += 1;
++                        continue;
++                    }
++                    self.restore_state(st_entry);
++                }
+                 // An identifier that is not a clause means this body has a shape
+                 // we do not model. Falling through with the parser positioned
+                 // mid-block is what broke 19 specs on the first attempt.
+@@ -4379,9 +4934,85 @@
+                 return;
+             }
+ 
+-            let ok = if is_assertion {
++            let ok = if is_expr_clause {
+                 self.advance();
+-                match self.parse_expr() {
++                if self.current.kind == TokenKind::Colon {
++                    // W902 (0009): the colon-form pair -- `measure: nanoseconds
++                    // to f(x)` / `target: < 50ns`. The intervention map
++                    // convicted the FORM (a trivial expression after the colon
++                    // drops too), and the content is frequently PROSE, so no
++                    // expression grammar can read it honestly. Capture the
++                    // rest of the LINE verbatim into the node's value: the
++                    // tokens are READ and preserved, and no semantics are
++                    // invented for them.
++                    // W903 panel: the capture stops at a same-line CLAUSE WORD
++                    // -- `measure: 5 target: 6` was one node with target
++                    // flattened into prose, and a same-line `then x == 1`
++                    // lost its assert into the value. Prose keeps its words;
++                    // sibling clauses keep their nodes.
++                    let line = self.current.line;
++                    self.advance(); // consume ':'
++                    let mut text = String::new();
++                    while self.current.kind != TokenKind::Eof
++                        && self.current.line == line
++                    {
++                        if !text.is_empty()
++                            && matches!(
++                                self.current.lexeme.as_str(),
++                                "measure" | "target" | "given" | "when"
++                                    | "then" | "assert" | "and"
++                            )
++                        {
++                            break;
++                        }
++                        if !text.is_empty() {
++                            text.push(' ');
++                        }
++                        text.push_str(&self.current.lexeme);
++                        self.advance();
++                    }
++                    let mut stmt = Node::new(NodeKind::StmtExpr);
++                    stmt.name = format!("{}:", clause);
++                    stmt.value = text;
++                    block.children.push(stmt);
++                    true
++                } else {
++                    self.in_bdd_clause_value = true;
++                    let r = self.parse_expr();
++                    self.in_bdd_clause_value = false;
++                    match r {
++                        Ok(expr) => {
++                            let mut stmt = Node::new(NodeKind::StmtExpr);
++                            stmt.name = clause.clone();
++                            stmt.children.push(expr);
++                            // W906 (0013): a UNIT PHRASE after the bound --
++                            // `target throughput > 1000 steps/sec` -- left
++                            // `steps/sec` as junk that felled the block. The
++                            // same-line residue is captured verbatim into the
++                            // node's value, like the colon form's prose.
++                            let mut unit = String::new();
++                            while self.current.kind != TokenKind::Eof
++                                && self.current.line == self.last_line
++                            {
++                                if !unit.is_empty() {
++                                    unit.push(' ');
++                                }
++                                unit.push_str(&self.current.lexeme);
++                                self.advance();
++                            }
++                            stmt.value = unit;
++                            block.children.push(stmt);
++                            true
++                        }
++                        Err(_) => false,
++                    }
++                }
++            } else if is_assertion {
++                self.advance();
++                self.in_bdd_clause_value = true;
++                let r = self.parse_expr();
++                self.in_bdd_clause_value = false;
++                match r {
+                     Ok(expr) => {
+                         let mut call = Node::new(NodeKind::ExprCall);
+                         call.name = "assert".to_string();
+@@ -4395,20 +5026,199 @@
+                 }
+             } else {
+                 self.advance();
+-                if self.current.kind != TokenKind::Ident {
++                // W894 (0003): `when (a_out, psum) = pe(...)` -- a tuple pattern.
++                // This single unsupported shape accounted for ~60% of every
++                // dropped when-line in the corpus, and the whole-block fallback
++                // then lost the sibling clauses too. Mirrors parse_local_decl's
++                // tuple path exactly: StmtLocal, empty name, comma-joined
++                // pattern in extra_field.
++                if self.current.kind == TokenKind::LParen {
++                    self.advance(); // consume (
++                    let mut pat = String::new();
++                    while self.current.kind != TokenKind::RParen
++                        && self.current.kind != TokenKind::Eof
++                    {
++                        match self.current.kind {
++                            TokenKind::Comma => pat.push_str(", "),
++                            TokenKind::Ident => pat.push_str(&self.current.lexeme),
++                            _ => {}
++                        }
++                        self.advance();
++                    }
++                    if self.current.kind == TokenKind::RParen {
++                        self.advance();
++                    }
++                    if self.current.kind != TokenKind::Equals || pat.is_empty() {
++                        // W901 (0007 v2): not a tuple binding -- the panel
++                        // showed `given (x + 1) == 2` dying here while the
++                        // SAME value parsed fine under measure/target. Restore
++                        // and lower the value as an expression statement.
++                        self.restore_state(clause_entry);
++                        self.advance();
++                        self.in_bdd_clause_value = true;
++                        let r = self.parse_expr();
++                        self.in_bdd_clause_value = false;
++                        match r {
++                            Ok(expr) => {
++                                let mut stmt = Node::new(NodeKind::StmtExpr);
++                                stmt.name = clause.clone();
++                                stmt.children.push(expr);
++                                block.children.push(stmt);
++                                true
++                            }
++                            Err(_) => false,
++                        }
++                    } else {
++                        self.advance();
++                        self.in_bdd_clause_value = true;
++                        let r = self.parse_expr();
++                        self.in_bdd_clause_value = false;
++                        match r {
++                            Ok(expr) => {
++                                let mut decl = Node::new(NodeKind::StmtLocal);
++                                decl.extra_field = pat;
++                                decl.children.push(expr);
++                                block.children.push(decl);
++                                true
++                            }
++                            Err(_) => false,
++                        }
++                    }
++                } else if matches!(
++                    self.current.kind,
++                    TokenKind::KwVar | TokenKind::KwConst
++                ) && self.peek.kind == TokenKind::Equals
++                {
++                    // W906 (0013): `given var = 5` -- `var` as a binding NAME.
++                    // The keyword collision felled the block; a keyword
++                    // directly before `=` in a binding clause is a name.
++                    let name = self.current.lexeme.clone();
++                    self.advance();
++                    self.advance();
++                    self.in_bdd_clause_value = true;
++                    let r = self.parse_expr();
++                    self.in_bdd_clause_value = false;
++                    match r {
++                        Ok(expr) => {
++                            let mut decl = Node::new(NodeKind::StmtLocal);
++                            decl.name = name;
++                            decl.children.push(expr);
++                            block.children.push(decl);
++                            true
++                        }
++                        Err(_) => false,
++                    }
++                } else if self.current.kind != TokenKind::Ident {
+                     false
+                 } else {
++                    // W901 (0007): `given uart_tx_send(0x55)` -- a side-effect
++                    // call with no binding -- and `given f() == 1` -- a bare
++                    // comparison -- are not `ident =` bindings. Peek past the
++                    // identifier; anything but `=` restores and lowers the
++                    // whole clause value as an expression statement.
++                    let bind_look = self.save_state();
+                     let name = self.current.lexeme.clone();
+                     self.advance();
+                     if self.current.kind != TokenKind::Equals {
+-                        false
++                        self.restore_state(bind_look);
++                        // W906 (0013): a DOTTED/INDEXED LVALUE step --
++                        // `and state.gamma[0] = 2.0`, `when buffers.scores[0..4]
++                        // = scores` -- is an assignment, not an expression; the
++                        // expression path parsed the lvalue, stopped on `=`,
++                        // and the over-consumption guard felled the block.
++                        // Parse the lvalue, and if the cursor lands on a plain
++                        // `=`, lower the clause as StmtAssign.
++                        if self.current.kind == TokenKind::Ident
++                            && (self.peek.kind == TokenKind::Dot
++                                || self.peek.kind == TokenKind::LBracket)
++                        {
++                            let lv_look = self.save_state();
++                            self.in_bdd_clause_value = true;
++                            let lv = self.parse_expr();
++                            self.in_bdd_clause_value = false;
++                            let mut done = false;
++                            if let Ok(lhs) = lv {
++                                if self.current.kind == TokenKind::Equals {
++                                    self.advance();
++                                    self.in_bdd_clause_value = true;
++                                    let rv = self.parse_expr();
++                                    self.in_bdd_clause_value = false;
++                                    if let Ok(rhs) = rv {
++                                        let clean = self.current.kind
++                                            == TokenKind::Semicolon
++                                            || self.current.kind == TokenKind::Eof
++                                            || self.current.line > self.last_line
++                                            || Self::is_block_boundary(
++                                                self.current.kind,
++                                            );
++                                        if clean {
++                                            if self.current.kind
++                                                == TokenKind::Semicolon
++                                            {
++                                                self.advance();
++                                            }
++                                            let mut assign =
++                                                Node::new(NodeKind::StmtAssign);
++                                            assign.children.push(lhs);
++                                            assign.children.push(rhs);
++                                            block.children.push(assign);
++                                            done = true;
++                                        }
++                                    }
++                                }
++                            }
++                            if !done {
++                                self.restore_state(lv_look);
++                            } else {
++                                self.bdd_last_was_assertion = false;
++                                lowered += 1;
++                                continue;
++                            }
++                        }
++                        self.in_bdd_clause_value = true;
++                        let r = self.parse_expr();
++                        self.in_bdd_clause_value = false;
++                        match r {
++                            Ok(expr) => {
++                                let mut stmt = Node::new(NodeKind::StmtExpr);
++                                stmt.name = clause.clone();
++                                stmt.children.push(expr);
++                                block.children.push(stmt);
++                                true
++                            }
++                            Err(_) => false,
++                        }
+                     } else {
+                         self.advance();
+-                        match self.parse_expr() {
++                        self.in_bdd_clause_value = true;
++                        let r = self.parse_expr();
++                        self.in_bdd_clause_value = false;
++                        match r {
+                             Ok(expr) => {
+                                 let mut decl = Node::new(NodeKind::StmtLocal);
+                                 decl.name = name;
+                                 decl.children.push(expr);
++                                // W907 (0014): a COMPREHENSION SUFFIX --
++                                // `given encoded = encode(x) for x in {...}`
++                                // -- felled its block. The same-line `for ...`
++                                // tail is captured verbatim into extra_field:
++                                // read and preserved, no semantics invented.
++                                if self.current.kind == TokenKind::KwFor
++                                    && self.current.line == self.last_line
++                                {
++                                    let mut tail = String::new();
++                                    let line = self.current.line;
++                                    while self.current.kind != TokenKind::Eof
++                                        && self.current.line == line
++                                    {
++                                        if !tail.is_empty() {
++                                            tail.push(' ');
++                                        }
++                                        tail.push_str(&self.current.lexeme);
++                                        self.advance();
++                                    }
++                                    decl.extra_field = tail;
++                                }
+                                 block.children.push(decl);
+                                 true
+                             }
+@@ -4420,11 +5230,39 @@
+ 
+             // `parse_expr` is greedy across newlines, so a binding value can
+             // swallow the next clause's name (`FPGA_PART_35T and p100`) and
+-            // leave us on its `=`. That is over-consumption, not a body.
+-            if !ok || self.current.kind == TokenKind::Equals {
++            // leave us on its `=`. That is over-consumption; the clause-level
++            // recovery below cannot help because the damage crosses clauses --
++            // keep the whole-block fallback for exactly this case.
++            if self.current.kind == TokenKind::Equals {
+                 self.restore_bdd_fallback(block, start_children, entry);
+                 return;
+             }
++            if !ok {
++                // W898 revision: the per-clause SKIP is withdrawn. Its boundary
++                // set stopped at `}` and `fn` inside clause junk (a lambda in a
++                // then-expr, a struct literal in a given) and handed fragments to
++                // module level, which errors HARD where the old path skipped
++                // safely -- four files that parsed before regressed. On a failed
++                // clause the whole block falls back exactly as before 0003; the
++                // collateral win survives because the and-fix makes most blocks
++                // lower COMPLETELY, never reaching this arm.
++                let _ = clause_entry;
++                self.restore_bdd_fallback(block, start_children, entry);
++                return;
++            }
++            if clause != "and" {
++                self.bdd_last_was_assertion = is_assertion;
++            }
++            // W905 panel: the anchor is the MINIMUM accepted clause column
++            // (an over-indented first given at col 9 made a col-5 statement
++            // look "shallower" and hoisted it); and at a column-1 tie the
++            // statement arms are DISABLED entirely -- an unindented block
++            // makes module declarations and body statements indistinguishable
++            // by column, and the arm stole module consts other tests read.
++            first_clause_col = Some(match first_clause_col {
++                Some(c) if c <= clause_col => c,
++                _ => clause_col,
++            });
+             lowered += 1;
+         }
+ 
+@@ -4529,6 +5367,12 @@
+         start_children: usize,
+         entry: ParserCheckpoint,
+     ) {
++        if std::env::var("T27_BDD_DEBUG").is_ok() {
++            eprintln!(
++                "BDD-FALLBACK at line {} kind {:?} lexeme {:?}",
++                self.current.line, self.current.kind, self.current.lexeme
++            );
++        }
+         block.children.truncate(start_children);
+         self.restore_state(entry);
+         self.skip_to_next_top_level();
+@@ -4598,7 +5442,27 @@
+             }
+         }
+ 
+-        if !Self::is_block_boundary(self.current.kind) {
++        // W902 (0010): `invariant name : EXPR;` -- the trailing semicolon was
++        // the CONVICTED cause (colon, spacing and `||` all exonerated by
++        // variant probes): `;` is not a block boundary, so the check below
++        // dropped the freshly-lowered assertion. Eat it.
++        if self.current.kind == TokenKind::Semicolon {
++            self.advance();
++        }
++
++        // W903 panel: is_block_boundary omits var/enum/struct/using, so an
++        // invariant followed by any of those dropped its OWN assert. They end
++        // the block here as cleanly as const/fn do; the GLOBAL boundary set is
++        // left alone (adding KwVar there would hoist keyword-test-body vars).
++        let clean_end = Self::is_block_boundary(self.current.kind)
++            || matches!(
++                self.current.kind,
++                TokenKind::KwVar
++                    | TokenKind::KwEnum
++                    | TokenKind::KwStruct
++                    | TokenKind::KwUsing
++            );
++        if !clean_end {
+             self.restore_bdd_fallback(block, start_children, entry);
+         }
+     }
+@@ -4614,9 +5478,66 @@
+             self.advance(); // consume {
+             self.parse_fn_body(&mut block)?;
+             self.expect(TokenKind::RBrace)?;
++        } else if self.current.kind == TokenKind::Colon {
++            // W902 (0009): `bench name: expr` -- the one-line colon body that
++            // parses under `invariant` dropped under `bench` (the intervention
++            // map convicted the FORM: a trivial expression dropped too). Same
++            // lowering as invariant-colon, which 0004a already gave bench
++            // then-clauses: the predicate becomes an assertion.
++            let entry = self.save_state();
++            let start_children = block.children.len();
++            self.advance(); // consume ':'
++            // W903 panel: without the clause flag, a next-line `and y == 3`
++            // was absorbed under `or` precedence into a strictly WEAKER
++            // assertion. Same flag as every clause value.
++            self.in_bdd_clause_value = true;
++            let head = self.parse_expr();
++            self.in_bdd_clause_value = false;
++            match head {
++                Ok(expr) => {
++                    let mut call = Node::new(NodeKind::ExprCall);
++                    call.name = "assert".to_string();
++                    call.children.push(expr);
++                    let mut stmt = Node::new(NodeKind::StmtExpr);
++                    stmt.children.push(call);
++                    block.children.push(stmt);
++                    if self.current.kind == TokenKind::Semicolon {
++                        self.advance();
++                    }
++                    // W903 panel: `bench b: x >= 0` followed by indented
++                    // measure:/then clauses lost EVERYTHING to the boundary
++                    // check. A clause word here continues the block in the
++                    // shared clause parser.
++                    if self.current.kind == TokenKind::Ident
++                        || self.current.kind == TokenKind::KwAnd
++                        || self.current.kind == TokenKind::KwConst
++                        || self.current.kind == TokenKind::KwVar
++                    {
++                        self.bdd_last_was_assertion = true;
++                        self.bdd_role_preset = true;
++                        // W905 panel: continuation statements need the column
++                        // anchor the head never set -- without it the arms
++                        // stayed dark and a `let` after the head minted a
++                        // module const holding a conjunction.
++                        self.bdd_first_col_preset = Some(self.current.col);
++                        self.parse_bdd_clauses(&mut block);
++                    } else if !Self::is_block_boundary(self.current.kind) {
++                        self.restore_bdd_fallback(&mut block, start_children, entry);
++                    }
++                }
++                Err(_) => {
++                    self.restore_bdd_fallback(&mut block, start_children, entry);
++                }
++            }
+         } else {
+-            // Keyword-style bench: skip until next top-level
+-            self.skip_to_next_top_level();
++            // W896 (0004a): keyword-style bench went to skip_to_next_top_level
++            // wholesale -- every assert under `bench name` was discarded while
++            // tests and invariants had lowerings. The same shared clause parser
++            // serves here: assert clauses lower; `measure:`/`target:` metadata
++            // lines are not clauses and are skipped PER-CLAUSE with honest
++            // token accounting (0003's granularity), instead of taking the
++            // whole block down.
++            self.parse_bdd_clauses(&mut block);
+         }
+         Ok(block)
+     }
+@@ -6681,10 +7602,13 @@
+                 self.write_indent();
+                 if node.children.len() >= 2 {
+                     self.gen_expr(&node.children[0]);
+-                    if node.extra_op == "+=" {
+-                        self.write(" += ");
+-                    } else {
+-                        self.write(" = ");
++                    match node.extra_op.as_str() {
++                        "+=" => self.write(" += "),
++                        "-=" => self.write(" -= "),
++                        "*=" => self.write(" *= "),
++                        "/=" => self.write(" /= "),
++                        "%=" => self.write(" %= "),
++                        _ => self.write(" = "),
+                     }
+                     self.gen_expr(&node.children[1]);
+                 }
+@@ -12932,10 +13856,18 @@
+                         self.in_lvalue = true;
+                         self.gen_verilog_expr(lhs);
+                         self.in_lvalue = false;
+-                        if node.extra_op == "+=" {
++                        let bin = match node.extra_op.as_str() {
++                            "+=" => Some(" + "),
++                            "-=" => Some(" - "),
++                            "*=" => Some(" * "),
++                            "/=" => Some(" / "),
++                            "%=" => Some(" % "),
++                            _ => None,
++                        };
++                        if let Some(b) = bin {
+                             self.write(asn);
+                             self.gen_verilog_expr(lhs);
+-                            self.write(" + ");
++                            self.write(b);
+                         } else {
+                             self.write(asn);
+                         }
+@@ -15085,10 +16017,13 @@
+                         self.gen_c_expr(&node.children[1]);
+                     } else {
+                         self.gen_c_expr(&node.children[0]);
+-                        if node.extra_op == "+=" {
+-                            self.write(" += ");
+-                        } else {
+-                            self.write(" = ");
++                        match node.extra_op.as_str() {
++                            "+=" => self.write(" += "),
++                            "-=" => self.write(" -= "),
++                            "*=" => self.write(" *= "),
++                            "/=" => self.write(" /= "),
++                            "%=" => self.write(" %= "),
++                            _ => self.write(" = "),
+                         }
+                         self.gen_c_expr(&node.children[1]);
+                     }
+--- bootstrap/stage0/FROZEN_HASH	2026-08-15 01:42:51
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/stage0/FROZEN_HASH	2026-08-19 15:36:52
+@@ -1 +1 @@
+-7db97938202977477abd1e80a82b9f5f5d7b40e1c1d1d1999aa006aec71412b3  bootstrap/src/compiler.rs
++6f9fb25160ace8373d65a3f5419b538306fb70d34efae5cadbd996aa8c608726  bootstrap/src/compiler.rs

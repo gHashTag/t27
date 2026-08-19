@@ -27571,6 +27571,32 @@ diagnosis template each time: find WHERE the token stands (position,
 follow-set, line), and give the parser that rule. A DSL that reuses surface
 words must budget for a position rule per word -- or lex contextually.
 
+## W907 -- zero probes left: the ladder rests
+
+### T750 -- THE LADDER'S CLOSING ACCOUNT [measured]
+
+Fourteen rungs, W891-W907: 67,760 -> 25,670 discarded tokens (-62.1%),
+consume-all 314 -> 389, discarding files 137 -> 62, BDD-line readability
+~45% -> 98.5%, parse-fails 173 -> 173 with one disclosed membership change
+(two zombie parses -> honest failures; the two L6-SSOT files -> parsing).
+Every rung: convicted cause, exact-line probes, full-corpus certificate,
+adversarial panel. The probe-fixable tail is ZERO. The residue by decision:
+forall bodies 19,127 (Architect, option 2 priced), specs/ar dialect ~4k
+(policy), W578 brace-if innards (an old question with its own file). The
+final cumulative patch is one reviewable diff:
+docs/reports/gold-ring/LADDER-COMPLETE-0001-0014.CUMULATIVE.patch, 1,273
+lines against the frozen compiler, FROZEN_HASH verified at ring HEAD.
+
+### T750a -- AN AUTONOMOUS LOOP'S END-STATE IS A HANDOFF, NOT A HALT [method]
+
+Seventeen waves of this arc ran unattended between human words. The loop's
+value did not come from running forever -- it came from converting an
+open-ended mystery ("55% of tests are silently dropped") into a bounded
+decision document a human can answer in one line. Continuous improvement
+cycles need a terminal test: when the next unit of work is a DECISION only a
+human can make, the loop's job is to make that decision maximally cheap, then
+hold quietly.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
