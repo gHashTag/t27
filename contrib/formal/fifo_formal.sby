@@ -17,7 +17,7 @@ smtbmc z3
 
 [script]
 read_verilog -formal -sv -DSIMULATION fifo.v
-read_verilog fifo_formal_props.v
+read_verilog -formal fifo_formal_props.v
 prep -top fifo_formal_props
 
 [files]
