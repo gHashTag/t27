@@ -1,11 +1,12 @@
 {
   "gen_hash_c": "sha256:c17a3c01097529cb64563c3551c1af4e48ce42fba1ece4e32b1b3f0fe6b633d5",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:78b60854e9dd987862c8cb7f7b50ef768cdccc846ecc3a60bbc510c80719e170",
-  "gen_hash_zig": "sha256:c201cb6d1bdbe96dd579b0e108725448da342e09a106b97004f2edc847c1cd8e",
+  "gen_hash_verilog": "sha256:c913415c40f5332d4e1ff689d48f264d2050bbdb55a2cf586a5e0f1bd8be74b0",
+  "gen_hash_zig": "sha256:11c99a6fdfd50288ba3d7d1c3304b8a94612745344d8871fb35402845b8588d8",
   "module": "SiluSwishVbt",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:faa113fb557328b585439853b8b733b86f97d5df63e7824fe040d2aab10ad6c4",
   "spec_path": "specs/ml/activation/silu_swish_vbt_activation.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fb4447d374f73b2c24671a28340f8d58641f8a94826a585caeafa2ee74e7ee32",
   "gen_hash_rust": "sha256:8b1a08b27fd506a955f9ca4b4ca59c0dc9d3b4079e7719cc8452e55ff9bd28a9",
-  "gen_hash_verilog": "sha256:af4120ed9322dfb874d13d782baf8cf4616499dad49f0d0bb978f40c26a7c4a1",
+  "gen_hash_verilog": "sha256:2d75f6a7aa53871d12f3b7822368c37ad42e20a9149d4b30058f5bb85ff8beb8",
   "gen_hash_zig": "sha256:01e1d3931520fbbb0ddaadfef418dddce2419c312415b8604ca1fea656345708",
   "module": "TernaryFullAdder",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T13:19:48Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a1431113c5c6deda18a9ac55bba10ae0e15fe487d2a8181788d5adc0be2f03da",
   "spec_path": "specs/ternary/ternary_full_adder.t27"

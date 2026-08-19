@@ -1,3 +1,75 @@
+# NOW -- apt attempts are bounded, and the onion's lessons are a skill (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga)+skills: bounded apt retries; ci-gates section 10 (Closes #2229)
+
+- All 9 apt install points across fpga-build.yml and emit-bitexact-gate.yml now run
+  as timeout-bounded attempts (420s update / 600s install) with 3 retries and a loud
+  fail -- apt on a dead mirror HANGS, so plain Acquire::Retries never fired and 5/5
+  jobs burned whole 45-90m ceilings at once on 2026-08-19
+- ci-gates skill section 10: layers 11-14 of the fpga-bitstream onion -- consumer
+  path contracts, import chains verified by execution not by requirements.txt, the
+  duplicate upload-artifact name landmine, the L1 regex as contract, and the device
+  default that flipped under a textually clean merge (an absence cannot conflict)
+
+
+# NOW -- master's tri build restored: seven lost definitions returned (2026-08-19)
+
+Last updated: 2026-08-19
+
+## build: cargo build -p tri compiles again (Closes #2227)
+
+- A wave-loop batch merge kept call sites and dropped definitions:
+  SmokeGateReport, pvt_context_inside_envelope, synthetic_pvt_context,
+  cclk_period_ns, verify_lean, extract_source_from_lean -- restored verbatim
+  from the commits that introduced them (Wave Loops 437/441/443/453)
+- bit_config: the status()/output() half-refactor finished -- output captured,
+  stderr passed through, console arm prints what it used to stream
+- Master's own build check was green from a pre-break commit; every PR failed
+  on it. Found by the #2223 gate ("appears only here" was stale)
+# NOW -- the device default flipped under a clean merge (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga): bitstream job pins --device to the board CI actually stages (Closes #2225)
+
+- First master run after #2216: 7/8 jobs green -- formal, lint, synthesis, arty, smoke, conformance all pass on master for the first time since 2026-08-08; fpga-bitstream red at fasm2frames only
+- Root cause: the gold-ring wave moved the fpga-build --device default to the Wukong 200T SSOT board; CI stages Arty-100T pins, a 100T chipdb and a 100T prjxray-db mapping. P&R still ran because the chipdb fallback path is hardcoded to the 100T file -- the mismatch surfaced only at the first step that looks the part NAME up (fasm2frames) instead of trusting a path
+- The class: a semantic default change auto-merges with zero textual conflict and breaks a consumer that encoded the old default implicitly. The consumer now states its device explicitly
+- Left open: the driver could assert chipdb-filename/device agreement and fail at P&R instead of two steps later
+
+# NOW -- 401 seals resealed for the merged compiler; 157 refusals stand (2026-08-19)
+
+Last updated: 2026-08-19
+
+## seals: the ladder's intentional gen changes re-certified (Refs #1959)
+
+- The #2217 merge changed generated output for 558 sealed specs (compound
+  assignment emitters, Zig cast composition, the new clause lowerings). Their
+  seals certified the OLD compiler's output -- a mass mismatch, found by the
+  suite's own seal-verify during the post-merge audit
+- Resealed with the merged binary: **401 specs, all four gen hashes fresh**;
+  spot-checked seal-verify returns MATCH
+- **157 specs REFUSED** by the #2208 policy (4 of 4 backends reject them --
+  the never-generating class). Their stale seals stay stale on purpose: a
+  refusal on the record beats a vacuous green
+- Driver: resumable, state-in-progress-file; one chunk sufficed (~7 min)
+
+# NOW -- the yosys loop could never have passed as written (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(fpga): first green path for fpga-build since 2026-08-08 (Closes #2215, closes #2214)
+
+- **Measured: 1 of 32 modules passed the CI loop as written.** Top derived from the FILENAME (`mac.v` holds `ZeroDSP_MAC`) and `-sv -DSIMULATION` missing -- the repo's own convention in `suite.rs:859` and `verify_emit_bitexact.py:184`. The Rust `--synth-only` path had the same missing flags
+- **Progression, measured at each step:** name-from-file 13/32 -> +flags 30/32 -> +four emitter fixes **32/32**
+- **Four emitter bugs exposed by the fixed loop:** escape-before-flattening (`\cross _data_width` -- the escaped identifier's terminating space split the name); `assert/assume/cover/restrict` missing from the keyword list; call sites not escaping what declarations escape (`ssume ` declared, `assume(` called -- two different identifiers); and the fn-return lvalue (`assume = 0;`) unescaped on both return paths
+- **Zero regression by the repository's own gates:** verify_emit_bitexact ALL SYNTHESIZE; verify_exhaustive 8 primitives intact; verify_igla_race intact; check_specs_generate 768/346 unchanged. M5 performed
+- `t27c fpga-build --docker false --synth-only` -- the exact step red in CI -- exits 0 locally with a 9.4 MB synth.json
+- **Every job in fpga-build.yml and emit-bitexact-gate.yml now carries timeout-minutes: 45** -- a hung apt ran 6h0m16s to the GitHub ceiling on 2026-08-18 and read as a red PR whose own steps were all skipped
+- Left open in #2214: `pip install sby` packaging in fpga-formal
+
 # NOW -- nine dangling gitlinks, one broken checkout for everyone (2026-08-19)
 
 Last updated: 2026-08-19

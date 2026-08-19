@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:e0ae28540bc62e47eb95adf292e7536f91e3247cd04951e4b2a7264ebbde4d86",
+  "gen_hash_rust": "sha256:f6ce5a2632db6f8d8892a1f541698f475ca15946426c5dca26385d1f096a0968",
+  "gen_hash_verilog": "sha256:a769f41ecf2da17a27d68cabd5f0a132f010b89a3d08eade51a454ba8064e7fa",
+  "gen_hash_zig": "sha256:84d42bb0e666caf2a33fab5dcbd8b7a8549a383fa590903e944adc4d4e64b025",
+  "module": "ZeroDSP_TernaryLink",
+  "ring": 12,
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:6e486ce745126ddc7861d9f5de7d92ba10254e50aca17b80299cadac0f0a4c11",
+  "spec_path": "specs/fpga/ternary_link.t27"
+}

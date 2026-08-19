@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:af62ebe917e3bc16fd84238832f80f900fe5dec9ff226ab3f3af941981ff2c21",
-  "gen_hash_rust": "sha256:c692e084486ae2fce2db05ba1db034a42f707c4d676f930aacb1602784ecc401",
-  "gen_hash_verilog": "sha256:8aedd810e3488f6c05f3684accc19d7ceea7543e2372835da56af81d5e7a5a53",
-  "gen_hash_zig": "sha256:4bcaa1e78540c84e27fca79a85713431b34caebdd42e54f8389a99f75df33d83",
+  "gen_hash_c": "sha256:f49185d05b025f5a18936c5752e69344de4538db00d01ed4cd556e8cf53ac35c",
+  "gen_hash_rust": "sha256:e912a2273785d7a340659899fab499764a6e271702e188bcd699f3ace9adf4e7",
+  "gen_hash_verilog": "sha256:aef273f1a5d4b1a48b9e8a2e279e00723933e8c95a4578a9fa49aafcfc385b5a",
+  "gen_hash_zig": "sha256:8ce300a51993f565aba0dc76c7e96be87aa885cfbeea8c8562a8aab9abab3560",
   "module": "LeakyRelu",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe",
   "spec_path": "specs/ml/activation/leaky_relu_activation.t27"
 }

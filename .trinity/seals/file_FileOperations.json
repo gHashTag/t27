@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:8504938a566e318bb56d3b814274386c4ea009c9f5d6dbb222009e3094377a6b",
-  "gen_hash_rust": "sha256:e12ec2791bed77d5c9ed0ac157bb310cbcc81307d6efa0fcabb31905c884215c",
-  "gen_hash_verilog": "sha256:f028df3e21c912bc8b6734482c272b0f56c397cc9916c8d848f61df8f17089ce",
-  "gen_hash_zig": "sha256:e1c24c669f2c876e362e58211577d76c3346f9a1c348142839f2306fb06468f0",
+  "gen_hash_c": "sha256:d8f7bc2e66b3ab2be21da33773ce59338a732e3b261675a60db9691ecef619aa",
+  "gen_hash_rust": "sha256:6a155525a896ec19d7456f254e00d95db1c1a9d3d98955c3615f268996078117",
+  "gen_hash_verilog": "sha256:4e0a34a034df3d400b316b8d3a608653a3555f6e05c92ff58cbd585543d6ba6d",
+  "gen_hash_zig": "sha256:dc5eba00818c3e447629891a6d88c9a6fa895341de748c79fcddae25942bccf6",
   "module": "FileOperations",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7ceef650197877982ac7a2b4758bd9bba2b735ea33f2df74bea0448367785a56",
   "spec_path": "specs/file/operations.t27"
 }
