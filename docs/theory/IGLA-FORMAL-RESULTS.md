@@ -27642,6 +27642,27 @@ exactly the blocks that open with a statement. A safety rule and a recovery
 ceiling are the same fact seen from two sides; pricing an option honestly
 means quoting it UNDER the guards, not over them.
 
+## W910 -- the patches prove themselves, and the metric shows its blind spot
+
+### T753 -- A QUOTED NUMBER SHIPS WITH ITS REPRODUCTION [measured]
+
+Both rehearsal patches were re-applied from their FILES (not from memory of
+the edit), rebuilt, and re-measured: 6,592 = 6,592 and 4,711 = 4,711, with
+the 0014 restoration verified at 25,670 after each cycle. A decision document
+whose numbers cannot be regenerated from its own attachments is a mood; these
+can be, and the check cost three builds.
+
+### T753a -- THE DISCARD METRIC IS GAMEABLE BY OVERCAPTURE [measured]
+
+The mutation test (break the capture's column boundary, remeasure) produced a
+BETTER-looking number: 5,579 discarded vs the true patch's 6,592 -- because
+the overrunning capture swallowed module-level content into block values, and
+even flipped one parse-fail (172). Fewer discards is not more truth: a
+recovery that reads too much scores better on the counter while corrupting
+scope. The counter must always be judged WITH the parse-fail diff and
+consume-all -- the triple is gameable only by making the corpus genuinely
+parse, which is the point.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

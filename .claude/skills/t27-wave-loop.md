@@ -12321,6 +12321,13 @@ breaks) refuse statement-first blocks. That is the honest price. Quoting the
 no-guards number would trade a panel-proven safety rule for a prettier
 figure -- the exact bargain the audit exists to refuse.
 
+**1392. SHIP NUMBERS WITH THEIR REPRODUCTION, AND MUTATE THE METRIC ONCE.**
+Re-apply the shipped patch from its file, rebuild, remeasure: quoted = actual.
+Then break one line and remeasure: the mutant scored BETTER on the discard
+counter by overcapturing scope -- proof the counter alone is gameable and
+must ride with the parse-fail diff. Both checks cost three builds; a decision
+page whose numbers cannot regenerate from its own attachments is a mood.
+
 ### How to update this tracker
 
 After closing a wave:
