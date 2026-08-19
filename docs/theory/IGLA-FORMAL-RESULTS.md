@@ -27224,6 +27224,41 @@ measure:/target: metadata is per-clause skipped with honest accounting. The
 remaining mass is forall (a deliberate non-lowering) and the clause-expression
 tail -- both catalogued, neither guessed.
 
+## W897 -- every suspect passed alone, and the bug lives in the ensemble
+
+### T740 -- SEVEN PROBES, SEVEN ACQUITTALS, ONE CONTEXTUAL REPRO [measured]
+
+Every clause-level suspect from the 0004 map lowers cleanly in isolation:
+
+    bare/typed/multiline array literals      PASS
+    :: path calls, with and without args     PASS
+    capital binding names                    PASS
+    const-from-path before tests             PASS
+    given followed by when (greedy check)    PASS
+
+Yet jones's four TH_01 clauses drop in situ. Bisect: module header alone PASS,
+uses PASS, consts PASS, digit-comments PASS, header+fns+tests -> 60 tokens
+dropped. **The failure needs the ensemble** -- helper fns (returning `[]Trit`,
+with if-else-if expression chains and method calls) parsed BEFORE the tests
+leave the parser in a state the clause lowering then trips over. Minimal ~80-line
+repro committed as gold-ring/0005-context-repro.t27; 0005 proceeds by deletion
+inside it, not by theory.
+
+### T740a -- THE CLAUSE-LEVEL TABLE OF W895 IS WITHDRAWN AS ATTRIBUTED [measured]
+
+The RHS-first-token classifier ascribed inner causes to outer forms -- array
+literals, :: paths -- and all of them acquit. TWELFTH instrument artefact, the
+same shape-heuristic disease, now inside a cause map that itself warned against
+guessing. The map's block-level half (benches, foralls) was probe-confirmed and
+stands; its clause-level half is replaced by one honest word: CONTEXTUAL.
+
+### T740b -- A BUG THAT NEEDS AN ENSEMBLE IS STILL A BUG WITH A MINIMAL REPRO [derived]
+
+Individually-innocent parts with a failing union is parser STATE leaking across
+declarations -- the class of defect no per-construct probe can see and no
+per-construct patch can fix. The repro file is the entire deliverable: 0005
+starts from reproduction, proceeds by deletion, and only then reads code.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

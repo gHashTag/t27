@@ -12195,6 +12195,15 @@ tests, invariants and benches; 0003's granularity fix improved all three at
 once. Route sibling constructs through one parser and every rung lifts them
 together.
 
+**1369. WHEN EVERY SUSPECT ACQUITS, INDICT THE ENSEMBLE.** Seven isolated probes
+passed while the in-situ case failed; the union of individually-clean parts
+reproduced it. Parser state leaking across declarations is invisible to
+per-construct probes -- bisect the CONTEXT, not the constructs.
+
+**1370. CLASSIFY FAILURES BY PROBE, NEVER BY SURFACE FORM OF THE FAILING LINE.**
+The RHS-first-token table ascribed inner causes to outer forms and every row
+acquitted -- the twelfth artefact, inside a map that warned against guessing.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -35,3 +35,22 @@ One probe file per class BEFORE any patch (the assert-call class especially:
 1,463 lines with an unverified cause is exactly where a wrong guess costs the
 most). Each accepted class becomes its own ring hunk with a before/after token
 count, as 0001–0003 did.
+
+
+---
+
+## Probe results (W897) — the clause-level table was misattributed
+
+Probes for the top clause-level rows came back CLEAN in isolation: bare/typed/
+multiline array literals, `::` path calls (with and without args), capital
+names, path-consts before tests, given-followed-by-when — **all lower**. The
+RHS-first-token classifier attributed INNER causes to OUTER forms (the same
+shape-heuristic disease as every earlier misattribution).
+
+The real jones failure is CONTEXTUAL: the four TH_01 clauses drop only when the
+module header *and its helper fns* precede them; every component subset is
+clean, the union reproduces (60 tokens / 7 lines). Minimal repro committed as
+`0005-context-repro.t27` (~80 lines). 0005's job starts from that file: find
+the parser state the fn bodies leave behind (`[]Trit` returns, if-else-if
+expression chains, `.reserve/.push` method calls are the in-file suspects) —
+by deletion within the repro, not by theory.
