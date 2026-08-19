@@ -1031,6 +1031,8 @@ pub struct Parser {
     // W898 (0005): inside a braceless-clause VALUE, an `and` that opens the next
     // clause must terminate the expression instead of becoming a logical AND.
     in_bdd_clause_value: bool,
+    last_line: usize,
+    bdd_last_was_assertion: bool,
     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
@@ -1091,6 +1093,8 @@ impl Parser {
             dropped_top_level_tokens: 0,
             hoisted_fns: Vec::new(),
             in_bdd_clause_value: false,
+            last_line: 0,
+            bdd_last_was_assertion: false,
             dropped_spans: Vec::new(),
         }
     }
@@ -1114,6 +1118,7 @@ impl Parser {
     }
 
     fn advance(&mut self) {
+        self.last_line = self.current.line;
         self.current = self.peek.clone();
         self.peek = self.lexer.next_token();
     }
@@ -3408,6 +3413,14 @@ impl Parser {
             // by `ident =` is the next clause, not an operand: probe ahead with
             // save/restore, which the parser already uses for exactly such looks.
             if self.in_bdd_clause_value && self.current.kind == TokenKind::KwAnd {
+                // W901 (0007 v2): the panel folded `given f(0x55)` +
+                // `and g(0x66)` into ONE conjunction statement -- the `ident =`
+                // look below only catches and-BINDINGS. In the BDD layout a
+                // line-leading `and` IS a clause; a genuine operator lives on
+                // the line it operates on. Break on newline-`and` too.
+                if self.current.line > self.last_line {
+                    break;
+                }
                 let look = self.save_state();
                 self.advance();
                 let is_clause = self.current.kind == TokenKind::Ident && {
@@ -4568,6 +4581,7 @@ impl Parser {
         let entry = self.save_state();
         let start_children = block.children.len();
         let mut lowered = 0usize;
+        self.bdd_last_was_assertion = false;
 
         loop {
             // A non-identifier here is normally the end of the block, because
@@ -4596,10 +4610,37 @@ impl Parser {
             // dropped test lines were collateral, not themselves unsupported.
             let clause_entry = self.save_state();
             let clause = self.current.lexeme.clone();
-            let is_binding = clause == "given" || clause == "when" || clause == "and";
-            let is_assertion = clause == "then" || clause == "assert";
+            // W901 (0007 v2): Gherkin semantics -- `and` inherits the ROLE of
+            // the clause before it, but CONTENT WINS: `and ident = ...` is a
+            // binding wherever it stands (the panel's sandwich probe bound a
+            // variable right after a then). Anything else after an assertion
+            // clause asserts.
+            let and_binds = clause == "and" && {
+                let look = self.save_state();
+                self.advance();
+                let is_bind = self.current.kind == TokenKind::Ident && {
+                    self.advance();
+                    self.current.kind == TokenKind::Equals
+                };
+                self.restore_state(look);
+                is_bind
+            };
+            let is_binding = clause == "given"
+                || clause == "when"
+                || (clause == "and" && (and_binds || !self.bdd_last_was_assertion));
+            let is_assertion = clause == "then"
+                || clause == "assert"
+                || (clause == "and" && !and_binds && self.bdd_last_was_assertion);
+            // W901 (0007): bench clause pair in keyword form -- `measure f(x)` /
+            // `target latency_us < 5.0`. Lowered to expression STATEMENTS named
+            // by their clause, never to asserts: a bench target is a goal, not
+            // a hard invariant, and inventing check semantics here is exactly
+            // what FORALL-DECISION.md declines to do. The colon-prose form
+            // (`measure: nanoseconds to ...`) stays a fallback -- prose is not
+            // an expression.
+            let is_expr_clause = clause == "measure" || clause == "target";
 
-            if !is_binding && !is_assertion {
+            if !is_binding && !is_assertion && !is_expr_clause {
                 // An identifier that is not a clause means this body has a shape
                 // we do not model. Falling through with the parser positioned
                 // mid-block is what broke 19 specs on the first attempt.
@@ -4607,7 +4648,22 @@ impl Parser {
                 return;
             }
 
-            let ok = if is_assertion {
+            let ok = if is_expr_clause {
+                self.advance();
+                self.in_bdd_clause_value = true;
+                let r = self.parse_expr();
+                self.in_bdd_clause_value = false;
+                match r {
+                    Ok(expr) => {
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.name = clause.clone();
+                        stmt.children.push(expr);
+                        block.children.push(stmt);
+                        true
+                    }
+                    Err(_) => false,
+                }
+            } else if is_assertion {
                 self.advance();
                 self.in_bdd_clause_value = true;
                 let r = self.parse_expr();
@@ -4649,7 +4705,25 @@ impl Parser {
                         self.advance();
                     }
                     if self.current.kind != TokenKind::Equals || pat.is_empty() {
-                        false
+                        // W901 (0007 v2): not a tuple binding -- the panel
+                        // showed `given (x + 1) == 2` dying here while the
+                        // SAME value parsed fine under measure/target. Restore
+                        // and lower the value as an expression statement.
+                        self.restore_state(clause_entry);
+                        self.advance();
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut stmt = Node::new(NodeKind::StmtExpr);
+                                stmt.name = clause.clone();
+                                stmt.children.push(expr);
+                                block.children.push(stmt);
+                                true
+                            }
+                            Err(_) => false,
+                        }
                     } else {
                         self.advance();
                         self.in_bdd_clause_value = true;
@@ -4669,10 +4743,29 @@ impl Parser {
                 } else if self.current.kind != TokenKind::Ident {
                     false
                 } else {
+                    // W901 (0007): `given uart_tx_send(0x55)` -- a side-effect
+                    // call with no binding -- and `given f() == 1` -- a bare
+                    // comparison -- are not `ident =` bindings. Peek past the
+                    // identifier; anything but `=` restores and lowers the
+                    // whole clause value as an expression statement.
+                    let bind_look = self.save_state();
                     let name = self.current.lexeme.clone();
                     self.advance();
                     if self.current.kind != TokenKind::Equals {
-                        false
+                        self.restore_state(bind_look);
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
+                            Ok(expr) => {
+                                let mut stmt = Node::new(NodeKind::StmtExpr);
+                                stmt.name = clause.clone();
+                                stmt.children.push(expr);
+                                block.children.push(stmt);
+                                true
+                            }
+                            Err(_) => false,
+                        }
                     } else {
                         self.advance();
                         self.in_bdd_clause_value = true;
@@ -4713,6 +4806,9 @@ impl Parser {
                 let _ = clause_entry;
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
+            }
+            if clause != "and" {
+                self.bdd_last_was_assertion = is_assertion;
             }
             lowered += 1;
         }
