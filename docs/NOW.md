@@ -1,3 +1,18 @@
+# NOW -- sby's yosys now reads the repo's own dialect (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(fpga): formal [script] gains -sv -DSIMULATION (Closes #2257)
+
+- Formal layer 5: with cwd fixed, sby ran its base yosys step for the first
+  time and died on fifo.v:369 TOK_INITIAL -- the bench block survives without
+  -DSIMULATION and SV casts need -sv, the same convention every other reader
+  in this repo already applies. Verified locally: bare read_verilog -formal
+  fails, with the flags it exits 0
+- Diagnosis route worth keeping: the engine failure is only named in the
+  fpga-formal ARTIFACT's per-task logfile.txt; the job log says merely
+  'engine_0 did not return a status'
+
 # NOW -- auto-merge-ready-prs.yml has not parsed since 2026-07-07 (2026-08-20)
 
 Last updated: 2026-08-20
