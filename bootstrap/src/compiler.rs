@@ -1188,6 +1188,28 @@ impl Parser {
                 self.advance();
                 return Ok(());
             }
+            // W902 (0008): a LINE-LEADING const/var at depth 0 is the next
+            // declaration, not expression tail. is_top_level_start excludes
+            // const/var on purpose (they appear inside keyword blocks), so a
+            // semicolon-less `const A = 10` followed by `const B = 5` sent this
+            // loop through B, the next fn, and everything to EOF -- the corpus's
+            // single largest discard (2,438 tokens) traced here. Same-line
+            // `[]const u8` shapes stay intact (W568): the line test spares them.
+            if (self.current.kind == TokenKind::KwConst
+                || self.current.kind == TokenKind::KwVar)
+                && bracket_depth == 0
+                && paren_depth == 0
+                && self.current.line > self.last_line
+            {
+                return Ok(());
+            }
+            // W902: this loop was the FOURTH discard channel T56 counted --
+            // and the only one still invisible to both accounts. Record.
+            self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
+            }
             if self.current.kind == TokenKind::LBrace {
                 self.advance();
                 self.skip_brace_body()?;
@@ -4650,18 +4672,46 @@ impl Parser {
 
             let ok = if is_expr_clause {
                 self.advance();
-                self.in_bdd_clause_value = true;
-                let r = self.parse_expr();
-                self.in_bdd_clause_value = false;
-                match r {
-                    Ok(expr) => {
-                        let mut stmt = Node::new(NodeKind::StmtExpr);
-                        stmt.name = clause.clone();
-                        stmt.children.push(expr);
-                        block.children.push(stmt);
-                        true
+                if self.current.kind == TokenKind::Colon {
+                    // W902 (0009): the colon-form pair -- `measure: nanoseconds
+                    // to f(x)` / `target: < 50ns`. The intervention map
+                    // convicted the FORM (a trivial expression after the colon
+                    // drops too), and the content is frequently PROSE, so no
+                    // expression grammar can read it honestly. Capture the
+                    // rest of the LINE verbatim into the node's value: the
+                    // tokens are READ and preserved, and no semantics are
+                    // invented for them.
+                    let line = self.current.line;
+                    self.advance(); // consume ':'
+                    let mut text = String::new();
+                    while self.current.kind != TokenKind::Eof
+                        && self.current.line == line
+                    {
+                        if !text.is_empty() {
+                            text.push(' ');
+                        }
+                        text.push_str(&self.current.lexeme);
+                        self.advance();
                     }
-                    Err(_) => false,
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.name = format!("{}:", clause);
+                    stmt.value = text;
+                    block.children.push(stmt);
+                    true
+                } else {
+                    self.in_bdd_clause_value = true;
+                    let r = self.parse_expr();
+                    self.in_bdd_clause_value = false;
+                    match r {
+                        Ok(expr) => {
+                            let mut stmt = Node::new(NodeKind::StmtExpr);
+                            stmt.name = clause.clone();
+                            stmt.children.push(expr);
+                            block.children.push(stmt);
+                            true
+                        }
+                        Err(_) => false,
+                    }
                 }
             } else if is_assertion {
                 self.advance();
@@ -4989,6 +5039,14 @@ impl Parser {
             }
         }
 
+        // W902 (0010): `invariant name : EXPR;` -- the trailing semicolon was
+        // the CONVICTED cause (colon, spacing and `||` all exonerated by
+        // variant probes): `;` is not a block boundary, so the check below
+        // dropped the freshly-lowered assertion. Eat it.
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
         if !Self::is_block_boundary(self.current.kind) {
             self.restore_bdd_fallback(block, start_children, entry);
         }
@@ -5005,6 +5063,34 @@ impl Parser {
             self.advance(); // consume {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
+        } else if self.current.kind == TokenKind::Colon {
+            // W902 (0009): `bench name: expr` -- the one-line colon body that
+            // parses under `invariant` dropped under `bench` (the intervention
+            // map convicted the FORM: a trivial expression dropped too). Same
+            // lowering as invariant-colon, which 0004a already gave bench
+            // then-clauses: the predicate becomes an assertion.
+            let entry = self.save_state();
+            let start_children = block.children.len();
+            self.advance(); // consume ':'
+            match self.parse_expr() {
+                Ok(expr) => {
+                    let mut call = Node::new(NodeKind::ExprCall);
+                    call.name = "assert".to_string();
+                    call.children.push(expr);
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.children.push(call);
+                    block.children.push(stmt);
+                    if self.current.kind == TokenKind::Semicolon {
+                        self.advance();
+                    }
+                    if !Self::is_block_boundary(self.current.kind) {
+                        self.restore_bdd_fallback(&mut block, start_children, entry);
+                    }
+                }
+                Err(_) => {
+                    self.restore_bdd_fallback(&mut block, start_children, entry);
+                }
+            }
         } else {
             // W896 (0004a): keyword-style bench went to skip_to_next_top_level
             // wholesale -- every assert under `bench name` was discarded while
