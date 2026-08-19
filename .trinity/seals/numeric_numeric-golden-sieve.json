@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:fcf964291286c111054082b7e5a625e2d685107fc3a45ee3dcd2b1fad5950c81",
+  "gen_hash_rust": "sha256:92eb5e30241b909cf5260538885ec2d3da34ff791d6156fdeebc31fc5fdd50fa",
+  "gen_hash_verilog": "sha256:6563c06a7048cc510b1b136de6369f2eded89ccdc02592c0f514a8c519945627",
+  "gen_hash_zig": "sha256:f9768a39b33bd720bc5429f303c8ce3ea788d1ffe5f839ab3229a8417dada596",
+  "module": "numeric-golden-sieve",
+  "ring": 12,
+  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:4052f16a0493c81a3e230749081d031542e68e35966dd2e204fc1bc85f9bd55b",
+  "spec_path": "specs/numeric/golden_sieve.t27"
+}

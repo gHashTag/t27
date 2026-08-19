@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:961132c05fa934ae9882d7a362cc26c6e513cc0ecacd7a2d118c36421abab4c4",
-  "gen_hash_rust": "sha256:1a77502868da3b0f28ad3706b9663ef60566ec24af9cd99b3668d1b966f42385",
-  "gen_hash_verilog": "sha256:be693d07d4868043cc53e8536fa1d322745c5b687e2ea8ebc514d90c5f8af778",
-  "gen_hash_zig": "sha256:83beef368db980a55f408964b024a170f23918d6363b88a8b4022f953c5e2fcf",
+  "gen_hash_c": "sha256:2efb591957cb7cac215fe665fe1b4a4e36e34efba1acc449ef4df9586ea077bf",
+  "gen_hash_rust": "sha256:3b1de900c6f3c7f7ab0c5b387e73d1839a28c9f5f7e45089ae44de7a31cebef3",
+  "gen_hash_verilog": "sha256:7b35edb5bc3ed929719b47503133359720e6f63e68f4d92286ed52588a680339",
+  "gen_hash_zig": "sha256:b1ef93ff6135dafe50b7598d762171f7e23c4527b88d86aad7747cd6efed6454",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
   "spec_path": "specs/ml/pathway/mlp.t27"
 }

@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:8530f721556231e9b110450182ea046365e6969bee1b6b96a6f676285453f278",
-  "gen_hash_rust": "sha256:46849e39e6c894dfa64317aa4c2e6d168275550fe1b541c1c381720284ed3f5c",
-  "gen_hash_verilog": "sha256:ea47411b036b83eb3b4865538209f7ee83245e8be186bf761c9d5f605b0775c7",
-  "gen_hash_zig": "sha256:501c35e2f90bb79ce6d287c785f5fcdfc68d6aadeedc41270bff00f991d085d0",
+  "gen_hash_c": "sha256:762fb6fababe49478617785f9bab8e7b3f72f8801a284709cb8e91acc76546c0",
+  "gen_hash_rust": "sha256:4ff01af3e884504e21c15c41b2257d1a3054c4a931dfcc6ab669186ed4fefda8",
+  "gen_hash_verilog": "sha256:ed62f4ca11d1e23efb4618201b15282efb1a7d8eff81ce1b3132ecc240d038d6",
+  "gen_hash_zig": "sha256:94c7027a5e24672868733ecc0ede353edaf7d5c620fe886d61e15de7f8b50245",
   "module": "TriHex",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:302708b4cdc56954ef9c733c9902e01174972651bb579f5e6ef4943919cd1229",
   "spec_path": "specs/tri/crypto/hex.t27"
 }

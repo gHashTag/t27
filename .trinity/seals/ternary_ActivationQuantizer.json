@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:80ac1cbb5522aea93eef49a68c27452cb0102292de86d1304466c989ee1cd970",
   "gen_hash_rust": "sha256:f4bb8ff015defad14227c57a77199e542f010d8cad877e232e9483b7e509991a",
-  "gen_hash_verilog": "sha256:8571118cf544aa9f98028f6ead0d20b5d56c3b5c4089c7c4c579d1f652aa1c7e",
+  "gen_hash_verilog": "sha256:e48b576648c4540fd8ba5d0c888f37d487b16d9bdf158363326801a322aa592c",
   "gen_hash_zig": "sha256:8308dfce2d01e1fcbcaca5a46dd0b66e375198925ac1544e50a05e2d4e83bb5e",
   "module": "ActivationQuantizer",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T13:19:47Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:31d8e97942af2ca10445cc7bcf58e77c8e5d48e28fffb90798cfa7137a3ca245",
   "spec_path": "specs/ternary/activation_quantizer.t27"

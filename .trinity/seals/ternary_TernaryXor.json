@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:51636a01e98905735fb86455c5ad879d4f83da2d69c3d14d365862775057bf82",
   "gen_hash_rust": "sha256:708cf936a4fc1e3c9c7f8f0ff7ce4838df0a505f20278f27310ed8a0b50dbc12",
-  "gen_hash_verilog": "sha256:384f3fa0295d155100f8bf16568cb5f10203511bfbacac5f4d38bba4ca0e81cb",
+  "gen_hash_verilog": "sha256:3990ac69da776168cce806b6e640b2950aeea3f4a9e7be77b4e0b887b2b0b814",
   "gen_hash_zig": "sha256:b8dd989661887dad88fbc86008b0823b2f9fd962da1204efbbed8de33d40c743",
   "module": "TernaryXor",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T13:19:48Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e2dff6a23bc9bc46d15d01692cc8c0901ce6ecc2fb33e9f74dcd218bd7b77c14",
   "spec_path": "specs/ternary/ternary_xor.t27"
