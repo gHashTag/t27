@@ -6778,6 +6778,24 @@ fn run_fpga_build(
     prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
+    // #2225: P&R against a database for a different part is silent poison — the
+    // router succeeds against whatever database it is handed, and the mismatch
+    // surfaces two steps later in fasm2frames as "Part None not found". Check the
+    // pair HERE, before minutes of synthesis, where the cause is still visible.
+    if let Some(p) = chipdb_path {
+        let stem = Path::new(p)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        if stem != device {
+            anyhow::bail!(
+                "chipdb/device mismatch: --chipdb names '{}' but --device is '{}'.\n\
+                 nextpnr would place-and-route against the wrong database and the\n\
+                 build would fail two steps later in fasm2frames. Pass a matching pair.",
+                stem, device
+            );
+        }
+    }
     let specs_dir = repo_root.join("specs/fpga");
     let build_dir = repo_root.join(output);
     let gen_dir = build_dir.join("generated");
@@ -7069,7 +7087,10 @@ endmodule
     let chipdb = match chipdb_path {
         Some(p) => PathBuf::from(p),
         None => {
-            let default = PathBuf::from("build/fpga/chipdb/xc7a100tcsg324-1.bin");
+            // Derive the default from --device instead of naming one part: a
+            // hardcoded 100T filename here is exactly how the 200T default flip
+            // survived P&R against the wrong database (#2225).
+            let default = PathBuf::from(format!("build/fpga/chipdb/{}.bin", device));
             if repo_root.join(&default).exists() {
                 repo_root.join(&default)
             } else {
