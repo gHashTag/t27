@@ -12081,6 +12081,19 @@ with the wrong scope reads as a defect in the checked thing.
 under sealed_by=goldring-proto beside the bootstrap layer: the 'after' evidence
 sits next to the patch and the strata never mix.
 
+**1343. A TIMEOUT UNDER PARALLEL LOAD IS A FACT ABOUT THE LOAD.** Six 87k-line
+parses starved each other past 20 s and the classifier called it regression.
+Timing-sensitive verdicts are taken sequentially, with a limit far above the
+quiet-machine time.
+
+**1344. COPY THE BINARY OUT BEFORE RECLAIMING ITS BUILD TREE.** The disk filled,
+the save command died with the disk, and the sweep's NEW compiler had to be
+rebuilt for 2.5 minutes. Save first, delete second -- in that order even when
+space is the emergency.
+
+**1345. AT DISK-ZERO EVEN rm FAILS.** The harness must open an output file to run
+any command; keep a floor of free space or lose the ability to free space.
+
 ### How to update this tracker
 
 After closing a wave:

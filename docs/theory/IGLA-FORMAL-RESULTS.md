@@ -26828,6 +26828,40 @@ without its callee. Both were repaired by READING the damaged region rather than
 by another regex. The session's standing lesson -- edit by exact extraction, not
 by pattern -- was paid for a third time by the tool that wrote it down.
 
+## W885 -- the regression certificate, and the parallelism that forged regressions
+
+### T728 -- 1,079 SPECS, ZERO REGRESSIONS, BLAST RADIUS EXACTLY TWO [measured]
+
+The full-corpus sweep behind [GOLD-RING] PR #2217:
+
+    OK            855   byte-identical gen hashes, all four backends
+    STILL-FAILS   222   failed before, fails identically after
+    NEWLY-PARSES    2   gf16.t27 and tf3.t27 -- the whole blast radius
+    regressions     0
+    hangs           0   (under fair timing)
+
+The patch's reach is EXACTLY its intent: the SSOT pair and nothing else.
+
+### T728a -- SIX-WAY PARALLELISM MANUFACTURED THIRTEEN REGRESSIONS [measured]
+
+The first pass (workers=6, timeout 20 s) reported 13 REGRESSION-PARSE and 48
+hangs -- every one in the 87,000-line `specs/scratch/*bench*` family. Sequential
+re-run at 60 s: each parses in ~8.5 s under BOTH compilers, identically. Six
+giant parses starved each other past the limit, and the classifier read
+starvation as regression. **Ninth instrument artefact of the session: a
+timeout under load is a fact about the load.** Timing-sensitive verdicts must be
+taken sequentially, or the parallelism becomes the thing measured.
+
+### T728b -- THE DISK IS PART OF THE EXPERIMENT [measured]
+
+Mid-wave the volume hit zero: the proto rebuild, the sweep state, a full PR
+worktree and the harness's own output files compete for one disk, and at zero
+even `rm` failed twice because the harness could not open its capture file. The
+push had already reached the remote; the PR was created after cleanup from the
+pushed branch. Binaries a sweep depends on must be COPIED OUT before their
+build tree is reclaimed -- the save command that would have done it was itself
+killed by the full disk it was trying to prevent.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
