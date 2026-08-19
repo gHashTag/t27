@@ -12382,6 +12382,13 @@ with the falsification in the comment costs nothing; merging it would have
 broken the working cost-sweep download while "fixing" the format sweep for
 the wrong reason.
 
+**1401. A WORKTREE WHOSE BRANCH IS MERGED IS GARBAGE.** The second ENOSPC
+came from four gigabytes of "working" trees whose branches were all on
+master already (ringmerge, gitlinkfix, goldring). The 1396 rule covered
+FAILED build trees; the merged-branch worktree is its sneakier sibling --
+it looks active, its work is done, and it erodes the floor silently. Remove
+a worktree in the same wave its branch merges.
+
 ### How to update this tracker
 
 After closing a wave:
