@@ -1034,6 +1034,7 @@ pub struct Parser {
     last_line: usize,
     bdd_last_was_assertion: bool,
     bdd_role_preset: bool,
+    bdd_first_col_preset: Option<usize>,
     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
@@ -1097,6 +1098,7 @@ impl Parser {
             last_line: 0,
             bdd_last_was_assertion: false,
             bdd_role_preset: false,
+            bdd_first_col_preset: None,
             dropped_spans: Vec::new(),
         }
     }
@@ -4679,7 +4681,7 @@ impl Parser {
         let entry = self.save_state();
         let start_children = block.children.len();
         let mut lowered = 0usize;
-        let mut first_clause_col: Option<usize> = None;
+        let mut first_clause_col: Option<usize> = self.bdd_first_col_preset.take();
         // W903: callers that already lowered an assertion head (bench-colon)
         // pre-set the role; everyone else starts a fresh block.
         if !self.bdd_role_preset {
@@ -4710,12 +4712,17 @@ impl Parser {
             // and only at that clause's indent or deeper -- a shallower
             // const/var is a real module declaration and still ends the block.
             // (A body OPENING with const keeps the old hoist edge, documented.)
+            // W905 panel: a blank line before the const meant "module scope"
+            // to every reader, and the arm captured it into the block anyway.
+            // Statement clauses must sit on the line immediately after the
+            // previous clause; a gap returns the old boundary reading.
+            let adjacent = self.current.line <= self.last_line + 1;
             if matches!(self.current.kind, TokenKind::KwConst | TokenKind::KwVar)
-                && first_clause_col.is_some()
-                && self.current.col >= first_clause_col.unwrap()
+                && adjacent
+                && first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
             {
                 let st_entry = self.save_state();
-                let st_line = self.current.line;
+                let _st_line = self.current.line;
                 let mutable = self.current.kind == TokenKind::KwVar;
                 self.advance();
                 let mut ok_stmt = false;
@@ -4740,9 +4747,15 @@ impl Parser {
                             // mid-line junk and cost the whole block. A
                             // statement counts only if it ends CLEANLY: at a
                             // semicolon, a new line, a boundary, or EOF.
+                            // W905 panel: `line > st_line` blessed a MID-LINE
+                            // landing on a later line -- `x = a +` newline
+                            // `2 y = 3` split one physical line into two
+                            // minted statements. Clean means current OPENS its
+                            // line: its line is beyond the last CONSUMED
+                            // token's line.
                             let clean = self.current.kind == TokenKind::Semicolon
                                 || self.current.kind == TokenKind::Eof
-                                || self.current.line > st_line
+                                || self.current.line > self.last_line
                                 || Self::is_block_boundary(self.current.kind);
                             if clean {
                                 if self.current.kind == TokenKind::Semicolon {
@@ -4826,12 +4839,12 @@ impl Parser {
                 // sibling. `Ident =` at clause indent parses as a statement
                 // clause under the same clean-termination rule as const/var,
                 // in the fn-body StmtAssign shape (lhs expr child, rhs child).
-                if first_clause_col.is_some()
-                    && clause_col >= first_clause_col.unwrap()
+                if first_clause_col.map_or(false, |c| c > 1 && clause_col >= c)
+                    && self.current.line <= self.last_line + 1
                     && self.peek.kind == TokenKind::Equals
                 {
                     let st_entry = self.save_state();
-                    let st_line = self.current.line;
+                    let _st_line = self.current.line;
                     let mut lhs = Node::new(NodeKind::ExprIdentifier);
                     lhs.name = self.current.lexeme.clone();
                     self.advance(); // ident
@@ -4843,14 +4856,14 @@ impl Parser {
                     if let Ok(expr) = r {
                         let clean = self.current.kind == TokenKind::Semicolon
                             || self.current.kind == TokenKind::Eof
-                            || self.current.line > st_line
+                            || self.current.line > self.last_line
                             || Self::is_block_boundary(self.current.kind);
                         if clean {
                             if self.current.kind == TokenKind::Semicolon {
                                 self.advance();
                             }
                             let mut assign = Node::new(NodeKind::StmtAssign);
-                            assign.line = st_line as u32;
+                            assign.line = _st_line as u32;
                             assign.children.push(lhs);
                             assign.children.push(expr);
                             block.children.push(assign);
@@ -5074,9 +5087,16 @@ impl Parser {
             if clause != "and" {
                 self.bdd_last_was_assertion = is_assertion;
             }
-            if first_clause_col.is_none() {
-                first_clause_col = Some(clause_col);
-            }
+            // W905 panel: the anchor is the MINIMUM accepted clause column
+            // (an over-indented first given at col 9 made a col-5 statement
+            // look "shallower" and hoisted it); and at a column-1 tie the
+            // statement arms are DISABLED entirely -- an unindented block
+            // makes module declarations and body statements indistinguishable
+            // by column, and the arm stole module consts other tests read.
+            first_clause_col = Some(match first_clause_col {
+                Some(c) if c <= clause_col => c,
+                _ => clause_col,
+            });
             lowered += 1;
         }
 
@@ -5324,9 +5344,16 @@ impl Parser {
                     // shared clause parser.
                     if self.current.kind == TokenKind::Ident
                         || self.current.kind == TokenKind::KwAnd
+                        || self.current.kind == TokenKind::KwConst
+                        || self.current.kind == TokenKind::KwVar
                     {
                         self.bdd_last_was_assertion = true;
                         self.bdd_role_preset = true;
+                        // W905 panel: continuation statements need the column
+                        // anchor the head never set -- without it the arms
+                        // stayed dark and a `let` after the head minted a
+                        // module const holding a conjunction.
+                        self.bdd_first_col_preset = Some(self.current.col);
                         self.parse_bdd_clauses(&mut block);
                     } else if !Self::is_block_boundary(self.current.kind) {
                         self.restore_bdd_fallback(&mut block, start_children, entry);
