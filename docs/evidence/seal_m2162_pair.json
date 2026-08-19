@@ -1,0 +1,52 @@
+{
+  "schema": "trinity.artifact-seal/1",
+  "sealed_utc": "2026-08-14T22:03:48.093958+00:00",
+  "obtained_utc": "2026-08-14T20:07:00Z",
+  "label": "m2162-differential-pair",
+  "purpose": "the base/candidate pair behind the tick D full-corpus differential (PR #2151, #2162)",
+  "source": {
+    "repo": "/home/user/workspace/t27",
+    "remote": "https://github.com/gHashTag/t27.git",
+    "commit": null,
+    "commit_subject": "",
+    "branch": "",
+    "provenance": "unrecorded-at-build-time",
+    "claimed_commit_unverified": "base: origin/master b928725; candidate: w699-generic-const-decl (PR #2168). Neither was recorded at build time.",
+    "tree_dirty_at_seal_time": true,
+    "tree_dirty_note": "the working tree had uncommitted changes, so the commit above does not fully describe these artifacts"
+  },
+  "build": {
+    "profile": "dev",
+    "commands": [
+      "cd bootstrap && cargo build"
+    ],
+    "toolchain": {
+      "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+      "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+      "python3": "Python 3.14.3",
+      "uname": "Linux 6.1.155+ x86_64"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "/tmp/t27c.m2162base",
+      "present": true,
+      "sha256": "760373266c87bdd8c69e22bbe5a5a06bd62bcd6150d621d472caf21e2b327bcb",
+      "size_bytes": 14144800,
+      "mtime_utc": "2026-08-14T20:07:49.792377+00:00"
+    },
+    {
+      "path": "/tmp/t27c.m2162fix",
+      "present": true,
+      "sha256": "17895fa2d5a0659485474a34a93b1262d7d85edf982eaf7ba02ca9b3ea346eb5",
+      "size_bytes": 14150448,
+      "mtime_utc": "2026-08-14T20:10:40.320377+00:00"
+    }
+  ],
+  "inputs": [],
+  "tests": [],
+  "limits": [
+    "verify recomputes digests; it does not prove the artifact matches the commit. Use --rebuild for that, and read its caveat.",
+    "a rebuild mismatch is reported as unreproduced, not as tampering: cargo release builds are not bit-reproducible by default."
+  ]
+}

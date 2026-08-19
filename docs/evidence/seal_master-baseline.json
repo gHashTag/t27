@@ -1,0 +1,47 @@
+{
+  "schema": "trinity.artifact-seal/1",
+  "sealed_utc": "2026-08-14T22:17:21.474069+00:00",
+  "obtained_utc": "2026-08-14T22:17:21.474102+00:00",
+  "label": "master-baseline",
+  "purpose": "evidential binary rebuilt from a named commit",
+  "source": {
+    "repo": "/home/user/workspace/t27",
+    "built_in_tree": "/tmp/t27_seal_build",
+    "remote": "https://github.com/gHashTag/t27.git",
+    "commit": "b92872507f6c7619acce43e5ae262b1dc9c4cbf2",
+    "commit_subject": "The ladder is TNF, and the four families now have their vectors (Refs #2001) (#2075)",
+    "branch": "HEAD",
+    "provenance": "captured-at-build-time",
+    "claimed_commit_unverified": "",
+    "tree_dirty_at_seal_time": false,
+    "tree_dirty_note": ""
+  },
+  "build": {
+    "profile": "dev",
+    "commands": [
+      "cd bootstrap && CARGO_TARGET_DIR=/home/user/workspace/t27/target cargo build --quiet"
+    ],
+    "toolchain": {
+      "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+      "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+      "python3": "Python 3.14.3",
+      "uname": "Linux 6.1.155+ x86_64"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "/home/user/workspace/t27/docs/evidence/bin/t27c.master-baseline",
+      "present": true,
+      "sha256": "836e8bc4d9a8bafadec9ae0ca72e23f2ee0d9f1bad8f814527afc380544c2ef8",
+      "size_bytes": 118012520,
+      "mtime_utc": "2026-08-14T22:16:39.815606+00:00",
+      "produced_at": "/home/user/workspace/t27/target/debug/t27c"
+    }
+  ],
+  "inputs": [],
+  "tests": [],
+  "limits": [
+    "verify recomputes digests; it does not prove the artifact matches the commit. Use --rebuild for that, and read its caveat.",
+    "a rebuild mismatch is reported as unreproduced, not as tampering: cargo release builds are not bit-reproducible by default."
+  ]
+}

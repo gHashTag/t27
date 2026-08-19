@@ -30,11 +30,16 @@ jobs:
       - name: Check for Closes #N in commits
         if: env.IS_BOT != 'true'
         id: check-commits
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -e
 
           # Get the base branch (master or main)
-          BASE_BRANCH="${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}"
+          BASE_BRANCH="${BASE_REF:-master}"
           if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
             BASE_BRANCH="master"
           fi
@@ -97,16 +102,35 @@ jobs:
       - name: Check L2 GENERATION (gen/ edits forbidden)
         if: env.IS_BOT != 'true'
         id: check-generation
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -e
 
           # Get the base branch
-          BASE_BRANCH="${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}"
+          BASE_BRANCH="${BASE_REF:-master}"
 
           # For PR, use the PR head SHA directly instead of HEAD (which is a merge commit)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            git fetch origin "${{ github.event.pull_request.head.ref }}:$HEAD_SHA" 2>/dev/null || true
+          if [ "${EVENT_NAME:-}" = "pull_request" ]; then
+            HEAD_SHA="${PR_HEAD_SHA:-}"
+            case "$HEAD_SHA" in
+              *[!0-9a-f]*|"") echo "unexpected head sha; skipping fetch"; HEAD_SHA="HEAD" ;;
+              *)
+                # PR_HEAD_REF is the fork's branch name and is chosen by whoever
+                # opened the PR. git permits $ ( ) ` ; | & and quotes in a
+                # refname, so it is validated before use, and rejected if it
+                # could be read as an option rather than a ref.
+                if git check-ref-format --branch "${PR_HEAD_REF:-}" >/dev/null 2>&1 \
+                   && case "${PR_HEAD_REF:-}" in -*) false ;; *) true ;; esac; then
+                  git fetch origin "${PR_HEAD_REF}:${HEAD_SHA}" 2>/dev/null || true
+                else
+                  echo "refusing to fetch a ref name that does not validate: skipping"
+                fi
+                ;;
+            esac
           else
             HEAD_SHA="HEAD"
           fi

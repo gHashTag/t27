@@ -1,3 +1,4 @@
+
 # NOW -- the honest red has been repaired for real (2026-08-20)
 
 Last updated: 2026-08-20
@@ -469,6 +470,35 @@ Last updated: 2026-08-18
 - **Why a gate and not only an edit.** The withdrawal was in research notes on 2026-08-05 and 2026-08-08 and did not reach the papers for ten days, through an intervening honesty pass over the same file that was looking at a different sentence. `tools/check_withdrawn_live.py` now fails CI if a withdrawn number appears in a live document; the withdrawn list is data (`tools/withdrawn.txt`) so a row is added the moment a number is withdrawn, not when the paper is finally fixed. `--self-check` is a negative control that plants a hit and proves the scan fires
 - **It earned its keep immediately**: it caught two places in the `.tex` that the first pass of this very change had missed
 - Unrelated and worth stating: `docs/SILICON_TRAINING_METHODOLOGY.md` was audited for the same defect class and is **clean**. It distinguishes a loose from a tight constraint, uses `create_clock -period 50`, attributes the 21 -> 29 MHz change to a specific design edit, and keeps twelve ruled-out hypotheses. The papers were the problem; the engineering notes were not
+
+# NOW -- a pull request title is untrusted input, and it was being run (2026-08-14)
+
+Last updated: 2026-08-14
+
+## ci: stop executing event data, and seal the binaries that carry evidence (Closes #2171)
+
+- **A pull request title was interpolated into a `run:` block, so whoever wrote the title chose what the runner executed.** `notebook-sync.yml` pasted `github.event.pull_request.title` and `github.event.issue.title` straight into shell. Measured on ten payloads: five of them execute a command under that form -- `$(...)`, backticks, `;`, `${IFS}` in place of a space, and one that writes `$GITHUB_TOKEN` to a file. The same ten pass through an `env:` variable byte for byte with no side effect
+- **The title that exposed this was broken by backticks, not by the parenthesis, and the earlier attribution in #2171 is corrected here.** The title of #2168 quotes code in backticks; bash opened a command substitution on them and `(` was a syntax error inside it, reproduced byte for byte against the CI log. The parenthesis is what stopped the execution rather than what caused the failure -- had the quoted text been a valid command it would have run. Titles in this repository quote code as a matter of style, so the dangerous construct is the ordinary one
+- **The unsafe value was serving no purpose.** The `issue_title` output was published and read by nobody, so it is deleted rather than sanitised. Everything still needed moves to `env:`, the issue number is checked against `^[0-9]+$` before it is written, and `SYNC_ARGS` becomes an array instead of a string the shell re-splits
+- **A newline needs no shell at all:** written into `GITHUB_OUTPUT`, which is a newline-delimited file, a value containing one defines further outputs of its own choosing. Demonstrated. Quoting does not help, because the value is already data and the file format is what is abused
+- **Second vector, same class:** `l1-traceability.yml` fetched `github.event.pull_request.head.ref`. `git check-ref-format` accepts `$( )`, backticks, `;`, `|`, `&` and quotes in a branch name, so the ref is now validated and refused if it could read as an option
+- `scripts/ci/check_untrusted_shell_interp.py` is the standing check: 5 untrusted interpolations before this change, 0 after, over 35 workflows. It runs with no `branches:` filter, since a gate that filters by branch reads as green on a stacked PR (#2167)
+- **Evidential binaries no longer live only in `/tmp`.** `scripts/ci/artifact_seal.py` records commit, build commands, toolchain, profile, digests, declared inputs and test results; `verify --rebuild` rebuilds from the named commit and compares. Reproduced bit-exactly at `836e8bc4...` from `b928725`
+- **That only worked once the build path was made a constant.** A debug build embeds its source path, so two builds of the same commit from differently named temporary worktrees differed in 39,830,933 bytes. Digest comparison is a usable check only from a fixed path
+- **The pair behind the tick D differential is sealed with its commit field empty.** Provenance not captured at build time cannot be recovered afterwards, and writing today's `HEAD` there would manufacture it
+
+# NOW -- the differential tool counted 91 of 150 unmeasured files as agreement (2026-08-15)
+
+Last updated: 2026-08-15
+
+## loop: six categories, reason codes, and printed coverage (Closes #2166)
+
+- **Same binaries, same 150 files, two versions of the same tool.** Five categories printed `150 unchanged, 0 field-loss, 0 unknown` -- total agreement. Six categories print `59 unchanged, 91 not-evaluated (both-error)`, coverage **39.3 %**. Nothing about the compiler changed between those two lines, and the first is the line that had been quoted in pull requests
+- **`unchanged` was carrying two statements**: "we compared and found no difference" and "neither binary parsed the file". Both incremented the same counter, so no reviewer and no threshold could separate them. On the 634-spec library the split was 330 measured against 286 unmeasured -- a 52 % base reported as 100 %
+- Six mutually exclusive categories now, with the partition **asserted at runtime**; every `not-evaluated` row carries a reason code (`both-error`, `base-timeout`, `candidate-timeout`, `environment-failure`, `excluded-source-loss`); no `PASS` while any `unknown` remains; coverage printed on every run, in the same sentence as any "no regressions" claim, because a caveat in a neighbouring paragraph does not travel with the number
+- **Full corpus, single completed run, uniform 12 s threshold, 1089 files** `[measured]`: 524 unchanged/ok, 343 unchanged/fail, **0 regressions**, 1 strict-improvement, 221 not-evaluated (195 both-timeout, 26 candidate-timeout). **Coverage 868/1089 = 79.7 %**
+- **The 26 `ok -> timeout` files are the boundary, not a slowdown.** Timed directly, 3 runs each way: median candidate/base ratio **1.010** (min 0.985, max 1.026), on files taking 10.8-11.7 s against a 12 s wall. A 1-3 % jitter is enough to move them across it, so the count difference measures the threshold and not the compiler
+- Rules R15 and R16 added to `docs/loop/LOOP-RULES.md` and resealed. `tri corpus-parse`, `corpus-status`, `diffmodes`, `loop-rules` registered in `scripts/ci/loop-tools-tracked.sh`, which fails on an untracked tool -- the state that already destroyed two of these scripts along with every number they produced
 
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
