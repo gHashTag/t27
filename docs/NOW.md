@@ -1,3 +1,16 @@
+# NOW -- the mismatch now fails where the cause is (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(fpga-build): chipdb/device agreement asserted before P&R (Closes #2231)
+
+- t27c fpga-build now fails at start when an explicit --chipdb filename disagrees
+  with --device, naming both and the two-steps-later consequence (fasm2frames
+  'Part None not found'); the default chipdb path is derived from --device instead
+  of hardcoding the 100T filename -- the hardcode is exactly how the 200T default
+  flip survived P&R against the wrong database (#2225)
+- Negative controls: planted mismatch bails instantly; matched pair proceeds
+
 # NOW -- the device default flipped under a clean merge (2026-08-19)
 
 Last updated: 2026-08-19
