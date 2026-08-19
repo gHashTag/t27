@@ -12279,6 +12279,12 @@ positives. The stable rule tested where the token stands (line-leading, depth
 top-level openers before a keyword body). Guards earn their place by a
 measured break each.
 
+**1385. Ok IS NOT DONE.** An expression parser that returns Ok mid-line hands
+you a success that is a truncation. After ANY recovered sub-parse, check where
+the cursor LANDED (semicolon, new line, boundary, EOF) before counting the
+result -- the partial-Ok is the parser-level twin of the zombie parse, and it
+turned a rung's improvement into a regression until the landing check existed.
+
 ### How to update this tracker
 
 After closing a wave:

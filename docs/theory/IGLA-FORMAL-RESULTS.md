@@ -27496,6 +27496,28 @@ its own decision), statement-clauses-in-blocks (the documented pre-existing
 hoist edge), scattered small causes. The probe-fixable frontier is nearly
 exhausted; what remains is decisions.
 
+## W904 -- statement clauses, and the partial-success trap
+
+### T747 -- Ok IS NOT DONE: PARTIAL PARSE SUCCESS IS A FAILURE MODE [measured]
+
+parse_expr returns Ok having consumed only part of a line (the W578 brace-if).
+The statement-clause arm accepted that Ok, pushed a truncated initialiser, and
+left the loop on mid-line junk -- the whole block then fell back, and a file
+IMPROVED by every other rung got WORSE (35 -> 75 dropped). The rule: a
+statement lowering counts only if the parser lands CLEANLY -- semicolon, new
+line, boundary, or EOF. An Ok that strands the cursor mid-line is a failure
+wearing a green light, the parser-level twin of the zombie parse.
+
+### T747a -- THE HOIST IS DEAD: BINDINGS STAY IN THEIR BLOCKS [measured]
+
+`const h = 5` between clauses minted a module-scope global in every backend
+(KwConst sits in is_block_boundary); `let` lexes as KwConst and every
+let-statement in a BDD body took the same road, and a bare `sum = ...`
+assignment cost its whole block via the not-a-clause fallback. All three now
+lower as statement clauses under indent + clean-termination guards. Inventory
+after remeasure: 98.5% of 23,033 BDD lines READ (356 dropped); corpus
+67,760 -> 26,713 (-60.6%) at twelve rungs.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
