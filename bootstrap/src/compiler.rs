@@ -15044,6 +15044,66 @@ impl VerilogCodegen {
                         return;
                     }
                     let child = &node.children[0];
+                    // #2240: NESTED scalar-struct field access (e.g. state.flags.empty).
+                    // The single-level branch below matches only identifier/index/call
+                    // bases, so a field-access base fell through to name-flattening and
+                    // emitted `state[96 +: 4]_empty` -- an identifier fragment glued onto
+                    // a part-select, invalid Verilog (fifo.v, 6 sites). Resolve the whole
+                    // chain to ONE cumulative part-select on the base identifier.
+                    if child.kind == NodeKind::ExprFieldAccess {
+                        let mut names = vec![node.name.clone()];
+                        let mut cur = child;
+                        while cur.kind == NodeKind::ExprFieldAccess && !cur.children.is_empty() {
+                            names.push(cur.name.clone());
+                            cur = &cur.children[0];
+                        }
+                        if cur.kind == NodeKind::ExprIdentifier {
+                            names.reverse();
+                            let chain_base = cur.name.clone();
+                            if let Some(local_ty) = self.local_types
+                                .get(&chain_base)
+                                .or_else(|| self.param_types.get(&chain_base))
+                                .or_else(|| self.module_types.get(&chain_base))
+                            {
+                                if self.is_lowerable_scalar_struct_type(local_ty)
+                                    && Self::parse_array_type(local_ty).is_none()
+                                {
+                                    let mut cur_ty = Self::base_type_name(local_ty);
+                                    let mut total_off = 0u32;
+                                    let mut fw = 0u32;
+                                    let mut ftype = String::new();
+                                    let mut ok = true;
+                                    for fname in &names {
+                                        match self.struct_field_offset(&cur_ty, fname) {
+                                            Some((off, w)) => {
+                                                total_off += off;
+                                                fw = w;
+                                                ftype = self.struct_decls.get(&cur_ty)
+                                                    .and_then(|fs| {
+                                                        fs.iter()
+                                                            .find(|(n, _)| n == fname)
+                                                            .map(|(_, t)| t.clone())
+                                                    })
+                                                    .unwrap_or_default();
+                                                cur_ty = Self::base_type_name(&ftype);
+                                            }
+                                            None => { ok = false; break; }
+                                        }
+                                    }
+                                    if ok && fw > 0 {
+                                        let signed = Self::scalar_field_is_signed(&ftype);
+                                        let slice = format!("{}[{} +: {}]", chain_base, total_off, fw);
+                                        if signed && !self.in_lvalue {
+                                            self.write(&format!("$signed({})", slice));
+                                        } else {
+                                            self.write(&slice);
+                                        }
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // W533: packed single scalar-struct field access (e.g. p.x).
                     let base_name = match child.kind {
                         NodeKind::ExprIdentifier => child.name.clone(),
