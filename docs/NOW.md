@@ -11,6 +11,37 @@ Last updated: 2026-08-19
   flip survived P&R against the wrong database (#2225)
 - Negative controls: planted mismatch bails instantly; matched pair proceeds
 
+
+# NOW -- apt attempts are bounded, and the onion's lessons are a skill (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga)+skills: bounded apt retries; ci-gates section 10 (Closes #2229)
+
+- All 9 apt install points across fpga-build.yml and emit-bitexact-gate.yml now run
+  as timeout-bounded attempts (420s update / 600s install) with 3 retries and a loud
+  fail -- apt on a dead mirror HANGS, so plain Acquire::Retries never fired and 5/5
+  jobs burned whole 45-90m ceilings at once on 2026-08-19
+- ci-gates skill section 10: layers 11-14 of the fpga-bitstream onion -- consumer
+  path contracts, import chains verified by execution not by requirements.txt, the
+  duplicate upload-artifact name landmine, the L1 regex as contract, and the device
+  default that flipped under a textually clean merge (an absence cannot conflict)
+
+
+# NOW -- master's tri build restored: seven lost definitions returned (2026-08-19)
+
+Last updated: 2026-08-19
+
+## build: cargo build -p tri compiles again (Closes #2227)
+
+- A wave-loop batch merge kept call sites and dropped definitions:
+  SmokeGateReport, pvt_context_inside_envelope, synthetic_pvt_context,
+  cclk_period_ns, verify_lean, extract_source_from_lean -- restored verbatim
+  from the commits that introduced them (Wave Loops 437/441/443/453)
+- bit_config: the status()/output() half-refactor finished -- output captured,
+  stderr passed through, console arm prints what it used to stream
+- Master's own build check was green from a pre-break commit; every PR failed
+  on it. Found by the #2223 gate ("appears only here" was stale)
 # NOW -- the device default flipped under a clean merge (2026-08-19)
 
 Last updated: 2026-08-19
