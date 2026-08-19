@@ -27620,6 +27620,28 @@ tokens spread thin (W578-BRACE-IF-DECISION.md: status quo recommended while
 the two larger masses wait). Nothing in the residue now lacks a page, a
 price, and an owner.
 
+## W909 -- the second rehearsal, and the whole residue on two words
+
+### T752 -- REHEARSALS COMPOSE INTO A CLOSING NUMBER [measured]
+
+The dialect decision got the same treatment as forall: a brace-aware verbatim
+statement capture, measured (25,670 -> 23,739; the safe-guard ceiling
+recovers about half the mapped dialect mass -- the other half opens blocks
+with a statement FIRST, exactly where W905 proved scope guards cannot
+discriminate), then BOTH rehearsals together: **4,711 discarded tokens,
+-93.0% from the original 67,760, consume-all 419, zero new parse-fails** --
+measured, patch-filed, and fully reverted. The residue of a 19-wave arc now
+fits in one sentence: two one-word decisions stand between the corpus and
+-93%, and each has a page, a patch, and a proof it costs one wave.
+
+### T752a -- A GUARD'S LIMIT IS PART OF THE PRICE [measured]
+
+The dialect ceiling is HALF the mapped mass not because the capture is weak
+but because the W905 scope guards -- earned by scope-theft breaks -- refuse
+exactly the blocks that open with a statement. A safety rule and a recovery
+ceiling are the same fact seen from two sides; pricing an option honestly
+means quoting it UNDER the guards, not over them.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

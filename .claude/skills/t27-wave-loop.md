@@ -12315,6 +12315,12 @@ numbers to the decision page. "Say '2' and a measured rung lands in one wave"
 is a cheaper human interaction than "choose and we shall see" -- and the
 revert is what keeps the choice genuinely the human's.
 
+**1391. QUOTE CEILINGS UNDER THE GUARDS.** The dialect rehearsal recovers
+half its mapped mass because the scope guards (earned by real scope-theft
+breaks) refuse statement-first blocks. That is the honest price. Quoting the
+no-guards number would trade a panel-proven safety rule for a prettier
+figure -- the exact bargain the audit exists to refuse.
+
 ### How to update this tracker
 
 After closing a wave:
