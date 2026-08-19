@@ -12167,6 +12167,15 @@ collateral. Fall back per-clause, or at least report per-clause.
 whole history in its header; W889 declared a fourth dialect without looking. The
 prevention tool existed because of the LAST such miss.
 
+**1363. RECOVERY GRANULARITY IS A MEASURABLE DESIGN CHOICE.** Whole-block
+fallback lost siblings of one bad clause; per-clause recovery took the worst
+file from 5,358 to 1,469 dropped tokens. Default drop-the-unit is usually the
+expensive granularity.
+
+**1364. NAME THE NEXT CAUSE BEFORE CLOSING THE WAVE.** The remaining discards
+have an identified probe-confirmed cause (expression grammar inside clauses),
+so 0004 starts from a file, not from a mystery.
+
 ### How to update this tracker
 
 After closing a wave:

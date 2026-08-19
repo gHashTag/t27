@@ -27130,6 +27130,44 @@ exists because of W870 -- gates, captions, baselines, THEN measure -- was
 skipped in the wave between two waves that cited it. The cure remains reading
 one raw case; the prevention remains running the tool built from the last miss.
 
+## W894 -- 0003: one clause form and one granularity change recover most of a file's tests
+
+### T737 -- TUPLE-WHEN PLUS PER-CLAUSE FALLBACK, MEASURED [measured]
+
+Prototype 0003 in the detached copy, two hunks in `parse_bdd_clauses`:
+
+    A: `when (a, b) = expr` lowers exactly as parse_local_decl's tuple path
+       (StmtLocal, empty name, comma-joined extra_field)
+    B: a failed clause restores ITS OWN checkpoint and skips one clause with
+       honest token accounting; the whole-block fallback survives only for the
+       greedy-expr over-consumption case, which genuinely crosses clauses
+
+    systolic_ternary.t27    5,358 -> 1,469 discarded tokens   (-73%)
+    corpus (624 files)      67,760 -> 58,187                  (-14%)
+    regressions             none -- repros, SSOT pair, capture check all hold
+
+### T737a -- THE RECOVERY LADDER, EACH RUNG MEASURED BEFORE THE NEXT [derived]
+
+    0001  compound assignment    unblocked the SSOT's Taylor loop
+    0002  nested fn + captures   the SSOT parses and seals
+    0003  tuple-when + clause    -73% on the worst test file, -14% corpus
+    0004  (identified, unbuilt)  expression grammar inside clauses --
+                                 `given results = []EvalResult{}` rejected by
+                                 parse_expr; an expression item, not a lowering
+                                 item, left for its own measured proposal
+
+The remaining 58,187 discarded tokens now have a NAMED next cause rather than a
+mystery. One proposal per cause; each cause identified by one probe file before
+any code.
+
+### T737b -- COLLATERAL LOSS WAS THE BIGGER HALF [derived]
+
+The tuple shape itself was ~60% of dropped when-lines, but the block-granularity
+fallback made every neighbouring given/then fall with it -- the per-clause change
+recovers the siblings even where a clause stays unsupported. **Granularity of
+recovery is a design choice with a measurable cost, and the default (drop the
+enclosing unit) is usually the expensive one.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
