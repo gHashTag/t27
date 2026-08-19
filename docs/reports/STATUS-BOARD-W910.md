@@ -1,4 +1,20 @@
-# Full status, both tracks — one page for whoever wakes up (W935, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W936, 2026-08-20)
+
+> **W936 — THE DECODE COST IS MEASURED, AND THE FREQUENCY COLUMN HAS A NAMED
+> DEFECT.** yosys runs locally, so the CI queue stopped being a blocker: each
+> decoder was instantiated N times in a chain and `cells(N) = fixture + cost·N`
+> fitted at N = 1,2,4,8 — eighteen of nineteen fits exact with integer slopes.
+> **The ternary exponent field decodes 5× cheaper than the binary one** (2.000 vs
+> 10.000 cells), TNF's cost is width-independent across 16/32/64, `int8` is
+> exactly free, and the spread to the tapered formats is 62–152×. Landed upstream
+> with its rig as **tf#634**.
+>
+> Reading nextpnr-xilinx's own source then corrected one of our theorems and
+> named a defect in every frequency we have: `0.1 ns` setup/hold/clock-to-Q for
+> every flip-flop, one speed grade in the chipdb, `--freq` consumed by router1
+> and ignored by router2, and router2 emitting placer pre-route estimates in
+> post-route-looking text (**tf#635**, T776, T771 erratum). **Readiness 33 % →
+> 36 %.** Theorems T774–T776; lessons 1406–1408; `tri audit` added.
 
 > **W935 — THE AUDIT TURNED ON US, AND THE PAPER GOT A REFEREE.** A hostile
 > referee pass plus two prior-art sweeps, every load-bearing claim re-verified by

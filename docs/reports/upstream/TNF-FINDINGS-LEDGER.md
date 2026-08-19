@@ -189,3 +189,57 @@ with no new measurement.**
 
 Three of the six blocker-grade findings landed against `G8-VERDICT.md` were
 **ours**, not the author's: see the W935 correction above, and T766/T767.
+
+
+## 10. W936 — the decode cost measured, and the instrument read from its source
+
+**A new measurement, not a re-reading.** Replication (`DECODER-COST-W936.md`,
+`decoder_cost_w936.json`, rig `gen_replicated.py`, landed upstream as **tf#634**):
+each decoder instantiated N times in a pipelined chain, `cells(N) = fixture +
+cost·N` fitted over N = 1,2,4,8, eighteen of nineteen fits exact with integer
+slopes.
+
+| | (LUT+CARRY4)/decoder | | |
+|---|---:|---|---:|
+| `int8` | **0.000** | `GF14` | 36 |
+| `GFTernary` | **2.000** | `VAX F` | 41 |
+| `TNF16/32/64` | **2.000** | `binary16` | 54 |
+| `binary32` | 5.000 | `GF+8` | 56.3 (R²=0.997) |
+| `BNF16` | 10.000 | `posit16` | 125 |
+| `fp8 e4m3/e5m2` | 12.000 | `IBM hex32` | 129 |
+| `GF10` | 26 | `LNS16` | 159 |
+| `minifloat` | 31 | `posit32` | 304 |
+
+The **ternary exponent field decodes 5× cheaper than the binary one** (2.000 vs
+10.000, and the two formats differ by their own source comment *exactly* in that
+field: BNF pays 8 cells for a subnormal special case TNF does not need). TNF's
+cost is **width-independent** across 16/32/64. `int8` is exactly free. Separations
+against the field: 6× fp8, 62× posit16, 80× LNS16, 152× posit32.
+
+**Self-correction inside the same run:** the first pass counted LUTs only and
+reported the constant-add decoders at **0.000 with R² = 1.00000** — a perfect fit
+around a wrong number, because the cost had gone to CARRY4 (lesson 1407).
+
+**The instrument, read from its own source** (verified by hand at the URLs, not
+by report): every flip-flop carries a hardcoded `0.1 ns` setup, hold and
+clock-to-Q (`xilinx/arch.cc:2507-2509`) and the chipdb emits `# only one speed
+grade currently` (`bbaexport.py:356`). **Speed grade is decorative on this
+substrate**, and the constant endpoint delay favours shallow designs over deep
+ones — a rotation of the ranking, not an offset (T776). Further: `--freq` reaches
+PnR only through criticality and budgets, which **router1 consumes and router2
+does not**, and router2 ran no timing analysis at all before 2026-08-11, so its
+`Max frequency` lines were placer pre-route estimates in identically formatted
+text. Rows now carry `fmax_source` (**tf#635**), and our own T771 carries an
+erratum.
+
+**The two tables are two campaigns.** All **19 common rows disagree in LUT**
+(Σ|Δ| = 465, max 19.27 % on GF+8), the row sets differ by two members each, LUT
+is seed-invariant, `tab:tnet` is a byte-identical projection of
+`tab:fullthroughput`, only `tab:fullthroughput` has dated in-tree provenance, and
+`DOCUMENT_TRACEABILITY_2026-08-10.md:52` already lists MATRIX.md's figures as
+superseded. Reported on tf#631.
+
+**Readiness moves 33 % → 36 %.** Up for a genuinely new exact measurement with a
+committed, reproducible rig; not further, because the same wave gave the
+frequency column a *named, sourced* defect where it previously had only an
+unknown.
