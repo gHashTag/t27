@@ -1028,6 +1028,9 @@ pub struct Parser {
     dropped_top_level_tokens: usize,
     // W883 prototype: nested `fn` declarations, hoisted to module level.
     hoisted_fns: Vec<Node>,
+    // W898 (0005): inside a braceless-clause VALUE, an `and` that opens the next
+    // clause must terminate the expression instead of becoming a logical AND.
+    in_bdd_clause_value: bool,
     /// W634: WHERE they were dropped -- `(line, lexeme)` per token. Counting
     /// told us 55,563 tokens vanish; only reading them can say whether any of
     /// it is content a theorem depends on. See T43.
@@ -1087,6 +1090,7 @@ impl Parser {
             no_struct_literal: 0,
             dropped_top_level_tokens: 0,
             hoisted_fns: Vec::new(),
+            in_bdd_clause_value: false,
             dropped_spans: Vec::new(),
         }
     }
@@ -3384,6 +3388,25 @@ impl Parser {
         while self.current.kind == TokenKind::KwAnd
             || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
         {
+            // W898 (0005): `given c = 1` newline `and x = f(c)` -- the greedy
+            // and-loop consumed the NEXT CLAUSE as a conjunction, stopped on its
+            // `=`, and the whole block fell back. Every mid-block `and` clause in
+            // the corpus died this way. In clause-value mode, an `and` followed
+            // by `ident =` is the next clause, not an operand: probe ahead with
+            // save/restore, which the parser already uses for exactly such looks.
+            if self.in_bdd_clause_value && self.current.kind == TokenKind::KwAnd {
+                let look = self.save_state();
+                self.advance();
+                let is_clause = self.current.kind == TokenKind::Ident && {
+                    let name_ok = true;
+                    self.advance();
+                    name_ok && self.current.kind == TokenKind::Equals
+                };
+                self.restore_state(look);
+                if is_clause {
+                    break;
+                }
+            }
             self.advance();
             let right = self.parse_expr_comparison()?;
             left = Node {
@@ -4500,7 +4523,16 @@ impl Parser {
             // keyword. But it can also mean we stopped mid-clause -- e.g. on the
             // comma of `given clk = true, rst_n = false`. Only a real boundary
             // ends the block; anything else falls back.
-            if self.current.kind != TokenKind::Ident {
+            // W898 (0005): `and` lexes as the LOGICAL OPERATOR token, not as an
+            // identifier -- so the `and` clause the line below claims to accept
+            // was unreachable for this function's whole life, and every block
+            // containing one fell back wholesale. Found by ddmin: an 80-line
+            // contextual repro reduced to four lines, and the "context" was one
+            // `and` clause. Accept the keyword token at clause position.
+            let and_kw = self.current.kind == TokenKind::KwAnd
+                || (self.current.kind != TokenKind::Ident
+                    && self.current.lexeme == "and");
+            if self.current.kind != TokenKind::Ident && !and_kw {
                 if Self::is_block_boundary(self.current.kind) {
                     break;
                 }
@@ -4525,7 +4557,10 @@ impl Parser {
 
             let ok = if is_assertion {
                 self.advance();
-                match self.parse_expr() {
+                self.in_bdd_clause_value = true;
+                let r = self.parse_expr();
+                self.in_bdd_clause_value = false;
+                match r {
                     Ok(expr) => {
                         let mut call = Node::new(NodeKind::ExprCall);
                         call.name = "assert".to_string();
@@ -4565,7 +4600,10 @@ impl Parser {
                         false
                     } else {
                         self.advance();
-                        match self.parse_expr() {
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
                             Ok(expr) => {
                                 let mut decl = Node::new(NodeKind::StmtLocal);
                                 decl.extra_field = pat;
@@ -4585,7 +4623,10 @@ impl Parser {
                         false
                     } else {
                         self.advance();
-                        match self.parse_expr() {
+                        self.in_bdd_clause_value = true;
+                        let r = self.parse_expr();
+                        self.in_bdd_clause_value = false;
+                        match r {
                             Ok(expr) => {
                                 let mut decl = Node::new(NodeKind::StmtLocal);
                                 decl.name = name;
@@ -4609,31 +4650,17 @@ impl Parser {
                 return;
             }
             if !ok {
-                // Restore to the clause head, then skip ONE clause: advance to
-                // the next clause keyword or block boundary, counting every
-                // skipped token as dropped so the truncation ledger stays
-                // honest. The safety contract still holds -- we only ever ADD
-                // statements, and the skip is bounded by is_block_boundary.
-                self.restore_state(clause_entry);
-                self.advance(); // step off the clause keyword itself
-                self.dropped_top_level_tokens += 1;
-                loop {
-                    if Self::is_block_boundary(self.current.kind) {
-                        break;
-                    }
-                    if self.current.kind == TokenKind::Ident
-                        && matches!(self.current.lexeme.as_str(),
-                                    "given" | "when" | "and" | "then" | "assert")
-                    {
-                        break;
-                    }
-                    if self.current.kind == TokenKind::Eof {
-                        break;
-                    }
-                    self.dropped_top_level_tokens += 1;
-                    self.advance();
-                }
-                continue;
+                // W898 revision: the per-clause SKIP is withdrawn. Its boundary
+                // set stopped at `}` and `fn` inside clause junk (a lambda in a
+                // then-expr, a struct literal in a given) and handed fragments to
+                // module level, which errors HARD where the old path skipped
+                // safely -- four files that parsed before regressed. On a failed
+                // clause the whole block falls back exactly as before 0003; the
+                // collateral win survives because the and-fix makes most blocks
+                // lower COMPLETELY, never reaching this arm.
+                let _ = clause_entry;
+                self.restore_bdd_fallback(block, start_children, entry);
+                return;
             }
             lowered += 1;
         }
