@@ -243,3 +243,60 @@ superseded. Reported on tf#631.
 committed, reproducible rig; not further, because the same wave gave the
 frequency column a *named, sourced* defect where it previously had only an
 unknown.
+
+
+## 11. W937 — the baseline downloaded, and the prior measured
+
+Two experiments the comparison never had. Both landed upstream (**tf#636**), both
+with their rigs and records committed.
+
+### The field's reference posit hardware, through our own flow
+
+PACoGen (Jaiswal & So, IEEE Access 2019) is public Verilog and cited **zero**
+times in the manuscript. Same replication rig, same metric, same synthesiser:
+
+| unit | cells | R² |
+|---|---:|---:|
+| PACoGen `data_extract_v1` (N=16, es=2) | **92.000** | 1.00000 |
+| this tree's `posit16_decode` | **125.000** | 1.00000 |
+| this tree's `TNF16` decode | **2.000** | 1.00000 |
+| PACoGen `posit_add` (N=16, es=2) | **693.000** | 1.00000 |
+| `tnf_cost_e4m8_add_top` (16 physical cells) | **561.670** | 0.999999 |
+
+Two results in opposite directions, which is why the exercise was worth running.
+**The reimplemented baseline is vindicated:** our posit decode costs 1.36× the
+reference's extraction while assembling a full fp32 the reference does not — the
+least likely outcome a priori, and the most useful. **And the headline shrinks:**
+at operator level, matched storage width, against a published implementation, the
+advantage is **1.23×**, where the paper claims 6.1× from decoder models. The decode
+ratio against the reference is 46× and is amortised the moment anything is computed
+with the decoded value.
+
+### How much of the accuracy result is the prior
+
+| prior | TNF16 | posit16 | advantage |
+|---|---:|---:|---:|
+| **published**, uniform over 77 binades | 8.101e-05 | 1.185e-03 | **14.63×** |
+| standard normal | 8.184e-05 | 8.346e-05 | **1.02×** |
+| He init, fan-in 512 | 8.184e-05 | 1.349e-04 | 1.65× |
+| Student-t, df = 3 | 8.471e-05 | 1.351e-04 | 1.59× |
+| log-uniform, 17 binades | 8.101e-05 | 1.131e-04 | 1.40× |
+
+TNF16 leads under **all five** — the ordering is safe. The multiple is not: 14.63×
+becomes a statistical tie under a standard normal. The stronger claim the same data
+support is **prior-invariance**: TNF16's error moves by 1.046× across priors whose
+median magnitude spans six orders, while posit16's moves by 14× and takum16's by 8×.
+Under the published prior, `binary16` cannot represent 1,786 of 6,000 values and is
+tabulated anyway. (LNS16 is **not** measured by this path and its row must not be
+quoted — the oracle refuses a rational for a log format.)
+
+### Also this wave
+
+`fmax_search` added to the throughput workflow (**tf#637**): an optional binary
+search for the highest `--freq` that still routes cleanly, at the reference
+configuration, reported beside the constrained figure. Off by default.
+
+**Readiness 36 % → 41 %.** Baseline fairness was the weakest axis at ~10 % and now
+has a reference-implementation comparison; methodology gains the prior-sensitivity
+analysis. The headline number got smaller and the paper got more publishable —
+those are the same event.

@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W936, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W937, 2026-08-20)
+
+> **W937 — THE BASELINE WAS DOWNLOADED AND THE PRIOR WAS MEASURED.** PACoGen, the
+> field's reference posit hardware, cited zero times in the manuscript, is public
+> Verilog: through our own rig it puts `data_extract_v1` at **92.000** cells
+> against this tree's `posit16_decode` at **125.000** — **the reimplemented
+> baseline is sound**, doing strictly more work for 1.36×. At operator level and
+> matched 16-cell width, TNF's adder is **561.670** against `posit_add`'s
+> **693.000**: **1.23×**, where the paper claims 6.1× from decoder models.
+>
+> And the accuracy prior: TNF16 leads under all five priors tested, but its
+> advantage over posit16 is **14.63× under the paper's uniform-77-binade draw and
+> 1.02× under a standard normal**. The claim that survives is **prior-invariance**
+> — TNF16's error moves 1.046× where posit16's moves 14×. Landed as **tf#636**;
+> optional honest-Fmax search as **tf#637**. **Readiness 36 % → 41 %.** Theorems
+> T777–T778; lessons 1409–1410; `tri recall` added.
 
 > **W936 — THE DECODE COST IS MEASURED, AND THE FREQUENCY COLUMN HAS A NAMED
 > DEFECT.** yosys runs locally, so the CI queue stopped being a blocker: each
