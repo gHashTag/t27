@@ -45,6 +45,7 @@ Compiler commands (forwarded to t27c):
 
 Local commands (no compiler needed):
   tri audit                   every pre-wave invariant in one exit code (disk, tree, push, numbering)
+  tri recall PATTERN          search lesson and theorem HEADINGS for a pattern
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
   tri ci [SLUG ...]           live (non-completed) CI runs; defaults to this repo's origin
@@ -134,6 +135,24 @@ case "$cmd" in
     printf 'theorem   last T%s -> next T%s\n' "$theorem" \
       "$([ "$theorem" = '-' ] && echo '-' || echo $((theorem + 1)))"
     printf 't27c      %s\n' "${t27c_path:-not built (compiler commands unavailable)}"
+    exit 0
+    ;;
+
+  recall)
+    # "Have I learned this before?" -- the question an unattended loop asks most
+    # often and answers worst. Searches lesson headers and theorem headings only,
+    # so the answer fits on a screen instead of being a full-text dump.
+    pat="${2:?tri recall needs a pattern (case-insensitive extended regex)}"
+    hits=0
+    if [ -f "$WAVE_SKILL" ]; then
+      out="$(grep -inE "^\*\*[0-9]+\.[[:space:]].*${pat}" "$WAVE_SKILL" | cut -c1-160 || true)"
+      [ -n "$out" ] && { echo "== lessons"; printf '%s\n' "$out" | sed 's/^/  /'; hits=1; }
+    fi
+    if [ -f "$THEORY_DOC" ]; then
+      out="$(grep -inE "^#{2,4} T[0-9]+[a-z]* .*${pat}" "$THEORY_DOC" | cut -c1-160 || true)"
+      [ -n "$out" ] && { echo "== theorems"; printf '%s\n' "$out" | sed 's/^/  /'; hits=1; }
+    fi
+    [ "$hits" = "1" ] || echo "tri recall: nothing matches '$pat' in lesson or theorem headings"
     exit 0
     ;;
 
