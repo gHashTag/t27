@@ -28271,6 +28271,62 @@ that distance is unknown. Fetching it is usually an afternoon -- this one was a
 curl, a wrapper and four synthesis runs -- and it converts every private number in
 a table into a ratio against something a referee can download.
 
+### T779 -- ABOVE FOUR BITS THE NUMBER FORMAT IS INVISIBLE TO THE TASK [measured]
+
+First task-level measurement in this project's history. MNIST, 784-32-10 MLP,
+fp32 baseline 93.39%, trained weights round-tripped through the shipped
+conformance oracles with a per-tensor scale, activations left in fp32:
+
+    16 bits   six formats, representation error spanning 16x   -> 93.38-93.40%
+     8 bits   five formats, error spanning 2x                  -> 93.29-93.48%
+     4 bits   TNF4 93.38%  |  GF4 87.90%  |  fp4 e2m1 87.90%
+
+At sixteen bits, formats whose round-trip error differs by a factor of SIXTEEN
+land within 0.02 percentage points of each other. At eight, within 0.19. The
+accuracy argument that occupies most of a format paper's tables is, at those
+widths and on this task, an argument about a quantity the task cannot see.
+
+At four bits the separation appears and is worth 5.49 points, with TNF4 landing
+0.01 pp from the fp32 baseline. That is the width where the field fights, and it
+is the only width in this experiment where a number-system argument has anything
+to explain.
+
+The general form: a representation error becomes a task error only where it
+exceeds the task's own tolerance to perturbation, and that threshold is a property
+of the NETWORK, not of the format. So a format's accuracy claim is empty until it
+names the width and the task at which the difference reaches the output -- and the
+honest experiment is a width sweep down to the point of collapse, not a table of
+round-trip errors at one comfortable width.
+
+Caveat carried in the same breath: MNIST at 25k parameters is the easiest task in
+this literature, so 0.01 pp proves much less than it appears and 5.49 pp would
+grow on a real network. This is a lower bound on difficulty.
+
+### T780 -- AN UNSCALED SUB-EIGHT-BIT COMPARISON MEASURES DYNAMIC RANGE, NOT THE NUMBER SYSTEM [measured]
+
+The same 4-bit experiment run WITHOUT a per-tensor scale reports TNF4 at 92.27%
+against 21.72% for fp4 e2m1 and GF4 -- a seventy-point gap, and a false one. Those
+two formats flush 98.8% of the weights to zero (25,142 of 25,450), because the
+median trained weight is 0.056 and their smallest representable magnitude is far
+above it. The experiment measured which format happens to reach 0.056, which is
+dynamic range; the number system never entered.
+
+With the scale that every real sub-8-bit deployment carries, the same comparison
+gives 0.01 pp against 5.49 pp. The effect is real and it is thirteen times smaller
+than the artefact.
+
+Two consequences worth stating separately. First, this is the same mechanism as
+the manuscript's own uniform-over-77-binades prior (T777): both make a format's
+REACH stand in for its precision, and both flatter whichever format happens to
+have more reach. Second, it bears directly on the paper's exclusion of int8 "for
+needing an external learned scale" -- at four bits every format needs one, so a
+criterion that excludes a format for carrying a scale excludes the entire
+deployable region of the design space.
+
+Measured corollary on the same weights: the empirical prior of a trained tensor
+spans 8.1 binades between its 1st and 99th percentile, against the 77 binades the
+accuracy regenerators draw from -- a factor of 9.5 in width.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

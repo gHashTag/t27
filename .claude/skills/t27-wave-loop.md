@@ -12407,6 +12407,8 @@ a worktree in the same wave its branch merges.
 
 **1410. A DUPLICATE YAML KEY IS DROPPED IN SILENCE, SO ASSERT ON THE PARSE AND NOT ON THE DIFF.** A patch added a workflow input by inserting a fresh `inputs:` block, and the file then carried two `inputs:` keys under one `workflow_dispatch:`. YAML resolved it by keeping the last and discarding the first, the parser reported the document valid, the diff looked exactly like the intended change, and the new input simply did not exist. It was caught by asserting on the PARSED input names -- `assert 'fmax_search' in d[True]['workflow_dispatch']['inputs']` -- rather than on the text. For any format with last-key-wins semantics (YAML, JSON, ini, .env), a syntax check is not a check: read back the structure you meant to create and assert on it.
 
+**1411. A SEVENTY-POINT GAP IS A BUG REPORT ABOUT YOUR OWN EXPERIMENT.** A 4-bit format comparison returned TNF4 at 92.27 % against 21.72 % for two competitors -- and the two competitors agreed to the digit, which is the tell. They were flushing 98.8 % of the weights to zero: the median trained weight is 0.056, below their smallest representable magnitude, so the run measured dynamic range and not the number system. Adding the per-tensor scale that every real sub-8-bit deployment carries collapsed the gap from 70 points to 5.49. Two heuristics fall out. When two distinct implementations produce IDENTICAL output, suspect that both hit the same floor or ceiling rather than that both are equally good. And when an effect is an order of magnitude larger than the field's published effects for the same intervention, the prior should be that the experiment is broken, not that the result is spectacular.
+
 ### How to update this tracker
 
 After closing a wave:
