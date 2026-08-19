@@ -1,3 +1,53 @@
+# NOW -- the vacuous greens are gates again (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga)+fix: formal/conformance/lint/readiness now fail when they find nothing (Closes #2239)
+
+- Adversarial self-audit over the green master run (each finding survived two
+  independent refutation passes): fpga-formal verified ZERO properties (sby
+  pseudo-block configs + workspace-escaping paths + missing pipefail + a
+  continue-on-error cap -- three independent layers each guaranteeing green);
+  fpga-conformance compiled 0/32 (bare -g2005) behind a warning, and never runs
+  vvp at all (#2241); fpga-lint absorbed 'NOT READY' and 1/32 invalid Verilog
+  as warnings
+- Fixed: canonical per-line .sby task conditionals + local [files] paths;
+  set -o pipefail + continue-on-error removed + FAIL fails; iverilog -g2012
+  -DSIMULATION + exit 1; lint exit 1; synth-readiness bails on NOT READY
+- These jobs may now go honestly red on master: the lint red has a named cause
+  -- a live gen-verilog regression gluing a struct-field onto a part-select in
+  fifo.v (#2240), absorbed by the old warning-gate 40 minutes after the 32/32
+  claim. A refusal on the record beats a vacuous green
+
+
+# NOW -- the tri CLI wave lands: mutate, pr ready, synth/sweep area (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri: the measurement-campaign commands merged (Closes #2222)
+
+- `tri mutate` -- negative-control mutation of benches (a checker that has
+  never failed a mutant has never been tested)
+- `tri pr ready` -- the merge gate: baseline-aware verdict, --wait/--poll,
+  --merge performs the merge itself; found the t27 master build break (#2227)
+- `tri synth area` -- yosys last-stat-block extraction (the 3x inflation guard)
+  and `tri sweep area`; plus `tri red`, `tri gates`, rtl-check build hardening
+- Rebuilt from PR #2177 with L1-traceable commits after the original wave
+  lacked Closes-references
+# NOW -- master's tri TEST build restored: dedup + API port + a helper that never existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## tests: cargo test -p tri --no-run compiles again (Closes #2236)
+
+- The XADC test block (7 fns) existed twice; first copy removed, second kept
+- Three resolve_pvt_context tests and the cold_por test ported to the tuple
+  API (the synthetic flag left cold_por; the invariant now tested where it
+  lives, in synthetic_pvt_context); 12/12 ported tests pass
+- assert_report_superset was called by a committed test but its definition
+  was never committed by any wave -- recovered from aaecfb0af and restored
+- Same class as #2227: build check green, test build broken, all PRs inherit
+
 # NOW -- the mismatch now fails where the cause is (2026-08-19)
 
 Last updated: 2026-08-19
