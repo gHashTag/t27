@@ -9,6 +9,8 @@ on:
       - 'cli/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'contrib/formal/**'
+      - 'conformance/fpga_*.json'
       - '.github/workflows/fpga-build.yml'
   push:
     branches: [master]
@@ -18,6 +20,8 @@ on:
       - 'cli/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'contrib/formal/**'
+      - 'conformance/fpga_*.json'
       - '.github/workflows/fpga-build.yml'
   workflow_dispatch:
 
