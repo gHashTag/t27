@@ -1,4 +1,24 @@
-# Full status, both tracks — one page for whoever wakes up (W934, 2026-08-19)
+# Full status, both tracks — one page for whoever wakes up (W935, 2026-08-20)
+
+> **W935 — THE AUDIT TURNED ON US, AND THE PAPER GOT A REFEREE.** A hostile
+> referee pass plus two prior-art sweeps, every load-bearing claim re-verified by
+> hand: the manuscript's headline ranking (10.2 %) is **below the resolution the
+> manuscript itself states** (11.4 %), `placer`/`router` occur **zero** times in
+> 7 858 lines against a measured 4.66× effect, the empty control in
+> `tab:cleandecode` is beaten in area and speed by two of its own rows, and
+> thirteen defining references are missing. Filed as **tf#631**.
+> **Publication readiness: 33 %** — the mathematics is submission-ready, the
+> hardware section is not; re-centring on the 6.08× decode-cost separation is one
+> decision worth ~55–60 %.
+>
+> **And three blocker findings were ours.** `G8-VERDICT.md`'s "LNS16 does not
+> reproduce" is **WITHDRAWN** (tf#632): `MATRIX.md:35` lists LNS16 at 43.11 MHz,
+> 0.16 % from the published value — we read a blank cell in our own reference
+> table as absence of evidence, and applied the dispersion band with a
+> denominator it was never defined with. tf#625 closed as not planned. The CAD
+> configuration is now recorded per row and the report refuses to rank across
+> configurations (tf#630). Theorems T764–T773; lessons 1402–1405; `tri` grew five
+> local wave commands (t27#2244).
 
 > **THE LANDING (W913–W916).** The user's standing order «сам все мержи всегда»
 > converted every waiting row below into agent action: tf#603, tf#612, tf#615

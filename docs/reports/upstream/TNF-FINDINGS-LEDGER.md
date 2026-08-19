@@ -144,3 +144,48 @@ G8 status: **unsourced → measured-with-two-exceptions.** The instrument path
 took five iterations (missing generator → wrong experiment → euphemism
 status → self-executing glob + anchored grep → measurement), each driven by
 one artefact, none skippable.
+
+
+## 9. W935 — the referee simulation, and the field the paper is landing in
+
+A hostile-referee pass and two prior-art sweeps were run against the manuscript,
+then **every load-bearing claim was re-verified by hand** before anything left
+this tree. Filed to the author as **tf#631**; the IDCODE criterion question as
+**tf#633**.
+
+**Verified against the manuscript (greps and arithmetic, not report-reading):**
+
+| finding | evidence |
+|---|---|
+| the headline ranking is unresolved by the paper's own instrument | abstract `:116-119` gives 0.1797 vs 0.1631 MHz/LUT = **10.2 %**; `:5638-5641` states the resolution as **11.4 %** |
+| the largest knob is never named | `grep -ci placer` = **0**, `grep -ci router` = **0**, over 7 858 lines and 60 tables; measured effect **4.66×** (w_lns16), unequal across candidates |
+| the empty control is not a control | `tab:cleandecode` caption: bare wire = 112 LUT / 827.81 MHz; rows 1–2 print **66 LUT / 974.66** and **76 LUT / 925.93** — smaller and faster than empty |
+| "zero DSP" is a flag, not a property | `-nodsp` / "DSP inference off" at `:1195, :4276, :4704, :4966` — true for all 21 arms by construction |
+| the inclusion rule carries the result | `int8` excluded for e = 0 (`:5092`) while the winner, also e = 0, is admitted by a redefinition at `:5101`; the excluded row measures 0.1736 — 3.5 % behind |
+| thirteen defining references absent | Micikevicius 0, Jaiswal 0, Baalen 0, Umuroglu 0, Constantinides 0, Leong 0, Boutros 0, Betz 0, Fahmy 0, Tridgell 0, Alemdar 0, hls4ml 0, Ramachandran 0 — controls Etiemble 9, Hunhold 6 |
+| no dispersion in any caption | "confidence interval" 0, "standard deviation" 0, while frequencies print to 0.01 MHz on a quantity with up to 41.7 % spread |
+
+**The competing field, from the sweeps** — each an uncited work claiming on the
+same axis: Ramachandran *Logarithmic Posits* (DAC 2024), ~2× performance **per
+unit area**, the identical metric, against this paper's 10.2 %; Aggarwal
+*Shedding the Bits* (FPL 2024), the same multi-format-on-one-FPGA method with the
+integer baselines kept in; Mekhemer/Boutros/Betz *Jack of All Scales* (2026) and
+Abdurakhmanov & Fahmy (TRETS 2025), MX formats measured for area and timing on
+FPGA — the ground the block-scale claim lands on; Hunhold's takum codec, 38 %
+latency and 50 % LUT against posit codecs, four to five times this paper's effect
+on the same substrate; and the LUTNet/PolyLUT/SparseLUT line, without which the
+28 LUT-per-weight figure has no baseline.
+
+**Publication readiness: 33 %**, weighted over eight axes against evidence on
+disk: mathematics ~90 % (the φ-uniqueness enumeration and the Z[φ] closure are
+sound, and both sweeps found no prior FPGA/NN work using golden-ratio arithmetic
+as a hardware number format), claim–evidence consistency ~15 %, methodology
+~25 %, baseline fairness ~10 %, positioning ~35 %, artifact ~35 %, our own
+document hygiene ~55 %, field-expected axes ~5 % (no power, no energy, no
+on-hardware point). **Re-centring the paper on the decode-cost separation —
+6.08× published, 8.93× on the corrected harness, the one effect that clears every
+measured noise source — is a single editorial decision worth roughly 55–60 %
+with no new measurement.**
+
+Three of the six blocker-grade findings landed against `G8-VERDICT.md` were
+**ours**, not the author's: see the W935 correction above, and T766/T767.
