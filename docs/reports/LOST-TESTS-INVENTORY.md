@@ -4,8 +4,10 @@ REGENERATED W892. Source of truth is the SPEC TEXT, not the dropped spans:
 the first version was built from `parse-complete --show` output and missed
 311 BDD lines in the top file alone — lines the parser swallows without a
 per-line drop record. Each line below is marked:
-  [D] confirmed dropped by the parser    [?] present in a truncated file,
-      drop not individually recorded — treat as at-risk until proven read.
+  [D] confirmed dropped by the parser — the lowering's FALLBACK cases (chief
+      cause: tuple-when; one bad clause drops its whole block)
+  [?] present in a truncated file, drop not recorded — W893 established these
+      are mostly LOWERED into the AST (read); [D] is the true loss set.
 
 **Total: 9300 scenarios, 23033 BDD lines across 106 files;
 4665 confirmed-dropped, 18368 at-risk.**

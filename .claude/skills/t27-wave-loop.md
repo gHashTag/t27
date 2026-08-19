@@ -12158,6 +12158,15 @@ swallows regions without per-line records. The instrument annotates confidence
 inside the insurance: 724 exact rows LOOKED complete until the spec-side count
 said 1,035. Exactness of what is recorded says nothing about what is missing.
 
+**1361. ONE UNSUPPORTED CLAUSE MUST NOT DROP ITS SIBLINGS.** The BDD lowering's
+whole-block fallback turns a single tuple-when into the loss of every clause
+beside it -- 60% of dropped whens are tuple-shaped, and the rest are mostly
+collateral. Fall back per-clause, or at least report per-clause.
+
+**1362. RUN `known` BEFORE DECLARING A DIALECT.** parse_bdd_clauses carried the
+whole history in its header; W889 declared a fourth dialect without looking. The
+prevention tool existed because of the LAST such miss.
+
 ### How to update this tracker
 
 After closing a wave:

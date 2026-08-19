@@ -92,3 +92,18 @@ now hold the line — the seal records `discarded_top_level_tokens` (W888) and
 `seal-audit` fails when the number grows (W889) — but the DECISION stands open:
 teach the grammar `given/when/then`, or migrate 4,665 lines into `test { }`
 blocks. Either is ring-sized; silence is the only wrong option.
+
+
+### Correction (W893) to the W889 addendum
+
+`given/when/then` is **not** an unknown dialect: `parse_bdd_clauses` lowers
+braceless-test clauses into ordinary statements (built deliberately — its header
+records 7,623 test blocks across 318 specs once silently discarded). The [D]
+lines are that lowering's **fallback cases**, and the chief cause is measured:
+**tuple destructuring in `when`** (`when (a_out, psum_out) = pe(...)`) — ~60 %
+of dropped when-lines are tuple-shaped, and the fallback drops the WHOLE block,
+so one unsupported clause loses its siblings too. The decision for the ring
+shrinks from "adopt a dialect" to "teach the lowering tuple-when (and audit the
+remaining fallback shapes)" — a 0003-sized proposal, not a language fork. The
+[?] class in the inventory is correspondingly mostly READ (lowered), not at
+risk; [D] is the true loss set.

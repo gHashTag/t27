@@ -27097,6 +27097,39 @@ between G8 and a green release checklist. The five-decision board is otherwise
 unchanged and fully prepared; every further wave without human reaction is an
 invariant check and silence.
 
+## W893 -- T733 corrected: the dialect was supported all along; the loss is a fallback
+
+### T736 -- parse_bdd_clauses EXISTS, AND THE [D] SET IS ITS FALLBACK [measured]
+
+Reading one raw case (eval.t27's braceless `test pass_at_k_range`) led to the
+lowering the grammar already has: `parse_bdd_clauses` turns given/when/then into
+StmtLocal/assert -- built deliberately, its own header recording 7,623 test
+blocks across 318 specs once discarded. Probe:
+
+    test doubles     given/when/then        -> LOWERED into the AST (5 nodes)
+    test tuple_when  when (x, y) = pair(a)  -> WHOLE BLOCK falls back, all
+                                              three clauses drop with records
+
+**T733's "fourth dialect the grammar never knew" is withdrawn as framed**: the
+dialect is supported; the 4,665 [D] lines are the lowering's fallback cases.
+Chief cause, measured: ~60% of dropped when-lines are TUPLE-SHAPED, and the
+safety contract ("any shape not fully understood restores the checkpoint")
+drops the whole block, so one unsupported clause loses its siblings.
+
+### T736a -- THE RING ITEM SHRINKS TO 0003-SIZE [derived]
+
+Not "adopt a dialect" but "teach the lowering tuple-when, then audit the
+remaining fallback shapes." The [?] class (18,368 lines) is correspondingly
+mostly READ; [D] is the true loss set, and its dominant fix is one clause form.
+
+### T736b -- ELEVENTH ARTEFACT: I DECLARED A DIALECT WITHOUT RUNNING `known` [self-critical]
+
+W889 claimed a new dialect without querying prior art; `parse_bdd_clauses` sits
+in the grammar with a header narrating exactly this history. The rule that
+exists because of W870 -- gates, captions, baselines, THEN measure -- was
+skipped in the wave between two waves that cited it. The cure remains reading
+one raw case; the prevention remains running the tool built from the last miss.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
