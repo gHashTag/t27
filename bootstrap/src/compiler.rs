@@ -3934,11 +3934,16 @@ impl Parser {
         // Zig/Rust/C emitters handle them -- but they were missing from this
         // cast whitelist, so `x as f32` was a parse error while `fn f(x: f32)`
         // was fine. That inconsistency blocked three IGLA specs at the parser.
-        // W914: `as float` / `as int` -- dialect aliases (specs/ar). Mapped to
-        // the widest concrete type; the backends already lower f64/i64.
+        // W915 MERGE-SEMANTICS NOTE, flagged in docs/NOW.md for the owner:
+        // master refuses f32/f64 casts with a truthful message (its C backend
+        // emits the literal token); this branch accepted them at W830 and 38
+        // corpus specs parse through them. The merge keeps the branch's
+        // acceptance (removing it fails 39 specs) and DROPS W914's untracked
+        // `float`/`int` aliases; master's refusal branch below stays as the
+        // documented owner position for the day a backend decision lands.
         const VALID_CAST_TYPES: &[&str] = &[
             "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
-            "f32", "f64", "float", "int",
+            "f32", "f64",
         ];
         if !VALID_CAST_TYPES.contains(&base.as_str()) {
             // f32/f64 parse in DECLARATIONS, so "unknown type" would be a lie here.
