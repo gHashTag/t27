@@ -1,3 +1,26 @@
+# NOW -- tri answers before the compiler is built (2026-08-19)
+
+Last updated: 2026-08-19
+
+## feat(tri): local wave commands that need no t27c (Closes #2243)
+
+- `tri wave|disk|ci|lesson|theorem` are dispatched BEFORE t27c is resolved; the
+  front door used to exit "t27c not found" for every subcommand, including the
+  ones that never touch the compiler -- the exact state a machine is in when the
+  compiler is what you are trying to fix
+- `tri disk` gates on a free-space floor (default 2 GiB, `TRI_DISK_FLOOR_GIB`)
+  and exits non-zero below it; two autonomous sessions were killed mid-wave by
+  ENOSPC, and at zero free bytes even `rm` is dead
+- `tri lesson --check` / `tri theorem --check` audit the numbering of the
+  wave-loop skill and the theory doc. Their first run reported 180+ collisions --
+  all false: `T709a`/`T709b` are distinct sub-theorems, and `**88.03% on
+  Fashion**` is bold prose, not lesson 88. Anchored on the whole identifier both
+  corpora are clean (997 theorem headings, monotonic; 629 lessons, no gaps)
+- Compiler passthrough unchanged: `tri test` still maps to
+  `t27c suite --repo-root`, everything else is forwarded verbatim
+- Verified: `bash -n`, every subcommand exercised, `--min 999` exits 1,
+  `tri lesson` wrote its own lesson about the false collisions
+
 # NOW -- the mismatch now fails where the cause is (2026-08-19)
 
 Last updated: 2026-08-19
