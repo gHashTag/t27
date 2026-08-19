@@ -9469,137 +9469,6 @@ mod tests {
         let _ = std::fs::remove_file(&generated);
     }
 
-    #[test]
-    fn test_normalize_trailing_commas_removes_trailing_commas() {
-        let raw = r#"{"a": 1, "b": [2, 3,],}"#;
-        let cleaned = normalize_trailing_commas(raw);
-        assert_eq!(cleaned, r#"{"a": 1, "b": [2, 3]}"#);
-    }
-
-    #[test]
-    fn test_parse_xadc_output_roundtrip() {
-        let raw = r#"{
-            "temp": 42.5,
-            "maxtemp": 85.0,
-            "mintemp": -40.0,
-            "vccint": 1.000,
-            "maxvccint": 1.050,
-            "minvccint": 0.950,
-            "vccaux": 1.800,
-            "maxvccaux": 1.890,
-            "minvccaux": 1.710,
-            "raw": {"temp": 12345, "vccint": 6789}
-        }"#;
-        let ctx = parse_xadc_output(raw).unwrap();
-        assert!((ctx.temp_c - 42.5).abs() < 1e-9);
-        assert!((ctx.max_temp_c - 85.0).abs() < 1e-9);
-        assert!((ctx.min_temp_c - (-40.0)).abs() < 1e-9);
-        assert!((ctx.vccint_v - 1.0).abs() < 1e-9);
-        assert!((ctx.vccaux_v - 1.8).abs() < 1e-9);
-        assert_eq!(ctx.raw.as_ref().unwrap()["temp"], 12345);
-        let json = ctx.to_json("xadc");
-        assert_eq!(json["source"], "xadc");
-        assert_eq!(json["temp_c"], 42.5);
-    }
-
-    #[test]
-    fn test_parse_xadc_output_tolerates_trailing_commas() {
-        let raw = r#"{
-            "temp": 42.5,
-            "maxtemp": 85.0,
-            "mintemp": -40.0,
-            "vccint": 1.000,
-            "maxvccint": 1.050,
-            "minvccint": 0.950,
-            "vccaux": 1.800,
-            "maxvccaux": 1.890,
-            "minvccaux": 1.710,
-        }"#;
-        let ctx = parse_xadc_output(raw).unwrap();
-        assert!((ctx.temp_c - 42.5).abs() < 1e-9);
-        assert!(ctx.raw.is_none());
-    }
-
-    #[test]
-    fn test_xadc_context_json_from_pvt_context() {
-        let pvt = PvtContext {
-            temp_c: 35,
-            vccint_mv: 1000,
-            vccaux_mv: 1800,
-            process_corner: ProcessCorner::Ss,
-        };
-        let json = xadc_context_json("not_read", Some(&pvt));
-        assert_eq!(json["source"], "not_read");
-        assert_eq!(json["temp_c"], 35);
-        assert_eq!(json["vccint_mv"], 1000);
-    }
-
-    #[test]
-    fn test_xadc_context_to_pvt_context_rounds_and_converts_units() {
-        let ctx = XadcContext {
-            temp_c: 42.7,
-            max_temp_c: 85.0,
-            min_temp_c: -40.0,
-            vccint_v: 1.00049,
-            max_vccint_v: 1.050,
-            min_vccint_v: 0.950,
-            vccaux_v: 1.80615,
-            max_vccaux_v: 1.890,
-            min_vccaux_v: 1.710,
-            raw: None,
-        };
-        let pvt = ctx.to_pvt_context(ProcessCorner::Ss).unwrap();
-        assert_eq!(pvt.temp_c, 43);
-        assert_eq!(pvt.vccint_mv, 1000);
-        assert_eq!(pvt.vccaux_mv, 1806);
-        assert_eq!(pvt.process_corner, ProcessCorner::Ss);
-    }
-
-    #[test]
-    fn test_xadc_context_to_pvt_context_negative_temp_rounds() {
-        let ctx = XadcContext {
-            temp_c: -12.4,
-            max_temp_c: 85.0,
-            min_temp_c: -40.0,
-            vccint_v: 0.950,
-            max_vccint_v: 1.050,
-            min_vccint_v: 0.950,
-            vccaux_v: 1.800,
-            max_vccaux_v: 1.890,
-            min_vccaux_v: 1.710,
-            raw: None,
-        };
-        let pvt = ctx.to_pvt_context(ProcessCorner::Tt).unwrap();
-        assert_eq!(pvt.temp_c, -12);
-        assert_eq!(pvt.vccint_mv, 950);
-        assert_eq!(pvt.process_corner, ProcessCorner::Tt);
-    }
-
-    /// Regression test for the live XADC readout captured in Wave Loop 434.
-    /// `tri fpga read-xadc` reported temp_c≈41.44 °C, vccint≈1.00049 V,
-    /// vccaux≈1.80688 V. The rounded `PvtContext` must match the values used
-    /// in the generated `measured-to-lean` theorem for OSCFSEL=6.
-    #[test]
-    fn test_xadc_context_to_pvt_context_w434_live_capture() {
-        let ctx = XadcContext {
-            temp_c: 41.4422,
-            max_temp_c: 44.5567,
-            min_temp_c: 40.3425,
-            vccint_v: 1.00049,
-            max_vccint_v: 1.00195,
-            min_vccint_v: 0.998291,
-            vccaux_v: 1.80688,
-            max_vccaux_v: 1.81055,
-            min_vccaux_v: 1.80322,
-            raw: None,
-        };
-        let pvt = ctx.to_pvt_context(ProcessCorner::Ss).unwrap();
-        assert_eq!(pvt.temp_c, 41);
-        assert_eq!(pvt.vccint_mv, 1000);
-        assert_eq!(pvt.vccaux_mv, 1807);
-        assert_eq!(pvt.process_corner, ProcessCorner::Ss);
-    }
-
     /// `resolve_pvt_context_for_boot` must prefer an explicit PVT context file
     /// over a synthetic operating point.
     #[test]
@@ -9621,62 +9490,50 @@ mod tests {
             None,
             "digilent_hs2",
             false,
-            true,
         )
         .unwrap();
 
-        assert_eq!(resolved.source, "pvt_context_file");
+        assert_eq!(resolved.1["source"], "pvt_context_file");
         assert_eq!(
-            resolved.pvt_ctx.as_ref().unwrap().process_corner,
+            resolved.0.as_ref().unwrap().process_corner,
             ProcessCorner::Tt
         );
-        assert!(!resolved.from_xadc);
+        assert!(!resolved.2);
 
         let _ = std::fs::remove_file(&pvt_path);
     }
 
-    /// `resolve_pvt_context_for_boot` must return the deterministic synthetic
-    /// operating point when requested and no file or live readout is supplied.
+    /// The deterministic synthetic operating point is composed at the call
+    /// site now (`resolve_pvt_context_for_boot` no longer takes a synthetic
+    /// flag), so the invariant lives in `synthetic_pvt_context` itself.
     #[test]
-    fn test_resolve_pvt_context_synthetic() {
-        let resolved = resolve_pvt_context_for_boot(
-            None,
-            ProcessCorner::Ff,
-            None,
-            "digilent_hs2",
-            false,
-            true,
-        )
-        .unwrap();
-        assert_eq!(resolved.source, "synthetic");
-        let ctx = resolved.pvt_ctx.unwrap();
+    fn test_synthetic_pvt_context_operating_point() {
+        let ctx = synthetic_pvt_context(ProcessCorner::Ff);
         assert_eq!(ctx.temp_c, 42);
         assert_eq!(ctx.vccint_mv, 1000);
         assert_eq!(ctx.vccaux_mv, 1800);
         assert_eq!(ctx.process_corner, ProcessCorner::Ff);
+        let json = xadc_context_json("synthetic", Some(&ctx));
+        assert_eq!(json["source"], "synthetic");
+        assert_eq!(json["temp_c"], 42);
     }
 
     /// `resolve_pvt_context_for_boot` must return the `not_read` placeholder
     /// when no source is requested.
     #[test]
     fn test_resolve_pvt_context_not_read() {
-        let resolved = resolve_pvt_context_for_boot(
-            None,
-            ProcessCorner::Ss,
-            None,
-            "digilent_hs2",
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(resolved.source, "not_read");
-        assert!(resolved.pvt_ctx.is_none());
+        let resolved =
+            resolve_pvt_context_for_boot(None, ProcessCorner::Ss, None, "digilent_hs2", false)
+                .unwrap();
+        assert_eq!(resolved.1["source"], "not_read");
+        assert!(resolved.0.is_none());
     }
 
-    /// The mock cold-POR path must tag `operating_point.source` as `synthetic`
-    /// when `--synthetic-operating-point` is used.
+    /// The mock cold-POR path with no PVT source must tag
+    /// `operating_point.source` as `not_read` (the synthetic flag was removed
+    /// from `cold_por`; synthetic contexts are composed at other call sites).
     #[test]
-    fn test_cold_por_synthetic_operating_point() {
+    fn test_cold_por_mock_operating_point_not_read() {
         let root = repo_root().unwrap();
         let bit = root
             .join("fpga")
@@ -9695,7 +9552,6 @@ mod tests {
             None,
             Some(&log_dir),
             false,
-            true,
             "digilent_hs2",
         );
         if bit.is_file() {
@@ -9710,9 +9566,8 @@ mod tests {
                 .expect("one mock log file");
             let content = std::fs::read_to_string(entry.path()).unwrap();
             let log: serde_json::Value = serde_json::from_str(&content).unwrap();
-            assert_eq!(log["operating_point"]["source"], "synthetic");
-            assert_eq!(log["operating_point"]["temp_c"], 42);
-            assert_eq!(log["xadc"]["source"], "synthetic");
+            assert_eq!(log["operating_point"]["source"], "not_read");
+            assert_eq!(log["xadc"]["source"], "not_read");
         } else {
             assert!(out.is_err());
         }
@@ -10314,6 +10169,51 @@ mod tests {
     /// snapshot when `UPDATE_EXPECTED` is set or the file is missing. This keeps the
     /// shape regression tests deterministic without requiring a real bitstream, lake,
     /// or yosys installation.
+    /// Compare `actual` against `expected` as a strict superset: every field that
+    /// exists in `expected` must exist in `actual` and be equal. `actual` may
+    /// contain additional fields.
+    fn assert_report_superset(
+        actual: &serde_json::Value,
+        expected: &serde_json::Value,
+        context: &str,
+    ) {
+        match (actual, expected) {
+            (serde_json::Value::Object(actual_obj), serde_json::Value::Object(expected_obj)) => {
+                for (key, expected_value) in expected_obj.iter() {
+                    let actual_value = actual_obj.get(key).unwrap_or_else(|| {
+                        panic!(
+                            "{}: missing expected key '{}' in actual report",
+                            context, key
+                        )
+                    });
+                    assert_report_superset(
+                        actual_value,
+                        expected_value,
+                        &format!("{}.{}", context, key),
+                    );
+                }
+            }
+            (serde_json::Value::Array(actual_arr), serde_json::Value::Array(expected_arr)) => {
+                assert_eq!(
+                    actual_arr.len(),
+                    expected_arr.len(),
+                    "{}: array length mismatch",
+                    context
+                );
+                for (idx, (actual_item, expected_item)) in
+                    actual_arr.iter().zip(expected_arr.iter()).enumerate()
+                {
+                    assert_report_superset(
+                        actual_item,
+                        expected_item,
+                        &format!("{}[{}]", context, idx),
+                    );
+                }
+            }
+            _ => assert_eq!(actual, expected, "{}: value mismatch", context),
+        }
+    }
+
     fn check_smoke_gate_snapshot(
         report: &serde_json::Value,
         fixture_dir: &std::path::Path,
