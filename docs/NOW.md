@@ -1,3 +1,20 @@
+# NOW -- the honest red has been repaired for real (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(gen-verilog): nested struct field resolves to one cumulative part-select (Closes #2240)
+
+- state.flags.empty emitted 'state[96 +: 4]_empty' -- the ExprFieldAccess branch
+  matched identifier/index/call bases but not a field-access base, so the chain
+  fell through to name-flattening and glued an identifier onto a part-select
+  (fifo.v, 6 sites, invalid Verilog; the old warning-only lint absorbed it for
+  40 minutes after the 32/32 claim)
+- The chain now resolves to a single cumulative part-select (state[96 +: 1] /
+  state[97 +: 1]); signed fields keep $signed() on rvalue reads. M5 performed
+- Negative controls: zero glued sites in regenerated fifo.v; yosys parses it;
+  the full 32-module smoke set lints 32/32 with the repo's own flags -- the
+  honest lint gate (#2239) can now be GREEN for real
+
 # NOW -- the vacuous greens are gates again (2026-08-19)
 
 Last updated: 2026-08-19
