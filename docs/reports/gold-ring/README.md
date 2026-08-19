@@ -96,3 +96,33 @@ nested fn using an enclosing `const scale` fails with
     blast radius             0001+0002 fix exactly the SSOT-family pair;
                              the remaining 34 failures are the three DIALECTS
                              (see DIALECTS.md) and stay untouched by design
+
+---
+
+# [GOLD-RING] proposal 0003: tuple-when lowering + per-clause fallback
+
+`0003-bdd-tuple-when.CUMULATIVE.patch` (carries 0001+0002+0003; the 0003 delta
+is two hunks in `parse_bdd_clauses`).
+
+**Change A — tuple patterns in bindings.** `when (a_out, psum) = pe(...)`
+lowers exactly as `parse_local_decl`'s tuple path does (StmtLocal, empty name,
+comma-joined `extra_field`). This one shape was ~60 % of every dropped when-line.
+
+**Change B — per-clause fallback.** The whole-block fallback made one
+unsupported clause lose its siblings; most of the corpus's dropped test lines
+were collateral. Now a failed clause restores to its own checkpoint and skips to
+the next clause keyword, counting every skipped token into the truncation
+ledger. The safety contract holds: only statements are ever ADDED, the skip is
+bounded by `is_block_boundary`, and the over-consumption case (a greedy
+`parse_expr` swallowing the next clause) keeps the whole-block fallback.
+
+**Measured:**
+
+    systolic_ternary.t27      5,358 -> 1,469 discarded tokens  (-73 %)
+    corpus (624 non-scratch)  67,760 -> 58,187                 (-14 %)
+    regressions               none: repros, SSOT pair, capture-check all hold
+
+**Next fallback cause, identified:** expressions inside clauses the expression
+grammar rejects — e.g. `given results = []EvalResult{}` (an empty typed-array
+literal). That is an expression-grammar item, not a lowering item, and is left
+for a measured 0004 rather than bundled.
