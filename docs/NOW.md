@@ -1,3 +1,13 @@
+# NOW -- the gate confirms a merge against the branch, not the exit code (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the gate confirms a merge against the branch, not the exit code (Closes #2249)
+
+- pr ready --merge no longer trusts gh pr merge's exit status: it re-asks the API for merged=true, takes the merge commit sha, and compares it against the default branch -- printing 'Merged — <sha> is on the default branch'
+- gh pr merge also exits zero when it merely enables auto-merge, and a squash-merged stack orphans whatever sat on top of it; both read as success from the exit code alone
+- When the command succeeds but the branch does not show it, the gate says so and tells the caller not to report it as merged
+
 # NOW -- tri pr landed: status is not content (2026-08-20)
 
 Last updated: 2026-08-20

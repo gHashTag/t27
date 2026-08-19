@@ -178,6 +178,43 @@ fn landed(n: u64, repo: Option<&str>, probes: &[String]) -> Result<()> {
     anyhow::bail!("{} probe(s) absent from {branch}", absent.len())
 }
 
+/// Confirm from the API — not from an exit code — that the pull request is
+/// merged and its merge commit is reachable from the default branch. Returns
+/// the short merge sha so the caller can print what it verified.
+fn confirm_merged(repo: &str, n: u64) -> Result<String> {
+    let merged = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".merged"])?;
+    if merged.trim() != "true" {
+        anyhow::bail!("the API still reports merged={}", merged.trim());
+    }
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".merge_commit_sha",
+    ])?;
+    let sha = sha.trim().to_string();
+    if sha.is_empty() || sha == "null" {
+        anyhow::bail!("merged=true but there is no merge commit sha");
+    }
+    let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
+    let branch = branch.trim();
+    // "identical" or "behind" both mean the commit is contained in the branch.
+    let status = gh(&[
+        "api",
+        &format!("repos/{repo}/compare/{branch}...{sha}"),
+        "--jq",
+        ".status",
+    ])?;
+    let status = status.trim();
+    if status != "identical" && status != "behind" {
+        anyhow::bail!(
+            "merge commit {} is {status} relative to {branch}",
+            &sha[..7.min(sha.len())]
+        );
+    }
+    Ok(sha[..7.min(sha.len())].to_string())
+}
+
 /// Collapse every run of whitespace to a single space, so a probe matches
 /// text that has since been re-wrapped.
 fn flatten_ws(s: &str) -> String {
@@ -464,7 +501,18 @@ fn ready(
                 .output()
                 .context("failed to run gh pr merge")?;
             if out.status.success() {
-                println!("Merged.");
+                // `gh pr merge` exiting zero is not the same as the content
+                // being on the branch: it also succeeds when it merely
+                // enables auto-merge, and a squash-merged stack orphans
+                // whatever sat on top of it. Ask the API instead of the
+                // exit code, and name what was verified.
+                match confirm_merged(&repo, n) {
+                    Ok(sha) => println!("Merged — {sha} is on the default branch."),
+                    Err(e) => {
+                        println!("Merge command succeeded but the branch does not show it: {e}");
+                        println!("Do NOT report this as merged. Check the pull request.");
+                    }
+                }
             } else {
                 println!(
                     "Merge refused: {}",
