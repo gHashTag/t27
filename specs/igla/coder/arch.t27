@@ -663,6 +663,7 @@ pub fn rag_retrieve_architecture(query: string) -> string {
         return "ternary_mac_unit";
     }
     return "generic";
+}
 
 /// load_draft_weights(bank) -> DraftModelConfig
 /// Reads draft model config from first 3 BRAM scalars.

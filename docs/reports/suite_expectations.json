@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
-  "max_entries": 326,
+  "max_entries": 221,
   "entries": [
     {
       "path": "specs/account/repo.t27",
@@ -46,13 +46,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/ar/coa_planning.t27",
-      "phase": "parse-no-discard",
-      "reason": "`spec X { }` dialect: the newly instrumented discard channels (skip_brace_body, recover_to_stmt_boundary) now attribute it to parse-no-discard rather than backends-declare-omissions (T56)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ar/composition.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
@@ -70,20 +63,6 @@
       "path": "specs/ar/explainability.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ar/proof_trace.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ar/restraint.t27",
-      "phase": "parse-no-discard",
-      "reason": "`spec X { }` dialect: the newly instrumented discard channels (skip_brace_body, recover_to_stmt_boundary) now attribute it to parse-no-discard rather than backends-declare-omissions (T56)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -109,13 +88,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/base/ops.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/base/ternary_add.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
@@ -133,13 +105,6 @@
       "path": "specs/base/ternary_memory.t27",
       "phase": "parse",
       "reason": "Expected LBrace, got Number ('257')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/base/types.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -172,27 +137,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/boards/arty_a7.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/boards/xc7a100t_full.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/boards/xc7a100t_minimal.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/brain/brain.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Number",
@@ -210,34 +154,6 @@
       "path": "specs/bus/pubsub.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/bus/schema.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/cloud/railway_deploy.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/compiler/linker.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/compiler/optimizer.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -284,13 +200,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/config/schema.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/conformance/e2e_scenarios.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
@@ -312,13 +221,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/depin/prove.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/enrichment/audio_overview.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
@@ -333,13 +235,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/file/schema.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected DotDot, got LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/file/watcher.t27",
       "phase": "parse",
       "reason": "Expected LBrace, got LParen ('(')",
@@ -347,168 +242,14 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/apb_bridge.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/assembler.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/axi4.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/boards/arty_a7_integration.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/boards/qmtech_a100t_integration.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/bootrom.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/bpsk.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/bridge.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/clock_domain.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/crossopt.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/cts.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/dft.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/e2e_demo.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/fifo.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected RParen, got LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/formal.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Amp ('&')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/gf16_accel.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/hir.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/hw_types.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/linker.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Ident ('sym')",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/fpga/mac.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/memory.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/partition.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/placement.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/power.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
@@ -522,140 +263,14 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/router.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/simulator.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/spi.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/stdlib.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/ternary_isa.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/apb_bridge_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/assembler_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/axi4_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/fpga/testbench/bootrom_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/bridge_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/clock_domain_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/cts_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/dft_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/fifo_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/formal_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/gf16_accel_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/hir_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/integration_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/linker_tb.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
@@ -669,86 +284,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/fpga/testbench/memory_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/partition_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/placement_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/testbench/power_analysis_tb.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/power_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/router_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/simulator_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/spi_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/stdlib_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/ternary_isa_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/timing_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/top_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -763,20 +301,6 @@
       "path": "specs/fpga/testbench/vcd_conformance_compare_tb.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwInvariant ('invariant')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/testbench/vcd_trace_tb.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/timing.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -798,20 +322,6 @@
       "path": "specs/fpga/vcd_conformance_compare.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/vcd_trace.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Amp ('&')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/verification/build_verify.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -936,8 +446,8 @@
     },
     {
       "path": "specs/igla/coder/weights.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected DotDot, got LBrace ('{')",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1043,6 +553,13 @@
       "path": "specs/igla/race/systolic_ternary.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/igla/race/ternary_dot_sw.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1159,13 +676,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/isa/ternary_graph.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/isa/ternary_hash.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: RBracket (']')",
@@ -1215,23 +725,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/isa/ternary_tree.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/jit/jit.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: LParen",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/lsp/client.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1243,27 +739,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/lsp/protocol.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/lsp/schema.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/lsp/server.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/math/constants.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LParen, got Ident ('negative')",
@@ -1271,23 +746,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/math/e8_lie_algebra.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/math/gf_competitive.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unexpected token after expression statement: Bang",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/math/pellis_precision_verify.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected LBrace, got LParen ('(')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1327,23 +788,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/math/zamolodchikov_e8.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/memory/formula_embed.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LBrace, got Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/memory/memory_primitives.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1362,35 +809,7 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/ml/igla_champion_capsule.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ml/optimizer/adamw.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ml/optimizer/lr_scheduler.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ml/optimizer/race_config.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ml/optimizer/sgd_momentum.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
@@ -1404,23 +823,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/ml/transformer/mha_block.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ml/transformer/multi_head_attn.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ml/transformer/norm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1495,13 +900,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/numeric/gf16.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Equals ('=')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/numeric/gf20.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
@@ -1523,37 +921,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/numeric/gf4.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gf64.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/numeric/gf8.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: KwIn ('in')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gf_competitive.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gfternary.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1572,13 +942,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/numeric/pellis_verify.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/numeric/phi_ratio.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
@@ -1589,13 +952,6 @@
       "path": "specs/numeric/posit_ladder_control.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/tf3.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: Unexpected token in expression: Equals ('=')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1628,20 +984,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/gamma_conjecture.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/gi1_analysis.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/physics/hslm_benchmark.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
@@ -1663,13 +1005,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/pellis-formulas.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/physics/quantum.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
@@ -1680,34 +1015,6 @@
       "path": "specs/physics/sacred_verification.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Expected LParen, got Ident ('abs_error')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/su2_chern_simons.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/zamolodchikov_4d_conjecture.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/pins/emitter_xdc.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/pins/ir.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Amp ('&')",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1733,13 +1040,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/pipeline/experience_save.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/portable/relay_observer.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
@@ -1757,20 +1057,6 @@
       "path": "specs/provider/schema.t27",
       "phase": "parse",
       "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/provider/stream.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/provider/transform.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1841,20 +1127,6 @@
       "path": "specs/sandbox/session_timeout.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/http.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/mdns.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -1932,13 +1204,6 @@
       "path": "specs/sync/index.t27",
       "phase": "parse",
       "reason": "parse error at module level near line N: Expected RBrace, got Ident ('SyncID')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sync/schema.t27",
-      "phase": "no-vacuous-verilog-test",
-      "reason": "generated Verilog test block prints PASSED with no check; authored-empty `test X { /* verify baseline */ }` (T45)",
       "issue": 1959,
       "expires": "2026-11-30"
     },
