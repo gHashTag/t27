@@ -371,7 +371,9 @@ jobs:
             mkdir build && cd build
             cmake ..
             make xc7frames2bit
-            cp xc7frames2bit ~/prjxray-build/
+            # The binary lands in build/tools/, not build/ -- one more line that had
+              # never executed before this PR.
+              cp tools/xc7frames2bit ~/prjxray-build/
           fi
       
       - name: Download prjxray database
