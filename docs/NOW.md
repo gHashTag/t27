@@ -1,3 +1,14 @@
+# NOW -- the formal configs are visible to their own CI (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(fpga): trigger paths gain contrib/formal and conformance vectors (Closes #2259)
+
+- PR #2258 (formal layer 5) merged without a single fpga-build run: the files
+  the formal job consumes were in neither trigger list. Validated by manual
+  workflow_dispatch instead; both lists now carry contrib/formal/** and
+  conformance/fpga_*.json
+
 # NOW -- sby's yosys now reads the repo's own dialect (2026-08-20)
 
 Last updated: 2026-08-20
