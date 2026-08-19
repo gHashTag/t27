@@ -27760,6 +27760,19 @@ record beating vacuous green. A merge that changes outputs is not done until
 the certificates that reference those outputs are re-minted or honestly
 refused.
 
+### T759 -- FROM MISSING-INSTRUMENT MAP TO RUNNING INSTRUMENT IN ONE WAVE [measured]
+
+W920's map said what was missing; W921 built it: tnf-format-throughput.yml --
+19 tnet tract harnesses through the cost-sweep's exact chipdb machinery,
+routing-pending honesty preserved, and a report that compares CI rows against
+BOTH published series (tab:untraced AND MATRIX.md's corrected rerun) under
+the audited 1.6-41.7% seed-dispersion band, never claiming equality. Along
+the way the record trail sharpened the target itself: MATRIX.md carries the
+author's own honesty correction ("the first TNF module skipped decode -- the
+comparison was unfair"), so the sixteen untraced values are best read as the
+PRE-correction run. The instrument will say which series CI lands nearer --
+and that answer is informative about the paper either way.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
