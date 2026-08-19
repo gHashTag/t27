@@ -28207,6 +28207,70 @@ that calibration exists, frequencies from this substrate are self-consistent and
 externally uncalibrated -- publishable as such, and not comparable to any Fmax in
 the literature.
 
+### T777 -- A SAMPLING PRIOR IS A HYPOTHESIS, AND QUOTING A MULTIPLE WITHOUT IT QUOTES THE PRIOR [measured]
+
+The accuracy tables draw exponents uniformly over 77 binades. Re-running the SAME
+shipped oracles and the SAME round-trip error over five priors, 6,000 values each,
+the paper's own seed:
+
+    prior                        TNF16      posit16    advantage
+    uniform, 77 binades (pub)    8.101e-05  1.185e-03  14.63x
+    standard normal              8.184e-05  8.346e-05   1.02x
+    He init, fan-in 512          8.184e-05  1.349e-04   1.65x
+    Student-t, df = 3            8.471e-05  1.351e-04   1.59x
+    log-uniform, 17 binades      8.101e-05  1.131e-04   1.40x
+
+The ORDER survives -- TNF16 is first under all five. The MULTIPLE does not: 14.63x
+against posit16 becomes 1.02x, a statistical tie, when the workload is a standard
+normal instead of a uniform draw over 77 binades. Against takum16 the same swing
+is 10.86x to 1.36x.
+
+Two positive results fall out of the same run, and they are stronger than the
+multiple they replace. First, TNF16's error is PRIOR-INVARIANT: 8.101e-05 to
+8.471e-05, a spread of 1.046x across priors whose median magnitude spans six
+orders. That is what a flat field should do and no competitor here does it.
+Second, the published prior is outside a listed competitor's range entirely --
+binary16 fails to represent 1,786 of 6,000 values under it and is tabulated
+anyway.
+
+The general statement: a benchmark's input distribution is a hypothesis about
+deployment, and every ratio computed on it is conditional on that hypothesis. The
+diagnostic is cheap -- re-run under two more priors and report the range -- and
+what it buys is the difference between "N times better" (fragile, and false under
+half of the plausible alternatives) and "invariant across priors" (robust, and the
+property the design actually has).
+
+### T778 -- A BASELINE YOU WROTE IS A HYPOTHESIS ABOUT SOMEONE ELSE'S ENGINEERING [measured]
+
+The manuscript's posit rows are the author's own structural models and the field's
+reference posit hardware (PACoGen, IEEE Access 2019) is cited zero times. Running
+that reference through the identical local flow and rig settles what the models
+were worth:
+
+    PACoGen data_extract_v1 (N=16, es=2)      92.000 cells   R2 1.00000
+    this tree's posit16_decode               125.000 cells   R2 1.00000
+    PACoGen posit_add (N=16, es=2)           693.000 cells   R2 1.00000
+    tnf_cost_e4m8_add_top (16 physical)      561.670 cells   R2 0.999999
+
+Two findings in opposite directions, which is what makes the exercise worth
+running. The reimplemented baseline is VINDICATED: our posit decode costs 1.36x
+the reference's extraction stage while doing strictly more work (full fp32
+assembly against a field split), so the decode numbers are defensible against the
+field's own implementation -- the outcome that was least likely a priori and most
+useful.
+
+And the headline SHRINKS. At the operator level, at matched storage width, against
+a published implementation, the advantage is 1.23x -- against a claimed 6.1x built
+from decoder models. The decode ratio is real (46x against the reference's
+extraction) and it is amortised the moment anything is computed with the decoded
+value, which is why the operator number is the one a system pays.
+
+The invariant: until a competitor's published RTL has been through your flow, your
+comparison measures the distance between two engineering efforts, and the sign of
+that distance is unknown. Fetching it is usually an afternoon -- this one was a
+curl, a wrapper and four synthesis runs -- and it converts every private number in
+a table into a ratio against something a referee can download.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
