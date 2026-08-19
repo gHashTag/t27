@@ -94,3 +94,28 @@ one baseline line.
 `tnf-invariant-oracle` (PR #603). Section 3 needs the author. Section 4 is data
 about the toolchain, shipped as three records in `measurements/` with their
 generators.*
+
+
+---
+
+## 7. The instrument era (W913–W922, appended after the landing)
+
+The user's standing merge mandate converted the audit's waiting rows into
+action: #603/#612/#615 merged, the first G8 dispatch failed on a generator
+that had never reached main (#615 fixed the topology), and two clean sweep
+runs later the artefact trail showed the sweep targets the WRONG experiment —
+`tab:untraced`'s sixteen are format-tract designs living in `fpga/tnet/`,
+not (E_t, M) arms (docs/G8-INSTRUMENT-MAP.md, merged #617).
+
+The missing instrument was built the same day (#618: tnf-format-throughput —
+19 tnet tracts, the sweep's chipdb machinery, CI rows compared against BOTH
+published series under the audited 1.6–41.7 % seed band) — and its first
+verdict never ran, because run 3 of the cost sweep put **e2m1, a near-empty
+adder, in routing-pending**: the catch-all status had been absorbing every
+nextpnr failure with no reason line and no log (#620 fixed both sweeps; the
+same hole was already copied into the day-old instrument, plus a missing
+--xdc). Two diagnostic runs are in CI as this chapter is written.
+
+Standing lesson for the ledger: **a green pipeline is evidence about the
+pipeline, not about the experiment** — three consecutive "successes" here
+carried, in order, a missing file, a wrong experiment, and a euphemism.

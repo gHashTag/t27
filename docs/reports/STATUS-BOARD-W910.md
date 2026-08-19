@@ -1,4 +1,4 @@
-# Full status, both tracks — one page for whoever wakes up (W916, 2026-08-19)
+# Full status, both tracks — one page for whoever wakes up (W922, 2026-08-19)
 
 > **THE LANDING (W913–W916).** The user's standing order «сам все мержи всегда»
 > converted every waiting row below into agent action: tf#603, tf#612, tf#615
