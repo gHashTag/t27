@@ -28361,6 +28361,36 @@ BELOW the field's fully binarised networks (FINN SFC 95.83%, NeuraLUT-Assemble
 98.6%). "Preserves fp32 accuracy" is true and means less than it sounds when the
 fp32 in question is weaker than the competition's 1-bit result.
 
+### T782 -- THE FORMAT EFFECT SCALES WITH TASK DIFFICULTY, WHICH IS HOW YOU KNOW IT IS REAL [measured]
+
+Five seeds, two tasks, paired by seed. At four bits, weights-only PTQ with a
+per-tensor scale:
+
+    MNIST     (base 93.76 +- 0.36)  TNF4 -0.32 pp | GF4 = fp4 e2m1 -8.72 +- 5.00
+    Fashion   (base 84.20 +- 0.29)  TNF4 -0.85 pp | GF4 = fp4 e2m1 -28.60 +- 13.95
+
+    paired TNF4 - fp4:  MNIST +8.40, SE 2.25, t = 3.7 ; Fashion +27.75, SE 6.21, t = 4.5
+                        both p < 0.05 at df = 4, and 5 of 5 seeds on each task
+
+The decisive feature is not the significance, it is the SCALING: the same
+intervention on the same architecture produces an effect 3.3x larger on the harder
+task. A split artefact, a seed artefact or a scaling bug has no reason to grow
+with task difficulty; a genuine loss of representable precision does, because a
+harder decision boundary leaves less margin to absorb it. Difficulty is therefore
+a free second axis for falsification, and it costs one more dataset.
+
+Two observations that only five seeds could produce. The competitors are UNSTABLE
+rather than merely worse -- sigma = 5.10 pp on MNIST and 13.95 pp on Fashion
+against TNF4's 0.27 and 0.51 -- which is a deployment hazard independent of the
+mean and is invisible in any single-seed table. And GF4 and fp4 e2m1 agree to the
+digit on every seed of both tasks, so they are one lattice printed twice.
+
+Contrast with the widths above: at sixteen bits nothing moves at all, and the one
+8-bit difference that passes a paired test (GF8 over fp8 e5m2, +0.12 pp on MNIST
+at t = 3.8) is statistically real and practically irrelevant -- the honest report
+states both halves in one sentence, because "significant" and "matters" are
+different predicates and a small enough sample of neither is a result.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
