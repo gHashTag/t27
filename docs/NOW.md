@@ -12,6 +12,33 @@ Last updated: 2026-08-20
   and `tri sweep area`; plus `tri red`, `tri gates`, rtl-check build hardening
 - Rebuilt from PR #2177 with L1-traceable commits after the original wave
   lacked Closes-references
+# NOW -- master's tri TEST build restored: dedup + API port + a helper that never existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## tests: cargo test -p tri --no-run compiles again (Closes #2236)
+
+- The XADC test block (7 fns) existed twice; first copy removed, second kept
+- Three resolve_pvt_context tests and the cold_por test ported to the tuple
+  API (the synthetic flag left cold_por; the invariant now tested where it
+  lives, in synthetic_pvt_context); 12/12 ported tests pass
+- assert_report_superset was called by a committed test but its definition
+  was never committed by any wave -- recovered from aaecfb0af and restored
+- Same class as #2227: build check green, test build broken, all PRs inherit
+
+# NOW -- the mismatch now fails where the cause is (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(fpga-build): chipdb/device agreement asserted before P&R (Closes #2231)
+
+- t27c fpga-build now fails at start when an explicit --chipdb filename disagrees
+  with --device, naming both and the two-steps-later consequence (fasm2frames
+  'Part None not found'); the default chipdb path is derived from --device instead
+  of hardcoding the 100T filename -- the hardcode is exactly how the 200T default
+  flip survived P&R against the wrong database (#2225)
+- Negative controls: planted mismatch bails instantly; matched pair proceeds
+
 
 # NOW -- apt attempts are bounded, and the onion's lessons are a skill (2026-08-19)
 
