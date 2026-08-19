@@ -12128,6 +12128,15 @@ certificate, not in a report someone must remember to run.
 seven named classes plus 137 counted discards: drift between tiers is now
 visible, and every red has a stated reason.
 
+**1354. READ WHAT THE PARSER THROWS AWAY, LINE BY LINE.** 55% of discarded
+tokens were given/when/then tests -- L4's own subject -- inside files the parser
+reports green. The spans command existed (W634); running it corpus-wide took
+minutes and reframed the whole discard problem.
+
+**1355. RATCHET WHAT YOU CANNOT YET FIX.** Discards may not grow between seals:
+the guard holds the line while the grammar decision stays open, tightening as the
+store reseals, never retroactively red.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -73,3 +73,22 @@ no ring needed). The largest *grammar* question is generics (27 files, a live
 collections library). The `algorithm` trio should be reclassified as design
 documents rather than rewritten: translating a design card into source is
 authorship, not normalization.
+
+
+---
+
+## Addendum (W889): the FOURTH dialect hides inside "successfully parsed" files
+
+`parse-complete --show` over all 137 discarding files: **55 % of every token the
+parser silently throws away is a `given/when/then` BDD test line** — 4,665 such
+lines — and most of the rest are bench blocks (`measure`, `target`, `assert`).
+The corpus contains a test-DSL the grammar never knew, and it lives INSIDE files
+the parser reports green: 137 files lose 67,760 tokens, 52 of them losing
+predominantly their tests.
+
+This is the sharpest dialect of the four, because it bites L4 (TESTABILITY): a
+seal can certify a "tested" spec whose tests never reached the AST. Two guards
+now hold the line — the seal records `discarded_top_level_tokens` (W888) and
+`seal-audit` fails when the number grows (W889) — but the DECISION stands open:
+teach the grammar `given/when/then`, or migrate 4,665 lines into `test { }`
+blocks. Either is ring-sized; silence is the only wrong option.

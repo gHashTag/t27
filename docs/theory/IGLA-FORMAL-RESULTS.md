@@ -26987,6 +26987,42 @@ class --
 137 / fail 173), each movement between tiers now a visible, deliberate act. The
 parse corpus finally says what it is instead of what its filenames claim.
 
+## W889 -- what the parser throws away is the tests
+
+### T733 -- 55% OF ALL DISCARDED TOKENS ARE given/when/then TEST LINES [measured]
+
+`parse-complete --show` across all 137 silently-discarding files:
+
+    given/when/then/and lines      4,665   (30,204 tokens -- 55%)
+    bench blocks (measure/target)     108+ lines
+    assert lines                       33
+    files losing predominantly tests   52 of 137
+
+**The corpus's fourth dialect is a test-DSL living INSIDE green files.** The
+parser reports success; the tests never reach the AST; a seal minted from that
+parse certifies a "tested" spec with its tests gone -- the sharpest possible bite
+on L4 TESTABILITY, invisible to every count of passing specs.
+
+### T733a -- THE RATCHET: DISCARDS MAY NOT GROW BETWEEN SEALS [measured]
+
+`seal-audit` now recomputes the accounted parse for every field-carrying seal:
+
+    baseline               TRUNCATION grew: 0
+    negative test          two BDD lines appended to adamw.t27 ->
+                           "discards 2234 -> 2242", rc=1, seal named
+    restored               clean run returns 0
+
+Only seals carrying the W888 field are checked, so the ratchet tightens as the
+store reseals -- never retroactively, never permanently red.
+
+### T733b -- THE DECISION LEFT OPEN, DELIBERATELY [derived]
+
+Two exits exist: teach the grammar `given/when/then` (a ring proposal, larger
+than 0001+0002 combined) or migrate 4,665 lines into `test { }` blocks (bulk
+edit, no ring, but rewrites tests nobody reviewed as rewrites). Both are priced
+in DIALECTS.md; neither is taken. **The audit's job was to make the silence
+visible and hold the line; choosing between grammars is the ring's.**
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
