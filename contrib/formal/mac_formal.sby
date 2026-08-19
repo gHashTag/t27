@@ -1,21 +1,25 @@
+# Audit 2026-08-19: the old file used indented pseudo-blocks after 'bmc:'/'prove:',
+# which sby does not parse as task conditionals -- the bmc task saw no [engines]
+# and died with 'Config file is lacking engine configuration' on every run. Task
+# conditionals in sby are per-line 'task: option'. Paths were ../../../specs/fpga/
+# which escapes the workspace; the workflow copies the generated .v NEXT TO this file.
 [tasks]
 bmc
 prove
 
 [options]
-bmc:
-  mode bmc
-  depth 20
-prove:
-  mode prove
-  depth 20
+bmc: mode bmc
+prove: mode prove
+depth 20
 
 [engines]
 smtbmc z3
 
 [script]
-read_verilog -formal ../../../specs/fpga/mac.v
-prep -top ZeroDSP_MAC
+read_verilog -formal mac.v
+read_verilog mac_formal_props.v
+prep -top mac_formal_props
 
 [files]
-../../../specs/fpga/mac.v
+mac.v
+mac_formal_props.v
