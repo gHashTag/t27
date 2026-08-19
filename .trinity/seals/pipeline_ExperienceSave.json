@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:0ad592afa7022978942f53b42c7cd9bda458acb546d0eb813840843cbc3fdaf1",
-  "gen_hash_rust": "sha256:1d7a8c00aa0a3085221e725f350ba9a6aaf06281d4a31062a5bdd17352bc3501",
-  "gen_hash_verilog": "sha256:8fbb89c4d8f4a77f7eabe8faa11e3411fad13fe84faa5f265515d7450038b216",
-  "gen_hash_zig": "sha256:10f819f093471b05a5075564f6f5c16a4f75e474cda5877f4b5a489905d57f73",
+  "gen_hash_c": "sha256:5efccc6ce7419b9851f3238d1fe87281f3ad2a28dd40ee0b3a74fc1be4976c2b",
+  "gen_hash_rust": "sha256:5e626a9e4ad31ee2bed528927172185ceccef1cd44bb856963565f65e97390bc",
+  "gen_hash_verilog": "sha256:f1107f663e3f58898071e733d17c400576dd6059ed72c436874fce9c4eb83278",
+  "gen_hash_zig": "sha256:80cfb78b828fc372e9bf955f7e228c9ac4d2f0e45a59dc54e37defaab9d21f28",
   "module": "ExperienceSave",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:df15f1fbd549cad6bc01b0599d4765ea3d8be69eb2759ef112ca8c94c101168d",
   "spec_path": "specs/pipeline/experience_save.t27"
 }

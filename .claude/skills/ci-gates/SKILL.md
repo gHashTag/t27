@@ -230,3 +230,44 @@ Rules that would have cut ten round-trips to about three:
   like pin assignments.
 - Text anchors for patching workflows mis-hit on indentation constantly; **edit YAML
   by line number and re-validate with a parser**, never by matched-string replace.
+
+## 10. The onion's last layers are contracts between tools — and defaults are contracts too
+
+The fpga-bitstream job's first real runs (after §9's ten never-executed layers were
+fixed) died four more times. None of the four was a defect in any tool; each was a
+mismatch between what one side EMITS and what the other DEMANDS:
+
+| layer | emitter said | consumer demanded | fix |
+|---|---|---|---|
+| 11 | prjxray staged in `~/` | t27c hardcodes `build/fpga/prjxray` + PYTHONPATH + `build/nextpnr-xilinx/.../prjxray-db` | stage at the paths the driver reads (grep the driver for `join(` paths BEFORE staging) |
+| 12 | `requirements.txt` | fasm2frames' real import chain | requirements pinned editable submodules + incompatible tools; the honest set is what `--help` actually imports — verified by RUNNING it locally against the exact package list before pushing |
+| 13 | metrics step demanded `bitstream.bit` | t27c names output after the top module (`zerodsp_top.bit`) | glob `*.bit`; print the real name |
+| 14 | a parallel branch flipped the `--device` CLI default (200T SSOT) | this workflow relied on the old default AS AN ABSENCE — it never passed `--device` | state the device explicitly; an absence cannot conflict in a merge, so the flip landed textually clean and broke two steps later |
+
+Rules distilled:
+- **Read the consumer's source for its default paths before staging artifacts.** A
+  driver that hardcodes paths defines a contract; the workflow satisfies it or passes
+  flags — guessing standard locations satisfies neither.
+- **Verify the import chain by executing, not by reading requirements.txt.** Archived
+  projects pin dead versions and editable paths. `PYTHONPATH=clone python3 tool.py
+  --help` on the exact candidate package list is a one-minute local negative control
+  that pre-empts a 45-minute CI round-trip.
+- **Pre-verify the NEXT layer while fixing this one.** Layers 11-13 were all checkable
+  in advance (grep the driver, run --help, one GitHub-API dir listing). One push fixed
+  all three; three pushes would have discovered them one at a time.
+- **Two upload-artifact@v4 steps with the same name are a landmine that only passes
+  while broken**: v4 errors on duplicate names, so the second step works only as long
+  as the first finds nothing. Fixing the first ARMS the second. Audit artifact names
+  whenever you fix a "file not found" upload.
+- **A gate's regex is part of its contract: read it before writing the commit
+  message.** L1 requires `(Closes|Fixes|Resolves|Refs|Updates)\s*#N`; a human-plausible
+  "Part of #2215" fails. One grep of the gate's source beats one failed run.
+- **A consumer that relies on a CLI default encodes that reliance invisibly.** A
+  semantic default change auto-merges with zero textual conflict, passes every
+  path-trusting step (the wrong value flows through unexamined), and fails at the
+  first step that looks a NAME up in a table. State the dependency explicitly — one
+  flag makes the assumption mergeable-visible.
+- **apt on a dead mirror HANGS, it does not fail** — retries without `timeout` around
+  each attempt never fire, and the job burns its whole ceiling doing nothing (5/5 jobs
+  at once on 2026-08-19: that is mirror weather, not a per-job lottery). Bound each
+  attempt (`timeout 420/600`), retry a bounded number of times, fail fast and loud.

@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:25353174f8848dd22944bd86f1f13570ebce218e7a74e16f458fde8c1d82fa94",
-  "gen_hash_rust": "sha256:ceb34c9a82635726ff8226479b4c278e6bd9e24f5ca1010c6ba1b6757ab25717",
-  "gen_hash_verilog": "sha256:e20259a7f1808de9a430ab2c20b6e7d1cee65acd844a2c3a8e347771f1f933a4",
-  "gen_hash_zig": "sha256:ca04d2c4904e4331882b660508ba263d9ec0a5bffd7c5081a32de37b3f21ce6a",
+  "gen_hash_c": "sha256:3081cb227c6336d4859247524050404092f60bbbcd8286081036700acdc60c13",
+  "gen_hash_rust": "sha256:aad255ecc7d2c999c344c2c11a78f16b399bd47f1afcf95bcd30c739696f4fba",
+  "gen_hash_verilog": "sha256:9fc14a810b0fed3b7eea242ec1da25e8c6d6ddbf746fb48fba9ca27a118dfb73",
+  "gen_hash_zig": "sha256:72ea4c249d01c521169066ec2a3254dfa2b557066845bf188c60d5d96ee45a85",
   "module": "Embedding",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:90cb626e0465988603da5013588d2d56b237a09acccf0184d6050653ffef9407",
   "spec_path": "specs/ml/layers/embedding_layer.t27"
 }
