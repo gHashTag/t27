@@ -28069,6 +28069,45 @@ incorrect decoder is smaller and faster than a correct one. Eight baselines here
 are marked "not swept" and three are marked known-incorrect, including the two
 rows directly below the winner.
 
+### T774 -- THE INSTRUMENT'S QUANTUM DECIDES WHICH COMPARISONS EXIST [measured]
+
+Recomputed here from the only series in either tree that publishes an empty
+control (14 LUT). Over that control the leading formats cost **0, 1, 1, 2, 2, 9,
+9, 9 LUT**. The synthesiser's quantum is one LUT. So one quantum is 100% of the
+fp8 signal, 50% of GFTernary's and BNF16's, 11% of the TNF and binary32 signal,
+and int8 measures ZERO over the empty harness -- not small, but below the floor,
+with no ratio over it defined at all.
+
+Two consequences, both measured rather than argued:
+
+1. **The basis chooses the winner.** Ranking by total LUT gives
+   int8 > BNF16 > fp8e4m3 > binary32 > GFTernary; ranking by LUT-over-control
+   gives int8 > fp8e4m3 > fp8e5m2 > BNF16 > GFTernary > binary32. Four of six
+   places disagree, and the format that is third on one basis is first on the
+   other. Subtracting a shared fixture is therefore not a refinement of one
+   measurement -- it is a different measurement, and a paper that does not say
+   which basis it used has not stated its result.
+
+2. **The same instrument resolves the coarse question completely.** Split by
+   decode cost: fixed-field formats sit at a median of 2 LUT over control and
+   656.6 MHz; tapered or table-backed formats at 159 LUT and 134.8 MHz. That is
+   **79.5x in area and 4.87x in frequency**, between groups whose internal
+   spread is a few LUT. No seed band (1.6-41.7%), no placer/router choice
+   (up to 4.66x) and no harness convention perturbs a factor of eighty.
+
+The general law: an instrument has a resolution, and the resolution partitions
+the questions into those it can answer and those it cannot. Effort spent
+adjudicating inside the unresolvable partition produces publications, not
+knowledge -- while the answerable question next door goes unstated because it
+looked too obvious to measure. Read the quantum first, then choose the claim.
+
+Corollary, constructive: a differential below the fixture's resolution can be
+lifted above it by replication. Instantiate the cell N times inside the same
+fixture and divide; the signal scales with N while the floor does not. At N = 64
+a 2-LUT decoder becomes a 128-LUT signal against a 14-LUT floor -- a generate
+loop, not a new experiment, and the only cheap route from "unresolvable" to
+"measured" for the leading group.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

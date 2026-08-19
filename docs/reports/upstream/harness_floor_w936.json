@@ -1,0 +1,270 @@
+{
+ "generated_by": "W936 harness-floor recomputation",
+ "source_record": "research/arxiv_tnf/measurements/decoder_full_observation_2026-08-19.json",
+ "source_note": "Generated per-bit IOSTANDARD xdc with no package pins, local yosys, QMTech part. NOT the part or flow behind any published table.",
+ "part": "xc7a200tfbg676-1",
+ "control_luts": 14,
+ "warning": "This record is the w_*.v full-observation harness on xc7a200tfbg676-1 with local yosys. It is NOT the part or flow behind any published table; these numbers characterise THIS experiment.",
+ "rows": [
+  {
+   "top": "w_bin16",
+   "luts": 80,
+   "luts_over_control": 66,
+   "fmax_median_mhz": 240.3,
+   "spread_pct": 22.7,
+   "mhz_per_lut_total": 3.004,
+   "mhz_per_lut_subtracted": 3.641,
+   "one_lut_as_pct_of_signal": 1.5
+  },
+  {
+   "top": "w_bin32",
+   "luts": 23,
+   "luts_over_control": 9,
+   "fmax_median_mhz": 992.1,
+   "spread_pct": 1.6,
+   "mhz_per_lut_total": 43.135,
+   "mhz_per_lut_subtracted": 110.233,
+   "one_lut_as_pct_of_signal": 11.1
+  },
+  {
+   "top": "w_bnf16",
+   "luts": 16,
+   "luts_over_control": 2,
+   "fmax_median_mhz": 718.9,
+   "spread_pct": 41.7,
+   "mhz_per_lut_total": 44.931,
+   "mhz_per_lut_subtracted": 359.45,
+   "one_lut_as_pct_of_signal": 50.0
+  },
+  {
+   "top": "w_fp8e4m3",
+   "luts": 15,
+   "luts_over_control": 1,
+   "fmax_median_mhz": 647.2,
+   "spread_pct": 21.9,
+   "mhz_per_lut_total": 43.147,
+   "mhz_per_lut_subtracted": 647.2,
+   "one_lut_as_pct_of_signal": 100.0
+  },
+  {
+   "top": "w_fp8e5m2",
+   "luts": 15,
+   "luts_over_control": 1,
+   "fmax_median_mhz": 594.2,
+   "spread_pct": 14.0,
+   "mhz_per_lut_total": 39.613,
+   "mhz_per_lut_subtracted": 594.2,
+   "one_lut_as_pct_of_signal": 100.0
+  },
+  {
+   "top": "w_gf10",
+   "luts": 36,
+   "luts_over_control": 22,
+   "fmax_median_mhz": 423.9,
+   "spread_pct": 18.7,
+   "mhz_per_lut_total": 11.775,
+   "mhz_per_lut_subtracted": 19.268,
+   "one_lut_as_pct_of_signal": 4.5
+  },
+  {
+   "top": "w_gf14",
+   "luts": 51,
+   "luts_over_control": 37,
+   "fmax_median_mhz": 350.4,
+   "spread_pct": 16.8,
+   "mhz_per_lut_total": 6.871,
+   "mhz_per_lut_subtracted": 9.47,
+   "one_lut_as_pct_of_signal": 2.7
+  },
+  {
+   "top": "w_gfplus8",
+   "luts": 57,
+   "luts_over_control": 43,
+   "fmax_median_mhz": 352.9,
+   "spread_pct": 11.5,
+   "mhz_per_lut_total": 6.191,
+   "mhz_per_lut_subtracted": 8.207,
+   "one_lut_as_pct_of_signal": 2.3
+  },
+  {
+   "top": "w_gfternary",
+   "luts": 16,
+   "luts_over_control": 2,
+   "fmax_median_mhz": 675.7,
+   "spread_pct": 13.2,
+   "mhz_per_lut_total": 42.231,
+   "mhz_per_lut_subtracted": 337.85,
+   "one_lut_as_pct_of_signal": 50.0
+  },
+  {
+   "top": "w_ibmhfp",
+   "luts": 173,
+   "luts_over_control": 159,
+   "fmax_median_mhz": 155.0,
+   "spread_pct": 7.5,
+   "mhz_per_lut_total": 0.896,
+   "mhz_per_lut_subtracted": 0.975,
+   "one_lut_as_pct_of_signal": 0.6
+  },
+  {
+   "top": "w_int8",
+   "luts": 14,
+   "luts_over_control": 0,
+   "fmax_median_mhz": 1001.0,
+   "spread_pct": 4.5,
+   "mhz_per_lut_total": 71.5,
+   "mhz_per_lut_subtracted": null,
+   "one_lut_as_pct_of_signal": null
+  },
+  {
+   "top": "w_lns16",
+   "luts": 136,
+   "luts_over_control": 122,
+   "fmax_median_mhz": 310.3,
+   "spread_pct": 6.5,
+   "mhz_per_lut_total": 2.282,
+   "mhz_per_lut_subtracted": 2.543,
+   "one_lut_as_pct_of_signal": 0.8
+  },
+  {
+   "top": "w_minifl",
+   "luts": 30,
+   "luts_over_control": 16,
+   "fmax_median_mhz": 500.8,
+   "spread_pct": 20.3,
+   "mhz_per_lut_total": 16.693,
+   "mhz_per_lut_subtracted": 31.3,
+   "one_lut_as_pct_of_signal": 6.2
+  },
+  {
+   "top": "w_posit16",
+   "luts": 160,
+   "luts_over_control": 146,
+   "fmax_median_mhz": 134.8,
+   "spread_pct": 7.8,
+   "mhz_per_lut_total": 0.843,
+   "mhz_per_lut_subtracted": 0.923,
+   "one_lut_as_pct_of_signal": 0.7
+  },
+  {
+   "top": "w_posit32",
+   "luts": 400,
+   "luts_over_control": 386,
+   "fmax_median_mhz": 75.7,
+   "spread_pct": 6.6,
+   "mhz_per_lut_total": 0.189,
+   "mhz_per_lut_subtracted": 0.196,
+   "one_lut_as_pct_of_signal": 0.3
+  },
+  {
+   "top": "w_posit64",
+   "luts": 679,
+   "luts_over_control": 665,
+   "fmax_median_mhz": 36.4,
+   "spread_pct": 3.0,
+   "mhz_per_lut_total": 0.054,
+   "mhz_per_lut_subtracted": 0.055,
+   "one_lut_as_pct_of_signal": 0.2
+  },
+  {
+   "top": "w_tnf16",
+   "luts": 23,
+   "luts_over_control": 9,
+   "fmax_median_mhz": 642.7,
+   "spread_pct": 28.8,
+   "mhz_per_lut_total": 27.943,
+   "mhz_per_lut_subtracted": 71.411,
+   "one_lut_as_pct_of_signal": 11.1
+  },
+  {
+   "top": "w_tnf32",
+   "luts": 23,
+   "luts_over_control": 9,
+   "fmax_median_mhz": 642.7,
+   "spread_pct": 19.6,
+   "mhz_per_lut_total": 27.943,
+   "mhz_per_lut_subtracted": 71.411,
+   "one_lut_as_pct_of_signal": 11.1
+  },
+  {
+   "top": "w_tnf64",
+   "luts": 23,
+   "luts_over_control": 9,
+   "fmax_median_mhz": 656.6,
+   "spread_pct": 17.0,
+   "mhz_per_lut_total": 28.548,
+   "mhz_per_lut_subtracted": 72.956,
+   "one_lut_as_pct_of_signal": 11.1
+  },
+  {
+   "top": "w_vaxf",
+   "luts": 56,
+   "luts_over_control": 42,
+   "fmax_median_mhz": 463.2,
+   "spread_pct": 13.1,
+   "mhz_per_lut_total": 8.271,
+   "mhz_per_lut_subtracted": 11.029,
+   "one_lut_as_pct_of_signal": 2.4
+  }
+ ],
+ "groups": {
+  "fixed_field": {
+   "members": [
+    "w_bin32",
+    "w_bnf16",
+    "w_fp8e4m3",
+    "w_fp8e5m2",
+    "w_gfternary",
+    "w_int8",
+    "w_tnf16",
+    "w_tnf32",
+    "w_tnf64"
+   ],
+   "median_luts_over_control": 2,
+   "median_fmax_mhz": 656.6
+  },
+  "tapered_or_tabled": {
+   "members": [
+    "w_ibmhfp",
+    "w_lns16",
+    "w_posit16",
+    "w_posit32",
+    "w_posit64"
+   ],
+   "median_luts_over_control": 159,
+   "median_fmax_mhz": 134.8
+  },
+  "separation_area_x": 79.5,
+  "separation_freq_x": 4.87
+ },
+ "resolution": {
+  "lut_quantum": 1,
+  "top_group_signal_luts": [
+   0,
+   1,
+   2,
+   9
+  ],
+  "conclusion": "one LUT is 100% of the fp8 signal, 50% of GFTernary's and BNF16's, 11% of the TNF/binary32 signal; int8 sits AT the floor (0 over control)"
+ },
+ "ranking_total_lut": [
+  "w_int8",
+  "w_bnf16",
+  "w_fp8e4m3",
+  "w_bin32",
+  "w_gfternary",
+  "w_fp8e5m2",
+  "w_tnf64",
+  "w_tnf32"
+ ],
+ "ranking_subtracted": [
+  "w_int8",
+  "w_fp8e4m3",
+  "w_fp8e5m2",
+  "w_bnf16",
+  "w_gfternary",
+  "w_bin32",
+  "w_tnf64",
+  "w_tnf32"
+ ]
+}

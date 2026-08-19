@@ -12397,6 +12397,8 @@ a worktree in the same wave its branch merges.
 
 **1405. A TOLERANCE BAND TRAVELS WITH ITS DENOMINATOR OR IT IS NOT A BAND.** The 1.6-41.7% dispersion band was computed as (max-min)/median over per-seed sets. Applied later to a pair of numbers as (new-published)/published it gave 45.6% and produced a published exception; by its own definition the same pair gives 37.1% and is inside. Nobody re-checks a definition -- everyone re-checks arithmetic -- so a band quoted as a bare pair of percentages will eventually be applied with whatever denominator the reader assumes. Carry the estimator in the same sentence as the number, and state whether the band is a full range or a one-sided tolerance: the same data give 14 of 15 rows inside on one reading and 12 of 15 on the other.
 
+**1406. MEASURE THE INSTRUMENT'S QUANTUM BEFORE ARGUING ABOUT THE RANKING.** A 21-format comparison was being adjudicated at 10.2 % when the differential signal under the leading formats was 0, 1, 1, 2, 2 and 9 LUT against a one-LUT quantum and a 14-LUT fixture. One LUT was 100 % of the fp8 signal and 50 % of GFTernary's; the leader measured ZERO over the empty harness, so no ratio over it exists. Meanwhile the same data separate fixed-field from tapered formats by 79.5x in area and 4.87x in frequency -- a result nobody was arguing about because it looked too obvious to state. Compute quantum-over-signal for the top rows BEFORE writing any ordinal claim: it takes one division and it tells you which half of your paper is real. And when the signal is genuinely below the floor, replicate the cell N times inside the same fixture and divide -- the signal scales with N, the floor does not.
+
 ### How to update this tracker
 
 After closing a wave:
