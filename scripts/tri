@@ -29,6 +29,193 @@ if [[ -n "$cmd" && -f "$LOOP_DIR/${cmd//-/_}.py" ]]; then
   exec python3 "$LOOP_DIR/${cmd//-/_}.py" "${@:2}"
 fi
 
+WAVE_SKILL="$REPO_ROOT/.claude/skills/t27-wave-loop.md"
+THEORY_DOC="$REPO_ROOT/docs/theory/IGLA-FORMAL-RESULTS.md"
+DISK_FLOOR_GIB="${TRI_DISK_FLOOR_GIB:-2}"
+
+die() { echo "tri: $*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+tri -- the t27 front door.
+
+Compiler commands (forwarded to t27c):
+  tri test [--json] [...]     run the conformance suite (t27c suite --repo-root .)
+  tri <anything else>         forwarded to t27c unchanged (gen, seal, fpga-build, ...)
+
+Local commands (no compiler needed):
+  tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
+  tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
+  tri ci [SLUG ...]           live (non-completed) CI runs; defaults to this repo's origin
+  tri lesson "TITLE" "BODY"   append the next-numbered lesson to the wave-loop skill
+  tri lesson --check          audit lesson numbering (duplicates, gaps, non-monotonic)
+  tri theorem [--check]       next theorem number; --check audits T-numbering
+  tri help                    this text
+
+Environment:
+  TRI_T27C            explicit path to the t27c binary
+  TRI_DISK_FLOOR_GIB  free-space floor for `tri disk` and `tri wave` (default 2)
+EOF
+}
+
+# Free GiB on the volume holding the repo. POSIX df, so macOS and Linux agree.
+free_gib() { df -Pk "$REPO_ROOT" | awk 'NR==2 { printf "%.1f", $4/1048576 }'; }
+
+# Lesson headers are "**1401. TITLE.** body". The space after the period is what
+# separates a header from bold prose like "**88.03% on Fashion**" -- without it
+# the counter reads a percentage as a lesson number.
+lesson_numbers() { grep -oE '^\*\*[0-9]+\.[[:space:]]' "$WAVE_SKILL" | tr -dc '0-9\n'; }
+
+# Theorem headers are "### T763 -- TITLE [measured]", and sub-parts are real
+# theorems: T709, T709a, T709b are three distinct entries, not a triple collision.
+theorem_tokens() { grep -oE '^#{2,4} T[0-9]+[a-z]*' "$THEORY_DOC" | awk '{ print $2 }'; }
+
+last_lesson_no() {
+  [ -f "$WAVE_SKILL" ] || return 1
+  lesson_numbers | sort -n | tail -1
+}
+
+last_theorem_no() {
+  [ -f "$THEORY_DOC" ] || return 1
+  theorem_tokens | tr -dc '0-9\n' | sort -n | tail -1
+}
+
+origin_slug() {
+  local url
+  url="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)"
+  [ -n "$url" ] || return 1
+  printf '%s\n' "$url" | sed -E 's#^git@[^:]+:##; s#^https?://[^/]+/##; s#\.git$##'
+}
+
+cmd="${1:-}"
+
+# Local commands are dispatched BEFORE the compiler is resolved: `tri` used to
+# exit "t27c not found" for every subcommand, including the ones that never
+# touch the compiler -- which is exactly the state a machine is in when the
+# compiler is what you are trying to fix.
+case "$cmd" in
+  help|-h|--help)
+    usage
+    exit 0
+    ;;
+
+  disk)
+    floor="$DISK_FLOOR_GIB"
+    [ "${2:-}" = "--min" ] && { floor="${3:?tri disk --min needs a number}"; }
+    free="$(free_gib)"
+    if awk -v f="$free" -v fl="$floor" 'BEGIN { exit !(f + 0 < fl + 0) }'; then
+      echo "tri disk: ${free} GiB free -- BELOW the ${floor} GiB floor"
+      exit 1
+    fi
+    echo "tri disk: ${free} GiB free (floor ${floor} GiB) OK"
+    exit 0
+    ;;
+
+  wave)
+    branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '-')"
+    head="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo '-')"
+    dirty="$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+    free="$(free_gib)"
+    lesson="$(last_lesson_no || echo '-')"
+    theorem="$(last_theorem_no || echo '-')"
+    t27c_path="${TRI_T27C:-}"
+    if [ -z "$t27c_path" ]; then
+      for p in "$REPO_ROOT/target/release/t27c" "$REPO_ROOT/target/debug/t27c"; do
+        [ -x "$p" ] && t27c_path="$p" && break
+      done
+    fi
+    printf 'repo      %s\n' "$REPO_ROOT"
+    printf 'branch    %s @ %s (%s dirty)\n' "$branch" "$head" "$dirty"
+    printf 'disk      %s GiB free (floor %s GiB)%s\n' "$free" "$DISK_FLOOR_GIB" \
+      "$(awk -v f="$free" -v fl="$DISK_FLOOR_GIB" 'BEGIN { print (f + 0 < fl + 0) ? "  <<< BELOW FLOOR" : "" }')"
+    printf 'lesson    last %s -> next %s\n' "$lesson" \
+      "$([ "$lesson" = '-' ] && echo '-' || echo $((lesson + 1)))"
+    printf 'theorem   last T%s -> next T%s\n' "$theorem" \
+      "$([ "$theorem" = '-' ] && echo '-' || echo $((theorem + 1)))"
+    printf 't27c      %s\n' "${t27c_path:-not built (compiler commands unavailable)}"
+    exit 0
+    ;;
+
+  ci)
+    command -v gh >/dev/null 2>&1 || die "ci: gh CLI not found"
+    shift
+    slugs=("$@")
+    [ "${#slugs[@]}" -gt 0 ] || slugs=("$(origin_slug || die 'ci: no origin remote; pass a SLUG')")
+    for slug in "${slugs[@]}"; do
+      echo "== $slug"
+      gh run list --repo "$slug" --limit 30 \
+        --json status,conclusion,displayTitle,databaseId,createdAt \
+        --jq '.[] | select(.status != "completed")
+              | "  " + (.databaseId | tostring) + "  " + .status + "  " + .createdAt + "  " + .displayTitle' \
+        || echo "  (query failed)"
+    done
+    exit 0
+    ;;
+
+  lesson)
+    [ -f "$WAVE_SKILL" ] || die "lesson: $WAVE_SKILL not found"
+    if [ "${2:-}" = "--check" ]; then
+      lesson_numbers | awk '
+        { n = $1 + 0; seen[n]++; order[NR] = n }
+        END {
+          bad = 0
+          for (n in seen) if (seen[n] > 1) { printf "duplicate lesson number %d (x%d)\n", n, seen[n]; bad = 1 }
+          for (i = 2; i <= NR; i++) {
+            if (order[i] < order[i-1]) { printf "out of order: %d follows %d\n", order[i], order[i-1]; bad = 1 }
+            else if (order[i] > order[i-1] + 1) { printf "gap: %d -> %d\n", order[i-1], order[i]; bad = 1 }
+          }
+          printf "%d lessons, highest %d, %s\n", NR, order[NR], bad ? "ANOMALIES ABOVE" : "no anomalies"
+          exit bad
+        }'
+      exit $?
+    fi
+    title="${2:?tri lesson needs a TITLE (or --check)}"
+    body="${3:?tri lesson needs a BODY}"
+    case "$title" in *.) ;; *) title="${title}." ;; esac
+    if grep -qF -- "$title" "$WAVE_SKILL"; then
+      die "lesson: a lesson with this title already exists -- refusing to duplicate"
+    fi
+    no="$(last_lesson_no)" || die "lesson: no numbered lessons found in $WAVE_SKILL"
+    next=$((no + 1))
+    anchor="$(grep -nE '^\*\*[0-9]+\.' "$WAVE_SKILL" | tail -1 | cut -d: -f1)"
+    # Insert before the first heading after the last lesson, so the new entry
+    # lands inside the lesson block instead of at end-of-file.
+    insert_at="$(awk -v start="$anchor" 'NR > start && /^#/ { print NR; exit }' "$WAVE_SKILL")"
+    [ -n "$insert_at" ] || insert_at="$(($(wc -l < "$WAVE_SKILL") + 1))"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/tri-lesson.XXXXXX")"
+    awk -v at="$insert_at" -v n="$next" -v t="$title" -v b="$body" '
+      NR == at { printf "**%d. %s** %s\n\n", n, t, b }
+      { print }
+      END { if (at > NR) printf "**%d. %s** %s\n", n, t, b }
+    ' "$WAVE_SKILL" > "$tmp"
+    mv "$tmp" "$WAVE_SKILL"
+    echo "tri lesson: wrote #$next at line $insert_at of ${WAVE_SKILL#"$REPO_ROOT"/}"
+    exit 0
+    ;;
+
+  theorem)
+    [ -f "$THEORY_DOC" ] || die "theorem: $THEORY_DOC not found"
+    if [ "${2:-}" = "--check" ]; then
+      theorem_tokens | awk '
+        { tok = $1; seen[tok]++; n = tok; gsub(/[^0-9]/, "", n); order[NR] = n + 0; last_tok = tok }
+        END {
+          bad = 0
+          for (t in seen) if (seen[t] > 1) { printf "duplicate theorem %s (x%d)\n", t, seen[t]; bad = 1 }
+          for (i = 2; i <= NR; i++)
+            if (order[i] < order[i-1]) { printf "out of order: T%d follows T%d\n", order[i], order[i-1]; bad = 1 }
+          printf "%d theorem headings, highest %s, %s\n", NR, last_tok, bad ? "ANOMALIES ABOVE" : "no anomalies"
+          exit bad
+        }'
+      exit $?
+    fi
+    no="$(last_theorem_no)" || die "theorem: no theorem headings found"
+    echo "last T${no} -> next T$((no + 1))"
+    echo "append rule: '### T$((no + 1)) -- TITLE [measured|proved|open]' goes BEFORE the closing"
+    echo "             '---' + 'φ² + φ⁻² = 3 | TRINITY' block of ${THEORY_DOC#"$REPO_ROOT"/}"
+    exit 0
+    ;;
+esac
+
 T27C="${TRI_T27C:-}"
 if [[ -z "$T27C" ]]; then
   for p in "$REPO_ROOT/target/release/t27c" "$REPO_ROOT/target/debug/t27c" "$REPO_ROOT/bootstrap/target/release/t27c" "$REPO_ROOT/bootstrap/target/debug/t27c"; do
@@ -37,6 +224,7 @@ if [[ -z "$T27C" ]]; then
 fi
 if [[ ! -x "$T27C" ]]; then
   echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
+  echo "tri: local commands still work -- see 'tri help'" >&2
   exit 1
 fi
 # `t27c suite` is the only subcommand that accepts --repo-root.
