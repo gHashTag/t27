@@ -311,9 +311,10 @@ jobs:
           fi
 
   fpga-bitstream:
-    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
-    # read as a red PR whose own steps were all skipped (#2214).
-    timeout-minutes: 45
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 (#2214).
+    # 90 rather than 45: the first uncached run builds openXC7 nextpnr-xilinx
+    # AND exports a real chipdb; the cache makes later runs minutes.
+    timeout-minutes: 90
     needs: fpga-synthesis
     runs-on: ubuntu-latest
     steps:
@@ -344,15 +345,19 @@ jobs:
       
       - name: Build nextpnr-xilinx
         run: |
-          if [ ! -f ~/.local/bin/nextpnr-xilinx ]; then
-            cd ~
-            git clone https://github.com/YosysHQ/nextpnr.git -b nextpnr-0.8
-            cd nextpnr
-            mkdir build && cd build
-            cmake .. -DARCH=xilinx -DUSE_OPENMP=OFF
-            make -j4
-            cp nextpnr-xilinx ~/.local/bin/
-          fi
+            # YosysHQ/nextpnr does NOT contain a `xilinx` architecture -- it lives in the
+            # openXC7/nextpnr-xilinx fork. As written, this step could never have passed:
+            # cmake fails with "Architecture 'xilinx' not in list". Same class as the
+            # yosys loop above.
+            if [ ! -f ~/.local/bin/nextpnr-xilinx ] || [ ! -f ~/.local/bin/bbasm ]; then
+              cd ~
+              git clone --recursive --depth 1 https://github.com/openXC7/nextpnr-xilinx.git
+              cd nextpnr-xilinx
+              cmake . -DARCH=xilinx -DUSE_OPENMP=OFF -DCMAKE_BUILD_TYPE=Release
+              make -j4 nextpnr-xilinx bbasm
+              mkdir -p ~/.local/bin
+              cp nextpnr-xilinx bba/bbasm ~/.local/bin/
+            fi
       
       - name: Build prjxray tools
         run: |
@@ -374,11 +379,21 @@ jobs:
             git clone --depth 1 https://github.com/SymbiFlow/prjxray-db artix7
           fi
       
-      - name: Create chipdb symlink
+      - name: Generate real chipdb (xc7a100t)
         run: |
-          mkdir -p ~/fpga/chipdb
-          # Create minimal chipdb for testing (1MB placeholder)
-          dd if=/dev/zero of=~/fpga/chipdb/xc7a100tcsg324-1.bin bs=1024 count=1024
+          # This step used to write 1 MB of /dev/zero and call it a chipdb. A
+          # bitstream placed-and-routed against zeroes is not a bitstream, and the
+          # artefact + flashing guide downstream were outputs shaped like results
+          # with nothing inside. The database is now generated for real from the
+          # openXC7 tree and cached; first generation costs minutes, cache makes it
+          # free afterwards.
+          mkdir -p build/fpga/chipdb ~/fpga/chipdb
+          if [ ! -f ~/fpga/chipdb/xc7a100tcsg324-1.bin ]; then
+            cd ~/nextpnr-xilinx 2>/dev/null || { cd ~ && git clone --recursive --depth 1 https://github.com/openXC7/nextpnr-xilinx.git && cd nextpnr-xilinx; }
+            python3 xilinx/python/bbaexport.py --device xc7a100tcsg324-1 --bba /tmp/xc7a100t.bba
+            ~/.local/bin/bbasm --l /tmp/xc7a100t.bba ~/fpga/chipdb/xc7a100tcsg324-1.bin
+          fi
+          cp ~/fpga/chipdb/xc7a100tcsg324-1.bin build/fpga/chipdb/
       
       - name: Generate bitstream
         run: |
