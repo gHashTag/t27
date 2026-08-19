@@ -428,21 +428,21 @@ jobs:
           ./target/release/t27c fpga-build --minimal --nextpnr ~/.local/bin/nextpnr-xilinx
           ls -la build/fpga/
       
-      - name: Upload bitstream artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fpga-bitstream-${{ github.sha }}
-          path: build/fpga/bitstream.bit
-          retention-days: 7
-          
       - name: Bitstream metrics + flashing guide
         run: |
+          # t27c names the bitstream after the top module (zerodsp_top.bit for the
+          # minimal profile), not bitstream.bit -- the name this step used to demand.
+          # A second upload step with the same artifact name was also removed: v4
+          # errors on duplicate names, so it could only pass while the first upload
+          # found nothing.
           echo "## FPGA Bitstream Metrics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          if [ -f build/fpga/bitstream.bit ]; then
-            size=$(wc -c < build/fpga/bitstream.bit | tr -d ' ')
+          BIT=$(ls build/fpga/*.bit 2>/dev/null | head -1)
+          if [ -n "$BIT" ]; then
+            size=$(wc -c < "$BIT" | tr -d ' ')
+            echo "| Bitstream | $(basename "$BIT") |" >> $GITHUB_STEP_SUMMARY
             echo "| Bitstream size | $size bytes |" >> $GITHUB_STEP_SUMMARY
             echo "| Status | Generated |" >> $GITHUB_STEP_SUMMARY
             echo "| Board | QMTECH XC7A100T |" >> $GITHUB_STEP_SUMMARY
@@ -467,7 +467,7 @@ jobs:
         with:
           name: fpga-bitstream-${{ github.sha }}
           path: |
-            build/fpga/bitstream.bit
+            build/fpga/*.bit
             build/fpga/FLASHING.md
           retention-days: 7
 
