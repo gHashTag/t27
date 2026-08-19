@@ -163,7 +163,11 @@ jobs:
           total=$((pass+fail))
           echo "**Result:** $pass/$total modules passed Yosys lint" >> $GITHUB_STEP_SUMMARY
           if [ "$fail" -gt 0 ]; then
-            echo "::warning::$fail/$total modules failed Yosys lint"
+            # Audit 2026-08-19: a warning-only gate absorbed a live codegen
+            # regression (fifo.v invalid Verilog) within 40 minutes of the
+            # 32/32 claim. Lint failures now fail the step.
+            echo "::error::$fail/$total modules failed Yosys lint"
+            exit 1
           fi
 
   fpga-synthesis:
@@ -522,7 +526,6 @@ jobs:
     timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
@@ -578,6 +581,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Module | Solver | Task | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|--------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          # Audit 2026-08-19: without pipefail the if tested tee's exit (always 0),
+          # so PASS was recorded unconditionally and the FAIL branch was unreachable.
+          set -o pipefail
           if command -v sby &>/dev/null; then
             cp -r contrib/formal build/fpga/formal
             cp specs/fpga/mac.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/mac.v build/fpga/formal/ 2>/dev/null || true
@@ -590,9 +596,12 @@ jobs:
                 echo "| $module_name | Z3 | BMC+prove | PASS |" >> $GITHUB_STEP_SUMMARY
               else
                 echo "| $module_name | Z3 | BMC+prove | FAIL/UNKNOWN |" >> $GITHUB_STEP_SUMMARY
-                echo "::warning::Formal verification of $module_name did not pass"
+                echo "::error::Formal verification of $module_name did not pass"
+                formal_failed=1
               fi
             done
+            # A refusal on the record beats a vacuous green (repo doctrine, NOW.md).
+            [ "${formal_failed:-0}" = "1" ] && exit 1
           else
             echo "| (all) | SymbiYosys not installed | - | SKIPPED |" >> $GITHUB_STEP_SUMMARY
             echo "::warning::SymbiYosys (sby) not available, formal check skipped"
@@ -690,7 +699,9 @@ jobs:
             # has non-constant args synthesis cannot evaluate (mac.v:535). As
             # written, this loop could never have passed.
             name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
-            if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2005 "$v" 2>/dev/null; then
+            # Audit 2026-08-19: bare -g2005 compiled 0/32 -- the repo convention
+            # (-sv -DSIMULATION, same fix as the yosys loop) was never applied here.
+            if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2012 -DSIMULATION "$v" 2>/dev/null; then
               pass=$((pass+1))
             else
               fail=$((fail+1))
@@ -704,7 +715,8 @@ jobs:
           echo "| Total | $total |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$fail" -gt 0 ]; then
-            echo "::warning::$fail/$total modules failed iverilog compilation"
+            echo "::error::$fail/$total modules failed iverilog compilation"
+            exit 1
           fi
 
       - name: Validate conformance JSON structure

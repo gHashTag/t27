@@ -10469,6 +10469,10 @@ fn run_synth_readiness(specs_dir: &str) -> anyhow::Result<()> {
         println!("\nALMOST READY — test coverage needs improvement");
     } else {
         println!("\nNOT READY — fix parse/verilog errors first");
+        // Audit 2026-08-19: this verdict printed for months while the step stayed
+        // green -- the binary always exited 0. A verdict that gates nothing is a
+        // caption, not a check.
+        anyhow::bail!("synth-readiness: NOT READY");
     }
 
     Ok(())
