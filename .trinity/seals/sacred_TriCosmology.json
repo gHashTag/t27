@@ -1,11 +1,13 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:c1b53b7375edd91f1817ab0e5e1695f35f892b1c4ac38a49e95cc58f8490365a",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:b8659255acb346f19a4682f24c7e3885217177e9f2060d9192a234dc15e69ac7",
-  "gen_hash_zig": "sha256:18382ce89f21bca25cd84a1900f9ac9388124bfc87c9e941c993ec1d1e070f3f",
+  "gen_hash_verilog": "sha256:bad407007290d770f2722d78fddb058f0373e81e64df6acbaa86791bd2ca778c",
+  "gen_hash_zig": "sha256:afe44f35e3076009063907a8510b523311324769f3f0f98c3f97c16d9f904320",
   "module": "TriCosmology",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:896ec37548b1099e2befe9e501eef19c0badedc03bf3e26a1e9c463d6e465842",
   "spec_path": "specs/sacred/cosmology.t27"
 }

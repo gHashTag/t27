@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:69e4177d63ef64d3a83b4044d776c49a344a975e91cfaa6059bc8db7f362a8d3",
-  "gen_hash_rust": "sha256:bd6a0e81644174941b3bfabe9f5b3697b92b248c6c408f615074ab5f2ff882dd",
-  "gen_hash_verilog": "sha256:87ac80f801787692daf621f13b31d07b03ddf650504482bbc45a306f6dc398c6",
-  "gen_hash_zig": "sha256:a8cf22b7c8ee46b2ad3a49c1b03d43e059a00043352f42ffe50e879ff8a57866",
+  "discarded_top_level_tokens": 264,
+  "gen_hash_c": "sha256:a75c7acc2a95ec810dae26f8d995f84ab604540bc9522e95bb719c5cc758c055",
+  "gen_hash_rust": "sha256:d722ee47cb6f9aec402955b698a1590e2fd0fa737bb118ae3902e465d11f88d4",
+  "gen_hash_verilog": "sha256:fadd0f6db53246c87800c208d4e31498a4ced134e9a36ffc86ed00ccfc9518e0",
+  "gen_hash_zig": "sha256:cb39324af7c1adde0e757ad1faab63cd2a264741f7bb89cc3b8afb5ef47f2f26",
   "module": "GF4",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:778a670987f99f11947e4b8ea72cf4916a1dcbf8caa7dd709576fbdf17fd19ed",
   "spec_path": "specs/numeric/gf4.t27"
 }

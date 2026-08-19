@@ -1,0 +1,4847 @@
+# Lost-tests inventory — every test line the parser silently discards
+
+Generated W890 by `t27c parse-complete --show` over the 137 discarding
+files. Grouped as SCENARIOS (a `given` opens one; `when/then/and` extend
+it). Whatever the ring decides — teach the grammar `given/when/then` or
+migrate to `test { }` — this inventory is the checklist that no scenario
+is lost in the move.
+**Total: 1766 scenarios, 4665 test lines across 86 files.**
+
+
+## specs/boards/arty_a7.t27 — 5 scenario(s), 11 line(s)
+- `241`: given p35 = FPGA_PART_35T
+- `242`: and   p100 = FPGA_PART_100T
+- `243`: then p35 != "" and p100 != ""
+- `266`: given p0 = PIN_LED_0.is_output
+- `267`: and   p3 = PIN_LED_3.is_output
+- `271`: given b0 = PIN_BTN_0.is_input
+- `272`: and   b3 = PIN_BTN_3.is_input
+- `276`: given tx = PIN_UART_TX.is_output
+- `277`: and   rx = PIN_UART_RX.is_input
+- `284`: given freq = CLOCK_FREQ_HZ
+- `285`: and   period = CLOCK_PERIOD_NS
+
+## specs/boards/xc7a100t_full.t27 — 4 scenario(s), 20 line(s)
+- `313`: given cs = PIN_SPI_CS.prjxray_verified
+- `314`: and   sck = PIN_SPI_SCK.prjxray_verified
+- `315`: and   mosi = PIN_SPI_MOSI.prjxray_verified
+- `316`: and   miso = PIN_SPI_MISO.prjxray_verified
+- `317`: then cs == false and sck == false and mosi == false and miso == false
+- `324`: given v0 = PIN_LED_0.prjxray_verified
+- `325`: and   v1 = PIN_LED_1.prjxray_verified
+- `326`: and   v2 = PIN_LED_2.prjxray_verified
+- `327`: and   v3 = PIN_LED_3.prjxray_verified
+- `328`: and   v4 = PIN_LED_4.prjxray_verified
+- `329`: and   v5 = PIN_LED_5.prjxray_verified
+- `330`: and   v6 = PIN_LED_6.prjxray_verified
+- `331`: and   v7 = PIN_LED_7.prjxray_verified
+- `332`: then v0 and v1 and v2 and v3 and v4 and v5 and v6 and v7
+- `335`: given clk_ok = PIN_CLK.prjxray_verified
+- `336`: and   rx_ok = PIN_UART_RX.prjxray_verified
+- `337`: and   tx_ok = PIN_UART_TX.prjxray_verified
+- `338`: then clk_ok and rx_ok and tx_ok
+- `353`: given mosi = PIN_SPI_MOSI
+- `354`: and   miso = PIN_SPI_MISO
+
+## specs/boards/xc7a100t_minimal.t27 — 5 scenario(s), 19 line(s)
+- `312`: given pin = PIN_CLK
+- `313`: and   verified = is_prjxray_verified(pin)
+- `314`: then verified == true
+- `317`: given pin = PIN_RST_N
+- `318`: and   verified = is_prjxray_verified(pin)
+- `319`: then verified == true
+- `322`: given v0 = is_prjxray_verified(PIN_LED_0)
+- `323`: and   v1 = is_prjxray_verified(PIN_LED_1)
+- `324`: and   v2 = is_prjxray_verified(PIN_LED_2)
+- `325`: and   v3 = is_prjxray_verified(PIN_LED_3)
+- `326`: and   v4 = is_prjxray_verified(PIN_LED_4)
+- `327`: and   v5 = is_prjxray_verified(PIN_LED_5)
+- `328`: and   v6 = is_prjxray_verified(PIN_LED_6)
+- `329`: and   v7 = is_prjxray_verified(PIN_LED_7)
+- `330`: then v0 and v1 and v2 and v3 and v4 and v5 and v6 and v7
+- `373`: given rx = PIN_UART_RX
+- `374`: and   tx = PIN_UART_TX
+- `378`: given p0 = PIN_LED_0.is_output
+- `379`: and   p7 = PIN_LED_7.is_output
+
+## specs/compiler/pipeline.t27 — 0 scenario(s), 1 line(s)
+- `156`: then total_optimizations(r) == 10
+
+## specs/demos/jones_topology_decision_gate.t27 — 7 scenario(s), 58 line(s)
+- `182`: given A = jones_topology_filter::standard_structure()
+- `183`: when sig_a = jones_topology_filter::jones_signature(A)
+- `184`: and   sig_a2 = jones_topology_filter::jones_signature(A)
+- `185`: then constants::abs(sig_a.dot_product - sig_a2.dot_product) < 1e-10
+- `188`: given A = jones_topology_filter::standard_structure()
+- `189`: and   A_prime = jones_topology_filter::invert_structure(A)
+- `190`: when sig_a = jones_topology_filter::jones_signature(A)
+- `191`: and   sig_prime = jones_topology_filter::jones_signature(A_prime)
+- `192`: and   sim = cosine_similarity(A, A_prime)
+- `193`: then sim < TH_02_THRESHOLD
+- `196`: given tree = tree_structure()
+- `197`: and   cycle = cycle_structure()
+- `198`: and   sig_tree = jones_topology_filter::jones_signature(tree)
+- `199`: and   sig_cycle = jones_topology_filter::jones_signature(cycle)
+- `200`: and   sim = cosine_similarity(tree, cycle)
+- `201`: then sim < TH_03_THRESHOLD
+- `204`: given simple = simple_structure()
+- `205`: and   complex = complex_structure()
+- `206`: and   sig_simple = jones_topology_filter::jones_signature(simple)
+- `207`: and   sig_complex = jones_topology_filter::jones_signature(complex)
+- `208`: then sig_simple.complexity_level < sig_complex.complexity_level
+- `211`: given rand_a = random_structure_a()
+- `212`: and   rand_b = random_structure_b()
+- `213`: and   sig_a = jones_topology_filter::jones_signature(rand_a)
+- `214`: and   sig_b = jones_topology_filter::jones_signature(rand_b)
+- `215`: and   sim = cosine_similarity(rand_a, rand_b)
+- `216`: then constants::abs(sim) < TH_05_THRESHOLD
+- `224`: given standard = jones_topology_filter::standard_structure()
+- `225`: and   inverted = jones_topology_filter::invert_structure(standard)
+- `226`: and   tree = tree_structure()
+- `227`: and   cycle = cycle_structure()
+- `228`: and   simple = simple_structure()
+- `229`: when sim_stan_inv = cosine_similarity(standard, inverted)
+- `230`: and   sim_stan_tree = cosine_similarity(standard, tree)
+- `231`: and   sim_stan_cyc = cosine_similarity(standard, cycle)
+- `232`: and   sim_tree_cyc = cosine_similarity(tree, cycle)
+- `233`: then true  // All similarities computed without error
+- `256`: given structures = [
+- `266`: when levels = []
+- `268`: then true
+- `282`: when A = jones_topology_filter::standard_structure()
+- `283`: and   sig_a = jones_topology_filter::jones_signature(A)
+- `284`: and   sig_a2 = jones_topology_filter::jones_signature(A)
+- `288`: when A = jones_topology_filter::standard_structure()
+- `289`: and   A_prime = jones_topology_filter::invert_structure(A)
+- `290`: and   sim = cosine_similarity(A, A_prime)
+- `294`: when tree = tree_structure()
+- `295`: and   cycle = cycle_structure()
+- `296`: and   sim = cosine_similarity(tree, cycle)
+- `300`: when simple = simple_structure()
+- `301`: and   complex = complex_structure()
+- `302`: and   sig_simple = jones_topology_filter::jones_signature(simple)
+- `303`: and   sig_complex = jones_topology_filter::jones_signature(complex)
+- `307`: when rand_a = random_structure_a()
+- `308`: and   rand_b = random_structure_b()
+- `309`: and   sim = cosine_similarity(rand_a, rand_b)
+- `313`: when structures = [
+- `319`: and   sim = cosine_similarity(structures[0], structures[1])
+
+## specs/demos/jones_topology_filter.t27 — 10 scenario(s), 44 line(s)
+- `148`: given s1 = standard_structure()
+- `149`: and   s2 = standard_structure()
+- `150`: when sig1 = jones_signature(s1)
+- `151`: and   sig2 = jones_signature(s2)
+- `152`: then signatures_match(sig1, sig2) == true
+- `155`: given s1 = standard_structure()
+- `156`: and   s2 = invert_structure(s1)
+- `157`: when sig1 = jones_signature(s1)
+- `158`: and   sig2 = jones_signature(s2)
+- `159`: then signatures_match(sig1, sig2) == false
+- `172`: given s1 = standard_structure()
+- `173`: and   s2 = invert_structure(s1)
+- `174`: when sig1 = jones_signature(s1)
+- `175`: and   sig2 = jones_signature(s2)
+- `176`: then constants::abs(sig1.dot_product - sig2.dot_product) > 100.0
+- `179`: given s1 = standard_structure()
+- `180`: and   s2 = complex_structure()
+- `181`: when sig1 = jones_signature(s1)
+- `182`: and   sig2 = jones_signature(s2)
+- `183`: then signatures_match(sig1, sig2) == false
+- `186`: given s1 = standard_structure()
+- `187`: and   s2 = standard_structure()
+- `188`: when sig1 = jones_signature(s1)
+- `189`: and   sig2 = jones_signature(s2)
+- `190`: then constants::abs(sig1.jones_value - sig2.jones_value) < 1e-15
+- `205`: given structure = standard_structure()
+- `206`: and   jones = su2_chern_simons::jones_polynomial_at_5th_root()
+- `207`: when sig = jones_signature(structure)
+- `208`: then constants::abs(sig.jones_value - jones) < 1e-10
+- `215`: given original = standard_structure()
+- `216`: and   inverted = invert_structure(original)
+- `217`: then inverted.len() == original.len()
+- `224`: given s1 = standard_structure()
+- `225`: and   s2 = standard_structure()
+- `226`: when sig1 = jones_signature(s1)
+- `227`: and   sig2 = jones_signature(s2)
+- `228`: then signatures_match(sig1, sig2) == true
+- `272`: given s1 = standard_structure()
+- `273`: and   s2 = standard_structure()
+- `274`: when sig1 = jones_signature(s1)
+- `275`: and   sig2 = jones_signature(s2)
+- `279`: given s = standard_structure()
+- `280`: when sig1 = jones_signature(s)
+- `281`: and   sig2 = jones_signature(s)
+
+## specs/fpga/bootrom.t27 — 4 scenario(s), 15 line(s)
+- `92`: given c = boot_config("test", 8192)
+- `93`: and s1 = boot_stage("s1", 0, 4096, 0)
+- `94`: and s2 = boot_stage("s2", 1, 2048, 4096)
+- `95`: then fits(c, [s1, s2], 2) == true
+- `98`: given c = boot_config("test", 1024)
+- `99`: and s1 = boot_stage("s1", 0, 4096, 0)
+- `100`: then fits(c, [s1], 1) == false
+- `107`: given c = boot_config("exact", 4096)
+- `108`: and s1 = boot_stage("s1", 0, 4096, 0)
+- `109`: then fits(c, [s1], 1) == true
+- `124`: given s0 = boot_stage("fsbl", 0, 1024, 0)
+- `125`: and s1 = boot_stage("ssbl", 1, 2048, 1024)
+- `126`: then s0.index == 0
+- `127`: and s1.index == 1
+- `128`: and stage_end(s0) == s1.entry_addr
+
+## specs/fpga/bpsk.t27 — 2 scenario(s), 7 line(s)
+- `162`: given tx_load(0x01)
+- `163`: and s = tx_next_symbol()
+- `164`: then s == 1
+- `168`: given tx_load(0x02)
+- `169`: and tx_next_symbol()
+- `170`: and s = tx_next_symbol()
+- `171`: then s == 1
+
+## specs/fpga/bridge.t27 — 14 scenario(s), 47 line(s)
+- `378`: given uart_pkt = PKT_UART_DATA
+- `379`: and   spi_pkt = PKT_SPI_XFER
+- `380`: and   mac_pkt = PKT_MAC_OP
+- `381`: then uart_pkt == 0x00 and spi_pkt == 0x10 and mac_pkt == 0x20
+- `392`: given rx_size = RX_BUFFER_SIZE
+- `393`: and   tx_size = TX_BUFFER_SIZE
+- `394`: then rx_size == 256 and tx_size == 256
+- `397`: given spi_en = bridge.spi_enabled
+- `398`: and   mac_en = bridge.mac_enabled
+- `399`: then spi_en == true and mac_en == true
+- `402`: given bridge_rx_available() == 1
+- `403`: and   result = bridge_parse_header()
+- `404`: then result == false
+- `407`: given bridge.handle_config(0x01)
+- `408`: then bridge.spi_enabled == true
+- `411`: given bridge.handle_config(0x02)
+- `412`: then bridge.mac_enabled == true
+- `415`: given bridge.handle_config(0x00)
+- `416`: then bridge.spi_enabled == false
+- `419`: given mul_op = OP_MAC_MUL
+- `420`: and   mac_op = OP_MAC_MAC
+- `421`: and   macc_op = OP_MAC_MACC
+- `422`: and   dot_op = OP_MAC_DOT
+- `423`: then mul_op == 0 and mac_op == 1 and macc_op == 2 and dot_op == 3
+- `430`: given bridge.mac_enabled = false
+- `431`: and   bridge_handle_mac_op()
+- `432`: then bridge.state == BRIDGE_IDLE
+- `435`: given bridge.mac_enabled = true
+- `436`: and   bridge_rx_available() == 3
+- `437`: and   bridge_handle_mac_op()
+- `438`: then bridge.state == BRIDGE_IDLE
+- `441`: given bridge.mac_enabled = true
+- `442`: and   bridge_rx_available() >= 6
+- `443`: and   rx_buffer[bridge.rx_tail + 1] == 8
+- `444`: and   bridge_handle_mac_op()
+- `445`: then mac_get_accumulator(0) == 0
+- `472`: given old_cnt = bridge.timeout_cnt
+- `473`: when bridge.state == BRIDGE_PARSE and bridge_process_payload() == false
+- `474`: then bridge.timeout_cnt >= old_cnt
+- `477`: given bridge.timeout_cnt = PACKET_TIMEOUT + 1
+- `478`: and   bridge.state == BRIDGE_PARSE
+- `479`: when bridge_process_payload() == false
+- `480`: then bridge.state == BRIDGE_IDLE
+- `483`: given old_spi = bridge.spi_enabled
+- `484`: and   old_mac = bridge.mac_enabled
+- `485`: when bridge.handle_config(0x03)
+- `486`: then (bridge.spi_enabled || !bridge.spi_enabled)  // May have changed
+
+## specs/fpga/clock_domain.t27 — 3 scenario(s), 8 line(s)
+- `175`: given a = make_domain("sys", "clk", 12000000)
+- `176`: and b = make_domain("fast", "pll", 100000000)
+- `177`: then same_domain(a, b) == false
+- `180`: given a = make_domain("sys", "clk", 12000000)
+- `181`: and b = make_domain("fast", "pll", 100000000)
+- `182`: then needs_crossing(a, b) == true
+- `219`: given a = make_domain("a", "clk", 12000000)
+- `220`: and b = make_domain("b", "pll", 100000000)
+
+## specs/fpga/hir.t27 — 18 scenario(s), 59 line(s)
+- `521`: given m = empty_module("test_mod")
+- `522`: and m2 = add_port(m, "clk", 0, 1, true, false)
+- `523`: then port_count(m2) == 1
+- `526`: given m = empty_module("test_mod")
+- `527`: and m2 = add_port(m, "clk", 0, 1, true, false)
+- `528`: and m3 = add_port(m2, "data", 1, 8, false, false)
+- `529`: then port_count(m3) == 2
+- `530`: and total_port_bits(m3) == 9
+- `533`: given m = empty_module("test_mod")
+- `534`: and m2 = add_signal(m, "counter", 1, 16)
+- `535`: then signal_count(m2) == 1
+- `538`: given m = empty_module("test_mod")
+- `539`: and m2 = add_assign(m, "led", "counter[7]")
+- `540`: then assign_count(m2) == 1
+- `543`: given m = empty_module("test_mod")
+- `544`: and m2 = add_port(m, "clk", 0, 1, true, false)
+- `545`: then has_clock_port(m2) == true
+- `548`: given m = empty_module("test_mod")
+- `549`: and m2 = add_port(m, "data", 0, 8, false, false)
+- `550`: then has_clock_port(m2) == false
+- `553`: given m = empty_module("test_mod")
+- `554`: and m2 = add_port(m, "rst_n", 0, 1, false, true)
+- `555`: then has_reset_port(m2) == true
+- `558`: given m = empty_module("test_mod")
+- `559`: and errors = validate_module(m)
+- `560`: then errors == 0
+- `563`: given m = empty_module("")
+- `564`: and errors = validate_module(m)
+- `565`: then errors > 0
+- `568`: given m = empty_module("dup_test")
+- `569`: and m2 = add_port(m, "a", 0, 1, false, false)
+- `570`: and m3 = add_port(m2, "a", 1, 1, false, false)
+- `571`: and errors = validate_module(m3)
+- `572`: then errors > 0
+- `595`: given mem = make_mem("ram0", 0, 512, 32)
+- `596`: and mem2 = mem_add_port(mem, "port_a", true, 32, 9)
+- `597`: then mem2.port_count == 1
+- `600`: given mem = make_mem("ram0", 0, 512, 32)
+- `601`: and mem2 = mem_add_port(mem, "port_a", true, 32, 9)
+- `602`: and mem3 = mem_add_port(mem2, "port_b", false, 32, 9)
+- `603`: then mem3.port_count == 2
+- `606`: given m = empty_module("mem_test")
+- `607`: and mem = make_mem("bram0", 0, 1024, 32)
+- `608`: and m2 = add_mem(m, mem)
+- `609`: then m2.mem_count == 1
+- `612`: given m = empty_module("clk_test")
+- `613`: and cd = make_clock_domain("sys_clk", 100_000_000, true)
+- `614`: and m2 = add_clock_domain(m, cd)
+- `615`: then m2.clock_domain_count == 1
+- `626`: given m = empty_module("bus_test")
+- `627`: and bp = make_bus_port("axi0", 0, 32, 32, true, 0x4000_0000)
+- `628`: and m2 = add_bus_port(m, bp)
+- `629`: then m2.bus_port_count == 1
+- `656`: given m = empty_module("inv_test")
+- `657`: and m2 = add_port(m, "x", 0, 1, false, false)
+- `665`: given m = empty_module("inv_test")
+- `666`: and errors = validate_module(m)
+- `674`: given mem = make_mem("inv_mem", 0, 512, 32)
+- `675`: and mem2 = mem_add_port(mem, "p0", true, 32, 9)
+
+## specs/fpga/mac.t27 — 23 scenario(s), 113 line(s)
+- `349`: given a = TernaryWord{.raw = 0}
+- `350`: and   b = TernaryWord{.raw = 0}
+- `351`: and   set_trit = pack_trit(Trit.pos, 0)
+- `352`: when a = TernaryWord{.raw = set_trit}
+- `353`: and   b = TernaryWord{.raw = set_trit}
+- `354`: and   result = mac_multiply(a, b, 0)
+- `355`: and   result_trit = extract_trit(result, 0)
+- `356`: then result_trit == Trit.pos
+- `359`: given a = TernaryWord{.raw = 0}
+- `360`: and   b = TernaryWord{.raw = 0}
+- `361`: and   set_trit = pack_trit(Trit.neg, 0)
+- `362`: when a = TernaryWord{.raw = set_trit}
+- `363`: and   b = TernaryWord{.raw = set_trit}
+- `364`: and   result = mac_multiply(a, b, 0)
+- `365`: and   result_trit = extract_trit(result, 0)
+- `366`: then result_trit == Trit.pos
+- `369`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `370`: and   b = TernaryWord{.raw = pack_trit(Trit.neg, 0)}
+- `371`: and   result = mac_multiply(a, b, 0)
+- `372`: and   result_trit = extract_trit(result, 0)
+- `373`: then result_trit == Trit.neg
+- `376`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `377`: and   b = TernaryWord{.raw = pack_trit(Trit.zero, 0)}
+- `378`: and   result = mac_multiply(a, b, 0)
+- `379`: and   result_trit = extract_trit(result, 0)
+- `380`: then result_trit == Trit.zero
+- `399`: given a = TernaryWord{.raw = 0}
+- `400`: and   b = TernaryWord{.raw = 0}
+- `401`: and   a = TernaryWord{.raw = pack_trit(Trit.pos, 0) | pack_trit(Trit.pos, 1)}
+- `402`: and   b = TernaryWord{.raw = pack_trit(Trit.pos, 0) | pack_trit(Trit.pos, 1)}
+- `403`: and   result = mac_cycle(a, b, 0, 0)
+- `404`: then result == 2
+- `407`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `408`: and   b = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `409`: and   result = mac_cycle(a, b, 0, 5)
+- `410`: then result == 6
+- `413`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `414`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `415`: and   result = mac_dot_product(a, b, 2, 0)
+- `416`: then result == 2
+- `419`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.neg, 0)}]
+- `420`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `421`: and   result = mac_dot_product(a, b, 2, 0)
+- `422`: then result == 0
+- `429`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `430`: and   b = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `431`: and   mac_multiply(a, b, 0)
+- `432`: and   status = mac_status_read(0)
+- `433`: then status == STATUS_DONE
+- `436`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `437`: and   b = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `438`: and   mac_cycle(a, b, 0, 0)
+- `439`: and   mac_reset(0)
+- `440`: and   acc = mac_get_accumulator(0)
+- `441`: then acc == 0
+- `444`: given a = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `445`: and   b = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `446`: and   mac_multiply(a, b, 0)
+- `447`: and   mac_reset(0)
+- `448`: and   status = mac_status_read(0)
+- `449`: then status == STATUS_READY
+- `452`: given mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 0)
+- `453`: and   mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 1)
+- `454`: and   mac_reset_all()
+- `455`: and   acc0 = mac_get_accumulator(0)
+- `456`: and   acc1 = mac_get_accumulator(1)
+- `457`: then acc0 == 0 and acc1 == 0
+- `464`: given mat = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.zero, 0)},
+- `466`: and   vec = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `467`: and   result = [0i32; 2]
+- `468`: and   units = [0u8, 1u8]
+- `469`: when mac_matrix_vector(mat, vec, 2, 2, result, units)
+- `470`: then result[0] == 1 and result[1] == 1
+- `473`: given word = TernaryWord{.raw = 0}
+- `474`: and   trit = extract_trit(word, 0)
+- `475`: then trit == Trit.zero
+- `478`: given word = TernaryWord{.raw = 1}  // 0b01
+- `479`: and   trit = extract_trit(word, 0)
+- `480`: then trit == Trit.pos
+- `483`: given word = TernaryWord{.raw = 2}  // 0b10
+- `484`: and   trit = extract_trit(word, 0)
+- `485`: then trit == Trit.neg
+- `488`: given original = Trit.pos
+- `489`: and   packed = pack_trit(original, 0)
+- `490`: and   word = TernaryWord{.raw = packed}
+- `491`: and   extracted = extract_trit(word, 0)
+- `492`: then extracted == original
+- `495`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
+- `496`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
+- `497`: and   results = [TernaryWord{.raw = 0}; 8]
+- `498`: when mac_parallel_multiply(a, b, results, 8)
+- `499`: then results[0].raw != 0 and results[1].raw != 0
+- `536`: given mac_cycle(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}, 0, 42)
+- `537`: and   mac_reset(0)
+- `538`: and   acc = mac_get_accumulator(0)
+- `542`: given mac_multiply(TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, 0)
+- `543`: and   mac_reset(0)
+- `544`: and   status = mac_status_read(0)
+- `548`: given a = TernaryWord{.raw = 0xFFFFFFFF}
+- `549`: and   b = TernaryWord{.raw = 0xFFFFFFFF}
+- `550`: and   result = mac_multiply(a, b, 0)
+- `555`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `556`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- `557`: and   dot1 = mac_dot_product(a, b, 1, 0)
+- `558`: and   dot2 = mac_dot_product(b, a, 1, 0)
+- `580`: given a0 = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `581`: and   b0 = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
+- `582`: and   a1 = TernaryWord{.raw = pack_trit(Trit.neg, 0)}
+- `583`: and   b1 = TernaryWord{.raw = pack_trit(Trit.neg, 0)}
+- `584`: and   res0 = mac_multiply(a0, b0, 0)
+- `585`: and   res1 = mac_multiply(a1, b1, 1)
+- `586`: and   acc0 = mac_get_accumulator(0)
+- `587`: and   acc1 = mac_get_accumulator(1)
+
+## specs/fpga/memory.t27 — 8 scenario(s), 32 line(s)
+- `260`: given m = make_bram("ram1", 256, 16)
+- `261`: and m2 = add_read_port(m, "rda")
+- `262`: then port_count(m2) == 1
+- `263`: and has_read_port(m2) == true
+- `264`: and has_write_port(m2) == false
+- `267`: given m = make_bram("ram1", 256, 16)
+- `268`: and m2 = add_write_port(m, "wra")
+- `269`: then port_count(m2) == 1
+- `270`: and has_write_port(m2) == true
+- `271`: and has_read_port(m2) == false
+- `274`: given m = make_bram("ram1", 256, 16)
+- `275`: and m2 = add_rw_port(m, "rwa")
+- `276`: then port_count(m2) == 1
+- `277`: and has_read_port(m2) == true
+- `278`: and has_write_port(m2) == true
+- `298`: given m = make_bram("ram1", 256, 16)
+- `299`: and m2 = add_read_port(m, "rda")
+- `300`: and errors = validate_mem(m2)
+- `301`: then errors == 0
+- `304`: given m = empty_mem("", 0)
+- `305`: and m2 = MemDesc{.name = "", .kind = 0, .depth = 16, .data_width = 8, .addr_width = 4, .ports = [empty_mem_port(); 8], .port_count = 0}
+- `306`: and errors = validate_mem(m2)
+- `307`: then errors > 0
+- `310`: given m = MemDesc{.name = "x", .kind = 0, .depth = 0, .data_width = 8, .addr_width = 1, .ports = [empty_mem_port(); 8], .port_count = 0}
+- `311`: and errors = validate_mem(m)
+- `312`: then errors > 0
+- `315`: given m = make_rom("rom1", 256, 16)
+- `316`: and m2 = add_write_port(m, "wra")
+- `317`: and errors = validate_mem(m2)
+- `318`: then errors > 0
+- `339`: given m = make_bram("inv", 256, 16)
+- `340`: and m2 = add_read_port(m, "rda")
+
+## specs/fpga/placement.t27 — 2 scenario(s), 6 line(s)
+- `181`: given a = logic_cluster("a", 0, 0, 10, 10)
+- `182`: and b = logic_cluster("b", 5, 5, 15, 15)
+- `183`: then regions_overlap(a, b) == true
+- `186`: given a = logic_cluster("a", 0, 0, 10, 10)
+- `187`: and b = logic_cluster("b", 20, 20, 30, 30)
+- `188`: then regions_overlap(a, b) == false
+
+## specs/fpga/stdlib.t27 — 4 scenario(s), 12 line(s)
+- `282`: given cat = empty_catalog("test")
+- `283`: and cat2 = IpCatalog{.name = "test", .cores = [32]IpCore{ip_core("uart_tx", 0, 200, 100, 1, 0, 4, 100), IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}, IpCore{.name = "", .kind = 0, .version = 0, .resources = zero_resources(), .clock_freq_mhz = 0, .vendor = "", .verified = false}}, .core_count = 1}
+- `284`: then total_luts(cat2) == 200
+- `297`: given cat = empty_catalog("test")
+- `298`: and board = arty_a7_resources()
+- `299`: then fits_board(cat, board) == true
+- `302`: given cat = empty_catalog("test")
+- `303`: and board = arty_a7_resources()
+- `304`: then utilization_percent(cat, board) == 0
+- `327`: given cat = empty_catalog("test")
+- `328`: and board = xc7a100t_resources()
+- `329`: then luts_remaining(cat, board) == 63400
+
+## specs/fpga/testbench/top_tb.t27 — 5 scenario(s), 19 line(s)
+- `179`: given old = sim_cycle
+- `180`: when generate_clock()
+- `181`: then sim_cycle == old + 1
+- `184`: given rst_n = false
+- `185`: when wait_cycles(10)
+- `186`: and  rst_n = true
+- `187`: and  wait_cycles(10)
+- `188`: then test_passed >= 0
+- `191`: given PING_CMD = 0x01
+- `192`: and   PONG_RESP = 0x02
+- `193`: then PING_CMD != PONG_RESP
+- `200`: given spi_cs = false
+- `201`: when wait_cycles(CLK_PERIOD * 10)
+- `202`: and  spi_cs = true
+- `203`: then spi_cs == true
+- `206`: given mac_a = [true; 27]
+- `207`: and   mac_b = [true; 27]
+- `208`: and   mac_acc = 0
+- `209`: then mac_acc == 0
+
+## specs/fpga/timing.t27 — 3 scenario(s), 10 line(s)
+- `301`: given a1 = comb_arc("a", "b", 100)
+- `302`: and a2 = comb_arc("b", "c", 200)
+- `303`: and a3 = comb_arc("c", "d", 300)
+- `304`: then path_delay([a1, a2, a3], 3) == 600
+- `325`: given p1 = timing_path("a", "b", 500, 0)
+- `326`: and p2 = timing_path("c", "d", 1200, 0)
+- `327`: and p3 = timing_path("e", "f", 800, 0)
+- `328`: then worst_path([p1, p2, p3], 3) == 1200
+- `359`: given d = 5000
+- `360`: and s = slack(d, 10000)
+
+## specs/fpga/top_level.t27 — 17 scenario(s), 50 line(s)
+- `115`: given set_error()
+- `116`: and   system_reset()
+- `117`: and   ready = system_ready()
+- `118`: and   error = system_error()
+- `119`: then ready == true and error == false
+- `122`: given start_processing()
+- `123`: and   busy = system_busy()
+- `124`: then busy == true
+- `127`: given start_processing()
+- `128`: and   stop_processing()
+- `129`: and   busy = system_busy()
+- `130`: then busy == false
+- `133`: given start_processing()
+- `134`: and   set_error()
+- `135`: and   busy = system_busy()
+- `136`: and   error = system_error()
+- `137`: then busy == false and error == true
+- `140`: given set_mac_result(42)
+- `141`: and   result = get_mac_result()
+- `142`: then result == 42
+- `145`: given set_uart_data(0xAA)
+- `146`: and   data = get_uart_data()
+- `147`: then data == 0xAA
+- `150`: given start_processing()
+- `151`: and   set_mac_result(100)
+- `152`: and   busy = system_busy()
+- `153`: then busy == false
+- `169`: given set_mac_result(999)
+- `170`: and system_reset()
+- `171`: then get_mac_result() == 0
+- `174`: given set_uart_data(0xFF)
+- `175`: and system_reset()
+- `176`: then get_uart_data() == 0
+- `179`: given set_error()
+- `180`: and clear_error()
+- `181`: then system_error() == false
+- `182`: and system_ready() == true
+- `185`: given system_state.mac_ready = false
+- `186`: then system_ready() == false
+- `189`: given set_mac_result(-42)
+- `190`: then get_mac_result() == -42
+- `193`: given set_uart_data(0)
+- `194`: then get_uart_data() == 0
+- `195`: given set_uart_data(255)
+- `196`: then get_uart_data() == 255
+- `199`: given busy = system_busy()
+- `200`: and   ready = system_ready()
+- `204`: given error = system_error()
+- `205`: and   busy = system_busy()
+- `209`: given ready = system_ready()
+
+## specs/fpga/uart.t27 — 8 scenario(s), 24 line(s)
+- `128`: given uart_tx_send(0x55)
+- `129`: and   result = uart_tx_send(0xAA)
+- `130`: then result == false
+- `133`: given uart_tx_send(0x55)
+- `134`: and   uart_reset()
+- `135`: and   status = uart_status()
+- `136`: then status == STATUS_IDLE
+- `139`: given uart_tx_send(0x55)
+- `140`: and   uart_reset()
+- `141`: and   ready = uart_tx_ready()
+- `142`: then ready == true
+- `145`: given uart_configure(100, false, 1, true)
+- `146`: then uart_config.baud_divisor == 100
+- `149`: given uart_configure(54, true, 2, false)
+- `150`: then uart_config.parity_enable == true
+- `151`: and uart_config.stop_bits == 2
+- `152`: and uart_config.fifo_enable == false
+- `176`: given data = uart_rx_read()
+- `177`: then data == 0x99
+- `178`: and uart_state.rx_valid == false
+- `182`: given uart_reset()
+- `183`: then uart_state.rx_error == false
+- `187`: given uart_reset()
+- `188`: then uart_state.bit_counter == 0
+
+## specs/igla/coder/_tmp_pipeline_import.t27 — 29 scenario(s), 63 line(s)
+- `1050`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
+- `1051`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
+- `1052`: then best == candidates[0]
+- `1200`: given state = [1.0]
+- `1201`: given agents = []AgentProfile{}
+- `1202`: when action = orchestrate_agents_with_ppo(state, agents)
+- `1203`: then action.temperature == 1.0
+- `1257`: given rtl = "module add2(); assert (1==1); endmodule"
+- `1258`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "assert no_overflow", clk: "clk", reset: "rst" }
+- `1259`: when ok = temporal_trace_check(rtl, contract)
+- `1260`: then ok == true
+- `1263`: given rtl = "module add2(); endmodule"
+- `1264`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "no_overflow", clk: "clk", reset: "rst" }
+- `1265`: when ok = temporal_trace_check(rtl, contract)
+- `1266`: then ok == false
+- `1269`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
+- `1270`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
+- `1271`: when actions = generate_verify_debug(spec, contracts)
+- `1272`: then len(actions) > 0
+- `1418`: given tokens = [65]
+- `1419`: when s = decode_tokens(tokens)
+- `1420`: then s.len() > 0
+- `1523`: given prompt = "generate cordic module"
+- `1524`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- `1525`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- `1572`: given prompt = "generate adder module"
+- `1573`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- `1574`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- `1622`: given tokens = [256]
+- `1623`: when s = decode_tokens(tokens)
+- `1624`: then s == "module"
+- `1647`: given logits = [1.0f32]
+- `1648`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- `1649`: when tokens = generate_tokens_recursive(logits, cfg, 0)
+- `1650`: then tokens.len() == 1
+- `1662`: given tokens = [0]
+- `1663`: when s = decode_tokens(tokens)
+- `1664`: then s == ""
+- `1667`: given logits = [1.0f32]
+- `1668`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- `1669`: when tokens = generate_tokens_recursive(logits, cfg, 100)
+- `1670`: then tokens.len() == 0
+- `1677`: given input = []
+- `1678`: when output = run_pipeline(input)
+- `1679`: then output.len() == 0
+- `1686`: given input = [42]
+- `1687`: when output = run_pipeline(input)
+- `1688`: then output.len() == 1
+- `1719`: given tokens = []
+- `1720`: when text = decode_tokens(tokens)
+- `1721`: then text == ""
+- `1733`: given input = [1.0f32]
+- `1734`: when output = pipeline(input)
+- `1735`: then output.len() == 1 && output[0] == 1.0
+- `1799`: given input = []
+- `1800`: when output = pipeline(input)
+- `1801`: then output.len() == 0
+- `1804`: given input = [42.0f32]
+- `1805`: when output = pipeline(input)
+- `1806`: then output.len() == 1
+- `1843`: given input = [42.0f32]
+- `1844`: when output = pipeline(input)
+- `1845`: then output.len() == 1
+
+## specs/igla/coder/arch.t27 — 73 scenario(s), 137 line(s)
+- `932`: given input_ids = [1, 2]
+- `933`: given cache = empty_kv_cache()
+- `934`: when (out, new_cache) = forward_with_cache(input_ids, cache)
+- `935`: then len(out.logits) == VOCAB_SIZE
+- `944`: given input_ids = [1, 2]
+- `945`: given cache = empty_kv_cache()
+- `946`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- `947`: when (out, new_cache) = forward_with_cache_bank(input_ids, cache, bank)
+- `948`: then len(out.logits) == VOCAB_SIZE
+- `1059`: given hidden = [0.5]
+- `1060`: when logits = lm_head_from_hidden(hidden, 0)
+- `1061`: then len(logits) == VOCAB_SIZE
+- `1159`: given input_ids = [1]
+- `1160`: given draft_cfg = DraftModelConfig { d_model: 4, n_layers: 2, temperature: 1.0 }
+- `1161`: when token = speculative_decode_step(input_ids, draft_cfg)
+- `1162`: then token <= VOCAB_SIZE
+- `1326`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- `1327`: given initial_ids = [1]
+- `1328`: given beam_width = 2
+- `1329`: given max_depth = 2
+- `1330`: given lp = 0.0
+- `1331`: when candidates = generate_beam_search(bank, initial_ids, beam_width, max_depth, lp)
+- `1332`: then len(candidates) == 2
+- `1335`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- `1336`: given initial_ids = [1]
+- `1337`: given cache = empty_kv_cache()
+- `1338`: given beam_width = 2
+- `1339`: given max_depth = 1
+- `1340`: given lp = 0.0
+- `1341`: when (candidates, new_cache) = generate_beam_search_cached(bank, initial_ids, cache, beam_width, max_depth, lp)
+- `1342`: then len(candidates) == 1
+- `1402`: given q = [1.0, 0.0]
+- `1403`: given k = [0.0, 1.0]
+- `1404`: when (rq, rk) = apply_rope(q, k, 0, 1.0)
+- `1405`: then rq[0] == 1.0 && rq[1] == 0.0
+- `1440`: given ids = [1u32]
+- `1441`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- `1442`: when out = infer_forward_pass(ids, bank)
+- `1443`: then out.logits.len() > 0
+- `1555`: given input_ids = random_tokens(512)
+- `1560`: given input_ids = random_tokens(1024)
+- `1691`: given logits = [1.0f32]
+- `1692`: given k = 1
+- `1693`: when token = generate_next_token(logits, k)
+- `1694`: then token == 0
+- `1771`: given a = [1.0f32]
+- `1772`: given b = [2.0f32]
+- `1773`: when c = add_slices(a, b, 0)
+- `1774`: then c.len() == 1 && c[0] == 3.0
+- `1786`: given a = [1.0f32, 2.0f32]
+- `1787`: given b = [3.0f32]
+- `1788`: when c = add_slices(a, b, 0)
+- `1789`: then c.len() == 1 && c[0] == 4.0
+- `1877`: given a = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+- `1878`: given b = [10.0f32]
+- `1879`: when c = add_slices(a, b, 3)
+- `1880`: then c.len() == 1 && c[0] == 14.0
+- `1901`: given a = []
+- `1902`: given b = []
+- `1903`: when c = add_slices(a, b, 0)
+- `1904`: then c.len() == 0
+- `1916`: given a = [5]
+- `1917`: given b = [7]
+- `1918`: when c = add_slices(a, b, 0)
+- `1919`: then c == [12]
+- `1931`: given a = [1.0f32, 2.0f32]
+- `1932`: given b = [3.0f32]
+- `1933`: when c = add_slices(a, b, 5)
+- `1934`: then c.len() == 0
+- `1961`: given a = []
+- `1962`: given b = [1, 2, 3]
+- `1963`: when c = add_slices(a, b, 0)
+- `1964`: then c == [1, 2, 3]
+- `1967`: given a = [1, 2, 3]
+- `1968`: given b = []
+- `1969`: when c = add_slices(a, b, 0)
+- `1970`: then c == [1, 2, 3]
+- `1975`: given a = []
+- `1976`: given b = [2, 3, 4]
+- `1977`: when c = add_slices(a, b, 0)
+- `1978`: then c == [2, 3, 4]
+- `1981`: given a = [2, 3, 4]
+- `1982`: given b = []
+- `1983`: when c = add_slices(a, b, 0)
+- `1984`: then c == [2, 3, 4]
+- `1991`: given a = [1.0f32, 2.0f32]
+- `1992`: given b = [3.0f32]
+- `1993`: when c = add_slices(a, b, 5)
+- `1994`: then c.len() == 0
+- `2006`: given a = [1.0f32, 2.0f32]
+- `2007`: given b = [3.0f32]
+- `2008`: when c = add_slices(a, b, 5)
+- `2009`: then c.len() == 0
+- `2022`: given a = [1.0f32, 2.0f32]
+- `2023`: given b = [3.0f32]
+- `2024`: when c = add_slices(a, b, 5)
+- `2025`: then c.len() == 0
+- `2039`: given a = [1.0f32, 2.0f32]
+- `2040`: given b = [3.0f32]
+- `2041`: when c = add_slices(a, b, 5)
+- `2042`: then c.len() == 0
+- `2057`: given a = [1.0f32, 2.0f32]
+- `2058`: given b = [3.0f32]
+- `2059`: when c = add_slices(a, b, 5)
+- `2060`: then c.len() == 0
+- `2075`: given a = [1.0f32, 2.0f32]
+- `2076`: given b = [3.0f32]
+- `2077`: when c = add_slices(a, b, 5)
+- `2078`: then c.len() == 0
+- `2094`: given a = [1.0f32, 2.0f32]
+- `2095`: given b = [3.0f32]
+- `2096`: when c = add_slices(a, b, 5)
+- `2097`: then c.len() == 0
+- `2114`: given a = [1.0f32, 2.0f32]
+- `2115`: given b = [3.0f32]
+- `2116`: when c = add_slices(a, b, 5)
+- `2117`: then c.len() == 0
+- `2135`: given a = [1.0f32, 2.0f32]
+- `2136`: given b = [3.0f32]
+- `2137`: when c = add_slices(a, b, 5)
+- `2138`: then c.len() == 0
+- `2157`: given a = [1.0f32, 2.0f32]
+- `2158`: given b = [3.0f32]
+- `2159`: when c = add_slices(a, b, 5)
+- `2160`: then c.len() == 0
+- `2180`: given a = [1.0f32, 2.0f32]
+- `2181`: given b = [3.0f32]
+- `2182`: when c = add_slices(a, b, 5)
+- `2183`: then c.len() == 0
+- `2204`: given a = [1.0f32, 2.0f32]
+- `2205`: given b = [3.0f32]
+- `2206`: when c = add_slices(a, b, 5)
+- `2207`: then c.len() == 0
+- `2229`: given a = [1.0f32, 2.0f32]
+- `2230`: given b = [3.0f32]
+- `2231`: when c = add_slices(a, b, 5)
+- `2232`: then c.len() == 0
+
+## specs/igla/coder/bench_proxy.t27 — 11 scenario(s), 21 line(s)
+- `209`: given scores = [0.75]
+- `210`: when acc = average_score_inner(scores, 0, 0.0)
+- `211`: then acc == 0.75
+- `256`: given templates = ["adder"]
+- `257`: given problems = verilog_eval_problems()
+- `258`: when report = run_full_baseline(templates, problems)
+- `259`: then report.pass_at_1 >= 0.0 && report.pass_at_1 <= 1.0
+- `268`: given scores = [0.75]
+- `269`: when avg = average_score(scores)
+- `270`: then avg == 0.75
+- `362`: given problems = verilog_eval_problems()
+- `363`: given templates = ["adder", "booth", "cordic"]
+- `368`: given template = "cordic"
+- `373`: given scores = [0.5, 0.6, 0.7, 0.8]
+- `435`: given scores = [0.75]
+- `436`: when avg = average_score(scores)
+- `437`: then avg == 0.75
+- `746`: given candidates = []
+- `747`: given beam_width = 1
+- `748`: when result = select_best_beam(candidates, beam_width)
+- `749`: then result.len() == 0
+
+## specs/igla/coder/benchmark.t27 — 6 scenario(s), 15 line(s)
+- `3575`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- `3576`: given tasks = [BenchmarkTask { task_id: "t1", prompt: "p", golden_rtl: "m", language: "verilog", sacred_required: true }]
+- `3850`: when c = chipcraftbrain_competitor()
+- `4032`: given results = []
+- `4033`: when n = count_failed(results)
+- `4034`: then n == 0
+- `4177`: given results = []
+- `4178`: when n = count_passed_at_5(results, 0, 0)
+- `4179`: then n == 0
+- `4213`: given values = [5.0]
+- `4214`: when m = mean(values)
+- `4215`: then m == 5.0
+- `4252`: given values = []
+- `4253`: when m = mean(values)
+- `4254`: then m != m
+
+## specs/igla/coder/dataset.t27 — 21 scenario(s), 41 line(s)
+- `1154`: given sample = DataSample { prompt: "p", rtl: "module a(); endmodule", template: "test" }
+- `1155`: when (pos, neg) = generate_contrastive_pair(sample)
+- `1156`: then pos.rtl == sample.rtl
+- `1159`: given sample = DataSample { prompt: "p", rtl: "module a(); endmodule", template: "test" }
+- `1160`: when (pos, neg) = generate_contrastive_pair(sample)
+- `1161`: then neg.rtl != pos.rtl
+- `1226`: given modules = ["module a; endmodule"]
+- `1227`: when out = compose_n_modules(modules, "chain", "top")
+- `1228`: then out == "module a; endmodule"
+- `1271`: given modules = ["module a(); endmodule"]
+- `1272`: given topology = "chain"
+- `1273`: given name = "top"
+- `1274`: when out = compose_n_modules(modules, topology, name)
+- `1275`: then out[0:10] == "module a();"
+- `1285`: given template = "adder"
+- `1286`: given names = ["bits"]
+- `1287`: given ranges = [[2.0, 4.0, 8.0]]
+- `1288`: when variants = generate_parametric_variations(template, names, ranges)
+- `1289`: then len(variants) == 3
+- `1292`: given depth = 0
+- `1293`: given pool = ["module a(); endmodule"]
+- `1294`: given seed = 0
+- `1295`: when out = generate_random_composition(depth, pool, seed)
+- `1296`: then out[0:9] == "module a();"
+- `1306`: given templates = ["adder"]
+- `1307`: given widths = [2, 4]
+- `1308`: when size = estimate_10k_size(templates, widths)
+- `1309`: then size > 0
+- `1574`: given templates = ["adder"]
+- `1575`: when ds = generate_dataset(templates)
+- `1576`: then ds.len() > 0
+- `1619`: given templates = ["adder", "booth", "cordic"]
+- `1624`: given d = [DataSample { prompt: "p1", rtl: "module a; endmodule", template: "adder" }]
+- `1703`: given families = ["adder"]
+- `1704`: given bitwidths = []u32{}
+- `1705`: when ds = generate_parameterized_dataset(families, bitwidths)
+- `1706`: then ds.len() == 0
+- `2016`: given data = []
+- `2017`: given seed = 42
+- `2018`: when result = shuffle(data, seed)
+- `2019`: then result == []
+
+## specs/igla/coder/eval.t27 — 32 scenario(s), 66 line(s)
+- `840`: given code = "fn add(a: i32, b: i32) -> i32 { a + b }"
+- `841`: given tests = ["assert_eq!(add(2,3), 5);"]
+- `842`: when result = compile_and_test(code, "rust", tests)
+- `843`: then result.compile_ok == true
+- `1807`: given ins = ["A", "B"]
+- `1808`: given outs = ["Y"]
+- `1809`: when tbl = truth_table_generate(ins, outs)
+- `1810`: then tbl.len() > 0
+- `2380`: given groups = [][]f32{}
+- `2381`: when var = compute_xgrpo_variance(groups)
+- `2382`: then var == 0.0
+- `2385`: given groups = [[1.0, 2.0, 3.0]]
+- `2386`: when var = compute_xgrpo_variance(groups)
+- `2387`: then var == 0.0
+- `2505`: given contract = pipeline::Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "no_overflow", clk: "clk", reset: "rst" }
+- `2506`: when props = generate_sva_from_contract(contract)
+- `2507`: then len(props) > 0 && props[0].kind == "assert"
+- `2510`: given contract = pipeline::Contract { module_name: "", precond: "", postcond: "", invariant: "", clk: "", reset: "" }
+- `2511`: when props = generate_sva_from_contract(contract)
+- `2512`: then len(props) == 0
+- `2726`: given tasks = []EvalTask{}
+- `2731`: given code = ""
+- `3064`: given preds = []
+- `3065`: given refs = []
+- `3066`: when acc = accuracy(preds, refs)
+- `3067`: then acc == 0.0
+- `3074`: given preds = []
+- `3075`: given refs = []
+- `3076`: when score = bleu_score(preds, refs)
+- `3077`: then score == 0.0
+- `3090`: given preds = [1]
+- `3091`: given refs = [1]
+- `3092`: when p = precision(preds, refs)
+- `3093`: then p == 1.0
+- `3096`: given preds = [1]
+- `3097`: given refs = [1]
+- `3098`: when r = recall(preds, refs)
+- `3099`: then r == 1.0
+- `3128`: given preds = [7]
+- `3129`: given refs = [7]
+- `3130`: when acc = accuracy(preds, refs)
+- `3131`: then acc == 1.0
+- `3176`: given preds = [1]
+- `3177`: given refs = [2]
+- `3178`: when acc = accuracy(preds, refs)
+- `3179`: then acc == 0.0
+- `3187`: given preds = []
+- `3188`: given refs = []
+- `3189`: when acc = accuracy(preds, refs)
+- `3190`: then acc == 0.0
+- `3223`: given preds = [1]
+- `3224`: given refs = [2]
+- `3225`: when acc = accuracy(preds, refs)
+- `3226`: then acc == 0.0
+- `3283`: given preds = []
+- `3284`: given refs = []
+- `3285`: when acc = accuracy(preds, refs)
+- `3286`: then acc != acc
+- `3307`: given preds = [7]
+- `3308`: given refs = [7]
+- `3309`: when acc = accuracy(preds, refs)
+- `3310`: then acc == 1.0
+- `3313`: given preds = [0]
+- `3314`: given refs = [1]
+- `3315`: when acc = accuracy(preds, refs)
+- `3316`: then acc == 0.0
+
+## specs/igla/coder/pipeline.t27 — 29 scenario(s), 63 line(s)
+- `1049`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
+- `1050`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
+- `1051`: then best == candidates[0]
+- `1199`: given state = [1.0]
+- `1200`: given agents = []AgentProfile{}
+- `1201`: when action = orchestrate_agents_with_ppo(state, agents)
+- `1202`: then action.temperature == 1.0
+- `1256`: given rtl = "module add2(); assert (1==1); endmodule"
+- `1257`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "assert no_overflow", clk: "clk", reset: "rst" }
+- `1258`: when ok = temporal_trace_check(rtl, contract)
+- `1259`: then ok == true
+- `1262`: given rtl = "module add2(); endmodule"
+- `1263`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "no_overflow", clk: "clk", reset: "rst" }
+- `1264`: when ok = temporal_trace_check(rtl, contract)
+- `1265`: then ok == false
+- `1268`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
+- `1269`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
+- `1270`: when actions = generate_verify_debug(spec, contracts)
+- `1271`: then len(actions) > 0
+- `1417`: given tokens = [65]
+- `1418`: when s = decode_tokens(tokens)
+- `1419`: then s.len() > 0
+- `1522`: given prompt = "generate cordic module"
+- `1523`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- `1524`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- `1571`: given prompt = "generate adder module"
+- `1572`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- `1573`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- `1621`: given tokens = [256]
+- `1622`: when s = decode_tokens(tokens)
+- `1623`: then s == "module"
+- `1646`: given logits = [1.0f32]
+- `1647`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- `1648`: when tokens = generate_tokens_recursive(logits, cfg, 0)
+- `1649`: then tokens.len() == 1
+- `1661`: given tokens = [0]
+- `1662`: when s = decode_tokens(tokens)
+- `1663`: then s == ""
+- `1666`: given logits = [1.0f32]
+- `1667`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- `1668`: when tokens = generate_tokens_recursive(logits, cfg, 100)
+- `1669`: then tokens.len() == 0
+- `1676`: given input = []
+- `1677`: when output = run_pipeline(input)
+- `1678`: then output.len() == 0
+- `1685`: given input = [42]
+- `1686`: when output = run_pipeline(input)
+- `1687`: then output.len() == 1
+- `1718`: given tokens = []
+- `1719`: when text = decode_tokens(tokens)
+- `1720`: then text == ""
+- `1732`: given input = [1.0f32]
+- `1733`: when output = pipeline(input)
+- `1734`: then output.len() == 1 && output[0] == 1.0
+- `1798`: given input = []
+- `1799`: when output = pipeline(input)
+- `1800`: then output.len() == 0
+- `1803`: given input = [42.0f32]
+- `1804`: when output = pipeline(input)
+- `1805`: then output.len() == 1
+- `1842`: given input = [42.0f32]
+- `1843`: when output = pipeline(input)
+- `1844`: then output.len() == 1
+
+## specs/igla/coder/prm.t27 — 37 scenario(s), 69 line(s)
+- `584`: given good = [Step { id: 0, description: "g", kind: StepKind::Datapath,
+- `586`: given bad  = [Step { id: 0, description: "b", kind: StepKind::Datapath,
+- `588`: given chosen_batch = [good]
+- `589`: given rejected_batch = [bad]
+- `590`: when avg_loss = train_prm_step(chosen_batch, rejected_batch, "verilog")
+- `591`: then avg_loss >= 0.0
+- `685`: given steps = random_steps(10)
+- `690`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath, input: "", output: "assign a = b + c;" }
+- `691`: given s2 = Step { id: 1, description: "s2", kind: StepKind::Datapath, input: "", output: "assign z = x * y;" }
+- `712`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath,
+- `714`: given traj = [s1]
+- `715`: when r = compute_trajectory_reward(traj, "verilog", 0.618)
+- `716`: then r >= 0.0 && r <= 1.0
+- `1202`: given scores = []
+- `1203`: given k = 0
+- `1204`: when indices = select_top(scores, k)
+- `1205`: then indices == []
+- `1261`: given scores = []
+- `1262`: given k = 0
+- `1263`: when indices = select_top(scores, k)
+- `1264`: then indices == []
+- `1274`: given scores = []
+- `1275`: given k = 0
+- `1276`: when indices = select_top(scores, k)
+- `1277`: then indices == []
+- `1289`: given scores = []
+- `1290`: given k = 0
+- `1291`: when indices = select_top(scores, k)
+- `1292`: then indices == []
+- `1305`: given scores = []
+- `1306`: given k = 0
+- `1307`: when indices = select_top(scores, k)
+- `1308`: then indices == []
+- `1322`: given scores = []
+- `1323`: given k = 0
+- `1324`: when indices = select_top(scores, k)
+- `1325`: then indices == []
+- `1339`: given scores = []
+- `1340`: given k = 0
+- `1341`: when indices = select_top(scores, k)
+- `1342`: then indices == []
+- `1357`: given scores = []
+- `1358`: given k = 0
+- `1359`: when indices = select_top(scores, k)
+- `1360`: then indices == []
+- `1376`: given scores = []
+- `1377`: given k = 0
+- `1378`: when indices = select_top(scores, k)
+- `1379`: then indices == []
+- `1396`: given scores = []
+- `1397`: given k = 0
+- `1398`: when indices = select_top(scores, k)
+- `1399`: then indices == []
+- `1417`: given scores = []
+- `1418`: given k = 0
+- `1419`: when indices = select_top(scores, k)
+- `1420`: then indices == []
+- `1439`: given scores = []
+- `1440`: given k = 0
+- `1441`: when indices = select_top(scores, k)
+- `1442`: then indices == []
+- `1462`: given scores = []
+- `1463`: given k = 0
+- `1464`: when indices = select_top(scores, k)
+- `1465`: then indices == []
+- `1486`: given scores = []
+- `1487`: given k = 0
+- `1488`: when indices = select_top(scores, k)
+- `1489`: then indices == []
+
+## specs/igla/coder/tokenizer.t27 — 33 scenario(s), 95 line(s)
+- `448`: given tokens = [256]
+- `449`: when text = detokenize(tokens)
+- `450`: then text == "module"
+- `535`: given text = "module add2(); endmodule"
+- `540`: given code = "module input output wire reg assign"
+- `599`: given tokens = [111]
+- `600`: when s = detokenize(tokens)
+- `601`: then s == "o"
+- `636`: given tokens = [32u32]
+- `637`: when s = detokenize(tokens)
+- `638`: then s == " "
+- `727`: given tokens = [256]
+- `728`: when text = detokenize_verilog(tokens)
+- `729`: then text == "module"
+- `737`: given tokens = [257]
+- `738`: when s = detokenize(tokens)
+- `739`: then s == "endmodule"
+- `776`: given tokens = []
+- `777`: when s = add_special_tokens(tokens)
+- `778`: then s[0] == 0 && s.len() == 2
+- `790`: given ids = [1]
+- `791`: when code = decode(ids)
+- `792`: then code == "if"
+- `804`: given ids = []
+- `805`: when code = decode(ids)
+- `806`: then code == ""
+- `832`: given tokens = [42]
+- `833`: when result = tokenize(tokens)
+- `834`: then result.len() == 2 && result[0] == 0 && result[1] == 42
+- `845`: given tokens = [100]
+- `846`: when result = tokenize(tokens)
+- `847`: then result.len() == 2
+- `858`: given tokens = [0]
+- `859`: when result = tokenize(tokens)
+- `860`: then result.len() == 2 && result[0] == 0 && result[1] == 0
+- `898`: given tokens = []
+- `899`: when result = tokenize(tokens)
+- `900`: then result.len() == 1
+- `919`: given tokens = [42]
+- `920`: when result = tokenize(tokens)
+- `921`: then result.len() == 2
+- `932`: given tokens = []
+- `933`: when result = tokenize(tokens)
+- `934`: then result.len() == 1
+- `945`: given tokens = [7]
+- `946`: when result = tokenize(tokens)
+- `947`: then result[0] == 0 && result.len() == 2
+- `977`: given tokens = [65]
+- `978`: when text = decode(tokens)
+- `979`: then text == "A"
+- `991`: given tokens = [42]
+- `992`: when result = tokenize(tokens)
+- `993`: then result.len() == 2
+- `1048`: given tokens = [42]
+- `1049`: when result = tokenize(tokens)
+- `1050`: then result.len() == 2
+- `1061`: given tokens = [42]
+- `1062`: when result = tokenize(tokens)
+- `1063`: then result.len() == 2
+- `1075`: given tokens = [42]
+- `1076`: when result = tokenize(tokens)
+- `1077`: then result.len() == 2
+- `1090`: given tokens = [42]
+- `1091`: when result = tokenize(tokens)
+- `1092`: then result.len() == 2
+- `1106`: given tokens = [42]
+- `1107`: when result = tokenize(tokens)
+- `1108`: then result.len() == 2
+- `1123`: given tokens = [42]
+- `1124`: when result = tokenize(tokens)
+- `1125`: then result.len() == 2
+- `1140`: given tokens = [42]
+- `1141`: when result = tokenize(tokens)
+- `1142`: then result.len() == 2
+- `1158`: given tokens = [42]
+- `1159`: when result = tokenize(tokens)
+- `1160`: then result.len() == 2
+- `1177`: given tokens = [42]
+- `1178`: when result = tokenize(tokens)
+- `1179`: then result.len() == 2
+- `1197`: given tokens = [42]
+- `1198`: when result = tokenize(tokens)
+- `1199`: then result.len() == 2
+- `1218`: given tokens = [42]
+- `1219`: when result = tokenize(tokens)
+- `1220`: then result.len() == 2
+- `1240`: given tokens = [42]
+- `1241`: when result = tokenize(tokens)
+- `1242`: then result.len() == 2
+- `1263`: given tokens = [42]
+- `1264`: when result = tokenize(tokens)
+- `1265`: then result.len() == 2
+- `1287`: given tokens = [42]
+- `1288`: when result = tokenize(tokens)
+- `1289`: then result.len() == 2
+
+## specs/igla/coder/training.t27 — 9 scenario(s), 14 line(s)
+- `442`: given logits = random_logits(32000)
+- `443`: given targets = [1, 2, 3]
+- `444`: given tags1 = [0xDE]
+- `445`: given tags2 = [0xDE, 0xDF]
+- `446`: when loss1 = sacred_opcode_loss(logits, targets, tags1)
+- `447`: when loss2 = sacred_opcode_loss(logits, targets, tags2)
+- `448`: then loss2 >= loss1
+- `517`: given batch = random_batch(BATCH_SIZE)
+- `522`: given cfg = default_training_config()
+- `527`: given grads = random_batch(64)
+- `901`: given logits = []
+- `902`: given targets = []
+- `903`: when loss = cross_entropy(logits, targets)
+- `904`: then loss == 0.0
+
+## specs/igla/evaluation/multi_lang_harness.t27 — 4 scenario(s), 4 line(s)
+- `87`: given r = EvalResult { lang: LangTarget.Rust, pass_at_1: 0.8, syntax_ok: false, compile_ok: false, bench_us: 2.0 }
+- `98`: given prompt = "adder module"
+- `103`: given prompt = "mux module"
+- `108`: given prompt = "counter module"
+
+## specs/igla/integration/publication.t27 — 2 scenario(s), 2 line(s)
+- `91`: given ckpt = "igla_coder_1b_final"
+- `96`: given art = PublicationArtifact { title: "Trinity", abstract: "Abstract", authors: ["T"], keywords: ["k"], doi: "10.0/0", checksum: "sha256:x" }
+
+## specs/igla/race/adder_tree.t27 — 7 scenario(s), 7 line(s)
+- `250`: given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+- `255`: given a = 3
+- `256`: given b = 7
+- `257`: given c = 2
+- `258`: given d = 8
+- `263`: given a = 10
+- `264`: given b = 20
+
+## specs/igla/race/backend.t27 — 15 scenario(s), 27 line(s)
+- `530`: given expr = "a"
+- `531`: given constant = 42
+- `532`: given width = 16
+- `538`: given rtl_module = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+- `643`: given x = 0
+- `644`: when (s, m) = booth_encode(x)
+- `645`: then s == false && m == 0
+- `648`: given x = -3
+- `649`: when (s, m) = booth_encode(x)
+- `650`: then s == true
+- `736`: given x = 15
+- `741`: given expr = "assign y = a & b;"
+- `882`: given throughput = 10.0
+- `883`: given area = 1.0
+- `884`: given power = 0.1
+- `893`: given s = "0x8"
+- `894`: when ok = is_power_of_two_const(s)
+- `895`: then ok == true
+- `971`: given x = 0
+- `972`: when (s, m) = booth_encode(x)
+- `973`: then s == false && m == 0
+- `976`: given x = 1
+- `977`: when (s, m) = booth_encode(x)
+- `978`: then s == false && m == 1
+- `1367`: given ops = []
+- `1368`: when sched = schedule(ops)
+- `1369`: then sched.len() == 0
+
+## specs/igla/race/bram_weights.t27 — 12 scenario(s), 30 line(s)
+- `274`: given bank = WeightBank { depth: 64, width: 64, data: []i16{} }
+- `275`: given addr = WeightAddr { row: 32, col: 32 }
+- `280`: given bank = WeightBank { depth: 16, width: 16, data: []i16{} }
+- `1104`: given data = [1.0f32]
+- `1105`: when w = bram_weights_width(data)
+- `1106`: then w == 1
+- `1139`: given data = []
+- `1140`: when bw = bram_weights_depth(data)
+- `1141`: then bw == 0
+- `1144`: given data = []
+- `1145`: when w = bram_weights_width(data)
+- `1146`: then w == 0
+- `1157`: given data = [42.0f32]
+- `1158`: when w = bram_weights_width(data)
+- `1159`: then w == 1
+- `1191`: given data = [42.0f32]
+- `1192`: when bw = bram_weights_depth(data)
+- `1193`: then bw == 1
+- `1217`: given weights = []
+- `1218`: when d = bram_weights_depth(weights)
+- `1219`: then d == 0
+- `1222`: given weights = [42]
+- `1223`: when w = bram_weights_width(weights)
+- `1224`: then w == 32
+- `1243`: given weights = [99]
+- `1244`: when d = bram_weights_depth(weights)
+- `1245`: then d == 1
+- `1248`: given weights = [99]
+- `1249`: when w = bram_weights_width(weights)
+- `1250`: then w == 32
+
+## specs/igla/race/cordic.t27 — 97 scenario(s), 180 line(s)
+- `240`: given angle = -0.7853981633974483
+- `241`: given iters = 8
+- `242`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `243`: then s_arr[0] < 0.0
+- `246`: given angle = 0.7853981633974483
+- `247`: given iters = 8
+- `248`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `249`: then (s_arr[0] * s_arr[0] + c_arr[0] * c_arr[0]) > 0.95
+- `252`: given angle = 3.141592653589793
+- `253`: given iters = 8
+- `254`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `255`: then s_arr[0] < 0.05
+- `258`: given angle = 0.7853981633974483
+- `259`: given iters = 8
+- `260`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `261`: then s_arr[0] > 0.6
+- `282`: given angle = 0.01
+- `283`: given iters = 8
+- `284`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `285`: then s_arr[0] > 0.005 && s_arr[0] < 0.015
+- `288`: given angle = 6.283185307179586
+- `289`: given iters = 8
+- `290`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `291`: then s_arr[0] > -0.1 && s_arr[0] < 0.1
+- `294`: given angle = 0.7853981633974483
+- `295`: when (s1, c1) = cordic_sin_cos(angle, 4)
+- `296`: when (s2, c2) = cordic_sin_cos(angle, 12)
+- `297`: then s2[0] > s1[0] - 0.05 && s2[0] < s1[0] + 0.05
+- `300`: given angle = 0.0
+- `301`: given iters = 8
+- `302`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `303`: then s_arr[0] > -0.01 && s_arr[0] < 0.01
+- `306`: given angle = 0.0
+- `307`: given iters = 8
+- `308`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `309`: then c_arr[0] > 0.99 && c_arr[0] < 1.01
+- `312`: given angle = -0.7853981633974483
+- `313`: given iters = 8
+- `314`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `315`: then c_arr[0] > 0.6
+- `318`: given angle = 0.7853981633974483
+- `319`: when (s1, c1) = cordic_sin_cos(angle, 4)
+- `320`: when (s2, c2) = cordic_sin_cos(angle, 12)
+- `321`: then (s2[0] * s2[0] + c2[0] * c2[0]) > (s1[0] * s1[0] + c1[0] * c1[0])
+- `324`: given angle = 0.0
+- `325`: given iters = 8
+- `326`: when (s, c) = cordic_sin_cos(angle, iters)
+- `327`: then abs_f32(s[0]) < 0.01
+- `330`: given angle = 0.0
+- `331`: given iters = 8
+- `332`: when (s, c) = cordic_sin_cos(angle, iters)
+- `333`: then abs_f32(c[0] - 1.0) < 0.01
+- `336`: given angle = 0.7853981633974483
+- `337`: given iters = 12
+- `338`: when (s, c) = cordic_sin_cos(angle, iters)
+- `339`: then abs_f32(s[0] - 0.70710678) < 0.01
+- `342`: given angle = 0.7853981633974483
+- `343`: given iters = 12
+- `344`: when (s, c) = cordic_sin_cos(angle, iters)
+- `345`: then abs_f32(c[0] - 0.70710678) < 0.01
+- `348`: given angle = 1.5707963267948966
+- `349`: given iters = 12
+- `350`: when (s, c) = cordic_sin_cos(angle, iters)
+- `351`: then abs_f32(s[0] - 1.0) < 0.01
+- `354`: given angle = 1.5707963267948966
+- `355`: given iters = 12
+- `356`: when (s, c) = cordic_sin_cos(angle, iters)
+- `357`: then abs_f32(c[0] - 0.0) < 0.01
+- `398`: given angle = 0.7853981633974483
+- `399`: given iters = 16
+- `404`: given angle = 0.39269908169872414
+- `405`: given iters = 8
+- `410`: given angle = 0.0
+- `411`: given iters = 8
+- `412`: when (s, c) = cordic_sin_cos(angle, iters)
+- `413`: then abs_f32(s[0]) < 0.01 && abs_f32(c[0] - 1.0) < 0.01
+- `416`: given angle = 0.0
+- `417`: given iters = 8
+- `418`: when (s, c) = cordic_sin_cos(angle, iters)
+- `419`: then abs_f32(s[0]) < 0.01
+- `427`: given angle = 0.785398163
+- `428`: given iters = 12
+- `429`: when (s, c) = cordic_sin_cos(angle, iters)
+- `430`: then abs_f32(s - 0.7071) < 0.01
+- `433`: given angle = 1.57079632679
+- `434`: given iters = 12
+- `435`: when (s, c) = cordic_sin_cos(angle, iters)
+- `436`: then abs_f32(c) < 0.05
+- `444`: given angle = 0.0
+- `445`: given iters = 8
+- `446`: when (s, c) = cordic_sin_cos(angle, iters)
+- `447`: then abs_f32(s) < 0.01
+- `450`: given angle = 0.7853981633974483
+- `451`: given iters = 12
+- `452`: when (s, c) = cordic_sin_cos(angle, iters)
+- `453`: then abs_f32(c - 0.7071) < 0.01
+- `456`: given angle = 3.141592653589793
+- `457`: given iters = 12
+- `458`: when (s, c) = cordic_sin_cos(angle, iters)
+- `459`: then abs_f32(s) < 0.05
+- `462`: given angle = 1.57079632679
+- `463`: given iters = 12
+- `464`: when (s, c) = cordic_sin_cos(angle, iters)
+- `465`: then abs_f32(c) < 0.05
+- `483`: given angle = 0.7853981633974483
+- `484`: given iters = 0
+- `485`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `486`: then s_arr[0] == 0.0 && c_arr[0] == 1.0
+- `524`: given x = 1.0
+- `525`: given y = 0.0
+- `526`: given z = 0.5
+- `527`: given i = 0
+- `528`: given n = 0
+- `529`: when (nx, ny) = cordic_inner(x, y, z, i, n)
+- `530`: then nx == 1.0 && ny == 0.0
+- `711`: given angle = 10.0
+- `712`: given iters = 12
+- `713`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `714`: then s_arr[0] > -1.1 && s_arr[0] < 1.1 && c_arr[0] > -1.1 && c_arr[0] < 1.1
+- `733`: given angle = 1.5707963267948966
+- `734`: given iters = 12
+- `735`: when (s, c) = cordic_sin_cos(angle, iters)
+- `736`: then s[0] > 0.9 && s[0] < 1.1 && c[0] > -0.2 && c[0] < 0.2
+- `754`: given angle = 2.356194490192345
+- `755`: given iters = 12
+- `756`: when (s, c) = cordic_sin_cos(angle, iters)
+- `757`: then s[0] > 0.6 && s[0] < 0.8
+- `760`: given angle = 2.356194490192345
+- `761`: given iters = 12
+- `762`: when (s, c) = cordic_sin_cos(angle, iters)
+- `763`: then c[0] < -0.6 && c[0] > -0.8
+- `766`: given angle = 0.0
+- `767`: given iters = 12
+- `768`: when (s, c) = cordic_sin_cos(angle, iters)
+- `769`: then s[0] > -0.01 && s[0] < 0.01 && c[0] > 0.6 && c[0] < 0.61
+- `772`: given angle = 0.7853981633974483
+- `773`: given iters = 12
+- `774`: when (s, c) = cordic_sin_cos(angle, iters)
+- `775`: then s[0] > 0.5 && s[0] < 0.9 && c[0] > 0.5 && c[0] < 0.9
+- `834`: given angle = 1.5707963267948966
+- `835`: given iters = 12
+- `836`: when (s, c) = cordic_sin_cos(angle, iters)
+- `837`: then s[0] > 0.98 && s[0] < 1.02 && c[0] > -0.02 && c[0] < 0.02
+- `995`: given angle = 0.0
+- `996`: given iters = 8
+- `997`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
+- `998`: then s_arr[0] > -0.001 && s_arr[0] < 0.001
+- `1004`: given x = 1.0
+- `1005`: given y = 0.0
+- `1006`: given z = 0.5
+- `1007`: given i = 0
+- `1008`: given n = 1
+- `1009`: when (nx, ny) = cordic_inner(x, y, z, i, n)
+- `1010`: then nx == 1.0 && ny == 1.0
+- `1027`: given x = 1.0
+- `1028`: given y = 0.0
+- `1029`: given z = 0.0
+- `1030`: given i = 0
+- `1031`: given n = 1
+- `1032`: when (nx, ny) = cordic_inner(x, y, z, i, n)
+- `1033`: then nx == 1.0 && ny == 0.0
+- `1048`: given angle = 0.5
+- `1049`: given iters = 12
+- `1050`: when (s1, c1) = cordic_sin_cos(angle, iters)
+- `1051`: when (s2, c2) = cordic_sin_cos(-angle, iters)
+- `1052`: then s2[0] > -s1[0] - 0.02 && s2[0] < -s1[0] + 0.02 && c2[0] > c1[0] - 0.02 && c2[0] < c1[0] + 0.02
+- `1062`: given x = 1.0
+- `1063`: given y = 0.0
+- `1064`: given z = 0.001
+- `1065`: given i = 0
+- `1066`: given n = 10
+- `1067`: when (nx, ny) = cordic_inner(x, y, z, i, n)
+- `1068`: then nx > 0.999 && nx < 1.001
+- `1082`: given x = 1.0
+- `1083`: given y = 0.0
+- `1084`: given z = 1.5
+- `1085`: given i = 0
+- `1086`: given n = 10
+- `1087`: when (nx, ny) = cordic_inner(x, y, z, i, n)
+- `1088`: then nx > -1.0 && nx < 1.0
+
+## specs/igla/race/cordic_fixed.t27 — 3 scenario(s), 3 line(s)
+- `388`: given a = 4096
+- `393`: given a = 2048
+- `398`: given a = 256
+
+## specs/igla/race/cordic_top.t27 — 198 scenario(s), 365 line(s)
+- `226`: given clk = true, rst_n = false, angle = 4096, valid_in = true
+- `227`: then cordic_top(clk, rst_n, angle, valid_in) == (0, 0, false)
+- `230`: given clk = true, rst_n = true, angle = 4096, valid_in = true
+- `231`: then cordic_top(clk, rst_n, angle, valid_in).0 > 11000  // sin > 11000
+- `232`: and cordic_top(clk, rst_n, angle, valid_in).1 > 11000  // cos > 11000
+- `233`: and cordic_top(clk, rst_n, angle, valid_in).2 == true  // ready_out
+- `236`: given clk = true, rst_n = true, angle = 4096, valid_in = false
+- `237`: then cordic_top(clk, rst_n, angle, valid_in) == (0, 0, false)
+- `240`: given clk = true, rst_n = false, angle = 4096, valid_in = true
+- `241`: then cordic_top(clk, rst_n, angle, valid_in) == (0, 0, false)
+- `244`: given clk = true, rst_n = true, angle = 0, valid_in = true
+- `245`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `246`: then s == 0 && c > 16000 && r == true
+- `249`: given clk = true, rst_n = true, angle = 8192, valid_in = true
+- `250`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `251`: then s > 16000 && c < 1000 && r == true
+- `254`: given clk = true, rst_n = true, angle = -4096, valid_in = true
+- `255`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `256`: then s < -11000 && c > 11000 && r == true
+- `259`: given clk = true, rst_n = true, angle = 0, valid_in = true
+- `260`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `261`: then c > 9900 && c < 10000
+- `264`: given clk = true, rst_n = true, angle = 8192, valid_in = true
+- `265`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `266`: then s > 15800 && s < 16400
+- `269`: given clk = true, rst_n = true, angle = 16384, valid_in = true
+- `270`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `271`: then s > -500 && s < 500
+- `274`: given clk = true, rst_n = true, angle = 4096, valid_in = true
+- `275`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `276`: then c > 11000 && c < 12000
+- `279`: given clk = true, rst_n = true, angle = 4096, valid_in = false
+- `280`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `281`: then r == false
+- `289`: given angles = [4096]
+- `290`: when sum = cordic_top_batch(angles)
+- `291`: then sum > 11000
+- `294`: given clk = true
+- `295`: given rst_n = false
+- `296`: given angle = 4096
+- `297`: given valid_in = true
+- `298`: when (_, _, rdy) = cordic_top(clk, rst_n, angle, valid_in)
+- `299`: then rdy == false
+- `302`: given clk = true
+- `303`: given rst_n = true
+- `304`: given angle = 32767
+- `305`: given valid_in = true
+- `306`: when (s, c, _) = cordic_top(clk, rst_n, angle, valid_in)
+- `307`: then s != 0 || c != 0
+- `315`: given clk = true
+- `316`: given rst_n = true
+- `317`: given angle = 0
+- `318`: given valid_in = false
+- `319`: when (_, _, rdy) = cordic_top(clk, rst_n, angle, valid_in)
+- `320`: then rdy == false
+- `323`: given clk = true
+- `324`: given rst_n = false
+- `325`: given angle = 4096
+- `326`: given valid_in = true
+- `327`: when (_, _, rdy) = cordic_top(clk, rst_n, angle, valid_in)
+- `328`: then rdy == false
+- `345`: when (s, c, r) = cordic_top(true, false, 4096, true)
+- `346`: then s == 0 && c == 0 && r == false
+- `386`: given clk = true, rst_n = true, angle = 4096, valid_in = true
+- `391`: given clk = true, rst_n = true, angles = [0, 2048, 4096, 6144]
+- `396`: given clk = true, rst_n = true, angle = 4096, valid_in = true
+- `397`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `398`: then r == true && s > 11000 && c > 11000
+- `401`: given clk = true, rst_n = true, angle = 8192, valid_in = false
+- `402`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `403`: then r == false && s == 0 && c == 0
+- `406`: given angles = [4096]
+- `407`: when sum = cordic_top_batch(angles)
+- `408`: then sum > 9000
+- `426`: given clk = true, rst_n = true, angle = 4096, valid_in = true
+- `427`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `428`: then r == true
+- `431`: given angles = [0]
+- `432`: when sum = cordic_top_batch(angles)
+- `433`: then sum > 16000
+- `436`: given angles = [4096]
+- `437`: when sum = cordic_top_batch(angles)
+- `438`: then sum > 11000 && sum < 12000
+- `441`: given clk = true, rst_n = true, angle = 4096, valid_in = false
+- `442`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `443`: then r == false
+- `451`: given clk = true, rst_n = false, angle = 4096, valid_in = true
+- `452`: when (s1, c1, r1) = cordic_top(clk, rst_n, angle, valid_in)
+- `453`: when (s2, c2, r2) = cordic_top(true, true, angle, true)
+- `454`: then r1 == false && r2 == true && s2 > 11000
+- `457`: given angles = [0]
+- `458`: when sum = cordic_top_batch(angles)
+- `459`: then sum == 0
+- `462`: given clk = true
+- `463`: given rst_n = false
+- `464`: given angle = 4096
+- `465`: given valid_in = false
+- `466`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `467`: then s == 0 && c == 0 && r == false
+- `475`: given clk = true
+- `476`: given rst_n = true
+- `477`: given angle = -32768
+- `478`: given valid_in = true
+- `479`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `480`: then s >= -16384 && s <= 16384 && c >= -16384 && c <= 16384 && r == true
+- `481`: given clk = true
+- `482`: given rst_n = false
+- `483`: given angle = 4096
+- `484`: given valid_in = false
+- `485`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `486`: then s == 0 && c == 0 && r == false
+- `489`: given clk = false
+- `490`: given rst_n = true
+- `491`: given angle = 4096
+- `492`: given valid_in = true
+- `493`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `494`: then r == true && s > 11000 && c > 11000
+- `497`: given clk = true
+- `498`: given rst_n = true
+- `499`: given angle = 32767
+- `500`: given valid_in = true
+- `501`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `502`: then s >= -16384 && s <= 16384 && c >= -16384 && c <= 16384 && r == true
+- `515`: given angles = [8192; 200000]
+- `516`: when sum = cordic_top_batch(angles)
+- `517`: then sum < 0
+- `520`: given clk = false
+- `521`: given rst_n = false
+- `522`: given angle = 4096
+- `523`: given valid_in = true
+- `524`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `525`: then s == 0 && c == 0 && r == false
+- `528`: given angles = [16384]
+- `529`: when sum = cordic_top_batch(angles)
+- `530`: then sum > -500 && sum < 500
+- `533`: given clk = true
+- `534`: given rst_n = true
+- `535`: given angle = 4096
+- `536`: given valid_in = true
+- `537`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `538`: then s > 11000 && c > 11000 && s - c > -1000 && s - c < 1000
+- `541`: given clk = true
+- `542`: given rst_n = true
+- `543`: given angle = -8192
+- `544`: given valid_in = true
+- `545`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `546`: then s < -16000 && c > -500 && c < 500 && r == true
+- `554`: given clk = true
+- `555`: given rst_n = true
+- `556`: given angle = 4096
+- `557`: given valid_in = false
+- `558`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `559`: then s == 0 && c == 0 && r == false
+- `562`: given angles = [32767]
+- `563`: when sum = cordic_top_batch(angles)
+- `564`: then sum >= -16384 && sum <= 16384
+- `572`: given clk = true
+- `573`: given rst_n = false
+- `574`: given angle = 4096
+- `575`: given valid_in = true
+- `576`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `577`: then s == 0 && c == 0 && r == false
+- `585`: given clk = true
+- `586`: given rst_n = true
+- `587`: given angle = 0
+- `588`: given valid_in = true
+- `589`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `590`: then r == true && s == 0 && c > 15000
+- `598`: given clk = true
+- `599`: given rst_n = true
+- `600`: given angle = 32767
+- `601`: given valid_in = false
+- `602`: when (_, _, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `603`: then r == false
+- `611`: given clk = true
+- `612`: given rst_n = true
+- `613`: given angle = 32767
+- `614`: given valid_in = true
+- `615`: when (_, _, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `616`: then r == true
+- `619`: given angles = [4096]
+- `620`: when sum = cordic_top_batch(angles)
+- `621`: then sum > 0
+- `624`: given clk = true
+- `625`: given rst_n = true
+- `626`: given angle = -32768
+- `627`: given valid_in = true
+- `628`: when (_, _, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `629`: then r == true
+- `637`: given clk = true
+- `638`: given rst_n = true
+- `639`: given angle = -4096
+- `640`: given valid_in = true
+- `641`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `642`: then s < 0 && c > 11000 && r == true
+- `645`: given clk = true
+- `646`: given rst_n = true
+- `647`: given angle = 8192
+- `648`: given valid_in = true
+- `649`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `650`: then s > 16000 && c < 500 && c > -500 && r == true
+- `653`: given angles = [8192]
+- `654`: when sum = cordic_top_batch(angles)
+- `655`: then sum > 16000
+- `663`: given angles = [0]
+- `664`: when sum = cordic_top_batch(angles)
+- `665`: then sum == 0
+- `668`: given clk = true
+- `669`: given rst_n = true
+- `670`: given angle = -32768
+- `671`: given valid_in = true
+- `672`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `673`: then s < 0 && c > 0 && r == true
+- `686`: given clk = true
+- `687`: given rst_n = true
+- `688`: given angle = 0
+- `689`: given valid_in = true
+- `690`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `691`: then s == 0 && c > 0 && r == true
+- `694`: given clk = true
+- `695`: given rst_n = false
+- `696`: given angle = 1
+- `697`: given valid_in = true
+- `698`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `699`: then r == false
+- `702`: given clk = true
+- `703`: given rst_n = true
+- `704`: given angle = 1.57
+- `705`: given valid_in = true
+- `706`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `707`: then s > 0 && c > -100 && r == true
+- `710`: given clk = true
+- `711`: given rst_n = true
+- `712`: given angle = 1.0
+- `713`: given valid_in = false
+- `714`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `715`: then r == false
+- `718`: given clk = true
+- `719`: given rst_n = true
+- `720`: given angle = 6.28
+- `721`: given valid_in = true
+- `722`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `723`: then s > -500 && s < 500 && r == true
+- `726`: given clk = true
+- `727`: given rst_n = false
+- `728`: given angle = 1.0
+- `729`: given valid_in = true
+- `730`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `731`: then s == 0 && c == 0
+- `734`: given angles = []
+- `735`: when sum = cordic_top_batch(angles)
+- `736`: then sum == 0
+- `739`: given angles = [0.0]
+- `740`: when sum = cordic_top_batch(angles)
+- `741`: then sum == 0
+- `744`: given clk = false
+- `745`: given rst_n = false
+- `746`: given angle = 0.7853981633974483
+- `747`: given valid_in = true
+- `748`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `749`: then s == 0 && c == 0
+- `757`: given clk = true
+- `758`: given rst_n = false
+- `759`: given angle = 1000
+- `760`: given valid_in = false
+- `761`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `762`: then s == 0 && c == 0 && r == false
+- `770`: given clk = true
+- `771`: given rst_n = true
+- `772`: given angle = 4096
+- `773`: given valid_in = false
+- `774`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `775`: then r == false
+- `783`: given clk = true
+- `784`: given rst_n = true
+- `785`: given angle = 0
+- `786`: given valid_in = true
+- `787`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `788`: then s == 0 && c > 0 && r == true
+- `791`: given clk = true
+- `792`: given rst_n = true
+- `793`: given angle = 0
+- `794`: given valid_in = true
+- `795`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `796`: then c > 0 && c < 2
+- `804`: given clk = true
+- `805`: given rst_n = false
+- `806`: given angle = 4096
+- `807`: given valid_in = true
+- `808`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `809`: then s == 0 && c == 0
+- `812`: given angles = [4096]
+- `813`: when sum = cordic_top_batch(angles)
+- `814`: then sum == 0
+- `822`: given clk = true
+- `823`: given rst_n = true
+- `824`: given angle = 0
+- `825`: given valid_in = true
+- `826`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `827`: then c > 0
+- `830`: given angles = [0]
+- `831`: when sum = cordic_top_batch(angles)
+- `832`: then sum == 0
+- `840`: given clk = true
+- `841`: given rst_n = true
+- `842`: given angle = 0
+- `843`: given valid_in = true
+- `844`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `845`: then s == 0
+- `858`: given clk = true
+- `859`: given rst_n = true
+- `860`: given angle = 8192
+- `861`: given valid_in = true
+- `862`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
+- `863`: then c > -1000 && c < 1000
+- `871`: given angles = [0]
+- `872`: when sum = cordic_top_batch(angles)
+- `873`: then sum == 0
+- `955`: given clk = true
+- `956`: given rst_n = false
+- `957`: given angle = 4096
+- `958`: given valid_in = true
+- `959`: when (s, c, _) = cordic_top(clk, rst_n, angle, valid_in)
+- `960`: then s == 0 && c == 0
+- `984`: given clk = true
+- `985`: given angle = 0
+- `986`: given rst = true
+- `987`: when (sin_out, cos_out) = cordic_top(clk, false, angle, rst)
+- `988`: then sin_out == 0 && cos_out == 0
+- `1056`: given angles = [256]
+- `1057`: when sum = cordic_top_batch(angles)
+- `1058`: then sum > 16000
+- `1131`: given angles = [512]
+- `1132`: when sum = cordic_top_batch(angles)
+- `1133`: then sum > 400 && sum < 600
+- `1144`: given angles = [2048]
+- `1145`: when sum = cordic_top_batch(angles)
+- `1146`: then sum > 0
+- `1158`: given angles = [2048]
+- `1159`: when sum = cordic_top_batch(angles)
+- `1160`: then sum > 0
+- `1180`: given angles = [0]
+- `1181`: when sum = cordic_top_batch(angles)
+- `1182`: then sum == 0
+- `1193`: given angles = [8192]
+- `1194`: when sum = cordic_top_batch(angles)
+- `1195`: then sum > 0
+- `1219`: given angles = [1000]
+- `1220`: when sum = cordic_top_batch(angles)
+- `1221`: then sum == 1000
+- `1271`: given angles = []
+- `1272`: when sum = cordic_top_batch(angles)
+- `1273`: then sum == 0
+- `1276`: given angles = [7777]
+- `1277`: when sum = cordic_top_batch(angles)
+- `1278`: then sum == 7777
+- `1302`: given batch = []
+- `1303`: when result = cordic_top_batch(batch)
+- `1304`: then result.len() == 0
+- `1341`: given batch = []
+- `1342`: when result = cordic_top_batch(batch)
+- `1343`: then result.len() == 0
+- `1353`: given batch = []
+- `1354`: when result = cordic_top_batch(batch)
+- `1355`: then result.len() == 0
+
+## specs/igla/race/eda.t27 — 4 scenario(s), 4 line(s)
+- `516`: given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
+- `521`: given before = PpaMetrics { area_um2: 1000.0, delay_ns: 1.0, power_mw: 0.1 }
+- `522`: given after = PpaMetrics { area_um2: 900.0, delay_ns: 0.9, power_mw: 0.09 }
+- `621`: given score = BackendRealizabilityScore { synthesis_ok: true, par_ok: true, drc_ok: true, lvs_ok: true }
+
+## specs/igla/race/formal.t27 — 4 scenario(s), 6 line(s)
+- `767`: given pos = []
+- `768`: when ok = all_disproved(pos, 0)
+- `769`: then ok == false
+- `810`: given modules = mock_modules(1000)
+- `815`: given spec = load_medium_reference()
+- `816`: given impl = load_medium_optimized()
+
+## specs/igla/race/gemm.t27 — 4 scenario(s), 4 line(s)
+- `288`: given a = 12345
+- `289`: given b = 6789
+- `294`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+- `295`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+
+## specs/igla/race/opcodes.t27 — 22 scenario(s), 61 line(s)
+- `118`: given chain = []
+- `119`: when result = validate_opcode_chain(chain)
+- `120`: then result == true
+- `123`: given chain = [OP_NOC_FORWARD]
+- `124`: when result = validate_opcode_chain(chain)
+- `125`: then result == true
+- `245`: given chain = random_sacred_chain(1000)
+- `250`: given op = OP_MUL
+- `284`: given chain = [OP_CORDIC_SIN_COS]
+- `285`: when ok = validate_opcode_chain(chain)
+- `286`: then ok == true
+- `317`: given chain = [OPCODE_MAX]
+- `318`: when ok = validate_opcode_chain(chain)
+- `319`: then ok == true
+- `327`: given chain = [0xE9]
+- `328`: when ok = validate_opcode_chain(chain)
+- `329`: then ok == false
+- `341`: given chain1 = []
+- `342`: given chain2 = []u8{}
+- `343`: when ok1 = validate_opcode_chain(chain1)
+- `344`: when ok2 = validate_opcode_chain(chain2)
+- `345`: then ok1 == true && ok2 == true && ok1 == ok2
+- `388`: given chain = [0x00]
+- `389`: when ok = validate_opcode_chain(chain)
+- `390`: then ok == false
+- `428`: given chain = [0xAB]
+- `429`: when ok = validate_opcode_chain(chain)
+- `430`: then ok == false
+- `539`: given chain = [OP_SACRED_BEGIN]
+- `540`: when ok = validate_opcode_chain(chain)
+- `541`: then ok == true
+- `544`: given chain = []
+- `545`: when ok = validate_opcode_chain(chain)
+- `546`: then ok == true
+- `554`: given chain = [0xAB]
+- `555`: when ok = validate_opcode_chain(chain)
+- `556`: then ok == false
+- `619`: given chain = [OP_LOAD_PHYSICS_CONST]
+- `620`: when ok = validate_opcode_chain(chain)
+- `621`: then ok == true
+- `678`: given chain = [OP_LUT_LOOKUP]
+- `679`: when result = validate_opcode_chain(chain)
+- `680`: then result == true
+- `765`: given chain = [OP_LOAD_PHYSICS_CONST]
+- `766`: when r = validate_opcode_chain(chain)
+- `767`: then r == true
+- `833`: given chain = [OP_LOAD_PHYSICS_CONST]
+- `834`: when ok = validate_opcode_chain(chain)
+- `835`: then ok == true
+- `867`: given chain = [OP_NOP]
+- `868`: when ok = validate_chain(chain)
+- `869`: then ok == true
+- `884`: given chain = []
+- `885`: when ok = validate_chain(chain)
+- `886`: then ok == true
+- `939`: given chain = []
+- `940`: when ok = validate_opcode_chain(chain)
+- `941`: then ok == true
+- `952`: given chain = [OP_LOAD_PHYSICS_CONST]
+- `953`: when ok = validate_opcode_chain(chain)
+- `954`: then ok == true
+
+## specs/igla/race/rtl.t27 — 23 scenario(s), 61 line(s)
+- `507`: given bits = [1]
+- `508`: when val = rtl_bits_to_u64(bits)
+- `509`: then val == 1
+- `532`: given rtl_module = mock_module(1000)
+- `579`: given bits = [1]
+- `580`: when val = bits_to_u64(bits)
+- `581`: then val == 1
+- `623`: given rtl_module = mock_module(1000)
+- `629`: given bits = [0]
+- `630`: when val = bits_to_u64(bits)
+- `631`: then val == 0
+- `654`: given a = [1]
+- `655`: given b = [1]
+- `656`: when rtl = generate_wallace_tree(a, b)
+- `657`: then contains_substring(rtl, "1 * 1 = 1")
+- `683`: given a = [1, 1]
+- `684`: given b = [1]
+- `685`: when rtl = generate_wallace_tree(a, b)
+- `686`: then contains_substring(rtl, "wallace")
+- `758`: given bits = [1]
+- `759`: when val = bits_to_u64(bits)
+- `760`: then val == 1
+- `773`: given bits = [1]
+- `774`: when val = bits_to_u64(bits)
+- `775`: then val == 1
+- `814`: given bits = [1]
+- `815`: when val = bits_to_u64(bits)
+- `816`: then val == 1
+- `824`: given bits = [0]
+- `825`: when val = bits_to_u64(bits)
+- `826`: then val == 0
+- `1122`: given bits = [1]
+- `1123`: when val = bits_to_u64(bits)
+- `1124`: then val == 1
+- `1157`: given bits = [0]
+- `1158`: when val = bits_to_u64(bits)
+- `1159`: then val == 0
+- `1269`: given bits = [1]
+- `1270`: when val = bits_to_u64(bits)
+- `1271`: then val == 1
+- `1288`: given bits = [0]
+- `1289`: when val = bits_to_u64(bits)
+- `1290`: then val == 0
+- `1325`: given bits = []
+- `1326`: when val = bits_to_u64(bits)
+- `1327`: then val == 0
+- `1330`: given bits = [1]
+- `1331`: when val = bits_to_u64(bits)
+- `1332`: then val == 1
+- `1377`: given bits = []
+- `1378`: when val = bits_to_u64(bits)
+- `1379`: then val == 0
+- `1382`: given bits = [1]
+- `1383`: when val = bits_to_u64(bits)
+- `1384`: then val == 1
+- `1390`: given bits = [true]
+- `1391`: when val = bits_to_u64(bits)
+- `1392`: then val == 1
+- `1408`: given bits = []
+- `1409`: when val = bits_to_u64(bits)
+- `1410`: then val == 0
+
+## specs/igla/race/systolic_array.t27 — 7 scenario(s), 9 line(s)
+- `290`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+- `291`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+- `296`: given A = Mat2x2 { a11: 10, a12: 20, a21: 30, a22: 40 }
+- `297`: given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+- `891`: given a = 5
+- `892`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }]
+- `893`: given psum = [10i16, 0]
+- `894`: when (a_out, psum_out) = systolic_step_identity_A(a, w, psum)
+- `895`: then a_out == 5
+
+## specs/igla/race/systolic_ternary.t27 — 436 scenario(s), 724 line(s)
+- `63`: given a = 5
+- `64`: given w = TernaryWeight { code: 1 }
+- `65`: given psum = 10
+- `66`: when (a_out, psum_out) = systolic_ternary_pe(a, w, psum)
+- `67`: then a_out == 5 && psum_out == 15
+- `70`: given a = 5
+- `71`: given w = TernaryWeight { code: 2 }
+- `72`: given psum = 10
+- `73`: when (a_out, psum_out) = systolic_ternary_pe(a, w, psum)
+- `74`: then a_out == 5 && psum_out == 5
+- `77`: given a = 5
+- `78`: given w = TernaryWeight { code: 0 }
+- `79`: given psum = 10
+- `80`: when (a_out, psum_out) = systolic_ternary_pe(a, w, psum)
+- `81`: then a_out == 5 && psum_out == 10
+- `94`: given a = -5
+- `95`: given w = TernaryWeight { code: 1 }
+- `96`: given psum = 10
+- `97`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `98`: then psum_out == 5
+- `101`: given a = 127
+- `102`: given w = TernaryWeight { code: 2 }
+- `103`: given psum = 30000
+- `104`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `105`: then psum_out == 29873
+- `108`: given a = 50
+- `109`: given w = TernaryWeight { code: 0 }
+- `110`: given psum = 1000
+- `111`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `112`: then psum_out == 1000
+- `115`: given a = -10
+- `116`: given w = TernaryWeight { code: 1 }
+- `117`: given psum = 0
+- `118`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `119`: then psum_out == -10
+- `122`: given a = 0
+- `123`: given w = TernaryWeight { code: 1 }
+- `124`: given psum = 100
+- `125`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `126`: then psum_out == 100
+- `129`: given a = 50
+- `130`: given w = TernaryWeight { code: 2 }
+- `131`: given psum = 0
+- `132`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `133`: then psum_out == -50
+- `136`: given a = 127
+- `137`: given w = TernaryWeight { code: 1 }
+- `138`: given psum = 32760
+- `139`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `140`: then psum_out == 32887
+- `143`: given a = 50
+- `144`: given w = TernaryWeight { code: 0 }
+- `145`: given psum = 200
+- `146`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `147`: then psum_out == 200
+- `150`: given a = -128
+- `151`: given w = TernaryWeight { code: 2 }
+- `152`: given psum = -32768
+- `153`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `154`: then psum_out == -32512
+- `157`: given activations = [5]
+- `158`: given weights = [TernaryWeight { code: 1 }]
+- `159`: given size = 1
+- `160`: when result = systolic_ternary_array(activations, weights, size)
+- `161`: then result[0] == 5
+- `164`: given a = -50
+- `165`: given w = TernaryWeight { code: 1 }
+- `166`: given psum = 0
+- `167`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `168`: then psum_out == -50
+- `203`: given a = 0
+- `204`: given w = TernaryWeight { code: 1 }
+- `205`: given psum = 10
+- `206`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `207`: then psum_out == 10
+- `210`: given a = 127
+- `211`: given w = TernaryWeight { code: 1 }
+- `212`: given psum = 0
+- `213`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `214`: then psum_out == 127
+- `255`: given a = 7
+- `256`: given w = TernaryWeight { code: 1 }
+- `257`: given psum = 100
+- `262`: given activations = [1, 2, 3, 4]
+- `263`: given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+- `264`: given size = 2
+- `269`: given a = -128
+- `270`: given w = TernaryWeight { code: 2 }
+- `271`: given psum = 32767
+- `319`: given psum = 10
+- `320`: when (_, psum_out) = systolic_ternary_pe(0, TernaryWeight { code: 1 }, psum)
+- `321`: then psum_out == 10
+- `328`: given a = -128
+- `329`: given w = TernaryWeight { code: 2 }
+- `330`: given psum = 0
+- `331`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `332`: then psum_out == 128
+- `347`: given a = -128
+- `348`: given w = TernaryWeight { code: 1 }
+- `349`: given psum = 0
+- `350`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `351`: then psum_out == -128
+- `354`: given a = 127
+- `355`: given w = TernaryWeight { code: 1 }
+- `356`: given psum = 32767
+- `357`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `358`: then psum_out == 32894
+- `371`: given a = -128
+- `372`: given w = TernaryWeight { code: 2 }
+- `373`: given psum = 0
+- `374`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `375`: then psum_out == -128
+- `378`: given a = 42
+- `379`: given w = TernaryWeight { code: 3 }
+- `380`: given psum = 100
+- `381`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `382`: then psum_out == 100
+- `385`: given a = 42
+- `386`: given w = TernaryWeight { code: 255 }
+- `387`: given psum = 100
+- `388`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `389`: then psum_out == 100
+- `392`: given a = 2147483647
+- `393`: given w = TernaryWeight { code: 2 }
+- `394`: given psum = 0
+- `395`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `396`: then psum_out == -2147483647
+- `408`: given a = 127
+- `409`: given w = TernaryWeight { code: 2 }
+- `410`: given psum = 32767
+- `411`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `412`: then psum_out == 32640
+- `420`: given a = -128
+- `421`: given w = TernaryWeight { code: 1 }
+- `422`: given psum = 0
+- `423`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `424`: then psum_out == -128
+- `442`: given a = 10
+- `443`: given w = TernaryWeight { code: 3 }
+- `444`: given psum = 5
+- `445`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `446`: then psum_out == 5
+- `454`: given a = 127
+- `455`: given w = TernaryWeight { code: 1 }
+- `456`: given psum = 0
+- `457`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `458`: then psum_out == 127
+- `466`: given a = -128
+- `467`: given w = TernaryWeight { code: 1 }
+- `468`: given psum = 0
+- `469`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `470`: then psum_out == -128
+- `478`: given a = 0
+- `479`: given w = TernaryWeight { code: 1 }
+- `480`: given psum = 10
+- `481`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `482`: then psum_out == 10
+- `490`: given a = 127
+- `491`: given w = TernaryWeight { code: 1 }
+- `492`: given psum = 32767
+- `493`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `494`: then psum_out == 32894
+- `502`: given a = 42
+- `503`: given w = TernaryWeight { code: 1 }
+- `504`: given psum = 0
+- `505`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `506`: then psum_out == 42
+- `514`: given a = -50
+- `515`: given w = TernaryWeight { code: 1 }
+- `516`: given psum = 10
+- `517`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `518`: then psum_out == -40
+- `526`: given a = 10
+- `527`: given w = TernaryWeight { code: 2 }
+- `528`: given psum = 0
+- `529`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `530`: then psum_out == -10
+- `547`: given a = 42
+- `548`: given w1 = TernaryWeight { code: 1 }
+- `549`: given w2 = TernaryWeight { code: 2 }
+- `550`: given psum1 = 0
+- `551`: given psum2 = 10
+- `552`: when (a_out1, psum_out1) = systolic_ternary_pe(a, w1, psum1)
+- `553`: when (a_out2, psum_out2) = systolic_ternary_pe(a_out1, w2, psum2)
+- `554`: then a_out2 == 42 && psum_out2 == -32
+- `557`: given a = 42
+- `558`: given w = TernaryWeight { code: 0 }
+- `559`: given psum = 100
+- `560`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `561`: then psum_out == 100
+- `564`: given a = 5
+- `565`: given w1 = TernaryWeight { code: 1 }
+- `566`: given w2 = TernaryWeight { code: 1 }
+- `567`: given psum1 = 0
+- `568`: given psum2 = 0
+- `569`: when (a1, p1) = systolic_ternary_pe(a, w1, psum1)
+- `570`: when (a2, p2) = systolic_ternary_pe(a1, w2, psum2)
+- `571`: then a2 == 5 && p2 == 10
+- `574`: given a = -10
+- `575`: given w = TernaryWeight { code: 2 }
+- `576`: given psum = 0
+- `577`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `578`: then psum_out == 10
+- `607`: given a = 42
+- `608`: given w = TernaryWeight { code: 0 }
+- `609`: given psum = 10
+- `610`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `611`: then psum_out == 10
+- `624`: given a = 127
+- `625`: given w = TernaryWeight { code: 1 }
+- `626`: given psum = 0
+- `627`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `628`: then psum_out == 127
+- `636`: given a = [5]
+- `637`: given w = [TernaryWeight { code: 2 }]
+- `638`: when out = systolic_ternary_array(a, w)
+- `639`: then out.len() == 1 && out[0] == -5
+- `647`: given a = 42
+- `648`: given w = TernaryWeight { code: 0 }
+- `649`: given psum = 100
+- `650`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `651`: then psum_out == 100
+- `658`: given a = 127
+- `659`: given w = TernaryWeight { code: 2 }
+- `660`: given psum = -32768
+- `661`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `662`: then psum_out == -32895
+- `670`: given a = -5
+- `671`: given w = TernaryWeight { code: 1 }
+- `672`: given psum = 0
+- `673`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `674`: then psum_out == -5
+- `694`: given a = 0
+- `695`: given w = TernaryWeight { code: 0 }
+- `696`: given psum = 42
+- `697`: when (_, out) = systolic_ternary_pe(a, w, psum)
+- `698`: then out == 42
+- `701`: given a = [5]
+- `702`: given w = [TernaryWeight { code: 1 }]
+- `703`: when out = systolic_ternary_array(a, w)
+- `704`: then out.len() == 1 && out[0] == 5
+- `707`: given a = -3
+- `708`: given w = TernaryWeight { code: 1 }
+- `709`: given psum = 10
+- `710`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `711`: then psum_out == 7
+- `714`: given a = -3
+- `715`: given w = TernaryWeight { code: 2 }
+- `716`: given psum = 10
+- `717`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `718`: then psum_out == 13
+- `754`: given a = 5
+- `755`: given w = TernaryWeight { code: 0 }
+- `756`: given psum = 10
+- `757`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `758`: then psum_out == 10
+- `767`: given a = 0
+- `768`: given w = TernaryWeight { code: 1 }
+- `769`: given psum = 42
+- `770`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `771`: then psum_out == 42
+- `774`: given a = 5
+- `775`: given w = TernaryWeight { code: 1 }
+- `776`: given psum = 0
+- `777`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `778`: then psum_out == 5
+- `781`: given a = 5
+- `782`: given w = TernaryWeight { code: 2 }
+- `783`: given psum = 0
+- `784`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `785`: then psum_out == -5
+- `788`: given a = 7
+- `789`: given w = TernaryWeight { code: 0 }
+- `790`: given psum = 10
+- `791`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `792`: then psum_out == 10
+- `813`: given a = 3
+- `814`: given w = TernaryWeight { code: 1 }
+- `815`: given psum = 10
+- `816`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `817`: then psum_out == 13
+- `830`: given psum = 10
+- `831`: given w = TernaryWeight { code: 1 }
+- `832`: when (_, psum_out) = systolic_ternary_pe(0, w, psum)
+- `833`: then psum_out == 10
+- `836`: given psum = 7
+- `837`: given w = TernaryWeight { code: 2 }
+- `838`: when (_, psum_out) = systolic_ternary_pe(0, w, psum)
+- `839`: then psum_out == 7
+- `874`: given a = 7
+- `875`: given w = TernaryWeight { code: 0 }
+- `876`: given psum = 42
+- `877`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `878`: then psum_out == 42
+- `885`: given a = 5
+- `886`: given w = TernaryWeight { code: 2 }
+- `887`: given psum = 10
+- `888`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `889`: then psum_out == 5
+- `892`: given a = 7
+- `893`: given w = TernaryWeight { code: 1 }
+- `894`: given psum = 3
+- `895`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `896`: then psum_out == 10
+- `914`: given a = 127
+- `915`: given w = TernaryWeight { code: 0 }
+- `916`: given psum = 1000
+- `917`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `918`: then psum_out == 1000
+- `925`: given a = -5
+- `926`: given w = TernaryWeight { code: 2 }
+- `927`: given psum = 10
+- `928`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `929`: then psum_out == 15
+- `932`: given a = 0
+- `933`: given w = TernaryWeight { code: 0 }
+- `934`: given psum = 100
+- `935`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `936`: then psum_out == 100
+- `959`: given a = 127
+- `960`: given w = TernaryWeight { code: 2 }
+- `961`: given psum = 0
+- `962`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `963`: then psum_out == -127
+- `975`: given a = -128
+- `976`: given w = TernaryWeight { code: 1 }
+- `977`: given psum = 0
+- `978`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `979`: then psum_out == -128
+- `987`: given a = -5
+- `988`: given w = TernaryWeight { code: 2 }
+- `989`: given psum = 10
+- `990`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `991`: then psum_out == 15
+- `1010`: given a = 42
+- `1011`: given w = TernaryWeight { code: 1 }
+- `1012`: given psum = 0
+- `1013`: when (a_out, _) = systolic_ternary_pe(a, w, psum)
+- `1014`: then a_out == 42
+- `1031`: given a = 5
+- `1032`: given w = TernaryWeight { code: 0 }
+- `1033`: given psum = 0
+- `1034`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1035`: then psum_out == 0
+- `1042`: given a = 3
+- `1043`: given w = TernaryWeight { code: 1 }
+- `1044`: given psum = 0
+- `1045`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1046`: then psum_out == 3
+- `1049`: given a = 3
+- `1050`: given w = TernaryWeight { code: 2 }
+- `1051`: given psum = 0
+- `1052`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1053`: then psum_out == -3
+- `1060`: given a = 3
+- `1061`: given w = TernaryWeight { code: 2 }
+- `1062`: given psum = 0
+- `1063`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1064`: then psum_out == -3
+- `1171`: given a = 50
+- `1172`: given w = TernaryWeight { code: 1 }
+- `1173`: given psum = 25
+- `1174`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1175`: then psum_out == 75
+- `1178`: given a = 50
+- `1179`: given w = TernaryWeight { code: 2 }
+- `1180`: given psum = 25
+- `1181`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1182`: then psum_out == -25
+- `1188`: given a = -128
+- `1189`: given w = TernaryWeight { code: 0 }
+- `1190`: given psum = 100
+- `1191`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1192`: then psum_out == 100
+- `1205`: given a = 0
+- `1206`: given w = TernaryWeight { code: 2 }
+- `1207`: given psum = 100
+- `1208`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1209`: then psum_out == 100
+- `1216`: given a = 7
+- `1217`: given w = TernaryWeight { code: 1 }
+- `1218`: given psum = 10
+- `1219`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1220`: then psum_out == 17
+- `1240`: given a = -5
+- `1241`: given w = TernaryWeight { code: 0 }
+- `1242`: given psum = 100
+- `1243`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1244`: then psum_out == 100
+- `1251`: given a = 127
+- `1252`: given w = TernaryWeight { code: 1 }
+- `1253`: given psum = 0
+- `1254`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1255`: then psum_out == 127
+- `1262`: given a = -128
+- `1263`: given w = TernaryWeight { code: 2 }
+- `1264`: given psum = 0
+- `1265`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1266`: then psum_out == 128
+- `1273`: given a = 0
+- `1274`: given w = TernaryWeight { code: 1 }
+- `1275`: given psum = 100
+- `1276`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1277`: then psum_out == 100
+- `1291`: given a = 0
+- `1292`: given w = TernaryWeight { code: 0 }
+- `1293`: given psum = 42
+- `1294`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1295`: then psum_out == 42
+- `1302`: given a = 5
+- `1303`: given w = TernaryWeight { code: 1 }
+- `1304`: given psum = 10
+- `1305`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1306`: then psum_out == 15
+- `1309`: given a = 5
+- `1310`: given w = TernaryWeight { code: -1 }
+- `1311`: given psum = 10
+- `1312`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1313`: then psum_out == 5
+- `1326`: given a = -4
+- `1327`: given w = TernaryWeight { code: -1 }
+- `1328`: given psum = 10
+- `1329`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1330`: then psum_out == 14
+- `1343`: given a = -3
+- `1344`: given w = TernaryWeight { code: 1 }
+- `1345`: given psum = 10
+- `1346`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1347`: then psum_out == 7
+- `1354`: given a = -4
+- `1355`: given w = TernaryWeight { code: 1 }
+- `1356`: given psum = 10
+- `1357`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1358`: then psum_out == 6
+- `1371`: given a = 0
+- `1372`: given w = TernaryWeight { code: 1 }
+- `1373`: given psum = 10
+- `1374`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1375`: then psum_out == 10
+- `1378`: given a = -4
+- `1379`: given w = TernaryWeight { code: 2 }
+- `1380`: given psum = 10
+- `1381`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1382`: then psum_out == 14
+- `1389`: given a = 7
+- `1390`: given w = TernaryWeight { code: 0 }
+- `1391`: given psum = 42
+- `1392`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1393`: then psum_out == 42
+- `1396`: given a = 4
+- `1397`: given w = TernaryWeight { code: 1 }
+- `1398`: given psum = 10
+- `1399`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1400`: then psum_out == 14
+- `1407`: given a = 127
+- `1408`: given w = TernaryWeight { code: 1 }
+- `1409`: given psum = 0
+- `1410`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1411`: then psum_out == 127
+- `1414`: given a = 127
+- `1415`: given w = TernaryWeight { code: 2 }
+- `1416`: given psum = 0
+- `1417`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1418`: then psum_out == -127
+- `1425`: given a = 3
+- `1426`: given w = TernaryWeight { code: 2 }
+- `1427`: given psum = 5
+- `1428`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1429`: then psum_out == 2
+- `1432`: given a = -3
+- `1433`: given w = TernaryWeight { code: 1 }
+- `1434`: given psum = 5
+- `1435`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1436`: then psum_out == 2
+- `1443`: given a = 5
+- `1444`: given w = TernaryWeight { code: 1 }
+- `1445`: given psum = 10
+- `1446`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1447`: then psum_out == 15
+- `1450`: given a = -3
+- `1451`: given w = TernaryWeight { code: 2 }
+- `1452`: given psum = 10
+- `1453`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1454`: then psum_out == 13
+- `1461`: given a = 3
+- `1462`: given w = TernaryWeight { code: 1 }
+- `1463`: given psum = 0
+- `1464`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1465`: then psum_out == 3
+- `1468`: given a = -2
+- `1469`: given w = TernaryWeight { code: 2 }
+- `1470`: given psum = 0
+- `1471`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1472`: then psum_out == 2
+- `1479`: given a = 100
+- `1480`: given w = TernaryWeight { code: 0 }
+- `1481`: given psum = 42
+- `1482`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1483`: then psum_out == 42
+- `1486`: given a = 0
+- `1487`: given w = TernaryWeight { code: 1 }
+- `1488`: given psum = 0
+- `1489`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1490`: then psum_out == 0
+- `1497`: given a = 2
+- `1498`: given w = TernaryWeight { code: 1 }
+- `1499`: given psum = 0
+- `1500`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1501`: then psum_out == 2
+- `1504`: given a = 3
+- `1505`: given w = TernaryWeight { code: 2 }
+- `1506`: given psum = 0
+- `1507`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1508`: then psum_out == -3
+- `1515`: given a = 0
+- `1516`: given w = TernaryWeight { code: 1 }
+- `1517`: given psum = 0
+- `1518`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1519`: then psum_out == 0
+- `1522`: given a = 0
+- `1523`: given w = TernaryWeight { code: 2 }
+- `1524`: given psum = 0
+- `1525`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1526`: then psum_out == 0
+- `1532`: given a = 0
+- `1533`: given w = TernaryWeight { code: 1 }
+- `1534`: given psum = 7
+- `1535`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1536`: then psum_out == 7
+- `1539`: given a = 0
+- `1540`: given w = TernaryWeight { code: 0 }
+- `1541`: given psum = 7
+- `1542`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1543`: then psum_out == 7
+- `1549`: given acc = 7
+- `1550`: given a = 0
+- `1551`: given w = TernaryWeight { code: 2 }
+- `1552`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1553`: then psum_out == 7
+- `1556`: given acc = 0
+- `1557`: given a = 3
+- `1558`: given w = TernaryWeight { code: 1 }
+- `1559`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1560`: then psum_out == 3
+- `1566`: given a = 3
+- `1567`: given w = TernaryWeight { code: 1 }
+- `1568`: given psum = 10
+- `1569`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1570`: then psum_out == 13
+- `1573`: given a = -4
+- `1574`: given w = TernaryWeight { code: 2 }
+- `1575`: given psum = 10
+- `1576`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1577`: then psum_out == 14
+- `1583`: given acc = 0
+- `1584`: given a = 100
+- `1585`: given w = TernaryWeight { code: 1 }
+- `1586`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1587`: then psum_out == 100
+- `1590`: given acc = 0
+- `1591`: given a = 100
+- `1592`: given w = TernaryWeight { code: 2 }
+- `1593`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1594`: then psum_out == -100
+- `1600`: given acc = 100
+- `1601`: given a = 0
+- `1602`: given w = TernaryWeight { code: 0 }
+- `1603`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1604`: then psum_out == 100
+- `1607`: given acc = 0
+- `1608`: given a = 100
+- `1609`: given w = TernaryWeight { code: 1 }
+- `1610`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1611`: then psum_out == 100
+- `1616`: given acc = 100
+- `1617`: given a = 0
+- `1618`: given w = TernaryWeight { code: 0 }
+- `1619`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1620`: then psum_out == 100
+- `1623`: given acc = 0
+- `1624`: given a = 100
+- `1625`: given w = TernaryWeight { code: 1 }
+- `1626`: when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+- `1627`: then psum_out == 100
+- `1634`: given a = 3
+- `1635`: given w = TernaryWeight { code: 1 }
+- `1636`: given psum = 10
+- `1637`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1638`: then psum_out == 13
+- `1641`: given a = -4
+- `1642`: given w = TernaryWeight { code: 2 }
+- `1643`: given psum = 10
+- `1644`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1645`: then psum_out == 14
+- `1650`: given a = 3
+- `1651`: given w = TernaryWeight { code: 1 }
+- `1652`: given psum = 10
+- `1653`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1654`: then psum_out == 13
+- `1657`: given a = -4
+- `1658`: given w = TernaryWeight { code: 2 }
+- `1659`: given psum = 10
+- `1660`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1661`: then psum_out == 14
+- `1667`: given a = 3
+- `1668`: given w = TernaryWeight { code: 1 }
+- `1669`: given psum = 10
+- `1670`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1671`: then psum_out == 13
+- `1674`: given a = -4
+- `1675`: given w = TernaryWeight { code: 2 }
+- `1676`: given psum = 10
+- `1677`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1678`: then psum_out == 14
+- `1685`: given a = 3
+- `1686`: given w = TernaryWeight { code: 1 }
+- `1687`: given psum = 10
+- `1688`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1689`: then psum_out == 13
+- `1692`: given a = -4
+- `1693`: given w = TernaryWeight { code: 2 }
+- `1694`: given psum = 10
+- `1695`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1696`: then psum_out == 14
+- `1704`: given a = 3
+- `1705`: given w = TernaryWeight { code: 1 }
+- `1706`: given psum = 10
+- `1707`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1708`: then psum_out == 13
+- `1711`: given a = -4
+- `1712`: given w = TernaryWeight { code: 2 }
+- `1713`: given psum = 10
+- `1714`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1715`: then psum_out == 14
+- `1724`: given a = 3
+- `1725`: given w = TernaryWeight { code: 1 }
+- `1726`: given psum = 10
+- `1727`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1728`: then psum_out == 13
+- `1731`: given a = -4
+- `1732`: given w = TernaryWeight { code: 2 }
+- `1733`: given psum = 10
+- `1734`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1735`: then psum_out == 14
+- `1744`: given a = 3
+- `1745`: given w = TernaryWeight { code: 1 }
+- `1746`: given psum = 10
+- `1747`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1748`: then psum_out == 13
+- `1751`: given a = -4
+- `1752`: given w = TernaryWeight { code: 2 }
+- `1753`: given psum = 10
+- `1754`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1755`: then psum_out == 14
+- `1765`: given a = 3
+- `1766`: given w = TernaryWeight { code: 1 }
+- `1767`: given psum = 10
+- `1768`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1769`: then psum_out == 13
+- `1772`: given a = -4
+- `1773`: given w = TernaryWeight { code: 2 }
+- `1774`: given psum = 10
+- `1775`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1776`: then psum_out == 14
+- `1787`: given a = 3
+- `1788`: given w = TernaryWeight { code: 1 }
+- `1789`: given psum = 10
+- `1790`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1791`: then psum_out == 13
+- `1794`: given a = -4
+- `1795`: given w = TernaryWeight { code: 2 }
+- `1796`: given psum = 10
+- `1797`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1798`: then psum_out == 14
+- `1810`: given a = 3
+- `1811`: given w = TernaryWeight { code: 1 }
+- `1812`: given psum = 10
+- `1813`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1814`: then psum_out == 13
+- `1817`: given a = -4
+- `1818`: given w = TernaryWeight { code: 2 }
+- `1819`: given psum = 10
+- `1820`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1821`: then psum_out == 14
+- `1834`: given a = 3
+- `1835`: given w = TernaryWeight { code: 1 }
+- `1836`: given psum = 10
+- `1837`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1838`: then psum_out == 13
+- `1841`: given a = -4
+- `1842`: given w = TernaryWeight { code: 2 }
+- `1843`: given psum = 10
+- `1844`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1845`: then psum_out == 14
+- `1859`: given a = 3
+- `1860`: given w = TernaryWeight { code: 1 }
+- `1861`: given psum = 10
+- `1862`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1863`: then psum_out == 13
+- `1866`: given a = -4
+- `1867`: given w = TernaryWeight { code: 2 }
+- `1868`: given psum = 10
+- `1869`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1870`: then psum_out == 14
+- `1885`: given a = 3
+- `1886`: given w = TernaryWeight { code: 1 }
+- `1887`: given psum = 10
+- `1888`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1889`: then psum_out == 13
+- `1892`: given a = -4
+- `1893`: given w = TernaryWeight { code: 2 }
+- `1894`: given psum = 10
+- `1895`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1896`: then psum_out == 14
+- `1912`: given a = 3
+- `1913`: given w = TernaryWeight { code: 1 }
+- `1914`: given psum = 10
+- `1915`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1916`: then psum_out == 13
+- `1919`: given a = -4
+- `1920`: given w = TernaryWeight { code: 2 }
+- `1921`: given psum = 10
+- `1922`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+- `1923`: then psum_out == 14
+
+## specs/igla/race/ternary_dot_sw.t27 — 34 scenario(s), 52 line(s)
+- `67`: given a = [3]
+- `68`: given w = [TernaryWeight { code: 2 }]
+- `69`: when d = ternary_dot(a, w, 0, 0)
+- `70`: then d == -3
+- `95`: given a = [1, 2, 3, 4, 5, 6, 7, 8]
+- `96`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+- `137`: given a = [5]
+- `138`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+- `139`: when d = ternary_dot(a, w, 0, 0)
+- `140`: then d == 5
+- `183`: given a = [5]
+- `184`: given w = [TernaryWeight { code: 2 }]
+- `185`: given idx = 0
+- `186`: given acc = 10
+- `187`: when d = ternary_dot(a, w, idx, acc)
+- `188`: then d == 5
+- `215`: given a = [42]
+- `216`: given w = [TernaryWeight { code: 0 }]
+- `217`: given idx = 0
+- `218`: given acc = 100
+- `219`: when d = ternary_dot(a, w, idx, acc)
+- `220`: then d == 100
+- `277`: given a = [42]
+- `278`: given w = [TernaryWeight { code: 2 }]
+- `279`: given idx = 0
+- `280`: given acc = 0
+- `281`: when d = ternary_dot(a, w, idx, acc)
+- `282`: then d == -42
+- `317`: given a = [77]
+- `318`: given w = [TernaryWeight { code: 0 }]
+- `319`: given idx = 0
+- `320`: given acc = 0
+- `321`: when d = ternary_dot(a, w, idx, acc)
+- `322`: then d == 0
+- `325`: given a = [42]
+- `326`: given w = [TernaryWeight { code: 1 }]
+- `327`: given idx = 0
+- `328`: given acc = 10
+- `329`: when d = ternary_dot(a, w, idx, acc)
+- `330`: then d == 52
+- `401`: given a = [7]
+- `402`: given w = [TernaryWeight { code: 1 }]
+- `403`: given idx = 0
+- `404`: given acc = 0
+- `405`: when d = ternary_dot(a, w, idx, acc)
+- `406`: then d == 7
+- `414`: given a = [7]
+- `415`: given w = [TernaryWeight { code: 2 }]
+- `416`: given idx = 0
+- `417`: given acc = 0
+- `418`: when d = ternary_dot(a, w, idx, acc)
+- `419`: then d == -7
+
+## specs/igla/race/ternary_gemm.t27 — 21 scenario(s), 45 line(s)
+- `366`: given flat = [0; 64]
+- `367`: when e = get_elem_8x8(flat, 8, 0)
+- `368`: then e == 0
+- `469`: given a = [1, -1, 0, 1]
+- `470`: given w = [TernaryWeight { w: -1 }, TernaryWeight { w: 0 }, TernaryWeight { w: 1 }, TernaryWeight { w: -1 }]
+- `492`: given flat = [0; 64]
+- `493`: when e = get_elem_8x8(flat, 8, 8)
+- `494`: then e == 0
+- `497`: given a = []
+- `498`: given w = []
+- `499`: when out = ternary_gemm_8x8(a, w)
+- `500`: then len(out) == 0
+- `512`: given flat = [0; 64]
+- `513`: when e = get_elem_8x8(flat, 255, 255)
+- `514`: then e == 0
+- `554`: given a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+- `555`: given w = [TernaryWeight { code: 0 }; 16]
+- `556`: when out = ternary_gemm_4x4(a, w)
+- `557`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
+- `605`: given a = [0; 16]
+- `606`: given w = [TernaryWeight { code: 1 }; 16]
+- `607`: when out = ternary_gemm_4x4(a, w)
+- `608`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
+- `638`: given phi_val = 1.618
+- `654`: given a = [1, 0, 0, 0, 0, 0, 0, 0] + [0; 56]
+- `655`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+- `656`: when out = ternary_gemm_8x8(a, w)
+- `657`: then out[0] == 1 && out[1] == 0 && out[63] == 0
+- `674`: given a = [0; 16]
+- `675`: given w = [TernaryWeight { code: 1 }; 16]
+- `676`: when out = ternary_gemm_4x4(a, w)
+- `677`: then out[0] == 0 && out[15] == 0
+- `691`: given a = [1] + [0; 63]
+- `692`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+- `693`: when res = ternary_gemm_8x8_as_struct(a, w)
+- `694`: then len(res.data) == 64 && res.data[0] == 1
+- `713`: given flat = [0; 64]
+- `714`: when e = get_elem_8x8(flat, 8, 0)
+- `715`: then e == 0
+- `1031`: given flat = [0; 64]
+- `1032`: when e = get_elem_8x8(flat, 255, 0)
+- `1033`: then e == 0
+- `1127`: given flat = [0; 64]
+- `1128`: when e = get_elem_8x8(flat, 0, 8)
+- `1129`: then e == 0
+
+## specs/igla/race/ternary_mac.t27 — 3 scenario(s), 3 line(s)
+- `232`: given acc = 0
+- `233`: given a = 7
+- `234`: given w = TernaryWeight { code: 1 }
+
+## specs/igla/race/yosys.t27 — 5 scenario(s), 5 line(s)
+- `398`: given props = [Property { name: "p1", clk: "clk", antecedent: "a", consequent: "b", module_name: "m1" }]
+- `403`: given log_text = "PROVED PROVED ADMITTED"
+- `408`: given gold = "gold.v"
+- `409`: given rev = "rev.v"
+- `410`: given top = "mymodule"
+
+## specs/igla/training/low_bit_ternary.t27 — 2 scenario(s), 2 line(s)
+- `91`: given cfg = QuantizationConfig { bit_width: BitWidth.Ternary_2b, symmetric: true, per_channel: false, scale_bits: 8 }
+- `96`: given model = "ckpt_200M"
+
+## specs/igla/training/pilot_pretraining.t27 — 2 scenario(s), 2 line(s)
+- `96`: given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 1000, seq_len: 512, vocab_size: 32000 }
+- `101`: given cp = Checkpoint { step: 500, loss: 2.0, perplexity: 7.4, timestamp: 1700000000 }
+
+## specs/igla/training/roadmap.t27 — 1 scenario(s), 1 line(s)
+- `91`: given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }
+
+## specs/igla/training/scale_up.t27 — 2 scenario(s), 2 line(s)
+- `89`: given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
+- `94`: given teacher = "ckpt_1B"
+
+## specs/isa/registers.t27 — 20 scenario(s), 70 line(s)
+- `330`: given word = TernaryWord{.raw = 0x123456}
+- `331`: and   reg_write(R0, word)
+- `332`: and   result = reg_read(R0)
+- `333`: then result.raw == 0
+- `336`: given before = reg_read(R0)
+- `337`: and   success = reg_write(R0, TernaryWord{.raw = 0xDEADBEEF})
+- `338`: and   after = reg_read(R0)
+- `339`: then success == false and before.raw == after.raw and after.raw == 0
+- `346`: given value = TernaryWord{.raw = 0xABCDEF}
+- `347`: and   success = reg_write(R10, value)
+- `348`: then success == true
+- `351`: given value = TernaryWord{.raw = 0x123456}
+- `352`: and   reg_write(R10, value)
+- `353`: and   result = reg_read(R10)
+- `354`: then result.raw == value.raw
+- `357`: given value = TernaryWord{.raw = 0x123456}
+- `358`: and   success = reg_write(27, value)  // R27 doesn't exist
+- `359`: then success == false
+- `390`: given original_cp = reg_to_coptic(R0)
+- `391`: and   recovered_reg = coptic_to_reg(original_cp)
+- `392`: and   recovered_cp = reg_to_coptic(recovered_reg)
+- `393`: then original_cp == recovered_cp
+- `396`: given original_cp = reg_to_coptic(R15)
+- `397`: and   recovered_reg = coptic_to_reg(original_cp)
+- `398`: and   recovered_cp = reg_to_coptic(recovered_reg)
+- `399`: then original_cp == recovered_cp
+- `406`: given status_write(FLAG_ZERO, true)
+- `407`: and   flag_val = status_read(FLAG_ZERO)
+- `408`: then flag_val == true
+- `411`: given status_write(FLAG_ZERO, true)
+- `412`: and   status_write(FLAG_ZERO, false)
+- `413`: and   flag_val = status_read(FLAG_ZERO)
+- `414`: then flag_val == false
+- `417`: given status_write(FLAG_ZERO, true)
+- `418`: and   status_write(FLAG_NEG, true)
+- `419`: and   zero_val = status_read(FLAG_ZERO)
+- `420`: and   neg_val = status_read(FLAG_NEG)
+- `421`: then zero_val == true and neg_val == true
+- `428`: given arg0 = ARG0 and arg1 = ARG1 and sp = SP and fp = FP
+- `429`: then arg0 == R1 and arg1 == R2 and sp == R17 and fp == R16
+- `452`: given original = reg_read(R0)
+- `453`: and   reg_write(R0, TernaryWord{.raw = 0xFFFFFFFF})
+- `454`: and   after = reg_read(R0)
+- `465`: given seen = [false; 256]  // Track seen code points
+- `466`: and   all_unique = true
+- `467`: and   idx = 0
+- `506`: given r0 = reg_read(R0)
+- `507`: and   r1 = reg_read(R1)
+- `508`: and   r10 = reg_read(R10)
+- `509`: and   r26 = reg_read(R26)
+- `516`: given value = TernaryWord{.raw = 0x123456}
+- `517`: and   reg_write(R10, value)
+- `518`: and   result = reg_read(R10)
+- `529`: given i = 0
+- `543`: given r0_val = reg_read(R0)
+- `544`: and   r1_val = reg_read(R1)
+- `545`: and   r10_val = reg_read(R10)
+- `546`: and   r26_val = reg_read(R26)
+- `547`: then r0_val.raw == 0 and r1_val.raw == 0 and r10_val.raw == 0 and r26_val.raw == 0
+- `551`: given queen_idx = R0
+- `552`: and   queen_cp = reg_to_coptic(queen_idx)
+- `553`: then queen_idx == 0 and queen_cp == 0x03B1  // 1635
+- `556`: given agents = AGENT_COUNT
+- `557`: and   registers = NUM_REGISTERS
+- `558`: then agents == registers and registers == 27
+- `562`: given a = TernaryWord{.raw = 0x123}
+- `563`: and   b = TernaryWord{.raw = 0x456}
+- `564`: and   reg_write(R10, a)
+- `565`: and   result = reg_read(R10)
+- `566`: then result.raw == a.raw
+
+## specs/isa/ternary_control_flow.t27 — 17 scenario(s), 56 line(s)
+- `224`: given offset = 10
+- `225`: and   taken = branch_if(TRIT_POS, offset)
+- `226`: then taken == true
+- `229`: given offset = 10
+- `230`: and   taken = branch_if(TRIT_ZERO, offset)
+- `231`: then taken == false
+- `234`: given offset = 10
+- `235`: and   taken = branch_if_not(TRIT_ZERO, offset)
+- `236`: then taken == true
+- `239`: given offset = 5
+- `240`: and   taken = branch_cond(TRIT_ZERO, COND_EQ, offset)
+- `241`: then taken == true
+- `244`: given offset = 5
+- `245`: and   taken = branch_cond(TRIT_POS, COND_EQ, offset)
+- `246`: then taken == false
+- `249`: given offset = 7
+- `250`: and   taken = branch_cond(TRIT_POS, COND_POS, offset)
+- `251`: then taken == true
+- `254`: given offset = 3
+- `255`: and   taken = branch_cond(TRIT_NEG, COND_NEG, offset)
+- `256`: then taken == true
+- `259`: given offset = 15
+- `260`: and   taken = branch_cond(TRIT_NEG, COND_NC, offset)
+- `261`: then taken == true
+- `264`: given offset = 10
+- `265`: and   pc = pc_relative(offset)
+- `266`: then pc == 10
+- `269`: given offset = -5
+- `270`: and   pc = pc_relative(offset)
+- `271`: then pc == 0xFFFFFFFF  // -5 wrapped
+- `306`: given lr : u32 = 0
+- `307`: and   pc_set_to(50)
+- `308`: and   jump_link(100, &lr)
+- `309`: then lr == 50
+- `312`: given lr : u32 = 50
+- `313`: and   ret(lr)
+- `315`: then true
+- `324`: given a = TRIT_NEG
+- `325`: and   b = TRIT_ZERO
+- `326`: and   c = TRIT_POS
+- `327`: and   r1 = compare(a, a)
+- `328`: and   r2 = compare(b, b)
+- `329`: and   r3 = compare(c, c)
+- `333`: given r1 = compare(TRIT_NEG, TRIT_POS)
+- `334`: and   r2 = compare(TRIT_POS, TRIT_NEG)
+- `338`: given v = TRIT_ZERO
+- `339`: and   b1 = branch_if(v, 5)
+- `340`: and   b2 = branch_if_not(v, 5)
+- `344`: given v = TRIT_POS
+- `345`: and   b1 = branch_if(v, 5)
+- `346`: and   b2 = branch_if_not(v, 5)
+- `350`: given pc_before = pc_relative(0)
+- `351`: and   jump_relative(10)
+- `352`: and   pc_after = pc_read()
+- `353`: and   jump_relative(-10)
+- `354`: and   pc_final = pc_read()
+
+## specs/isa/ternary_memory.t27 — 24 scenario(s), 98 line(s)
+- `318`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0x123}}
+- `319`: and   value = mem_load(memory, 1)
+- `320`: then value.raw == 0
+- `323`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `324`: and   word = TernaryWord{.raw = 0xABC}
+- `325`: and   success = mem_store(memory, 1, word)
+- `326`: and   result = mem_load(memory, 1)
+- `327`: then success == true and result.raw == 0xABC
+- `330`: given memory = []TernaryWord{TernaryWord{.raw = 0}}
+- `331`: and   value = mem_load(memory, 999)
+- `332`: then value.raw == 0
+- `335`: given memory = []TernaryWord{TernaryWord{.raw = 0}}
+- `336`: and   word = TernaryWord{.raw = 0xABC}
+- `337`: and   success = mem_store(memory, 999, word)
+- `338`: then success == false
+- `341`: given memory = []TernaryWord{TernaryWord{.raw = 0x123}, TernaryWord{.raw = 0x456}}
+- `342`: and   value = mem_load_aligned(memory, 3, 3)
+- `343`: then value.raw == 0x456
+- `346`: given memory = []TernaryWord{TernaryWord{.raw = 0x123}, TernaryWord{.raw = 0x456}}
+- `347`: and   value = mem_load_aligned(memory, 2, 3)
+- `348`: then value.raw == 0
+- `351`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `352`: and   word = TernaryWord{.raw = 0xABC}
+- `353`: and   success = mem_store_aligned(memory, 3, word, 3)
+- `354`: and   result = mem_load(memory, 3)
+- `355`: then success == true and result.raw == 0xABC
+- `358`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `359`: and   word = TernaryWord{.raw = 0xABC}
+- `360`: and   success = mem_store_aligned(memory, 2, word, 3)
+- `361`: then success == false
+- `364`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `365`: and   sp : u32 = 3
+- `366`: and   word = TernaryWord{.raw = 0xDEF}
+- `367`: and   push_ok = mem_push(memory, &sp, word)
+- `368`: and   popped = mem_pop(memory, &sp)
+- `369`: then push_ok == true and popped.raw == 0xDEF and sp == 3
+- `372`: given memory = []TernaryWord{}
+- `373`: and   sp : u32 = 0
+- `374`: and   word = TernaryWord{.raw = 0x123}
+- `375`: and   success = mem_push(memory, &sp, word)
+- `376`: then success == false
+- `379`: given src = []TernaryWord{TernaryWord{.raw = 0x111}, TernaryWord{.raw = 0x222}}
+- `380`: and   dst = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `381`: and   success = mem_copy(dst, 0, src, 0, 2)
+- `382`: and   v0 = mem_load(dst, 0)
+- `383`: and   v1 = mem_load(dst, 1)
+- `384`: then success == true and v0.raw == 0x111 and v1.raw == 0x222
+- `387`: given memory = []TernaryWord{TernaryWord{.raw = 0x111}, TernaryWord{.raw = 0x222}, TernaryWord{.raw = 0x333}}
+- `388`: and   success = mem_copy(memory, 0, memory, 1, 2)
+- `389`: and   v0 = mem_load(memory, 0)
+- `390`: and   v1 = mem_load(memory, 1)
+- `391`: then success == true and v0.raw == 0x222 and v1.raw == 0x333
+- `394`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}}
+- `395`: and   word = TernaryWord{.raw = 0xABC}
+- `396`: and   success = mem_fill(memory, 0, word, 2)
+- `397`: then success == true
+- `400`: given virt = 10
+- `401`: and   base = 100
+- `402`: and   limit = 50
+- `403`: and   phys = virt_to_phys(virt, base, limit)
+- `404`: then phys == 110
+- `407`: given virt = 100
+- `408`: and   base = 10
+- `409`: and   limit = 50
+- `410`: and   phys = virt_to_phys(virt, base, limit)
+- `411`: then phys == 0xFFFFFFFF
+- `414`: given word = TernaryWord{.raw = 0}
+- `415`: and   packed = word_pack_trit(word, 5, TRIT_POS)
+- `416`: and   extracted = word_extract_trit(packed, 5)
+- `417`: then extracted == TRIT_POS
+- `420`: given word = TernaryWord{.raw = 0xFFFFFFFF}
+- `421`: and   packed = word_pack_trit(word, 0, TRIT_NEG)
+- `422`: and   extracted = word_extract_trit(packed, 0)
+- `423`: then extracted == TRIT_NEG
+- `426`: given word = TernaryWord{.raw = 0xFFFFFFFF}
+- `427`: and   packed = word_pack_trit(word, 1, TRIT_ZERO)
+- `428`: and   extracted = word_extract_trit(packed, 1)
+- `429`: then extracted == TRIT_ZERO
+- `446`: given memory = []TernaryWord{TernaryWord{.raw = 0x123}, TernaryWord{.raw = 0x456}}
+- `447`: and   before = mem_load(memory, 1)
+- `448`: and   after = mem_load(memory, 1)
+- `452`: given memory = []TernaryWord{TernaryWord{.raw = 0x123}}
+- `453`: and   word = TernaryWord{.raw = 0xABC}
+- `454`: and   mem_store(memory, 0, word)
+- `455`: and   result = mem_load(memory, 0)
+- `459`: given memory = []TernaryWord{TernaryWord{.raw = 0}}
+- `460`: and   sp_before : u32 = 5
+- `461`: and   mem_push(memory, &sp_before, TernaryWord{.raw = 0})
+- `465`: given memory = []TernaryWord{TernaryWord{.raw = 0x123}}
+- `466`: and   sp_before : u32 = 3
+- `467`: and   mem_pop(memory, &sp_before)
+- `471`: given memory = []TernaryWord{TernaryWord{.raw = 0x111}, TernaryWord{.raw = 0x222}, TernaryWord{.raw = 0x333}}
+- `472`: and   mem_copy(memory, 0, memory, 1, 2)
+- `473`: and   v0 = mem_load(memory, 0)
+- `474`: and   v1 = mem_load(memory, 1)
+- `479`: given prot = []u8{0, 0, 0}
+- `480`: and   mem_protect([]TernaryWord{}, 1, PERM_READ, prot)
+- `481`: and   new_perm = prot[1]
+
+## specs/math/e8_lie_algebra.t27 — 4 scenario(s), 12 line(s)
+- `289`: given ev = e9_eigenvalues()
+- `290`: and   phi_sq = constants::PHI * constants::PHI
+- `291`: then abs(ev.values[5] - phi_sq) < 1.0e-14
+- `294`: given ev = e9_eigenvalues()
+- `295`: and   phi_inv_sq = 1.0 / (constants::PHI * constants::PHI)
+- `296`: then abs(ev.values[1] - phi_inv_sq) < 1.0e-14
+- `313`: given phi_sq = constants::PHI * constants::PHI
+- `314`: and   residual = phi_sq * phi_sq - 3.0 * phi_sq + 1.0
+- `315`: then abs(residual) < 1.0e-14
+- `319`: given val = constants::PHI * constants::PHI + 1.0
+- `320`: and   residual = val * val - 5.0 * val + 5.0
+- `321`: then abs(residual) < 1.0e-14
+
+## specs/math/pellis_precision_verify.t27 — 4 scenario(s), 13 line(s)
+- `130`: given result = pellis_pre_registered_checkpoint()
+- `131`: and   pellis_str = format(result.pellis_f64, ".15f")
+- `132`: then pellis_str.starts_with(PELLIS_FIRST_15_DIGITS)
+- `135`: given phi = sacred_physics::PHI
+- `136`: and   prefix = PHI_100DIGITS.substring(0, 17)  // First 17 chars
+- `137`: and   phi_str = format(phi, ".15f")
+- `138`: then phi_str.starts_with("1.6180339887498948")
+- `145`: given pellis_prefix = PELLIS_50DIGITS.substring(0, 13)
+- `146`: and   codata_prefix = ALPHA_INV_CODATA_2022.substring(0, 13)
+- `147`: then pellis_prefix == codata_prefix
+- `178`: given result = pellis_pre_registered_checkpoint()
+- `179`: and   lower = 137.035999100
+- `180`: and   upper = 137.035999200
+
+## specs/math/phi_split_optimality.t27 — 10 scenario(s), 26 line(s)
+- `232`: given steps = self_similarity_proof_steps()
+- `233`: and last_step = steps[3]
+- `234`: then last_step.result.contains("1/phi") == true
+- `241`: given steps = optimal_rounding_proof_steps()
+- `242`: and verification_step = steps[2]
+- `243`: then verification_step.result.contains("7/7") == true
+- `246`: given (exp, mant) = optimal_ratio_by_self_similarity(15)
+- `247`: and available = 14
+- `248`: then exp + mant == available
+- `251`: given (exp, mant) = optimal_ratio_by_self_similarity(31)
+- `252`: and ratio = (exp as f64) / (mant as f64)
+- `253`: then abs(ratio - PHI_TARGET) < 0.05
+- `256`: given (exp, mant, phi_dist) = optimal_allocation_by_rounding(4)
+- `257`: then exp == 1 and mant == 2 and phi_dist < 0.05
+- `260`: given (exp, mant, phi_dist) = optimal_allocation_by_rounding(32)
+- `261`: then exp == 12 and mant == 19 and phi_dist < 0.02
+- `268`: given verification = verify_7_7_match()
+- `269`: and all_match = forall i in 0..verification.length(), verification[i].matches == true
+- `270`: then all_match == true
+- `273`: given (exp, mant) = optimal_ratio_by_am_gm(10)
+- `274`: and available = 9
+- `275`: then abs(exp as f64 - mant as f64) <= 1.0
+- `278`: given (exp_amgm, mant_amgm) = optimal_ratio_by_am_gm(15)
+- `279`: and (exp_phi, mant_phi) = optimal_ratio_by_self_similarity(15)
+- `280`: then exp_amgm != exp_phi or mant_amgm != mant_phi
+- `313`: given (e, m, phi_dist) = optimal_allocation_by_rounding(16)
+
+## specs/math/sacred_physics.t27 — 11 scenario(s), 40 line(s)
+- `226`: given trinity = TRINITY
+- `227`: and   expected = 3.0
+- `228`: and   tolerance = MAX_ABS_ERROR_TRINITY
+- `229`: when diff = abs(trinity - expected)
+- `230`: then diff < tolerance
+- `234`: given phi_sq = PHI * PHI
+- `235`: and   phi_inv_sq = PHI_INV * PHI_INV
+- `236`: and   trinity = phi_sq + phi_inv_sq
+- `237`: then abs(trinity - 3.0) < 1e-12
+- `241`: given gamma_expected = pow(PHI, -3.0)
+- `242`: and   gamma_actual = GAMMA_LQG
+- `243`: then abs(gamma_expected - gamma_actual) < 1e-15
+- `247`: given c_threshold = C_THRESHOLD
+- `248`: and   phi_inv = PHI_INV
+- `249`: then abs(c_threshold - phi_inv) < 1e-15
+- `253`: given t_sec = T_PRESENT_SEC
+- `254`: and   t_ms = T_PRESENT_MS
+- `255`: then abs(t_ms - t_sec * 1000.0) < 1e-12
+- `264`: given trinity_value = sin2_theta12_trinity()
+- `265`: and juno_center = 0.3092
+- `266`: and juno_uncertainty = 0.0054
+- `267`: and delta = abs(trinity_value - juno_center)
+- `268`: then delta < juno_uncertainty
+- `275`: given report = verify_sacred_physics()
+- `276`: and   tolerance = MAX_REL_ERROR_G
+- `277`: when rel_error = report.g_rel_error
+- `278`: then rel_error < tolerance
+- `282`: given report = verify_sacred_physics()
+- `283`: and   tolerance = MAX_REL_ERROR_OMEGA
+- `284`: when rel_error = report.omega_rel_error
+- `285`: then rel_error < tolerance
+- `347`: given result = phi_pow(2)
+- `348`: and expected = PHI + 1.0
+- `349`: then abs(result - expected) < 1e-15
+- `353`: given result = phi_pow(3)
+- `354`: and expected = PHI * PHI * PHI
+- `355`: then abs(result - expected) < 1e-15
+- `359`: given result = phi_pow(-2)
+- `360`: and expected = PHI_INV * PHI_INV
+- `361`: then abs(result - expected) < 1e-15
+
+## specs/math/zamolodchikov_e8.t27 — 2 scenario(s), 10 line(s)
+- `205`: given m = mass_ratio(2)
+- `206`: and   expected = 2.0 * cos(constants::PI / 5.0)
+- `207`: then abs(m - expected) < 1.0e-14
+- `238`: given r1 = golden_ratio_m2_m1()
+- `239`: and   r2 = golden_ratio_m6_m3()
+- `240`: and   r3 = golden_ratio_m7_m4()
+- `241`: and   r4 = golden_ratio_m8_m5()
+- `242`: then abs(r1 - r2) < 1.0e-10
+- `243`: and  abs(r2 - r3) < 1.0e-10
+- `244`: and  abs(r3 - r4) < 1.0e-10
+
+## specs/ml/igla_champion_capsule.t27 — 10 scenario(s), 36 line(s)
+- `55`: given b1      = BETA1_CANONICAL
+- `56`: and   phi_inv = 1.0 / PHI
+- `57`: when  diff    = abs(b1 - phi_inv)
+- `58`: then  diff < 1e-14
+- `62`: given wd       = WEIGHT_DECAY_CANONICAL
+- `63`: and   phi_inv  = 1.0 / PHI
+- `64`: and   phi_inv3 = phi_inv * phi_inv * phi_inv
+- `65`: when  diff     = abs(wd - phi_inv3)
+- `66`: then  diff < 1e-14
+- `70`: given wd     = WEIGHT_DECAY_CANONICAL
+- `71`: and   closed = 1.0 / (2.0 * PHI + 1.0)
+- `72`: when  diff   = abs(wd - closed)
+- `73`: then  diff < 1e-14
+- `77`: given lr = LR_CANONICAL
+- `78`: and   wd = WEIGHT_DECAY_CANONICAL
+- `79`: then  abs(lr - wd) < 1e-14
+- `83`: given wrong = PHI_INV3_HALF_WRONG
+- `84`: and   wd    = WEIGHT_DECAY_CANONICAL
+- `85`: when  diff  = abs(wrong - wd / 2.0)
+- `86`: then  diff < 1e-14
+- `90`: given phi      = PHI
+- `91`: when  identity = phi * phi + 1.0 / (phi * phi)
+- `92`: and   diff     = abs(identity - 3.0)
+- `93`: then  diff < 1e-14
+- `98`: given unique  = CORPUS_UNIQUE_TOKENS
+- `99`: and   min_tok = CHINCHILLA_MIN_UNIQUE
+- `100`: then  unique < min_tok
+- `113`: given bpb     = CHAMPION_BPB
+- `114`: and   ceiling = RANDOM_CHAR_BPB_CEILING
+- `115`: then bpb < ceiling
+- `124`: given wd    = WEIGHT_DECAY_CANONICAL
+- `125`: and   wrong = PHI_INV3_HALF_WRONG
+- `126`: then abs(wd - wrong) > 0.1
+- `134`: given phi = PHI
+- `135`: when  _   = phi * phi + 1.0 / (phi * phi)
+- `136`: then  elapsed_time_ns < 100
+
+## specs/ml/optimizer/adamw.t27 — 62 scenario(s), 325 line(s)
+- `155`: given beta = 0.9
+- `156`: and   t = 1
+- `157`: when result = compute_bias_correction(beta, t)
+- `158`: then approximately_equal(result, 0.1)
+- `161`: given beta = 0.9
+- `162`: and   t = 10
+- `163`: when result = compute_bias_correction(beta, t)
+- `164`: then result < 1.0
+- `165`: and   result > 0.0
+- `168`: given m_prev = 0.0
+- `169`: and   grad = 1.0
+- `170`: and   beta1 = 0.9
+- `171`: when result = update_first_moment(m_prev, grad, beta1)
+- `172`: then approximately_equal(result, 0.1) // 0.9 * 0 + 0.1 * 1
+- `175`: given m_prev = 0.5
+- `176`: and   grad = 1.0
+- `177`: and   beta1 = 0.9
+- `178`: when result = update_first_moment(m_prev, grad, beta1)
+- `179`: then approximately_equal(result, 0.9 * 0.5 + 0.1)
+- `182`: given v_prev = 0.0
+- `183`: and   grad = 2.0
+- `184`: and   beta2 = 0.999
+- `185`: when result = update_second_moment(v_prev, grad, beta2)
+- `186`: then approximately_equal(result, 0.001 * 4.0) // 0.999 * 0 + 0.001 * 4
+- `189`: given m = 0.1
+- `190`: and   v = 0.01
+- `191`: and   lr_t = 0.001
+- `192`: and   epsilon = 1e-8
+- `193`: when result = compute_update(m, v, lr_t, epsilon)
+- `194`: then result > 0.0
+- `197`: given params = [1.0, 2.0, 3.0]
+- `198`: and   lr = 0.01
+- `199`: and   weight_decay = 0.1
+- `200`: when result = apply_weight_decay(params, lr, weight_decay)
+- `201`: then result[0] < 1.0
+- `202`: and   result[1] < 2.0
+- `203`: and   result[2] < 3.0
+- `206`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
+- `207`: and   state = init(config, 1)
+- `208`: and   params = [1.0]
+- `209`: and   grads = [0.1]
+- `210`: when result = step(state, params, grads)
+- `211`: then result.updated_params.len == 1
+- `214`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
+- `215`: and   state = init(config, 1)
+- `216`: and   params = [1.0]
+- `217`: and   grads = [0.0] // No gradient, only weight decay
+- `218`: when result = step(state, params, grads)
+- `219`: then result.updated_params[0] < 1.0
+- `222`: given v = 0.05
+- `223`: and   v_max = 0.03
+- `224`: when result = amsgrad_update(v, v_max)
+- `225`: then result == 0.05
+- `228`: given v = 0.02
+- `229`: and   v_max = 0.05
+- `230`: when result = amsgrad_update(v, v_max)
+- `231`: then result == 0.05
+- `234`: given config = AdamWConfig{.beta1 = 0.9, .beta2 = 0.999, .use_phi_betas = true}
+- `235`: when beta1 = get_effective_beta(config, "beta1")
+- `236`: and   beta2 = get_effective_beta(config, "beta2")
+- `237`: then approximately_equal(beta1, PHI_BETA1)
+- `238`: and   approximately_equal(beta2, PHI_BETA2)
+- `241`: given config = AdamWConfig{.beta1 = 0.85, .beta2 = 0.995, .use_phi_betas = false}
+- `242`: when beta1 = get_effective_beta(config, "beta1")
+- `243`: and   beta2 = get_effective_beta(config, "beta2")
+- `244`: then approximately_equal(beta1, 0.85)
+- `245`: and   approximately_equal(beta2, 0.995)
+- `248`: given config = AdamWConfig{}
+- `249`: and   state = init(config, 10)
+- `250`: and   params = random_input(10)
+- `251`: and   grads = random_input(10)
+- `252`: when result = step(state, params, grads)
+- `253`: then result.step_norm >= 0.0 // Step was executed
+- `260`: given config = any_adamw_config()
+- `261`: and   state = init(config, 100)
+- `262`: and   params = random_input(100)
+- `263`: and   grads = random_input(100)
+- `264`: when result = step(state, params, grads)
+- `265`: then result.updated_params.len == 100
+- `268`: given config = any_adamw_config()
+- `269`: and   state = init(config, 50)
+- `270`: then state.m.len == 50
+- `271`: and   state.v.len == 50
+- `274`: given config = any_adamw_config()
+- `275`: and   state = init(config, 10)
+- `276`: and   params = finite_input(10)
+- `277`: and   grads = bounded_input(10, -1.0, 1.0)
+- `278`: and   result = step(state, params, grads)
+- `279`: then all(result.m, is_finite)
+- `282`: given config = any_adamw_config()
+- `283`: and   state = init(config, 10)
+- `284`: and   params = finite_input(10)
+- `285`: and   grads = finite_input(10)
+- `286`: and   result = step(state, params, grads)
+- `287`: then all(result.v, fn(x) x >= 0.0)
+- `290`: given beta = random_gf16_in_range(0.0, 0.999)
+- `291`: and   t = random_u64_in_range(1, 1000)
+- `292`: when bc = compute_bias_correction(beta, t)
+- `293`: then bc >= 0.0
+- `294`: and   bc <= 1.0
+- `301`: given params = [-1.0, 0.0, 1.0]
+- `302`: and   lr = 0.01
+- `303`: and   weight_decay = 0.1
+- `304`: when result = apply_weight_decay(params, lr, weight_decay)
+- `305`: then result[0] < 0.0
+- `306`: and   result[2] > 0.0
+- `309`: given config = AdamWConfig{.amsgrad = true}
+- `310`: and   state = init(config, 10)
+- `311`: and   params = random_input(10)
+- `312`: and   grads = random_input(10)
+- `313`: and   result1 = step(state, params, grads)
+- `314`: and   result2 = step(state, result1.updated_params, grads)
+- `315`: then all_pairs(result1.v_max, result2.v_max, fn(a, b) b >= a)
+- `318`: given v = 0.0
+- `319`: and   epsilon = 1e-8
+- `320`: when denom = sqrt(v) + epsilon
+- `321`: then denom > 0.0
+- `328`: given config = any_adamw_config()
+- `329`: when result = init(config, 100)
+- `330`: then elapsed_time_us < 50
+- `333`: given config = any_adamw_config()
+- `334`: when result = init(config, 1000000)
+- `335`: then elapsed_time_ms < 20
+- `338`: given config = any_adamw_config()
+- `339`: and   state = init(config, 100)
+- `340`: and   params = random_input(100)
+- `341`: and   grads = random_input(100)
+- `342`: when result = step(state, params, grads)
+- `343`: then elapsed_time_us < 200
+- `346`: given config = any_adamw_config()
+- `347`: and   state = init(config, 10000)
+- `348`: and   params = random_input(10000)
+- `349`: and   grads = random_input(10000)
+- `350`: when result = step(state, params, grads)
+- `351`: then elapsed_time_ms < 10
+- `354`: given config = any_adamw_config()
+- `355`: and   state = init(config, 1000000)
+- `356`: and   params = random_input(1000000)
+- `357`: and   grads = random_input(1000000)
+- `358`: when result = step(state, params, grads)
+- `359`: then elapsed_time_ms < 200
+- `362`: given beta = 0.9
+- `363`: and   t = 100
+- `364`: when result = compute_bias_correction(beta, t)
+- `365`: then elapsed_time_ns < 50
+- `368`: given v = random_positive_gf16()
+- `369`: and   v_max = random_positive_gf16()
+- `370`: when result = amsgrad_update(v, v_max)
+- `371`: then elapsed_time_ns < 10
+- `597`: given beta = 0.9
+- `598`: and   t = 1
+- `599`: when result = compute_bias_correction(beta, t)
+- `600`: then approximately_equal(result, 0.1)
+- `603`: given beta = 0.9
+- `604`: and   t = 10
+- `605`: when result = compute_bias_correction(beta, t)
+- `606`: then result < 1.0
+- `607`: and   result > 0.0
+- `610`: given m_prev = 0.0
+- `611`: and   grad = 1.0
+- `612`: and   beta1 = 0.9
+- `613`: when result = update_first_moment(m_prev, grad, beta1)
+- `614`: then approximately_equal(result, 0.1) // 0.9 * 0 + 0.1 * 1
+- `617`: given m_prev = 0.5
+- `618`: and   grad = 1.0
+- `619`: and   beta1 = 0.9
+- `620`: when result = update_first_moment(m_prev, grad, beta1)
+- `621`: then approximately_equal(result, 0.9 * 0.5 + 0.1)
+- `624`: given v_prev = 0.0
+- `625`: and   grad = 2.0
+- `626`: and   beta2 = 0.999
+- `627`: when result = update_second_moment(v_prev, grad, beta2)
+- `628`: then approximately_equal(result, 0.001 * 4.0)
+- `631`: given m = 0.1
+- `632`: and   v = 0.01
+- `633`: and   lr_t = 0.001
+- `634`: and   epsilon = 1e-8
+- `635`: when result = compute_update(m, v, lr_t, epsilon)
+- `636`: then result > 0.0
+- `639`: given params = [1.0, 2.0, 3.0]
+- `640`: and   lr = 0.01
+- `641`: and   weight_decay = 0.1
+- `642`: when result = apply_weight_decay(params, lr, weight_decay)
+- `643`: then result[0] < 1.0
+- `644`: and   result[1] < 2.0
+- `645`: and   result[2] < 3.0
+- `648`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
+- `649`: and   state = init(config, 1)
+- `650`: and   params = [1.0]
+- `651`: and   grads = [0.1]
+- `652`: when result = step(state, params, grads)
+- `653`: then result.updated_params.len == 1
+- `656`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
+- `657`: and   state = init(config, 1)
+- `658`: and   params = [1.0]
+- `659`: and   grads = [0.0]
+- `660`: when result = step(state, params, grads)
+- `661`: then result.updated_params[0] < 1.0
+- `664`: given v = 0.05
+- `665`: and   v_max = 0.03
+- `666`: when result = amsgrad_update(v, v_max)
+- `667`: then result == 0.05
+- `670`: given v = 0.02
+- `671`: and   v_max = 0.05
+- `672`: when result = amsgrad_update(v, v_max)
+- `673`: then result == 0.05
+- `676`: given config = AdamWConfig{}
+- `677`: and   state = init(config, 10)
+- `678`: and   params = random_input(10)
+- `679`: and   grads = random_input(10)
+- `680`: when result = step(state, params, grads)
+- `681`: then result.step_norm >= 0.0
+- `753`: given (b1, b2, wd) = get_effective_betas(PhiVariant.Canonical)
+- `754`: then approximately_equal(b1, PHI_CANONICAL_BETA1)  // ~ 0.618
+- `755`: and  approximately_equal(b2, 0.999)
+- `756`: and  approximately_equal(wd, PHI_CANONICAL_WEIGHT_DECAY) // ~ 0.236068
+- `761`: given (b1, b2, wd) = get_effective_betas(PhiVariant.Damped)
+- `762`: then approximately_equal(b1, PHI_DAMPED_BETA1)  // ~ 0.556
+- `763`: and  approximately_equal(b2, DEFAULT_BETA2)     // 0.999
+- `764`: and  approximately_equal(wd, DEFAULT_WEIGHT_DECAY) // 0.01
+- `769`: given (b1, b2, wd) = get_effective_betas(PhiVariant.TunedStd)
+- `770`: then approximately_equal(b1, 0.9)
+- `771`: and  approximately_equal(b2, 0.999)
+- `772`: and  approximately_equal(wd, 0.01)
+- `777`: given (b1, b2, wd) = get_effective_betas(PhiVariant.RandomRat)
+- `778`: then approximately_equal(b1, RATIONAL_BETA1)       // 4/7 ~ 0.5714
+- `779`: and  approximately_equal(b2, DEFAULT_BETA2)         // 0.999
+- `780`: and  approximately_equal(wd, RATIONAL_WEIGHT_DECAY) // 7/30 ~ 0.2333
+- `790`: given n_steps = 1000  // mini-run for CI; full run uses 81000
+- `791`: and   seed = 43
+- `792`: and   bpb_a = run_adamw(PhiVariant.Canonical, n_steps, seed)
+- `793`: and   bpb_b = run_adamw(PhiVariant.Damped, n_steps, seed)
+- `794`: and   bpb_c = run_adamw(PhiVariant.TunedStd, n_steps, seed)
+- `795`: and   bpb_d = run_adamw(PhiVariant.RandomRat, n_steps, seed)
+- `796`: then all_finite([bpb_a, bpb_b, bpb_c, bpb_d])
+- `797`: and  all_positive([bpb_a, bpb_b, bpb_c, bpb_d])
+- `806`: given config = any_adamw_config()
+- `807`: and   state = init(config, 100)
+- `808`: and   params = random_input(100)
+- `809`: and   grads = random_input(100)
+- `810`: when result = step(state, params, grads)
+- `811`: then result.updated_params.len == 100
+- `814`: given config = any_adamw_config()
+- `815`: and   state = init(config, 50)
+- `816`: then state.m.len == 50
+- `817`: and   state.v.len == 50
+- `820`: given config = any_adamw_config()
+- `821`: and   state = init(config, 10)
+- `822`: and   params = finite_input(10)
+- `823`: and   grads = bounded_input(10, -1.0, 1.0)
+- `824`: and   result = step(state, params, grads)
+- `825`: then all(result.m, is_finite)
+- `828`: given config = any_adamw_config()
+- `829`: and   state = init(config, 10)
+- `830`: and   params = finite_input(10)
+- `831`: and   grads = finite_input(10)
+- `832`: and   result = step(state, params, grads)
+- `833`: then all(result.v, fn(x) x >= 0.0)
+- `836`: given beta = random_gf16_in_range(0.0, 0.999)
+- `837`: and   t = random_u64_in_range(1, 1000)
+- `838`: when bc = compute_bias_correction(beta, t)
+- `839`: then bc >= 0.0
+- `840`: and   bc <= 1.0
+- `843`: given params = [-1.0, 0.0, 1.0]
+- `844`: and   lr = 0.01
+- `845`: and   weight_decay = 0.1
+- `846`: when result = apply_weight_decay(params, lr, weight_decay)
+- `847`: then result[0] < 0.0
+- `848`: and   result[2] > 0.0
+- `851`: given config = AdamWConfig{.amsgrad = true}
+- `852`: and   state = init(config, 10)
+- `853`: and   params = random_input(10)
+- `854`: and   grads = random_input(10)
+- `855`: and   result1 = step(state, params, grads)
+- `856`: and   result2 = step(state, result1.updated_params, grads)
+- `857`: then all_pairs(result1.v_max, result2.v_max, fn(a, b) b >= a)
+- `860`: given v = 0.0
+- `861`: and   epsilon = 1e-8
+- `862`: when denom = sqrt(v) + epsilon
+- `863`: then denom > 0.0
+- `919`: given config = any_adamw_config()
+- `920`: when result = init(config, 100)
+- `921`: then elapsed_time_us < 50
+- `924`: given config = any_adamw_config()
+- `925`: when result = init(config, 1000000)
+- `926`: then elapsed_time_ms < 20
+- `929`: given config = any_adamw_config()
+- `930`: and   state = init(config, 100)
+- `931`: and   params = random_input(100)
+- `932`: and   grads = random_input(100)
+- `933`: when result = step(state, params, grads)
+- `934`: then elapsed_time_us < 200
+- `937`: given config = any_adamw_config()
+- `938`: and   state = init(config, 10000)
+- `939`: and   params = random_input(10000)
+- `940`: and   grads = random_input(10000)
+- `941`: when result = step(state, params, grads)
+- `942`: then elapsed_time_ms < 10
+- `945`: given config = any_adamw_config()
+- `946`: and   state = init(config, 1000000)
+- `947`: and   params = random_input(1000000)
+- `948`: and   grads = random_input(1000000)
+- `949`: when result = step(state, params, grads)
+- `950`: then elapsed_time_ms < 200
+- `953`: given beta = 0.9
+- `954`: and   t = 100
+- `955`: when result = compute_bias_correction(beta, t)
+- `956`: then elapsed_time_ns < 50
+- `959`: given v = random_positive_gf16()
+- `960`: and   v_max = random_positive_gf16()
+- `961`: when result = amsgrad_update(v, v_max)
+- `962`: then elapsed_time_ns < 10
+- `971`: given n = 10000
+- `972`: and   steps = 1000
+- `973`: and   config_a = AdamWConfig{.phi_variant = PhiVariant.Canonical}
+- `974`: and   config_b = AdamWConfig{.phi_variant = PhiVariant.Damped}
+- `975`: and   config_c = AdamWConfig{.phi_variant = PhiVariant.TunedStd}
+- `976`: and   config_d = AdamWConfig{.phi_variant = PhiVariant.RandomRat}
+- `977`: when  throughput_a = steps_per_second(config_a, n, steps)
+- `978`: and   throughput_b = steps_per_second(config_b, n, steps)
+- `979`: and   throughput_c = steps_per_second(config_c, n, steps)
+- `980`: and   throughput_d = steps_per_second(config_d, n, steps)
+- `982`: then ratio(throughput_a, throughput_c) > 0.95
+- `983`: and  ratio(throughput_b, throughput_c) > 0.95
+- `984`: and  ratio(throughput_d, throughput_c) > 0.95
+
+## specs/ml/optimizer/lr_scheduler.t27 — 8 scenario(s), 40 line(s)
+- `123`: given min_lr = 1e-6
+- `124`: and   max_lr = 1e-3
+- `125`: and   warmup_steps = 100
+- `126`: when lr1 = linear_warmup(0, warmup_steps, min_lr, max_lr)
+- `127`: and   lr50 = linear_warmup(50, warmup_steps, min_lr, max_lr)
+- `128`: and   lr100 = linear_warmup(100, warmup_steps, min_lr, max_lr)
+- `129`: then lr1 < lr50 and lr50 < lr100
+- `132`: given max_lr = 1e-3
+- `133`: and   min_lr = 1e-6
+- `134`: and   total_steps = 100
+- `135`: when lr0 = cosine_decay(0, total_steps, max_lr, min_lr)
+- `136`: and   lr50 = cosine_decay(50, total_steps, max_lr, min_lr)
+- `137`: and   lr100 = cosine_decay(100, total_steps, max_lr, min_lr)
+- `138`: then lr0 > lr50 and lr50 > lr100
+- `141`: given config = SchedulerConfig{.max_steps = 1000, .warmup_steps = 100}
+- `142`: and   state = init(config)
+- `143`: when new_state = step(state)
+- `144`: then new_state.current_step == 1
+- `151`: given config = any_scheduler_config()
+- `152`: and   step = random_u64_in_range(0, config.max_steps)
+- `153`: when lr = get_lr_at_step(config, step)
+- `154`: then lr >= config.min_lr
+- `155`: and   lr <= config.max_lr
+- `173`: given config1 = SchedulerConfig{.use_phi_schedule = false}
+- `174`: and   config2 = SchedulerConfig{.use_phi_schedule = true}
+- `175`: and   step = config1.warmup_steps + 100
+- `176`: when lr1 = get_lr_at_step(config1, step)
+- `177`: and   lr2 = get_lr_at_step(config2, step)
+- `178`: then lr1 != lr2
+- `188`: given config = any_scheduler_config()
+- `189`: when result = init(config)
+- `190`: then elapsed_time_ns < 100
+- `193`: given config = any_scheduler_config()
+- `194`: and   state = init(config)
+- `195`: when result = get_lr(state)
+- `196`: then elapsed_time_ns < 100
+- `199`: given config = any_scheduler_config()
+- `200`: and   step = random_u64()
+- `201`: when result = get_lr_at_step(config, step)
+- `202`: then elapsed_time_ns < 100
+
+## specs/ml/optimizer/race_config.t27 — 5 scenario(s), 21 line(s)
+- `143`: given beta1   = RACE_BETA1_PHI_CANONICAL
+- `144`: and   phi_inv = 1.0 / PHI
+- `145`: when  diff    = abs(beta1 - phi_inv)
+- `146`: then  diff < 1e-14
+- `150`: given wd      = RACE_WEIGHT_DECAY_PHI_CUBE
+- `151`: and   phi_inv = 1.0 / PHI
+- `152`: and   phi_inv3 = phi_inv * phi_inv * phi_inv
+- `153`: when  diff     = abs(wd - phi_inv3)
+- `154`: then  diff < 1e-14
+- `161`: given unique   = CORPUS_UNIQUE_TOKENS
+- `162`: and   min_tok  = CHINCHILLA_MIN_UNIQUE
+- `163`: then  unique < min_tok
+- `167`: given train_f  = TRAIN_FRACTION
+- `168`: and   holdout_f = HELD_OUT_FRACTION
+- `169`: when  sum      = train_f + holdout_f
+- `170`: and   diff     = abs(sum - 1.0)
+- `171`: then  diff < 1e-14
+- `225`: given _a = RACE_BETA1_PHI_CANONICAL
+- `226`: and   _b = RACE_WEIGHT_DECAY_PHI_CUBE
+- `227`: and   _c = CORPUS_UNIQUE_TOKENS
+- `228`: then  elapsed_time_ns < 10
+
+## specs/ml/optimizer/sgd_momentum.t27 — 21 scenario(s), 125 line(s)
+- `130`: given velocity = 0.0
+- `131`: and   grad = 1.0
+- `132`: and   momentum = 0.9
+- `133`: and   dampening = 0.1
+- `134`: when result = compute_velocity(velocity, grad, momentum, dampening)
+- `135`: then approximately_equal(result, 0.1)
+- `138`: given velocity = 0.5
+- `139`: and   grad = 1.0
+- `140`: and   momentum = 0.9
+- `141`: and   dampening = 0.1
+- `142`: when result = compute_velocity(velocity, grad, momentum, dampening)
+- `143`: then approximately_equal(result, 0.9 * 0.5 + 0.1)
+- `146`: given param = 1.0
+- `147`: and   velocity = 0.1
+- `148`: and   lr = 0.01
+- `149`: when result = standard_update(param, velocity, lr)
+- `150`: then result < param
+- `151`: and   approximately_equal(result, 1.0 - 0.001)
+- `154`: given param = 1.0
+- `155`: and   velocity = 0.1
+- `156`: and   grad = 0.5
+- `157`: and   lr = 0.01
+- `158`: and   momentum = 0.9
+- `159`: when result = nesterov_update(param, velocity, grad, lr, momentum)
+- `160`: then approximately_equal(result, 1.0 - 0.01 * (0.9 * 0.1 + 0.5))
+- `163`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.0, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 1.0}
+- `164`: and   state = init(config, 3)
+- `165`: and   params = [1.0, 2.0, 3.0]
+- `166`: and   grads = [0.1, 0.2, 0.3]
+- `167`: when result = step(state, params, grads)
+- `168`: then approximately_equal(result.updated_params[0], 1.0 - 0.001)
+- `169`: and   approximately_equal(result.updated_params[1], 2.0 - 0.002)
+- `170`: and   approximately_equal(result.updated_params[2], 3.0 - 0.003)
+- `173`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
+- `174`: and   state = init(config, 1)
+- `175`: and   params = [1.0]
+- `176`: and   grads = [0.1]
+- `177`: when result1 = step(state, params, grads)
+- `178`: and   state2 = SgdMomentumState{.velocities = result1.velocities, .param_count = 1, .step = 1}
+- `179`: and   result2 = step(state2, result1.updated_params, grads)
+- `180`: then result2.velocities[0] > result1.velocities[0]
+- `183`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.1, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
+- `184`: and   state = init(config, 1)
+- `185`: and   params = [1.0]
+- `186`: and   grads = [0.1]
+- `187`: when result = step(state, params, grads)
+- `188`: then result.updated_params[0] < 1.0 - 0.001 // More aggressive decrease due to weight decay
+- `191`: given params = [1.0, -1.0]
+- `192`: and   grads = [0.1, 0.1]
+- `193`: and   weight_decay = 0.1
+- `194`: when result = apply_weight_decay(params, grads, weight_decay)
+- `195`: then approximately_equal(result[0], 0.2)   // 0.1 + 0.1 * 1.0
+- `196`: and   approximately_equal(result[1], 0.0)   // 0.1 + 0.1 * (-1.0)
+- `215`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
+- `216`: and   state = init(config, 2)
+- `217`: and   params = [1.0, 2.0]
+- `218`: and   grads = [0.3, 0.4]
+- `219`: when result = step(state, params, grads)
+- `220`: then approximately_equal(result.step_norm, sqrt(pow(1.0 - result.updated_params[0], 2) + pow(2.0 - result.updated_params[1], 2)))
+- `227`: given config = any_sgd_momentum_config()
+- `228`: and   state = init(config, 100)
+- `229`: and   params = random_input(100)
+- `230`: and   grads = random_input(100)
+- `231`: when result = step(state, params, grads)
+- `232`: then result.updated_params.len == params.len
+- `235`: given config = any_sgd_momentum_config()
+- `236`: and   state = init(config, 50)
+- `237`: and   params = random_input(50)
+- `238`: and   grads = random_input(50)
+- `239`: when result = step(state, params, grads)
+- `240`: then result.velocities.len == params.len
+- `243`: given config = any_sgd_momentum_config()
+- `244`: and   state = init(config, 10)
+- `245`: and   params = finite_input(10)
+- `246`: and   grads = bounded_input(10, -1.0, 1.0)
+- `247`: and   result = step(state, params, grads)
+- `248`: then all(result.velocities, is_finite)
+- `263`: given config = any_sgd_momentum_config()
+- `264`: and   state = init(config, 10)
+- `265`: and   params = random_input(10)
+- `266`: and   grads = random_input(10)
+- `267`: when result = step(state, params, grads)
+- `268`: then result.step_norm >= 0.0
+- `271`: given config = any_sgd_momentum_config()
+- `272`: and   state = init(config, 10)
+- `273`: and   state.velocities[0] = 0.5
+- `274`: when result = zero_grad(state)
+- `275`: then result.velocities[0] == 0.5
+- `290`: given config = any_sgd_momentum_config()
+- `291`: when result = init(config, 100)
+- `292`: then elapsed_time_us < 50
+- `295`: given config = any_sgd_momentum_config()
+- `296`: when result = init(config, 1000000)
+- `297`: then elapsed_time_ms < 10
+- `300`: given config = any_sgd_momentum_config()
+- `301`: and   state = init(config, 100)
+- `302`: and   params = random_input(100)
+- `303`: and   grads = random_input(100)
+- `304`: when result = step(state, params, grads)
+- `305`: then elapsed_time_us < 100
+- `308`: given config = any_sgd_momentum_config()
+- `309`: and   state = init(config, 10000)
+- `310`: and   params = random_input(10000)
+- `311`: and   grads = random_input(10000)
+- `312`: when result = step(state, params, grads)
+- `313`: then elapsed_time_ms < 5
+- `316`: given config = any_sgd_momentum_config()
+- `317`: and   state = init(config, 1000000)
+- `318`: and   params = random_input(1000000)
+- `319`: and   grads = random_input(1000000)
+- `320`: when result = step(state, params, grads)
+- `321`: then elapsed_time_ms < 100
+- `324`: given velocity = random_gf16()
+- `325`: and   grad = random_gf16()
+- `326`: and   momentum = 0.9
+- `327`: and   dampening = 0.1
+- `328`: when result = compute_velocity(velocity, grad, momentum, dampening)
+- `329`: then elapsed_time_ns < 10
+- `332`: given param = random_gf16()
+- `333`: and   velocity = random_gf16()
+- `334`: and   grad = random_gf16()
+- `335`: and   lr = 0.01
+- `336`: and   momentum = 0.9
+- `337`: when result = nesterov_update(param, velocity, grad, lr, momentum)
+- `338`: then elapsed_time_ns < 10
+
+## specs/ml/transformer/mha_block.t27 — 22 scenario(s), 116 line(s)
+- `164`: given config = BlockConfig{.hidden_size = 64, .num_heads = 4, .use_pre_ln = true}
+- `165`: and   state = init(config)
+- `166`: and   input = random_input(64)
+- `167`: when result = forward(state, input)
+- `168`: then result.output.len == 64
+- `171`: given config = BlockConfig{.hidden_size = 64, .num_heads = 4, .use_pre_ln = false, .use_post_ln = true}
+- `172`: and   state = init(config)
+- `173`: and   input = random_input(64)
+- `174`: when result = forward_with_post_ln(state, input)
+- `175`: then result.output.len == 64
+- `178`: given x = [1.0, 2.0, 3.0]
+- `179`: and   processed = [0.1, 0.2, 0.3]
+- `180`: and   scale = 1.0
+- `181`: when result = apply_residual_connection(x, processed, scale)
+- `182`: then approximately_equal(result[0], 1.1)
+- `183`: and   approximately_equal(result[1], 2.2)
+- `184`: and   approximately_equal(result[2], 3.3)
+- `187`: given x = [1.0, 2.0, 3.0]
+- `188`: and   processed = [1.0, 1.0, 1.0]
+- `189`: when result = phi_scaled_residual(x, processed)
+- `190`: then approximately_equal(result[0], 1.0 + PHI_RESIDUAL_SCALE)
+- `191`: and   approximately_equal(result[1], 2.0 + PHI_RESIDUAL_SCALE)
+- `202`: given config = BlockConfig{.hidden_size = 128, .num_heads = 8, .expansion_factor = 4.0}
+- `203`: when total = get_parameter_count(config)
+- `204`: and   mha_params = 4 * 128 * 128 + 4 * 128 // Q,K,V,O + biases
+- `205`: and   ffn_params = 2 * 128 * 512 + 2 * 512  // W1,W2 + biases
+- `206`: and   norm_params = 2 * 2 * 128           // 2 Norms, gamma+beta each
+- `207`: then total == mha_params + ffn_params + norm_params
+- `210`: given config = any_block_config()
+- `211`: when flops_128 = get_flops(config, 128)
+- `212`: and   flops_256 = get_flops(config, 256)
+- `213`: then flops_256 > flops_128 * 2  // More than 2x due to quadratic attention
+- `216`: given config = BlockConfig{.hidden_size = 32, .num_heads = 2}
+- `217`: and   state = init(config)
+- `218`: and   input = random_input(32)
+- `219`: and   forward_result = forward(state, input)
+- `220`: and   grad_output = random_input(32)
+- `221`: when grads = backward(state, forward_result, grad_output)
+- `222`: then grads.d_input.len == 32
+- `225`: given config = BlockConfig{.hidden_size = 32, .num_heads = 2}
+- `226`: and   state = init(config)
+- `227`: and   input = random_input(32)
+- `228`: and   forward_result = forward(state, input)
+- `229`: and   grad_output = random_input(32)
+- `230`: when grads = backward(state, forward_result, grad_output)
+- `231`: then grads.mha_grads.d_w_q.len == state.mha_state.w_q.len
+- `232`: and   grads.ffn_grads.d_w1.len == state.ffn_state.w1.len
+- `245`: given config = any_block_config()
+- `246`: and   state = init(config)
+- `247`: and   input = random_input(config.hidden_size)
+- `248`: when result = forward(state, input)
+- `249`: then result.output.len == input.len
+- `252`: given x = random_input(100)
+- `253`: and   processed = random_input(100)
+- `254`: and   scale = positive_gf16()
+- `255`: when result = apply_residual_connection(x, processed, scale)
+- `256`: then result.len == x.len
+- `265`: given config1 = BlockConfig{.hidden_size = 64, .num_heads = 4}
+- `266`: and   config2 = BlockConfig{.hidden_size = 128, .num_heads = 8}
+- `267`: when params1 = get_parameter_count(config1)
+- `268`: and   params2 = get_parameter_count(config2)
+- `269`: then params2 > params1
+- `272`: given config = any_block_config()
+- `273`: and   seq_len1 = 64
+- `274`: and   seq_len2 = 128
+- `275`: when flops1 = get_flops(config, seq_len1)
+- `276`: and   flops2 = get_flops(config, seq_len2)
+- `278`: then flops2 > flops1 * 1.5
+- `281`: given config = any_block_config()
+- `282`: and   state = init(config)
+- `283`: and   input = finite_input(config.hidden_size)
+- `284`: when result = forward(state, input)
+- `285`: then all(result.output, is_finite)
+- `288`: given config = any_block_config()
+- `289`: and   state = init(config)
+- `290`: and   input = finite_input(config.hidden_size)
+- `291`: and   forward_result = forward(state, input)
+- `292`: and   grad_output = finite_input(config.hidden_size)
+- `293`: when grads = backward(state, forward_result, grad_output)
+- `294`: then all(grads.d_input, is_finite)
+- `301`: given config = BlockConfig{.hidden_size = 128, .num_heads = 4}
+- `302`: when result = init(config)
+- `303`: then elapsed_time_ms < 20
+- `306`: given config = BlockConfig{.hidden_size = 512, .num_heads = 8}
+- `307`: when result = init(config)
+- `308`: then elapsed_time_ms < 100
+- `311`: given config = BlockConfig{.hidden_size = 2048, .num_heads = 16}
+- `312`: when result = init(config)
+- `313`: then elapsed_time_ms < 500
+- `316`: given config = BlockConfig{.hidden_size = 128, .num_heads = 4}
+- `317`: and   state = init(config)
+- `318`: and   input = random_input(128)
+- `319`: when result = forward(state, input)
+- `320`: then elapsed_time_ms < 5
+- `323`: given config = BlockConfig{.hidden_size = 512, .num_heads = 8}
+- `324`: and   state = init(config)
+- `325`: and   input = random_input(512 * 32) // 32 tokens
+- `326`: when result = forward(state, input)
+- `327`: then elapsed_time_ms < 50
+- `330`: given config = BlockConfig{.hidden_size = 2048, .num_heads = 16}
+- `331`: and   state = init(config)
+- `332`: and   input = random_input(2048 * 128) // 128 tokens
+- `333`: when result = forward(state, input)
+- `334`: then elapsed_time_ms < 500
+- `337`: given config = BlockConfig{.hidden_size = 128, .num_heads = 4}
+- `338`: and   state = init(config)
+- `339`: and   input = random_input(128)
+- `340`: and   forward_result = forward(state, input)
+- `341`: and   grad_output = random_input(128)
+- `342`: when result = backward(state, forward_result, grad_output)
+- `343`: then elapsed_time_ms < 10
+- `346`: given x = random_input(1000)
+- `347`: and   processed = random_input(1000)
+- `348`: and   scale = 1.0
+- `349`: when result = apply_residual_connection(x, processed, scale)
+- `350`: then elapsed_time_us < 100
+
+## specs/ml/transformer/norm.t27 — 28 scenario(s), 170 line(s)
+- `200`: given config = NormConfig{.hidden_size = 4, .eps = 1e-5, .elementwise_affine = false, .use_phi_init = false, .strand_mode = false}
+- `201`: and   state = init(config)
+- `202`: and   input = [1.0, 2.0, 3.0, 4.0]
+- `203`: when result = forward(state, input)
+- `204`: then approximately_equal(compute_variance(result.normalized), 1.0, 1e-4)
+- `207`: given config = NormConfig{.hidden_size = 4, .eps = 1e-5, .elementwise_affine = false, .use_phi_init = false, .strand_mode = false}
+- `208`: and   state = init(config)
+- `209`: and   input = [1.0, 2.0, 3.0, 4.0]
+- `210`: when result = forward(state, input)
+- `211`: then approximately_equal(compute_mean(result.normalized), 0.0, 1e-6)
+- `214`: given config = NormConfig{.hidden_size = 2, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = false, .strand_mode = false}
+- `215`: and   state = init(config)
+- `216`: and   state.gamma[0] = 2.0
+- `217`: and   state.gamma[1] = 3.0
+- `218`: and   state.beta[0] = 1.0
+- `219`: and   state.beta[1] = -1.0
+- `220`: and   input = [0.0, 0.0]
+- `221`: when result = forward(state, input)
+- `222`: then approximately_equal(result.output[0], 1.0)  // 2.0 * 0 + 1.0
+- `223`: and   approximately_equal(result.output[1], -1.0) // 3.0 * 0 - 1.0
+- `226`: given config = NormConfig{.hidden_size = 4, .eps = 1e-5, .elementwise_affine = false, .use_phi_init = false, .strand_mode = false}
+- `227`: and   state = init(config)
+- `228`: and   input = [5.0, 5.0, 5.0, 5.0]
+- `229`: when result = forward(state, input)
+- `230`: then result.variance == 0.0
+- `231`: and   result.mean == 5.0
+- `232`: and   all(result.normalized, is_zero)
+- `235`: given config = NormConfig{.hidden_size = 2, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = false, .strand_mode = false}
+- `236`: and   state = init(config)
+- `237`: and   input = [1.0, -1.0]
+- `238`: and   forward_result = forward(state, input)
+- `239`: and   grad_output = [1.0, 1.0]
+- `240`: when grads = backward(state, forward_result, grad_output)
+- `241`: then grads.d_beta.len == 2
+- `242`: and   grads.d_gamma.len == 2
+- `243`: and   grads.d_input.len == 2
+- `246`: given config = NormConfig{.hidden_size = 4, .eps = 1e-5, .elementwise_affine = false, .use_phi_init = false, .strand_mode = false}
+- `247`: and   state = init(config)
+- `248`: and   input = [1.0, 2.0, 3.0, 4.0]
+- `249`: and   forward_result = forward(state, input)
+- `250`: and   grad_output = [1.0, 1.0, 1.0, 1.0]
+- `251`: when grads = backward(state, forward_result, grad_output)
+- `252`: then all(grads.d_gamma, is_zero)
+- `253`: and   all(grads.d_beta, is_zero)
+- `256`: given config = NormConfig{.hidden_size = 192, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = true, .strand_mode = true}
+- `257`: and   state = init(config)
+- `258`: and   input = create_test_input(192)
+- `259`: and   strands = create_strands(192, state.gamma, state.beta)
+- `260`: when result = forward_strand(strands[0], input)
+- `261`: then result.output.len == 64
+- `262`: and   strands[0].id == 0
+- `265`: given config = NormConfig{.hidden_size = 192, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = false, .strand_mode = false}
+- `266`: and   state = init(config)
+- `267`: and   input = create_test_input(192)
+- `268`: when standard = forward(state, input)
+- `269`: and   strand_config = config
+- `270`: and   strand_config.strand_mode = true
+- `271`: and   strand_state = init(strand_config)
+- `272`: and   strands = create_strands(192, strand_state.gamma, strand_state.beta)
+- `273`: and   strand_result = combine_strand_results(forward_strand(strands[0], input),
+- `276`: then outputs_equal_within_tolerance(standard.output, strand_result, 1e-4)
+- `279`: given x = 1e6
+- `280`: and   mean = 1e6
+- `281`: and   var = 1e-10
+- `282`: when standard = (x - mean) / sqrt(var + 1e-5)
+- `283`: and   phi_result = phi_normalize(x, mean, var)
+- `284`: then is_finite(phi_result)
+- `285`: and   phi_result != standard
+- `288`: given config = NormConfig{.hidden_size = 2, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = false, .strand_mode = false}
+- `289`: and   state = init(config)
+- `290`: and   state.gamma[0] = 1.0
+- `291`: and   state.beta[0] = 0.0
+- `292`: and   grads = NormGradients{.d_gamma = [0.1, 0.2], .d_beta = [0.3, 0.4], .d_input = []}
+- `293`: and   lr = 0.01
+- `294`: when new_state = update(state, grads, lr)
+- `295`: then approximately_equal(new_state.gamma[0], 1.0 - 0.001)
+- `296`: and   approximately_equal(new_state.beta[0], -0.003)
+- `303`: given config = any_norm_config()
+- `304`: and   state = init(config)
+- `305`: and   input = random_input(config.hidden_size)
+- `306`: when result = forward(state, input)
+- `307`: then result.output.len == input.len
+- `310`: given config = NormConfig{.elementwise_affine = false}
+- `311`: and   state = init(config)
+- `312`: and   input = finite_input(config.hidden_size)
+- `313`: when result = forward(state, input)
+- `314`: then absolute_value(compute_mean(result.normalized)) < 1e-4
+- `317`: given config = NormConfig{.elementwise_affine = false}
+- `318`: and   state = init(config)
+- `319`: and   input = finite_input(config.hidden_size)
+- `320`: when result = forward(state, input)
+- `321`: then absolute_value(compute_variance(result.normalized) - 1.0) < 1e-4
+- `324`: given config = any_norm_config()
+- `325`: and   state = init(config)
+- `326`: and   input = finite_input(config.hidden_size)
+- `327`: when result = forward(state, input)
+- `328`: then all(result.output, is_finite)
+- `331`: given config = any_norm_config()
+- `332`: and   state = init(config)
+- `333`: and   input = finite_input(config.hidden_size)
+- `334`: and   forward_result = forward(state, input)
+- `335`: and   grad_output = finite_input(config.hidden_size)
+- `336`: when grads = backward(state, forward_result, grad_output)
+- `337`: then grads.d_gamma.len == config.hidden_size
+- `338`: and   grads.d_beta.len == config.hidden_size
+- `339`: and   grads.d_input.len == config.hidden_size
+- `350`: given config = NormConfig{.hidden_size = 192, .strand_mode = true}
+- `351`: and   state = init(config)
+- `352`: and   strands = create_strands(192, state.gamma, state.beta)
+- `353`: then strands[0].end == strands[1].start
+- `354`: and   strands[1].end == strands[2].start
+- `357`: given config = NormConfig{.hidden_size = 192, .strand_mode = true}
+- `358`: and   state = init(config)
+- `359`: and   strands = create_strands(192, state.gamma, state.beta)
+- `360`: then strands[0].start == 0
+- `361`: and   strands[2].end == 192
+- `377`: given config = NormConfig{.hidden_size = 128}
+- `378`: when result = init(config)
+- `379`: then elapsed_time_ms < 1
+- `382`: given config = NormConfig{.hidden_size = 2048}
+- `383`: when result = init(config)
+- `384`: then elapsed_time_ms < 5
+- `387`: given config = NormConfig{.hidden_size = 8192}
+- `388`: when result = init(config)
+- `389`: then elapsed_time_ms < 20
+- `392`: given config = NormConfig{.hidden_size = 128}
+- `393`: and   state = init(config)
+- `394`: and   input = random_input(128)
+- `395`: when result = forward(state, input)
+- `396`: then elapsed_time_us < 100
+- `399`: given config = NormConfig{.hidden_size = 2048}
+- `400`: and   state = init(config)
+- `401`: and   input = random_input(2048)
+- `402`: when result = forward(state, input)
+- `403`: then elapsed_time_us < 500
+- `406`: given config = NormConfig{.hidden_size = 8192}
+- `407`: and   state = init(config)
+- `408`: and   input = random_input(8192)
+- `409`: when result = forward(state, input)
+- `410`: then elapsed_time_us < 2000
+- `413`: given config = NormConfig{.hidden_size = 128, .strand_mode = true}
+- `414`: and   state = init(config)
+- `415`: and   input = random_input(128)
+- `416`: and   strands = create_strands(128, state.gamma, state.beta)
+- `417`: when result = forward_strand(strands[0], input)
+- `418`: then elapsed_time_us < 50
+- `421`: given config = NormConfig{.hidden_size = 128}
+- `422`: and   state = init(config)
+- `423`: and   input = random_input(128)
+- `424`: and   forward_result = forward(state, input)
+- `425`: and   grad_output = random_input(128)
+- `426`: when result = backward(state, forward_result, grad_output)
+- `427`: then elapsed_time_us < 200
+- `430`: given config = NormConfig{.hidden_size = 2048}
+- `431`: and   state = init(config)
+- `432`: and   input = random_input(2048)
+- `433`: and   forward_result = forward(state, input)
+- `434`: and   grad_output = random_input(2048)
+- `435`: when result = backward(state, forward_result, grad_output)
+- `436`: then elapsed_time_us < 1000
+- `439`: given x = random_gf16()
+- `440`: and   mean = random_gf16()
+- `441`: and   var = positive_gf16()
+- `442`: when result = phi_normalize(x, mean, var)
+- `443`: then elapsed_time_ns < 50
+- `446`: given hidden_size = 2048
+- `447`: and   gamma = random_array(hidden_size)
+- `448`: and   beta = random_array(hidden_size)
+- `449`: when result = create_strands(hidden_size, gamma, beta)
+- `450`: then elapsed_time_us < 100
+
+## specs/nn/attention.t27 — 25 scenario(s), 112 line(s)
+- `441`: given scale = SACRED_SCALE
+- `442`: and expected = pow(81.0, -0.2360679)
+- `443`: then abs(scale - expected) < 0.001
+- `446`: given gamma = SACRED_GAMMA
+- `447`: and phi_inv_cubed = pow(constants::PHI_INV, 3.0)
+- `448`: then abs(gamma - phi_inv_cubed) < 0.00001
+- `459`: given embed = EMBED_DIM
+- `460`: and computed = NUM_HEADS * HEAD_DIM
+- `461`: then embed == computed
+- `464`: given pairs = ROPE_PAIRS
+- `465`: and computed = CONTEXT_LEN / 2
+- `466`: then pairs == computed
+- `469`: given input = [1.0, 2.0, 3.0, 4.0]
+- `470`: and weights = [Trit.pos, Trit.zero, Trit.zero, Trit.zero,
+- `474`: and output = [0.0; 4]
+- `475`: when ternary_matmul(input, weights, output, 4, 4)
+- `476`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0 and output[3] == 4.0
+- `479`: given input = [1.0, 2.0, 3.0, 4.0]
+- `480`: and weights = [Trit.neg, Trit.neg, Trit.neg, Trit.neg,
+- `484`: and output = [0.0; 4]
+- `485`: when ternary_matmul(input, weights, output, 4, 4)
+- `486`: then output[0] == -10.0 and output[1] == -10.0 and output[2] == -10.0 and output[3] == -10.0
+- `489`: given output = [5.0, 10.0, 15.0, 20.0]
+- `490`: and input = [2.0, 4.0, 6.0, 8.0]
+- `491`: when add_residual(output, input)
+- `492`: then output[0] == 7.0 and output[1] == 14.0 and output[2] == 21.0 and output[3] == 28.0
+- `495`: given scores = [1.0, 2.0, 3.0, 4.0]
+- `496`: and buffers = AttentionBuffers{...}
+- `497`: when buffers.scores[0..4] = scores
+- `498`: and apply_softmax(&buffers, 4)
+- `499`: and sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
+- `500`: then abs(sum - 1.0) < 0.0001
+- `503`: given scores = [1.0, -1.0, 2.0, -2.0]
+- `504`: and buffers = AttentionBuffers{...}
+- `505`: when buffers.scores[0..4] = scores
+- `506`: and apply_softmax(&buffers, 4)
+- `507`: and all_positive = (buffers.scores[0] >= 0.0) and
+- `511`: then all_positive == true
+- `523`: given buffers = AttentionBuffers{...}
+- `524`: and cache_k = [0.0; EMBED_DIM * CONTEXT_LEN]
+- `525`: and cache_v = [0.0; EMBED_DIM * CONTEXT_LEN]
+- `526`: and buffers.k_buffer = [1.0, 2.0, 3.0]
+- `527`: and buffers.v_buffer = [4.0, 5.0, 6.0]
+- `528`: when cache_kv(&buffers, 0, cache_k, cache_v)
+- `529`: then cache_k[0] == 1.0 and cache_k[1] == 2.0 and cache_v[0] == 4.0 and cache_v[1] == 5.0
+- `532`: given buffers = AttentionBuffers{...}
+- `533`: and cache_k = [0.0; EMBED_DIM * CONTEXT_LEN]
+- `534`: and buffers.q_buffer = [1.0, 1.0, 1.0]
+- `535`: and buffers.k_buffer = [1.0, 1.0, 1.0]
+- `536`: and sacred_attention_init()
+- `537`: when cache_kv(&buffers, 0, cache_k, [0.0; EMBED_DIM * CONTEXT_LEN])
+- `538`: and compute_scores(&buffers, 0, 1, cache_k)
+- `539`: then buffers.scores[0] == 3.0 * SACRED_SCALE
+- `575`: given input = [0.0; 10]
+- `576`: and weights = [Trit.zero; 100]
+- `577`: and output = [0.0; 10]
+- `578`: and ternary_matmul(input, weights, output, 10, 10)
+- `582`: given output = [0.0; 100]
+- `583`: and input = [0.0; 100]
+- `584`: and add_residual(output, input)
+- `588`: given buffers = AttentionBuffers{...}
+- `589`: and buffers.scores = [1.0, 2.0, 3.0, 4.0]
+- `590`: and apply_softmax(&buffers, 4)
+- `591`: and sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
+- `592`: and all_non_neg = (buffers.scores[0] >= 0.0) and
+- `599`: given tables = rope_tables
+- `600`: and sacred_attention_init()
+- `601`: and idx = tables.cos.len() / 2
+- `602`: then assert tables.cos[idx] >= -1.0 and tables.cos[idx] <= 1.0
+- `605`: given tables = rope_tables
+- `606`: and sacred_attention_init()
+- `607`: and idx = tables.sin.len() / 2
+- `608`: then assert tables.sin[idx] >= -1.0 and tables.sin[idx] <= 1.0
+- `718`: given phi = 1.618033988749895
+- `719`: when lhs = phi * phi
+- `720`: and  rhs = phi + 1.0
+- `721`: then approximately_equal(lhs, rhs) // tolerance 1e-12
+- `808`: given gain = GAIN_PHI_SQ
+- `809`: and   head_dim = 96
+- `810`: when scale = effective_score_scale(gain, head_dim)
+- `812`: then scale > 0.5 and scale < 1.5
+- `815`: given gain = GAIN_STANDARD
+- `816`: and   head_dim = 96
+- `817`: when scale = effective_score_scale(gain, head_dim)
+- `819`: then approximately_equal(scale, 1.0 / sqrt(96.0)) // tolerance 1e-6
+- `823`: given n_steps = 500     // mini-run for CI; full run uses 81000
+- `824`: and   seed = 43
+- `825`: and   bpb_a = run_attention_with_gain(QKGainVariant.PhiSquared, n_steps, seed)
+- `826`: and   bpb_b = run_attention_with_gain(QKGainVariant.Standard, n_steps, seed)
+- `827`: and   bpb_c = run_attention_with_gain(QKGainVariant.Learned, n_steps, seed)
+- `828`: then all_finite([bpb_a, bpb_b, bpb_c])
+- `829`: and  all_positive([bpb_a, bpb_b, bpb_c])
+- `849`: given gain = random_gf16_in_range(0.01, 10.0)
+- `850`: and   head_dim = 96
+- `851`: when scale = effective_score_scale(gain, head_dim)
+- `852`: then scale > 0.0
+- `857`: given head_dim = 96
+- `858`: when scale_a = effective_score_scale(GAIN_PHI_SQ, head_dim)
+- `859`: and  scale_b = effective_score_scale(GAIN_STANDARD, head_dim)
+- `860`: then scale_a > scale_b
+- `879`: given config = QKGainConfig{.variant = QKGainVariant.PhiSquared, .head_dim = 96, .initial_gain = GAIN_PHI_SQ, .learnable = false, .lr_gain = 0.0}
+- `880`: and   seq_len = 64
+- `881`: when result = attention_forward(config, seq_len)
+- `882`: then elapsed_time_ms < 5
+- `885`: given config = QKGainConfig{.variant = QKGainVariant.Standard, .head_dim = 96, .initial_gain = GAIN_STANDARD, .learnable = false, .lr_gain = 0.0}
+- `886`: and   seq_len = 64
+- `887`: when result = attention_forward(config, seq_len)
+- `888`: then elapsed_time_ms < 5
+- `892`: given config = QKGainConfig{.variant = QKGainVariant.Learned, .head_dim = 96, .initial_gain = GAIN_LEARNED_INIT, .learnable = true, .lr_gain = 1e-3}
+- `893`: and   seq_len = 64
+- `894`: when result = attention_forward(config, seq_len)
+- `895`: then elapsed_time_ms < 5
+
+## specs/nn/gla.t27 — 12 scenario(s), 53 line(s)
+- `381`: given hs = GlaHeadState{
+- `385`: and g = [0.0; HEAD_DIM]
+- `386`: and k = [1.0; HEAD_DIM]
+- `387`: and v = [1.0; HEAD_DIM]
+- `388`: when gla_state_update(&hs, g, k, v)
+- `390`: then hs.S[0] == 1.0 and hs.S[HEAD_DIM - 1] == 1.0
+- `394`: given hs = GlaHeadState{
+- `398`: and g = [1.0; HEAD_DIM]
+- `399`: and k = [1.0; HEAD_DIM]
+- `400`: and v = [0.5; HEAD_DIM]
+- `401`: when gla_state_update(&hs, g, k, v)
+- `403`: then abs(hs.S[0] - 0.5) < 1e-9
+- `407`: given hs = GlaHeadState{
+- `411`: and q = [0.0; HEAD_DIM]
+- `412`: and out = [0.0; HEAD_DIM]
+- `413`: when gla_state_read(&hs, q, &out)
+- `415`: then out[0] == 0.0 and out[HEAD_DIM - 1] == 0.0
+- `420`: given hs = GlaHeadState{
+- `424`: and k = [1.0, 0.0; rest 0.0]   // unit basis e0
+- `425`: and v = [1.0, 0.0; rest 0.0]
+- `426`: and g = [1.0; HEAD_DIM]
+- `427`: and q = [1.0, 0.0; rest 0.0]
+- `428`: and out = [0.0; HEAD_DIM]
+- `429`: when gla_state_update(&hs, g, k, v)
+- `430`: and gla_state_read(&hs, q, &out)
+- `431`: then abs(out[0] - 1.0) < 1e-9   // z.q = 1.0, so denom = 1.0; S@q = 1.0
+- `436`: given g = [0.0; 1]
+- `437`: when apply_gate_act(&g, GateAct::Sigmoid)
+- `438`: then abs(g[0] - 0.5) < 1e-9
+- `441`: given g = [100.0; 1]
+- `442`: when apply_gate_act(&g, GateAct::Sigmoid)
+- `443`: then abs(g[0] - 1.0) < 1e-6
+- `446`: given g = [-100.0; 1]
+- `447`: when apply_gate_act(&g, GateAct::Sigmoid)
+- `448`: then g[0] < 0.001 and g[0] >= 0.0
+- `451`: given g = [0.0; 1]
+- `452`: when apply_gate_act(&g, GateAct::Swish)
+- `453`: then g[0] == 0.0
+- `458`: given v = [2.0, 4.0, 6.0]
+- `459`: when scale_vec(&v, 0.5)
+- `460`: then abs(v[0] - 1.0) < 1e-12 and abs(v[1] - 2.0) < 1e-12 and abs(v[2] - 3.0) < 1e-12
+- `511`: given x = 0.0
+- `512`: and g = [x; 1]
+- `513`: and apply_gate_act(&g, GateAct::Sigmoid)
+- `518`: given hs = GlaHeadState{
+- `522`: and g = [0.9; HEAD_DIM]
+- `523`: and k = [0.1; HEAD_DIM]
+- `524`: and v = [0.2; HEAD_DIM]
+- `525`: and gla_state_update(&hs, g, k, v)
+- `530`: given hs = GlaHeadState{
+- `534`: and q = [0.0; HEAD_DIM]
+- `535`: and out = [0.0; HEAD_DIM]
+- `536`: and gla_state_read(&hs, q, &out)
+
+## specs/nn/hslm.t27 — 22 scenario(s), 75 line(s)
+- `426`: given embed = EMBED_DIM
+- `427`: and computed = NUM_HEADS * HEAD_DIM
+- `428`: then embed == computed
+- `431`: given ff_dim = FF_DIM
+- `432`: and computed = 4 * EMBED_DIM
+- `433`: then ff_dim == computed
+- `444`: given a = PHASE_NORM and b = PHASE_ATTN and c = PHASE_FFN and d = PHASE_RESIDUAL
+- `445`: then a != b and b != c and c != d
+- `448`: given a = ACT_RELU and b = ACT_GELU and c = ACT_SWISH and d = ACT_TERNARY
+- `449`: then a != b and b != c and c != d
+- `452`: given a = PHASE_FORWARD and b = PHASE_BACKWARD and c = PHASE_UPDATE
+- `453`: then a != b and b != c
+- `456`: given hslm_phase(PHASE_FORWARD)
+- `457`: and mode = get_hslm_mode()
+- `458`: then mode == 1
+- `461`: given hslm_phase(PHASE_BACKWARD)
+- `462`: and mode = get_hslm_mode()
+- `463`: then mode == 2
+- `466`: given hslm_phase(PHASE_UPDATE)
+- `467`: and mode = get_hslm_mode()
+- `468`: then mode == 3
+- `471`: given x = [1.0, 2.0, 3.0, 4.0, 5.0]
+- `472`: and gamma = [1.0, 1.0, 1.0, 1.0, 1.0]
+- `473`: and len_before = x.len()
+- `474`: when rms_norm_forward(x, gamma)
+- `475`: then x.len() == len_before
+- `478`: given x = [0.0, 0.0, 0.0]
+- `479`: and gamma = [1.0, 1.0, 1.0]
+- `480`: when rms_norm_forward(x, gamma)
+- `481`: then x[0] == 0.0 and x[1] == 0.0 and x[2] == 0.0
+- `484`: given input = [1.0, 2.0, 3.0]
+- `485`: and weights = [Trit.pos, Trit.zero, Trit.zero,
+- `488`: and output = [0.0; 3]
+- `489`: when ternary_matmul(input, weights, output, 3, 3)
+- `490`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0
+- `493`: given input = [1.0, 2.0, 3.0]
+- `494`: and weights = [Trit.neg, Trit.neg, Trit.neg,
+- `497`: and output = [0.0; 3]
+- `498`: when ternary_matmul(input, weights, output, 3, 3)
+- `499`: then output[0] == -6.0 and output[1] == -6.0 and output[2] == -6.0
+- `502`: given x = [1.0, 2.0, -1.0, 0.0]
+- `503`: and len_before = x.len()
+- `504`: when gelu_activation(x)
+- `505`: then x.len() == len_before
+- `508`: given x = [1.0; 10]
+- `509`: when gelu_activation(x)
+- `510`: then x[0] > 0.0
+- `513`: given x = [0.0]
+- `514`: when gelu_activation(x)
+- `515`: then abs(x[0]) < 0.0001
+- `518`: given x = [-1.0]
+- `519`: when gelu_activation(x)
+- `520`: then x[0] < 0.0
+- `523`: given buffers = LayerBuffers{...}
+- `524`: and weights = LayerWeights{...}
+- `525`: when buffers.output = [1.0; EMBED_DIM]
+- `526`: and ffn_forward(&buffers, &weights)
+- `527`: then buffers.ffn_intermediate.len() == FF_DIM
+- `561`: given weights = LayerWeights{...}
+- `562`: and wq_size = weights.w_q.len()
+- `563`: and wk_size = weights.w_k.len()
+- `564`: and wv_size = weights.w_v.len()
+- `565`: and wo_size = weights.w_o.len()
+- `572`: given weights = LayerWeights{...}
+- `573`: and w1_size = weights.w1.len()
+- `574`: and w2_size = weights.w2.len()
+- `579`: given weights = LayerWeights{...}
+- `584`: given input = [0.0; 10]
+- `585`: and weights = [Trit.zero; 100]
+- `586`: and output = [0.0; 5]
+- `587`: and ternary_matmul(input, weights, output, 10, 5)
+- `597`: given x = [0.0, 0.001, 0.002]
+- `598`: and gelu_activation(x)
+- `599`: and delta1 = x[1] - x[0]
+- `600`: and delta2 = x[2] - x[1]
+
+## specs/numeric/gf4.t27 — 11 scenario(s), 42 line(s)
+- `175`: given original = 0.0
+- `176`: and   encoded = encode(original)
+- `177`: and   decoded = decode(encoded)
+- `178`: then decoded == original
+- `181`: given original = 0.25
+- `182`: and   encoded = encode(original)
+- `183`: and   decoded = decode(encoded)
+- `184`: then abs(decoded - 0.25) < 0.01
+- `187`: given original = 0.5
+- `188`: and   encoded = encode(original)
+- `189`: and   decoded = decode(encoded)
+- `190`: then abs(decoded - 0.5) < 0.01
+- `193`: given original = 0.75
+- `194`: and   encoded = encode(original)
+- `195`: and   decoded = decode(encoded)
+- `196`: then abs(decoded - 0.75) < 0.01
+- `199`: given original = 1.0
+- `200`: and   encoded = encode(original)
+- `201`: and   decoded = decode(encoded)
+- `202`: then abs(decoded - 1.0) < 0.01
+- `205`: given original = 1.5
+- `206`: and   encoded = encode(original)
+- `207`: and   decoded = decode(encoded)
+- `208`: then abs(decoded - 1.5) < 0.01
+- `211`: given original = -0.5
+- `212`: and   encoded = encode(original)
+- `213`: and   decoded = decode(encoded)
+- `214`: then decoded < 0.0 and abs(decoded - (-0.5)) < 0.01
+- `217`: given original = 10.0
+- `218`: and   encoded = encode(original)
+- `219`: and   decoded = decode(encoded)
+- `220`: then decoded <= 1.5
+- `223`: given original = 0.3
+- `224`: and   encoded = encode(original)
+- `225`: and   decoded = decode(encoded)
+- `226`: then abs(decoded - 0.25) < 0.01
+- `241`: given ratio = (EXP_BITS as f64) / (MANT_BITS as f64)
+- `242`: and   expected = 0.5
+- `243`: then abs(ratio - expected) < 0.01
+- `281`: given encoded = encode(x) for x in {0.25, 0.5, 0.75, 1.0, 1.5}
+- `282`: when decoded = decode(encoded)
+- `283`: then abs(decoded - x) < 0.01
+
+## specs/numeric/gf64.t27 — 1 scenario(s), 4 line(s)
+- `165`: given original = 0.0
+- `166`: and   encoded = encode(original)
+- `167`: and   decoded = decode(encoded)
+- `168`: then decoded == original
+
+## specs/numeric/lucas_accumulator.t27 — 8 scenario(s), 25 line(s)
+- `81`: given acc = phi_acc(0)
+- `82`: and   l   = lucas(0)
+- `83`: then abs_f64(acc - (l as f64)) < TOL_F64   // 2.0
+- `86`: given acc = phi_acc(1)
+- `87`: and   l   = lucas(2)
+- `88`: then abs_f64(acc - (l as f64)) < TOL_F64   // 3.0
+- `91`: given acc = phi_acc(2)
+- `92`: and   l   = lucas(4)
+- `93`: then abs_f64(acc - (l as f64)) < TOL_F64   // 7.0
+- `96`: given acc = phi_acc(3)
+- `97`: and   l   = lucas(6)
+- `98`: then abs_f64(acc - (l as f64)) < TOL_F64   // 18.0
+- `101`: given acc = phi_acc(4)
+- `102`: and   l   = lucas(8)
+- `103`: then abs_f64(acc - (l as f64)) < TOL_F64   // 47.0
+- `106`: given acc = phi_acc(5)
+- `107`: and   l   = lucas(10)
+- `108`: then abs_f64(acc - (l as f64)) < TOL_F64   // 123.0
+- `111`: given acc = phi_acc(6)
+- `112`: and   l   = lucas(12)
+- `113`: then abs_f64(acc - (l as f64)) < TOL_F64   // 322.0
+- `131`: then ok == true
+- `134`: given k = 12
+- `135`: when  _ = lucas(k)
+- `136`: then elapsed_time_ns < 200
+
+## specs/numeric/posit_ladder_control.t27 — 1 scenario(s), 6 line(s)
+- `96`: then ok == true
+- `105`: then ok == true
+- `116`: then ok == true
+- `137`: given es = 3
+- `138`: when  _ = useed(es)
+- `139`: then elapsed_time_ns < 200
+
+## specs/physics/gamma_conjecture.t27 — 12 scenario(s), 40 line(s)
+- `122`: given gamma_expected = pow(PHI, -3.0)
+- `123`: and   gamma_actual = GAMMA_PHI
+- `124`: then abs(gamma_expected - gamma_actual) < 1e-15
+- `128`: given gamma_phi = GAMMA_PHI
+- `129`: and   sqrt_form = 5.0_f64.sqrt() - 2.0
+- `130`: then abs(gamma_phi - sqrt_form) < 1e-12
+- `134`: given gamma_phi = GAMMA_PHI
+- `135`: and   reciprocal_form = 1.0 / (2.0 * PHI + 1.0)
+- `136`: then abs(gamma_phi - reciprocal_form) < 1e-12
+- `140`: given gamma_1 = GAMMA_LQG_STANDARD
+- `141`: and   ln2_over_pi_sqrt3 = (2.0_f64.ln()) / (PI * 3.0_f64.sqrt())
+- `142`: then abs(gamma_1 - ln2_over_pi_sqrt3) < 1e-12
+- `156`: given delta_1_phi = DELTA_GAMMA_1_PHI_PERCENT
+- `157`: and   delta_2_1 = DELTA_GAMMA_2_1_PERCENT
+- `158`: then delta_2_1 > delta_1_phi * 10.0
+- `162`: given area_test = 1e6
+- `163`: and   g_phi = newtons_constant_from_gamma(GAMMA_PHI, PI)
+- `164`: and   g_1 = newtons_constant_from_gamma(GAMMA_LQG_STANDARD, PI)
+- `165`: then g_phi > 0.0 and g_1 > 0.0
+- `169`: given area = 1.0
+- `170`: and   s_phi = black_hole_entropy_from_gamma(GAMMA_PHI, area)
+- `171`: and   s_1 = black_hole_entropy_from_gamma(GAMMA_LQG_STANDARD, area)
+- `172`: then s_phi > 0.0 and s_1 > 0.0
+- `176`: given mass = 1.0
+- `177`: and   radius = 1.0
+- `178`: and   theta_phi = black_hole_shadow_from_gamma(GAMMA_PHI, mass, radius)
+- `179`: and   theta_1 = black_hole_shadow_from_gamma(GAMMA_LQG_STANDARD, mass, radius)
+- `180`: then theta_phi > 0.0 and theta_1 > 0.0
+- `184`: given scale = 1.0
+- `185`: and   tc_phi = superconductor_tc_sc3(GAMMA_PHI, scale)
+- `186`: and   tc_1 = superconductor_tc_sc3(GAMMA_LQG_STANDARD, scale)
+- `187`: then tc_phi > 0.0 and tc_1 > 0.0
+- `191`: given scale = 1.0
+- `192`: and   tc_phi = superconductor_tc_sc4(GAMMA_PHI, scale)
+- `193`: and   tc_1 = superconductor_tc_sc4(GAMMA_LQG_STANDARD, scale)
+- `194`: then tc_phi > 0.0 and tc_1 > 0.0
+- `233`: given sqrt5_form = 5.0_f64.sqrt() - 2.0
+- `234`: and   gamma_phi = GAMMA_PHI
+- `235`: then abs(gamma_phi - sqrt5_form) < 1e-12
+- `248`: given mass = 1.0 and radius = 1.0
+
+## specs/physics/gi1_analysis.t27 — 2 scenario(s), 6 line(s)
+- `135`: given complexity_phi = STRUCTURAL_COMPLEXITY_PHI
+- `136`: and   complexity_1 = STRUCTURAL_COMPLEXITY_1
+- `137`: then complexity_1 > complexity_phi
+- `168`: given pred_phi = compute_litebird_prediction(GAMMA_PHI)
+- `169`: and   pred_1 = compute_litebird_prediction(GAMMA_LQG_STANDARD)
+- `170`: then pred_1 > pred_phi
+
+## specs/physics/pellis-formulas.t27 — 1 scenario(s), 3 line(s)
+- `55`: given a = PELL_P1
+- `56`: and   b = PELL_P5
+- `57`: then b > a
+
+## specs/physics/su2_chern_simons.t27 — 4 scenario(s), 12 line(s)
+- `233`: given d_sq = total_quantum_dimension_squared()
+- `234`: and   expected = 2.0 + constants::PHI
+- `235`: then abs(d_sq - expected) < 1.0e-14
+- `262`: given j2 = jones_quantum_integer(2, 3)
+- `263`: and   expected = 2.0 * cos(constants::PI / 5.0)
+- `264`: then abs(j2 - expected) < 1.0e-10
+- `298`: given f11 = fibonacci_hilbert_dim(11)
+- `299`: and   f10 = fibonacci_hilbert_dim(10)
+- `300`: and   ratio = f11 as f64 / f10 as f64
+- `301`: then abs(ratio - constants::PHI) < 0.01
+- `326`: given f20 = fibonacci_hilbert_dim(20)
+- `327`: and   f19 = fibonacci_hilbert_dim(19)
+
+## specs/physics/zamolodchikov_4d_conjecture.t27 — 1 scenario(s), 3 line(s)
+- `223`: given bridge = conjectured_bridge()
+- `224`: and   zam = zamolodchikov_e8::mass_spectrum()
+- `225`: then abs(bridge.mass_spectrum[1] - zam[1]) < 1.0e-10
+
+## specs/pins/emitter_xdc.t27 — 9 scenario(s), 27 line(s)
+- `187`: given out = empty_xdc()
+- `188`: and   out2 = add_line(out, "test line", false)
+- `189`: then line_count(out2) == 1
+- `192`: given out = empty_xdc()
+- `193`: and   out2 = add_line(out, "# comment", true)
+- `194`: then line_count(out2) == 1 and out2.lines[0].is_comment == true
+- `197`: given out = empty_xdc()
+- `198`: and   out2 = emit_pin(out, "E3", "LVCMOS33", "clk")
+- `199`: then line_count(out2) == 1
+- `202`: given out = empty_xdc()
+- `203`: and   out2 = emit_pin(out, "C14", "LVCMOS33", "rst_n")
+- `204`: then line_count(out2) == 1
+- `207`: given out = empty_xdc()
+- `208`: and   out2 = emit_clock(out, "clk", "sys_clk", 83, 41)
+- `209`: then line_count(out2) == 1
+- `212`: given out = empty_xdc()
+- `213`: and   out2 = emit_header(out, "test")
+- `214`: then line_count(out2) == 1 and out2.lines[0].is_comment == true
+- `221`: given out = qmtech_xc7a100t_minimal()
+- `222`: and   n = count_set_property_lines(out)
+- `223`: then n == 13
+- `238`: given out = qmtech_xc7a100t_minimal()
+- `239`: and   n = count_set_property_lines(out)
+- `240`: then n == 13
+- `259`: given out = arty_a7_minimal()
+- `260`: and   n = count_set_property_lines(out)
+- `261`: then n == 9
+
+## specs/queen/brain_summaries.t27 — 0 scenario(s), 20 line(s)
+- `243`: when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+- `244`: then result.episodes_count == 0
+- `245`: and result.total_cycles == 0
+- `246`: and result.successful_cycles == 0
+- `247`: and result.failed_cycles == 0
+- `259`: when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+- `260`: then result.successful_cycles == 3
+- `261`: and result.failed_cycles == 0
+- `262`: and result.average_confidence >= 0.8
+- `263`: and result.overall_quality == lotus.QUALITY_GOOD
+- `276`: when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+- `277`: then result.successful_cycles == 2
+- `278`: and result.failed_cycles == 1
+- `279`: and result.total_cycles == 4
+- `287`: when quality = determine_quality(summary)
+- `288`: then quality == lotus.QUALITY_GOOD
+- `296`: when quality = determine_quality(summary)
+- `297`: then quality == lotus.QUALITY_UNSTABLE
+- `305`: when quality = determine_quality(summary)
+- `306`: then quality == lotus.QUALITY_BAD
+
+## specs/queen/lotus.t27 — 19 scenario(s), 55 line(s)
+- `585`: given a = PHASE_OBSERVE and b = PHASE_RECALL and c = PHASE_EVALUATE
+- `586`: and   d = PHASE_PLAN and e = PHASE_ACT and f = PHASE_RECORD
+- `587`: then a != b and b != c and c != d and d != e and e != f
+- `590`: given a = PHASE_OBSERVE and b = PHASE_RECALL and c = PHASE_EVALUATE
+- `591`: and   d = PHASE_PLAN and e = PHASE_ACT and f = PHASE_RECORD
+- `592`: then a == 0 and b == 1 and c == 2 and d == 3 and e == 4 and f == 5
+- `603`: given a = OUTCOME_UNKNOWN and b = OUTCOME_SUCCESS and c = OUTCOME_PARTIAL
+- `604`: and   d = OUTCOME_FAILURE and e = OUTCOME_FATAL
+- `605`: then a != b and b != c and c != d and d != e
+- `608`: given a = QUALITY_UNKNOWN and b = QUALITY_GOOD and c = QUALITY_UNSTABLE and d = QUALITY_BAD
+- `609`: then a != b and b != c and c != d
+- `612`: given a = DELTA_SCALE_UP and b = DELTA_SCALE_DOWN and c = DELTA_SET and d = DELTA_WAIT
+- `613`: then a != b and b != c and c != d
+- `620`: given current_phase = NUM_PHASES - 1
+- `621`: and   force_phase_transition()
+- `622`: and   new_phase = current_phase
+- `623`: then new_phase == 0
+- `626`: given current_phase = 2
+- `627`: and   force_phase_transition()
+- `628`: and   new_phase = current_phase
+- `629`: then new_phase == 3
+- `644`: given eval = Evaluation{.quality = QUALITY_GOOD, .success_count = 0, .partial_count = 0, .failure_count = 0, .confidence = 1.0}
+- `645`: and   plan = generate_plan(eval)
+- `646`: then plan.delta_type == DELTA_SCALE_UP
+- `649`: given eval = Evaluation{.quality = QUALITY_BAD, .success_count = 0, .partial_count = 0, .failure_count = 0, .confidence = 1.0}
+- `650`: and   plan = generate_plan(eval)
+- `651`: then plan.delta_type == DELTA_SCALE_DOWN
+- `654`: given eval = Evaluation{.quality = QUALITY_UNKNOWN, .success_count = 0, .partial_count = 0, .failure_count = 0, .confidence = 0.0}
+- `655`: and   plan = generate_plan(eval)
+- `656`: then plan.delta_type == DELTA_WAIT
+- `659`: given plan = Plan{.delta_type = DELTA_WAIT, .target_resource = 0, .target_value = 0}
+- `660`: and   action = execute_action(plan)
+- `661`: then action.success == true
+- `672`: given plan = Plan{.delta_type = DELTA_SET, .target_resource = 5, .target_value = 42}
+- `673`: and   result = set_parameter(plan)
+- `674`: and   then policy_state[5] == 42
+- `685`: given id_before = current_episode
+- `686`: and   record_episode(CycleResult{...})
+- `687`: and   id_after = current_episode
+- `688`: then id_after == id_before + 1
+- `727`: given old = current_phase
+- `728`: and   force_phase_transition()
+- `729`: and   new = current_phase
+- `730`: then new == (old + 1) % NUM_PHASES
+- `737`: given t1 = get_timestamp()
+- `738`: and   t2 = get_timestamp()
+- `742`: given eval = evaluate_quality(RecallEpisode{.episodes = [0, 1, 2, 3, 4, 5, 6, 7], .count = 8})
+- `743`: and   // Simulate 8 episodes, 7 successes
+- `747`: given eval = evaluate_quality(RecallEpisode{.episodes = [0, 1, 2, 3, 4, 5, 6, 7], .count = 8})
+- `748`: and   // Simulate 8 episodes, 7 failures
+- `752`: given eval = Evaluation{.quality = QUALITY_GOOD, .success_count = 0, .partial_count = 0, .failure_count = 0, .confidence = 1.0}
+- `753`: and   plan = generate_plan(eval)
+- `767`: given recalled = recall_episodes()
+- `768`: and   idx = 0
+- `769`: and   valid = idx < recalled.count and recalled.episodes[idx] < EPISODE_BUFFER_SIZE
+
+## specs/tools/tri_to_t27_converter.t27 — 10 scenario(s), 30 line(s)
+- `199`: given content = "name: test_algo\\nversion: \\"1.0\\""
+- `200`: when spec = parse_tri_file(content)
+- `201`: then spec.name == "test_algo"
+- `204`: given content = "name: test\\nversion: \\"1.2.3\\""
+- `205`: when spec = parse_tri_file(content)
+- `206`: then spec.version == "1.2.3"
+- `273`: given input = "algo/dense.tri"
+- `274`: when result = route_file(input)
+- `275`: then result == "ml/layers/dense_layer.t27"
+- `352`: given input = small_tri_spec() // ~10 lines
+- `353`: when result = parse_tri_file(input)
+- `354`: then elapsed_time_ms < 1
+- `357`: given input = medium_tri_spec() // ~100 lines
+- `358`: when result = parse_tri_file(input)
+- `359`: then elapsed_time_ms < 5
+- `362`: given input = large_tri_spec() // ~500 lines
+- `363`: when result = parse_tri_file(input)
+- `364`: then elapsed_time_ms < 25
+- `367`: given input = small_tri_spec()
+- `368`: when result = generate_t27(parse_tri_file(input))
+- `369`: then elapsed_time_ms < 1
+- `372`: given input = medium_tri_spec()
+- `373`: when result = generate_t27(parse_tri_file(input))
+- `374`: then elapsed_time_ms < 5
+- `377`: given input = "[16]u8"
+- `378`: when result = convert_type(input)
+- `379`: then elapsed_time_ns < 100
+- `382`: given input = "algo/relu.tri"
+- `383`: when result = route_file(input)
+- `384`: then elapsed_time_ns < 100
+
+## specs/vsa/ops.t27 — 38 scenario(s), 175 line(s)
+- `279`: given a = [Trit.zero, Trit.pos, Trit.neg]
+- `280`: and   b = [Trit.pos, Trit.zero, Trit.neg]
+- `281`: when result = bind(a, b, 3)
+- `282`: then result[0] == Trit.pos and result[1] == Trit.pos and result[2] == Trit.pos
+- `285`: given a = [Trit.pos, Trit.pos, Trit.neg, Trit.neg]
+- `286`: and   b = [Trit.pos, Trit.neg, Trit.pos, Trit.neg]
+- `287`: when result = bind(a, b, 4)
+- `288`: then result[0] == Trit.pos and result[1] == Trit.neg and result[2] == Trit.neg and result[3] == Trit.pos
+- `291`: given a = [Trit.zero, Trit.pos, Trit.neg]
+- `292`: and   b = [Trit.pos, Trit.zero, Trit.neg]
+- `293`: when result = bundle2(a, b, 3)
+- `294`: then result[0] == Trit.pos and result[1] == Trit.pos and result[2] == Trit.neg
+- `297`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `298`: and   b = [Trit.neg, Trit.neg, Trit.neg]
+- `299`: when result = bundle2(a, b, 3)
+- `300`: then result[0] == Trit.zero and result[1] == Trit.neg and result[2] == Trit.zero
+- `303`: given a = [Trit.pos, Trit.pos, Trit.neg]
+- `304`: and   b = [Trit.pos, Trit.neg, Trit.pos]
+- `305`: and   c = [Trit.pos, Trit.pos, Trit.pos]
+- `306`: when result = bundle3(a, b, c, 3)
+- `307`: then result[0] == Trit.pos and result[1] == Trit.pos and result[2] == Trit.pos
+- `310`: given a = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `311`: and   b = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `312`: when result = dot_product(a, b, 4)
+- `313`: then result == 3.0
+- `316`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `317`: and   b = [Trit.neg, Trit.pos, Trit.zero]
+- `318`: when result = dot_product(a, b, 3)
+- `319`: then result == -2.0
+- `322`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `323`: and   b = [Trit.pos, Trit.neg, Trit.zero]
+- `324`: when result = hamming_distance(a, b, 3)
+- `325`: then result == 0
+- `328`: given a = [Trit.pos, Trit.pos, Trit.pos]
+- `329`: and   b = [Trit.neg, Trit.neg, Trit.neg]
+- `330`: when result = hamming_distance(a, b, 3)
+- `331`: then result == 3
+- `344`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `345`: and   b = [Trit.pos, Trit.neg, Trit.pos]
+- `346`: when result = cosine_similarity(a, b, 3)
+- `347`: then abs(result - 1.0) < 0.01
+- `350`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `351`: and   b = [Trit.neg, Trit.pos, Trit.zero]
+- `352`: when result = cosine_similarity(a, b, 3)
+- `353`: then abs(result + 1.0) < 0.01
+- `371`: given x = [Trit.pos, Trit.neg, Trit.zero, Trit.pos]
+- `372`: and   key = [Trit.neg, Trit.pos, Trit.pos, Trit.neg]
+- `373`: and   bound = bind(x, key, 4)
+- `374`: and   unbound = unbind(bound, key, 4)
+- `375`: and   sim = similarity(x, unbound, 4, SIM_COSINE)
+- `376`: then sim > 0.95
+- `384`: given a = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `385`: and   b = [Trit.neg, Trit.pos, Trit.neg, Trit.pos]
+- `386`: and   sim_ab = similarity(a, b, 4, SIM_COSINE)
+- `387`: and   sim_ba = similarity(b, a, 4, SIM_COSINE)
+- `388`: then abs(sim_ab - sim_ba) < 0.0001
+- `391`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `392`: and   b = [Trit.neg, Trit.pos, Trit.neg]
+- `393`: and   sim = similarity(a, b, 4, SIM_COSINE)
+- `394`: then sim >= -1.0 and sim <= 1.0
+- `397`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `398`: and   b = [Trit.neg, Trit.pos, Trit.neg]
+- `399`: and   sim = similarity(a, b, 4, SIM_HAMMING)
+- `400`: then sim >= 0.0 and sim <= 1.0
+- `403`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `404`: and   b = [Trit.neg, Trit.pos, Trit.pos]
+- `405`: and   ab = bind(a, b, 3)
+- `406`: and   ba = bind(b, a, 3)
+- `407`: then ab[0] == ba[0] and ab[1] == ba[1] and ab[2] == ba[2]
+- `411`: given a = [Trit.pos, Trit.neg]
+- `412`: and   b = [Trit.neg, Trit.pos]
+- `413`: and   c = [Trit.pos, Trit.pos]
+- `414`: and   bc = bind(b, c, 2)
+- `415`: and   abc = bind(a, bc, 2)
+- `416`: and   ab = bind(a, b, 2)
+- `417`: and   abc2 = bind(ab, c, 2)
+- `418`: then abc[0] == abc2[0] and abc[1] == abc2[1]
+- `421`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `422`: and   b = [Trit.neg, Trit.pos, Trit.pos]
+- `423`: and   ab = bundle2(a, b, 3)
+- `424`: and   ba = bundle2(b, a, 3)
+- `425`: then hamming_distance(ab, ba) == 0
+- `428`: given a = [Trit.pos, Trit.neg]
+- `429`: and   b = [Trit.neg, Trit.pos]
+- `430`: and   c = [Trit.pos, Trit.pos]
+- `431`: and   abc1 = bundle3(a, b, c, 2)
+- `432`: and   abc2 = bundle3(b, a, c, 2)
+- `433`: then hamming_distance(abc1, abc2) == 0
+- `436`: given x = [Trit.pos, Trit.neg, Trit.zero, Trit.pos]
+- `437`: and   key = [Trit.neg, Trit.pos, Trit.pos, Trit.neg]
+- `438`: and   bound = bind(x, key, 4)
+- `439`: and   recovered = unbind(bound, key, 4)
+- `440`: and   sim = similarity(x, recovered, 4, SIM_COSINE)
+- `441`: then sim >= 0.95
+- `444`: given v = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg]
+- `445`: and   len = 5
+- `446`: and   n = 2
+- `447`: and   p1 = permute(v, len, n)
+- `448`: and   p2 = permute(p1, len, len - n)
+- `449`: then hamming_distance(v, p2) == 0
+- `452`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `453`: and   b = [Trit.neg, Trit.pos, Trit.neg]
+- `454`: and   sim = similarity(a, b, 4, SIM_HAMMING)
+- `455`: then sim >= 0.0
+- `463`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `464`: and   b = [Trit.neg, Trit.pos, Trit.neg]
+- `465`: and   d_ab = hamming_distance(a, b, 3)
+- `466`: and   d_ba = hamming_distance(b, a, 3)
+- `467`: then d_ab == d_ba
+- `470`: given a = [Trit.pos, Trit.neg, Trit.pos]
+- `471`: and   b = [Trit.neg, Trit.pos, Trit.neg]
+- `472`: and   d_ab = dot_product(a, b, 3)
+- `473`: and   d_ba = dot_product(b, a, 3)
+- `474`: then abs(d_ab - d_ba) < 0.0001
+- `492`: given a = [Trit.pos, Trit.neg, Trit.zero]
+- `493`: and   b = [Trit.neg, Trit.pos, Trit.pos]
+- `494`: and   ab = bind(a, b, 3)
+- `495`: and   aab = bind(a, ab, 3)
+- `496`: then hamming_distance(aab, b) == 0
+- `500`: given v = [Trit.pos, Trit.neg, Trit.zero, Trit.pos]
+- `501`: and   result = bundle3(v, v, v, 4)
+- `502`: then hamming_distance(result, v) == 0
+- `506`: given a = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `507`: and   b = [Trit.neg, Trit.pos, Trit.neg, Trit.pos]
+- `508`: and   sim = cosine_similarity(a, b, 4)
+- `509`: then sim >= -1.0 and sim <= 1.0
+- `513`: given a = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `514`: and   b = [Trit.neg, Trit.pos, Trit.neg, Trit.pos]
+- `515`: and   sim = hamming_similarity(a, b, 4)
+- `516`: then sim >= 0.0 and sim <= 1.0
+- `520`: given v = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `521`: and   sim = cosine_similarity(v, v, 4)
+- `522`: then abs(sim - 1.0) < 0.0001
+- `526`: given v = [Trit.pos, Trit.neg, Trit.pos, Trit.zero]
+- `527`: and   sim = hamming_similarity(v, v, 4)
+- `528`: then abs(sim - 1.0) < 0.0001
+- `533`: given a = [Trit.pos, Trit.neg]
+- `534`: and   b = [Trit.neg, Trit.pos]
+- `535`: and   c = [Trit.pos, Trit.pos]
+- `536`: and   bc = bundle2(b, c, 2)
+- `537`: and   left = bind(a, bc, 2)
+- `538`: and   ab = bind(a, b, 2)
+- `539`: and   ac = bind(a, c, 2)
+- `540`: and   right = bundle2(ab, ac, 2)
+- `541`: then hamming_distance(left, right) == 0
+- `545`: given x = [Trit.pos, Trit.neg, Trit.zero]
+- `546`: and   zero = [Trit.zero, Trit.zero, Trit.zero]
+- `547`: and   zx = bind(zero, x, 3)
+- `548`: and   xz = bind(x, zero, 3)
+- `549`: then hamming_distance(zx, x) == 0 and hamming_distance(xz, x) == 0
+- `606`: given a = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `607`: and   b = [Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos]
+- `608`: and   ab = coptic_bind(a, b)
+- `609`: and   ba = coptic_bind(b, a)
+- `610`: then hamming_distance(ab, ba) == 0
+- `613`: given a = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `614`: and   b = [Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos]
+- `615`: and   ab = coptic_bind(a, b)
+- `616`: and   aab = coptic_bind(a, ab)
+- `617`: then hamming_distance(aab, b) == 0
+- `620`: given v = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `621`: and   result = coptic_bundle3(v, v, v)
+- `622`: then hamming_distance(result, v) == 0
+- `625`: given a = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `626`: and   b = [Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos]
+- `627`: and   sim = coptic_similarity(a, b)
+- `628`: then sim >= 0.0 and sim <= 1.0
+- `631`: given v = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `632`: and   sim = coptic_similarity(v, v)
+- `633`: then abs(sim - 1.0) < 0.0001
+- `636`: given x = [Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero, Trit.pos, Trit.neg, Trit.zero]
+- `637`: and   key = [Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos, Trit.neg, Trit.pos, Trit.pos]
+- `638`: and   bound = coptic_bind(x, key)
+- `639`: and   unbound = coptic_unbind(bound, key)
+- `640`: then hamming_distance(unbound, x) == 0
+
+## specs/vsa/sdk.t27 — 12 scenario(s), 64 line(s)
+- `322`: given a = hypervector_random(50, 123)
+- `323`: and b = hypervector_random(50, 54321)
+- `324`: when result = hypervector_bind(a, b)
+- `325`: then result.data.get_dimension() == 50
+- `328`: given a = hypervector_random(50, 123)
+- `329`: when bound = hypervector_bind(a, a)
+- `330`: and unbound = hypervector_unbind(bound, a)
+- `331`: then unbound.data == a.data
+- `334`: given a = hypervector_random(50, 123)
+- `335`: and b = hypervector_random(50, 98765)
+- `337`: when unbound = hypervector_unbind(bound, a)
+- `338`: then unbound.data == a.data
+- `341`: given a = hypervector_random(50, 123)
+- `342`: and b = hypervector_random(50, 54321)
+- `343`: and c = hypervector_random(50, 87654)
+- `344`: when result = hypervector_bundle(a, b)
+- `345`: then result.data.get_dimension() == 50
+- `348`: given a = hypervector_random(50, 123)
+- `349`: and b = hypervector_random(50, 54321)
+- `350`: and c = hypervector_random(50, 87654)
+- `351`: when result = hypervector_bundle3(a, b, c)
+- `352`: then result.data.get_dimension() == 50
+- `380`: given a = hypervector_random(50, 123)
+- `381`: and b = hypervector_negate(a)
+- `382`: when result = hypervector_similarity(a, b)
+- `383`: then result == gf16::from_f64(-1.0)
+- `391`: given a = hypervector_random(50, 123)
+- `392`: and b = hypervector_random(50, 98765)
+- `393`: when result = hypervector_hamming_distance(a, b)
+- `394`: then result > 0
+- `397`: given a = hypervector_random(50, 123)
+- `398`: and b = hypervector_random(50, 98765)
+- `399`: when result = hypervector_hamming_similarity(a, b)
+- `400`: then result == gf16::from_f64(0.0)
+- `403`: given a = hypervector_random(50, 123)
+- `404`: and b = hypervector_negate(a)
+- `405`: when result = hypervector_hamming_similarity(a, b)
+- `406`: then result == gf16::from_f64(0.0)
+- `414`: given a = hypervector_random(50, 123)
+- `415`: and b = hypervector_random(50, 98765)
+- `416`: when result = hypervector_dot_product(a, b)
+- `417`: then result == 0
+- `420`: given a = hypervector_random(50, 123)
+- `421`: and b = hypervector_negate(a)
+- `422`: when result = hypervector_dot_product(a, b)
+- `423`: then result < 0
+- `449`: given a = hypervector_random(50, 123)
+- `450`: and zero = hypervector_zero(5)
+- `451`: when a_ext = hypervector_bundle(a, zero)
+- `452`: then a_ext.data.get_dimension() == 50
+- `500`: when result = hypervector_permute(a, 0)
+- `501`: then result.data == a.data
+- `506`: when result = hypervector_inverse_permute(result, 0)
+- `507`: then result.data == a.data
+- `513`: when result = hypervector_similarity(a, b)
+- `514`: then result >= gf16::from_f64(-1.0) and result <= gf16::from_f64(1.0);
+- `520`: when result = hypervector_hamming_distance(a, b)
+- `521`: then result >= 0;
+- `538`: when result = hypervector_negate(a)
+- `539`: then for (i = 0; i < 100; i += 1) {
+- `548`: when result = hypervector_density(a)
+- `549`: then result >= gf16::from_f64(0.0) and result <= gf16::from_f64(1.0);
+- `559`: when clone = hypervector_clone(a)
+- `560`: then clone.label == a.label;
+
+## specs/vsa/similarity_search.t27 — 0 scenario(s), 17 line(s)
+- `302`: when result = cosine_similarity(&a, &b, 5)
+- `303`: then abs(result - 1.0) < 1e-10
+- `309`: when result = cosine_similarity(&a, &b, 5)
+- `310`: then abs(result + 1.0) < 1e-10
+- `316`: when result = cosine_similarity(&a, &b, 3)
+- `317`: then abs(result) < 1e-10
+- `323`: when result = hamming_similarity(&a, &b, 5)
+- `324`: then abs(result - 1.0) < 1e-10
+- `330`: when result = hamming_similarity(&a, &b, 5)
+- `331`: then abs(result - 0.6) < 1e-10
+- `337`: when result = jaccard_index(&a, &b, 5)
+- `338`: then abs(result - 1.0) < 1e-10
+- `344`: when result = jaccard_index(&a, &b, 5)
+- `345`: then abs(result) < 1e-10
+- `362`: when results = find_top_k(&query, &vectors_slice, 2, SIMILARITY_COSINE)
+- `363`: then results.count >= 1
+- `364`: and results.results[0].index == 0
+

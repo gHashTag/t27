@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:cbb14cc8950961492541af15e9fc9c59527f8fa2cb318a5d3b8a913a04b97c39",
-  "gen_hash_rust": "sha256:5778d13f076d48afbeac4eb2556e526b8d5a10fdfb1d15658879f52277a76b8f",
-  "gen_hash_verilog": "sha256:77a0bd2e9978bcda8e7cbbd7f943097dfd7d468dac4e79d13cb48ccba578973c",
-  "gen_hash_zig": "sha256:703de34e1a0fe15e89c33d6c8f0803d9924c36f9945c671b7decc25d1b970a8c",
+  "discarded_top_level_tokens": 10,
+  "gen_hash_c": "sha256:cc631aed34dcdca6d0d2d19fc99352764b8bdadde99da24f9ed6536da1ef51fb",
+  "gen_hash_rust": "sha256:a5c7d46d0b23ac63ac5743defd6124311c0f49374c6f5c68384b42eb7cf17035",
+  "gen_hash_verilog": "sha256:e41720b0edcf10ce8c30de65ab360b50e74ce09a3ad51407eb06463f2708c9fc",
+  "gen_hash_zig": "sha256:3bd395364cb10185f8339c7803a9d603fbac9c0756150b76e10937dba804bcbb",
   "module": "Partition_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:834488d6cb46174413023d6fd86396e212af114c9d30a8b0a18b54d1e5b9cd5a",
   "spec_path": "specs/fpga/testbench/partition_tb.t27"
 }

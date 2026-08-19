@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:0ebac0fab4bd8217afbc7a2ceb5026c9667271b3173e0bf87b5e38aaba5b0d6d",
-  "gen_hash_rust": "sha256:ffebf00d92b69899fda2f18558d5bfdb15877a7386229b54407541c0afc5e4cd",
-  "gen_hash_verilog": "sha256:e11b8b45ad1d66cf2330bfb2f314678be9c56e5f1e8c1bd20760208e539200e5",
-  "gen_hash_zig": "sha256:c027eb5f9db221e55e295c0d3565318d751da9654bab793baa8c658964c3cd90",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:006a152eeb7e5419e59280d33cfc667d8261e4f11a9729672144fda3403f393f",
+  "gen_hash_rust": "sha256:a1afdb3c96022d2f0b35edc4b5e710efd2fcda59474f4a73de73056cc8beb489",
+  "gen_hash_verilog": "sha256:053cf26ff6bdd9a0dfabb1683314edd9e62a8ecd2afab726147b1339a9c575cb",
+  "gen_hash_zig": "sha256:c0663e1e13f1eea342e28763a06d99e0f596f4e4e96c354cfc21a0141ab335d4",
   "module": "Maxpool2d",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:85737878076cb079490db44c9772b4934fc0daae162b066db29d1685190a2c60",
   "spec_path": "specs/ml/layers/maxpool2d_layer.t27"
 }

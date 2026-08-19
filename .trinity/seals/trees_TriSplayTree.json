@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:8251335dda0bb0c3a834a082aaf881b03cfa51848d68dc04980eec8d0575b7c6",
-  "gen_hash_rust": "sha256:6369a60583f14337c4e53ea125ba9892985919b4482c98b66208e6e59ae53d26",
-  "gen_hash_verilog": "sha256:01c4eb23ec632e39bdb41d019005a0c13c5eaf91073edac89931b4bfece807d8",
-  "gen_hash_zig": "sha256:fa0619d49ef3fe6fcdceb48c97e87d0affa8bba8fdb6dadb04f61635f1fc8386",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:d4b3be6bb8132b0e06e8821db8614b62c7a5be01a1ed0384d21529c670925bd9",
+  "gen_hash_rust": "sha256:134c362c65ab03d2584edfea182fc951810aec47b1b3b28c0420e521eec82262",
+  "gen_hash_verilog": "sha256:a9a8c310bc1bcb7124586b9e66dabe0f3dc634a1e0750f89544a16145ffaaee1",
+  "gen_hash_zig": "sha256:44fddda2e922fb8e6e1f24f07b220f73b3ef3ee1786c3855fe00a898bac29e47",
   "module": "TriSplayTree",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a580e7e0ab08c1395f0a233f729efb3b8e2a0da6f1765afd5891fe4c1b456453",
   "spec_path": "specs/tri/trees/splay_tree.t27"
 }

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:15ad590994e373f96fc9d9d8de28ba6d29e8a53d94207572526c47b0427fb59f",
-  "gen_hash_rust": "sha256:dc9598aea69a698242c5f2884363583fe5c27f23039f3e389d7cd053c93317a0",
-  "gen_hash_verilog": "sha256:da50564ac40bab6eddc7d53a036a68da71e54adbdc9d1b1c14d30ca427b784e0",
-  "gen_hash_zig": "sha256:c0f89eb63e1b19c6beef5328a13df1ba8832fb46083d843ec9cb59c230302c7a",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:3a76bab8c50d70b10a0d9b8b1d0d9fd5d361187ea28877c22edc1ff84ffad4fa",
+  "gen_hash_rust": "sha256:13889b94f81048d1c75008bb557dddd666aa3c1b0e4e6afd9d0ff46efd1d53bc",
+  "gen_hash_verilog": "sha256:5d732ed539dadc5aa551eab3185a7619d1bc6133ed1847374fcfcd93ab4d97db",
+  "gen_hash_zig": "sha256:552ee95fce585ce56fe5d4f20d25510e4fe492ad203a916bd7bb67d9fc624180",
   "module": "TriEcc",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e111bef882601ff39e589072facac4a3d4501cf3f8f3c0edbb089981db7379c4",
   "spec_path": "specs/tri/crypto/ecc.t27"
 }

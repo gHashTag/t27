@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:053b8c9041728b36390f6d830a1814ad064dfa09ef718af8b9276d9726cb7ca0",
-  "gen_hash_rust": "sha256:e4956609fcf03bbd4c6618ccb2c752c301c34517cd4984cb53d35171682b79e9",
-  "gen_hash_verilog": "sha256:199b37d19e123cfec7a042972f9572db804e94debbf32e775bdbd710340168a3",
-  "gen_hash_zig": "sha256:ff0b0ae4433f5581af802ea52c3020e626875698e70bd092ca2842cb4d3afca3",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:36b3a2d57c26ebcf264ab36856ff3b3ca115a36d12dcbae2bf8a3b4c8217bce8",
+  "gen_hash_rust": "sha256:9d50092ef1fb87afb3c02f87ab74d27f12e94627515f2a8aa9868b8dd6d92d9b",
+  "gen_hash_verilog": "sha256:388c344fdbd02ce0ce77646c3b595535a118aae537052538ac95336684844967",
+  "gen_hash_zig": "sha256:3e88d36220af20b104a42cf7e65ff3cb23805c07cff12b69c4d1c33fad2d1f3c",
   "module": "GeluApprox",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3a74a18b91ed8e675b2d44fc822f28cd25ced5d9c3f8a902786c5a31dd11c30f",
   "spec_path": "specs/ml/activation/gelu_approx_activation.t27"
 }

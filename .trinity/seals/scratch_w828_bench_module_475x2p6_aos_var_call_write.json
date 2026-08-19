@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:bb3e42d5a2e16ffff4b0fff6feeba32831fecd3b270e48c79da60ae3e1b8f7fd",
-  "gen_hash_rust": "sha256:1d32266dc970379cf188f79e707a0230780b3f0d4c27d1c1e8815d8526057283",
-  "gen_hash_verilog": "sha256:f6e98f3b7cd0caf68df0bc4a122aac27ce0619ce66f4f735220644b960d04b96",
-  "gen_hash_zig": "sha256:19310e7e11c6250b5641a1355a4252f1e5edf3b06a1960be79845b883f2e15a2",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:2a4c4169a04f6e1395bc5ffc2d68568da406aff4ed0785617ca2acf051f89d2e",
+  "gen_hash_rust": "sha256:128804ceac14b1d59714555d62fb30698dd97e831a2261097494f07f7c222c31",
+  "gen_hash_verilog": "sha256:babd19f159ff10c79617892c1614369ce86297ff8547f7e3f1a5c878bc8603c9",
+  "gen_hash_zig": "sha256:fc1f44629a540420cb7f013154b489dc62bd29e34d586427caa5727aa52325d5",
   "module": "w828_bench_module_475x2p6_aos_var_call_write",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:58:50Z",
+  "sealed_at": "2026-08-19T04:39:50Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:81de1a09e4ae58371a142197f49c63679c5789855782ee2e89a90fff09492eb3",
   "spec_path": "specs/scratch/w828_bench_module_475x2p6_aos_var_call_write.t27"
 }

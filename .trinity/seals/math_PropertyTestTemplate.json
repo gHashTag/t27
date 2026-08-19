@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:21076c98b2fff35e90ebdd7a1db1efd7138a19c3b99ace2d72e036c3b9fe263c",
   "module": "PropertyTestTemplate",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:ab6e8c022ffb7bc5a4123ef9df4975ec2063fd92b2b61aa2176c6035378d831b",
   "spec_path": "specs/math/property_test_template.t27"

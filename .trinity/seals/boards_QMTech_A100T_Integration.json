@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:629b18ae31bed63ce614112df33ef783e44b7e092806a653d69545cc0ca3436a",
   "module": "QMTech_A100T_Integration",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5db8c37f809a17a0b7778d8721030cdbdb8085af48e987890b553172ee119e6e",
   "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27"

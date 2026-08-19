@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:1fd7bd86f5dbc39582ef7e9691b9385b848150e9988fab9d64a6b6ea984e6089",
   "gen_hash_rust": "sha256:842e47a2cc78ce1aacd83786e0f7bddbc4a7b9375637985351e5833797c70836",
   "gen_hash_verilog": "sha256:063f6d75c93f8ef99989a513dc878c5bb9046504113671ce746145d5c5263124",
   "gen_hash_zig": "sha256:fb748a1e751ad1d5c4dba39caa7bd713bfed4f45c98bd44450b24d63a524c85f",
   "module": "TriAhoCorasick",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:013104eca3c2285eccffd495e7968495a196688fb508c58ffc01406b6df14fae",
   "spec_path": "specs/tri/search/aho_corasick.t27"

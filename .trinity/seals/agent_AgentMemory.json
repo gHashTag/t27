@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:6556630f48ec526d3855cf52823ddf96aca91c4909c1b843d96e7effa851765f",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
   "gen_hash_verilog": "sha256:06018033582672124520c7d613576a8c1db13ec3f654ed445f63e08cbd640bfa",
   "gen_hash_zig": "sha256:63f2a1124f66d804b4a2b3f30e032144c2c93c0a1fd05208091293b6eaf05045",
   "module": "AgentMemory",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:0ad836431b5b70772112f6f3025589ce1f77208ca6e2eef8b2115057eab7b495",
   "spec_path": "specs/tri/agent/memory.t27"

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:ff9343adac796d87c251e349dc38029b4cadf331f7901b0655b71ef006482164",
-  "gen_hash_rust": "sha256:7b5934f22eddc64a02811d24037b48e243ae71d6a290346af0cbdd2b399f96e4",
-  "gen_hash_verilog": "sha256:27d77e2b0771071e1e210ea34f4bd573f3c1e40ddb0d434aff4d4fb0abc168be",
-  "gen_hash_zig": "sha256:4617ca9d76d1a9c41b7d08a0242ed1b33866bb41495ea90bdc187c316e70578d",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:b57ddf466013f88294e26b1ca79528ff217cf1765fed7120d63928ad474843d6",
+  "gen_hash_rust": "sha256:04a7e4db8e05c8625c7b93c3e4b7279361b514e37c986be005a89cdf5f46642c",
+  "gen_hash_verilog": "sha256:d78b33e6d976a55ce8d69f1b5b4de037274116820b22fe35208668b96be8b87c",
+  "gen_hash_zig": "sha256:fe6b0ca617d647a326677f2bcda4e5f28ad5832fd607bf8accfbfcbf91fa2f6b",
   "module": "Git",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:de59a550af2284126853dfff145260c5d70a8e8c5c380bd8f78e803b6a5502f6",
   "spec_path": "specs/git/schema.t27"
 }

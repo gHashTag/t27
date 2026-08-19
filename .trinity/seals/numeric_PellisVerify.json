@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:fa5e14cac3678b386d34f3971fd56e56333fd830a40d5227671e7156fde4e531",
-  "gen_hash_rust": "sha256:4d76bef1e6152fa3187939900b42db4ef79492a789730eed5578a5544063af69",
-  "gen_hash_verilog": "sha256:5109d18f4068af9c67d5a84f66d1de5424038d4136e3964f6e2309b891042123",
-  "gen_hash_zig": "sha256:54e7b6faf5e89fd9732a0070eab529da129ff5317d8bf998cc258be091022878",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:89456e01a777313f2ca7d90816d73a69eb6b868e09888c7b6b4ffe4b5bcae692",
+  "gen_hash_rust": "sha256:abe4918aa3480d544197567549e6cbfc415037810d2057b88ee32a06b5e71834",
+  "gen_hash_verilog": "sha256:7d4410a1d70fc1950aecb5d3983ecebad42c027a10beb235920a01a5c69b7665",
+  "gen_hash_zig": "sha256:fa1fc93e502bc14f7b0f1020cd19aa4472790d7a76474a69e28859bba7222edd",
   "module": "PellisVerify",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d1c8b70e3fe2176c599433da14052d4628bed850866bb109b217723af830ca5f",
   "spec_path": "specs/numeric/pellis_verify.t27"
 }

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:4f3b65aa66e434eaad965abb53ab13dc9d066b942173e55eca26980f556165e9",
-  "gen_hash_rust": "sha256:dcd1bebb91fe2640472595d89ee3cc9c29abe774add3d2ea98d22544e7237b91",
-  "gen_hash_verilog": "sha256:f0a1b08274f71b6de05cbc6dcf98049a3fbcb1aa66a4a0e8e2a9af04ee9d4960",
-  "gen_hash_zig": "sha256:20807a2d26659bf3bf4c236a02ff35b94cc3aaa9f3ac40b3f08871e3e41d7702",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:79d0ffddf0f11bf0c852abf0293d907f914fc60b3830177ea7f164167ce9b6a5",
+  "gen_hash_rust": "sha256:6b5a081062ec154037536d8cdd8307ac2db8ac0831d7988cc01e24823745780c",
+  "gen_hash_verilog": "sha256:8494bb1556555d51d758db9a9d3e326cc61a9c13e74ebcb7caccac94f64ca944",
+  "gen_hash_zig": "sha256:f306cddfd384908666c947b0eff29a65a0609255cfdec543399ea4e2ae987327",
   "module": "w459_rom_style_block",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:57:49Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d9c7f185eda1334a7a1d78879d00a54547457417be129db867f39f566f5da72d",
   "spec_path": "specs/scratch/w459_rom_style_block.t27"
 }

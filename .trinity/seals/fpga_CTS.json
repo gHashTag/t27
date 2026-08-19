@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:77d0ff5ee8e40047b55365f1485bcef09b0235d9dc471d8f8067c384662e15c6",
-  "gen_hash_rust": "sha256:c5070c16095ba086adcd678aeba62368793e23a9548339a8c177233ba695e142",
-  "gen_hash_verilog": "sha256:d28a11b051ca71d48020206850960f6160f4d9fd3defa8adf44ed2aea4534234",
-  "gen_hash_zig": "sha256:dde6b9fb4560361652b6115a4081065dd7d140b4102838df1e7eed1a1fb48a0a",
+  "discarded_top_level_tokens": 22,
+  "gen_hash_c": "sha256:9f63f6d1a8d718c4b3ab6b3a10ce88ed0c3d3576b7b7f6335c7a569be8696242",
+  "gen_hash_rust": "sha256:f47e6da9b58af2bc4b0cf2479b643ecab9432293528a5b240ccc912f6e8bd206",
+  "gen_hash_verilog": "sha256:e94f904836647f46cf5f89dda63ed1b87f492e6b7926b45d16bb9cc070ef7dbc",
+  "gen_hash_zig": "sha256:fca4226053548b80f659cc575ba1701498ef35e476f7d320453a2fb2813af1f4",
   "module": "CTS",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:84753bf2bec3f9c744cac4ce527210e87fd55d1843aecc8f533e52e25641cbea",
   "spec_path": "specs/fpga/cts.t27"
 }

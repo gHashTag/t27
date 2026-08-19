@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:e6825afd2dc19fb7311719220280092f7fbe05b88b4d3f344d8350c891e1aa9f",
-  "gen_hash_rust": "sha256:14fc1ad1e49254cc63dc0469a289d650b592e460c107e62e5181670c2755072a",
-  "gen_hash_verilog": "sha256:4085ba46535ccb6e50078ed46375d093fb15d9d72d38bed46d3c020848eef5ab",
-  "gen_hash_zig": "sha256:f1636d7f2779a3df4484620f2cd4fbc9a0d4147c86786d3d6d80356fcf182da1",
+  "discarded_top_level_tokens": 96,
+  "gen_hash_c": "sha256:dafa01cd9a1c8a6d44014c75ca85338d1ee82af1cef5ac588dd1ff574c9a4763",
+  "gen_hash_rust": "sha256:dab830019e2316218ee667629e02c5b039f008d7e05d185631e1106a1bd247a4",
+  "gen_hash_verilog": "sha256:d26ba42c4d613f0c3d5d53d8f65147b5588621b88fee79ee4e2ae90b90710221",
+  "gen_hash_zig": "sha256:1d8f885670dbc22c5f7aeb7a3e8b2569a88f879a13dd238eadf3b857793dd990",
   "module": "ZamolodchikovE8",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3d88a091a5210e2926d3c3fd42ad80683724c8e7ba3277313fb8bd15ae1b8423",
   "spec_path": "specs/math/zamolodchikov_e8.t27"
 }

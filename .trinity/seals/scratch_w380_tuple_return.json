@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:ca5850aa7a5b459906d6f5a77224bde6fc1ae2459a6c0ad443dc69a92d64524b",
-  "gen_hash_rust": "sha256:a4fc6a1a4853066edc8929ca6877579a5f3b72133048c42ce34a17998ec8b67f",
-  "gen_hash_verilog": "sha256:26b94b8d54a067c9382b13753b1c5d56afc61202442178604de9ffc6f5c55b01",
-  "gen_hash_zig": "sha256:6329ae376a2e4deabaa97783d9764dd858ea3bb6940c52f04b8a71d95aed8a8d",
+  "discarded_top_level_tokens": 4,
+  "gen_hash_c": "sha256:cfbba15daea63300d681d56914a64fbb925633fd9ecec4e8f6dbcef339a6b77e",
+  "gen_hash_rust": "sha256:e5cdd4491c336855e3a80ae5cbd0f6a9c1700333ed437481053af6d47002ff75",
+  "gen_hash_verilog": "sha256:ed9d1cffa0ff3aabdf259ec00b3a79ebabf495f1d43d7aba9d4a8b3ded067a56",
+  "gen_hash_zig": "sha256:e57734294b414df456ddd959faf1351fa6711b9f3c24999e292361ab9623b40d",
   "module": "w380_tuple_return",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:00:21Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d7fe5e75594efc37e65de90e3b3822f0968e022791778ed079267745b3c0a315",
   "spec_path": "specs/scratch/w380_tuple_return.t27"
 }

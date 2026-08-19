@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:e0836226ce833a6b1b51870935952c84494efcb3eab6e5cf6c4461a09ca86979",
-  "gen_hash_rust": "sha256:164ad7b4ffed6fd94d97254ffbf10633a56c82e93759ae36d70f1ae8c0083acb",
-  "gen_hash_verilog": "sha256:3b14e2a353e150bce283d353b57d8aee384d0acef4f2f5d1d330edae015f664e",
-  "gen_hash_zig": "sha256:5eea2370d046fa3d5e0189ccf7f3a992cd4e0d8706efdb7f9726cee9eda88106",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:401146879c7d9da6b34ac469f9f466fccce25356049157d3fd73880f966f2a7c",
+  "gen_hash_rust": "sha256:4af515cf5430f4d0c9aeb0931d7a86d29ebe797352bce3a03c68afc6ca0722cb",
+  "gen_hash_verilog": "sha256:01e51c3fa658deb58577d3d71bbf8955c2fd733333abe9a72cdd2a9a0ab96588",
+  "gen_hash_zig": "sha256:f6d2a185fc1dd32a7dd6c09b3418f057e3ac581bc0a4e4884dd76a9c2fed6271",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54",
   "spec_path": "specs/tri/encoding/bson.t27"
 }

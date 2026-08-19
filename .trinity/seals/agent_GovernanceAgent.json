@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:57357d6d72bbdbcb6f405ca9dec498c61848adfb8f6ce29f5e07aa9f9ddc0ae1",
   "gen_hash_rust": "sha256:07e1174c3b7ff233867f3f4ec5bb32d3a5424fdcde7f78c0a731e2130670a3fc",
   "gen_hash_verilog": "sha256:ae882e51ff23437bc3b9cb5cba5860d53ee2e060d3434f11ad46f2aa8026802b",
   "gen_hash_zig": "sha256:73bd645a1e35caca2c2ca4377a6561f5b6aed872b20038bf215d8ab45238d648",
   "module": "GovernanceAgent",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3141c84ac07b0e0278a98f2c175f0eb68d499eca57a2a936bdc41cf5a0de85eb",
   "spec_path": "specs/tri/agent/governance_agent.t27"

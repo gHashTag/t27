@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:39673c76984a9510c9aa5727c392ac435f4b439d911f2f69bae3e41288777b39",
   "module": "ZeroDSP_UART",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:25eaefeb5a55c9c97a0b93bd8632c072cb55a657334ff5b90b614123de7435df",
   "spec_path": "specs/fpga/uart.t27"

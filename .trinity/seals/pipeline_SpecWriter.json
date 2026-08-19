@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:9bea309bde6077aca6e6002378f8554f524a6723f597ecf956e6d333e007be2c",
   "gen_hash_rust": "sha256:cb606bda333fc8a5da9dcec5736a537916f49837870c9e92be82f8e478fff2ba",
   "gen_hash_verilog": "sha256:084019073c1e9140a3a1db342a3e3ebbdbb8f72d72c9f5e36c3fe8a57d9d0af2",
   "gen_hash_zig": "sha256:3a028d3cb35bdf15056c1efa9ae155bb3a3f2440200a423db884064725a86089",
   "module": "SpecWriter",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e667e57809adfe5076ba3c1eeb9ac53e5058dc7506a9a013919782ed8e55cef9",
   "spec_path": "specs/tri/pipeline/spec_writer.t27"

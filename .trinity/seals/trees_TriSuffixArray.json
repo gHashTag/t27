@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:6883fbfc5938a74090852635c21bdfba35ebc4d0ce0d940c1507c3bfccc49cac",
   "gen_hash_rust": "sha256:3b7c218c0f5d60b2726aec5b6407228c11882af420b6131a130cbe9678b141ac",
   "gen_hash_verilog": "sha256:6a6bad8ad2fc82fd2da6f4dce46659a97792547bb6b348e5226c626be60a3571",
   "gen_hash_zig": "sha256:f0ab2796cb6938cf68d259a7c2529463d6e154e52c1e7e3049cec72ed6f95036",
   "module": "TriSuffixArray",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:46eb92bbb340ff3345a79d44ec05cd0169c5c2b8ae064619690c31479ac3e2c0",
   "spec_path": "specs/tri/trees/suffix_array.t27"

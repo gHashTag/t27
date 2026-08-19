@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:c0e9dcf46572139aef438f0409958bf07c52e6ba6df811cd9980c361e0aa4746",
-  "gen_hash_rust": "sha256:c3a485b9a946629b124f3463f9a8707d110b961e28515b9adbd617d7c668be77",
-  "gen_hash_verilog": "sha256:4eeafc3da035eaa67abe72ff37cf48e5d7aac66c54840b063b96f3cbe8d381e7",
-  "gen_hash_zig": "sha256:846a7a4f8b26b5af8dfe5d783edc8ac7d7ef77c35d8f0bf29581aec5cafa9109",
+  "discarded_top_level_tokens": 18,
+  "gen_hash_c": "sha256:8726c95e99820b41f8d95adc895d3cf232c2be3bcb82de7e48365c747c33403a",
+  "gen_hash_rust": "sha256:c38c60bda121430afb638b419c86ace46d842d9f286c860251c9d673cb6ce975",
+  "gen_hash_verilog": "sha256:cff6a99535dab33d700c9537b378cea44a1354f636e151707fcc0a28367a8c8e",
+  "gen_hash_zig": "sha256:d00f82994b2bc27a63741626f2bd38e2dcb799ff7fd7a2997ca3315f0e2d07d1",
   "module": "AXI4_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1311f1b9f5b826d81f9ae077069f11252df3e04ac5c1c4e40b554b4783f75ad9",
   "spec_path": "specs/fpga/testbench/axi4_tb.t27"
 }

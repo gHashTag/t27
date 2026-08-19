@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:b63515e63ee9c132a2c6f699b6ca746981d510e13ad58b4e2e8f448419cc09f8",
-  "gen_hash_rust": "sha256:1db31edf3e2baae14648a38b5f244ecf65fa3b1cb09d11e97d406a4ebe3f11e5",
-  "gen_hash_verilog": "sha256:ac591e8e90e3601a00334fe1e6db8ef67fad65a2a2a9d2bf385e856a10d427cd",
-  "gen_hash_zig": "sha256:32e5749a9e4ce59c805d1a76de626577b2a0b410da574aed5fe3d69807bd7c68",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:32910be4cb5f4a1aff99e323b50eee92481364f8ddf98a4660820911e9d939b9",
+  "gen_hash_rust": "sha256:90c8dad4a6afb870bfb29efbe5e3be12b59b4cfafb0f9c36d0f2c9b627267600",
+  "gen_hash_verilog": "sha256:86f18f5211a09e60e49d2a223286706b3e2921ca726c029b3b0bbde82a0a1b34",
+  "gen_hash_zig": "sha256:f61275b44727600f9e074ac8f84cd823a833b7a9790b8800997a53b61d79472c",
   "module": "w534_negative_unbounded_while",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:00:16Z",
+  "sealed_at": "2026-08-19T04:36:23Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1e3df7a8aa0a64d1271e0dc44b240769da4741485856c83dd945e66f79936c45",
   "spec_path": "specs/scratch/w534_negative_unbounded_while.t27"
 }

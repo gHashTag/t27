@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:c1d06866d1e014f0f82bf64935a9c56c3cc6d84ab9b466e19f99858b5c258665",
   "module": "SDK",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:41:07Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7843aca460336f24ba9026067e1e642e110cb6d2a995064bf9613eaed662c115",
   "spec_path": "specs/vsa/sdk.t27"

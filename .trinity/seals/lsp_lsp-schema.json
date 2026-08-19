@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:243949a6b2a30ad40eb93839270b13ae7e6a3b03a54aa4cea6617d5d65e9292b",
-  "gen_hash_rust": "sha256:71b81484b3d4356df225cad60e0b1b2d345fba644581eede8a49e84c7f7ea991",
-  "gen_hash_verilog": "sha256:a6e07369b4b2751779079a78ef07a1fe1f16adef44c20088ffbb17d55b1c2338",
-  "gen_hash_zig": "sha256:6260ddbd91b0cf9f08612e6a45ad08b73530bdd5a0dc5bb13c4e3eabb09e4dff",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:21383581764f2b049c36236b155a6a890b919e99ef5b5f593ce14f879c8d3955",
+  "gen_hash_rust": "sha256:2133f4faf42a053f05302754effdc984b921086e399547de7fbd030b6d6b8a34",
+  "gen_hash_verilog": "sha256:a56473396661718a564aa224b4d073041b2011218ee26b9a744ddcbb77d848ea",
+  "gen_hash_zig": "sha256:86d075edd7bd1f213fe469f6df6f6253b52f23b95f219687a65619c031667c11",
   "module": "lsp-schema",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:4c4543a14768e2353cf1981460c90b96fa26a9c05e049b5d504e07a9e244a0d4",
   "spec_path": "specs/lsp/schema.t27"
 }

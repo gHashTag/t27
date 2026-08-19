@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:aaf675788ad4fd642d09c9b10219a658c14c5988c9e8a261fb2a3a0e278539bb",
-  "gen_hash_rust": "sha256:488e9d15dc4788bf519d4ca68515cf2b18167d086c4b35b042e797dfd19e6377",
-  "gen_hash_verilog": "sha256:276d217358e3122df2a98aaf4cbe888969dde894b8dd7600e38ca6017159e110",
-  "gen_hash_zig": "sha256:cc90736589709a6b90019c3093db00cb1b2bf4affbfa26ae1ced6ad850449f55",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:26c876d4a791a1e84f26f00895915b1bb0037462f3a4bd1d516363c47430378a",
+  "gen_hash_rust": "sha256:9084acf7fd317ed5e58ea4156215d459ed00d55622509aa8cb6dc19be4463293",
+  "gen_hash_verilog": "sha256:ee3721001780f751870ab837a55aa17893cd64e838e1cbd6d9b566c7f8f34a3f",
+  "gen_hash_zig": "sha256:34a1a6b62e252902d0301fa42a5941c71fc4b7e5d5857304d75c76851c1d81a4",
   "module": "MetaCompilation",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:7b16ea29ae644a0ff54968ea37806543ba823c4bfeddd82f64c66485efec33b1",
   "spec_path": "specs/compiler/meta_compile.t27"
 }

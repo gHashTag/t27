@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:8dba73ec299d75dd87de614ec9c713a566cf3dfb8f4b3b979b9c2d22ee94cbe2",
-  "gen_hash_rust": "sha256:f1d62eb7deb05fdaebdf5ca826fe8c76b7b25188feeae7847d215059e9c7e7eb",
-  "gen_hash_verilog": "sha256:1f0ca3c28dcb0770bc6d7300bd1b93b3bbb6ab1b7d6e3ca1169eb7ce63aa1ed2",
-  "gen_hash_zig": "sha256:458c9965906ebbafa52b0b7b91af7bed637ffec1f45e6aa582dfa79d73d1ab06",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:a30fa3fcfe89f92a26709ad14af1eb57c52999e2b5eb7dfc2122a5b058c378a1",
+  "gen_hash_rust": "sha256:0bbe4fc2b56960e5312776c1bdd977e4b86307f24e9ba4e7fe069b9ca05c077f",
+  "gen_hash_verilog": "sha256:2ab0b61f9b3e8f6696512fac5808e05501e71475a9622f01ca8879844c7015ee",
+  "gen_hash_zig": "sha256:05a370a320492b12fc446c773756f1406fe47df071da8e0dd5d4bbcef768fd34",
   "module": "GftArgmax4",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:36:28Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c208991377d1523087aed04969aac10ad910ef317e8bdb67bf5d290d70a4fff8",
   "spec_path": "specs/ternary/gft_argmax4.t27"
 }

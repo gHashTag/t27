@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:5797592b32cb3e5cf9bebfcaa6e5f5c869362599a62da2d29ca787e513a87c99",
   "gen_hash_rust": "sha256:7fb80e4e5fe6dae841d26d0d100b419c642f040bf98a8c0d8babe2e2f01df559",
   "gen_hash_verilog": "sha256:522c99c5888b42a17280f23a4c75e53fa1eb5dd80ac8aa125a667572713f4893",
   "gen_hash_zig": "sha256:16e7592347cdbf0b1498fbb9f9972637cef5c2dcd5a60b24fa8a887d0e5f638c",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:53b65f5dc6e1f5dc9f3ecc755cc31e2fdcf455106dba6d59c1423ea0ddda0214",
   "spec_path": "specs/tri/net/http.t27"

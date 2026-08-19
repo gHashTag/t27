@@ -1,11 +1,13 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:131439f17f893a4a59736c94c5c51b69509e0d3705144f25a807b71a2fc6f504",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:cb3dcfa810c351bbd90a920f55f4e977655b556736308db15233e45982fd48cf",
-  "gen_hash_zig": "sha256:65f777a3df323462a06d26205582e661dad140839c341366882346073d57d30e",
+  "gen_hash_verilog": "sha256:a56671ab7e1174bcc59674e5c6a46063b52ee3a65418c023055c04ee5fc91a7f",
+  "gen_hash_zig": "sha256:417ff489b0afdfa717fc6380c673e5404b3e951220b930dd95bd42c0d367ec8b",
   "module": "CloudOrchestrator",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:17c60a99b292d30a67a6c772d5960a3524bca0ffc13f40fb84b9fc7e2c7eae3c",
   "spec_path": "specs/tri/pipeline/cloud_orchestrator.t27"
 }

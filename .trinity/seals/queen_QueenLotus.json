@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:8697212df6438e0ec6fb298fbe90794893306ba4a76d004894f2ab9c9495f17c",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d3741df426857a2e3a3316c0dec38a81b50c4cae6a478c9fe6724f698a6e5db9",
   "spec_path": "specs/queen/lotus.t27"

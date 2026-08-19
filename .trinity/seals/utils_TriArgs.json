@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:859610ae1e80786d923e0c713581a5db5c505e927cf47f3b0db599314bd14ec0",
   "gen_hash_rust": "sha256:78f877f44a00467112415eb5def1eaad659174cf6166ebc35f051f9e17be9124",
   "gen_hash_verilog": "sha256:a881476ed15292ec46ea88bc0089e52a7dfa37e18f4e0d81a5fc7968b835e3e6",
   "gen_hash_zig": "sha256:479d5bb5daf2b987032f8fd4685630b9d4a262e912c187bcd960bf20229b840a",
   "module": "TriArgs",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:07:00Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8e5ba5dfd346196b718e8abeeb200686d3721831b8a376938316f5f121955dec",
   "spec_path": "specs/tri/utils/args.t27"

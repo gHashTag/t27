@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:8d4766e65510eccd7f0636d82db05368fa9bb8dc3e9156a5bae06c1dfaa72202",
-  "gen_hash_rust": "sha256:d817c0bdcc7a88b6c77204eb742b0cff93f7a4f565b2ca42e01e954b840fc377",
-  "gen_hash_verilog": "sha256:04e10c702daeaf16afa5a5f368645c0979e151c24561aad5e8051979d6136bb1",
-  "gen_hash_zig": "sha256:3e2dcfefb525387e1f075477b9a74eed13d6ebd91960592993d94b75706124ec",
+  "discarded_top_level_tokens": 14,
+  "gen_hash_c": "sha256:972426e1c38608da2748221e5dff962edaeeda2cd7b4cd2d751ab86aef72ed34",
+  "gen_hash_rust": "sha256:43e7c685277471ec61e77a3352200fc83615b243753222b4aab608489f33a841",
+  "gen_hash_verilog": "sha256:4f956178f99959357e7287f7fe5883cd9af0be8a8e4e5c59e786b1d89a863e2f",
+  "gen_hash_zig": "sha256:1c19515811062c202211be4af19371d50d17bf7db228e599144d797b11d77f9b",
   "module": "Placement_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:f1e9aedeba6e513fe9ed235d0501d552b46aa6c3e0c1cb7271888ce20d8f0c76",
   "spec_path": "specs/fpga/testbench/placement_tb.t27"
 }

@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:1b319e4a566750b7fc44980294cdd053aea189fd0da8a1b698231c6567c90f95",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1fc5326fdc967b490bc96fbfa827017ccf29246ba0dbbd5363feea2c0cb845e4",
   "spec_path": "specs/fpga/testbench/spi_tb.t27"

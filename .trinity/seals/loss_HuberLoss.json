@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:07139cbc0a60c55eb6b5ab4f3535ce178943bc5b57813bc851f33169b89fd092",
-  "gen_hash_rust": "sha256:753bb751f7e46eaa97420cb9aee57e71729251fdeb64c583c016bab0ceee45f9",
-  "gen_hash_verilog": "sha256:aebc6e0cb48fbca47b7896b23e946d16c355e35cdbe942564584f7a8fd6ac0df",
-  "gen_hash_zig": "sha256:522df4fca4418bc375aadc847d73e9c91416a9470041484dd719c3450442cfae",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:f9ded074d3b9a74b6db50b8293f0f4cee4ce13724d76c5a890135ceeabfff350",
+  "gen_hash_rust": "sha256:3c1f285cafb889dcf945b531e93dc14c9ed22e7c083b05f8af2c0b3e3a7e44f4",
+  "gen_hash_verilog": "sha256:7b55688c460cf4a8311f4e5c6b1d3997cfd9be3662ce70fa724beb1c6891424d",
+  "gen_hash_zig": "sha256:c8812a95754cb1612c9aa54a9b230178f8e54cd21b85a14a679b851b217ba5d3",
   "module": "HuberLoss",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
   "spec_path": "specs/ml/loss/huber_loss.t27"
 }

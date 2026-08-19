@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:5b3e92438559facbe5d97c550ef721513206e9de564aae3279c82b27b65e03eb",
   "module": "FIFO_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8ff28a2ffa2c8d1ef05a013691f905a41e7cae6dfd3bcf7b818ac823509fe060",
   "spec_path": "specs/fpga/testbench/fifo_tb.t27"

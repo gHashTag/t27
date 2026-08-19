@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:adb19d5c928e0cf9226f442b39afb3c9eb996d35dce73bee8f3968d4c142d4b2",
   "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:51Z",
+  "sealed_at": "2026-08-19T04:36:19Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:3bb0ac54f93b9e634edcff94be2b49a1ed578791302ca8ecd3ad730a2b2713f0",
   "spec_path": "specs/ar/restraint.t27"

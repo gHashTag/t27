@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:af435e3b6ff98cc71d51fcfeeff68859d5f82d088d8f0b4aec1107ab44975022",
-  "gen_hash_rust": "sha256:b09e03388b8e38823ea988fb74537c832f42428e9f752fcc55185f74dd4a0678",
-  "gen_hash_verilog": "sha256:0d5e861c284882f9fc09f21b6d9ddf9ab5b2fbf1d83c2179f6a5b99a70c75d0c",
-  "gen_hash_zig": "sha256:a9be505f20bf3fc5d5f05fd2cbeb76191e048edf9b750396b2603ce4aaaacfc4",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:e5c3b1ae0428dec3fc16f6ff8ebe1b8b68f3eccbac59f13eb9651012ded0947b",
+  "gen_hash_rust": "sha256:d423dc3831be0788969e39402ef76ed62a30a8645d4ffb4dd91d9c9ebda1e9bc",
+  "gen_hash_verilog": "sha256:7482ee1f0a95a603112352028e803a4bcc65c30ee3449e68ba0ff12e6bc72b8b",
+  "gen_hash_zig": "sha256:38df3d944d1d3192b74561d1b06aceb9f74b06c44395419ba4a3e311bc516638",
   "module": "Gru",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e72f0bd25f3350a928a1972d0070a96b9e73b6b13d9d6e080353286c1309458a",
   "spec_path": "specs/ml/recurrent/gru_cell.t27"
 }

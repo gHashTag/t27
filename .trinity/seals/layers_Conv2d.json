@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:b0e3c8f1c5e1306b51754dcb4e4fe17c905097bf45158fdd0b6e790e5fa78a70",
-  "gen_hash_rust": "sha256:b2b376c86ceaedfe7c7910632bb8619900f2013521e750f4f45708f3eb2a8ea4",
-  "gen_hash_verilog": "sha256:add1da5751b2fe95a0b2c302ac92ba86e550310f39147f81cb183ad4f1d94a11",
-  "gen_hash_zig": "sha256:ad6157fbd71cb1c1bfc6ff54c36191199423182268add0546e2033d285eb91e3",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:dd14f755bb51864a3c60336d2684fd8d8abce20d9ce82d33e24c06af0bc684c4",
+  "gen_hash_rust": "sha256:e4e1f36cef8b5e6280d4dad58edaa226b2ff7460616050323562eb00f73d02d4",
+  "gen_hash_verilog": "sha256:8ff6627db3e7ff9ea65615c1e18fe2f95556644c7478fd28a2eb1a5f049014e5",
+  "gen_hash_zig": "sha256:bed4544b7ccced58fc8a9dea8fcc0f578bb32bc684b9faf78cf68fc8af4511fe",
   "module": "Conv2d",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:bde6d67dbe20541b56e501032706f53025dd6ec72b76ca204a86379dc56f0d1f",
   "spec_path": "specs/ml/layers/conv2d_layer.t27"
 }

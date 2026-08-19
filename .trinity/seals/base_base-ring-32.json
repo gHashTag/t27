@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:83920ed9855ed14b0f63b072820d41577238a551ce6668ec01d3f2015963b1f2",
-  "gen_hash_rust": "sha256:93fd7cc21fe98f1dbfb7d92d7d8af53122dd248f5f0400cf8cb1e2e3d5cc5060",
-  "gen_hash_verilog": "sha256:67ed3bb29ecbfdd2bfe7d11fbaed5b053760b34d666c24315b15ac41ff543aa5",
-  "gen_hash_zig": "sha256:529a123624beb08202cc3ec2e64fc3428461373dd554b9ba9a318357f0ed1c92",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:1fa01a3ae1eba726d7fc18bedd3f8117f76a9ece717c10028874b4383df292ad",
+  "gen_hash_rust": "sha256:d40f58750283037653cf146cc7423ea3852669254767e5aa55df665a2d8dd669",
+  "gen_hash_verilog": "sha256:061e876a92b141452e0d6a9b1924779e9801f2267199b15f24742101d26f575e",
+  "gen_hash_zig": "sha256:cdc8871cedd2a2c0ff19eb8db27f7bd77ce9a00a7ea17eda4c2f6939566e00fe",
   "module": "base-ring-32",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:19Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
   "spec_path": "specs/base/ring_32.t27"
 }

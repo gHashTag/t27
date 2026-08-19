@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:1e7c947faea26e9a7d18433b507561097f3ff1b1f6a0753f8267c5ac9d85e1fa",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
   "gen_hash_verilog": "sha256:20b260068dccbc10c8f896bd5508ee995ebfbdae115440fa39d06f612b13af6b",
   "gen_hash_zig": "sha256:f416282c3dacc59dba7a1ff75e0b5be91dfdf9a53c6fa6716aea79b343cb4f82",
   "module": "AgentRun",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:bf61456c5a0ba1735ba7f0b243547c67f86ded98d23c09fd46bd2e53c1b23b04",
   "spec_path": "specs/tri/agent/agent_run.t27"

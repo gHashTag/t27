@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:0ecd1cd579d2c6ebf8ee08085d0e9e1caf815e9902c4c7df35e33e5243078f6f",
-  "gen_hash_rust": "sha256:16abc958f78208f0cc224ec52f289d78085b084998bc89d59793c1805c896b3e",
-  "gen_hash_verilog": "sha256:d1bb13f94a136dd57932e0acbecbbb80c134c96b5eca128d81c6c70b34ba6dd5",
-  "gen_hash_zig": "sha256:33c7412813f19407d4108c09f50d4650665bfd9f422bd27bb0f3b7a7b8b3debd",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:1185a3a182ae18cb612b9c712ba9619266c51ccf850a3ab3cf6ed6e4a2eceba4",
+  "gen_hash_rust": "sha256:d8e42d9ab751068306d667db3c2e0da7e93ae437d4cdafc169d9b6197070e9bc",
+  "gen_hash_verilog": "sha256:365bcc3e009b705214c474474701b9edcb33748e49566d5658b5e517cf097f4b",
+  "gen_hash_zig": "sha256:ac411505e10903a63e532d529ca31bc2b541144c5b3a7d8613527dc86d80484a",
   "module": "brain-bus",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:19Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:fe1ec1d596d41c8681abd03703c6b2e1d6552752ad7ae9daa147bd5f68831403",
   "spec_path": "specs/brain/bus.t27"
 }

@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:7f80df5d599eb8d2aed4f8cc112f908367f1e5f314bcc13fad970de7f9428fe7",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:875d52315dbeb0ac963d0c5cc9d55a87d96534eb5c742e1fc6a8543b5c284d0f",
   "spec_path": "specs/fpga/bridge.t27"

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:335a4d8f9a1b96197475cc2e0ddcb3ed47a6c4edd7ae2b7222696fb579bfacbb",
-  "gen_hash_rust": "sha256:725b50274fa85ec81015a43e50159b2a45839a829f43c4557e88e2015e9d65f3",
-  "gen_hash_verilog": "sha256:bb061aa2c56bdf386892b89ee8f13e44d73d32eca928f7eec7d3850b588e20bc",
-  "gen_hash_zig": "sha256:8545d117bb4a1a5a2cd71fb2234ef14fd7b1ad0bfd34ba2ee76e5bf65af984b5",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:6042d5400a70059423b5960c00811557203234c16f45f587a01b1b70e16fea9b",
+  "gen_hash_rust": "sha256:c10c8aaf2405b000ab12faf358f9abb8574cdbd66b4407f2e4e036577b821029",
+  "gen_hash_verilog": "sha256:20dab7ed451bd4b35497ddde161c62fcf2dafa5571e81c0c638acd4533154f31",
+  "gen_hash_zig": "sha256:63c1e9ada81bb0731025e5b32eb655390d67bc3bdc7e05465e9157583022a64d",
   "module": "CombBitnetNeuron",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:85e9e5f9206e17a924e9ae7f2a7c79a62cce17f06327cf1abdf424efaba6cf41",
   "spec_path": "specs/ternary/comb_bitnet_neuron.t27"
 }

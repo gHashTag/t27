@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:84e70019918c6ca7cc1f608573fd77ef13f3ab02ed7e8c6b1ffcbb02142b6054",
-  "gen_hash_rust": "sha256:30a8e99dffeaaccb1da3a42e5b756d12360d9b9105a33f4efca02238b42cfbe7",
-  "gen_hash_verilog": "sha256:c184b2ad50d7dbe8fc46b2aa2197c7e49b452134023904891073dcdb51d5ebd3",
-  "gen_hash_zig": "sha256:c5021625d0b326b5a0c0a236bc9450a5d932b8f270b0bbcf0af0d97273badcb2",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:fd296fed3dd154da194ac128a8a84d52c7174a43cb23b24521cb6b3c505d7152",
+  "gen_hash_rust": "sha256:435b525ac19e1dd0348eeaa7793268348eff0dcc11dfd391072868337fde37f7",
+  "gen_hash_verilog": "sha256:9dba4d2e90457c71bc43407ae2831a1e318ce92e5bccf572501ca109f2f321df",
+  "gen_hash_zig": "sha256:a397c0757bda192392a62f8452725596133b6389f8e736b4e4ebe9e7630af418",
   "module": "w456_rom_readonly",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:03:08Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:cc208ab94e4b406f6ce7d70051d3b1fbdb02ad644e3c10a2149c793dee126c42",
   "spec_path": "specs/scratch/w456_rom_readonly.t27"
 }

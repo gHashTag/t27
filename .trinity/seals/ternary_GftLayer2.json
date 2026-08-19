@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:aeff0798c4375a3611554e7435f2f4f8f4a3f01e4da5fd1e6fd8657dd1b43027",
-  "gen_hash_rust": "sha256:77c1337c41161123a28bca8fc3cb85a521181702c62b78b6c79293b1a01e10be",
-  "gen_hash_verilog": "sha256:93baf008efbdc1215d2f887945ef2980b76a5f61c4f0e411830948b1a971d969",
-  "gen_hash_zig": "sha256:0ec32b741911475de3160677c669ecb818c192f52933959e8753663b77859123",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:6d2f6eef4d541be5fd790669cdb83c1883bf2c7fe09f35309facb878aa1d678a",
+  "gen_hash_rust": "sha256:ade336ccf7daf2df8929ed229393d28993dd13007fe0d3fff06046e72627efbc",
+  "gen_hash_verilog": "sha256:4f72b2f02611e57558e8d0f002d6ba8881a395fef8c530f26225f87c325c61de",
+  "gen_hash_zig": "sha256:082e01da8beda4a6eba66cf26dbc18652f7fdde4d3ff2d5a4e19f0f365f37dfb",
   "module": "GftLayer2",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:41:05Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:35a33a43c6ba2669c285f757c838ae44d8cd5028598ff7912370383a41ee7133",
   "spec_path": "specs/ternary/gft_layer2.t27"
 }

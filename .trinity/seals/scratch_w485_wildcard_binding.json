@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:c7eb7fef78ad894cf3e806b9e51d0b87560e460e57ff08bc6feb12d5f07da403",
-  "gen_hash_rust": "sha256:eccc8ff2d6cb5e51b8cf6e2374bb7f5606af206bd8a4e117ccf5c84e2105ec9d",
-  "gen_hash_verilog": "sha256:b34b7b10d689aec10739ba2c7939987921f4decf81c18f79df3c59eb1895466b",
-  "gen_hash_zig": "sha256:9ec9ace1d19ba2a5d36c428db26c0477a84d58f35108469fa73c590f08892531",
+  "discarded_top_level_tokens": 9,
+  "gen_hash_c": "sha256:1e77964fc46a46209d5d1202c639462582b66176360be11fa861da5fdcacb35e",
+  "gen_hash_rust": "sha256:7ae5c35ef8df5ef74517c4e93c656814258ff9d19909276d4d76cc310c2992e3",
+  "gen_hash_verilog": "sha256:b51a0899180db8a0309bebb8a084722f897f2415b39b2c01205e33974f272e4c",
+  "gen_hash_zig": "sha256:76663b205d59926b0b4979d9ddfa5c65bdf9c4eca3c12a0030ca252cb64071e6",
   "module": "w485_wildcard_binding",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:58:45Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:1d76110ce4d833a1a8ffa11610b3605100c9ad7e0d3ee6eadc80a2f96ef32567",
   "spec_path": "specs/scratch/w485_wildcard_binding.t27"
 }

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:33008ac845469edcd7c65e092d74e9b1837b6caffeeae80c11ce30c5be85c34f",
-  "gen_hash_rust": "sha256:3e77d424295c34b797284d676e39f57624a0d62a788dc06b0605ff6e0b40de60",
-  "gen_hash_verilog": "sha256:f12974f9268bda91dee17c1d1d74eb456e2ff6f15600b4dc5c65e9c4e3887dbc",
-  "gen_hash_zig": "sha256:c9dbf1b33945b52ac3d0c3882526fa6db0b3b81366ca7c1ffa7a7117e40eea0c",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:b46e4ac0a17cd3db4f7d9d0e7d6740620bdb4a7bf7e95c7ae7d213b88de4ebf4",
+  "gen_hash_rust": "sha256:e1a060e96036cc7318ffbd373b893df7bfcb0a374553271f8a3deb0f3c6c972b",
+  "gen_hash_verilog": "sha256:2013669b4cd496d0cb29fc7222d994ea9fe69f764e1830d2a2c051882679457f",
+  "gen_hash_zig": "sha256:95c7d25168c041700bbded3d6ce3891e2a01af94ec226b8634bb0601f1832a9b",
   "module": "w533_module_scalar_struct_const",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:59:25Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:fad15e28eb2df8f6105d9ac853cd020600d9f7d358975af7f3e69bf3cace5730",
   "spec_path": "specs/scratch/w533_module_scalar_struct_const.t27"
 }

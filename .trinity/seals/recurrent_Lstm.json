@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:437f5aba896e4719e81d9a63608d793177f084ab1996e73eee4615d7797f602b",
-  "gen_hash_rust": "sha256:4edec2b56bf7d95979507eb0f0b7d7cb40e6d2e3f7961a92a9140f5cb027f105",
-  "gen_hash_verilog": "sha256:db94b161b26bb60fc4c15ae27a77677d1ee8a6b5665f29941fbf0262c4d21c6a",
-  "gen_hash_zig": "sha256:b4cfb49d766728609fa55160d2316eaac7a1fcdb8aa9b329972fbeea1ad4109b",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:c0b7caccd071d38b3f29ba9ee50481062adb42b449b2288ffefc76d125c1d688",
+  "gen_hash_rust": "sha256:3254937233e16eccff9d336963711e99b827076795bc739b689782351569cca1",
+  "gen_hash_verilog": "sha256:50d0bf394739d9b08187c901a124647f652cf1f1224dc7d0111cbeda7b83847b",
+  "gen_hash_zig": "sha256:e7cc918ea96267b7bd8236ce393d87992696ad4ca24db6d30d0b69ebe6386096",
   "module": "Lstm",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:21Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b59a2bc4b80d44dd510559f38fc195bd72be88a0433938e519020fc5b8e57256",
   "spec_path": "specs/ml/recurrent/lstm_cell.t27"
 }

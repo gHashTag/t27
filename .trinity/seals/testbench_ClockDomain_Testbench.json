@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:40f6c347cba21b1d8da4e59f65dcf8f76963b3c5164bbd23eb242b90ba783bfa",
-  "gen_hash_rust": "sha256:70001b846f1c5fb2a155cbae198958c89d3a07a9930ecb0657dcd842561244cb",
-  "gen_hash_verilog": "sha256:b98b9d2257913bbccd4df2cc9a1c89a11c5a85ba3e3c9dda4fa37ef839aa2d2b",
-  "gen_hash_zig": "sha256:ea1a7035cbad12205e6a751662be9d8f7afbdf22885491b2c0f1328a9a2d43d3",
+  "discarded_top_level_tokens": 5,
+  "gen_hash_c": "sha256:d0b6f2f7c3b122621bd96fceccb4c86c3d713acc7dd19641c626c754e8b92e3a",
+  "gen_hash_rust": "sha256:39980445f63e1316ef27969f2125d54825c58a98dba4f6b3c11f674891433514",
+  "gen_hash_verilog": "sha256:b9081c4f20545d581d92203b0ffe504f3956100c1c0d2c39240485b14d0c50b1",
+  "gen_hash_zig": "sha256:48712d062f93de28edeae55911b83e7612cf8daf98373a8d5f84fcbe47ceb0d3",
   "module": "ClockDomain_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e2741ac40df961f84a58755c1c468f12b911d0a7361d164fd2c2f77adce806dc",
   "spec_path": "specs/fpga/testbench/clock_domain_tb.t27"
 }

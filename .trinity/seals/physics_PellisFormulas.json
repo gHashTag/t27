@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:c63827b7b8670c5c736054cd81e112afe505f16388bd0fa687d48b9a38fe5713",
-  "gen_hash_rust": "sha256:c8537a97998b1b8cdbcea52778b5d046a5218450ef76c58e4e600d1050169f26",
-  "gen_hash_verilog": "sha256:8c2ac304f2f7ba4a77a69a47de15b6d937f9ea3b547f35676180bddbc2b6e9e5",
-  "gen_hash_zig": "sha256:aca67759751ea5a91b456b36034d8609928607b2996a3e888ae8d2101adaabce",
+  "discarded_top_level_tokens": 28,
+  "gen_hash_c": "sha256:b79f81ee5e36f74ff8965a239946120254c58e6e31b75ea5d3dc1239e9883149",
+  "gen_hash_rust": "sha256:9270ee8fabb4edbfa2118dcc2dfd33522e255b2dedc922d1e504ab078d172795",
+  "gen_hash_verilog": "sha256:dbade8834caeb5afd2fa8d0586bc34024f13206caca53ddfd0064ccd533a3dff",
+  "gen_hash_zig": "sha256:dfac04f08ed9dd9aec19d3ed108c4fa7c4681502ce883dd0d8be0da5ac361a75",
   "module": "PellisFormulas",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:22Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:00305a7f186e9ae5ad65ebd66a83d9b3e70bdaedcb676f55d78c6960097073b2",
   "spec_path": "specs/physics/pellis-formulas.t27"
 }

@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:4739d5cde2a275c082823e63f53b6a38ebf291bf9f01ffbbccb98f3eb9b95134",
-  "gen_hash_rust": "sha256:9508bd6654db4abf44cdf5bc24fb13d890589dabace9dd30e3bd1a6c6e6b3ca2",
-  "gen_hash_verilog": "sha256:6e8133e68e2ac191d81947d5706caffc117f284476bf1c207d4797f7e2471117",
-  "gen_hash_zig": "sha256:35c8e58661c9e3ca5eec7c89ab43bde0ca230934b53bee49d617be642eb9620b",
+  "discarded_top_level_tokens": 0,
+  "gen_hash_c": "sha256:00d69c4fd5a8cfa2809b852e1b7262dee468d56786065e22a0f3746a9f539f22",
+  "gen_hash_rust": "sha256:d09f1d790b1614b6e92cdaf19dfcf3b9fc5ad83edce5c0995e0b57782cab8e8d",
+  "gen_hash_verilog": "sha256:2b2de43ca92901070b8a4444fcead9bc3a96b6c39419164e9f8ddd8188b94e57",
+  "gen_hash_zig": "sha256:f0555fef12f89d564f73733415168d163ae40d6602119831a4d6830504cbfda1",
   "module": "base-debounce",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:19Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
   "spec_path": "specs/base/debounce.t27"
 }

@@ -6,7 +6,7 @@
   "gen_hash_zig": "sha256:721f0f1ff52f1127d75a00bc3a106f97debe79cfca7054ffeaac6b4cfd01b8d1",
   "module": "ZeroDSP_TopLevel",
   "ring": 12,
-  "sealed_at": "2026-08-19T04:18:52Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:f08cf49be7b929fa2eb1646c92c88b5bf0138a0ce4dc26e82ffa4157b7a24114",
   "spec_path": "specs/fpga/top_level.t27"

@@ -1,11 +1,12 @@
 {
+  "discarded_top_level_tokens": 0,
   "gen_hash_c": "sha256:1a57523eec1214032a90492e574611ca5f3d86495f4592bb52d0776a713de0c3",
   "gen_hash_rust": "sha256:7ae2f95275d203304e0251487812166834bde27dbe552293c42e4ef1927a80b7",
   "gen_hash_verilog": "sha256:ecba15dcdcf556ee301183ae67b1c4a7cb79182210fab5a77587d834f80c2beb",
   "gen_hash_zig": "sha256:c01811ab5d1b1004f5f068a172a581809f7f052fe7153a72e6bb527796e92838",
   "module": "TriFilesystem",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:59Z",
+  "sealed_at": "2026-08-19T04:41:06Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:4e425fd16028fd4f79f0402fc4c5221aa3d8279d5397160013b0bbf013167a34",
   "spec_path": "specs/tri/io/filesystem.t27"

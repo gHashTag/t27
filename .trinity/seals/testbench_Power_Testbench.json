@@ -1,11 +1,13 @@
 {
-  "gen_hash_c": "sha256:e6f169cde6b4e3404cf9c60fcf1d7896b188538466f55db9d3f0bcfd17e65287",
-  "gen_hash_rust": "sha256:303fa0b98c973fe1088071d1514cf4c622285a6e5a67b698198843b33a68465f",
-  "gen_hash_verilog": "sha256:0b4af27b3ca6edf5d9ea72e48bc3fdea86d8107c66547ce72be0c0f3bcb846a0",
-  "gen_hash_zig": "sha256:fbc32a6b0813503553d8a4f86cee544a79352ca5c143de4e59049fc4f43a765e",
+  "discarded_top_level_tokens": 14,
+  "gen_hash_c": "sha256:e6e4e937f5f9dc1008f41bca7536ab7d95e6b9292b4a844fb440adae71e038ee",
+  "gen_hash_rust": "sha256:c07ddf9c856708deefe19fe282181a2e9e82d10dbd19ae8b19da192b5f4b7bb9",
+  "gen_hash_verilog": "sha256:5ee9e3abe96b0773fbd518da223a7de4262eea6a13192af34ea43297e8f5016a",
+  "gen_hash_zig": "sha256:2c117e30889d67a49029ab8b894f2561e2e6cdebe8261ff8fb8236f7c6f942e0",
   "module": "Power_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T04:36:20Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:fe149804c3b532069ac353681dea878cc30f032de18c74cd77fb24bfb79c0423",
   "spec_path": "specs/fpga/testbench/power_tb.t27"
 }
