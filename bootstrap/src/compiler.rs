@@ -4231,10 +4231,12 @@ impl Parser {
         self.advance(); // consume first '['
 
         let mut dims: Vec<String> = Vec::new();
+        let mut rbracket_line = self.current.line;
         loop {
             // Collect the contents of the current bracket pair.
             if self.current.kind == TokenKind::RBracket {
                 dims.push(String::new());
+                rbracket_line = self.current.line;
                 self.advance();
             } else {
                 let mut bracket_content = String::new();
@@ -4254,6 +4256,7 @@ impl Parser {
                     self.advance();
                 }
                 dims.push(bracket_content.trim().to_string());
+                rbracket_line = self.current.line;
                 self.expect(TokenKind::RBracket)?;
             }
             // Another leading bracket -> multi-dimensional literal.
@@ -4265,9 +4268,45 @@ impl Parser {
         }
         node.extra_size = dims.join("][");
 
-        if self.current.kind == TokenKind::Ident {
-            node.extra_type = self.current.lexeme.clone();
-            self.advance();
+        // W900 (0006): an Ident here was consumed as the element type
+        // UNCONDITIONALLY, so `given params = [1.0]` followed by
+        // `when result = ...` ate the clause keyword `when` as a "type" and
+        // the whole block fell back. The Zig typed form is only real when an
+        // initialiser brace follows -- `[3]u8{1, 2, 3}`, `[]T{}` -- so look
+        // one token past the Ident and take it as a type ONLY then. (`and`
+        // clauses survived this all along because KwAnd is not an Ident --
+        // which is why 0005's fix made the bug look like a struct-literal
+        // problem one clause earlier.)
+        // W900 panel: in clause-value mode a clause KEYWORD is never an
+        // element type, on either line. Without this, `given xs = [1] then
+        // {1} == xs` forged the brace test -- `then` became the "type",
+        // `{1}` its initialiser, and the assertion vanished under a green
+        // "nothing discarded"; the same-line arm ate one-line
+        // `given xs = [1, 2] then ...` pairs the same way.
+        let clause_kw = self.in_bdd_clause_value
+            && matches!(
+                self.current.lexeme.as_str(),
+                "given" | "when" | "then" | "assert" | "and"
+            );
+        if self.current.kind == TokenKind::Ident && !clause_kw {
+            // Same line as the `]`: the legacy reading stands -- the corpus
+            // holds same-line shapes (`[_]provider-schema::ToolCall{}`) whose
+            // parse, however odd, predates this rung. A DIFFERENT line means
+            // the Ident is the next clause's keyword unless an initialiser
+            // brace proves otherwise.
+            if self.current.line == rbracket_line {
+                node.extra_type = self.current.lexeme.clone();
+                self.advance();
+            } else {
+                let look = self.save_state();
+                let ty = self.current.lexeme.clone();
+                self.advance();
+                if self.current.kind == TokenKind::LBrace {
+                    node.extra_type = ty;
+                } else {
+                    self.restore_state(look);
+                }
+            }
         }
 
         if self.current.kind == TokenKind::LBrace {
@@ -4779,6 +4818,12 @@ impl Parser {
         start_children: usize,
         entry: ParserCheckpoint,
     ) {
+        if std::env::var("T27_BDD_DEBUG").is_ok() {
+            eprintln!(
+                "BDD-FALLBACK at line {} kind {:?} lexeme {:?}",
+                self.current.line, self.current.kind, self.current.lexeme
+            );
+        }
         block.children.truncate(start_children);
         self.restore_state(entry);
         self.skip_to_next_top_level();
