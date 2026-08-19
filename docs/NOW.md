@@ -19,6 +19,20 @@ Last updated: 2026-08-19
   fifo.v (#2240), absorbed by the old warning-gate 40 minutes after the 32/32
   claim. A refusal on the record beats a vacuous green
 
+# NOW -- master's tri TEST build restored: dedup + API port + a helper that never existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## tests: cargo test -p tri --no-run compiles again (Closes #2236)
+
+- The XADC test block (7 fns) existed twice; first copy removed, second kept
+- Three resolve_pvt_context tests and the cold_por test ported to the tuple
+  API (the synthetic flag left cold_por; the invariant now tested where it
+  lives, in synthetic_pvt_context); 12/12 ported tests pass
+- assert_report_superset was called by a committed test but its definition
+  was never committed by any wave -- recovered from aaecfb0af and restored
+- Same class as #2227: build check green, test build broken, all PRs inherit
+
 # NOW -- the mismatch now fails where the cause is (2026-08-19)
 
 Last updated: 2026-08-19
