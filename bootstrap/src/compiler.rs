@@ -1159,7 +1159,15 @@ impl Parser {
             // discarded. T42's counter lived only in `skip_to_next_top_level`,
             // making 55,563 a lower bound over one of four discard channels.
             // See T56.
+            // W899: the counter incremented here but the SPAN was never
+            // recorded, so `parse-complete --show` printed "nothing discarded"
+            // for a file the corpus mode charged 2,438 tokens. Both accounts
+            // must see every channel.
             self.dropped_top_level_tokens += 1;
+            if self.dropped_spans.len() < 20000 {
+                self.dropped_spans
+                    .push((self.current.line as u32, self.current.lexeme.clone()));
+            }
             self.advance();
         }
         Ok(())
@@ -2712,8 +2720,13 @@ impl Parser {
         loop {
             // W646: statement-level recovery is the second discard channel.
             // Everything it walks past is a statement the AST never sees.
+            // W899: record the span too -- see the note in skip_brace_body.
             if self.current.kind != TokenKind::Eof {
                 self.dropped_top_level_tokens += 1;
+                if self.dropped_spans.len() < 20000 {
+                    self.dropped_spans
+                        .push((self.current.line as u32, self.current.lexeme.clone()));
+                }
             }
             match self.current.kind {
                 TokenKind::Eof => break,
