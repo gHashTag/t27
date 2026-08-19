@@ -1,4 +1,4 @@
-# Session summary, W846–W903 — one page over both ledgers
+# Session summary, W846–W906 — one page over both ledgers
 
 Input document for the five decisions now waiting on humans. Details live in
 `docs/reports/upstream/TNF-FINDINGS-LEDGER.md` (the paper) and
@@ -58,6 +58,8 @@ went under the ladder discipline: one cause, one probe, one measured rung.
 | 0008 | the FOURTH discard channel (skip_to_semicolon) recorded nothing — a semicolon-less const pair made the corpus's largest file a ZOMBIE parse (AST of one declaration); channel records, line-leading const/var stops the skip; two zombies now fail HONESTLY | → 30,023 |
 | 0009+0010 | colon family: `bench name: expr` asserts, `measure:`/`target:` prose captured verbatim, invariant trailing `;` eaten | → **27,452**; consume-all 385; discarding files 66 |
 | 0011 | `value in [...]` / `x in {...}` membership operator | → **27,421 (−59.5 % from base)** |
+| 0012 | statement clauses (const/var/let/assignments between clauses) — panel v2 closed scope-theft at column ties | → 26,713 |
+| 0013 | four convicted causes: lvalue steps, keyword field labels, `var` as name, unit phrases | → **25,905 (−61.8 %)**; consume-all 387; the residue is 74 % one forall decision |
 
 0003's per-clause skip was withdrawn by its own regressions; every later rung
 carried an adversarial break panel after its corpus sweep (lesson 1376), and
