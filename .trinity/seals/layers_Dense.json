@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:1204f01f6159ff8d5e485dc70b2ea552fb9c977dc8cc58dedbb89935c3908bee",
-  "gen_hash_rust": "sha256:001235a622f53a40cdd5ad9fc59017281f3d078b701d2eaac62b95fb7a0fb41f",
-  "gen_hash_verilog": "sha256:b64d1db3a8c74ffae9c47f1e3717264a966c8e6822c0a6347da46ba6f43f0b14",
-  "gen_hash_zig": "sha256:c97838ad65b36130f23a55fadabfd6ac7706aaa088a625a88a68cf5a9f710c48",
+  "gen_hash_c": "sha256:9f966fdbdd40c643c2a7851f0f704675d4f54d3adcd9350c024c6ce96eb8993e",
+  "gen_hash_rust": "sha256:57da92e92abdbe316f20ee8822f25b8cde2042aa58bb97b42ab62ac406bbe17d",
+  "gen_hash_verilog": "sha256:558dcfe464018a5c3ae3d224f3c424d80899918c0f33c3a768b8e46c74e6160f",
+  "gen_hash_zig": "sha256:8676940092787661c54d2a6944a1d7feb526254bd52c65bd83be58407a471c44",
   "module": "Dense",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc",
   "spec_path": "specs/ml/layers/dense_layer.t27"
 }

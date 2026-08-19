@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:61466fc6ddb3d798981009d13838569fd3f69461a462004054094c4c2572d472",
-  "gen_hash_rust": "sha256:9f654e328dc68096d26ffc2096fb8603372f9331911d7bb132e3cf9719df93be",
-  "gen_hash_verilog": "sha256:687ed3083b543fe2729095c2f9ec60ebf7817391f5673e3cfa0ef2964983ab8c",
-  "gen_hash_zig": "sha256:2520a2c1d0adfaf94800f83dc3684b397f1bbb2bb88f51b1bb55dcf1bc663bd1",
+  "gen_hash_c": "sha256:9c7f305b2ad30a9ce50ed98a1b60023d403a5b44342d2c52a25b84645da02fc2",
+  "gen_hash_rust": "sha256:edd05468f145a1d43fe775ea7d37ecb331dfcb98509de359090b32f24c6e1911",
+  "gen_hash_verilog": "sha256:0748a755cfa5abc32e7a4174dfb2315ac8ecf1a0af6bd71f729ea31e779a3869",
+  "gen_hash_zig": "sha256:19a1eb477d76e0b0afac4ed2384e43c602282434221ff5a700a90a1f0a79aad3",
   "module": "EncoderBlock",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:c1955126a803192f0a46ca05a2be74f2ca28ddedeba7e8b9355f2ed6baa0eaef",
   "spec_path": "specs/ml/transformer/encoder_block.t27"
 }

@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:b446582099c99fb31e9867f0ec9901814dcbc9826c092f328613e42dc7e00174",
-  "gen_hash_rust": "sha256:564431b6876fae7b971fa9027a1b2284d7173bb6cae7ad518b4ab9aef5195142",
-  "gen_hash_verilog": "sha256:57758c35c018ec55f37b0c2a02a8727753ecc35bac515bb6cab5bd71d4e97374",
-  "gen_hash_zig": "sha256:d1711c27f26902fb301b0fba39a5aaf294c8e9c9b75377734693b2d108a2b158",
+  "gen_hash_c": "sha256:2ba903c63723175affbad84774c676905ad989f77ef7d4de60747d68d381d898",
+  "gen_hash_rust": "sha256:acf2ea7ae77bc707e45120be929329888ca5e3dc23a49e5a615acbf18e8b5e15",
+  "gen_hash_verilog": "sha256:f87bd2cb2be0e95e479c63b94ac04e653e2df1aee4d84a7a8e45644926e691f4",
+  "gen_hash_zig": "sha256:82b3ebac95efcc6ebdf2634225650fcea4b202fc6c4a5b1fec765b2d4fba8796",
   "module": "Diagnostics",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:4907c0a74ccaac2e6571cd2d00cd6f090d240cb1bbdc40eb1571e6944b209ec4",
   "spec_path": "specs/compiler/diagnostics.t27"
 }

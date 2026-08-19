@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:a5f888006c37ff797ce5f8c9ab815ec2cf9c93723f5efaa3c8f11e898d561ade",
-  "gen_hash_rust": "sha256:26a0842e800db964648c0518e5dbfc09f867cca25bb2ca1727a7dae25f66a399",
-  "gen_hash_verilog": "sha256:1b907a1df5de678da56dfee275311b86b149dbd004c70eb9b1dc30bff8b1d46e",
-  "gen_hash_zig": "sha256:50239bb6dbc769b875e6ae3243300674203b1173e8d8714e0f53337f089d8792",
+  "gen_hash_c": "sha256:2a0ce8448ed8af2ffbcc375c1ecb1d2450e96e4eaac4ae4ed75666a6947930c6",
+  "gen_hash_rust": "sha256:5494fae3a184e8f95df0a79bf5b0fa3931cb8f909fd087c6fee8f395ae5c8191",
+  "gen_hash_verilog": "sha256:4016d617122b91e99477576004f7c420e92d770e8fea93b317ba501759a7f858",
+  "gen_hash_zig": "sha256:4f3333a133e9961d610118084e819866a117fba2f8f97a69a1f0bc556f8a939d",
   "module": "PellisPrecision",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:64c53763dffa5d31a162ee601cb717c1694ad4915da511a406f704ba074aa6cb",
   "spec_path": "specs/math/pellis_precision_verify.t27"
 }
