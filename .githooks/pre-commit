@@ -10,12 +10,17 @@ cd "$ROOT"
 # ===== NOW.md Gate =====
 bash "$ROOT/scripts/tri" check-now
 
-if ! git diff --cached --name-only | grep -q '^NOW.md$'; then
-  if git diff --name-only | grep -q '^NOW.md$'; then
+# The canonical file is docs/NOW.md — this gate used to match '^NOW.md$'
+# only, so every commit that correctly updated docs/NOW.md still printed the
+# warning, and the root file (a regular 390-line file, not the symlink the
+# .gitattributes comment describes) has not been touched since 2026-08-09.
+# Accept either path; the root copy's fate is the owner's call, not a hook's.
+if ! git diff --cached --name-only | grep -qE '^(docs/)?NOW\.md$'; then
+  if git diff --name-only | grep -qE '^(docs/)?NOW\.md$'; then
     echo ""
     echo "⚠️  WARNING: NOW.md is modified but NOT staged."
-    echo "   Run: git add NOW.md"
-    echo "   Or: stage and commit NOW.md together with your changes."
+    echo "   Run: git add docs/NOW.md"
+    echo "   Or: stage and commit it together with your changes."
     echo ""
   fi
 fi

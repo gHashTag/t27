@@ -1,3 +1,12 @@
+# NOW -- the NOW gate matched a path nobody edits (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the NOW gate matched a path nobody edits (Closes #2249)
+
+- pre-commit gated on ^NOW.md$ while every pull request updates docs/NOW.md, so the not-staged warning fired on correct commits; the gate now accepts either path
+- Root NOW.md turns out to be a regular 390-line file last touched 2026-08-09, not the symlink .gitattributes describes -- two NOW files have been diverging silently (issue filed, the resolution is the owner's call)
+
 # NOW -- the gate confirms a merge against the branch, not the exit code (2026-08-20)
 
 Last updated: 2026-08-20
