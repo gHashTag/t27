@@ -1,3 +1,40 @@
+# NOW -- auto-merge-ready-prs.yml has not parsed since 2026-07-07 (2026-08-20)
+
+Last updated: 2026-08-20
+
+## What landed (Closes #2245)
+
+One under-indented line stopped `.github/workflows/auto-merge-ready-prs.yml`
+parsing at commit `7644b30d` (2026-07-07). GitHub reports "This run likely
+failed because of a workflow file issue" -- zero jobs, `run_started_at ==
+updated_at` to the second, 7+ consecutive failures.
+
+Line 62 sits at column 0 inside a `run: |` block scalar whose content indent
+is 10, set by line 32. A non-empty line indented less terminates the scalar,
+so the parser reads the shell continuation as a top-level YAML node.
+
+Consequence: this repository has had **no working auto-merge for six weeks**,
+which is why ready PRs accumulated to 29.
+
+## Honesty limits (BINDING)
+
+- **Whitespace only.** The 10 spaces added are exactly the scalar indent and
+  are stripped by YAML -- the shell receives byte-identical text. Stripping
+  all whitespace makes the two files byte-equal.
+- **No merge condition changes.** L1 regex, approved-review gate,
+  failing-check gate, NotebookLM exclusion, `--merge --delete-branch` and both
+  `dry_run` branches are untouched.
+- Verified with two independent parsers (PyYAML 6.0.3 and Ruby Psych/libyaml,
+  both failing the original at 62:1) plus `bash -n`. `actionlint` is
+  unavailable on that host, so this is not a GitHub schema check.
+- **17 branches carry the same bug class elsewhere** (a shell `else`
+  under-indented out of its block at line 78). Not fixed here.
+- **274 branches carry the broken blob**, so a merge from one re-introduces
+  it. This fix must win the merge or be re-applied.
+- 139 branches including `main` have a copy that parses, but it is the older
+  pre-hardening version lacking the L1 and approved-review gates. Restoring it
+  would weaken the merge conditions, so it was not used.
+
 # NOW -- sby runs from where its files are (2026-08-20)
 
 Last updated: 2026-08-20
