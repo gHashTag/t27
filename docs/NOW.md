@@ -1,3 +1,17 @@
+# NOW -- master's tri build restored: seven lost definitions returned (2026-08-19)
+
+Last updated: 2026-08-19
+
+## build: cargo build -p tri compiles again (Closes #2227)
+
+- A wave-loop batch merge kept call sites and dropped definitions:
+  SmokeGateReport, pvt_context_inside_envelope, synthetic_pvt_context,
+  cclk_period_ns, verify_lean, extract_source_from_lean -- restored verbatim
+  from the commits that introduced them (Wave Loops 437/441/443/453)
+- bit_config: the status()/output() half-refactor finished -- output captured,
+  stderr passed through, console arm prints what it used to stream
+- Master's own build check was green from a pre-break commit; every PR failed
+  on it. Found by the #2223 gate ("appears only here" was stale)
 # NOW -- the device default flipped under a clean merge (2026-08-19)
 
 Last updated: 2026-08-19
