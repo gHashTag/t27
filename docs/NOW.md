@@ -1,3 +1,13 @@
+# NOW -- tri fleet asof generalises the bus check to every environment (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri fleet asof generalises the bus check to every environment (Closes #2249)
+
+- tri fleet asof --url ... [--needs-hardware]: HEADs each URL a claim depends on and optionally the bus, then says whether the claim may be repeated in the present tense; non-zero exit when any environment is unreachable
+- A timeout is reported as 'cannot verify', not as 'the site is down' -- only one of those is the owner's problem
+- Verified live: t27.ai and floripahikegpro.vercel.app reachable, the bus empty, exit 1 under --needs-hardware
+
 # NOW -- tri fleet answers whether the hardware is there (2026-08-20)
 
 Last updated: 2026-08-20

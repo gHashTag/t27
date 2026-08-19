@@ -26,12 +26,103 @@ pub enum FleetCmd {
         #[arg(long)]
         expect: Option<usize>,
     },
+    /// Check the environments a claim depends on before repeating the claim.
+    ///
+    /// The bus is one environment; a deployed site is another. Both go stale
+    /// the same way — the note says "works" because it worked, and nothing
+    /// announces the regression. This checks each named URL and the bus, and
+    /// reports which capability claims are currently unverifiable.
+    Asof {
+        /// URLs the claim depends on, repeatable. Checked with a HEAD request.
+        #[arg(long = "url")]
+        urls: Vec<String>,
+        /// Also require hardware on the bus.
+        #[arg(long)]
+        needs_hardware: bool,
+    },
 }
 
 pub fn run(cmd: &FleetCmd) -> Result<()> {
     match cmd {
         FleetCmd::Scan { expect } => scan(*expect),
+        FleetCmd::Asof {
+            urls,
+            needs_hardware,
+        } => asof(urls, *needs_hardware),
     }
+}
+
+/// HEAD one URL. A timeout is a failure to verify, not a failure of the site —
+/// the two are reported differently because only one of them is the owner's
+/// problem.
+fn head(url: &str) -> (bool, String) {
+    let out = Command::new("curl")
+        .args([
+            "-s",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code}",
+            "-m",
+            "15",
+            "-L",
+            "-I",
+            url,
+        ])
+        .output();
+    match out {
+        Ok(o) => {
+            let code = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            let ok = code.starts_with('2') || code.starts_with('3');
+            (ok, code)
+        }
+        Err(e) => (false, format!("curl failed: {e}")),
+    }
+}
+
+fn asof(urls: &[String], needs_hardware: bool) -> Result<()> {
+    let mut unverifiable: Vec<String> = Vec::new();
+
+    for u in urls {
+        let (ok, code) = head(u);
+        println!("{:<7} {u}", if ok { "live" } else { "DOWN" });
+        if !ok {
+            unverifiable.push(format!("{u} (HTTP {code})"));
+        }
+    }
+
+    if needs_hardware {
+        match probe_usb() {
+            Ok(b) if !b.is_empty() => println!("{:<7} {} USB bridge(s)", "live", b.len()),
+            Ok(_) => {
+                println!("{:<7} no board on the bus", "DOWN");
+                unverifiable.push("hardware (bus empty)".to_string());
+            }
+            Err(e) => {
+                println!("{:<7} {e}", "UNKNOWN");
+                unverifiable.push("hardware (cannot tell)".to_string());
+            }
+        }
+    }
+
+    println!();
+    if unverifiable.is_empty() {
+        println!("VERDICT: every environment this claim depends on is reachable.");
+        println!("The claim can be repeated in the present tense today.");
+        return Ok(());
+    }
+
+    println!(
+        "VERDICT: {} environment(s) unreachable:",
+        unverifiable.len()
+    );
+    for u in &unverifiable {
+        println!("  {u}");
+    }
+    println!();
+    println!("Any note asserting this capability in the present tense is a MEASUREMENT");
+    println!("of the past, not a capability of today. Re-verify before repeating it.");
+    anyhow::bail!("{} environment(s) unverifiable", unverifiable.len())
 }
 
 /// One JTAG/UART bridge as the bus reports it.
