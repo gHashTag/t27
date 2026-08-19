@@ -1,3 +1,12 @@
+# NOW -- the gate says which pull request it is watching (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the gate says which pull request it is watching (Closes #2249)
+
+- pr ready prints repo#number before the wait loop and on every waiting line: two gates logging to one file produced a transcript where one PR's 'Merged.' read as the other's verdict
+- Diagnosing through a channel shared by two sources is the broken-ruler error this project's own doctrine is named after -- the tool now makes the misread impossible
+
 # NOW -- asof reads the claims from a declaration in the repository (2026-08-20)
 
 Last updated: 2026-08-20

@@ -157,6 +157,13 @@ fn ready(
         ])?,
     };
 
+    // Say which pull request this is BEFORE the wait loop, not after it.
+    // Every "waiting: N of M" line used to carry no identity, so two gates
+    // logging to one file produced a transcript where one PR's verdict read
+    // as the other's -- diagnosing through a channel shared by two sources,
+    // which is the error this project's own doctrine is named after.
+    println!("{repo}#{n} — gate started");
+
     // Anything still running makes the answer provisional, so say so rather
     // than reporting a verdict on a partial list.
     let mut pending = in_flight(&repo, n)?.0;
@@ -188,7 +195,7 @@ fn ready(
             };
             if p > 0 {
                 quiet = 0;
-                println!("  waiting: {p} of {total} check(s) still running");
+                println!("  [{repo}#{n}] waiting: {p} of {total} check(s) still running");
             } else if total == 0 {
                 // An empty list is not "finished" -- it is "not started". Give
                 // it a few rounds before believing it.
