@@ -28600,6 +28600,39 @@ every flat 8-bit result reported here, and it does not survive contact -- five
 formats stay inside 0.06 pp with the data path quantised too. A null that survives
 the experiment designed to break it is evidence, not absence of it.
 
+### T789 -- THE ADVANTAGE LIVES AT ONE RUNG, AND THREE CORRECTIONS WERE NEEDED TO FIND WHICH [measured]
+
+Structural decoders generated from each TNFFormat's own fields and verified against
+the oracle over EVERY code -- 64, 2,048 and 524,288 codes, zero mismatches -- close
+the frontier at a width no truth table can reach:
+
+    TNF4   6 bits    decoder 12.00   consumer  55.29
+    TNF8  11 bits            16.00            260.57
+    TNF16 19 bits            27.00            450.29
+
+Against the cheapest working option at each class:
+
+    16-bit   binary16 438.57 (16b)  vs TNF16 450.29 (19b)  -- TNF 2.7% DEARER
+     8-bit   fp8 e4m3 152.57 ( 8b)  vs TNF8  260.57 (11b)  -- TNF 1.71x DEARER
+     4-bit   fp4 e2m1  19.14, loses 70 pp   vs TNF4 55.29, loses 0.33-1.05 pp
+
+**The advantage exists at exactly one rung.** At four bits TNF4 is 2.76x cheaper
+than fp8 for fp8-class accuracy and is the only sub-eight-bit format measured that
+functions at all. Above that rung, being three physical bits wider than its name
+costs TNF the cost comparison at every class -- and the ladder's other rungs are
+therefore not where the argument is.
+
+Three corrections were needed to reach that sentence, each made from the previous
+one's own principle and each moving the number against the project's interest:
+W940 priced TNF16 by module name at 16 bits (386.57), W940b corrected to 17
+(424.86) and concluded TNF16 beat binary16, W942 finds 19 (450.29) and INVERTS
+that conclusion. A result that survives being corrected three times, twice
+downward, is worth more than one that never was.
+
+Method note, measured rather than declared: truth-table and structural decoders
+differ by under 8% and NOT in one direction -- the table flattered TNF4 by 7.2% and
+penalised TNF8 by 3.8%. Neither the 2.76x nor the 1.71x is inside that band.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -12427,6 +12427,8 @@ a worktree in the same wave its branch merges.
 
 **1420. GENERATE THE COMPETITORS FROM THEIR OWN SPECIFICATIONS AND THE ARGUMENT ENDS.** Nine waves of criticism about a comparison whose baselines were all the author's own RTL, and the fix was one afternoon: enumerate every code of every format through its own shipped conformance oracle, emit the table as a Verilog case statement, synthesise all of them identically. No implementation-quality difference can enter, conformance is by construction because the enumeration IS the oracle, and the method's own bias is stateable -- a truth table flatters small alphabets, so wide formats are omitted rather than estimated. The result was a Pareto point nobody had: 51.29 cells at -0.33 pp against 152.57 at -0.02. When a comparison is disputed because of who wrote the baselines, stop arguing about the baselines and generate them.
 
+**1421. A CORRECTION THAT MOVES THE NUMBER AGAINST YOU IS THE ONE THAT PROVES THE METHOD.** One frontier row was priced three times: 386.57 cells by module name, 424.86 after correcting the name to the paper's stated width, and 450.29 from a structural decoder verified against the oracle over all 524,288 codes. The second correction let the format still win; the third inverted the comparison and it now loses by 2.7 %. Each step was forced by the previous step's own stated principle, and each moved the number away from the outcome the project wanted. That is the signature of a working method -- and the practical rule is to keep the whole chain in the write-up rather than only the final row, because a reader who sees 386 -> 425 -> 450 with the reasons attached will trust 450 in a way no single number earns on its own.
+
 ### How to update this tracker
 
 After closing a wave:
