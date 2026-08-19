@@ -11,3 +11,11 @@
 # NOW.md: canonical location is docs/NOW.md
 # Root NOW.md is a symlink to docs/NOW.md — prefer incoming version
 NOW.md merge=theirs
+
+# The rule above names the SYMLINK, not the file that actually conflicts, and
+# `theirs` is not a built-in driver — it needs a per-clone .git/config entry
+# that a fresh checkout does not have. So docs/NOW.md conflicted on every
+# branch (seven times in one campaign), each resolved identically by hand:
+# keep both entries. `union` is built in, so it works in every clone with no
+# setup, and it is exactly that resolution.
+docs/NOW.md merge=union
