@@ -1,3 +1,17 @@
+# NOW -- readiness is READY, for real (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(specs): the two unparseable fpga specs used braced TDD blocks (Closes #2251)
+
+- The first honest master run decomposed into three NAMED causes: apt-mirror
+  weather on conformance/formal (bounded retries failed fast as designed) and
+  synth-readiness NOT READY at 94% -- vcd_conformance_compare.t27 and
+  power_analysis.t27 wrote 64 tests, 7 invariants and 3 benches as braced
+  blocks; the language's TDD blocks are braceless and indentation-scoped
+- Converted mechanically (open/close pairing asserted per family); both parse;
+  synth-readiness now reports 100%/100% READY FOR SYNTHESIS
+
 
 # NOW -- the honest red has been repaired for real (2026-08-20)
 
