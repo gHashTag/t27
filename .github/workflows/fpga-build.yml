@@ -373,6 +373,7 @@ jobs:
             make xc7frames2bit
             # The binary lands in build/tools/, not build/ -- one more line that had
               # never executed before this PR.
+              mkdir -p ~/prjxray-build
               cp tools/xc7frames2bit ~/prjxray-build/
           fi
       
