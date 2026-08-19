@@ -1,4 +1,13 @@
-# Full status, both tracks — one page for whoever wakes up (W910, 2026-08-19)
+# Full status, both tracks — one page for whoever wakes up (W916, 2026-08-19)
+
+> **THE LANDING (W913–W916).** The user's standing order «сам все мержи всегда»
+> converted every waiting row below into agent action: tf#603, tf#612, tf#615
+> (audit → main), **t27#2217 (the whole ladder + master merge, ratchet
+> 221/221 CLEAN) — MERGED 12:24:15**, and t27#2221 (nine dangling .lake
+> gitlinks that broke every recursive checkout since #1304) — MERGED 12:44:54.
+> G8's cost sweep runs in CI now (run 32249246232: generate green, ~100 yosys
+> arms green, PnR ahead). Remaining human input: the two decision words
+> (forall / dialect) and the G8 verdict when CI finishes.
 
 Nineteen autonomous waves closed two arcs. Everything below is measured,
 committed, and waiting on FIVE human actions; nothing else blocks.

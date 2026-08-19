@@ -1,4 +1,4 @@
-# Session summary, W846–W906 — one page over both ledgers
+# Session summary, W846–W916 — one page over both ledgers; the ladder LANDED on master (t27#2217 merged 2026-08-19)
 
 Input document for the five decisions now waiting on humans. Details live in
 `docs/reports/upstream/TNF-FINDINGS-LEDGER.md` (the paper) and
