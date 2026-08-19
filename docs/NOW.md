@@ -1,3 +1,21 @@
+# NOW -- nine dangling gitlinks, one broken checkout for everyone (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci: lean4_bridge/.lake gitlinks removed; .lake ignored (Refs #1959)
+
+- Since #1304, nine `lean4_bridge/.lake/packages/*` paths were committed as
+  SUBMODULE gitlinks with no `.gitmodules` entries -- Lake's build cache, not
+  sources. Every workflow that checks out with `submodules: recursive`
+  (coverage) has died at `fatal: No url found for submodule path ...` ever
+  since; it failed on the ladder PR and on every other PR the same way
+- The gitlinks are removed from the index and `lean4_bridge/.lake/` is
+  ignored; the three real submodules (chips/phi, chips/euler, chips/gamma)
+  are untouched
+- Found while landing #2217: a required-check triage that separated "your PR
+  broke it" from "it was always broken" -- the second class hides in green
+  repos precisely because nobody reads a check that always failed
+
 # NOW -- the grammar ladder lands, and the merge that argued back (2026-08-19)
 
 Last updated: 2026-08-19
