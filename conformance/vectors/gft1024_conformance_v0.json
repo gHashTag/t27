@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GFT1024",
+  "format_name": "GF-T1024",
+  "bitexact": false,
+  "format_notes": "GF-T1024 -- this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6187 against 1/phi = 0.6180",
+  "catalog": {
+    "id": "gft1024",
+    "bits": 1024,
+    "s": 1,
+    "e": 391,
+    "m": 632,
+    "bias": 1792175763007502050309004510896072657026569872803620275437464390826146561794008386845991427359831686179824019072939996745082807322862992600064651843076138216429413334444960452990989263173,
+    "storage": "u1024_software",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6187 against 1/phi = 0.6180",
+    "use_case": "phi-derived ternary ladder; huge range at the cost of mantissa",
+    "gf_relation": "self",
+    "source": "specs/numeric/gft1024.t27",
+    "phi_distance": 0.0006
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

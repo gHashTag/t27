@@ -10,12 +10,6 @@
 module igla-coder-eval;
 use base::types;
 use math::constants;
-// W608: `substring_match` is declared in igla::race::backend and was called
-// here without an import. backend.t27 did not parse until this wave (a
-// reserved word `module` used as a binding), so the splice had nothing to
-// pull from; it parses now. Not circular -- backend imports only base::types
-// and igla::race::rtl.
-use igla::race::backend;
 
 // ============================================================================
 // 1. Benchmark Constants
@@ -147,27 +141,6 @@ pub fn check_sacred_compliance(generated: string) -> u8 {
 pub const CompileResult = struct {
     compile_ok: bool,
     test_pass: bool,
-};
-
-/// Result of running a generated testbench: how many checks passed, of how many.
-///
-/// W607: this file USED `SimResult` and declared it nowhere, importing only
-/// `base::types` and `math::constants`. Two other specs declare a type by that
-/// name and they are NOT the same type:
-///
-///   specs/fpga/simulator.t27   { cycles, state, errors, assertions_fired,
-///                                coverage_points }
-///   specs/igla/coder/prm.t27   { passed, total }
-///
-/// This file constructs `SimResult { passed: …, total: 1 }`, so it means the
-/// second. Importing `prm` would be circular -- `prm` imports `eval` -- and
-/// importing `fpga::simulator` would bind the wrong shape. The type therefore
-/// belongs to the lower layer that uses it, which is this one. `prm` keeps its
-/// own declaration and is unaffected: the resolver's fixpoint skips names the
-/// importer declares locally, so nothing is spliced over it.
-pub const SimResult = struct {
-    passed : u32,
-    total  : u32,
 };
 
 /// Compile and test generated code in a sandboxed environment.
@@ -1887,36 +1860,6 @@ fn sum_f32(arr: []f32, idx: u32, acc: f32) -> f32 {
     return sum_f32(arr, idx + 1, acc + arr[idx]);
 }
 
-/// Fraction of predictions that match their reference, in [0, 1].
-///
-/// W607: called **76 times** in this file and declared nowhere in the corpus.
-/// Its contract is fully determined by its own tests, so it is written from
-/// them rather than invented:
-///
-///     accuracy([1,2,3], [1,2,3]) == 1.0        eval_accuracy_perfect_one
-///     accuracy([],      [])      == 0.0        eval_accuracy_empty_zero
-///
-/// **The two invariants beside those tests contradict each other on the empty
-/// input.** `preds == refs ==> accuracy == 1.0` and
-/// `preds.len() == 0 && refs.len() == 0 ==> accuracy == 0.0` both apply to
-/// `([], [])`, and they disagree. The explicit TEST says 0.0, so 0/0 is defined
-/// as 0.0 here and `eval_accuracy_perfect_inv` is FALSE for the empty case --
-/// the same shape as T4, and recorded rather than papered over.
-///
-/// Mismatched lengths compare only the common prefix, over the longer length,
-/// so extra references count against the score.
-fn accuracy(preds: []u32, refs: []u32) -> f32 {
-    let n = if (preds.len() > refs.len()) { preds.len() } else { refs.len() };
-    if (n == 0) { return 0.0; }
-    return count_matches(preds, refs, 0, 0) as f32 / n as f32;
-}
-
-fn count_matches(preds: []u32, refs: []u32, idx: u32, acc: u32) -> u32 {
-    if (idx >= preds.len() || idx >= refs.len()) { return acc; }
-    let hit = if (preds[idx] == refs[idx]) { 1 } else { 0 };
-    return count_matches(preds, refs, idx + 1, acc + hit);
-}
-
 fn variance_f32(arr: []f32, idx: u32, acc: f32, mean: f32) -> f32 {
     if (idx >= arr.len()) { return acc / arr.len() as f32; }
     let diff = arr[idx] - mean;
@@ -1930,10 +1873,8 @@ pub fn compute_xgrpo_variance(groups: [][]f32) -> f32 {
     if (groups.len() == 0) { return 0.0; }
     let total_mean = mean_of_groups(groups, 0, 0.0, 0);
     if (total_mean == 0.0) { return 0.0; }
-    // W605: `var` is a t27 KEYWORD, so it cannot name a binding. Renamed to
-    // `variance`; the two sites were the only ones in the corpus.
-    let variance = group_variance(groups, 0, 0.0, total_mean);
-    return variance;
+    let var = group_variance(groups, 0, 0.0, total_mean);
+    return var;
 }
 
 fn mean_of_groups(groups: [][]f32, idx: u32, acc: f32, count: u32) -> f32 {
@@ -2675,7 +2616,7 @@ test yosys_report_empty_module_fails
     when r = run_yosys_real(code)
     then r.synth_ok == false
 
-test boolean_minimize_absorption_v2
+test boolean_minimize_absorption
     given expr = "A + AB"
     when out = boolean_minimize(expr)
     then out == "A"
@@ -2739,8 +2680,7 @@ bench module_identity_latency_6 {
     var input = 1;
     var result = input + 0;
     assert result == 1;
-    // W608: removed `_ = result;` -- `result` is used by the assert above, so
-    // the discard is dead, and Zig rejects a pointless discard outright.
+    _ = result;
 }
 
 test eval_pass_at_k_empty_results
@@ -2972,7 +2912,7 @@ invariant eval_synthesis_score_bounded:
     forall report : YosysReport
     synthesis_score(report) >= 0.0 && synthesis_score(report) <= 1.0
 
-test eval_count_assign_statements_empty_zero_v2
+test eval_count_assign_statements_empty_zero
     given rtl = ""
     when n = count_assign_statements(rtl)
     then n == 0
@@ -3008,7 +2948,7 @@ test eval_compare_ppa_selects_higher_mhz_equal_luts
     when best = compare_ppa_reports(a, b)
     then best.max_mhz == 200.0
 
-test eval_count_assign_statements_single_assign_v2
+test eval_count_assign_statements_single_assign
     given rtl = "assign y = a + b;"
     when n = count_assign_statements(rtl)
     then n == 1
@@ -3016,12 +2956,12 @@ test eval_count_assign_statements_single_assign_v2
 invariant eval_count_assign_statements_single_assign_inv:
     count_assign_statements("assign y = a + b;") == 1
 
-test eval_count_assign_statements_two_assigns_v2
+test eval_count_assign_statements_two_assigns
     given rtl = "assign y = a; assign z = b;"
     when n = count_assign_statements(rtl)
     then n == 2
 
-test eval_compare_ppa_equal_reports_v2
+test eval_compare_ppa_equal_reports
     given a = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     given b = YosysReport { lut_count: 50, ff_count: 10, carry_count: 5, max_mhz: 200.0, synth_ok: true }
     when best = compare_ppa_reports(a, b)
@@ -3396,13 +3336,13 @@ invariant eval_accuracy_three_all_correct_w311_inv:
 
 
 
-test eval_accuracy_three_all_correct_w311_v2
+test eval_accuracy_three_all_correct_w311
     given preds = [1, 2, 3]
     given refs = [1, 2, 3]
     when acc = accuracy(preds, refs)
     then acc == 1.0
 
-test eval_accuracy_three_all_wrong_w311_v2
+test eval_accuracy_three_all_wrong_w311
     given preds = [0, 0, 0]
     given refs = [1, 2, 3]
     when acc = accuracy(preds, refs)
@@ -3692,7 +3632,6 @@ test eval_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (74→75)
 test eval_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test eval_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -3710,6 +3649,7 @@ test eval_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test eval_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eval_w342_depth_077: true
 
+}
 
 invariant eval_w339_depth_074: true
 // Wave Loop 343 -- depth +1 (75->76)

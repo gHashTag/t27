@@ -89,7 +89,7 @@ These four columns are mathematically exact and independently re-derived.
 | GF10  | 1+3+6   | 10   | 3                  | 7                  | 0.500 | 0.118 | Conj | [`gf10.t27`](../specs/numeric/gf10.t27) ‡ |
 | GF12  | 1+4+7   | 12   | 7                  | 15                 | 0.571 | 0.047 | Verified | [`gf12.t27`](../specs/numeric/gf12.t27) |
 | GF14  | 1+5+8   | 14   | 15                 | 31                 | 0.625 | 0.007 | Conj | [`gf14.t27`](../specs/numeric/gf14.t27) ‡ |
-| **GF16 (primary, frozen silicon)** | **1+6+9** | **16** | **31** | **63** | **0.667** | **0.049** | **Verified** | [`gf16.t27`](../specs/numeric/gf16.t27) |
+| **GF16 (primary, frozen tape-out design)** | **1+6+9** | **16** | **31** | **63** | **0.667** | **0.049** | **Verified** | [`gf16.t27`](../specs/numeric/gf16.t27) |
 | GF20  | 1+7+12  | 20   | 63                 | 127                | 0.583 | 0.035 | Verified | [`gf20.t27`](../specs/numeric/gf20.t27) |
 | GF24  | 1+9+14  | 24   | 255                | 511                | 0.643 | 0.025 | Verified | [`gf24.t27`](../specs/numeric/gf24.t27) |
 | GF32  | 1+12+19 | 32   | 2047               | 4095               | 0.632 | 0.014 | Verified | [`gf32.t27`](../specs/numeric/gf32.t27) |
@@ -175,6 +175,72 @@ Two **distinct** objects — do not conflate (the spec is authoritative):
 - **Candidates (no normative spec):** GF6 (φ-gap fill 4↔8), GF128
   (binary128-range φ). NOT CLAIMED.
 
+
+### 4a. TF — the ternary-EXPONENT ladder (distinct from both of the above)
+
+A **third** ternary object, and the one most often confused with GFTernary. TF
+is not a ternary alphabet: it is an ordinary binary-radix float whose **exponent
+field is a balanced-ternary integer** of `E_t` trits, with a constant `M`-bit
+mantissa and fixed fields.
+
+    value = (-1)^s * (1 + M/2^m) * 2^e,   e = sum_i t_i * 3^i
+
+The scale is a power of **two**; only the exponent's *encoding* is ternary. A
+format that scales by `3^e` — Ternary27 is the published example — is a different
+design, and measurably a worse one at equal width: with the significand
+quantised over `[1,r)` the mean relative error is `kappa(r) * 2^-M` with
+`kappa(r) = (r-1)^2 / (r ln r)`, so radix 3 costs 0.75 positions of precision and
+buys 0.42 of range, a net loss of 0.33 positions per number.
+
+**Width rule:** `1 + E_t + M = N`, counting one position per trit. Eight of the
+nine rungs satisfy it exactly. TNF16 does not — it inherits GF16's phi-optimal
+`M = 9` and replaces GF16's six-bit exponent with four trits, leaving two
+positions unallocated. Spending them as `M = 11` divides the error by 4.00 at
+unchanged range for 19% more LUTs and no loss of frequency (measured, XC7A200T).
+Not changed, because it invalidates the conformance vectors and the published
+silicon numbers; recorded here and in the rung's `open_issue` field so the
+decision stays explicit.
+
+| Format | S+E+M | Bits | \|e\| max | Decades | E_t bits-equiv | φ-distance | Fits rule | Post-route XC7A200T | Spec |
+|---|---|---|---|---|---|---|---|---|---|
+| TNF4 | 1+2t+1 | 4 | 4 | 2 | 3.17 | 2.552 | **yes** | 12 LUT / 161.1 MHz | [`tnf4.t27`](../specs/numeric/tnf4.t27) |
+| TNF8 | 1+3t+4 | 8 | 13 | 8 | 4.75 | 0.571 | **yes** | 50 / 153.2 | [`tnf8.t27`](../specs/numeric/tnf8.t27) |
+| TNF16 | 1+4t+9 | 16 | 40 | 24 | 6.34 | 0.086 | **no (2 unallocated)** | 212 / 131.7 | [`tnf16.t27`](../specs/numeric/tnf16.t27) |
+| TNF32 | 1+6t+25 | 32 | 364 | 219 | 9.51 | 0.238 | **yes** | 1477 / 83.3 | [`tnf32.t27`](../specs/numeric/tnf32.t27) |
+| TNF64 | 1+7t+56 | 64 | 1093 | 658 | 11.09 | 0.420 | **yes** | 7479 / 48.2 | [`tnf64.t27`](../specs/numeric/tnf64.t27) |
+| TNF128 | 1+8t+119 | 128 | 3280 | 1975 | 12.68 | 0.511 | **yes** | — | [`tnf128.t27`](../specs/numeric/tnf128.t27) |
+| TNF256 | 1+9t+246 | 256 | 9841 | 5925 | 14.26 | 0.560 | **yes** | — | [`tnf256.t27`](../specs/numeric/tnf256.t27) |
+| TNF512 | 1+10t+501 | 512 | 29524 | 17775 | 15.85 | 0.586 | **yes** | — | [`tnf512.t27`](../specs/numeric/tnf512.t27) |
+| TNF1024 | 1+11t+1012 | 1024 | 88573 | 53326 | 17.43 | 0.601 | **yes** | — | [`tnf1024.t27`](../specs/numeric/tnf1024.t27) |
+
+**Reading the φ-distance column.** It is the catalog's own `|E/M - 1/φ|` computed
+on the exponent's bit-equivalent `E_t*log2(3)`, and it **rises toward 1/φ as N
+grows**. That is structural rather than a defect. GF sizes its exponent by
+`e = round((N-1)/φ²)`, which puts `E/M` at `1/φ` by construction; TF sizes its
+exponent for **range** and takes `M = N-1-E_t`. The two ladders optimise different
+axes, and TF should not be read as a worse GF.
+
+**What the fixed field buys, measured.** TF has no regime codec at all. Under one
+harness on XC7A200T, net of a 24-LUT harness, a unary regime codec (posit class)
+costs 438 LUTs round trip and a length-prefixed one (takum class) 40, against 0
+here. Converting through the measured area law `A(M) = 141 + 2.4455*M^2`, whose
+derivative `λ = 4.891*M` is the marginal LUT cost of a mantissa bit, the unary
+regime is **9.95 mantissa bits of silicon** at the 16-bit class — more than
+TNF16's entire mantissa — and 1.00 at `M = 90`. The length-prefixed regime is
+0.91 bits and 0.09. The area argument is therefore decisive against posit and weak
+against takum, and is stated that way rather than averaged.
+
+**What it does not buy.** By Kraft's inequality no prefix code on the integers has
+`l(e) < log2|e|` for all but finitely many `e`, so no format of unbounded range
+tapers more gently than one bit per doubling: takum's regime is asymptotically
+optimal and **nothing, TF included, beats it beyond TF's own range**. The
+measured 2.83x and 5.46x against takum16 at mid and far magnitudes hold inside
+that range and must never be quoted without it.
+
+Conformance packs: `conformance/vectors/gft{4,8,16,32,64,128,256,512,1024}_conformance_v0.json`.
+Probes are powers of two and `1.5*2^e` inside each rung's own range, so every
+`abs_error` is exactly zero by construction.
+
 ## 5. Split-revision history (cite the split when quoting φ-distance)
 
 - GF32: 8:23 → 13:18 → **12:19** (current canonical).
@@ -183,11 +249,20 @@ The whitepaper's latest family table matches the canonical splits above.
 
 ## 6. Implementation status (claim discipline)
 
-- **GF16 — VERIFIED + FROZEN SILICON.** Production Rust (`trios-trainer-igla`) +
+- **GF16 — Verified (spec, codegen, RTL, FPGA testbench).** Production Rust (`trios-trainer-igla`) +
   C codegen ([`../gen/c/numeric/gf16.c`](../gen/c/numeric/gf16.c)) + RTL
   ([`tt-trinity-gamma/src/gf16_v2_mul.v`](../../tt-trinity-gamma/src/gf16_v2_mul.v)
-  and `gf16_v2_add.v`); 35/35 FPGA testbench @ 323 MHz Artix-7; benchmarked
-  (97.67% MNIST MLP, 0.00% accuracy gap vs f32); fabricated in TTSKY26b TT4913 Gamma.
+  and `gf16_v2_add.v`); 35/35 FPGA testbench on Artix-7 (no operating frequency claimed — the 323 MHz figure is withdrawn, see docs/nona-03-manifest/RESEARCH_CLAIMS.md); benchmarked
+  against the fp32 reference on synthetic round-trip. **An MNIST figure of "97.67 %,
+  0.00 % accuracy gap vs f32" stood here and is withdrawn**: nothing in the tree
+  produces it, and the only MNIST run present
+  (`conformance/gf_family_bench.json`) has every format at accuracy 0.1187 with
+  loss 2.3631 — chance is 0.1000 and ln(10) is 2.3026, so the model is untrained.
+  Every format scoring identically to four decimals is itself the tell that the
+  scenario measures nothing about the format; one format scores 0.098, below
+  chance. Submitted to the TTSKY26b TT4913 Gamma shuttle; **no die has been
+  received**, and `STATUS.md` reserves SILICON for a physical die with written
+  bring-up and forbids the claim in this repository at all.
 - **GF4/8/12/20/24/32 — Verified.** Spec + Verilog RTL in `tt-trinity-gamma/src/`.
 - **GF64 — Verified.** Spec ([`gf64.t27`](../specs/numeric/gf64.t27), #916) +
   Verilog RTL in gamma; C codegen pending.
@@ -217,7 +292,7 @@ GF64=1+22+41 (should be 1+24+39), GF96=1+33+62 (should be 1+36+59),
 GF128=1+44+83 (should be 1+49+78), GF256=1+88+167 (should be 1+97+158). Corona
 is a registry chip; the on-die arithmetic for GF formats lives in Gamma
 (per `tt-trinity-corona/docs/goldenfloat_ladder_crossreference.md`), and
-Gamma's frozen silicon implements 1+6+9 for GF16. The CATALOG bug is tracked
+Gamma's frozen tape-out design implements 1+6+9 for GF16. The CATALOG bug is tracked
 in [`gHashTag/claim-audit-lab` CASE-09](https://github.com/gHashTag/claim-audit-lab).
 
 ## 7. Measured comparison (IGLA RACE v2 format sweep)

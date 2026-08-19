@@ -14,6 +14,18 @@ on:
   pull_request:
     branches: [master]
     paths:
+      # The four backends this gate proves equivalent all live in ONE file,
+      # bootstrap/src/compiler.rs -- gen_zig:3437, gen_verilog:6741, gen_c:10522,
+      # gen_rust:14382, in 31,077 lines. Without bootstrap/** here, a PR that
+      # rewrites the C emitter merges with the cross-target proof never running.
+      - "bootstrap/**"
+      - "cli/**"
+      - "tools/check_specs_parse.py"
+      - "tools/check_specs_generate.py"
+      - "specs/**"
+      - "tools/verify_exhaustive.py"
+      - "tools/check_duplicate_agreement.py"
+      - "specs/ternary/**"
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
       - "tools/verify_multitarget.py"
@@ -48,11 +60,48 @@ jobs:
       - name: Build t27c
         run: cargo build --release -p t27c
 
+      # Precondition for everything below. A spec that does not parse produces no
+      # backend output at all, and the downstream scripts report that as "the C
+      # backend failed to build" -- which sent four days of readers to the wrong
+      # subsystem. Ask the parser first, and print its own message.
+      - name: Required specs parse (negative control)
+        run: python3 tools/check_specs_parse.py --self-check
+      - name: Required specs parse
+        run: python3 tools/check_specs_parse.py
+
+      # 348 of 1114 specs do not generate with ANY backend -- 31.2% of what the
+      # constitution calls the single source of truth. Not one is a backend mismatch:
+      # on a 25-spec sample, zero generated with any of the four. They are recorded as
+      # debt so this holds the line, and the number can only go down.
+      - name: Every spec still generates (negative control)
+        run: python3 tools/check_specs_generate.py --self-check
+      - name: Every spec still generates
+        run: python3 tools/check_specs_generate.py
+
+      # Ternary primitives have input spaces small enough to enumerate: a full adder
+      # over three trits-in-a-byte is 16,777,216 inputs, about a second of CPU. A space
+      # you can exhaust needs neither a sample nor a prover, and docs/POSITIONING.md
+      # names this as the one place the ternary choice buys a VERIFICATION advantage
+      # rather than an area claim.
+      - name: Exhaustive cross-target agreement (negative control)
+        run: python3 tools/verify_exhaustive.py --self-check
+      - name: Exhaustive cross-target agreement
+        run: python3 tools/verify_exhaustive.py
+
+      # tmul is defined in 14 specs, dot27 in 9, quantize in 7. Nothing checked that
+      # the copies still compute the same thing, and copies drift. Compares BEHAVIOUR,
+      # not text: hashing the source reported three "divergences" that were all
+      # artefacts of the comparison rather than facts about the tree.
+      - name: Duplicated functions agree (negative control)
+        run: python3 tools/check_duplicate_agreement.py --self-check
+      - name: Duplicated functions agree
+        run: python3 tools/check_duplicate_agreement.py
+
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py
 
       - name: Prove GF-T primitives bit-exact across C + Rust + model
-        run: python3 tools/verify_multitarget.py
+        run: python3 tools/verify_multitarget.py --require
 
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
         run: python3 tools/verify_trainer_c.py

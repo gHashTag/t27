@@ -9,13 +9,6 @@
 module igla-race-eda;
 use base::types;
 use igla::race::rtl;
-// W614: this file uses `eval::has_substring(...)` and friends but never
-// imported the module. `use_resolve` rewrites a qualified reference to the bare
-// name ONLY when the declaration is pulled or local, so an unimported module
-// left the `::` in place and codegen lowered it to an undeclared `eval.`
-// namespace. Not circular: eval imports base::types, math::constants and
-// igla::race::backend -- none of them this file.
-use igla::coder::eval;
 
 // ============================================================================
 // 1. Toolchain Discovery
@@ -37,25 +30,6 @@ pub const BackendRealizabilityScore = struct {
 /// compute_backend_realizability(score) -> f32
 /// Returns fraction of backend steps passing (0.0 to 1.0).
 /// Based on CktFormalizer metric (arXiv:2605.07782v2): 95-100% realizability.
-/// True when a placement area is strictly positive.
-///
-/// W612: called 42 times in this file and declared nowhere in the corpus.
-/// Written from its own tests, which pin it exactly -- 7 distinct (input,
-/// expected) pairs with zero conflicts, plus a universally quantified
-/// invariant that makes the positive half-line exact rather than pointwise:
-///
-///     forall area : f64
-///     area > 0.0 ==> placement_area_positive(area) == true
-///
-/// Candidate elimination over all 42 concrete sites: `area >= 0.0` fails at
-/// 0.0 (3 sites), `area != 0.0` fails at -1.0 and -0.001, a constant `true`
-/// fails 6 sites, and any positive epsilon threshold is killed by the forall.
-/// The tests bracket zero tightly from both sides -- 0.00001 -> true and
-/// -0.001 -> false.
-fn placement_area_positive(area: f64) -> bool {
-    return area > 0.0;
-}
-
 pub fn compute_backend_realizability(score: BackendRealizabilityScore) -> f32 {
     let pass_count = 0;
     if (score.synthesis_ok) { pass_count = pass_count + 1; }
@@ -806,7 +780,7 @@ test eda_contains_substring_empty_needle_true
     when ok = contains_substring(s, needle)
     then ok == true
 
-test eda_command_exists_verilator_v2
+test eda_command_exists_verilator
     when ok = command_exists("verilator")
     then ok == true
 
@@ -830,7 +804,7 @@ test eda_command_exists_whitespace_true
     when ok = command_exists(cmd)
     then ok == true
 
-test eda_command_exists_unknown_false_v2
+test eda_command_exists_unknown_false
     given cmd = "unknown_tool"
     when ok = command_exists(cmd)
     then ok == false
@@ -1027,7 +1001,7 @@ test eda_ppa_delta_equal_returns_zero
     when d = ppa_delta(m1, m2)
     then d == ""
 
-test eda_contains_substring_empty_needle_true_v2
+test eda_contains_substring_empty_needle_true
     given s = "abc"
     given needle = ""
     when r = contains_substring(s, needle)
@@ -1052,7 +1026,7 @@ invariant eda_ppa_delta_equal_returns_empty
     m1.area_um2 == m2.area_um2 && m1.power_mw == m2.power_mw && m1.slack_ns == m2.slack_ns && m1.cell_count == m2.cell_count
     ==> ppa_delta(m1, m2) == ""
 
-test eda_command_exists_yosys_true_v2
+test eda_command_exists_yosys_true
     when ok = command_exists("yosys")
     then ok == true
 
@@ -1128,7 +1102,7 @@ invariant eda_contains_substring_prefix_found_inv:
     s.len() >= prefix.len() && prefix.len() > 0 ==>
     contains_substring(s, prefix) == true && s.len() >= prefix.len()
 
-test eda_contains_substring_empty_needle_true_v3
+test eda_contains_substring_empty_needle_true
     given haystack = "abc"
     given needle = ""
     when found = contains_substring(haystack, needle)
@@ -1205,12 +1179,12 @@ invariant eda_floorplan_config_pin_margin_nonnegative_inv:
     forall fp : FloorplanConfig
     fp.pin_margin_um >= 0.0
 
-test eda_generate_openroad_script_nonempty_v2
+test eda_generate_openroad_script_nonempty
     given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
     when script = generate_openroad_script("top.v", "MyMod", fp, "sky130")
     then script.len() > 0
 
-test eda_generate_innovus_script_nonempty_v2
+test eda_generate_innovus_script_nonempty
     given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
     when script = generate_innovus_script("top.v", "MyMod", fp, "sky130")
     then script.len() > 0
@@ -1245,7 +1219,7 @@ test eda_command_exists_klayout_true
 invariant eda_command_exists_openroad_true_inv:
     command_exists("openroad") == true
 
-test eda_command_exists_yosys_true_v3
+test eda_command_exists_yosys_true
     when ok = command_exists("yosys")
     then ok == true
 
@@ -1538,12 +1512,12 @@ test eda_route_wire_length_small_positive_true_w309
 
 invariant eda_placement_area_huge_positive_true_w309_inv:
     placement_area_positive(1000000.0) == true
-test eda_placement_area_huge_positive_true_w309_v2
+test eda_placement_area_huge_positive_true_w309
     given area = 1000000.0
     when ok = placement_area_positive(area)
     then ok == true
 
-test eda_route_wire_length_small_positive_true_w309_v2
+test eda_route_wire_length_small_positive_true_w309
     given len = 1
     when ok = route_wire_length_non_negative(len)
     then ok == true
@@ -1580,12 +1554,12 @@ invariant eda_placement_area_huge_positive_true_w311_inv:
 
 
 
-test eda_placement_area_huge_positive_true_w311_v2
+test eda_placement_area_huge_positive_true_w311
     given area = 1000000.0
     when ok = placement_area_positive(area)
     then ok == true
 
-test eda_route_wire_length_small_positive_true_w311_v2
+test eda_route_wire_length_small_positive_true_w311
     given len = 1
     when ok = route_wire_length_non_negative(len)
     then ok == true
@@ -1856,7 +1830,6 @@ test eda_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test eda_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1874,6 +1847,7 @@ test eda_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w342_depth_086: true
 
+}
 
 invariant eda_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

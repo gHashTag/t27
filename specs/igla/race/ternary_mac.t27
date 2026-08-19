@@ -29,87 +29,36 @@ fn ternary_decode(w: TernaryWeight) -> i8 {
     return 0;
 }
 
-/// ## Arithmetic: wrapping, deliberately
-///
-/// W573: these functions model an FPGA datapath, which wraps by width -- there
-/// is no trap in an LUT carry chain -- and this spec's own tests assert it
-/// (ternary_mac_i32_max_overflow, ternary_mac_i32_min_underflow_wrap, ternary_mul_i8_min_negate_overflow). Plain `+` keeps Zig's trapping semantics
-/// (docs/NOW.md, wrapping-operator family), so the software backends panicked
-/// where the hardware wraps.
-///
-/// The Verilog backend collapses `+%`/`-%` to `+`/`-`, so the generated RTL is
-/// byte-identical; only the software backends change, and only on overflow.
-
 /// Ternary multiply: a * w where w in {-1, 0, +1}.
 /// Implemented as conditional sign-flip or zero, no '*' operator.
 fn ternary_mul(a: i8, w: TernaryWeight) -> i8 {
     let decoded = ternary_decode(w);
     if (decoded == 0) { return 0; }
     if (decoded == 1) { return a; }
-    return 0 -% a;
+    return -a;
 }
 
 /// Ternary MAC: accumulate a * w into 32-bit accumulator.
 fn ternary_mac(acc: i32, a: i8, w: TernaryWeight) -> i32 {
     let prod = ternary_mul(a, w);
-    return acc +% prod;
+    return acc + prod;
 }
 
-
-// ============================================================================
-// 2b. Combinational port surface (T81) -- W806
-// ============================================================================
-
-/// W806. Without a data port this module has no boundary, synthesises to
-/// nothing, and cannot be measured on a die. It is one of the 799 of 852 in that
-/// state, and it is the one worth closing first, because the number it yields
-/// decides whether the ternary datapath is viable at all.
-///
-/// THE PORT IS NOT A GUESS. `on_comb` takes exactly the arguments `ternary_mac`
-/// already takes, with `TernaryWeight` flattened to its single field because a
-/// port carries wires and not structs. No packing scheme is invented, no default
-/// is assumed, and nothing is added that the module did not already compute.
-///
-/// WHAT IT IS FOR. T497 places this project 3.4x behind the 2026 state of the
-/// art on LUT-per-multiply (66 against arXiv:2604.25183's 19.27), and T498 shows
-/// the flattering 3.46 figure is constant folding of compile-time weights rather
-/// than a MAC density. This port produces the first RUNTIME-WEIGHT ternary MAC
-/// this project can synthesise and count.
-///
-/// REGISTERED FORECAST (T44), before synthesis: the cost lands in 40-90 LUT and
-/// is dominated by the 32-bit accumulator adder, with ZERO DSP48E1. If that
-/// holds, the field's 19.27 comes from amortising one adder across a group of
-/// lanes -- their `mu` parameter -- which is exactly the partial-sum tabulation
-/// T496 argued does not apply to us, and the honest reading becomes that our
-/// architecture declines the one trick that pays.
-fn on_comb(a: i8, code: u8, acc: i32) -> i32 {
-    let w = TernaryWeight { code: code };
-    return ternary_mac(acc, a, w);
+/// Dot product of two slices using ternary weights.
+fn ternary_dot(a: []i8, w: []TernaryWeight, idx: u32, acc: i32) -> i32 {
+    if (idx >= a.len()) {
+        return acc;
+    }
+    if (idx >= w.len()) {
+        return acc;
+    }
+    let prod = ternary_mul(a[idx], w[idx]);
+    return ternary_dot(a, w, idx + 1, acc + prod);
 }
 
 // ============================================================================
 // 3. Tests
 // ============================================================================
-
-test port_zero_weight_leaves_accumulator
-    given r = on_comb(7, 0, 100)
-    then r == 100
-
-test port_plus_weight_adds_activation
-    given r = on_comb(7, 1, 100)
-    then r == 107
-
-test port_minus_weight_subtracts_activation
-    given r = on_comb(7, 2, 100)
-    then r == 93
-
-test port_out_of_alphabet_code_is_zero
-    given r = on_comb(7, 3, 100)
-    then r == 100
-
-test port_negative_activation_with_minus_weight_adds
-    given r = on_comb(-7, 2, 100)
-    then r == 107
 
 test ternary_decode_zero
     given w = TernaryWeight { code: 0 }
@@ -164,12 +113,30 @@ test ternary_mac_zero_weight
     when r = ternary_mac(acc, a, w)
     then r == 10
 
+test ternary_dot_basic
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == -1
+
 test ternary_mac_negative_accumulates
     given acc = 10
     given a = -5
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == 5
+
+test ternary_dot_all_zero
+    given a = [0, 0, 0]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 0
+
+test ternary_dot_all_minus_one
+    given a = [5, 3, 7]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == -15
 
 test ternary_mac_large_negative
     given acc = -100000
@@ -178,12 +145,18 @@ test ternary_mac_large_negative
     when r = ternary_mac(acc, a, w)
     then r == -99973
 
-test ternary_mac_zero_weight_v2
+test ternary_mac_zero_weight
     given acc = 42
     given a = 7
     given w = TernaryWeight { code: 0 }
     when r = ternary_mac(acc, a, w)
     then r == 42
+
+test ternary_dot_single_element
+    given a = [3]
+    given w = [TernaryWeight { code: 2 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == -3
 
 test ternary_mac_max_activation
     given acc = 0
@@ -192,6 +165,12 @@ test ternary_mac_max_activation
     when r = ternary_mac(acc, a, w)
     then r == 127
 
+test ternary_dot_zero_elements
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 0
+
 test ternary_mac_min_activation
     given acc = 0
     given a = -128
@@ -199,12 +178,24 @@ test ternary_mac_min_activation
     when r = ternary_mac(acc, a, w)
     then r == -128
 
-test ternary_mac_max_activation_v2
+test ternary_dot_mixed_length
+    given a = [1, 2]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == -1
+
+test ternary_mac_max_activation
     given acc = 0
     given a = 127
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == 127
+
+test ternary_dot_empty_weights
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 0
 
 // ============================================================================
 // 4. Invariants
@@ -219,6 +210,10 @@ invariant ternary_mac_bounded
     forall acc : i32, a : i8, w : TernaryWeight
     ternary_mac(acc, a, w) >= acc - 127
     && ternary_mac(acc, a, w) <= acc + 127
+
+invariant ternary_dot_correct
+    forall a : []i8, w : []TernaryWeight
+    ternary_dot(a, w, 0, 0) == a[0] * ternary_decode(w[0]) + a[1] * ternary_decode(w[1])
 
 invariant ternary_mac_associative
     forall acc : i32, a : i8, w : TernaryWeight
@@ -235,6 +230,12 @@ bench ternary_mac_latency
     measure ternary_mac(acc, a, w)
     target latency_us < 0.1
 
+bench ternary_dot_latency
+    given a = [1, 2, 3, 4, 5, 6, 7, 8]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    measure ternary_dot(a, w, 0, 0)
+    target latency_us < 1.0
+
 test ternary_mac_zero_activation
     given acc = 42
     given a = 0
@@ -242,7 +243,13 @@ test ternary_mac_zero_activation
     when r = ternary_mac(acc, a, w)
     then r == 42
 
-test ternary_mac_zero_weight_v3
+test ternary_dot_empty_slices
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 0
+
+test ternary_mac_zero_weight
     given acc = 10
     given a = 5
     given w = TernaryWeight { code: 0 }
@@ -262,12 +269,24 @@ test ternary_mac_negative_activation
     when r = ternary_mac(acc, a, w)
     then r == -5
 
+test ternary_dot_positive_sum
+    given a = [1, 1, 1]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 3)
+    then d == 3
+
 test ternary_mac_max_positive
     given acc = 100
     given a = 27
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == 127
+
+test ternary_dot_mixed_weights
+    given a = [10, -5, 0]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }]
+    when d = ternary_dot(a, w, 0, 3)
+    then d == 15
 
 test ternary_mac_zero_acc
     given acc = 0
@@ -276,16 +295,34 @@ test ternary_mac_zero_acc
     when r = ternary_mac(acc, a, w)
     then r == 5
 
+test ternary_dot_empty_vectors
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 0
+
 test ternary_decode_invalid_far_code
     given w = TernaryWeight { code: 255 }
     when d = ternary_decode(w)
     then d == 0
+
+test ternary_dot_offset_seed
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 1, 10)
+    then d == 15
 
 test ternary_mul_i8_min_negate_overflow
     given a = -128
     given w = TernaryWeight { code: 2 }
     when p = ternary_mul(a, w)
     then p == -128
+
+test ternary_dot_unequal_lengths_short_w
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 1
 
 test ternary_mac_i32_max_overflow
     given acc = 2147483647
@@ -294,12 +331,24 @@ test ternary_mac_i32_max_overflow
     when r = ternary_mac(acc, a, w)
     then r == -2147483648
 
+test ternary_dot_a_shorter_than_w
+    given a = [5]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 5
+
 test ternary_mac_i32_min_underflow_wrap
     given acc = -2147483648
     given a = 127
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == 2147483521
+
+test ternary_dot_both_empty_seed_idx
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when d = ternary_dot(a, w, 5, 42)
+    then d == 42
 
 test ternary_mul_commutative_sign_flip
     given a = -7
@@ -308,6 +357,24 @@ test ternary_mul_commutative_sign_flip
     when p1 = ternary_mul(a, w_pos)
     when p2 = ternary_mul(7, w_neg)
     then p1 == p2
+
+test ternary_dot_idx_beyond_both_lengths
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 5, 42)
+    then d == 42
+
+test ternary_dot_longer_weight_vec
+    given a = [1, 2]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 3
+
+test ternary_dot_all_zeros
+    given a = [0, 0, 0]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 99)
+    then d == 99
 
 test ternary_decode_code_3_returns_zero
     given w = TernaryWeight { code: 3 }
@@ -320,6 +387,14 @@ test ternary_mac_acc_near_max_activation_max_wrap
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == -2147483648
+
+test ternary_dot_idx_beyond_nonempty_arrays
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    given idx = 10
+    given acc = 7
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 7
 
 test ternary_mul_i8_max_negate
     given a = 127
@@ -346,6 +421,14 @@ test ternary_mac_zero_acc_zero_weight_identity
     when r = ternary_mac(acc, a, w)
     then r == 0
 
+test ternary_dot_both_empty_returns_acc
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 7
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 7
+
 test ternary_mac_max_i8_activation
     given acc = 0
     given a = 127
@@ -367,12 +450,28 @@ test ternary_mac_acc_nonzero_plus_weight
     when r = ternary_mac(acc, a, w)
     then r == 107
 
+test ternary_dot_single_element
+    given a = [5]
+    given w = [TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 10
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 5
+
 test ternary_mac_zero_acc_neg_weight
     given acc = 0
     given a = 3
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == -3
+
+test ternary_dot_empty_arrays_zero_acc
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
 
 test ternary_mac_acc_negative_plus_weight
     given acc = -10
@@ -381,6 +480,14 @@ test ternary_mac_acc_negative_plus_weight
     when r = ternary_mac(acc, a, w)
     then r == -5
 
+test ternary_dot_two_elements_mixed
+    given a = [3, -2]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 5
+
 test ternary_mac_max_acc_plus_weight
     given acc = 32767
     given a = 0
@@ -388,12 +495,34 @@ test ternary_mac_max_acc_plus_weight
     when r = ternary_mac(acc, a, w)
     then r == 32767
 
+test ternary_dot_three_elements_all_neg_weight
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -6
+
 test ternary_mac_min_i8_neg_weight
     given acc = 0
     given a = -128
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == 128
+
+test ternary_dot_single_zero_weight
+    given a = [42]
+    given w = [TernaryWeight { code: 0 }]
+    given idx = 0
+    given acc = 100
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 100
+
+test ternary_dot_three_elements_positive
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when d = ternary_dot(a, w, 0, 0)
+    then d == 6
 
 test ternary_mac_zero_acc_identity
     given acc = 0
@@ -409,12 +538,28 @@ test ternary_mac_i32_max_minus_weight_avoids_wrap
     when r = ternary_mac(acc, a, w)
     then r == 2147483520
 
+test ternary_dot_unequal_lengths_nonzero_idx
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }]
+    given idx = 1
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
+
 test ternary_mac_neg_acc_minus_weight
     given acc = -100
     given a = 10
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == -110
+
+test ternary_dot_empty_arrays_zero
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
 
 test ternary_mac_neg_activation_neg_weight
     given acc = 0
@@ -423,12 +568,36 @@ test ternary_mac_neg_activation_neg_weight
     when r = ternary_mac(acc, a, w)
     then r == 5
 
+test ternary_dot_two_elements_mixed_weights
+    given a = [3, 4]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -1
+
+test ternary_dot_four_elements_all_positive
+    given a = [1, 2, 3, 4]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 10
+
 test ternary_mac_i32_min_acc_plus_min_activation
     given acc = -2147483648
     given a = -128
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == -2147483520
+
+test ternary_dot_unequal_lengths_truncates
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 3
 
 test ternary_mac_max_activation_neg_weight
     given acc = 0
@@ -437,6 +606,14 @@ test ternary_mac_max_activation_neg_weight
     when r = ternary_mac(acc, a, w)
     then r == -127
 
+test ternary_dot_three_elements_acc_carry
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 5
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 11
+
 test ternary_mac_zero_activation_zero_weight
     given acc = 7
     given a = 0
@@ -444,12 +621,28 @@ test ternary_mac_zero_activation_zero_weight
     when r = ternary_mac(acc, a, w)
     then r == 7
 
+test ternary_dot_single_element
+    given a = [42]
+    given w = [TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -42
+
 test ternary_mac_min_activation_pos_weight
     given acc = 0
     given a = -128
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == -128
+
+test ternary_dot_weights_longer_activations
+    given a = [1, 2, 3]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 6
 
 test ternary_mac_boundary_i8_max_neg_weight
     given acc = 0
@@ -465,6 +658,14 @@ test ternary_mac_zero_activation_preserves_acc
     when r = ternary_mac(acc, a, w)
     then r == 42
 
+test ternary_dot_empty_arrays
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
+
 test ternary_mac_zero_acc_zero_weight
     given acc = 0
     given a = 42
@@ -472,12 +673,28 @@ test ternary_mac_zero_acc_zero_weight
     when r = ternary_mac(acc, a, w)
     then r == 0
 
+test ternary_dot_two_elements_zero_weight
+    given a = [5, 7]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 5
+
 test ternary_mac_negative_weight
     given acc = 10
     given a = 5
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == 5
+
+test ternary_dot_two_elements_negative
+    given a = [3, 4]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -7
 
 invariant ternary_mac_acc_unchanged_on_zero_weight
     forall acc : i32, a : i8
@@ -497,12 +714,28 @@ test ternary_mul_large_activation_plus_weight
     when p = ternary_mul(a, w)
     then p == 127
 
+test ternary_dot_single_element_zero_weight
+    given a = [77]
+    given w = [TernaryWeight { code: 0 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
+
 test ternary_mac_large_psum_saturation
     given acc = 2000000000
     given a = 127
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r > acc
+
+test ternary_dot_single_element_positive
+    given a = [42]
+    given w = [TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 10
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 52
 
 test ternary_mac_acc_only_identity
     given acc = 42
@@ -528,6 +761,12 @@ test ternary_decode_zero_weight
     given w = TernaryWeight { code: 0 }
     when d = ternary_decode(w)
     then d == 0
+
+test ternary_dot_empty_arrays
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    when r = ternary_dot(a, w, 0, 0)
+    then r == 0
 
 test ternary_mul_positive_weight
     given a = 5
@@ -561,11 +800,17 @@ invariant ternary_mac_zero_weight_identity
     forall acc : i32, a : i8
     ternary_mac(acc, a, TernaryWeight { code: 0 }) == acc
 
-test ternary_mac_negative_activation_v2
+test ternary_mac_negative_activation
     given a = cast_i8(-3)
     given w = TernaryWeight { code: 1 }
     when result = ternary_mac(0, a, w)
     then result == -3
+
+test ternary_dot_positive_activation_negative_weight
+    given a = [cast_i8(5)]
+    given w = [TernaryWeight { code: 2 }]
+    when result = ternary_dot(a, w, 0, 0)
+    then result == -5
 
 test ternary_decode_zero_returns_zero
     given w = TernaryWeight { code: 0 }
@@ -586,7 +831,11 @@ invariant ternary_mac_is_acc_plus_mul:
     forall acc : i32, a : i8, w : TernaryWeight
     ternary_mac(acc, a, w) == acc + ternary_mul(a, w)
 
-test ternary_mac_zero_activation_zero_weight_v2
+invariant ternary_dot_empty_identity
+    forall a : []i8, w : []TernaryWeight
+    a.len() == 0 && w.len() == 0 ==> ternary_dot(a, w, 0, 0) == 0
+
+test ternary_mac_zero_activation_zero_weight
     given acc = 0
     given a = cast_i8(0)
     given w = TernaryWeight { code: 0 }
@@ -638,16 +887,36 @@ test ternary_mac_negative_activation_positive_weight_zero_acc
     when r = ternary_mac(acc, a, w)
     then r == -5
 
+test ternary_dot_negative_activation
+    given a = [cast_i8(-3), cast_i8(4)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -7
+
+invariant ternary_dot_single_element_identity
+    forall a : i8
+    ternary_dot([a], [TernaryWeight { code: 1 }], 0, 0) == a
+
 invariant ternary_mul_negative_weight_identity
     forall a : i8
     ternary_mul(a, TernaryWeight { code: 2 }) == -a
 
-test ternary_mac_zero_acc_zero_activation_v2
+test ternary_mac_zero_acc_zero_activation
     given acc = 0
     given a = cast_i8(0)
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == 0
+
+test ternary_dot_two_elements_positive
+    given a = [cast_i8(2), cast_i8(3)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 5
 
 test ternary_mac_negative_acc_positive_result
     given acc = -5
@@ -656,12 +925,36 @@ test ternary_mac_negative_acc_positive_result
     when r = ternary_mac(acc, a, w)
     then r == -2
 
+test ternary_dot_empty_vectors_zero
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 7
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 7
+
+invariant ternary_dot_two_elements_sum_inv:
+    forall a1 : i8, a2 : i8
+    ternary_dot([a1, a2], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 0, 0) == a1 + a2
+
+invariant ternary_dot_empty_vectors_identity_inv:
+    forall acc : i16
+    ternary_dot([]i8{}, []TernaryWeight{}, 0, acc) == acc
+
 test ternary_mac_large_acc_pos_weight_exact
     given acc = 1000000
     given a = 127
     given w = TernaryWeight { code: 1 }
     when r = ternary_mac(acc, a, w)
     then r == 1000127
+
+test ternary_dot_three_elements_mixed_weights
+    given a = [3, -4, 5]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 7
 
 invariant ternary_mac_positive_weight_is_addition:
     forall acc : i32, a : i8
@@ -672,6 +965,14 @@ test ternary_mul_zero_activation
     given w = TernaryWeight { code: 1 }
     when r = ternary_mul(a, w)
     then r == 0
+
+test ternary_dot_two_negative_activations
+    given a = [-3, -5]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -8
 
 invariant ternary_mul_zero_activation_inv:
     forall w : TernaryWeight
@@ -684,12 +985,33 @@ test ternary_mac_acc_42_neg_activation
     when r = ternary_mac(acc, a, w)
     then r == 37
 
+test ternary_dot_single_element_zero_acc
+    given a = [7]
+    given w = [TernaryWeight { code: 1 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 7
+
+invariant ternary_dot_idx_beyond_returns_acc_inv:
+    forall a : []i8, w : []TernaryWeight, idx : u32, acc : i32
+    idx >= a.len() || idx >= w.len() ==>
+    ternary_dot(a, w, idx, acc) == acc
+
 test ternary_mac_acc_zero_neg_activation_minus_weight
     given acc = 0
     given a = -3
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == 3
+
+test ternary_dot_single_element_minus_weight
+    given a = [7]
+    given w = [TernaryWeight { code: 2 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == -7
 
 invariant ternary_mac_acc_zero_neg_activation_minus_weight_inv:
     forall a : i8
@@ -719,12 +1041,28 @@ test ternary_mac_max_i32_acc_zero_weight_identity
     when r = ternary_mac(acc, a, w)
     then r == 2147483647
 
+test ternary_dot_three_elements_all_zero_weights
+    given a = [cast_i8(1), cast_i8(2), cast_i8(3)]
+    given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
+
 test ternary_mac_acc_minus_weight
     given acc = 100
     given a = 5
     given w = TernaryWeight { code: 2 }
     when r = ternary_mac(acc, a, w)
     then r == 95
+
+test ternary_dot_empty_list
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    given idx = 0
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 0
 
 invariant ternary_mac_acc_minus_weight_inv:
     forall acc : i32, a : i8
@@ -751,6 +1089,18 @@ test ternary_mac_plus_weight_doubles_acc
 invariant ternary_mac_plus_weight_doubles_acc_inv:
     forall acc : i32
     ternary_mac(acc, cast_i8(acc), TernaryWeight { code: 1 }) == 2 * acc
+
+test ternary_dot_nonzero_idx_skips_first
+    given a = [cast_i8(1), cast_i8(2), cast_i8(3)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    given idx = 1
+    given acc = 0
+    when d = ternary_dot(a, w, idx, acc)
+    then d == 5
+
+invariant ternary_dot_nonzero_idx_skips_first_inv
+    forall a1 : i8, a2 : i8, a3 : i8
+    ternary_dot([a1, a2, a3], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 1, 0) == a2 + a3
 
 test ternary_mac_minus_weight_negates_acc
     given acc = 0
@@ -1078,14 +1428,14 @@ test ternary_mac_plus_weight_adds_w309
 invariant ternary_mac_zero_weight_nop_w309_inv:
     forall acc : i32
     ternary_mac(99, TernaryWeight { code: 0 }, acc) == acc
-test ternary_mac_zero_weight_nop_w309_v2
+test ternary_mac_zero_weight_nop_w309
     given a = 99
     given w = TernaryWeight { code: 0 }
     given acc = 42
     when result = ternary_mac(a, w, acc)
     then result == 42
 
-test ternary_mac_plus_weight_adds_w309_v2
+test ternary_mac_plus_weight_adds_w309
     given a = 10
     given w = TernaryWeight { code: 1 }
     given acc = 5
@@ -1135,14 +1485,14 @@ invariant ternary_mac_zero_weight_nop_w311_inv:
 
 
 
-test ternary_mac_zero_weight_nop_w311_v2
+test ternary_mac_zero_weight_nop_w311
     given a = 99
     given w = TernaryWeight { code: 0 }
     given acc = 42
     when result = ternary_mac(a, w, acc)
     then result == 42
 
-test ternary_mac_plus_weight_adds_w311_v2
+test ternary_mac_plus_weight_adds_w311
     given a = 10
     given w = TernaryWeight { code: 1 }
     given acc = 5
@@ -1461,7 +1811,6 @@ test ternary_mac_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (82→83)
 test ternary_mac_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_mac_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1479,6 +1828,7 @@ test ternary_mac_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_mac_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_mac_w342_depth_085: true
 
+}
 
 invariant ternary_mac_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)

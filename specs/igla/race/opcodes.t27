@@ -187,7 +187,7 @@ test is_sacred_opcode_below_min
     when ok = is_sacred_opcode(op)
     then ok == false
 
-test validate_chain_empty_v2
+test validate_chain_empty
     given chain = []u8{}
     when ok = validate_chain(chain)
     then ok == true
@@ -409,7 +409,7 @@ test validate_opcode_chain_empty_returns_true
     when ok = validate_opcode_chain(chain)
     then ok == true
 
-test opcode_name_sacred_boundary_v2
+test opcode_name_sacred_boundary
     given op = 0xD0
     when name = opcode_name(op)
     then name == "OP_SACRED_BEGIN"
@@ -474,7 +474,7 @@ test opcode_name_unknown_returns_op_unknown
     when n = opcode_name(op)
     then n == "OP_UNKNOWN"
 
-test get_opcode_cycles_unknown_returns_zero_v2
+test get_opcode_cycles_unknown_returns_zero
     given op = 0xFF
     when c = get_opcode_cycles(op)
     then c == 0
@@ -494,7 +494,7 @@ test opcode_name_begin_exact
     when n = opcode_name(op)
     then n == "OP_SACRED_BEGIN"
 
-test validate_opcode_chain_empty_returns_true_v2
+test validate_opcode_chain_empty_returns_true
     given chain = []u8{}
     when ok = validate_opcode_chain(chain)
     then ok == true
@@ -555,7 +555,7 @@ test validate_opcode_chain_single_invalid_returns_false
     when ok = validate_opcode_chain(chain)
     then ok == false
 
-test get_opcode_cycles_unknown_returns_zero_v3
+test get_opcode_cycles_unknown_returns_zero
     given op = 0xFF
     when c = get_opcode_cycles(op)
     then c == 0
@@ -579,7 +579,7 @@ test opcode_name_unknown_returns_unknown
     when n = opcode_name(op)
     then n == "OP_UNKNOWN"
 
-test get_opcode_cycles_lut_npu_exact_v2
+test get_opcode_cycles_lut_npu_exact
     given op = OP_LUT_NPU
     when c = get_opcode_cycles(op)
     then c == 5
@@ -816,7 +816,7 @@ test opcodes_get_opcode_cycles_load_const
     when c = get_opcode_cycles(op)
     then c == 1
 
-test opcodes_validate_chain_empty_true_v2
+test opcodes_validate_chain_empty_true
     given chain = []Opcode{}
     when ok = validate_opcode_chain(chain)
     then ok == true
@@ -1139,12 +1139,12 @@ test opcodes_is_sacred_opcode_valid_true_w309
 
 invariant opcodes_get_cycles_mul_three_w309_inv:
     get_opcode_cycles(0x03) == 3
-test opcodes_get_cycles_mul_three_w309_v2
+test opcodes_get_cycles_mul_three_w309
     given op = 0x03
     when cycles = get_opcode_cycles(op)
     then cycles == 3
 
-test opcodes_is_sacred_opcode_valid_true_w309_v2
+test opcodes_is_sacred_opcode_valid_true_w309
     given op = 0x2A
     when r = is_sacred_opcode(op)
     then r == true
@@ -1181,12 +1181,12 @@ invariant opcodes_get_cycles_mul_three_w311_inv:
 
 
 
-test opcodes_get_cycles_mul_three_w311_v2
+test opcodes_get_cycles_mul_three_w311
     given op = 0x03
     when cycles = get_opcode_cycles(op)
     then cycles == 3
 
-test opcodes_is_sacred_opcode_valid_true_w311_v2
+test opcodes_is_sacred_opcode_valid_true_w311
     given op = 0x2A
     when r = is_sacred_opcode(op)
     then r == true
@@ -1457,7 +1457,6 @@ test opcodes_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test opcodes_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test opcodes_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1475,6 +1474,7 @@ test opcodes_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test opcodes_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant opcodes_w342_depth_086: true
 
+}
 
 invariant opcodes_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

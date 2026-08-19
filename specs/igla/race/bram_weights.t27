@@ -27,25 +27,6 @@ pub const WeightAddr = struct {
 // ============================================================================
 
 /// Flatten 2D (row, col) into 1D index.
-/// Number of weights held in a BRAM bank -- the data length.
-///
-/// W611: called in this file and declared nowhere in the corpus -- 28 of the
-/// 886 `use of undeclared identifier` errors across IGLA. Its own INVARIANT
-/// states it outright, so nothing is being inferred here:
-///
-///     forall data : []f32
-///     bram_weights_width(data) == data.len() as u32
-///
-/// and the tests agree: len 3 -> 3, len 4 -> 4.
-///
-/// Its sibling `bram_weights_depth` is NOT written, and deliberately: its 30
-/// test points split 24 for `depth == len` against 6 for `depth == len/2`, and
-/// lengths 1, 2 and 4 carry BOTH expectations. That is a specification
-/// decision, the same shape as `ternary_mac`'s argument order.
-fn bram_weights_width(data: []f32) -> u32 {
-    return data.len() as u32;
-}
-
 fn flatten_addr(bank: WeightBank, addr: WeightAddr) -> u32 {
     return addr.row * bank.width + addr.col;
 }
@@ -313,7 +294,7 @@ test read_weight_after_write
     when v = read_weight(new_bank, WeightAddr { row: 0, col: 0 })
     then v == 99
 
-test flatten_addr_oob_returns_max_v2
+test flatten_addr_oob_returns_max
     given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
     when idx = flatten_addr(bank, WeightAddr { row: 10, col: 10 })
     then idx == 3
@@ -586,7 +567,7 @@ test bram_weights_write_weight_oob_unchanged
     when new_bank = write_weight(bank, addr, 99)
     then new_bank.data[0] == 1 && new_bank.data[3] == 4
 
-test bram_weights_load_row_oob_empty_v2
+test bram_weights_load_row_oob_empty
     given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
     when row = load_row(bank, 5, 0)
     then row.len() == 0
@@ -658,12 +639,12 @@ test bram_weights_read_write_roundtrip
     when readback = read_weight(written, addr)
     then readback == 99
 
-test bram_weights_load_row_oob_empty_v3
+test bram_weights_load_row_oob_empty
     given bank = WeightBank { depth: 2, width: 3, data: [1,2,3,4,5,6] }
     when row = load_row(bank, 5, 0)
     then row.len() == 0
 
-test bram_weights_read_weight_oob_returns_zero_v2
+test bram_weights_read_weight_oob_returns_zero
     given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
     given addr = WeightAddr { row: 5, col: 5 }
     when v = read_weight(bank, addr)
@@ -701,7 +682,7 @@ test bram_weights_write_then_read_different_row
     when v = read_weight(new_bank, addr2)
     then v == 4
 
-test bram_weights_flatten_addr_last_element_v2
+test bram_weights_flatten_addr_last_element
     given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
     given addr = WeightAddr { row: 1, col: 1 }
     when idx = flatten_addr(bank, addr)
@@ -724,7 +705,7 @@ test bram_weights_load_row_first_row
     when row = load_row(bank, 0, 0)
     then row[0] == 1 && row[1] == 2
 
-test bram_weights_flatten_addr_zero_zero_v2
+test bram_weights_flatten_addr_zero_zero
     given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
     given addr = WeightAddr { row: 0, col: 0 }
     when idx = flatten_addr(bank, addr)
@@ -770,7 +751,7 @@ invariant bram_flatten_addr_within_bounds
     addr.row < bank.depth && addr.col < bank.width
     ==> flatten_addr(bank, addr) < bank.data.len()
 
-invariant bram_read_weight_oob_zero_v2
+invariant bram_read_weight_oob_zero
     forall bank : WeightBank, addr : WeightAddr
     addr.row >= bank.depth || addr.col >= bank.width
     ==> read_weight(bank, addr) == 0
@@ -788,7 +769,7 @@ invariant bram_write_weight_commutative_same_addr
     addr.row < bank.depth && addr.col < bank.width ==>
     read_weight(write_weight(write_weight(bank, addr, v1), addr, v2), addr) == v2
 
-test bram_weights_read_write_roundtrip_v2
+test bram_weights_read_write_roundtrip
     given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
     given addr = WeightAddr { row: 0, col: 1 }
     given v = 42
@@ -861,7 +842,7 @@ invariant bram_weights_write_then_read_identity:
     addr.row < bank.depth && addr.col < bank.width ==>
     read_weight(write_weight(bank, addr, v), addr) == v
 
-test bram_weights_weight_row_count_matches_depth_v2
+test bram_weights_weight_row_count_matches_depth
     given bank = WeightBank { depth: 4, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
     when rows = weight_row_count(bank)
     then rows == 4
@@ -872,7 +853,7 @@ test bram_weights_read_out_of_bounds_returns_zero
     when r = read_weight(bank, addr)
     then r == 0
 
-test bram_weights_flatten_addr_zero_zero_v3
+test bram_weights_flatten_addr_zero_zero
     given bank = WeightBank { depth: 3, width: 4, data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
     given addr = WeightAddr { row: 0, col: 0 }
     when idx = flatten_addr(bank, addr)
@@ -892,7 +873,7 @@ invariant bram_weights_flatten_addr_zero_zero_inv:
     forall bank : WeightBank
     flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
 
-test bram_weights_write_read_roundtrip_v2
+test bram_weights_write_read_roundtrip
     given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
     given addr = WeightAddr { row: 0, col: 0 }
     given v = 42
@@ -1053,7 +1034,7 @@ invariant bram_weights_depth_one_single_row_inv:
     forall bank : WeightBank
     bank.depth == 1 ==> row_count(bank) == 1
 
-test bram_weights_flatten_addr_zero_zero_v4
+test bram_weights_flatten_addr_zero_zero
     given bank = WeightBank { depth: 4, width: 4 }
     when addr = flatten_addr(bank, WeightAddr { row: 0, col: 0 })
     then addr == 0
@@ -1290,12 +1271,12 @@ test bram_weights_width_eight_elements_w309
 
 invariant bram_weights_depth_eight_elements_w309_inv:
     bram_weights_depth([1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]) == 8
-test bram_weights_depth_eight_elements_w309_v2
+test bram_weights_depth_eight_elements_w309
     given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
     when bw = bram_weights_depth(data)
     then bw == 8
 
-test bram_weights_width_eight_elements_w309_v2
+test bram_weights_width_eight_elements_w309
     given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
     when w = bram_weights_width(data)
     then w == 8
@@ -1332,12 +1313,12 @@ invariant bram_weights_depth_eight_elements_w311_inv:
 
 
 
-test bram_weights_depth_eight_elements_w311_v2
+test bram_weights_depth_eight_elements_w311
     given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
     when bw = bram_weights_depth(data)
     then bw == 8
 
-test bram_weights_width_eight_elements_w311_v2
+test bram_weights_width_eight_elements_w311
     given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
     when w = bram_weights_width(data)
     then w == 8
@@ -1608,7 +1589,6 @@ test bram_weights_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test bram_weights_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test bram_weights_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1626,6 +1606,7 @@ test bram_weights_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test bram_weights_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bram_weights_w342_depth_086: true
 
+}
 
 invariant bram_weights_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

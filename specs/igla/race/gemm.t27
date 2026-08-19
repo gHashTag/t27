@@ -6,7 +6,6 @@
 
 module igla-race-gemm;
 use base::types;
-use tri::math::matrix;
 
 // ============================================================================
 // 1. Types
@@ -41,36 +40,11 @@ fn booth_mul_u32_inner(a: u32, b: u32, acc: u32) -> u32 {
 /// Decomposes signed operands into sign + magnitude,
 /// calls unsigned multiplier, then restores sign.
 fn booth_mul_i16(a: i16, b: i16) -> i32 {
-    // W610: annotated -- an untyped `-1`/`1` is comptime_int, which Zig
-    // rejects when the branch depends on runtime values.
-    let sign: i32 = if ((a < 0) != (b < 0)) { -1 } else { 1 };
+    let sign = if ((a < 0) != (b < 0)) { -1 } else { 1 };
     let mag_a = if (a < 0) { -a } else { a };
     let mag_b = if (b < 0) { -b } else { b };
     let prod = booth_mul_u32(mag_a as u32, mag_b as u32);
-    // W610: `prod` is u32 and `sign` is i32; Zig will not mix them.
-    return sign * (prod as i32);
-}
-
-/// Signed 32-bit multiply via Booth encoding.
-///
-/// W610: called in this file and declared nowhere in the corpus -- 84 of the
-/// 886 `use of undeclared identifier` errors across IGLA, the single largest.
-/// Written to match `booth_mul_i16` directly above: sign/magnitude split, the
-/// shift-and-add unsigned core, then sign restored. Its own tests determine it
-/// completely and agree with that shape:
-///
-///     booth_mul_i32(0, b)  == 0
-///     booth_mul_i32(1, b)  == b
-///     booth_mul_i32(-1, b) == -b
-///     booth_mul_i32(3, 7)  == booth_mul_i32(7, 3)     (commutative)
-fn booth_mul_i32(a: i32, b: i32) -> i32 {
-    // W610: annotated -- an untyped `-1`/`1` is comptime_int, which Zig
-    // rejects when the branch depends on runtime values.
-    let sign: i32 = if ((a < 0) != (b < 0)) { -1 } else { 1 };
-    let mag_a = if (a < 0) { -a } else { a };
-    let mag_b = if (b < 0) { -b } else { b };
-    let prod = booth_mul_u32(mag_a as u32, mag_b as u32);
-    return sign * (prod as i32);
+    return sign * prod;
 }
 
 // ============================================================================
@@ -219,7 +193,7 @@ test gemm_2x2_scalar_multiplication
     when C = gemm_2x2(A, B)
     then C.a11 == 6 && C.a22 == 6
 
-test booth_mul_u32_one_v2
+test booth_mul_u32_one
     given a = 1
     given b = 1
     when p = booth_mul_u32(a, b)
@@ -246,7 +220,7 @@ test gemm_2x2_identity_mul
     when C = gemm_2x2(I, A)
     then C.a11 == 5 && C.a12 == 7 && C.a21 == 3 && C.a22 == 2
 
-test booth_mul_u32_zero_v2
+test booth_mul_u32_zero
     given a = 7
     given b = 0
     when p = booth_mul_u32(a, b)
@@ -350,7 +324,7 @@ test gemm_2x2_negative_elements
     when C = gemm_2x2(A, B)
     then C.a11 == -2 && C.a12 == 3 && C.a21 == -4 && C.a22 == 5
 
-test booth_mul_i16_both_negative_v2
+test booth_mul_i16_both_negative
     given a = -7
     given b = -8
     when p = booth_mul_i16(a, b)
@@ -512,7 +486,7 @@ test gemm_booth_mul_i16_both_negative
     when p = booth_mul_i16(a, b)
     then p == 6
 
-test gemm_2x2_zero_matrix_v2
+test gemm_2x2_zero_matrix
     given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
     given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
     when C = gemm_2x2(Z, A)
@@ -607,7 +581,7 @@ test gemm_booth_mul_i16_small
     when p = booth_mul_i16(a, b)
     then p == 12
 
-test gemm_2x2_identity_v2
+test gemm_2x2_identity
     given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
     given I = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
     when C = gemm_2x2(A, I)
@@ -642,7 +616,7 @@ test gemm_booth_mul_i16_small_neg
     when p = booth_mul_i16(a, b)
     then p == 6
 
-test gemm_2x2_zero_matrix_v3
+test gemm_2x2_zero_matrix
     given Z = mat_zero()
     given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
     when C = gemm_2x2(Z, A)
@@ -672,7 +646,7 @@ test gemm_2x2_transpose_swap
     when C = gemm_2x2(A, T)
     then C.a11 == 7 && C.a12 == 10 && C.a21 == 15 && C.a22 == 22
 
-test gemm_booth_mul_i16_one_identity_v2
+test gemm_booth_mul_i16_one_identity
     given a = -7
     given b = 1
     when p = booth_mul_i16(a, b)
@@ -781,9 +755,9 @@ test gemm_booth_mul_u32_distributive_over_add
     when p2 = booth_mul_u32(a, b) + booth_mul_u32(a, c)
     then p1 == p2
 
-test gemm_2x2_zero_matrix_multiply_v2
-    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
-    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+test gemm_2x2_zero_matrix_multiply
+    given Z = mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given A = mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
     when C = gemm_2x2(Z, A)
     then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
 
@@ -802,7 +776,7 @@ invariant gemm_booth_mul_u32_one_identity_inv
     forall a : u32
     booth_mul_u32(a, 1) == a
 
-test gemm_booth_mul_u32_one_identity_v2
+test gemm_booth_mul_u32_one_identity
     given a = 7
     given b = 1
     when p = booth_mul_u32(a, b)
@@ -819,7 +793,7 @@ test gemm_mat_identity_diagonal_one
     when m = mat_identity()
     then m.a11 == 1 && m.a22 == 1
 
-test gemm_booth_mul_i16_zero_identity_v2
+test gemm_booth_mul_i16_zero_identity
     given a = 7
     when p = booth_mul_i16(0, a)
     then p == 0
@@ -849,7 +823,7 @@ test gemm_booth_mul_u32_zero_left
     when p = booth_mul_u32(a, b)
     then p == 0
 
-test gemm_booth_mul_i16_one_identity_v3
+test gemm_booth_mul_i16_one_identity
     given a = cast_i16(7)
     when p = booth_mul_i16(a, cast_i16(1))
     then p == 7
@@ -858,7 +832,7 @@ invariant gemm_booth_mul_i16_one_identity_inv:
     forall a : i16
     booth_mul_i16(a, cast_i16(1)) == a
 
-test gemm_2x2_identity_right_v2
+test gemm_2x2_identity_right
     given A = Mat2x2 { a11: 3, a12: 4, a21: 5, a22: 6 }
     given I = mat_identity()
     when C = gemm_2x2(A, I)
@@ -877,7 +851,7 @@ test gemm_booth_mul_u32_commutative_small
     when p2 = booth_mul_u32(b, a)
     then p1 == p2
 
-test gemm_2x2_identity_left_v2
+test gemm_2x2_identity_left
     given I = mat_identity()
     given A = Mat2x2 { a11: 3, a12: 4, a21: 5, a22: 6 }
     when C = gemm_2x2(I, A)
@@ -988,7 +962,7 @@ test gemm_booth_mul_u32_two_times_three
 invariant gemm_booth_mul_i16_two_times_three_inv:
     booth_mul_i16(2, 3) == 6
 
-test gemm_booth_mul_i16_negative_times_positive_v2
+test gemm_booth_mul_i16_negative_times_positive
     given a = -4
     given b = 3
     when p = booth_mul_i16(a, b)
@@ -1325,13 +1299,13 @@ test gemm_booth_mul_i32_negative_small_w309
 
 invariant gemm_booth_mul_i32_small_product_w309_inv:
     booth_mul_i32(3, 4) == 12
-test gemm_booth_mul_i32_small_product_w309_v2
+test gemm_booth_mul_i32_small_product_w309
     given a = 3
     given b = 4
     when p = booth_mul_i32(a, b)
     then p == 12
 
-test gemm_booth_mul_i32_negative_small_w309_v2
+test gemm_booth_mul_i32_negative_small_w309
     given a = -3
     given b = -4
     when p = booth_mul_i32(a, b)
@@ -1373,13 +1347,13 @@ invariant gemm_booth_mul_i32_small_product_w311_inv:
 
 
 
-test gemm_booth_mul_i32_small_product_w311_v2
+test gemm_booth_mul_i32_small_product_w311
     given a = 3
     given b = 4
     when p = booth_mul_i32(a, b)
     then p == 12
 
-test gemm_booth_mul_i32_negative_small_w311_v2
+test gemm_booth_mul_i32_negative_small_w311
     given a = -3
     given b = -4
     when p = booth_mul_i32(a, b)
@@ -1669,7 +1643,6 @@ test gemm_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test gemm_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test gemm_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1687,6 +1660,7 @@ test gemm_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test gemm_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant gemm_w342_depth_086: true
 
+}
 
 invariant gemm_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

@@ -1,6 +1,492 @@
+# NOW -- the ten-layer lesson, recorded (2026-08-19)
+
+Last updated: 2026-08-19
+
+## skills: a job that always failed early has a tail that never ran (Closes #2219)
+
+- `ci-gates` §9: the ten layers of `fpga-bitstream`, one CI round-trip each, and why -- every step past the historical failure point had never executed
+- The key finding: **a fake artefact masks real bugs downstream.** The /dev/zero chipdb could not reject pin C18, which the device does not have -- the placeholder was hiding wrong design constants, same class as the ring-oscillator MHz figure, in infrastructure rather than a paper
+- Rules: dry-run the whole job's shell locally, not just the fixed part; every line past the historical failure point is unreviewed code; everything downstream of a fake artefact is unvalidated; YAML by line number with parser re-validation; a ceiling clears the honest worst case, not the median
+
+# NOW -- the honest diagnostic, not the cheap fix (2026-08-19)
+
+Last updated: 2026-08-19
+
+## lang: float casts named truthfully; seal_handler keeps its reasons (Closes #2213)
+
+- **30 cast errors (16 f32 + 14 f64) among the non-generating specs, and the cheap fix was wrong.** `var x: f32` parses and the type tables know floats in four places -- but the C generator emits the literal token `f32` (not a C type, 5 cc errors on a one-line probe) and Verilog treats it as 32 plain bits. Adding f32/f64 to VALID_CAST_TYPES would turn a visible parse error into uncompilable C -- the compound-assignment lesson at a scale where the missing half is 'implement floating point in three backends', an owner decision
+- The parser now says the true state: *cast to f32 is not supported: the language accepts float declarations, but no backend lowers float arithmetic... This spec assumes a float-capable target that does not exist yet.* Integer casts untouched; nonsense targets keep the old message
+- **The last named instance of the swallowing pattern is closed.** `seal_handler` kept `Err(_) => "none"` after #2211 fixed the CLI path. Done additively: existing response fields unchanged, new `gen_failures` array carries {backend, error} so a consumer sees WHY a hash is "none"
+- M5 ceremony performed again for the compiler.rs change
+
+# NOW -- only += existed (2026-08-19)
+
+Last updated: 2026-08-19
+
+## feat(lang): five missing compound assignments, and the three backends that would have miscompiled them (Closes #2212)
+
+- **`specs/base/types.t27`, a base module, did not parse.** `result |= encoding << bit_pos;` at `pack_trit` line 172. The cause is a missing language feature: only `+=` existed, and `-= *= |= &= ^=` lexed as two tokens and died in `parse_expr` on the bare `=`
+- **The part that mattered most.** All three code generators did `if extra_op == "+=" { " += " } else { " = " }`, so teaching the *parser* `|=` without touching them would have emitted **`x = rhs`** for `x |= rhs` -- silently dropping the operator. A miscompilation is worse than the parse error it replaces. The change touches four places together: token enum, lexer, parser, and all three backends via a shared `compound_binop()`
+- Verified by **reading the generated code**, not assuming: C emits `x |= 3`, Verilog expands to `x = x | 3`, for all six operators
+- **Honest yield: 2 of 346, not the ~11 I estimated.** Six specs use `-=`, four `*=`, one `|=`, but only `specs/base/types.t27` and `compiler/runtime/runtime.t27` are fixed by this; the rest have further errors
+- **M5 freeze ceremony performed.** `build.rs` refuses to build when `compiler.rs` changes without a seal update -- a deliberate gate making a change to the compiler core explicit. The seal is exactly `sha256(compiler.rs)`
+- **A dead arm in my own checker, found on the way:** `check_specs_generate.py` ran `gen-zig`, and **there is no such subcommand** -- the Zig backend is `gen`. It always returned non-zero and never contributed a verdict. Corrected count: **768 generate, 346 do not**, against 766/348 before
+
+# NOW -- seal --save refuses a spec no backend accepts (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(bootstrap): stop sealing output that does not exist (Closes #2211)
+
+- `t27c seal --save` wrote `gen_hash_*: "none"` as though it were a hash. #2210 showed batch re-sealing the 113 stale seals would have recorded 348 such claims -- reproducibility assertions for output that does not exist
+- **Two defects in one function.** `Err(_) => "none".to_string()` discarded the compiler's own diagnosis -- the same swallowing pattern fixed across the Python tools in #2187/#2189/#2193, here in the Rust CLI -- and `--save` then wrote the `none` out
+- Now: exit 1, **no file written**, and the compiler's message printed per backend (`Expected LBrace, got Colon (':') at line 93:65`). A generating spec still seals normally; `--force` keeps the deliberate case explicit rather than silent
+- **Scope stated rather than implied:** the same `Err(_) => "none"` exists in the HTTP `seal_handler`. Fixing it there changes the response shape, so it is named here rather than half-done. My first patch hit that handler by accident -- the pattern appears twice and the naive replace found the wrong one -- and the compiler caught it via an undefined variable
+
+# NOW -- 348 of 1114 specs do not generate (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: measure what actually compiles, and stop re-sealing what does not (Closes #2210)
+
+- **The plan was to re-seal 113 stale seals. Testing ONE instead of batching stopped it.** `specs/ml/optimizer/adamw.t27` fails on all four backends, and `t27c seal --save` sealed it anyway with `gen_hash_rust=none`, into a **different filename** (`optimizer_AdamW.json`), leaving the original stale seal untouched. The batch would have made 113 duplicates, blessed the broken ones with `none`, and fixed nothing
+- **348 of 1114 specs (31.2%) do not generate with ANY backend**, in a repository whose constitution makes specs the single source of truth
+- **The alternative was checked and eliminated.** A spec written for one target should not count as broken because another rejects it, so the gate accepts any backend. On a 25-spec random sample of the 348, **zero** generated with any of the four -- they fail in the parser, before a backend is reached. Checked precisely because "31% of the source of truth does not compile" is alarming, and by `ci-gates` §7 an alarming claim is usually the instrument
+- `specs/tri/` 70, `specs/scratch/` 58, `specs/fpga/` 35, `specs/igla/` 15, `specs/numeric/` 15. Error classes: 120 module-level parse, 107 in-fn parse, 45 RBrace, 36 LBrace, 34 unknown cast target. **`specs/base/types.t27`** is among them, failing at `pack_trit` line 172
+- `tools/check_specs_generate.py` records the 348 as debt with each compiler message, fails when a working spec breaks, and **reports when a baselined spec starts working** so the list cannot rot in the other direction either
+- **The 113 stale seals stay unsealed.** 46 of the 95 specs behind them do not generate; sealing those records reproducibility for output that does not exist. That is now a measured reason rather than a hunch
+
+# NOW -- seal-coverage was an echo, and 207 seals do not hold (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: give seal-coverage a body, and measure what it finds (Closes #2209)
+- **The 89 dangling, characterised:** 74 name specs that DID exist in history (16 of them removed by one commit, \`692ba5263\` DARPA CLARA); **15 name specs found in no commit under any path**, each recording a spec_hash and all four gen_hashes -- reproducibility claims nobody can check. Four of those 15 are GF16 comparison/claims specs, in a repository whose GF16 claims have been withdrawn twice. Stated as found, not further
+- **A correction to my own first pass:** I tested existence with \`git log --diff-filter=D -- <exact path>\`, which only sees a deletion recorded at that same path, and reported **73** never-existed. By basename across all history it is **15** -- my instrument overstated fivefold, and "73 seals reference specs that never existed" would have been a serious unsupported accusation. **Fourth time this session an anomaly came from the instrument, not the thing measured**
+
+- **The last decorative required check.** `seal-coverage.yml` was `echo "Running SEAL coverage analysis..."`
+- **Two attempts to establish what it should assert.** In #2191 I matched seal FILENAMES against spec filenames and got "1668 orphans of 1714" -- a finding about my assumption. Seals are keyed by MODULE name; the spec is named inside, in `spec_path`. I wrote neither check nor deletion then and said so; this returns to it
+- **A seal is a reproducibility record:** `spec_path`, `spec_hash`, and the sha256 of each of the four generated targets at the moment of sealing. Its invariant is that the spec still exists and still hashes to what was recorded -- otherwise the four gen_hashes describe something the spec no longer produces, and the seal asserts something false
+- **1714 seals: 1507 hold, 113 stale, 89 dangling, 5 without a spec_path. 207 (12%) do not hold**, under a check that said `echo`
+- Of the dangling, 89 name specs deleted outright (`binary16.t27`, `int4.t27`, `int8.t27`, …). Two named `specs/vsa/core.t27`, which **moved** to `specs/test_framework/core.t27`; repointed here, and they correctly become *stale* -- the moved file's contents differ from what was sealed, so they need re-sealing rather than repointing
+- The 207 are debt in `tools/seal_baseline.txt`, one per line, so the gate holds the line without demanding a 207-item cleanup
+- **Job id stays `coverage`** -- renaming it stops the required context reporting and sends PRs to BLOCKED with every check green (#2191). Verified the context still appears on an open PR before committing
+
+# NOW -- fifteen copies of tmul, and nothing compared them (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: duplicated functions checked by BEHAVIOUR, not text (Closes #2207)
+
+- **`tmul` is defined in 14 specs, `dot27` in 9, `quantize` in 7**, and nothing checked that the copies still compute the same thing. Copies drift
+- **They agree.** One behaviour each: `tmul` `91a68892` across 14 specs -- the same digest the exhaustive checker gets for the ripple adder's copy, so all fifteen definitions in the tree are one function. `dot27` `8f8e7503` across 9, `quantize` `1f7b9105` across 7
+- A negative result, and that is the point: fifteen unchecked copies is a standing risk, now a tripwire
+- **Text comparison is the wrong instrument, and trying it first is why this exists.** My first pass hashed normalised source and reported "2 variants of tmul, 3 of dot27, 3 of quantize". All artefacts: `bitnet_mlp3.t27` writes functions on one line, so a regex ending at `
+}` swallowed **five following definitions**; and with balanced braces, `if(ta==1)` and `if (ta == 1)` still hash differently while computing the same thing
+- I nearly reported "tmul has diverged across the BitNet family" as a fact about the repository. It was a fact about my regex -- **the third time this session that the instrument, not the thing measured, produced the anomaly**
+
+# NOW -- three more primitives enumerated, and a width bug in the checker (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: pack3, xor2 and sign0 join the enumeration -- 50.6M inputs (Closes #2205)
+
+- **50,594,048 inputs covered exhaustively** by model/C/Rust, of which **196,864 across four independent implementations**. At the start of this line of work none of these specs had any cross-target check at all
+- New: \`pack3\` at 16,777,216 (three-way), \`xor2\` and \`sign0\` at 65,536 each (**four-way, exhaustive**)
+- **A bug caught before it ran, which would have made the tool agree with itself.** The Verilog testbench generator sliced every loop variable as \`i0[7:0]\`, hardcoded to a byte. \`sign0\` takes \`i16\`. It would have compiled, run, produced a digest, and compared a **narrower function** than the C and Rust arms evaluated -- the Verilog arm truncating to 8 bits while the others used 16. The width now comes from the argument's declared type
+- That is this line's own failure mode, in the checker rather than the checked: **a harness that measures something other than what it reports**
+- \`pack2\` and \`pack3\` return u64; the C and Rust folds take the low 32 bits and a matching Verilog fold needs a 64-bit accumulator. They stay three-way and are **labelled**, rather than given an arm that quietly compares something narrower -- the mistake avoided just above
+- Caught in my own issue text too: I wrote "262,400 across four implementations", which had counted \`pack2\`'s 65,536 despite it having only three arms. The figure is 196,864
+
+# NOW -- when enumeration beats a prover, and the nightly that uses it (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci+docs: nightly --verilog-full, and why exhaustion is a decision procedure (Closes #2204)
+
+- **Nightly closes the slice.** The per-PR gate runs Verilog on a labelled slice because iverilog needs 13 min for `maj3` and 94 for `full_adder` at its measured 21,061 and 2,972 inputs/s. `exhaustive-nightly.yml` runs `--verilog-full` at 03:17 UTC, giving **four independent implementations agreeing on all 16,777,216 inputs** instead of 0.4 % of them
+- **`docs/EXHAUSTION_THEORY.md`: exhaustive agreement over a finite domain is a DECISION PROCEDURE, not a test.** No induction, no invariants, no prover kernel; a disagreement is a counterexample and agreement is the theorem. It is what HECTOR and ACL2 approximate when the domain is too big to walk
+- **The domain size is set by REPRESENTATION, not semantics.** For k trit arguments in a w-bit type, enumeration costs `(2^w/3)^k` more than the semantics require. For w=8, k=3 that is 621,378.4 -- and `16,777,216 / 27 = 621,378.4` measured here. Only **1.6e-6** of `full_adder`'s space is a valid trit triple
+- **Both readings are true.** A 2-bit trit type puts `full_adder` at 64 inputs -- 0.02 s in iverilog rather than 94 minutes, four million times cheaper from a type declaration. And the byte-wide enumeration verifies out-of-domain behaviour that a caller can actually reach, since `pack2` does not mask and values above 3 spill into the next lane. A 2-bit type makes those *unrepresentable* rather than *verified*: better, but a different guarantee
+- **The regime boundary:** a binary float add over two 32-bit operands is 1.8e19 inputs -- **58,561 years** at 10^7/s. Enumeration is unavailable at any budget there, which is why sequential EC and theorem proving exist. Small alphabets sit on the other side of that line, and that is the one place ternary buys a **verification** advantage rather than an area claim -- checkable by counting, unlike the area claims withdrawn twice in this project's history
+
+# NOW -- Verilog joins as the fourth arm (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: Verilog under iverilog, exhaustive where it fits and a labelled slice where it does not (Closes #2202)
+
+- **Verilog goes to silicon and was the least verified of the four.** `verify_emit_bitexact.py` samples it; model/C/Rust have been exhaustive since #2200. It now folds the same digest over the same domain
+- `tmul` and `negate`: **four independent implementations agreeing on every input**
+- `full_adder` and `maj3` keep exhaustive model/C/Rust and get a **labelled Verilog slice** -- 0.4 % and 3.1 % of their domains. Measured, not assumed: iverilog runs `tmul` at ~330,000 inputs/s, `maj3` at 21,061/s and `full_adder` at 2,972/s, because `full_adder` calls `dot27` nine times per input at 27 lanes. Whole domains are 13 min and 94 min; `--verilog-full` runs them
+- **Three of my own errors, all caught before the PR opened.** I measured `tmul`'s rate and extrapolated to `full_adder`, which does nine times the work -- the run timed out. I then budgeted in **inputs**, a unit whose cost varies 100x here, so one number meant seconds for one function and eleven minutes for another; the budget is in seconds now. And the summary line claimed `AGREE EXHAUSTIVELY across every arm`, **false for three of five**, while the detail above it was right -- a summary overstating its own detail is precisely what this session has been finding elsewhere
+- `pack2` returns u64 and its Verilog fold would need a wider accumulator than the C/Rust one; left three-way and labelled rather than given an arm that compares something else
+
+# NOW -- the third opinion, exhaustive (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: an independent model closes the two-way gap on 33.7M inputs (Closes #2200)
+
+- **#2199 printed its own limitation on every run:** C against Rust only, so a fault shared by both backends -- a spec bug, or shared lowering -- was invisible. "The backends agree" and "both match the specification" are different claims
+- **`tools/ternary_model.py` is transcribed from the SPEC text**, not from generated code. Had it been derived from the backends it would agree by construction and prove nothing. Transcribed faithfully including what looks wrong: `pack2` does not mask its arguments to two bits, so values above 3 spill into the next trit lane -- a model that "fixed" that would report the model disagreeing with the spec it encodes
+- **model == C == Rust, exhaustively:** `full_adder` and `maj3` at 16,777,216 inputs each, `tmul` and `pack2` at 65,536, `negate` at 256. **33.7 million inputs, three implementations, ~8 seconds**
+- **Two negative controls, because the model arm needed its own.** Perturbing C proves the C/Rust comparison has resolution and says nothing about whether a model disagreeing with *both* backends would be seen -- which is the reason the model exists
+- **Measured, not guessed:** pure Python did not finish `full_adder` in 600 s (nine `dot27` calls per input, 27 lanes each, ~4e9 operations). Memoising `dot27` -- pure, so semantics untouched -- took it from 179k calls/s to 2.2M/s
+- Targets without a model entry stay two-way and are **labelled** as such, so the weaker case cannot pass for the stronger
+
+# NOW -- exhaust the input space wherever it is small (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: 33.7M inputs across five ternary primitives, C == Rust, no sampling (Closes #2198)
+
+- **`docs/POSITIONING.md` named the one thing that is ours: ternary primitives have input spaces small enough to enumerate.** A space you can exhaust needs neither a sample nor a prover, where a 32-bit float datapath forces one or the other
+- **Coverage was four specs.** `ternary_ripple_adder.t27` generates 167 lines of C and had **no cross-target check at all**, despite containing the ternary full adder -- the core combinational cell of the line
+- `full_adder` and `maj3` at **16,777,216 inputs each**, `tmul` and `pack2` at 65,536, `negate` at 256. **33.7 million inputs in about seven seconds**
+- **What it does not prove, printed on every run:** C against Rust only. A fault shared by both backends -- a spec bug, or shared lowering -- is invisible. `verify_igla_race.py` keeps the stronger form for `ternary_mul`, where a Python model is the third opinion
+- **Negative control:** perturbing C at exactly one input in 65,536 moves the digest `91a68892` -> `b7b51485`. Runs as its own CI step, ahead of the check
+- Two costs worth recording: the generated C emits `assert_eq()` from `test` blocks undeclared (same shim the existing harness uses), and my first failure output truncated to five stderr lines that were all **warnings**, hiding the real error beneath. The helper now prefers lines containing `error:` -- a diagnostic that truncates can hide the thing it exists to show
+
+# NOW -- one arm is exhaustive now, and the other three say they are samples (2026-08-18)
+
+Last updated: 2026-08-18
+
+## verify: make ternary_mul exhaustive, and state where t27 actually stands (Closes #2197)
+
+- **Both axes of "one spec, four targets, bit-exact" are occupied.** Chisel/FIRRTL/CIRCT emits Verilog *and* a C++ simulator from one source; HLS has done C→RTL for twenty years. Equivalence between an RTL design and a C model is industrial practice -- HECTOR, and the ACL2/RAC line producing mechanically checked proofs over **all** inputs. Multi-target emission is table stakes and formal equivalence is stronger than what we do
+- **`ternary_mul` was sampling a domain it could enumerate**: 800 random draws from a space of 256 x 256 = 65,536, missing about 22 % of it by chance, when enumeration costs milliseconds. It is now exhaustive -- C and Rust each sweep all 65,536 `(a, code)` pairs and match the model's FNV-1a digest `6b2724c5`
+- **Negative control has full resolution:** perturbing the model at exactly one input out of 65,536 is caught by both backends
+- `ternary_mac` stays sampled and now says so -- its i32 accumulator puts the space at ~2.8e14. `gft_smul`/`gft_sadd` sample 600 of ~4.3e9, which is 1.4e-7 of it
+- **The Coq work is real and is about something else.** 11 developments under `coq/`, gated against `Admitted`, concerning the kernel and phi -- **not** backend equivalence, and not to be cited as if they were
+- `docs/POSITIONING.md`: what is occupied, what we prove precisely, and the three things that are not occupied -- the target *set* (no one else emits a standalone Rust or Zig library from the same source as the RTL), a path with no vendor licence, and the one place ternary buys a **verification** advantage rather than an area claim: small domains make complete cross-target agreement affordable
+
+# NOW -- how a gate lies, written down (2026-08-18)
+
+Last updated: 2026-08-18
+
+## skills: six confirmed ways a CI gate produces a wrong signal (Closes #2195)
+
+- **The day's arithmetic: one missing brace cost four days of a red gate**, and the days went to three layers of diagnostics each naming a different subsystem, only the innermost right
+- Six ways recorded with paths: a gate that **cannot fail** (two required checks were one `echo`; a third asserted `phi**2 + phi**-2 == 3`); a gate green because **under-scoped** (975 documents scanned, blind to the canonical catalog row); a wrapper that **swallows the tool's message** (27 sites); a **crash reported as a numeric disagreement**; a **partial repair reported as complete**, twice; and **renaming a job silently breaking branch protection**
+- Construction rules alongside: negative control as its own CI step; the rule set as data, so a row is added when a number is withdrawn rather than when the document is fixed -- ten days apart in the case that started this; baselines keyed to the **line** rather than the file, since an append-only document widens the hole every entry; and reporting what could not be established instead of inventing it
+- `.claude/skills/ci-gates/SKILL.md`
+# NOW -- a dead simulator is not a design that emitted nothing (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: check vvp's exit code and its own TIMEOUT marker (Closes #2193)
+
+- **Last site of the class, and it sits on the load-bearing proof.** `verify_emit_bitexact.py:127` took `vvp`'s stdout with no exit-code check. A crashed simulator yields a short Y-list, and the next check reports `step count RTL=0 PY=80` -- which reads as *the RTL emitted no outputs*, a design fault. Nothing had been compared
+- **The testbench already said so and nobody read it.** It prints `TIMEOUT` into the very stdout the script parses. A design that ran out of simulated time is not a design that disagrees with the model, and the two want different fixes
+- Exit code first (with the signal number when negative), then the `TIMEOUT` marker, then the step count -- which now states that vvp exited 0 and printed no TIMEOUT, so a mismatch there is real
+- **Verified by shortening the testbench timeout** so the branch fires, not by reading. Clean tree still exits 0
+- **Class closed.** Two `run(...).stdout` sites remain, both `git ls-files` inside `try/except` with `check=True` and an rglob fallback: a git failure raises and is handled, not swallowed
+- Dropped a hardcoded `#60000000` from the message on the second pass -- a literal copied into prose is exactly the drift this cycle has been correcting
+
+# NOW -- two required checks were a single echo (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: give schema-validation a body, and say what seal-coverage should assert -- I do not know (Closes #2191)
+
+- **`seal-coverage.yml` and `schema-validation.yml` are each one `echo`**, and both are named required in `docs/BRANCH-PROTECTION.md`. `phi-loop-ci.yml`, described there as the main test suite, asserts `abs(phi**2 + phi**-2 - 3) < 1e-10` -- true of an empty repository -- alongside one real grep lint. A required check that cannot fail reads as coverage and is worse than none
+- **`schema-validation` now asks the weakest question worth asking:** does every tracked JSON parse. Cheap, and carrying no theory that could itself be wrong
+- **It found a broken file that a test actually loads.** `clara-bridge/audit-trail/experience-schema.json` had a literal `...` on line 40; `clara-bridge/tests/run_tests.py:152` does `json.load()` on it. **3 of its 11 tests were failing** -- measured by reverting the fix and re-running, not assumed -- and no workflow runs `clara-bridge` at all. Fixed; the suite is 11/11
+- Six empty JSON artefacts recorded as debts in `tools/json_parse_baseline.txt`. `external/` excluded: tsconfig is JSONC by convention, and flagging it would be this gate making the mistake it exists to catch
+- **`seal-coverage` deliberately untouched.** `.trinity/seals/` holds 1714 files keyed on TYPE names (`Account`, `AXI4_Testbench`, `"[]const u8"`), not spec names. My first attempt matched seal filenames against spec filenames and reported "1668 orphans of 1714" -- a finding about my assumption, not the repository. `t27c` has no `seal` subcommand. Wrote neither a check nor a deletion
+
+# NOW -- finish the diagnostic repair; a crash is not a numeric mismatch (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: 10 more sites took stdout without checking the exit code (Closes #2189)
+
+- **#2187 was a partial repair.** It fixed six `t27c gen-*` calls in one file; an AST re-scan found 12 more, in two classes
+- **Different call shape** (3 sites): the previous regex matched only the single-line form, so the multi-line `t27c gen-*` calls in `verify_multitarget.py` and `verify_trainer_c.py` were silently skipped
+- **Running the built binary** (8 sites): `.stdout` with no exit-code check means a crash arrives as a short or empty result list, and surfaces as a NUMERIC MISMATCH between targets. A program that died on signal 11 did not disagree about arithmetic -- and that is the most alarming reading the harness can produce
+- `_run_bin` joins `_build` and `_gen`, reporting the exit code and the signal when negative. All ten call sites now guard `None`, so a failure ends cleanly instead of raising `TypeError` on `None.split()`
+- **Verified by planting a fault:** `C target: cc exited 1` followed by `mod.h:18:34: error: use of undeclared identifier 'hm'`, where before there was only `FAIL: C backend failed to build/run`. All three tools still exit 0 on a clean tree
+- **Second partial repair in a row.** #2187's regex matched one call shape and I reported the pattern fixed without re-scanning. The AST scan is the check now, and it runs before the claim
+
+# NOW -- the wrappers threw the compiler's message away (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: print what the compiler said, instead of guessing which subsystem broke (Closes #2187)
+
+- **The four-day misdiagnosis in #2185 was the wrappers, not the brace.** An AST scan over `tools/*.py` found two patterns: 9 sites doing `run(..., capture_output=True).returncode` (exit code inspected, message discarded) and **18 doing `run(..., capture_output=True).stdout`** -- taking stdout while checking neither the exit code nor stderr
+- **The second is the one that cost the four days.** When `t27c gen-c` failed to parse, `.stdout` was the empty string; it flowed downstream and surfaced as `FAIL: C backend failed to build/run`, naming a subsystem that had never been reached
+- Two self-contained helpers per script, because these tools are deliberately import-free: `_build` prints a compiler's message on failure, `_gen` returns `None` and prints the reason when `t27c gen-<mode>` exits non-zero. Callers handle `None` so the run ends cleanly instead of with a traceback
+- **Verified by planting the original fault.** With a brace removed, the output now leads with `t27c gen-c ...: exited 1` and the compiler's own `parse error in fn '...' near line 1810: unexpected token after expression statement: KwTest`, before the misleading summary
+- **My first attempt fixed the wrong nine sites and changed nothing** -- the failure was upstream, in the `.stdout` calls the scan had not been written to find. The negative control caught it; the scan alone would have let me report a fix that fixed nothing
+
+# NOW -- one missing brace, and three layers that named the wrong subsystem (2026-08-18)
+
+Last updated: 2026-08-18
+
+## specs: close 27 unterminated test blocks; the cross-target proof was never running (Closes #2185)
+
+- **`emit-bitexact` was red since 2026-08-14 because of one character.** A bulk edit appended `test <name>_w339_batch_depth_invariant_2 {` to 27 spec files and omitted the closing `}` in every one, so the parser hits the next `test` keyword while still inside the block
+- **Three layers each reported something else, and only the innermost was true.** The CI gate said `IGLA RACE CROSS-TARGET MISMATCH`; `verify_igla_race.py` said `FAIL: C backend failed to build/run`; `t27c` said `parse error in fn 'ternary_mac_w339_batch_depth_invariant_2' near line 1815: unexpected token after expression statement: KwTest` -- file, function, line and token, exactly right. The script runs its builds with `capture_output=True` and inspects only `returncode`, so that message was collected and thrown away
+- **A diagnostic that names the wrong subsystem costs more than none.** "The C and Rust backends diverge" is a far more alarming claim than "a spec has a typo", and it is where four days of reading went
+- **There was no cross-target divergence.** With the braces closed, `verify_igla_race.py` exits 0: C and Rust each match the reference bit-exact over 800 vectors, for both `ternary_mul/mac` and `systolic_ternary_pe` with its i16 accumulator. #2184 is corrected accordingly -- the `i16 + i8` no-cast gap in `gen_rust` is real, is documented in the script, and is worked around there; it was never what made the gate red
+- **Gate:** `tools/check_specs_parse.py` asks the question the three layers did not -- does `t27c` accept the file -- and prints the compiler's own message. Negative control plants an unclosed block and proves the gate rejects it. Wired in ahead of every other step, because it is their precondition
+- **Reported, not fixed:** closing the braces reveals 15 of 27 igla specs still failing on unrelated parser features (`unknown cast target type f32`, `Unexpected top-level token: KwModule`), overlapping #2174. Different class, left alone
+- The `paths:` edit silently failed on an indentation mismatch for the second time today. Caught by a negative control over the filter, not by reading it
+
+# NOW -- the bit-exactness gate could not see the compiler (2026-08-18)
+
+Last updated: 2026-08-18
+
+## ci: let the cross-target gate see bootstrap/, and make its skip loud (Closes #2183)
+
+- **The gate that proves "one spec, four targets, bit-exact" was blind to the compiler.** `emit-bitexact-gate.yml` listed 11 paths and `bootstrap/**` was not one of them, while all four backends live in a single file: `bootstrap/src/compiler.rs`, `gen_zig:3437`, `gen_verilog:6741`, `gen_c:10522`, `gen_rust:14382`, 31,077 lines. A PR rewriting the C emitter merged with the proof never running
+- **Green did not mean proved.** `tools/verify_multitarget.py` exits 0 when `t27c`, `cc` or `rustc` is missing. The job builds `t27c` itself and the runner ships the other two, so a skip there means the environment broke -- and exit 0 makes *proved* indistinguishable from *never ran*
+- `--require` turns every skip into a failure and is now what CI passes; without it the script stays tolerant, so a contributor without `rustc` is not blocked. Verified both ways: tolerant exits 0, `--require` exits 1 with the reason
+- The path filter carries a negative control in this commit's own verification: `bootstrap/src/compiler.rs`, `cli/tri/src/main.rs` and `tools/verify_multitarget.py` all match; `docs/README.md` does not. A filter that matches everything is as useless as one that matches nothing
+
+# NOW -- the withdrawal gate was green because it was blind (2026-08-18)
+
+Last updated: 2026-08-18
+
+## tools: widen the gate that shipped under-scoped, and clear what it then found (Closes #2180)
+
+- **The gate reported OK on 975 documents and could not see the files that mattered.** It scanned `.md`/`.tex`/`.rst` only, so `specs/numeric/formats_catalog.t27:228` -- the canonical CATALOG row for `gf16`, the one that feeds the published dataset -- still carried `FPGA 35/35 at 323 MHz Artix-7`, as did `docs/metrics/numeric_formats_83_metrics.csv:12` and `specs/igla/coder/benchmark.t27:670,677`. A gate that is green because it is under-scoped is the same failure it was built to kill
+- **The withdrawn list was too narrow too.** It held `323 MHz` but not `330 MHz` or `322 MHz`, which are the same `chain[19]` ring-oscillator net read on designs whose claimed sizes differ by 62x -- which is exactly why they agree to 2.5%. `docs/arxiv-submission/trinity-gf16.tex:317-318` still shipped both, and the whole `Max Freq` column is now gone rather than one row blanked
+- Scope is now `.md .tex .rst .t27 .csv .json`, minus `conformance/vectors/`; **4435 documents scanned**, 4.5x the first version
+- **`97.67 % MNIST MLP, 0.00 % accuracy gap vs f32` is withdrawn.** Nothing in the tree produces it. The only MNIST run present, `conformance/gf_family_bench.json`, has **every format at accuracy 0.1187 and loss 2.3631** -- chance for ten classes is 0.1000 and ln(10) is 2.3026, so the model is untrained, and one format scores 0.098, below chance. Every format scoring identically to four decimals is itself the tell that the scenario measures nothing about the format. The scenario is marked INVALID in place rather than deleted
+- **`GF16 -- VERIFIED + FROZEN SILICON` is withdrawn.** `STATUS.md:33` defines SILICON as a physical die received with written bring-up, asserted only on direct device evidence; `STATUS.md:112` states there is to be no SILICON claim anywhere in t27. No die has been received. Four other uses of "frozen silicon" meant the frozen tape-out design, not a received die, and are disambiguated to say so rather than deleted -- the phrase was ambiguous, not false
+- **`fpga/HARDWARE_SSOT.md:1192` is flagged, not corrected.** It reports `Fmax 322 MHz` for a 70-LUT design -- the same value as the withdrawn reading on a 40,350-LUT design. That invariance is the tell, but this design's own clocking has not been re-checked, so the line is marked UNVERIFIED rather than asserted wrong. The baseline is keyed on line text, so removing the marker re-opens the gate
+- Two of the six survey reports were themselves partly stale, written against the tree before the morning's repair landed. Verified every finding against the current tree before acting on it
+
+# NOW -- 323 MHz was a ring oscillator, and a gate now says so (2026-08-18)
+
+Last updated: 2026-08-18
+
+## docs: retract 323 MHz and everything derived from it, then gate it (Closes #2179)
+
+- **The number timed a probe, not the design.** `fpga/vivado/gf16_matmul4x4_top.v:22` is the design's only sequential statement -- `always @(posedge osc)` on a 23-bit counter, where `osc = chain[19]` is the output of a 20-stage LUT1 ring oscillator the wrapper instantiates. `grep -c posedge` over `gf16_{mul,add,dot4,matmul4x4}.v` returns 0, 0, 0, 0: the arithmetic is combinational and has no synchronous path to time
+- **The netlist that produced the bitstream contains no GF16 at all.** Its design module holds 55 logic cells -- LUT1 19, FDRE 23, CARRY4 6, BUFG 1, INV 4, OBUF 2 -- which is exactly the ring, the counter, its carry chain and the LEDs. Zero DSP48E1 against 64 claimed. The wrapper feeds the DUT literal constants, so the arithmetic is constant-folded out. When re-checking, count the *design* module: the same JSON lists `DSP48E1: 18 cells` for the Xilinx cell-library model, which is timing metadata
+- **`create_clock` is absent from the XDC**, so "PASS at 100 MHz" and "0 timing violations" describe a default target on an auto-inferred domain holding only the counter
+- **A tell needed none of that.** Three designs whose claimed sizes differ by 62x reported 330 / 322 / 323 MHz -- a 2.5 % spread. A real critical path cannot be invariant to a 62x change in size
+- Corrected in the three documents that state it live -- the arXiv draft, its `.tex`, `NUMERIC_FORMATS_SSOT.md` -- across title, abstract, resource table, timing section, throughput table and the "from actual FPGA hardware runs" sentence. **No replacement frequency**, because none was measured. The four dated `docs/reports/WAVE_LOOP_*` are left alone: a record of what was believed on a date is not a live claim
+- **Why a gate and not only an edit.** The withdrawal was in research notes on 2026-08-05 and 2026-08-08 and did not reach the papers for ten days, through an intervening honesty pass over the same file that was looking at a different sentence. `tools/check_withdrawn_live.py` now fails CI if a withdrawn number appears in a live document; the withdrawn list is data (`tools/withdrawn.txt`) so a row is added the moment a number is withdrawn, not when the paper is finally fixed. `--self-check` is a negative control that plants a hit and proves the scan fires
+- **It earned its keep immediately**: it caught two places in the `.tex` that the first pass of this very change had missed
+- Unrelated and worth stating: `docs/SILICON_TRAINING_METHODOLOGY.md` was audited for the same defect class and is **clean**. It distinguishes a loose from a tight constraint, uses `create_clock -period 50`, attributes the 21 -> 29 MHz change to a specific design edit, and keeps twelve ruled-out hypotheses. The papers were the problem; the engineering notes were not
+
+# NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: add BNF, and state the four families as two axes (Refs #2001)
+
+- **GF, GF-T, BNF and TNF are four formats, not renamings.** Two axes: phi-derived against theorem-derived, binary against ternary. GF sizes its exponent by `round((N-1)/phi^2)`, which is about the PROPORTION of the fields; BNF and TNF size it for the range the workload visits and then spend every remaining position, which follows from the precision law where the exponent cancels
+- **GF-T leaves positions unspent by construction, and that is what it is rather than a defect.** Converting a binary exponent to trits frees positions and the phi rule does not reclaim them: 1, 2, 4, 8, 18 free at N = 8, 16, 32, 64, 128. TNF takes them, and the precision law makes the gain exactly `2^k` -- 4x at 16 bits, 16x at 32, 256x at 64
+- **BNF is the control.** It differs from TNF in exactly one thing, the radix the exponent field is encoded in, so the pair measures the ternary encoding instead of asserting it. Measured: identical at every width on a binary fabric, exactly as the no-free-range theorem requires, and exactly 2x on a ternary one -- one mantissa bit, the same at every rung, because the packing loss is one position regardless of width
+- Eight BNF rungs added, all typechecking. Catalog 92 -> 100, so the erratum needs a third amendment
+- What may be claimed and what may not is written down in `docs/FOUR_FAMILIES.md`: the 2x is against our own control on a fabric nobody sells, and on a real ternary network TNF measures mid-pack among fixed fields
+
+# NOW -- the ladder is TNF: Ternary Network Float (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: TEF -> TNF, and the lineage stated correctly (Refs #2001)
+
+- **GF and this ladder are not the same lineage, and conflating them was the error behind two earlier names.** GF is built on the golden ratio: it sizes its exponent by `e = round((N-1)/phi^2)`, which puts `e/m` at `1/phi` by construction. This ladder **deliberately left phi** to become a reference for ternary networks, and its phi-distance therefore RISES with N -- measured, and structural rather than a defect
+- Named **TNF, Ternary Network Float**, for what it is built for: networks whose weights are in `{-1, 0, +1}`, where `w*a` is a select and the multiply disappears, so the decoder stops being overhead and becomes the body of the datapath
+- Renamed by explicit rung list, never by glob: `specs/numeric/tnf*.t27`, catalog ids `tnfN`, modules `triformat_tnfN`, packs, the integrity gate's neighbour check, the SSOT document and the erratum
+- Former names carried in `former_name=`: **GF-T** through 2026, then **TEF** for one day on 2026-08-09
+- Neighbours verified present after the rename: `gfternary.t27` and `gf16.t27`. A `gft*` glob has already deleted the first one once
+- Gates: catalog count 92, integrity CLEAN, `t27c` clean on all nine TNF specs
+
+# NOW -- correction: GF-T was never published (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: fix the stated reason for former_name= (Refs #2001)
+
+- I justified `former_name="GF-T{N}"` by claiming arXiv:2606.05017 and arXiv:2606.09686 cite the old name. **They do not.** 2606.05017 is the binary GF family -- its source, `docs/arxiv-submission/trinity-gf16.tex`, contains zero occurrences of "GF-T". 2606.09686 is this catalog, and the only commit introducing an `id=gft` row is from 2026-08-09
+- Consequence: the rename **retracts nothing and breaks no citation**, and was cheaper than I described it. `former_name=` is kept for internal continuity -- research notes, prior branches, and the author's CV and profile carry the old label, and this campaign's measurements against takum/tekum/posit were recorded under it
+- Corrected in the catalog header, in `tools/check_catalog_integrity.py`, and in the prior NOW entry rather than left standing
+
+# NOW -- gfternary restored, and a gate so a glob cannot do that again (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: restore gfternary.t27, alias the former name, gate both (Refs #2001)
+
+- **`specs/numeric/gfternary.t27` was deleted by my own `rm -f specs/numeric/gft*.t27`** during the TEF rename. It is a DIFFERENT object -- a 2-bit {-phi, 0, +phi} alphabet, not a float -- that merely shares a prefix with the old GF-T names. Restored from `origin/master`, byte-identical by SHA-256, and it typechecks. The same glob had already dropped it from the pack index earlier the same day: twice is a pattern
+- **`former_name="GF-T{N}"` on every TEF row -- for internal continuity, NOT for citation compatibility.** Correcting myself: the ladder has never been published under either name. arXiv:2606.05017 is the binary GF family and does not mention GF-T; arXiv:2606.09686 is this catalog, which had zero GF-T rows until 2026-08-09. The rename retracts nothing and breaks no citation. The old label survives in research notes, prior branches and the author's profile, which is reason enough to keep it searchable
+- New gate `tools/check_catalog_integrity.py`: every `source=` resolves, the three prefix-sharing neighbours (`gfternary`, the binary `gf*` ladder, the `tef*` ladder) are each present **on disk** and distinct, and the former name is still there. Verified red on each of those failures individually, not just green on the happy path
+- The catalog row alone was never enough -- `gfternary`'s row survived while its spec file did not, and nothing noticed
+
+# NOW -- the ladder is named TEF, and NVIDIA keeps tf32 (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T -> TEF (Ternary-Exponent Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have: GF sizes its exponent by `e = round((N-1)/phi^2)`, putting `e/m` at `1/phi` by construction, while this ladder sizes its exponent for RANGE and takes `M = N-1-E_t` -- its phi-distance RISES toward `1/phi`. The last tie to GF16, an inherited `M = 9`, was severed when the 16-bit rung went to `M = 11`
+- TEF says exactly what is true and nothing more: the exponent FIELD is balanced ternary, the radix is BINARY. A genuine ternary-radix float (`3^e`, as Ternary27) measures 0.331 positions per number WORSE at equal width, so claiming a ternary radix would claim the thing this format deliberately declines
+- An intermediate pass named the ladder TF; that collided head-on with NVIDIA TensorFloat-32, which holds `id=tf32` and the file `tf32_conformance_v0.json`. TEF removes the collision entirely: **NVIDIA keeps `tf32`, its file and its name, byte-identical** (verified by hash against the pre-rename tree)
+- `specs/numeric/tef*.t27`, catalog ids `tefN`, modules `triformat_tefN`, packs `tef*_conformance_v0.json`
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TEF specs
+
+# NOW -- the ladder is renamed GF-T -> TF (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T becomes TF (Ternary Float), nine rungs (Refs #2001)
+
+- "GF" claimed a lineage the format does not have. GF sizes its exponent by `e = round((N-1)/phi^2)`, which puts `e/m` at `1/phi` by construction; this ladder sizes its exponent for RANGE and takes `M = N-1-E_t`, and its phi-distance RISES toward `1/phi` as N grows. The last tie to GF16 -- an inherited `M = 9` -- was severed when gft16 went to `M = 11`
+- Renamed throughout: `specs/numeric/gft*.t27` -> `tf*.t27`, catalog ids `gftN` -> `tfN`, module `triformat_gftN` -> `triformat_tfN`, conformance packs and INDEX entries
+- **NVIDIA TensorFloat-32 held `id=tf32` and the file `tf32_conformance_v0.json`.** Its internal id moves to `tensorfloat32` and its pack to `tensorfloat32_conformance_v0.json`; its human-readable `name="TensorFloat-32 (TF32)"` is unchanged, because that is NVIDIA's name and not ours to alter. I overwrote its pack during the rename and restored it from git -- the WP-18 gate caught it as a sha drift, which is the gate working
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 CLEAN; t27c clean on all nine TF specs
+
+# NOW -- GF-T16 spends its last two positions (2026-08-09)
+
+Last updated: 2026-08-09
+
+## numeric: GF-T16 M = 9 -> 11, and four specs recovered (Refs #2001)
+
+- `gft4/8/16/32.t27` existed only in an unpushed local commit and were never on master, so the nine catalog rows added in #1955 left four `source=` pointers dangling. Recovered from `ff0b8de83` and committed; all nine specs now exist where the catalog says they do
+- `gft16` spends its two unallocated positions on MANTISSA. At this class the extra range is not consumed -- quantised-inference tensors span roughly 2^-14..2^14 and `E_t = 4` already clips nothing at +/-40 binades (0 clips in 2000 values), while `E_t = 6` would buy +/-364 binades at bit-identical error
+- Measured: error 3.45e-4 -> 8.63e-5, factor 4.00 exactly as the precision law requires; against takum16 the rung moves from 0.92x/2.88x/5.49x to 3.70x/11.37x/22.28x and stops losing the near bin; silicon 372 -> 443 LUTs (+19%) at 131.73 -> 136.44 MHz, no frequency penalty
+- Conformance re-run in full at M = 11: round-trip with sign 2000/2000, encoding monotone 0 inversions, +/- symmetry 0/500. `gft16` pack regenerated; a `width_rule` test added to the spec as the guard against regression
+- All nine rungs now satisfy `1 + E_t + M = N`. Gates: catalog count 92, WP-18 CLEAN, t27c clean
+
+# NOW — numeric SSOT: the GF-T ladder lands in the catalog (2026-08-09)
+
+Last updated: 2026-08-09
+
+## typecheck: warnings are PRINTED, and the unused-variable false positive is fixed (Refs #1948)
+
+- `typecheck` built every warning message and then dropped it: the OK branch printed only the total, so a warning was unactionable -- you could watch the number grow and never learn what it was. The messages were already in `result.errors`; they are printed now. Some are real correctness findings downgraded to warnings (a call to an undefined function, an argument type mismatch), so the silence actively hid defects
+- Printing them immediately exposed a detector bug: a BARE bracket literal (`[a0, 99]`, no `[N]Type{...}` prefix) never becomes child nodes -- the parser captures the whole bracket body as element TEXT in `extra_size`. The unused-variable pass read only children, so every identifier used that way was reported unused. That is the idiomatic "bind elements to locals, then rebuild the array" pattern (health_monitoring::update_health_check, key_management::set_key_slot, cross_layer_optimizer/redundancy_management::set_slot4). `collect_reads` now scans the element text too -- it can only ADD reads, so it removes false warnings and can never introduce one
+- tri-net corpus: unused-variable warnings 34 -> 14 (20 were false), total 788 -> 768; all 107 specs still typecheck clean
+- FROZEN_HASH resealed
+
+
+## numeric: GF-T registered in the catalog SSOT, all nine rungs (Refs #2001)
+
+- `specs/numeric/formats_catalog.t27` had **zero GF-T rows** -- the only `gft` id was `gfternary`, a different object (2-bit {-phi,0,+phi} alphabet, not a float with a balanced-ternary exponent field). Four rungs existed as specs with no row and no pack; five did not exist at all, while `zig-golden-float/specs/gft.tri` named this directory as its own source of truth
+- Nine rows + five new specs (`gft64/128/256/512/1024`) derived from the ladder's own width rule `1 + E_t + M = N`, one position per trit -- the rule `gft4`, `gft8`, `gft32` already satisfy exactly. `gft16` keeps its historical `M = 9` (14 of 16 positions) with the gap recorded in an `open_issue` field rather than silently closed
+- Nine conformance packs from the reference oracle; probes are powers of two and `1.5*2^e` inside each rung's own exponent range, so every `abs_error` is exactly zero by construction and no allowlist entry is needed. An earlier attempt used fixed probes including `100.0`, which GF-T4 cannot represent -- the WP-18 gate caught it as undisclosed nonzero error
+- `docs/NUMERIC_FORMATS_SSOT.md` gains §4a: the third ternary object, the two columns that read wrong without help (`e=` counts trits; phi-distance rises toward 1/phi because GF optimises the phi split and GF-T optimises range), and both what the fixed field buys and what Kraft's inequality forbids it from claiming
+- Erratum amended 83 -> 92. June's divergence was a miscount; this one was a whole family missing
+- Gates: catalog count SSOT == fresh regen == 92; WP-18 conformance integrity CLEAN; `t27c check` clean on all nine specs
+
 # NOW — gen-zig: executable-level fixes (2026-08-08)
 
-Last updated: 2026-08-08
+Last updated: 2026-08-09
+
+## gen-zig: narrowing unsigned cast lowers to @truncate (Refs #1948)
+
+- t27 `as` truncates on a narrowing integer cast (Rust semantics), but gen-zig always emitted the CHECKED `@intCast`, which panics in safe builds when the value does not fit -- e.g. `weighted_total as u32` on a 2^32 multiple (tri_settle::reward_weighted extracting u32 halves of a u64)
+- Codegen(Zig) now carries a param/typed-local type map (scoped per fn) and emits `@truncate` when the source integer is provably a wider UNSIGNED int than the (unsigned) target; signed narrowing and widening/unknown stay on `@intCast` (unchanged). Restriction to unsigned avoids Zig's `@truncate` rejecting a signed source (`i16 as u8`)
+- tri-net corpus: 16 gen/zig regenerate (narrowing sites flip to @truncate); all pass ast-check + zig test; icarus/C/Rust untouched (gen-zig only). t27 suite 1537/0
+- FROZEN_HASH resealed
+
+## gen-verilog: signed-aware ordered comparison (Refs #1948)
+
+- Verilog makes an ordered comparison (`< <= > >=`) UNSIGNED if either operand is unsigned. A signed `i8` (e.g. `trend = -16 = 8'hF0`) meeting an unsigned const read as 240, so `trend > THRESHOLD` diverged from Rust/Zig/C (which promote both to a signed int)
+- When at least one operand is signed, the comparison is now emitted in the signed domain with C-promotion semantics: the signed operand is wrapped `$signed(x)` (Verilog sign-extends it into the wider signed context) and the unsigned operand is zero-extended one bit `$signed({1'b0, x})` so it stays non-negative. Unsigned/unsigned pairs are untouched
+- tri-net corpus: link_quality_monitor's `degradation_detection` flips to passing (the last *codegen* runtime divergence); full 105-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
+
+## gen-verilog: test-block call temps re-materialized after a rebinding (Refs #1948)
+
+- A call-return temp is CSE'd by call TEXT, but a test block mutates its bindings between statements (`st = on_ack(st);` repeated). Caching the temp across a reassignment reused a STALE value, so the modelled state never advanced -- every step re-tested the pre-mutation snapshot. Verilog-path-only (Rust/Zig/C evaluate the calls directly)
+- After any statement that rebinds a variable (StmtAssign, or a named StmtLocal), the materialized set is invalidated so the next use re-assigns the temp from current values. Nested-call temps in a single non-mutating statement still materialize once, in dependency order
+- tri-net corpus: 6 runtime-divergence specs flip to passing (congestion_control, flow_control, network_simulator, production_scenarios, quarantine_manager, traffic_animator); full 99-spec icarus gate: 0 regressions
+- FROZEN_HASH resealed
+
+## gen-verilog: tuple-LITERAL destructure lowered -- last icarus compile-error class (Refs #1948)
+
+- `let (a, b, c) = (4, 3, 1)` (destructure of a tuple LITERAL, not a call) was unhandled: tuple_local_elem_types returned None, so the local emitted a nameless `reg [31:0] ;` and `= {1, 3, 4}`. It infers the element types now (default u32) and width-casts the literal elements into the packed temp
+- tri-net corpus: icarus 98 -> 99 (swarm_coordinator). Every spec in the corpus now COMPILES under Icarus (0 compile-error specs); the remaining 8 out of the gate are runtime divergences only
+- FROZEN_HASH resealed
+
+## gen-verilog: test-block for-loops emitted; loop-variant calls not CSE-hoisted; tail expressions (Refs #1948)
+
+- `for i in ..` / `while` in a test block was dropped as `// (stmt: StmtForRange)`, silently voiding loop bodies that accumulate assertions. Loops emit now (loop var declared `integer`)
+- The call-CSE pass hoisted a call from inside a loop into ONE temp evaluated before the loop with an uninitialized index -- the loop then tested a constant. predeclare no longer recurses into loop bodies, so loop-variant calls are emitted inline per iteration
+- A Rust-style tail expression (a fn body ending in a bare expression) lowers to an implicit return assignment `<fn> = <expr>;` instead of a bare `expr;` (an unknown-task enable)
+- tri-net corpus: icarus 97 -> 98 (m3_multihop); cross_layer_optimizer already joined
+- FROZEN_HASH resealed
+
+## gen-verilog: tuple-destructure temp declared in test blocks (Refs #1948)
+
+- A test-block `let (a, b) = call()` slices a packed temp `__tup_l{line}`, but that temp (and the element regs) are declared only in emit_local's Decl phase, which the TB Init-only path skips -- the temp was referenced undeclared ("Could not find variable __tup_l242")
+- The top-of-block declaration pass now emits the tuple-destructure decls (emit_local Decl) for empty-name/extra_field locals
+- tri-net corpus: icarus 96 -> 97 (cross_layer_optimizer)
+- FROZEN_HASH resealed
+
+## gen-verilog: `_` discard in tuple destructure gets a throwaway reg (Refs #1948)
+
+- `(link1, _) = create_2node_mesh(50)` emitted `{_, link1} = call()` -- Verilog has no `_` wildcard, so iverilog could not find the variable
+- Each `_` position now declares a throwaway reg keyed by (line, index) at its element width; the LHS concat references it
+- tri-net corpus: icarus 94 -> 95 (mesh_node_sim)
+- FROZEN_HASH resealed
+
+## test(gen-verilog): tuple contract expects width-cast operands (Refs #1948)
+
+- Follow-up to the tuple width-cast (#1973): the phase40 contract test's exact-string expectation updated to `{32'((a-b)), 32'((a+b))}`
+- Unit suite back to the single pre-existing red
+
+## gen-verilog: tuple literal elements and destructure regs width-cast (Refs #1948)
+
+- A tuple return `(1, true)` packed each element via gen_verilog_expr -- a bare literal is unsized and iverilog rejected it in the concatenation ("operand has indefinite width"). Elements are width-cast to their declared tuple-element type now
+- Tuple-DESTRUCTURE binding regs (`(a,b,c,d) = call()`) were declared 64-bit each, so `{d,c,b,a} = <32-bit>` sliced the packed return wrongly. Each element reg is declared at its element width from the callee's return tuple type
+- tri-net corpus: icarus 88 -> 94 (fpga_synthesis_report, hello, integration_tests, lite_crypto, mesh_routing, packet_loss_injection)
+- FROZEN_HASH resealed
+
+## gen-verilog: hex/bin literals in array-literal text normalized; more SV keywords (Refs #1948)
+
+- The array-literal concat path works on raw source TEXT (not AST), so `0x38`/`0b..` element literals reached Verilog verbatim -- illegal (`8'(0x38)`). A text-level normalizer converts them to decimal
+- SystemVerilog keyword list extended (context, local, new, null, inside, foreach, ...) -- a spec param named `context` emitted `input [31:0] context;`
+- tri-net corpus: icarus 85 -> 88 (api_documenter, multipath_router, olsr_routing); link_quality_monitor advances from compile-error to a signed-i8 runtime divergence
+- FROZEN_HASH resealed
+
+## gen-verilog: const-name array sizes resolved; packed array-literal locals; keyword-safe local names (Refs #1948)
+
+- `[u32; HISTORY_SIZE]` (const-name size) silently fell back to a 32-bit scalar input while `[u32; 16]` (literal) packed to 512 bits -- packed callers desynced from packed locals. All type strings now resolve const array sizes to numerics up front
+- primitive [T; N] test-block locals initialized from an array LITERAL now emit as a packed vector (was an unpacked memory, which cannot be passed whole to a packed fn param -- "Array needs an array index")
+- fn-local reg declarations and assignments escape reserved words (a local named `config` emitted `reg [511:0] config;`)
+- tri-net corpus: icarus 77 -> 85 (load_predictor, anomaly_detector, auto_config, cache_management, health_dashboard, local_processing, network_orchestrator, integration_framework); no gate regression
+- FROZEN_HASH resealed
+
+## parser: BDD-style fns skipped; fpga-smoke fully green (Closes #1960)
+
+- `fn name() given ... then ...` (a keyword-style test spelled as a fn, linker.t27) is now recognized BEFORE return-type parsing -- otherwise `given` was consumed as an identifier return type and the body brace check failed
+- partition.t27: a parameter named `module` (a keyword) renamed to mod_name
+- fpga-build --smoke: 31 modules + wrapper generate -- GREEN again (was red since the #1941 hardening surfaced the silently-dropped constructs)
+- tri-net 77-spec icarus gate green; unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
+## parser: braced if-expr arms, paren-less conditions, &-transparent types; fpga specs repaired (Refs #1960)
+
+- If-EXPRESSIONS accept braced arms (`if (c) { 2 } else { 0 }`); if/while STATEMENTS accept paren-less Rust-style conditions with the struct-literal-in-condition rule (a `{` after the cond opens the body)
+- Reference types are transparent (`&str`/`&T` parse as the referent)
+- mac.t27 pack_trit (braced if-expr), spi.t27 (three `match` constructs -- FSM tick, prescaler, SCK -- silently dropped for ever), fifo.t27 (four literal missing-paren typos) repaired
+- fpga-build --smoke: 2 -> 21 of 35 modules generate; remaining tails are the given/then BDD fn form (linker) onward
+- tri-net 77-spec icarus gate green, unit suite at the single pre-existing red
+- FROZEN_HASH resealed
+
+## gen-verilog: W458 keeps the legacy [N]T binding; unit contracts updated (Refs #1948)
+
+- The W458 array-param exclusion narrows to rust-style [T; N] primitives only; legacy [N]T keeps its module-array ROM binding contract
+- nested_return discriminator includes the #1950 guard assignment
+- Landed as a follow-up: auto-merge raced past the amended heads of #1952/#1957 (merged pre-force-push versions); unit suite back to the single pre-existing red
+- FROZEN_HASH resealed
+
+## gen-verilog: SystemVerilog keywords escaped; safe names in decls and part-selects (Refs #1948)
+
+- Spec identifiers named bit/byte/priority/sequence/table hit Icarus as keywords: the reserved list only covered Verilog-2001, the TB declaration passes wrote raw names (`reg [63:0] bit;`), and packed part-selects wrote the raw base
+- SV keyword block added to the reserved list; the #1894/#1948 declaration passes and both part-select emissions now go through verilog_safe_identifier
+- tri-net corpus: icarus 69 -> 77 passing (bandwidth_allocator, byte_utils, crc16, fault_detection, pattern_predictor, power_monitoring, production_deployment, resource_scheduler join); no gate regression
+- FROZEN_HASH resealed
 
 ## gen-verilog TB: real assignments; packed literals read element text (Refs #1948)
 

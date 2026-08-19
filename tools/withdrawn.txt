@@ -1,0 +1,20 @@
+# Withdrawn numbers. A live document that states one of these fails CI.
+#
+# Format:  regex | short reason | where the full analysis lives
+# Lines starting with # are comments. The regex is matched case-insensitively.
+#
+# Add a row the moment a number is withdrawn -- not after the paper is fixed.
+# The whole point is that the two events were ten days apart last time.
+
+323(\.[0-9]+)?\s*MHz | ring-oscillator toggle rate, not a GF16 path | RESEARCH_CLAIMS.md Retraction 2026-08-18
+41\.2\s*GOPS         | derived from the withdrawn 323 MHz            | RESEARCH_CLAIMS.md Retraction 2026-08-18
+322M\s*matmuls/sec   | derived from the withdrawn 323 MHz            | RESEARCH_CLAIMS.md Retraction 2026-08-18
+
+# Added 2026-08-18 after the first version of this gate ran green while three
+# machine-readable files still carried the number. All three frequencies below
+# came off the same chain[19] ring-oscillator net, on designs whose claimed sizes
+# differ by 62x -- which is why they agree to 2.5%.
+330\s*MHz            | same ring-oscillator net as 323 MHz (GF16 mul row)  | RESEARCH_CLAIMS.md Retraction 2026-08-18
+322\s*MHz            | same ring-oscillator net as 323 MHz (GF16 dot4 row) | RESEARCH_CLAIMS.md Retraction 2026-08-18
+97\.67\s*%?\s*MNIST  | no artifact produces it; the only MNIST run is untrained | RESEARCH_CLAIMS.md Retraction 2026-08-18
+FROZEN\s+SILICON     | STATUS.md reserves SILICON for a received die, and forbids it in t27 | STATUS.md:33,112

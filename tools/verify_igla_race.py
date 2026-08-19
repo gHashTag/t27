@@ -14,6 +14,69 @@ divergence exits 1.  Run:  python3 tools/verify_igla_race.py
 """
 import os, re, sys, shutil, subprocess, tempfile, random
 
+def _run_bin(cmd, what, cwd=None):
+    """Run a built binary and return its stdout, or None with the reason printed.
+
+    Taking `.stdout` without checking the exit code means a crash arrives as a
+    short or empty result list, which then surfaces as a NUMERIC MISMATCH between
+    targets -- the most alarming reading available, and the wrong one. A program
+    that died on signal 11 did not disagree about arithmetic.
+    """
+    r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
+                       capture_output=True, text=True, cwd=cwd)
+    if r.returncode == 0:
+        return r.stdout
+    sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
+    print(f"  {what}: exited {r.returncode}{sig}")
+    for line in (r.stderr or "").strip().splitlines()[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _gen(t27c, mode, spec, root):
+    """Run `t27c gen-<mode>` and return its output, or None with the reason printed.
+
+    Every caller below used to take `.stdout` directly, checking neither the exit
+    code nor stderr. When the spec failed to PARSE, stdout was empty, the empty
+    string flowed downstream, and the failure surfaced as "the C backend failed to
+    build/run" -- pointing at a subsystem that had never been reached. The
+    compiler's message named the file, the function, the line and the token; it
+    was collected by capture_output and discarded. Four days were read in the
+    wrong place. Ask the exit code, and print what the tool said.
+    """
+    r = subprocess.run([t27c, "gen-" + mode, spec], capture_output=True, text=True, cwd=root)
+    if r.returncode == 0:
+        return r.stdout
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  t27c gen-{mode} {spec}: exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _build(cmd, cwd, what):
+    """Run a compiler and, if it fails, print what IT said before giving up.
+
+    Every caller below used to test `.returncode` on a capture_output=True run and
+    discard the message. That is how a missing brace in a spec came to be reported
+    as "the C backend failed to build" for four days: the compiler named the file,
+    the function, the line and the token, and the wrapper threw it away. A
+    diagnostic that names the wrong subsystem costs more than none.
+    """
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if r.returncode == 0:
+        return True
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  {what}: {os.path.basename(cmd[0])} exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:6]:
+        print(f"      {line}")
+    if len(out) > 6:
+        print(f"      ... {len(out) - 6} more line(s)")
+    return False
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPEC = "specs/igla/race/ternary_mac.t27"
 SYS_SPEC = "specs/igla/race/systolic_ternary.t27"
@@ -44,6 +107,27 @@ def ref_mul(a, code):
 
 
 def ref_mac(acc, a, code): return i32(i32(acc) + ref_mul(a, code))
+
+
+def exhaustive_mul_digest():
+    """FNV-1a over ternary_mul(a, code) for EVERY (a, code) pair.
+
+    The input space of ternary_mul is 256 x 256 = 65,536 -- small enough to
+    enumerate. gen_vectors() samples 800 triples from it, which is a subsample of
+    a space that can be covered completely, and "agree on 800 random operands" is
+    a strictly weaker statement than "agree on every possible input" when the
+    latter costs milliseconds.
+
+    ternary_mac is NOT exhaustible: its accumulator is i32, so the space is
+    256 x 256 x 2^32 ~ 2.8e14. It stays sampled, with its edge cases, and the
+    verdict line says which of the two it is.
+    """
+    h = 2166136261
+    for a in range(-128, 128):
+        for c in range(256):
+            v = ref_mul(a, c) & 0xFF
+            h = ((h ^ v) * 16777619) & 0xFFFFFFFF
+    return h
 
 
 def gen_vectors():
@@ -91,19 +175,24 @@ def full_spec_compiles(t27c, wd):
     """Diagnostic: does the WHOLE spec emit compilable C and Rust? Returns (c_ok,
     rust_ok, note). This surfaces gen-backend gaps in the IGLA spec (slice .len(),
     duplicate test emission, serde deps, non-Copy struct)."""
-    c = subprocess.run([t27c, "gen-c", SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    c = _gen(t27c, "c", SPEC, ROOT)
+    if c is None:
+        return False, False
     open(os.path.join(wd, "full.c"), "w").write('#define assert_eq(x,y) ((void)0)\n' + c + "\nint main(){return 0;}\n")
-    c_ok = subprocess.run(["cc", "-c", "-o", os.path.join(wd, "f.o"), os.path.join(wd, "full.c")],
-                          cwd=wd, capture_output=True, text=True).returncode == 0
-    r = subprocess.run([t27c, "gen-rust", SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    c_ok = _build(["cc", "-c", "-o", os.path.join(wd, "f.o"), os.path.join(wd, "full.c")], wd, "full-spec gen-c")
+    r = _gen(t27c, "rust", SPEC, ROOT)
+    if r is None:
+        return False, False
     open(os.path.join(wd, "full.rs"), "w").write(r + "\nfn main(){}\n")
-    r_ok = subprocess.run(["rustc", "-A", "warnings", "--emit=metadata", "-o", os.path.join(wd, "f.rmeta"),
-                           os.path.join(wd, "full.rs")], cwd=wd, capture_output=True, text=True).returncode == 0
+    r_ok = _build(["rustc", "-A", "warnings", "--emit=metadata", "-o", os.path.join(wd, "f.rmeta"),
+                   os.path.join(wd, "full.rs")], wd, "full-spec gen-rust")
     return c_ok, r_ok
 
 
 def _core_c(t27c):
-    src = subprocess.run([t27c, "gen-c", SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    src = _gen(t27c, "c", SPEC, ROOT)
+    if src is None:
+        return None
     st = re.search(r"typedef struct\s*\{[^}]*\}\s*TernaryWeight\s*;", src)
     defs = [_extract_def(src, s) for s in (
         "int8_t ternary_decode(TernaryWeight w)",
@@ -115,7 +204,9 @@ def _core_c(t27c):
 
 
 def _core_rust(t27c):
-    src = subprocess.run([t27c, "gen-rust", SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    src = _gen(t27c, "rust", SPEC, ROOT)
+    if src is None:
+        return None
     ms = re.search(r"pub struct TernaryWeight\b", src)
     if not ms:
         return None
@@ -134,6 +225,69 @@ def _core_rust(t27c):
     return "#[derive(Clone, Copy)]\n" + st + "\n" + "\n".join(blocks)
 
 
+def exhaustive_c(t27c, wd):
+    """ternary_mul over EVERY (a, code) pair, in C. 256 x 256 = 65,536 inputs.
+
+    gen_vectors() samples 800 triples out of that space. Sampling a space you can
+    enumerate is a weaker statement than enumerating it, and here enumeration costs
+    milliseconds -- so this is not a sample, it is the whole domain.
+
+    ternary_mac is deliberately NOT covered this way: its accumulator is i32, so its
+    space is 256 x 256 x 2^32 ~ 2.8e14. It stays sampled, and the verdict says so.
+    """
+    core = _core_c(t27c)
+    if core is None:
+        return None
+    main = [
+        "int main(void){",
+        "  unsigned h = 2166136261u;",
+        "  for (int a = -128; a < 128; a++) {",
+        "    for (int c = 0; c < 256; c++) {",
+        "      TernaryWeight w; w.code = (uint8_t)c;",
+        "      unsigned v = (unsigned)((int)ternary_mul((int8_t)a, w) & 0xFF);",
+        "      h = (h ^ v) * 16777619u;",
+        "    }",
+        "  }",
+        '  printf("%08x\\n", h);',
+        "  return 0;",
+        "}",
+    ]
+    src = core + "\n" + "\n".join(main) + "\n"
+    f = os.path.join(wd, "exh.c")
+    open(f, "w").write(src)
+    if not _build(["cc", "-O2", "-o", os.path.join(wd, "exhc"), f], wd, "exhaustive C"):
+        return None
+    out = _run_bin(os.path.join(wd, "exhc"), "exhaustive C run")
+    return None if out is None else out.strip()
+
+
+def exhaustive_rust(t27c, wd):
+    """The same whole-domain sweep, in Rust."""
+    core = _core_rust(t27c)
+    if core is None:
+        return None
+    main = [
+        "fn main(){",
+        "  let mut h: u32 = 2166136261;",
+        "  for a in -128i32..128 {",
+        "    for c in 0u32..256 {",
+        "      let w = TernaryWeight { code: c as u8 };",
+        "      let v = ((ternary_mul(a as i8, w) as i32) & 0xFF) as u32;",
+        "      h = (h ^ v).wrapping_mul(16777619);",
+        "    }",
+        "  }",
+        '  println!("{:08x}", h);',
+        "}",
+    ]
+    src = core + "\n" + "\n".join(main) + "\n"
+    f = os.path.join(wd, "exh.rs")
+    open(f, "w").write(src)
+    if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "exhr"), f], wd, "exhaustive Rust"):
+        return None
+    out = _run_bin(os.path.join(wd, "exhr"), "exhaustive Rust run")
+    return None if out is None else out.strip()
+
+
 def run_c(t27c, vecs, wd):
     core = _core_c(t27c)
     if core is None:
@@ -144,10 +298,11 @@ def run_c(t27c, vecs, wd):
            f'for(int i=0;i<n;i++){{TernaryWeight w; w.code=C[i];'
            f'printf("%d %d\\n",(int)ternary_mul(A[i],w),(int)ternary_mac(AC[i],A[i],w));}}return 0;}}')
     open(os.path.join(wd, "m.c"), "w").write(src)
-    if subprocess.run(["cc", "-O2", "-o", os.path.join(wd, "cb"), os.path.join(wd, "m.c")],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["cc", "-O2", "-o", os.path.join(wd, "cb"), os.path.join(wd, "m.c")], wd, "core C"):
         return None
-    out = subprocess.run([os.path.join(wd, "cb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "cb"), "core C run")
+    if out is None:
+        return None
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 
@@ -161,10 +316,11 @@ def run_rust(t27c, vecs, wd):
                   f'let ac:[i32;{len(vecs)}]=[{AC}]; for i in 0..a.len(){{let w=TernaryWeight{{code:c[i]}}; '
                   f'println!("{{}} {{}}", ternary_mul(a[i],w) as i32, ternary_mac(ac[i],a[i],w));}}}}\n')
     rs = os.path.join(wd, "m.rs"); open(rs, "w").write(src)
-    if subprocess.run(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rb"), rs],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rb"), rs], wd, "core Rust"):
         return None
-    out = subprocess.run([os.path.join(wd, "rb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "rb"), "core Rust run")
+    if out is None:
+        return None
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 
@@ -186,7 +342,9 @@ def run_pe_c(t27c, vecs, wd):
     # imported `ternary_mul` is NOT emitted into systolic's output -> supply the
     # primitive from ternary_mac's core, then add systolic's tuple + PE definition
     core = _core_c(t27c)
-    sysc = subprocess.run([t27c, "gen-c", SYS_SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    sysc = _gen(t27c, "c", SYS_SPEC, ROOT)
+    if sysc is None:
+        return None
     tup = re.search(r"typedef struct\s*\{[^}]*\}\s*t27_tuple_int8_t_int16_t\s*;", sysc)
     pe = _extract_def(sysc, "t27_tuple_int8_t_int16_t systolic_ternary_pe(int8_t a_in, TernaryWeight w, int16_t psum_in)")
     if core is None or not tup or pe is None:
@@ -198,16 +356,19 @@ def run_pe_c(t27c, vecs, wd):
            f'for(int i=0;i<n;i++){{TernaryWeight w; w.code=C[i];'
            f'printf("%d\\n",(int)systolic_ternary_pe(A[i],w,PS[i]).f1);}}return 0;}}')
     open(os.path.join(wd, "pe.c"), "w").write(src)
-    if subprocess.run(["cc", "-O2", "-o", os.path.join(wd, "peb"), os.path.join(wd, "pe.c")],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["cc", "-O2", "-o", os.path.join(wd, "peb"), os.path.join(wd, "pe.c")], wd, "systolic PE C"):
         return None
-    out = subprocess.run([os.path.join(wd, "peb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "peb"), "systolic PE C run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
 def run_pe_rust(t27c, vecs, wd):
     core = _core_rust(t27c)
-    sysr = subprocess.run([t27c, "gen-rust", SYS_SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    sysr = _gen(t27c, "rust", SYS_SPEC, ROOT)
+    if sysr is None:
+        return None
     m = re.search(r"pub fn systolic_ternary_pe\b", sysr)
     if core is None or not m:
         return None
@@ -225,10 +386,11 @@ def run_pe_rust(t27c, vecs, wd):
            f'let ps:[i16;{len(vecs)}]=[{PS}]; for i in 0..a.len(){{let w=TernaryWeight{{code:c[i]}}; '
            f'println!("{{}}", systolic_ternary_pe(a[i],w,ps[i]).1 as i32);}}}}\n')
     rs = os.path.join(wd, "pe.rs"); open(rs, "w").write(src)
-    if subprocess.run(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "perb"), rs],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "perb"), rs], wd, "systolic PE Rust"):
         return None
-    out = subprocess.run([os.path.join(wd, "perb")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "perb"), "systolic PE Rust run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
@@ -263,7 +425,25 @@ def main():
                 print(f"FAIL: {tgt} != ref in {len(mism)}/{len(ref)}; first vec {vecs[i]} ref={r} {tgt}={g}")
                 ok = False
             else:
-                print(f"OK ternary_mul/mac: {tgt} == reference BIT-EXACT over {len(ref)} vectors (edges incl.)")
+                print(f"OK ternary_mul/mac: {tgt} == reference over {len(ref)} SAMPLED vectors "
+                      f"(edge cases included; ternary_mac's i32 accumulator makes its space "
+                      f"~2.8e14, so this arm is a sample and says so)")
+
+        # ternary_mul alone has a space of 256 x 256 = 65,536 -- small enough to enumerate.
+        # Sampling a domain you can exhaust is a weaker claim than exhausting it, and here
+        # exhausting it costs milliseconds. This arm is therefore not a sample.
+        want = f"{exhaustive_mul_digest():08x}"
+        for tgt, runner in (("C", exhaustive_c), ("Rust", exhaustive_rust)):
+            got = runner(t27c, wd)
+            if got is None:
+                print(f"FAIL: exhaustive {tgt} failed to build/run"); ok = False; continue
+            if got != want:
+                print(f"FAIL: exhaustive {tgt} digest {got} != model {want} -- the two disagree "
+                      f"on at least one of the 65,536 possible (a, code) inputs")
+                ok = False
+            else:
+                print(f"OK ternary_mul: {tgt} == reference on ALL 65,536 possible inputs "
+                      f"(exhaustive, FNV-1a digest {got})")
         # systolic PE: extends the check up the datapath (ternary_mac -> systolic PE)
         if os.path.exists(os.path.join(ROOT, SYS_SPEC)):
             print("NOTE systolic_ternary imports ternary_mul but the import is NOT emitted "
@@ -284,7 +464,8 @@ def main():
                     ok = False
                 else:
                     print(f"OK systolic_ternary_pe: {tgt} == reference BIT-EXACT over {len(pref)} vectors (i16 psum, edges)")
-    print("IGLA RACE ternary MAC + systolic PE BIT-EXACT ACROSS TARGETS (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
+    print("IGLA RACE: ternary_mul EXHAUSTIVE over all 65,536 inputs; mac + systolic PE agree on "
+          "sampled vectors (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
     sys.exit(0 if ok else 1)
 
 

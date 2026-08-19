@@ -400,7 +400,7 @@ test neg_log_approx_one
     when y = neg_log_approx(x)
     then y == 0.0
 
-test execution_reward_exact_match_v2
+test execution_reward_exact_match
     given code = "module add(input a, input b, output c); assign c = a + b; endmodule"
     given ref = "module add(input a, input b, output c); assign c = a + b; endmodule"
     when r = execution_reward(code, ref)
@@ -587,7 +587,7 @@ test clip_gradients_negative_max_norm
     when clipped = clip_gradients(grads, max_norm)
     then clipped[0].value == 0.0 && clipped[1].value == 0.0
 
-test count_verified_samples_empty_batch_v2
+test count_verified_samples_empty_batch
     given batch = []DataSample{}
     when count = count_verified_samples(batch)
     then count == 0
@@ -603,7 +603,7 @@ test random_batch_size_matches
     when batch = random_batch(batch_size)
     then len(batch) == 4
 
-test count_verified_samples_all_verified_v2
+test count_verified_samples_all_verified
     given batch = [
         DataSample { prompt: "p1", rtl: "m1", template: "t1" },
         DataSample { prompt: "p2", rtl: "m2", template: "t2" }
@@ -828,7 +828,7 @@ invariant training_compute_lr_max_step_inv:
     min_lr > 0.0 && max_lr > min_lr ==>
     compute_lr(100, 100, min_lr, max_lr) == max_lr
 
-test training_sgd_update_zero_grads_identity_v2
+test training_sgd_update_zero_grads_identity
     given weights = [1.0, 2.0, 3.0]
     given grads = [0.0, 0.0, 0.0]
     given lr = 0.1
@@ -1209,7 +1209,7 @@ test training_sgd_zero_lr_no_change_w309
     when new_w = sgd_update(w, grad, lr)
     then new_w == 5.0
 
-test training_sgd_negative_weight_positive_grad_w309_v2
+test training_sgd_negative_weight_positive_grad_w309
     given w = -5.0
     given grad = 1.0
     given lr = 0.1
@@ -1218,14 +1218,14 @@ test training_sgd_negative_weight_positive_grad_w309_v2
 
 invariant training_sgd_zero_lr_no_change_w309_inv:
     sgd_update(5.0, 1.0, 0.0) == 5.0
-test training_sgd_zero_lr_no_change_w309_v2
+test training_sgd_zero_lr_no_change_w309
     given w = 5.0
     given grad = 1.0
     given lr = 0.0
     when new_w = sgd_update(w, grad, lr)
     then new_w == 5.0
 
-test training_sgd_negative_weight_positive_grad_w309_v3
+test training_sgd_negative_weight_positive_grad_w309
     given w = -5.0
     given grad = 1.0
     given lr = 0.1
@@ -1272,14 +1272,14 @@ invariant training_sgd_zero_lr_no_change_w311_inv:
 
 
 
-test training_sgd_zero_lr_no_change_w311_v2
+test training_sgd_zero_lr_no_change_w311
     given w = 5.0
     given grad = 1.0
     given lr = 0.0
     when new_w = sgd_update(w, grad, lr)
     then new_w == 5.0
 
-test training_sgd_negative_weight_positive_grad_w311_v2
+test training_sgd_negative_weight_positive_grad_w311
     given w = -5.0
     given grad = 1.0
     given lr = 0.1
@@ -1588,7 +1588,6 @@ test training_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (73→74)
 test training_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test training_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1606,6 +1605,7 @@ test training_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test training_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant training_w342_depth_076: true
 
+}
 
 invariant training_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

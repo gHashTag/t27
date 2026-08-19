@@ -36,23 +36,6 @@ fn ternary_gemm_2x2(a : []i8, w : []TernaryWeight) -> []i8 {
     return [c00, c01, c10, c11];
 }
 
-/// Square ternary GEMM, dispatched on the flattened activation length.
-///
-/// W571: tested and never declared. Every branch delegates to a fixed-width
-/// form this spec already defines and tests, so the dispatcher adds no new
-/// arithmetic -- only the size selection. Its tests use the 4-element (2x2)
-/// case: identity weights must return the activations unchanged, and zero
-/// weights must return zeros.
-fn ternary_gemm(a : []i8, w : []TernaryWeight) -> []i8 {
-    if (a.len() == 4) {
-        return ternary_gemm_2x2(a, w);
-    }
-    if (a.len() == 16) {
-        return ternary_gemm_4x4(a, w);
-    }
-    return ternary_gemm_8x8(a, w);
-}
-
 // ternary_gemm_2x2_as_struct(a, w) -> TernaryGemmResult
 // Wrapper returning the struct form for typed consumers.
 fn ternary_gemm_2x2_as_struct(a : []i8, w : []TernaryWeight) -> TernaryGemmResult {
@@ -345,24 +328,24 @@ test ternary_gemm_4x4_zero_input
     when out = ternary_gemm_4x4(a, w)
     then out[0] == 0 && out[15] == 0
 
-test ternary_gemm_2x2_large_activations_v2
+test ternary_gemm_2x2_large_activations
     given a = [127, -128, 64, -64]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when out = ternary_gemm_2x2(a, w)
     then out[0] == 63 && out[1] == -64 && out[2] == 0 && out[3] == -128
 
-test get_elem_2x2_negative_indices_v2
+test get_elem_2x2_negative_indices
     given flat = [10, 20, 30, 40]
     when e = get_elem_2x2(flat, 0, -1)
     then e == 0
 
-test ternary_gemm_2x2_trace_identity_v2
+test ternary_gemm_2x2_trace_identity
     given a = [1, 0, 0, 1]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when out = ternary_gemm_2x2(a, w)
     then out[0] == 1 && out[3] == 1
 
-test get_elem_8x8_oob_v2
+test get_elem_8x8_oob
     given flat = [0; 64]
     when e = get_elem_8x8(flat, 8, 0)
     then e == 0
@@ -513,7 +496,7 @@ test get_elem_8x8_negative_row_col
     when e = get_elem_8x8(flat, 255, 255)
     then e == 0
 
-test ternary_gemm_4x4_identity_weights_v2
+test ternary_gemm_4x4_identity_weights
     given a = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 },
                TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 },
@@ -601,7 +584,7 @@ test get_elem_2x2_out_of_bounds
     when e = get_elem_2x2(flat, 2, 0)
     then e == 0
 
-test ternary_gemm_4x4_zero_input_v2
+test ternary_gemm_4x4_zero_input
     given a = [0; 16]
     given w = [TernaryWeight { code: 1 }; 16]
     when out = ternary_gemm_4x4(a, w)
@@ -725,12 +708,12 @@ test get_elem_4x4_oob_col
     when e = get_elem_4x4(flat, 0, 4)
     then e == 0
 
-test get_elem_4x4_first_row_last_col_v2
+test get_elem_4x4_first_row_last_col
     given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     when e = get_elem_4x4(flat, 0, 3)
     then e == 4
 
-test ternary_gemm_2x2_zero_weights_v2
+test ternary_gemm_2x2_zero_weights
     given a = [5, 6, 7, 8]
     given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
     when out = ternary_gemm_2x2(a, w)
@@ -753,7 +736,7 @@ test ternary_gemm_2x2_mixed_weights
     when out = ternary_gemm_2x2(a, w)
     then out[0] == 1 && out[1] == 2 && out[2] == 0 && out[3] == 4
 
-test get_elem_2x2_out_of_bounds_v2
+test get_elem_2x2_out_of_bounds
     given flat = [1, 2, 3, 4]
     when e = get_elem_2x2(flat, 5, 5)
     then e == 0
@@ -838,13 +821,13 @@ test get_elem_4x4_first_row_first_col
     when val = get_elem_4x4(flat, 0, 0)
     then val == 1
 
-test ternary_gemm_2x2_identity_weights_v2
+test ternary_gemm_2x2_identity_weights
     given a = [1, 0, 0, 1]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when out = ternary_gemm_2x2(a, w)
     then out[0] == 1 && out[1] == 0 && out[2] == 0 && out[3] == 1
 
-test get_elem_2x2_first_row_second_col_v2
+test get_elem_2x2_first_row_second_col
     given flat = [1, 2, 3, 4]
     when val = get_elem_2x2(flat, 0, 1)
     then val == 2
@@ -1010,7 +993,7 @@ test ternary_gemm_get_elem_2x2_oob_large_col
     when e = get_elem_2x2(flat, 0, 255)
     then e == 0
 
-test ternary_gemm_2x2_zero_weights_all_zero_v2
+test ternary_gemm_2x2_zero_weights_all_zero
     given a = [cast_i8(5), cast_i8(6), cast_i8(7), cast_i8(8)]
     given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
     when out = ternary_gemm_2x2(a, w)
@@ -1086,7 +1069,7 @@ test ternary_gemm_2x2_first_element_broadcast_concrete
     when out = ternary_gemm_2x2(a, w)
     then out[0] == 5 && out[1] == 5 && out[2] == 7 && out[3] == 7
 
-test ternary_gemm_4x4_identity_v2
+test ternary_gemm_4x4_identity
     given a = [cast_i8(1), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(1), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(1), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(1)]
     when out = ternary_gemm_4x4(a, a)
     then out[0] == 1 && out[5] == 1 && out[10] == 1 && out[15] == 1
@@ -1429,13 +1412,13 @@ test ternary_gemm_mixed_weights_selective_w309
 
 invariant ternary_gemm_minus_weights_negate_activations_w309_inv:
     ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
-test ternary_gemm_minus_weights_negate_activations_w309_v2
+test ternary_gemm_minus_weights_negate_activations_w309
     given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
     given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when out = ternary_gemm(a, w)
     then out.len() == 4 && out[0] == -2 && out[1] == -3
 
-test ternary_gemm_mixed_weights_selective_w309_v2
+test ternary_gemm_mixed_weights_selective_w309
     given a = [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when out = ternary_gemm(a, w)
@@ -1477,13 +1460,13 @@ invariant ternary_gemm_minus_weights_negate_activations_w311_inv:
 
 
 
-test ternary_gemm_minus_weights_negate_activations_w311_v2
+test ternary_gemm_minus_weights_negate_activations_w311
     given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
     given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when out = ternary_gemm(a, w)
     then out.len() == 4 && out[0] == -2 && out[1] == -3
 
-test ternary_gemm_mixed_weights_selective_w311_v2
+test ternary_gemm_mixed_weights_selective_w311
     given a = [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)]
     given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when out = ternary_gemm(a, w)
@@ -1773,7 +1756,6 @@ test ternary_gemm_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (82→83)
 test ternary_gemm_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_gemm_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1791,6 +1773,7 @@ test ternary_gemm_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_gemm_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_gemm_w342_depth_085: true
 
+}
 
 invariant ternary_gemm_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)

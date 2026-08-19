@@ -15,6 +15,64 @@ real divergence exits 1. Run:  python3 tools/verify_trainer_c.py
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 
+def _run_bin(cmd, what, cwd=None):
+    """Run a built binary and return its stdout, or None with the reason printed.
+
+    Taking `.stdout` without checking the exit code means a crash arrives as a
+    short or empty result list, which then surfaces as a NUMERIC MISMATCH between
+    targets -- the most alarming reading available, and the wrong one. A program
+    that died on signal 11 did not disagree about arithmetic.
+    """
+    r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
+                       capture_output=True, text=True, cwd=cwd)
+    if r.returncode == 0:
+        return r.stdout
+    sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
+    print(f"  {what}: exited {r.returncode}{sig}")
+    for line in (r.stderr or "").strip().splitlines()[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _gen(t27c, mode, spec, root):
+    """Run `t27c gen-<mode>` and return its output, or None with the reason printed.
+
+    Taking `.stdout` while checking neither the exit code nor stderr is how a spec
+    that failed to PARSE surfaced as "the C backend failed to build" for four days.
+    """
+    r = subprocess.run([t27c, "gen-" + mode, spec], capture_output=True, text=True, cwd=root)
+    if r.returncode == 0:
+        return r.stdout
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  t27c gen-{mode} {spec}: exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _build(cmd, cwd, what):
+    """Run a compiler and, if it fails, print what IT said before giving up.
+
+    Every caller below used to test `.returncode` on a capture_output=True run and
+    discard the message. That is how a missing brace in a spec came to be reported
+    as "the C backend failed to build" for four days: the compiler named the file,
+    the function, the line and the token, and the wrapper threw it away. A
+    diagnostic that names the wrong subsystem costs more than none.
+    """
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if r.returncode == 0:
+        return True
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  {what}: {os.path.basename(cmd[0])} exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:6]:
+        print(f"      {line}")
+    if len(out) > 6:
+        print(f"      ... {len(out) - 6} more line(s)")
+    return False
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]   # 2-layer, multi-output, deep
@@ -91,8 +149,9 @@ def run_c(g, reg, steps, init_pairs, n_in, n_out, seq, t27c, wd):
     """Emit the trainer as a C program (t27c gen-c primitives + microcode interpreter
     + modf), compile, run the same sequence. Returns per-step output tuples, or None
     on a build failure. gftmod.h is (re)written into wd."""
-    hdr = subprocess.run([t27c, "gen-c", "specs/ternary/gft_smul.t27"],
-                         capture_output=True, text=True, cwd=ROOT).stdout
+    hdr = _gen(t27c, "c", "specs/ternary/gft_smul.t27", ROOT)
+    if hdr is None:
+        return None
     if "GFTSMUL_H" not in hdr:
         return None
     open(os.path.join(wd, "gftmod.h"), "w").write(hdr)
@@ -135,10 +194,11 @@ int main(void){{
 """
     cf = os.path.join(wd, "trainer.c"); open(cf, "w").write(main)
     b = os.path.join(wd, "tbin")
-    r = subprocess.run(["cc", "-O2", "-o", b, cf], cwd=wd, capture_output=True, text=True)
-    if r.returncode != 0:
+    if not _build(["cc", "-O2", "-o", b, cf], wd, "trainer C"):
         return None
-    out = subprocess.run([b], capture_output=True, text=True).stdout
+    out = _run_bin(b, "trainer C run")
+    if out is None:
+        return None
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 

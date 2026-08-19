@@ -1,0 +1,48 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "TNF64",
+  "format_name": "TNF64",
+  "bitexact": true,
+  "format_notes": "GoldenFloat phi-aligned radix-2 float S1E7M56, bias 1093. IEEE-style specials at top exponent",
+  "catalog": {
+    "id": "tnf64",
+    "bits": 64,
+    "s": 1,
+    "e": 7,
+    "m": 56,
+    "bias": 1093,
+    "storage": "u64",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; e is 7 balanced-ternary TRITS not bits (11.09 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 7479 LUT 48.2 MHz, no DSP, 1 cycle",
+    "use_case": "fixed-field ternary-exponent ladder; no regime codec",
+    "gf_relation": "self",
+    "source": "specs/numeric/tnf64.t27",
+    "phi_distance": 0.42
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "anchor_check": {
+    "value": null,
+    "expected": 3.0,
+    "ieee754_exact": false,
+    "note": "3.0 is not an exact grid point of this format at this width"
+  },
+  "round_trip_policy": "decode: exact bits->f64 (curated_named). encode (reference): round-nearest-ties-even; overflow per format convention. abs_error 0 for representable values.",
+  "vector_mode": "curated_named",
+  "n_vectors": 1,
+  "vectors": [
+    {
+      "name": "pos_zero",
+      "input_f64": 0.0,
+      "input_f64_hex": "0x0000000000000000",
+      "tnf64_bits_hex": "0x0000000000000000",
+      "tnf64_bits_int": 0,
+      "decoded_f64": 0.0,
+      "decoded_f64_hex": "0x0000000000000000",
+      "abs_error": 0.0,
+      "category": "zero"
+    }
+  ]
+}

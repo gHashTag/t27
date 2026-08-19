@@ -7,12 +7,6 @@
 
 module igla-coder-bench-proxy;
 use base::types;
-// W613: `BeamCandidate` is declared in igla/coder/arch.t27 and was used here
-// with no import -- 20 of this file's errors. arch.t27 did not parse until
-// W606 (a function with no closing brace, plus a stray `}` 1,686 lines later),
-// so the splice had nothing to pull from. Not circular: arch does not import
-// bench_proxy.
-use igla::coder::arch;
 
 // ============================================================================
 // 1. Types
@@ -161,7 +155,7 @@ test evaluate_adder_fails_uart
     then passed == false
 
 test count_passed_empty
-    given results = []BenchResult {}
+    given results = []BenchResult{}
     when n = count_passed(results)
     then n == 0
 
@@ -211,7 +205,7 @@ test average_score_inner_single
     then acc == 0.75
 
 test count_passed_all_fail
-    given results = [BenchResult { passed: false }, BenchResult { passed: false }]
+    given results = [BenchResult { pass: false }, BenchResult { pass: false }]
     when c = count_passed(results)
     then c == 0
 
@@ -222,7 +216,7 @@ test compute_pass_at_1_empty_problems
     then p == 0.0
 
 test count_passed_all_pass
-    given results = [BenchResult { passed: true }, BenchResult { passed: true }]
+    given results = [BenchResult { pass: true }, BenchResult { pass: true }]
     when c = count_passed(results)
     then c == 2
 
@@ -269,8 +263,8 @@ test average_score_single_element
     when avg = average_score(scores)
     then avg == 0.75
 
-test count_passed_all_pass_v2
-    given results = [BenchResult { passed: true }, BenchResult { passed: true }]
+test count_passed_all_pass
+    given results = [BenchResult { pass: true }, BenchResult { pass: true }]
     when c = count_passed(results)
     then c == 2
 
@@ -300,7 +294,7 @@ test bench_proxy_evaluate_wrong_kw
     then ok == false
 
 test bench_proxy_count_passed_empty
-    given results = []BenchResult {}
+    given results = []BenchResult{}
     when c = count_passed(results)
     then c == 0
 
@@ -530,7 +524,7 @@ test bench_proxy_verilog_eval_problems_nonempty
     then len(problems) > 0
 
 test bench_proxy_count_passed_inner_empty_results_zero
-    given results = []BenchResult {}
+    given results = []BenchResult{}
     when c = count_passed_inner(results, 0, 0)
     then c == 0
 
@@ -621,7 +615,7 @@ test bench_proxy_score_beam_candidate_positive_penalty_lower
     then result.score < 0.5f32
 
 test bench_proxy_filter_passed_empty
-    given results = []BenchResult {}
+    given results = []BenchResult{}
     when passed = filter_passed(results)
     then passed.len() == 0
 
@@ -894,13 +888,13 @@ test bench_proxy_throughput_zero_ns_inf_w309
 
 invariant bench_proxy_throughput_thousand_ops_w309_inv:
     throughput(1000, 500) == 2.0
-test bench_proxy_throughput_thousand_ops_w309_v2
+test bench_proxy_throughput_thousand_ops_w309
     given ops = 1000
     given ns = 500
     when t = throughput(ops, ns)
     then t == 2.0
 
-test bench_proxy_throughput_zero_ns_inf_w309_v2
+test bench_proxy_throughput_zero_ns_inf_w309
     given ops = 100
     given ns = 0
     when t = throughput(ops, ns)
@@ -942,13 +936,13 @@ invariant bench_proxy_throughput_thousand_ops_w311_inv:
 
 
 
-test bench_proxy_throughput_thousand_ops_w311_v2
+test bench_proxy_throughput_thousand_ops_w311
     given ops = 1000
     given ns = 500
     when t = throughput(ops, ns)
     then t == 2.0
 
-test bench_proxy_throughput_zero_ns_inf_w311_v2
+test bench_proxy_throughput_zero_ns_inf_w311
     given ops = 100
     given ns = 0
     when t = throughput(ops, ns)
@@ -1238,7 +1232,6 @@ test bench_proxy_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (72→73)
 test bench_proxy_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1256,6 +1249,7 @@ test bench_proxy_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w342_depth_075: true
 
+}
 
 invariant bench_proxy_w339_depth_072: true
 // Wave Loop 343 -- depth +1 (75->76)

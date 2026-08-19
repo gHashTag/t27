@@ -16,7 +16,6 @@
 
 module igla-race-cordic-fixed;
 use base::types;
-use igla::race::cordic;   // W571: cordic_gain, tested here and declared there
 
 // ============================================================================
 // 1. Constants (Q14 scale = 16384)
@@ -121,58 +120,6 @@ fn cordic_sin(angle: i16) -> i16 {
 // ============================================================================
 // 4. Core: 8-iteration unrolled CORDIC -- returns cos
 // ============================================================================
-
-/// Cosine as a REAL number: the Q14 core result, divided by the CORDIC gain
-/// the core leaves in it.
-///
-/// W592: tested and never declared. `cordic_cos_fixed(0) == 1.0` fixes the
-/// scaling exactly -- `cordic_cos(0)` returns `CORDIC_GAIN_Q14` by construction
-/// (it is the seed `x0`), so dividing by that constant is the only lowering
-/// under which the spec's own assertion holds.
-/// Sine as a real number -- the companion of `cordic_cos_fixed`, same scaling.
-fn cordic_sin_fixed(angle: i16) -> f32 {
-    let raw = cordic_sin(angle);
-    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
-}
-
-/// Aliases the tests use for the same two projections (W592).
-fn cordic_fixed_cos(angle: i16) -> f32 {
-    return cordic_cos_fixed(angle);
-}
-
-fn cordic_fixed_sin(angle: i16) -> f32 {
-    return cordic_sin_fixed(angle);
-}
-
-fn cordic_cos_fixed(angle: i16) -> f32 {
-    let raw = cordic_cos(angle);
-    return (raw as f32) / (CORDIC_GAIN_Q14 as f32);
-}
-
-/// Tangent in the same Q14 units: sin / cos, guarded at the pole.
-///
-/// W592: tested and never declared. tan = sin/cos is the definition, and both
-/// are already implemented here in the same units, so the ratio needs no new
-/// arithmetic -- only the division and the cos == 0 guard.
-/// Truncating signed division (W593): Zig requires the rounding mode to be
-/// explicit for signed integers.
-fn div_trunc_i32(a: i32, b: i32) -> i32 {
-    if (b == 0) {
-        return 0;
-    }
-    return a / b;
-}
-
-fn cordic_tan(angle: i16) -> i16 {
-    let c = cordic_cos(angle);
-    if (c == 0) {
-        return 0;
-    }
-    let s = cordic_sin(angle);
-    // Signed division is spelled explicitly here because the ratio must
-    // truncate toward zero, matching the Q14 core's rounding.
-    return div_trunc_i32((s as i32) * 16384, c as i32) as i16;
-}
 
 fn cordic_cos(angle: i16) -> i16 {
     // Iteration 0
@@ -345,11 +292,11 @@ test cordic_fixed_shift_15_extreme
     when nx = cordic_x_next(x, y, z, shift)
     then nx == 100
 
-test cordic_fixed_sin_zero_v2
+test cordic_fixed_sin_zero
     when s = cordic_sin(0)
     then s == 0
 
-test cordic_fixed_cos_zero_v2
+test cordic_fixed_cos_zero
     when c = cordic_cos(0)
     then c > 16383
 
@@ -440,12 +387,12 @@ test cordic_fixed_cos_zero_q15
     when c = cordic_cos(a)
     then c == 16384
 
-test cordic_fixed_sin_pi_v2
+test cordic_fixed_sin_pi
     given a = 16384
     when s = cordic_sin(a)
     then s > -500 && s < 500
 
-test cordic_fixed_cos_pi_v2
+test cordic_fixed_cos_pi
     given a = 16384
     when c = cordic_cos(a)
     then c < -15800
@@ -455,7 +402,7 @@ test cordic_fixed_sin_negative
     when s = cordic_sin(a)
     then s < -16000
 
-test cordic_fixed_cos_half_pi_v2
+test cordic_fixed_cos_half_pi
     given a = 8192
     when c = cordic_cos(a)
     then c > -500 && c < 500
@@ -477,7 +424,7 @@ test cordic_fixed_min_i16_angle
     when c = cordic_cos(a)
     then s >= -16384 && s <= 16384 && c >= -16384 && c <= 16384
 
-test cordic_fixed_shift_15_extreme_v2
+test cordic_fixed_shift_15_extreme
     given x = 1000
     given y = 2000
     given z = 1
@@ -618,12 +565,12 @@ test cordic_fixed_y_next_y_zero
     when ny = cordic_y_next(y, x, z, shift)
     then ny == 500
 
-test cordic_fixed_sin_zero_angle_v2
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
 
-test cordic_fixed_cos_zero_angle_v2
+test cordic_fixed_cos_zero_angle
     given a = 0
     when c = cordic_cos(a)
     then c == 16384
@@ -688,22 +635,22 @@ test cordic_fixed_cos_quarter_pi
     when c = cordic_cos(a)
     then c > 11000 && c < 12000
 
-test cordic_fixed_sin_zero_angle_v3
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
 
-test cordic_fixed_cos_zero_angle_v3
+test cordic_fixed_cos_zero_angle
     given a = 0
     when c = cordic_cos(a)
     then c > 32760 && c < 32768
 
-test cordic_fixed_cos_half_pi_v3
-    given a = 8192   // W595: 0.5 PI in Q14 (1.0 = PI); every other test here passes the integer
+test cordic_fixed_cos_half_pi
+    given a = 0.5
     when c = cordic_cos(a)
     then c > 0 && c < 500
 
-test cordic_fixed_sin_zero_angle_v4
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
@@ -713,7 +660,7 @@ test cordic_fixed_cos_zero_exact
     when c = cordic_cos(a)
     then c == 9953
 
-test cordic_fixed_sin_quarter_pi_v2
+test cordic_fixed_sin_quarter_pi
     given a = 4096
     when s = cordic_sin(a)
     then s > 7000 && s < 8500
@@ -733,17 +680,17 @@ test cordic_fixed_cos_quarter_pi_approx
     when c = cordic_cos(a)
     then c > 7000 && c < 8500
 
-test cordic_fixed_sin_negative_angle_v2
+test cordic_fixed_sin_negative_angle
     given a = -4096
     when s = cordic_sin(a)
     then s < -7000 && s > -8500
 
-test cordic_fixed_cos_zero_angle_v4
+test cordic_fixed_cos_zero_angle
     given a = 0
     when c = cordic_cos(a)
     then c == 9953
 
-test cordic_fixed_sin_zero_angle_v5
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
@@ -753,7 +700,7 @@ test cordic_fixed_sin_cos_pythagorean_identity
     when ss = cordic_fixed_sin_cos_sum_squares(a)
     then ss > 260000000 && ss < 270000000
 
-test cordic_fixed_cos_negative_angle_v2
+test cordic_fixed_cos_negative_angle
     given a = -4096
     when c = cordic_cos(a)
     then c > 0
@@ -763,7 +710,7 @@ test cordic_fixed_sin_small_positive
     when s = cordic_sin(a)
     then s > 400 && s < 600
 
-test cordic_fixed_cos_zero_angle_exact_v2
+test cordic_fixed_cos_zero_angle_exact
     given a = 0
     when c = cordic_cos(a)
     then c == 16384
@@ -786,17 +733,17 @@ test cordic_fixed_x_next_negative_z
     when nx = cordic_x_next(x, y, z, shift)
     then nx == 125
 
-test cordic_fixed_sin_half_pi_v2
+test cordic_fixed_sin_half_pi
     given a = 8192
     when s = cordic_sin(a)
     then s > 9000 && s < 10000
 
-test cordic_fixed_cos_half_pi_v4
+test cordic_fixed_cos_half_pi
     given a = 8192
     when c = cordic_cos(a)
     then c > -1000 && c < 1000
 
-test cordic_fixed_sin_zero_angle_v6
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
@@ -822,7 +769,7 @@ test cordic_fixed_y_next_x_zero_returns_y
     when ny = cordic_y_next(y, x, z, shift)
     then ny == 200
 
-test cordic_fixed_cos_zero_angle_v5
+test cordic_fixed_cos_zero_angle
     given a = 0
     when c = cordic_cos(a)
     then c > 0
@@ -835,7 +782,7 @@ test cordic_fixed_y_next_negative_z
     when ny = cordic_y_next(y, x, z, shift)
     then ny == 125
 
-test cordic_fixed_sin_cos_sum_squares_zero_angle_v2
+test cordic_fixed_sin_cos_sum_squares_zero_angle
     given a = 0
     when s = cordic_sin(a)
     when c = cordic_cos(a)
@@ -849,7 +796,7 @@ test cordic_fixed_x_next_sign_preservation
     when nx = cordic_x_next(x, y, z, shift)
     then nx < 0
 
-test cordic_fixed_sin_zero_angle_v7
+test cordic_fixed_sin_zero_angle
     given a = 0
     when s = cordic_sin(a)
     then s == 0
@@ -975,12 +922,12 @@ test cordic_fixed_cordic_sin_zero_angle
     when s = cordic_sin(a)
     then s < 0.1 && s > -0.1
 
-test cordic_fixed_cordic_cos_negative_angle_v2
+test cordic_fixed_cordic_cos_negative_angle
     given a = cast_i16(-4096)
     when c = cordic_cos(a)
     then c > 0.5
 
-test cordic_fixed_cordic_sin_negative_angle_v2
+test cordic_fixed_cordic_sin_negative_angle
     given a = cast_i16(-4096)
     when s = cordic_sin(a)
     then s < -0.5
@@ -1019,7 +966,7 @@ test cordic_fixed_cordic_sin_small_positive
 invariant cordic_fixed_z_next_positive_z_subtracts_inv:
     cordic_z_next(100, 50) == 50
 
-test cordic_fixed_z_next_negative_z_adds_v2
+test cordic_fixed_z_next_negative_z_adds
     given z = -100
     given atan = 50
     when r = cordic_z_next(z, atan)
@@ -1351,12 +1298,12 @@ test cordic_fixed_cos_pi_over_two_w309
 
 invariant cordic_fixed_sin_pi_over_two_w309_inv:
     cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388
-test cordic_fixed_sin_pi_over_two_w309_v2
+test cordic_fixed_sin_pi_over_two_w309
     given a = 16384
     when s = cordic_sin(a)
     then s > 16380 && s < 16388
 
-test cordic_fixed_cos_pi_over_two_w309_v2
+test cordic_fixed_cos_pi_over_two_w309
     given a = 16384
     when c = cordic_cos(a)
     then c > -2 && c < 2
@@ -1393,12 +1340,12 @@ invariant cordic_fixed_sin_pi_over_two_w311_inv:
 
 
 
-test cordic_fixed_sin_pi_over_two_w311_v2
+test cordic_fixed_sin_pi_over_two_w311
     given a = 16384
     when s = cordic_sin(a)
     then s > 16380 && s < 16388
 
-test cordic_fixed_cos_pi_over_two_w311_v2
+test cordic_fixed_cos_pi_over_two_w311
     given a = 16384
     when c = cordic_cos(a)
     then c > -2 && c < 2
@@ -1669,7 +1616,6 @@ test cordic_fixed_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (84→85)
 test cordic_fixed_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_fixed_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1687,6 +1633,7 @@ test cordic_fixed_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_fixed_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_fixed_w342_depth_087: true
 
+}
 
 invariant cordic_fixed_w339_depth_084: true
 // Wave Loop 343 -- depth +1 (85->86)

@@ -7,18 +7,91 @@ Verilog == the independent Python GF-T model over a full training run; this prov
 C == model and Rust == model on the same random operands -- closing the
 "one spec -> any target, bit-exact" claim across {Verilog, C, Rust, model}.
 
-Self-contained + CI-friendly: SKIPs (exit 0) if t27c / a C compiler / rustc is
-missing; a real cross-target divergence exits 1. Run:
-    python3 tools/verify_multitarget.py
+Self-contained. Locally it SKIPs (exit 0) when t27c, a C compiler or rustc is
+absent, because a contributor without rustc should not be blocked. In CI that
+tolerance is wrong: the workflow builds t27c itself and the runner ships cc and
+rustc, so a skip there means the environment broke, and exit 0 makes "proved"
+indistinguishable from "never ran". Pass --require to turn every skip into a
+failure. A real cross-target divergence exits 1 in both modes.
+
+    python3 tools/verify_multitarget.py             # local, tolerant
+    python3 tools/verify_multitarget.py --require   # CI, asserts it actually ran
 """
 import os, sys, shutil, subprocess, tempfile, importlib.util, random
+
+def _run_bin(cmd, what, cwd=None):
+    """Run a built binary and return its stdout, or None with the reason printed.
+
+    Taking `.stdout` without checking the exit code means a crash arrives as a
+    short or empty result list, which then surfaces as a NUMERIC MISMATCH between
+    targets -- the most alarming reading available, and the wrong one. A program
+    that died on signal 11 did not disagree about arithmetic.
+    """
+    r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
+                       capture_output=True, text=True, cwd=cwd)
+    if r.returncode == 0:
+        return r.stdout
+    sig = f" (signal {-r.returncode})" if r.returncode < 0 else ""
+    print(f"  {what}: exited {r.returncode}{sig}")
+    for line in (r.stderr or "").strip().splitlines()[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _gen(t27c, mode, spec, root):
+    """Run `t27c gen-<mode>` and return its output, or None with the reason printed.
+
+    Taking `.stdout` while checking neither the exit code nor stderr is how a spec
+    that failed to PARSE surfaced as "the C backend failed to build" for four days.
+    """
+    r = subprocess.run([t27c, "gen-" + mode, spec], capture_output=True, text=True, cwd=root)
+    if r.returncode == 0:
+        return r.stdout
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  t27c gen-{mode} {spec}: exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:4]:
+        print(f"      {line}")
+    return None
+
+
+def _build(cmd, cwd, what):
+    """Run a compiler and, if it fails, print what IT said before giving up.
+
+    Every caller below used to test `.returncode` on a capture_output=True run and
+    discard the message. That is how a missing brace in a spec came to be reported
+    as "the C backend failed to build" for four days: the compiler named the file,
+    the function, the line and the token, and the wrapper threw it away. A
+    diagnostic that names the wrong subsystem costs more than none.
+    """
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if r.returncode == 0:
+        return True
+    out = (r.stderr or r.stdout or "").strip().splitlines()
+    print(f"  {what}: {os.path.basename(cmd[0])} exited {r.returncode}"
+          + ("" if out else " with no message"))
+    for line in out[:6]:
+        print(f"      {line}")
+    if len(out) > 6:
+        print(f"      ... {len(out) - 6} more line(s)")
+    return False
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECS = {"gft_smul": "smul", "gft_sadd": "sadd"}   # spec file -> top function
 N = 600
 
 
+REQUIRE = "--require" in sys.argv
+
+
 def skip(msg):
+    if REQUIRE:
+        print(f"FAIL verify_multitarget: {msg}")
+        print("  --require was given, so a missing prerequisite is a failure, not a skip.")
+        print("  The CI job builds t27c and the runner ships cc and rustc; if one is")
+        print("  absent the environment is broken and this check did not run.")
+        sys.exit(1)
     print(f"SKIP verify_multitarget: {msg}")
     sys.exit(0)
 
@@ -51,8 +124,9 @@ def py_ref(g, fn, pairs):
 
 
 def run_c(t27c, spec, fn, pairs, wd):
-    hdr = subprocess.run([t27c, "gen-c", f"specs/ternary/{spec}.t27"],
-                         capture_output=True, text=True, cwd=ROOT).stdout
+    hdr = _gen(t27c, "c", f"specs/ternary/{spec}.t27", ROOT)
+    if hdr is None:
+        return None
     if "GFTSMUL_H" not in hdr and "GFTSADD_H" not in hdr:
         return None
     open(os.path.join(wd, "mod.h"), "w").write(hdr)
@@ -63,26 +137,29 @@ def run_c(t27c, spec, fn, pairs, wd):
             f'uint32_t A[]={{{a}}},B[]={{{b}}};int n={len(pairs)};'
             f'for(int i=0;i<n;i++)printf("%u\\n",(unsigned){fn}(A[i],B[i]));return 0;}}')
     open(os.path.join(wd, "main.c"), "w").write(main)
-    if subprocess.run(["cc", "-O2", "-o", os.path.join(wd, "cbin"), os.path.join(wd, "main.c")],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["cc", "-O2", "-o", os.path.join(wd, "cbin"), os.path.join(wd, "main.c")], wd, "C target"):
         return None
-    out = subprocess.run([os.path.join(wd, "cbin")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "cbin"), "C target run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 
 def run_rust(t27c, spec, fn, pairs, wd):
-    src = subprocess.run([t27c, "gen-rust", f"specs/ternary/{spec}.t27"],
-                         capture_output=True, text=True, cwd=ROOT).stdout
+    src = _gen(t27c, "rust", f"specs/ternary/{spec}.t27", ROOT)
+    if src is None:
+        return None
     if "fn " not in src:
         return None
     a = ",".join(str(x) for x, _ in pairs); b = ",".join(str(y) for _, y in pairs)
     src += (f'\nfn main(){{let a:[u32;{len(pairs)}]=[{a}];let b:[u32;{len(pairs)}]=[{b}];'
             f'for i in 0..a.len(){{println!("{{}}",{fn}(a[i],b[i]) as u32);}}}}\n')
     rs = os.path.join(wd, "m.rs"); open(rs, "w").write(src)
-    if subprocess.run(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rbin"), rs],
-                      cwd=wd, capture_output=True, text=True).returncode != 0:
+    if not _build(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "rbin"), rs], wd, "Rust target"):
         return None
-    out = subprocess.run([os.path.join(wd, "rbin")], capture_output=True, text=True).stdout
+    out = _run_bin(os.path.join(wd, "rbin"), "Rust target run")
+    if out is None:
+        return None
     return [int(x) for x in out.split()]
 
 

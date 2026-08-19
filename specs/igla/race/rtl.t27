@@ -9,13 +9,6 @@ module igla-race-rtl;
 use base::types;
 use math::constants;
 use igla::race::backend;
-// W614: this file uses `eval::has_substring(...)` and friends but never
-// imported the module. `use_resolve` rewrites a qualified reference to the bare
-// name ONLY when the declaration is pulled or local, so an unimported module
-// left the `::` in place and codegen lowered it to an undeclared `eval.`
-// namespace. Not circular: eval imports base::types, math::constants and
-// igla::race::backend -- none of them this file.
-use igla::coder::eval;
 
 // ============================================================================
 // 1. RTL Generation Constants
@@ -452,15 +445,7 @@ test rtl_bits_to_u64_empty
     when val = rtl_bits_to_u64(bits)
     then val == 0
 
-// W613: DISABLED, not deleted -- this bench cannot be lowered by any backend:
-//     bench rtl_module_exists: module(name).exists == true
-// `module` is a t27 KEYWORD and cannot name a function; no `exists` field or
-// function is declared anywhere in the corpus; and `name` is not bound in this
-// scope. It is the ONLY parse blocker in this 2,109-line file, and the file
-// declares `RtlModule` and `Assignment` -- 53 `undeclared identifier` errors in
-// OTHER specs trace to this one line, because use_resolve only splices from
-// dependencies that parse.
-// Restoring it needs an owner to say what it was meant to assert.
+bench rtl_module_exists: module(name).exists == true
 test rtl_emit_verilog_with_instances
     given mod = RtlModule {
         name: "inst_test",
@@ -528,9 +513,8 @@ test rtl_emit_verilog_instance_port_map
     invariant rtl_phi_identity:
     1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 bench emit_verilog_1k_assigns
-    // W608: `module` is a t27 KEYWORD and cannot name a binding.
-    given rtl_module = mock_module(1000)
-    measure emit_verilog(rtl_module)
+    given module = mock_module(1000)
+    measure emit_verilog(module)
     target latency_ms < 50.0
 
 test rtl_r_si_1_exactly_one_mul_violation
@@ -619,9 +603,8 @@ test rtl_bits_to_u64_all_zeros
     then val == 0
 
 bench r_si_1_check_1k_assigns
-    // W608: `module` is a t27 KEYWORD and cannot name a binding.
-    given rtl_module = mock_module(1000)
-    measure is_r_si_1_compliant(rtl_module)
+    given module = mock_module(1000)
+    measure is_r_si_1_compliant(module)
     target latency_ms < 10.0
 
 
@@ -704,12 +687,12 @@ test rtl_emit_verilog_single_input
     when v = emit_verilog(mod)
     then contains_substring(v, "input")
 
-test rtl_bits_to_u64_all_zeros_v2
+test rtl_bits_to_u64_all_zeros
     given bits = [0,0,0,0,0,0,0,0]
     when v = bits_to_u64(bits)
     then v == 0
 
-test rtl_bits_to_u64_all_ones_v2
+test rtl_bits_to_u64_all_ones
     given bits = [1,1,1,1,1,1,1,1]
     when v = bits_to_u64(bits)
     then v == 255
@@ -719,7 +702,7 @@ test rtl_count_mul_ops_in_comment
     when n = count_mul_ops(expr)
     then n == 0
 
-test rtl_bits_to_u64_single_one_v2
+test rtl_bits_to_u64_single_one
     given bits = [0,0,0,0,0,0,0,1]
     when v = bits_to_u64(bits)
     then v == 1
@@ -739,12 +722,12 @@ test rtl_count_mul_ops_no_star
     when n = count_mul_ops(expr)
     then n == 0
 
-test rtl_bits_to_u64_single_one_v3
+test rtl_bits_to_u64_single_one
     given bits = [0,0,0,0,0,0,0,1]
     when v = bits_to_u64(bits)
     then v == 1
 
-test rtl_count_mul_ops_star_in_string_v2
+test rtl_count_mul_ops_star_in_string
     given expr = "a * b"
     when n = count_mul_ops(expr)
     then n == 1
@@ -754,12 +737,12 @@ test rtl_count_mul_ops_two_stars
     when n = count_mul_ops(expr)
     then n == 2
 
-test rtl_bits_to_u64_single_bit_one_v2
+test rtl_bits_to_u64_single_bit_one
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
 
-test rtl_bits_to_u64_all_zeros_v3
+test rtl_bits_to_u64_all_zeros
     given bits = [0, 0, 0]
     when val = bits_to_u64(bits)
     then val == 0
@@ -769,12 +752,12 @@ test rtl_bits_to_u64_two_bits
     when val = bits_to_u64(bits)
     then val == 5
 
-test rtl_bits_to_u64_single_one_v4
+test rtl_bits_to_u64_single_one
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
 
-test rtl_bits_to_u64_empty_v2
+test rtl_bits_to_u64_empty
     given bits = []u8{}
     when val = bits_to_u64(bits)
     then val == 0
@@ -784,7 +767,7 @@ test rtl_bits_to_u64_overflow_guard
     when val = bits_to_u64(bits)
     then val == 1023
 
-test emit_verilog_empty_module_v2
+test emit_verilog_empty_module
     given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
     when v = emit_verilog(mod)
     then v.len() > 0
@@ -820,7 +803,7 @@ test rtl_emit_verilog_contains_endmodule
     when v = emit_verilog(mod)
     then contains_substring(v, "endmodule")
 
-test rtl_bits_to_u64_single_zero_bit_v2
+test rtl_bits_to_u64_single_zero_bit
     given bits = [0]
     when val = bits_to_u64(bits)
     then val == 0
@@ -1019,7 +1002,7 @@ invariant rtl_count_mul_ops_single:
 invariant rtl_count_mul_ops_empty_zero_inv:
     count_mul_ops("") == 0
 
-invariant rtl_count_mul_ops_nonnegative_v2
+invariant rtl_count_mul_ops_nonnegative
     forall s : string
     count_mul_ops(s) >= 0
 
@@ -1057,7 +1040,7 @@ invariant rtl_generate_sacred_module_inputs_nonempty_inv:
     forall op : u8, config : RtlGenConfig
     generate_sacred_module(op, config).inputs.len() >= 0
 
-test rtl_count_mul_ops_empty_zero_v2
+test rtl_count_mul_ops_empty_zero
     given expr = ""
     when n = count_mul_ops(expr)
     then n == 0
@@ -1067,7 +1050,7 @@ test rtl_emit_verilog_empty_module_has_module
     when v = emit_verilog(m)
     then v.len() > 0
 
-test rtl_emit_verilog_empty_module_has_endmodule_v2
+test rtl_emit_verilog_empty_module_has_endmodule
     given m = RtlModule { name: "test", inputs: []Signal{}, outputs: []Signal{}, wires: []Signal{}, assigns: []Assignment{}, instances: []Instance{}, sacred_chain: []u8{} }
     when v = emit_verilog(m)
     then contains_substring(v, "endmodule")
@@ -1118,7 +1101,7 @@ test rtl_emit_verilog_empty_module_no_crash
     when v = emit_verilog(mod)
     then v.len() > 0 && contains_substring(v, "endmodule")
 
-test rtl_bits_to_u64_single_one_v5
+test rtl_bits_to_u64_single_one
     given bits = [1]
     when val = bits_to_u64(bits)
     then val == 1
@@ -1469,19 +1452,19 @@ test rtl_bits_to_u64_five_ones_thirtyone_w309
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w309_v2
+test rtl_bits_to_u64_six_ones_sixtythree_w309
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63
 
 invariant rtl_bits_to_u64_five_ones_thirtyone_w309_inv:
     bits_to_u64([1, 1, 1, 1, 1]) == 31
-test rtl_bits_to_u64_five_ones_thirtyone_w309_v2
+test rtl_bits_to_u64_five_ones_thirtyone_w309
     given bits = [1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w309_v3
+test rtl_bits_to_u64_six_ones_sixtythree_w309
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63
@@ -1518,12 +1501,12 @@ invariant rtl_bits_to_u64_five_ones_thirtyone_w311_inv:
 
 
 
-test rtl_bits_to_u64_five_ones_thirtyone_w311_v2
+test rtl_bits_to_u64_five_ones_thirtyone_w311
     given bits = [1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 31
 
-test rtl_bits_to_u64_six_ones_sixtythree_w311_v2
+test rtl_bits_to_u64_six_ones_sixtythree_w311
     given bits = [1, 1, 1, 1, 1, 1]
     when val = bits_to_u64(bits)
     then val == 63
@@ -1794,7 +1777,6 @@ test rtl_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test rtl_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1812,6 +1794,7 @@ test rtl_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w342_depth_086: true
 
+}
 
 invariant rtl_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

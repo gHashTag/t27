@@ -64,28 +64,6 @@ pub fn reward_syntax(step: Step, language: string) -> RewardSignal {
 
 /// Detect whether rhs contains a multiplication operator '*'.
 /// Skips comments (//) and avoids matching inside identifiers.
-/// Saturate a value into the signed 8-bit range.
-///
-/// W611: called in this file and declared nowhere in the corpus -- 53 of the
-/// 886 `use of undeclared identifier` errors across IGLA. Written from its own
-/// tests, which determine it completely:
-///
-///     param_bounds_saturate(-200) == -128        (below the range)
-///     param_bounds_saturate( 200) ==  127        (above it)
-///     param_bounds_saturate(   0) ==    0        (inside, identity)
-///     param_bounds_saturate( 127) ==  127        (at the boundary)
-///
-/// with the invariant `val < -128 ==> param_bounds_saturate(val) == -128`.
-fn param_bounds_saturate(val: i32) -> i32 {
-    if (val < -128) {
-        return -128;
-    }
-    if (val > 127) {
-        return 127;
-    }
-    return val;
-}
-
 fn contains_multiply_in_rhs(rhs: string) -> bool {
     return contains_multiply_in_rhs_inner(rhs, 0, false);
 }
@@ -1296,12 +1274,12 @@ invariant prm_param_bounds_saturate_max_boundary_identity_w311_inv:
 
 
 
-test prm_param_bounds_saturate_max_boundary_identity_w311_v2
+test prm_param_bounds_saturate_max_boundary_identity_w311
     given val = 127
     when result = param_bounds_saturate(val)
     then result == 127
 
-test prm_select_top_empty_empty_w311_v2
+test prm_select_top_empty_empty_w311
     given scores = []
     given k = 0
     when indices = select_top(scores, k)
@@ -1582,7 +1560,6 @@ test prm_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (73→74)
 test prm_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test prm_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1600,6 +1577,7 @@ test prm_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test prm_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant prm_w342_depth_076: true
 
+}
 
 invariant prm_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

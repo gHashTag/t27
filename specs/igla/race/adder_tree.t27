@@ -26,67 +26,27 @@ pub const Vec8 = struct {
 // 2. Binary Tree Adder
 // ============================================================================
 
-/// ## Arithmetic: wrapping, deliberately
-///
-/// W573: these adders model FPGA datapath adders, which wrap by width -- there
-/// is no trap in an LUT carry chain. This spec's own tests assert that:
-/// `adder_tree_4(2147483647, 2, 0, 0) == -2147483647`. Plain `+` in t27 keeps
-/// Zig's trapping semantics (see docs/NOW.md, wrapping-operator family), so the
-/// software backends panicked where the hardware wraps.
-///
-/// The Verilog backend collapses `+%` to `+` (hardware wraps by width), so the
-/// generated RTL is byte-identical -- only the software backends change, and
-/// only for inputs that overflow.
-
 /// 8-input binary tree adder.
 /// Stage 1: 4 pairwise adds
 /// Stage 2: 2 adds
 /// Stage 3: final add
 fn adder_tree_8(v: Vec8) -> i32 {
-    let s1_0 = v.v0 +% v.v1;
-    let s1_1 = v.v2 +% v.v3;
-    let s1_2 = v.v4 +% v.v5;
-    let s1_3 = v.v6 +% v.v7;
+    let s1_0 = v.v0 + v.v1;
+    let s1_1 = v.v2 + v.v3;
+    let s1_2 = v.v4 + v.v5;
+    let s1_3 = v.v6 + v.v7;
 
-    let s2_0 = s1_0 +% s1_1;
-    let s2_1 = s1_2 +% s1_3;
+    let s2_0 = s1_0 + s1_1;
+    let s2_1 = s1_2 + s1_3;
 
-    return s2_0 +% s2_1;
+    return s2_0 + s2_1;
 }
 
 /// 4-input binary tree adder (subset for smaller blocks).
 fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
-    let s1_0 = v0 +% v1;
-    let s1_1 = v2 +% v3;
-    return s1_0 +% s1_1;
-}
-
-/// N-input adder over a slice -- the general form the 2/4/8-input trees are
-/// fixed-width specialisations of.
-///
-/// W571: its tests determine it exactly -- `adder_tree([0, 0, 0, 0]) == 0` and
-/// `adder_tree([1, 1, 1, 1, 1, 1, 1, 1]) == 8`.
-fn adder_tree_inner(v: []i32, idx: u32, acc: i32) -> i32 {
-    if (idx >= v.len()) {
-        return acc;
-    }
-    return adder_tree_inner(v, idx + 1, adder_tree_2(acc, v[idx]));
-}
-
-fn adder_tree(v: []i32) -> i32 {
-    return adder_tree_inner(v, 0, 0);
-}
-
-/// 2-input adder -- the leaf stage of the tree, and the base case the 4- and
-/// 8-input forms are built from.
-///
-/// W570: this spec has tested `adder_tree_2` since it was written and never
-/// declared it, so every test in the file was blocked on an undeclared
-/// identifier. The definition is the one its own tests require:
-/// `adder_tree_2(3, 4) == 7` and the invariant
-/// `adder_tree_2(a, b) == adder_tree_2(b, a)`.
-fn adder_tree_2(v0: i32, v1: i32) -> i32 {
-    return v0 +% v1;
+    let s1_0 = v0 + v1;
+    let s1_1 = v2 + v3;
+    return s1_0 + s1_1;
 }
 
 // ============================================================================
@@ -190,7 +150,7 @@ test adder_tree_2_basic
     when sum = adder_tree_2(a, b)
     then sum == 7
 
-test adder_tree_8_zero_v2
+test adder_tree_8_zero
     given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
     when sum = adder_tree_8(v)
     then sum == 0
@@ -432,7 +392,7 @@ test adder_tree_2_positive_negative_cancel
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones_v2
+test adder_tree_8_all_ones
     given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
     when sum = adder_tree_8(v)
     then sum == 8
@@ -502,7 +462,7 @@ test adder_tree_4_all_negative
     when sum = adder_tree_4(a, b, c, d)
     then sum == -10
 
-test adder_tree_2_max_i32_v2
+test adder_tree_2_max_i32
     given a = 2147483647
     given b = 0
     when sum = adder_tree_2(a, b)
@@ -573,7 +533,7 @@ test adder_tree_2_large_neg_plus_pos
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_zeros_v2
+test adder_tree_8_all_zeros
     given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
     when sum = adder_tree_8(v)
     then sum == 0
@@ -616,7 +576,7 @@ test adder_tree_2_symmetric_bounds
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones_v3
+test adder_tree_8_all_ones
     given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
     when sum = adder_tree_8(v)
     then sum == 8
@@ -662,12 +622,12 @@ test adder_tree_2_zero_operands
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-test adder_tree_8_all_ones_v4
+test adder_tree_8_all_ones
     given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
     when sum = adder_tree_8(v)
     then sum == 8
 
-test adder_tree_4_mixed_signs_v2
+test adder_tree_4_mixed_signs
     given a = 5
     given b = -3
     given c = 7
@@ -753,7 +713,7 @@ test adder_tree_4_negative_inputs
     when s = adder_tree_4(a, b, c, d)
     then s == -10
 
-test adder_tree_8_all_ones_v5
+test adder_tree_8_all_ones
     given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
     when s = adder_tree_8(v)
     then s == 8
@@ -884,7 +844,7 @@ invariant adder_tree_4_commutative_permutation_inv:
     forall a : i32, b : i32, c : i32, d : i32
     adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
 
-test adder_tree_4_negative_inputs_v2
+test adder_tree_4_negative_inputs
     given a = -5
     given b = 3
     given c = -2
@@ -908,12 +868,12 @@ test adder_tree_4_single_negative
     when s = adder_tree_4(a, b, c, d)
     then s == -7
 
-test adder_tree_8_all_zero_v2
+test adder_tree_8_all_zero
     given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
     when s = adder_tree_8(v)
     then s == 0
 
-test adder_tree_8_all_ones_v6
+test adder_tree_8_all_ones
     given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
     when s = adder_tree_8(v)
     then s == 8
@@ -932,7 +892,7 @@ test adder_tree_4_all_positive
     when s = adder_tree_4(a, b, c, d)
     then s == 10
 
-test adder_tree_4_mixed_signs_v3
+test adder_tree_4_mixed_signs
     given a = 5
     given b = -3
     given c = 2
@@ -1028,7 +988,7 @@ invariant adder_tree_8_stage_decomposition_inv:
     adder_tree_8(Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h })
     == adder_tree_4(a, b, c, d) + adder_tree_4(e, f, g, h)
 
-test adder_tree_4_zero_plus_any_identity_v2
+test adder_tree_4_zero_plus_any_identity
     given a = 0
     given b = 42
     given c = 0
@@ -1317,12 +1277,12 @@ test adder_tree_4_mixed_large_sum_w309
 
 invariant adder_tree_4_all_negative_sum_w309_inv:
     adder_tree([-1, -2, -3, -4]) == -10
-test adder_tree_4_all_negative_sum_w309_v2
+test adder_tree_4_all_negative_sum_w309
     given inputs = [-1, -2, -3, -4]
     when sum = adder_tree(inputs)
     then sum == -10
 
-test adder_tree_4_mixed_large_sum_w309_v2
+test adder_tree_4_mixed_large_sum_w309
     given inputs = [100, -50, 25, -75]
     when sum = adder_tree(inputs)
     then sum == 0
@@ -1359,12 +1319,12 @@ invariant adder_tree_4_all_negative_sum_w311_inv:
 
 
 
-test adder_tree_4_all_negative_sum_w311_v2
+test adder_tree_4_all_negative_sum_w311
     given inputs = [-1, -2, -3, -4]
     when sum = adder_tree(inputs)
     then sum == -10
 
-test adder_tree_4_mixed_large_sum_w311_v2
+test adder_tree_4_mixed_large_sum_w311
     given inputs = [100, -50, 25, -75]
     when sum = adder_tree(inputs)
     then sum == 0
@@ -1635,7 +1595,6 @@ test adder_tree_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (82→83)
 test adder_tree_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test adder_tree_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1653,6 +1612,7 @@ test adder_tree_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test adder_tree_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant adder_tree_w342_depth_085: true
 
+}
 
 invariant adder_tree_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)

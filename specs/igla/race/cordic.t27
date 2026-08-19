@@ -82,28 +82,6 @@ fn sqrt_approx_inner(x: f32, guess: f32, iter: u32) -> f32 {
     return sqrt_approx_inner(x, next, iter + 1);
 }
 
-/// Square root with an explicit iteration budget -- the same Newton step as
-/// `sqrt_approx`, bounded by the caller rather than by the fixed 20.
-///
-/// W592: tested since this spec was written and never declared.
-/// `cordic_sqrt_approx(9.0, 8)` must land in [2.9, 3.1] and
-/// `cordic_sqrt_approx(16.0, 8)` in [3.9, 4.1] -- both properties of Newton
-/// iteration from a unit guess, which converges well inside eight steps.
-fn cordic_sqrt_approx_inner(x: f32, guess: f32, iter: u32, n: u32) -> f32 {
-    if (iter >= n) {
-        return guess;
-    }
-    let next = 0.5 * (guess + x / guess);
-    return cordic_sqrt_approx_inner(x, next, iter + 1, n);
-}
-
-fn cordic_sqrt_approx(x: f32, iterations: u32) -> f32 {
-    if (x <= 0.0) {
-        return 0.0;
-    }
-    return cordic_sqrt_approx_inner(x, 1.0, 0, iterations);
-}
-
 fn sqrt_approx(x: f32) -> f32 {
     if (x <= 0.0) {
         return 0.0;
@@ -138,38 +116,10 @@ fn cordic_gain_inner(i: u32, n: u32, acc: f32) -> f32 {
 //   x[i+1] = x[i] - sign(z) * (y[i] * pow2_neg[i])
 //   y[i+1] = y[i] + sign(z) * (x[i] * pow2_neg[i])
 //   z[i+1] = z[i] - sign(z) * arctan(2^-i)
-// W596: the return type is NAMED, because every test that consumes it accesses
-// `result.sin` / `result.cos`. t27 has had named-tuple syntax since at least
-// W584; the Zig backend learned to lower it this wave.
-// W598: this binding was INVERTED. `cordic_inner` returns `(x, y)` and, seeded
-// with (x=K, y=0, z=angle), the rotation above drives x -> cos(angle) and
-// y -> sin(angle) -- which is why every other caller in this file names the
-// result `(nx, ny)`. Binding it `(s, c)` handed the cosine to `sin` and the
-// sine to `cos`, so `cordic_sin_cos(0, 8)` reported sin=0.999975, cos=0.007032.
-// The mistake was invisible for as long as the spec did not compile.
-fn cordic_sin_cos(angle: f32, iterations: u8) -> (sin: []f32, cos: []f32) {
+fn cordic_sin_cos(angle: f32, iterations: u8) -> ([]f32, []f32) {
     let gain = cordic_gain(iterations);
-    let (c, s) = cordic_inner(gain, 0.0, angle, 0, iterations);
+    let (s, c) = cordic_inner(gain, 0.0, angle, 0, iterations);
     return ([s], [c]);
-}
-
-/// Scalar sine -- the first element of the sine vector `cordic_sin_cos`
-/// returns.
-///
-/// W571: tested since this spec was written and never declared, so every test
-/// in the file was blocked on an undeclared identifier. Its own tests
-/// determine it: `cordic_sin(pi, 12)` must satisfy `abs_f32(s) < 0.01` and
-/// `cordic_sin(0.001, 12)` must land in `(0.0, 0.002)` -- both properties of
-/// `cordic_sin_cos(angle, iters).0[0]`.
-fn cordic_sin(angle: f32, iterations: u8) -> f32 {
-    let (s_arr, c_arr) = cordic_sin_cos(angle, iterations);
-    return s_arr[0];
-}
-
-/// Scalar cosine -- the companion of `cordic_sin`.
-fn cordic_cos(angle: f32, iterations: u8) -> f32 {
-    let (s_arr, c_arr) = cordic_sin_cos(angle, iterations);
-    return c_arr[0];
 }
 
 fn cordic_inner(x: f32, y: f32, z: f32, i: u8, n: u8) -> (f32, f32) {
@@ -326,7 +276,7 @@ test cordic_sin_zero
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(s[0]) < 0.01
 
-test cordic_cos_zero_v2
+test cordic_cos_zero
     given angle = 0.0
     given iters = 8
     when (s, c) = cordic_sin_cos(angle, iters)
@@ -344,13 +294,13 @@ test cordic_cos_quarter_pi
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(c[0] - 0.70710678) < 0.01
 
-test cordic_sin_half_pi_v2
+test cordic_sin_half_pi
     given angle = 1.5707963267948966
     given iters = 12
     when (s, c) = cordic_sin_cos(angle, iters)
     then abs_f32(s[0] - 1.0) < 0.01
 
-test cordic_cos_half_pi_v2
+test cordic_cos_half_pi
     given angle = 1.5707963267948966
     given iters = 12
     when (s, c) = cordic_sin_cos(angle, iters)
@@ -583,7 +533,7 @@ test cordic_pow2_neg_entry_one
     then val == 0.5
 
 test cordic_gain_value
-    when g = cordic_gain(16)   // W575: `fn cordic_gain(iterations: u32)`; 16 is this spec's own declared upper bound
+    when g = cordic_gain()
     then g > 0.6 && g < 0.61
 
 test cordic_sqrt_approx_nine
@@ -627,7 +577,7 @@ test cordic_arctan_table_entry_boundary
     when val = arctan_table_entry(i)
     then val > 0.0 && val < 0.001
 
-test cordic_sqrt_approx_zero_v2
+test cordic_sqrt_approx_zero
     given x = 0.0
     when r = sqrt_approx(x)
     then r == 0.0
@@ -638,7 +588,7 @@ test cordic_sin_small_angle
     when s = cordic_sin(angle, iters)
     then s > 0.0 && s < 0.002
 
-test cordic_pow2_neg_entry_zero_v2
+test cordic_pow2_neg_entry_zero
     given i = 0
     when val = pow2_neg_entry(i)
     then val == 1.0
@@ -648,7 +598,7 @@ test cordic_arctan_table_entry_first
     when val = arctan_table_entry(i)
     then val > 0.78 && val < 0.79
 
-test cordic_pow2_neg_entry_one_v2
+test cordic_pow2_neg_entry_one
     given i = 1
     when val = pow2_neg_entry(i)
     then val == 0.5
@@ -658,7 +608,7 @@ test cordic_arctan_table_entry_second
     when val = arctan_table_entry(i)
     then val > 0.46 && val < 0.47
 
-test cordic_arctan_table_entry_zero_v2
+test cordic_arctan_table_entry_zero
     given i = 0
     when val = arctan_table_entry(i)
     then val > 0.78 && val < 0.79
@@ -673,7 +623,7 @@ test cordic_arctan_table_entry_max
     when val = arctan_table_entry(i)
     then val > 0.0 && val < 0.001
 
-test cordic_arctan_table_entry_first_v2
+test cordic_arctan_table_entry_first
     given i = 1
     when val = arctan_table_entry(i)
     then val > 0.46 && val < 0.47
@@ -682,12 +632,12 @@ test cordic_gain_boundary
     given g = cordic_gain(16)
     then g > 0.6073 && g < 0.6074
 
-test cordic_pow2_neg_entry_zero_v3
+test cordic_pow2_neg_entry_zero
     given i = 0
     when val = pow2_neg_entry(i)
     then val == 1.0
 
-test cordic_pow2_neg_entry_one_v3
+test cordic_pow2_neg_entry_one
     given i = 1
     when val = pow2_neg_entry(i)
     then val == 0.5
@@ -697,7 +647,7 @@ test cordic_arctan_table_entry_mid
     when val = arctan_table_entry(i)
     then val > 0.007 && val < 0.008
 
-test cordic_pow2_neg_entry_two_v2
+test cordic_pow2_neg_entry_two
     given i = 2
     when val = pow2_neg_entry(i)
     then val == 0.25
@@ -898,7 +848,7 @@ test cordic_arctan_table_entry_0_is_pi_over_4
     when v = arctan_table_entry(i)
     then v > 0.78 && v < 0.79
 
-test cordic_sin_cos_pi_over_2_approx_v2
+test cordic_sin_cos_pi_over_2_approx
     given angle = 1.5707963267948966
     given iters = 8
     when result = cordic_sin_cos(angle, iters)
@@ -913,7 +863,7 @@ test cordic_gain_max_iterations
     when g = cordic_gain(iters)
     then g > 0.607 && g < 0.608
 
-test cordic_pow2_neg_entry_0_is_one_v2
+test cordic_pow2_neg_entry_0_is_one
     given i = 0
     when v = pow2_neg_entry(i)
     then v == 1.0
@@ -921,7 +871,7 @@ test cordic_pow2_neg_entry_0_is_one_v2
 invariant cordic_pow2_neg_entry_0_is_one_inv:
     pow2_neg_entry(0) == 1.0
 
-test cordic_gain_zero_iterations_v2
+test cordic_gain_zero_iterations
     given iters = 0
     when g = cordic_gain(iters)
     then g == 1.0
@@ -991,7 +941,7 @@ test cordic_pow2_neg_entry_7_onetwentyeighth
     when v = pow2_neg_entry(i)
     then v == 0.0078125
 
-test cordic_sin_zero_exact_v2
+test cordic_sin_zero_exact
     given angle = 0.0
     given iters = 8
     when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
@@ -1334,12 +1284,12 @@ test cordic_sqrt_approx_two_five_approx_one_four_w309
 
 invariant cordic_sqrt_approx_sixteen_four_exact_w309_inv:
     sqrt_approx(16.0) == 4.0
-test cordic_sqrt_approx_sixteen_four_exact_w309_v2
+test cordic_sqrt_approx_sixteen_four_exact_w309
     given x = 16.0
     when r = sqrt_approx(x)
     then r == 4.0
 
-test cordic_sqrt_approx_two_five_approx_one_four_w309_v2
+test cordic_sqrt_approx_two_five_approx_one_four_w309
     given x = 2.0
     when r = sqrt_approx(x)
     then r > 1.3 && r < 1.5
@@ -1376,12 +1326,12 @@ invariant cordic_sqrt_approx_sixteen_four_exact_w311_inv:
 
 
 
-test cordic_sqrt_approx_sixteen_four_exact_w311_v2
+test cordic_sqrt_approx_sixteen_four_exact_w311
     given x = 16.0
     when r = sqrt_approx(x)
     then r == 4.0
 
-test cordic_sqrt_approx_two_five_approx_one_four_w311_v2
+test cordic_sqrt_approx_two_five_approx_one_four_w311
     given x = 2.0
     when r = sqrt_approx(x)
     then r > 1.3 && r < 1.5
@@ -1652,7 +1602,6 @@ test cordic_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test cordic_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1670,6 +1619,7 @@ test cordic_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_w342_depth_086: true
 
+}
 
 invariant cordic_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

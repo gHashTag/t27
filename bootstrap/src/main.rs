@@ -1082,9 +1082,7 @@ enum Commands {
         #[arg(long)]
         verify: bool,
 
-        /// Seal even when the spec produces no generated output for any
-        /// backend. Such a seal certifies nothing and verifies green, so this
-        /// is refused by default.
+        /// Seal even when a backend rejected the spec, recording gen_hash=none
         #[arg(long)]
         force: bool,
     },
@@ -2866,21 +2864,34 @@ async fn seal_handler(
 ) -> impl IntoResponse {
     let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
 
+    let mut gen_failures: Vec<serde_json::Value> = Vec::new();
     let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "zig", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "verilog", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "c", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
     let gen_hash_rust = match compiler::Compiler::compile_rust(&req.source) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            gen_failures.push(serde_json::json!({"backend": "rust", "error": e.to_string()}));
+            "none".to_string()
+        }
     };
 
     let output = serde_json::json!({
@@ -2889,6 +2900,9 @@ async fn seal_handler(
         "gen_hash_verilog": gen_hash_verilog,
         "gen_hash_c": gen_hash_c,
         "gen_hash_rust": gen_hash_rust,
+        // Additive: existing consumers keep their fields; new ones can see WHY a
+        // hash is "none" instead of treating the word as if it were a digest.
+        "gen_failures": gen_failures,
     });
 
     (
@@ -4933,6 +4947,11 @@ struct SealHashes {
     gen_hash_verilog: String,
     gen_hash_c: String,
     gen_hash_rust: String,
+    /// (backend, message) for each backend that refused the spec. The four hash
+    /// fields carry the literal "none" in that case, and `--save` used to write it
+    /// as though it were a hash -- a seal asserting reproducibility for output that
+    /// does not exist. Keeping the reason means the refusal can say why.
+    failures: Vec<(String, String)>,
 }
 
 /// Compute all seal hashes for a .t27 spec file
@@ -4950,27 +4969,41 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
 
     let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
 
+    let mut failures: Vec<(String, String)> = Vec::new();
     let gen_hash_zig = match compiler::Compiler::compile(&source) {
         Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("zig".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
         Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("verilog".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_c = match compiler::Compiler::compile_c(&source) {
         Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("c".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     let gen_hash_rust = match compiler::Compiler::compile_rust(&source) {
         Ok(rust_code) => format!("sha256:{}", sha256_hex(rust_code.as_bytes())),
-        Err(_) => "none".to_string(),
+        Err(e) => {
+            failures.push(("rust".to_string(), e.to_string()));
+            "none".to_string()
+        }
     };
 
     Ok(SealHashes {
+        failures,
         module,
         spec_path: input_path.to_string(),
         spec_hash,
@@ -5069,16 +5102,25 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             std::process::exit(1);
         }
     } else if save {
-        if current_vacuous && !force {
-            anyhow::bail!(
-                "refusing to seal {}: no backend produced output, so every gen_hash\n\
-                 would be \"none\". Such a seal verifies green while certifying nothing,\n\
-                 and it OVERWRITES any real hashes already recorded.\n\
-                 Check that the spec parses (`t27c parse {}`) and fix it first.\n\
-                 Pass --force only if you intend to record an empty seal.",
-                input_path,
-                input_path
+        // A seal records "this spec produced these four outputs". If a backend refused
+        // the spec, the corresponding field is the literal "none", and writing that as
+        // though it were a hash makes the seal assert reproducibility for output which
+        // does not exist. 348 of 1114 specs in this repository do not generate at all;
+        // re-sealing them in bulk would have recorded 348 such claims.
+        if !hashes.failures.is_empty() && !force {
+            eprintln!(
+                "refusing to seal {}: {} of 4 backends rejected it",
+                hashes.spec_path,
+                hashes.failures.len()
             );
+            for (backend, msg) in &hashes.failures {
+                eprintln!("    gen-{}: {}", backend, msg.lines().next().unwrap_or(""));
+            }
+            eprintln!();
+            eprintln!("A seal with gen_hash=none claims reproducibility for output that");
+            eprintln!("does not exist. Fix the spec, or pass --force if the gap is");
+            eprintln!("deliberate and you want it on the record.");
+            std::process::exit(1);
         }
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
@@ -5706,6 +5748,16 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
         println!("{}", serde_json::to_string_pretty(&resp).unwrap());
     } else if result.ok {
         println!("Typecheck OK (0 errors, {} warnings)", result.warnings);
+        // tri-net#375 pinned every spec's warning count, but the messages were
+        // built and then dropped on the floor: the OK branch printed only the
+        // total, so a warning was unactionable -- you could see the number grow
+        // and not what it was. They are already in result.errors; print them.
+        // Some of these are real correctness findings downgraded to warnings
+        // (a call to an undefined function, an argument type mismatch), so
+        // silence here actively hid defects.
+        for msg in &result.errors {
+            println!("  - {}", msg);
+        }
     } else {
         println!("Typecheck FAILED ({} errors, {} warnings):", result.error_count, result.warnings);
         for err in &result.errors {

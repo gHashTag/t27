@@ -225,7 +225,7 @@ module FormatsCatalog {
   // CATALOG: id=gf12 name="GF12" bits=12 s=1 e=4 m=7 bias=7 phi_distance=0.047 storage=u16 cluster=GoldenFloat status=Verified standard="this work; L0/F3" use_case="mid-range / audio" gf_relation=self source="BENCH-007 (specs/numeric/gf12.t27)"
   fn gf12() -> str { return "gf12"; }
 
-  // CATALOG: id=gf16 name="GF16" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16 cluster=GoldenFloat status=Verified standard="this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7" use_case="training and inference (production)" gf_relation=self source="specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)"
+  // CATALOG: id=gf16 name="GF16" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16 cluster=GoldenFloat status=Verified standard="this work; PHI_BIAS=60; FPGA 35/35 on Artix-7 (no frequency claimed; 323 MHz withdrawn, see RESEARCH_CLAIMS.md)" use_case="training and inference (production)" gf_relation=self source="specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)"
   fn gf16() -> str { return "gf16"; }
 
   // CATALOG: id=gf20 name="GF20" bits=20 s=1 e=7 m=12 bias=63 phi_distance=0.035 storage=u32 cluster=GoldenFloat status=Experimental standard="this work; 17-squared empirical PHI_BIAS=289" use_case="high-precision edge" gf_relation=self source="specs/numeric/gf20.t27 (spec only)"
@@ -269,6 +269,111 @@ module FormatsCatalog {
   fn gf512() -> str { return "gf512"; }
 
   // CATALOG: id=gf1024 name="GF1024 (rule-derived)" bits=1024 s=1 e=391 m=632 bias=2^390-1 phi_distance=0.0006 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder" use_case="OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL)" gf_relation=experimental source="specs/numeric/gf1024.t27"
+
+
+
+  // ---------------------------------------------------------------------
+  // GF-T -- the phi-lineage ternary ladder. NOT an old name for TNF.
+  //
+  // Four families, two axes: phi-derived vs theorem-derived, binary vs ternary.
+  //   GF   phi, binary      e = round((N-1)/phi^2)
+  //   GF-T phi, ternary     mantissa from the phi lineage, exponent in trits
+  //   BNF  theorem, binary  1 + E + M = N, exponent sized for range
+  //   TNF  theorem, ternary 1 + E_t + M = N, exponent sized for range
+  //
+  // GF-T applies GF's rule to POSITIONS, and a trit is a position: the golden
+  // section divides the payload the way it divides a segment. E_t = round((N-1)/phi^2),
+  // M takes the rest. Every rung lands exactly and E_t/M converges on 1/phi.
+  //
+  // What it buys is range and what it costs is mantissa. At 64 bits GF-T spans
+  // 1.3e8 times TNF's range for 1.2e5 times the error -- neither dominates, and the
+  // corollary on the pair (M_eff, binades) forbids ranking them without a workload.
+  //
+  // This supersedes ad-hoc parameters the family carried until 2026-08-09, where
+  // exponents were sized at roughly log2(N) trits with no rule and positions were
+  // left unspent.
+  // ---------------------------------------------------------------------
+  // CATALOG: id=gft4 name="GF-T4" bits=4 s=1 e=1 m=2 bias=1 phi_distance=0.1180 storage=u4 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.5000 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft4.t27"
+  // CATALOG: id=gft8 name="GF-T8" bits=8 s=1 e=3 m=4 bias=13 phi_distance=0.1320 storage=u8 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.7500 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft8.t27"
+  // CATALOG: id=gft16 name="GF-T16" bits=16 s=1 e=6 m=9 bias=364 phi_distance=0.0486 storage=u16 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6667 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft16.t27"
+  // CATALOG: id=gft32 name="GF-T32" bits=32 s=1 e=12 m=19 bias=265720 phi_distance=0.0135 storage=u32 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6316 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft32.t27"
+  // CATALOG: id=gft64 name="GF-T64" bits=64 s=1 e=24 m=39 bias=141214768240 phi_distance=0.0026 storage=u64 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6154 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft64.t27"
+  // CATALOG: id=gft128 name="GF-T128" bits=128 s=1 e=49 m=78 bias=119649664615308764795041 phi_distance=0.0102 storage=u128 cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6282 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft128.t27"
+  // CATALOG: id=gft256 name="GF-T256" bits=256 s=1 e=97 m=158 bias=9544028161703913537712243143807801346335324481 phi_distance=0.0041 storage=u256_software cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6139 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft256.t27"
+  // CATALOG: id=gft512 name="GF-T512" bits=512 s=1 e=195 m=316 bias=546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053 phi_distance=0.0009 storage=u512_software cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6171 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft512.t27"
+  // CATALOG: id=gft1024 name="GF-T1024" bits=1024 s=1 e=391 m=632 bias=1792175763007502050309004510896072657026569872803620275437464390826146561794008386845991427359831686179824019072939996745082807322862992600064651843076138216429413334444960452990989263173 phi_distance=0.0006 storage=u1024_software cluster=GoldenFloat status=Verified standard="this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6187 against 1/phi = 0.6180" use_case="phi-derived ternary ladder; huge range at the cost of mantissa" gf_relation=self source="specs/numeric/gft1024.t27"
+
+  // ---------------------------------------------------------------------
+  // BNF -- Binary Network Float. The CONTROL for TNF.
+  //
+  // BNF and TNF are derived from the same theorem and differ in exactly one
+  // thing: the radix the exponent FIELD is encoded in. Everything else is
+  // identical -- the width rule 1 + E + M = N, the binary radix of the SCALE,
+  // the uniform mantissa. The pair therefore measures what the ternary encoding
+  // is worth instead of asserting it.
+  //
+  // Measured: on a binary fabric the two are identical at every width, exactly
+  // as the no-free-range theorem requires. On a ternary fabric TNF's exponent
+  // costs one position fewer, which goes to the mantissa and is worth exactly 2x
+  // in error by the precision law. Not more, not less, and the same at every rung.
+  //
+  // NOT the golden-ratio family. GF sizes its exponent by e = round((N-1)/phi^2)
+  // and GF-T inherits that mantissa into trits, leaving positions unspent. BNF
+  // and TNF size the exponent for the range the workload needs and then spend
+  // every position that remains. Four formats, two axes: phi vs theorem-derived,
+  // binary vs ternary.
+  // ---------------------------------------------------------------------
+  // CATALOG: id=bnf8 name="BNF8" bits=8 s=1 e=5 m=2 bias=15 phi_distance=1.882 storage=u8 cluster=GoldenFloat status=Open standard="this work; control for TNF8; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf8.t27"
+  // CATALOG: id=bnf16 name="BNF16" bits=16 s=1 e=7 m=8 bias=63 phi_distance=0.257 storage=u16 cluster=GoldenFloat status=Open standard="this work; control for TNF16; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf16.t27"
+  // CATALOG: id=bnf32 name="BNF32" bits=32 s=1 e=10 m=21 bias=511 phi_distance=0.142 storage=u32 cluster=GoldenFloat status=Open standard="this work; control for TNF32; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf32.t27"
+  // CATALOG: id=bnf64 name="BNF64" bits=64 s=1 e=12 m=51 bias=2047 phi_distance=0.383 storage=u64 cluster=GoldenFloat status=Open standard="this work; control for TNF64; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf64.t27"
+  // CATALOG: id=bnf128 name="BNF128" bits=128 s=1 e=13 m=114 bias=4095 phi_distance=0.504 storage=u128 cluster=GoldenFloat status=Open standard="this work; control for TNF128; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf128.t27"
+  // CATALOG: id=bnf256 name="BNF256" bits=256 s=1 e=15 m=240 bias=16383 phi_distance=0.556 storage=u256_software cluster=GoldenFloat status=Open standard="this work; control for TNF256; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf256.t27"
+  // CATALOG: id=bnf512 name="BNF512" bits=512 s=1 e=16 m=495 bias=32767 phi_distance=0.586 storage=u512_software cluster=GoldenFloat status=Open standard="this work; control for TNF512; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf512.t27"
+  // CATALOG: id=bnf1024 name="BNF1024" bits=1024 s=1 e=18 m=1005 bias=131071 phi_distance=0.600 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; control for TNF1024; width rule 1+E+M=N; exponent sized for range not phi" use_case="control isolating the ternary encoding's contribution" gf_relation=self source="specs/numeric/bnf1024.t27"
+
+  // ---------------------------------------------------------------------
+  // TNF -- Ternary Network Float. Built as a reference for TERNARY NETWORKS,
+  // where the weight is in {-1,0,+1} and the multiply disappears. The exponent
+  // FIELD is balanced ternary; the
+  // RADIX is binary. A genuine ternary-radix float (scaling by 3^e, as Ternary27
+  // does) measures 0.331 positions per number worse at equal width, so the name
+  // deliberately claims the encoding and not the radix.
+  //
+  // Distinct from GFTernary (a 2-bit {-phi, 0, +phi} alphabet, not a float at
+  // all) and from the binary GF ladder above. A glob of gft* matches gfternary;
+  // it has already cost this repository a deleted spec and a dropped pack index
+  // entry. Match tef[0-9]+ or gft[0-9]+, never a bare prefix.
+  //
+  // FORMER NAMES: GF-T (2026 and earlier), then TEF for one day on 2026-08-09, renamed 2026-08-09, carried in
+  // former_name= on every row. The ladder has NEVER been published under either
+  // name -- arXiv:2606.05017 is the binary GF family and contains no occurrence
+  // of "GF-T", and arXiv:2606.09686 is this catalog, which had zero GF-T rows
+  // until they were added on 2026-08-09. The rename therefore retracts nothing
+  // and breaks no citation. former_name= is for internal continuity only:
+  // research notes, prior branches and the author's CV and profile carry the old
+  // label, and this campaign's measurements against takum/tekum/posit were
+  // recorded under it.
+  //
+  // Two fields below need reading with care:
+  //   e=   is a count of balanced-ternary TRITS, not bits. The bit-equivalent
+  //        is Et*log2(3) and is given in the standard= string of each row.
+  //   phi_distance= is computed by the catalog's own |e/m - 1/phi| on that
+  //        bit-equivalent. It rises toward 1/phi = 0.618 as N grows, and that
+  //        is structural rather than a defect: GF sizes its exponent by
+  //        e = round((N-1)/phi^2), which puts e/m at 1/phi by construction,
+  //        while TNF sizes its exponent for RANGE and takes M = N-1-Et.
+  //        The two ladders optimise different axes; the field makes it visible.
+  // ---------------------------------------------------------------------
+  // CATALOG: id=tnf4 name="TNF4" former_name="GF-T4" bits=4 s=1 e=2 m=1 bias=4 phi_distance=2.552 storage=u4 cluster=GoldenFloat status=Verified standard="this work; e is 2 balanced-ternary TRITS not bits (3.17 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 12 LUT 161.1 MHz, no DSP, 1 cycle" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf4.t27"
+  // CATALOG: id=tnf8 name="TNF8" former_name="GF-T8" bits=8 s=1 e=3 m=4 bias=13 phi_distance=0.571 storage=u8 cluster=GoldenFloat status=Verified standard="this work; e is 3 balanced-ternary TRITS not bits (4.75 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 50 LUT 153.2 MHz, no DSP, 1 cycle" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf8.t27"
+  // CATALOG: id=tnf16 name="TNF16" former_name="GF-T16" bits=16 s=1 e=4 m=11 bias=40 phi_distance=0.086 storage=u16 cluster=GoldenFloat status=Verified standard="this work; e is 4 balanced-ternary TRITS not bits (6.34 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 212 LUT 131.7 MHz, no DSP, 1 cycle" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf16.t27"
+  // CATALOG: id=tnf32 name="TNF32" former_name="GF-T32" bits=32 s=1 e=6 m=25 bias=364 phi_distance=0.238 storage=u32 cluster=GoldenFloat status=Verified standard="this work; e is 6 balanced-ternary TRITS not bits (9.51 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 1477 LUT 83.3 MHz, no DSP, 1 cycle" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf32.t27"
+  // CATALOG: id=tnf64 name="TNF64" former_name="GF-T64" bits=64 s=1 e=7 m=56 bias=1093 phi_distance=0.420 storage=u64 cluster=GoldenFloat status=Verified standard="this work; e is 7 balanced-ternary TRITS not bits (11.09 bits equivalent); width rule 1+Et+M=N; post-route XC7A200T 7479 LUT 48.2 MHz, no DSP, 1 cycle" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf64.t27"
+  // CATALOG: id=tnf128 name="TNF128" former_name="GF-T128" bits=128 s=1 e=8 m=119 bias=3280 phi_distance=0.511 storage=u128 cluster=GoldenFloat status=Open standard="this work; e is 8 balanced-ternary TRITS not bits (12.68 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf128.t27"
+  // CATALOG: id=tnf256 name="TNF256" former_name="GF-T256" bits=256 s=1 e=9 m=246 bias=9841 phi_distance=0.560 storage=u256_software cluster=GoldenFloat status=Open standard="this work; e is 9 balanced-ternary TRITS not bits (14.26 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf256.t27"
+  // CATALOG: id=tnf512 name="TNF512" former_name="GF-T512" bits=512 s=1 e=10 m=501 bias=29524 phi_distance=0.586 storage=u512_software cluster=GoldenFloat status=Open standard="this work; e is 10 balanced-ternary TRITS not bits (15.85 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf512.t27"
+  // CATALOG: id=tnf1024 name="TNF1024" former_name="GF-T1024" bits=1024 s=1 e=11 m=1012 bias=88573 phi_distance=0.601 storage=u1024_software cluster=GoldenFloat status=Open standard="this work; e is 11 balanced-ternary TRITS not bits (17.43 bits equivalent); width rule 1+Et+M=N; derived from the width rule; not synthesised" use_case="fixed-field ternary-exponent ladder; no regime codec" gf_relation=self source="specs/numeric/tnf1024.t27"
   fn gf1024() -> str { return "gf1024"; }
 
   // GF hybrids / experimental compositions (Section 12.5).

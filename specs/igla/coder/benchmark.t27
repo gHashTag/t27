@@ -667,14 +667,15 @@ pub fn cktformalizer_competitor() -> CompetitorScore {
 
 /// goldenfloat_competitor() -> CompetitorScore
 /// GoldenFloat (arXiv:2606.05017v1): Phi-derived floating-point format family.
-/// RTL generator, GF16 passes 35/35 tests at 323 MHz on Xilinx Artix-7.
+/// RTL generator, GF16 passes 35/35 tests on Xilinx Artix-7. The 323 MHz figure
+/// once quoted here is withdrawn (ring-oscillator probe; RESEARCH_CLAIMS.md).
 pub fn goldenfloat_competitor() -> CompetitorScore {
     return CompetitorScore {
         name: "GoldenFloat",
         pass_at_1: 0.0,
         pass_at_5: 0.0,
         pass_at_10: 0.0,
-        benchmark: "Phi-derived FP16 RTL at 323 MHz Artix-7",
+        benchmark: "Phi-derived FP16 RTL on Artix-7 (no frequency claimed)",
     };
 }
 
@@ -1601,7 +1602,7 @@ invariant competitor_delta_range
     && compare_with_competitor(t, c, 1) <= 1.0
 
 // W113 competitor tests
-test rtlscout_competitor_name_v2
+test rtlscout_competitor_name
     when c = rtlscout_competitor()
     then c.name == "RTLScout"
 
@@ -1642,7 +1643,7 @@ test hiersva_competitor_name
     then c.name == "HierSVA"
 
 // W116 competitor tests
-test rtlseek_competitor_name_v2
+test rtlseek_competitor_name
     when c = rtlseek_competitor()
     then c.name == "RTLSeek"
 
@@ -3007,7 +3008,7 @@ test carmen_competitor_benchmark
     when c = carmen_competitor()
     then c.benchmark == "28nm CORDIC ASIC 4.83 TOPS/mm2 (arXiv:2605.06878)"
 
-test tom_competitor_name_v2
+test tom_competitor_name
     when c = tom_competitor()
     then c.name == "TOM"
 
@@ -3015,7 +3016,7 @@ test tom_competitor_benchmark
     when c = tom_competitor()
     then c.benchmark == "ROM-based ternary ASIC 3,306 tok/s BitNet-2B 5.33W (arXiv:2602.20662)"
 
-test tellme_competitor_name_v2
+test tellme_competitor_name
     when c = tellme_competitor()
     then c.name == "TeLLMe"
 
@@ -3851,7 +3852,7 @@ bench competitor_lookup_latency
     measure c.pass_at_1
     target latency_us < 1.0
 
-test benchmark_count_passed_empty_zero_v2
+test benchmark_count_passed_empty_zero
     given results = []BenchmarkResult{}
     when n = count_passed(results, 0, 0)
     then n == 0
@@ -3861,7 +3862,7 @@ test benchmark_count_passed_at_5_all_passed
     when n = count_passed_at_5(results, 0, 0)
     then n == 2
 
-test benchmark_trinity_self_train_estimate_positive_v2
+test benchmark_trinity_self_train_estimate_positive
     when e = trinity_self_train_estimate()
     then e > 0.0
 
@@ -3888,12 +3889,12 @@ invariant benchmark_count_passed_bounded_by_len_inv:
     forall results : []BenchmarkResult
     count_passed(results, 0, 0) >= 0 && count_passed(results, 0, 0) <= results.len()
 
-test benchmark_count_passed_empty_zero_v3
+test benchmark_count_passed_empty_zero
     given results = []BenchmarkResult{}
     when n = count_passed(results, 0, 0)
     then n == 0
 
-test benchmark_count_passed_at_5_empty_zero_v2
+test benchmark_count_passed_at_5_empty_zero
     given results = []BenchmarkResult{}
     when n = count_passed_at_5(results, 0, 0)
     then n == 0
@@ -3902,12 +3903,12 @@ invariant benchmark_count_passed_empty_zero_inv:
     forall results : []BenchmarkResult
     results.len() == 0 ==> count_passed(results, 0, 0) == 0
 
-test benchmark_count_passed_all_passed_v2
+test benchmark_count_passed_all_passed
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
     when n = count_passed(results, 0, 0)
     then n == 2
 
-test benchmark_count_passed_at_5_all_passed_v2
+test benchmark_count_passed_at_5_all_passed
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
     when n = count_passed_at_5(results, 0, 0)
     then n == 2
@@ -3981,7 +3982,7 @@ invariant benchmark_estimate_pass_at_k_half_coverage_inv:
     forall k : u32
     estimate_pass_at_k_from_coverage(0.5, k) == 0.5
 
-test benchmark_estimate_pass_at_k_full_coverage_v2
+test benchmark_estimate_pass_at_k_full_coverage
     given coverage = 1.0
     given k = 1
     when est = estimate_pass_at_k_from_coverage(coverage, k)
@@ -4299,12 +4300,12 @@ test benchmark_mean_negative_positive_w309
 
 invariant benchmark_mean_five_equal_w309_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
-test benchmark_mean_five_equal_w309_v2
+test benchmark_mean_five_equal_w309
     given values = [7.0, 7.0, 7.0, 7.0, 7.0]
     when m = mean(values)
     then m == 7.0
 
-test benchmark_mean_negative_positive_w309_v2
+test benchmark_mean_negative_positive_w309
     given values = [-5.0, 5.0]
     when m = mean(values)
     then m == 0.0
@@ -4341,12 +4342,12 @@ invariant benchmark_mean_five_equal_w311_inv:
 
 
 
-test benchmark_mean_five_equal_w311_v2
+test benchmark_mean_five_equal_w311
     given values = [7.0, 7.0, 7.0, 7.0, 7.0]
     when m = mean(values)
     then m == 7.0
 
-test benchmark_mean_negative_positive_w311_v2
+test benchmark_mean_negative_positive_w311
     given values = [-5.0, 5.0]
     when m = mean(values)
     then m == 0.0
@@ -4617,7 +4618,6 @@ test benchmark_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (73→74)
 test benchmark_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -4635,6 +4635,7 @@ test benchmark_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w342_depth_076: true
 
+}
 
 invariant benchmark_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

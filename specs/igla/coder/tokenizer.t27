@@ -464,7 +464,7 @@ test tokenize_single_char
     when tokens = tokenize(text)
     then len(tokens) == 1 && tokens[0] == 97
 
-test detokenize_empty_v2
+test detokenize_empty
     given tokens = []u16{}
     when text = detokenize(tokens)
     then text == ""
@@ -668,7 +668,7 @@ invariant tokenizer_encode_char_bounded:
     forall c : u8
     encode_char(c) <= 255
 
-test tokenizer_encode_char_zero_v2
+test tokenizer_encode_char_zero
     given c = 0
     when id = encode_char(c)
     then id == 0
@@ -691,7 +691,7 @@ test tokenizer_encode_char_128
     when id = encode_char(c)
     then id == 128
 
-test tokenizer_vocab_size_keywords_positive_v2
+test tokenizer_vocab_size_keywords_positive
     when n = vocab_size_keywords()
     then n > 0
 
@@ -1051,13 +1051,13 @@ test tokenizer_tokenize_single_token_len_two_w309
 
 invariant tokenizer_encode_decode_roundtrip_w309_inv:
     decode(encode("test")) == "test"
-test tokenizer_encode_decode_roundtrip_w309_v2
+test tokenizer_encode_decode_roundtrip_w309
     given text = "test"
     when tokens = encode(text)
     when text2 = decode(tokens)
     then text2 == "test"
 
-test tokenizer_tokenize_single_token_len_two_w309_v2
+test tokenizer_tokenize_single_token_len_two_w309
     given tokens = [42]
     when result = tokenize(tokens)
     then result.len() == 2
@@ -1096,13 +1096,13 @@ invariant tokenizer_encode_decode_roundtrip_w311_inv:
 
 
 
-test tokenizer_encode_decode_roundtrip_w311_v2
+test tokenizer_encode_decode_roundtrip_w311
     given text = "test"
     when tokens = encode(text)
     when text2 = decode(tokens)
     then text2 == "test"
 
-test tokenizer_tokenize_single_token_len_two_w311_v2
+test tokenizer_tokenize_single_token_len_two_w311
     given tokens = [42]
     when result = tokenize(tokens)
     then result.len() == 2
@@ -1382,7 +1382,6 @@ test tokenizer_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (73→74)
 test tokenizer_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1400,6 +1399,7 @@ test tokenizer_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant tokenizer_w342_depth_076: true
 
+}
 
 invariant tokenizer_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

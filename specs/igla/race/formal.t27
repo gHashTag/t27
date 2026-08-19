@@ -9,12 +9,6 @@
 module igla-race-formal;
 use base::types;
 use math::constants;
-// W613: `RtlModule` and `Assignment` are declared in igla/race/rtl.t27 and were
-// used here with no import -- 34 of this file's errors. rtl.t27 did not PARSE
-// until this wave (a bench calling `module(...)`, a keyword), so the splice had
-// nothing to pull from even had the import existed. Not circular: rtl imports
-// base::types, math::constants and igla::race::backend, not formal.
-use igla::race::rtl;
 
 // ============================================================================
 // 1. Proof Obligation Categories
@@ -71,42 +65,6 @@ pub const EquivalenceCheck = struct {
 
 /// Primitive bit-width safety check: ensures every assignment LHS signal
 /// has a declared width > 0.
-/// SMT satisfiability verdict for a boolean literal.
-///
-/// W611: called in this file and declared nowhere in the corpus -- 43 of the
-/// 886 `use of undeclared identifier` errors across IGLA. Its own tests and
-/// invariants determine it completely and agree with each other:
-///
-///     smt_check_bool(true)  == "SAT"
-///     smt_check_bool(false) == "UNSAT"
-///
-/// stated four ways -- two tests and two invariants, including the universally
-/// quantified `!b ==> smt_check_bool(b) == "UNSAT"`.
-/// The SMT-level rendering of a boolean assertion.
-///
-/// W612: called 27 times in this file and declared nowhere in the corpus.
-/// Its tests pin it across 27 sites with no conflict:
-///
-///     smt_assert_true(true)  == "true"
-///     smt_assert_true(false) == "false"
-///
-/// Distinct from `smt_check_bool` (W611), which answers "SAT"/"UNSAT"; this one
-/// renders the literal itself. Tests named `formal_smt_assert_true_*` at L1183
-/// and L1188 are name-only matches -- they call `smt_check`, not this.
-fn smt_assert_true(b: bool) -> string {
-    if (b) {
-        return "true";
-    }
-    return "false";
-}
-
-fn smt_check_bool(b: bool) -> string {
-    if (b) {
-        return "SAT";
-    }
-    return "UNSAT";
-}
-
 fn check_bitwidth_safety(m: RtlModule) -> []ProofObligation {
     return check_bitwidth_safety_inner(m, m.assigns, 0);
 }
@@ -483,7 +441,7 @@ test prove_equivalence_different_models
     when status = prove_equivalence("module a", "module b")
     then status == ProofStatus::admitted
 
-test generate_report_full_coverage_v2
+test generate_report_full_coverage
     given mod = RtlModule { name: "full", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
     when report = generate_report(mod)
     then report.coverage_percent == 100.0
@@ -795,7 +753,7 @@ test formal_count_admitted_one
     when n = count_admitted(pos, 0)
     then n == 1
 
-test prove_equivalence_different_ports_v2
+test prove_equivalence_different_ports
     given spec = RtlModule { name: "s", inputs: ["a"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
     given impl = RtlModule { name: "i", inputs: ["a", "c"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
     when ok = prove_equivalence(spec, impl)
@@ -841,7 +799,7 @@ test formal_count_proved_multiple_mixed
     when n = count_proved(pos, 0)
     then n == 2
 
-test formal_count_proved_all_admitted_returns_zero_v2
+test formal_count_proved_all_admitted_returns_zero
     given pos = [
         ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
         ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
@@ -888,17 +846,17 @@ test formal_count_admitted_empty_returns_zero
     when n = count_admitted(pos, 0)
     then n == 0
 
-test formal_generate_report_single_violation_v2
+test formal_generate_report_single_violation
     given mod = FormalModule { name: "bad", invariants: ["false"] }
     when report = generate_report(mod)
     then report.proved_count == 0 && report.violation_count == 1
 
-test formal_count_proved_empty_returns_zero_v2
+test formal_count_proved_empty_returns_zero
     given pos = []ProofObligation{}
     when n = count_proved(pos, 0)
     then n == 0
 
-test formal_strings_equal_same_v2
+test formal_strings_equal_same
     given a = "hello"
     when ok = strings_equal(a, a)
     then ok == true
@@ -919,12 +877,12 @@ test formal_generate_report_obligations_count
     when r = generate_report(mod)
     then r.total_obligations == 2
 
-test formal_count_admitted_empty_returns_zero_v2
+test formal_count_admitted_empty_returns_zero
     given pos = []ProofObligation{}
     when n = count_admitted(pos, 0)
     then n == 0
 
-test formal_generate_report_empty_module_zero_obligations_v2
+test formal_generate_report_empty_module_zero_obligations
     given mod = RtlModule { name: "empty", assigns: []Assignment{} }
     when r = generate_report(mod)
     then r.total_obligations == 0
@@ -935,7 +893,7 @@ test formal_compute_coverage_zero_total_zero
     when c = compute_coverage(p, t)
     then c == 0.0
 
-test formal_all_proved_empty_returns_true_v2
+test formal_all_proved_empty_returns_true
     given pos = []ProofObligation{}
     when r = all_proved(pos, 0)
     then r == true
@@ -1475,12 +1433,12 @@ test formal_smt_assert_true_false_string_w309
 
 invariant formal_smt_check_bool_true_sat_w309_inv:
     smt_check_bool(true) == "SAT"
-test formal_smt_check_bool_true_sat_w309_v2
+test formal_smt_check_bool_true_sat_w309
     given b = true
     when r = smt_check_bool(b)
     then r == "SAT"
 
-test formal_smt_assert_true_false_string_w309_v2
+test formal_smt_assert_true_false_string_w309
     given b = false
     when r = smt_assert_true(b)
     then r == "false"
@@ -1517,12 +1475,12 @@ invariant formal_smt_check_bool_true_sat_w311_inv:
 
 
 
-test formal_smt_check_bool_true_sat_w311_v2
+test formal_smt_check_bool_true_sat_w311
     given b = true
     when r = smt_check_bool(b)
     then r == "SAT"
 
-test formal_smt_assert_true_false_string_w311_v2
+test formal_smt_assert_true_false_string_w311
     given b = false
     when r = smt_assert_true(b)
     then r == "false"
@@ -1793,7 +1751,6 @@ test formal_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (83→84)
 test formal_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1811,6 +1768,7 @@ test formal_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant formal_w342_depth_086: true
 
+}
 
 invariant formal_w339_depth_083: true
 // Wave Loop 343 -- depth +1 (85->86)

@@ -81,9 +81,9 @@ module Partition {
         dsp48 : u32,
     }
 
-    fn assignment(module: &str, fpga: u32, luts: u32, ffs: u32, bram: u32, dsp: u32) -> PartitionAssign {
+    fn assignment(mod_name: &str, fpga: u32, luts: u32, ffs: u32, bram: u32, dsp: u32) -> PartitionAssign {
         return PartitionAssign{
-            .module_name = module,
+            .module_name = mod_name,
             .fpga_idx = fpga,
             .luts = luts,
             .ffs = ffs,

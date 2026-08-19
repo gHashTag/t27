@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GFT512",
+  "format_name": "GF-T512",
+  "bitexact": false,
+  "format_notes": "GF-T512 -- this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6171 against 1/phi = 0.6180",
+  "catalog": {
+    "id": "gft512",
+    "bits": 512,
+    "s": 1,
+    "e": 195,
+    "m": 316,
+    "bias": 546530841308384299050990374559217339154801342908219127519701567364387841360704080235359463053,
+    "storage": "u512_software",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; GOLDEN RATIO axis: E_t = round((N-1)/phi^2), a trit is a position; every position spent; E_t/M = 0.6171 against 1/phi = 0.6180",
+    "use_case": "phi-derived ternary ladder; huge range at the cost of mantissa",
+    "gf_relation": "self",
+    "source": "specs/numeric/gft512.t27",
+    "phi_distance": 0.0009
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

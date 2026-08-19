@@ -663,7 +663,6 @@ pub fn rag_retrieve_architecture(query: string) -> string {
         return "ternary_mac_unit";
     }
     return "generic";
-}
 
 /// load_draft_weights(bank) -> DraftModelConfig
 /// Reads draft model config from first 3 BRAM scalars.
@@ -1580,7 +1579,7 @@ test arch_sqrt_approx_zero_zero
     when y = sqrt_approx(x)
     then y == 0.0
 
-test arch_relu_zero_zero_v2
+test arch_relu_zero_zero
     given x = 0.0
     when y = relu(x)
     then y == 0.0
@@ -1600,7 +1599,7 @@ invariant arch_forward_layers_with_weights_identity_len
 invariant arch_sqrt_approx_zero_zero_inv:
     sqrt_approx(0.0) == 0.0
 
-test arch_rag_retrieve_systolic_v2
+test arch_rag_retrieve_systolic
     when arch = rag_retrieve_architecture("Systolic array")
     then arch == "systolic_array"
 
@@ -1634,7 +1633,7 @@ test arch_relu_negative_zero
     when y = relu(x)
     then y == 0.0
 
-test arch_sqrt_approx_zero_zero_v2
+test arch_sqrt_approx_zero_zero
     given x = 0.0
     when y = sqrt_approx(x)
     then y == 0.0
@@ -1657,7 +1656,7 @@ test arch_sqrt_approx_one_near_one
 invariant arch_sqrt_approx_one_near_one_inv:
     sqrt_approx(1.0) == 1.0
 
-test arch_relu_positive_identity_v2
+test arch_relu_positive_identity
     given x = 5.0
     when y = relu(x)
     then y == 5.0
@@ -1672,12 +1671,12 @@ invariant arch_relu_positive_identity_inv:
     forall x : f32
     x >= 0.0 ==> relu(x) == x
 
-test arch_relu_negative_zero_v2
+test arch_relu_negative_zero
     given x = -3.0
     when y = relu(x)
     then y == 0.0
 
-test arch_select_best_beam_empty_v2
+test arch_select_best_beam_empty
     given candidates = []BeamCandidate{}
     given beam_width = 3
     when selected = select_best_beam(candidates, beam_width)
@@ -2035,13 +2034,13 @@ invariant arch_add_slices_negative_offset_empty_w311_inv:
 
 
 
-test arch_add_slices_negative_offset_empty_w311_v2
+test arch_add_slices_negative_offset_empty_w311
     given a = [1.0f32, 2.0f32]
     given b = [3.0f32]
     when c = add_slices(a, b, 5)
     then c.len() == 0
 
-test arch_generate_next_token_topk_three_highest_w311_v2
+test arch_generate_next_token_topk_three_highest_w311
     given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
     given k = 3
     when tokens = generate_next_token(logits, k)
@@ -2331,7 +2330,6 @@ test arch_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — CODER depth +1 (72→73)
 test arch_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -2349,7 +2347,7 @@ test arch_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w342_depth_075: true
 
-// W606: removed a stray `}` -- it closed nothing and truncated the module.
+}
 
 invariant arch_w339_depth_072: true
 // Wave Loop 343 -- depth +1 (75->76)

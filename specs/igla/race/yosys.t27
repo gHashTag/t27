@@ -10,13 +10,6 @@ module igla-race-yosys;
 use base::types;
 use igla::race::rtl;
 use igla::race::formal;
-// W614: this file uses `eval::has_substring(...)` and friends but never
-// imported the module. `use_resolve` rewrites a qualified reference to the bare
-// name ONLY when the declaration is pulled or local, so an unimported module
-// left the `::` in place and codegen lowered it to an undeclared `eval.`
-// namespace. Not circular: eval imports base::types, math::constants and
-// igla::race::backend -- none of them this file.
-use igla::coder::eval;
 
 // ============================================================================
 // 1. Toolchain Discovery
@@ -42,35 +35,6 @@ fn strings_equal(a: string, b: string) -> bool {
         return false;
     }
     return strings_equal_inner(a, b, 0);
-}
-
-/// Whether `a` is a prefix of `b`.
-///
-/// W610: called in this file and declared nowhere in the corpus -- 55 of the
-/// 886 `use of undeclared identifier` errors across IGLA. Written from its own
-/// tests, which determine it completely:
-///
-///     is_prefix("hello", "hello world") == true
-///     is_prefix("world", "hello")       == false
-///     is_prefix("",      s)             == true    (for all s)
-///
-/// The empty string is a prefix of everything, and a longer `a` cannot be a
-/// prefix of a shorter `b`; both fall out of the length guard.
-fn is_prefix(a: string, b: string) -> bool {
-    if (a.len() > b.len()) {
-        return false;
-    }
-    return is_prefix_inner(a, b, 0);
-}
-
-fn is_prefix_inner(a: string, b: string, idx: u32) -> bool {
-    if (idx >= a.len()) {
-        return true;
-    }
-    if (a[idx] != b[idx]) {
-        return false;
-    }
-    return is_prefix_inner(a, b, idx + 1);
 }
 
 fn strings_equal_inner(a: string, b: string, idx: u32) -> bool {
@@ -468,13 +432,13 @@ test generate_equiv_script_same_module
     when script = generate_equiv_script("same.v", "same.v", "top")
     then script.len() > 0 && eval::has_substring(script, "same.v", 0) == true
 
-test emit_sva_assertions_multiple_properties_v2
+test emit_sva_assertions_multiple_properties
     given p1 = Property { kind: PropKind::Always, name: "p1", expr: "a", clk: "clk", rst: "rst_n" }
     given p2 = Property { kind: PropKind::Always, name: "p2", expr: "b", clk: "clk", rst: "rst_n" }
     when sv = emit_sva_assertions([p1, p2])
     then sv.len() > 0
 
-test aggregate_coverage_partial_proof_v2
+test aggregate_coverage_partial_proof
     when report = aggregate_coverage("PROVED ADMITTED PROVED", "ADMITTED")
     then report.proved_count == 2 && report.admitted_count == 1
 
@@ -705,7 +669,7 @@ test emit_sva_assertions_mixed_kinds
     when sv = emit_sva_assertions([p1, p2, p3])
     then eval::has_substring(sv, "always_assert", 0) == true && eval::has_substring(sv, "never_assert", 0) == true && eval::has_substring(sv, "implication_assert", 0) == true
 
-test strings_equal_empty_both_v2
+test strings_equal_empty_both
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -745,7 +709,7 @@ test strings_equal_diff_length
     when ok = strings_equal(a, b)
     then ok == false
 
-test count_substring_overlapping_v2
+test count_substring_overlapping
     given haystack = "aaaa"
     given needle = "aa"
     when c = count_substring(haystack, needle)
@@ -757,7 +721,7 @@ test strings_equal_prefix_false
     when ok = strings_equal(a, b)
     then ok == false
 
-test count_substring_no_match_v2
+test count_substring_no_match
     given haystack = "abcd"
     given needle = "xyz"
     when c = count_substring(haystack, needle)
@@ -780,7 +744,7 @@ test strings_equal_same_true
     when ok = strings_equal(a, b)
     then ok == true
 
-test count_substring_single_char_v2
+test count_substring_single_char
     given haystack = "aaaa"
     given needle = "a"
     when c = count_substring(haystack, needle)
@@ -884,13 +848,13 @@ test yosys_match_at_same_string_position_zero
     when ok = match_at(haystack, needle, start)
     then ok == true
 
-test yosys_compute_coverage_percent_zero_proved_v2
+test yosys_compute_coverage_percent_zero_proved
     given proved = 0
     given total = 10
     when p = compute_coverage_percent(proved, total)
     then p == 0.0
 
-test yosys_compute_coverage_percent_half_v2
+test yosys_compute_coverage_percent_half
     given proved = 5
     given total = 10
     when p = compute_coverage_percent(proved, total)
@@ -992,7 +956,7 @@ test yosys_strings_equal_same_string_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half_v3
+test yosys_compute_coverage_percent_half
     given proved = 2
     given total = 4
     when p = compute_coverage_percent(proved, total)
@@ -1026,7 +990,7 @@ test yosys_strings_equal_empty_true
     when r = strings_equal(a, b)
     then r == true
 
-test yosys_compute_coverage_percent_half_v4
+test yosys_compute_coverage_percent_half
     given proved = 4
     given total = 8
     when p = compute_coverage_percent(proved, total)
@@ -1129,7 +1093,7 @@ test yosys_match_at_beginning_boundary
 invariant yosys_count_substring_single_occurrence_inv:
     count_substring("hello", "l") == 2
 
-test yosys_strings_equal_empty_empty_true_v2
+test yosys_strings_equal_empty_empty_true
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -1478,13 +1442,13 @@ test yosys_strings_equal_empty_empty_w309
 
 invariant yosys_is_prefix_partial_true_w309_inv:
     is_prefix("ab", "abc") == true
-test yosys_is_prefix_partial_true_w309_v2
+test yosys_is_prefix_partial_true_w309
     given a = "ab"
     given b = "abc"
     when ok = is_prefix(a, b)
     then ok == true
 
-test yosys_strings_equal_empty_empty_w309_v2
+test yosys_strings_equal_empty_empty_w309
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -1526,13 +1490,13 @@ invariant yosys_is_prefix_partial_true_w311_inv:
 
 
 
-test yosys_is_prefix_partial_true_w311_v2
+test yosys_is_prefix_partial_true_w311
     given a = "ab"
     given b = "abc"
     when ok = is_prefix(a, b)
     then ok == true
 
-test yosys_strings_equal_empty_empty_w311_v2
+test yosys_strings_equal_empty_empty_w311
     given a = ""
     given b = ""
     when ok = strings_equal(a, b)
@@ -1822,7 +1786,6 @@ test yosys_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
 }
-
 // Wave Loop 340 — Pool A depth +1 (84→85)
 test yosys_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w340_batch_depth_invariant_2 { /* verify baseline */ }
@@ -1840,6 +1803,7 @@ test yosys_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant yosys_w342_depth_087: true
 
+}
 
 invariant yosys_w339_depth_084: true
 // Wave Loop 343 -- depth +1 (85->86)
