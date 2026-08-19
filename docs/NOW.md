@@ -1,3 +1,14 @@
+# NOW -- the props read with -formal too (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(formal): -formal on the props read line (Closes #2271)
+
+- The layer-5 flag fix covered only the DUT line; CI yosys read the props
+  plain and resolved 'assert' as a task name (rc=16) while the local proof
+  had flagged both reads. Reproduced the exact CI error locally without the
+  flag; with it the chain proves Status PASSED. One line per .sby
+
 # NOW -- the first real formal verdicts: fifo and mac PROVE (2026-08-20)
 
 Last updated: 2026-08-20
