@@ -590,9 +590,22 @@ jobs:
           set -o pipefail
           if command -v sby &>/dev/null; then
             cp -r contrib/formal build/fpga/formal
-            cp specs/fpga/mac.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/mac.v build/fpga/formal/ 2>/dev/null || true
-            cp specs/fpga/fifo.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/fifo.v build/fpga/formal/ 2>/dev/null || true
-            cp specs/fpga/uart.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/uart.v build/fpga/formal/ 2>/dev/null || true
+            # FRESH generated RTL first: specs/fpga/*.v are April-vintage committed
+            # copies (translate_off comments the current emitter no longer writes)
+            # and shadowed the just-built artifact -- sby then died on TOK_INITIAL
+            # in RTL four months older than the compiler that was supposedly under
+            # test. Stale fallback is loud; absence is fatal.
+            for m in mac fifo uart; do
+              if [ -f "build/fpga/generated/${m}.v" ]; then
+                cp "build/fpga/generated/${m}.v" build/fpga/formal/
+              elif [ -f "specs/fpga/${m}.v" ]; then
+                echo "::warning::formal uses STALE committed specs/fpga/${m}.v (generated artifact missing)"
+                cp "specs/fpga/${m}.v" build/fpga/formal/
+              else
+                echo "::error::no ${m}.v available for formal (neither generated nor committed)"
+                exit 1
+              fi
+            done
             for sby_file in build/fpga/formal/*.sby; do
               module_name=$(basename "$sby_file" .sby)
               echo "Running formal: $module_name"
