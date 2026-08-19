@@ -40,76 +40,81 @@ jobs:
   extract-issue:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # This job reads untrusted event data. It gets read-only scope so that a
+    # future mistake here cannot write to the repository.
+    permissions:
+      contents: read
     outputs:
       issue_number: ${{ steps.issue.outputs.number }}
-      issue_title: ${{ steps.issue.outputs.title }}
       event_type: ${{ steps.event_type.outputs.type }}
+      # issue_title was published here and consumed by nobody. It is not
+      # reinstated in a sanitised form: untrusted text that no step reads is
+      # best not carried at all.
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
 
       - name: Extract issue info
         id: issue
+        # Every value arrives through env:, which the runner sets, so no
+        # character in it can be parsed as shell. Nothing from the event is
+        # interpolated into the script text.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          ISSUE_NUM=""
-          ISSUE_TITLE=""
+          set -euo pipefail
 
-          case "${{ github.event_name }}" in
-            issues)
-              ISSUE_NUM="${{ github.event.issue.number }}"
-              ISSUE_TITLE="${{ github.event.issue.title }}"
-              echo "type=issue" >> $GITHUB_OUTPUT
-              ;;
-            issue_comment)
-              ISSUE_NUM="${{ github.event.issue.number }}"
-              ISSUE_TITLE="${{ github.event.issue.title }}"
-              echo "type=comment" >> $GITHUB_OUTPUT
-              ;;
-            pull_request)
-              ISSUE_NUM="${{ github.event.pull_request.number }}"
-              ISSUE_TITLE="${{ github.event.pull_request.title }}"
-              echo "type=pr" >> $GITHUB_OUTPUT
-              ;;
-            pull_request_review)
-              ISSUE_NUM="${{ github.event.pull_request.number }}"
-              ISSUE_TITLE="${{ github.event.pull_request.title }}"
-              echo "type=pr" >> $GITHUB_OUTPUT
-              ;;
+          ISSUE_NUM=""
+          case "$EVENT_NAME" in
+            issues|issue_comment)          ISSUE_NUM="${ISSUE_NUMBER:-}" ;;
+            pull_request|pull_request_review) ISSUE_NUM="${PR_NUMBER:-}" ;;
             push)
-              # Extract from branch name: feature/issue-357 -> 357
-              BRANCH="${{ github.ref_name }}"
-              ISSUE_NUM=$(echo "$BRANCH" | grep -oE '(issue-|#)?[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
-              echo "type=push" >> $GITHUB_OUTPUT
+              # feature/issue-357 -> 357
+              ISSUE_NUM="$(printf '%s' "${REF_NAME:-}" \
+                | grep -oE '[0-9]+' | head -1 || true)"
               ;;
           esac
 
-          echo "number=$ISSUE_NUM" >> $GITHUB_OUTPUT
-          echo "title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+          # Accept only decimal digits. Downstream this number is spliced into a
+          # command line, and GITHUB_OUTPUT is a newline-delimited file: a value
+          # containing a newline defines additional outputs of its own choosing.
+          case "$ISSUE_NUM" in
+            ''|*[!0-9]*) ISSUE_NUM="" ;;
+          esac
+
+          printf 'number=%s\n' "$ISSUE_NUM" >> "$GITHUB_OUTPUT"
 
       - name: Determine event type
         id: event_type
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
-          EVENT_TYPE=""
+          set -euo pipefail
 
-          case "${{ github.event_name }}" in
-            issues)
-              EVENT_TYPE="issue_${{ github.event.action }}"
-              ;;
-            issue_comment)
-              EVENT_TYPE="comment"
-              ;;
-            pull_request)
-              EVENT_TYPE="pr_${{ github.event.action }}"
-              ;;
-            pull_request_review)
-              EVENT_TYPE="review"
-              ;;
-            push)
-              EVENT_TYPE="push"
-              ;;
+          # The action name is a closed set, so it is checked against that set
+          # rather than trusted to be one of them. The check costs one case
+          # statement and removes this value from the argument that has to be
+          # made about the whole file.
+          ACTION="unknown"
+          case "${EVENT_ACTION:-}" in
+            opened|edited|labeled|closed|created|synchronize|submitted)
+              ACTION="$EVENT_ACTION" ;;
           esac
 
-          echo "type=$EVENT_TYPE" >> $GITHUB_OUTPUT
+          EVENT_TYPE=""
+          case "$EVENT_NAME" in
+            issues)              EVENT_TYPE="issue_${ACTION}" ;;
+            issue_comment)       EVENT_TYPE="comment" ;;
+            pull_request)        EVENT_TYPE="pr_${ACTION}" ;;
+            pull_request_review) EVENT_TYPE="review" ;;
+            push)                EVENT_TYPE="push" ;;
+          esac
+
+          printf 'type=%s\n' "$EVENT_TYPE" >> "$GITHUB_OUTPUT"
 
   # Sync to NotebookLM
   sync-notebook:
@@ -140,34 +145,37 @@ jobs:
         run: |
           cd contrib/backend/notebooklm
 
-          SYNC_ARGS="--issue $ISSUE_NUM"
+          # An array, not a string: a string is re-split by the shell on
+          # whatever IFS happens to be, which is a second way for a value to
+          # become more than one argument.
+          SYNC_ARGS=(--issue "$ISSUE_NUM")
 
           # Determine sync type
           case "$EVENT_TYPE" in
             issue_opened|issue_edited|pr_opened|pr_synchronize|push)
-              SYNC_ARGS="$SYNC_ARGS --event push"
+              SYNC_ARGS+=(--event push)
               echo "🔄 Syncing push/PR event for issue #$ISSUE_NUM"
               ;;
             issue_closed)
-              SYNC_ARGS="$SYNC_ARGS --event merge"
+              SYNC_ARGS+=(--event merge)
               echo "✨ Syncing merge (issue closed) for issue #$ISSUE_NUM"
               ;;
             comment)
-              SYNC_ARGS="$SYNC_ARGS --event push --trigger comment"
+              SYNC_ARGS+=(--event push --trigger comment)
               echo "💬 Syncing new comment for issue #$ISSUE_NUM"
               ;;
             pr_closed)
-              SYNC_ARGS="$SYNC_ARGS --event merge --trigger merged"
+              SYNC_ARGS+=(--event merge --trigger merged)
               echo "🔀 Syncing PR merge for #$ISSUE_NUM"
               ;;
             *)
               echo "ℹ️  Event type $EVENT_TYPE - using default sync"
-              SYNC_ARGS="$SYNC_ARGS --event push"
+              SYNC_ARGS+=(--event push)
               ;;
           esac
 
           # Run sync
-          python3.10 sync.py $SYNC_ARGS || {
+          python3.10 sync.py "${SYNC_ARGS[@]}" || {
             echo "⚠️  Sync completed with warnings"
             exit 0
           }
@@ -287,21 +295,27 @@ jobs:
         run: |
           cd contrib/backend/notebooklm
 
-          SYNC_ARGS="--issue $ISSUE_NUM"
+          # An array, not a string: a string is re-split by the shell on
+          # whatever IFS happens to be, which is a second way for a value to
+          # become more than one argument.
+          SYNC_ARGS=(--issue "$ISSUE_NUM")
 
           case "$SYNC_TYPE" in
             comment)
-              SYNC_ARGS="$SYNC_ARGS --event push --trigger comment"
+              SYNC_ARGS+=(--event push --trigger comment)
               ;;
             activity)
-              SYNC_ARGS="--activity"
+              # Replaces the array rather than appending to it: --activity is
+              # documented as standalone, and the original assignment here
+              # discarded --issue too.
+              SYNC_ARGS=(--activity)
               ;;
             *)
-              SYNC_ARGS="$SYNC_ARGS --event push"
+              SYNC_ARGS+=(--event push)
               ;;
           esac
 
-          python3.10 sync.py $SYNC_ARGS
+          python3.10 sync.py "${SYNC_ARGS[@]}"
 
       - name: Comment on issue (optional)
         if: inputs.sync_type == 'activity'
