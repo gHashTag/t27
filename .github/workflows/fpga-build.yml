@@ -480,7 +480,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y yosys
-          pip3 install sby
+          # SymbiYosys is not on PyPI as 'sby' -- pip has failed here on every run
+          # since the job existed (#2214). Install from source; it is pure Python plus
+          # a Makefile. smtbmc engines need an SMT solver: z3 from apt.
+          sudo apt-get install -y z3
+          git clone --depth 1 https://github.com/YosysHQ/sby.git /tmp/sby
+          sudo make -C /tmp/sby install
 
       - name: Build t27c
         run: cargo build --release -p t27c
