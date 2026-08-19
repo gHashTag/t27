@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:cbd0b63faf90cb262baa519453e523c02c0a92e7db3b44ab697aa67670bbd28e",
-  "gen_hash_rust": "sha256:99fff4fd2bf7c8268bcc7b4089b662f9329c482df38e25e689ca0995d6d2c43a",
-  "gen_hash_verilog": "sha256:cba93ebab5e491820f21aab4fddd496f852b8f9e37ee8ea12161d5d0bb282ded",
-  "gen_hash_zig": "sha256:c42d393435c2ec10071bfa9c8dcab1884cdd56276762706c14afeafbab2262f7",
+  "gen_hash_c": "sha256:887558a4cbf9678330e850b22aec1b086a28846cd123301a615ab46886c2483f",
+  "gen_hash_rust": "sha256:1b588dc1c544414340582df7f0e213ecba95d5472ccd3c069640992a8289e18f",
+  "gen_hash_verilog": "sha256:61955430efefd8eeafa7cbfb58678259ad41ae9bfb977db46e103819006844a6",
+  "gen_hash_zig": "sha256:8cb9d3d08332a4846d1b8042eb61d9f4b682e5395991ff0ad41cf2cb8267ed9b",
   "module": "ContrastiveLoss",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:e56f7e6a77a0696efa9ed42e43b81534cd2dcff1b7cdaea7123418ce427f244c",
   "spec_path": "specs/ml/loss/contrastive_loss.t27"
 }

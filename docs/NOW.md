@@ -1,3 +1,20 @@
+# NOW -- 401 seals resealed for the merged compiler; 157 refusals stand (2026-08-19)
+
+Last updated: 2026-08-19
+
+## seals: the ladder's intentional gen changes re-certified (Refs #1959)
+
+- The #2217 merge changed generated output for 558 sealed specs (compound
+  assignment emitters, Zig cast composition, the new clause lowerings). Their
+  seals certified the OLD compiler's output -- a mass mismatch, found by the
+  suite's own seal-verify during the post-merge audit
+- Resealed with the merged binary: **401 specs, all four gen hashes fresh**;
+  spot-checked seal-verify returns MATCH
+- **157 specs REFUSED** by the #2208 policy (4 of 4 backends reject them --
+  the never-generating class). Their stale seals stay stale on purpose: a
+  refusal on the record beats a vacuous green
+- Driver: resumable, state-in-progress-file; one chunk sufficed (~7 min)
+
 # NOW -- the yosys loop could never have passed as written (2026-08-19)
 
 Last updated: 2026-08-19

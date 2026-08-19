@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:75f978e51e511e9603498ceb9967300792995873b502aae0e9148b96b41327ae",
-  "gen_hash_rust": "sha256:687edcb0c65a118086b8da89051a8edc7a52b6891babcefb3bfb88f33f623ea0",
-  "gen_hash_verilog": "sha256:8c42bac8470c8b36d6546e9e95f2d503cf50d6d3a2d40bbdcf0cfaec6fb43685",
-  "gen_hash_zig": "sha256:139c0ab8aed1018c7c9e478eb7068cf63348eb93af0cb5fd1109490178c6549c",
+  "gen_hash_c": "sha256:1d1165c2c3235a6fbbef49ea4a017f77e17f1725d9b60c79db3751457fba56d1",
+  "gen_hash_rust": "sha256:b317788f8e98f69df69ff615dc28cf5ac01e6bb3f7178cf8dcd1672414038a4b",
+  "gen_hash_verilog": "sha256:189850545beef471ce2a7498d10b3d9c81f364d49528efc261b439c18bc91a21",
+  "gen_hash_zig": "sha256:ee85d36c2cdcd78122ccc6ed0f72bb872ba68a0913725d678820a7fca5890976",
   "module": "GftLog2",
   "ring": 12,
-  "sealed_at": "2026-08-06T16:54:52Z",
+  "sealed_at": "2026-08-19T13:19:47Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:8eb008b250b93d3ec404e36be81a8e02c58a0495ba6f5e370e6f3f8361761644",
   "spec_path": "specs/ternary/gft_log2.t27"
 }

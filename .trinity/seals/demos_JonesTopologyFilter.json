@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:d100a059d2dcfd53f2204df124bc8272f2c5db3ea60e1d1f489388c16ab2ee8e",
-  "gen_hash_rust": "sha256:c0eea7afd48cdf61577a21d1cf2a171ebceb92ba762f1da6a847068aefa5c75d",
-  "gen_hash_verilog": "sha256:a90ca9152a27b6fe4cd33b99a0eb866b7d16bbbe15e5257db62330f7de932db2",
-  "gen_hash_zig": "sha256:772c64bc3e8b61fb341bae719b5becf85f47bccd38fc95488224b03aa51678d7",
+  "gen_hash_c": "sha256:82261328742146a86b97ba20d79a2d9221eac72b43a329dfde2eefc7eee86ecf",
+  "gen_hash_rust": "sha256:54882e5dd963d9e44673d6d5f47de7c0e08128ced3fbf3e38aa0eded5dd80987",
+  "gen_hash_verilog": "sha256:fbfcfd427747dd7ad81f16b9095875570a98d3f79ac38e98326218deed2bbf67",
+  "gen_hash_zig": "sha256:6dcecd6f640954945f3b015e66ac533f48b499efe818cb8dcd6e558d641bd3c5",
   "module": "JonesTopologyFilter",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:851e803e01e643919c0fbe7e8e324f01638f30fc83f827412d5dab222660d1ad",
   "spec_path": "specs/demos/jones_topology_filter.t27"
 }

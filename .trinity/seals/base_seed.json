@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:7f1d8aacee212ea7b972dfe16ba7bbacc268006695888f559ad653f9005578d8",
-  "gen_hash_rust": "sha256:67e69ee215fd882bb183e4100416560fd8c556095942698549738d231502c8a2",
-  "gen_hash_verilog": "sha256:1c82089885c977cdcb3035bf3b5046d4d2be8b20f1941f3775ee4c8df021eb74",
-  "gen_hash_zig": "sha256:8997f02d4440e303e41e3bfbdb26722b92d54a02922a9a5a3735f647d3eeb11f",
+  "gen_hash_c": "sha256:fd458ae938d5aa03f9729a723915187e9181c020d57477128d2aea6bf95b1738",
+  "gen_hash_rust": "sha256:3e0e02f337cd50852e53bef5546dbde1d3b836eee072be8969cf08a6b665770d",
+  "gen_hash_verilog": "sha256:26fba9432dc0b243c360cdf49c0a92ce1ed758812b9916d76cfb7e0bf143448f",
+  "gen_hash_zig": "sha256:28305c82575f4b4d3289df205a06cb125db2503108ba6e574e6b6ea4000c3d94",
   "module": "seed",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:42Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:fc65de6c63ef89b650bd1a9ce500b69af74b4ba32971a7e9a5c33e281a469abd",
   "spec_path": "specs/base/seed.t27"
 }
