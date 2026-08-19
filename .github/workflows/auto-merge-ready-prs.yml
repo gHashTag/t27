@@ -59,7 +59,7 @@ jobs:
             TITLE=$(echo "$PR_METADATA" | jq -r '.title // empty')
             BODY=$(echo "$PR_METADATA" | jq -r '.body // empty')
             if ! echo "$TITLE
-$BODY" | grep -qiE "$L1_RE"; then
+          $BODY" | grep -qiE "$L1_RE"; then
               echo "  Skipped: missing L1 TRACEABILITY issue reference"
               SKIPPED=$((SKIPPED + 1))
               continue
