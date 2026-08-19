@@ -10,21 +10,22 @@ Two things changed since W892:
      equal the corpus counter exactly, 42,926 = 42,926 across all 126 files.
   2. The grammar: the gold-ring ladder 0001-0005 (chiefly 0005: the `and`
      clause never worked) recovers most BDD blocks outright.
-Marks are now line-level VERDICTS from the honest instrument:
+Marks are line-level VERDICTS from the honest instrument (remeasured W904):
   [R] READ -- the line is lowered into the AST by the 0005 prototype
-  [D] dropped -- the line is still inside a discarded span under 0005
+  [D] dropped -- the line is still inside a discarded span under 0011
 
 **Remeasured total: 9300 scenarios, 23033 BDD lines across 106 files;
 21444 READ (93.1%), 1589 still dropped, 0 files unparsed.**
 **W900 addendum, rung 0006 (array-type lookahead): 22329 READ (96.9%),
 704 still dropped. Line marks below remain the 0005 measurement.**
-**W902 addendum, rungs 0007-0010: 22601 READ (98.1%), 432 still dropped,
-0 lines in honestly-unparsed files.**
+**W902 addendum, rungs 0007-0010: 22601 READ (98.1%), 432 still dropped.**
+**W904 REMEASURE, rung 0011+v3 — the marks below are now THIS measurement:
+22677 READ (98.5%), 356 still dropped, 0 lines in honestly-unparsed files.**
 (W892 said 4,665 confirmed-dropped -- measured with the frozen grammar AND the
 channel-blind instrument, so the two [D] sets are not directly comparable; the
 honest current loss set is the 1,589 below.)
 
-## specs/boards/arty_a7.t27 — 23 scenario(s), 45 line(s), 0 dropped under 0005
+## specs/boards/arty_a7.t27 — 23 scenario(s), 45 line(s), 0 dropped under 0011
 - [R] `177`: given name = BOARD_NAME
 - [R] `178`: then name == "Digilent Arty A7-35T"
 - [R] `181`: given family = FPGA_FAMILY
@@ -71,7 +72,7 @@ honest current loss set is the 1,589 below.)
 - [R] `284`: given freq = CLOCK_FREQ_HZ
 - [R] `285`: and   period = CLOCK_PERIOD_NS
 
-## specs/boards/wukong_v1.t27 — 15 scenario(s), 30 line(s), 0 dropped under 0005
+## specs/boards/wukong_v1.t27 — 15 scenario(s), 30 line(s), 0 dropped under 0011
 - [R] `176`: given v = JTAG_IDCODE
 - [R] `177`: then v == 0x03636093
 - [R] `180`: given v = FLASH_MBIT
@@ -103,7 +104,7 @@ honest current loss set is the 1,589 below.)
 - [R] `237`: given r = cfgmclk_in_datasheet_range(40_000)
 - [R] `238`: then r == false
 
-## specs/boards/xc7a100t_full.t27 — 15 scenario(s), 42 line(s), 0 dropped under 0005
+## specs/boards/xc7a100t_full.t27 — 15 scenario(s), 42 line(s), 0 dropped under 0011
 - [R] `273`: given result = has_uart()
 - [R] `274`: then result == true
 - [R] `277`: given result = has_spi()
@@ -147,7 +148,7 @@ honest current loss set is the 1,589 below.)
 - [R] `353`: given mosi = PIN_SPI_MOSI
 - [R] `354`: and   miso = PIN_SPI_MISO
 
-## specs/boards/xc7a100t_minimal.t27 — 29 scenario(s), 63 line(s), 0 dropped under 0005
+## specs/boards/xc7a100t_minimal.t27 — 29 scenario(s), 63 line(s), 0 dropped under 0011
 - [R] `232`: given name = BOARD_NAME
 - [R] `233`: then name == "QMTECH XC7A100T-CSG324"
 - [R] `236`: given family = FPGA_FAMILY
@@ -212,7 +213,7 @@ honest current loss set is the 1,589 below.)
 - [R] `378`: given p0 = PIN_LED_0.is_output
 - [R] `379`: and   p7 = PIN_LED_7.is_output
 
-## specs/compiler/pipeline.t27 — 13 scenario(s), 26 line(s), 1 dropped under 0005
+## specs/compiler/pipeline.t27 — 13 scenario(s), 26 line(s), 1 dropped under 0011
 - [R] `103`: given c = default_pipeline_config()
 - [R] `104`: then c.target_backend == "zig"
 - [R] `107`: given c = default_pipeline_config()
@@ -240,7 +241,7 @@ honest current loss set is the 1,589 below.)
 - [D] `156`: then total_optimizations(r) == 10
 - [R] `167`: given r = pipeline_result_fail(5, "error")
 
-## specs/demos/jones_topology_decision_gate.t27 — 8 scenario(s), 61 line(s), 5 dropped under 0005
+## specs/demos/jones_topology_decision_gate.t27 — 8 scenario(s), 61 line(s), 2 dropped under 0011
 - [R] `182`: given A = jones_topology_filter::standard_structure()
 - [R] `183`: when sig_a = jones_topology_filter::jones_signature(A)
 - [R] `184`: and   sig_a2 = jones_topology_filter::jones_signature(A)
@@ -281,9 +282,9 @@ honest current loss set is the 1,589 below.)
 - [R] `237`: given structures = [
 - [R] `247`: when all_valid = true
 - [R] `249`: then all_valid
-- [D] `256`: given structures = [
-- [D] `266`: when levels = []
-- [D] `268`: then true
+- [R] `256`: given structures = [
+- [R] `266`: when levels = []
+- [R] `268`: then true
 - [R] `282`: when A = jones_topology_filter::standard_structure()
 - [R] `283`: and   sig_a = jones_topology_filter::jones_signature(A)
 - [R] `284`: and   sig_a2 = jones_topology_filter::jones_signature(A)
@@ -303,7 +304,7 @@ honest current loss set is the 1,589 below.)
 - [D] `313`: when structures = [
 - [D] `319`: and   sim = cosine_similarity(structures[0], structures[1])
 
-## specs/demos/jones_topology_filter.t27 — 20 scenario(s), 71 line(s), 0 dropped under 0005
+## specs/demos/jones_topology_filter.t27 — 20 scenario(s), 71 line(s), 0 dropped under 0011
 - [R] `143`: given structure = standard_structure()
 - [R] `144`: when sig = jones_signature(structure)
 - [R] `145`: then constants::abs(sig.jones_value - sacred_physics::PHI) < 1e-10
@@ -376,7 +377,7 @@ honest current loss set is the 1,589 below.)
 - [R] `280`: when sig1 = jones_signature(s)
 - [R] `281`: and   sig2 = jones_signature(s)
 
-## specs/fpga/apb_bridge.t27 — 23 scenario(s), 52 line(s), 0 dropped under 0005
+## specs/fpga/apb_bridge.t27 — 23 scenario(s), 52 line(s), 0 dropped under 0011
 - [R] `236`: given cfg = apb_bridge("apb0", 32, 32, 4)
 - [R] `237`: then cfg.name == "apb0"
 - [R] `238`: and cfg.addr_width == 32
@@ -430,7 +431,7 @@ honest current loss set is the 1,589 below.)
 - [R] `333`: given cfg = apb_bridge("inv", 32, 32, 4)
 - [R] `337`: given cfg = apb_bridge("inv", 32, 32, 4)
 
-## specs/fpga/assembler.t27 — 20 scenario(s), 51 line(s), 0 dropped under 0005
+## specs/fpga/assembler.t27 — 20 scenario(s), 51 line(s), 0 dropped under 0011
 - [R] `237`: given cfg = asm_config("t27_asm")
 - [R] `238`: then cfg.text_base == 0
 - [R] `239`: and cfg.data_base == 4096
@@ -483,7 +484,7 @@ honest current loss set is the 1,589 below.)
 - [R] `332`: given a = align_address(100, 16)
 - [R] `336`: given cfg = asm_config("inv")
 
-## specs/fpga/axi4.t27 — 23 scenario(s), 44 line(s), 0 dropped under 0005
+## specs/fpga/axi4.t27 — 23 scenario(s), 44 line(s), 0 dropped under 0011
 - [R] `284`: given cfg = axi4_lite_slave("s0", 32, 32)
 - [R] `285`: then is_lite(cfg) == true
 - [R] `286`: and is_full(cfg) == false
@@ -529,7 +530,7 @@ honest current loss set is the 1,589 below.)
 - [R] `375`: given cfg = axi4_lite_slave("inv", 32, 32)
 - [R] `379`: given cfg = axi4_lite_slave("inv", 32, 32)
 
-## specs/fpga/bootrom.t27 — 13 scenario(s), 36 line(s), 0 dropped under 0005
+## specs/fpga/bootrom.t27 — 13 scenario(s), 36 line(s), 0 dropped under 0011
 - [R] `72`: given s = boot_stage("fsbl", 0, 4096, 0)
 - [R] `73`: then s.name == "fsbl"
 - [R] `74`: and s.index == 0
@@ -567,7 +568,7 @@ honest current loss set is the 1,589 below.)
 - [R] `128`: and stage_end(s0) == s1.entry_addr
 - [R] `131`: given c = boot_config("inv", 4096)
 
-## specs/fpga/bpsk.t27 — 13 scenario(s), 29 line(s), 7 dropped under 0005
+## specs/fpga/bpsk.t27 — 13 scenario(s), 29 line(s), 0 dropped under 0011
 - [R] `133`: given peak = correlate(BARKER13_BITS)
 - [R] `134`: then peak == 13
 - [R] `139`: given anti = correlate((~BARKER13_BITS) & WINDOW_MASK)
@@ -580,13 +581,13 @@ honest current loss set is the 1,589 below.)
 - [R] `154`: then s == 1
 - [R] `157`: given s = bit_to_symbol(0)
 - [R] `158`: then s == -1
-- [D] `162`: given tx_load(0x01)
-- [D] `163`: and s = tx_next_symbol()
-- [D] `164`: then s == 1
-- [D] `168`: given tx_load(0x02)
-- [D] `169`: and tx_next_symbol()
-- [D] `170`: and s = tx_next_symbol()
-- [D] `171`: then s == 1
+- [R] `162`: given tx_load(0x01)
+- [R] `163`: and s = tx_next_symbol()
+- [R] `164`: then s == 1
+- [R] `168`: given tx_load(0x02)
+- [R] `169`: and tx_next_symbol()
+- [R] `170`: and s = tx_next_symbol()
+- [R] `171`: then s == 1
 - [R] `175`: given w = rx_push(0, 1)
 - [R] `176`: then w == 1
 - [R] `180`: given w = rx_push(8191, 1)
@@ -598,7 +599,7 @@ honest current loss set is the 1,589 below.)
 - [R] `194`: given n = frame_symbol_count(0)
 - [R] `195`: then n == 21
 
-## specs/fpga/bridge.t27 — 28 scenario(s), 71 line(s), 32 dropped under 0005
+## specs/fpga/bridge.t27 — 28 scenario(s), 71 line(s), 16 dropped under 0011
 - [R] `350`: given state = bridge.state
 - [R] `351`: then state == BRIDGE_IDLE
 - [R] `354`: given rx_avail = bridge_rx_available()
@@ -627,15 +628,15 @@ honest current loss set is the 1,589 below.)
 - [R] `397`: given spi_en = bridge.spi_enabled
 - [R] `398`: and   mac_en = bridge.mac_enabled
 - [R] `399`: then spi_en == true and mac_en == true
-- [D] `402`: given bridge_rx_available() == 1
-- [D] `403`: and   result = bridge_parse_header()
-- [D] `404`: then result == false
-- [D] `407`: given bridge.handle_config(0x01)
-- [D] `408`: then bridge.spi_enabled == true
-- [D] `411`: given bridge.handle_config(0x02)
-- [D] `412`: then bridge.mac_enabled == true
-- [D] `415`: given bridge.handle_config(0x00)
-- [D] `416`: then bridge.spi_enabled == false
+- [R] `402`: given bridge_rx_available() == 1
+- [R] `403`: and   result = bridge_parse_header()
+- [R] `404`: then result == false
+- [R] `407`: given bridge.handle_config(0x01)
+- [R] `408`: then bridge.spi_enabled == true
+- [R] `411`: given bridge.handle_config(0x02)
+- [R] `412`: then bridge.mac_enabled == true
+- [R] `415`: given bridge.handle_config(0x00)
+- [R] `416`: then bridge.spi_enabled == false
 - [R] `419`: given mul_op = OP_MAC_MUL
 - [R] `420`: and   mac_op = OP_MAC_MAC
 - [R] `421`: and   macc_op = OP_MAC_MACC
@@ -659,19 +660,19 @@ honest current loss set is the 1,589 below.)
 - [R] `460`: given avail = bridge_rx_available()
 - [R] `464`: given space = bridge_tx_space()
 - [R] `468`: given plen = bridge.packet_len
-- [D] `472`: given old_cnt = bridge.timeout_cnt
-- [D] `473`: when bridge.state == BRIDGE_PARSE and bridge_process_payload() == false
-- [D] `474`: then bridge.timeout_cnt >= old_cnt
+- [R] `472`: given old_cnt = bridge.timeout_cnt
+- [R] `473`: when bridge.state == BRIDGE_PARSE and bridge_process_payload() == false
+- [R] `474`: then bridge.timeout_cnt >= old_cnt
 - [D] `477`: given bridge.timeout_cnt = PACKET_TIMEOUT + 1
 - [D] `478`: and   bridge.state == BRIDGE_PARSE
 - [D] `479`: when bridge_process_payload() == false
 - [D] `480`: then bridge.state == BRIDGE_IDLE
-- [D] `483`: given old_spi = bridge.spi_enabled
-- [D] `484`: and   old_mac = bridge.mac_enabled
-- [D] `485`: when bridge.handle_config(0x03)
-- [D] `486`: then (bridge.spi_enabled || !bridge.spi_enabled)  // May have changed
+- [R] `483`: given old_spi = bridge.spi_enabled
+- [R] `484`: and   old_mac = bridge.mac_enabled
+- [R] `485`: when bridge.handle_config(0x03)
+- [R] `486`: then (bridge.spi_enabled || !bridge.spi_enabled)  // May have changed
 
-## specs/fpga/clock_domain.t27 — 17 scenario(s), 34 line(s), 0 dropped under 0005
+## specs/fpga/clock_domain.t27 — 17 scenario(s), 34 line(s), 0 dropped under 0011
 - [R] `149`: given c = ext_clock("sys_clk", 12000000)
 - [R] `150`: then is_external(c) == true
 - [R] `151`: and is_pll(c) == false
@@ -707,7 +708,7 @@ honest current loss set is the 1,589 below.)
 - [R] `219`: given a = make_domain("a", "clk", 12000000)
 - [R] `220`: and b = make_domain("b", "pll", 100000000)
 
-## specs/fpga/crossopt.t27 — 7 scenario(s), 20 line(s), 0 dropped under 0005
+## specs/fpga/crossopt.t27 — 7 scenario(s), 20 line(s), 0 dropped under 0011
 - [R] `82`: given p = pass_zero()
 - [R] `83`: then p.num_modules == 0
 - [R] `84`: and total_improvements(p) == 0
@@ -729,7 +730,7 @@ honest current loss set is the 1,589 below.)
 - [R] `110`: then is_effective(r) == false
 - [R] `113`: given p = pass_zero()
 
-## specs/fpga/cts.t27 — 12 scenario(s), 37 line(s), 0 dropped under 0005
+## specs/fpga/cts.t27 — 12 scenario(s), 37 line(s), 0 dropped under 0011
 - [R] `141`: given p = pll_config("sys_pll", 100, 200)
 - [R] `142`: then p.input_mhz == 100
 - [R] `143`: and p.output_mhz == 200
@@ -768,7 +769,7 @@ honest current loss set is the 1,589 below.)
 - [R] `208`: given b = bufg("inv")
 - [R] `212`: given t = clock_tree("inv", 2, 5)
 
-## specs/fpga/dft.t27 — 18 scenario(s), 47 line(s), 0 dropped under 0005
+## specs/fpga/dft.t27 — 18 scenario(s), 47 line(s), 0 dropped under 0011
 - [R] `168`: given c = scan_chain("core_chain", 100)
 - [R] `169`: then c.num_regs == 100
 - [R] `170`: and c.chain_length_bits == 3200
@@ -817,7 +818,7 @@ honest current loss set is the 1,589 below.)
 - [R] `249`: given c = scan_chain("inv", 10)
 - [R] `253`: given c = test_coverage(100, 100, 100)
 
-## specs/fpga/e2e_demo.t27 — 19 scenario(s), 46 line(s), 0 dropped under 0005
+## specs/fpga/e2e_demo.t27 — 19 scenario(s), 46 line(s), 0 dropped under 0011
 - [R] `157`: given k = hello_kernel()
 - [R] `158`: then k.name == "hello_trinity"
 - [R] `159`: and k.instr_count == 12
@@ -865,7 +866,7 @@ honest current loss set is the 1,589 below.)
 - [R] `238`: given r = pipe_result_ok(100, 50, 0)
 - [R] `242`: given cfg = demo_config(hello_kernel())
 
-## specs/fpga/gf16_accel.t27 — 30 scenario(s), 68 line(s), 0 dropped under 0005
+## specs/fpga/gf16_accel.t27 — 30 scenario(s), 68 line(s), 0 dropped under 0011
 - [R] `260`: given cfg = gf16_basic("gf0", 8)
 - [R] `261`: then cfg.num_multipliers == 8
 - [R] `262`: and cfg.has_mac == true
@@ -935,7 +936,7 @@ honest current loss set is the 1,589 below.)
 - [R] `400`: given fft = gf16_fft("inv", 16, 2)
 - [R] `404`: given cfg = gf16_basic("inv", 8)
 
-## specs/fpga/hir.t27 — 34 scenario(s), 90 line(s), 0 dropped under 0005
+## specs/fpga/hir.t27 — 34 scenario(s), 90 line(s), 0 dropped under 0011
 - [R] `515`: given m = empty_module("test_mod")
 - [R] `516`: then port_count(m) == 0
 - [R] `517`: and signal_count(m) == 0
@@ -1027,7 +1028,7 @@ honest current loss set is the 1,589 below.)
 - [R] `675`: and mem2 = mem_add_port(mem, "p0", true, 32, 9)
 - [R] `679`: given bp = make_bus_port("inv_bus", 0, 32, 32, true, 0)
 
-## specs/fpga/hw_types.t27 — 10 scenario(s), 32 line(s), 0 dropped under 0005
+## specs/fpga/hw_types.t27 — 10 scenario(s), 32 line(s), 0 dropped under 0011
 - [R] `219`: given w = hw_width(hw_bits(8))
 - [R] `220`: then w == 8
 - [R] `223`: given w = hw_width(hw_uint(3))
@@ -1061,7 +1062,7 @@ honest current loss set is the 1,589 below.)
 - [R] `291`: then is_connectable(hw_clock(), hw_bool()) == false
 - [R] `320`: given t = hw_uint(8)
 
-## specs/fpga/mac.t27 — 31 scenario(s), 127 line(s), 23 dropped under 0005
+## specs/fpga/mac.t27 — 31 scenario(s), 127 line(s), 0 dropped under 0011
 - [R] `349`: given a = TernaryWord{.raw = 0}
 - [R] `350`: and   b = TernaryWord{.raw = 0}
 - [R] `351`: and   set_trit = pack_trit(Trit.pos, 0)
@@ -1133,20 +1134,20 @@ honest current loss set is the 1,589 below.)
 - [R] `447`: and   mac_reset(0)
 - [R] `448`: and   status = mac_status_read(0)
 - [R] `449`: then status == STATUS_READY
-- [D] `452`: given mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 0)
-- [D] `453`: and   mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 1)
-- [D] `454`: and   mac_reset_all()
-- [D] `455`: and   acc0 = mac_get_accumulator(0)
-- [D] `456`: and   acc1 = mac_get_accumulator(1)
-- [D] `457`: then acc0 == 0 and acc1 == 0
+- [R] `452`: given mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 0)
+- [R] `453`: and   mac_multiply(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = 0}, 1)
+- [R] `454`: and   mac_reset_all()
+- [R] `455`: and   acc0 = mac_get_accumulator(0)
+- [R] `456`: and   acc1 = mac_get_accumulator(1)
+- [R] `457`: then acc0 == 0 and acc1 == 0
 - [R] `460`: given result = mac_multiply(TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, 99)
 - [R] `461`: then result.raw == 0
-- [D] `464`: given mat = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.zero, 0)},
-- [D] `466`: and   vec = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
-- [D] `467`: and   result = [0i32; 2]
-- [D] `468`: and   units = [0u8, 1u8]
-- [D] `469`: when mac_matrix_vector(mat, vec, 2, 2, result, units)
-- [D] `470`: then result[0] == 1 and result[1] == 1
+- [R] `464`: given mat = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.zero, 0)},
+- [R] `466`: and   vec = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
+- [R] `467`: and   result = [0i32; 2]
+- [R] `468`: and   units = [0u8, 1u8]
+- [R] `469`: when mac_matrix_vector(mat, vec, 2, 2, result, units)
+- [R] `470`: then result[0] == 1 and result[1] == 1
 - [R] `473`: given word = TernaryWord{.raw = 0}
 - [R] `474`: and   trit = extract_trit(word, 0)
 - [R] `475`: then trit == Trit.zero
@@ -1161,18 +1162,18 @@ honest current loss set is the 1,589 below.)
 - [R] `490`: and   word = TernaryWord{.raw = packed}
 - [R] `491`: and   extracted = extract_trit(word, 0)
 - [R] `492`: then extracted == original
-- [D] `495`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
-- [D] `496`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
-- [D] `497`: and   results = [TernaryWord{.raw = 0}; 8]
-- [D] `498`: when mac_parallel_multiply(a, b, results, 8)
-- [D] `499`: then results[0].raw != 0 and results[1].raw != 0
+- [R] `495`: given a = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
+- [R] `496`: and   b = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}; 8]
+- [R] `497`: and   results = [TernaryWord{.raw = 0}; 8]
+- [R] `498`: when mac_parallel_multiply(a, b, results, 8)
+- [R] `499`: then results[0].raw != 0 and results[1].raw != 0
 - [R] `532`: given status = mac_status_read(0)
-- [D] `536`: given mac_cycle(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}, 0, 42)
-- [D] `537`: and   mac_reset(0)
-- [D] `538`: and   acc = mac_get_accumulator(0)
-- [D] `542`: given mac_multiply(TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, 0)
-- [D] `543`: and   mac_reset(0)
-- [D] `544`: and   status = mac_status_read(0)
+- [R] `536`: given mac_cycle(TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}, 0, 42)
+- [R] `537`: and   mac_reset(0)
+- [R] `538`: and   acc = mac_get_accumulator(0)
+- [R] `542`: given mac_multiply(TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, 0)
+- [R] `543`: and   mac_reset(0)
+- [R] `544`: and   status = mac_status_read(0)
 - [R] `548`: given a = TernaryWord{.raw = 0xFFFFFFFF}
 - [R] `549`: and   b = TernaryWord{.raw = 0xFFFFFFFF}
 - [R] `550`: and   result = mac_multiply(a, b, 0)
@@ -1190,7 +1191,7 @@ honest current loss set is the 1,589 below.)
 - [R] `586`: and   acc0 = mac_get_accumulator(0)
 - [R] `587`: and   acc1 = mac_get_accumulator(1)
 
-## specs/fpga/memory.t27 — 21 scenario(s), 56 line(s), 0 dropped under 0005
+## specs/fpga/memory.t27 — 21 scenario(s), 56 line(s), 0 dropped under 0011
 - [R] `242`: given m = empty_mem("test", 0)
 - [R] `243`: then port_count(m) == 0
 - [R] `246`: given m = make_bram("ram1", 1024, 32)
@@ -1248,7 +1249,7 @@ honest current loss set is the 1,589 below.)
 - [R] `340`: and m2 = add_read_port(m, "rda")
 - [R] `344`: given m = make_bram("inv", 1024, 32)
 
-## specs/fpga/placement.t27 — 16 scenario(s), 40 line(s), 0 dropped under 0005
+## specs/fpga/placement.t27 — 16 scenario(s), 40 line(s), 0 dropped under 0011
 - [R] `157`: given r = region("core", 4, 10, 20, 30, 40)
 - [R] `158`: then r.name == "core"
 - [R] `159`: and r.kind == 4
@@ -1290,7 +1291,7 @@ honest current loss set is the 1,589 below.)
 - [R] `225`: given r = logic_cluster("inv", 0, 0, 10, 10)
 - [R] `229`: given r = logic_cluster("inv", 0, 0, 10, 10)
 
-## specs/fpga/power.t27 — 8 scenario(s), 37 line(s), 0 dropped under 0005
+## specs/fpga/power.t27 — 8 scenario(s), 37 line(s), 0 dropped under 0011
 - [R] `148`: given d = power_domain("core", 100)
 - [R] `149`: then d.name == "core"
 - [R] `150`: and d.voltage_mv == 1000
@@ -1329,7 +1330,7 @@ honest current loss set is the 1,589 below.)
 - [R] `211`: then validate_domain(d) > 0
 - [R] `216`: given p = zero_power()
 
-## specs/fpga/router.t27 — 14 scenario(s), 41 line(s), 0 dropped under 0005
+## specs/fpga/router.t27 — 14 scenario(s), 41 line(s), 0 dropped under 0011
 - [R] `161`: given e = data_edge("a", "b", 32)
 - [R] `162`: then e.kind == 0
 - [R] `163`: and e.bit_width == 32
@@ -1372,7 +1373,7 @@ honest current loss set is the 1,589 below.)
 - [R] `241`: and long_wire_um() > medium_wire_um()
 - [R] `244`: given c = est_congestion(100, 10)
 
-## specs/fpga/simulator.t27 — 17 scenario(s), 46 line(s), 0 dropped under 0005
+## specs/fpga/simulator.t27 — 17 scenario(s), 46 line(s), 0 dropped under 0011
 - [R] `190`: given cfg = sim_config("uart_sim", 10000)
 - [R] `191`: then cfg.max_cycles == 10000
 - [R] `192`: and cfg.trace_enabled == false
@@ -1420,7 +1421,7 @@ honest current loss set is the 1,589 below.)
 - [R] `268`: given cfg = sim_config("inv", 100)
 - [R] `272`: given cfg = sim_config("inv", 100)
 
-## specs/fpga/stdlib.t27 — 20 scenario(s), 62 line(s), 0 dropped under 0005
+## specs/fpga/stdlib.t27 — 20 scenario(s), 62 line(s), 0 dropped under 0011
 - [R] `255`: given r = zero_resources()
 - [R] `256`: then r.luts == 0
 - [R] `257`: and r.ffs == 0
@@ -1484,7 +1485,7 @@ honest current loss set is the 1,589 below.)
 - [R] `361`: and total_bram18(cat) == 0
 - [R] `362`: and total_dsp48(cat) == 0
 
-## specs/fpga/ternary_isa.t27 — 32 scenario(s), 81 line(s), 0 dropped under 0005
+## specs/fpga/ternary_isa.t27 — 32 scenario(s), 81 line(s), 0 dropped under 0011
 - [R] `372`: given fmt = r_type_format()
 - [R] `373`: then is_r_type(fmt) == true
 - [R] `374`: and is_i_type(fmt) == false
@@ -1567,7 +1568,7 @@ honest current loss set is the 1,589 below.)
 - [R] `526`: given rf = ternary_regfile("inv")
 - [R] `530`: given cfg = ternary_core("inv")
 
-## specs/fpga/testbench.t27 — 19 scenario(s), 47 line(s), 0 dropped under 0005
+## specs/fpga/testbench.t27 — 19 scenario(s), 47 line(s), 0 dropped under 0011
 - [R] `174`: given cfg = clock_cfg(10)
 - [R] `175`: then cfg.period_ns == 10
 - [R] `176`: and cfg.duty_cycle == 50
@@ -1616,24 +1617,24 @@ honest current loss set is the 1,589 below.)
 - [R] `256`: given cfg = reset_cfg(5, 10)
 - [R] `260`: given cfg = tb_config("dut", 1000)
 
-## specs/fpga/testbench/top_tb.t27 — 7 scenario(s), 23 line(s), 12 dropped under 0005
-- [D] `179`: given old = sim_cycle
-- [D] `180`: when generate_clock()
-- [D] `181`: then sim_cycle == old + 1
-- [D] `184`: given rst_n = false
-- [D] `185`: when wait_cycles(10)
-- [D] `186`: and  rst_n = true
-- [D] `187`: and  wait_cycles(10)
-- [D] `188`: then test_passed >= 0
+## specs/fpga/testbench/top_tb.t27 — 7 scenario(s), 23 line(s), 0 dropped under 0011
+- [R] `179`: given old = sim_cycle
+- [R] `180`: when generate_clock()
+- [R] `181`: then sim_cycle == old + 1
+- [R] `184`: given rst_n = false
+- [R] `185`: when wait_cycles(10)
+- [R] `186`: and  rst_n = true
+- [R] `187`: and  wait_cycles(10)
+- [R] `188`: then test_passed >= 0
 - [R] `191`: given PING_CMD = 0x01
 - [R] `192`: and   PONG_RESP = 0x02
 - [R] `193`: then PING_CMD != PONG_RESP
 - [R] `196`: given led = [true, true, true, true]
 - [R] `197`: then led[0] == true
-- [D] `200`: given spi_cs = false
-- [D] `201`: when wait_cycles(CLK_PERIOD * 10)
-- [D] `202`: and  spi_cs = true
-- [D] `203`: then spi_cs == true
+- [R] `200`: given spi_cs = false
+- [R] `201`: when wait_cycles(CLK_PERIOD * 10)
+- [R] `202`: and  spi_cs = true
+- [R] `203`: then spi_cs == true
 - [R] `206`: given mac_a = [true; 27]
 - [R] `207`: and   mac_b = [true; 27]
 - [R] `208`: and   mac_acc = 0
@@ -1641,7 +1642,7 @@ honest current loss set is the 1,589 below.)
 - [R] `212`: given SIM_TIMEOUT = 50_000_000
 - [R] `213`: then SIM_TIMEOUT > 0
 
-## specs/fpga/timing.t27 — 17 scenario(s), 62 line(s), 0 dropped under 0005
+## specs/fpga/timing.t27 — 17 scenario(s), 62 line(s), 0 dropped under 0011
 - [R] `251`: given a = comb_arc("a", "b", 500)
 - [R] `252`: then a.source == "a"
 - [R] `253`: and a.sink == "b"
@@ -1705,40 +1706,40 @@ honest current loss set is the 1,589 below.)
 - [R] `365`: and bram_delay_ps() > lut_delay_ps()
 - [R] `366`: and dsp_delay_ps() > lut_delay_ps()
 
-## specs/fpga/top_level.t27 — 20 scenario(s), 65 line(s), 50 dropped under 0005
+## specs/fpga/top_level.t27 — 20 scenario(s), 65 line(s), 7 dropped under 0011
 - [R] `103`: given ready = system_ready()
 - [R] `104`: then ready == true
 - [R] `107`: given busy = system_busy()
 - [R] `108`: then busy == false
 - [R] `111`: given error = system_error()
 - [R] `112`: then error == false
-- [D] `115`: given set_error()
-- [D] `116`: and   system_reset()
-- [D] `117`: and   ready = system_ready()
-- [D] `118`: and   error = system_error()
-- [D] `119`: then ready == true and error == false
-- [D] `122`: given start_processing()
-- [D] `123`: and   busy = system_busy()
-- [D] `124`: then busy == true
-- [D] `127`: given start_processing()
-- [D] `128`: and   stop_processing()
-- [D] `129`: and   busy = system_busy()
-- [D] `130`: then busy == false
-- [D] `133`: given start_processing()
-- [D] `134`: and   set_error()
-- [D] `135`: and   busy = system_busy()
-- [D] `136`: and   error = system_error()
-- [D] `137`: then busy == false and error == true
-- [D] `140`: given set_mac_result(42)
-- [D] `141`: and   result = get_mac_result()
-- [D] `142`: then result == 42
-- [D] `145`: given set_uart_data(0xAA)
-- [D] `146`: and   data = get_uart_data()
-- [D] `147`: then data == 0xAA
-- [D] `150`: given start_processing()
-- [D] `151`: and   set_mac_result(100)
-- [D] `152`: and   busy = system_busy()
-- [D] `153`: then busy == false
+- [R] `115`: given set_error()
+- [R] `116`: and   system_reset()
+- [R] `117`: and   ready = system_ready()
+- [R] `118`: and   error = system_error()
+- [R] `119`: then ready == true and error == false
+- [R] `122`: given start_processing()
+- [R] `123`: and   busy = system_busy()
+- [R] `124`: then busy == true
+- [R] `127`: given start_processing()
+- [R] `128`: and   stop_processing()
+- [R] `129`: and   busy = system_busy()
+- [R] `130`: then busy == false
+- [R] `133`: given start_processing()
+- [R] `134`: and   set_error()
+- [R] `135`: and   busy = system_busy()
+- [R] `136`: and   error = system_error()
+- [R] `137`: then busy == false and error == true
+- [R] `140`: given set_mac_result(42)
+- [R] `141`: and   result = get_mac_result()
+- [R] `142`: then result == 42
+- [R] `145`: given set_uart_data(0xAA)
+- [R] `146`: and   data = get_uart_data()
+- [R] `147`: then data == 0xAA
+- [R] `150`: given start_processing()
+- [R] `151`: and   set_mac_result(100)
+- [R] `152`: and   busy = system_busy()
+- [R] `153`: then busy == false
 - [R] `156`: then CLK_FREQ_HZ == 100_000_000
 - [R] `157`: and SYSTICK_HZ == 1000
 - [R] `158`: and NUM_MAC_UNITS == 8
@@ -1748,31 +1749,31 @@ honest current loss set is the 1,589 below.)
 - [R] `164`: and CMD_MAC_DOT == 2
 - [R] `165`: and CMD_UART_SEND == 3
 - [R] `166`: and CMD_RESET == 0xFF
-- [D] `169`: given set_mac_result(999)
-- [D] `170`: and system_reset()
-- [D] `171`: then get_mac_result() == 0
-- [D] `174`: given set_uart_data(0xFF)
-- [D] `175`: and system_reset()
-- [D] `176`: then get_uart_data() == 0
-- [D] `179`: given set_error()
-- [D] `180`: and clear_error()
-- [D] `181`: then system_error() == false
-- [D] `182`: and system_ready() == true
+- [R] `169`: given set_mac_result(999)
+- [R] `170`: and system_reset()
+- [R] `171`: then get_mac_result() == 0
+- [R] `174`: given set_uart_data(0xFF)
+- [R] `175`: and system_reset()
+- [R] `176`: then get_uart_data() == 0
+- [R] `179`: given set_error()
+- [R] `180`: and clear_error()
+- [R] `181`: then system_error() == false
+- [R] `182`: and system_ready() == true
 - [D] `185`: given system_state.mac_ready = false
 - [D] `186`: then system_ready() == false
-- [D] `189`: given set_mac_result(-42)
-- [D] `190`: then get_mac_result() == -42
-- [D] `193`: given set_uart_data(0)
-- [D] `194`: then get_uart_data() == 0
-- [D] `195`: given set_uart_data(255)
-- [D] `196`: then get_uart_data() == 255
+- [R] `189`: given set_mac_result(-42)
+- [R] `190`: then get_mac_result() == -42
+- [R] `193`: given set_uart_data(0)
+- [R] `194`: then get_uart_data() == 0
+- [R] `195`: given set_uart_data(255)
+- [R] `196`: then get_uart_data() == 255
 - [D] `199`: given busy = system_busy()
 - [D] `200`: and   ready = system_ready()
 - [D] `204`: given error = system_error()
 - [D] `205`: and   busy = system_busy()
 - [D] `209`: given ready = system_ready()
 
-## specs/fpga/uart.t27 — 15 scenario(s), 47 line(s), 24 dropped under 0005
+## specs/fpga/uart.t27 — 15 scenario(s), 47 line(s), 7 dropped under 0011
 - [R] `112`: given status = uart_status()
 - [R] `113`: then status == STATUS_IDLE
 - [R] `116`: given ready = uart_tx_ready()
@@ -1781,23 +1782,23 @@ honest current loss set is the 1,589 below.)
 - [R] `121`: then valid == false
 - [R] `124`: given result = uart_tx_send(0x55)
 - [R] `125`: then result == true
-- [D] `128`: given uart_tx_send(0x55)
-- [D] `129`: and   result = uart_tx_send(0xAA)
-- [D] `130`: then result == false
-- [D] `133`: given uart_tx_send(0x55)
-- [D] `134`: and   uart_reset()
-- [D] `135`: and   status = uart_status()
-- [D] `136`: then status == STATUS_IDLE
-- [D] `139`: given uart_tx_send(0x55)
-- [D] `140`: and   uart_reset()
-- [D] `141`: and   ready = uart_tx_ready()
-- [D] `142`: then ready == true
-- [D] `145`: given uart_configure(100, false, 1, true)
-- [D] `146`: then uart_config.baud_divisor == 100
-- [D] `149`: given uart_configure(54, true, 2, false)
-- [D] `150`: then uart_config.parity_enable == true
-- [D] `151`: and uart_config.stop_bits == 2
-- [D] `152`: and uart_config.fifo_enable == false
+- [R] `128`: given uart_tx_send(0x55)
+- [R] `129`: and   result = uart_tx_send(0xAA)
+- [R] `130`: then result == false
+- [R] `133`: given uart_tx_send(0x55)
+- [R] `134`: and   uart_reset()
+- [R] `135`: and   status = uart_status()
+- [R] `136`: then status == STATUS_IDLE
+- [R] `139`: given uart_tx_send(0x55)
+- [R] `140`: and   uart_reset()
+- [R] `141`: and   ready = uart_tx_ready()
+- [R] `142`: then ready == true
+- [R] `145`: given uart_configure(100, false, 1, true)
+- [R] `146`: then uart_config.baud_divisor == 100
+- [R] `149`: given uart_configure(54, true, 2, false)
+- [R] `150`: then uart_config.parity_enable == true
+- [R] `151`: and uart_config.stop_bits == 2
+- [R] `152`: and uart_config.fifo_enable == false
 - [R] `155`: then UART_BIT_PERIOD == UART_CLOCK_HZ / UART_BAUD_RATE
 - [R] `158`: then UART_FIFO_DEPTH == 16
 - [R] `159`: and UART_WIDTH == 8
@@ -1821,7 +1822,7 @@ honest current loss set is the 1,589 below.)
 - [R] `191`: given status = uart_status()
 - [R] `196`: given status = uart_status()
 
-## specs/igla/coder/_tmp_pipeline_import.t27 — 275 scenario(s), 684 line(s), 63 dropped under 0005
+## specs/igla/coder/_tmp_pipeline_import.t27 — 275 scenario(s), 684 line(s), 8 dropped under 0011
 - [R] `786`: given prompt = ""
 - [R] `787`: when tokens = tokenize_prompt(prompt)
 - [R] `788`: then len(tokens) == 0
@@ -1988,9 +1989,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1045`: given cfg = PipelineConfig { max_tokens: 5, temperature: 1.0, top_p: 1.0 }
 - [R] `1046`: when s = generate_verilog_ai_with_diversity_and_sacred(prompt, bank, cfg)
 - [R] `1047`: then s.len() > 0
-- [D] `1050`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
-- [D] `1051`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
-- [D] `1052`: then best == candidates[0]
+- [R] `1050`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
+- [R] `1051`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
+- [R] `1052`: then best == candidates[0]
 - [R] `1055`: given candidates = [
 - [R] `1059`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
 - [R] `1060`: then best == candidates[1]
@@ -2072,10 +2073,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1195`: given agents = [AgentProfile { name: "Gen", role: "generator", model_size: 1000 }, AgentProfile { name: "Ver", role: "verifier", model_size: 500 }]
 - [R] `1196`: when action = orchestrate_agents_with_ppo(state, agents)
 - [R] `1197`: then action.agent_id == 0
-- [D] `1200`: given state = [1.0]
-- [D] `1201`: given agents = []AgentProfile{}
-- [D] `1202`: when action = orchestrate_agents_with_ppo(state, agents)
-- [D] `1203`: then action.temperature == 1.0
+- [R] `1200`: given state = [1.0]
+- [R] `1201`: given agents = []AgentProfile{}
+- [R] `1202`: when action = orchestrate_agents_with_ppo(state, agents)
+- [R] `1203`: then action.temperature == 1.0
 - [R] `1206`: given a = "module add2(); endmodule"
 - [R] `1207`: given b = "module add2(); endmodule"
 - [R] `1208`: when r = compute_team_match_reward(a, b)
@@ -2119,10 +2120,10 @@ honest current loss set is the 1,589 below.)
 - [D] `1264`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "no_overflow", clk: "clk", reset: "rst" }
 - [D] `1265`: when ok = temporal_trace_check(rtl, contract)
 - [D] `1266`: then ok == false
-- [D] `1269`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
-- [D] `1270`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
-- [D] `1271`: when actions = generate_verify_debug(spec, contracts)
-- [D] `1272`: then len(actions) > 0
+- [R] `1269`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
+- [R] `1270`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
+- [R] `1271`: when actions = generate_verify_debug(spec, contracts)
+- [R] `1272`: then len(actions) > 0
 - [R] `1277`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
 - [R] `1278`: when body = generate_module_body(spec, "adder")
 - [R] `1279`: then has_substring(body, "assign y = a + b", 0) == true
@@ -2207,9 +2208,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1413`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1414`: when output = generate_tokens_autoregressive(input_ids, bank, cfg, 0)
 - [R] `1415`: then output.len() == 0
-- [D] `1418`: given tokens = [65]
-- [D] `1419`: when s = decode_tokens(tokens)
-- [D] `1420`: then s.len() > 0
+- [R] `1418`: given tokens = [65]
+- [R] `1419`: when s = decode_tokens(tokens)
+- [R] `1420`: then s.len() > 0
 - [R] `1423`: given prompt = "hello"
 - [R] `1424`: when tokens = tokenize_prompt(prompt)
 - [R] `1425`: then tokens.len() > 0
@@ -2247,9 +2248,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1511`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1512`: when tokens = generate_tokens_recursive(logits, cfg, 5)
 - [R] `1513`: then tokens.len() == 0
-- [D] `1523`: given prompt = "generate cordic module"
-- [D] `1524`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
-- [D] `1525`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- [R] `1523`: given prompt = "generate cordic module"
+- [R] `1524`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- [R] `1525`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1530`: given c = BeamCandidate { token: 5, score: 1.0, prefix_len: 1 }
 - [R] `1531`: when best = select_best_candidate([c])
 - [R] `1532`: then best.token == 5
@@ -2269,9 +2270,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1563`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1564`: when candidates = generate_diverse_candidates(prompt, bank, cfg, 0)
 - [R] `1565`: then candidates.len() == 0
-- [D] `1572`: given prompt = "generate adder module"
-- [D] `1573`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
-- [D] `1574`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- [R] `1572`: given prompt = "generate adder module"
+- [R] `1573`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- [R] `1574`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1580`: given candidates = []BeamCandidate{}
 - [R] `1581`: when best = select_best_candidate(candidates)
 - [R] `1582`: then best.token == ""
@@ -2287,9 +2288,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1617`: given prompt = "generate booth multiplier"
 - [R] `1618`: when s = fallback_to_template(prompt)
 - [R] `1619`: then s == "module booth_mul(); endmodule"
-- [D] `1622`: given tokens = [256]
-- [D] `1623`: when s = decode_tokens(tokens)
-- [D] `1624`: then s == "module"
+- [R] `1622`: given tokens = [256]
+- [R] `1623`: when s = decode_tokens(tokens)
+- [R] `1624`: then s == "module"
 - [R] `1631`: given logits = []f32{}
 - [R] `1632`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1633`: when tokens = generate_tokens_recursive(logits, cfg, 5)
@@ -2297,26 +2298,26 @@ honest current loss set is the 1,589 below.)
 - [R] `1637`: given prompt = ""
 - [R] `1638`: when tokens = tokenize_prompt_hybrid(prompt)
 - [R] `1639`: then tokens.len() == 0
-- [D] `1647`: given logits = [1.0f32]
-- [D] `1648`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
-- [D] `1649`: when tokens = generate_tokens_recursive(logits, cfg, 0)
-- [D] `1650`: then tokens.len() == 1
+- [R] `1647`: given logits = [1.0f32]
+- [R] `1648`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- [R] `1649`: when tokens = generate_tokens_recursive(logits, cfg, 0)
+- [R] `1650`: then tokens.len() == 1
 - [R] `1653`: given prompt = "a"
 - [R] `1654`: when tokens = tokenize_prompt_hybrid(prompt)
 - [R] `1655`: then tokens.len() == 1
-- [D] `1662`: given tokens = [0]
-- [D] `1663`: when s = decode_tokens(tokens)
-- [D] `1664`: then s == ""
-- [D] `1667`: given logits = [1.0f32]
-- [D] `1668`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
-- [D] `1669`: when tokens = generate_tokens_recursive(logits, cfg, 100)
-- [D] `1670`: then tokens.len() == 0
-- [D] `1677`: given input = []
-- [D] `1678`: when output = run_pipeline(input)
-- [D] `1679`: then output.len() == 0
-- [D] `1686`: given input = [42]
-- [D] `1687`: when output = run_pipeline(input)
-- [D] `1688`: then output.len() == 1
+- [R] `1662`: given tokens = [0]
+- [R] `1663`: when s = decode_tokens(tokens)
+- [R] `1664`: then s == ""
+- [R] `1667`: given logits = [1.0f32]
+- [R] `1668`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- [R] `1669`: when tokens = generate_tokens_recursive(logits, cfg, 100)
+- [R] `1670`: then tokens.len() == 0
+- [R] `1677`: given input = []
+- [R] `1678`: when output = run_pipeline(input)
+- [R] `1679`: then output.len() == 0
+- [R] `1686`: given input = [42]
+- [R] `1687`: when output = run_pipeline(input)
+- [R] `1688`: then output.len() == 1
 - [R] `1691`: given cfg = PipelineConfig { max_tokens: 1, temperature: 0.0, top_p: 1.0 }
 - [R] `1692`: when ok = cfg.temperature == 0.0
 - [R] `1693`: then ok == true
@@ -2329,15 +2330,15 @@ honest current loss set is the 1,589 below.)
 - [R] `1714`: given text = ""
 - [R] `1715`: when tokens = tokenize(text)
 - [R] `1716`: then tokens.len() == 0
-- [D] `1719`: given tokens = []
-- [D] `1720`: when text = decode_tokens(tokens)
-- [D] `1721`: then text == ""
+- [R] `1719`: given tokens = []
+- [R] `1720`: when text = decode_tokens(tokens)
+- [R] `1721`: then text == ""
 - [R] `1728`: given input = []f32{}
 - [R] `1729`: when output = pipeline(input)
 - [R] `1730`: then output.len() == 0
-- [D] `1733`: given input = [1.0f32]
-- [D] `1734`: when output = pipeline(input)
-- [D] `1735`: then output.len() == 1 && output[0] == 1.0
+- [R] `1733`: given input = [1.0f32]
+- [R] `1734`: when output = pipeline(input)
+- [R] `1735`: then output.len() == 1 && output[0] == 1.0
 - [R] `1742`: given input = [1.0f32, 2.0f32]
 - [R] `1743`: when output = pipeline(input)
 - [R] `1744`: then output.len() == 2
@@ -2362,12 +2363,12 @@ honest current loss set is the 1,589 below.)
 - [R] `1789`: given input = [-3.14f32]
 - [R] `1790`: when output = pipeline(input)
 - [R] `1791`: then output.len() == 1
-- [D] `1799`: given input = []
-- [D] `1800`: when output = pipeline(input)
-- [D] `1801`: then output.len() == 0
-- [D] `1804`: given input = [42.0f32]
-- [D] `1805`: when output = pipeline(input)
-- [D] `1806`: then output.len() == 1
+- [R] `1799`: given input = []
+- [R] `1800`: when output = pipeline(input)
+- [R] `1801`: then output.len() == 0
+- [R] `1804`: given input = [42.0f32]
+- [R] `1805`: when output = pipeline(input)
+- [R] `1806`: then output.len() == 1
 - [R] `1812`: given input = [1.0f32, 2.0f32]
 - [R] `1813`: when output = pipeline(input)
 - [R] `1814`: then output.len() == 2
@@ -2383,9 +2384,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1838`: given input = [7.0f32, 8.0f32, 9.0f32]
 - [R] `1839`: when output = pipeline(input)
 - [R] `1840`: then output.len() == 3
-- [D] `1843`: given input = [42.0f32]
-- [D] `1844`: when output = pipeline(input)
-- [D] `1845`: then output.len() == 1
+- [R] `1843`: given input = [42.0f32]
+- [R] `1844`: when output = pipeline(input)
+- [R] `1845`: then output.len() == 1
 - [R] `1851`: given input = [3.0f32, 4.0f32]
 - [R] `1852`: when output = pipeline(input)
 - [R] `1853`: then output.len() == 2
@@ -2507,7 +2508,7 @@ honest current loss set is the 1,589 below.)
 - [R] `2161`: when result = compose(double, identity, x)
 - [R] `2162`: then result == 14
 
-## specs/igla/coder/arch.t27 — 305 scenario(s), 697 line(s), 124 dropped under 0005
+## specs/igla/coder/arch.t27 — 305 scenario(s), 697 line(s), 0 dropped under 0011
 - [R] `892`: given cfg = default_config()
 - [R] `893`: when total = estimate_param_count(cfg)
 - [R] `894`: then total <= MAX_PARAMS
@@ -2609,9 +2610,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1054`: given x = [0.1, 0.2, 0.3]
 - [R] `1055`: when y = transformer_layer(x)
 - [R] `1056`: then len(y) == 3
-- [D] `1059`: given hidden = [0.5]
-- [D] `1060`: when logits = lm_head_from_hidden(hidden, 0)
-- [D] `1061`: then len(logits) == VOCAB_SIZE
+- [R] `1059`: given hidden = [0.5]
+- [R] `1060`: when logits = lm_head_from_hidden(hidden, 0)
+- [R] `1061`: then len(logits) == VOCAB_SIZE
 - [R] `1064`: given bank = WeightBank { depth: 2, width: 2, data: [0, 1000, 2000, 3000] }
 - [R] `1065`: given addr_row = 1
 - [R] `1066`: given addr_col = 1
@@ -2673,10 +2674,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1154`: given target_logits = [0.8, 0.1, 0.3]
 - [R] `1155`: when accepted = verify_accept(draft_logits, target_logits)
 - [R] `1156`: then accepted == false
-- [D] `1159`: given input_ids = [1]
-- [D] `1160`: given draft_cfg = DraftModelConfig { d_model: 4, n_layers: 2, temperature: 1.0 }
-- [D] `1161`: when token = speculative_decode_step(input_ids, draft_cfg)
-- [D] `1162`: then token <= VOCAB_SIZE
+- [R] `1159`: given input_ids = [1]
+- [R] `1160`: given draft_cfg = DraftModelConfig { d_model: 4, n_layers: 2, temperature: 1.0 }
+- [R] `1161`: when token = speculative_decode_step(input_ids, draft_cfg)
+- [R] `1162`: then token <= VOCAB_SIZE
 - [R] `1165`: given bank = WeightBank { depth: 2, width: 2, data: [32768, 16384, 8192, 4096] }
 - [R] `1166`: when draft_cfg = load_draft_weights(bank)
 - [R] `1167`: then draft_cfg.d_model == 1
@@ -2782,21 +2783,21 @@ honest current loss set is the 1,589 below.)
 - [R] `1321`: given beam_width = 1
 - [R] `1322`: when selected = select_best_beam(candidates, beam_width)
 - [R] `1323`: then len(selected) == 1
-- [D] `1326`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
-- [D] `1327`: given initial_ids = [1]
-- [D] `1328`: given beam_width = 2
-- [D] `1329`: given max_depth = 2
-- [D] `1330`: given lp = 0.0
-- [D] `1331`: when candidates = generate_beam_search(bank, initial_ids, beam_width, max_depth, lp)
-- [D] `1332`: then len(candidates) == 2
-- [D] `1335`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
-- [D] `1336`: given initial_ids = [1]
-- [D] `1337`: given cache = empty_kv_cache()
-- [D] `1338`: given beam_width = 2
-- [D] `1339`: given max_depth = 1
-- [D] `1340`: given lp = 0.0
-- [D] `1341`: when (candidates, new_cache) = generate_beam_search_cached(bank, initial_ids, cache, beam_width, max_depth, lp)
-- [D] `1342`: then len(candidates) == 1
+- [R] `1326`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- [R] `1327`: given initial_ids = [1]
+- [R] `1328`: given beam_width = 2
+- [R] `1329`: given max_depth = 2
+- [R] `1330`: given lp = 0.0
+- [R] `1331`: when candidates = generate_beam_search(bank, initial_ids, beam_width, max_depth, lp)
+- [R] `1332`: then len(candidates) == 2
+- [R] `1335`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- [R] `1336`: given initial_ids = [1]
+- [R] `1337`: given cache = empty_kv_cache()
+- [R] `1338`: given beam_width = 2
+- [R] `1339`: given max_depth = 1
+- [R] `1340`: given lp = 0.0
+- [R] `1341`: when (candidates, new_cache) = generate_beam_search_cached(bank, initial_ids, cache, beam_width, max_depth, lp)
+- [R] `1342`: then len(candidates) == 1
 - [R] `1346`: given config = HeterogeneousNpuConfig { big_tiles: 0, little_tiles: 4, special_tiles: 1, tile_area_mm2: 0.5, process_node_nm: 16 }
 - [R] `1347`: given workload = TileWorkloadProfile { compute_ops: 10.0, memory_mb: 4.0, sparsity_ratio: 0.5 }
 - [R] `1348`: when energy = compute_tile_energy(config, workload)
@@ -2846,10 +2847,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1435`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
 - [R] `1436`: when out = infer_forward_pass(ids, bank)
 - [R] `1437`: then out.logits.len() > 0
-- [D] `1440`: given ids = [1u32]
-- [D] `1441`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
-- [D] `1442`: when out = infer_forward_pass(ids, bank)
-- [D] `1443`: then out.logits.len() > 0
+- [R] `1440`: given ids = [1u32]
+- [R] `1441`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
+- [R] `1442`: when out = infer_forward_pass(ids, bank)
+- [R] `1443`: then out.logits.len() > 0
 - [R] `1446`: given ids = [1u32, 2u32]
 - [R] `1447`: given bank = WeightBank { depth: 2, width: 2, data: [16384, 8192, 4096, 2048] }
 - [R] `1448`: when out = infer_forward_pass(ids, bank)
@@ -2890,8 +2891,8 @@ honest current loss set is the 1,589 below.)
 - [R] `1547`: given x = [1.0, 2.0]
 - [R] `1548`: when y = softmax_vec(x)
 - [R] `1549`: then y[0] > 0.0 && y[1] > 0.0
-- [D] `1555`: given input_ids = random_tokens(512)
-- [D] `1560`: given input_ids = random_tokens(1024)
+- [R] `1555`: given input_ids = random_tokens(512)
+- [R] `1560`: given input_ids = random_tokens(1024)
 - [R] `1565`: given x = 5.0
 - [R] `1566`: when y = relu(x)
 - [R] `1567`: then y == 5.0
@@ -2948,10 +2949,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1682`: given beam_width = 3
 - [R] `1683`: when selected = select_best_beam(candidates, beam_width)
 - [R] `1684`: then selected.len() == 0
-- [D] `1691`: given logits = [1.0f32]
-- [D] `1692`: given k = 1
-- [D] `1693`: when token = generate_next_token(logits, k)
-- [D] `1694`: then token == 0
+- [R] `1691`: given logits = [1.0f32]
+- [R] `1692`: given k = 1
+- [R] `1693`: when token = generate_next_token(logits, k)
+- [R] `1694`: then token == 0
 - [R] `1701`: given a = [1.0, 2.0, 3.0]
 - [R] `1702`: given b = [4.0, 5.0, 6.0]
 - [R] `1703`: when c = add_slices(a, b, 0)
@@ -2985,18 +2986,18 @@ honest current loss set is the 1,589 below.)
 - [R] `1766`: given k = 1
 - [R] `1767`: when token = generate_next_token(logits, k)
 - [R] `1768`: then token == 1
-- [D] `1771`: given a = [1.0f32]
-- [D] `1772`: given b = [2.0f32]
-- [D] `1773`: when c = add_slices(a, b, 0)
-- [D] `1774`: then c.len() == 1 && c[0] == 3.0
+- [R] `1771`: given a = [1.0f32]
+- [R] `1772`: given b = [2.0f32]
+- [R] `1773`: when c = add_slices(a, b, 0)
+- [R] `1774`: then c.len() == 1 && c[0] == 3.0
 - [R] `1780`: given logits = [0.5f32, 0.5f32, 0.5f32]
 - [R] `1781`: given k = 2
 - [R] `1782`: when token = generate_next_token(logits, k)
 - [R] `1783`: then token >= 0 && token < 3
-- [D] `1786`: given a = [1.0f32, 2.0f32]
-- [D] `1787`: given b = [3.0f32]
-- [D] `1788`: when c = add_slices(a, b, 0)
-- [D] `1789`: then c.len() == 1 && c[0] == 4.0
+- [R] `1786`: given a = [1.0f32, 2.0f32]
+- [R] `1787`: given b = [3.0f32]
+- [R] `1788`: when c = add_slices(a, b, 0)
+- [R] `1789`: then c.len() == 1 && c[0] == 4.0
 - [R] `1795`: given logits = [0.1f32, 0.9f32, 0.0f32]
 - [R] `1796`: given k = 1
 - [R] `1797`: when token = generate_next_token(logits, k)
@@ -3041,10 +3042,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1872`: given k = 1
 - [R] `1873`: when token = generate_next_token(logits, k)
 - [R] `1874`: then token == 2
-- [D] `1877`: given a = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
-- [D] `1878`: given b = [10.0f32]
-- [D] `1879`: when c = add_slices(a, b, 3)
-- [D] `1880`: then c.len() == 1 && c[0] == 14.0
+- [R] `1877`: given a = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+- [R] `1878`: given b = [10.0f32]
+- [R] `1879`: when c = add_slices(a, b, 3)
+- [R] `1880`: then c.len() == 1 && c[0] == 14.0
 - [R] `1886`: given logits = [0.1f32, 0.5f32, 0.3f32]
 - [R] `1887`: given k = 1
 - [R] `1888`: when token = generate_next_token(logits, k)
@@ -3053,26 +3054,26 @@ honest current loss set is the 1,589 below.)
 - [R] `1893`: given b = [10.0f32, 20.0f32]
 - [R] `1894`: when c = add_slices(a, b, 2)
 - [R] `1895`: then c.len() == 1 && c[0] == 13.0
-- [D] `1901`: given a = []
-- [D] `1902`: given b = []
-- [D] `1903`: when c = add_slices(a, b, 0)
-- [D] `1904`: then c.len() == 0
+- [R] `1901`: given a = []
+- [R] `1902`: given b = []
+- [R] `1903`: when c = add_slices(a, b, 0)
+- [R] `1904`: then c.len() == 0
 - [R] `1907`: given logits = [0.1f32, 0.9f32, 0.3f32]
 - [R] `1908`: given k = 1
 - [R] `1909`: when token = generate_next_token(logits, k)
 - [R] `1910`: then token == 1
-- [D] `1916`: given a = [5]
-- [D] `1917`: given b = [7]
-- [D] `1918`: when c = add_slices(a, b, 0)
-- [D] `1919`: then c == [12]
+- [R] `1916`: given a = [5]
+- [R] `1917`: given b = [7]
+- [R] `1918`: when c = add_slices(a, b, 0)
+- [R] `1919`: then c == [12]
 - [R] `1922`: given logits = [0.5f32, 0.5f32, 0.9f32]
 - [R] `1923`: given k = 1
 - [R] `1924`: when token = generate_next_token(logits, k)
 - [R] `1925`: then token == 2
-- [D] `1931`: given a = [1.0f32, 2.0f32]
-- [D] `1932`: given b = [3.0f32]
-- [D] `1933`: when c = add_slices(a, b, 5)
-- [D] `1934`: then c.len() == 0
+- [R] `1931`: given a = [1.0f32, 2.0f32]
+- [R] `1932`: given b = [3.0f32]
+- [R] `1933`: when c = add_slices(a, b, 5)
+- [R] `1934`: then c.len() == 0
 - [R] `1937`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `1938`: given k = 3
 - [R] `1939`: when tokens = generate_next_token(logits, k)
@@ -3085,128 +3086,128 @@ honest current loss set is the 1,589 below.)
 - [R] `1953`: given k = 1
 - [R] `1954`: when token = generate_next_token(logits, k)
 - [R] `1955`: then token == 0
-- [D] `1961`: given a = []
-- [D] `1962`: given b = [1, 2, 3]
-- [D] `1963`: when c = add_slices(a, b, 0)
-- [D] `1964`: then c == [1, 2, 3]
-- [D] `1967`: given a = [1, 2, 3]
-- [D] `1968`: given b = []
-- [D] `1969`: when c = add_slices(a, b, 0)
-- [D] `1970`: then c == [1, 2, 3]
-- [D] `1975`: given a = []
-- [D] `1976`: given b = [2, 3, 4]
-- [D] `1977`: when c = add_slices(a, b, 0)
-- [D] `1978`: then c == [2, 3, 4]
-- [D] `1981`: given a = [2, 3, 4]
-- [D] `1982`: given b = []
-- [D] `1983`: when c = add_slices(a, b, 0)
-- [D] `1984`: then c == [2, 3, 4]
-- [D] `1991`: given a = [1.0f32, 2.0f32]
-- [D] `1992`: given b = [3.0f32]
-- [D] `1993`: when c = add_slices(a, b, 5)
-- [D] `1994`: then c.len() == 0
+- [R] `1961`: given a = []
+- [R] `1962`: given b = [1, 2, 3]
+- [R] `1963`: when c = add_slices(a, b, 0)
+- [R] `1964`: then c == [1, 2, 3]
+- [R] `1967`: given a = [1, 2, 3]
+- [R] `1968`: given b = []
+- [R] `1969`: when c = add_slices(a, b, 0)
+- [R] `1970`: then c == [1, 2, 3]
+- [R] `1975`: given a = []
+- [R] `1976`: given b = [2, 3, 4]
+- [R] `1977`: when c = add_slices(a, b, 0)
+- [R] `1978`: then c == [2, 3, 4]
+- [R] `1981`: given a = [2, 3, 4]
+- [R] `1982`: given b = []
+- [R] `1983`: when c = add_slices(a, b, 0)
+- [R] `1984`: then c == [2, 3, 4]
+- [R] `1991`: given a = [1.0f32, 2.0f32]
+- [R] `1992`: given b = [3.0f32]
+- [R] `1993`: when c = add_slices(a, b, 5)
+- [R] `1994`: then c.len() == 0
 - [R] `1997`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `1998`: given k = 3
 - [R] `1999`: when tokens = generate_next_token(logits, k)
 - [R] `2000`: then tokens.len() == 3
-- [D] `2006`: given a = [1.0f32, 2.0f32]
-- [D] `2007`: given b = [3.0f32]
-- [D] `2008`: when c = add_slices(a, b, 5)
-- [D] `2009`: then c.len() == 0
+- [R] `2006`: given a = [1.0f32, 2.0f32]
+- [R] `2007`: given b = [3.0f32]
+- [R] `2008`: when c = add_slices(a, b, 5)
+- [R] `2009`: then c.len() == 0
 - [R] `2012`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2013`: given k = 3
 - [R] `2014`: when tokens = generate_next_token(logits, k)
 - [R] `2015`: then tokens.len() == 3
-- [D] `2022`: given a = [1.0f32, 2.0f32]
-- [D] `2023`: given b = [3.0f32]
-- [D] `2024`: when c = add_slices(a, b, 5)
-- [D] `2025`: then c.len() == 0
+- [R] `2022`: given a = [1.0f32, 2.0f32]
+- [R] `2023`: given b = [3.0f32]
+- [R] `2024`: when c = add_slices(a, b, 5)
+- [R] `2025`: then c.len() == 0
 - [R] `2028`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2029`: given k = 3
 - [R] `2030`: when tokens = generate_next_token(logits, k)
 - [R] `2031`: then tokens.len() == 3
-- [D] `2039`: given a = [1.0f32, 2.0f32]
-- [D] `2040`: given b = [3.0f32]
-- [D] `2041`: when c = add_slices(a, b, 5)
-- [D] `2042`: then c.len() == 0
+- [R] `2039`: given a = [1.0f32, 2.0f32]
+- [R] `2040`: given b = [3.0f32]
+- [R] `2041`: when c = add_slices(a, b, 5)
+- [R] `2042`: then c.len() == 0
 - [R] `2045`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2046`: given k = 3
 - [R] `2047`: when tokens = generate_next_token(logits, k)
 - [R] `2048`: then tokens.len() == 3
-- [D] `2057`: given a = [1.0f32, 2.0f32]
-- [D] `2058`: given b = [3.0f32]
-- [D] `2059`: when c = add_slices(a, b, 5)
-- [D] `2060`: then c.len() == 0
+- [R] `2057`: given a = [1.0f32, 2.0f32]
+- [R] `2058`: given b = [3.0f32]
+- [R] `2059`: when c = add_slices(a, b, 5)
+- [R] `2060`: then c.len() == 0
 - [R] `2063`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2064`: given k = 3
 - [R] `2065`: when tokens = generate_next_token(logits, k)
 - [R] `2066`: then tokens.len() == 3
-- [D] `2075`: given a = [1.0f32, 2.0f32]
-- [D] `2076`: given b = [3.0f32]
-- [D] `2077`: when c = add_slices(a, b, 5)
-- [D] `2078`: then c.len() == 0
+- [R] `2075`: given a = [1.0f32, 2.0f32]
+- [R] `2076`: given b = [3.0f32]
+- [R] `2077`: when c = add_slices(a, b, 5)
+- [R] `2078`: then c.len() == 0
 - [R] `2081`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2082`: given k = 3
 - [R] `2083`: when tokens = generate_next_token(logits, k)
 - [R] `2084`: then tokens.len() == 3
-- [D] `2094`: given a = [1.0f32, 2.0f32]
-- [D] `2095`: given b = [3.0f32]
-- [D] `2096`: when c = add_slices(a, b, 5)
-- [D] `2097`: then c.len() == 0
+- [R] `2094`: given a = [1.0f32, 2.0f32]
+- [R] `2095`: given b = [3.0f32]
+- [R] `2096`: when c = add_slices(a, b, 5)
+- [R] `2097`: then c.len() == 0
 - [R] `2100`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2101`: given k = 3
 - [R] `2102`: when tokens = generate_next_token(logits, k)
 - [R] `2103`: then tokens.len() == 3
-- [D] `2114`: given a = [1.0f32, 2.0f32]
-- [D] `2115`: given b = [3.0f32]
-- [D] `2116`: when c = add_slices(a, b, 5)
-- [D] `2117`: then c.len() == 0
+- [R] `2114`: given a = [1.0f32, 2.0f32]
+- [R] `2115`: given b = [3.0f32]
+- [R] `2116`: when c = add_slices(a, b, 5)
+- [R] `2117`: then c.len() == 0
 - [R] `2120`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2121`: given k = 3
 - [R] `2122`: when tokens = generate_next_token(logits, k)
 - [R] `2123`: then tokens.len() == 3
-- [D] `2135`: given a = [1.0f32, 2.0f32]
-- [D] `2136`: given b = [3.0f32]
-- [D] `2137`: when c = add_slices(a, b, 5)
-- [D] `2138`: then c.len() == 0
+- [R] `2135`: given a = [1.0f32, 2.0f32]
+- [R] `2136`: given b = [3.0f32]
+- [R] `2137`: when c = add_slices(a, b, 5)
+- [R] `2138`: then c.len() == 0
 - [R] `2141`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2142`: given k = 3
 - [R] `2143`: when tokens = generate_next_token(logits, k)
 - [R] `2144`: then tokens.len() == 3
-- [D] `2157`: given a = [1.0f32, 2.0f32]
-- [D] `2158`: given b = [3.0f32]
-- [D] `2159`: when c = add_slices(a, b, 5)
-- [D] `2160`: then c.len() == 0
+- [R] `2157`: given a = [1.0f32, 2.0f32]
+- [R] `2158`: given b = [3.0f32]
+- [R] `2159`: when c = add_slices(a, b, 5)
+- [R] `2160`: then c.len() == 0
 - [R] `2163`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2164`: given k = 3
 - [R] `2165`: when tokens = generate_next_token(logits, k)
 - [R] `2166`: then tokens.len() == 3
-- [D] `2180`: given a = [1.0f32, 2.0f32]
-- [D] `2181`: given b = [3.0f32]
-- [D] `2182`: when c = add_slices(a, b, 5)
-- [D] `2183`: then c.len() == 0
+- [R] `2180`: given a = [1.0f32, 2.0f32]
+- [R] `2181`: given b = [3.0f32]
+- [R] `2182`: when c = add_slices(a, b, 5)
+- [R] `2183`: then c.len() == 0
 - [R] `2186`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2187`: given k = 3
 - [R] `2188`: when tokens = generate_next_token(logits, k)
 - [R] `2189`: then tokens.len() == 3
-- [D] `2204`: given a = [1.0f32, 2.0f32]
-- [D] `2205`: given b = [3.0f32]
-- [D] `2206`: when c = add_slices(a, b, 5)
-- [D] `2207`: then c.len() == 0
+- [R] `2204`: given a = [1.0f32, 2.0f32]
+- [R] `2205`: given b = [3.0f32]
+- [R] `2206`: when c = add_slices(a, b, 5)
+- [R] `2207`: then c.len() == 0
 - [R] `2210`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2211`: given k = 3
 - [R] `2212`: when tokens = generate_next_token(logits, k)
 - [R] `2213`: then tokens.len() == 3
-- [D] `2229`: given a = [1.0f32, 2.0f32]
-- [D] `2230`: given b = [3.0f32]
-- [D] `2231`: when c = add_slices(a, b, 5)
-- [D] `2232`: then c.len() == 0
+- [R] `2229`: given a = [1.0f32, 2.0f32]
+- [R] `2230`: given b = [3.0f32]
+- [R] `2231`: when c = add_slices(a, b, 5)
+- [R] `2232`: then c.len() == 0
 - [R] `2235`: given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
 - [R] `2236`: given k = 3
 - [R] `2237`: when tokens = generate_next_token(logits, k)
 - [R] `2238`: then tokens.len() == 3
 
-## specs/igla/coder/bench_proxy.t27 — 204 scenario(s), 450 line(s), 21 dropped under 0005
+## specs/igla/coder/bench_proxy.t27 — 204 scenario(s), 450 line(s), 0 dropped under 0011
 - [R] `150`: when problems = verilog_eval_problems()
 - [R] `151`: then len(problems) == 20
 - [R] `154`: given problems = verilog_eval_problems()
@@ -3240,9 +3241,9 @@ honest current loss set is the 1,589 below.)
 - [R] `204`: given scores = []f32{}
 - [R] `205`: when acc = average_score_inner(scores, 0, 0.0)
 - [R] `206`: then acc == 0.0
-- [D] `209`: given scores = [0.75]
-- [D] `210`: when acc = average_score_inner(scores, 0, 0.0)
-- [D] `211`: then acc == 0.75
+- [R] `209`: given scores = [0.75]
+- [R] `210`: when acc = average_score_inner(scores, 0, 0.0)
+- [R] `211`: then acc == 0.75
 - [R] `214`: given results = [BenchResult { passed: false }, BenchResult { passed: false }]
 - [R] `215`: when c = count_passed(results)
 - [R] `216`: then c == 0
@@ -3269,17 +3270,17 @@ honest current loss set is the 1,589 below.)
 - [R] `251`: given scores = []f64{}
 - [R] `252`: when avg = average_score(scores)
 - [R] `253`: then avg == 0.0
-- [D] `256`: given templates = ["adder"]
-- [D] `257`: given problems = verilog_eval_problems()
-- [D] `258`: when report = run_full_baseline(templates, problems)
-- [D] `259`: then report.pass_at_1 >= 0.0 && report.pass_at_1 <= 1.0
+- [R] `256`: given templates = ["adder"]
+- [R] `257`: given problems = verilog_eval_problems()
+- [R] `258`: when report = run_full_baseline(templates, problems)
+- [R] `259`: then report.pass_at_1 >= 0.0 && report.pass_at_1 <= 1.0
 - [R] `262`: given template = "nonexistent"
 - [R] `263`: given problems = verilog_eval_problems()
 - [R] `264`: when p = compute_pass_at_1(template, problems)
 - [R] `265`: then p == 0.0
-- [D] `268`: given scores = [0.75]
-- [D] `269`: when avg = average_score(scores)
-- [D] `270`: then avg == 0.75
+- [R] `268`: given scores = [0.75]
+- [R] `269`: when avg = average_score(scores)
+- [R] `270`: then avg == 0.75
 - [R] `273`: given results = [BenchResult { passed: true }, BenchResult { passed: true }]
 - [R] `274`: when c = count_passed(results)
 - [R] `275`: then c == 2
@@ -3310,10 +3311,10 @@ honest current loss set is the 1,589 below.)
 - [R] `319`: given problems = [
 - [R] `323`: when p = compute_pass_at_1(template, problems)
 - [R] `324`: then p == 0.0
-- [D] `362`: given problems = verilog_eval_problems()
-- [D] `363`: given templates = ["adder", "booth", "cordic"]
-- [D] `368`: given template = "cordic"
-- [D] `373`: given scores = [0.5, 0.6, 0.7, 0.8]
+- [R] `362`: given problems = verilog_eval_problems()
+- [R] `363`: given templates = ["adder", "booth", "cordic"]
+- [R] `368`: given template = "cordic"
+- [R] `373`: given scores = [0.5, 0.6, 0.7, 0.8]
 - [R] `378`: given problem = BenchProblem { id: 1, description: "test", category: "combinational", expected_kw: "add" }
 - [R] `379`: given template = "adder"
 - [R] `380`: when result = evaluate_template_on_benchmark(template, problem)
@@ -3343,9 +3344,9 @@ honest current loss set is the 1,589 below.)
 - [R] `426`: given problems = verilog_eval_problems()
 - [R] `427`: when scores = run_full_baseline(templates, problems)
 - [R] `428`: then scores.len() == 0
-- [D] `435`: given scores = [0.75]
-- [D] `436`: when avg = average_score(scores)
-- [D] `437`: then avg == 0.75
+- [R] `435`: given scores = [0.75]
+- [R] `436`: when avg = average_score(scores)
+- [R] `437`: then avg == 0.75
 - [R] `440`: given problems = verilog_eval_problems()
 - [R] `441`: when score = compute_pass_at_1("adder", problems)
 - [R] `442`: then score >= 0.0 && score <= 1.0
@@ -3473,10 +3474,10 @@ honest current loss set is the 1,589 below.)
 - [R] `737`: given beam_width = 2
 - [R] `738`: when result = select_best_beam(candidates, beam_width)
 - [R] `739`: then result.len() == 2
-- [D] `746`: given candidates = []
-- [D] `747`: given beam_width = 1
-- [D] `748`: when result = select_best_beam(candidates, beam_width)
-- [D] `749`: then result.len() == 0
+- [R] `746`: given candidates = []
+- [R] `747`: given beam_width = 1
+- [R] `748`: when result = select_best_beam(candidates, beam_width)
+- [R] `749`: then result.len() == 0
 - [R] `752`: given candidate = BeamCandidate { token: 1, score: 0.0f32, prefix_len: 5 }
 - [R] `753`: given length_penalty = 0.0
 - [R] `754`: when result = score_beam_candidate(candidate, length_penalty)
@@ -3658,7 +3659,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1144`: when t = throughput(ops, ns)
 - [R] `1145`: then t == 0.0
 
-## specs/igla/coder/benchmark.t27 — 180 scenario(s), 876 line(s), 15 dropped under 0005
+## specs/igla/coder/benchmark.t27 — 180 scenario(s), 876 line(s), 0 dropped under 0011
 - [R] `1263`: given task = BenchmarkTask { task_id: "t1", prompt: "p", golden_rtl: "module add2(); endmodule", language: "verilog", sacred_required: true }
 - [R] `1264`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
 - [R] `1265`: given k = 1
@@ -4161,8 +4162,8 @@ honest current loss set is the 1,589 below.)
 - [R] `3550`: then c.name == "KaushikVaibhavSingh_E8E8"
 - [R] `3553`: when c = kaushik_vaibhav_singh_e8e8_competitor()
 - [R] `3554`: then c.benchmark == "E8tensorE8 unification with pre-gravitation and spectral action (arXiv:2206.06911)"
-- [D] `3575`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
-- [D] `3576`: given tasks = [BenchmarkTask { task_id: "t1", prompt: "p", golden_rtl: "m", language: "verilog", sacred_required: true }]
+- [R] `3575`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- [R] `3576`: given tasks = [BenchmarkTask { task_id: "t1", prompt: "p", golden_rtl: "m", language: "verilog", sacred_required: true }]
 - [R] `3662`: when c = bitlogic_eth_2026_competitor()
 - [R] `3663`: then c.name == "BitLogic_ETH_2026"
 - [R] `3666`: when c = bitlogic_eth_2026_competitor()
@@ -4243,7 +4244,7 @@ honest current loss set is the 1,589 below.)
 - [R] `3841`: given results = []BenchmarkResult{}
 - [R] `3842`: when n = count_passed_at_5(results, 0, 0)
 - [R] `3843`: then n == 0
-- [D] `3850`: when c = chipcraftbrain_competitor()
+- [R] `3850`: when c = chipcraftbrain_competitor()
 - [R] `3855`: given results = []BenchmarkResult{}
 - [R] `3856`: when n = count_passed(results, 0, 0)
 - [R] `3857`: then n == 0
@@ -4328,9 +4329,9 @@ honest current loss set is the 1,589 below.)
 - [R] `4027`: given cycles = 5
 - [R] `4028`: when lat = compute_latency(ops, cycles)
 - [R] `4029`: then lat == 5000.0
-- [D] `4032`: given results = []
-- [D] `4033`: when n = count_failed(results)
-- [D] `4034`: then n == 0
+- [R] `4032`: given results = []
+- [R] `4033`: when n = count_failed(results)
+- [R] `4034`: then n == 0
 - [R] `4041`: given ops = 0
 - [R] `4042`: given cycles = 5
 - [R] `4043`: when lat = compute_latency(ops, cycles)
@@ -4398,9 +4399,9 @@ honest current loss set is the 1,589 below.)
 - [R] `4172`: given cycles = 1
 - [R] `4173`: when lat = compute_latency(ops, cycles)
 - [R] `4174`: then lat == 10000.0
-- [D] `4177`: given results = []
-- [D] `4178`: when n = count_passed_at_5(results, 0, 0)
-- [D] `4179`: then n == 0
+- [R] `4177`: given results = []
+- [R] `4178`: when n = count_passed_at_5(results, 0, 0)
+- [R] `4179`: then n == 0
 - [R] `4185`: given ops = 5
 - [R] `4186`: given cycles = 5
 - [R] `4187`: when lat = compute_latency(ops, cycles)
@@ -4415,9 +4416,9 @@ honest current loss set is the 1,589 below.)
 - [R] `4205`: given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: false, module_name: "m2" }, BenchmarkResult { passed: false, passed_at_5: false, passed_at_10: false, module_name: "m3" }]
 - [R] `4206`: when n = count_passed_at_5(results, 0, 0)
 - [R] `4207`: then n == 2
-- [D] `4213`: given values = [5.0]
-- [D] `4214`: when m = mean(values)
-- [D] `4215`: then m == 5.0
+- [R] `4213`: given values = [5.0]
+- [R] `4214`: when m = mean(values)
+- [R] `4215`: then m == 5.0
 - [R] `4218`: given values = [7.0, 7.0]
 - [R] `4219`: when m = mean(values)
 - [R] `4220`: then m == 7.0
@@ -4433,9 +4434,9 @@ honest current loss set is the 1,589 below.)
 - [R] `4244`: given values = [-5.0, 5.0]
 - [R] `4245`: when m = mean(values)
 - [R] `4246`: then m == 0.0
-- [D] `4252`: given values = []
-- [D] `4253`: when m = mean(values)
-- [D] `4254`: then m != m
+- [R] `4252`: given values = []
+- [R] `4253`: when m = mean(values)
+- [R] `4254`: then m != m
 - [R] `4257`: given values = [1.0, 2.0, 3.0, 4.0, 5.0]
 - [R] `4258`: when m = mean(values)
 - [R] `4259`: then m == 3.0
@@ -4536,7 +4537,7 @@ honest current loss set is the 1,589 below.)
 - [R] `4523`: when m = mean(values)
 - [R] `4524`: then m == 0.0
 
-## specs/igla/coder/dataset.t27 — 245 scenario(s), 664 line(s), 35 dropped under 0005
+## specs/igla/coder/dataset.t27 — 245 scenario(s), 664 line(s), 0 dropped under 0011
 - [R] `987`: when p = generate_prompt("cordic")
 - [R] `988`: then p == "generate a CORDIC sin cos rotator module"
 - [R] `991`: when p = generate_prompt("booth")
@@ -4659,9 +4660,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1221`: when rtl = generate_memory_controller()
 - [R] `1222`: when compliance = eval::check_sacred_compliance(rtl)
 - [R] `1223`: then compliance == 1
-- [D] `1226`: given modules = ["module a; endmodule"]
-- [D] `1227`: when out = compose_n_modules(modules, "chain", "top")
-- [D] `1228`: then out == "module a; endmodule"
+- [R] `1226`: given modules = ["module a; endmodule"]
+- [R] `1227`: when out = compose_n_modules(modules, "chain", "top")
+- [R] `1228`: then out == "module a; endmodule"
 - [R] `1233`: when bits = generate_random_bitwidth(0)
 - [R] `1234`: then bits == 2 || bits == 4 || bits == 8 || bits == 16 || bits == 32 || bits == 64
 - [R] `1237`: when size = estimate_compositional_size(5, 0)
@@ -4679,35 +4680,35 @@ honest current loss set is the 1,589 below.)
 - [R] `1264`: when expanded = expand_dataset_compositional(base, 1)
 - [R] `1265`: when n = count_dataset_samples(expanded)
 - [R] `1266`: then n == 5
-- [D] `1271`: given modules = ["module a(); endmodule"]
-- [D] `1272`: given topology = "chain"
-- [D] `1273`: given name = "top"
-- [D] `1274`: when out = compose_n_modules(modules, topology, name)
-- [D] `1275`: then out[0:10] == "module a();"
+- [R] `1271`: given modules = ["module a(); endmodule"]
+- [R] `1272`: given topology = "chain"
+- [R] `1273`: given name = "top"
+- [R] `1274`: when out = compose_n_modules(modules, topology, name)
+- [R] `1275`: then out[0:10] == "module a();"
 - [R] `1278`: given modules = ["module a(); endmodule", "module b(); endmodule"]
 - [R] `1279`: given topology = "chain"
 - [R] `1280`: given name = "pair"
 - [R] `1281`: when out = compose_n_modules(modules, topology, name)
 - [R] `1282`: then out[0:10] == "module pai"
-- [D] `1285`: given template = "adder"
-- [D] `1286`: given names = ["bits"]
-- [D] `1287`: given ranges = [[2.0, 4.0, 8.0]]
-- [D] `1288`: when variants = generate_parametric_variations(template, names, ranges)
-- [D] `1289`: then len(variants) == 3
-- [D] `1292`: given depth = 0
-- [D] `1293`: given pool = ["module a(); endmodule"]
-- [D] `1294`: given seed = 0
-- [D] `1295`: when out = generate_random_composition(depth, pool, seed)
-- [D] `1296`: then out[0:9] == "module a();"
+- [R] `1285`: given template = "adder"
+- [R] `1286`: given names = ["bits"]
+- [R] `1287`: given ranges = [[2.0, 4.0, 8.0]]
+- [R] `1288`: when variants = generate_parametric_variations(template, names, ranges)
+- [R] `1289`: then len(variants) == 3
+- [R] `1292`: given depth = 0
+- [R] `1293`: given pool = ["module a(); endmodule"]
+- [R] `1294`: given seed = 0
+- [R] `1295`: when out = generate_random_composition(depth, pool, seed)
+- [R] `1296`: then out[0:9] == "module a();"
 - [R] `1299`: given depth = 1
 - [R] `1300`: given pool = ["module a(); endmodule", "module b(); endmodule"]
 - [R] `1301`: given seed = 0
 - [R] `1302`: when out = generate_random_composition(depth, pool, seed)
 - [R] `1303`: then out[0:10] == "module rand"
-- [D] `1306`: given templates = ["adder"]
-- [D] `1307`: given widths = [2, 4]
-- [D] `1308`: when size = estimate_10k_size(templates, widths)
-- [D] `1309`: then size > 0
+- [R] `1306`: given templates = ["adder"]
+- [R] `1307`: given widths = [2, 4]
+- [R] `1308`: when size = estimate_10k_size(templates, widths)
+- [R] `1309`: then size > 0
 - [R] `1312`: given sample = DataSample { prompt: "p", rtl: "module a(); endmodule", template: "test" }
 - [R] `1313`: when scored = ScoredDataSample { sample: sample, syntax_score: 1.0, sacred_score: 1.0, synth_score: 1.0 }
 - [R] `1314`: then scored.syntax_score == 1.0 && scored.sample.template == "test"
@@ -4833,9 +4834,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1566`: given d = [
 - [R] `1570`: when filtered = filter_dataset_by_quality(d, 1.0)
 - [R] `1571`: then len(filtered) == 0
-- [D] `1574`: given templates = ["adder"]
-- [D] `1575`: when ds = generate_dataset(templates)
-- [D] `1576`: then ds.len() > 0
+- [R] `1574`: given templates = ["adder"]
+- [R] `1575`: when ds = generate_dataset(templates)
+- [R] `1576`: then ds.len() > 0
 - [R] `1579`: given base = [DataSample { prompt: "p1", rtl: "m1", template: "t1" }]
 - [R] `1580`: when expanded = expand_dataset_compositional(base, 1)
 - [R] `1581`: then expanded.len() >= base.len()
@@ -4846,8 +4847,8 @@ honest current loss set is the 1,589 below.)
 - [R] `1592`: given sample = DataSample { prompt: "p", rtl: "module top; endmodule", template: "adder" }
 - [R] `1593`: when score = score_dataset_sample(sample)
 - [R] `1594`: then score == 1.0
-- [D] `1619`: given templates = ["adder", "booth", "cordic"]
-- [D] `1624`: given d = [DataSample { prompt: "p1", rtl: "module a; endmodule", template: "adder" }]
+- [R] `1619`: given templates = ["adder", "booth", "cordic"]
+- [R] `1624`: given d = [DataSample { prompt: "p1", rtl: "module a; endmodule", template: "adder" }]
 - [R] `1629`: given samples = []DataSample{}
 - [R] `1630`: given threshold = 0.5
 - [R] `1631`: when filtered = filter_dataset_by_quality(samples, threshold)
@@ -4885,10 +4886,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1698`: given bitwidths = [2u32, 4u32]
 - [R] `1699`: when ds = generate_parameterized_dataset(families, bitwidths)
 - [R] `1700`: then ds.len() == 0
-- [D] `1703`: given families = ["adder"]
-- [D] `1704`: given bitwidths = []u32{}
-- [D] `1705`: when ds = generate_parameterized_dataset(families, bitwidths)
-- [D] `1706`: then ds.len() == 0
+- [R] `1703`: given families = ["adder"]
+- [R] `1704`: given bitwidths = []u32{}
+- [R] `1705`: when ds = generate_parameterized_dataset(families, bitwidths)
+- [R] `1706`: then ds.len() == 0
 - [R] `1717`: given dataset = [DataSample { prompt: "p", rtl: "m", template: "t" }]
 - [R] `1718`: when n = count_unique_templates(dataset)
 - [R] `1719`: then n == 1
@@ -5019,10 +5020,10 @@ honest current loss set is the 1,589 below.)
 - [R] `2008`: given size = 2
 - [R] `2009`: when batches = batch(data, size)
 - [R] `2010`: then batches.len() == 3
-- [D] `2016`: given data = []
-- [D] `2017`: given seed = 42
-- [D] `2018`: when result = shuffle(data, seed)
-- [D] `2019`: then result == []
+- [R] `2016`: given data = []
+- [R] `2017`: given seed = 42
+- [R] `2018`: when result = shuffle(data, seed)
+- [R] `2019`: then result == []
 - [R] `2022`: given data = [1, 2, 3, 4, 5, 6]
 - [R] `2023`: given size = 3
 - [R] `2024`: when batches = batch(data, size)
@@ -5202,7 +5203,7 @@ honest current loss set is the 1,589 below.)
 - [R] `2381`: when batches = batch(data, size)
 - [R] `2382`: then batches.len() == 3
 
-## specs/igla/coder/eval.t27 — 424 scenario(s), 1020 line(s), 66 dropped under 0005
+## specs/igla/coder/eval.t27 — 424 scenario(s), 1020 line(s), 12 dropped under 0011
 - [R] `817`: given results = []EvalResult{}
 - [R] `818`: when p1 = pass_at_k(results, PASS_AT_1)
 - [R] `819`: then p1.score >= 0.0 && p1.score <= 1.0
@@ -5215,10 +5216,10 @@ honest current loss set is the 1,589 below.)
 - [R] `835`: given code = "assign y = a * b;"
 - [R] `836`: when level = check_sacred_compliance(code)
 - [R] `837`: then level == 0
-- [D] `840`: given code = "fn add(a: i32, b: i32) -> i32 { a + b }"
-- [D] `841`: given tests = ["assert_eq!(add(2,3), 5);"]
-- [D] `842`: when result = compile_and_test(code, "rust", tests)
-- [D] `843`: then result.compile_ok == true
+- [R] `840`: given code = "fn add(a: i32, b: i32) -> i32 { a + b }"
+- [R] `841`: given tests = ["assert_eq!(add(2,3), 5);"]
+- [R] `842`: when result = compile_and_test(code, "rust", tests)
+- [R] `843`: then result.compile_ok == true
 - [R] `846`: given results = []EvalResult{}
 - [R] `847`: when report = generate_report(results)
 - [R] `848`: then report.param_count <= 1_000_000_000
@@ -5584,10 +5585,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1802`: given expr = "A'B'C + A'BC + AB'C + ABC"
 - [R] `1803`: when out = kmap_simplify(expr)
 - [R] `1804`: then out == "C"
-- [D] `1807`: given ins = ["A", "B"]
-- [D] `1808`: given outs = ["Y"]
-- [D] `1809`: when tbl = truth_table_generate(ins, outs)
-- [D] `1810`: then tbl.len() > 0
+- [R] `1807`: given ins = ["A", "B"]
+- [R] `1808`: given outs = ["Y"]
+- [R] `1809`: when tbl = truth_table_generate(ins, outs)
+- [R] `1810`: then tbl.len() > 0
 - [R] `1813`: given expr = "AB + A"
 - [R] `1814`: when out = boolean_minimize(expr)
 - [R] `1815`: then out == "A"
@@ -5814,8 +5815,8 @@ honest current loss set is the 1,589 below.)
 - [R] `2700`: given log = "error: synthesis failed"
 - [R] `2701`: when report = run_yosys_from_stdout(log)
 - [R] `2702`: then report.synth_ok == false && report.lut_count == 0
-- [D] `2726`: given tasks = []EvalTask{}
-- [D] `2731`: given code = ""
+- [R] `2726`: given tasks = []EvalTask{}
+- [R] `2731`: given code = ""
 - [R] `2747`: given results = []EvalResult{}
 - [R] `2748`: when p = pass_at_k(results, PASS_AT_1)
 - [R] `2749`: then p.pass_count == 0 && p.total_tasks == 0 && p.score == 0.0
@@ -5971,26 +5972,26 @@ honest current loss set is the 1,589 below.)
 - [R] `3059`: given b = "abc"
 - [R] `3060`: when d = string_hamming_distance(a, b, 0, 0)
 - [R] `3061`: then d == 0
-- [D] `3064`: given preds = []
-- [D] `3065`: given refs = []
-- [D] `3066`: when acc = accuracy(preds, refs)
-- [D] `3067`: then acc == 0.0
-- [D] `3074`: given preds = []
-- [D] `3075`: given refs = []
-- [D] `3076`: when score = bleu_score(preds, refs)
-- [D] `3077`: then score == 0.0
+- [R] `3064`: given preds = []
+- [R] `3065`: given refs = []
+- [R] `3066`: when acc = accuracy(preds, refs)
+- [R] `3067`: then acc == 0.0
+- [R] `3074`: given preds = []
+- [R] `3075`: given refs = []
+- [R] `3076`: when score = bleu_score(preds, refs)
+- [R] `3077`: then score == 0.0
 - [R] `3080`: given a = "abc"
 - [R] `3081`: given b = "ab"
 - [R] `3082`: when d = string_hamming_distance(a, b, 0, 0)
 - [R] `3083`: then d == -1
-- [D] `3090`: given preds = [1]
-- [D] `3091`: given refs = [1]
-- [D] `3092`: when p = precision(preds, refs)
-- [D] `3093`: then p == 1.0
-- [D] `3096`: given preds = [1]
-- [D] `3097`: given refs = [1]
-- [D] `3098`: when r = recall(preds, refs)
-- [D] `3099`: then r == 1.0
+- [R] `3090`: given preds = [1]
+- [R] `3091`: given refs = [1]
+- [R] `3092`: when p = precision(preds, refs)
+- [R] `3093`: then p == 1.0
+- [R] `3096`: given preds = [1]
+- [R] `3097`: given refs = [1]
+- [R] `3098`: when r = recall(preds, refs)
+- [R] `3099`: then r == 1.0
 - [R] `3106`: given preds = [1, 2, 3]
 - [R] `3107`: given refs = [1, 2, 3]
 - [R] `3108`: when acc = accuracy(preds, refs)
@@ -6003,10 +6004,10 @@ honest current loss set is the 1,589 below.)
 - [R] `3123`: given refs = [4, 5, 6]
 - [R] `3124`: when acc = accuracy(preds, refs)
 - [R] `3125`: then acc == 0.0
-- [D] `3128`: given preds = [7]
-- [D] `3129`: given refs = [7]
-- [D] `3130`: when acc = accuracy(preds, refs)
-- [D] `3131`: then acc == 1.0
+- [R] `3128`: given preds = [7]
+- [R] `3129`: given refs = [7]
+- [R] `3130`: when acc = accuracy(preds, refs)
+- [R] `3131`: then acc == 1.0
 - [R] `3138`: given preds = [1, 2, 3]
 - [R] `3139`: given refs = [1, 5, 3]
 - [R] `3140`: when acc = accuracy(preds, refs)
@@ -6027,14 +6028,14 @@ honest current loss set is the 1,589 below.)
 - [R] `3171`: given refs = [1, 2, 4]
 - [R] `3172`: when acc = accuracy(preds, refs)
 - [R] `3173`: then acc == 0.6666666666666666
-- [D] `3176`: given preds = [1]
-- [D] `3177`: given refs = [2]
-- [D] `3178`: when acc = accuracy(preds, refs)
-- [D] `3179`: then acc == 0.0
-- [D] `3187`: given preds = []
-- [D] `3188`: given refs = []
-- [D] `3189`: when acc = accuracy(preds, refs)
-- [D] `3190`: then acc == 0.0
+- [R] `3176`: given preds = [1]
+- [R] `3177`: given refs = [2]
+- [R] `3178`: when acc = accuracy(preds, refs)
+- [R] `3179`: then acc == 0.0
+- [R] `3187`: given preds = []
+- [R] `3188`: given refs = []
+- [R] `3189`: when acc = accuracy(preds, refs)
+- [R] `3190`: then acc == 0.0
 - [R] `3193`: given preds = [1, 2]
 - [R] `3194`: given refs = [1, 2]
 - [R] `3195`: when acc = accuracy(preds, refs)
@@ -6051,10 +6052,10 @@ honest current loss set is the 1,589 below.)
 - [R] `3218`: given refs = [1, 5, 3]
 - [R] `3219`: when acc = accuracy(preds, refs)
 - [R] `3220`: then acc == 0.6666666666666666
-- [D] `3223`: given preds = [1]
-- [D] `3224`: given refs = [2]
-- [D] `3225`: when acc = accuracy(preds, refs)
-- [D] `3226`: then acc == 0.0
+- [R] `3223`: given preds = [1]
+- [R] `3224`: given refs = [2]
+- [R] `3225`: when acc = accuracy(preds, refs)
+- [R] `3226`: then acc == 0.0
 - [R] `3232`: given preds = [1, 2, 3, 4]
 - [R] `3233`: given refs = [5, 6, 7, 8]
 - [R] `3234`: when acc = accuracy(preds, refs)
@@ -6083,10 +6084,10 @@ honest current loss set is the 1,589 below.)
 - [R] `3278`: given refs = [1, 1]
 - [R] `3279`: when acc = accuracy(preds, refs)
 - [R] `3280`: then acc == 0.5
-- [D] `3283`: given preds = []
-- [D] `3284`: given refs = []
-- [D] `3285`: when acc = accuracy(preds, refs)
-- [D] `3286`: then acc != acc
+- [R] `3283`: given preds = []
+- [R] `3284`: given refs = []
+- [R] `3285`: when acc = accuracy(preds, refs)
+- [R] `3286`: then acc != acc
 - [R] `3292`: given preds = [1, 2, 3]
 - [R] `3293`: given refs = [1, 2, 3]
 - [R] `3294`: when acc = accuracy(preds, refs)
@@ -6095,14 +6096,14 @@ honest current loss set is the 1,589 below.)
 - [R] `3299`: given refs = [1, 2, 3]
 - [R] `3300`: when acc = accuracy(preds, refs)
 - [R] `3301`: then acc == 0.0
-- [D] `3307`: given preds = [7]
-- [D] `3308`: given refs = [7]
-- [D] `3309`: when acc = accuracy(preds, refs)
-- [D] `3310`: then acc == 1.0
-- [D] `3313`: given preds = [0]
-- [D] `3314`: given refs = [1]
-- [D] `3315`: when acc = accuracy(preds, refs)
-- [D] `3316`: then acc == 0.0
+- [R] `3307`: given preds = [7]
+- [R] `3308`: given refs = [7]
+- [R] `3309`: when acc = accuracy(preds, refs)
+- [R] `3310`: then acc == 1.0
+- [R] `3313`: given preds = [0]
+- [R] `3314`: given refs = [1]
+- [R] `3315`: when acc = accuracy(preds, refs)
+- [R] `3316`: then acc == 0.0
 - [R] `3322`: given preds = [1, 0]
 - [R] `3323`: given refs = [1, 2]
 - [R] `3324`: when acc = accuracy(preds, refs)
@@ -6224,7 +6225,7 @@ honest current loss set is the 1,589 below.)
 - [R] `3598`: when acc = accuracy(preds, refs)
 - [R] `3599`: then acc == 0.0
 
-## specs/igla/coder/pipeline.t27 — 275 scenario(s), 684 line(s), 63 dropped under 0005
+## specs/igla/coder/pipeline.t27 — 275 scenario(s), 684 line(s), 8 dropped under 0011
 - [R] `785`: given prompt = ""
 - [R] `786`: when tokens = tokenize_prompt(prompt)
 - [R] `787`: then len(tokens) == 0
@@ -6391,9 +6392,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1044`: given cfg = PipelineConfig { max_tokens: 5, temperature: 1.0, top_p: 1.0 }
 - [R] `1045`: when s = generate_verilog_ai_with_diversity_and_sacred(prompt, bank, cfg)
 - [R] `1046`: then s.len() > 0
-- [D] `1049`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
-- [D] `1050`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
-- [D] `1051`: then best == candidates[0]
+- [R] `1049`: given candidates = ["module add2(a,b,y); assign y=a+b; endmodule"]
+- [R] `1050`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
+- [R] `1051`: then best == candidates[0]
 - [R] `1054`: given candidates = [
 - [R] `1058`: when best = select_best_synth_candidate(candidates, 0, eval::score_rtl_with_yosys(candidates[0]), candidates[0])
 - [R] `1059`: then best == candidates[1]
@@ -6475,10 +6476,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1194`: given agents = [AgentProfile { name: "Gen", role: "generator", model_size: 1000 }, AgentProfile { name: "Ver", role: "verifier", model_size: 500 }]
 - [R] `1195`: when action = orchestrate_agents_with_ppo(state, agents)
 - [R] `1196`: then action.agent_id == 0
-- [D] `1199`: given state = [1.0]
-- [D] `1200`: given agents = []AgentProfile{}
-- [D] `1201`: when action = orchestrate_agents_with_ppo(state, agents)
-- [D] `1202`: then action.temperature == 1.0
+- [R] `1199`: given state = [1.0]
+- [R] `1200`: given agents = []AgentProfile{}
+- [R] `1201`: when action = orchestrate_agents_with_ppo(state, agents)
+- [R] `1202`: then action.temperature == 1.0
 - [R] `1205`: given a = "module add2(); endmodule"
 - [R] `1206`: given b = "module add2(); endmodule"
 - [R] `1207`: when r = compute_team_match_reward(a, b)
@@ -6522,10 +6523,10 @@ honest current loss set is the 1,589 below.)
 - [D] `1263`: given contract = Contract { module_name: "add2", precond: "a>=0", postcond: "y==a+b", invariant: "no_overflow", clk: "clk", reset: "rst" }
 - [D] `1264`: when ok = temporal_trace_check(rtl, contract)
 - [D] `1265`: then ok == false
-- [D] `1268`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
-- [D] `1269`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
-- [D] `1270`: when actions = generate_verify_debug(spec, contracts)
-- [D] `1271`: then len(actions) > 0
+- [R] `1268`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
+- [R] `1269`: given contracts = [Contract { module_name: "add2", precond: "", postcond: "", invariant: "assert ok", clk: "clk", reset: "rst" }]
+- [R] `1270`: when actions = generate_verify_debug(spec, contracts)
+- [R] `1271`: then len(actions) > 0
 - [R] `1276`: given spec = ModuleSpec { name: "add2", ports: [], body_hint: "adder" }
 - [R] `1277`: when body = generate_module_body(spec, "adder")
 - [R] `1278`: then has_substring(body, "assign y = a + b", 0) == true
@@ -6610,9 +6611,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1412`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1413`: when output = generate_tokens_autoregressive(input_ids, bank, cfg, 0)
 - [R] `1414`: then output.len() == 0
-- [D] `1417`: given tokens = [65]
-- [D] `1418`: when s = decode_tokens(tokens)
-- [D] `1419`: then s.len() > 0
+- [R] `1417`: given tokens = [65]
+- [R] `1418`: when s = decode_tokens(tokens)
+- [R] `1419`: then s.len() > 0
 - [R] `1422`: given prompt = "hello"
 - [R] `1423`: when tokens = tokenize_prompt(prompt)
 - [R] `1424`: then tokens.len() > 0
@@ -6650,9 +6651,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1510`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1511`: when tokens = generate_tokens_recursive(logits, cfg, 5)
 - [R] `1512`: then tokens.len() == 0
-- [D] `1522`: given prompt = "generate cordic module"
-- [D] `1523`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
-- [D] `1524`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- [R] `1522`: given prompt = "generate cordic module"
+- [R] `1523`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- [R] `1524`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1529`: given c = BeamCandidate { token: 5, score: 1.0, prefix_len: 1 }
 - [R] `1530`: when best = select_best_candidate([c])
 - [R] `1531`: then best.token == 5
@@ -6672,9 +6673,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1562`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1563`: when candidates = generate_diverse_candidates(prompt, bank, cfg, 0)
 - [R] `1564`: then candidates.len() == 0
-- [D] `1571`: given prompt = "generate adder module"
-- [D] `1572`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
-- [D] `1573`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
+- [R] `1571`: given prompt = "generate adder module"
+- [R] `1572`: given bank = WeightBank { depth: 1, width: 1, data: [0] }
+- [R] `1573`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1579`: given candidates = []BeamCandidate{}
 - [R] `1580`: when best = select_best_candidate(candidates)
 - [R] `1581`: then best.token == ""
@@ -6690,9 +6691,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1616`: given prompt = "generate booth multiplier"
 - [R] `1617`: when s = fallback_to_template(prompt)
 - [R] `1618`: then s == "module booth_mul(); endmodule"
-- [D] `1621`: given tokens = [256]
-- [D] `1622`: when s = decode_tokens(tokens)
-- [D] `1623`: then s == "module"
+- [R] `1621`: given tokens = [256]
+- [R] `1622`: when s = decode_tokens(tokens)
+- [R] `1623`: then s == "module"
 - [R] `1630`: given logits = []f32{}
 - [R] `1631`: given cfg = PipelineConfig { max_tokens: 10, temperature: 1.0, top_p: 1.0 }
 - [R] `1632`: when tokens = generate_tokens_recursive(logits, cfg, 5)
@@ -6700,26 +6701,26 @@ honest current loss set is the 1,589 below.)
 - [R] `1636`: given prompt = ""
 - [R] `1637`: when tokens = tokenize_prompt_hybrid(prompt)
 - [R] `1638`: then tokens.len() == 0
-- [D] `1646`: given logits = [1.0f32]
-- [D] `1647`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
-- [D] `1648`: when tokens = generate_tokens_recursive(logits, cfg, 0)
-- [D] `1649`: then tokens.len() == 1
+- [R] `1646`: given logits = [1.0f32]
+- [R] `1647`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- [R] `1648`: when tokens = generate_tokens_recursive(logits, cfg, 0)
+- [R] `1649`: then tokens.len() == 1
 - [R] `1652`: given prompt = "a"
 - [R] `1653`: when tokens = tokenize_prompt_hybrid(prompt)
 - [R] `1654`: then tokens.len() == 1
-- [D] `1661`: given tokens = [0]
-- [D] `1662`: when s = decode_tokens(tokens)
-- [D] `1663`: then s == ""
-- [D] `1666`: given logits = [1.0f32]
-- [D] `1667`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
-- [D] `1668`: when tokens = generate_tokens_recursive(logits, cfg, 100)
-- [D] `1669`: then tokens.len() == 0
-- [D] `1676`: given input = []
-- [D] `1677`: when output = run_pipeline(input)
-- [D] `1678`: then output.len() == 0
-- [D] `1685`: given input = [42]
-- [D] `1686`: when output = run_pipeline(input)
-- [D] `1687`: then output.len() == 1
+- [R] `1661`: given tokens = [0]
+- [R] `1662`: when s = decode_tokens(tokens)
+- [R] `1663`: then s == ""
+- [R] `1666`: given logits = [1.0f32]
+- [R] `1667`: given cfg = PipelineConfig { max_tokens: 1, temperature: 1.0, top_p: 1.0 }
+- [R] `1668`: when tokens = generate_tokens_recursive(logits, cfg, 100)
+- [R] `1669`: then tokens.len() == 0
+- [R] `1676`: given input = []
+- [R] `1677`: when output = run_pipeline(input)
+- [R] `1678`: then output.len() == 0
+- [R] `1685`: given input = [42]
+- [R] `1686`: when output = run_pipeline(input)
+- [R] `1687`: then output.len() == 1
 - [R] `1690`: given cfg = PipelineConfig { max_tokens: 1, temperature: 0.0, top_p: 1.0 }
 - [R] `1691`: when ok = cfg.temperature == 0.0
 - [R] `1692`: then ok == true
@@ -6732,15 +6733,15 @@ honest current loss set is the 1,589 below.)
 - [R] `1713`: given text = ""
 - [R] `1714`: when tokens = tokenize(text)
 - [R] `1715`: then tokens.len() == 0
-- [D] `1718`: given tokens = []
-- [D] `1719`: when text = decode_tokens(tokens)
-- [D] `1720`: then text == ""
+- [R] `1718`: given tokens = []
+- [R] `1719`: when text = decode_tokens(tokens)
+- [R] `1720`: then text == ""
 - [R] `1727`: given input = []f32{}
 - [R] `1728`: when output = pipeline(input)
 - [R] `1729`: then output.len() == 0
-- [D] `1732`: given input = [1.0f32]
-- [D] `1733`: when output = pipeline(input)
-- [D] `1734`: then output.len() == 1 && output[0] == 1.0
+- [R] `1732`: given input = [1.0f32]
+- [R] `1733`: when output = pipeline(input)
+- [R] `1734`: then output.len() == 1 && output[0] == 1.0
 - [R] `1741`: given input = [1.0f32, 2.0f32]
 - [R] `1742`: when output = pipeline(input)
 - [R] `1743`: then output.len() == 2
@@ -6765,12 +6766,12 @@ honest current loss set is the 1,589 below.)
 - [R] `1788`: given input = [-3.14f32]
 - [R] `1789`: when output = pipeline(input)
 - [R] `1790`: then output.len() == 1
-- [D] `1798`: given input = []
-- [D] `1799`: when output = pipeline(input)
-- [D] `1800`: then output.len() == 0
-- [D] `1803`: given input = [42.0f32]
-- [D] `1804`: when output = pipeline(input)
-- [D] `1805`: then output.len() == 1
+- [R] `1798`: given input = []
+- [R] `1799`: when output = pipeline(input)
+- [R] `1800`: then output.len() == 0
+- [R] `1803`: given input = [42.0f32]
+- [R] `1804`: when output = pipeline(input)
+- [R] `1805`: then output.len() == 1
 - [R] `1811`: given input = [1.0f32, 2.0f32]
 - [R] `1812`: when output = pipeline(input)
 - [R] `1813`: then output.len() == 2
@@ -6786,9 +6787,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1837`: given input = [7.0f32, 8.0f32, 9.0f32]
 - [R] `1838`: when output = pipeline(input)
 - [R] `1839`: then output.len() == 3
-- [D] `1842`: given input = [42.0f32]
-- [D] `1843`: when output = pipeline(input)
-- [D] `1844`: then output.len() == 1
+- [R] `1842`: given input = [42.0f32]
+- [R] `1843`: when output = pipeline(input)
+- [R] `1844`: then output.len() == 1
 - [R] `1850`: given input = [3.0f32, 4.0f32]
 - [R] `1851`: when output = pipeline(input)
 - [R] `1852`: then output.len() == 2
@@ -6910,7 +6911,7 @@ honest current loss set is the 1,589 below.)
 - [R] `2160`: when result = compose(double, identity, x)
 - [R] `2161`: then result == 14
 
-## specs/igla/coder/prm.t27 — 196 scenario(s), 456 line(s), 69 dropped under 0005
+## specs/igla/coder/prm.t27 — 196 scenario(s), 456 line(s), 1 dropped under 0011
 - [R] `474`: given step = Step { id: 0, description: "test", kind: StepKind::Datapath,
 - [R] `476`: given language = "verilog"
 - [R] `477`: when r = reward_syntax(step, language)
@@ -6968,12 +6969,12 @@ honest current loss set is the 1,589 below.)
 - [R] `579`: given language = "verilog"
 - [R] `580`: when loss = compute_prm_loss(good, bad, language)
 - [R] `581`: then loss >= 0.0
-- [D] `584`: given good = [Step { id: 0, description: "g", kind: StepKind::Datapath,
-- [D] `586`: given bad  = [Step { id: 0, description: "b", kind: StepKind::Datapath,
-- [D] `588`: given chosen_batch = [good]
-- [D] `589`: given rejected_batch = [bad]
-- [D] `590`: when avg_loss = train_prm_step(chosen_batch, rejected_batch, "verilog")
-- [D] `591`: then avg_loss >= 0.0
+- [R] `584`: given good = [Step { id: 0, description: "g", kind: StepKind::Datapath,
+- [R] `586`: given bad  = [Step { id: 0, description: "b", kind: StepKind::Datapath,
+- [R] `588`: given chosen_batch = [good]
+- [R] `589`: given rejected_batch = [bad]
+- [R] `590`: when avg_loss = train_prm_step(chosen_batch, rejected_batch, "verilog")
+- [R] `591`: then avg_loss >= 0.0
 - [R] `594`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath,
 - [R] `596`: given s2 = Step { id: 1, description: "s2", kind: StepKind::Datapath,
 - [R] `598`: when scores = batch_score_with_prm([s1, s2], "verilog")
@@ -7013,8 +7014,8 @@ honest current loss set is the 1,589 below.)
 - [R] `658`: when reward = compute_step_reward(step, "verilog", expected)
 - [R] `659`: then reward > 0.99
 - [D] `685`: given steps = random_steps(10)
-- [D] `690`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath, input: "", output: "assign a = b + c;" }
-- [D] `691`: given s2 = Step { id: 1, description: "s2", kind: StepKind::Datapath, input: "", output: "assign z = x * y;" }
+- [R] `690`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath, input: "", output: "assign a = b + c;" }
+- [R] `691`: given s2 = Step { id: 1, description: "s2", kind: StepKind::Datapath, input: "", output: "assign z = x * y;" }
 - [R] `697`: given step = Step { id: 0, description: "s1", kind: StepKind::Datapath, input: "", output: "assign a = b + c;" }
 - [R] `698`: given lang = "verilog"
 - [R] `699`: given expected = ""
@@ -7025,10 +7026,10 @@ honest current loss set is the 1,589 below.)
 - [R] `707`: given language = "verilog"
 - [R] `708`: when r = reward_lint(step, language)
 - [R] `709`: then r.score == 0.0
-- [D] `712`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath,
-- [D] `714`: given traj = [s1]
-- [D] `715`: when r = compute_trajectory_reward(traj, "verilog", 0.618)
-- [D] `716`: then r >= 0.0 && r <= 1.0
+- [R] `712`: given s1 = Step { id: 0, description: "s1", kind: StepKind::Datapath,
+- [R] `714`: given traj = [s1]
+- [R] `715`: when r = compute_trajectory_reward(traj, "verilog", 0.618)
+- [R] `716`: then r >= 0.0 && r <= 1.0
 - [R] `719`: given step = Step { id: 0, description: "add", kind: StepKind::Datapath,
 - [R] `721`: given language = "verilog"
 - [R] `722`: when r = reward_syntax(step, language)
@@ -7248,10 +7249,10 @@ honest current loss set is the 1,589 below.)
 - [R] `1197`: given val = 127
 - [R] `1198`: when result = param_bounds_saturate(val)
 - [R] `1199`: then result == 127
-- [D] `1202`: given scores = []
-- [D] `1203`: given k = 0
-- [D] `1204`: when indices = select_top(scores, k)
-- [D] `1205`: then indices == []
+- [R] `1202`: given scores = []
+- [R] `1203`: given k = 0
+- [R] `1204`: when indices = select_top(scores, k)
+- [R] `1205`: then indices == []
 - [R] `1211`: given scores = [0.5f32, 0.5f32, 0.5f32]
 - [R] `1212`: given k = 2
 - [R] `1213`: when indices = select_top(scores, k)
@@ -7279,96 +7280,96 @@ honest current loss set is the 1,589 below.)
 - [R] `1256`: given val = 127
 - [R] `1257`: when result = param_bounds_saturate(val)
 - [R] `1258`: then result == 127
-- [D] `1261`: given scores = []
-- [D] `1262`: given k = 0
-- [D] `1263`: when indices = select_top(scores, k)
-- [D] `1264`: then indices == []
+- [R] `1261`: given scores = []
+- [R] `1262`: given k = 0
+- [R] `1263`: when indices = select_top(scores, k)
+- [R] `1264`: then indices == []
 - [R] `1269`: given val = 127
 - [R] `1270`: when result = param_bounds_saturate(val)
 - [R] `1271`: then result == 127
-- [D] `1274`: given scores = []
-- [D] `1275`: given k = 0
-- [D] `1276`: when indices = select_top(scores, k)
-- [D] `1277`: then indices == []
+- [R] `1274`: given scores = []
+- [R] `1275`: given k = 0
+- [R] `1276`: when indices = select_top(scores, k)
+- [R] `1277`: then indices == []
 - [R] `1284`: given val = 127
 - [R] `1285`: when result = param_bounds_saturate(val)
 - [R] `1286`: then result == 127
-- [D] `1289`: given scores = []
-- [D] `1290`: given k = 0
-- [D] `1291`: when indices = select_top(scores, k)
-- [D] `1292`: then indices == []
+- [R] `1289`: given scores = []
+- [R] `1290`: given k = 0
+- [R] `1291`: when indices = select_top(scores, k)
+- [R] `1292`: then indices == []
 - [R] `1300`: given val = 127
 - [R] `1301`: when result = param_bounds_saturate(val)
 - [R] `1302`: then result == 127
-- [D] `1305`: given scores = []
-- [D] `1306`: given k = 0
-- [D] `1307`: when indices = select_top(scores, k)
-- [D] `1308`: then indices == []
+- [R] `1305`: given scores = []
+- [R] `1306`: given k = 0
+- [R] `1307`: when indices = select_top(scores, k)
+- [R] `1308`: then indices == []
 - [R] `1317`: given val = 127
 - [R] `1318`: when result = param_bounds_saturate(val)
 - [R] `1319`: then result == 127
-- [D] `1322`: given scores = []
-- [D] `1323`: given k = 0
-- [D] `1324`: when indices = select_top(scores, k)
-- [D] `1325`: then indices == []
+- [R] `1322`: given scores = []
+- [R] `1323`: given k = 0
+- [R] `1324`: when indices = select_top(scores, k)
+- [R] `1325`: then indices == []
 - [R] `1334`: given val = 127
 - [R] `1335`: when result = param_bounds_saturate(val)
 - [R] `1336`: then result == 127
-- [D] `1339`: given scores = []
-- [D] `1340`: given k = 0
-- [D] `1341`: when indices = select_top(scores, k)
-- [D] `1342`: then indices == []
+- [R] `1339`: given scores = []
+- [R] `1340`: given k = 0
+- [R] `1341`: when indices = select_top(scores, k)
+- [R] `1342`: then indices == []
 - [R] `1352`: given val = 127
 - [R] `1353`: when result = param_bounds_saturate(val)
 - [R] `1354`: then result == 127
-- [D] `1357`: given scores = []
-- [D] `1358`: given k = 0
-- [D] `1359`: when indices = select_top(scores, k)
-- [D] `1360`: then indices == []
+- [R] `1357`: given scores = []
+- [R] `1358`: given k = 0
+- [R] `1359`: when indices = select_top(scores, k)
+- [R] `1360`: then indices == []
 - [R] `1371`: given val = 127
 - [R] `1372`: when result = param_bounds_saturate(val)
 - [R] `1373`: then result == 127
-- [D] `1376`: given scores = []
-- [D] `1377`: given k = 0
-- [D] `1378`: when indices = select_top(scores, k)
-- [D] `1379`: then indices == []
+- [R] `1376`: given scores = []
+- [R] `1377`: given k = 0
+- [R] `1378`: when indices = select_top(scores, k)
+- [R] `1379`: then indices == []
 - [R] `1391`: given val = 127
 - [R] `1392`: when result = param_bounds_saturate(val)
 - [R] `1393`: then result == 127
-- [D] `1396`: given scores = []
-- [D] `1397`: given k = 0
-- [D] `1398`: when indices = select_top(scores, k)
-- [D] `1399`: then indices == []
+- [R] `1396`: given scores = []
+- [R] `1397`: given k = 0
+- [R] `1398`: when indices = select_top(scores, k)
+- [R] `1399`: then indices == []
 - [R] `1412`: given val = 127
 - [R] `1413`: when result = param_bounds_saturate(val)
 - [R] `1414`: then result == 127
-- [D] `1417`: given scores = []
-- [D] `1418`: given k = 0
-- [D] `1419`: when indices = select_top(scores, k)
-- [D] `1420`: then indices == []
+- [R] `1417`: given scores = []
+- [R] `1418`: given k = 0
+- [R] `1419`: when indices = select_top(scores, k)
+- [R] `1420`: then indices == []
 - [R] `1434`: given val = 127
 - [R] `1435`: when result = param_bounds_saturate(val)
 - [R] `1436`: then result == 127
-- [D] `1439`: given scores = []
-- [D] `1440`: given k = 0
-- [D] `1441`: when indices = select_top(scores, k)
-- [D] `1442`: then indices == []
+- [R] `1439`: given scores = []
+- [R] `1440`: given k = 0
+- [R] `1441`: when indices = select_top(scores, k)
+- [R] `1442`: then indices == []
 - [R] `1457`: given val = 127
 - [R] `1458`: when result = param_bounds_saturate(val)
 - [R] `1459`: then result == 127
-- [D] `1462`: given scores = []
-- [D] `1463`: given k = 0
-- [D] `1464`: when indices = select_top(scores, k)
-- [D] `1465`: then indices == []
+- [R] `1462`: given scores = []
+- [R] `1463`: given k = 0
+- [R] `1464`: when indices = select_top(scores, k)
+- [R] `1465`: then indices == []
 - [R] `1481`: given val = 127
 - [R] `1482`: when result = param_bounds_saturate(val)
 - [R] `1483`: then result == 127
-- [D] `1486`: given scores = []
-- [D] `1487`: given k = 0
-- [D] `1488`: when indices = select_top(scores, k)
-- [D] `1489`: then indices == []
+- [R] `1486`: given scores = []
+- [R] `1487`: given k = 0
+- [R] `1488`: when indices = select_top(scores, k)
+- [R] `1489`: then indices == []
 
-## specs/igla/coder/tokenizer.t27 — 117 scenario(s), 403 line(s), 95 dropped under 0005
+## specs/igla/coder/tokenizer.t27 — 117 scenario(s), 403 line(s), 0 dropped under 0011
 - [R] `360`: when id = encode_char(97)
 - [R] `361`: then id == 97
 - [R] `364`: when c = decode_char(97)
@@ -7417,9 +7418,9 @@ honest current loss set is the 1,589 below.)
 - [R] `443`: given word = "xyz"
 - [R] `444`: when tokens = tokenize_word_ascii(word, 0)
 - [R] `445`: then tokens[0] == 120 && tokens[1] == 121 && tokens[2] == 122
-- [D] `448`: given tokens = [256]
-- [D] `449`: when text = detokenize(tokens)
-- [D] `450`: then text == "module"
+- [R] `448`: given tokens = [256]
+- [R] `449`: when text = detokenize(tokens)
+- [R] `450`: then text == "module"
 - [R] `453`: given c = 255
 - [R] `454`: when e = encode_char(c)
 - [R] `455`: then e == 255
@@ -7452,8 +7453,8 @@ honest current loss set is the 1,589 below.)
 - [R] `524`: then c == 255
 - [R] `527`: when n = vocab_size_total()
 - [R] `528`: then n == 320
-- [D] `535`: given text = "module add2(); endmodule"
-- [D] `540`: given code = "module input output wire reg assign"
+- [R] `535`: given text = "module add2(); endmodule"
+- [R] `540`: given code = "module input output wire reg assign"
 - [R] `546`: when id = encode_keyword("unknown_xyz")
 - [R] `547`: then id == 0
 - [R] `550`: given code = ""
@@ -7478,9 +7479,9 @@ honest current loss set is the 1,589 below.)
 - [R] `594`: given text = ""
 - [R] `595`: when tokens = tokenize(text)
 - [R] `596`: then tokens.len() == 0
-- [D] `599`: given tokens = [111]
-- [D] `600`: when s = detokenize(tokens)
-- [D] `601`: then s == "o"
+- [R] `599`: given tokens = [111]
+- [R] `600`: when s = detokenize(tokens)
+- [R] `601`: then s == "o"
 - [R] `604`: given c = 65
 - [R] `605`: when id = encode_char(c)
 - [R] `606`: when d = decode_char(id)
@@ -7493,9 +7494,9 @@ honest current loss set is the 1,589 below.)
 - [R] `631`: given c = 32
 - [R] `632`: when id = encode_char(c)
 - [R] `633`: then id == 32
-- [D] `636`: given tokens = [32u32]
-- [D] `637`: when s = detokenize(tokens)
-- [D] `638`: then s == " "
+- [R] `636`: given tokens = [32u32]
+- [R] `637`: when s = detokenize(tokens)
+- [R] `638`: then s == " "
 - [R] `641`: when n = vocab_size_keywords()
 - [R] `642`: then n > 0
 - [R] `648`: given c = 255
@@ -7533,12 +7534,12 @@ honest current loss set is the 1,589 below.)
 - [R] `722`: given code = "module"
 - [R] `723`: when tokens = tokenize_verilog(code)
 - [R] `724`: then len(tokens) == 1 && tokens[0] == 256
-- [D] `727`: given tokens = [256]
-- [D] `728`: when text = detokenize_verilog(tokens)
-- [D] `729`: then text == "module"
-- [D] `737`: given tokens = [257]
-- [D] `738`: when s = detokenize(tokens)
-- [D] `739`: then s == "endmodule"
+- [R] `727`: given tokens = [256]
+- [R] `728`: when text = detokenize_verilog(tokens)
+- [R] `729`: then text == "module"
+- [R] `737`: given tokens = [257]
+- [R] `738`: when s = detokenize(tokens)
+- [R] `739`: then s == "endmodule"
 - [R] `742`: given code = ""
 - [R] `743`: when word = next_word(code, 0)
 - [R] `744`: then word == ""
@@ -7551,21 +7552,21 @@ honest current loss set is the 1,589 below.)
 - [R] `767`: given code = ""
 - [R] `768`: when idx = skip_spaces(code, 0)
 - [R] `769`: then idx == 0
-- [D] `776`: given tokens = []
-- [D] `777`: when s = add_special_tokens(tokens)
-- [D] `778`: then s[0] == 0 && s.len() == 2
+- [R] `776`: given tokens = []
+- [R] `777`: when s = add_special_tokens(tokens)
+- [R] `778`: then s[0] == 0 && s.len() == 2
 - [R] `785`: given code = "if"
 - [R] `786`: when ids = encode_keyword(code)
 - [R] `787`: then ids.len() == 1
-- [D] `790`: given ids = [1]
-- [D] `791`: when code = decode(ids)
-- [D] `792`: then code == "if"
+- [R] `790`: given ids = [1]
+- [R] `791`: when code = decode(ids)
+- [R] `792`: then code == "if"
 - [R] `799`: given code = "module"
 - [R] `800`: when ids = encode_keyword(code)
 - [R] `801`: then ids.len() == 1
-- [D] `804`: given ids = []
-- [D] `805`: when code = decode(ids)
-- [D] `806`: then code == ""
+- [R] `804`: given ids = []
+- [R] `805`: when code = decode(ids)
+- [R] `806`: then code == ""
 - [R] `813`: given code = "if"
 - [R] `814`: when ids = encode_keyword(code)
 - [R] `815`: when decoded = decode(ids)
@@ -7575,21 +7576,21 @@ honest current loss set is the 1,589 below.)
 - [R] `827`: given tokens = []u32{}
 - [R] `828`: when result = tokenize(tokens)
 - [R] `829`: then result.len() == 1 && result[0] == 0
-- [D] `832`: given tokens = [42]
-- [D] `833`: when result = tokenize(tokens)
-- [D] `834`: then result.len() == 2 && result[0] == 0 && result[1] == 42
+- [R] `832`: given tokens = [42]
+- [R] `833`: when result = tokenize(tokens)
+- [R] `834`: then result.len() == 2 && result[0] == 0 && result[1] == 42
 - [R] `840`: given tokens = [1, 2]
 - [R] `841`: when result = tokenize(tokens)
 - [R] `842`: then result.len() == 3 && result[0] == 0 && result[1] == 1 && result[2] == 2
-- [D] `845`: given tokens = [100]
-- [D] `846`: when result = tokenize(tokens)
-- [D] `847`: then result.len() == 2
+- [R] `845`: given tokens = [100]
+- [R] `846`: when result = tokenize(tokens)
+- [R] `847`: then result.len() == 2
 - [R] `853`: given tokens = [1, 2, 3]
 - [R] `854`: when result = tokenize(tokens)
 - [R] `855`: then result.len() == 4
-- [D] `858`: given tokens = [0]
-- [D] `859`: when result = tokenize(tokens)
-- [D] `860`: then result.len() == 2 && result[0] == 0 && result[1] == 0
+- [R] `858`: given tokens = [0]
+- [R] `859`: when result = tokenize(tokens)
+- [R] `860`: then result.len() == 2 && result[0] == 0 && result[1] == 0
 - [R] `866`: given tokens = [1, 2, 3, 4]
 - [R] `867`: when result = tokenize(tokens)
 - [R] `868`: then result.len() == 5
@@ -7605,30 +7606,30 @@ honest current loss set is the 1,589 below.)
 - [R] `893`: given tokens = [1, 2]
 - [R] `894`: when result = tokenize(tokens)
 - [R] `895`: then result.len() == 3
-- [D] `898`: given tokens = []
-- [D] `899`: when result = tokenize(tokens)
-- [D] `900`: then result.len() == 1
+- [R] `898`: given tokens = []
+- [R] `899`: when result = tokenize(tokens)
+- [R] `900`: then result.len() == 1
 - [R] `906`: given tokens = [1, 2, 3]
 - [R] `907`: when result = tokenize(tokens)
 - [R] `908`: then result.len() == 4
 - [R] `911`: given tokens = [7, 8, 9]
 - [R] `912`: when result = tokenize(tokens)
 - [R] `913`: then result[0] == 0
-- [D] `919`: given tokens = [42]
-- [D] `920`: when result = tokenize(tokens)
-- [D] `921`: then result.len() == 2
+- [R] `919`: given tokens = [42]
+- [R] `920`: when result = tokenize(tokens)
+- [R] `921`: then result.len() == 2
 - [R] `924`: given tokens = [1, 2, 3, 4]
 - [R] `925`: when result = tokenize(tokens)
 - [R] `926`: then result.len() == 5
-- [D] `932`: given tokens = []
-- [D] `933`: when result = tokenize(tokens)
-- [D] `934`: then result.len() == 1
+- [R] `932`: given tokens = []
+- [R] `933`: when result = tokenize(tokens)
+- [R] `934`: then result.len() == 1
 - [R] `937`: given tokens = [100, 200, 300]
 - [R] `938`: when result = tokenize(tokens)
 - [R] `939`: then result[0] == 0
-- [D] `945`: given tokens = [7]
-- [D] `946`: when result = tokenize(tokens)
-- [D] `947`: then result[0] == 0 && result.len() == 2
+- [R] `945`: given tokens = [7]
+- [R] `946`: when result = tokenize(tokens)
+- [R] `947`: then result[0] == 0 && result.len() == 2
 - [R] `950`: given tokens = [3, 4]
 - [R] `951`: when result = tokenize(tokens)
 - [R] `952`: then result[0] == 0 && result.len() == 3
@@ -7642,16 +7643,16 @@ honest current loss set is the 1,589 below.)
 - [R] `972`: given text = "a"
 - [R] `973`: when tokens = encode(text)
 - [R] `974`: then tokens.len() == 1
-- [D] `977`: given tokens = [65]
-- [D] `978`: when text = decode(tokens)
-- [D] `979`: then text == "A"
+- [R] `977`: given tokens = [65]
+- [R] `978`: when text = decode(tokens)
+- [R] `979`: then text == "A"
 - [R] `985`: given text = "test"
 - [R] `986`: when tokens = encode(text)
 - [R] `987`: when text2 = decode(tokens)
 - [R] `988`: then text2 == "test"
-- [D] `991`: given tokens = [42]
-- [D] `992`: when result = tokenize(tokens)
-- [D] `993`: then result.len() == 2
+- [R] `991`: given tokens = [42]
+- [R] `992`: when result = tokenize(tokens)
+- [R] `993`: then result.len() == 2
 - [R] `999`: given text = "αβγ"
 - [R] `1000`: when tokens = encode(text)
 - [R] `1001`: when text2 = decode(tokens)
@@ -7678,102 +7679,102 @@ honest current loss set is the 1,589 below.)
 - [R] `1043`: when tokens = encode(text)
 - [R] `1044`: when text2 = decode(tokens)
 - [R] `1045`: then text2 == "test"
-- [D] `1048`: given tokens = [42]
-- [D] `1049`: when result = tokenize(tokens)
-- [D] `1050`: then result.len() == 2
+- [R] `1048`: given tokens = [42]
+- [R] `1049`: when result = tokenize(tokens)
+- [R] `1050`: then result.len() == 2
 - [R] `1055`: given text = "test"
 - [R] `1056`: when tokens = encode(text)
 - [R] `1057`: when text2 = decode(tokens)
 - [R] `1058`: then text2 == "test"
-- [D] `1061`: given tokens = [42]
-- [D] `1062`: when result = tokenize(tokens)
-- [D] `1063`: then result.len() == 2
+- [R] `1061`: given tokens = [42]
+- [R] `1062`: when result = tokenize(tokens)
+- [R] `1063`: then result.len() == 2
 - [R] `1069`: given text = "test"
 - [R] `1070`: when tokens = encode(text)
 - [R] `1071`: when text2 = decode(tokens)
 - [R] `1072`: then text2 == "test"
-- [D] `1075`: given tokens = [42]
-- [D] `1076`: when result = tokenize(tokens)
-- [D] `1077`: then result.len() == 2
+- [R] `1075`: given tokens = [42]
+- [R] `1076`: when result = tokenize(tokens)
+- [R] `1077`: then result.len() == 2
 - [R] `1084`: given text = "test"
 - [R] `1085`: when tokens = encode(text)
 - [R] `1086`: when text2 = decode(tokens)
 - [R] `1087`: then text2 == "test"
-- [D] `1090`: given tokens = [42]
-- [D] `1091`: when result = tokenize(tokens)
-- [D] `1092`: then result.len() == 2
+- [R] `1090`: given tokens = [42]
+- [R] `1091`: when result = tokenize(tokens)
+- [R] `1092`: then result.len() == 2
 - [R] `1100`: given text = "test"
 - [R] `1101`: when tokens = encode(text)
 - [R] `1102`: when text2 = decode(tokens)
 - [R] `1103`: then text2 == "test"
-- [D] `1106`: given tokens = [42]
-- [D] `1107`: when result = tokenize(tokens)
-- [D] `1108`: then result.len() == 2
+- [R] `1106`: given tokens = [42]
+- [R] `1107`: when result = tokenize(tokens)
+- [R] `1108`: then result.len() == 2
 - [R] `1117`: given text = "test"
 - [R] `1118`: when tokens = encode(text)
 - [R] `1119`: when text2 = decode(tokens)
 - [R] `1120`: then text2 == "test"
-- [D] `1123`: given tokens = [42]
-- [D] `1124`: when result = tokenize(tokens)
-- [D] `1125`: then result.len() == 2
+- [R] `1123`: given tokens = [42]
+- [R] `1124`: when result = tokenize(tokens)
+- [R] `1125`: then result.len() == 2
 - [R] `1134`: given text = "test"
 - [R] `1135`: when tokens = encode(text)
 - [R] `1136`: when text2 = decode(tokens)
 - [R] `1137`: then text2 == "test"
-- [D] `1140`: given tokens = [42]
-- [D] `1141`: when result = tokenize(tokens)
-- [D] `1142`: then result.len() == 2
+- [R] `1140`: given tokens = [42]
+- [R] `1141`: when result = tokenize(tokens)
+- [R] `1142`: then result.len() == 2
 - [R] `1152`: given text = "test"
 - [R] `1153`: when tokens = encode(text)
 - [R] `1154`: when text2 = decode(tokens)
 - [R] `1155`: then text2 == "test"
-- [D] `1158`: given tokens = [42]
-- [D] `1159`: when result = tokenize(tokens)
-- [D] `1160`: then result.len() == 2
+- [R] `1158`: given tokens = [42]
+- [R] `1159`: when result = tokenize(tokens)
+- [R] `1160`: then result.len() == 2
 - [R] `1171`: given text = "test"
 - [R] `1172`: when tokens = encode(text)
 - [R] `1173`: when text2 = decode(tokens)
 - [R] `1174`: then text2 == "test"
-- [D] `1177`: given tokens = [42]
-- [D] `1178`: when result = tokenize(tokens)
-- [D] `1179`: then result.len() == 2
+- [R] `1177`: given tokens = [42]
+- [R] `1178`: when result = tokenize(tokens)
+- [R] `1179`: then result.len() == 2
 - [R] `1191`: given text = "test"
 - [R] `1192`: when tokens = encode(text)
 - [R] `1193`: when text2 = decode(tokens)
 - [R] `1194`: then text2 == "test"
-- [D] `1197`: given tokens = [42]
-- [D] `1198`: when result = tokenize(tokens)
-- [D] `1199`: then result.len() == 2
+- [R] `1197`: given tokens = [42]
+- [R] `1198`: when result = tokenize(tokens)
+- [R] `1199`: then result.len() == 2
 - [R] `1212`: given text = "test"
 - [R] `1213`: when tokens = encode(text)
 - [R] `1214`: when text2 = decode(tokens)
 - [R] `1215`: then text2 == "test"
-- [D] `1218`: given tokens = [42]
-- [D] `1219`: when result = tokenize(tokens)
-- [D] `1220`: then result.len() == 2
+- [R] `1218`: given tokens = [42]
+- [R] `1219`: when result = tokenize(tokens)
+- [R] `1220`: then result.len() == 2
 - [R] `1234`: given text = "test"
 - [R] `1235`: when tokens = encode(text)
 - [R] `1236`: when text2 = decode(tokens)
 - [R] `1237`: then text2 == "test"
-- [D] `1240`: given tokens = [42]
-- [D] `1241`: when result = tokenize(tokens)
-- [D] `1242`: then result.len() == 2
+- [R] `1240`: given tokens = [42]
+- [R] `1241`: when result = tokenize(tokens)
+- [R] `1242`: then result.len() == 2
 - [R] `1257`: given text = "test"
 - [R] `1258`: when tokens = encode(text)
 - [R] `1259`: when text2 = decode(tokens)
 - [R] `1260`: then text2 == "test"
-- [D] `1263`: given tokens = [42]
-- [D] `1264`: when result = tokenize(tokens)
-- [D] `1265`: then result.len() == 2
+- [R] `1263`: given tokens = [42]
+- [R] `1264`: when result = tokenize(tokens)
+- [R] `1265`: then result.len() == 2
 - [R] `1281`: given text = "test"
 - [R] `1282`: when tokens = encode(text)
 - [R] `1283`: when text2 = decode(tokens)
 - [R] `1284`: then text2 == "test"
-- [D] `1287`: given tokens = [42]
-- [D] `1288`: when result = tokenize(tokens)
-- [D] `1289`: then result.len() == 2
+- [R] `1287`: given tokens = [42]
+- [R] `1288`: when result = tokenize(tokens)
+- [R] `1289`: then result.len() == 2
 
-## specs/igla/coder/training.t27 — 347 scenario(s), 634 line(s), 14 dropped under 0005
+## specs/igla/coder/training.t27 — 347 scenario(s), 634 line(s), 0 dropped under 0011
 - [R] `273`: given cfg = default_training_config()
 - [R] `274`: when lr0 = compute_lr(0, 10000, cfg)
 - [R] `275`: when lr1 = compute_lr(1000, 10000, cfg)
@@ -7887,13 +7888,13 @@ honest current loss set is the 1,589 below.)
 - [R] `437`: when l1 = opd_distill(a, b, 1.0)
 - [R] `438`: when l2 = opd_distill(b, a, 1.0)
 - [R] `439`: then l1 == l2
-- [D] `442`: given logits = random_logits(32000)
-- [D] `443`: given targets = [1, 2, 3]
-- [D] `444`: given tags1 = [0xDE]
-- [D] `445`: given tags2 = [0xDE, 0xDF]
-- [D] `446`: when loss1 = sacred_opcode_loss(logits, targets, tags1)
-- [D] `447`: when loss2 = sacred_opcode_loss(logits, targets, tags2)
-- [D] `448`: then loss2 >= loss1
+- [R] `442`: given logits = random_logits(32000)
+- [R] `443`: given targets = [1, 2, 3]
+- [R] `444`: given tags1 = [0xDE]
+- [R] `445`: given tags2 = [0xDE, 0xDF]
+- [R] `446`: when loss1 = sacred_opcode_loss(logits, targets, tags1)
+- [R] `447`: when loss2 = sacred_opcode_loss(logits, targets, tags2)
+- [R] `448`: then loss2 >= loss1
 - [R] `477`: given w = []f32{}
 - [R] `478`: given g = []f32{}
 - [R] `479`: given lr = 0.01
@@ -7909,9 +7910,9 @@ honest current loss set is the 1,589 below.)
 - [R] `493`: when loss1 = train_step(batch, cfg)
 - [R] `494`: when loss2 = train_step(batch, cfg)
 - [R] `495`: then loss2 <= loss1
-- [D] `517`: given batch = random_batch(BATCH_SIZE)
-- [D] `522`: given cfg = default_training_config()
-- [D] `527`: given grads = random_batch(64)
+- [R] `517`: given batch = random_batch(BATCH_SIZE)
+- [R] `522`: given cfg = default_training_config()
+- [R] `527`: given grads = random_batch(64)
 - [R] `532`: given batch = []DataSample{}
 - [R] `533`: when count = count_verified_samples(batch)
 - [R] `534`: then count == 0
@@ -8096,10 +8097,10 @@ honest current loss set is the 1,589 below.)
 - [R] `896`: given targets = [1.0, 2.0, 3.0]
 - [R] `897`: when loss = mse_loss(preds, targets)
 - [R] `898`: then loss == 0.0
-- [D] `901`: given logits = []
-- [D] `902`: given targets = []
-- [D] `903`: when loss = cross_entropy(logits, targets)
-- [D] `904`: then loss == 0.0
+- [R] `901`: given logits = []
+- [R] `902`: given targets = []
+- [R] `903`: when loss = cross_entropy(logits, targets)
+- [R] `904`: then loss == 0.0
 - [R] `911`: given w = [1.0, 2.0, 3.0]
 - [R] `912`: given g = [0.1, 0.1, 0.1]
 - [R] `913`: given lr = 0.1
@@ -8409,26 +8410,26 @@ honest current loss set is the 1,589 below.)
 - [R] `1494`: when new_w = sgd_update(w, grad, lr)
 - [R] `1495`: then new_w == -5.1
 
-## specs/igla/evaluation/multi_lang_harness.t27 — 9 scenario(s), 9 line(s), 4 dropped under 0005
+## specs/igla/evaluation/multi_lang_harness.t27 — 9 scenario(s), 9 line(s), 1 dropped under 0011
 - [R] `67`: given zig = LangTarget.Zig
 - [R] `71`: given rust = LangTarget.Rust
 - [R] `75`: given c = LangTarget.C
 - [R] `79`: given v = LangTarget.Verilog
 - [R] `83`: given r = EvalResult { lang: LangTarget.Zig, pass_at_1: 0.5, syntax_ok: true, compile_ok: true, bench_us: 1.0 }
 - [D] `87`: given r = EvalResult { lang: LangTarget.Rust, pass_at_1: 0.8, syntax_ok: false, compile_ok: false, bench_us: 2.0 }
-- [D] `98`: given prompt = "adder module"
-- [D] `103`: given prompt = "mux module"
-- [D] `108`: given prompt = "counter module"
+- [R] `98`: given prompt = "adder module"
+- [R] `103`: given prompt = "mux module"
+- [R] `108`: given prompt = "counter module"
 
-## specs/igla/integration/publication.t27 — 6 scenario(s), 6 line(s), 2 dropped under 0005
+## specs/igla/integration/publication.t27 — 6 scenario(s), 6 line(s), 0 dropped under 0011
 - [R] `74`: given t = PublicationTarget.arXiv
 - [R] `78`: given a = PublicationArtifact { title: "Trinity IGLA-Coder", abstract: "Ternary RL for RTL", authors: ["Trinity Team"], keywords: ["ternary", "RTL"], doi: "10.0000/zenodo.0", checksum: "sha256:abc123" }
 - [R] `82`: given s1 = IntegrationStatus.Draft
 - [R] `83`: given s2 = IntegrationStatus.Published
-- [D] `91`: given ckpt = "igla_coder_1b_final"
-- [D] `96`: given art = PublicationArtifact { title: "Trinity", abstract: "Abstract", authors: ["T"], keywords: ["k"], doi: "10.0/0", checksum: "sha256:x" }
+- [R] `91`: given ckpt = "igla_coder_1b_final"
+- [R] `96`: given art = PublicationArtifact { title: "Trinity", abstract: "Abstract", authors: ["T"], keywords: ["k"], doi: "10.0/0", checksum: "sha256:x" }
 
-## specs/igla/race/adder_tree.t27 — 383 scenario(s), 769 line(s), 7 dropped under 0005
+## specs/igla/race/adder_tree.t27 — 383 scenario(s), 769 line(s), 0 dropped under 0011
 - [R] `97`: given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
 - [R] `98`: when sum = adder_tree_8(v)
 - [R] `99`: then sum == 0
@@ -8517,13 +8518,13 @@ honest current loss set is the 1,589 below.)
 - [R] `220`: given d = -2
 - [R] `221`: when sum = adder_tree_4(a, b, c, d)
 - [R] `222`: then sum == 0
-- [D] `250`: given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
-- [D] `255`: given a = 3
-- [D] `256`: given b = 7
-- [D] `257`: given c = 2
-- [D] `258`: given d = 8
-- [D] `263`: given a = 10
-- [D] `264`: given b = 20
+- [R] `250`: given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+- [R] `255`: given a = 3
+- [R] `256`: given b = 7
+- [R] `257`: given c = 2
+- [R] `258`: given d = 8
+- [R] `263`: given a = 10
+- [R] `264`: given b = 20
 - [R] `269`: given v = Vec8 { v0: 2147483647, v1: -2147483647, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
 - [R] `270`: when sum = adder_tree_8(v)
 - [R] `271`: then sum == 0
@@ -9199,17 +9200,17 @@ honest current loss set is the 1,589 below.)
 - [R] `1541`: when sum = adder_tree(inputs)
 - [R] `1542`: then sum == 0
 
-## specs/igla/race/backend.t27 — 246 scenario(s), 637 line(s), 15 dropped under 0005
+## specs/igla/race/backend.t27 — 246 scenario(s), 637 line(s), 3 dropped under 0011
 - [R] `474`: given result = replace_multiply("out", "a", "8", 16)
 - [R] `475`: when assign = result.assigns[0]
 - [R] `476`: then eval::has_substring(assign.rhs, "<<", 0) == true
 - [R] `479`: given expr = "a + b"
 - [R] `480`: when ok = contains_multiply(expr)
 - [R] `481`: then ok == false
-- [D] `530`: given expr = "a"
-- [D] `531`: given constant = 42
-- [D] `532`: given width = 16
-- [D] `538`: given rtl_module = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+- [R] `530`: given expr = "a"
+- [R] `531`: given constant = 42
+- [R] `532`: given width = 16
+- [R] `538`: given rtl_module = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
 - [R] `543`: when val = parse_const("0b1010")
 - [R] `544`: then val == 10
 - [R] `547`: when result = replace_multiply("out", "a", "8", 32)
@@ -9319,8 +9320,8 @@ honest current loss set is the 1,589 below.)
 - [R] `731`: when v = parse_const(s)
 - [R] `732`: when ok = is_power_of_two_const(v)
 - [R] `733`: then ok == true
-- [D] `736`: given x = 15
-- [D] `741`: given expr = "assign y = a & b;"
+- [R] `736`: given x = 15
+- [R] `741`: given expr = "assign y = a & b;"
 - [R] `746`: given s = "0xGG"
 - [R] `747`: when v = parse_const(s)
 - [R] `748`: then v == 0
@@ -9405,9 +9406,9 @@ honest current loss set is the 1,589 below.)
 - [R] `877`: given s = "4"
 - [R] `878`: when ok = is_power_of_two_const(s)
 - [R] `879`: then ok == true
-- [D] `882`: given throughput = 10.0
-- [D] `883`: given area = 1.0
-- [D] `884`: given power = 0.1
+- [R] `882`: given throughput = 10.0
+- [R] `883`: given area = 1.0
+- [R] `884`: given power = 0.1
 - [R] `888`: given s = "0b1"
 - [R] `889`: when v = parse_const(s)
 - [R] `890`: then v == 1
@@ -9642,9 +9643,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1359`: given s = "0o755"
 - [R] `1360`: when ok = is_const(s)
 - [R] `1361`: then ok == true
-- [D] `1367`: given ops = []
-- [D] `1368`: when sched = schedule(ops)
-- [D] `1369`: then sched.len() == 0
+- [R] `1367`: given ops = []
+- [R] `1368`: when sched = schedule(ops)
+- [R] `1369`: then sched.len() == 0
 - [R] `1376`: given s = "3.14"
 - [R] `1377`: when ok = is_const(s)
 - [R] `1378`: then ok == true
@@ -9838,7 +9839,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1842`: when v = log2_const(s)
 - [R] `1843`: then v == 5
 
-## specs/igla/race/bram_weights.t27 — 277 scenario(s), 706 line(s), 30 dropped under 0005
+## specs/igla/race/bram_weights.t27 — 277 scenario(s), 706 line(s), 0 dropped under 0011
 - [R] `109`: given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
 - [R] `110`: given addr = WeightAddr { row: 1, col: 2 }
 - [R] `111`: when idx = flatten_addr(bank, addr)
@@ -9929,9 +9930,9 @@ honest current loss set is the 1,589 below.)
 - [R] `242`: given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
 - [R] `243`: when row = load_row(bank, 0, 0)
 - [R] `244`: then row[0] == 1 && row[1] == 2
-- [D] `274`: given bank = WeightBank { depth: 64, width: 64, data: []i16{} }
-- [D] `275`: given addr = WeightAddr { row: 32, col: 32 }
-- [D] `280`: given bank = WeightBank { depth: 16, width: 16, data: []i16{} }
+- [R] `274`: given bank = WeightBank { depth: 64, width: 64, data: []i16{} }
+- [R] `275`: given addr = WeightAddr { row: 32, col: 32 }
+- [R] `280`: given bank = WeightBank { depth: 16, width: 16, data: []i16{} }
 - [R] `285`: given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
 - [R] `286`: when w = read_weight(bank, WeightAddr { row: 5, col: 5 })
 - [R] `287`: then w == 0
@@ -10380,9 +10381,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1099`: given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32]
 - [R] `1100`: when bw = bram_weights_depth(data)
 - [R] `1101`: then bw == 3
-- [D] `1104`: given data = [1.0f32]
-- [D] `1105`: when w = bram_weights_width(data)
-- [D] `1106`: then w == 1
+- [R] `1104`: given data = [1.0f32]
+- [R] `1105`: when w = bram_weights_width(data)
+- [R] `1106`: then w == 1
 - [R] `1113`: given data = []f32{}
 - [R] `1114`: when bw = bram_weights_depth(data)
 - [R] `1115`: then bw == 0
@@ -10395,18 +10396,18 @@ honest current loss set is the 1,589 below.)
 - [R] `1131`: given data = [1.0f32, 2.0f32]
 - [R] `1132`: when w = bram_weights_width(data)
 - [R] `1133`: then w == 2
-- [D] `1139`: given data = []
-- [D] `1140`: when bw = bram_weights_depth(data)
-- [D] `1141`: then bw == 0
-- [D] `1144`: given data = []
-- [D] `1145`: when w = bram_weights_width(data)
-- [D] `1146`: then w == 0
+- [R] `1139`: given data = []
+- [R] `1140`: when bw = bram_weights_depth(data)
+- [R] `1141`: then bw == 0
+- [R] `1144`: given data = []
+- [R] `1145`: when w = bram_weights_width(data)
+- [R] `1146`: then w == 0
 - [R] `1152`: given data = [1.0f32, 2.0f32, 3.0f32]
 - [R] `1153`: when bw = bram_weights_depth(data)
 - [R] `1154`: then bw == 3
-- [D] `1157`: given data = [42.0f32]
-- [D] `1158`: when w = bram_weights_width(data)
-- [D] `1159`: then w == 1
+- [R] `1157`: given data = [42.0f32]
+- [R] `1158`: when w = bram_weights_width(data)
+- [R] `1159`: then w == 1
 - [R] `1165`: given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32]
 - [R] `1166`: when bw = bram_weights_depth(data)
 - [R] `1167`: then bw == 5
@@ -10419,9 +10420,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1183`: given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32]
 - [R] `1184`: when w = bram_weights_width(data)
 - [R] `1185`: then w == 5
-- [D] `1191`: given data = [42.0f32]
-- [D] `1192`: when bw = bram_weights_depth(data)
-- [D] `1193`: then bw == 1
+- [R] `1191`: given data = [42.0f32]
+- [R] `1192`: when bw = bram_weights_depth(data)
+- [R] `1193`: then bw == 1
 - [R] `1196`: given data = [1.0f32, 2.0f32, 3.0f32]
 - [R] `1197`: when w = bram_weights_width(data)
 - [R] `1198`: then w == 3
@@ -10431,24 +10432,24 @@ honest current loss set is the 1,589 below.)
 - [R] `1209`: given weights = [1, 2, 3, 4]
 - [R] `1210`: when w = bram_weights_width(weights)
 - [R] `1211`: then w == 32
-- [D] `1217`: given weights = []
-- [D] `1218`: when d = bram_weights_depth(weights)
-- [D] `1219`: then d == 0
-- [D] `1222`: given weights = [42]
-- [D] `1223`: when w = bram_weights_width(weights)
-- [D] `1224`: then w == 32
+- [R] `1217`: given weights = []
+- [R] `1218`: when d = bram_weights_depth(weights)
+- [R] `1219`: then d == 0
+- [R] `1222`: given weights = [42]
+- [R] `1223`: when w = bram_weights_width(weights)
+- [R] `1224`: then w == 32
 - [R] `1230`: given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
 - [R] `1231`: when bw = bram_weights_depth(data)
 - [R] `1232`: then bw == 8
 - [R] `1235`: given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]
 - [R] `1236`: when w = bram_weights_width(data)
 - [R] `1237`: then w == 8
-- [D] `1243`: given weights = [99]
-- [D] `1244`: when d = bram_weights_depth(weights)
-- [D] `1245`: then d == 1
-- [D] `1248`: given weights = [99]
-- [D] `1249`: when w = bram_weights_width(weights)
-- [D] `1250`: then w == 32
+- [R] `1243`: given weights = [99]
+- [R] `1244`: when d = bram_weights_depth(weights)
+- [R] `1245`: then d == 1
+- [R] `1248`: given weights = [99]
+- [R] `1249`: when w = bram_weights_width(weights)
+- [R] `1250`: then w == 32
 - [R] `1256`: given weights = [10, 20, 30]
 - [R] `1257`: when d = bram_weights_depth(weights)
 - [R] `1258`: then d == 3
@@ -10546,7 +10547,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1514`: when w = bram_weights_width(data)
 - [R] `1515`: then w == 8
 
-## specs/igla/race/cordic.t27 — 270 scenario(s), 650 line(s), 4 dropped under 0005
+## specs/igla/race/cordic.t27 — 270 scenario(s), 650 line(s), 0 dropped under 0011
 - [R] `240`: given angle = -0.7853981633974483
 - [R] `241`: given iters = 8
 - [R] `242`: when (s_arr, c_arr) = cordic_sin_cos(angle, iters)
@@ -10633,10 +10634,10 @@ honest current loss set is the 1,589 below.)
 - [R] `365`: given z = 1000.0
 - [R] `366`: when s = cordic_sign(z)
 - [R] `367`: then s == 1.0
-- [D] `398`: given angle = 0.7853981633974483
-- [D] `399`: given iters = 16
-- [D] `404`: given angle = 0.39269908169872414
-- [D] `405`: given iters = 8
+- [R] `398`: given angle = 0.7853981633974483
+- [R] `399`: given iters = 16
+- [R] `404`: given angle = 0.39269908169872414
+- [R] `405`: given iters = 8
 - [R] `410`: given angle = 0.0
 - [R] `411`: given iters = 8
 - [R] `412`: when (s, c) = cordic_sin_cos(angle, iters)
@@ -11198,7 +11199,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1558`: when r = sqrt_approx(x)
 - [R] `1559`: then r > 1.3 && r < 1.5
 
-## specs/igla/race/cordic_fixed.t27 — 269 scenario(s), 654 line(s), 3 dropped under 0005
+## specs/igla/race/cordic_fixed.t27 — 269 scenario(s), 654 line(s), 0 dropped under 0011
 - [R] `251`: given a = 0
 - [R] `252`: then cordic_sin(a) == 0
 - [R] `255`: given a = 0
@@ -11256,9 +11257,9 @@ honest current loss set is the 1,589 below.)
 - [R] `350`: then s == 0
 - [R] `353`: when c = cordic_cos(0)
 - [R] `354`: then c > 16383
-- [D] `388`: given a = 4096
-- [D] `393`: given a = 2048
-- [D] `398`: given a = 256
+- [R] `388`: given a = 4096
+- [R] `393`: given a = 2048
+- [R] `398`: given a = 256
 - [R] `403`: given a = 4096
 - [R] `404`: when s = cordic_sin(a)
 - [R] `405`: then s > 11000
@@ -11854,7 +11855,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1575`: when c = cordic_cos(a)
 - [R] `1576`: then c > -2 && c < 2
 
-## specs/igla/race/cordic_top.t27 — 308 scenario(s), 697 line(s), 136 dropped under 0005
+## specs/igla/race/cordic_top.t27 — 308 scenario(s), 697 line(s), 52 dropped under 0011
 - [D] `226`: given clk = true, rst_n = false, angle = 4096, valid_in = true
 - [D] `227`: then cordic_top(clk, rst_n, angle, valid_in) == (0, 0, false)
 - [D] `230`: given clk = true, rst_n = true, angle = 4096, valid_in = true
@@ -11892,9 +11893,9 @@ honest current loss set is the 1,589 below.)
 - [R] `284`: given angles = []i16{}
 - [R] `285`: when sum = cordic_top_batch(angles)
 - [R] `286`: then sum == 0
-- [D] `289`: given angles = [4096]
-- [D] `290`: when sum = cordic_top_batch(angles)
-- [D] `291`: then sum > 11000
+- [R] `289`: given angles = [4096]
+- [R] `290`: when sum = cordic_top_batch(angles)
+- [R] `291`: then sum > 11000
 - [R] `294`: given clk = true
 - [R] `295`: given rst_n = false
 - [R] `296`: given angle = 4096
@@ -11943,9 +11944,9 @@ honest current loss set is the 1,589 below.)
 - [D] `401`: given clk = true, rst_n = true, angle = 8192, valid_in = false
 - [D] `402`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [D] `403`: then r == false && s == 0 && c == 0
-- [D] `406`: given angles = [4096]
-- [D] `407`: when sum = cordic_top_batch(angles)
-- [D] `408`: then sum > 9000
+- [R] `406`: given angles = [4096]
+- [R] `407`: when sum = cordic_top_batch(angles)
+- [R] `408`: then sum > 9000
 - [R] `411`: given angles = [0, 4096]
 - [R] `412`: when sum = cordic_top_batch(angles)
 - [R] `413`: then sum > 9000
@@ -11958,12 +11959,12 @@ honest current loss set is the 1,589 below.)
 - [D] `426`: given clk = true, rst_n = true, angle = 4096, valid_in = true
 - [D] `427`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [D] `428`: then r == true
-- [D] `431`: given angles = [0]
-- [D] `432`: when sum = cordic_top_batch(angles)
-- [D] `433`: then sum > 16000
-- [D] `436`: given angles = [4096]
-- [D] `437`: when sum = cordic_top_batch(angles)
-- [D] `438`: then sum > 11000 && sum < 12000
+- [R] `431`: given angles = [0]
+- [R] `432`: when sum = cordic_top_batch(angles)
+- [R] `433`: then sum > 16000
+- [R] `436`: given angles = [4096]
+- [R] `437`: when sum = cordic_top_batch(angles)
+- [R] `438`: then sum > 11000 && sum < 12000
 - [D] `441`: given clk = true, rst_n = true, angle = 4096, valid_in = false
 - [D] `442`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [D] `443`: then r == false
@@ -11974,9 +11975,9 @@ honest current loss set is the 1,589 below.)
 - [D] `452`: when (s1, c1, r1) = cordic_top(clk, rst_n, angle, valid_in)
 - [D] `453`: when (s2, c2, r2) = cordic_top(true, true, angle, true)
 - [D] `454`: then r1 == false && r2 == true && s2 > 11000
-- [D] `457`: given angles = [0]
-- [D] `458`: when sum = cordic_top_batch(angles)
-- [D] `459`: then sum == 0
+- [R] `457`: given angles = [0]
+- [R] `458`: when sum = cordic_top_batch(angles)
+- [R] `459`: then sum == 0
 - [R] `462`: given clk = true
 - [R] `463`: given rst_n = false
 - [R] `464`: given angle = 4096
@@ -12016,18 +12017,18 @@ honest current loss set is the 1,589 below.)
 - [R] `510`: given angles = [0, 0, 0, 0, 0, 0, 0, 0]
 - [R] `511`: when sum = cordic_top_batch(angles)
 - [R] `512`: then sum == 0
-- [D] `515`: given angles = [8192; 200000]
-- [D] `516`: when sum = cordic_top_batch(angles)
-- [D] `517`: then sum < 0
+- [R] `515`: given angles = [8192; 200000]
+- [R] `516`: when sum = cordic_top_batch(angles)
+- [R] `517`: then sum < 0
 - [R] `520`: given clk = false
 - [R] `521`: given rst_n = false
 - [R] `522`: given angle = 4096
 - [R] `523`: given valid_in = true
 - [R] `524`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `525`: then s == 0 && c == 0 && r == false
-- [D] `528`: given angles = [16384]
-- [D] `529`: when sum = cordic_top_batch(angles)
-- [D] `530`: then sum > -500 && sum < 500
+- [R] `528`: given angles = [16384]
+- [R] `529`: when sum = cordic_top_batch(angles)
+- [R] `530`: then sum > -500 && sum < 500
 - [R] `533`: given clk = true
 - [R] `534`: given rst_n = true
 - [R] `535`: given angle = 4096
@@ -12049,9 +12050,9 @@ honest current loss set is the 1,589 below.)
 - [R] `557`: given valid_in = false
 - [R] `558`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `559`: then s == 0 && c == 0 && r == false
-- [D] `562`: given angles = [32767]
-- [D] `563`: when sum = cordic_top_batch(angles)
-- [D] `564`: then sum >= -16384 && sum <= 16384
+- [R] `562`: given angles = [32767]
+- [R] `563`: when sum = cordic_top_batch(angles)
+- [R] `564`: then sum >= -16384 && sum <= 16384
 - [R] `567`: given angles = []i16{}
 - [R] `568`: when sum = cordic_top_batch(angles)
 - [R] `569`: then sum == 0
@@ -12088,9 +12089,9 @@ honest current loss set is the 1,589 below.)
 - [R] `614`: given valid_in = true
 - [R] `615`: when (_, _, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `616`: then r == true
-- [D] `619`: given angles = [4096]
-- [D] `620`: when sum = cordic_top_batch(angles)
-- [D] `621`: then sum > 0
+- [R] `619`: given angles = [4096]
+- [R] `620`: when sum = cordic_top_batch(angles)
+- [R] `621`: then sum > 0
 - [R] `624`: given clk = true
 - [R] `625`: given rst_n = true
 - [R] `626`: given angle = -32768
@@ -12112,15 +12113,15 @@ honest current loss set is the 1,589 below.)
 - [R] `648`: given valid_in = true
 - [R] `649`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `650`: then s > 16000 && c < 500 && c > -500 && r == true
-- [D] `653`: given angles = [8192]
-- [D] `654`: when sum = cordic_top_batch(angles)
-- [D] `655`: then sum > 16000
+- [R] `653`: given angles = [8192]
+- [R] `654`: when sum = cordic_top_batch(angles)
+- [R] `655`: then sum > 16000
 - [R] `658`: given angles = [-4096]
 - [R] `659`: when sum = cordic_top_batch(angles)
 - [R] `660`: then sum < 0
-- [D] `663`: given angles = [0]
-- [D] `664`: when sum = cordic_top_batch(angles)
-- [D] `665`: then sum == 0
+- [R] `663`: given angles = [0]
+- [R] `664`: when sum = cordic_top_batch(angles)
+- [R] `665`: then sum == 0
 - [R] `668`: given clk = true
 - [R] `669`: given rst_n = true
 - [R] `670`: given angle = -32768
@@ -12169,12 +12170,12 @@ honest current loss set is the 1,589 below.)
 - [R] `729`: given valid_in = true
 - [R] `730`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `731`: then s == 0 && c == 0
-- [D] `734`: given angles = []
-- [D] `735`: when sum = cordic_top_batch(angles)
-- [D] `736`: then sum == 0
-- [D] `739`: given angles = [0.0]
-- [D] `740`: when sum = cordic_top_batch(angles)
-- [D] `741`: then sum == 0
+- [R] `734`: given angles = []
+- [R] `735`: when sum = cordic_top_batch(angles)
+- [R] `736`: then sum == 0
+- [R] `739`: given angles = [0.0]
+- [R] `740`: when sum = cordic_top_batch(angles)
+- [R] `741`: then sum == 0
 - [R] `744`: given clk = false
 - [R] `745`: given rst_n = false
 - [R] `746`: given angle = 0.7853981633974483
@@ -12223,9 +12224,9 @@ honest current loss set is the 1,589 below.)
 - [R] `807`: given valid_in = true
 - [R] `808`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `809`: then s == 0 && c == 0
-- [D] `812`: given angles = [4096]
-- [D] `813`: when sum = cordic_top_batch(angles)
-- [D] `814`: then sum == 0
+- [R] `812`: given angles = [4096]
+- [R] `813`: when sum = cordic_top_batch(angles)
+- [R] `814`: then sum == 0
 - [R] `817`: given angles = [4096, 4096]
 - [R] `818`: when sum = cordic_top_batch(angles)
 - [R] `819`: then sum > 0
@@ -12235,9 +12236,9 @@ honest current loss set is the 1,589 below.)
 - [R] `825`: given valid_in = true
 - [R] `826`: when (s, c, r) = cordic_top(clk, rst_n, angle, valid_in)
 - [R] `827`: then c > 0
-- [D] `830`: given angles = [0]
-- [D] `831`: when sum = cordic_top_batch(angles)
-- [D] `832`: then sum == 0
+- [R] `830`: given angles = [0]
+- [R] `831`: when sum = cordic_top_batch(angles)
+- [R] `832`: then sum == 0
 - [R] `835`: given angles = [2048, 2048]
 - [R] `836`: when sum = cordic_top_batch(angles)
 - [R] `837`: then sum > 0
@@ -12262,9 +12263,9 @@ honest current loss set is the 1,589 below.)
 - [R] `866`: given a = 0
 - [R] `867`: when s = cordic_sin(a)
 - [R] `868`: then s == 0
-- [D] `871`: given angles = [0]
-- [D] `872`: when sum = cordic_top_batch(angles)
-- [D] `873`: then sum == 0
+- [R] `871`: given angles = [0]
+- [R] `872`: when sum = cordic_top_batch(angles)
+- [R] `873`: then sum == 0
 - [R] `876`: given a = 0
 - [R] `877`: when c = cordic_cos(a)
 - [R] `878`: then c > 16000
@@ -12330,9 +12331,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1051`: given a = 0
 - [R] `1052`: when c = cordic_cos(a)
 - [R] `1053`: then c > 16000 && c < 16500
-- [D] `1056`: given angles = [256]
-- [D] `1057`: when sum = cordic_top_batch(angles)
-- [D] `1058`: then sum > 16000
+- [R] `1056`: given angles = [256]
+- [R] `1057`: when sum = cordic_top_batch(angles)
+- [R] `1058`: then sum > 16000
 - [R] `1064`: given angles = [8192, 4096]
 - [R] `1065`: when sum = cordic_top_batch(angles)
 - [R] `1066`: then sum > 26000
@@ -12363,36 +12364,36 @@ honest current loss set is the 1,589 below.)
 - [R] `1126`: given angle = 0.0
 - [R] `1127`: when cos_val = compute_cosine(angle)
 - [R] `1128`: then cos_val == 1.0
-- [D] `1131`: given angles = [512]
-- [D] `1132`: when sum = cordic_top_batch(angles)
-- [D] `1133`: then sum > 400 && sum < 600
+- [R] `1131`: given angles = [512]
+- [R] `1132`: when sum = cordic_top_batch(angles)
+- [R] `1133`: then sum > 400 && sum < 600
 - [R] `1139`: given angles = [-4096, -4096]
 - [R] `1140`: when sum = cordic_top_batch(angles)
 - [R] `1141`: then sum < 0
-- [D] `1144`: given angles = [2048]
-- [D] `1145`: when sum = cordic_top_batch(angles)
-- [D] `1146`: then sum > 0
+- [R] `1144`: given angles = [2048]
+- [R] `1145`: when sum = cordic_top_batch(angles)
+- [R] `1146`: then sum > 0
 - [R] `1153`: given angles = [-4096, -4096]
 - [R] `1154`: when sum = cordic_top_batch(angles)
 - [R] `1155`: then sum < 0
-- [D] `1158`: given angles = [2048]
-- [D] `1159`: when sum = cordic_top_batch(angles)
-- [D] `1160`: then sum > 0
+- [R] `1158`: given angles = [2048]
+- [R] `1159`: when sum = cordic_top_batch(angles)
+- [R] `1160`: then sum > 0
 - [R] `1167`: given angles = []i16{}
 - [R] `1168`: when sum = cordic_top_batch(angles)
 - [R] `1169`: then sum == 0
 - [R] `1172`: given angles = [1024, 1024]
 - [R] `1173`: when sum = cordic_top_batch(angles)
 - [R] `1174`: then sum == 2048
-- [D] `1180`: given angles = [0]
-- [D] `1181`: when sum = cordic_top_batch(angles)
-- [D] `1182`: then sum == 0
+- [R] `1180`: given angles = [0]
+- [R] `1181`: when sum = cordic_top_batch(angles)
+- [R] `1182`: then sum == 0
 - [R] `1185`: given angles = [1024, 1024, 1024]
 - [R] `1186`: when sum = cordic_top_batch(angles)
 - [R] `1187`: then sum == 3072
-- [D] `1193`: given angles = [8192]
-- [D] `1194`: when sum = cordic_top_batch(angles)
-- [D] `1195`: then sum > 0
+- [R] `1193`: given angles = [8192]
+- [R] `1194`: when sum = cordic_top_batch(angles)
+- [R] `1195`: then sum > 0
 - [R] `1198`: given angles = [-4096]
 - [R] `1199`: when sum = cordic_top_batch(angles)
 - [R] `1200`: then sum < 0
@@ -12402,9 +12403,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1211`: given angles = [4096, 4096, 4096]
 - [R] `1212`: when sum = cordic_top_batch(angles)
 - [R] `1213`: then sum == 12288
-- [D] `1219`: given angles = [1000]
-- [D] `1220`: when sum = cordic_top_batch(angles)
-- [D] `1221`: then sum == 1000
+- [R] `1219`: given angles = [1000]
+- [R] `1220`: when sum = cordic_top_batch(angles)
+- [R] `1221`: then sum == 1000
 - [R] `1224`: given angles = [0, 0, 0]
 - [R] `1225`: when sum = cordic_top_batch(angles)
 - [R] `1226`: then sum == 0
@@ -12426,12 +12427,12 @@ honest current loss set is the 1,589 below.)
 - [R] `1263`: given angles = [5000, -5000, 3000, -3000]
 - [R] `1264`: when sum = cordic_top_batch(angles)
 - [R] `1265`: then sum == 0
-- [D] `1271`: given angles = []
-- [D] `1272`: when sum = cordic_top_batch(angles)
-- [D] `1273`: then sum == 0
-- [D] `1276`: given angles = [7777]
-- [D] `1277`: when sum = cordic_top_batch(angles)
-- [D] `1278`: then sum == 7777
+- [R] `1271`: given angles = []
+- [R] `1272`: when sum = cordic_top_batch(angles)
+- [R] `1273`: then sum == 0
+- [R] `1276`: given angles = [7777]
+- [R] `1277`: when sum = cordic_top_batch(angles)
+- [R] `1278`: then sum == 7777
 - [R] `1284`: given batch = [[0.0]]
 - [R] `1285`: when result = cordic_top_batch(batch)
 - [R] `1286`: then result == [[1.0, 0.0]]
@@ -12441,9 +12442,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1297`: given batch = [[0.0, 0.785398, 1.570796]]
 - [R] `1298`: when result = cordic_top_batch(batch)
 - [R] `1299`: then result.len() == 3
-- [D] `1302`: given batch = []
-- [D] `1303`: when result = cordic_top_batch(batch)
-- [D] `1304`: then result.len() == 0
+- [R] `1302`: given batch = []
+- [R] `1303`: when result = cordic_top_batch(batch)
+- [R] `1304`: then result.len() == 0
 - [R] `1310`: given angles = [-1000, -2000, -3000]
 - [R] `1311`: when sum = cordic_top_batch(angles)
 - [R] `1312`: then sum == -6000
@@ -12459,15 +12460,15 @@ honest current loss set is the 1,589 below.)
 - [R] `1336`: given batch = [[0.0], [1.570796], [3.141592]]
 - [R] `1337`: when result = cordic_top_batch(batch)
 - [R] `1338`: then result.len() == 3
-- [D] `1341`: given batch = []
-- [D] `1342`: when result = cordic_top_batch(batch)
-- [D] `1343`: then result.len() == 0
+- [R] `1341`: given batch = []
+- [R] `1342`: when result = cordic_top_batch(batch)
+- [R] `1343`: then result.len() == 0
 - [R] `1348`: given batch = [[0.0], [2.570796], [4.141592]]
 - [R] `1349`: when result = cordic_top_batch(batch)
 - [R] `1350`: then result.len() == 3
-- [D] `1353`: given batch = []
-- [D] `1354`: when result = cordic_top_batch(batch)
-- [D] `1355`: then result.len() == 0
+- [R] `1353`: given batch = []
+- [R] `1354`: when result = cordic_top_batch(batch)
+- [R] `1355`: then result.len() == 0
 - [R] `1362`: given angles = [-1000, -2000, -3000]
 - [R] `1363`: when sum = cordic_top_batch(angles)
 - [R] `1364`: then sum == -6000
@@ -12553,7 +12554,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1594`: when sum = cordic_top_batch(angles)
 - [R] `1595`: then sum == 1000
 
-## specs/igla/race/eda.t27 — 230 scenario(s), 618 line(s), 4 dropped under 0005
+## specs/igla/race/eda.t27 — 230 scenario(s), 618 line(s), 0 dropped under 0011
 - [R] `441`: when status = detect_eda_toolchain()
 - [R] `442`: then status.yosys_ok == true || status.yosys_ok == false
 - [R] `445`: given log = "Chip area for module top: 1234 um2"
@@ -12589,9 +12590,9 @@ honest current loss set is the 1,589 below.)
 - [R] `509`: given m = SynthesisMetrics { area_um2: 0.0, longest_path_ns: 0.0, slack_ns: 0.0, power_dynamic_mw: 0.0, power_leakage_uw: 0.0, cell_count: 0, combinational_area: 0.0, sequential_area: 0.0 }
 - [R] `510`: when score = compute_ppa_score(m)
 - [R] `511`: then score == 0.0
-- [D] `516`: given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
-- [D] `521`: given before = PpaMetrics { area_um2: 1000.0, delay_ns: 1.0, power_mw: 0.1 }
-- [D] `522`: given after = PpaMetrics { area_um2: 900.0, delay_ns: 0.9, power_mw: 0.09 }
+- [R] `516`: given fp = FloorplanConfig { die_width_um: 100.0, die_height_um: 100.0, core_utilization: 0.7, aspect_ratio: 1.0, pin_margin_um: 5.0 }
+- [R] `521`: given before = PpaMetrics { area_um2: 1000.0, delay_ns: 1.0, power_mw: 0.1 }
+- [R] `522`: given after = PpaMetrics { area_um2: 900.0, delay_ns: 0.9, power_mw: 0.09 }
 - [R] `527`: given score = BackendRealizabilityScore { synthesis_ok: true, par_ok: true, drc_ok: true, lvs_ok: true }
 - [R] `528`: when r = compute_backend_realizability(score)
 - [R] `529`: then r == 1.0
@@ -12648,7 +12649,7 @@ honest current loss set is the 1,589 below.)
 - [R] `616`: given tools = [EdaToolchain { name: "openroad", version: "1.0", path: "/usr/bin/openroad" }]
 - [R] `617`: when detected = detect_eda_toolchain(tools)
 - [R] `618`: then detected.name == "openroad"
-- [D] `621`: given score = BackendRealizabilityScore { synthesis_ok: true, par_ok: true, drc_ok: true, lvs_ok: true }
+- [R] `621`: given score = BackendRealizabilityScore { synthesis_ok: true, par_ok: true, drc_ok: true, lvs_ok: true }
 - [R] `627`: when ok = command_exists("yosys")
 - [R] `628`: then ok == true
 - [R] `631`: given s = "Chip area: 1234 um2"
@@ -13173,7 +13174,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1762`: when ok = route_wire_length_non_negative(len)
 - [R] `1763`: then ok == true
 
-## specs/igla/race/formal.t27 — 222 scenario(s), 614 line(s), 6 dropped under 0005
+## specs/igla/race/formal.t27 — 222 scenario(s), 614 line(s), 1 dropped under 0011
 - [R] `331`: given mod = mock_safe_module()
 - [R] `332`: when pos = check_bitwidth_safety(mod)
 - [R] `333`: when ok = all_proved(pos, 0)
@@ -13408,9 +13409,9 @@ honest current loss set is the 1,589 below.)
 - [R] `760`: given pos = [
 - [R] `763`: when ok = any_disproved(pos, 0)
 - [R] `764`: then ok == true
-- [D] `767`: given pos = []
-- [D] `768`: when ok = all_disproved(pos, 0)
-- [D] `769`: then ok == false
+- [R] `767`: given pos = []
+- [R] `768`: when ok = all_disproved(pos, 0)
+- [R] `769`: then ok == false
 - [R] `772`: given pos = [
 - [R] `776`: when ok = all_disproved(pos, 0)
 - [R] `777`: then ok == true
@@ -13428,8 +13429,8 @@ honest current loss set is the 1,589 below.)
 - [R] `801`: when ok = prove_equivalence(spec, impl)
 - [R] `802`: then ok == false
 - [D] `810`: given modules = mock_modules(1000)
-- [D] `815`: given spec = load_medium_reference()
-- [D] `816`: given impl = load_medium_optimized()
+- [R] `815`: given spec = load_medium_reference()
+- [R] `816`: given impl = load_medium_optimized()
 - [R] `821`: given mod = FormalModule { name: "empty", invariants: [] }
 - [R] `822`: when report = generate_report(mod)
 - [R] `823`: then report.proved_count == 0 && report.violation_count == 0
@@ -13789,7 +13790,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1699`: when r = smt_assert_true(b)
 - [R] `1700`: then r == "false"
 
-## specs/igla/race/gemm.t27 — 370 scenario(s), 771 line(s), 4 dropped under 0005
+## specs/igla/race/gemm.t27 — 370 scenario(s), 771 line(s), 0 dropped under 0011
 - [R] `116`: given a = 5
 - [R] `117`: given b = 0
 - [R] `118`: when p = booth_mul_u32(a, b)
@@ -13882,10 +13883,10 @@ honest current loss set is the 1,589 below.)
 - [R] `251`: given b = 0
 - [R] `252`: when p = booth_mul_u32(a, b)
 - [R] `253`: then p == 0
-- [D] `288`: given a = 12345
-- [D] `289`: given b = 6789
-- [D] `294`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
-- [D] `295`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+- [R] `288`: given a = 12345
+- [R] `289`: given b = 6789
+- [R] `294`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+- [R] `295`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
 - [R] `300`: given A = Mat2x2 { a11: 7, a12: 0, a21: 0, a22: 0 }
 - [R] `301`: given B = Mat2x2 { a11: 3, a12: 0, a21: 0, a22: 0 }
 - [R] `302`: when C = gemm_2x2(A, B)
@@ -14562,19 +14563,19 @@ honest current loss set is the 1,589 below.)
 - [R] `1575`: when p = booth_mul_i32(a, b)
 - [R] `1576`: then p == 12
 
-## specs/igla/race/opcodes.t27 — 189 scenario(s), 581 line(s), 61 dropped under 0005
+## specs/igla/race/opcodes.t27 — 189 scenario(s), 581 line(s), 0 dropped under 0011
 - [R] `108`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `109`: when result = is_sacred_opcode(op)
 - [R] `110`: then result == true
 - [R] `113`: given op = 0x00
 - [R] `114`: when result = is_sacred_opcode(op)
 - [R] `115`: then result == false
-- [D] `118`: given chain = []
-- [D] `119`: when result = validate_opcode_chain(chain)
-- [D] `120`: then result == true
-- [D] `123`: given chain = [OP_NOC_FORWARD]
-- [D] `124`: when result = validate_opcode_chain(chain)
-- [D] `125`: then result == true
+- [R] `118`: given chain = []
+- [R] `119`: when result = validate_opcode_chain(chain)
+- [R] `120`: then result == true
+- [R] `123`: given chain = [OP_NOC_FORWARD]
+- [R] `124`: when result = validate_opcode_chain(chain)
+- [R] `125`: then result == true
 - [R] `128`: given chain = [OP_LOAD_PHYSICS_CONST, 0xFF]
 - [R] `129`: when result = validate_opcode_chain(chain)
 - [R] `130`: then result == false
@@ -14630,8 +14631,8 @@ honest current loss set is the 1,589 below.)
 - [R] `212`: then n == "OP_LUT_LOOKUP"
 - [R] `215`: when count = OPCODE_COUNT
 - [R] `216`: then count > 0
-- [D] `245`: given chain = random_sacred_chain(1000)
-- [D] `250`: given op = OP_MUL
+- [R] `245`: given chain = random_sacred_chain(1000)
+- [R] `250`: given op = OP_MUL
 - [R] `256`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `257`: when c = get_opcode_cycles(op)
 - [R] `258`: then c > 0
@@ -14648,9 +14649,9 @@ honest current loss set is the 1,589 below.)
 - [R] `277`: then c == 0
 - [R] `280`: when ok = is_sacred_opcode(0x50)
 - [R] `281`: then ok == false
-- [D] `284`: given chain = [OP_CORDIC_SIN_COS]
-- [D] `285`: when ok = validate_opcode_chain(chain)
-- [D] `286`: then ok == true
+- [R] `284`: given chain = [OP_CORDIC_SIN_COS]
+- [R] `285`: when ok = validate_opcode_chain(chain)
+- [R] `286`: then ok == true
 - [R] `289`: when n1 = opcode_name(OP_CORDIC_SIN_COS)
 - [R] `290`: when n2 = opcode_name(OP_LUT_LOOKUP)
 - [R] `291`: then n1 == "CORDIC_SIN_COS" && n2 == "LUT_LOOKUP"
@@ -14667,20 +14668,20 @@ honest current loss set is the 1,589 below.)
 - [R] `312`: given op = 0xE9
 - [R] `313`: when ok = is_sacred_opcode(op)
 - [R] `314`: then ok == false
-- [D] `317`: given chain = [OPCODE_MAX]
-- [D] `318`: when ok = validate_opcode_chain(chain)
-- [D] `319`: then ok == true
+- [R] `317`: given chain = [OPCODE_MAX]
+- [R] `318`: when ok = validate_opcode_chain(chain)
+- [R] `319`: then ok == true
 - [R] `322`: given op = 0xDD
 - [R] `323`: when n = opcode_name(op)
 - [R] `324`: then n == "OP_UNKNOWN"
-- [D] `327`: given chain = [0xE9]
-- [D] `328`: when ok = validate_opcode_chain(chain)
-- [D] `329`: then ok == false
-- [D] `341`: given chain1 = []
-- [D] `342`: given chain2 = []u8{}
-- [D] `343`: when ok1 = validate_opcode_chain(chain1)
-- [D] `344`: when ok2 = validate_opcode_chain(chain2)
-- [D] `345`: then ok1 == true && ok2 == true && ok1 == ok2
+- [R] `327`: given chain = [0xE9]
+- [R] `328`: when ok = validate_opcode_chain(chain)
+- [R] `329`: then ok == false
+- [R] `341`: given chain1 = []
+- [R] `342`: given chain2 = []u8{}
+- [R] `343`: when ok1 = validate_opcode_chain(chain1)
+- [R] `344`: when ok2 = validate_opcode_chain(chain2)
+- [R] `345`: then ok1 == true && ok2 == true && ok1 == ok2
 - [R] `348`: given op = 0xE8
 - [R] `349`: when c = get_opcode_cycles(op)
 - [R] `350`: then c == 6
@@ -14705,9 +14706,9 @@ honest current loss set is the 1,589 below.)
 - [R] `383`: given op = OP_RAZOR_SAMPLE
 - [R] `384`: when c = get_opcode_cycles(op)
 - [R] `385`: then c == 4
-- [D] `388`: given chain = [0x00]
-- [D] `389`: when ok = validate_opcode_chain(chain)
-- [D] `390`: then ok == false
+- [R] `388`: given chain = [0x00]
+- [R] `389`: when ok = validate_opcode_chain(chain)
+- [R] `390`: then ok == false
 - [R] `393`: given op = 0xE9
 - [R] `394`: when name = opcode_name(op)
 - [R] `395`: then name == "OP_UNKNOWN"
@@ -14729,9 +14730,9 @@ honest current loss set is the 1,589 below.)
 - [R] `423`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `424`: when c = get_opcode_cycles(op)
 - [R] `425`: then c == 2
-- [D] `428`: given chain = [0xAB]
-- [D] `429`: when ok = validate_opcode_chain(chain)
-- [D] `430`: then ok == false
+- [R] `428`: given chain = [0xAB]
+- [R] `429`: when ok = validate_opcode_chain(chain)
+- [R] `430`: then ok == false
 - [R] `433`: given op = OP_CORDIC_SIN_COS
 - [R] `434`: when c = get_opcode_cycles(op)
 - [R] `435`: then c == 6
@@ -14796,18 +14797,18 @@ honest current loss set is the 1,589 below.)
 - [R] `534`: given op = 0xE8
 - [R] `535`: when ok = is_sacred_opcode(op)
 - [R] `536`: then ok == true
-- [D] `539`: given chain = [OP_SACRED_BEGIN]
-- [D] `540`: when ok = validate_opcode_chain(chain)
-- [D] `541`: then ok == true
-- [D] `544`: given chain = []
-- [D] `545`: when ok = validate_opcode_chain(chain)
-- [D] `546`: then ok == true
+- [R] `539`: given chain = [OP_SACRED_BEGIN]
+- [R] `540`: when ok = validate_opcode_chain(chain)
+- [R] `541`: then ok == true
+- [R] `544`: given chain = []
+- [R] `545`: when ok = validate_opcode_chain(chain)
+- [R] `546`: then ok == true
 - [R] `549`: given name = opcode_name(OP_ADD)
 - [R] `550`: when ok = name == "OP_ADD"
 - [R] `551`: then ok == true
-- [D] `554`: given chain = [0xAB]
-- [D] `555`: when ok = validate_opcode_chain(chain)
-- [D] `556`: then ok == false
+- [R] `554`: given chain = [0xAB]
+- [R] `555`: when ok = validate_opcode_chain(chain)
+- [R] `556`: then ok == false
 - [R] `559`: given op = 0xFF
 - [R] `560`: when c = get_opcode_cycles(op)
 - [R] `561`: then c == 0
@@ -14842,9 +14843,9 @@ honest current loss set is the 1,589 below.)
 - [R] `614`: given op = OP_SUB
 - [R] `615`: when c = get_opcode_cycles(op)
 - [R] `616`: then c == 1
-- [D] `619`: given chain = [OP_LOAD_PHYSICS_CONST]
-- [D] `620`: when ok = validate_opcode_chain(chain)
-- [D] `621`: then ok == true
+- [R] `619`: given chain = [OP_LOAD_PHYSICS_CONST]
+- [R] `620`: when ok = validate_opcode_chain(chain)
+- [R] `621`: then ok == true
 - [R] `624`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `625`: when ok = is_sacred_opcode(op)
 - [R] `626`: then ok == true
@@ -14863,9 +14864,9 @@ honest current loss set is the 1,589 below.)
 - [R] `673`: given op = 0x00
 - [R] `674`: when cycles = get_opcode_cycles(op)
 - [R] `675`: then cycles == 0
-- [D] `678`: given chain = [OP_LUT_LOOKUP]
-- [D] `679`: when result = validate_opcode_chain(chain)
-- [D] `680`: then result == true
+- [R] `678`: given chain = [OP_LUT_LOOKUP]
+- [R] `679`: when result = validate_opcode_chain(chain)
+- [R] `680`: then result == true
 - [R] `695`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `696`: when cycles = get_opcode_cycles(op)
 - [R] `697`: then cycles > 0
@@ -14899,9 +14900,9 @@ honest current loss set is the 1,589 below.)
 - [R] `760`: given op = OP_LUT_LOOKUP
 - [R] `761`: when cycles = get_opcode_cycles(op)
 - [R] `762`: then cycles == 1
-- [D] `765`: given chain = [OP_LOAD_PHYSICS_CONST]
-- [D] `766`: when r = validate_opcode_chain(chain)
-- [D] `767`: then r == true
+- [R] `765`: given chain = [OP_LOAD_PHYSICS_CONST]
+- [R] `766`: when r = validate_opcode_chain(chain)
+- [R] `767`: then r == true
 - [R] `777`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `778`: when cycles = get_opcode_cycles(op)
 - [R] `779`: then cycles == 2
@@ -14928,9 +14929,9 @@ honest current loss set is the 1,589 below.)
 - [R] `828`: given op = OP_NOC_FORWARD
 - [R] `829`: when c = get_opcode_cycles(op)
 - [R] `830`: then c == 2
-- [D] `833`: given chain = [OP_LOAD_PHYSICS_CONST]
-- [D] `834`: when ok = validate_opcode_chain(chain)
-- [D] `835`: then ok == true
+- [R] `833`: given chain = [OP_LOAD_PHYSICS_CONST]
+- [R] `834`: when ok = validate_opcode_chain(chain)
+- [R] `835`: then ok == true
 - [R] `841`: given op = OP_HOLO_MUX_1X2
 - [R] `842`: when c = get_opcode_cycles(op)
 - [R] `843`: then c == 1
@@ -14943,15 +14944,15 @@ honest current loss set is the 1,589 below.)
 - [R] `859`: given ops = [OP_IDENTITY, OP_HOLO_MUX_1X2, OP_NOC_FORWARD]
 - [R] `860`: when ok = validate_chain(ops)
 - [R] `861`: then ok == true
-- [D] `867`: given chain = [OP_NOP]
-- [D] `868`: when ok = validate_chain(chain)
-- [D] `869`: then ok == true
+- [R] `867`: given chain = [OP_NOP]
+- [R] `868`: when ok = validate_chain(chain)
+- [R] `869`: then ok == true
 - [R] `875`: given chain = [OPCODE_MIN, OPCODE_MAX]
 - [R] `876`: when ok = validate_opcode_chain(chain)
 - [R] `877`: then ok == true
-- [D] `884`: given chain = []
-- [D] `885`: when ok = validate_chain(chain)
-- [D] `886`: then ok == true
+- [R] `884`: given chain = []
+- [R] `885`: when ok = validate_chain(chain)
+- [R] `886`: then ok == true
 - [R] `893`: given op = OPCODE_NOP
 - [R] `894`: when cycles = get_opcode_cycles(op)
 - [R] `895`: then cycles == 1
@@ -14973,15 +14974,15 @@ honest current loss set is the 1,589 below.)
 - [R] `934`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `935`: when cycles = get_opcode_cycles(op)
 - [R] `936`: then cycles == 1
-- [D] `939`: given chain = []
-- [D] `940`: when ok = validate_opcode_chain(chain)
-- [D] `941`: then ok == true
+- [R] `939`: given chain = []
+- [R] `940`: when ok = validate_opcode_chain(chain)
+- [R] `941`: then ok == true
 - [R] `947`: given op = OP_STORE_RESULTS
 - [R] `948`: when cycles = get_opcode_cycles(op)
 - [R] `949`: then cycles == 1
-- [D] `952`: given chain = [OP_LOAD_PHYSICS_CONST]
-- [D] `953`: when ok = validate_opcode_chain(chain)
-- [D] `954`: then ok == true
+- [R] `952`: given chain = [OP_LOAD_PHYSICS_CONST]
+- [R] `953`: when ok = validate_opcode_chain(chain)
+- [R] `954`: then ok == true
 - [R] `961`: given op = OP_LOAD_PHYSICS_CONST
 - [R] `962`: when ok = is_sacred_opcode(op)
 - [R] `963`: then ok == true
@@ -15145,7 +15146,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1363`: when r = is_sacred_opcode(op)
 - [R] `1364`: then r == true
 
-## specs/igla/race/rtl.t27 — 211 scenario(s), 596 line(s), 61 dropped under 0005
+## specs/igla/race/rtl.t27 — 211 scenario(s), 596 line(s), 0 dropped under 0011
 - [R] `258`: given expr = "a + b"
 - [R] `259`: when n = count_mul_ops(expr)
 - [R] `260`: then n == 0
@@ -15248,13 +15249,13 @@ honest current loss set is the 1,589 below.)
 - [R] `502`: given expr = "a * b * c"
 - [R] `503`: when n = count_mul_ops(expr)
 - [R] `504`: then n == 3
-- [D] `507`: given bits = [1]
-- [D] `508`: when val = rtl_bits_to_u64(bits)
-- [D] `509`: then val == 1
+- [R] `507`: given bits = [1]
+- [R] `508`: when val = rtl_bits_to_u64(bits)
+- [R] `509`: then val == 1
 - [R] `512`: given mod = RtlModule {
 - [R] `521`: when v = emit_verilog(mod)
 - [R] `522`: then contains_substring(v, ".a(b)")
-- [D] `532`: given rtl_module = mock_module(1000)
+- [R] `532`: given rtl_module = mock_module(1000)
 - [R] `537`: given mod = RtlModule {
 - [R] `546`: when ok = is_r_si_1_compliant(mod)
 - [R] `547`: then ok == false
@@ -15271,9 +15272,9 @@ honest current loss set is the 1,589 below.)
 - [R] `574`: given expr = "((a + b) - (c + d))"
 - [R] `575`: when n = count_mul_ops(expr)
 - [R] `576`: then n == 0
-- [D] `579`: given bits = [1]
-- [D] `580`: when val = bits_to_u64(bits)
-- [D] `581`: then val == 1
+- [R] `579`: given bits = [1]
+- [R] `580`: when val = bits_to_u64(bits)
+- [R] `581`: then val == 1
 - [R] `584`: given bits = [1, 1, 1, 1]
 - [R] `585`: when val = bits_to_u64(bits)
 - [R] `586`: then val == 15
@@ -15292,10 +15293,10 @@ honest current loss set is the 1,589 below.)
 - [R] `617`: given bits = [0, 0, 0, 0]
 - [R] `618`: when val = bits_to_u64(bits)
 - [R] `619`: then val == 0
-- [D] `623`: given rtl_module = mock_module(1000)
-- [D] `629`: given bits = [0]
-- [D] `630`: when val = bits_to_u64(bits)
-- [D] `631`: then val == 0
+- [R] `623`: given rtl_module = mock_module(1000)
+- [R] `629`: given bits = [0]
+- [R] `630`: when val = bits_to_u64(bits)
+- [R] `631`: then val == 0
 - [R] `634`: given mod = RtlModule {
 - [R] `643`: when v = emit_vhdl(mod)
 - [R] `644`: then contains_substring(v, "<=")
@@ -15303,10 +15304,10 @@ honest current loss set is the 1,589 below.)
 - [R] `648`: given config = RtlGenConfig { target_lang: TARGET_LANG_VERILOG, enforce_r_si_1: true, wallace_tree: false, pipeline_stages: 0 }
 - [R] `649`: when mod = generate_sacred_module(op, config)
 - [R] `650`: then mod.inputs.len() == 1 && mod.outputs.len() == 1 && mod.wires.len() == 1 && mod.assigns.len() == 1
-- [D] `654`: given a = [1]
-- [D] `655`: given b = [1]
-- [D] `656`: when rtl = generate_wallace_tree(a, b)
-- [D] `657`: then contains_substring(rtl, "1 * 1 = 1")
+- [R] `654`: given a = [1]
+- [R] `655`: given b = [1]
+- [R] `656`: when rtl = generate_wallace_tree(a, b)
+- [R] `657`: then contains_substring(rtl, "1 * 1 = 1")
 - [R] `660`: given mod = RtlModule { name: "test_mod", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
 - [R] `661`: when v = emit_verilog(mod)
 - [R] `662`: then contains_substring(v, "module")
@@ -15316,10 +15317,10 @@ honest current loss set is the 1,589 below.)
 - [R] `670`: given mod = RtlModule {
 - [R] `679`: when v = emit_verilog(mod)
 - [R] `680`: then contains_substring(v, "assign y = a")
-- [D] `683`: given a = [1, 1]
-- [D] `684`: given b = [1]
-- [D] `685`: when rtl = generate_wallace_tree(a, b)
-- [D] `686`: then contains_substring(rtl, "wallace")
+- [R] `683`: given a = [1, 1]
+- [R] `684`: given b = [1]
+- [R] `685`: when rtl = generate_wallace_tree(a, b)
+- [R] `686`: then contains_substring(rtl, "wallace")
 - [R] `689`: given expr = "((a + b) + (c + d))"
 - [R] `690`: when n = count_mul_ops(expr)
 - [R] `691`: then n == 0
@@ -15359,18 +15360,18 @@ honest current loss set is the 1,589 below.)
 - [R] `753`: given expr = "a * b * c"
 - [R] `754`: when n = count_mul_ops(expr)
 - [R] `755`: then n == 2
-- [D] `758`: given bits = [1]
-- [D] `759`: when val = bits_to_u64(bits)
-- [D] `760`: then val == 1
+- [R] `758`: given bits = [1]
+- [R] `759`: when val = bits_to_u64(bits)
+- [R] `760`: then val == 1
 - [R] `763`: given bits = [0, 0, 0]
 - [R] `764`: when val = bits_to_u64(bits)
 - [R] `765`: then val == 0
 - [R] `768`: given bits = [1, 0, 1]
 - [R] `769`: when val = bits_to_u64(bits)
 - [R] `770`: then val == 5
-- [D] `773`: given bits = [1]
-- [D] `774`: when val = bits_to_u64(bits)
-- [D] `775`: then val == 1
+- [R] `773`: given bits = [1]
+- [R] `774`: when val = bits_to_u64(bits)
+- [R] `775`: then val == 1
 - [R] `778`: given bits = []u8{}
 - [R] `779`: when val = bits_to_u64(bits)
 - [R] `780`: then val == 0
@@ -15393,15 +15394,15 @@ honest current loss set is the 1,589 below.)
 - [R] `809`: given config = RtlGenConfig { target_lang: TARGET_LANG_VERILOG, enforce_r_si_1: true, wallace_tree: false, pipeline_stages: 0 }
 - [R] `810`: when mod = generate_sacred_module(op, config)
 - [R] `811`: then mod.name.len() > 0 && mod.inputs.len() == 1 && mod.outputs.len() == 1
-- [D] `814`: given bits = [1]
-- [D] `815`: when val = bits_to_u64(bits)
-- [D] `816`: then val == 1
+- [R] `814`: given bits = [1]
+- [R] `815`: when val = bits_to_u64(bits)
+- [R] `816`: then val == 1
 - [R] `819`: given mod = RtlModule { name: "test", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
 - [R] `820`: when v = emit_verilog(mod)
 - [R] `821`: then contains_substring(v, "endmodule")
-- [D] `824`: given bits = [0]
-- [D] `825`: when val = bits_to_u64(bits)
-- [D] `826`: then val == 0
+- [R] `824`: given bits = [0]
+- [R] `825`: when val = bits_to_u64(bits)
+- [R] `826`: then val == 0
 - [R] `829`: given mod = RtlModule { name: "io", inputs: [Signal { name: "a", width: 1, signed: false }], outputs: [Signal { name: "b", width: 1, signed: false }], wires: [], assigns: [], instances: [], sacred_chain: [] }
 - [R] `830`: when v = emit_verilog(mod)
 - [R] `831`: then contains_substring(v, "input") && contains_substring(v, "output")
@@ -15505,9 +15506,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1117`: given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
 - [R] `1118`: when v = emit_verilog(mod)
 - [R] `1119`: then v.len() > 0 && contains_substring(v, "endmodule")
-- [D] `1122`: given bits = [1]
-- [D] `1123`: when val = bits_to_u64(bits)
-- [D] `1124`: then val == 1
+- [R] `1122`: given bits = [1]
+- [R] `1123`: when val = bits_to_u64(bits)
+- [R] `1124`: then val == 1
 - [R] `1130`: given bits = [1, 0, 1]
 - [R] `1131`: when val = bits_to_u64(bits)
 - [R] `1132`: then val == 5
@@ -15520,9 +15521,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1148`: given mod = RtlModule { name: "sig_type", inputs: [], outputs: [], wires: [Signal { name: "tmp", width: 1, signed: false }], assigns: [], instances: [], sacred_chain: [] }
 - [R] `1149`: when v = emit_vhdl(mod)
 - [R] `1150`: then contains_substring(v, "std_logic")
-- [D] `1157`: given bits = [0]
-- [D] `1158`: when val = bits_to_u64(bits)
-- [D] `1159`: then val == 0
+- [R] `1157`: given bits = [0]
+- [R] `1158`: when val = bits_to_u64(bits)
+- [R] `1159`: then val == 0
 - [R] `1162`: given s = ""
 - [R] `1163`: given substr = "x"
 - [R] `1164`: when r = contains_substring(s, substr)
@@ -15568,18 +15569,18 @@ honest current loss set is the 1,589 below.)
 - [R] `1260`: given bits = [0, 0, 0]
 - [R] `1261`: when val = bits_to_u64(bits)
 - [R] `1262`: then val == 0
-- [D] `1269`: given bits = [1]
-- [D] `1270`: when val = bits_to_u64(bits)
-- [D] `1271`: then val == 1
+- [R] `1269`: given bits = [1]
+- [R] `1270`: when val = bits_to_u64(bits)
+- [R] `1271`: then val == 1
 - [R] `1274`: given bits = [1, 1, 1, 1]
 - [R] `1275`: when val = bits_to_u64(bits)
 - [R] `1276`: then val == 15
 - [R] `1283`: given bits = [1, 1, 1]
 - [R] `1284`: when val = bits_to_u64(bits)
 - [R] `1285`: then val == 7
-- [D] `1288`: given bits = [0]
-- [D] `1289`: when val = bits_to_u64(bits)
-- [D] `1290`: then val == 0
+- [R] `1288`: given bits = [0]
+- [R] `1289`: when val = bits_to_u64(bits)
+- [R] `1290`: then val == 0
 - [R] `1297`: given bits = [1, 1, 1, 1]
 - [R] `1298`: when val = bits_to_u64(bits)
 - [R] `1299`: then val == 15
@@ -15592,12 +15593,12 @@ honest current loss set is the 1,589 below.)
 - [R] `1316`: given bits = [1, 1, 1, 1, 1, 1]
 - [R] `1317`: when val = bits_to_u64(bits)
 - [R] `1318`: then val == 63
-- [D] `1325`: given bits = []
-- [D] `1326`: when val = bits_to_u64(bits)
-- [D] `1327`: then val == 0
-- [D] `1330`: given bits = [1]
-- [D] `1331`: when val = bits_to_u64(bits)
-- [D] `1332`: then val == 1
+- [R] `1325`: given bits = []
+- [R] `1326`: when val = bits_to_u64(bits)
+- [R] `1327`: then val == 0
+- [R] `1330`: given bits = [1]
+- [R] `1331`: when val = bits_to_u64(bits)
+- [R] `1332`: then val == 1
 - [R] `1338`: given bits = [1, 1]
 - [R] `1339`: when val = bits_to_u64(bits)
 - [R] `1340`: then val == 3
@@ -15616,24 +15617,24 @@ honest current loss set is the 1,589 below.)
 - [R] `1369`: given bits = [1, 1, 1, 1, 1, 1, 1, 1]
 - [R] `1370`: when val = bits_to_u64(bits)
 - [R] `1371`: then val == 255
-- [D] `1377`: given bits = []
-- [D] `1378`: when val = bits_to_u64(bits)
-- [D] `1379`: then val == 0
-- [D] `1382`: given bits = [1]
-- [D] `1383`: when val = bits_to_u64(bits)
-- [D] `1384`: then val == 1
-- [D] `1390`: given bits = [true]
-- [D] `1391`: when val = bits_to_u64(bits)
-- [D] `1392`: then val == 1
+- [R] `1377`: given bits = []
+- [R] `1378`: when val = bits_to_u64(bits)
+- [R] `1379`: then val == 0
+- [R] `1382`: given bits = [1]
+- [R] `1383`: when val = bits_to_u64(bits)
+- [R] `1384`: then val == 1
+- [R] `1390`: given bits = [true]
+- [R] `1391`: when val = bits_to_u64(bits)
+- [R] `1392`: then val == 1
 - [R] `1395`: given bits = [true, true]
 - [R] `1396`: when val = bits_to_u64(bits)
 - [R] `1397`: then val == 3
 - [R] `1403`: given bits = [true, true, true]
 - [R] `1404`: when val = bits_to_u64(bits)
 - [R] `1405`: then val == 7
-- [D] `1408`: given bits = []
-- [D] `1409`: when val = bits_to_u64(bits)
-- [D] `1410`: then val == 0
+- [R] `1408`: given bits = []
+- [R] `1409`: when val = bits_to_u64(bits)
+- [R] `1410`: then val == 0
 - [R] `1416`: given bits = [1, 1, 1, 1, 1]
 - [R] `1417`: when val = bits_to_u64(bits)
 - [R] `1418`: then val == 31
@@ -15743,7 +15744,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1700`: when val = bits_to_u64(bits)
 - [R] `1701`: then val == 63
 
-## specs/igla/race/systolic_array.t27 — 388 scenario(s), 813 line(s), 4 dropped under 0005
+## specs/igla/race/systolic_array.t27 — 388 scenario(s), 813 line(s), 0 dropped under 0011
 - [R] `122`: given a = 3
 - [R] `123`: given b = 5
 - [R] `124`: when p = booth_mul_u32(a, b)
@@ -15831,10 +15832,10 @@ honest current loss set is the 1,589 below.)
 - [R] `248`: given b = -32768
 - [R] `249`: when p = booth_mul_i16(a, b)
 - [R] `250`: then p > 0
-- [D] `290`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
-- [D] `291`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
-- [D] `296`: given A = Mat2x2 { a11: 10, a12: 20, a21: 30, a22: 40 }
-- [D] `297`: given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+- [R] `290`: given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+- [R] `291`: given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+- [R] `296`: given A = Mat2x2 { a11: 10, a12: 20, a21: 30, a22: 40 }
+- [R] `297`: given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
 - [R] `302`: given A = Mat2x2 { a11: 2, a12: 0, a21: 0, a22: 3 }
 - [R] `303`: given B = Mat2x2 { a11: 4, a12: 0, a21: 0, a22: 5 }
 - [R] `304`: when C_ab = systolic_gemm_2x2(A, B)
@@ -16558,7 +16559,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1662`: when p = booth_mul_i16(a, b)
 - [R] `1663`: then p == -6
 
-## specs/igla/race/systolic_ternary.t27 — 580 scenario(s), 1035 line(s), 22 dropped under 0005
+## specs/igla/race/systolic_ternary.t27 — 580 scenario(s), 1035 line(s), 0 dropped under 0011
 - [R] `63`: given a = 5
 - [R] `64`: given w = TernaryWeight { code: 1 }
 - [R] `65`: given psum = 10
@@ -16625,11 +16626,11 @@ honest current loss set is the 1,589 below.)
 - [R] `152`: given psum = -32768
 - [R] `153`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
 - [R] `154`: then psum_out == -32512
-- [D] `157`: given activations = [5]
-- [D] `158`: given weights = [TernaryWeight { code: 1 }]
-- [D] `159`: given size = 1
-- [D] `160`: when result = systolic_ternary_array(activations, weights, size)
-- [D] `161`: then result[0] == 5
+- [R] `157`: given activations = [5]
+- [R] `158`: given weights = [TernaryWeight { code: 1 }]
+- [R] `159`: given size = 1
+- [R] `160`: when result = systolic_ternary_array(activations, weights, size)
+- [R] `161`: then result[0] == 5
 - [R] `164`: given a = -50
 - [R] `165`: given w = TernaryWeight { code: 1 }
 - [R] `166`: given psum = 0
@@ -16667,15 +16668,15 @@ honest current loss set is the 1,589 below.)
 - [R] `212`: given psum = 0
 - [R] `213`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
 - [R] `214`: then psum_out == 127
-- [D] `255`: given a = 7
-- [D] `256`: given w = TernaryWeight { code: 1 }
-- [D] `257`: given psum = 100
-- [D] `262`: given activations = [1, 2, 3, 4]
-- [D] `263`: given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
-- [D] `264`: given size = 2
-- [D] `269`: given a = -128
-- [D] `270`: given w = TernaryWeight { code: 2 }
-- [D] `271`: given psum = 32767
+- [R] `255`: given a = 7
+- [R] `256`: given w = TernaryWeight { code: 1 }
+- [R] `257`: given psum = 100
+- [R] `262`: given activations = [1, 2, 3, 4]
+- [R] `263`: given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+- [R] `264`: given size = 2
+- [R] `269`: given a = -128
+- [R] `270`: given w = TernaryWeight { code: 2 }
+- [R] `271`: given psum = 32767
 - [R] `276`: given pe = SystolicTernaryPE { a_reg: 0, psum_reg: 0 }
 - [R] `277`: when new_pe = systolic_ternary_pe_reg(true, true, pe, 127, TernaryWeight { code: 1 }, 0)
 - [R] `278`: then new_pe.a_reg == 127 && new_pe.psum_reg == 127
@@ -16918,10 +16919,10 @@ honest current loss set is the 1,589 below.)
 - [R] `631`: given w = TernaryWeight { code: 1 }
 - [R] `632`: when d = ternary_decode(w)
 - [R] `633`: then d == 1
-- [D] `636`: given a = [5]
-- [D] `637`: given w = [TernaryWeight { code: 2 }]
-- [D] `638`: when out = systolic_ternary_array(a, w)
-- [D] `639`: then out.len() == 1 && out[0] == -5
+- [R] `636`: given a = [5]
+- [R] `637`: given w = [TernaryWeight { code: 2 }]
+- [R] `638`: when out = systolic_ternary_array(a, w)
+- [R] `639`: then out.len() == 1 && out[0] == -5
 - [R] `642`: given pe = SystolicTernaryPE { a_reg: 0, psum_reg: 0 }
 - [R] `643`: when new_pe = systolic_ternary_pe_reg(true, true, pe, 7, TernaryWeight { code: 1 }, 10)
 - [R] `644`: then new_pe.a_reg == 7 && new_pe.psum_reg == 17
@@ -16959,10 +16960,10 @@ honest current loss set is the 1,589 below.)
 - [R] `696`: given psum = 42
 - [R] `697`: when (_, out) = systolic_ternary_pe(a, w, psum)
 - [R] `698`: then out == 42
-- [D] `701`: given a = [5]
-- [D] `702`: given w = [TernaryWeight { code: 1 }]
-- [D] `703`: when out = systolic_ternary_array(a, w)
-- [D] `704`: then out.len() == 1 && out[0] == 5
+- [R] `701`: given a = [5]
+- [R] `702`: given w = [TernaryWeight { code: 1 }]
+- [R] `703`: when out = systolic_ternary_array(a, w)
+- [R] `704`: then out.len() == 1 && out[0] == 5
 - [R] `707`: given a = -3
 - [R] `708`: given w = TernaryWeight { code: 1 }
 - [R] `709`: given psum = 10
@@ -17595,7 +17596,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1922`: when (_, psum_out) = systolic_ternary_pe(a, w, psum)
 - [R] `1923`: then psum_out == 14
 
-## specs/igla/race/ternary_dot_sw.t27 — 164 scenario(s), 266 line(s), 52 dropped under 0005
+## specs/igla/race/ternary_dot_sw.t27 — 164 scenario(s), 266 line(s), 0 dropped under 0011
 - [R] `49`: given a = [1, 2, 3]
 - [R] `50`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }]
 - [R] `51`: when d = ternary_dot(a, w, 0, 0)
@@ -17608,10 +17609,10 @@ honest current loss set is the 1,589 below.)
 - [R] `62`: given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
 - [R] `63`: when d = ternary_dot(a, w, 0, 0)
 - [R] `64`: then d == -15
-- [D] `67`: given a = [3]
-- [D] `68`: given w = [TernaryWeight { code: 2 }]
-- [D] `69`: when d = ternary_dot(a, w, 0, 0)
-- [D] `70`: then d == -3
+- [R] `67`: given a = [3]
+- [R] `68`: given w = [TernaryWeight { code: 2 }]
+- [R] `69`: when d = ternary_dot(a, w, 0, 0)
+- [R] `70`: then d == -3
 - [R] `73`: given a = []i8{}
 - [R] `74`: given w = []TernaryWeight{}
 - [R] `75`: when d = ternary_dot(a, w, 0, 0)
@@ -17624,8 +17625,8 @@ honest current loss set is the 1,589 below.)
 - [R] `86`: given w = []TernaryWeight{}
 - [R] `87`: when d = ternary_dot(a, w, 0, 0)
 - [R] `88`: then d == 0
-- [D] `95`: given a = [1, 2, 3, 4, 5, 6, 7, 8]
-- [D] `96`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+- [R] `95`: given a = [1, 2, 3, 4, 5, 6, 7, 8]
+- [R] `96`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
 - [R] `101`: given a = []i8{}
 - [R] `102`: given w = []TernaryWeight{}
 - [R] `103`: when d = ternary_dot(a, w, 0, 0)
@@ -17650,10 +17651,10 @@ honest current loss set is the 1,589 below.)
 - [R] `132`: given w = [TernaryWeight { code: 1 }]
 - [R] `133`: when d = ternary_dot(a, w, 0, 0)
 - [R] `134`: then d == 1
-- [D] `137`: given a = [5]
-- [D] `138`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
-- [D] `139`: when d = ternary_dot(a, w, 0, 0)
-- [D] `140`: then d == 5
+- [R] `137`: given a = [5]
+- [R] `138`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+- [R] `139`: when d = ternary_dot(a, w, 0, 0)
+- [R] `140`: then d == 5
 - [R] `143`: given a = []i8{}
 - [R] `144`: given w = []TernaryWeight{}
 - [R] `145`: when d = ternary_dot(a, w, 5, 42)
@@ -17682,12 +17683,12 @@ honest current loss set is the 1,589 below.)
 - [R] `178`: given acc = 7
 - [R] `179`: when d = ternary_dot(a, w, idx, acc)
 - [R] `180`: then d == 7
-- [D] `183`: given a = [5]
-- [D] `184`: given w = [TernaryWeight { code: 2 }]
-- [D] `185`: given idx = 0
-- [D] `186`: given acc = 10
-- [D] `187`: when d = ternary_dot(a, w, idx, acc)
-- [D] `188`: then d == 5
+- [R] `183`: given a = [5]
+- [R] `184`: given w = [TernaryWeight { code: 2 }]
+- [R] `185`: given idx = 0
+- [R] `186`: given acc = 10
+- [R] `187`: when d = ternary_dot(a, w, idx, acc)
+- [R] `188`: then d == 5
 - [R] `191`: given a = []i8{}
 - [R] `192`: given w = []TernaryWeight{}
 - [R] `193`: given idx = 0
@@ -17706,12 +17707,12 @@ honest current loss set is the 1,589 below.)
 - [R] `210`: given acc = 0
 - [R] `211`: when d = ternary_dot(a, w, idx, acc)
 - [R] `212`: then d == -6
-- [D] `215`: given a = [42]
-- [D] `216`: given w = [TernaryWeight { code: 0 }]
-- [D] `217`: given idx = 0
-- [D] `218`: given acc = 100
-- [D] `219`: when d = ternary_dot(a, w, idx, acc)
-- [D] `220`: then d == 100
+- [R] `215`: given a = [42]
+- [R] `216`: given w = [TernaryWeight { code: 0 }]
+- [R] `217`: given idx = 0
+- [R] `218`: given acc = 100
+- [R] `219`: when d = ternary_dot(a, w, idx, acc)
+- [R] `220`: then d == 100
 - [R] `223`: given a = [1, 2, 3]
 - [R] `224`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
 - [R] `225`: when d = ternary_dot(a, w, 0, 0)
@@ -17752,12 +17753,12 @@ honest current loss set is the 1,589 below.)
 - [R] `272`: given acc = 5
 - [R] `273`: when d = ternary_dot(a, w, idx, acc)
 - [R] `274`: then d == 11
-- [D] `277`: given a = [42]
-- [D] `278`: given w = [TernaryWeight { code: 2 }]
-- [D] `279`: given idx = 0
-- [D] `280`: given acc = 0
-- [D] `281`: when d = ternary_dot(a, w, idx, acc)
-- [D] `282`: then d == -42
+- [R] `277`: given a = [42]
+- [R] `278`: given w = [TernaryWeight { code: 2 }]
+- [R] `279`: given idx = 0
+- [R] `280`: given acc = 0
+- [R] `281`: when d = ternary_dot(a, w, idx, acc)
+- [R] `282`: then d == -42
 - [R] `285`: given a = [1, 2, 3]
 - [R] `286`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
 - [R] `287`: given idx = 0
@@ -17782,18 +17783,18 @@ honest current loss set is the 1,589 below.)
 - [R] `312`: given acc = 0
 - [R] `313`: when d = ternary_dot(a, w, idx, acc)
 - [R] `314`: then d == -7
-- [D] `317`: given a = [77]
-- [D] `318`: given w = [TernaryWeight { code: 0 }]
-- [D] `319`: given idx = 0
-- [D] `320`: given acc = 0
-- [D] `321`: when d = ternary_dot(a, w, idx, acc)
-- [D] `322`: then d == 0
-- [D] `325`: given a = [42]
-- [D] `326`: given w = [TernaryWeight { code: 1 }]
-- [D] `327`: given idx = 0
-- [D] `328`: given acc = 10
-- [D] `329`: when d = ternary_dot(a, w, idx, acc)
-- [D] `330`: then d == 52
+- [R] `317`: given a = [77]
+- [R] `318`: given w = [TernaryWeight { code: 0 }]
+- [R] `319`: given idx = 0
+- [R] `320`: given acc = 0
+- [R] `321`: when d = ternary_dot(a, w, idx, acc)
+- [R] `322`: then d == 0
+- [R] `325`: given a = [42]
+- [R] `326`: given w = [TernaryWeight { code: 1 }]
+- [R] `327`: given idx = 0
+- [R] `328`: given acc = 10
+- [R] `329`: when d = ternary_dot(a, w, idx, acc)
+- [R] `330`: then d == 52
 - [R] `333`: given a = []i8{}
 - [R] `334`: given w = []TernaryWeight{}
 - [R] `335`: when r = ternary_dot(a, w, 0, 0)
@@ -17832,18 +17833,18 @@ honest current loss set is the 1,589 below.)
 - [R] `396`: given acc = 0
 - [R] `397`: when d = ternary_dot(a, w, idx, acc)
 - [R] `398`: then d == -8
-- [D] `401`: given a = [7]
-- [D] `402`: given w = [TernaryWeight { code: 1 }]
-- [D] `403`: given idx = 0
-- [D] `404`: given acc = 0
-- [D] `405`: when d = ternary_dot(a, w, idx, acc)
-- [D] `406`: then d == 7
-- [D] `414`: given a = [7]
-- [D] `415`: given w = [TernaryWeight { code: 2 }]
-- [D] `416`: given idx = 0
-- [D] `417`: given acc = 0
-- [D] `418`: when d = ternary_dot(a, w, idx, acc)
-- [D] `419`: then d == -7
+- [R] `401`: given a = [7]
+- [R] `402`: given w = [TernaryWeight { code: 1 }]
+- [R] `403`: given idx = 0
+- [R] `404`: given acc = 0
+- [R] `405`: when d = ternary_dot(a, w, idx, acc)
+- [R] `406`: then d == 7
+- [R] `414`: given a = [7]
+- [R] `415`: given w = [TernaryWeight { code: 2 }]
+- [R] `416`: given idx = 0
+- [R] `417`: given acc = 0
+- [R] `418`: when d = ternary_dot(a, w, idx, acc)
+- [R] `419`: then d == -7
 - [R] `422`: given a = [cast_i8(1), cast_i8(2), cast_i8(3)]
 - [R] `423`: given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
 - [R] `424`: given idx = 0
@@ -17863,7 +17864,7 @@ honest current loss set is the 1,589 below.)
 - [R] `442`: when d = ternary_dot(a, w, idx, acc)
 - [R] `443`: then d == 5
 
-## specs/igla/race/ternary_gemm.t27 — 338 scenario(s), 725 line(s), 45 dropped under 0005
+## specs/igla/race/ternary_gemm.t27 — 338 scenario(s), 725 line(s), 0 dropped under 0011
 - [R] `122`: given a = [5, 3, 7, 2]
 - [R] `123`: given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
 - [R] `124`: when out = ternary_gemm_2x2(a, w)
@@ -17966,9 +17967,9 @@ honest current loss set is the 1,589 below.)
 - [R] `361`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
 - [R] `362`: when out = ternary_gemm_2x2(a, w)
 - [R] `363`: then out[0] == 1 && out[3] == 1
-- [D] `366`: given flat = [0; 64]
-- [D] `367`: when e = get_elem_8x8(flat, 8, 0)
-- [D] `368`: then e == 0
+- [R] `366`: given flat = [0; 64]
+- [R] `367`: when e = get_elem_8x8(flat, 8, 0)
+- [R] `368`: then e == 0
 - [R] `371`: given a = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]
 - [R] `372`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 },
 - [R] `376`: when out = ternary_gemm_4x4(a, w)
@@ -18002,8 +18003,8 @@ honest current loss set is the 1,589 below.)
 - [R] `418`: given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 },
 - [R] `422`: when out = ternary_gemm_4x4(a, w)
 - [R] `423`: then out[0] == 4 && out[15] == 4
-- [D] `469`: given a = [1, -1, 0, 1]
-- [D] `470`: given w = [TernaryWeight { w: -1 }, TernaryWeight { w: 0 }, TernaryWeight { w: 1 }, TernaryWeight { w: -1 }]
+- [R] `469`: given a = [1, -1, 0, 1]
+- [R] `470`: given w = [TernaryWeight { w: -1 }, TernaryWeight { w: 0 }, TernaryWeight { w: 1 }, TernaryWeight { w: -1 }]
 - [R] `475`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
 - [R] `476`: when e = get_elem_8x8(flat, 7, 7)
 - [R] `477`: then e == 64
@@ -18015,20 +18016,20 @@ honest current loss set is the 1,589 below.)
 - [R] `487`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
 - [R] `488`: when res = ternary_gemm_4x4_as_struct(a, w)
 - [R] `489`: then len(res.data) == 16
-- [D] `492`: given flat = [0; 64]
-- [D] `493`: when e = get_elem_8x8(flat, 8, 8)
-- [D] `494`: then e == 0
-- [D] `497`: given a = []
-- [D] `498`: given w = []
-- [D] `499`: when out = ternary_gemm_8x8(a, w)
-- [D] `500`: then len(out) == 0
+- [R] `492`: given flat = [0; 64]
+- [R] `493`: when e = get_elem_8x8(flat, 8, 8)
+- [R] `494`: then e == 0
+- [R] `497`: given a = []
+- [R] `498`: given w = []
+- [R] `499`: when out = ternary_gemm_8x8(a, w)
+- [R] `500`: then len(out) == 0
 - [R] `503`: given a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 - [R] `504`: given w = [TernaryWeight { code: 255 }, TernaryWeight { code: 255 }, TernaryWeight { code: 255 }, TernaryWeight { code: 255 },
 - [R] `508`: when out = ternary_gemm_4x4(a, w)
 - [R] `509`: then out[0] == 0 && out[15] == 0
-- [D] `512`: given flat = [0; 64]
-- [D] `513`: when e = get_elem_8x8(flat, 255, 255)
-- [D] `514`: then e == 0
+- [R] `512`: given flat = [0; 64]
+- [R] `513`: when e = get_elem_8x8(flat, 255, 255)
+- [R] `514`: then e == 0
 - [R] `517`: given a = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 - [R] `518`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 },
 - [R] `522`: when out = ternary_gemm_4x4(a, w)
@@ -18051,10 +18052,10 @@ honest current loss set is the 1,589 below.)
 - [R] `549`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 - [R] `550`: when e = get_elem_4x4(flat, 3, 3)
 - [R] `551`: then e == 16
-- [D] `554`: given a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-- [D] `555`: given w = [TernaryWeight { code: 0 }; 16]
-- [D] `556`: when out = ternary_gemm_4x4(a, w)
-- [D] `557`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
+- [R] `554`: given a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+- [R] `555`: given w = [TernaryWeight { code: 0 }; 16]
+- [R] `556`: when out = ternary_gemm_4x4(a, w)
+- [R] `557`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
 - [R] `560`: given flat = [10, 20, 30, 40]
 - [R] `561`: when e = get_elem_2x2(flat, 1, 1)
 - [R] `562`: then e == 40
@@ -18084,10 +18085,10 @@ honest current loss set is the 1,589 below.)
 - [R] `600`: given flat = [1, 2, 3, 4]
 - [R] `601`: when e = get_elem_2x2(flat, 2, 0)
 - [R] `602`: then e == 0
-- [D] `605`: given a = [0; 16]
-- [D] `606`: given w = [TernaryWeight { code: 1 }; 16]
-- [D] `607`: when out = ternary_gemm_4x4(a, w)
-- [D] `608`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
+- [R] `605`: given a = [0; 16]
+- [R] `606`: given w = [TernaryWeight { code: 1 }; 16]
+- [R] `607`: when out = ternary_gemm_4x4(a, w)
+- [R] `608`: then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
 - [R] `611`: given flat = [1, 2, 3, 4]
 - [R] `612`: when e = get_elem_2x2(flat, 0, 1)
 - [R] `613`: then e == 2
@@ -18105,7 +18106,7 @@ honest current loss set is the 1,589 below.)
 - [R] `633`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
 - [R] `634`: when e = get_elem_8x8(flat, 3, 3)
 - [R] `635`: then e == 28
-- [D] `638`: given phi_val = 1.618
+- [R] `638`: given phi_val = 1.618
 - [R] `643`: given a = [1, 2, 3, 4]
 - [R] `644`: given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
 - [R] `645`: when out = ternary_gemm_2x2(a, w)
@@ -18113,10 +18114,10 @@ honest current loss set is the 1,589 below.)
 - [R] `649`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
 - [R] `650`: when e = get_elem_8x8(flat, 0, 0)
 - [R] `651`: then e == 1
-- [D] `654`: given a = [1, 0, 0, 0, 0, 0, 0, 0] + [0; 56]
-- [D] `655`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
-- [D] `656`: when out = ternary_gemm_8x8(a, w)
-- [D] `657`: then out[0] == 1 && out[1] == 0 && out[63] == 0
+- [R] `654`: given a = [1, 0, 0, 0, 0, 0, 0, 0] + [0; 56]
+- [R] `655`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+- [R] `656`: when out = ternary_gemm_8x8(a, w)
+- [R] `657`: then out[0] == 1 && out[1] == 0 && out[63] == 0
 - [R] `660`: given a = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 - [R] `661`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 },
 - [R] `665`: when res = ternary_gemm_4x4_as_struct(a, w)
@@ -18124,10 +18125,10 @@ honest current loss set is the 1,589 below.)
 - [R] `669`: given flat = [1, 2, 3, 4]
 - [R] `670`: when e = get_elem_2x2(flat, 1, 0)
 - [R] `671`: then e == 3
-- [D] `674`: given a = [0; 16]
-- [D] `675`: given w = [TernaryWeight { code: 1 }; 16]
-- [D] `676`: when out = ternary_gemm_4x4(a, w)
-- [D] `677`: then out[0] == 0 && out[15] == 0
+- [R] `674`: given a = [0; 16]
+- [R] `675`: given w = [TernaryWeight { code: 1 }; 16]
+- [R] `676`: when out = ternary_gemm_4x4(a, w)
+- [R] `677`: then out[0] == 0 && out[15] == 0
 - [R] `680`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 - [R] `681`: when e = get_elem_4x4(flat, 0, 0)
 - [R] `682`: then e == 1
@@ -18135,10 +18136,10 @@ honest current loss set is the 1,589 below.)
 - [R] `686`: given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
 - [R] `687`: when out = ternary_gemm_2x2(a, w)
 - [R] `688`: then out[0] == -2 && out[1] == -2 && out[2] == -2 && out[3] == -2
-- [D] `691`: given a = [1] + [0; 63]
-- [D] `692`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
-- [D] `693`: when res = ternary_gemm_8x8_as_struct(a, w)
-- [D] `694`: then len(res.data) == 64 && res.data[0] == 1
+- [R] `691`: given a = [1] + [0; 63]
+- [R] `692`: given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+- [R] `693`: when res = ternary_gemm_8x8_as_struct(a, w)
+- [R] `694`: then len(res.data) == 64 && res.data[0] == 1
 - [R] `697`: given flat = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
 - [R] `698`: when e0 = get_elem_8x8(flat, 0, 0)
 - [R] `699`: when e1 = get_elem_8x8(flat, 1, 1)
@@ -18148,9 +18149,9 @@ honest current loss set is the 1,589 below.)
 - [R] `705`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 },
 - [R] `709`: when out = ternary_gemm_4x4(a, w)
 - [R] `710`: then out[0] == 1 && out[5] == 1 && out[10] == 1 && out[15] == 1
-- [D] `713`: given flat = [0; 64]
-- [D] `714`: when e = get_elem_8x8(flat, 8, 0)
-- [D] `715`: then e == 0
+- [R] `713`: given flat = [0; 64]
+- [R] `714`: when e = get_elem_8x8(flat, 8, 0)
+- [R] `715`: then e == 0
 - [R] `718`: given a = [0, 1, 2, 3]
 - [R] `719`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
 - [R] `720`: when out = ternary_gemm_2x2(a, w)
@@ -18292,9 +18293,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1026`: given w = []TernaryWeight{}
 - [R] `1027`: when res = ternary_gemm_8x8_as_struct(a, w)
 - [R] `1028`: then len(res.data) == 0
-- [D] `1031`: given flat = [0; 64]
-- [D] `1032`: when e = get_elem_8x8(flat, 255, 0)
-- [D] `1033`: then e == 0
+- [R] `1031`: given flat = [0; 64]
+- [R] `1032`: when e = get_elem_8x8(flat, 255, 0)
+- [R] `1033`: then e == 0
 - [R] `1041`: given a = [cast_i8(3), cast_i8(0), cast_i8(0), cast_i8(0)]
 - [R] `1042`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
 - [R] `1043`: when out = ternary_gemm_2x2(a, w)
@@ -18334,9 +18335,9 @@ honest current loss set is the 1,589 below.)
 - [R] `1116`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
 - [R] `1117`: when out = ternary_gemm_2x2(a, w)
 - [R] `1118`: then out[0] == 3 && out[1] == 3 && out[2] == 0 && out[3] == 0
-- [D] `1127`: given flat = [0; 64]
-- [D] `1128`: when e = get_elem_8x8(flat, 0, 8)
-- [D] `1129`: then e == 0
+- [R] `1127`: given flat = [0; 64]
+- [R] `1128`: when e = get_elem_8x8(flat, 0, 8)
+- [R] `1129`: then e == 0
 - [R] `1136`: given a = [cast_i8(1), cast_i8(0), cast_i8(0), cast_i8(1)]
 - [R] `1137`: given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
 - [R] `1138`: when out = ternary_gemm_2x2(a, w)
@@ -18590,7 +18591,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1679`: when out = ternary_gemm(a, w)
 - [R] `1680`: then out.len() == 4 && out[0] == 1 && out[1] == -1
 
-## specs/igla/race/ternary_inference.t27 — 140 scenario(s), 357 line(s), 0 dropped under 0005
+## specs/igla/race/ternary_inference.t27 — 140 scenario(s), 357 line(s), 0 dropped under 0011
 - [R] `97`: given input = InferenceInput { activations: [1, 2, 3, 4] }
 - [R] `98`: when result = ternary_inference_identity(input)
 - [R] `99`: then result.outputs[0] == 1 && result.outputs[1] == 2 && result.outputs[2] == 3 && result.outputs[3] == 4
@@ -18949,7 +18950,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1037`: when result = ternary_inference_zero_weights(input)
 - [R] `1038`: then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-## specs/igla/race/ternary_lut_table.t27 — 15 scenario(s), 30 line(s), 0 dropped under 0005
+## specs/igla/race/ternary_lut_table.t27 — 15 scenario(s), 30 line(s), 0 dropped under 0011
 - [R] `130`: given r = on_comb(100, 7, 9, 0, 0, 0, 0)
 - [R] `131`: then r == 100
 - [R] `134`: given r = on_comb(0, 7, 9, 1, 0, 0, 0)
@@ -18981,7 +18982,7 @@ honest current loss set is the 1,589 below.)
 - [R] `190`: given v = fetch(15, 7, 9, 16, -2)
 - [R] `191`: then v == 0
 
-## specs/igla/race/ternary_mac.t27 — 400 scenario(s), 694 line(s), 3 dropped under 0005
+## specs/igla/race/ternary_mac.t27 — 400 scenario(s), 694 line(s), 0 dropped under 0011
 - [R] `95`: given r = on_comb(7, 0, 100)
 - [R] `96`: then r == 100
 - [R] `99`: given r = on_comb(7, 1, 100)
@@ -19057,9 +19058,9 @@ honest current loss set is the 1,589 below.)
 - [R] `205`: given w = TernaryWeight { code: 1 }
 - [R] `206`: when r = ternary_mac(acc, a, w)
 - [R] `207`: then r == 127
-- [D] `232`: given acc = 0
-- [D] `233`: given a = 7
-- [D] `234`: given w = TernaryWeight { code: 1 }
+- [R] `232`: given acc = 0
+- [R] `233`: given a = 7
+- [R] `234`: given w = TernaryWeight { code: 1 }
 - [R] `239`: given acc = 42
 - [R] `240`: given a = 0
 - [R] `241`: given w = TernaryWeight { code: 2 }
@@ -19677,7 +19678,7 @@ honest current loss set is the 1,589 below.)
 - [R] `1366`: when result = ternary_mac(a, w, acc)
 - [R] `1367`: then result == 15
 
-## specs/igla/race/ternary_mac_group.t27 — 16 scenario(s), 32 line(s), 0 dropped under 0005
+## specs/igla/race/ternary_mac_group.t27 — 16 scenario(s), 32 line(s), 0 dropped under 0011
 - [R] `130`: given r = on_comb(100, 7, 7, 7, 7, 7, 7, 7, 7, 0)
 - [R] `131`: then r == 100
 - [R] `135`: given r = on_comb(0, 1, 2, 3, 4, 5, 6, 7, 8, 21845)
@@ -19711,7 +19712,7 @@ honest current loss set is the 1,589 below.)
 - [R] `197`: given c = code_0(2)
 - [R] `198`: then c == 2
 
-## specs/igla/race/yosys.t27 — 320 scenario(s), 707 line(s), 5 dropped under 0005
+## specs/igla/race/yosys.t27 — 320 scenario(s), 707 line(s), 0 dropped under 0011
 - [R] `325`: when status = detect_toolchain()
 - [R] `326`: then status.yosys_ok == true || status.yosys_ok == false
 - [R] `329`: when script = generate_equiv_script("gold.v", "rev.v", "top")
@@ -19735,11 +19736,11 @@ honest current loss set is the 1,589 below.)
 - [R] `363`: given script = generate_equiv_script("gold.v", "rev.v", "top")
 - [R] `364`: when ok = script.len() > 0
 - [R] `365`: then ok == true
-- [D] `398`: given props = [Property { name: "p1", clk: "clk", antecedent: "a", consequent: "b", module_name: "m1" }]
-- [D] `403`: given log_text = "PROVED PROVED ADMITTED"
-- [D] `408`: given gold = "gold.v"
-- [D] `409`: given rev = "rev.v"
-- [D] `410`: given top = "mymodule"
+- [R] `398`: given props = [Property { name: "p1", clk: "clk", antecedent: "a", consequent: "b", module_name: "m1" }]
+- [R] `403`: given log_text = "PROVED PROVED ADMITTED"
+- [R] `408`: given gold = "gold.v"
+- [R] `409`: given rev = "rev.v"
+- [R] `410`: given top = "mymodule"
 - [R] `415`: when status = detect_toolchain()
 - [R] `416`: then status.yosys_ok == true
 - [R] `419`: when script = generate_equiv_script("a.v", "b.v", "top")
@@ -20420,33 +20421,33 @@ honest current loss set is the 1,589 below.)
 - [R] `1728`: when ok = strings_equal(a, b)
 - [R] `1729`: then ok == true
 
-## specs/igla/training/low_bit_ternary.t27 — 4 scenario(s), 4 line(s), 2 dropped under 0005
+## specs/igla/training/low_bit_ternary.t27 — 4 scenario(s), 4 line(s), 0 dropped under 0011
 - [R] `76`: given w = TernaryWeight { value: 1, scale: 0.5 }
 - [R] `83`: given r = BenchmarkResult { accuracy_drop_pct: 2.5, compression_ratio: 8.0, latency_us: 1000.0 }
-- [D] `91`: given cfg = QuantizationConfig { bit_width: BitWidth.Ternary_2b, symmetric: true, per_channel: false, scale_bits: 8 }
-- [D] `96`: given model = "ckpt_200M"
+- [R] `91`: given cfg = QuantizationConfig { bit_width: BitWidth.Ternary_2b, symmetric: true, per_channel: false, scale_bits: 8 }
+- [R] `96`: given model = "ckpt_200M"
 
-## specs/igla/training/pilot_pretraining.t27 — 6 scenario(s), 6 line(s), 2 dropped under 0005
+## specs/igla/training/pilot_pretraining.t27 — 6 scenario(s), 6 line(s), 0 dropped under 0011
 - [R] `79`: given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 1000, seq_len: 512, vocab_size: 32000 }
 - [R] `83`: given cp = Checkpoint { step: 100, loss: 2.5, perplexity: 12.0, timestamp: 1700000000 }
 - [R] `87`: given lr1 = 0.001
 - [R] `88`: given lr2 = 0.0005
-- [D] `96`: given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 1000, seq_len: 512, vocab_size: 32000 }
-- [D] `101`: given cp = Checkpoint { step: 500, loss: 2.0, perplexity: 7.4, timestamp: 1700000000 }
+- [R] `96`: given cfg = TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 32, learning_rate: 0.001, warmup_steps: 100, max_steps: 1000, seq_len: 512, vocab_size: 32000 }
+- [R] `101`: given cp = Checkpoint { step: 500, loss: 2.0, perplexity: 7.4, timestamp: 1700000000 }
 
-## specs/igla/training/roadmap.t27 — 4 scenario(s), 4 line(s), 1 dropped under 0005
+## specs/igla/training/roadmap.t27 — 4 scenario(s), 4 line(s), 0 dropped under 0011
 - [R] `72`: given p = Phase.P4_Pilot
 - [R] `76`: given m = Milestone { phase: Phase.P5_Harness, completed: false, checkpoint: "specs/igla/evaluation/multi_lang_harness.t27", blockers: ["compute_budget"] }
 - [R] `80`: given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }
-- [D] `91`: given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }
+- [R] `91`: given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }
 
-## specs/igla/training/scale_up.t27 — 4 scenario(s), 4 line(s), 2 dropped under 0005
+## specs/igla/training/scale_up.t27 — 4 scenario(s), 4 line(s), 0 dropped under 0011
 - [R] `77`: given m = DeploymentMetrics { throughput_tok_s: 1200.0, latency_p99_ms: 50.0, memory_gb: 16.0, flops_utilization: 0.65 }
 - [R] `81`: given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
-- [D] `89`: given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
-- [D] `94`: given teacher = "ckpt_1B"
+- [R] `89`: given cfg = ScalingConfig { base_checkpoint: "ckpt_200M", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 }
+- [R] `94`: given teacher = "ckpt_1B"
 
-## specs/isa/registers.t27 — 32 scenario(s), 93 line(s), 16 dropped under 0005
+## specs/isa/registers.t27 — 32 scenario(s), 93 line(s), 4 dropped under 0011
 - [R] `330`: given word = TernaryWord{.raw = 0x123456}
 - [R] `331`: and   reg_write(R0, word)
 - [R] `332`: and   result = reg_read(R0)
@@ -20491,18 +20492,18 @@ honest current loss set is the 1,589 below.)
 - [R] `399`: then original_cp == recovered_cp
 - [R] `402`: given flag_val = status_read(FLAG_ZERO)
 - [R] `403`: then flag_val == false
-- [D] `406`: given status_write(FLAG_ZERO, true)
-- [D] `407`: and   flag_val = status_read(FLAG_ZERO)
-- [D] `408`: then flag_val == true
-- [D] `411`: given status_write(FLAG_ZERO, true)
-- [D] `412`: and   status_write(FLAG_ZERO, false)
-- [D] `413`: and   flag_val = status_read(FLAG_ZERO)
-- [D] `414`: then flag_val == false
-- [D] `417`: given status_write(FLAG_ZERO, true)
-- [D] `418`: and   status_write(FLAG_NEG, true)
-- [D] `419`: and   zero_val = status_read(FLAG_ZERO)
-- [D] `420`: and   neg_val = status_read(FLAG_NEG)
-- [D] `421`: then zero_val == true and neg_val == true
+- [R] `406`: given status_write(FLAG_ZERO, true)
+- [R] `407`: and   flag_val = status_read(FLAG_ZERO)
+- [R] `408`: then flag_val == true
+- [R] `411`: given status_write(FLAG_ZERO, true)
+- [R] `412`: and   status_write(FLAG_ZERO, false)
+- [R] `413`: and   flag_val = status_read(FLAG_ZERO)
+- [R] `414`: then flag_val == false
+- [R] `417`: given status_write(FLAG_ZERO, true)
+- [R] `418`: and   status_write(FLAG_NEG, true)
+- [R] `419`: and   zero_val = status_read(FLAG_ZERO)
+- [R] `420`: and   neg_val = status_read(FLAG_NEG)
+- [R] `421`: then zero_val == true and neg_val == true
 - [R] `424`: given success = status_write(10, true)  // Invalid flag
 - [R] `425`: then success == false
 - [R] `428`: given arg0 = ARG0 and arg1 = ARG1 and sp = SP and fp = FP
@@ -20541,7 +20542,7 @@ honest current loss set is the 1,589 below.)
 - [R] `565`: and   result = reg_read(R10)
 - [R] `566`: then result.raw == a.raw
 
-## specs/isa/ternary_control_flow.t27 — 25 scenario(s), 76 line(s), 7 dropped under 0005
+## specs/isa/ternary_control_flow.t27 — 25 scenario(s), 76 line(s), 7 dropped under 0011
 - [R] `224`: given offset = 10
 - [R] `225`: and   taken = branch_if(TRIT_POS, offset)
 - [R] `226`: then taken == true
@@ -20619,7 +20620,7 @@ honest current loss set is the 1,589 below.)
 - [R] `360`: and   table_branch(1, table, 999)
 - [R] `361`: and   table_branch(2, table, 999)
 
-## specs/isa/ternary_memory.t27 — 24 scenario(s), 98 line(s), 17 dropped under 0005
+## specs/isa/ternary_memory.t27 — 24 scenario(s), 98 line(s), 17 dropped under 0011
 - [R] `318`: given memory = []TernaryWord{TernaryWord{.raw = 0}, TernaryWord{.raw = 0x123}}
 - [R] `319`: and   value = mem_load(memory, 1)
 - [R] `320`: then value.raw == 0
@@ -20719,7 +20720,7 @@ honest current loss set is the 1,589 below.)
 - [R] `480`: and   mem_protect([]TernaryWord{}, 1, PERM_READ, prot)
 - [R] `481`: and   new_perm = prot[1]
 
-## specs/math/e8_lie_algebra.t27 — 16 scenario(s), 50 line(s), 0 dropped under 0005
+## specs/math/e8_lie_algebra.t27 — 16 scenario(s), 50 line(s), 0 dropped under 0011
 - [R] `240`: then E8_DIM == 248
 - [R] `243`: then E8_RANK == 8
 - [R] `246`: then E8_NUM_ROOTS == 240
@@ -20771,7 +20772,7 @@ honest current loss set is the 1,589 below.)
 - [R] `343`: then abs(pf[0] - 1.0) < 1.0e-15
 - [R] `366`: and    H4_EXPONENTS[2] == 19 and H4_EXPONENTS[3] == 29
 
-## specs/math/pellis_precision_verify.t27 — 6 scenario(s), 23 line(s), 0 dropped under 0005
+## specs/math/pellis_precision_verify.t27 — 6 scenario(s), 23 line(s), 0 dropped under 0011
 - [R] `126`: given result = pellis_pre_registered_checkpoint()
 - [R] `127`: then result.matches_prefix == true
 - [R] `130`: given result = pellis_pre_registered_checkpoint()
@@ -20796,7 +20797,7 @@ honest current loss set is the 1,589 below.)
 - [R] `179`: and   lower = 137.035999100
 - [R] `180`: and   upper = 137.035999200
 
-## specs/math/phi_split_optimality.t27 — 14 scenario(s), 33 line(s), 6 dropped under 0005
+## specs/math/phi_split_optimality.t27 — 14 scenario(s), 33 line(s), 3 dropped under 0011
 - [R] `228`: given steps = self_similarity_proof_steps()
 - [R] `229`: then steps.length() == 4
 - [R] `232`: given steps = self_similarity_proof_steps()
@@ -20825,54 +20826,54 @@ honest current loss set is the 1,589 below.)
 - [R] `273`: given (exp, mant) = optimal_ratio_by_am_gm(10)
 - [R] `274`: and available = 9
 - [R] `275`: then abs(exp as f64 - mant as f64) <= 1.0
-- [D] `278`: given (exp_amgm, mant_amgm) = optimal_ratio_by_am_gm(15)
-- [D] `279`: and (exp_phi, mant_phi) = optimal_ratio_by_self_similarity(15)
-- [D] `280`: then exp_amgm != exp_phi or mant_amgm != mant_phi
+- [R] `278`: given (exp_amgm, mant_amgm) = optimal_ratio_by_am_gm(15)
+- [R] `279`: and (exp_phi, mant_phi) = optimal_ratio_by_self_similarity(15)
+- [R] `280`: then exp_amgm != exp_phi or mant_amgm != mant_phi
 - [R] `313`: given (e, m, phi_dist) = optimal_allocation_by_rounding(16)
 - [R] `317`: given verification = verify_7_7_match()
 
-## specs/math/property_test_template.t27 — 16 scenario(s), 59 line(s), 11 dropped under 0005
-- [D] `332`: given values = [_]f64{1.0, 2.0, 3.0, -1.5, 0.5, 0.0}
+## specs/math/property_test_template.t27 — 16 scenario(s), 59 line(s), 0 dropped under 0011
+- [R] `332`: given values = [_]f64{1.0, 2.0, 3.0, -1.5, 0.5, 0.0}
 - [R] `333`: and len = 6
 - [R] `334`: when result = test_associative_add(&values, len)
 - [R] `335`: then result == true
-- [D] `338`: given values = [_]f64{1.0, 2.0, 3.0, -1.0, 0.5}
+- [R] `338`: given values = [_]f64{1.0, 2.0, 3.0, -1.0, 0.5}
 - [R] `339`: and len = 5
 - [R] `340`: when result = test_associative_mul(&values, len)
 - [R] `341`: then result == true
-- [D] `344`: given values = [_]f64{1.0, 2.0, -1.5, 0.0, 1.5, -2.5}
+- [R] `344`: given values = [_]f64{1.0, 2.0, -1.5, 0.0, 1.5, -2.5}
 - [R] `345`: and len = 6
 - [R] `346`: when result = test_commutative_add(&values, len)
 - [R] `347`: then result == true
-- [D] `350`: given values = [_]f64{2.0, 3.0, -1.0, 0.0, 1.5, -2.5}
+- [R] `350`: given values = [_]f64{2.0, 3.0, -1.0, 0.0, 1.5, -2.5}
 - [R] `351`: and len = 6
 - [R] `352`: when result = test_commutative_mul(&values, len)
 - [R] `353`: then result == true
-- [D] `356`: given values = [_]f64{2.0, 3.0, 1.5, -1.0, 0.5}
+- [R] `356`: given values = [_]f64{2.0, 3.0, 1.5, -1.0, 0.5}
 - [R] `357`: and len = 5
 - [R] `358`: when result = test_distributive_mul_add(&values, len)
 - [R] `359`: then result == true
-- [D] `362`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
+- [R] `362`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
 - [R] `363`: and len = 5
 - [R] `364`: when result = test_identity_add(&values, len)
 - [R] `365`: then result == true
-- [D] `368`: given values = [_]f64{2.0, 3.0, -1.0, 0.0, 1.5}
+- [R] `368`: given values = [_]f64{2.0, 3.0, -1.0, 0.0, 1.5}
 - [R] `369`: and len = 5
 - [R] `370`: when result = test_identity_mul(&values, len)
 - [R] `371`: then result == true
-- [D] `374`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159}
+- [R] `374`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159}
 - [R] `375`: and len = 4
 - [R] `376`: when result = test_inverse_add(&values, len)
 - [R] `377`: then result == true
-- [D] `380`: given values = [_]f64{2.0, 3.0, -1.0, 0.5, 1.5}
+- [R] `380`: given values = [_]f64{2.0, 3.0, -1.0, 0.5, 1.5}
 - [R] `381`: and len = 5
 - [R] `382`: when result = test_inverse_mul(&values, len)
 - [R] `383`: then result == true
-- [D] `386`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
+- [R] `386`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
 - [R] `387`: and len = 5
 - [R] `388`: when result = test_idempotent_min(&values, len)
 - [R] `389`: then result == true
-- [D] `392`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
+- [R] `392`: given values = [_]f64{1.0, 2.0, -1.5, 3.14159, 0.0}
 - [R] `393`: and len = 5
 - [R] `394`: when result = test_idempotent_max(&values, len)
 - [R] `395`: then result == true
@@ -20892,7 +20893,7 @@ honest current loss set is the 1,589 below.)
 - [R] `419`: when result = test_tritspace_dimension(n)
 - [R] `420`: then result == 243
 
-## specs/math/sacred_physics.t27 — 25 scenario(s), 75 line(s), 0 dropped under 0005
+## specs/math/sacred_physics.t27 — 25 scenario(s), 75 line(s), 0 dropped under 0011
 - [R] `226`: given trinity = TRINITY
 - [R] `227`: and   expected = 3.0
 - [R] `228`: and   tolerance = MAX_ABS_ERROR_TRINITY
@@ -20969,7 +20970,7 @@ honest current loss set is the 1,589 below.)
 - [R] `371`: then result > 0.0 and result < 1.0
 - [R] `435`: given omega = sacred_dark_energy(PI)
 
-## specs/math/zamolodchikov_e8.t27 — 19 scenario(s), 48 line(s), 0 dropped under 0005
+## specs/math/zamolodchikov_e8.t27 — 19 scenario(s), 48 line(s), 0 dropped under 0011
 - [R] `197`: given m = mass_ratio(1)
 - [R] `198`: then abs(m - 1.0) < 1.0e-15
 - [R] `201`: given m = mass_ratio(2)
@@ -21019,7 +21020,7 @@ honest current loss set is the 1,589 below.)
 - [R] `302`: and    abs(golden_ratio_m8_m5() - constants::PHI) < 1.0e-10
 - [R] `305`: given m = mass_spectrum()
 
-## specs/ml/igla_champion_capsule.t27 — 12 scenario(s), 40 line(s), 0 dropped under 0005
+## specs/ml/igla_champion_capsule.t27 — 12 scenario(s), 40 line(s), 0 dropped under 0011
 - [R] `55`: given b1      = BETA1_CANONICAL
 - [R] `56`: and   phi_inv = 1.0 / PHI
 - [R] `57`: when  diff    = abs(b1 - phi_inv)
@@ -21061,7 +21062,7 @@ honest current loss set is the 1,589 below.)
 - [R] `135`: when  _   = phi * phi + 1.0 / (phi * phi)
 - [R] `136`: then  elapsed_time_ns < 100
 
-## specs/ml/optimizer/adamw.t27 — 71 scenario(s), 382 line(s), 50 dropped under 0005
+## specs/ml/optimizer/adamw.t27 — 71 scenario(s), 382 line(s), 26 dropped under 0011
 - [R] `140`: given config = AdamWConfig{.learning_rate = 1e-3, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.01, .epsilon = 1e-8, .amsgrad = false, .use_phi_betas = false}
 - [R] `141`: when state = init(config, 10)
 - [R] `142`: then state.m.len == 10
@@ -21110,18 +21111,18 @@ honest current loss set is the 1,589 below.)
 - [R] `201`: then result[0] < 1.0
 - [R] `202`: and   result[1] < 2.0
 - [R] `203`: and   result[2] < 3.0
-- [D] `206`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
-- [D] `207`: and   state = init(config, 1)
-- [D] `208`: and   params = [1.0]
-- [D] `209`: and   grads = [0.1]
-- [D] `210`: when result = step(state, params, grads)
-- [D] `211`: then result.updated_params.len == 1
-- [D] `214`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
-- [D] `215`: and   state = init(config, 1)
-- [D] `216`: and   params = [1.0]
-- [D] `217`: and   grads = [0.0] // No gradient, only weight decay
-- [D] `218`: when result = step(state, params, grads)
-- [D] `219`: then result.updated_params[0] < 1.0
+- [R] `206`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
+- [R] `207`: and   state = init(config, 1)
+- [R] `208`: and   params = [1.0]
+- [R] `209`: and   grads = [0.1]
+- [R] `210`: when result = step(state, params, grads)
+- [R] `211`: then result.updated_params.len == 1
+- [R] `214`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
+- [R] `215`: and   state = init(config, 1)
+- [R] `216`: and   params = [1.0]
+- [R] `217`: and   grads = [0.0] // No gradient, only weight decay
+- [R] `218`: when result = step(state, params, grads)
+- [R] `219`: then result.updated_params[0] < 1.0
 - [R] `222`: given v = 0.05
 - [R] `223`: and   v_max = 0.03
 - [R] `224`: when result = amsgrad_update(v, v_max)
@@ -21272,18 +21273,18 @@ honest current loss set is the 1,589 below.)
 - [R] `643`: then result[0] < 1.0
 - [R] `644`: and   result[1] < 2.0
 - [R] `645`: and   result[2] < 3.0
-- [D] `648`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
-- [D] `649`: and   state = init(config, 1)
-- [D] `650`: and   params = [1.0]
-- [D] `651`: and   grads = [0.1]
-- [D] `652`: when result = step(state, params, grads)
-- [D] `653`: then result.updated_params.len == 1
-- [D] `656`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
-- [D] `657`: and   state = init(config, 1)
-- [D] `658`: and   params = [1.0]
-- [D] `659`: and   grads = [0.0]
-- [D] `660`: when result = step(state, params, grads)
-- [D] `661`: then result.updated_params[0] < 1.0
+- [R] `648`: given config = AdamWConfig{.learning_rate = 0.001, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.0}
+- [R] `649`: and   state = init(config, 1)
+- [R] `650`: and   params = [1.0]
+- [R] `651`: and   grads = [0.1]
+- [R] `652`: when result = step(state, params, grads)
+- [R] `653`: then result.updated_params.len == 1
+- [R] `656`: given config = AdamWConfig{.learning_rate = 0.01, .beta1 = 0.9, .beta2 = 0.999, .weight_decay = 0.1}
+- [R] `657`: and   state = init(config, 1)
+- [R] `658`: and   params = [1.0]
+- [R] `659`: and   grads = [0.0]
+- [R] `660`: when result = step(state, params, grads)
+- [R] `661`: then result.updated_params[0] < 1.0
 - [R] `664`: given v = 0.05
 - [R] `665`: and   v_max = 0.03
 - [R] `666`: when result = amsgrad_update(v, v_max)
@@ -21445,7 +21446,7 @@ honest current loss set is the 1,589 below.)
 - [R] `983`: and  ratio(throughput_b, throughput_c) > 0.95
 - [R] `984`: and  ratio(throughput_d, throughput_c) > 0.95
 
-## specs/ml/optimizer/lr_scheduler.t27 — 15 scenario(s), 62 line(s), 0 dropped under 0005
+## specs/ml/optimizer/lr_scheduler.t27 — 15 scenario(s), 62 line(s), 0 dropped under 0011
 - [R] `103`: given config = SchedulerConfig{.max_steps = 1000, .warmup_steps = 100, .min_lr = 1e-6, .max_lr = 1e-3, .use_phi_schedule = false}
 - [R] `104`: when state = init(config)
 - [R] `105`: then state.current_step == 0
@@ -21509,7 +21510,7 @@ honest current loss set is the 1,589 below.)
 - [R] `201`: when result = get_lr_at_step(config, step)
 - [R] `202`: then elapsed_time_ns < 100
 
-## specs/ml/optimizer/race_config.t27 — 9 scenario(s), 30 line(s), 0 dropped under 0005
+## specs/ml/optimizer/race_config.t27 — 9 scenario(s), 30 line(s), 0 dropped under 0011
 - [R] `143`: given beta1   = RACE_BETA1_PHI_CANONICAL
 - [R] `144`: and   phi_inv = 1.0 / PHI
 - [R] `145`: when  diff    = abs(beta1 - phi_inv)
@@ -21541,7 +21542,7 @@ honest current loss set is the 1,589 below.)
 - [R] `227`: and   _c = CORPUS_UNIQUE_TOKENS
 - [R] `228`: then  elapsed_time_ns < 10
 
-## specs/ml/optimizer/sgd_momentum.t27 — 28 scenario(s), 152 line(s), 19 dropped under 0005
+## specs/ml/optimizer/sgd_momentum.t27 — 28 scenario(s), 152 line(s), 5 dropped under 0011
 - [R] `123`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
 - [R] `124`: when state = init(config, 10)
 - [R] `125`: then state.velocities.len == 10
@@ -21580,20 +21581,20 @@ honest current loss set is the 1,589 below.)
 - [R] `168`: then approximately_equal(result.updated_params[0], 1.0 - 0.001)
 - [R] `169`: and   approximately_equal(result.updated_params[1], 2.0 - 0.002)
 - [R] `170`: and   approximately_equal(result.updated_params[2], 3.0 - 0.003)
-- [D] `173`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
-- [D] `174`: and   state = init(config, 1)
-- [D] `175`: and   params = [1.0]
-- [D] `176`: and   grads = [0.1]
-- [D] `177`: when result1 = step(state, params, grads)
-- [D] `178`: and   state2 = SgdMomentumState{.velocities = result1.velocities, .param_count = 1, .step = 1}
-- [D] `179`: and   result2 = step(state2, result1.updated_params, grads)
-- [D] `180`: then result2.velocities[0] > result1.velocities[0]
-- [D] `183`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.1, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
-- [D] `184`: and   state = init(config, 1)
-- [D] `185`: and   params = [1.0]
-- [D] `186`: and   grads = [0.1]
-- [D] `187`: when result = step(state, params, grads)
-- [D] `188`: then result.updated_params[0] < 1.0 - 0.001 // More aggressive decrease due to weight decay
+- [R] `173`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.0, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
+- [R] `174`: and   state = init(config, 1)
+- [R] `175`: and   params = [1.0]
+- [R] `176`: and   grads = [0.1]
+- [R] `177`: when result1 = step(state, params, grads)
+- [R] `178`: and   state2 = SgdMomentumState{.velocities = result1.velocities, .param_count = 1, .step = 1}
+- [R] `179`: and   result2 = step(state2, result1.updated_params, grads)
+- [R] `180`: then result2.velocities[0] > result1.velocities[0]
+- [R] `183`: given config = SgdMomentumConfig{.learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.1, .nesterov = false, .use_phi_damping = false, .dampening = 0.1}
+- [R] `184`: and   state = init(config, 1)
+- [R] `185`: and   params = [1.0]
+- [R] `186`: and   grads = [0.1]
+- [R] `187`: when result = step(state, params, grads)
+- [R] `188`: then result.updated_params[0] < 1.0 - 0.001 // More aggressive decrease due to weight decay
 - [R] `191`: given params = [1.0, -1.0]
 - [R] `192`: and   grads = [0.1, 0.1]
 - [R] `193`: and   weight_decay = 0.1
@@ -21695,7 +21696,7 @@ honest current loss set is the 1,589 below.)
 - [R] `337`: when result = nesterov_update(param, velocity, grad, lr, momentum)
 - [R] `338`: then elapsed_time_ns < 10
 
-## specs/ml/transformer/mha_block.t27 — 25 scenario(s), 130 line(s), 0 dropped under 0005
+## specs/ml/transformer/mha_block.t27 — 25 scenario(s), 130 line(s), 0 dropped under 0011
 - [R] `158`: given config = BlockConfig{.hidden_size = 128, .num_heads = 8, .expansion_factor = 4.0, .dropout = 0.1, .use_pre_ln = true, .use_post_ln = false, .use_phi_residual = false}
 - [R] `159`: when state = init(config)
 - [R] `160`: then state.mha_state.w_q.len > 0
@@ -21827,7 +21828,7 @@ honest current loss set is the 1,589 below.)
 - [R] `349`: when result = apply_residual_connection(x, processed, scale)
 - [R] `350`: then elapsed_time_us < 100
 
-## specs/ml/transformer/norm.t27 — 32 scenario(s), 191 line(s), 41 dropped under 0005
+## specs/ml/transformer/norm.t27 — 32 scenario(s), 191 line(s), 41 dropped under 0011
 - [R] `180`: given config = NormConfig{.hidden_size = 128, .eps = 1e-5, .elementwise_affine = true, .use_phi_init = false, .strand_mode = false}
 - [R] `181`: when state = init(config)
 - [R] `182`: then state.gamma.len == 128
@@ -22020,7 +22021,7 @@ honest current loss set is the 1,589 below.)
 - [R] `449`: when result = create_strands(hidden_size, gamma, beta)
 - [R] `450`: then elapsed_time_us < 100
 
-## specs/nn/attention.t27 — 36 scenario(s), 151 line(s), 54 dropped under 0005
+## specs/nn/attention.t27 — 36 scenario(s), 151 line(s), 40 dropped under 0011
 - [R] `441`: given scale = SACRED_SCALE
 - [R] `442`: and expected = pow(81.0, -0.2360679)
 - [R] `443`: then abs(scale - expected) < 0.001
@@ -22037,20 +22038,20 @@ honest current loss set is the 1,589 below.)
 - [R] `464`: given pairs = ROPE_PAIRS
 - [R] `465`: and computed = CONTEXT_LEN / 2
 - [R] `466`: then pairs == computed
-- [D] `469`: given input = [1.0, 2.0, 3.0, 4.0]
-- [D] `470`: and weights = [Trit.pos, Trit.zero, Trit.zero, Trit.zero,
-- [D] `474`: and output = [0.0; 4]
-- [D] `475`: when ternary_matmul(input, weights, output, 4, 4)
-- [D] `476`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0 and output[3] == 4.0
-- [D] `479`: given input = [1.0, 2.0, 3.0, 4.0]
-- [D] `480`: and weights = [Trit.neg, Trit.neg, Trit.neg, Trit.neg,
-- [D] `484`: and output = [0.0; 4]
-- [D] `485`: when ternary_matmul(input, weights, output, 4, 4)
-- [D] `486`: then output[0] == -10.0 and output[1] == -10.0 and output[2] == -10.0 and output[3] == -10.0
-- [D] `489`: given output = [5.0, 10.0, 15.0, 20.0]
-- [D] `490`: and input = [2.0, 4.0, 6.0, 8.0]
-- [D] `491`: when add_residual(output, input)
-- [D] `492`: then output[0] == 7.0 and output[1] == 14.0 and output[2] == 21.0 and output[3] == 28.0
+- [R] `469`: given input = [1.0, 2.0, 3.0, 4.0]
+- [R] `470`: and weights = [Trit.pos, Trit.zero, Trit.zero, Trit.zero,
+- [R] `474`: and output = [0.0; 4]
+- [R] `475`: when ternary_matmul(input, weights, output, 4, 4)
+- [R] `476`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0 and output[3] == 4.0
+- [R] `479`: given input = [1.0, 2.0, 3.0, 4.0]
+- [R] `480`: and weights = [Trit.neg, Trit.neg, Trit.neg, Trit.neg,
+- [R] `484`: and output = [0.0; 4]
+- [R] `485`: when ternary_matmul(input, weights, output, 4, 4)
+- [R] `486`: then output[0] == -10.0 and output[1] == -10.0 and output[2] == -10.0 and output[3] == -10.0
+- [R] `489`: given output = [5.0, 10.0, 15.0, 20.0]
+- [R] `490`: and input = [2.0, 4.0, 6.0, 8.0]
+- [R] `491`: when add_residual(output, input)
+- [R] `492`: then output[0] == 7.0 and output[1] == 14.0 and output[2] == 21.0 and output[3] == 28.0
 - [D] `495`: given scores = [1.0, 2.0, 3.0, 4.0]
 - [D] `496`: and buffers = AttentionBuffers{...}
 - [D] `497`: when buffers.scores[0..4] = scores
@@ -22173,48 +22174,48 @@ honest current loss set is the 1,589 below.)
 - [R] `894`: when result = attention_forward(config, seq_len)
 - [R] `895`: then elapsed_time_ms < 5
 
-## specs/nn/gla.t27 — 16 scenario(s), 62 line(s), 41 dropped under 0005
-- [D] `381`: given hs = GlaHeadState{
-- [D] `385`: and g = [0.0; HEAD_DIM]
-- [D] `386`: and k = [1.0; HEAD_DIM]
-- [D] `387`: and v = [1.0; HEAD_DIM]
-- [D] `388`: when gla_state_update(&hs, g, k, v)
-- [D] `390`: then hs.S[0] == 1.0 and hs.S[HEAD_DIM - 1] == 1.0
-- [D] `394`: given hs = GlaHeadState{
-- [D] `398`: and g = [1.0; HEAD_DIM]
-- [D] `399`: and k = [1.0; HEAD_DIM]
-- [D] `400`: and v = [0.5; HEAD_DIM]
-- [D] `401`: when gla_state_update(&hs, g, k, v)
-- [D] `403`: then abs(hs.S[0] - 0.5) < 1e-9
-- [D] `407`: given hs = GlaHeadState{
-- [D] `411`: and q = [0.0; HEAD_DIM]
-- [D] `412`: and out = [0.0; HEAD_DIM]
-- [D] `413`: when gla_state_read(&hs, q, &out)
-- [D] `415`: then out[0] == 0.0 and out[HEAD_DIM - 1] == 0.0
-- [D] `420`: given hs = GlaHeadState{
-- [D] `424`: and k = [1.0, 0.0; rest 0.0]   // unit basis e0
-- [D] `425`: and v = [1.0, 0.0; rest 0.0]
-- [D] `426`: and g = [1.0; HEAD_DIM]
-- [D] `427`: and q = [1.0, 0.0; rest 0.0]
-- [D] `428`: and out = [0.0; HEAD_DIM]
-- [D] `429`: when gla_state_update(&hs, g, k, v)
-- [D] `430`: and gla_state_read(&hs, q, &out)
-- [D] `431`: then abs(out[0] - 1.0) < 1e-9   // z.q = 1.0, so denom = 1.0; S@q = 1.0
-- [D] `436`: given g = [0.0; 1]
-- [D] `437`: when apply_gate_act(&g, GateAct::Sigmoid)
-- [D] `438`: then abs(g[0] - 0.5) < 1e-9
-- [D] `441`: given g = [100.0; 1]
-- [D] `442`: when apply_gate_act(&g, GateAct::Sigmoid)
-- [D] `443`: then abs(g[0] - 1.0) < 1e-6
-- [D] `446`: given g = [-100.0; 1]
-- [D] `447`: when apply_gate_act(&g, GateAct::Sigmoid)
-- [D] `448`: then g[0] < 0.001 and g[0] >= 0.0
-- [D] `451`: given g = [0.0; 1]
-- [D] `452`: when apply_gate_act(&g, GateAct::Swish)
-- [D] `453`: then g[0] == 0.0
-- [D] `458`: given v = [2.0, 4.0, 6.0]
-- [D] `459`: when scale_vec(&v, 0.5)
-- [D] `460`: then abs(v[0] - 1.0) < 1e-12 and abs(v[1] - 2.0) < 1e-12 and abs(v[2] - 3.0) < 1e-12
+## specs/nn/gla.t27 — 16 scenario(s), 62 line(s), 0 dropped under 0011
+- [R] `381`: given hs = GlaHeadState{
+- [R] `385`: and g = [0.0; HEAD_DIM]
+- [R] `386`: and k = [1.0; HEAD_DIM]
+- [R] `387`: and v = [1.0; HEAD_DIM]
+- [R] `388`: when gla_state_update(&hs, g, k, v)
+- [R] `390`: then hs.S[0] == 1.0 and hs.S[HEAD_DIM - 1] == 1.0
+- [R] `394`: given hs = GlaHeadState{
+- [R] `398`: and g = [1.0; HEAD_DIM]
+- [R] `399`: and k = [1.0; HEAD_DIM]
+- [R] `400`: and v = [0.5; HEAD_DIM]
+- [R] `401`: when gla_state_update(&hs, g, k, v)
+- [R] `403`: then abs(hs.S[0] - 0.5) < 1e-9
+- [R] `407`: given hs = GlaHeadState{
+- [R] `411`: and q = [0.0; HEAD_DIM]
+- [R] `412`: and out = [0.0; HEAD_DIM]
+- [R] `413`: when gla_state_read(&hs, q, &out)
+- [R] `415`: then out[0] == 0.0 and out[HEAD_DIM - 1] == 0.0
+- [R] `420`: given hs = GlaHeadState{
+- [R] `424`: and k = [1.0, 0.0; rest 0.0]   // unit basis e0
+- [R] `425`: and v = [1.0, 0.0; rest 0.0]
+- [R] `426`: and g = [1.0; HEAD_DIM]
+- [R] `427`: and q = [1.0, 0.0; rest 0.0]
+- [R] `428`: and out = [0.0; HEAD_DIM]
+- [R] `429`: when gla_state_update(&hs, g, k, v)
+- [R] `430`: and gla_state_read(&hs, q, &out)
+- [R] `431`: then abs(out[0] - 1.0) < 1e-9   // z.q = 1.0, so denom = 1.0; S@q = 1.0
+- [R] `436`: given g = [0.0; 1]
+- [R] `437`: when apply_gate_act(&g, GateAct::Sigmoid)
+- [R] `438`: then abs(g[0] - 0.5) < 1e-9
+- [R] `441`: given g = [100.0; 1]
+- [R] `442`: when apply_gate_act(&g, GateAct::Sigmoid)
+- [R] `443`: then abs(g[0] - 1.0) < 1e-6
+- [R] `446`: given g = [-100.0; 1]
+- [R] `447`: when apply_gate_act(&g, GateAct::Sigmoid)
+- [R] `448`: then g[0] < 0.001 and g[0] >= 0.0
+- [R] `451`: given g = [0.0; 1]
+- [R] `452`: when apply_gate_act(&g, GateAct::Swish)
+- [R] `453`: then g[0] == 0.0
+- [R] `458`: given v = [2.0, 4.0, 6.0]
+- [R] `459`: when scale_vec(&v, 0.5)
+- [R] `460`: then abs(v[0] - 1.0) < 1e-12 and abs(v[1] - 2.0) < 1e-12 and abs(v[2] - 3.0) < 1e-12
 - [R] `463`: given cfg = gla_config_from_race(256, 4, 64)
 - [R] `464`: then cfg.head_dim == 64   // 256 / 4
 - [R] `467`: given cfg = gla_config_from_race(256, 4, 64)
@@ -22237,7 +22238,7 @@ honest current loss set is the 1,589 below.)
 - [R] `535`: and out = [0.0; HEAD_DIM]
 - [R] `536`: and gla_state_read(&hs, q, &out)
 
-## specs/nn/hslm.t27 — 30 scenario(s), 90 line(s), 55 dropped under 0005
+## specs/nn/hslm.t27 — 30 scenario(s), 90 line(s), 14 dropped under 0011
 - [R] `414`: given layers = NUM_LAYERS
 - [R] `415`: then layers == 6
 - [R] `418`: given heads = NUM_HEADS
@@ -22260,47 +22261,47 @@ honest current loss set is the 1,589 below.)
 - [R] `449`: then a != b and b != c and c != d
 - [R] `452`: given a = PHASE_FORWARD and b = PHASE_BACKWARD and c = PHASE_UPDATE
 - [R] `453`: then a != b and b != c
-- [D] `456`: given hslm_phase(PHASE_FORWARD)
-- [D] `457`: and mode = get_hslm_mode()
-- [D] `458`: then mode == 1
-- [D] `461`: given hslm_phase(PHASE_BACKWARD)
-- [D] `462`: and mode = get_hslm_mode()
-- [D] `463`: then mode == 2
-- [D] `466`: given hslm_phase(PHASE_UPDATE)
-- [D] `467`: and mode = get_hslm_mode()
-- [D] `468`: then mode == 3
-- [D] `471`: given x = [1.0, 2.0, 3.0, 4.0, 5.0]
-- [D] `472`: and gamma = [1.0, 1.0, 1.0, 1.0, 1.0]
-- [D] `473`: and len_before = x.len()
-- [D] `474`: when rms_norm_forward(x, gamma)
-- [D] `475`: then x.len() == len_before
-- [D] `478`: given x = [0.0, 0.0, 0.0]
-- [D] `479`: and gamma = [1.0, 1.0, 1.0]
-- [D] `480`: when rms_norm_forward(x, gamma)
-- [D] `481`: then x[0] == 0.0 and x[1] == 0.0 and x[2] == 0.0
-- [D] `484`: given input = [1.0, 2.0, 3.0]
-- [D] `485`: and weights = [Trit.pos, Trit.zero, Trit.zero,
-- [D] `488`: and output = [0.0; 3]
-- [D] `489`: when ternary_matmul(input, weights, output, 3, 3)
-- [D] `490`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0
-- [D] `493`: given input = [1.0, 2.0, 3.0]
-- [D] `494`: and weights = [Trit.neg, Trit.neg, Trit.neg,
-- [D] `497`: and output = [0.0; 3]
-- [D] `498`: when ternary_matmul(input, weights, output, 3, 3)
-- [D] `499`: then output[0] == -6.0 and output[1] == -6.0 and output[2] == -6.0
-- [D] `502`: given x = [1.0, 2.0, -1.0, 0.0]
-- [D] `503`: and len_before = x.len()
-- [D] `504`: when gelu_activation(x)
-- [D] `505`: then x.len() == len_before
-- [D] `508`: given x = [1.0; 10]
-- [D] `509`: when gelu_activation(x)
-- [D] `510`: then x[0] > 0.0
-- [D] `513`: given x = [0.0]
-- [D] `514`: when gelu_activation(x)
-- [D] `515`: then abs(x[0]) < 0.0001
-- [D] `518`: given x = [-1.0]
-- [D] `519`: when gelu_activation(x)
-- [D] `520`: then x[0] < 0.0
+- [R] `456`: given hslm_phase(PHASE_FORWARD)
+- [R] `457`: and mode = get_hslm_mode()
+- [R] `458`: then mode == 1
+- [R] `461`: given hslm_phase(PHASE_BACKWARD)
+- [R] `462`: and mode = get_hslm_mode()
+- [R] `463`: then mode == 2
+- [R] `466`: given hslm_phase(PHASE_UPDATE)
+- [R] `467`: and mode = get_hslm_mode()
+- [R] `468`: then mode == 3
+- [R] `471`: given x = [1.0, 2.0, 3.0, 4.0, 5.0]
+- [R] `472`: and gamma = [1.0, 1.0, 1.0, 1.0, 1.0]
+- [R] `473`: and len_before = x.len()
+- [R] `474`: when rms_norm_forward(x, gamma)
+- [R] `475`: then x.len() == len_before
+- [R] `478`: given x = [0.0, 0.0, 0.0]
+- [R] `479`: and gamma = [1.0, 1.0, 1.0]
+- [R] `480`: when rms_norm_forward(x, gamma)
+- [R] `481`: then x[0] == 0.0 and x[1] == 0.0 and x[2] == 0.0
+- [R] `484`: given input = [1.0, 2.0, 3.0]
+- [R] `485`: and weights = [Trit.pos, Trit.zero, Trit.zero,
+- [R] `488`: and output = [0.0; 3]
+- [R] `489`: when ternary_matmul(input, weights, output, 3, 3)
+- [R] `490`: then output[0] == 1.0 and output[1] == 2.0 and output[2] == 3.0
+- [R] `493`: given input = [1.0, 2.0, 3.0]
+- [R] `494`: and weights = [Trit.neg, Trit.neg, Trit.neg,
+- [R] `497`: and output = [0.0; 3]
+- [R] `498`: when ternary_matmul(input, weights, output, 3, 3)
+- [R] `499`: then output[0] == -6.0 and output[1] == -6.0 and output[2] == -6.0
+- [R] `502`: given x = [1.0, 2.0, -1.0, 0.0]
+- [R] `503`: and len_before = x.len()
+- [R] `504`: when gelu_activation(x)
+- [R] `505`: then x.len() == len_before
+- [R] `508`: given x = [1.0; 10]
+- [R] `509`: when gelu_activation(x)
+- [R] `510`: then x[0] > 0.0
+- [R] `513`: given x = [0.0]
+- [R] `514`: when gelu_activation(x)
+- [R] `515`: then abs(x[0]) < 0.0001
+- [R] `518`: given x = [-1.0]
+- [R] `519`: when gelu_activation(x)
+- [R] `520`: then x[0] < 0.0
 - [D] `523`: given buffers = LayerBuffers{...}
 - [D] `524`: and weights = LayerWeights{...}
 - [D] `525`: when buffers.output = [1.0; EMBED_DIM]
@@ -22329,7 +22330,7 @@ honest current loss set is the 1,589 below.)
 - [R] `600`: and delta2 = x[2] - x[1]
 - [R] `605`: given mode = get_hslm_mode()
 
-## specs/numeric/e8m0.t27 — 18 scenario(s), 36 line(s), 0 dropped under 0005
+## specs/numeric/e8m0.t27 — 18 scenario(s), 36 line(s), 0 dropped under 0011
 - [R] `146`: given e = e8m0_exponent(E8M0_ONE)
 - [R] `147`: then e == 0
 - [R] `150`: given e = e8m0_exponent(E8M0_MIN_FINITE)
@@ -22367,7 +22368,7 @@ honest current loss set is the 1,589 below.)
 - [R] `220`: given r = on_comb(E8M0_NAN_CODE)
 - [R] `221`: then r == 255
 
-## specs/numeric/gf4.t27 — 21 scenario(s), 67 line(s), 3 dropped under 0005
+## specs/numeric/gf4.t27 — 21 scenario(s), 67 line(s), 3 dropped under 0011
 - [R] `160`: given gf = GF4{ raw = 0b0000 }
 - [R] `161`: when value = decode(gf)
 - [R] `162`: then value == 0.0
@@ -22436,7 +22437,7 @@ honest current loss set is the 1,589 below.)
 - [R] `295`: when has_sign = (result.raw & 0b1000) != 0
 - [R] `296`: then has_sign == true
 
-## specs/numeric/gf64.t27 — 9 scenario(s), 21 line(s), 0 dropped under 0005
+## specs/numeric/gf64.t27 — 9 scenario(s), 21 line(s), 0 dropped under 0011
 - [R] `160`: given gf = GF64{ raw = 0 }
 - [R] `161`: when value = decode(gf)
 - [R] `162`: then value == 0.0
@@ -22459,7 +22460,7 @@ honest current loss set is the 1,589 below.)
 - [R] `196`: given valid = validate_format()
 - [R] `197`: then valid == true
 
-## specs/numeric/lucas_accumulator.t27 — 9 scenario(s), 27 line(s), 1 dropped under 0005
+## specs/numeric/lucas_accumulator.t27 — 9 scenario(s), 27 line(s), 1 dropped under 0011
 - [R] `81`: given acc = phi_acc(0)
 - [R] `82`: and   l   = lucas(0)
 - [R] `83`: then abs_f64(acc - (l as f64)) < TOL_F64   // 2.0
@@ -22488,7 +22489,7 @@ honest current loss set is the 1,589 below.)
 - [R] `135`: when  _ = lucas(k)
 - [R] `136`: then elapsed_time_ns < 200
 
-## specs/numeric/posit_ladder_control.t27 — 3 scenario(s), 10 line(s), 3 dropped under 0005
+## specs/numeric/posit_ladder_control.t27 — 3 scenario(s), 10 line(s), 3 dropped under 0011
 - [D] `96`: then ok == true
 - [D] `105`: then ok == true
 - [D] `116`: then ok == true
@@ -22500,7 +22501,7 @@ honest current loss set is the 1,589 below.)
 - [R] `138`: when  _ = useed(es)
 - [R] `139`: then elapsed_time_ns < 200
 
-## specs/physics/gamma_conjecture.t27 — 19 scenario(s), 56 line(s), 0 dropped under 0005
+## specs/physics/gamma_conjecture.t27 — 19 scenario(s), 56 line(s), 0 dropped under 0011
 - [R] `122`: given gamma_expected = pow(PHI, -3.0)
 - [R] `123`: and   gamma_actual = GAMMA_PHI
 - [R] `124`: then abs(gamma_expected - gamma_actual) < 1e-15
@@ -22558,7 +22559,7 @@ honest current loss set is the 1,589 below.)
 - [R] `253`: given scale = 1.0
 - [R] `258`: given scale = 1.0
 
-## specs/physics/gi1_analysis.t27 — 14 scenario(s), 37 line(s), 0 dropped under 0005
+## specs/physics/gi1_analysis.t27 — 14 scenario(s), 37 line(s), 0 dropped under 0011
 - [R] `131`: given complexity = STRUCTURAL_COMPLEXITY_PHI
 - [R] `132`: then complexity == 3.0
 - [R] `135`: given complexity_phi = STRUCTURAL_COMPLEXITY_PHI
@@ -22597,7 +22598,7 @@ honest current loss set is the 1,589 below.)
 - [R] `211`: and report.hb_numerical_proximity == true
 - [R] `212`: and report.hc_gamma_uniqueness == true
 
-## specs/physics/pellis-formulas.t27 — 1 scenario(s), 10 line(s), 0 dropped under 0005
+## specs/physics/pellis-formulas.t27 — 1 scenario(s), 10 line(s), 0 dropped under 0011
 - [R] `42`: then trinity_anchor_error() < 1e-12
 - [R] `45`: then matches_sacred_trinity() < 1e-12
 - [R] `48`: then abs(PHI_POW_FIVE - ALPHA_INV_REFERENCE) > 1.0
@@ -22609,7 +22610,7 @@ honest current loss set is the 1,589 below.)
 - [R] `60`: then ALPHA_INV_REFERENCE > 100.0
 - [R] `61`: and   ALPHA_INV_REFERENCE < 200.0
 
-## specs/physics/su2_chern_simons.t27 — 18 scenario(s), 45 line(s), 0 dropped under 0005
+## specs/physics/su2_chern_simons.t27 — 18 scenario(s), 45 line(s), 0 dropped under 0011
 - [R] `217`: given fm = fibonacci_fusion_matrix()
 - [R] `218`: then fm.entries[0][0] == 0
 - [R] `219`: and  fm.entries[0][1] == 1
@@ -22656,7 +22657,7 @@ honest current loss set is the 1,589 below.)
 - [R] `326`: given f20 = fibonacci_hilbert_dim(20)
 - [R] `327`: and   f19 = fibonacci_hilbert_dim(19)
 
-## specs/physics/zamolodchikov_4d_conjecture.t27 — 5 scenario(s), 11 line(s), 0 dropped under 0005
+## specs/physics/zamolodchikov_4d_conjecture.t27 — 5 scenario(s), 11 line(s), 0 dropped under 0011
 - [R] `218`: given theory = mn_e8_theory()
 - [R] `219`: then abs(theory.central_charge_a - 95.0/24.0) < 1.0e-10
 - [R] `220`: and  abs(theory.central_charge_c - 31.0/6.0) < 1.0e-10
@@ -22669,7 +22670,7 @@ honest current loss set is the 1,589 below.)
 - [R] `233`: then bridge.gauge_algebra == "E8"
 - [R] `243`: given bridge = conjectured_bridge()
 
-## specs/pins/emitter_xdc.t27 — 24 scenario(s), 51 line(s), 0 dropped under 0005
+## specs/pins/emitter_xdc.t27 — 24 scenario(s), 51 line(s), 0 dropped under 0011
 - [R] `183`: given out = empty_xdc()
 - [R] `184`: then line_count(out) == 0
 - [R] `187`: given out = empty_xdc()
@@ -22722,7 +22723,7 @@ honest current loss set is the 1,589 below.)
 - [R] `280`: given out = qmtech_xc7a100t_minimal()
 - [R] `284`: given out = arty_a7_minimal()
 
-## specs/queen/brain_summaries.t27 — 0 scenario(s), 20 line(s), 20 dropped under 0005
+## specs/queen/brain_summaries.t27 — 0 scenario(s), 20 line(s), 20 dropped under 0011
 - [D] `243`: when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
 - [D] `244`: then result.episodes_count == 0
 - [D] `245`: and result.total_cycles == 0
@@ -22744,7 +22745,7 @@ honest current loss set is the 1,589 below.)
 - [D] `305`: when quality = determine_quality(summary)
 - [D] `306`: then quality == lotus.QUALITY_BAD
 
-## specs/queen/lotus.t27 — 37 scenario(s), 87 line(s), 11 dropped under 0005
+## specs/queen/lotus.t27 — 37 scenario(s), 87 line(s), 11 dropped under 0011
 - [R] `581`: given phases = NUM_PHASES
 - [R] `582`: then phases == 6
 - [R] `585`: given a = PHASE_OBSERVE and b = PHASE_RECALL and c = PHASE_EVALUATE
@@ -22833,7 +22834,7 @@ honest current loss set is the 1,589 below.)
 - [R] `768`: and   idx = 0
 - [R] `769`: and   valid = idx < recalled.count and recalled.episodes[idx] < EPISODE_BUFFER_SIZE
 
-## specs/tools/tri_to_t27_converter.t27 — 33 scenario(s), 104 line(s), 9 dropped under 0005
+## specs/tools/tri_to_t27_converter.t27 — 33 scenario(s), 104 line(s), 9 dropped under 0011
 - [D] `199`: given content = "name: test_algo\\nversion: \\"1.0\\""
 - [D] `200`: when spec = parse_tri_file(content)
 - [D] `201`: then spec.name == "test_algo"
@@ -22939,7 +22940,7 @@ honest current loss set is the 1,589 below.)
 - [R] `383`: when result = route_file(input)
 - [R] `384`: then elapsed_time_ns < 100
 
-## specs/vsa/ops.t27 — 44 scenario(s), 193 line(s), 0 dropped under 0005
+## specs/vsa/ops.t27 — 44 scenario(s), 193 line(s), 0 dropped under 0011
 - [R] `279`: given a = [Trit.zero, Trit.pos, Trit.neg]
 - [R] `280`: and   b = [Trit.pos, Trit.zero, Trit.neg]
 - [R] `281`: when result = bind(a, b, 3)
@@ -23134,7 +23135,7 @@ honest current loss set is the 1,589 below.)
 - [R] `639`: and   unbound = coptic_unbind(bound, key)
 - [R] `640`: then hamming_distance(unbound, x) == 0
 
-## specs/vsa/sdk.t27 — 30 scenario(s), 114 line(s), 14 dropped under 0005
+## specs/vsa/sdk.t27 — 30 scenario(s), 114 line(s), 16 dropped under 0011
 - [R] `309`: given result = hypervector_zero(10)
 - [R] `310`: when dim = result.data.get_dimension()
 - [R] `311`: then dim == 0
@@ -23152,8 +23153,8 @@ honest current loss set is the 1,589 below.)
 - [R] `331`: then unbound.data == a.data
 - [R] `334`: given a = hypervector_random(50, 123)
 - [R] `335`: and b = hypervector_random(50, 98765)
-- [R] `337`: when unbound = hypervector_unbind(bound, a)
-- [R] `338`: then unbound.data == a.data
+- [D] `337`: when unbound = hypervector_unbind(bound, a)
+- [D] `338`: then unbound.data == a.data
 - [R] `341`: given a = hypervector_random(50, 123)
 - [R] `342`: and b = hypervector_random(50, 54321)
 - [R] `343`: and c = hypervector_random(50, 87654)
@@ -23250,7 +23251,7 @@ honest current loss set is the 1,589 below.)
 - [D] `559`: when clone = hypervector_clone(a)
 - [D] `560`: then clone.label == a.label;
 
-## specs/vsa/similarity_search.t27 — 0 scenario(s), 17 line(s), 17 dropped under 0005
+## specs/vsa/similarity_search.t27 — 0 scenario(s), 17 line(s), 17 dropped under 0011
 - [D] `302`: when result = cosine_similarity(&a, &b, 5)
 - [D] `303`: then abs(result - 1.0) < 1e-10
 - [D] `309`: when result = cosine_similarity(&a, &b, 5)
