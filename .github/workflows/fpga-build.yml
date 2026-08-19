@@ -364,7 +364,9 @@ jobs:
         run: |
           if [ ! -f ~/prjxray-build/xc7frames2bit ]; then
             cd ~
-            git clone https://github.com/SymbiFlow/prjxray.git
+            # prjxray keeps yaml-cpp and friends as submodules -- a bare clone has no
+              # CMakeLists for them and cmake dies on target yaml-cpp.
+              git clone --recursive --depth 1 --shallow-submodules https://github.com/SymbiFlow/prjxray.git
             cd prjxray
             mkdir build && cd build
             cmake ..
