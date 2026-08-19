@@ -20,6 +20,7 @@ Compiler commands (forwarded to t27c):
 Local commands (no compiler needed):
   tri audit                   every pre-wave invariant in one exit code (disk, tree, push, numbering)
   tri recall PATTERN          search lesson and theorem HEADINGS for a pattern
+  tri last [N]                the N most recent lessons and theorems (default 5)
   tri cells TOP FILE.v ...    cell census of a Verilog top via local yosys (LUT/CARRY4/MUXF/FF)
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
@@ -137,6 +138,22 @@ case "$cmd" in
         printf "%s: LUT %d  CARRY4 %d  MUXF %d  FF %d  (LUT+CARRY4 = %d)\n", top, lut, cy, mux, ff, lut + cy
       }' "$log"
     rm -f "$log"
+    exit 0
+    ;;
+
+  last)
+    # What did the previous waves conclude? The loop re-reads this constantly and
+    # the files are 12k and 28k lines, so tail-with-context is the wrong tool.
+    n="${2:-5}"
+    case "$n" in ''|*[!0-9]*) die "last: N must be a number";; esac
+    if [ -f "$WAVE_SKILL" ]; then
+      echo "== last $n lessons"
+      grep -nE '^\*\*[0-9]+\.[[:space:]]' "$WAVE_SKILL" | tail -"$n" | cut -c1-150 | sed 's/^/  /'
+    fi
+    if [ -f "$THEORY_DOC" ]; then
+      echo "== last $n theorems"
+      grep -nE '^#{2,4} T[0-9]+[a-z]* ' "$THEORY_DOC" | tail -"$n" | cut -c1-150 | sed 's/^/  /'
+    fi
     exit 0
     ;;
 

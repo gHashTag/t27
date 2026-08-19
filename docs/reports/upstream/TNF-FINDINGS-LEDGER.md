@@ -340,3 +340,50 @@ carries a real task number with a width sweep and a scaling ablation. Area and
 accuracy exist in one document for the first time: TNF decodes in **2 cells**
 against fp8's 12 and posit16's 125, and at four bits it is the format that holds
 its accuracy.
+
+
+## 13. W939 — the 4-bit result becomes significant, and the alphabet turns out to be the argument
+
+Landed as **tf#640** with both records and both rigs.
+
+### Five seeds, two tasks, paired
+
+| task | TNF4 − fp4 e2m1, per seed | mean | SE | t (df=4) |
+|---|---|---:|---:|---:|
+| MNIST (base 93.76 ± 0.36) | +5.48, +5.81, +5.10, +8.55, +17.08 | **+8.40** | 2.25 | **3.7** |
+| Fashion (base 84.20 ± 0.29) | +20.17, +49.23, +13.23, +23.46, +32.64 | **+27.75** | 6.21 | **4.5** |
+
+Both p < 0.05, **5 of 5 seeds each**, and the effect is **3.3× larger on the harder
+task** — the evidence that it is not an artefact (T782). Sixteen bits still
+resolves nothing; the single 8-bit difference that passes a paired test (GF8 over
+fp8 e5m2, +0.12 pp, t = 3.8) is real and irrelevant, and the report says both
+halves. The losing formats are **unstable, not merely worse**: σ = 13.95 pp on
+Fashion against TNF4's 0.51. GF4 and fp4 e2m1 agree to the digit on every seed of
+both tasks — one lattice printed twice.
+
+### What the consumer pays for
+
+Each decoder measured bare and behind an identical 12×8 multiply:
+
+| format | in bits | decoder | +multiply | the multiply alone |
+|---|---:|---:|---:|---:|
+| GFTernary | 2 | 2.000 | 6.104 | **4.104** |
+| fp8 e4m3 | 8 | 12.000 | 141.739 | 129.739 |
+| TNF16 | 16 | 2.000 | 384.417 | 382.417 |
+| BNF16 | 16 | 10.000 | 392.417 | 382.417 |
+| posit16 | 16 | 125.000 | 507.452 | 382.452 |
+
+**The decode gap survives fusion exactly** — TNF16 vs BNF16 is 8.000 cells bare and
+8.000 fused — so the surrounding logic does not absorb the format difference, and
+the LUT-absorption objection does not erase it. **But it is 2 % of the unit.**
+
+**And the consumer's own cost is set by the alphabet:** identical RTL costs 382.4
+cells behind 16 input bits, 129.7 behind 8, and **4.1 behind a two-bit alphabet**.
+That is **93× on the consumer against 8 cells on the decoder** (T783). The
+strongest area argument available is not "our decoder is cheap" but "our alphabet
+makes everything downstream cheap" — quoted, honestly, as a width effect against
+the accuracy that width costs.
+
+**Readiness 47 % → 52 %.** The accuracy axis now carries a paired, multi-seed,
+two-task result at p < 0.05, and the area argument has both a denominator and a
+larger effect to lead with.

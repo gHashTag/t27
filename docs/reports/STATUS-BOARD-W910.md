@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W938, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W939, 2026-08-20)
+
+> **W939 — THE 4-BIT RESULT IS NOW SIGNIFICANT, AND THE ALPHABET IS THE ARGUMENT.**
+> Five seeds, MNIST and Fashion-MNIST, paired: TNF4 − fp4 e2m1 = **+8.40 pp
+> (t = 3.7)** and **+27.75 pp (t = 4.5)**, 5/5 seeds each, p < 0.05 — and the effect
+> is **3.3× larger on the harder task**, which is how you know it is real. The
+> losing formats are unstable, not merely worse (σ 13.95 pp against 0.51).
+>
+> And the fusion test: the decode gap **survives exactly** (TNF16 vs BNF16 is
+> 8.000 cells bare and 8.000 fused), so the LUT-absorption objection does not erase
+> it — **but it is 2 % of the unit**, and the consumer's own cost is set by the
+> **alphabet**: 382.4 cells behind 16 input bits, 4.1 behind two. **93× on the
+> consumer against 8 cells on the decoder.** Landed as **tf#640**. **Readiness
+> 47 % → 52 %.** Theorems T782–T783; lessons 1413–1414; `tri last` added.
 
 > **W938 — THE ACCURACY COORDINATE EXISTS.** `top-1`, `ImageNet`, `CIFAR`, `MNIST`
 > were 0 hits in 7,858 lines. Now: MNIST 784-32-10 MLP, fp32 **93.39 %**, weights
