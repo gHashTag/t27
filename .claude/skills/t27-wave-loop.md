@@ -12405,6 +12405,8 @@ a worktree in the same wave its branch merges.
 
 **1409. FETCH THE COMPETITOR'S RTL BEFORE ARGUING ABOUT YOUR MODEL OF IT.** Nine waves were spent auditing a comparison whose every baseline was the author's own reimplementation. The field's reference posit hardware (PACoGen) is public Verilog: one curl, one wrapper, four synthesis runs. It returned two facts nobody had -- the reimplemented posit decoder is sound (125 cells against the reference's 92 for an extraction stage that does strictly less work), and the operator-level advantage is 1.23x where the paper claims 6.1x from decoder models. Both directions were useful and neither was predictable. When a comparison rests on your model of someone else's design, the cheapest experiment in the entire project is downloading theirs; do it before writing the third paragraph of criticism about the model.
 
+**1410. A DUPLICATE YAML KEY IS DROPPED IN SILENCE, SO ASSERT ON THE PARSE AND NOT ON THE DIFF.** A patch added a workflow input by inserting a fresh `inputs:` block, and the file then carried two `inputs:` keys under one `workflow_dispatch:`. YAML resolved it by keeping the last and discarding the first, the parser reported the document valid, the diff looked exactly like the intended change, and the new input simply did not exist. It was caught by asserting on the PARSED input names -- `assert 'fmax_search' in d[True]['workflow_dispatch']['inputs']` -- rather than on the text. For any format with last-key-wins semantics (YAML, JSON, ini, .env), a syntax check is not a check: read back the structure you meant to create and assert on it.
+
 ### How to update this tracker
 
 After closing a wave:
