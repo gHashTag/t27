@@ -28464,6 +28464,39 @@ standard error near 0.16 pp. The instrument that resolves a 64-point separation 
 four bits sees nothing at eight -- so the null is a property of the width, not of a
 task that was too easy.
 
+### T785 -- THE FRONTIER IS PRICED IN PHYSICAL BITS, AND A RUNG'S NAME IS NOT ITS WIDTH [measured]
+
+Fourteen decoders, each priced alone and behind an identical 12x8 multiply whose
+Verilog never changes. The multiply's own surviving cost, by alphabet width:
+
+    2 bits -> 3.43 cells | 8 -> 128.31 | 10 -> 212.57 | 14 -> 341.29 | 16 -> 385.14
+
+Monotone, spanning 112x. Joined with the five-seed accuracy runs on the
+269k-parameter network:
+
+    fp8 e4m3    8 physical bits   138.57 cells   -0.00 pp MNIST  -0.01 Fashion
+    fp8 e5m2    8                 138.57         -0.02           -0.04
+    TNF8       10                 230.57         -0.00           -0.02
+
+At zero accuracy loss the cheapest measured format is fp8, and TNF8 costs 1.66x
+more -- not because its decoder is expensive (18 cells against 12) but because it
+STORES TEN BITS. The consumer is priced by physical width, and the decoder is 2% of
+the consumer, so the decode advantage cannot pay for two extra bits of alphabet.
+
+The general statement: when a component's cost is dominated by what its output
+width does downstream, the frontier is a function of physical width alone, and any
+naming convention that lets a format be quoted at less than its width will invert
+the ordering the frontier reports. This project's own manuscript concedes the
+premise -- the rungs store more bits than their names -- and this is the
+consequence: a name-matched table flatters, a width-matched table decides.
+
+Where the ordering flips is where accuracy stops being flat. At four bits, fp4 e2m1
+loses 38 to 65 points across two tasks and two network sizes while TNF4 holds
+within 0.33 pp, so the comparison is no longer cost-versus-cost: one option is not
+cheaper, it is unusable. The honest pair of sentences is therefore -- above four
+bits choose on cost, and fp8 wins by being genuinely eight bits wide; at four bits
+choose on survival, and TNF4 is what survives.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
