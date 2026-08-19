@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:c5395d3a1fc030b7df5484de251f67637cc7b11286576695a675a04de0de4c3a",
-  "gen_hash_rust": "sha256:c3a88d2d45ffdbb03b1bb69a94e54761e1f275234083573f39cda23b24a3bffd",
-  "gen_hash_verilog": "sha256:192dda32544fa9fe514e4008ef93148ccbac93e180f2bceff60b3e0aff74e4f2",
-  "gen_hash_zig": "sha256:c4347933c723230bd82c01dcc3cbc2de7f093b6bb4be248469b757040b86f279",
+  "gen_hash_c": "sha256:b625ecd7935136daacc7cbe27e805f6875386b32d617af1b086660d15dc11966",
+  "gen_hash_rust": "sha256:7081afea82d7ed9e03c5a9e9ddc3151277d54a3c2c2455322321013f6c5e3437",
+  "gen_hash_verilog": "sha256:106cbcbf4603e3f5ec3afca2332d56d103417e0941acd13f1d680e9a5c773b70",
+  "gen_hash_zig": "sha256:9ac018561458097182c54b05b31831f4717e00a3facfa4471c129222287bd3b0",
   "module": "SelfAttention",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:46Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:20563b5638a432017af358e732d4c4b864b29c17d2d521cfe2a807d49d0387a9",
   "spec_path": "specs/ml/recurrent/self_attention.t27"
 }

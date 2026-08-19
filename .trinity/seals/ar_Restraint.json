@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:c811484fa927e422aeab2864aa9ffd249d6f0b445ed50cca2cd71161f4274594",
-  "gen_hash_rust": "sha256:8be25b22f059965752fab98bcc0c3ae3286ab3398a6133b1de9a4e31ee312ef3",
-  "gen_hash_verilog": "sha256:cf3f61060a38997b57c4f51e42d5391017d7d25367a33ef68a22665c8eaa6ea8",
-  "gen_hash_zig": "sha256:adb19d5c928e0cf9226f442b39afb3c9eb996d35dce73bee8f3968d4c142d4b2",
+  "gen_hash_c": "sha256:cbced1306b6b1ea1a9dbdbea063fa4b6afb02c78370ab667efef1846783a795f",
+  "gen_hash_rust": "sha256:f518e7e5442502aa603a80020e6cc391671f559f49769acb0b5b2f9edf968719",
+  "gen_hash_verilog": "sha256:ead9632de495e2da67289f95d5e919e87e47a4c700fa960d4e2c6696482de346",
+  "gen_hash_zig": "sha256:8cebb9b3fb1a648fa36c0c3889d3d96665344263047bed83e1a27a0187d0afbd",
   "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-08-18T20:06:58Z",
+  "sealed_at": "2026-08-19T13:19:42Z",
   "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:3bb0ac54f93b9e634edcff94be2b49a1ed578791302ca8ecd3ad730a2b2713f0",
+  "spec_hash": "sha256:16e0b95c56b6f741cfc33408599e59d912bd99755fed0f68107e3b97868080d2",
   "spec_path": "specs/ar/restraint.t27"
 }

@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:012c5c96d675a57a7c88b89ec366d4087bf183924a5f052fa0afa6f4ab8c3218",
+  "gen_hash_rust": "sha256:753f0c591227aec008d591b24b9bbc58da2d9324dec327282da3a59d3c4ce723",
+  "gen_hash_verilog": "sha256:8b60a6288605ee35f4b75f5f7ff4ff9b717ba541636f2fb49750bf12753e4b40",
+  "gen_hash_zig": "sha256:5614c5d61e407eb54b6811e9abefb014006beed5db20b3ccb6757c46c8ccf48f",
+  "module": "IglaRacePhiGainFreedom",
+  "ring": 12,
+  "sealed_at": "2026-08-19T13:19:44Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:dec9b077038cb5c9d026a86b55e7cc667cd45217eb1aa208b6da83b866fdee22",
+  "spec_path": "specs/igla/race/phi_gain_freedom.t27"
+}

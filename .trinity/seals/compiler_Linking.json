@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:bfee778309dbd45d8250dc758f2dbba248217683cfac48fa19b79e3268c013cc",
-  "gen_hash_rust": "sha256:1295851e4bb16c6d4056aa163fd1a29f9cf94436feffae8f0c70ec227ee56ff2",
-  "gen_hash_verilog": "sha256:81c9861a6010dc631050687c37d0e22bdc8b31dd08e7e62cec596cb1960b899f",
-  "gen_hash_zig": "sha256:3f0ea7d1e8024bfdbec403a420478f533a19973eb345d93b569fab40f0b5710c",
+  "gen_hash_c": "sha256:9734b866eab94c25ab5cf9ca86fa89b349f81a89b6f0c463b9baa6eb4f9626e8",
+  "gen_hash_rust": "sha256:27cfacb7452e4af33489e09e6f0ed57a56faf657396a22740f47bf4dd981ebf9",
+  "gen_hash_verilog": "sha256:3db86119a57360e0d966b6ed282d53d94b3ec0cec0a4ae007394f39c555b099d",
+  "gen_hash_zig": "sha256:40e985b0f9bdcb88de6f7f3926ee00757206071c4501a039794e588dcf0477e2",
   "module": "Linking",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:43Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:b636530a07cd52d3c26a184307aeaf56846fc9697b40d0bf38391253c6d68b16",
   "spec_path": "specs/compiler/linker.t27"
 }
