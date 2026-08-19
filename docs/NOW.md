@@ -1,3 +1,19 @@
+# NOW -- sby runs from where its files are (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(fpga): formal invokes sby from the formal dir (Closes #2254)
+
+- Third formal layer: sby resolves [files] against the invocation cwd, not the
+  .sby location -- all three tasks died on FileNotFoundError while their .v
+  files sat next to the configs. The honest gate recorded FAIL and failed the
+  step, exactly as designed. sby now runs from build/fpga/formal
+- Same run: fpga-lint GREEN for real (readiness 100%, 32/32 yosys after the
+  codegen fix); conformance honestly red -- 28/32 do not iverilog-compile, and
+  the classification (hierarchy elaboration + unbound flattened refs, mac.v:98
+  word_raw among them) is recorded in #2241: the job's premise must narrow to
+  vector-backed modules rather than chase meaningless RTL for config models
+
 # NOW -- readiness is READY, for real (2026-08-20)
 
 Last updated: 2026-08-20

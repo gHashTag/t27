@@ -592,7 +592,9 @@ jobs:
             for sby_file in build/fpga/formal/*.sby; do
               module_name=$(basename "$sby_file" .sby)
               echo "Running formal: $module_name"
-              if sby -f "$sby_file" 2>&1 | tee "build/fpga/formal/${module_name}.log"; then
+              # sby resolves [files] against the INVOCATION cwd, not the .sby
+              # location -- run from the formal dir so local paths bind.
+              if (cd build/fpga/formal && sby -f "${module_name}.sby" 2>&1 | tee "${module_name}.log"); then
                 echo "| $module_name | Z3 | BMC+prove | PASS |" >> $GITHUB_STEP_SUMMARY
               else
                 echo "| $module_name | Z3 | BMC+prove | FAIL/UNKNOWN |" >> $GITHUB_STEP_SUMMARY
