@@ -1,0 +1,23 @@
+# BLOCKED on #2266: ZeroDSP_UART carries an LDCE with a combinational feedback
+# loop (module-var writes in the comb lowering); write_smt2/clk2fflogic cannot
+# model it. Un-park by renaming back to .sby once the emitter stops inferring
+# the latch. The props file itself is DUT-bound and ready.
+# Audit 2026-08-19: see fifo_formal.sby header -- same two defects fixed.
+[tasks]
+bmc
+
+[options]
+mode bmc
+depth 50
+
+[engines]
+smtbmc z3
+
+[script]
+read_verilog -formal -sv -DSIMULATION uart.v
+read_verilog uart_formal_props.v
+prep -top uart_formal_props
+
+[files]
+uart.v
+uart_formal_props.v

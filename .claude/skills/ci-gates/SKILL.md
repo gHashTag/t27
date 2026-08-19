@@ -271,3 +271,38 @@ Rules distilled:
   each attempt never fire, and the job burns its whole ceiling doing nothing (5/5 jobs
   at once on 2026-08-19: that is mirror weather, not a per-job lottery). Bound each
   attempt (`timeout 420/600`), retry a bounded number of times, fail fast and loud.
+
+## 11. The formal onion: seven layers, and what each one teaches
+
+fpga-formal was green for its whole life and had never run a solver. Peeling it
+took seven layers, each invisible until the previous one was cured:
+
+| layer | defect | lesson |
+|---|---|---|
+| 1 | .sby "task blocks" were indented pseudo-syntax sby does not parse | a config dialect is a contract: read the tool's format docs, not a plausible-looking example |
+| 2 | [files] paths escaped the workspace (../../../) | paths in configs are resolved by the TOOL's rules, not yours |
+| 3 | `if sby \| tee` without pipefail tested tee | under `bash -e` every pipeline's exit is the LAST stage; pipefail or die |
+| 4 | sby resolves [files] against the INVOCATION cwd, not the .sby location | run the tool from where its config assumes; verify with the workdir it creates |
+| 5 | [script] read_verilog lacked -sv -DSIMULATION | every reader of generated code must use the repo's own dialect flags |
+| 6 | the copy chain preferred April-vintage committed .v over the artifact generated minutes earlier | fresh generated output FIRST; stale fallback loud; absence fatal. Grep for committed copies of generated files — they shadow silently |
+| 7 | props modules never instantiated the DUT, used SVA yosys cannot parse, and mirrored a port interface the generated modules never had | a property file that elaborates is not a property file that CHECKS anything: the DUT instantiation is the property layer's first assertion |
+
+Rules distilled:
+- **The engine error's name lives in the job's ARTIFACT (per-task logfile.txt), not
+  the job log** — the log says only "engine did not return a status". Download and
+  read before theorizing.
+- **Run the tool's whole chain locally before the CI round-trip** (yosys prep +
+  write_smt2 + yosys-smtbmc -s z3 reproduces sby's core without sby) — layers 5-7
+  and the latch finding cost minutes locally vs 25-minute CI cycles.
+- **Prove properties against a simulation cross-check first**: the uart result==1
+  invariant was scanned exhaustively (256/256) before being asserted; a property
+  you cannot cross-check is a guess with syntax.
+- **A latch in a comb design blocks the SMT model AND is a design smell**: write_smt2
+  rejects $dlatch; clk2fflogic exposing a "logic loop" means real combinational
+  feedback through the latch. Park the config with a named issue rather than
+  deleting it (.sby.blocked with a header).
+- **Self-healing watches beat reporting watches**: BEHIND → server-side
+  update-branch (works despite allow_update_branch:false); DIRTY on an append-only
+  file → union-merge of every hunk, guarded to that one file and known shape;
+  anything else → report and stop. Six NOW.md races were resolved by hand before
+  the watch learned to; zero after.
