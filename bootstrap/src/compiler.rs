@@ -3966,6 +3966,34 @@ impl Parser {
         // position. In clause-value mode only, a var/const keyword NOT opening
         // a declaration (no `Ident =`/`Ident :` after it) reads as an
         // identifier.
+        // W907 (0014): inline lambda in clause values -- `fn(x) x >= 0.0` as
+        // a call argument in a then-clause felled its whole block (convicted
+        // by replacing it with a named predicate). Represented WITHOUT a new
+        // node kind: ExprCall named "fn", parameters joined in extra_field,
+        // single-expression body as the only child -- backends that meet it
+        // see an ordinary call node.
+        if self.in_bdd_clause_value
+            && self.current.kind == TokenKind::KwFn
+            && self.peek.kind == TokenKind::LParen
+        {
+            self.advance(); // fn
+            self.advance(); // (
+            let mut params: Vec<String> = Vec::new();
+            while self.current.kind == TokenKind::Ident {
+                params.push(self.current.lexeme.clone());
+                self.advance();
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                }
+            }
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_expr()?;
+            let mut node = Node::new(NodeKind::ExprCall);
+            node.name = "fn".to_string();
+            node.extra_field = params.join(", ");
+            node.children.push(body);
+            return Ok(node);
+        }
         if self.in_bdd_clause_value
             && matches!(self.current.kind, TokenKind::KwVar | TokenKind::KwConst)
             && !(self.peek.kind == TokenKind::Ident)
@@ -5170,6 +5198,27 @@ impl Parser {
                                 let mut decl = Node::new(NodeKind::StmtLocal);
                                 decl.name = name;
                                 decl.children.push(expr);
+                                // W907 (0014): a COMPREHENSION SUFFIX --
+                                // `given encoded = encode(x) for x in {...}`
+                                // -- felled its block. The same-line `for ...`
+                                // tail is captured verbatim into extra_field:
+                                // read and preserved, no semantics invented.
+                                if self.current.kind == TokenKind::KwFor
+                                    && self.current.line == self.last_line
+                                {
+                                    let mut tail = String::new();
+                                    let line = self.current.line;
+                                    while self.current.kind != TokenKind::Eof
+                                        && self.current.line == line
+                                    {
+                                        if !tail.is_empty() {
+                                            tail.push(' ');
+                                        }
+                                        tail.push_str(&self.current.lexeme);
+                                        self.advance();
+                                    }
+                                    decl.extra_field = tail;
+                                }
                                 block.children.push(decl);
                                 true
                             }
