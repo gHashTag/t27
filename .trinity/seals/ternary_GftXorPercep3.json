@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:e228047311ecfdd11b0fe57539bb69cd8bdfb427d164bdfd8c0782adcd13fec2",
+  "gen_hash_rust": "sha256:6ed30041e53d35ef8962ede3a91ab01aca738aca2fea107e6bdf23d36b578f7f",
+  "gen_hash_verilog": "sha256:a52449a4a0c3eba3c2bceac97d00de727751548c039a723a8943b7e8044de199",
+  "gen_hash_zig": "sha256:1c7f3dc1cbf0d1b2559761844da9197b76c338f4db811a6ab9c0f8615fd66dc3",
+  "module": "GftXorPercep3",
+  "ring": 12,
+  "sealed_at": "2026-08-19T13:19:48Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
+  "spec_hash": "sha256:ff009c88a09951bbf00924db019cdeb026e4af1ba6e546107d8739ba30917177",
+  "spec_path": "specs/ternary/gft_xorpercep3.t27"
+}

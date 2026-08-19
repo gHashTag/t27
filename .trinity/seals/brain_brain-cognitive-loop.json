@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:02bf94fd9b6006b5b03b5d375f143350ccd1ebfdc5837ae2fd4f9b8c9c068e58",
-  "gen_hash_rust": "sha256:66c52ca0cfac0dc4422d0f0257c66a5bf77170f3f32c2b0bca0f20585f4c0156",
-  "gen_hash_verilog": "sha256:383d3c6f6abb6e5937f66f5e654afc4046124ee30b31cefbf0165a06b2ad5ea5",
-  "gen_hash_zig": "sha256:1bbff13bef8e0fb4cdc4f36e4696b04459a31ab877715bfc6c4bad049f58ff13",
+  "gen_hash_c": "sha256:17f493336566b7d0476c4876895967767b069014e79d74cc7e1b0b6d3057719a",
+  "gen_hash_rust": "sha256:c6005a2f4a442d72fa9d803e147100ee211467af8d37bb80c49f01651d52fcc7",
+  "gen_hash_verilog": "sha256:89005285a974d21845f0e624be06d28835f1c0ef4bb138f2c62b75cd0c41e476",
+  "gen_hash_zig": "sha256:27e30f28d3f3629f7102031a7268fe0612da0fd28cbb057bce947b7bae55b26d",
   "module": "brain-cognitive-loop",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:42Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:5b351c3e000c43e6307230a8bd4791330c231126e926225f91a72816aa2c651b",
   "spec_path": "specs/brain/cognitive_loop.t27"
 }

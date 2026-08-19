@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "sha256:f09a34fd13f4cecddd45c9e60fa11b6ad944e8812c3ce5fe2e09ed82e0496af6",
-  "gen_hash_rust": "sha256:08336094b5c17e23cd8e948f84c977b2950c73064ced71236fedcdd17116eb7e",
-  "gen_hash_verilog": "sha256:196e121a19c7f84dcadd9dc8b85270205001a662700d906e3eacda9c01f89734",
-  "gen_hash_zig": "sha256:f3c75ed1f6cd8c225ee9346bb180d446c65191a6fdd549f0ba5a2302b098e05a",
+  "gen_hash_c": "sha256:ce5c3817a5c64c05eb46bb6c60a11033e03fe68613a7d4b9d19fccef1aa60976",
+  "gen_hash_rust": "sha256:52203d3584d03acca20086f0c887c6881851f09fcd4d44fb1c0f09f299d28774",
+  "gen_hash_verilog": "sha256:c2f5a0ee454a8bf4904b466228d9aa64ee861295a0f5b6eb4deeacae62ca6ad2",
+  "gen_hash_zig": "sha256:8d49a4ca81d4cd528bc7401a40e0a1659834747f7eadd1276007303b4ee33a0c",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:25:18Z",
+  "sealed_at": "2026-08-19T13:19:45Z",
+  "sealed_by": "t27c-bootstrap@0.1.0",
   "spec_hash": "sha256:d64704f431557636dda3ce15185ce4e96b0bf102dd3cbd806b3c6b8911e28091",
   "spec_path": "specs/math/phi_split_optimality.t27"
 }
