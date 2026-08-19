@@ -27062,6 +27062,41 @@ and three ratchets (parse regressions, staleness under --strict, truncation
 growth) hold each answer in place. The store no longer requires an archaeologist;
 it requires only a reader.
 
+## W892 -- the insurance audited, and the insurance was a fifth of the risk
+
+### T735 -- THE QUALITY CHECK FOUND THE HOLE IN THE CHECKER'S OWN ARTIFACT [measured]
+
+Auditing the top file's inventory section against its spec:
+
+    recorded rows exact          724/724, monotone, zero duplicates
+    `when` lines meaningful      142/145 call real spec fns
+    BDD lines in the SPEC        1,035
+    absent from the inventory      311
+
+The inventory's source of truth was `parse-complete --show` -- the DROPPED
+SPANS -- and the parser swallows whole regions without per-line records. **An
+insurance inventory built from the instrument's report inherits the
+instrument's blind spot.** Tenth instrument artefact of the session, and the
+first found inside a safety artifact.
+
+### T735a -- REBUILT FROM THE CONTENT: THE RISK IS FIVE TIMES THE RECORD [measured]
+
+    dropped-spans inventory     1,766 scenarios,  4,665 lines,  86 files
+    spec-text inventory         9,300 scenarios, 23,033 lines, 106 files
+        [D] confirmed dropped   4,665
+        [?] at-risk             18,368  -- in a truncated file, no individual
+                                          drop record; unread until proven read
+
+`coder/eval.t27`: 1,020 BDD lines, 66 with drop records. **Content insurance
+must be built from the content**; the instrument only annotates confidence.
+
+### T735b -- THE PING, AND THE BOARD [measured]
+
+A one-line prioritisation comment posted on tf#612 -- the single file standing
+between G8 and a green release checklist. The five-decision board is otherwise
+unchanged and fully prepared; every further wave without human reaction is an
+invariant check and silence.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

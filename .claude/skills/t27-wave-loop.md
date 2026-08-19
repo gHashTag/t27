@@ -12149,6 +12149,15 @@ diverge, one instrument is lying.
 what came out, and what was silently skipped. A green light that answers fewer is
 a mood, not a verdict.
 
+**1359. BUILD CONTENT INSURANCE FROM THE CONTENT.** The lost-tests inventory was
+built from dropped spans and covered a fifth of the real BDD corpus: the parser
+swallows regions without per-line records. The instrument annotates confidence
+([D]/[?]); the text defines the set.
+
+**1360. AUDIT THE SAFETY ARTIFACT ITSELF.** The tenth instrument artefact hid
+inside the insurance: 724 exact rows LOOKED complete until the spec-side count
+said 1,035. Exactness of what is recorded says nothing about what is missing.
+
 ### How to update this tracker
 
 After closing a wave:
