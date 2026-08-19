@@ -300,3 +300,43 @@ configuration, reported beside the constrained figure. Off by default.
 has a reference-implementation comparison; methodology gains the prior-sensitivity
 analysis. The headline number got smaller and the paper got more publishable —
 those are the same event.
+
+
+## 12. W938 — the accuracy coordinate, and the width where the format stops mattering
+
+Landed upstream as **tf#638** with its script and record. MNIST, 784-32-10 MLP,
+fp32 baseline **93.39 %**, trained weights round-tripped through the shipped
+conformance oracles with a per-tensor scale, activations fp32.
+
+| width | result |
+|---|---|
+| **16 bits** | six formats whose round-trip error spans **16×** land within **0.02 pp** |
+| **8 bits** | five formats within **0.19 pp** |
+| **4 bits** | **TNF4 93.38 % (−0.01 pp)** · GF4 87.90 % · fp4 e2m1 87.90 % (**+5.49 pp**) |
+
+**Above four bits the number format is invisible to this task.** Four bits is the
+width where the field fights and the only one here where a number-system argument
+has anything to explain — and TNF4 is the format that survives it (T779).
+
+**An artefact of ours, recorded so nobody quotes it.** The same 4-bit run without a
+scale shows a **70-point** gap, because fp4 e2m1 and GF4 flush **98.8 % of weights
+to zero** — the median trained weight is 0.056, below their smallest representable
+magnitude. That measures dynamic range, not the number system (T780). The tell was
+two distinct formats agreeing to the digit. It also bears on the int8 exclusion:
+**at four bits every format needs a scale**, so excluding one for carrying a scale
+excludes the deployable region.
+
+**The empirical prior, measured rather than bounded.** The trained tensors span
+**8.1 binades** between p01 and p99 (15.9 end to end), median |w| = 0.056 — against
+the **77 binades** the accuracy regenerators draw from, ~9.5× wider than anything
+the format will see.
+
+Positioning, honestly: weights-only PTQ, max-scaling only, and MNIST at 25 k
+parameters is the easiest task in this literature — a lower bound on difficulty,
+not a competitive result.
+
+**Readiness 41 % → 47 %.** The field-expected axis was the weakest at ~5 % and now
+carries a real task number with a width sweep and a scaling ablation. Area and
+accuracy exist in one document for the first time: TNF decodes in **2 cells**
+against fp8's 12 and posit16's 125, and at four bits it is the format that holds
+its accuracy.

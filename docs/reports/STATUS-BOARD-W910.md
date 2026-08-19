@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W937, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W938, 2026-08-20)
+
+> **W938 — THE ACCURACY COORDINATE EXISTS.** `top-1`, `ImageNet`, `CIFAR`, `MNIST`
+> were 0 hits in 7,858 lines. Now: MNIST 784-32-10 MLP, fp32 **93.39 %**, weights
+> round-tripped through the shipped oracles with a per-tensor scale — at **16 bits
+> six formats whose error spans 16× land within 0.02 pp**, at 8 bits within
+> 0.19 pp, and at **4 bits TNF4 holds 93.38 % (−0.01 pp) while fp4 e2m1 and GF4
+> lose 5.49**. Above four bits the format is invisible to the task. Landed as
+> **tf#638**.
+>
+> **And a 70-point artefact of ours, caught and recorded:** the unscaled 4-bit run
+> flushes 98.8 % of weights to zero, so it measures dynamic range, not the number
+> system — the tell was two distinct formats agreeing to the digit. The empirical
+> prior of a trained tensor is **8.1 binades**, against the **77** the regenerators
+> draw from. **Readiness 41 % → 47 %.** Theorems T779–T780; lesson 1411;
+> `tri cells` added.
 
 > **W937 — THE BASELINE WAS DOWNLOADED AND THE PRIOR WAS MEASURED.** PACoGen, the
 > field's reference posit hardware, cited zero times in the manuscript, is public
