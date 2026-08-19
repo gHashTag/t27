@@ -9,7 +9,14 @@ use std::process::Command;
 
 mod depin;
 mod fpga;
+mod gates;
 mod hooks;
+mod mutate;
+mod prcheck;
+mod sweep;
+mod synth;
+mod red;
+mod rtl;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -57,6 +64,42 @@ enum Commands {
     Fpga {
         #[command(subcommand)]
         action: fpga::FpgaCmd,
+    },
+    /// Find the constants in a checker that nothing actually checks.
+    Mutate {
+        #[command(subcommand)]
+        action: mutate::MutateCmd,
+    },
+    /// Is this pull request actually safe to merge?
+    Pr {
+        #[command(subcommand)]
+        action: prcheck::PrCmd,
+    },
+    /// Synthesise across a parameter and check the area actually moves.
+    Sweep {
+        #[command(subcommand)]
+        action: sweep::SweepCmd,
+    },
+    /// Synthesise a top module and report area, with the instrument named.
+    Synth {
+        #[command(subcommand)]
+        action: synth::SynthCmd,
+    },
+    /// What is failing on the default branch right now, and since when.
+    Red {
+        #[command(subcommand)]
+        action: red::RedCmd,
+    },
+    /// Find workflows that have never once succeeded.
+    Gates {
+        #[command(subcommand)]
+        action: gates::GatesCmd,
+    },
+    /// The structural check t27.ai offers, run locally: five verdicts, the
+    /// yosys version beside the numbers, and no claim about correctness.
+    Rtl {
+        #[command(subcommand)]
+        action: rtl::RtlCmd,
     },
     /// Pure-Rust ports of repository commit / push gates.
     Hooks {
@@ -655,6 +698,13 @@ fn main() -> Result<()> {
         }
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Pr { action } => prcheck::run(action)?,
+        Commands::Sweep { action } => sweep::run(action)?,
+        Commands::Synth { action } => synth::run(action)?,
+        Commands::Red { action } => red::run(action)?,
+        Commands::Gates { action } => gates::run(action)?,
+        Commands::Rtl { action } => rtl::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
     }
 
