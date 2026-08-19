@@ -42,8 +42,10 @@ on:
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest
-    # See fpga-build.yml: a hung apt ran to the 6h ceiling on 2026-08-18.
-    timeout-minutes: 45
+    # 90, not 45: the cold-cache run (t27c build + full-tree scans + exhaustive
+    # arms) legitimately takes ~46 min -- the 45 ceiling killed a healthy run on
+    # 2026-08-19. A ceiling must clear the honest worst case, not the median.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 

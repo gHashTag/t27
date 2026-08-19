@@ -406,7 +406,8 @@ jobs:
       
       - name: Generate bitstream
         run: |
-          ./target/release/t27c fpga-build --minimal
+          # t27c looks for nextpnr at a hardcoded build/ path; ours is in ~/.local/bin.
+          ./target/release/t27c fpga-build --minimal --nextpnr ~/.local/bin/nextpnr-xilinx
           ls -la build/fpga/
       
       - name: Upload bitstream artifact
