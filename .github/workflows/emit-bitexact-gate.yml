@@ -42,6 +42,8 @@ on:
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest
+    # See fpga-build.yml: a hung apt ran to the 6h ceiling on 2026-08-18.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 

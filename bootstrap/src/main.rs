@@ -4993,7 +4993,11 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                // -sv: the emitter uses SV static casts. -DSIMULATION: strips `ifndef
+                // SIMULATION` bench blocks whose $display carries non-constant
+                // args that synthesis cannot evaluate (mac.v:535; the repo
+                // convention, see suite.rs and verify_emit_bitexact.py).
+                "read_verilog -sv -DSIMULATION {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
                 files = verilog_files,
                 top = top,
                 json = synth_json.display(),
@@ -5018,7 +5022,11 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                // -sv: the emitter uses SV static casts. -DSIMULATION: strips `ifndef
+                // SIMULATION` bench blocks whose $display carries non-constant
+                // args that synthesis cannot evaluate (mac.v:535; the repo
+                // convention, see suite.rs and verify_emit_bitexact.py).
+                "read_verilog -sv -DSIMULATION {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
                 files = verilog_files,
                 top = top,
                 json = synth_json.display(),

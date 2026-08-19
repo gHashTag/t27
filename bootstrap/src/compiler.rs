@@ -4961,6 +4961,7 @@ impl VerilogCodegen {
             "program", "property", "protected", "pure", "rand", "randc", "ref", "return",
             "sequence", "shortint", "shortreal", "static", "string", "struct", "super",
             "this", "type", "typedef", "union", "unique", "var", "virtual", "void",
+            "assert", "assume", "cover", "restrict",
             "context", "constraint", "covergroup", "coverpoint", "cross", "dist",
             "expect", "foreach", "forkjoin", "iff", "inside", "join_any",
             "join_none", "local", "matches", "modport", "new", "null", "solve",
@@ -8492,7 +8493,9 @@ impl VerilogCodegen {
             if is_tail_expr {
                 self.write_indent();
                 let asn = if self.clocked_nonblocking { " <= " } else { " = " };
-                self.write(&self.current_fn_name.clone());
+                // A Verilog function returns by assigning to its own name; if that name is
+                // a keyword the lvalue must be escaped exactly like the declaration.
+                self.write(&Self::verilog_safe_identifier(&self.current_fn_name.clone()));
                 self.write(asn);
                 self.gen_verilog_expr(&stmt.children[0]);
                 self.write_line(";");
@@ -9513,7 +9516,7 @@ impl VerilogCodegen {
                     let fn_name = if self.current_fn_name.is_empty() {
                         "/* return */".to_string()
                     } else {
-                        self.current_fn_name.clone()
+                        Self::verilog_safe_identifier(&self.current_fn_name)
                     };
                     self.write(&format!("{} = ", fn_name));
                     // W528: when returning a nested array literal of scalar structs,
@@ -9886,7 +9889,10 @@ impl VerilogCodegen {
                         return;
                     }
                 }
-                self.write(&node.name);
+                // The declaration at gen_verilog_fn already escapes keyword names; the call
+                // site must match, or `function \assume ;` is declared and `assume(...)`
+                // is called -- two different identifiers. formal.v:187.
+                self.write(&Self::verilog_safe_identifier(&node.name));
                 self.write("(");
                 // W458: drop module-level array arguments from the emitted
                 // Verilog argument list. The function body references the bound
@@ -10114,16 +10120,19 @@ impl VerilogCodegen {
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
                             NodeKind::ExprIdentifier => {
-                                Self::verilog_safe_identifier(&child.children[0].name)
+                                // Escape AFTER flattening, not before: escaping the base first produced
+                                // `\cross _data_width` -- the space that terminates an escaped identifier
+                                // split the flattened name in two. clock_domain.v:221.
+                                child.children[0].name.clone()
                             }
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
                         self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&Self::verilog_safe_identifier(&child.name));
-                        self.write("_");
-                        self.write(&node.name);
+                        let flat_name = format!("{}_{}", child.name, node.name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
+                        // (escape applied to the flattened name; see comment above)
                     } else {
                         self.gen_verilog_expr(child);
                         self.write("_");

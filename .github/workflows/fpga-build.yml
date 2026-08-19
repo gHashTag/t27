@@ -23,6 +23,9 @@ on:
 
 jobs:
   fpga-smoke:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -77,6 +80,9 @@ jobs:
           retention-days: 7
 
   fpga-lint:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -121,8 +127,15 @@ jobs:
           pass=0
           fail=0
           for v in build/fpga/generated/*.v; do
-            name=$(basename "$v" .v)
-            if yosys -p "read_verilog $v; hierarchy -top $name" -q 2>/dev/null; then
+            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
+            # so a filename-derived top failed 31 of 32 modules. The repo's own
+            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
+            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
+            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
+            # has non-constant args synthesis cannot evaluate (mac.v:535). As
+            # written, this loop could never have passed.
+            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
+            if yosys -p "read_verilog -sv -DSIMULATION $v; hierarchy -top $name" -q 2>/dev/null; then
               echo "| $name | OK | OK | PASS |" >> $GITHUB_STEP_SUMMARY
               pass=$((pass+1))
             else
@@ -138,6 +151,9 @@ jobs:
           fi
 
   fpga-synthesis:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -247,6 +263,9 @@ jobs:
           retention-days: 7
 
   fpga-synthesis-arty:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -292,6 +311,9 @@ jobs:
           fi
 
   fpga-bitstream:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-synthesis
     runs-on: ubuntu-latest
     steps:
@@ -407,6 +429,9 @@ jobs:
           retention-days: 7
 
   fpga-formal:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -477,6 +502,9 @@ jobs:
           retention-days: 7
 
   fpga-conformance:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -540,7 +568,14 @@ jobs:
           pass=0
           fail=0
           for v in build/fpga/generated/*.v; do
-            name=$(basename "$v" .v)
+            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
+            # so a filename-derived top failed 31 of 32 modules. The repo's own
+            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
+            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
+            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
+            # has non-constant args synthesis cannot evaluate (mac.v:535). As
+            # written, this loop could never have passed.
+            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
             if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2005 "$v" 2>/dev/null; then
               pass=$((pass+1))
             else
@@ -602,6 +637,9 @@ jobs:
           retention-days: 7
 
   fpga-report:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-synthesis-arty, fpga-formal, fpga-conformance, fpga-bitstream]
     runs-on: ubuntu-latest
     if: always()
