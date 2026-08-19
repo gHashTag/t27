@@ -12104,6 +12104,17 @@ algorithm-DSL files are strands-and-analogs design documents; rewriting one as
 source means writing an implementation nobody reviewed as such. Reclassify, do
 not transliterate.
 
+**1348. THE PARSER IS THE CLASSIFIER.** Shape heuristics called 117 prose files
+SOURCE because line one is a module header. Parse in-process and baseline the
+verdicts; ratchet on regressions only, refresh on recoveries.
+
+**1349. A DEFINED LIBRARY IS NOT A USED ONE.** 33 generic types, zero concrete
+instantiations -- the "one remaining language question" dissolved under a single
+grep. Measure consumption before designing for it.
+
+**1350. LET THE FIRST REAL CONSUMER DRIVE THE DESIGN.** Speculative feature notes
+rank below the measurement that shows nobody calls the feature.
+
 ### How to update this tracker
 
 After closing a wave:

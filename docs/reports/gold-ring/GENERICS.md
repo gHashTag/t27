@@ -37,3 +37,24 @@ completeness and recommended against.
 
 *Next concrete step: grep the corpus for `Map(`, `Stack(`, `Queue(` … call
 sites and publish the instantiation table beside this note.*
+
+
+---
+
+## The measurement, taken (W887) — and it dissolves the question
+
+33 generic types are defined across `tri/`. The corpus-wide instantiation scan
+finds **zero concrete instantiations**: every `X(T)`/`Map(K, V)` occurrence is a
+SELF-reference inside the defining file (Builder(T) in builder.t27, 1 file each).
+No `Map(u32, Str)`, no `Stack(GF16)` — nothing outside the definitions.
+
+**The collections library has no consumers in the parse corpus.** So:
+
+- there is no rewrite to do (option 3 costs zero because nothing instantiates);
+- there is no urgency for a compiler feature (option 1 serves no caller today);
+- the honest disposition is the same as the algorithm cards': these files are a
+  FORWARD-DESIGN layer, correctly excluded from the parse ratchet by the
+  baseline, waiting for their first real consumer — and THAT consumer's needs
+  should drive the generics design, not this note.
+
+The one real language question left turns out not to be due yet.

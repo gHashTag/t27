@@ -26902,6 +26902,53 @@ grammar work already shipped (0001+0002) covered exactly what blocked the SSOT.
 `specs/scratch` separately holds 455 generated files at 579 MB, 87k lines each
 at the top -- the corpus's weight problem is not its language problem.
 
+## W887 -- the ratchet lands, and the last language question dissolves under measurement
+
+### T730 -- THE PARSER IS THE ONLY CLASSIFIER THAT CANNOT BE FOOLED [measured]
+
+`t27c classify --write-baseline / --baseline`: every non-scratch spec parsed
+IN-PROCESS, verdict recorded, baseline as a ratchet.
+
+    624 files: 451 OK, 173 known failures
+    clean run vs baseline: 0 regressions
+    negative test: a broken tnf17.t27 caught by name, rc=1
+
+Shape heuristics bucketed ~117 prose-bodied files as SOURCE because their first
+line is a module header; the parser is not fooled by a header. A newly-passing
+file prompts a baseline refresh and is never an error -- the ratchet only bites
+in the direction that means something broke.
+
+### T730a -- TRAILING GARBAGE AFTER A MODULE IS SWALLOWED SILENTLY [measured, incidental]
+
+The first negative test appended junk to `router.t27` and the parse still
+succeeded: the top-level skip-unknown-tokens resilience path eats everything
+after a complete module. Recorded, not hunted -- it is W646's known discard
+channel wearing a new face, and the ratchet test that found it now stands guard.
+
+### T731 -- ZERO CONCRETE INSTANTIATIONS: THE GENERICS QUESTION IS NOT DUE [measured]
+
+The deciding measurement for the last open language question:
+
+    generic types defined         33   (tri/collections, tri/pipeline, ...)
+    concrete instantiations        0   every X(T) occurrence is a SELF-reference
+                                       inside the defining file
+
+**The collections library has no consumers in the parse corpus.** No rewrite is
+needed (nothing instantiates), no compiler feature is urgent (no caller), and
+the first REAL consumer's needs should drive the design -- not a speculative
+note. A question that dissolves under one grep was never a question; it was an
+unexamined assumption that a defined library must be a used one.
+
+### T731a -- THE AUDIT'S ARC, STATED ONCE [derived]
+
+TNF: 4 -> 20 tables under oracles, 16 defects fixed, 3 PRs (one merged in ten
+minutes), one release gate correctly left to its owner. t27: the same method
+found 281 stale seals, a grammar gap blocking the L6 SSOT, two GOLD-RING
+proposals with a 1,079-spec zero-regression certificate, a parse ratchet, and a
+seal stratigraphy with its minter now recorded. Nine instrument artefacts of my
+own, five withdrawn claims, every one traced to the same move: believing a
+count, a name, or a subset before reading one raw case.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
