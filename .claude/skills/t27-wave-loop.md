@@ -12224,6 +12224,22 @@ recorder lived in one, so the read-what-vanished tool answered "nothing" for a
 file charged 2,438 tokens. `sum(items) == total` is an oracle in its own right;
 run it before trusting either account. (Instrument artefact #13.)
 
+**1375. PRESENCE IS NOT CAUSALITY.** Readers named the construct on the first
+discarded line; verifiers confirmed it EXISTS there; the cause sat three
+clauses later. A classification pipeline can only rank suspects -- assignment
+of cause takes intervention: ddmin the block, flip one variable per probe.
+
+**1376. RUN THE BREAK PANEL AFTER THE FIX, NOT ONLY BEFORE.** Guard v1 looked
+airtight and survived the full corpus sweep; 72 adversarial probe attempts
+found a silent false-green (a forged brace test made an assertion VANISH under
+"nothing discarded") in minutes. The corpus tests what exists; the panel tests
+what could.
+
+**1377. AN UNBOUNDED CROSS-LINE LOOKAHEAD IS A GRAMMAR SMELL.** The array
+literal's type-Ident consumption crossed newlines with no guard, so ordinary
+clause layout fed it keywords. Any lookahead that can consume the OPENING
+token of a sibling construct needs a line rule, a follow-set test, or both.
+
 ### How to update this tracker
 
 After closing a wave:

@@ -27345,6 +27345,45 @@ lowering queue -- the lowering itself is now sound for every clause whose value
 the expression grammar accepts. Full map with offender inventory:
 docs/reports/gold-ring/0005-RESIDUAL-MAP.md.
 
+## W900 -- presence is not causality: the acquitted struct literal
+
+### T743 -- THE MAP'S TOP OFFENDER WAS INNOCENT [measured]
+
+W899's readers named "struct literal in clause value" the chief block-killer;
+exact-line probes ACQUITTED both literal syntaxes -- they parse. ddmin located
+the killer three clauses later: after a bracketed group, parse_array_literal
+consumed a following Ident UNCONDITIONALLY as the Zig element type, across
+newlines, so `and params = [1.0]` + `when result = ...` ate `when` as a
+"type" and the block fell back. `and` clauses were immune (KwAnd is not an
+Ident) -- which is exactly why 0005's and-fix made the failure surface at the
+struct literal one clause earlier. The verifiers' CONFIRMED verdicts checked
+that constructs EXIST at cited lines; existence does not assign cause. Only
+intervention -- ddmin, single-variable variants -- does.
+
+### T743a -- THE PANEL BROKE THE FIRST FIX, AND THAT WAS ITS JOB [measured]
+
+Against guard v1 (same-line legacy arm + brace-lookahead arm), a three-lens
+adversarial panel ran 72 probe attempts and found: (1) one-line
+`given xs = [1, 2] then ...` pairs still eaten by the same-line arm, and
+(2) a SILENT FALSE-GREEN -- `then {1} == xs` forged the brace test, `then`
+became the "type", `{1}` its initialiser, and the assertion vanished under
+"nothing discarded". A hole WORSE than the original bug, because every
+truncation detector reads green over it. v2 adds one rule: in clause-value
+mode a clause keyword is never an element type. All panel repros close; the
+forged-brace probe ships as a negative test.
+
+### T743b -- LADDER AT SIX RUNGS: -44%, INVENTORY AT 96.9% [measured]
+
+    base    67,760 discarded tokens        173 parse-fails
+    0005    42,926                         171
+    0006    37,786 (-44% from base)        171, zero new vs baseline
+    lost-tests inventory: 22,329 / 23,033 BDD lines READ (96.9%);
+    dropped 4,665 (W892) -> 1,589 (0005) -> 704 (0006)
+
+Remaining fixable queue, probe-identified: bare-call given clauses,
+measure/target bench pairs, one-line `invariant name : EXPR;`. The forall mass
+(~18,750 tokens, half the residue) is the ring question -- FORALL-DECISION.md.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
