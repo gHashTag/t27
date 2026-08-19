@@ -1,3 +1,14 @@
+# NOW -- the device default flipped under a clean merge (2026-08-19)
+
+Last updated: 2026-08-19
+
+## ci(fpga): bitstream job pins --device to the board CI actually stages (Closes #2225)
+
+- First master run after #2216: 7/8 jobs green -- formal, lint, synthesis, arty, smoke, conformance all pass on master for the first time since 2026-08-08; fpga-bitstream red at fasm2frames only
+- Root cause: the gold-ring wave moved the fpga-build --device default to the Wukong 200T SSOT board; CI stages Arty-100T pins, a 100T chipdb and a 100T prjxray-db mapping. P&R still ran because the chipdb fallback path is hardcoded to the 100T file -- the mismatch surfaced only at the first step that looks the part NAME up (fasm2frames) instead of trusting a path
+- The class: a semantic default change auto-merges with zero textual conflict and breaks a consumer that encoded the old default implicitly. The consumer now states its device explicitly
+- Left open: the driver could assert chipdb-filename/device agreement and fail at P&R instead of two steps later
+
 # NOW -- 401 seals resealed for the merged compiler; 157 refusals stand (2026-08-19)
 
 Last updated: 2026-08-19

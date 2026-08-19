@@ -425,7 +425,12 @@ jobs:
       - name: Generate bitstream
         run: |
           # t27c looks for nextpnr at a hardcoded build/ path; ours is in ~/.local/bin.
-          ./target/release/t27c fpga-build --minimal --nextpnr ~/.local/bin/nextpnr-xilinx
+          # --device is EXPLICIT: the CLI default is the Wukong 200T board (SSOT), but
+          # everything this job stages -- the Arty pin XDC, the generated chipdb, the
+          # prjxray-db mapping -- is xc7a100tcsg324-1. The default flip landed as a
+          # clean auto-merge and broke only at fasm2frames, the first step that looks
+          # the part name up instead of trusting a path.
+          ./target/release/t27c fpga-build --minimal --device xc7a100tcsg324-1 --nextpnr ~/.local/bin/nextpnr-xilinx
           ls -la build/fpga/
       
       - name: Bitstream metrics + flashing guide
