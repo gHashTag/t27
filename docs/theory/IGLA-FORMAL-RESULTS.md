@@ -28524,6 +28524,41 @@ improves: at its TRUE width TNF16 beats binary16 (438.57), posit16 (511.00) and
 takum16 (546.00). One bit wider than binary16 and three percent cheaper -- which is
 a fair claim, unlike the one it replaces.
 
+### T787 -- THREE WIDTHS CIRCULATE FOR ONE RUNG, AND EVERY INSTRUMENT PICKED A DIFFERENT ONE [measured]
+
+T785 said a rung's name is not its width. T786 corrected that theorem's own frontier
+from the 16-bit module to a 17-bit one. Both were still wrong, and the oracle says
+so in one line: `TNFFormat(4, 11).sign_shift == 18`, so TNF16's physical layout is
+**19 bits** -- one sign, seven exponent cells, eleven mantissa.
+
+    TNF16 as named by the format                16 bits
+    TNF16 as the manuscript's caption states it 17 bits  ("the rungs store more")
+    TNF16 as the reference oracle lays it out   19 bits  (1 + 7 + 11)
+
+    TNF8   nominal 8   |  manuscript 10  |  oracle 11  (1 + 7 + 3)
+    TNF4   nominal 4   |                 |  oracle  6  (1 + 4 + 1)
+
+Three widths for one rung, and three instruments each silently picked a different
+one: the RTL tree carries `tnf16_decode` (16), `tnf17_decode` (17) and
+`tnf8s_decode` (10, and a DIFFERENT field layout -- five offset cells, four
+mantissa), while the conformance oracle uses 19 and 11.
+
+The failure mode is specific and worth naming: **the positive half of a
+sign-magnitude format decodes perfectly well on its own**, so an enumeration that
+misses the sign bit produces a complete, plausible, self-consistent value set --
+1,008 finite values, monotone, correctly spaced -- containing no negative numbers
+at all. Nothing downstream notices; a quantiser built from it simply maps every
+negative weight to something near zero, and its accuracy story stays coherent.
+It was caught only because the table was cross-checked against the oracle's own
+round-trip and disagreed on 98 of 200 samples -- almost exactly the half that were
+negative.
+
+Two rules follow. An enumeration over a sign-magnitude code space must assert that
+its value set contains a negative number, because that is the cheapest possible
+detector for the most likely error. And a physical width must be read from the
+format object that defines it -- here `sign_shift + 1` -- never from the module
+name, the paper's prose, or a previous theorem of one's own.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
