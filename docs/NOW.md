@@ -1,3 +1,17 @@
+# NOW -- the tri CLI wave lands: mutate, pr ready, synth/sweep area (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri: the measurement-campaign commands merged (Closes #2222)
+
+- `tri mutate` -- negative-control mutation of benches (a checker that has
+  never failed a mutant has never been tested)
+- `tri pr ready` -- the merge gate: baseline-aware verdict, --wait/--poll,
+  --merge performs the merge itself; found the t27 master build break (#2227)
+- `tri synth area` -- yosys last-stat-block extraction (the 3x inflation guard)
+  and `tri sweep area`; plus `tri red`, `tri gates`, rtl-check build hardening
+- Rebuilt from PR #2177 with L1-traceable commits after the original wave
+  lacked Closes-references
 # NOW -- master's tri TEST build restored: dedup + API port + a helper that never existed (2026-08-19)
 
 Last updated: 2026-08-19
