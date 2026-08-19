@@ -27789,6 +27789,30 @@ one-wave-old instrument before its first pnr ran). Wave-loop law: any
 catch-all status must carry the evidence that DISCRIMINATES its causes, or
 it is a euphemism.
 
+## W924 -- the diagnostics paid for themselves on their first run
+
+### T761 -- ONE REASON LINE COLLAPSED THREE HYPOTHESES [measured]
+
+The #620 diagnostics' very first artefact read "ERROR: Failed to open JSON"
+-- and the chain unwound in minutes: no tnet-json artifacts existed at all;
+the yosys jobs died at elaboration on tw_*.v self-check files ($finish runs
+INSIDE the frontend); the anchored ^ERROR grep missed the path-prefixed
+fatal line, so the step passed; the upload warned into silence; and pnr
+honestly reported the only thing it could see. Two of the three bugs were in
+MY one-day-old instrument (glob too wide, grep too narrow); the third -- my
+own #621 "nesting" fix -- was a WRONG hypothesis, withdrawn unmerged once
+the artefact showed basenames. Euphemism-to-file:line in one run is what
+lesson 1399 buys.
+
+### T761a -- SELF-EXECUTING SOURCES ARE A GLOB HAZARD [measured]
+
+A synthesis source-list built by glob will eventually sweep in a file whose
+elaboration has SIDE EFFECTS (testbench $finish, $fatal asserts). The
+frontend executes them; the death happens before any output; and an anchored
+error grep reads clean. Rules: exclude self-check families by NAME
+(tb_*, tw_*), match ERROR anywhere in the line, and require the OUTPUT FILE
+to exist -- three independent tripwires for one failure class.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

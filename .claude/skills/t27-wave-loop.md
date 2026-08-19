@@ -12375,6 +12375,13 @@ one status, the artefact must carry the first error line and the raw log, or
 every diagnosis starts from zero. (Found in the upstream sweep; the same hole
 was already copied into my own day-old instrument.)
 
+**1400. WITHDRAW A WRONG FIX AS LOUDLY AS YOU SHIPPED IT.** The "artifact
+nesting" PR was a plausible mechanism argued from indirect evidence; one raw
+artefact listing (basenames, not paths) falsified it. Closing it unmerged
+with the falsification in the comment costs nothing; merging it would have
+broken the working cost-sweep download while "fixing" the format sweep for
+the wrong reason.
+
 ### How to update this tracker
 
 After closing a wave:
