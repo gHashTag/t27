@@ -10,7 +10,7 @@ depth 50
 smtbmc z3
 
 [script]
-read_verilog -formal uart.v
+read_verilog -formal -sv -DSIMULATION uart.v
 read_verilog uart_formal_props.v
 prep -top uart_formal_props
 

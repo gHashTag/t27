@@ -16,7 +16,7 @@ depth 20
 smtbmc z3
 
 [script]
-read_verilog -formal mac.v
+read_verilog -formal -sv -DSIMULATION mac.v
 read_verilog mac_formal_props.v
 prep -top mac_formal_props
 
