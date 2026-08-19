@@ -1,0 +1,25 @@
+{
+  "_comment": "Which environments each capability claim rests on. Checked by `tri fleet asof --from .tri/environments.json`. A claim listed here can be re-verified in one command instead of being repeated on faith.",
+  "claims": [
+    {
+      "name": "t27.ai publishes the project's writing",
+      "urls": ["https://t27.ai", "https://gHashTag.github.io"]
+    },
+    {
+      "name": "the hiking site is serving",
+      "urls": ["https://floripahikegpro.vercel.app"]
+    },
+    {
+      "name": "GitHub hosts the repositories this work is pushed to",
+      "urls": ["https://github.com/gHashTag/t27", "https://github.com/gHashTag/trinity-fpga"]
+    },
+    {
+      "name": "the FPGA fleet can be flashed and measured from software",
+      "needs_hardware": true
+    },
+    {
+      "name": "the 3-board inference cluster can be re-run",
+      "needs_hardware": true
+    }
+  ]
+}

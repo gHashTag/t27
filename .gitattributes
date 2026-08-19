@@ -6,8 +6,23 @@
 # ═════════════════════════════════════════════════════════════════════════════════════════
 
 # Experience logs are append-only JSONL — concatenate both sides on merge
-.trinity/experience/*.jsonl merge=append-log
+# `append-log` is not a built-in driver: it needs a merge.append-log.driver
+# entry in .git/config, and nothing in this checkout installs one — so in
+# every fresh clone this line does nothing and the file conflicts normally.
+# For append-only JSONL, `union` is that behaviour and is built in.
+.trinity/experience/*.jsonl merge=union
 
-# NOW.md: canonical location is docs/NOW.md
-# Root NOW.md is a symlink to docs/NOW.md — prefer incoming version
-NOW.md merge=theirs
+# NOW.md: canonical location is docs/NOW.md. The root file is a symlink, so
+# git merges the link target, not the text — and `theirs` is not a built-in
+# driver either (same missing .git/config entry as append-log had). Point the
+# symlink's rule at the same built-in the real file uses; if the symlink is
+# ever replaced by a real file, this keeps working.
+NOW.md merge=union
+
+# The rule above names the SYMLINK, not the file that actually conflicts, and
+# `theirs` is not a built-in driver — it needs a per-clone .git/config entry
+# that a fresh checkout does not have. So docs/NOW.md conflicted on every
+# branch (seven times in one campaign), each resolved identically by hand:
+# keep both entries. `union` is built in, so it works in every clone with no
+# setup, and it is exactly that resolution.
+docs/NOW.md merge=union

@@ -1,3 +1,71 @@
+# NOW -- the NOW gate matched a path nobody edits (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the NOW gate matched a path nobody edits (Closes #2249)
+
+- pre-commit gated on ^NOW.md$ while every pull request updates docs/NOW.md, so the not-staged warning fired on correct commits; the gate now accepts either path
+- Root NOW.md turns out to be a regular 390-line file last touched 2026-08-09, not the symlink .gitattributes describes -- two NOW files have been diverging silently (issue filed, the resolution is the owner's call)
+
+# NOW -- the gate confirms a merge against the branch, not the exit code (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the gate confirms a merge against the branch, not the exit code (Closes #2249)
+
+- pr ready --merge no longer trusts gh pr merge's exit status: it re-asks the API for merged=true, takes the merge commit sha, and compares it against the default branch -- printing 'Merged — <sha> is on the default branch'
+- gh pr merge also exits zero when it merely enables auto-merge, and a squash-merged stack orphans whatever sat on top of it; both read as success from the exit code alone
+- When the command succeeds but the branch does not show it, the gate says so and tells the caller not to report it as merged
+
+# NOW -- tri pr landed: status is not content (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri pr landed: status is not content (Closes #2249)
+
+- tri pr landed <PR> --probe <string>: fetches the default branch's copy of every file the PR touched and reports PRESENT/ABSENT per probe -- because 'merged' and 'closed' both read as success in a list, and a squash-merged stack orphans whatever sat on top of it
+- Validated on the real case that prompted it: the closed stack-mate reports ABSENT, the merged rescue reports PRESENT on all three probes
+- Probes compare with whitespace flattened (prose gets re-wrapped) but case-sensitively (case is text); a probe the repository could satisfy without the change proves nothing
+
+# NOW -- the gate says which pull request it is watching (2026-08-20)
+
+Last updated: 2026-08-20
+
+## the gate says which pull request it is watching (Closes #2249)
+
+- pr ready prints repo#number before the wait loop and on every waiting line: two gates logging to one file produced a transcript where one PR's 'Merged.' read as the other's verdict
+- Diagnosing through a channel shared by two sources is the broken-ruler error this project's own doctrine is named after -- the tool now makes the misread impossible
+
+# NOW -- asof reads the claims from a declaration in the repository (2026-08-20)
+
+Last updated: 2026-08-20
+
+## asof reads the claims from a declaration in the repository (Closes #2249)
+
+- tri fleet asof --from .tri/environments.json: each capability claim names the environments it rests on, and the check answers per claim -- 'is the project fine' has no answer, claims fail independently
+- Live on this repository's own declaration: 3 of 5 claims SAYABLE (t27.ai, the hiking site, GitHub), 2 STALE with the reason printed (bus empty), exit 1
+- The declaration lives next to the code because remembering which URL backs which claim is exactly the step that gets skipped
+
+# NOW -- tri fleet asof generalises the bus check to every environment (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri fleet asof generalises the bus check to every environment (Closes #2249)
+
+- tri fleet asof --url ... [--needs-hardware]: HEADs each URL a claim depends on and optionally the bus, then says whether the claim may be repeated in the present tense; non-zero exit when any environment is unreachable
+- A timeout is reported as 'cannot verify', not as 'the site is down' -- only one of those is the owner's problem
+- Verified live: t27.ai and floripahikegpro.vercel.app reachable, the bus empty, exit 1 under --needs-hardware
+
+# NOW -- tri fleet answers whether the hardware is there (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri fleet answers whether the hardware is there (Closes #2249)
+
+- tri fleet scan: reads the USB tree and serial nodes, reports bridges by serial, and on an empty bus prints the sentence to send the owner ('this needs hands, not code') instead of a problem to code around
+- --expect N exits non-zero when fewer boards are present than the plan assumes, so a script cannot proceed on a fleet that is not there
+- tri now itself is fixed here: the bullet above starts with a flag name and clap rejected it -- writing this entry is what found the bug
+
 # NOW -- formal now tests the RTL it just built (2026-08-20)
 
 Last updated: 2026-08-20
@@ -145,6 +213,14 @@ Last updated: 2026-08-19
   fifo.v (#2240), absorbed by the old warning-gate 40 minutes after the 32/32
   claim. A refusal on the record beats a vacuous green
 
+# NOW -- tri pr ready walks the branch; tri now writes this file (2026-08-19)
+
+Last updated: 2026-08-19
+
+## tri pr ready walks the branch; tri now writes this file (Closes #2235)
+
+- pr ready: a check absent from the default branch HEAD is no longer 'green on the branch' -- each check is scored by the most recent of the last 15 default-branch commits it actually ran on; the illusion that hid the broken master build (#2227) cannot recur
+- tri now: prepends this exact entry frame (title, date, Closes ref, bullets) -- this entry was written by the command it documents
 
 # NOW -- the tri CLI wave lands: mutate, pr ready, synth/sweep area (2026-08-20)
 

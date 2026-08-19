@@ -22,6 +22,36 @@ use std::process::Command;
 #[derive(Subcommand)]
 pub enum PrCmd {
     /// Classify every failing check and say plainly whether it is safe to merge.
+    /// Did this pull request's content actually reach the default branch?
+    ///
+    /// "merged" and "closed" both read as success in a pull-request list. A
+    /// stack taught this the expensive way: the base squash-merged, its
+    /// branch was deleted, the pull request stacked on it auto-closed, and
+    /// four commits reached nothing while the list looked fine. Only a
+    /// content probe distinguishes the two.
+    Landed {
+        /// Pull request number.
+        number: u64,
+        /// owner/repo. Defaults to the repository in the current directory.
+        #[arg(long)]
+        repo: Option<String>,
+        /// A string the pull request introduced. Repeatable. Each is looked
+        /// for in the default branch's copy of the files the PR touched.
+        ///
+        /// Choose something the change ALONE introduced, and copy it exactly.
+        /// Three real misses on first use, all of them the probe's fault and
+        /// not the tool's: `0x3E00` was already in the codec's own source (a
+        /// probe the repository can satisfy without the change proves
+        /// nothing); a probe spanning a line break failed until whitespace
+        /// was flattened on both sides; and one differed only in the case of
+        /// its first letter. Case is text and stays significant; line wrapping
+        /// is formatting and does not. A fourth appeared during a sweep of
+        /// older merges: probing pull request N with wording a LATER pull
+        /// request rewrote. Probe with the string as that pull request
+        /// introduced it, not as the file reads today.
+        #[arg(long = "probe", required = true)]
+        probes: Vec<String>,
+    },
     Ready {
         /// Pull request number.
         number: u64,
@@ -59,7 +89,161 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             poll,
             merge,
         } => ready(*number, repo.as_deref(), *baseline, *wait, *poll, *merge),
+        PrCmd::Landed {
+            number,
+            repo,
+            probes,
+        } => landed(*number, repo.as_deref(), probes),
     }
+}
+
+/// Check that what the pull request introduced is present in the default
+/// branch, file by file. Status is not content: a merged pull request whose
+/// stack-mate was auto-closed leaves a list that reads as success.
+fn landed(n: u64, repo: Option<&str>, probes: &[String]) -> Result<()> {
+    let repo = match repo {
+        Some(r) => r.to_string(),
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ])?,
+    };
+    let merged = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".merged"])?;
+    let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
+    let branch = branch.trim();
+
+    println!("{repo}#{n} — merged: {merged}");
+
+    let files = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}/files?per_page=100"),
+        "--paginate",
+        "--jq",
+        ".[].filename",
+    ])?;
+    let files: Vec<&str> = files.lines().filter(|l| !l.is_empty()).collect();
+    println!("files the pull request touched: {}", files.len());
+
+    // Fetch each file once from the default branch; a file the PR deleted or
+    // that never landed simply is not there, which is itself an answer.
+    let mut corpus = String::new();
+    let mut missing_files = 0usize;
+    for f in &files {
+        match gh(&[
+            "api",
+            &format!("repos/{repo}/contents/{f}?ref={branch}"),
+            "--jq",
+            ".content",
+        ]) {
+            Ok(b64) => {
+                let cleaned: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
+                if let Ok(bytes) = base64_decode(&cleaned) {
+                    corpus.push_str(&String::from_utf8_lossy(&bytes));
+                    corpus.push('\n');
+                }
+            }
+            Err(_) => missing_files += 1,
+        }
+    }
+    if missing_files > 0 {
+        println!("  ({missing_files} of them are not on {branch} at all)");
+    }
+
+    // Prose gets re-wrapped, so a probe that spans a line break would fail
+    // against text that is actually present -- which happened on the first
+    // real use. Compare with whitespace flattened on both sides.
+    let flat_corpus = flatten_ws(&corpus);
+
+    let mut absent = Vec::new();
+    for p in probes {
+        if flat_corpus.contains(&flatten_ws(p)) {
+            println!("  PRESENT  {p}");
+        } else {
+            println!("  ABSENT   {p}");
+            absent.push(p.clone());
+        }
+    }
+    println!();
+    if absent.is_empty() {
+        println!("VERDICT: the content landed on {branch}.");
+        return Ok(());
+    }
+    println!("VERDICT: {} probe(s) are NOT on {branch}.", absent.len());
+    println!("A pull request can read as merged while its content reached nothing —");
+    println!("that is what a squash-merged stack does to whatever sat on top of it.");
+    anyhow::bail!("{} probe(s) absent from {branch}", absent.len())
+}
+
+/// Confirm from the API — not from an exit code — that the pull request is
+/// merged and its merge commit is reachable from the default branch. Returns
+/// the short merge sha so the caller can print what it verified.
+fn confirm_merged(repo: &str, n: u64) -> Result<String> {
+    let merged = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".merged"])?;
+    if merged.trim() != "true" {
+        anyhow::bail!("the API still reports merged={}", merged.trim());
+    }
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".merge_commit_sha",
+    ])?;
+    let sha = sha.trim().to_string();
+    if sha.is_empty() || sha == "null" {
+        anyhow::bail!("merged=true but there is no merge commit sha");
+    }
+    let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
+    let branch = branch.trim();
+    // "identical" or "behind" both mean the commit is contained in the branch.
+    let status = gh(&[
+        "api",
+        &format!("repos/{repo}/compare/{branch}...{sha}"),
+        "--jq",
+        ".status",
+    ])?;
+    let status = status.trim();
+    if status != "identical" && status != "behind" {
+        anyhow::bail!(
+            "merge commit {} is {status} relative to {branch}",
+            &sha[..7.min(sha.len())]
+        );
+    }
+    Ok(sha[..7.min(sha.len())].to_string())
+}
+
+/// Collapse every run of whitespace to a single space, so a probe matches
+/// text that has since been re-wrapped.
+fn flatten_ws(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Minimal base64 decode: the GitHub contents API returns file bodies this
+/// way and pulling a crate in for one call is not worth the dependency.
+fn base64_decode(s: &str) -> Result<Vec<u8>> {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for c in s.bytes() {
+        if c == b'=' {
+            break;
+        }
+        let v = match T.iter().position(|&t| t == c) {
+            Some(v) => v as u32,
+            None => continue,
+        };
+        buf = (buf << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    Ok(out)
 }
 
 fn gh(args: &[&str]) -> Result<String> {
@@ -108,11 +292,19 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
 /// merged while ten checks were still running. So this returns the completed
 /// count too, and the caller waits for it to stop growing.
 fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
-    let sha = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".head.sha"])?;
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".head.sha",
+    ])?;
     // Two plain queries rather than one clever @tsv: the combined form failed
     // with "expected an object but got: array" the first time it ran, and a
     // wait loop that errors out is worse than no wait loop.
-    let path = format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim());
+    let path = format!(
+        "repos/{repo}/commits/{}/check-runs?per_page=100",
+        sha.trim()
+    );
     let pending: usize = gh(&[
         "api",
         &path,
@@ -129,11 +321,32 @@ fn in_flight(repo: &str, n: u64) -> Result<(usize, usize)> {
     Ok((pending, total))
 }
 
-fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, merge: bool) -> Result<()> {
+fn ready(
+    n: u64,
+    repo: Option<&str>,
+    baseline: usize,
+    wait: bool,
+    poll: u64,
+    merge: bool,
+) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
-        None => gh(&["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"])?,
+        None => gh(&[
+            "repo",
+            "view",
+            "--json",
+            "nameWithOwner",
+            "--jq",
+            ".nameWithOwner",
+        ])?,
     };
+
+    // Say which pull request this is BEFORE the wait loop, not after it.
+    // Every "waiting: N of M" line used to carry no identity, so two gates
+    // logging to one file produced a transcript where one PR's verdict read
+    // as the other's -- diagnosing through a channel shared by two sources,
+    // which is the error this project's own doctrine is named after.
+    println!("{repo}#{n} — gate started");
 
     // Anything still running makes the answer provisional, so say so rather
     // than reporting a verdict on a partial list.
@@ -166,7 +379,7 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
             };
             if p > 0 {
                 quiet = 0;
-                println!("  waiting: {p} of {total} check(s) still running");
+                println!("  [{repo}#{n}] waiting: {p} of {total} check(s) still running");
             } else if total == 0 {
                 // An empty list is not "finished" -- it is "not started". Give
                 // it a few rounds before believing it.
@@ -195,22 +408,42 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
     // few merged pull requests. A check red in both places is the repository's
     // problem, not this change's.
     let branch = gh(&["api", &format!("repos/{repo}"), "--jq", ".default_branch"])?;
-    let head = gh(&[
-        "api",
-        &format!("repos/{repo}/commits/{branch}"),
-        "--jq",
-        ".sha",
-    ])?;
+    // The default branch's HEAD is not the default branch. A check that did
+    // not run on HEAD -- a docs-only commit, a path filter -- shows neither
+    // green nor red there, and reading HEAD alone once made a broken build
+    // look "green on master" because the check-run was attached to an older
+    // commit. So walk the last few default-branch commits and score each check
+    // by the MOST RECENT commit on which it actually ran.
     let mut seen: BTreeMap<String, usize> = BTreeMap::new();
-    for name in gh(&[
+    let recent = gh(&[
         "api",
-        &format!("repos/{repo}/commits/{}/check-runs?per_page=100", head.trim()),
+        &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
         "--jq",
-        r#".check_runs[]|select(.conclusion=="failure")|.name"#,
-    ])?
-    .lines()
-    {
-        *seen.entry(name.to_string()).or_insert(0) += 1;
+        ".[].sha",
+    ])?;
+    let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
+    for sha in recent.lines() {
+        let runs = gh(&[
+            "api",
+            &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+            "--jq",
+            r#".check_runs[]|select(.status=="completed")|[.name,.conclusion]|@tsv"#,
+        ])
+        .unwrap_or_default();
+        for line in runs.lines() {
+            let mut it = line.splitn(2, '\t');
+            let (Some(name), Some(conc)) = (it.next(), it.next()) else {
+                continue;
+            };
+            decided
+                .entry(name.to_string())
+                .or_insert(conc == "failure" || conc == "timed_out");
+        }
+    }
+    for (name, failing) in &decided {
+        if *failing {
+            *seen.entry(name.clone()).or_insert(0) += 1;
+        }
     }
     let merged = gh(&[
         "api",
@@ -236,9 +469,11 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
     let mut new_here = Vec::new();
     for name in &mine {
         match seen.get(name) {
-            Some(k) => println!("  {name}\n      also failing in {k} other place(s) — pre-existing"),
+            Some(k) => {
+                println!("  {name}\n      also failing in {k} other place(s) — pre-existing")
+            }
             None => {
-                println!("  {name}\n      NOT failing on {branch} or in the last {baseline} merged PRs");
+                println!("  {name}\n      NOT failing on recent {branch} commits or in the last {baseline} merged PRs");
                 new_here.push(name.clone());
             }
         }
@@ -254,14 +489,35 @@ fn ready(n: u64, repo: Option<&str>, baseline: usize, wait: bool, poll: u64, mer
         if merge {
             println!();
             let out = Command::new("gh")
-                .args(["pr", "merge", &n.to_string(), "--repo", &repo,
-                       "--squash", "--delete-branch"])
+                .args([
+                    "pr",
+                    "merge",
+                    &n.to_string(),
+                    "--repo",
+                    &repo,
+                    "--squash",
+                    "--delete-branch",
+                ])
                 .output()
                 .context("failed to run gh pr merge")?;
             if out.status.success() {
-                println!("Merged.");
+                // `gh pr merge` exiting zero is not the same as the content
+                // being on the branch: it also succeeds when it merely
+                // enables auto-merge, and a squash-merged stack orphans
+                // whatever sat on top of it. Ask the API instead of the
+                // exit code, and name what was verified.
+                match confirm_merged(&repo, n) {
+                    Ok(sha) => println!("Merged — {sha} is on the default branch."),
+                    Err(e) => {
+                        println!("Merge command succeeded but the branch does not show it: {e}");
+                        println!("Do NOT report this as merged. Check the pull request.");
+                    }
+                }
             } else {
-                println!("Merge refused: {}", String::from_utf8_lossy(&out.stderr).trim());
+                println!(
+                    "Merge refused: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                );
             }
         }
     } else {
@@ -318,6 +574,9 @@ mod tests {
         } else {
             "DO NOT MERGE"
         };
-        assert_eq!(verdict, "WAIT", "pending must outrank an empty failure list");
+        assert_eq!(
+            verdict, "WAIT",
+            "pending must outrank an empty failure list"
+        );
     }
 }
