@@ -1,0 +1,113 @@
+--- /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/compiler_0014_backup.rs	2026-08-19 15:51:16
++++ /private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad/goldring/bootstrap/src/compiler.rs	2026-08-19 15:52:57
+@@ -4728,6 +4728,59 @@
+     /// shape it does not fully understand restores the entry checkpoint and
+     /// falls back to the original skip, so a spec that parsed before still
+     /// parses.
++    fn capture_forall_verbatim(&mut self) -> Node {
++        let start_col = self.current.col;
++        let mut text = String::new();
++        loop {
++            if self.current.kind == TokenKind::Eof {
++                break;
++            }
++            let opens_line = self.current.line > self.last_line;
++            if opens_line && self.current.col < start_col {
++                break;
++            }
++            if !text.is_empty() {
++                text.push(' ');
++            }
++            text.push_str(&self.current.lexeme);
++            self.advance();
++        }
++        let mut node = Node::new(NodeKind::StmtExpr);
++        node.name = "forall".to_string();
++        node.value = text;
++        node
++    }
++
++    /// W909 REHEARSAL of the dialect decision ("teach" ceiling): capture one
++    /// statement VERBATIM at clause position -- brace-aware, ends when depth
++    /// returns to zero and a new line opens.
++    fn capture_stmt_verbatim(&mut self) -> Node {
++        let mut depth: i32 = 0;
++        let mut text = String::new();
++        loop {
++            if self.current.kind == TokenKind::Eof {
++                break;
++            }
++            if depth == 0 && !text.is_empty() && self.current.line > self.last_line {
++                break;
++            }
++            match self.current.kind {
++                TokenKind::LBrace => depth += 1,
++                TokenKind::RBrace => depth -= 1,
++                _ => {}
++            }
++            if !text.is_empty() {
++                text.push(' ');
++            }
++            text.push_str(&self.current.lexeme);
++            self.advance();
++        }
++        let mut node = Node::new(NodeKind::StmtExpr);
++        node.name = "dialect-stmt".to_string();
++        node.value = text;
++        node
++    }
++
+     fn parse_bdd_clauses(&mut self, block: &mut Node) {
+         let entry = self.save_state();
+         let start_children = block.children.len();
+@@ -4837,6 +4890,14 @@
+                 break;
+             }
+             if self.current.kind != TokenKind::Ident && !and_kw {
++                if first_clause_col.map_or(false, |c| c > 1 && self.current.col >= c)
++                    && self.current.kind != TokenKind::Eof
++                {
++                    let node = self.capture_stmt_verbatim();
++                    block.children.push(node);
++                    lowered += 1;
++                    continue;
++                }
+                 if Self::is_block_boundary(self.current.kind) {
+                     break;
+                 }
+@@ -4883,6 +4944,12 @@
+             let is_expr_clause = (clause == "measure" || clause == "target")
+                 && block.kind == NodeKind::BenchBlock;
+ 
++            if clause == "forall" {
++                let node = self.capture_forall_verbatim();
++                block.children.push(node);
++                lowered += 1;
++                continue;
++            }
+             if !is_binding && !is_assertion && !is_expr_clause {
+                 // W904 (0012): a bare ASSIGNMENT statement between clauses --
+                 // `sum = if (...) ...;` -- is an Ident that is no clause, and
+@@ -4927,6 +4994,12 @@
+                     }
+                     self.restore_state(st_entry);
+                 }
++                if first_clause_col.map_or(false, |c| c > 1 && clause_col >= c) {
++                    let node = self.capture_stmt_verbatim();
++                    block.children.push(node);
++                    lowered += 1;
++                    continue;
++                }
+                 // An identifier that is not a clause means this body has a shape
+                 // we do not model. Falling through with the parser positioned
+                 // mid-block is what broke 19 specs on the first attempt.
+@@ -5423,7 +5496,8 @@
+         self.advance(); // consume ':'
+ 
+         if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
+-            self.restore_bdd_fallback(block, start_children, entry);
++            let node = self.capture_forall_verbatim();
++            block.children.push(node);
+             return;
+         }
+ 
