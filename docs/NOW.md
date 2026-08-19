@@ -1,3 +1,13 @@
+# NOW -- tri fleet answers whether the hardware is there (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri fleet answers whether the hardware is there (Closes #2249)
+
+- tri fleet scan: reads the USB tree and serial nodes, reports bridges by serial, and on an empty bus prints the sentence to send the owner ('this needs hands, not code') instead of a problem to code around
+- --expect N exits non-zero when fewer boards are present than the plan assumes, so a script cannot proceed on a fleet that is not there
+- tri now itself is fixed here: the bullet above starts with a flag name and clap rejected it -- writing this entry is what found the bug
+
 # NOW -- formal now tests the RTL it just built (2026-08-20)
 
 Last updated: 2026-08-20

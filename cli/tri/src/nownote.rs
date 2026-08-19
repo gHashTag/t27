@@ -19,7 +19,11 @@ pub enum NowCmd {
         title: String,
         /// Bullet lines, repeatable. At least one is required — an entry
         /// with no content is exactly the vacuous touch the gate invites.
-        #[arg(long = "bullet", required = true)]
+        ///
+        /// `allow_hyphen_values` because entry text legitimately starts with a
+        /// flag name: writing this command's own NOW entry failed on the
+        /// bullet describing `--expect`, which clap read as an argument.
+        #[arg(long = "bullet", required = true, allow_hyphen_values = true)]
         bullets: Vec<String>,
         /// Issue number for the section's "(Closes #N)" suffix.
         #[arg(long)]
