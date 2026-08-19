@@ -12328,6 +12328,14 @@ counter by overcapturing scope -- proof the counter alone is gameable and
 must ride with the parse-fail diff. Both checks cost three builds; a decision
 page whose numbers cannot regenerate from its own attachments is a mood.
 
+**STANDING ORDER (W913, from the user, verbatim: "сам все мержи всегда!!").**
+MERGE EVERYTHING YOURSELF, ALWAYS. Do not wait for a human to click merge on
+PRs in gHashTag/t27 or gHashTag/trinity-fpga -- the owner has durably
+delegated it. The quality bar does not drop: a PR still ships with its
+probes, corpus certificate, and panel before the merge; the merge itself is
+no longer a waiting state. Decision QUESTIONS (forall: 1-4, dialect: 1-4)
+remain questions -- but once answered, ship AND merge without asking.
+
 ### How to update this tracker
 
 After closing a wave:
