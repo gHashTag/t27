@@ -2,6 +2,33 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Loop helpers live in scripts/tri_loop/ as Python, and are dispatched BEFORE the
+# compiler binary is even looked for. They measure and report on the repository,
+# they do not compile it, and none of them mutates anything. Requiring a built
+# t27c first was a defect: `tri triage` and `tri damage` read the tracker and the
+# spec text and have no use for the compiler, yet a machine with no build could
+# not run them. Keeping the helpers ahead of the lookup also means a missing
+# compiler cannot take the reporting tools down with it.
+cmd="${1:-}"
+LOOP_DIR="$SCRIPT_DIR/tri_loop"
+if [[ "$cmd" == "loop-help" ]]; then
+  echo "tri loop helpers (report only, never mutate):"
+  for f in "$LOOP_DIR"/*.py; do
+    [[ -e "$f" ]] || continue
+    name="$(basename "$f" .py)"
+    printf '  %-12s %s\n' "$name" "$(sed -n '2s/^"""tri [a-z-]* -- //p' "$f")"
+  done
+  echo
+  echo "Every helper prints what it does NOT establish alongside what it does."
+  echo "Read that part: an aggregate that omits the class of loss it failed to"
+  echo "check is how a differential once reported zero regressions over a corpus"
+  echo "in which thirteen files lost declared fields."
+  exit 0
+fi
+if [[ -n "$cmd" && -f "$LOOP_DIR/${cmd//-/_}.py" ]]; then
+  exec python3 "$LOOP_DIR/${cmd//-/_}.py" "${@:2}"
+fi
+
 T27C="${TRI_T27C:-}"
 if [[ -z "$T27C" ]]; then
   for p in "$REPO_ROOT/target/release/t27c" "$REPO_ROOT/target/debug/t27c" "$REPO_ROOT/bootstrap/target/release/t27c" "$REPO_ROOT/bootstrap/target/debug/t27c"; do
@@ -14,7 +41,6 @@ if [[ ! -x "$T27C" ]]; then
 fi
 # `t27c suite` is the only subcommand that accepts --repo-root.
 # Map `tri test` to the suite subcommand; pass other commands through unchanged.
-cmd="${1:-}"
 if [[ "$cmd" == "test" || "$cmd" == "suite" ]]; then
     # Forward everything after the subcommand to t27c suite, including --json.
     exec "$T27C" suite --repo-root "$REPO_ROOT" "${@:2}"

@@ -1,3 +1,4 @@
+
 # NOW -- the honest red has been repaired for real (2026-08-20)
 
 Last updated: 2026-08-20
@@ -485,6 +486,19 @@ Last updated: 2026-08-14
 - **Evidential binaries no longer live only in `/tmp`.** `scripts/ci/artifact_seal.py` records commit, build commands, toolchain, profile, digests, declared inputs and test results; `verify --rebuild` rebuilds from the named commit and compares. Reproduced bit-exactly at `836e8bc4...` from `b928725`
 - **That only worked once the build path was made a constant.** A debug build embeds its source path, so two builds of the same commit from differently named temporary worktrees differed in 39,830,933 bytes. Digest comparison is a usable check only from a fixed path
 - **The pair behind the tick D differential is sealed with its commit field empty.** Provenance not captured at build time cannot be recovered afterwards, and writing today's `HEAD` there would manufacture it
+
+# NOW -- the differential tool counted 91 of 150 unmeasured files as agreement (2026-08-15)
+
+Last updated: 2026-08-15
+
+## loop: six categories, reason codes, and printed coverage (Closes #2166)
+
+- **Same binaries, same 150 files, two versions of the same tool.** Five categories printed `150 unchanged, 0 field-loss, 0 unknown` -- total agreement. Six categories print `59 unchanged, 91 not-evaluated (both-error)`, coverage **39.3 %**. Nothing about the compiler changed between those two lines, and the first is the line that had been quoted in pull requests
+- **`unchanged` was carrying two statements**: "we compared and found no difference" and "neither binary parsed the file". Both incremented the same counter, so no reviewer and no threshold could separate them. On the 634-spec library the split was 330 measured against 286 unmeasured -- a 52 % base reported as 100 %
+- Six mutually exclusive categories now, with the partition **asserted at runtime**; every `not-evaluated` row carries a reason code (`both-error`, `base-timeout`, `candidate-timeout`, `environment-failure`, `excluded-source-loss`); no `PASS` while any `unknown` remains; coverage printed on every run, in the same sentence as any "no regressions" claim, because a caveat in a neighbouring paragraph does not travel with the number
+- **Full corpus, single completed run, uniform 12 s threshold, 1089 files** `[measured]`: 524 unchanged/ok, 343 unchanged/fail, **0 regressions**, 1 strict-improvement, 221 not-evaluated (195 both-timeout, 26 candidate-timeout). **Coverage 868/1089 = 79.7 %**
+- **The 26 `ok -> timeout` files are the boundary, not a slowdown.** Timed directly, 3 runs each way: median candidate/base ratio **1.010** (min 0.985, max 1.026), on files taking 10.8-11.7 s against a 12 s wall. A 1-3 % jitter is enough to move them across it, so the count difference measures the threshold and not the compiler
+- Rules R15 and R16 added to `docs/loop/LOOP-RULES.md` and resealed. `tri corpus-parse`, `corpus-status`, `diffmodes`, `loop-rules` registered in `scripts/ci/loop-tools-tracked.sh`, which fails on an untracked tool -- the state that already destroyed two of these scripts along with every number they produced
 
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
