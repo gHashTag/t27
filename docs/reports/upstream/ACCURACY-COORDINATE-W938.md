@@ -54,6 +54,43 @@ regenerators draw uniformly over **77 binades** — roughly **9.5× wider than t
 distribution the format will actually see**. W937 could only bound this; here it
 is measured on real weights.
 
+## The resolution floor — added after checking against the field
+
+**The 16- and 8-bit rows resolve nothing, and that must be said before they are
+read.** On a 10,000-image test set at p = 0.934 the binomial standard error is
+**0.248 pp**, so the 95 % interval is about **±0.49 pp**. The observed spreads are
+0.02 pp (16-bit) and 0.19 pp (8-bit) — both inside one standard error. The honest
+label is **"not discriminative at this width"**, never "lossless, therefore
+competitive". Only the 4-bit separation (5.49 pp, ~22σ) clears the floor.
+
+Two corollaries. `bfloat16` and `binary16` at −0.01 pp did not "beat" fp32 — that
+is **one test image**. And this is a **single seed on a single split**, which the
+LUT-DNN literature does not accept: NeuraLUT reports 10-seed ablations, LUTNet
+plots min/mean/max over five runs, SparseLUT retrains every baseline rather than
+quoting it.
+
+**The baseline is weak, and saying so costs nothing.** 93.39 % from four epochs on
+784-32-10 sits *below* the field's quantised results: NeuraLUT-Assemble 98.6 % at
+5,037 LUT, DWN 97.8 % at 2,092 LUT, TreeLUT 96.6 %, FINN's binarised SFC 95.83 %,
+and even LogicNets-equivalent sparse networks at 93.76 %. FINN's own table has a
+plain fp32 MLP at 97.3 %. So "preserves fp32 accuracy" here means preserving an
+accuracy that the field's **fully binarised** networks already beat.
+
+## Never compose these numbers with the area numbers
+
+The accuracy above came from an **fp32 numerical simulation in which the format
+never entered a datapath** — no multiplier, no accumulator and no activation ever
+saw a TNF16 value; only the stored weights were round-tripped. The W936 figure is
+a **decode block**. The literature's LUT counts (FINN 91,131; PolyLUT 70,673;
+NeuraLUT 54,798) are complete placed-and-routed inference engines including
+popcount trees, thresholding and stream plumbing.
+
+So "our format: 93.4 % at N LUTs" is a category error of one to two orders of
+magnitude, and it implies an end-to-end measurement that does not exist. The two
+results belong in different sections. **The right peer group for a decode cost is
+the codec literature** — Hunhold's takum codec paper reports no task accuracy at
+all, only codec latency and CLB LUT swept over n = 8/16/32/64.
+
 ## How this should be positioned
 
 - Weights-only PTQ, activations fp32, no retraining, no calibration beyond

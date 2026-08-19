@@ -28327,6 +28327,40 @@ Measured corollary on the same weights: the empirical prior of a trained tensor
 spans 8.1 binades between its 1st and 99th percentile, against the 77 binades the
 accuracy regenerators draw from -- a factor of 9.5 in width.
 
+### T781 -- TWO MEASUREMENTS COMPOSE ONLY IF ONE CIRCUIT PRODUCED BOTH [derived]
+
+The temptation after T775 and T779 is immediate: decode cost in cells, accuracy in
+percent, one Pareto point per format. It is a category error, and naming why is
+worth more than the point would have been.
+
+The accuracy came from an fp32 simulation in which the format never entered a
+datapath -- only the stored weights were round-tripped; every multiplier,
+accumulator and activation stayed in fp32. The area came from a decode block
+synthesised alone. No circuit ever produced the accuracy figure, and the circuit
+that produced the area figure never ran the task. The literature's LUT counts for
+the same accuracies are complete placed-and-routed engines -- 91,131 for FINN,
+70,673 for PolyLUT, 54,798 for NeuraLUT -- one to two orders of magnitude above a
+codec, and they include the popcount trees and thresholding a codec number does
+not.
+
+The rule: a ratio between two measurements is admissible only when a single
+artefact produced both under one flow. Otherwise the ratio has an implied
+end-to-end experiment behind it that was never run, and the reader has no way to
+see the gap.
+
+Corollary on resolution, from the same check: a 10,000-sample test set at
+p = 0.934 has a binomial standard error of 0.248 pp, so nothing under about half a
+point is resolvable on it at all. Reported spreads of 0.02 pp (16-bit) and 0.19 pp
+(8-bit) are therefore statements that the instrument saw nothing -- which is a
+finding, but the opposite of the one an unwary reader takes from "zero accuracy
+drop". Only a 5.49 pp separation at four bits clears the floor, at roughly 22
+standard errors.
+
+And the baseline must be named honestly: 93.39% from a 25k-parameter MLP sits
+BELOW the field's fully binarised networks (FINN SFC 95.83%, NeuraLUT-Assemble
+98.6%). "Preserves fp32 accuracy" is true and means less than it sounds when the
+fp32 in question is weaker than the competition's 1-bit result.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
