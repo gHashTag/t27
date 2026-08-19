@@ -42,6 +42,10 @@ on:
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest
+    # 90, not 45: the cold-cache run (t27c build + full-tree scans + exhaustive
+    # arms) legitimately takes ~46 min -- the 45 ceiling killed a healthy run on
+    # 2026-08-19. A ceiling must clear the honest worst case, not the median.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 

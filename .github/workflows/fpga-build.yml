@@ -23,6 +23,9 @@ on:
 
 jobs:
   fpga-smoke:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -77,6 +80,9 @@ jobs:
           retention-days: 7
 
   fpga-lint:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -121,8 +127,15 @@ jobs:
           pass=0
           fail=0
           for v in build/fpga/generated/*.v; do
-            name=$(basename "$v" .v)
-            if yosys -p "read_verilog $v; hierarchy -top $name" -q 2>/dev/null; then
+            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
+            # so a filename-derived top failed 31 of 32 modules. The repo's own
+            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
+            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
+            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
+            # has non-constant args synthesis cannot evaluate (mac.v:535). As
+            # written, this loop could never have passed.
+            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
+            if yosys -p "read_verilog -sv -DSIMULATION $v; hierarchy -top $name" -q 2>/dev/null; then
               echo "| $name | OK | OK | PASS |" >> $GITHUB_STEP_SUMMARY
               pass=$((pass+1))
             else
@@ -138,6 +151,9 @@ jobs:
           fi
 
   fpga-synthesis:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -247,6 +263,9 @@ jobs:
           retention-days: 7
 
   fpga-synthesis-arty:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -292,6 +311,10 @@ jobs:
           fi
 
   fpga-bitstream:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 (#2214).
+    # 90 rather than 45: the first uncached run builds openXC7 nextpnr-xilinx
+    # AND exports a real chipdb; the cache makes later runs minutes.
+    timeout-minutes: 90
     needs: fpga-synthesis
     runs-on: ubuntu-latest
     steps:
@@ -315,69 +338,111 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y yosys git cmake g++ pkg-config libboost-dev python3-pip
+          sudo apt-get install -y yosys git cmake g++ pkg-config libboost-all-dev libeigen3-dev python3-pip
         
       - name: Build t27c
         run: cargo build --release -p t27c
       
       - name: Build nextpnr-xilinx
         run: |
-          if [ ! -f ~/.local/bin/nextpnr-xilinx ]; then
-            cd ~
-            git clone https://github.com/YosysHQ/nextpnr.git -b nextpnr-0.8
-            cd nextpnr
-            mkdir build && cd build
-            cmake .. -DARCH=xilinx -DUSE_OPENMP=OFF
-            make -j4
-            cp nextpnr-xilinx ~/.local/bin/
-          fi
+            # YosysHQ/nextpnr does NOT contain a `xilinx` architecture -- it lives in the
+            # openXC7/nextpnr-xilinx fork. As written, this step could never have passed:
+            # cmake fails with "Architecture 'xilinx' not in list". Same class as the
+            # yosys loop above.
+            if [ ! -f ~/.local/bin/nextpnr-xilinx ] || [ ! -f ~/.local/bin/bbasm ]; then
+              cd ~
+              git clone --recursive --depth 1 https://github.com/openXC7/nextpnr-xilinx.git
+              cd nextpnr-xilinx
+              cmake . -DARCH=xilinx -DUSE_OPENMP=OFF -DCMAKE_BUILD_TYPE=Release
+              make -j4 nextpnr-xilinx bbasm
+              mkdir -p ~/.local/bin
+              # In-tree cmake puts both binaries at the build root, not under bba/.
+              cp nextpnr-xilinx bbasm ~/.local/bin/
+            fi
       
       - name: Build prjxray tools
         run: |
           if [ ! -f ~/prjxray-build/xc7frames2bit ]; then
             cd ~
-            git clone https://github.com/SymbiFlow/prjxray.git
+            # prjxray keeps yaml-cpp and friends as submodules -- a bare clone has no
+              # CMakeLists for them and cmake dies on target yaml-cpp.
+              git clone --recursive --depth 1 --shallow-submodules https://github.com/SymbiFlow/prjxray.git
             cd prjxray
             mkdir build && cd build
             cmake ..
             make xc7frames2bit
-            cp xc7frames2bit ~/prjxray-build/
+            # The binary lands in build/tools/, not build/ -- one more line that had
+              # never executed before this PR.
+              mkdir -p ~/prjxray-build
+              cp tools/xc7frames2bit ~/prjxray-build/
           fi
       
       - name: Download prjxray database
         run: |
-          mkdir -p ~/prjxray-db
-          cd ~/prjxray-db
-          if [ ! -d "artix7" ]; then
-            git clone --depth 1 https://github.com/SymbiFlow/prjxray-db artix7
+          # t27c resolves the db at build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7
+          # relative to the repo root. The old step cloned the WHOLE prjxray-db repo into
+          # ~/prjxray-db/artix7 -- a path nothing reads, with the real artix7 db one
+          # level deeper than the directory name claimed.
+          mkdir -p build/nextpnr-xilinx/xilinx/external
+          if [ ! -d build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7 ]; then
+            git clone --depth 1 https://github.com/SymbiFlow/prjxray-db build/nextpnr-xilinx/xilinx/external/prjxray-db
           fi
-      
-      - name: Create chipdb symlink
+
+      - name: Stage prjxray where t27c expects it
         run: |
-          mkdir -p ~/fpga/chipdb
-          # Create minimal chipdb for testing (1MB placeholder)
-          dd if=/dev/zero of=~/fpga/chipdb/xc7a100tcsg324-1.bin bs=1024 count=1024
+          # Layer 11 of the onion: t27c hardcodes build/fpga/prjxray (clone location AND
+          # PYTHONPATH) and build/fpga/prjxray/build/tools/xc7frames2bit; everything this
+          # job built so far lived under ~/, so fasm2frames.py could never be found.
+          # fasm2frames needs no prjxray submodules; its import chain resolves with the
+          # packages below (verified by running --help against this exact list).
+          if [ ! -f build/fpga/prjxray/utils/fasm2frames.py ]; then
+            git clone --depth 1 https://github.com/SymbiFlow/prjxray.git build/fpga/prjxray
+          fi
+          mkdir -p build/fpga/prjxray/build/tools
+          cp ~/prjxray-build/xc7frames2bit build/fpga/prjxray/build/tools/
+          pip3 install fasm simplejson pyyaml intervaltree parse progressbar2 \
+            || pip3 install --break-system-packages fasm simplejson pyyaml intervaltree parse progressbar2
+
+      - name: Generate real chipdb (xc7a100t)
+        run: |
+          # This step used to write 1 MB of /dev/zero and call it a chipdb. A
+          # bitstream placed-and-routed against zeroes is not a bitstream, and the
+          # artefact + flashing guide downstream were outputs shaped like results
+          # with nothing inside. The database is now generated for real from the
+          # openXC7 tree and cached; first generation costs minutes, cache makes it
+          # free afterwards.
+          mkdir -p build/fpga/chipdb ~/fpga/chipdb
+          if [ ! -f ~/fpga/chipdb/xc7a100tcsg324-1.bin ]; then
+            cd ~/nextpnr-xilinx 2>/dev/null || { cd ~ && git clone --recursive --depth 1 https://github.com/openXC7/nextpnr-xilinx.git && cd nextpnr-xilinx; }
+            python3 xilinx/python/bbaexport.py --device xc7a100tcsg324-1 --bba /tmp/xc7a100t.bba
+            ~/.local/bin/bbasm --l /tmp/xc7a100t.bba ~/fpga/chipdb/xc7a100tcsg324-1.bin
+          fi
+          # The if-branch above cd's into ~/nextpnr-xilinx, so relative paths no
+          # longer point at the workspace -- my own bug, one layer deeper.
+          mkdir -p "$GITHUB_WORKSPACE/build/fpga/chipdb"
+          cp ~/fpga/chipdb/xc7a100tcsg324-1.bin "$GITHUB_WORKSPACE/build/fpga/chipdb/"
       
       - name: Generate bitstream
         run: |
-          ./target/release/t27c fpga-build --minimal
+          # t27c looks for nextpnr at a hardcoded build/ path; ours is in ~/.local/bin.
+          ./target/release/t27c fpga-build --minimal --nextpnr ~/.local/bin/nextpnr-xilinx
           ls -la build/fpga/
       
-      - name: Upload bitstream artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fpga-bitstream-${{ github.sha }}
-          path: build/fpga/bitstream.bit
-          retention-days: 7
-          
       - name: Bitstream metrics + flashing guide
         run: |
+          # t27c names the bitstream after the top module (zerodsp_top.bit for the
+          # minimal profile), not bitstream.bit -- the name this step used to demand.
+          # A second upload step with the same artifact name was also removed: v4
+          # errors on duplicate names, so it could only pass while the first upload
+          # found nothing.
           echo "## FPGA Bitstream Metrics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          if [ -f build/fpga/bitstream.bit ]; then
-            size=$(wc -c < build/fpga/bitstream.bit | tr -d ' ')
+          BIT=$(ls build/fpga/*.bit 2>/dev/null | head -1)
+          if [ -n "$BIT" ]; then
+            size=$(wc -c < "$BIT" | tr -d ' ')
+            echo "| Bitstream | $(basename "$BIT") |" >> $GITHUB_STEP_SUMMARY
             echo "| Bitstream size | $size bytes |" >> $GITHUB_STEP_SUMMARY
             echo "| Status | Generated |" >> $GITHUB_STEP_SUMMARY
             echo "| Board | QMTECH XC7A100T |" >> $GITHUB_STEP_SUMMARY
@@ -402,11 +467,14 @@ jobs:
         with:
           name: fpga-bitstream-${{ github.sha }}
           path: |
-            build/fpga/bitstream.bit
+            build/fpga/*.bit
             build/fpga/FLASHING.md
           retention-days: 7
 
   fpga-formal:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -430,7 +498,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y yosys
-          pip3 install sby
+          # SymbiYosys is not on PyPI as 'sby' -- pip has failed here on every run
+          # since the job existed (#2214). Install from source; it is pure Python plus
+          # a Makefile. smtbmc engines need an SMT solver: z3 from apt.
+          sudo apt-get install -y z3
+          git clone --depth 1 https://github.com/YosysHQ/sby.git /tmp/sby
+          sudo make -C /tmp/sby install
 
       - name: Build t27c
         run: cargo build --release -p t27c
@@ -477,6 +550,9 @@ jobs:
           retention-days: 7
 
   fpga-conformance:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: fpga-smoke
     runs-on: ubuntu-latest
     steps:
@@ -540,7 +616,14 @@ jobs:
           pass=0
           fail=0
           for v in build/fpga/generated/*.v; do
-            name=$(basename "$v" .v)
+            # The top is the MODULE name, not the file name -- mac.v holds ZeroDSP_MAC,
+            # so a filename-derived top failed 31 of 32 modules. The repo's own
+            # convention (suite.rs:859, verify_emit_bitexact.py:184) reads generated
+            # Verilog with `-sv -DSIMULATION`: -sv for the emitter's SV static casts,
+            # -DSIMULATION to strip `ifndef SIMULATION` bench blocks whose $display
+            # has non-constant args synthesis cannot evaluate (mac.v:535). As
+            # written, this loop could never have passed.
+            name=$(sed -n 's/^module \([A-Za-z0-9_]*\).*/\1/p' "$v" | head -1)
             if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2005 "$v" 2>/dev/null; then
               pass=$((pass+1))
             else
@@ -602,6 +685,9 @@ jobs:
           retention-days: 7
 
   fpga-report:
+    # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
+    # read as a red PR whose own steps were all skipped (#2214).
+    timeout-minutes: 45
     needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-synthesis-arty, fpga-formal, fpga-conformance, fpga-bitstream]
     runs-on: ubuntu-latest
     if: always()

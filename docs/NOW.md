@@ -1,3 +1,17 @@
+# NOW -- the yosys loop could never have passed as written (2026-08-19)
+
+Last updated: 2026-08-19
+
+## fix(fpga): first green path for fpga-build since 2026-08-08 (Closes #2215, closes #2214)
+
+- **Measured: 1 of 32 modules passed the CI loop as written.** Top derived from the FILENAME (`mac.v` holds `ZeroDSP_MAC`) and `-sv -DSIMULATION` missing -- the repo's own convention in `suite.rs:859` and `verify_emit_bitexact.py:184`. The Rust `--synth-only` path had the same missing flags
+- **Progression, measured at each step:** name-from-file 13/32 -> +flags 30/32 -> +four emitter fixes **32/32**
+- **Four emitter bugs exposed by the fixed loop:** escape-before-flattening (`\cross _data_width` -- the escaped identifier's terminating space split the name); `assert/assume/cover/restrict` missing from the keyword list; call sites not escaping what declarations escape (`ssume ` declared, `assume(` called -- two different identifiers); and the fn-return lvalue (`assume = 0;`) unescaped on both return paths
+- **Zero regression by the repository's own gates:** verify_emit_bitexact ALL SYNTHESIZE; verify_exhaustive 8 primitives intact; verify_igla_race intact; check_specs_generate 768/346 unchanged. M5 performed
+- `t27c fpga-build --docker false --synth-only` -- the exact step red in CI -- exits 0 locally with a 9.4 MB synth.json
+- **Every job in fpga-build.yml and emit-bitexact-gate.yml now carries timeout-minutes: 45** -- a hung apt ran 6h0m16s to the GitHub ceiling on 2026-08-18 and read as a red PR whose own steps were all skipped
+- Left open in #2214: `pip install sby` packaging in fpga-formal
+
 # NOW -- nine dangling gitlinks, one broken checkout for everyone (2026-08-19)
 
 Last updated: 2026-08-19
