@@ -432,3 +432,50 @@ holds within 0.33 pp. Not cheaper versus dearer — usable versus not.
 one substrate, two scaling axes behind its headline effect, and a finding that runs
 against its own naming convention — which is the kind of evidence referees weight
 most.
+
+
+## 15. W941 — the Pareto point, and a width error three instruments shared
+
+Landed as **tf#643**.
+
+### Every decoder generated from its own oracle
+
+Enumerating all 2^n codes through each format's own conformance reference and
+emitting a case statement removes both standing defects: no implementation-quality
+difference between formats, and every width read from the format object rather
+than a module name.
+
+| format | phys bits | values | consumer cells | MNIST (W+A) | Fashion (W+A) |
+|---|---:|---:|---:|---:|---:|
+| fp4 e2m1 | 4 | 15 | **19.14** | −70.50 | −71.32 |
+| GF4 | 4 | 15 | 21.14 | −70.50 | −71.32 |
+| **TNF4** | **6** | 58 | **51.29** | **−0.33** | **−1.05** |
+| GF8 | 8 | 255 | 145.57 | +0.02 | +0.04 |
+| fp8 e5m2 | 8 | 247 | 151.57 | −0.01 | −0.01 |
+| **fp8 e4m3** | 8 | 253 | **152.57** | −0.02 | −0.04 |
+| posit8 | 8 | 255 | 165.14 | +0.01 | +0.02 |
+| TNF8 | **11** | 2018 | 270.57 | +0.02 | −0.06 |
+
+**TNF4 delivers fp8-class accuracy at 2.97× less datapath cost** — 51.29 cells
+against 152.57 — and is the **only sub-8-bit format measured that works at all**
+(T788). Both weights **and** activations are quantised: the 8-bit null survives
+the experiment designed to break it.
+
+### The width error, and how it hid
+
+The oracle settles what three instruments each guessed differently: TNF16 is
+physically **19 bits** (1 + 7 + 11), against 16 in the name, 17 in the manuscript's
+caption, and 17 in the `tnf17_decode` module W940b switched to. TNF8 is **11**, not
+the 10 of `tnf8s_decode` — which is also a different field layout.
+
+It hid because **the positive half of a sign-magnitude format decodes perfectly
+well alone**: a 10-bit enumeration of an 11-bit format yields 1,008 finite,
+monotone, correctly spaced values and no negatives. Caught only by cross-checking
+against the oracle's own round-trip — 98 of 200 samples disagreed, which was the
+negative half (T787). Both rigs now assert that an enumerated value set contains a
+negative number.
+
+**Readiness 57 % → 63 %.** The project now has a Pareto point measured end to end
+by one procedure, with weights and activations quantised, on two tasks and five
+seeds — and its cost side is generated from specifications rather than written by
+the party the outcome favours.

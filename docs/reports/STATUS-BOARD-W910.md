@@ -1,4 +1,21 @@
-# Full status, both tracks — one page for whoever wakes up (W940, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W941, 2026-08-20)
+
+> **W941 — THE PARETO POINT.** Every decoder regenerated from its own conformance
+> oracle by exhaustive enumeration, so no implementation-quality difference can
+> enter and every width comes from the format object. With **weights and
+> activations both quantised**, five seeds, two tasks:
+> **TNF4 costs 51.29 consumer cells at −0.33 pp (MNIST) / −1.05 (Fashion), against
+> fp8 e4m3's 152.57 cells at −0.02 / −0.04 — 2.97× cheaper for fp8-class
+> accuracy**, and it is the only sub-8-bit format measured that works at all
+> (fp4 and GF4 lose seventy points). The 8-bit null survived the activation
+> experiment designed to break it. Landed as **tf#643**.
+>
+> **And a width error three instruments shared:** the oracle says TNF16 is
+> physically **19 bits** (16 in the name, 17 in the caption and in the module W940b
+> switched to), TNF8 is **11**, not 10. It hid because the positive half of a
+> sign-magnitude format enumerates perfectly well alone — 1,008 healthy-looking
+> values, no negatives. Both rigs now assert otherwise. **Readiness 57 % → 63 %.**
+> Theorems T787–T788; lessons 1419–1420.
 
 > **W940 — TWO SCALING AXES, AND A FRONTIER THAT CONTRADICTS THE RUNG NAMES.** On a
 > 269 k-parameter MLP the 4-bit gap is **+37.88 pp (t = 12.4)** on MNIST and
