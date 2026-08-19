@@ -399,7 +399,10 @@ jobs:
             python3 xilinx/python/bbaexport.py --device xc7a100tcsg324-1 --bba /tmp/xc7a100t.bba
             ~/.local/bin/bbasm --l /tmp/xc7a100t.bba ~/fpga/chipdb/xc7a100tcsg324-1.bin
           fi
-          cp ~/fpga/chipdb/xc7a100tcsg324-1.bin build/fpga/chipdb/
+          # The if-branch above cd's into ~/nextpnr-xilinx, so relative paths no
+          # longer point at the workspace -- my own bug, one layer deeper.
+          mkdir -p "$GITHUB_WORKSPACE/build/fpga/chipdb"
+          cp ~/fpga/chipdb/xc7a100tcsg324-1.bin "$GITHUB_WORKSPACE/build/fpga/chipdb/"
       
       - name: Generate bitstream
         run: |
