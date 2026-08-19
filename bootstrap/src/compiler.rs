@@ -4507,6 +4507,10 @@ impl Parser {
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
             }
+            // W894 (0003): checkpoint PER CLAUSE. The whole-block fallback made
+            // one unsupported clause lose its siblings -- most of the corpus's
+            // dropped test lines were collateral, not themselves unsupported.
+            let clause_entry = self.save_state();
             let clause = self.current.lexeme.clone();
             let is_binding = clause == "given" || clause == "when" || clause == "and";
             let is_assertion = clause == "then" || clause == "assert";
@@ -4535,7 +4539,44 @@ impl Parser {
                 }
             } else {
                 self.advance();
-                if self.current.kind != TokenKind::Ident {
+                // W894 (0003): `when (a_out, psum) = pe(...)` -- a tuple pattern.
+                // This single unsupported shape accounted for ~60% of every
+                // dropped when-line in the corpus, and the whole-block fallback
+                // then lost the sibling clauses too. Mirrors parse_local_decl's
+                // tuple path exactly: StmtLocal, empty name, comma-joined
+                // pattern in extra_field.
+                if self.current.kind == TokenKind::LParen {
+                    self.advance(); // consume (
+                    let mut pat = String::new();
+                    while self.current.kind != TokenKind::RParen
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        match self.current.kind {
+                            TokenKind::Comma => pat.push_str(", "),
+                            TokenKind::Ident => pat.push_str(&self.current.lexeme),
+                            _ => {}
+                        }
+                        self.advance();
+                    }
+                    if self.current.kind == TokenKind::RParen {
+                        self.advance();
+                    }
+                    if self.current.kind != TokenKind::Equals || pat.is_empty() {
+                        false
+                    } else {
+                        self.advance();
+                        match self.parse_expr() {
+                            Ok(expr) => {
+                                let mut decl = Node::new(NodeKind::StmtLocal);
+                                decl.extra_field = pat;
+                                decl.children.push(expr);
+                                block.children.push(decl);
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    }
+                } else if self.current.kind != TokenKind::Ident {
                     false
                 } else {
                     let name = self.current.lexeme.clone();
@@ -4560,10 +4601,39 @@ impl Parser {
 
             // `parse_expr` is greedy across newlines, so a binding value can
             // swallow the next clause's name (`FPGA_PART_35T and p100`) and
-            // leave us on its `=`. That is over-consumption, not a body.
-            if !ok || self.current.kind == TokenKind::Equals {
+            // leave us on its `=`. That is over-consumption; the clause-level
+            // recovery below cannot help because the damage crosses clauses --
+            // keep the whole-block fallback for exactly this case.
+            if self.current.kind == TokenKind::Equals {
                 self.restore_bdd_fallback(block, start_children, entry);
                 return;
+            }
+            if !ok {
+                // Restore to the clause head, then skip ONE clause: advance to
+                // the next clause keyword or block boundary, counting every
+                // skipped token as dropped so the truncation ledger stays
+                // honest. The safety contract still holds -- we only ever ADD
+                // statements, and the skip is bounded by is_block_boundary.
+                self.restore_state(clause_entry);
+                self.advance(); // step off the clause keyword itself
+                self.dropped_top_level_tokens += 1;
+                loop {
+                    if Self::is_block_boundary(self.current.kind) {
+                        break;
+                    }
+                    if self.current.kind == TokenKind::Ident
+                        && matches!(self.current.lexeme.as_str(),
+                                    "given" | "when" | "and" | "then" | "assert")
+                    {
+                        break;
+                    }
+                    if self.current.kind == TokenKind::Eof {
+                        break;
+                    }
+                    self.dropped_top_level_tokens += 1;
+                    self.advance();
+                }
+                continue;
             }
             lowered += 1;
         }
