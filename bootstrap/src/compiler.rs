@@ -4825,8 +4825,14 @@ impl Parser {
             self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
-            // Keyword-style bench: skip until next top-level
-            self.skip_to_next_top_level();
+            // W896 (0004a): keyword-style bench went to skip_to_next_top_level
+            // wholesale -- every assert under `bench name` was discarded while
+            // tests and invariants had lowerings. The same shared clause parser
+            // serves here: assert clauses lower; `measure:`/`target:` metadata
+            // lines are not clauses and are skipped PER-CLAUSE with honest
+            // token accounting (0003's granularity), instead of taking the
+            // whole block down.
+            self.parse_bdd_clauses(&mut block);
         }
         Ok(block)
     }
