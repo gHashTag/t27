@@ -28876,6 +28876,32 @@ The unsettled edge, stated because it is the obvious attack: every one of these 
 is a dense network. Convolutional activation statistics differ precisely where a
 max-rule scale is sensitive, and no conv model here has been trained to convergence.
 
+### T796a -- THE FAILURE RATE HAS ITS OWN BLIND SPOT, AND THIRTY EPOCHS FOUND IT [measured]
+
+T794 replaced the mean with the failure rate because a bimodal competitor makes the
+mean describe no run that happened. Thirty epochs on MNIST show the replacement is
+also incomplete.
+
+    TNF4       0/5 failures   98.0  97.6  97.8  97.9  97.8
+    fp6 e2m3   4/5            19.2  81.0   9.6  12.7  11.3
+    fp6 e3m2   2/5            71.9  65.6  55.5  71.4  59.3
+
+By the 60% threshold fp6 e3m2 "passes" three runs of five. But its BEST run reaches
+71.9 against TNF4's WORST at 97.6: the two distributions do not overlap at all, and
+the gap between them is 25.7 points. A rate counts how many runs crossed a line; it
+is silent about a distribution that has been dragged down uniformly without crossing
+it.
+
+So neither summary survives alone. The mean hides bimodality, the rate hides uniform
+degradation, and the only honest presentation is the one this theorem uses: **print
+the per-seed list**. Five numbers per configuration cost one line and cannot be
+misread; every statistic computed from them can.
+
+Totals over eight configurations: TNF4 0/40, fp6 e2m3 29/40, fp6 e3m2 24/40. And
+TNF4's own trajectory on MNIST -- 96.76 at three epochs, 97.68 at ten, 97.82 +- 0.15
+at thirty -- converges rather than drifting, which is the behaviour the coarse-step
+worry predicted against and did not find.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

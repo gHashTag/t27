@@ -12447,6 +12447,8 @@ a worktree in the same wave its branch merges.
 
 **1430. A MONOTONE FAILURE RATE IN THE STEP COUNT IS A MECHANISM, NOT A STATISTIC.** One configuration failed 2 of 5 at three epochs, 4 of 5 at ten and 5 of 5 at thirty -- same task, same recipe, same seeds, only more optimisation. No sampling process behaves that way; positive feedback does. The same sweep answered the opposite question for free: the coarser grid climbed 85.50 -> 87.38 -> 88.77 with sigma under half a point, so its wider dynamic range was never paid for in accuracy within a tenfold range of budgets. And at thirty epochs the failures stopped being at chance (33, 41, 50, 52), which distinguishes a PARTIAL collapse -- one layer dead, the rest alive -- from a dead network. Sweep the step count before theorising about an instability: its shape names the mechanism.
 
+**1431. EVERY SUMMARY STATISTIC HAS A BLIND SPOT, SO PRINT THE FIVE NUMBERS.** The mean was replaced by the failure rate because a bimodal competitor made the mean describe no run that happened. Thirty epochs then exposed the rate's own blind spot: a configuration passing three of five runs by threshold had its BEST run at 71.9 against the reference's WORST at 97.6 -- non-overlapping distributions, 25.7 points apart, invisible to a rate that only counts line-crossings. The mean hides bimodality; the rate hides uniform degradation; a median hides both differently. Five per-seed numbers cost one line of output, cannot be misread, and let a reader compute whichever statistic their question needs. Print the list first and the summary second, never the reverse.
+
 ### How to update this tracker
 
 After closing a wave:
