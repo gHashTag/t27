@@ -72,6 +72,8 @@ class LSQ(torch.autograd.Function):
 
 
 GRAD_SCALE = True
+import os
+INIT_PCT = float(os.environ['INIT_PCT']) if os.environ.get('INIT_PCT') else None
 
 
 class QLinear(nn.Linear):
@@ -90,7 +92,15 @@ class QLinear(nn.Linear):
         if not self._init:
             with torch.no_grad():
                 self.ws.fill_(float(self.weight.abs().max().clamp(min=1e-8)))
-                self.as_.fill_(float(x.abs().max().clamp(min=1e-8)) if x.numel() else 1.0)
+                # W947: a max-rule scale is the worst case for a narrow-range grid --
+                # fp6 e2m3 spans 5.9 binades against TNF4's 14.6, so under max
+                # scaling everything below 1.67 % of the peak underflows. A
+                # percentile init is the standard mitigation; INIT_PCT selects it.
+                if INIT_PCT is not None and x.numel():
+                    v = float(np.quantile(np.abs(x.detach().numpy()), INIT_PCT))
+                    self.as_.fill_(max(v, 1e-8))
+                else:
+                    self.as_.fill_(float(x.abs().max().clamp(min=1e-8)) if x.numel() else 1.0)
             self._init = True
         w = LSQ.apply(self.weight, self.ws.abs().clamp(min=1e-8), QLinear.vals)
         if QLinear.act_vals is not None:
@@ -107,13 +117,14 @@ def idx(path, kind):
 
 
 def main():
-    d = SC / "mnist"
+    import os as _os
+    d = SC / _os.environ.get("TASK", "mnist")
     Xtr, ytr = idx(d / "train-images-idx3-ubyte.gz", "img"), idx(d / "train-labels-idx1-ubyte.gz", "lab")
     Xte, yte = idx(d / "t10k-images-idx3-ubyte.gz", "img"), idx(d / "t10k-labels-idx1-ubyte.gz", "lab")
     Xv, yv = torch.from_numpy(Xte), torch.from_numpy(yte)
     Xt, yt = torch.from_numpy(Xtr), torch.from_numpy(ytr)
     sets = {k: value_set(*v) for k, v in FORMATS.items()}
-    out = {"task": "mnist", "seeds": SEEDS, "epochs": EPOCHS, "runs": {}}
+    out = {"task": __import__("os").environ.get("TASK","mnist"), "seeds": SEEDS, "epochs": EPOCHS, "runs": {}}
     for name, vals in sets.items():
         QLinear.vals = QLinear.act_vals = vals
         for seed in SEEDS:
@@ -139,7 +150,7 @@ def main():
             print(f"  {name:8} сид {seed:8}: точность {f['acc']*100:6.2f}%  "
                   f"масштабы активаций {f['act_scales']}  весов {f['w_scales']}", flush=True)
         QLinear.vals = QLinear.act_vals = None
-    p = SC / "stability_gs.json"
+    p = SC / ("stability_" + __import__("os").environ.get("TASK","mnist") + "_" + (f"pct{INIT_PCT}" if INIT_PCT else "gs") + ".json")
     p.write_text(json.dumps(out, indent=1))
     print("\nWROTE " + str(p), flush=True)
 

@@ -28773,6 +28773,45 @@ means the phi structure costs nothing to adopt. The project's defensible assets 
 the mathematics, the eight-bit null that survived every experiment built to break
 it, and the apparatus that produced these corrections.
 
+### T794 -- THE SURVIVING PROPERTY IS RECIPE-INSENSITIVITY, AND ITS MECHANISM IS RANGE [measured]
+
+W946 closed at parity with one thread open: fp6 e2m3 was not repaired by the
+standard LSQ gradient factor. Two experiments settle it and move the picture twice
+more.
+
+The mechanism is measured, not asserted. At six physical bits: TNF4 spans 14.6
+binades with 28 positive values, fp6 e3m2 spans 8.8 with 31, fp6 e2m3 spans 5.9
+with 31. The phi-lattice spends its width on RANGE rather than precision, and under
+a max-rule scale that is the difference between a grid where nothing underflows and
+one whose floor sits at 1.7% of the peak.
+
+My mitigation hypothesis -- that a percentile scale init would rescue the narrow
+grids -- was refuted: it made them worse and broke the configuration that had
+worked. Across three recipes and three tasks:
+
+    recipe                                TNF4   fp6 e2m3   fp6 e3m2
+    max init, no gradient factor           0/5      3/5        2/5
+    max init, standard factor              0/5      4/5        0/5
+    p99.9 init, standard factor            0/5      5/5        4/5
+    KMNIST, max init, standard factor      0/5      2/5        2/5
+    TOTAL                                 0/20     14/20       8/20
+
+So the W946 repair was TASK-SPECIFIC: the standard factor takes fp6 e3m2 to 0/5 on
+MNIST and it returns to 2/5 on KMNIST. And TNF4 has not failed once in twenty runs.
+
+Two statements about method fall out. **Mean accuracy is the wrong statistic
+against a bimodal competitor**: fp6 e3m2 on KMNIST reads 86.0, 86.8, 23.0, 87.3,
+30.6, and its mean of 62.73 +- 32.94 describes no run that happened. The failure
+RATE describes them all. And **a claim of robustness must be quoted with the recipe
+space it was tested over**, because "robust" without that is a claim about one
+configuration -- here it is three recipes and three tasks, and that is the whole of
+its warrant.
+
+The honest form of the surviving result: at equal width the phi-lattice buys
+robustness with range, ties on cost and on accuracy-when-both-train, and is
+falsifiable in one run by anyone whose recipe makes a narrow grid reliable across
+tasks -- which three of mine did not.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
