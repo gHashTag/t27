@@ -19845,6 +19845,13 @@ pub struct RustCodegen {
     const_types: std::collections::HashMap<String, String>,
     /// Declared Rust return type of every function in this module.
     fn_ret_types: std::collections::HashMap<String, String>,
+    /// Names of enums declared in this module.
+    ///
+    /// t27 writes an enum member as `Verdict.escalate`, which is Zig's
+    /// spelling and what the parser produces. Rust spells it
+    /// `Verdict::escalate`. Without knowing which identifiers name enums the
+    /// emitter cannot tell that access apart from a struct field.
+    enum_names: std::collections::HashSet<String>,
 }
 
 #[allow(dead_code)]
@@ -19860,6 +19867,7 @@ impl RustCodegen {
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
+            enum_names: std::collections::HashSet::new(),
         }
     }
 
@@ -20006,6 +20014,9 @@ impl RustCodegen {
     }
 
     fn gen_enum(&mut self, node: &Node) {
+        // Recorded before the body is written, so a member referenced inside
+        // the same module resolves however the declarations are ordered.
+        self.enum_names.insert(node.name.clone());
         self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]");
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
@@ -20725,7 +20736,23 @@ impl RustCodegen {
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
             }
-            NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
+            NodeKind::ExprEnumValue => {
+                if node.extra_field.is_empty() {
+                    // Shorthand `.variant`. t27 takes the enum from context the
+                    // way Zig does; Rust has no such rule, so the emitter must
+                    // supply it. The context available here is the declared
+                    // return type of the function being emitted - exactly the
+                    // case the shorthand is written for. Without it the variant
+                    // was printed on the LEFT of the separator: `escalate::`.
+                    if self.enum_names.contains(&self.fn_ret_type) {
+                        format!("{}::{}", self.fn_ret_type, node.name)
+                    } else {
+                        node.name.clone()
+                    }
+                } else {
+                    format!("{}::{}", node.name, node.extra_field)
+                }
+            }
             NodeKind::ExprUnary => {
                 if !node.children.is_empty() {
                     let operand = &node.children[0];
@@ -20748,7 +20775,14 @@ impl RustCodegen {
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
-                    format!("{}.{}", self.expr_to_rust(&node.children[0]), node.name)
+                    let base = self.expr_to_rust(&node.children[0]);
+                    // An enum member is a path in Rust and a field access in
+                    // t27's Zig-shaped syntax. Only the base tells them apart.
+                    if self.enum_names.contains(&base) {
+                        format!("{}::{}", base, node.name)
+                    } else {
+                        format!("{}.{}", base, node.name)
+                    }
                 } else {
                     node.name.clone()
                 }

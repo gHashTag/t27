@@ -1,3 +1,28 @@
+# NOW -- an enum member is a path, not a field access (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(rust-emitter): enum paths and the shorthand's missing type
+
+Working on the trios side, moving the supervisor's decision core out of Swift
+into a `.t27` ring. Generating it exposed two gaps in the Rust backend, both in
+how an enum member is spelled, and together they made every enum-returning
+function ungeneratable:
+
+- `Verdict.escalate` emitted as `Verdict.escalate`; Rust needs `::`.
+- The shorthand `.escalate` emitted as `escalate::` -- the variant on the left
+  of the separator.
+
+Both fixed in `RustCodegen`. The seal moved because `compiler.rs` changed;
+new digest recorded per FROZEN.md §5.
+
+Not touched: the FPGA stands, `fpga/`, or anything on the wave branch. Three
+further gaps are recorded in the commit message and left alone -- `switch` as a
+function body, `;` comments inside an enum body, and `pub module` not being
+picked up from a `//`-commented file.
+
+---
+
 # NOW -- the props read with -formal too (2026-08-20)
 
 Last updated: 2026-08-20
