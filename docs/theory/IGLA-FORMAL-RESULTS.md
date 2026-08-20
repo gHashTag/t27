@@ -28701,6 +28701,42 @@ and running it here cost one afternoon and produced three different numbers for 
 comparison across three waves -- 37.88, 0.19, 1.58 -- each from a better experiment
 than the last. The RANGE is the result; any single number inside it is a recipe.
 
+### T792 -- MOST OF WHAT LOOKED LIKE A FORMAT ADVANTAGE WAS A WIDTH ADVANTAGE [measured]
+
+Two errors, both mine, found in one wave.
+
+First: W944 called the 4-bit-activation result an instability with "some seeds
+diverging". The per-seed record reads 11.51, 10.28, 11.35, 25.17, 11.35 -- all five
+collapsed, four to chance. A standard deviation computed across five failures is
+not evidence of a mixture.
+
+Second, and larger: the comparison was never width-matched. TNF4 is physically SIX
+bits with 57 grid values and a smallest positive of 0.125; fp4 e2m1 is four bits
+with 15 values and a smallest positive of 0.5. MNIST is 80.7% zeros, so quantising
+its activations to the coarser grid sends 84.2% of them to zero and the signal is
+gone. Fashion, at 50% zeros, survives. The 83-point figure measured a 57-level grid
+against a 15-level grid on a sparse task.
+
+Re-run against real six-bit floats from the same oracle, learned scale, five seeds,
+paired:
+
+    weights only    TNF4 - fp6 e3m2   MNIST +0.11 (t 2.2)  Fashion +0.17 (t 1.2, 3/5, n.s.)
+                    TNF4 - fp6 e2m3         +0.82 (t 9.0)          +0.84 (t 4.2)
+    weights+acts    TNF4 - fp6 e3m2         +23.13 (sigma 32.3)    -0.42 -- fp6 e3m2 WINS
+
+**Against the fair peer the accuracy advantage is 0.11-0.17 pp, not significant on
+one task, and negative in one configuration.** What survives is not accuracy but
+STABILITY: TNF4's standard deviation is 0.17-0.72 pp everywhere, while fp6 e2m3
+reaches sigma = 46.09 and fp6 e3m2 sigma = 32.33 on MNIST with quantised
+activations -- training either is a coin flip there.
+
+The general law is the one this project keeps relearning at increasing cost: a
+format's name is not its width (T785), three widths can circulate for one rung
+(T787), and a comparison at unmatched width measures the mismatch. The specific
+correction is that four waves of headline numbers -- 37.9, 0.19, 1.58, 82.83 --
+were all measured against a competitor two bits narrower, and the width-matched
+figure is 0.11.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
