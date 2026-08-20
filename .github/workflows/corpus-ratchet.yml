@@ -77,10 +77,29 @@ jobs:
           set -o pipefail
           # Redirect rather than pipe: `tail` buffers to end-of-stream and makes
           # a working tool look silent for the whole run (T26).
+          #
+          # `|| rc=$?` and not a bare call: a `run:` block with no `shell:` key
+          # executes under `bash -e`, so a failing command aborts the step where it
+          # stands. With a bare call the `rc=$?`, the `sed` and the `exit $rc` below
+          # were dead code on precisely the path they exist for -- this step printed
+          # its exit code and nothing else for its entire history, and the verdict
+          # reached a reader only through the uploaded artifact. A command on the
+          # left of `||` is not an `-e` abort point, so the tail of this script runs
+          # and `exit $rc` still carries the outcome unchanged. Closes #2314.
+          rc=0
           ./target/release/t27c suite --repo-root . --ratchet --corpus-only \
-            --json suite_summary.json > ratchet.log 2>&1
-          rc=$?
-          sed -n '/--- Ratchet (W628) ---/,$p' ratchet.log
+            --json suite_summary.json > ratchet.log 2>&1 || rc=$?
+          # A crash before the verdict leaves no Ratchet section behind. Say so and
+          # show the tail, rather than falling back to a bare exit code again.
+          verdict=$(sed -n '/--- Ratchet (W628) ---/,$p' ratchet.log || true)
+          if [ -n "$verdict" ]; then
+            printf '%s\n' "$verdict"
+          else
+            echo "ratchet.log has no '--- Ratchet (W628) ---' section, so the run"
+            echo "ended before the verdict. Its last 40 lines follow; the whole file"
+            echo "is in the corpus-ratchet-log artifact."
+            tail -40 ratchet.log 2>&1 || true
+          fi
           exit $rc
 
       # Scoped to the ratchet step. A bare `failure()` here fires for ANY earlier
