@@ -1,3 +1,63 @@
+# NOW -- the test gate landed red because the measurement was taken on the wrong tree (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(corpus-ratchet): remove the `cargo test -p t27c` step landed 34 minutes ago
+
+The entry directly below this one is **wrong**, and this is the correction.
+
+`ce6ea628b` added a `cargo test -p t27c --release` step to `corpus-ratchet.yml` on
+the strength of "1221 passed, 0 failed, 0 ignored". That measurement was really
+taken and really said that. **It was taken in the wrong working tree.**
+
+The host checkout sits on `feat/wave-547/host-heapsort`. The gate runs on `master`.
+The two trees are nowhere near each other:
+
+| | `feat/wave-547/host-heapsort` | `origin/master` |
+|---|---|---|
+| `bootstrap/src/compiler.rs` | 22,142 lines | **36,970 lines** |
+| `#[test]` in `bootstrap/src` | 1,781 | 1,622 |
+| `cargo test -p t27c` main bin | 895 passed, 0 failed | **1602 passed, 13 failed** |
+
+The step went red on its first run on master. It is removed here. The 13 failing
+test names, and the plan to re-land this as a ratchet rather than a gate, are in
+#2292; #2288 and #2289 are reopened.
+
+Kept from `ce6ea628b`: the `Explain a failure` step stays scoped to
+`steps.ratchet.outcome == 'failure'`. As a bare `failure()` it answers a failing
+`Build t27c` with "add an entry to `docs/reports/suite_expectations.json`", which
+is wrong independently of any test step.
+
+### Honesty limits (BINDING)
+
+- **The number in the entry below -- 1221 tests, 0 failures -- describes a tree
+  that is not master and never was.** On master the same command is **1602 passed,
+  13 failed, 2 ignored** in the main binary. Both numbers are real measurements of
+  different things; only the second one is about the branch that gates merges.
+- **13 is a lower bound, not the failing count.** `cargo test` stops at the first
+  failing target, so the 21 test binaries in `bootstrap/tests/` never ran on master.
+  Their state is **unmeasured**. A ratchet baseline needs `--no-fail-fast` first.
+- **The local verification was real and proved nothing about master.** The step body
+  was run verbatim from the parsed YAML and exited 0; a shape-identical harness
+  confirmed it exits non-zero on failure. Both were true, on the wrong tree. Running
+  a command locally is not evidence about CI unless the checkout matches.
+- **This made things worse for 34 minutes, not merely no better.** `corpus-ratchet`
+  was *already* failing on master at `Run the corpus ratchet` (`eeb779e4c`,
+  `57a53005a`, `2255e4c32`, `bffd38982`, `400850702`). Putting a failing step in
+  front of it short-circuited the job, so the pre-existing ratchet failure stopped
+  being reported at all.
+- **`master` has no branch protection.** `GET /repos/gHashTag/t27/branches/master/protection`
+  returns `404 Branch not protected`. PR #2291 auto-merged at `03:57:13Z`; its own
+  `corpus-ratchet` run started at `03:57:16Z` -- it merged **three seconds before the
+  gate it was adding began to run**. Nothing in this repo that calls itself BLOCKING,
+  including `corpus-ratchet.yml`'s own `W632 (BLOCKING)` header, currently blocks
+  anything. That is not fixed here and is the larger finding.
+- **#2290 stands unaffected** -- `bootstrap/src/math_compare.rs` is still compiled by
+  nothing, and its `test_hybrid_v2_plateau` still asserts a bound 2.10x tighter than
+  the file's own goldens. No test was edited in either direction.
+
+---
+
 # NOW -- 1221 tests that had never run in CI now run in CI (2026-08-20)
 
 Last updated: 2026-08-20
