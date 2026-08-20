@@ -8948,6 +8948,15 @@ pub struct VerilogCodegen {
     array_param_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
     array_param_indices: std::collections::HashMap<String, std::collections::HashSet<usize>>,
     array_param_errors: std::collections::HashMap<String, String>,
+    // Enums declared by a spec this one `use`s, as (enum, [(variant, value)]).
+    // `Enum.variant` has always lowered to the identifier `Enum_variant`, and a
+    // `localparam` was declared for it only when the enum was declared in the
+    // SAME spec -- so an imported enum produced a reference with no
+    // declaration, which no Verilog standard accepts. Populated only through
+    // `Compiler::compile_verilog_at`, since resolving `use base::ops;` needs
+    // the path of the spec being compiled and a source string does not carry
+    // one. Empty everywhere else, which is exactly the old behaviour.
+    imported_enums: Vec<(String, Vec<(String, String)>)>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -8996,7 +9005,16 @@ impl VerilogCodegen {
             array_param_bindings: std::collections::HashMap::new(),
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
+            imported_enums: Vec::new(),
         }
+    }
+
+    /// Hand the backend the enums it reaches through `use`.
+    ///
+    /// Nothing is emitted for an enum the module never names; see
+    /// `imported_enum_nodes`.
+    pub fn set_imported_enums(&mut self, enums: Vec<(String, Vec<(String, String)>)>) {
+        self.imported_enums = enums;
     }
 
     // Restored from Wave Loop 455 (same botched merge).
@@ -10606,6 +10624,7 @@ impl VerilogCodegen {
             array_param_bindings: std::collections::HashMap::new(),
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
+            imported_enums: Vec::new(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -10823,6 +10842,7 @@ impl VerilogCodegen {
                     array_param_bindings: std::collections::HashMap::new(),
                     array_param_indices: std::collections::HashMap::new(),
                     array_param_errors: std::collections::HashMap::new(),
+                    imported_enums: Vec::new(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -11741,13 +11761,23 @@ impl VerilogCodegen {
         }
 
         // Section: Enum parameters
-        if !enums.is_empty() {
+        //
+        // An enum reached through `use` is emitted by the SAME function as a
+        // same-spec enum, because the body already spells the reference the
+        // same way -- `Enum.variant` lowers to `Enum_variant` whichever spec
+        // declared it. Imported ones come first: they are what the local
+        // declarations may depend on, never the other way round.
+        let imported_enum_nodes = self.imported_enum_nodes(ast, &enums);
+        if !enums.is_empty() || !imported_enum_nodes.is_empty() {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
             self.write_line("// Enum constants");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
+            for e in &imported_enum_nodes {
+                self.gen_verilog_enum(e);
+            }
             for e in &enums {
                 self.gen_verilog_enum(e);
             }
@@ -12771,6 +12801,84 @@ impl VerilogCodegen {
             }
         }
         self.write_line("");
+    }
+
+    /// The enums this module imports AND actually names, as `EnumDecl` nodes
+    /// so they go through the same emitter as a same-spec enum.
+    ///
+    /// Two filters, both deliberate:
+    ///
+    /// * **Referenced only.** An unused `localparam` is harmless to a
+    ///   simulator, but emitting one per imported enum would rewrite the
+    ///   generated Verilog of every spec that merely imports a module with an
+    ///   enum in it. Only `Enum.variant` references pull anything in.
+    /// * **Never shadow.** If the module already declares that name, or
+    ///   already declares the `Enum_variant` identifier by another route, the
+    ///   import is dropped. A redeclaration is a compile error, so this pass
+    ///   must only ever ADD a declaration that nothing else provides.
+    fn imported_enum_nodes(&self, ast: &Node, local_enums: &[&Node]) -> Vec<Node> {
+        if self.imported_enums.is_empty() {
+            return Vec::new();
+        }
+        let mut referenced: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        Self::collect_field_access_bases(ast, &mut referenced);
+        if referenced.is_empty() {
+            return Vec::new();
+        }
+
+        let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for decl in &ast.children {
+            if !decl.name.is_empty() {
+                taken.insert(decl.name.clone());
+            }
+        }
+        for e in local_enums {
+            for v in &e.children {
+                taken.insert(format!("{}_{}", e.name, v.name));
+            }
+        }
+
+        let mut out: Vec<Node> = Vec::new();
+        for (name, variants) in &self.imported_enums {
+            if !referenced.contains(name) || taken.contains(name) {
+                continue;
+            }
+            if variants
+                .iter()
+                .any(|(variant, _)| taken.contains(&format!("{}_{}", name, variant)))
+            {
+                continue;
+            }
+            let mut node = Node::new(NodeKind::EnumDecl);
+            node.name = name.clone();
+            for (variant, value) in variants {
+                let mut child = Node::new(NodeKind::EnumVariant);
+                child.name = variant.clone();
+                child.value = value.clone();
+                taken.insert(format!("{}_{}", name, variant));
+                node.children.push(child);
+            }
+            out.push(node);
+        }
+        out
+    }
+
+    /// The `Enum` half of every `Enum.variant`-shaped reference in the tree.
+    ///
+    /// This is the same shape `gen_verilog_expr` lowers to `Enum_variant`, so
+    /// asking it what the body names is asking exactly the right question.
+    fn collect_field_access_bases(node: &Node, out: &mut std::collections::HashSet<String>) {
+        if node.kind == NodeKind::ExprFieldAccess {
+            if let Some(base) = node.children.first() {
+                if base.kind == NodeKind::ExprIdentifier {
+                    out.insert(base.name.clone());
+                }
+            }
+        }
+        for child in &node.children {
+            Self::collect_field_access_bases(child, out);
+        }
     }
 
     fn gen_verilog_enum(&mut self, node: &Node) {
@@ -17742,14 +17850,31 @@ impl Compiler {
     }
 
     pub fn compile_verilog(source: &str) -> Result<String, String> {
-        Self::compile_verilog_with_options(source, false)
+        Self::compile_verilog_with_options(source, false, None)
+    }
+
+    /// `compile_verilog`, told where the spec lives.
+    ///
+    /// Only a caller holding the path can resolve `use base::ops;` to a file,
+    /// and until it is resolved the backend cannot know that `Trit.neg` --
+    /// which it lowers to the identifier `Trit_neg` -- needs a `localparam`.
+    /// Callers holding only a source string keep the old behaviour.
+    pub fn compile_verilog_at(
+        source: &str,
+        spec_path: &std::path::Path,
+    ) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, false, Some(spec_path))
     }
 
     pub fn compile_verilog_for_simulation(source: &str) -> Result<String, String> {
-        Self::compile_verilog_with_options(source, true)
+        Self::compile_verilog_with_options(source, true, None)
     }
 
-    fn compile_verilog_with_options(source: &str, emit_test_assertions: bool) -> Result<String, String> {
+    fn compile_verilog_with_options(
+        source: &str,
+        emit_test_assertions: bool,
+        spec_path: Option<&std::path::Path>,
+    ) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
@@ -17761,6 +17886,9 @@ impl Compiler {
         Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
+        if let Some(path) = spec_path {
+            codegen.set_imported_enums(crate::use_resolve::imported_enums(path, source));
+        }
         codegen.gen_verilog(&ast);
         Ok(codegen.into_string())
     }

@@ -1,3 +1,84 @@
+# NOW -- an enum reached through `use` was referenced but never declared (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(verilog): declare the enums a spec imports (Closes #2316)
+
+`fpga-conformance` went hard-red at `fd245d2aa` and its log cannot say why: the
+step redirects every compiler error to `/dev/null` and prints one count. Rerun
+by hand against the `fpga-verilog` artifact of run 32358697899, the loop is
+`pass=4 fail=28 total=32` -- and it has been 32/32 failing since the step was
+born on 2026-04-14 in `544479121`, warning-only, eight sampled greens all
+carrying `##[warning]32/32 modules failed iverilog compilation`. Nothing
+regressed; arming an always-failing gate made a four-month-old emitter defect
+visible.
+
+Of the four causes behind those 28, exactly one is mechanical and this is it.
+
+### The defect
+
+`gen_verilog_expr` lowers `Enum.variant` to the flat identifier `Enum_variant`
+whichever spec declared the enum. `gen_verilog` declared
+`localparam Enum_variant = ...;` only for enums a spec declares itself, so an
+enum arriving through `use` produced a reference with no declaration:
+
+```
+gen/mac.v:100: error: Unable to bind wire/reg/memory `Trit_neg' in `ZeroDSP_MAC.extract_trit.extract_trit_body'
+```
+
+`specs/fpga/mac.t27` does `use base::ops;`, and `base/ops.t27` declares
+`Trit = enum(i8) { neg = -1, zero = 0, pos = 1 }`.
+
+### Enums only -- not `use_resolve::resolve`
+
+Splicing whole declarations is the wrong instrument here: `resolve` pulls
+functions, structs and constants, the Verilog backend cannot lower most of them,
+and 492 of the 650 specs carry a `use` line. An enum is the one case where the
+backend already does everything except emit the declaration. So
+`use_resolve::imported_enums` returns `(enum, [(variant, value)])` and nothing
+else, and the backend emits it through the same `gen_verilog_enum` a same-spec
+enum goes through.
+
+Two filters keep the blast radius at what it must be. **Referenced only**: an
+enum the module never names emits nothing, so `uart.t27` -- which imports both
+modules that declare `Trit` and never mentions it -- is byte-identical to before.
+**Never shadow**: a name the module already declares is dropped, because a
+redeclaration is a compile error and this pass may only ever add a declaration
+nothing else provides.
+
+Measured across all 650 specs, the ones that import an enum, name it, and do not
+declare it locally are six, and all six want `Trit`. Two of them
+(`demos/jones_topology_*`) import only `base::types`, which is `NOPARSE`, so they
+are unchanged; the other four also import `base::ops`.
+
+### What it moves, and what it does not
+
+The prebuilt `t27c` at `fb88da234` regenerates `mac.v` byte-identical to the CI
+artifact, so it is a faithful stand-in. With the three localparams in place:
+
+| | `iverilog -g2012 -DSIMULATION gen/mac.v` |
+|---|---|
+| as generated | 28 errors |
+| after | 22 errors, **0** mentioning `Trit_` |
+
+`mac.v` still fails, so **`fpga-conformance` stays red at 4/32**. The remaining
+22 -- and 26 of the 28 failing modules -- are one different defect: a
+struct-typed function parameter is declared as one scalar and then referenced
+through `<param>_<field>` names nothing declares (`word_raw`,
+`mac_units_status`, `cfg_addr_width`, 202 distinct identifiers). That is a
+design decision about how structs lower, not a repair, and it is not made here.
+`bridge.v` (cross-spec calls to functions defined inside other modules -- illegal
+in Verilog whatever file set you compile) and `zerodsp_top.v` (a structural
+wrapper the loop compiles without its five dependencies) are the other two.
+
+### Two premise defects in the gate itself, unfixed
+
+Named so a future green here is not mistaken for proof: the step is called
+*"Compile conformance testbenches"* but compiles design files -- no testbench
+exists in the artifact, `vvp` never runs, and the `conformance/fpga_*.json`
+vectors the previous step enumerates are fed to nothing. And `2>/dev/null`
+guarantees that when this gate fails, its log cannot say why. That is why it sat
+unread for four months.
 # NOW -- tri ci baseline: PR gates that have never run on the branch they gate (2026-08-20)
 
 Last updated: 2026-08-20

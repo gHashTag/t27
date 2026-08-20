@@ -412,6 +412,61 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     out
 }
 
+/// The enums declared by the specs this one imports, as
+/// `(enum, [(variant, value)])` in `use` order.
+///
+/// This is deliberately NOT `resolve`. Splicing pulls whole declarations --
+/// functions, structs, constants -- and the Verilog backend cannot lower most
+/// of them, so widening its input is a change of behaviour for 492 specs. An
+/// enum is different: the backend ALREADY lowers `Enum.variant` to the
+/// identifier `Enum_variant`, and it already declares a `localparam` for every
+/// enum a spec declares itself. The only thing missing when the enum arrives
+/// through `use` is the declaration. That is what this returns, and nothing
+/// else.
+///
+/// Direct imports only, and only dependencies that parse on their own -- the
+/// same contract `resolve` carries. `specs/base/types.t27` does not parse and
+/// declares `Trit`; a spec that also imports `base::ops` still gets `Trit`,
+/// because ops declares the same enum. The first declaration of a name wins,
+/// so one file can never resolve one name two ways.
+pub fn imported_enums(input_path: &Path, source: &str) -> Vec<(String, Vec<(String, String)>)> {
+    let specs_root = match find_specs_root(input_path) {
+        Some(r) => r,
+        None => return Vec::new(),
+    };
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out: Vec<(String, Vec<(String, String)>)> = Vec::new();
+    for dep in use_targets(source, &specs_root) {
+        let text = match std::fs::read_to_string(&dep) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let ast = match crate::compiler::Compiler::parse_ast(&text) {
+            Ok(a) => a,
+            Err(_) => continue,
+        };
+        for decl in &ast.children {
+            if decl.kind != crate::compiler::NodeKind::EnumDecl || decl.name.is_empty() {
+                continue;
+            }
+            if !seen.insert(decl.name.clone()) {
+                continue;
+            }
+            // The value is carried verbatim, including the empty string, so the
+            // backend applies the same "no value means the ordinal" rule to an
+            // imported enum that it applies to a local one.
+            let variants: Vec<(String, String)> = decl
+                .children
+                .iter()
+                .filter(|v| v.kind == crate::compiler::NodeKind::EnumVariant)
+                .map(|v| (v.name.clone(), v.value.clone()))
+                .collect();
+            out.push((decl.name.clone(), variants));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
