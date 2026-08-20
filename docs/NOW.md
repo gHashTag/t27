@@ -1,3 +1,11 @@
+# NOW -- landed can assert a path, not only content (2026-08-20)
+
+Last updated: 2026-08-20
+
+## landed can assert a path, not only content (Closes #2269)
+
+- tri pr landed --file <path> asserts the path exists on the default branch, separately from --probe which searches content: probing for CITED_NUMBERS returned ABSENT while the file of that name was present, because a file does not contain its own name
+- Fifth way a landing probe lies, and the first with a fix in the tool rather than in the caller's habits
 # NOW -- the arXiv LUT count was the flip-flop count (2026-08-20)
 
 Last updated: 2026-08-20
