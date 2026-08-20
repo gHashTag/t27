@@ -1,3 +1,12 @@
+# NOW -- tri ci baseline: PR gates that have never run on the branch they gate (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri ci baseline: PR gates that have never run on the branch they gate (Closes #2309)
+
+- Generalises #2276 across three repositories. Reading triggers alone flagged 47 workflows (a push: with a paths: filter still gives a sparse baseline); counting default-branch runs alone flagged 46 (release, nightly and dispatch-only workflows are supposed to have none). The finding is the intersection: PR-gated AND never run on the default branch — 4, not 47 and not 46.
+- trinity-fpga (51 active PR gates) and zig-golden-float have none. t27 has three, and they are three different problems: a configuration hole (seal-staleness-warn), one that is inherently pull-request-scoped and correct as it stands (check-now-freshness), and one whose push: paths simply have not changed on master yet (loop-tools-gate). The command prints the taxonomy and refuses to grade them.
+
 # NOW -- the build check's third cause: tri rtl check reads a submodule the workflow never checked out (2026-08-20)
 
 Last updated: 2026-08-20
