@@ -59,65 +59,17 @@ jobs:
       - name: Build t27c
         run: cargo build --release -p t27c
 
-      # Closes #2288. `cargo build` does not compile `#[cfg(test)]` modules, so
-      # eight workflows on master build t27c and not one of them ever compiled,
-      # let alone ran, a single test in it. Measured 2026-08-20: 1221 tests
-      # exist and 1221 of them had never executed in CI. They all pass -- so
-      # this lands as a plain gate, not a ratchet.
+      # A `cargo test -p t27c` step lived here for 34 minutes on 2026-08-20
+      # (ce6ea628b) and is removed again by #2292. It was landed on a measurement
+      # of 1221 passing tests taken in a working tree checked out at
+      # feat/wave-547/host-heapsort, NOT at master -- that branch's
+      # bootstrap/src/compiler.rs is 22,142 lines against master's 36,970. On
+      # master the same command is 1602 passed / 13 failed / 2 ignored, so the
+      # step went red on its first run here.
       #
-      # It goes here because the crate is already built one step above, so the
-      # marginal cost is compiling the test targets and running them: measured
-      # 1m43s cold / 1.75s warm, against this job's 45-minute ceiling and its
-      # ~314s ratchet run.
-      #
-      # Scope, stated openly -- this runs what `cargo test -p t27c` REACHES,
-      # which is not every test in the tree. 913 `#[test]` attributes live in
-      # bootstrap/src; 895 compile into this run. The missing 18:
-      #   * bootstrap/src/math_compare.rs -- 10 tests, and no `mod math_compare;`
-      #     exists anywhere in the crate, so rustc never opens the file. Built
-      #     standalone it is 9 pass / 1 fail (see #2288 follow-up); the failure
-      #     is a bad assertion, not a bad implementation, so it is NOT silenced
-      #     here and NOT wired in here -- wiring it in would land this gate red.
-      #   * bootstrap/src/proxy.rs -- 8 tests behind
-      #     `#[cfg(all(test, feature = "server"))]`. No workflow passes
-      #     `--features server`, so they are stripped before type-checking.
-      # Neither hole is created by this step; both are named so the green tick
-      # is not read as "every test in bootstrap/src ran".
-      - name: Unit tests (cargo test -p t27c)
-        id: unit_tests
-        run: |
-          set -o pipefail
-          cargo test -p t27c --release 2>&1 | tee unit_tests.log
-          rc=$?
-          totals=$(grep -E '^test result:' unit_tests.log \
-            | awk '{p+=$4; f+=$6; i+=$8} END {printf "%d passed, %d failed, %d ignored", p, f, i}')
-          bins=$(grep -cE '^test result:' unit_tests.log)
-          echo ""
-          echo "t27c unit tests: ${totals} across ${bins} test binaries."
-          {
-            echo "### t27c unit tests"
-            echo ""
-            echo "\`cargo test -p t27c --release\` -- **${totals}** across ${bins} test binaries."
-            echo ""
-            echo "Not covered: 10 tests in \`bootstrap/src/math_compare.rs\` (no \`mod\` declaration"
-            echo "anywhere, so rustc never compiles the file) and 8 in \`bootstrap/src/proxy.rs\`"
-            echo "(behind \`feature = \"server\"\`, which no workflow enables)."
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit $rc
-
-      - name: Explain a unit-test failure
-        if: failure() && steps.unit_tests.outcome == 'failure'
-        run: |
-          echo "::error title=t27c unit tests failed::A Rust test in the t27c crate failed."
-          echo ""
-          echo "This is NOT the corpus ratchet and has nothing to do with"
-          echo "docs/reports/suite_expectations.json. Do not bless an expectation for it."
-          echo ""
-          echo "Reproduce locally with:"
-          echo "    cargo test -p t27c --release"
-          echo ""
-          echo "The failing test names are in the step log above and in the"
-          echo "corpus-ratchet-log artifact (unit_tests.log)."
+      # It should come back as a RATCHET over the 13 named in #2292, never as a
+      # plain gate: a gate that lands red gets disabled rather than obeyed.
+      # Do not re-add it without a measurement taken on master.
 
       - name: Run the corpus ratchet
         id: ratchet
@@ -163,5 +115,4 @@ jobs:
           path: |
             ratchet.log
             suite_summary.json
-            unit_tests.log
           retention-days: 14
