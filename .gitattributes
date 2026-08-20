@@ -12,17 +12,24 @@
 # For append-only JSONL, `union` is that behaviour and is built in.
 .trinity/experience/*.jsonl merge=union
 
-# NOW.md: canonical location is docs/NOW.md. The root file is a symlink, so
-# git merges the link target, not the text — and `theirs` is not a built-in
-# driver either (same missing .git/config entry as append-log had). Point the
-# symlink's rule at the same built-in the real file uses; if the symlink is
-# ever replaced by a real file, this keeps working.
+# NOW.md: canonical location is docs/NOW.md. The root NOW.md is NOT a symlink
+# — `git ls-tree master NOW.md` reports mode 100644, a regular file (a symlink
+# would be 120000). It is its own divergent document, last stamped 2026-08-09
+# while docs/NOW.md is stamped by every pull request. An earlier version of
+# this comment described a symlink and merge-of-the-link-target; no such
+# symlink has existed here. Whether the root file should become a real
+# symlink, be deleted, or keep its own content is still open — see #2253.
+#
+# This pattern has no slash, so git matches it by basename at ANY depth: it
+# already covers docs/NOW.md (and sub/dir/NOW.md), verifiable with
+# `git check-attr merge -- docs/NOW.md`. The rule below is therefore
+# redundant, and is kept only because it is the one people look for.
 NOW.md merge=union
 
-# The rule above names the SYMLINK, not the file that actually conflicts, and
-# `theirs` is not a built-in driver — it needs a per-clone .git/config entry
-# that a fresh checkout does not have. So docs/NOW.md conflicted on every
-# branch (seven times in one campaign), each resolved identically by hand:
-# keep both entries. `union` is built in, so it works in every clone with no
-# setup, and it is exactly that resolution.
+# docs/NOW.md is the file that actually conflicts: it conflicted on every
+# branch (seven times in one campaign), each time resolved identically by hand
+# — keep both entries. `theirs` used to be named here, but it is not a
+# built-in driver: it needs a merge.theirs.driver entry in .git/config that no
+# fresh clone has, so it silently did nothing. `union` is built in, needs no
+# setup, and concatenates both sides — exactly that hand resolution.
 docs/NOW.md merge=union
