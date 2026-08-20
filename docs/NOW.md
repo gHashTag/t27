@@ -1,3 +1,70 @@
+# NOW -- the cli-tri build check has never once been green (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci: yosys is installed after the tests that need it (Closes #2302)
+
+`.github/workflows/cli-tri.yml` has a `build` job that has never passed. Not
+"regressed" -- never passed: **11 runs on `master`, 11 failures**, and 0
+successes out of 56 runs across every branch the workflow has ever touched.
+
+The workflow does install yosys. It installs it in the wrong place -- as a line
+inside the `run` block of the final step, which is ordered after the tests:
+
+```yaml
+      - name: cargo test -p tri          # needs yosys, runs first
+        run: cargo test -p tri
+
+      - name: the CLI actually produces a report
+        run: |
+          set -uo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq yosys   # too late
+```
+
+`ubuntu-latest` ships no yosys, so at test time it is never on PATH and
+`fpga::tests::test_smoke_gate_json_synthetic_verify_lean` fails on every run:
+
+```
+[smoke-gate] SKIP: yosys not on PATH
+[smoke-gate] complete (passed: false)
+test result: FAILED. 155 passed; 1 failed
+```
+
+A failed step aborts the job, so the install step had not executed once in the
+workflow's entire history. The fix hoists it into its own named `install yosys`
+step before `cargo test -p tri`.
+
+### The test was not the thing to change
+
+`smoke_gate()` ANDs `yosys_ok` into its verdict. Making the assertion tolerate a
+missing binary would have produced a green check that verified no synthesis at
+all -- the absence-is-not-a-value defect already closed twice, in #2285 and
+#2287. A gate is not allowed to treat "I could not look" as "I looked and it was
+fine". The YAML was wrong; `cli/tri/src/fpga.rs` was right, and is untouched.
+
+### The duplicate install was removed, after checking what it carried
+
+The inline line installed yosys and nothing else, so once hoisted it was pure
+duplication and is deleted in full rather than trimmed. Had it also pulled some
+second package, that part would have stayed. The comment above the final step
+now says yosys arrives from the step above instead of claiming to install it.
+
+### Checked that yosys was the only thing missing
+
+Fixing one ordering bug and landing on a second one helps nobody, so the
+conjunction was read through before touching the YAML. Inside
+`smoke_gate()` (`cli/tri/src/fpga.rs:5946-6350`) there is no `lake`, no
+`python3`, no `nextpnr` -- yosys is the only external binary it spawns.
+`theorem_matrix_ok` is a hardcoded `true`, and the verify-lean phase is a
+pure-Rust synthetic fixture that writes and re-reads its own JSON rather than
+shelling out to Lean. The run log agrees: the yosys skip was the only phase
+reporting anything but OK.
+
+One consequence worth stating plainly: because the job always died at the test
+step, the final `tri rtl check` step has never run in CI. This change exercises
+it for the first time, so it is a genuinely unverified surface rather than a
+known-good one.
+
 # NOW -- a commit gate that could never pass, a symlink that never existed, and 835 lines of base64 (2026-08-20)
 
 Last updated: 2026-08-20
