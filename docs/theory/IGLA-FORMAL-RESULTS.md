@@ -28846,6 +28846,36 @@ runaway, hold everything fixed and add TIME. Noise averages out with more steps;
 positive feedback loop consumes them. Here the same knob that would settle a noisy
 estimate drove the failure rate from 0 % to 100 %.
 
+### T796 -- THE RUNAWAY COMPLETES AND THE COARSER STEP NEVER STARTS COSTING [measured]
+
+Thirty epochs on Fashion, same seeds and recipe, weights and activations quantised:
+
+    TNF4       88.77 +- 0.41   0/5 failures   88.4 88.7 89.5 88.6 88.8
+    fp6 e2m3   25.75 +- 24.63  4/5            30.6 66.9 11.2 10.0 10.0
+    fp6 e3m2   37.32 +- 17.50  5/5             9.1 50.5 33.0 52.1 41.9
+
+Two completions.
+
+**The phi-lattice improves monotonically with training and never pays for its
+coarser step:** 85.50 at three epochs, 87.38 at ten, 88.77 at thirty, with sigma
+under half a point throughout. The question T795 left open -- where does 14.6
+binades at 28 values become worse than 8.8 at 31 -- has a null answer within a
+tenfold range of training budgets.
+
+**And the runaway completes.** fp6 e3m2 fails 2 of 5 at three epochs, 4 of 5 at ten,
+5 of 5 at thirty on one task under one recipe; fp6 e2m3 goes 2, 2, 4. Monotone in
+steps for both. At thirty epochs the failures are no longer at chance -- 33, 41, 50,
+52 -- which is the signature of a PARTIAL collapse: the layer whose scale ran away
+carries nothing, the others still carry signal. A noise process does not produce a
+monotone failure rate in the step count, and it does not produce a bimodal outcome
+that degrades further with more optimisation.
+
+Totals over seven configurations: TNF4 0/35, fp6 e2m3 25/35, fp6 e3m2 22/35.
+
+The unsettled edge, stated because it is the obvious attack: every one of these runs
+is a dense network. Convolutional activation statistics differ precisely where a
+max-rule scale is sensitive, and no conv model here has been trained to convergence.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
