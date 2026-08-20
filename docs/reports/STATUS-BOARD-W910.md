@@ -1,4 +1,14 @@
-# Full status, both tracks — one page for whoever wakes up (W944, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W945, 2026-08-20)
+
+> **W945 — MOST OF THE ADVANTAGE WAS WIDTH.** TNF4 is physically **six bits**
+> (57 grid values) and had been compared against a **four-bit** fp4 (15 values) for
+> four waves. Against real 6-bit floats: **+0.11 pp (MNIST, t 2.2)** and **+0.17
+> (Fashion, t 1.2 — not significant)**, and with quantised activations on Fashion
+> **fp6 e3m2 wins by 0.42**. What survives is **stability**: TNF4's σ is 0.17–0.72
+> pp everywhere against **σ = 46.09** and **32.33** for the fp6 formats on MNIST.
+> The chain now reads **37.9 → 0.19 → 1.58 → 0.11**, every step against our own
+> interest. Landed as **tf#654**; the container pinned by digest as **tf#653**.
+> **Readiness 74 % → 75 %.** Theorem T792; lesson 1425.
 
 > **W944 — THE RANGE IS THE RESULT, AND MY OWN PREDICTION WAS REFUTED.** W943
 > predicted that a stronger QAT recipe would close the residual 4-bit gap. With a

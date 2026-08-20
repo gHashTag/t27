@@ -589,3 +589,38 @@ carries a comment about.
 
 **Readiness 71 % → 74 %.** The strongest remaining gap is the empty hardware axis
 and the absence of an external replication of any of this.
+
+
+## 19. W945 — most of the advantage was width, and the claim becomes stability
+
+Landed as **tf#654**; the container digest as **tf#653**.
+
+**Two errors, both ours.** W944 called the 4-bit-activation result an instability
+with "some seeds diverging"; the per-seed record is 11.51, 10.28, 11.35, 25.17,
+11.35 — all five collapsed. And the comparison was never width-matched: **TNF4 is
+physically six bits** (57 grid values, smallest positive 0.125) against fp4 e2m1's
+four (15 values, 0.5). MNIST is 80.7 % zeros, so the coarser grid zeroes 84.2 % of
+activations and the signal disappears; Fashion at 50 % zeros survives.
+
+Against real 6-bit floats from the same oracle:
+
+| configuration | TNF4 − fp6 e3m2 | TNF4 − fp6 e2m3 |
+|---|---:|---:|
+| weights, MNIST | **+0.11** (t 2.2) | +0.82 (t 9.0) |
+| weights, Fashion | **+0.17 (t 1.2 — n.s.)** | +0.84 (t 4.2) |
+| weights+acts, Fashion | **−0.42 — fp6 e3m2 wins** | +0.12 (t 0.8) |
+
+**What survives is stability**: TNF4's σ is 0.17–0.72 pp everywhere, against 46.09
+and 32.33 for the fp6 formats on MNIST with quantised activations (T792).
+
+**The chain, four links:** 37.9 → 0.19 → 1.58 → **0.11**, each step forced by the
+previous step's own principle and each moving against this project's interest.
+
+Also landed: the toolchain container is **pinned by digest**
+(`sha256:eced1cd…c70c`, resolved 2026-08-20 through the registry API without a
+daemon) at all 15 invocation sites — tool-version drift was the one reproducibility
+hurdle still open.
+
+**Readiness 74 % → 75 %.** The claim is smaller and the evidence is better: a
+width-matched, significance-tested statement about trainability is worth more than
+an unmatched one about accuracy.
