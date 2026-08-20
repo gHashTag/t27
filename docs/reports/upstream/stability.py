@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""W946: what is the sigma = 46 actually made of?
+
+The one surviving claim from W945 is stability: with quantised activations on
+MNIST, fp6 e2m3 lands at sigma = 46.09 and fp6 e3m2 at 32.33, while TNF4 sits at
+0.21. A standard deviation that large is not "noise" -- it is a mixture of runs
+that trained and runs that did not, and the useful question is what separates them.
+
+This logs, per seed and per epoch: test accuracy, and the learned activation scale
+of each layer. If the scale diverges or collapses in the failing runs, the finding
+is about the RECIPE (a scale that runs away on a sparse grid) rather than about the
+format -- and that distinction decides whether the claim survives.
+"""
+import gzip, json, pathlib, sys, time
+import numpy as np
+import torch
+import torch.nn as nn
+
+SC = pathlib.Path("/private/tmp/claude-501/-Users-playom-t27--claude-worktrees-igla-fpga-improvements-3f5e1a/"
+                  "eeed4a0e-20e8-40f4-aa16-1ecfee4ad92d/scratchpad")
+sys.path.insert(0, str(SC / "upstream-wt/conformance"))
+import tnf_ref as T, fp8_ref as F8
+
+SEEDS = [20260820, 7, 1337, 424242, 99991]
+FORMATS = {"TNF4": (T, T.TNFFormat(2, 1), 6),
+           "fp6e2m3": (F8, F8.FORMATS["fp6_e2m3"], 6),
+           "fp6e3m2": (F8, F8.FORMATS["fp6_e3m2"], 6)}
+EPOCHS = 3
+
+
+def value_set(mod, fmt, bits):
+    v = []
+    for c in range(1 << bits):
+        try:
+            x = float(mod.decode(fmt, c))
+        except Exception:
+            continue
+        if np.isfinite(x):
+            v.append(x)
+    a = np.unique(np.array(sorted(set(v)), dtype=np.float32))
+    assert (a < 0).any()
+    return torch.from_numpy(a)
+
+
+def snap(x, vals):
+    i = torch.bucketize(x, vals).clamp(1, len(vals) - 1)
+    lo, hi = vals[i - 1], vals[i]
+    return torch.where((x - lo).abs() <= (hi - x).abs(), lo, hi)
+
+
+class LSQ(torch.autograd.Function):
+    """LSQ with the gradient-scaling factor the paper prescribes.
+
+    Esser et al. scale the step-size gradient by 1/sqrt(N * Qp) so that the scale
+    parameter moves on the same footing as the weights. Omitting it is exactly how
+    a scale runs away: W946 measured layer-2 scales collapsing 0.81 -> 0.29 ->
+    0.0065 in every failing run and stabilising in every surviving one.
+    """
+    @staticmethod
+    def forward(ctx, x, s, vals):
+        xs = x / s
+        q = snap(xs, vals)
+        ctx.save_for_backward(xs, q)
+        ctx.gscale = 1.0 / max((x.numel() * max(float(vals.abs().max()), 1.0)) ** 0.5, 1.0)
+        return q * s
+
+    @staticmethod
+    def backward(ctx, g):
+        xs, q = ctx.saved_tensors
+        gs = ctx.gscale if GRAD_SCALE else 1.0
+        return g, (g * (q - xs)).sum().reshape(1) * gs, None
+
+
+GRAD_SCALE = True
+
+
+class QLinear(nn.Linear):
+    vals = None
+    act_vals = None
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.ws = nn.Parameter(torch.ones(1))
+        self.as_ = nn.Parameter(torch.ones(1))
+        self._init = False
+
+    def forward(self, x):
+        if QLinear.vals is None:
+            return nn.functional.linear(x, self.weight, self.bias)
+        if not self._init:
+            with torch.no_grad():
+                self.ws.fill_(float(self.weight.abs().max().clamp(min=1e-8)))
+                self.as_.fill_(float(x.abs().max().clamp(min=1e-8)) if x.numel() else 1.0)
+            self._init = True
+        w = LSQ.apply(self.weight, self.ws.abs().clamp(min=1e-8), QLinear.vals)
+        if QLinear.act_vals is not None:
+            x = LSQ.apply(x, self.as_.abs().clamp(min=1e-8), QLinear.act_vals)
+        return nn.functional.linear(x, w, self.bias)
+
+
+def idx(path, kind):
+    raw = gzip.open(path, "rb").read()
+    if kind == "img":
+        n = int.from_bytes(raw[4:8], "big")
+        return np.frombuffer(raw[16:], np.uint8).reshape(n, 784).astype(np.float32) / 255.0
+    return np.frombuffer(raw[8:], np.uint8).astype(np.int64)
+
+
+def main():
+    d = SC / "mnist"
+    Xtr, ytr = idx(d / "train-images-idx3-ubyte.gz", "img"), idx(d / "train-labels-idx1-ubyte.gz", "lab")
+    Xte, yte = idx(d / "t10k-images-idx3-ubyte.gz", "img"), idx(d / "t10k-labels-idx1-ubyte.gz", "lab")
+    Xv, yv = torch.from_numpy(Xte), torch.from_numpy(yte)
+    Xt, yt = torch.from_numpy(Xtr), torch.from_numpy(ytr)
+    sets = {k: value_set(*v) for k, v in FORMATS.items()}
+    out = {"task": "mnist", "seeds": SEEDS, "epochs": EPOCHS, "runs": {}}
+    for name, vals in sets.items():
+        QLinear.vals = QLinear.act_vals = vals
+        for seed in SEEDS:
+            torch.manual_seed(seed)
+            net = nn.Sequential(QLinear(784, 256), nn.ReLU(), QLinear(256, 256), nn.ReLU(), QLinear(256, 10))
+            opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+            lf = nn.CrossEntropyLoss()
+            trace = []
+            for ep in range(EPOCHS):
+                perm = torch.randperm(len(Xt))
+                for i in range(0, len(Xt), 256):
+                    b = perm[i:i + 256]
+                    opt.zero_grad(); lf(net(Xt[b]), yt[b]).backward(); opt.step()
+                with torch.no_grad():
+                    acc = (net(Xv).argmax(1) == yv).float().mean().item()
+                    scales = [float(m.as_.abs()) for m in net if isinstance(m, QLinear)]
+                    wsc = [float(m.ws.abs()) for m in net if isinstance(m, QLinear)]
+                trace.append({"epoch": ep + 1, "acc": acc,
+                              "act_scales": [round(s, 5) for s in scales],
+                              "w_scales": [round(s, 5) for s in wsc]})
+            out["runs"].setdefault(name, {})[str(seed)] = trace
+            f = trace[-1]
+            print(f"  {name:8} сид {seed:8}: точность {f['acc']*100:6.2f}%  "
+                  f"масштабы активаций {f['act_scales']}  весов {f['w_scales']}", flush=True)
+        QLinear.vals = QLinear.act_vals = None
+    p = SC / "stability_gs.json"
+    p.write_text(json.dumps(out, indent=1))
+    print("\nWROTE " + str(p), flush=True)
+
+
+if __name__ == "__main__":
+    main()

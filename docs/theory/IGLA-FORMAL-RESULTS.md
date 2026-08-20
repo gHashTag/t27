@@ -28737,6 +28737,42 @@ correction is that four waves of headline numbers -- 37.9, 0.19, 1.58, 82.83 --
 were all measured against a competitor two bits narrower, and the width-matched
 figure is 0.11.
 
+### T793 -- AT MATCHED WIDTH IT IS PARITY, AND THE LAST ADVANTAGE WAS A MISSING LINE IN OUR OWN RECIPE [measured]
+
+The terminal result of six waves. Every advantage measured for the phi-lattice at
+four to six bits, re-measured against a same-width float:
+
+    cost        TNF4 51.29 cells   fp6 e3m2 50.29   -- TNF4 2% DEARER
+    accuracy    +0.11 pp MNIST (t 2.2), +0.17 Fashion (t 1.2, n.s.)
+    stability   TNF4 96.70 +- 0.38   fp6 e3m2 96.58 +- 0.56   -- PARITY
+
+The stability axis is the instructive one. W945's surviving claim was that the fp6
+formats train unreliably (sigma 32-46) while TNF4 does not. Logging the learned
+scales showed the mechanism in every failing run: the layer-2 activation scale
+collapses monotonically, 0.81 -> 0.29 -> 0.0065, and once it is near zero the
+activations vanish, the gradient vanishes with them and the run is locked. That is
+the documented LSQ failure mode, and our implementation had omitted the gradient
+scaling factor 1/sqrt(N*Qp) that exists to prevent exactly it.
+
+Restoring the factor fixes fp6 e3m2 completely -- 2 of 5 failures to 0 of 5, and
+96.58 +- 0.56 against TNF4's 96.70 +- 0.38. **The last surviving advantage was
+ours to lose, and we lost it by omitting one line from the recipe we cited.**
+(fp6 e2m3 is not fixed; its two-bit exponent leaves too little range for a sparse
+task, which is a property of that format.)
+
+The methodological law, stated at its full cost: **when a comparison favours the
+thing you built, the null hypothesis is that your instrument favours it.** Eight
+corrections across seven waves, every one against this project's interest, every
+one forced by the previous step's own principle -- unmatched width four times, a
+misread variance, an omitted recipe term, a name-not-width error, and an
+enumeration missing a sign bit. Not one was found by an outside reviewer.
+
+What parity means is worth saying plainly, because it is a result and not a defeat:
+a novel lattice reaching parity with a mature IEEE-style encoding at equal width
+means the phi structure costs nothing to adopt. The project's defensible assets are
+the mathematics, the eight-bit null that survived every experiment built to break
+it, and the apparatus that produced these corrections.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
