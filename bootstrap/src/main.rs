@@ -7,7 +7,7 @@
 // - gen-verilog: Generate synthesizable Verilog from .t27
 // - gen-c: Generate C code from .t27
 // - seal: Compute seal hashes (with --save / --verify)
-// - check-now: Gate on docs/NOW.md Last updated date
+// - check-now: Gate on a fresh dated docs/now/ entry
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod bridge;
@@ -1273,7 +1273,7 @@ enum Commands {
         repo_root: PathBuf,
     },
 
-    /// Require docs/NOW.md "Last updated" calendar date to match today (local timezone)
+    /// Require a dated docs/now/ entry within [yesterday .. tomorrow] (UTC)
     CheckNow {
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,

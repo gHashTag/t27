@@ -125,8 +125,8 @@ add_summary "$TEST_VERDICT"
 # ----------------------------------------------------------------------------
 # 4. Pre-PR gate preview (variant U). Locally reproduce the cheap parts of two
 #    required CI gates so the author sees a likely failure BEFORE pushing:
-#      - NOW Sync Gate: docs/NOW.md must appear in the diff vs master, and its
-#        `Last updated:` date must be today or yesterday (UTC).
+#      - NOW Sync Gate: the diff vs master must ADD a docs/now/ entry, and that
+#        entry's filename date must fall in [yesterday .. tomorrow] (UTC).
 #      - L3 PURITY: added lines in the diff vs master must be ASCII-only.
 #    This is a best-effort PREVIEW, not the gate itself: it diffs against the
 #    local `origin/master` (or `master`) ref, so it is only as fresh as the
@@ -152,22 +152,33 @@ else
         log " [4/5] gate-preview-> SKIP (no origin/master or master ref found)"
     else
         GATE_ISSUES=""
-        # (a) NOW.md present in the diff vs base.
-        if git diff --name-only "$BASE_REF"...HEAD 2>/dev/null | grep -qx 'docs/NOW.md'; then
+        # (a) A docs/now/ entry is ADDED in the diff vs base. Entries are one
+        #     file per unit of work; editing an existing one is not writing one.
+        NOW_ENTRY_RE='^docs/now/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+\.md$'
+        ADDED_NOW="$(git diff --diff-filter=A --name-only "$BASE_REF"...HEAD 2>/dev/null | grep -E "$NOW_ENTRY_RE" || true)"
+        if [ -n "$ADDED_NOW" ]; then
             NOW_IN_DIFF="now-in-diff:yes"
         else
             NOW_IN_DIFF="now-in-diff:NO"
-            GATE_ISSUES="${GATE_ISSUES} NOW.md-not-in-diff"
+            GATE_ISSUES="${GATE_ISSUES} now-entry-not-added"
         fi
-        # (b) NOW.md `Last updated:` date is today or yesterday (UTC).
+        # (b) That entry's filename date is inside [yesterday .. tomorrow] (UTC).
+        #     GNU date first, then BSD/macOS.
         TODAY="$(date -u +%Y-%m-%d)"
-        YESTERDAY="$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || true)"
-        LAST="$(grep -m1 'Last updated:' docs/NOW.md 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1 || true)"
-        if [ "$LAST" = "$TODAY" ] || { [ -n "$YESTERDAY" ] && [ "$LAST" = "$YESTERDAY" ]; }; then
+        YESTERDAY="$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d 2>/dev/null || true)"
+        TOMORROW="$(date -u -d tomorrow +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d 2>/dev/null || true)"
+        LAST=""
+        if [ -n "$ADDED_NOW" ]; then
+            # Newest added entry wins; sorting works because the date leads.
+            LAST="$(echo "$ADDED_NOW" | sed 's|.*/||' | cut -c1-10 | sort | tail -1)"
+        fi
+        if [ -n "$LAST" ] \
+           && { [ -z "$YESTERDAY" ] || ! [ "$LAST" \< "$YESTERDAY" ]; } \
+           && { [ -z "$TOMORROW" ]  || ! [ "$LAST" \> "$TOMORROW" ]; }; then
             NOW_DATE="now-date:fresh ($LAST)"
         else
-            NOW_DATE="now-date:STALE ($LAST)"
-            GATE_ISSUES="${GATE_ISSUES} NOW.md-date-stale"
+            NOW_DATE="now-date:STALE (${LAST:-none})"
+            GATE_ISSUES="${GATE_ISSUES} now-entry-date-stale"
         fi
         # (c) Added lines in the diff vs base are ASCII-only (L3 PURITY preview).
         NONASCII="$(git diff "$BASE_REF"...HEAD 2>/dev/null | grep -n '^+' | grep -P '[^\x00-\x7F]' | head -5 || true)"

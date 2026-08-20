@@ -2,7 +2,7 @@
 
 - [ ] PR title follows semantic convention: `feat(scope): description`, `fix(scope): description`, etc.
 - [ ] PR body includes **`Closes #N`** reference (see **[Issue Gate](.github/workflows/issue-gate.yml)**)
-- [ ] **`docs/NOW.md`** is updated with today's date (**`YYYY-MM-DD`**) if applicable
+- [ ] A **`docs/now/<YYYY-MM-DD>-<slug>.md`** entry is added (`./scripts/tri now add "<title>" --bullet "<what changed>" --closes <N>`)
 - [ ] Tests added/updated: `./scripts/tri test` passes locally
 - [ ] Specs changed → seals refreshed: `./scripts/tri seal specs/path/to/module.t27 --save`
 

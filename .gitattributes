@@ -12,24 +12,35 @@
 # For append-only JSONL, `union` is that behaviour and is built in.
 .trinity/experience/*.jsonl merge=union
 
-# NOW.md: canonical location is docs/NOW.md. The root NOW.md is NOT a symlink
-# — `git ls-tree master NOW.md` reports mode 100644, a regular file (a symlink
-# would be 120000). It is its own divergent document, last stamped 2026-08-09
-# while docs/NOW.md is stamped by every pull request. An earlier version of
-# this comment described a symlink and merge-of-the-link-target; no such
-# symlink has existed here. Whether the root file should become a real
-# symlink, be deleted, or keep its own content is still open — see #2253.
+# NOW entries: `merge=union` RETIRED -- there is nothing left to union.
 #
-# This pattern has no slash, so git matches it by basename at ANY depth: it
-# already covers docs/NOW.md (and sub/dir/NOW.md), verifiable with
-# `git check-attr merge -- docs/NOW.md`. The rule below is therefore
-# redundant, and is kept only because it is the one people look for.
-NOW.md merge=union
-
-# docs/NOW.md is the file that actually conflicts: it conflicted on every
-# branch (seven times in one campaign), each time resolved identically by hand
-# — keep both entries. `theirs` used to be named here, but it is not a
-# built-in driver: it needs a merge.theirs.driver entry in .git/config that no
-# fresh clone has, so it silently did nothing. `union` is built in, needs no
-# setup, and concatenates both sides — exactly that hand resolution.
-docs/NOW.md merge=union
+# Both rules that used to sit here (`NOW.md merge=union` and
+# `docs/NOW.md merge=union`) existed because every PR prepended to one file and
+# so collided on its first line. Entries now live one-per-file under `docs/now/`
+# (see docs/now/README.md), so two PRs write two different paths and the shared
+# line that union was papering over no longer exists.
+#
+# Retiring it is a fix, not just a cleanup, for three measured reasons:
+#
+#  1. GitHub never applied it. `git merge-tree` against master with these rules
+#     in force reports docs/NOW.md CLEAN for PRs that GitHub simultaneously
+#     labels CONFLICTING -- the mergeability computation ignores merge drivers.
+#     So union bought nothing on the platform where the conflicts were reported.
+#  2. Off the platform it silently corrupted. Union's failure mode is
+#     DUPLICATION, not removal: two branches editing one `Last updated:` line
+#     merge with NO conflict into two adjacent `Last updated:` lines under one
+#     heading. Under the default driver that is a conflict a human resolves.
+#     The invariant docs/NOW.md should hold is one `Last updated:` line per
+#     entry heading; exactly one heading violates it -- `Wave Loop 421
+#     close-out / Wave Loop 422 setup (2026-07-06)` carries no date line, lost
+#     to exactly this. Stated as an invariant on purpose: an earlier draft of
+#     this comment pinned absolute counts (137 headings / 136 date lines) and
+#     they went stale within a single wave.
+#  3. It suppressed real conflict detection locally while providing no benefit
+#     remotely -- the worst of both.
+#
+# The root NOW.md is NOT a symlink, contrary to what the retired comment here
+# claimed: `git ls-tree` shows `100644 blob`, a divergent regular file last
+# touched 2026-08-09. Whether it should become a real symlink, be deleted, or
+# keep its own content is still open -- see #2253. It simply no longer carries
+# a merge rule.
