@@ -624,3 +624,36 @@ hurdle still open.
 **Readiness 74 % → 75 %.** The claim is smaller and the evidence is better: a
 width-matched, significance-tested statement about trainability is worth more than
 an unmatched one about accuracy.
+
+
+## 20. W946 — parity at matched width, and the last advantage was our own omission
+
+Landed as **tf#655**. This closes the measurement arc.
+
+| axis | TNF4 (6 bits) | `fp6 e3m2` (6 bits) | verdict |
+|---|---:|---:|---|
+| consumer cells | 51.29 | **50.29** | TNF4 **2 % dearer** |
+| accuracy, weights | — | — | **+0.11** (t 2.2) / **+0.17** (t 1.2, n.s.) |
+| stability, proper LSQ | 96.70 ± 0.38 | 96.58 ± 0.56 | **parity**, 0/5 failures both |
+
+**The stability axis was ours to lose.** Logging the learned scales showed that in
+*every* failing run the layer-2 activation scale collapses monotonically —
+0.81 → 0.29 → **0.0065** — and locks. That is the documented LSQ failure mode, and
+our implementation omitted the gradient-scaling factor `1/√(N·Q_p)`. Restoring it
+took `fp6 e3m2` from 2 failures in 5 to **0**, within 0.12 pp of TNF4 (T793).
+
+**Eight corrections across seven waves**, every one against this project's
+interest, every one forced by the previous step's own principle, **none found by an
+outside reviewer**: four unmatched-width comparisons, a variance read as a mixture
+when all five runs had failed, an enumeration missing a sign bit, a frontier priced
+by module name, and an omitted term from a cited recipe.
+
+**What stands:** the mathematics (φ-uniqueness enumeration, Z[φ] closure), the
+8-bit null that survived every experiment designed to break it, the measurement
+apparatus, and **parity itself** — a novel lattice matching a mature IEEE-style
+encoding at equal width means the φ-structure costs nothing to adopt.
+
+**Readiness 75 % → 76 %.** The evidence is now the strongest it has been and the
+claim the smallest. The paper's current hardware claim is **not supported at
+matched width**; a reframed paper on the mathematics, the parity result and the
+methodology is.

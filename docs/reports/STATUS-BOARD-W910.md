@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W945, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W946, 2026-08-20)
+
+> **W946 — AT MATCHED WIDTH IT IS PARITY, AND THE LAST ADVANTAGE WAS OUR OWN
+> OMISSION.** Cost at six physical bits: TNF4 **51.29** cells against `fp6 e3m2`'s
+> **50.29** — **2 % dearer**, where W941 claimed 2.76× cheaper by comparing six
+> bits against eight. Stability: in every failing run the layer-2 activation scale
+> collapsed 0.81 → 0.29 → **0.0065** — the documented LSQ failure mode — because our
+> quantiser **omitted the gradient-scaling factor** of the paper it cited.
+> Restoring it took `fp6 e3m2` from **2/5 failures to 0/5**, 96.58 ± 0.56 against
+> TNF4's 96.70 ± 0.38. **Parity on all three axes.** Landed as **tf#655**.
+>
+> **Eight corrections in seven waves, none found by an outside reviewer.** What
+> stands: the mathematics, the 8-bit null, the apparatus, and parity itself — a
+> novel lattice matching a mature encoding at equal width costs nothing to adopt.
+> **Readiness 75 % → 76 %.** Theorem T793; lesson 1426.
 
 > **W945 — MOST OF THE ADVANTAGE WAS WIDTH.** TNF4 is physically **six bits**
 > (57 grid values) and had been compared against a **four-bit** fp4 (15 values) for
