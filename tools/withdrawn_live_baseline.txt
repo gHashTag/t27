@@ -5,6 +5,7 @@ docs/NOW.md | 322\s*MHz | 21a54d698621
 docs/NOW.md | 322\s*MHz | e01a7fd68109
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 18f57dc20b45
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 700c6d6aca11
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 93e256f28d7c
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | ce84017e739b
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | e01a7fd68109
 docs/NOW.md | 323(\.[0-9]+)?\s*MHz | f81569f4b61c
