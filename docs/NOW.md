@@ -1,3 +1,75 @@
+# NOW -- the withdrawn-number gate went red on a line saying the number is disputed (2026-08-20)
+
+Last updated: 2026-08-20
+
+## docs: baseline the honesty-limits line the withdrawn-number gate caught (Closes #2311)
+
+`withdrawn-live` has been red on every master run since #178 (`400850702`,
+2026-08-20T02:01:08Z), and is still red at master head `9068cf49d`. The negative
+control in the same job passes -- `self-check: planted hit found = True, clean file
+silent = True` -- so the gate is working. It found something:
+
+```
+FAIL: 1 withdrawn number(s) stated in a live document
+
+  docs/NOW.md:1127
+      matches /323(\.[0-9]+)?\s*MHz/ -- ring-oscillator toggle rate, not a GF16 path
+      see RESEARCH_CLAIMS.md Retraction 2026-08-18
+```
+
+Last green was #176 (`c3eeefc87`, 01:46:31Z), and exactly one commit sits between
+them: `400850702 docs(arxiv): the LUT count was the flip-flop count (Closes #2280)
+(#2281)`. It added 67 lines to `docs/NOW.md` and touched nothing else. One of those
+lines carries the number.
+
+### The line says the number is disputed
+
+`docs/NOW.md:1127` opens a bullet under `## Honesty limits (BINDING)`. The number is
+elided from this quotation, because quoting it would plant a second occurrence and
+re-open the gate on this very entry:
+
+> - **The "FPGA 35/35 at [elided] Artix-7" dispute is NOT settled here.** A
+>   maintainer adjudicated that question on master in `59ae2aeee`. #2081 proposes a
+>   different resolution in `specs/numeric/formats_catalog.t27`. That file is
+>   untouched by this PR, the disagreement is unresolved, and **#2081 remains open
+>   for it**. Nothing here should be read as evidence for either side.
+
+That is the category the gate's own remedy names: *"If the line is text ABOUT the
+withdrawal, add it to `tools/withdrawn_live_baseline.txt`."* That file already
+carries five rows for this same document and this same pattern, and rows for two
+neighbouring frequencies in the same document. This is a sixth of the same kind, not
+a new kind of exemption.
+
+### The key was recomputed, not transcribed
+
+A baseline row is keyed on `sha1(" ".join(line.split()))[:12]` of the line itself.
+This row's key came from running that algorithm over `docs/NOW.md` as fetched from
+master:
+
+```
+docs/NOW.md | 323(\.[0-9]+)?\s*MHz | 93e256f28d7c
+```
+
+The same pass over the same file reproduced all five existing keys for this pattern
+-- `18f57dc20b45`, `700c6d6aca11`, `ce84017e739b`, `e01a7fd68109`, `f81569f4b61c` --
+character for character. That is what makes the sixth trustworthy: the computation
+was checked against five known-good answers before it was used for an unknown one.
+
+### Why a row and not an edit to the document
+
+`docs/NOW.md` is append-only. Everything below the top entry is a record of what was
+believed when it was written, and editing line 1127 to please a gate would rewrite
+that record. Keying on line content means the exemption covers exactly one sentence
+and expires the moment that sentence changes.
+
+### What this does not do
+
+It does not settle the dispute the line is about. It touches neither
+`specs/numeric/formats_catalog.t27` nor #2081, and it widens no pattern, relaxes no
+scan, and adds no exclusion prefix. `withdrawn-live` should return to
+`OK: no withdrawn number is stated in a live document`; if it does not, the next hit
+is a different line and needs its own reading.
+
 # NOW -- the build check's third cause: tri rtl check reads a submodule the workflow never checked out (2026-08-20)
 
 Last updated: 2026-08-20
