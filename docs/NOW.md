@@ -1,3 +1,53 @@
+# NOW -- the frozen seal was not updated with the compiler, so master does not build (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(freeze): reseal FROZEN_HASH for the imported-enum change (Closes #2316)
+
+`bootstrap/build.rs` verifies `sha256(bootstrap/src/compiler.rs)` against the
+operational line of `bootstrap/stage0/FROZEN_HASH` on **every** `cargo build`
+(FROZEN.md 4.1). #2317 changed `compiler.rs` and did not reseal, so from
+`e5a6328fe` until this lands, every build of `t27c` panics before compiling
+anything:
+
+```
+thread 'main' panicked at bootstrap/build.rs:235:9:
+t27c FROZEN HASH violation: bootstrap/src/compiler.rs has changed without a seal update.
+Expected seal: cbbfac87dff32a7a8c0fee2331715453566d75f2e338e0c5ea76c089b96a8028
+Live hash:   c3ec9fba947b9d5845af10d1270619f6e49298698139d0e227ab669f93868bbf
+```
+
+The new digest was taken with `shasum -a 256` and is the same string the failing
+runner printed as `Live hash`, so the seal and the blob CI actually has are
+confirmed to agree from two independent sources.
+
+### How a red gate merged
+
+`fpga-smoke` caught it on #2317 at 12:35:22Z, twenty seconds into `Build t27c`.
+It is not a required context, so auto-merge fired on the required set and the
+squash landed at 12:35:15Z -- **before** the job that was already failing had
+finished. The reseal commit was pushed to the branch afterwards and merged
+nothing.
+
+The consequence is worth naming, because it is not the usual "a gate went red":
+the push run for `e5a6328fe` reports `fpga-conformance` as **skipped**, not
+failed. `fpga-smoke` builds `t27c` and produces the `fpga-verilog` artifact every
+downstream job consumes, so a build failure there turns six FPGA jobs into
+no-runs. A no-run is not a pass, and on the checks list it is not red either.
+
+### What the fix in #2317 actually moved, measured on the artifact
+
+With `t27c` building again, the `fpga-verilog` artifact of run 32369917564
+(master + #2317 + this reseal) says:
+
+- `mac.v` is the **only** one of the 32 files that changed. It now carries
+  `localparam Trit_neg = -1; Trit_zero = 0; Trit_pos = 1;`.
+- `iverilog -g2012 -DSIMULATION mac.v`: **28 errors -> 22**, none mentioning
+  `Trit_`.
+- `uart.v`, `spi.v`, `top_level.v` and the other 28 files are byte-identical to
+  the pre-fix artifact, which is the referenced-only rule holding.
+- `fpga-conformance` still reports **28/32 modules failed**. It was 28/32 before.
+  The imported-enum defect was never the reason any module failed on its own.
 # NOW -- an enum reached through `use` was referenced but never declared (2026-08-20)
 
 Last updated: 2026-08-20
