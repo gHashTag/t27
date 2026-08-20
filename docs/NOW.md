@@ -1,3 +1,80 @@
+# NOW -- 1221 tests that had never run in CI now run in CI (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci(corpus-ratchet): `cargo test -p t27c` runs on master for the first time
+
+Eight workflows on `origin/master` run `cargo build --release -p t27c`. `cargo build`
+does not compile `#[cfg(test)]` modules. So every test in the compiler crate --
+**1221 of them** -- was unbuilt and unrun on the branch that gates merges.
+
+This adds one step to `.github/workflows/corpus-ratchet.yml`, which already builds
+the crate one step above. Measured before landing: **1221 passed, 0 failed,
+0 ignored**, across 22 test binaries, in `--debug` and `--release` alike. Because
+nothing fails, it lands as a **plain gate, not a ratchet** -- a ratchet over an
+all-green baseline is strictly worse, adding a file to maintain while ceasing to
+detect the first regression it exists for.
+
+It also scopes the pre-existing `Explain a failure` step to
+`steps.ratchet.outcome == 'failure'`. It was a bare `failure()`, which with a test
+step above it would answer a failing Rust unit test with "add an entry to
+`docs/reports/suite_expectations.json`" -- sending the reader to bless a corpus
+expectation for a defect that is not in the corpus.
+
+### What #2288 got wrong, and the one thing it got right
+
+#2288 said "36 unit tests in `bootstrap/src/suite.rs`"; there are **14**. It said the
+tests had "never been type-checked, let alone executed"; on `feat/wave-547/host-heapsort`
+they had -- `.github/workflows/formal-yosys.yml:899` has run `cargo test -p t27c --release`
+since `0d8635842` (2026-08-12).
+
+The real defect is that **`formal-yosys.yml` has never landed on `origin/master`**:
+
+```
+$ git cat-file -e origin/master:.github/workflows/formal-yosys.yml
+fatal: path '.github/workflows/formal-yosys.yml' exists on disk, but not in 'origin/master'
+```
+
+A gate that exists only on a feature branch gates nothing.
+
+### Honesty limits (BINDING)
+
+- **1221 tests, 0 failures, and none of them had ever executed in CI on master
+  before today.** That is the whole measurement. The count is `cargo test -p t27c`'s
+  own total across 22 binaries (895 from `unittests src/main.rs`, 326 from the 21
+  files in `bootstrap/tests/`); there are no doc-tests, as t27c is a bin-only crate.
+- **This gate does NOT run every test in `bootstrap/src`.** 913 `#[test]` attributes
+  live there; **895** compile into this run. The missing 18 are named in the workflow
+  comment and printed in the step summary so a green tick is not misread:
+    - `bootstrap/src/math_compare.rs` -- **10 tests, compiled by nothing**. No
+      `mod math_compare;` exists in the crate, so rustc never opens the file; it is
+      one of 8 orphan `.rs` files in `bootstrap/src` and the only one with tests.
+      Built standalone it is **9 pass / 1 fail**: `test_hybrid_v2_plateau` asserts
+      `|n152 - n20| < 1e-9` while the file's own `GOLDEN_V2` records values 2.100e-9
+      apart. Independent recomputation reproduces the goldens exactly, so **the test
+      is wrong, not the implementation**. It was NOT adjusted and NOT wired in --
+      wiring it in today would land this gate red. Tracked in #2290.
+    - `bootstrap/src/proxy.rs:326` -- 8 tests behind
+      `#[cfg(all(test, feature = "server"))]`. No workflow passes `--features server`,
+      so they are stripped before type-checking.
+- **The failure path was verified by a shell-level proxy, not by a real failing
+  cargo test.** A shape-identical harness confirms the step exits non-zero when the
+  test command fails (exit 101), exits 0 when it passes, and does not false-fail when
+  `grep -c` matches nothing. No test was edited to produce a real red run, per the
+  rule that a wrong test is reported rather than adjusted.
+- **Cost measured on one machine (darwin/arm64), not on the CI runner.** Release:
+  1m43s cold compile, 1.75s warm, +351 MiB in `target/`. The runner's cold number
+  will differ; the 45-minute ceiling has ~44 minutes of headroom against a ~314s job.
+- **`bootstrap/Cargo.toml`'s `[profile.release]` is silently ignored** -- the workspace
+  root has no `[profile]` section, so cargo discards `lto`/`codegen-units`/`strip` on
+  every `--release` build in 8+ workflows. Real, unfixed, and deliberately out of
+  scope: it changes the binary every workflow produces. Recorded in #2289.
+- **No claim is made that CI is now well-tested.** One crate's unit tests now run.
+  The 348-of-1114 specs that generate with no backend, and everything else the corpus
+  ratchet already tracks, are untouched by this.
+
+---
+
 # NOW -- an absent or corrupt gate input now fails instead of counting as zero (2026-08-20)
 
 Last updated: 2026-08-20
