@@ -94,3 +94,27 @@ lean4_bridge/.lake/
 
 # Evidential binaries: sealed by docs/evidence/seal_*.json, not stored in git.
 docs/evidence/bin/
+
+# Per-wave benchmark scratch. 455 files / 606,113,688 bytes (578 MB) -- 65% of the
+# whole tracked tree, and 99.99% of those bytes are one generated family:
+# 352 specs/scratch/*_bench_* files totalling 606,058,170 bytes, emitted by the
+# committed generators scripts/gen_w<NNN>.py (303 of them, w309..w889, pure stdlib
+# arithmetic, no clock/random/network input -- deterministic and re-derivable).
+#
+# The cost is not the size, it is the accumulation: each wave committed its own
+# drafts on top of every prior wave's, so every clone since w309 carries all of
+# them forward forever. Scratch is where a wave thinks out loud; it is not a source
+# of truth, nothing outside it imports it (zero `use scratch` in the tree), and the
+# corpus ratchet already filters it out by construction (bootstrap/src/suite.rs,
+# is_scratch()).
+#
+# Untracking does NOT shrink an existing clone -- the blobs stay in git objects and
+# in history. It stops the tree growing from here.
+specs/scratch/
+
+# Seals for the above. A seal records spec_path + spec_hash, so a seal whose spec is
+# no longer in the tree is dangling by tools/check_seal_coverage.py's own definition
+# ("Remove the seal with it, or restore both"). These 456 go with specs/scratch/
+# rather than into tools/seal_baseline.txt, which would turn a green invariant into
+# permanent debt.
+.trinity/seals/scratch_*.json

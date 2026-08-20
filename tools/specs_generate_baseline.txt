@@ -190,64 +190,6 @@ specs/sandbox/https_enforce.t27 | Error: Compile error: parse error in fn 'shoul
 specs/sandbox/modules.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 18:5
 specs/sandbox/orphan_detection.t27 | Error: Compile error: parse error at module level near line 19: unexpected token after expression statement: Ident
 specs/sandbox/session_timeout.t27 | Error: Compile error: parse error at module level near line 14: unexpected token after expression statement: Ident
-specs/scratch/w368_hex_width.t27 | Error: Compile error: parse error in fn 'w368_hex_width_const_ok' near line 9: unexpected token after expression statement: KwTrue
-specs/scratch/w369_bin_width.t27 | Error: Compile error: parse error in fn 'w369_bin_width_const_ok' near line 9: unexpected token after expression statement: KwTrue
-specs/scratch/w370_const_order.t27 | Error: Compile error: parse error in fn 'w370_const_order_ok' near line 11: unexpected token after expression statement: KwTrue
-specs/scratch/w371_early_return.t27 | Error: Compile error: parse error in fn 'w371_early_return_ok' near line 10: unexpected token after expression statement: KwTrue
-specs/scratch/w371_verilog_keyword.t27 | Error: Compile error: parse error in fn 'w371_verilog_keyword_ok' near line 21: unexpected token after expression statement: KwTrue
-specs/scratch/w372_local_keyword.t27 | Error: Compile error: parse error in fn 'w372_local_keyword_task' near line 9: unexpected token after expression statement: Ident
-specs/scratch/w373_struct_field_keyword.t27 | Error: Compile error: parse error in fn 'w373_struct_field_keyword_sum' near line 18: unexpected token after expression statement: Ident
-specs/scratch/w374_module_keyword.t27 | Error: Compile error: parse error in fn 'w374_module_keyword_sum' near line 11: unexpected token after expression statement: Ident
-specs/scratch/w375_early_return.t27 | Error: Compile error: parse error in fn 'w375_early_return_sign' near line 23: unexpected token after expression statement: Ident
-specs/scratch/w376_cast_width.t27 | Error: Compile error: parse error in fn 'w376_cast_width_basic' near line 27: unexpected token after expression statement: Ident
-specs/scratch/w377_struct_field_mapping.t27 | Error: Compile error: parse error at module level near line 14: Unexpected token in expression: Semicolon (';') at line 14:2
-specs/scratch/w378_let_destructuring.t27 | Error: Compile error: parse error in fn 'w378_let_destructuring_basic' near line 27: unexpected token after expression statement: Ident
-specs/scratch/w379_let_destructuring_generalized.t27 | Error: Compile error: parse error in fn 'use_pair_ok' near line 31: unexpected token after expression statement: Ident
-specs/scratch/w380_tuple_return.t27 | Error: Compile error: parse error in fn 'use_pair_ok' near line 26: unexpected token after expression statement: Ident
-specs/scratch/w381_tuple_call_chain.t27 | Error: Compile error: parse error in fn 'sum_pair_ok' near line 22: unexpected token after expression statement: Ident
-specs/scratch/w528_parse_const_2d.t27 | Error: Compile error: parse error in fn 'dummy' near line 10: unexpected token after expression statement: KwTrue
-specs/scratch/w534_negative_cast_to_string.t27 | Error: Compile error: parse error in fn 'make_label' near line 6: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
-specs/scratch/w543_negative_nonlowerable_call_init.t27 | Error: Compile error: parse error in fn 'make_label' near line 8: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
-specs/scratch/w544_negative_nonlowerable_var_call_init.t27 | Error: Compile error: parse error in fn 'make_label' near line 6: unknown cast target type `String`; expected one of ["bool", "u8", "i8", "u16", "i16"
-specs/scratch/w592_bench_module_3x2p15_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 294914: Unexpected token in expression: Semicolon (';') at line 294914:6
-specs/scratch/w593_bench_module_5x2p15_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 491518: Unexpected token in expression: Semicolon (';') at line 491518:6
-specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 344058: Unexpected token in expression: Semicolon (';') at line 344058:6
-specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 221174: Unexpected token in expression: Semicolon (';') at line 221174:6
-specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 135154: Unexpected token in expression: Semicolon (';') at line 135154:6
-specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 79854: Unexpected token in expression: Semicolon (';') at line 79854:6
-specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 46058: Unexpected token in expression: Semicolon (';') at line 46058:6
-specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 26086: Unexpected token in expression: Semicolon (';') at line 26086:6
-specs/scratch/w600_bench_module_19x2p8_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 14562: Unexpected token in expression: Semicolon (';') at line 14562:6
-specs/scratch/w601_bench_module_21x2p7_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8030: Unexpected token in expression: Semicolon (';') at line 8030:6
-specs/scratch/w602_bench_module_23x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 4378: Unexpected token in expression: Semicolon (';') at line 4378:6
-specs/scratch/w603_bench_module_25x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 4758: Unexpected token in expression: Semicolon (';') at line 4758:6
-specs/scratch/w604_bench_module_27x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5138: Unexpected token in expression: Semicolon (';') at line 5138:6
-specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5518: Unexpected token in expression: Semicolon (';') at line 5518:6
-specs/scratch/w606_bench_module_31x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 5898: Unexpected token in expression: Semicolon (';') at line 5898:6
-specs/scratch/w607_bench_module_33x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 6278: Unexpected token in expression: Semicolon (';') at line 6278:6
-specs/scratch/w608_bench_module_35x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 6658: Unexpected token in expression: Semicolon (';') at line 6658:6
-specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7038: Unexpected token in expression: Semicolon (';') at line 7038:6
-specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7418: Unexpected token in expression: Semicolon (';') at line 7418:6
-specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 7798: Unexpected token in expression: Semicolon (';') at line 7798:6
-specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8178: Unexpected token in expression: Semicolon (';') at line 8178:6
-specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8558: Unexpected token in expression: Semicolon (';') at line 8558:6
-specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 8938: Unexpected token in expression: Semicolon (';') at line 8938:6
-specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 9318: Unexpected token in expression: Semicolon (';') at line 9318:6
-specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 9698: Unexpected token in expression: Semicolon (';') at line 9698:6
-specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 10078: Unexpected token in expression: Semicolon (';') at line 10078:6
-specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.t27 | Error: Compile error: parse error at module level near line 10458: Unexpected token in expression: Semicolon (';') at line 10458:6
-specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 12770: Expected RBracket, got Eof ('') at line 12770:1
-specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 13216: Expected RBracket, got Eof ('') at line 13216:1
-specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 13662: Expected RBracket, got Eof ('') at line 13662:1
-specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14108: Expected RBracket, got Eof ('') at line 14108:1
-specs/scratch/w623_bench_module_65x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14548: Expected RBracket, got Eof ('') at line 14548:1
-specs/scratch/w624_bench_module_67x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 14988: Expected RBracket, got Eof ('') at line 14988:1
-specs/scratch/w625_bench_module_69x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 15428: Expected RBracket, got Eof ('') at line 15428:1
-specs/scratch/w626_bench_module_71x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 15868: Expected RBracket, got Eof ('') at line 15868:1
-specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 16308: Expected RBracket, got Eof ('') at line 16308:1
-specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
-specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
-specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.t27 | Error: Compile error: parse error in fn 'make_grid' near line 32: Unexpected token in expression: Comma (',') at line 32:24
 specs/server/project.t27 | Error: Compile error: parse error in fn 'create_project' near line 53: Unexpected token in expression: PlusPlus ('++') at line 53:28
 specs/server/provider.t27 | Error: Compile error: parse error in fn 'provider_type_values' near line 177: unexpected token after expression statement: Ident
 specs/server/router.t27 | Error: Compile error: parse error in fn 'route_match' near line 127: parse error near line 127: parse error near line 127: Unexpected token in express

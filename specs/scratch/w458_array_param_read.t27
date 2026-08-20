@@ -1,6 +1,0 @@
-module w458_array_param_read;
-const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
-pub fn lookup(i : u32) -> u16 { return rom[i]; }
-test first { assert_eq(lookup(0), 0x1234); }
-test last  { assert_eq(lookup(3), 0xDEF0); }
-endmodule

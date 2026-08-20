@@ -1,6 +1,0 @@
-module w458_array_param_write;
-var mem : [4]u16 = [4]u16{0,0,0,0};
-pub fn set(i : u32, v : u16) { mem[i] = v; }
-pub fn get(i : u32) -> u16 { return mem[i]; }
-test write_read { set(1, 0xABCD); assert_eq(get(1), 0xABCD); }
-endmodule
