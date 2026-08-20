@@ -28669,6 +28669,38 @@ per-tensor scale spanning fewer magnitudes per filter. And the eight-bit null no
 holds across MLP and CNN, weights-only and weights-plus-activations, two tasks, two
 sizes and five seeds -- a null that has survived every experiment built to break it.
 
+### T791 -- A PREDICTION IN A LIMITS SECTION IS A HYPOTHESIS, AND THIS ONE WAS WRONG [measured]
+
+T790 closed the 4-bit gap 44x with the weakest QAT recipe and then predicted, in
+its own limits: "a stronger recipe would likely close the remaining gap further,
+not widen it". Measured with a learned scale (LSQ gradient, three epochs, five
+seeds, paired):
+
+    4-bit weights, learned scale   MNIST   +1.58 pp  SE 0.19  t  8.2  5/5
+                                   Fashion +0.91     SE 0.33  t  2.7  5/5
+    + 4-bit activations            MNIST  +82.83     SE 2.90  t 28.5  5/5
+                                   Fashion +0.92     SE 0.20  t  4.5  5/5
+
+On MNIST the better recipe made the gap EIGHT TIMES LARGER, not smaller. The scale
+a max-rule picks is not the scale training would choose, and learning it helped the
+finer grid more than the coarser one. (Epoch budgets differ across the two waves,
+so the cross-wave ratio is indicative; the paired tests within each run are not.)
+
+The 4-bit-activation row carries its own correction: fp4 e2m1 lands at 13.93% on
+MNIST with sigma = 6.30 and at 84.58% on Fashion. A standard deviation of six
+points on a mean of fourteen is an INSTABILITY, not a defeat -- some seeds diverge
+and some do not -- and reporting the 83-point gap as a magnitude would be reading
+a variance as an effect. The defensible statement is about robustness: with
+quantised activations the competitor's outcome depends on the seed and TNF4's does
+not (sigma <= 0.58 on both tasks).
+
+The general point, and it is about method rather than formats: a sentence in a
+limits section that begins "a stronger X would likely..." is an untested
+hypothesis wearing the clothes of a caveat. It is cheaper to run than to defend,
+and running it here cost one afternoon and produced three different numbers for one
+comparison across three waves -- 37.88, 0.19, 1.58 -- each from a better experiment
+than the last. The RANGE is the result; any single number inside it is a recipe.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""W944: re-derive every headline number from the committed records.
+
+The standing instruction is "check all the numbers again" every wave. Doing that
+by reading is how the width error survived three instruments. This recomputes each
+quoted figure from its record and reports agreement or drift, so the check is a
+command rather than an act of attention.
+"""
+import json, pathlib, sys
+import numpy as np
+
+R = pathlib.Path("/Users/playom/t27/.claude/worktrees/igla-fpga-improvements-3f5e1a/docs/reports/upstream")
+ok = bad = skip = 0
+
+
+def rec(name):
+    p = R / name
+    return json.loads(p.read_text()) if p.exists() else None
+
+
+def check(label, got, want, tol=0.02):
+    global ok, bad
+    if got is None:
+        print(f"  ??  {label}: не вычислено")
+        return
+    d = abs(got - want)
+    rel = d / max(abs(want), 1e-9)
+    if d <= tol or rel <= 0.005:
+        print(f"  ok  {label}: {got:.2f} (цитируется {want:.2f})")
+        ok += 1
+    else:
+        print(f"  РАСХОЖДЕНИЕ  {label}: пересчитано {got:.4f}, цитируется {want}")
+        bad += 1
+
+
+def paired(d, task, a, b, key="formats"):
+    p = d["tasks"][task][key] if key in d["tasks"][task] else d["tasks"][task]
+    x = np.array(p[a]); y = np.array(p[b])
+    return float((x - y).mean() * 100)
+
+
+def drop(d, task, fmt, key="formats", base="baseline"):
+    p = d["tasks"][task]
+    b = np.array(p[base]); a = np.array(p[key][fmt])
+    return float((b - a).mean() * 100)
+
+
+print("== цена (структурные и таблично-оракульные декодеры)")
+st = rec("structural_w942.json"); orl = rec("oracle_rtl_w941.json")
+if st and orl:
+    check("TNF4 потребитель, структура", st["tnf4"]["consumer_cells"], 55.29)
+    check("TNF16 потребитель, структура", st["tnf16"]["consumer_cells"], 450.29)
+    check("fp8 e4m3 потребитель, таблица", orl["fp8_e4m3"]["consumer_cells"], 152.57)
+    check("TNF4/fp8 отношение", orl["fp8_e4m3"]["consumer_cells"] / st["tnf4"]["consumer_cells"], 2.76, tol=0.03)
+    check("TNF16 физическая ширина", st["tnf16"]["physical_bits"], 19, tol=0)
+    check("кодов сверено у TNF16", st["tnf16"]["codes_checked"], 524288, tol=0)
+    check("расхождений у TNF16", st["tnf16"]["mismatches"], 0, tol=0)
+else:
+    skip += 1; print("  пропуск: нет записей цены")
+
+print("\n== точность, PTQ")
+big = rec("accuracy_seeds_big_w940.json"); sml = rec("accuracy_seeds_w939.json")
+if big and sml:
+    check("MLP PTQ MNIST, TNF4−fp4", paired(big, "mnist", "4b/TNF4", "4b/fp4e2m1"), 37.88, tol=0.05)
+    check("MLP PTQ Fashion, TNF4−fp4", paired(big, "fashion", "4b/TNF4", "4b/fp4e2m1"), 64.42, tol=0.05)
+    check("малая сеть MNIST, TNF4−fp4", paired(sml, "mnist", "4b/TNF4", "4b/fp4e2m1"), 8.40, tol=0.05)
+    check("малая сеть Fashion, TNF4−fp4", paired(sml, "fashion", "4b/TNF4", "4b/fp4e2m1"), 27.75, tol=0.05)
+    # Two networks, two different maxima -- the first version of this check
+    # compared the small net's quoted 0.13 against the big net's record and
+    # reported a drift that was its own.
+    mb = max(abs(drop(big, t, f)) for t in ("mnist", "fashion")
+             for f in big["tasks"]["mnist"]["formats"] if f.startswith("8b/"))
+    ms = max(abs(drop(sml, t, f)) for t in ("mnist", "fashion")
+             for f in sml["tasks"]["mnist"]["formats"] if f.startswith("8b/"))
+    check("максимум |падения| на 8 битах, сеть 269k", mb, 0.04, tol=0.02)
+    check("максимум |падения| на 8 битах, сеть 25k", ms, 0.37, tol=0.02)
+else:
+    skip += 1; print("  пропуск: нет записей точности")
+
+print("\n== точность, активации и QAT")
+act = rec("activations_w941.json"); qat = rec("qat_w943.json"); cnv = rec("conv_w943.json")
+if act:
+    mx = 0.0
+    for t in ("mnist", "fashion"):
+        b = np.array(act["tasks"][t]["baseline"])
+        for f, v in act["tasks"][t]["weights_and_activations"].items():
+            if f.endswith("8") or "8" in f:
+                mx = max(mx, abs(float((b - np.array(v)).mean() * 100)))
+    check("максимум |падения| на 8 битах (веса+акт)", mx, 0.06, tol=0.03)
+if qat:
+    check("QAT MNIST, TNF4−fp4", paired(qat, "mnist", "TNF4", "fp4e2m1", key="qat"), 0.19, tol=0.02)
+    check("QAT Fashion, TNF4−fp4", paired(qat, "fashion", "TNF4", "fp4e2m1", key="qat"), 0.89, tol=0.02)
+if cnv:
+    check("CNN MNIST, TNF4−fp4", paired(cnv, "mnist", "TNF4", "fp4e2m1"), 12.98, tol=0.05)
+    check("CNN Fashion, TNF4−fp4", paired(cnv, "fashion", "TNF4", "fp4e2m1"), 24.90, tol=0.05)
+
+print("\n== приор и эталон")
+pr = rec("prior_sensitivity_w937.json"); hh = rec("head_to_head_w937.json")
+if pr:
+    f = pr["published_uniform_77_binades"]["formats"]
+    check("TNF16 против posit16 при опубликованном приоре",
+          f["posit16"]["median_rel_err"] / f["TNF16"]["median_rel_err"], 14.63, tol=0.05)
+    g = pr["standard_normal"]["formats"]
+    check("то же при стандартном нормальном",
+          g["posit16"]["median_rel_err"] / g["TNF16"]["median_rel_err"], 1.02, tol=0.02)
+if hh:
+    check("PACoGen экстракция posit16", hh["pacogen_data_extract_n16_es2"]["cells_per_unit"], 92.0)
+    check("PACoGen сумматор posit16", hh["pacogen_posit_add_n16_es2"]["cells_per_unit"], 693.0)
+    check("TNF сумматор 16 ячеек", hh["tnf_e4m8_add_16cells"]["cells_per_unit"], 561.67, tol=0.05)
+
+print(f"\n  ИТОГ: сошлось {ok}, расхождений {bad}, пропущено блоков {skip}")
+sys.exit(1 if bad else 0)
