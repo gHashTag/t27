@@ -80,9 +80,17 @@ case "$cmd" in
     ;;
 
   disk)
+    # W948: the gate fired at 0.7 GiB while this session's own scratch held 47 MB
+    # -- two other sessions' scratch directories were holding 8 GB between them.
+    # A floor breach says nothing about whose files caused it, and deleting your
+    # own already-minimal footprint is wasted work. So report both.
     floor="$DISK_FLOOR_GIB"
     [ "${2:-}" = "--min" ] && { floor="${3:?tri disk --min needs a number}"; }
     free="$(free_gib)"
+    if [ -n "${TMPDIR:-}" ] && [ -d "${TMPDIR}" ]; then
+      own="$(du -sk "$TMPDIR" 2>/dev/null | awk '{ printf "%.0f", $1/1024 }')"
+      [ -n "$own" ] && echo "tri disk: this session's scratch holds ${own} MiB"
+    fi
     if awk -v f="$free" -v fl="$floor" 'BEGIN { exit !(f + 0 < fl + 0) }'; then
       echo "tri disk: ${free} GiB free -- BELOW the ${floor} GiB floor"
       exit 1

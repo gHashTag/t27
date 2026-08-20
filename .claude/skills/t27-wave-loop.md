@@ -12449,6 +12449,8 @@ a worktree in the same wave its branch merges.
 
 **1431. EVERY SUMMARY STATISTIC HAS A BLIND SPOT, SO PRINT THE FIVE NUMBERS.** The mean was replaced by the failure rate because a bimodal competitor made the mean describe no run that happened. Thirty epochs then exposed the rate's own blind spot: a configuration passing three of five runs by threshold had its BEST run at 71.9 against the reference's WORST at 97.6 -- non-overlapping distributions, 25.7 points apart, invisible to a rate that only counts line-crossings. The mean hides bimodality; the rate hides uniform degradation; a median hides both differently. Five per-seed numbers cost one line of output, cannot be misread, and let a reader compute whichever statistic their question needs. Print the list first and the summary second, never the reverse.
 
+**1432. A FLOOR BREACH DOES NOT SAY WHOSE FILES CAUSED IT.** The free-space gate fired at 0.7 GiB and the reflex was to delete: datasets, a fetched PDF, and finally a 539 MB working tree whose every commit was already merged upstream. All of it was correct housekeeping and none of it was the cause -- this session's entire scratch was 47 MB, while two OTHER Claude sessions on the same volume held 4.6 GB and 3.4 GB. Deleting another session's scratch is not an option: it may hold work in flight. So the gate now prints the session's own footprint beside the volume's free space, because 'below the floor' and 'you are using too much' are different statements and only the second one is actionable by you. When a shared resource runs out, measure your share before you start shrinking it.
+
 ### How to update this tracker
 
 After closing a wave:
