@@ -79,6 +79,58 @@ case "$cmd" in
     exit 0
     ;;
 
+  grid)
+    # W949: the published underflow mechanism (0.0041 / 0.22 / 1.67 % of peak) was
+    # computed as min/max of each grid -- i.e. assuming the tensor peak lands on the
+    # format's MAXIMUM. Every training run instead put the peak on grid value 1.0,
+    # which leaves TNF4 seven usable levels against fp6 e3m2's twelve and inverts
+    # the underflow ordering. One command now prints both conventions side by side.
+    ORACLES="${T27_CONFORMANCE:-}"
+    if [ -z "$ORACLES" ]; then
+      for c in "$REPO_ROOT/conformance" "${TMPDIR:-/tmp}/oracles" \
+               "$(dirname "${TMPDIR:-/tmp}")"/*/scratchpad/oracles; do
+        [ -f "$c/tnf_ref.py" ] && { ORACLES="$c"; break; }
+      done
+    fi
+    [ -f "$ORACLES/tnf_ref.py" ] || {
+      echo "tri grid: oracles not found; set T27_CONFORMANCE to the conformance/ dir" >&2
+      exit 2; }
+    ORACLES="$ORACLES" python3 - <<'PYGRID'
+import os, sys, numpy as np
+sys.path.insert(0, os.environ["ORACLES"])
+import tnf_ref as T, fp8_ref as F8
+
+
+def grid(mod, fmt, bits):
+    v = []
+    for c in range(1 << bits):
+        try:
+            x = float(mod.decode(fmt, c))
+        except Exception:
+            continue
+        if np.isfinite(x):
+            v.append(x)
+    return np.unique(np.array(sorted(set(v)), dtype=np.float64))
+
+
+G = {"TNF4": grid(T, T.TNFFormat(2, 1), 6)}
+for n, f in sorted(F8.FORMATS.items()):
+    b = 4 if "fp4" in n else (6 if "fp6" in n else 8)
+    G[n] = grid(F8, f, b)
+print(f"{'format':10} {'max+':>10} {'min+':>10} {'binades':>8} {'levels':>7}"
+      f" | {'peak->max: zeroes below':>24} {'peak->1.0: below':>17} {'levels':>7}")
+for k, g in G.items():
+    p = g[g > 0]
+    std = p.min() / p.max()
+    rig = p.min()
+    print(f"{k:10} {p.max():10.4g} {p.min():10.4g} "
+          f"{np.log2(p.max()/p.min()):8.2f} {len(p):7d} |"
+          f" {std*100:23.4f}% {min(rig,1.0)*100:16.2f}% {int((p<=1.0).sum()):7d}")
+print("\nThe left convention is the standard max rule and the one the published")
+print("mechanism assumes. The right one is what every run before W949 actually did.")
+PYGRID
+    exit 0
+    ;;
   disk)
     # W948: the gate fired at 0.7 GiB while this session's own scratch held 47 MB
     # -- two other sessions' scratch directories were holding 8 GB between them.

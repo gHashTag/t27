@@ -28968,6 +28968,101 @@ of the experiment. This is the second time in this project that a number was che
 against the wrong copy of the evidence, and the first (`tri verify` comparing a
 small-net figure against a big-net record, W947) was also silent.
 
+### T798 — A mechanism computed in one convention does not explain an experiment run in another
+
+**The published mechanism.** This project explained its stability result by dynamic
+range: "under a max-rule scale the narrow grids zero everything below 1.67 %
+(`fp6 e2m3`) or 0.22 % (`fp6 e3m2`) of the tensor peak, while TNF4's threshold is
+0.0041 %." Those three numbers are exactly `min(grid) / max(grid)` — they assume the
+tensor peak is mapped onto the format's **largest representable value**, which is the
+standard max rule.
+
+**What the experiment did.** Every quantiser in this project initialised its scale as
+`s = max|x|`, mapping the peak onto grid value **1.0**, not onto the grid maximum. The
+grids do not have maximum 1: they peak at **3072** (TNF4), **28** (`fp6 e3m2`) and
+**7.5** (`fp6 e2m3`). Under that convention the underflow thresholds are **12.50 %**,
+**6.25 %** and **12.50 %** of the peak, and the usable alphabet collapses from 57
+values to **7** for TNF4 while `fp6 e3m2` retains **12**.
+
+**Consequence.** The published ordering is inverted by its own experiment: TNF4 zeroed
+*twice as much* as `fp6 e3m2` and had *fewer* levels, and won 40/40 anyway. Therefore
+the range-underflow mechanism, as stated, does not explain the observed result. It is
+withdrawn as an explanation of these runs. What it remains is a correct statement about
+the standard convention, now measured separately (T798b).
+
+**General form.** Let a claimed mechanism M be a function of a configuration parameter
+c, and let the experiment be run at c'. If M(c) and M(c') differ in **ordering**, then
+agreement between M(c) and the outcome is coincidence, not evidence, however many runs
+support the outcome. The failure is undetectable from the outcome alone — only from
+recomputing M at the value the experiment actually used. This is the fifth
+unmatched-comparison defect in this project (four of width, now one of scale
+initialisation) and the first in which the mismatch lay between a *claim* and an
+*experiment* rather than between two arms of one experiment.
+
+### T798a — Scale initialisation is a recipe axis, and it is the axis that decides the float
+
+**Experiment.** MNIST, MLP 784-256-256-10, weights and activations quantised, LSQ with
+the gradient-scaling factor, five seeds, three epochs — everything held fixed except the
+scale initialisation:
+
+| convention | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---|---|---|
+| `peak2one`, `s = max|x|` (all prior runs) | **0/5 fail**, 96.70 | 4/5, 30.19 | **0/5 fail**, 96.58 |
+| `peak2max`, `s = max|x| / max(grid)` (standard) | **0/5 fail**, 96.80 | 5/5, 14.57 | **5/5 fail**, 31.61 |
+
+**Statement.** `fp6 e3m2` moves from a perfect score to total failure under a change
+that touches nothing but the initial value of one scalar per tensor. TNF4 moves by
+**0.10 pp** and fails nothing. Hence the scaling convention is not a detail of the
+harness; it is a recipe axis of the same standing as the quantiser, the task and the
+training length — and on the axis added here the competitor is maximally sensitive and
+the φ-lattice is insensitive.
+
+**Effect on the claim.** The empirical claim is not weakened by T798; it is widened. Over
+the eight-configuration sweep plus this arm, TNF4 has **45 successes in 45 runs**,
+`fp6 e3m2` **16 of 45**, `fp6 e2m3` **12 of 45**, across five recipe axes. What T798
+withdraws is the *explanation*, which is now unknown: TNF4 wins while holding the coarser
+effective alphabet and the higher underflow threshold, so range-underflow cannot be what
+is doing the work under `peak2one`.
+
+**Corollary (a reproduction that pays for itself).** The `peak2one` arm reproduces the
+W946 record to the second decimal — 96.70 against 96.70 — which is what licenses reading
+the `peak2max` arm as a change of convention rather than a change of rig. Re-deriving an
+old number is not wasted work; without it this table would be two experiments, not one.
+
+### T798b — Under the block sizes the field actually deploys, range buys nothing and costs resolution
+
+**Setting.** Per-tensor scaling forces one format to span the whole tensor's dynamic
+range. The OCP microscaling formats give every block of **32** elements its own shared
+exponent, so the element format need only span the range found *inside* a block. If
+that range is small, a narrow grid suffices. This is the standard objection to any
+result of the form "wider range is better", and this project had never measured it.
+
+**Measurement.** Grids enumerated from the shipped oracles, normalised to unit maximum
+(the standard rule), applied to 2^18 samples of Gaussian weights, post-ReLU activations,
+and a heavy-tailed post-ReLU case; per-block max scaling; underflow fraction and relative
+RMS error, block size 8 → per-tensor.
+
+**Result (heavy-tailed activations, the case that failed in training):**
+
+| block | TNF4 | `fp6 e3m2` | `fp6 e2m3` |
+|---|---|---|---|
+| 32 (OCP MX) | 0.01 % zeroed, **7.08 % RMS** | 0.35 %, 3.54 % | 2.51 %, **2.04 % RMS** |
+| per-tensor | 0.12 %, 11.37 % | 6.56 %, 5.50 % | **44.41 %**, 22.12 % |
+
+**Statement.** TNF4's underflow is negligible at every block size — the range claim is
+true. But its relative RMS error is the **worst of the three six-bit grids everywhere**,
+by a factor of **3.46×** against `fp6 e2m3` at block 32. Range and resolution are
+purchased with the same 64 codes, and at the granularity the field deploys, the
+resolution is what the error metric sees. The φ-lattice's advantage is confined to the
+regime of **per-tensor scaling on heavy-tailed data**, where `fp6 e2m3` zeroes 44 % of
+its values and collapses.
+
+**Consequence for the manuscript.** Any hardware or accuracy claim at four to six bits
+must state its scaling granularity, and must be defended against MX-style block formats
+rather than against per-tensor plain floats. This project has measured only the latter.
+That is now the largest unmeasured threat to its result, and it is stated as such on the
+falsification page.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

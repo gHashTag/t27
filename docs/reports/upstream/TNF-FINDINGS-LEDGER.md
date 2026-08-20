@@ -818,3 +818,67 @@ count as well, and the repository copy — not scratch — is the record.
 
 Theorems **T797**, **T797a**; lessons **1433**, **1434**. This is the ninth and
 tenth correction this project has made to itself, still with no outside reviewer.
+
+---
+
+## 25. W949 — the mechanism was computed in a convention the experiment never used
+
+The stability result stood on an explanation: **range**. "Under a max-rule scale the
+narrow grids zero everything below 1.67 % (`fp6 e2m3`) or 0.22 % (`fp6 e3m2`) of the
+tensor peak, against TNF4's 0.0041 %." Those three numbers are `min(grid)/max(grid)` —
+they assume the tensor peak lands on the format's **largest representable value**.
+
+**No run in this project ever did that.** Every quantiser initialised `s = max|x|`,
+putting the peak on grid value **1.0**. The grids peak at **3072**, **28** and **7.5**.
+Under the convention actually used, the thresholds are **12.50 %, 6.25 % and 12.50 %** —
+TNF4 zeroed **twice as much** as the competitor it beat and kept **7** usable levels
+against that competitor's **12**, and won 40/40 anyway.
+
+**The explanation is inverted by its own experiment, and is withdrawn.** What exposed it
+was an anomaly, not a review: a block-scaling rig reported *identical* underflow for two
+grids of very different span — impossible unless the scaling had erased the difference.
+
+### The convention is a recipe axis, and it decides the competitor
+
+One scalar per tensor, nothing else changed, MNIST, five seeds, three epochs:
+
+| convention | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---|---|---|
+| `peak2one` — `s = max\|x\|` (all prior runs) | **0/5 fail**, 96.70 | 4/5, 30.19 | **0/5 fail**, 96.58 |
+| `peak2max` — `s = max\|x\|/max(grid)` (standard) | **0/5 fail**, 96.80 | 5/5, 14.57 | **5/5 fail**, 31.61 |
+
+`fp6 e3m2` goes from perfect to dead. TNF4 moves **0.10 pp**. The `peak2one` arm
+reproduces the W946 record to the second decimal (96.70), which is what licenses reading
+the difference as a change of convention rather than of rig.
+
+**So the empirical claim widens while its explanation collapses:** over five recipe axes,
+TNF4 **45/45**, `fp6 e3m2` **16/45**, `fp6 e2m3` **12/45** — and we no longer know why.
+
+### The largest unmeasured threat, stated before a referee states it
+
+Every comparison here scales **per tensor**. At four to six bits the field deploys
+block-scaled MX formats — a shared exponent per 32 elements — so the element format need
+only span the range *inside* a block. Measured on the enumerated grids, heavy-tailed
+activations:
+
+| block | TNF4 | `fp6 e3m2` | `fp6 e2m3` |
+|---|---|---|---|
+| 32 (OCP MX) | 0.01 % zeroed, **7.08 % RMS** | 0.35 %, 3.54 % | 2.51 %, **2.04 % RMS** |
+| per-tensor | 0.12 %, 11.37 % | 6.56 %, 5.50 % | **44.41 %**, 22.12 % |
+
+TNF4's underflow is negligible everywhere — the range claim is true. But its relative RMS
+error is the **worst of the three six-bit grids at every block size**, by **3.46×** against
+`fp6 e2m3` at block 32. Range and resolution are bought with the same 64 codes. **No
+training run in this project has ever used a block scale.**
+
+### And the published rig could not reproduce two of its own records
+
+`FALSIFY-ME.md` instructs a replicator to set `EPOCHS ∈ {3,10,30}`. The **published**
+copy of `stability.py` had `EPOCHS = 3` hard-coded; only the working copy read the
+environment. Two copies of one program had drifted, and every patch since had been
+applied to the published one — so it looked maintained while being unable to produce two
+of the eight records it ships to support. Fixed, with the convention now selectable via
+`SCALE_RULE` and named in the record file.
+
+Theorems **T798**, **T798a**, **T798b**; lessons **1435–1438**. `verify_numbers.py` now
+runs **38 derived checks**. Corrections eleven through thirteen, still no outside referee.

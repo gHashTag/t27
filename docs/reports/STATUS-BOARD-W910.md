@@ -1,4 +1,19 @@
-# Full status, both tracks — one page for whoever wakes up (W948d, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W949, 2026-08-20)
+
+> **W949 — THE MECHANISM WAS COMPUTED IN A CONVENTION THE EXPERIMENT NEVER USED.**
+> The range explanation (`zeroes below 1.67 % / 0.22 % / 0.0041 % of peak`) is
+> `min/max` of each grid — it assumes the peak maps to the format's **maximum**. Every
+> run mapped it to grid value **1.0**, and the grids peak at 3072 / 28 / 7.5. Under
+> what the rig did, TNF4 zeroed **12.5 %** against `fp6 e3m2`'s **6.25 %** and held
+> **7** levels against **12** — and won 40/40 anyway. **Mechanism withdrawn; we do not
+> know why TNF4 trains.** The claim itself *widened*: adding the convention as a fifth
+> recipe axis, TNF4 **45/45**, `e3m2` **16/45**, `e2m3` **12/45** — and `e3m2` flips
+> **0/5 → 5/5** from the convention alone while TNF4 moves 0.10 pp. **New top threat,
+> published before a referee could raise it:** at the OCP MX block size 32 TNF4's RMS
+> error is **3.46× worse** than `fp6 e2m3` and worst of the three at every block size;
+> **no run here has ever used a block scale.** Also: the published rig had `EPOCHS = 3`
+> hard-coded and could not reproduce two of its own records. **38 derived checks.**
+> Theorems **T798/T798a/T798b**, lessons **1435–1438**. **Readiness 79 %.**
 
 > **W948d — THE TALLY WAS TRANSCRIBED, AND IT WAS WRONG BY ONE.** The report said
 > `fp6 e2m3` failed **29** of forty; recomputing from the eight records gives **28**.
