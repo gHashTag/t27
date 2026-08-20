@@ -95,7 +95,13 @@ pub fn now_gate(path: Option<&Path>, today_override: Option<&str>) -> Result<()>
         None => Utc::now().format("%Y-%m-%d").to_string(),
     };
 
-    let re = Regex::new(r"(?m)^\*\*Last updated:\*\*\s*(\d{4}-\d{2}-\d{2})")
+    // Match the format the producer actually writes. `nownote.rs` emits a
+    // PLAIN `Last updated: <date>` line, and all 136 stamps in `docs/NOW.md`
+    // use that form -- zero use the bold one this pattern required before, so
+    // the gate could never take the `Some` branch on the real document. The
+    // `**` markers stay optional because archived snapshots (and the entry
+    // still sitting in root `NOW.md`) predate the switch to plain.
+    let re = Regex::new(r"(?m)^(?:\*\*)?Last updated:(?:\*\*)?\s*(\d{4}-\d{2}-\d{2})")
         .expect("static regex always compiles");
     match re.captures(&body) {
         Some(caps) => {
@@ -111,7 +117,7 @@ pub fn now_gate(path: Option<&Path>, today_override: Option<&str>) -> Result<()>
             Ok(())
         }
         None => bail!(
-            "NOW gate violation: no `**Last updated:** YYYY-MM-DD` line found in {}",
+            "NOW gate violation: no `Last updated: YYYY-MM-DD` line found in {}",
             resolved.display()
         ),
     }
@@ -187,5 +193,56 @@ mod tests {
         let r = now_gate(Some(&tmp), Some("2026-05-12"));
         std::fs::remove_file(&tmp).ok();
         assert!(r.is_err());
+    }
+
+    /// The two tests above write their own fixture in the bold form, so they
+    /// only ever proved the regex is self-consistent. This one pins the shape
+    /// `nownote.rs` actually writes (see its `add()`): a PLAIN `Last updated:`
+    /// line. It fails against the pre-fix bold-only pattern.
+    #[test]
+    fn now_gate_accepts_the_plain_form_nownote_writes() {
+        let date = "2026-05-12";
+        let body = "# NOW -- some entry (2026-05-12)\n\
+                    \n\
+                    Last updated: 2026-05-12\n\
+                    \n\
+                    ## some entry (Closes #1)\n\
+                    \n\
+                    - x\n\n";
+        let tmp = std::env::temp_dir().join(format!("now_gate_plain_{}.md", std::process::id()));
+        std::fs::write(&tmp, body).unwrap();
+        let r = now_gate(Some(&tmp), Some(date));
+        std::fs::remove_file(&tmp).ok();
+        assert!(r.is_ok(), "{:?}", r);
+    }
+
+    /// Liveness: run the gate against the real `docs/NOW.md` rather than a
+    /// fixture. The expected date is re-derived with the *live* gate's own
+    /// rule (`bootstrap/src/suite.rs` takes the first line containing
+    /// "Last updated:"), so this asserts the two implementations agree on the
+    /// actual document. It does not assert freshness, so it cannot go red
+    /// merely because the file is a day old.
+    #[test]
+    fn now_gate_agrees_with_the_live_gate_on_the_real_document() {
+        let root = match repo_root() {
+            Ok(r) => r,
+            Err(_) => return, // not in a git checkout; nothing to check
+        };
+        let path = root.join("docs/NOW.md");
+        let body = match std::fs::read_to_string(&path) {
+            Ok(b) => b,
+            Err(_) => return, // file absent (sparse checkout); nothing to check
+        };
+        let stamped = body
+            .lines()
+            .find(|l| l.contains("Last updated:"))
+            .and_then(|l| l.split("Last updated:").nth(1))
+            .map(|s| s.trim().trim_start_matches("**").trim().to_string())
+            .expect("docs/NOW.md must carry a `Last updated:` line");
+        let date = stamped
+            .get(..10)
+            .expect("`Last updated:` value must start with YYYY-MM-DD");
+        let r = now_gate(Some(&path), Some(date));
+        assert!(r.is_ok(), "gate rejected the real docs/NOW.md: {:?}", r);
     }
 }

@@ -1,3 +1,89 @@
+# NOW -- a commit gate that could never pass, a symlink that never existed, and 835 lines of base64 (2026-08-20)
+
+Last updated: 2026-08-20
+
+## hooks: match the NOW stamp format that is actually written (Closes #2299)
+
+Three small defects found while analysing the `docs/NOW.md` bottleneck, all
+verified against `origin/master` at `7e8de87b1` before being touched.
+
+### 1. `tri hooks now-gate` required a format nothing produces
+
+`cli/tri/src/hooks.rs` matched the **bold** stamp:
+
+```
+r"(?m)^\*\*Last updated:\*\*\s*(\d{4}-\d{2}-\d{2})"
+```
+
+The producer disagrees. `cli/tri/src/nownote.rs` writes the plain form, and on
+`master` the count is decisive:
+
+```
+$ git show origin/master:docs/NOW.md | grep -c '^\*\*Last updated:\*\*'
+0
+$ git show origin/master:docs/NOW.md | grep -c '^Last updated:'
+136
+```
+
+Zero bold against 136 plain, so the gate always fell to its `None` branch and
+bailed with "no line found". It could not pass on the one document it exists
+to check. The pattern now accepts either form; `**` is optional because
+archived snapshots and root `NOW.md` still carry the old bold style.
+
+### Why the suite was quiet about it
+
+Both existing `now_gate` tests write their own fixture in the bold form and
+then assert the regex reads it back. The fixture matched because the same
+commit authored both sides. Neither test ever saw `nownote.rs`'s output or the
+real document, so a producer/consumer split was invisible. Two tests added: one
+pins the plain shape `nownote.rs` emits, and one runs the gate against the real
+`docs/NOW.md`, deriving the expected date with the *live* gate's own rule so
+the two implementations are asserted to agree. It checks agreement, not
+freshness, so it cannot go red merely because the file is a day old.
+
+### This one is dead code, and that is worth stating
+
+Nothing invokes `tri hooks now-gate` or `tri hooks pre-commit`. The gate that
+actually runs is a different implementation -- `.githooks/pre-commit` calls
+`scripts/tri check-now` -> `t27c check-now` in `bootstrap/src/suite.rs`, which
+matches on `contains("Last updated:")` and therefore accepts the plain form.
+No commit is being blocked today. It matters because `MIGRATION_AUDIT.md`
+advertises `tri hooks` as the Rust port that replaces the shell gates: the
+moment anything wires it up, it rejects every commit.
+
+### 2. `.gitattributes` described a symlink that does not exist
+
+The comment read "The root file is a symlink, so git merges the link target,
+not the text". `git ls-tree master NOW.md` reports mode `100644` -- a regular
+file; a symlink would be `120000`. Root `NOW.md` is its own divergent document
+stamped 2026-08-09 while `docs/NOW.md` is stamped today.
+
+A second claim was backwards too: "the rule above names the SYMLINK, not the
+file that actually conflicts". The pattern `NOW.md` has no slash, so git
+matches it by basename at any depth -- it already covers `docs/NOW.md`,
+confirmed with `git check-attr merge -- docs/NOW.md`. Comments corrected; the
+`merge=union` rules themselves are unchanged and `check-attr` returns `union`
+for the same three paths before and after.
+
+Whether root `NOW.md` should become a real symlink, be deleted, or keep its own
+content is a decision left open deliberately -- #2253 stays open for it.
+
+### 3. `docs/NOW.md.master` was 835 lines of committed base64
+
+Landed in `d063152ad`, a `.master` conflict side-file that got base64'd and
+committed. Verified junk before removal: it decodes to 35,328 bytes of an
+obsolete NOW snapshot stamped 2026-04-08, and
+`git grep "NOW\.md\.master" origin/master` returns zero hits tree-wide. Being
+base64, it was unreadable in review, ungreppable and undiffable. Removed.
+
+### A number in my own brief did not survive checking
+
+The task described "137 entries". Measured on `master` it is 136 `Last
+updated:` stamps across 74 `^# NOW --` headers. Corrected everywhere rather
+than repeated; the load-bearing figure for the defect is the zero, not the 136.
+The existing content of this file is untouched -- this entry is a pure prepend,
+so `git diff --numstat` reports 0 deleted lines for `docs/NOW.md`.
+
 # NOW -- the workspace was throwing away a release profile, and the brief about it was measured on the wrong branch (2026-08-20)
 
 Last updated: 2026-08-20
