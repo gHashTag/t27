@@ -1,3 +1,115 @@
+# NOW -- specs/scratch is untracked; history is unchanged (2026-08-20)
+
+Last updated: 2026-08-20
+
+## chore(specs): untrack specs/scratch -- 455 files, 578 MB, 65% of the tree
+
+The repository owner asked for `specs/scratch/` to stop being tracked. It is now
+in `.gitignore`, and 455 files were removed from the index with
+`git rm -r --cached`. **Nothing was deleted from anyone's working tree.**
+
+Measured against `origin/master` `bffd38982` with `git ls-tree -r -l`:
+
+| group | files | bytes |
+|---|---|---|
+| `specs/scratch/*_bench_*` | 352 | 606,058,170 |
+| hand-written witnesses | 103 | 55,518 |
+| **total** | **455** | **606,113,688** (578.0 MiB) |
+
+That is 64.5% of the 939,857,424 bytes tracked at that commit, and 99.99% of it
+is one generated family. The cost was never one wave's drafts -- it is that each
+wave committed its own on top of every prior wave's, so every clone since w309
+carries all of them forward.
+
+Scratch is where a wave thinks out loud. It is not a source of truth: zero `use
+scratch` appears anywhere in the tree, no spec outside it imports one, and the
+corpus ratchet already excluded it by construction (`bootstrap/src/suite.rs`,
+`is_scratch()` at the walk).
+
+### Two gates would have been made worse. Both are handled in the same commit.
+
+**Seal Coverage: 456 new failures avoided, and it is already red for other
+reasons.** `tools/check_seal_coverage.py` resolves `spec_path` against the
+*filesystem*, and CI checks out a fresh clone -- so untracking the specs alone
+would turn all 456 seals under `.trinity/seals/scratch_*.json` into `dangling`.
+None of them is in `tools/seal_baseline.txt` (0 of its 209 lines mention
+scratch). So the 456 are untracked with the specs, which is the fix the gate's
+own message prescribes: *"the spec was committed and later deleted. Remove the
+seal with it, or restore both."* They were **not** added to `seal_baseline.txt`
+-- that would have written 456 lines of permanent debt.
+
+**This gate is failing on master today, before this change, and it still is
+after.** Run 32324107310 on `bffd38982` -- the exact base of this branch --
+reports `FAIL: 131 seal(s) newly do not hold`, and the eight most recent master
+runs all failed. The 131 are stale/dangling seals in `specs/tri/`,
+`specs/fpga/`, `compiler/` and elsewhere whose baseline was never updated; they
+have nothing to do with scratch. Re-sealing them needs a built `t27c` and is a
+separate job.
+
+The delta this PR contributes was measured, not assumed: the failing-seal name
+set from CI run 32324107310 was compared against a run over this branch's tree.
+**Intersection is exact -- 0 seals fail on master that do not fail here, and 0
+scratch seals fail here.** Without the seal removal the count would have gone
+131 -> 587.
+
+The name set and the content set are the same 456 files -- every seal named
+`scratch_*` has a `spec_path` under `specs/scratch/`, and every seal with such a
+`spec_path` is named `scratch_*`. They cover all 455 specs (one spec,
+`w825_bench_module_469x2p6_aos_var_call_write.t27`, carries two seals).
+
+**Emit Bit-Exact Gate would have printed a false NOTE.** Its corpus comes from
+`git ls-files *.t27`, which drops 1196 -> 741. 58 of the 348 lines in
+`tools/specs_generate_baseline.txt` name scratch specs; once untracked they read
+as `fixed`, and the gate prints `NOTE 58 spec(s) in the baseline now generate`.
+They do not generate -- they are gone. All 58 lines were dropped (348 -> 290);
+each was verified to name a file in the untracked set. The gate does not fail on
+`fixed`, so this was a truth fix, not a red one.
+
+### Honesty limits (BINDING)
+
+- **This PR does not leave CI green, and does not claim to.** Seal Coverage is
+  red on the base commit and stays red at the identical 131 seals. That gate is
+  not one of the four required contexts (`check-now-freshness`, `check`,
+  `validate`, `check-linked-issue`), so it does not block merge -- which is
+  itself worth saying out loud, because `docs/BRANCH-PROTECTION.md` lists it as
+  required and the live ruleset does not.
+- **This does not shrink the repository's history.** The blobs remain in git
+  objects forever. `git clone` still transfers all 578 MB, and every existing
+  clone is exactly the size it was. Only `git filter-repo` and a rewrite of
+  every branch and tag would reclaim that space, and it would break every open
+  PR, every fork, and every commit SHA in the tree's own records. **This change
+  stops the growth from here. It reclaims nothing already paid for.**
+- **Two suite phases silently lose their corpus in CI, and nothing turns red.**
+  `collect_t27` returns `Ok(vec![])` for a missing directory rather than
+  erroring, so on a fresh clone:
+    - Phase 3b, gen-verilog yosys smoke (`suite.rs:1774`): targets fall from 482
+      to 27 (the IGLA specs), a 94.4% drop. This phase is **not** filtered by
+      `--corpus-only`, so it is the one real coverage loss.
+    - Phase 3d/3e, Icarus simulate + cocotb (`icarus_regression_specs`): 155
+      targets to 0. `run_phase` over an empty list prints `0 passed, 0 failed`.
+      No workflow passes `--icarus-simulate` or `--cocotb`, so this is local-only.
+  Both report green. Read them as **untested**, not as passing.
+- **Only 287 of the 455 files are re-derivable from committed code.** 303
+  generators `scripts/gen_w<NNN>.py` exist and are deterministic -- checked, none
+  references `random`, `time`, `datetime`, `uuid`, the environment, or the
+  network -- but they cover 279 of the 383 wave numbers present. The other 168
+  files (the hand-written w3xx/w4xx/w5xx witnesses and the whole w526-w630 range)
+  exist **only in git history**. Recoverable, not reproducible.
+- **281 orphaned Icarus baselines were left tracked, deliberately.**
+  `.trinity/icarus-baselines/specs/scratch/` is keyed by scratch spec path and is
+  now unreachable in CI. It is 20,248 bytes, and removing it would also require
+  editing 5 lines of `tools/json_parse_baseline.txt`. Out of scope; it costs
+  nothing and fails nothing.
+- **The corpus ratchet is untouched, and that is by construction, not luck.**
+  `docs/reports/suite_expectations.json` holds 221 entries against
+  `max_entries: 221`, none under scratch. The only change is the log line
+  `741 of 1196` -> `741 of 741`.
+- **Stale prose was not chased.** `docs/CORPUS-RATCHET.md:96`, the comment at
+  `suite.rs:39`, and `corpus-ratchet.yml:22` quote 606,113,688 bytes as a live
+  measurement of the tracked tree. That number is still true of history and no
+  longer true of a fresh checkout. `README.md:768-782` and this file's own wave
+  log reference scratch specs as historical records, which they remain.
+
 # NOW -- landed can assert a path, not only content (2026-08-20)
 
 Last updated: 2026-08-20
