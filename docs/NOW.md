@@ -1,3 +1,28 @@
+# NOW -- an enum member is a path, not a field access (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(rust-emitter): enum paths and the shorthand's missing type
+
+Working on the trios side, moving the supervisor's decision core out of Swift
+into a `.t27` ring. Generating it exposed two gaps in the Rust backend, both in
+how an enum member is spelled, and together they made every enum-returning
+function ungeneratable:
+
+- `Verdict.escalate` emitted as `Verdict.escalate`; Rust needs `::`.
+- The shorthand `.escalate` emitted as `escalate::` -- the variant on the left
+  of the separator.
+
+Both fixed in `RustCodegen`. The seal moved because `compiler.rs` changed;
+new digest recorded per FROZEN.md §5.
+
+Not touched: the FPGA stands, `fpga/`, or anything on the wave branch. Three
+further gaps are recorded in the commit message and left alone -- `switch` as a
+function body, `;` comments inside an enum body, and `pub module` not being
+picked up from a `//`-commented file.
+
+---
+
 # NOW -- the props read with -formal too (2026-08-20)
 
 Last updated: 2026-08-20
@@ -285,6 +310,29 @@ Last updated: 2026-08-19
 - assert_report_superset was called by a committed test but its definition
   was never committed by any wave -- recovered from aaecfb0af and restored
 - Same class as #2227: build check green, test build broken, all PRs inherit
+
+# NOW -- tri answers before the compiler is built (2026-08-19)
+
+Last updated: 2026-08-19
+
+## feat(tri): local wave commands that need no t27c (Closes #2243)
+
+- `tri wave|disk|ci|lesson|theorem` are dispatched BEFORE t27c is resolved; the
+  front door used to exit "t27c not found" for every subcommand, including the
+  ones that never touch the compiler -- the exact state a machine is in when the
+  compiler is what you are trying to fix
+- `tri disk` gates on a free-space floor (default 2 GiB, `TRI_DISK_FLOOR_GIB`)
+  and exits non-zero below it; two autonomous sessions were killed mid-wave by
+  ENOSPC, and at zero free bytes even `rm` is dead
+- `tri lesson --check` / `tri theorem --check` audit the numbering of the
+  wave-loop skill and the theory doc. Their first run reported 180+ collisions --
+  all false: `T709a`/`T709b` are distinct sub-theorems, and `**88.03% on
+  Fashion**` is bold prose, not lesson 88. Anchored on the whole identifier both
+  corpora are clean (997 theorem headings, monotonic; 629 lessons, no gaps)
+- Compiler passthrough unchanged: `tri test` still maps to
+  `t27c suite --repo-root`, everything else is forwarded verbatim
+- Verified: `bash -n`, every subcommand exercised, `--min 999` exits 1,
+  `tri lesson` wrote its own lesson about the false collisions
 
 # NOW -- the mismatch now fails where the cause is (2026-08-19)
 
@@ -719,6 +767,34 @@ Last updated: 2026-08-15
 - **Full corpus, single completed run, uniform 12 s threshold, 1089 files** `[measured]`: 524 unchanged/ok, 343 unchanged/fail, **0 regressions**, 1 strict-improvement, 221 not-evaluated (195 both-timeout, 26 candidate-timeout). **Coverage 868/1089 = 79.7 %**
 - **The 26 `ok -> timeout` files are the boundary, not a slowdown.** Timed directly, 3 runs each way: median candidate/base ratio **1.010** (min 0.985, max 1.026), on files taking 10.8-11.7 s against a 12 s wall. A 1-3 % jitter is enough to move them across it, so the count difference measures the threshold and not the compiler
 - Rules R15 and R16 added to `docs/loop/LOOP-RULES.md` and resealed. `tri corpus-parse`, `corpus-status`, `diffmodes`, `loop-rules` registered in `scripts/ci/loop-tools-tracked.sh`, which fails on an untracked tool -- the state that already destroyed two of these scripts along with every number they produced
+
+# NOW -- `pub const Name(T) = struct` is a declaration the parser must accept (2026-08-15)
+
+Last updated: 2026-08-15
+
+## bootstrap: parameterised const type declarations (Closes #2162)
+
+- **The AST contract was fixed before the patch, in `architecture/ADR-008`.** `pub const Name(T) = struct { ... }` parses as `ConstDecl(name, generic_parameters, StructExpr)`. Writing the contract first is what lets the tests count for something: tests authored after a patch tend to describe whatever the patch happened to do
+- **Measured**: 33 declarations of the form in 28 corpus files, every one with `struct` on the right-hand side. The old binary rejected 6 of 6 positive fixtures; the candidate accepts 6 of 6, and rejects 7 of 7 negative fixtures. `cargo test --test generic_const_decl` 16/16; `cargo test --bin t27c` 1537 passed, 0 failed, 2 ignored
+- **This is a parser defect, not a corpus error**, so the 28 files are not rewritten. The owner decision is recorded in the issue rather than only in a working session -- an hourly tick had already closed this issue as *blocked, waiting on the language owner* while the decision existed, because a decision that lives in a conversation is not visible to any automated consumer
+- **What this does NOT settle**, each left as `needs-language-ADR`: `Name(T)` in type *application* position (#2164) and whether `test` is a reserved word (#2165). Accepting a declaration form does not imply accepting the use form
+- **`bootstrap/stage0/FROZEN_HASH` moves**, `375b2f88...` -> `315fbe1d...`. That is a GOLD-RING seal and needs explicit human approval; it is not a mechanical consequence of the patch
+
+# NOW -- the loop tools are in the repository, and the differential now names the loss (2026-08-15)
+
+Last updated: 2026-08-15
+
+## tooling: restore tri cost and tri diffbin, and stop aggregating field loss to zero (Closes #2158)
+
+- **Two measurement tools were lost, and with them every number they had produced.** `scripts/tri_loop/cost.py` and `diffbin.py` were written, quoted in a pull request, and never committed; the working copy was later re-cloned. Six recovery routes came back empty: dangling git objects held only a `git stash` WIP with `triage.py`, the reflog records the clone rather than the content, shell history is absent, CI artifacts hold only FPGA outputs, no PR or issue comment carries the source, and the session snapshot preserves prose about the scripts instead of the scripts. They are reimplemented here from a written contract, not reconstructed from memory
+- **`tri diffbin` no longer produces a single verdict.** Five categories, matched in order: `unchanged`, `field-loss`, `strict-improvement`, `malformed-input-tradeoff`, `unknown`. `field-loss` is tested BEFORE `strict-improvement`, so a change that removes a phantom field and also drops a declared one is a loss and not an improvement, and it is never folded into another count
+- **The discrimination that the old aggregate missed: a removed field is a phantom only if its type text in the base was EMPTY.** That is the signature of an identifier lifted out of a type argument list; a removed field with a non-empty base type was declared by the author and its removal is a loss. Counting fields alone cannot tell the two apart
+- **Re-measured, same 634 specs, same two binaries: 616 unchanged, 13 field-loss, 1 strict-improvement, 4 malformed-input-tradeoff, 0 unknown.** The previous tool reported "0 regressions" over this identical corpus. `specs/tri/agent/handoff.t27` goes from 35 parsed fields to 12
+- **All 17 files whose field sets moved are inside the damaged set, and no well-formed spec changed at all.** 13 of 13 `field-loss` and 4 of 4 `malformed-input-tradeoff` are files that carry a mangled type annotation. `0 unknown` is the load-bearing number: no clean input changed behaviour
+- **`tri cost` reports per stratum and refuses a cross-family exponent.** n, median, p95, min-max ms/KB and coefficient of variation per spec family; alpha only at n >= 8, printed with its r2 and its KB range. A single exponent across strata is a metric of corpus composition rather than of the parser (#2133), so it is not printed at all -- a number gets quoted and its caveat does not travel with it
+- **`tri damage` classifies the corrupt annotations by shape instead of repairing them (#2154).** 125 lines in 65 files, 15 distinct shapes; one emitted fixture per shape. The first draft of the classifier reported 429 lines, of which 230 were `target : < 5000ns` -- a legitimate less-than bound. Two signals survive, `[[]` and an odd `"`, and the fix was deleting the bad signals rather than tuning a threshold
+- **`scripts/ci/loop-tools-tracked.sh` makes the loss impossible rather than regrettable.** It fails when a loop tool is missing, when it exists but git does not track it, when anything under `scripts/tri_loop/` is untracked, or when the generic dispatch line is gone. Verified to fail in exactly the pre-loss state
+- **The dispatcher looked for a built compiler before dispatching helpers that do not use one.** `tri triage` and `tri damage` read the tracker and the spec text; on a machine with no build they refused to run. Loop dispatch now precedes the binary lookup
 
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
