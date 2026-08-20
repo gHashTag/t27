@@ -12441,6 +12441,8 @@ a worktree in the same wave its branch merges.
 
 **1427. AGAINST A BIMODAL COMPETITOR THE MEAN DESCRIBES NO RUN THAT HAPPENED.** A format comparison reported 62.73 ± 32.94 for a competitor whose five seeds were 86.0, 86.8, 23.0, 87.3, 30.6 -- a mean that matches nothing observed and a standard deviation that hides the only fact that matters: two of five runs did not train. Switching the statistic to the FAILURE RATE made the finding legible and stable across four configurations (0/20 against 14/20 and 8/20), and it also made the claim falsifiable: anyone with a recipe that fixes the narrow grids refutes it in one run. Two habits: when a per-seed list is bimodal, report the rate and the raw list, never the mean; and when reporting robustness, name the recipe space it was tested over, because robustness measured under one recipe is a property of that recipe.
 
+**1428. TO TELL NOISE FROM RUNAWAY, HOLD EVERYTHING FIXED AND ADD TIME.** An instability at 2 failures in 5 could have been noise or a positive feedback loop, and the two demand opposite responses. Holding task, recipe and seeds fixed and raising the epoch count from three to ten drove the same configuration from 0 failures in 5 to 5 in 5 -- noise averages out with more steps, a runaway consumes them. The same run answered the other open question for free: among the runs that did converge the coarser grid landed within 0.7 pp of the finer one and on one task above it, so the wider dynamic range was not paid for in accuracy. One knob, two answers, one afternoon: when an effect's character is in doubt, vary the quantity that distinguishes the mechanisms rather than gathering more samples of the ambiguous one.
+
 ### How to update this tracker
 
 After closing a wave:

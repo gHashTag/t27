@@ -28812,6 +28812,40 @@ robustness with range, ties on cost and on accuracy-when-both-train, and is
 falsifiable in one run by anyone whose recipe makes a narrow grid reliable across
 tasks -- which three of mine did not.
 
+### T795 -- MORE TRAINING MAKES A COLLAPSE-PRONE GRID WORSE, AND THE COARSER STEP COSTS NOTHING [measured]
+
+Two questions from T794, answered by running ten epochs instead of three.
+
+**Does the range cost precision?** No, at these depths. Among the runs that
+trained: MNIST 97.68 (TNF4, n=5) against 97.54 (fp6 e2m3, n=1); Fashion 87.38
+(n=5) against 87.10 (n=3) and 88.12 (fp6 e3m2, n=1). Within 0.7 pp, and on one task
+the narrow grid is AHEAD. The phi-lattice's coarser step is not paid for in
+accuracy where both formats converge -- the 14.6 binades are free.
+
+**Does longer training rescue a collapse-prone grid?** The opposite. fp6 e3m2 goes
+from 0 failures in 5 at three epochs to 5 in 5 at ten, on the same task with the
+same recipe and only more steps:
+
+    configuration                        TNF4   fp6 e2m3   fp6 e3m2
+    MNIST  3 ep  max, no factor           0/5      3/5       2/5
+    MNIST  3 ep  max, standard factor     0/5      4/5       0/5
+    MNIST  3 ep  p99.9, standard          0/5      5/5       4/5
+    KMNIST 3 ep  max, standard            0/5      2/5       2/5
+    MNIST 10 ep  max, standard            0/5      4/5       5/5
+    Fashion 10 ep max, standard           0/5      2/5       4/5
+    TOTAL                                0/30     20/30     17/30
+
+That is what a runaway predicts and a noise process does not: every additional step
+is another chance for the activation scale to fall, and once it is near zero the
+gradient that would raise it has vanished with the activations. **A failure mode
+that grows monotonically with training steps is dynamical, not statistical**, and
+the distinction is testable in one afternoon by varying only the step count.
+
+The general form: when deciding whether an observed instability is noise or
+runaway, hold everything fixed and add TIME. Noise averages out with more steps; a
+positive feedback loop consumes them. Here the same knob that would settle a noisy
+estimate drove the failure rate from 0 % to 100 %.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
