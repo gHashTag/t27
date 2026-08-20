@@ -140,6 +140,15 @@ before touching anything under `fpga/`. Non-negotiables:
   bench. Address the three boards with `--busdev-num 1:4 / 1:6 / 1:8`; they share
   serial `210512180081`, so serial-based addressing cannot separate them.
   See `fpga/HARDWARE_SSOT.md` §"Note" and §"Programming".
+  *Measured W948 (2026-08-20), read-only JTAG scan, no programming: the bench
+  now presents **exactly one** cable, at **bus 001 device 005** — the documented
+  `--busdev-num 1:4 / 1:6 / 1:8` all fail with "device not found". With one cable
+  attached the address can be omitted. `openFPGALoader -c digilent_hs2 --detect`
+  returns `idcode 0x3636093`, `family artix a7 200t`, `model xc7a200`,
+  `irlength 6` — confirming the IDCODE above. The scan needs no Docker; only the
+  bitstream build does, so "the hardware axis is blocked" was true of the build
+  and false of identification. Record:
+  `docs/reports/upstream/hardware_scan_w948.json`.*
   *Corrected W791 (T460/T461): the previous text here forbade `openFPGALoader` on
   the grounds that it cannot drive a `0x03FD` cable — true, and irrelevant, since
   no `0x03FD` cable is attached. That sentence contradicted the SSOT this file
