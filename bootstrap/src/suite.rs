@@ -148,6 +148,78 @@ fn collect_t27(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     Ok(v)
 }
 
+// =========================================================================
+// W643: the non-empty floor for TARGETS.
+//
+// This file has carried the floor for the ORACLE since W628 and never for the
+// targets. `load_expectations` returns `Ok(None)` rather than an empty ledger,
+// with a doc comment saying so in as many words, and the ratchet turns that
+// `None` into `RATCHET: FAIL -- Absence is not amnesty (T31)`. Ten lines away,
+// `collect_t27` returns `Ok(Vec::new())` for a directory that is not there,
+// every phase iterates that happily, `run_phase` returns `(0, 0)`, and the
+// phase prints `0 passed, 0 failed` into a suite that then says ALL TESTS
+// PASSED. Not one phase in `run_comprehensive` checked `files.is_empty()`.
+//
+// The scratch untrack (#2283) made it concrete rather than theoretical:
+// `icarus-simulate` and `icarus-cocotb` went from 155 targets to 0, and the
+// 281 baselines under `.trinity/icarus-baselines/specs/scratch/` became golden
+// files whose subject does not exist and whose comparing phase has no targets.
+// Nothing anywhere said a word.
+//
+// The floor is not a new idea in this tree -- it is a rule this repo already
+// applies everywhere EXCEPT here. Three CI-reachable Python gates carry it
+// verbatim (`tools/check_specs_generate.py:119` "the scan is broken, not the
+// tree", `tools/check_seal_coverage.py:167` "the path is wrong, not the tree",
+// `tools/check_withdrawn_live.py:73` "the gate would pass vacuously"), and
+// seven CLI wrappers in `main.rs` bail on a missing spec directory over the
+// SAME walkers these phases call fail-open.
+//
+// `collect_t27` is deliberately left alone. `specs/scratch` is legitimately
+// absent since #2283, so the walker must keep returning an empty vec; the
+// floor belongs at the point where a list becomes a phase's targets, which is
+// also the only point that knows whether zero is a defect or a configuration.
+// =========================================================================
+
+/// Fail a phase whose target list is empty, naming where the targets were
+/// supposed to come from.
+///
+/// A phase with nothing to check is not a passing phase. The message names the
+/// source rather than just the count, because every instance of this bug looks
+/// identical from the summary line and completely different at the source: a
+/// wrong path, a deleted tree, a filter that matched nothing.
+fn require_targets(phase: &str, source: &str, files: &[PathBuf]) -> anyhow::Result<()> {
+    if files.is_empty() {
+        anyhow::bail!(
+            "phase `{}` has NO targets: {} yielded no .t27 file.\n\
+             A phase with nothing to check is not a passing phase -- absence is \
+             not amnesty (T31).\n\
+             Either the path is wrong and the tree is fine, or the tree lost \
+             files it should have. If zero targets is genuinely correct for this \
+             configuration it needs a named opt-out in suite.rs with a stated \
+             reason, not silence.",
+            phase,
+            source
+        );
+    }
+    Ok(())
+}
+
+/// The single-file form of [`require_targets`], for the phases whose target is
+/// one fixed, tracked spec rather than a walk.
+fn require_target_file(phase: &str, path: &Path) -> anyhow::Result<()> {
+    if !path.is_file() {
+        anyhow::bail!(
+            "phase `{}` has NO target: {} does not exist.\n\
+             This phase checks exactly one tracked spec, so a missing file is a \
+             broken path or a lost file -- never a reason to report the phase as \
+             skipped or clean. Absence is not amnesty (T31).",
+            phase,
+            path.display()
+        );
+    }
+    Ok(())
+}
+
 fn run_phase(
     repo: &Path,
     label: &str,
@@ -1607,6 +1679,36 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         (specs_compiler, specs_only)
     };
 
+    // W643: the floor, checked AFTER the --corpus-only filter, because the list
+    // that has to be non-empty is the one the phases actually walk. Phases 1,
+    // 1a2-1a7, 1b, 2, 2b and 6 iterate `specs_compiler`; phases 3, 4 and 5
+    // iterate `specs_only`. An empty list makes ALL of them print
+    // `0 passed, 0 failed` and the suite report ALL TESTS PASSED.
+    //
+    // There is no configuration in which zero is correct here. `--corpus-only`
+    // narrows the walk to the hand-written corpus, which is the population the
+    // ratchet's verdict is about; if that narrowing leaves nothing, the verdict
+    // is about nothing.
+    let specs_dir = repo.join("specs");
+    let walk_desc = if opts.corpus_only {
+        format!(
+            "walk of {} under --corpus-only (specs/scratch excluded)",
+            specs_dir.display()
+        )
+    } else {
+        format!("walk of {}", specs_dir.display())
+    };
+    require_targets(
+        "parse / typecheck / gen-zig / gen-rust / fixed-point (phases 1-2b, 6)",
+        &walk_desc,
+        &specs_compiler,
+    )?;
+    require_targets(
+        "gen-verilog / gen-c / seal-verify (phases 3, 4, 5)",
+        &walk_desc,
+        &specs_only,
+    )?;
+
     let mut summary = SuiteSummary {
         repo: repo.display().to_string(),
         ..Default::default()
@@ -1714,24 +1816,20 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("--- Phase 1c: GF16 Conformance ---");
     let mut gf16_fail = 0usize;
     let gf16_path = repo.join("specs/numeric/gf16.t27");
-    let gf16_skipped = !gf16_path.exists();
-    if gf16_path.exists() {
-        let rel = rel_arg(&repo, &gf16_path)?;
-        if let Err(e) = cmd_typecheck(&repo, &rel) {
-            eprintln!("GF16 CONFORMANCE FAIL: {}", e);
-            gf16_fail = 1;
-        } else {
-            println!("GF16: conformance OK (typecheck clean)");
-        }
+    // W643: this phase has exactly one target and used to announce
+    // `GF16: skipped (spec not found)` with `skipped=1` when that target was
+    // missing -- a conformance gate that checked nothing, filed as a skip
+    // rather than a failure. `specs/numeric/gf16.t27` is tracked, so its
+    // absence is a broken path or a lost file, never a configuration.
+    require_target_file("gf16_conformance (phase 1c)", &gf16_path)?;
+    let rel = rel_arg(&repo, &gf16_path)?;
+    if let Err(e) = cmd_typecheck(&repo, &rel) {
+        eprintln!("GF16 CONFORMANCE FAIL: {}", e);
+        gf16_fail = 1;
     } else {
-        println!("GF16: skipped (spec not found)");
+        println!("GF16: conformance OK (typecheck clean)");
     }
-    push_phase(
-        "gf16_conformance",
-        1 - gf16_fail - (gf16_skipped as usize),
-        gf16_fail,
-        gf16_skipped as usize,
-    );
+    push_phase("gf16_conformance", 1 - gf16_fail, gf16_fail, 0);
 
     println!("--- Phase 2: Gen Zig ---");
     let (p2p, p2f, p2fail) = run_phase_with_failures(
@@ -1777,6 +1875,20 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         }
         smoke_targets.sort();
         smoke_targets.dedup();
+        // W643 OPT-OUT (named): the `specs_scratch` half of this list is
+        // legitimately empty and is NOT guarded. #2283 untracked all 455 files
+        // under `specs/scratch/`, so `collect_t27(repo/specs/scratch)` returning
+        // nothing is the tree as designed, not a broken path. That untrack took
+        // this phase from 482 targets to 27 and this guard does not and cannot
+        // restore them -- it only refuses to let the list reach zero.
+        //
+        // The combined list IS guarded: `igla_clean_specs()` is the phase's
+        // floor, and emptying it would silently retire the whole gate.
+        require_targets(
+            "gen-verilog-yosys-smoke (phase 3b)",
+            "specs/scratch walk + igla_clean_specs()",
+            &smoke_targets,
+        )?;
         let (bp, bf, failures) = run_phase_with_failures(
             &repo,
             "gen-verilog-yosys-smoke",
@@ -1881,6 +1993,24 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                     is_icarus_lowerable(&repo, &rel)
                 });
             }
+            // W643: this is the phase the untrack actually zeroed -- 155
+            // targets to 0, with 281 baselines still tracked under
+            // `.trinity/icarus-baselines/specs/scratch/` whose subject no
+            // longer exists. It ran, compared nothing, and reported nothing.
+            // The flag was asked for, so the phase must have something to run.
+            require_targets(
+                "icarus-simulate (phase 3d)",
+                &format!(
+                    "{} filtered to stems w5*/w3*{}",
+                    repo.join("specs/scratch").display(),
+                    if opts.icarus_lowerable {
+                        ", then to --icarus-lowerable specs"
+                    } else {
+                        ""
+                    }
+                ),
+                &sim_targets,
+            )?;
             let (p3dp, p3df) = run_phase(
                 &repo,
                 "icarus-simulate",
@@ -1910,6 +2040,20 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                     is_icarus_lowerable(&repo, &rel)
                 });
             }
+            // W643: same collection as 3d, same zero, same silence.
+            require_targets(
+                "icarus-cocotb (phase 3e)",
+                &format!(
+                    "{} filtered to stems w5*/w3*{}",
+                    repo.join("specs/scratch").display(),
+                    if opts.icarus_lowerable {
+                        ", then to --icarus-lowerable specs"
+                    } else {
+                        ""
+                    }
+                ),
+                &cocotb_targets,
+            )?;
             let (p3ep, p3ef) = run_phase(
                 &repo,
                 "icarus-cocotb",
@@ -1985,6 +2129,31 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     // nothing acted on it: a broken conformance table printed FAIL lines and
     // the suite still said ALL TESTS PASSED.
     let mut gate_fail = 0usize;
+    // W643: five Phase 6 metrics (dup-names, check-calls, lex-dropped, cc_gate,
+    // impl_status) and the Phase 7 catalog gate resolve `specs` RELATIVE to the
+    // process working directory, each behind an `if root.is_dir()` with no
+    // `else` or a `read_dir` whose `Err(_)` arm is `continue`. Under a cwd that
+    // is not the repo root those metrics vanished from the report entirely --
+    // silence, not a zero -- and the catalog gate, which counts into
+    // `gate_fail`, printed `gate failures: 0` followed by "(lexer/parser
+    // conformance and the catalog gate are all clean)" for a gate that never
+    // ran. This resolves the same relative root once and fails if it is empty,
+    // naming the absolute path so a cwd mismatch is visible on sight.
+    let metrics_root = std::path::Path::new("specs");
+    require_targets(
+        "phase 6 integrity metrics + phase 7 catalog gate",
+        &format!(
+            "relative `specs` walk, resolving to {} (cwd {})",
+            metrics_root
+                .canonicalize()
+                .unwrap_or_else(|_| metrics_root.to_path_buf())
+                .display(),
+            std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("<unknown>"))
+                .display()
+        ),
+        &collect_t27(metrics_root)?,
+    )?;
     println!("--- Phase 6: Integrity metrics (reporting only) ---");
     {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
@@ -2210,28 +2379,32 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // the moment somebody settles it.
         const CATALOG_ALLOWED: &[&str] = &["gfternary"];
         let cat = std::path::Path::new("specs/numeric/formats_catalog.t27");
-        if cat.is_file() {
-            match crate::catalog_gate::run(cat, std::path::Path::new("specs")) {
-                Ok(r) => {
-                    let unexpected: Vec<_> = r
-                        .findings
-                        .iter()
-                        .filter(|f| !CATALOG_ALLOWED.contains(&f.id.as_str()))
-                        .collect();
-                    gate_fail += unexpected.len();
-                    println!(
-                        "  catalog gate: {} record(s), {} finding(s), {} allowed, {} unexpected",
-                        r.records,
-                        r.findings.len(),
-                        r.findings.len() - unexpected.len(),
-                        unexpected.len()
-                    );
-                    for f in unexpected {
-                        println!("    FAIL [{}] {}: {}", f.check, f.id, f.detail);
-                    }
+        // W643: the worst instance of the shape. This is a GATE -- its findings
+        // count into `gate_fail` -- and it sat behind a bare `if cat.is_file()`
+        // with no `else`, so a missing catalog printed `gate failures: 0` and
+        // then announced the catalog gate as clean. `formats_catalog.t27` is
+        // tracked; absence is a broken path, not a configuration.
+        require_target_file("catalog gate (phase 7)", cat)?;
+        match crate::catalog_gate::run(cat, std::path::Path::new("specs")) {
+            Ok(r) => {
+                let unexpected: Vec<_> = r
+                    .findings
+                    .iter()
+                    .filter(|f| !CATALOG_ALLOWED.contains(&f.id.as_str()))
+                    .collect();
+                gate_fail += unexpected.len();
+                println!(
+                    "  catalog gate: {} record(s), {} finding(s), {} allowed, {} unexpected",
+                    r.records,
+                    r.findings.len(),
+                    r.findings.len() - unexpected.len(),
+                    unexpected.len()
+                );
+                for f in unexpected {
+                    println!("    FAIL [{}] {}: {}", f.check, f.id, f.detail);
                 }
-                Err(e) => println!("  catalog gate: could not run ({})", e),
             }
+            Err(e) => println!("  catalog gate: could not run ({})", e),
         }
         println!("  gate failures: {}", gate_fail);
         if gate_fail == 0 {
@@ -3053,6 +3226,60 @@ mod tests {
         let missing = std::env::temp_dir().join("t27_no_such_expectations_628.json");
         let _ = std::fs::remove_file(&missing);
         assert!(super::load_expectations(&missing).unwrap().is_none());
+    }
+
+    // W643: the four tests below are the counterpart to the one above. That
+    // test kept absence out of the ORACLE and has existed since W628; nothing
+    // kept absence out of the TARGETS, and no test anywhere asserted a phase's
+    // target count. `collect_t27`, `icarus_regression_specs` and `smoke_targets`
+    // appeared in no test in this repo.
+
+    #[test]
+    fn an_empty_target_list_fails_the_phase_and_names_the_source() {
+        let err = super::require_targets("icarus-simulate (phase 3d)", "walk of /nowhere/scratch", &[])
+            .expect_err("a phase with no targets must fail, not pass silently");
+        let msg = err.to_string();
+        // Both halves matter: which phase is blind, and where it was looking.
+        // A bare "no targets" leaves a reader unable to tell a wrong path from
+        // a lost tree, which is the whole diagnostic content of this failure.
+        assert!(msg.contains("icarus-simulate (phase 3d)"), "names the phase: {}", msg);
+        assert!(msg.contains("/nowhere/scratch"), "names the source: {}", msg);
+    }
+
+    #[test]
+    fn a_non_empty_target_list_is_left_alone() {
+        // The guard touches ONLY the empty case; it must never alter a phase
+        // that has work to do.
+        let files = vec![std::path::PathBuf::from("specs/numeric/gf16.t27")];
+        assert!(super::require_targets("parse", "walk of specs", &files).is_ok());
+    }
+
+    #[test]
+    fn the_floor_lives_in_the_guard_not_in_the_walker() {
+        // `collect_t27` deliberately still returns an empty vec for a missing
+        // directory: `specs/scratch` is legitimately absent since #2283 and the
+        // `specs_scratch` binding must keep working. So the walker cannot carry
+        // the floor -- only the call site knows whether zero is a defect or a
+        // configuration. This pins that division of labour, which is the part a
+        // future edit is most likely to "simplify" back into the bug.
+        let missing = std::env::temp_dir().join("t27_no_such_specs_dir_643");
+        let _ = std::fs::remove_dir_all(&missing);
+        assert!(super::collect_t27(&missing).unwrap().is_empty());
+        assert!(super::require_targets("parse", "walk of the missing dir", &[]).is_err());
+    }
+
+    #[test]
+    fn a_missing_single_target_file_fails_and_names_the_path() {
+        // Phase 1c reported `GF16: skipped (spec not found)` and phase 7's
+        // catalog gate reported nothing at all. A one-target phase whose target
+        // is gone is a failure, not a skip.
+        let missing = std::env::temp_dir().join("t27_no_such_gf16_643.t27");
+        let _ = std::fs::remove_file(&missing);
+        let err = super::require_target_file("gf16_conformance (phase 1c)", &missing)
+            .expect_err("a missing fixed target must fail");
+        let msg = err.to_string();
+        assert!(msg.contains("gf16_conformance (phase 1c)"), "{}", msg);
+        assert!(msg.contains("t27_no_such_gf16_643"), "{}", msg);
     }
 
     #[test]

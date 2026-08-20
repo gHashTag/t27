@@ -1,3 +1,130 @@
+# NOW -- a suite phase with no targets now fails instead of passing (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(suite): a phase whose target list is empty must fail, naming the source
+
+`bootstrap/src/suite.rs` has carried a non-empty floor for the **oracle** since
+W628 and has never carried one for the **targets**.
+
+`load_expectations` returns `Ok(None)` for a missing ledger, with a doc comment
+saying so in as many words -- *"A missing file is `Ok(None)`, never an empty
+ledger. T31 is the bug where a gate treats 'no oracle' as 'pass'"* -- and the
+ratchet turns that `None` into `RATCHET: FAIL -- Absence is not amnesty (T31)`.
+
+Ten lines away, `collect_t27` returns `Ok(Vec::new())` for a directory that is
+not there. Every phase iterates that happily, `run_phase` returns `(0, 0)`, and
+the phase prints `0 passed, 0 failed` into a suite that then prints `ALL TESTS
+PASSED`. **Not one phase in `run_comprehensive` checked `files.is_empty()`**,
+and no test anywhere asserted a phase's target count -- `collect_t27`,
+`icarus_regression_specs` and `smoke_targets` appeared in no test in this repo.
+
+### It was already live, not theoretical
+
+Untracking `specs/scratch` (#2283, `2255e4c32`) removed 455 `.t27` files.
+Measured at the object store against its parent `bffd38982`:
+
+| phase | targets before | targets after |
+|---|---|---|
+| `icarus-simulate` (3d) | 155 | **0** |
+| `icarus-cocotb` (3e) | 155 | **0** |
+| `gen-verilog-yosys-smoke` (3b) | 482 | 27 |
+
+3d and 3e are permanently zero: `icarus_regression_specs` reads only
+`specs/scratch`, which is absent from `origin/master` entirely. **281 Icarus
+baselines are still tracked under `.trinity/icarus-baselines/specs/scratch/`** --
+golden files whose subject no longer exists and whose comparing phase has no
+targets. Nothing said a word. The ratchet could not have said one either:
+`docs/reports/suite_expectations.json` holds 221 entries and 0 are under
+`specs/scratch`, so the loss cannot surface as an `UNEXPECTED PASS`.
+
+### What changed
+
+Two guards in `bootstrap/src/suite.rs`, plus six call sites and four tests.
+`require_targets(phase, source, files)` fails an empty list; `require_target_file`
+is its single-file form. Both name where the targets were supposed to come from,
+because every instance of this bug looks identical from the summary line and
+completely different at the source: a wrong path, a deleted tree, a filter that
+matched nothing.
+
+| call site | covers | previously |
+|---|---|---|
+| after the `--corpus-only` filter | `specs_compiler` and `specs_only` -- phases 1, 1a2-1a7, 1b, 2, 2b, 3, 4, 5, 6 | all of them print `0 passed, 0 failed`; suite prints `ALL TESTS PASSED` |
+| phase 1c | the one fixed spec `specs/numeric/gf16.t27` | `GF16: skipped (spec not found)` with `skipped=1` -- a conformance gate that checked nothing, filed as a skip |
+| phase 3b | `smoke_targets` (scratch walk + `igla_clean_specs()`) | emptying `igla_clean_specs()` would silently retire the gate |
+| phase 3d / 3e | `sim_targets` / `cocotb_targets` | ran, compared nothing, reported nothing |
+| before phase 6 metrics | the relative `specs` root shared by dup-names, check-calls, lex-dropped, `cc_gate`, `impl_status` and the phase 7 catalog gate | under a wrong cwd those metrics vanished from the report entirely -- silence, not a zero |
+| phase 7 | `specs/numeric/formats_catalog.t27` | `if cat.is_file()` with no `else`: `gate failures: 0` then `(lexer/parser conformance and the catalog gate are all clean)` for a gate that never ran. Its findings count into `gate_fail`, so this was a **false green** |
+
+`collect_t27` itself is deliberately unchanged. `specs/scratch` is legitimately
+absent since #2283, so the walker must keep returning an empty vec; only the
+call site knows whether zero is a defect or a configuration. A test pins that
+division of labour, because it is the part a future edit is most likely to
+"simplify" back into the bug.
+
+### The floor is not a new idea in this tree
+
+It is a rule this repo already applied everywhere except here:
+`tools/check_specs_generate.py:119` (*"the scan is broken, not the tree"*),
+`tools/check_seal_coverage.py:167` (*"the path is wrong, not the tree"*),
+`tools/check_withdrawn_live.py:73` (*"the gate would pass vacuously"*), and
+seven CLI wrappers in `bootstrap/src/main.rs` that `bail!` on a missing spec
+directory over the **same walkers** the suite called fail-open at phase 6.
+
+### Opt-outs, each named with its reason
+
+Four, all of them "the phase does not run", none of them a blanket exemption:
+
+1. **`specs_scratch` (`suite.rs:1585`) is not guarded.** #2283 untracked all 455
+   files under `specs/scratch/`, so an empty walk there is the tree as designed.
+   It is one of two inputs to phase 3b; the combined list is guarded.
+2. **Phase 3b when `yosys` is absent.** The guard sits inside the
+   `yosys_available()` branch. A skipped phase has no target list to be empty,
+   and it already reports `skipped=1`.
+3. **Phase 3d when neither `--icarus-simulate` nor `--icarus-lowerable` is
+   passed, or `iverilog`/`vvp` are missing.** W641's `skipped_note` already
+   prints `SKIPPED (not run -- pass the flag to enable)` rather than `0`.
+4. **Phase 3e when `--cocotb` is not passed**, or the same tools are missing.
+   Same reason.
+
+Phases 3c and 3c-standalone are out of scope rather than opted out: they are a
+single external `tri` invocation with their own skip semantics, not a spec walk.
+
+### Effect on CI today: none
+
+The only workflow that runs the suite is `.github/workflows/corpus-ratchet.yml`
+(`t27c suite --repo-root . --ratchet --corpus-only`, from the repo root). It
+walks 650 corpus specs, `specs/numeric/gf16.t27` and
+`specs/numeric/formats_catalog.t27` are both tracked, and it installs no yosys
+or iverilog -- so 3b is skipped and 3d/3e never run. Every guard passes. The
+change is visible the moment one of them stops being true, which is the point.
+
+Running `t27c suite --icarus-simulate` locally now **fails** with a message
+naming `specs/scratch`. That is the intended, honest outcome: the phase has had
+no targets since #2283 and used to say so by saying nothing.
+
+### Honesty limits (BINDING)
+
+- This makes an **empty** phase fail. That is all it does.
+- It does **not** restore the coverage the scratch untrack took away. Phase 3b
+  went 482 -> 27 targets and stays at 27; phases 3d/3e went 155 -> 0 and stay at
+  0 until fixtures exist for them again. A guard cannot re-create test subjects.
+- It does **not** detect a phase that shrank without reaching zero. 482 -> 27 is
+  a 94.4% loss of coverage and passes every guard added here. A ratchet on
+  target counts is a separate question with no existing mechanism to extend --
+  the expectations ledger keys on `(path, phase)` failures, not on target
+  populations -- and inventing one here would have made this change
+  unreviewable.
+- The 281 orphaned baselines under `.trinity/icarus-baselines/specs/scratch/`
+  are untouched.
+- **Not compiled.** The crate was not built for this change; disk headroom on
+  the authoring machine was 3.2 GiB. `suite.rs` was parse-checked with
+  `rustfmt --edition 2021 --emit stdout` (exit 0), which proves syntax and
+  nothing about types or borrows. CI's `cargo build --release -p t27c` in
+  `corpus-ratchet.yml` is the first real compile.
+
+Closes #2284.
+
 # NOW -- specs/scratch is untracked; history is unchanged (2026-08-20)
 
 Last updated: 2026-08-20
