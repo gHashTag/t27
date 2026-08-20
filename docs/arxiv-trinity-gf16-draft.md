@@ -113,7 +113,7 @@ C[i][j] = dot4(A[i][0:3], B[0:3][j])
 
 ### 4.1 Platform
 
-- **FPGA:** QMTECH XC7A100T-1FGG676C (Artix-7, 126,800 LUTs, 240 DSP48E1)
+- **FPGA:** QMTECH XC7A100T-1FGG676C (Artix-7, 63,400 LUTs, 240 DSP48E1)
 - **Toolchain:** openXC7 (Yosys 0.62 + nextpnr-xilinx)
 - **Clock:** 20-stage ring oscillator (onboard M21 crystal non-functional)
 - **Programming:** XVC via ESP32 (192.168.1.30:2542)
