@@ -1,4 +1,17 @@
-# Full status, both tracks — one page for whoever wakes up (W943, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W944, 2026-08-20)
+
+> **W944 — THE RANGE IS THE RESULT, AND MY OWN PREDICTION WAS REFUTED.** W943
+> predicted that a stronger QAT recipe would close the residual 4-bit gap. With a
+> **learned scale** it *widened* eightfold on MNIST: **+0.19 → +1.58 pp** (SE 0.19,
+> t 8.2); Fashion held at +0.91. With **4-bit activations** fp4 e2m1 becomes
+> **seed-dependent** — 13.93 % ± 6.30 on MNIST against 84.58 % on Fashion — while
+> TNF4 loses 0.26 / 0.55 pp with σ ≤ 0.58. The honest headline is now a **range**:
+> **13–65 pp** without retraining, **0.9–1.6 pp** with a trained scale, plus
+> competitor instability at 4-bit activations. Landed as **tf#652**.
+>
+> **`tri verify` added:** every headline number recomputed from its committed
+> record — **23 checks, all passing**. **Readiness 71 % → 74 %.** Theorem T791;
+> lesson 1424.
 
 > **W943 — THE ADVANTAGE IS CONDITIONAL ON NOT RETRAINING.** Training through the
 > quantiser closes the 4-bit gap **44×**: TNF4 − fp4 falls from **+37.88 → +0.19 pp**

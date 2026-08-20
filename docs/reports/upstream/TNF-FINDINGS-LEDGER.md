@@ -551,3 +551,41 @@ unmeasured.
 **Readiness 68 % → 71 %.** Up for two architectures, two training modes and a null
 that has survived every attempt to break it; not further, because the headline
 narrowed and the hardware axis is still empty.
+
+
+## 18. W944 — the range is the result, and my own prediction was refuted
+
+Landed as **tf#652**.
+
+W943's limits section predicted that a stronger QAT recipe would close the residual
+4-bit gap further. With a learned scale (LSQ gradient), three epochs, five seeds,
+paired:
+
+| configuration | TNF4 | fp4 e2m1 | gap | SE | t |
+|---|---:|---:|---:|---:|---:|
+| 4-bit weights, learned scale, MNIST | −0.03 | −1.61 | **+1.58** | 0.19 | 8.2 |
+| 4-bit weights, learned scale, Fashion | −0.02 | −0.93 | **+0.91** | 0.33 | 2.7 |
+| + 4-bit activations, MNIST | −0.26 | −83.09 | +82.83 | 2.90 | 28.5 |
+| + 4-bit activations, Fashion | −0.55 | −1.47 | +0.92 | 0.20 | 4.5 |
+
+**On MNIST the better recipe made the gap eight times larger** (T791). Epoch
+budgets differ across waves (4 vs 3), so the cross-wave ratio is indicative and
+the within-run paired tests are not.
+
+**The activation row is an instability, not a defeat:** fp4 at 13.93 % ± 6.30 on
+MNIST and 84.58 % on Fashion — some seeds diverge, some do not. The claim is
+robustness: the competitor becomes seed-dependent, TNF4 does not (σ ≤ 0.58).
+
+**The honest headline is a range:** 13–65 pp without retraining, 0.9–1.6 pp with a
+trained scale, plus competitor instability once activations are quantised. Three
+waves, three numbers for one comparison, each from a better experiment than the
+last — the range is the result, and any single number inside it is a recipe.
+
+Also landed: **`tri verify`** — every headline number recomputed from its committed
+record, 23 checks, all passing. Its first run reported one drift that turned out to
+be the checker's own wrong expectation (a small-net figure compared against the
+big-net record), which is the failure mode the checker exists to prevent and now
+carries a comment about.
+
+**Readiness 71 % → 74 %.** The strongest remaining gap is the empty hardware axis
+and the absence of an external replication of any of this.
