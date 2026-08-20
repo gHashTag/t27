@@ -6157,6 +6157,13 @@ fn smoke_gate(
                 values.len()
             );
         }
+        dry_run_sweep_ok = true;
+        report["dry_run_sweep"] = serde_json::json!({
+            "status": "ok",
+            "variants": variant_count,
+            "bitstream": bit_path.to_string_lossy().to_string(),
+            "report_file": dry_report.to_string_lossy().to_string(),
+        });
         println!(
             "[smoke-gate] dry-run sweep report OK ({} variants)",
             variant_count
