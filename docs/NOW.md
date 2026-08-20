@@ -1,3 +1,12 @@
+# NOW -- tri pr ready: 'never ran' is no longer read as 'never failed' (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri pr ready: 'never ran' is no longer read as 'never failed' (Closes #2276)
+
+- A check absent from the failure baseline was reported as NOT failing on master. emit-bitexact has a paths: filter and no push: trigger — 0 master runs ever, 0 of the last 5 merged PRs — so that verdict was built from zero observations and printed as evidence.
+- The command now records what was OBSERVED, not only what was red, and gives the third state its own verdict: NO BASELINE / CANNOT TELL, which blocks the merge and names the repository's CI as the cause rather than the change.
+
 # NOW -- an enum member is a path, not a field access (2026-08-20)
 
 Last updated: 2026-08-20
