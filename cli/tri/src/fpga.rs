@@ -6163,6 +6163,111 @@ fn smoke_gate(
         );
     }
 
+    // The verify-lean phase below was dropped from master by a batch merge:
+    // `run_verify_lean` stayed a parameter and `verify_lean_ok` stayed a
+    // declaration nothing ever set, so the smoke gate could not pass whenever
+    // a caller asked for that phase — which is precisely what its own
+    // regression test asks for. Restored from 494e659d8, the commit that
+    // wrote it. Same shape as the seven definitions lost in #2228.
+    if run_verify_lean {
+        println!("[smoke-gate] verify-lean: generating synthetic theorem");
+        let fixture_dir = root
+            .join("build")
+            .join("fpga")
+            .join("smoke-gate-dry-run")
+            .join("verify-lean-fixture");
+        std::fs::create_dir_all(&fixture_dir)
+            .with_context(|| format!("create {}", fixture_dir.display()))?;
+        let pvt = synthetic_pvt_context(corner);
+        let pvt_path = fixture_dir.join("pvt.json");
+        std::fs::write(
+            &pvt_path,
+            serde_json::to_string_pretty(&pvt)
+                .with_context(|| "serialize synthetic PVT context")?,
+        )
+        .with_context(|| format!("write {}", pvt_path.display()))?;
+
+        let raw_ns = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "smoke gate synthetic fixture".to_string(),
+        };
+        let raw_ns_text =
+            serde_json::to_string_pretty(&raw_ns).with_context(|| "serialize raw-ns fixture")?;
+        let raw_ns_path = fixture_dir.join("raw_ns.json");
+        std::fs::write(&raw_ns_path, &raw_ns_text)
+            .with_context(|| format!("write {}", raw_ns_path.display()))?;
+
+        let lean_path = fixture_dir.join("smoke_gate_synthetic.lean");
+        let m2l_result = measured_to_lean(
+            Some(&raw_ns_path),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            0,
+            None,
+            None,
+            None,
+            Some(&lean_path),
+            "smoke_gate_synthetic",
+            false,
+            Some(&pvt_path),
+            false,
+            Some("synthetic"),
+            false,
+            true,
+            false,
+            false,
+        );
+        if m2l_result.is_err() {
+            report["verify_lean"] = serde_json::json!({
+                "status": "failed",
+                "phase": "measured-to-lean",
+                "error": format!("{:?}", m2l_result.unwrap_err()),
+            });
+            bail!("measured-to-lean synthetic theorem generation failed");
+        }
+
+        let summary = build_measured_to_lean_summary(
+            "smoke_gate_synthetic",
+            true,
+            false,
+            &Some(pvt),
+            "synthetic",
+            &raw_ns_text,
+        )
+        .with_context(|| "build measured-to-lean summary")?;
+        let summary_path = fixture_dir.join("summary.json");
+        std::fs::write(
+            &summary_path,
+            serde_json::to_string_pretty(&summary)
+                .with_context(|| "serialize verify-lean summary")?,
+        )
+        .with_context(|| format!("write {}", summary_path.display()))?;
+
+        let verify_result = verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false);
+        if verify_result.is_err() {
+            report["verify_lean"] = serde_json::json!({
+                "status": "failed",
+                "phase": "verify-lean",
+                "error": format!("{:?}", verify_result.unwrap_err()),
+            });
+            bail!("verify-lean synthetic theorem failed");
+        }
+        verify_lean_ok = true;
+        report["verify_lean"] = serde_json::json!({
+            "status": "ok",
+            "expected_source": "synthetic",
+            "lean_file": lean_path.to_string_lossy().to_string(),
+            "summary_file": summary_path.to_string_lossy().to_string(),
+        });
+        println!("[smoke-gate] verify-lean OK (source=synthetic, theorems present)");
+    }
+
     // 3. yosys synthesis smoke on the demo sources if available.
     let verilog_dir: PathBuf = bit_path
         .parent()
