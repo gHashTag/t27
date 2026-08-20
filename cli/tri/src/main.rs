@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod depin;
+mod cibase;
 mod fleet;
 mod fpga;
 mod gates;
@@ -78,6 +79,11 @@ enum Commands {
         action: nownote::NowCmd,
     },
     /// Is the hardware this plan assumes actually attached?
+    /// CI questions about the repository's own gates.
+    Ci {
+        #[command(subcommand)]
+        action: cibase::CiCmd,
+    },
     Fleet {
         #[command(subcommand)]
         action: fleet::FleetCmd,
@@ -712,6 +718,7 @@ fn main() -> Result<()> {
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
         Commands::Now { action } => nownote::run(action)?,
+        Commands::Ci { action } => cibase::run(action)?,
         Commands::Fleet { action } => fleet::run(action)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Sweep { action } => sweep::run(action)?,
