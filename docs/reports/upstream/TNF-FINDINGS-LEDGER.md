@@ -723,3 +723,36 @@ fp6 grid to ≤ 2 failures in 20 across the same three tasks.
 measured mechanism, a statistic that matches the data, and a published falsification
 protocol. What remains: the empty hardware axis, and the fact that all thirty runs
 are still ours.
+
+
+## 23. W948b — thirty epochs, the seven-wave summary, and the first bench number
+
+Landed as **tf#659**; the summary filed as issue **tf#658**.
+
+**Thirty epochs on Fashion completes both stories.** TNF4 climbs 85.50 → 87.38 →
+**88.77 ± 0.41** across 3 → 10 → 30 epochs with **0/5 failures throughout**, so the
+coarser step never starts costing within a tenfold range of budgets. Meanwhile
+`fp6 e3m2` fails **2/5 → 4/5 → 5/5** and `fp6 e2m3` 2/5 → 2/5 → 4/5 — monotone in
+the step count, which is a runaway and not a sampling process. At thirty epochs the
+failures are no longer at chance (33, 41, 50, 52): a *partial* collapse (T796).
+
+| totals, seven configurations | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---:|---:|---:|
+| failures | **0 / 35** | 25 / 35 | 22 / 35 |
+
+**The first hardware measurement of this arc.** `openFPGALoader` needs no Docker
+daemon — a fact nobody checked for seven waves of reporting the hardware axis as
+blocked. The read-only JTAG scan returns `idcode 0x3636093`, `family artix a7 200t`,
+`model xc7a200`, confirming the t27 SSOT and confirming that trinity-fpga's
+acceptance criterion `0x13636093` would reject this exact board (reported on #633).
+It also corrected our own SSOT: the bench presents **one** cable at bus 001 device
+005, not three at `--busdev-num 1:4/1:6/1:8`, which all fail (lesson 1429).
+
+**And the author has one page instead of fourteen threads** (#658): what moved,
+what survives, what it does to the manuscript, what we withdrew, and the single
+human action — starting Docker — that unblocks the bitstream build.
+
+**Readiness 80 % → 82 %.** Seven configurations, three tasks, three training
+lengths, a measured mechanism, a falsification protocol, and now one number from
+the bench. The open edge is convolutional models at convergence, named as the first
+thing an outside replication should attack.

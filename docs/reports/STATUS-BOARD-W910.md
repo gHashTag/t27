@@ -1,4 +1,18 @@
-# Full status, both tracks — one page for whoever wakes up (W948, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W948b, 2026-08-20)
+
+> **W948b — THIRTY EPOCHS, AND THE FIRST NUMBER FROM THE BENCH.** TNF4 climbs
+> **85.50 → 87.38 → 88.77 ± 0.41** across 3 → 10 → 30 epochs with **0/5 failures
+> throughout**, so the coarser step never starts costing. `fp6 e3m2` goes
+> **2/5 → 4/5 → 5/5** and `fp6 e2m3` 2/5 → 2/5 → 4/5 — monotone in the step count,
+> a runaway. Totals: **TNF4 0/35**, 25/35, 22/35.
+>
+> **And openFPGALoader never needed Docker.** Seven waves called the hardware axis
+> blocked; the read-only JTAG scan runs in forty seconds and returns
+> `idcode 0x3636093 · artix a7 200t · xc7a200` — confirming the t27 SSOT, confirming
+> that trinity-fpga's `0x13636093` criterion would reject this board (#633), and
+> correcting our own note: **one** cable at bus 001:005, not three. The author now
+> has a one-page summary (**#658**). Landed as **tf#659**. **Readiness 80 % → 82 %.**
+> Theorem T796; lessons 1429–1430.
 
 > **W948 — THE RANGE IS FREE, AND THE FAILURES ARE DYNAMICAL.** Ten epochs instead
 > of three: among the runs that trained, TNF4 and the narrow grids land **within
