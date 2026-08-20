@@ -22,6 +22,7 @@ Local commands (no compiler needed):
   tri recall PATTERN          search lesson and theorem HEADINGS for a pattern
   tri last [N]                the N most recent lessons and theorems (default 5)
   tri frontier                list the committed measurement records and reports
+  tri verify                  recompute every headline number from its record
   tri cells TOP FILE.v ...    cell census of a Verilog top via local yosys (LUT/CARRY4/MUXF/FF)
   tri wave                    one-screen wave state: branch, dirt, disk, lesson/theorem counters
   tri disk [--min GIB]        free-space gate; exits 1 below the floor (default 2 GiB)
@@ -140,6 +141,16 @@ case "$cmd" in
       }' "$log"
     rm -f "$log"
     exit 0
+    ;;
+
+  verify)
+    # "Check all the numbers again" as a command rather than an act of attention:
+    # every headline figure recomputed from its committed record.
+    v="$REPO_ROOT/docs/reports/upstream/verify_numbers.py"
+    [ -f "$v" ] || die "verify: $v not found"
+    command -v python3 >/dev/null 2>&1 || die "verify: python3 not found"
+    python3 "$v"
+    exit $?
     ;;
 
   frontier)
