@@ -4009,7 +4009,10 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    match compiler::Compiler::compile_verilog(&source) {
+    // The path, not just the source: `use base::ops;` names a file, and until
+    // it is read the backend emits `Trit_neg` with nothing declaring it. See
+    // `use_resolve::imported_enums` -- enums only, no splicing.
+    match compiler::Compiler::compile_verilog_at(&source, path) {
         Ok(verilog_code) => {
             print!("{}", verilog_code);
             if with_sva {
