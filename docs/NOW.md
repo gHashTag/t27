@@ -125,6 +125,15 @@ Last updated: 2026-08-20
   lowering, #) that no SMT model can accept -- an emitter-level repair
 - ci-gates section 11: the seven formal layers, the artifact-logfile rule, the
   run-the-chain-locally rule, and the self-healing watch pattern
+# NOW -- half of master's smoke gate came back (2026-08-20)
+
+Last updated: 2026-08-20
+
+## half of master's smoke gate came back (Closes #2249)
+
+- The verify-lean phase was declared and never executed: run_verify_lean stayed a parameter, verify_lean_ok a variable nothing assigned, so the gate could not pass when a caller asked for that phase -- restored verbatim from 494e659d8 and it runs (generates the theorem, writes the Lean file, reports OK)
+- The sweep-validation block that sets dry_run_sweep_ok is lost the same way -- 73 lines -- but that region also carries a deliberate later edit (a hardcoded corner where history passed process_corner), so splicing history over someone's edit is not safe blind; documented in #2263 rather than guessed at
+- So master's test stays red for one remaining reason, now named precisely instead of 'smoke-gate did not pass all phases'
 
 # NOW -- the NOW gate matched a path nobody edits (2026-08-20)
 
