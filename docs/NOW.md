@@ -711,6 +711,18 @@ Last updated: 2026-08-15
 - **The 26 `ok -> timeout` files are the boundary, not a slowdown.** Timed directly, 3 runs each way: median candidate/base ratio **1.010** (min 0.985, max 1.026), on files taking 10.8-11.7 s against a 12 s wall. A 1-3 % jitter is enough to move them across it, so the count difference measures the threshold and not the compiler
 - Rules R15 and R16 added to `docs/loop/LOOP-RULES.md` and resealed. `tri corpus-parse`, `corpus-status`, `diffmodes`, `loop-rules` registered in `scripts/ci/loop-tools-tracked.sh`, which fails on an untracked tool -- the state that already destroyed two of these scripts along with every number they produced
 
+# NOW -- `pub const Name(T) = struct` is a declaration the parser must accept (2026-08-15)
+
+Last updated: 2026-08-15
+
+## bootstrap: parameterised const type declarations (Closes #2162)
+
+- **The AST contract was fixed before the patch, in `architecture/ADR-008`.** `pub const Name(T) = struct { ... }` parses as `ConstDecl(name, generic_parameters, StructExpr)`. Writing the contract first is what lets the tests count for something: tests authored after a patch tend to describe whatever the patch happened to do
+- **Measured**: 33 declarations of the form in 28 corpus files, every one with `struct` on the right-hand side. The old binary rejected 6 of 6 positive fixtures; the candidate accepts 6 of 6, and rejects 7 of 7 negative fixtures. `cargo test --test generic_const_decl` 16/16; `cargo test --bin t27c` 1537 passed, 0 failed, 2 ignored
+- **This is a parser defect, not a corpus error**, so the 28 files are not rewritten. The owner decision is recorded in the issue rather than only in a working session -- an hourly tick had already closed this issue as *blocked, waiting on the language owner* while the decision existed, because a decision that lives in a conversation is not visible to any automated consumer
+- **What this does NOT settle**, each left as `needs-language-ADR`: `Name(T)` in type *application* position (#2164) and whether `test` is a reserved word (#2165). Accepting a declaration form does not imply accepting the use form
+- **`bootstrap/stage0/FROZEN_HASH` moves**, `375b2f88...` -> `315fbe1d...`. That is a GOLD-RING seal and needs explicit human approval; it is not a mechanical consequence of the patch
+
 # NOW -- BNF: the control that measures what ternary is worth (2026-08-09)
 
 Last updated: 2026-08-09

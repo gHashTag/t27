@@ -1894,6 +1894,100 @@ impl Parser {
             ));
         }
 
+        // ADR-008 (#2162): optional generic parameter list, as in
+        // `pub const Stack(T) = struct { ... };`. The grammar accepted here is
+        // exactly `Ident { "," Ident }` with `struct` on the right-hand side and
+        // nothing else, because that is the whole of what the corpus attests:
+        // 33 declarations in 28 files, every one of them a struct, parameter
+        // lists of one to three bare identifiers. Every rejection below has a
+        // negative fixture in tests/fixtures/generic_const/.
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+
+            if self.current.kind == TokenKind::RParen {
+                return Err(format!(
+                    "ADR-008: empty generic parameter list in 'const {}()'. An empty \
+                     list is ambiguous with a plain type declaration; write \
+                     'const {}' without parentheses instead",
+                    decl.name, decl.name
+                ));
+            }
+
+            let mut generic_params: Vec<(String, String)> = Vec::new();
+            loop {
+                if self.current.kind != TokenKind::Ident {
+                    return Err(format!(
+                        "ADR-008: generic parameter of 'const {}' must be a bare \
+                         identifier, got {:?} ('{}'). Parameters are names being \
+                         bound, not types being used",
+                        decl.name, self.current.kind, self.current.lexeme
+                    ));
+                }
+                // The second element stays empty on purpose: a generic parameter
+                // has no type, it IS a type. No new Node field is introduced.
+                generic_params.push((self.current.lexeme.clone(), String::new()));
+                self.advance();
+
+                if self.current.kind == TokenKind::Comma {
+                    self.advance(); // consume ,
+                    if self.current.kind == TokenKind::RParen {
+                        return Err(format!(
+                            "ADR-008: trailing comma in generic parameter list of \
+                             'const {}'. Not attested anywhere in the corpus, so \
+                             not accepted",
+                            decl.name
+                        ));
+                    }
+                    continue;
+                }
+                break;
+            }
+
+            if self.current.kind != TokenKind::RParen {
+                return Err(format!(
+                    "ADR-008: expected ')' or ',' after generic parameter of \
+                     'const {}', got {:?} ('{}'). Constrained parameters such as \
+                     '(T: Ord)' are a language feature, not a parser detail",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume )
+
+            if self.current.kind != TokenKind::Equals {
+                return Err(format!(
+                    "ADR-008: expected '=' after generic parameter list of 'const \
+                     {}', got {:?} ('{}'). A parameterised declaration with no \
+                     right-hand side is not a type declaration",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume =
+
+            if self.current.kind != TokenKind::KwStruct {
+                return Err(format!(
+                    "ADR-008: right-hand side of parameterised 'const {}' must be \
+                     'struct', got {:?} ('{}'). All 33 attested declarations are \
+                     structs; a parameterised enum or value is a separate decision",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume 'struct'
+
+            // Being parameterised does not change the kind: this is a struct
+            // declaration, and a non-empty `params` is what marks it as generic.
+            decl.kind = NodeKind::StructDecl;
+            decl.params = generic_params;
+            self.expect(TokenKind::LBrace)?;
+            self.parse_struct_body(&mut decl)?;
+            self.expect(TokenKind::RBrace)?;
+            // Both ';' and no ';' are accepted, matching the non-parameterised
+            // `const Name = struct { ... }` path exactly. No new terminator.
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(decl);
+        }
+
         // Optional type annotation `: Type`
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
