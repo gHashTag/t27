@@ -41,16 +41,33 @@ jobs:
         # a break no gate reported. --all-targets closes that gap.
         run: cargo build -p tri --all-targets
 
+      # yosys has to be on PATH BEFORE the tests, not after them. This install
+      # used to sit inside the last step's run block, which is ordered after
+      # `cargo test -p tri`, and ubuntu-latest ships no yosys. So
+      # fpga::tests::test_smoke_gate_json_synthetic_verify_lean -- which calls
+      # the real smoke_gate(), whose `passed` flag ANDs in `yosys_ok` -- hit
+      # "[smoke-gate] SKIP: yosys not on PATH" and failed on every single run.
+      # 11 runs on master, 11 failures, no green in this workflow's history:
+      # the job could not pass by construction, and the job never even reached
+      # the install because a failed step aborts the rest.
+      #
+      # The test is right to demand the binary. A smoke gate that "passes"
+      # while skipping its only synthesis phase asserts nothing -- the same
+      # absence-is-not-a-value defect closed in #2285 and #2287. Fix the
+      # ordering, not the assertion.
+      - name: install yosys
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq yosys
+
       - name: cargo test -p tri
         run: cargo test -p tri
 
       # `tri rtl check` reports numbers, and a binary that runs but reports
-      # nothing would pass the two steps above. yosys is installed so the
-      # command is exercised against a real design rather than assumed.
+      # nothing would pass the two steps above. yosys is already on PATH from
+      # the install step above, so the command is exercised against a real
+      # design rather than assumed.
       - name: the CLI actually produces a report
         run: |
           set -uo pipefail
-          sudo apt-get update -qq && sudo apt-get install -y -qq yosys
           ./target/debug/tri rtl check chips/phi --json > /tmp/r.json 2>/tmp/r.err || true
           cat /tmp/r.err | head -5
           N=$(python3 -c "import json;print(len(json.load(open('/tmp/r.json'))['checks']))" 2>/dev/null || echo 0)
