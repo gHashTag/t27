@@ -30,7 +30,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # chips/phi is a gitlink (160000) to gHashTag/tt-trinity-phi, and
+      # checkout's default is submodules: false -- so the directory the last
+      # step points `tri rtl check` at was EMPTY on the runner, and the CLI died
+      # with a bare "No such file or directory (os error 2)". The binary was
+      # fine; it had nothing to read. That step had never executed once in this
+      # workflow's history, because the two causes before it (#2303 yosys
+      # ordering, #2305 dry_run_sweep_ok) aborted the job first.
+      #
+      # All three chips/* submodules are public, so the default GITHUB_TOKEN --
+      # which is scoped to this repo alone -- can clone them; ~10.2 MB total.
+      # None of the three has a nested .gitmodules, so `true` is the minimal
+      # setting that works and `recursive` would buy nothing.
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: dtolnay/rust-toolchain@stable
 
       # From a clean checkout, with nothing copied in by hand. That is the
