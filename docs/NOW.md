@@ -1,3 +1,153 @@
+# NOW -- an absent or corrupt gate input now fails instead of counting as zero (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fix(suite): absence and corruption are not a clean pass (the input side of #2285)
+
+#2285 gave `bootstrap/src/suite.rs` a floor for the **target list**: a phase with
+nothing to check now fails, naming where the targets were supposed to come from.
+Two sites of the same shape on the **input** side were left, and both still
+reported a clean pass when what they read was missing or unreadable.
+
+The discipline was already in the file and neither site followed it.
+`load_expectations` returns `Ok(None)` for a missing ledger, never an empty one,
+because *"T31 is the bug where a gate treats 'no oracle' as 'pass'"*, and the
+ratchet turns that `None` into `RATCHET: FAIL -- Absence is not amnesty (T31)`.
+
+### A. The phase 7 catalog gate asked the working directory, not the tree
+
+`require_target_file` from #2285 closed the silent skip -- the bare
+`if cat.is_file()` with no `else` that printed `gate failures: 0` for a gate
+that never ran. It did not close two things behind it.
+
+**Both operands were relative.** `Path::new("specs/numeric/formats_catalog.t27")`
+and `Path::new("specs")` resolve against the process cwd, so what this gate
+examined -- and, after #2285, whether the whole suite aborted -- depended on
+where the binary happened to be invoked. The failure message named a relative
+path, which cannot tell a wrong cwd from a lost file. Both are now joined onto
+the already-canonicalized `repo`, so the diagnostic names an absolute path and
+the answer no longer depends on the caller's shell.
+
+**The `Err` arm still failed open.** `require_target_file` proves the file is
+there, so reaching `Err(e) => println!("  catalog gate: could not run ({})", e)`
+meant the gate could not *read* a file that exists. It printed one line, left
+`gate_fail` untouched, and eleven lines later the block still printed
+`(lexer/parser conformance and the catalog gate are all clean)`. A gate that
+could not run was announced as a gate that passed. It is now a `bail!`.
+
+### B. A corrupt baseline was byte-identical to a clean one
+
+`load_gen_verilog_smoke_baseline` collapsed **six** distinct conditions into
+`HashSet::new()` behind an `eprintln!`: file missing, file unreadable, invalid
+JSON, no `expected_failures` key, that key not an array, and a non-string entry
+inside the array. The caller then did
+
+```rust
+summary.baseline_failures = baseline.len();   // 0
+```
+
+and `baseline_failures` feeds `summary.acceptable`:
+
+```rust
+summary.acceptable = summary.passed
+    || (summary.known_failures.iter().cloned()
+            .collect::<HashSet<String>>().len() == summary.baseline_failures
+        && total_fail == summary.known_failures.len());
+```
+
+What made this one invisible: `docs/reports/gen_verilog_smoke_baseline.json`
+legitimately holds `"expected_failures": []` today -- Wave Loop 455 cleared the
+tuple-return, let-destructuring and ROM lowering gaps, and the file is kept as a
+schema artifact. **So the fail-open path produced exactly the same output as the
+real file.** It has been giving the right answer for the wrong reason on every
+run since, which is why nothing ever caught it. An empty set was never evidence;
+it was the absence of evidence wearing the shape of evidence.
+
+The loader now returns `anyhow::Result<Option<HashSet<String>>>` -- `Ok(None)`
+is *absent*, `Err` is *present but unreadable or unparseable*, `Ok(Some(set))`
+is *present and valid*, and only the third may produce a count. That is
+`load_expectations`' signature and `load_expectations`' reason. The caller
+decides what absence means, in the open, and it decides FAIL: the file is
+tracked, so a missing one is a broken path, not a configuration.
+
+### What changed
+
+| site | before | after |
+|---|---|---|
+| `load_gen_verilog_smoke_baseline` | `HashSet<String>`; six conditions -> empty set + `eprintln!` | `anyhow::Result<Option<HashSet<String>>>`; absent / corrupt / valid stay distinct |
+| its caller, phase 3b | `summary.baseline_failures = 0` for an absent or corrupt file | `?` on corrupt, `bail!` naming the absolute path on absent |
+| phase 7 catalog target | relative to cwd | `repo.join(...)`, so `require_target_file` names an absolute path |
+| phase 7 specs root | relative to cwd | `repo.join("specs")` |
+| phase 7 `Err` arm | `println!` and fall through with `gate_fail` unchanged | `bail!` naming the file and the error |
+
+Three tests. `a_missing_baseline_is_none_not_an_empty_baseline` is the
+counterpart, for the baseline, of `a_missing_ledger_is_none_not_an_empty_ledger`
+-- which has kept absence out of the **oracle** since W628 while nothing kept it
+out of the **baseline**. `a_corrupt_baseline_is_an_error_not_an_empty_baseline`
+runs four payloads (not JSON, no key, key not an array, a non-string entry) and
+asserts each is an `Err` whose message names the file, because a reader who
+cannot see the filename cannot tell a corrupt baseline from a wrong repo root.
+The existing `test_load_gen_verilog_smoke_baseline` is updated for the new
+signature and now also asserts a present file is `Some`, not `None`.
+
+### No criterion moved
+
+`CATALOG_ALLOWED` is untouched, so `gfternary` is still allowed by name.
+`catalog_gate::run` is untouched. The `acceptable` formula is untouched. The
+baseline file is untouched. Under the only configuration in which these gates
+have ever run -- cwd == repo root -- `repo.join("specs")` and `Path::new("specs")`
+resolve to the same directory and not one finding changes; resolving them only
+removes the cwd from the answer.
+
+### Effect on CI today: none
+
+The only workflow that runs the suite is
+`.github/workflows/corpus-ratchet.yml`, which invokes
+`t27c suite --repo-root . --ratchet --corpus-only` from the repo root.
+`docs/reports/gen_verilog_smoke_baseline.json` and
+`specs/numeric/formats_catalog.t27` are both tracked and both present, and the
+cwd is the repo root, so every new guard passes and every printed number is
+identical.
+
+The change is visible the moment one of them stops being true. Unlike the phase
+3b failure **count**, these guards are CI-reachable: they `bail!` out of
+`run_comprehensive` before the ratchet block, so they fail the job regardless of
+`--ratchet` bypassing `total_failures`.
+
+### Honesty limits (BINDING)
+
+- **It does not restore the coverage the scratch untrack took.** #2283 took
+  phase 3b from 482 targets to 27. It stays at 27. Nothing here re-creates a
+  test subject; this change is about what happens when an input is missing, not
+  about what the inputs cover.
+- **It does not detect a phase that shrank without reaching zero.** 482 -> 27 is
+  a 94.4% loss and passes every guard in this file, #2285's included. A ratchet
+  on target *counts* has no existing mechanism to extend -- the expectations
+  ledger keys on `(path, phase)` failures, not on target populations.
+- **Phase 3b still cannot fail CI, because it never calls `record(...)`.**
+  Thirteen `record(...)` calls build the ledger the ratchet gates on;
+  `gen-verilog-yosys-smoke` is not one of them, so its failures never enter the
+  ratchet, and with `--ratchet` the exit code is the ratchet verdict alone --
+  `total_fail`, which does include `p3b_fail`, is bypassed entirely. CI also
+  installs no yosys, so the phase is skipped there in any case. **That is a
+  separate defect and this change does not fix it.** What is fixed is narrower:
+  the baseline that phase 3b reports against can no longer be absent or corrupt
+  without saying so.
+- **The phase 6 guard's label is now slightly wide.** #2285's
+  `require_targets("phase 6 integrity metrics + phase 7 catalog gate", ...)`
+  still guards the relative `specs` walk the phase 6 metrics use, and is left
+  exactly as it is; phase 7 simply no longer depends on it. The five phase 6
+  metrics remain cwd-relative. They are reporting-only and excluded from
+  `total_fail`, so they are out of scope here rather than fixed.
+- **Not compiled.** The crate was not built for this change; disk headroom on
+  the authoring machine was 3.1 GiB. `suite.rs` was parse-checked with
+  `rustfmt --edition 2021` (no diagnostics on stderr), which proves the file is
+  valid Rust syntax and proves nothing about types or borrows. CI's
+  `cargo build --release -p t27c` in `corpus-ratchet.yml` is the first real
+  compile.
+
+Closes #2286.
+
 # NOW -- a suite phase with no targets now fails instead of passing (2026-08-20)
 
 Last updated: 2026-08-20
