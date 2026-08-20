@@ -1,3 +1,113 @@
+# NOW -- the corpus ratchet has never once been able to print its own verdict (2026-08-20)
+
+Last updated: 2026-08-20
+
+## ci: let the corpus ratchet print its verdict instead of a bare exit code (Closes #2314)
+
+`corpus-ratchet` has been red on master since run #82 (`e7ef72bfb`,
+2026-08-19T21:43:12Z), and reading its job log tells you nothing whatsoever. Job
+`96381621406` at master head, lines 6947 and 6948, consecutive, no bytes between:
+
+```
+##[endgroup]
+##[error]Process completed with exit code 1.
+```
+
+The next step then posts the annotation `Corpus ratchet failed :: See the Ratchet
+section above.` -- pointing at a section that has never been printed. That is why
+nobody has read this log: there has never been anything in it.
+
+### The three lines that were supposed to print it are dead code
+
+The step on master:
+
+```
+set -o pipefail
+./target/release/t27c suite --repo-root . --ratchet --corpus-only \
+  --json suite_summary.json > ratchet.log 2>&1
+rc=$?
+sed -n '/--- Ratchet (W628) ---/,$p' ratchet.log
+exit $rc
+```
+
+A `run:` block with no `shell:` key executes under `bash -e`. Under `-e` a failing
+command aborts the step where it stands, so `rc=$?`, the `sed` and the `exit $rc`
+run **only when the ratchet passes** -- only when there is nothing to read. On the
+one path they were written for they never execute.
+
+Reproduced off CI, by pulling the `run:` block out of the YAML and handing it a stub
+`target/release/t27c` that prints a Ratchet section and exits 1:
+
+```
+=== MASTER's step, same failing t27c
+stdout: ''
+stderr: ''
+exit: 1
+```
+
+Zero bytes on both streams, exit 1: the job log, exactly.
+
+### The fix, and its three paths
+
+`|| rc=$?` moves the failure off the `-e` abort path, and a missing verdict now
+prints the tail of the log rather than falling back to a bare exit code a second
+time. The same harness, over the YAML-parsed new block:
+
+| stub t27c | printed | step exit |
+|---|---|---|
+| verdict, exit 1 | the Ratchet section, through `Error: RATCHET FAILED` | 1 |
+| verdict, exit 0 | the Ratchet section | 0 |
+| panic before the verdict, exit 101 | "no Ratchet section", then the log tail | 101 |
+
+The outcome is carried through unchanged in all three. Nothing here can make the job
+pass; it can only make the job say why.
+
+### This does not make the check green, and must not
+
+The ratchet is red for a real reason. Until now that reason lived only in
+`ratchet.log` inside the `corpus-ratchet-log` artifact -- 287,391 bytes, 14-day
+retention -- and read:
+
+```
+--- Ratchet (W628) ---
+  ledger:              221 / 221 cap
+  observed (primary):  220
+  UNEXPECTED FAILURES: 2
+    + specs/fpga/power_analysis.t27 [parse-no-discard]
+    + specs/fpga/vcd_conformance_compare.t27 [parse-no-discard]
+  UNEXPECTED PASSES  : 3
+    - specs/fpga/power_analysis.t27 [parse] (fixed -- remove from the ledger)
+    - specs/fpga/vcd_conformance_compare.t27 [parse] (fixed -- remove from the ledger)
+    - specs/tri/collections/array.t27 [parse] (fixed -- remove from the ledger)
+  EXPIRED ENTRIES    : 0
+RATCHET: FAIL
+```
+
+The ratchet is doing its job. `e7ef72bfb` made two specs parse, which un-blocked the
+phases behind `parse` and exposed what those phases find:
+
+```
+FAIL parse-no-discard (specs/fpga/power_analysis.t27): parser reached EOF but DISCARDED 3 top-level token(s)
+FAIL parse-no-discard (specs/fpga/vcd_conformance_compare.t27): parser reached EOF but DISCARDED 120 top-level token(s)
+FAIL no-vacuous-invariant (specs/fpga/power_analysis.t27): 1 invariant(s) declared but not lowered
+FAIL no-vacuous-invariant (specs/fpga/vcd_conformance_compare.t27): 9 invariant(s) declared but not lowered
+```
+
+The mechanical route exists and does not even need a cap raise -- drop the 3 fixed
+rows, add the 2 new ones, land at 220 under the 221 cap, then lower `max_entries`.
+It is **not taken here**, because taking it would bless a spec that declares ten
+invariants and checks none of them. Bless-versus-fix is a maintainer's call, and it
+is left open on #2314 rather than made silently by a green tick.
+
+### The general shape
+
+A step that cannot print its own verdict is not a gate a person can act on; it is an
+exit code with a pointer to nothing. A sweep of all 55 workflows on master found this
+idiom in `corpus-ratchet.yml:82` and nowhere else, so this is a single site, not a
+pattern -- but the file's own comments (`# Redirect rather than pipe: tail buffers
+to end-of-stream...`) show the author was already thinking about exactly this class
+of problem, and it still shipped a step that goes silent on failure.
+
 # NOW -- the withdrawn-number gate went red on a line saying the number is disputed (2026-08-20)
 
 Last updated: 2026-08-20
