@@ -691,3 +691,35 @@ The failure rate describes them all, and it makes the claim falsifiable in one r
 **Readiness 76 % → 78 %.** Three tasks, three recipes, a measured mechanism and a
 statistic that matches the data — against which the remaining gaps are the empty
 hardware axis and the absence of any external replication.
+
+
+## 22. W948 — the range is free, the failures are dynamical, and the claims are now falsifiable
+
+Landed as **tf#657**.
+
+**The coarser step costs nothing at convergence.** Ten epochs, same seeds and
+recipe: among the runs that trained, MNIST 97.68 (TNF4, n=5) against 97.54
+(`fp6 e2m3`, n=1); Fashion 87.38 (n=5) against 87.10 (n=3) and **88.12**
+(`fp6 e3m2`, n=1 — ahead of TNF4). Within 0.7 pp everywhere. **The 14.6 binades are
+bought for free** at these depths.
+
+**Longer training makes a collapse-prone grid worse.** `fp6 e3m2` moves from 0/5
+failures at three epochs to **5/5 at ten** — same task, same recipe, only more
+steps. Noise averages out with steps; positive feedback consumes them, and once the
+activation scale is near zero the gradient that would raise it is gone with the
+activations (T795).
+
+| totals over six configurations | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---:|---:|---:|
+| failures | **0 / 30** | 20 / 30 | 17 / 30 |
+
+**And the project is now refutable from outside.** `FALSIFY-ME.md` states five
+claims — recipe-insensitivity, the range mechanism, parity on cost, parity on
+accuracy, the 8-bit null — each with the experiment, the expected outcome and the
+result that would kill it. The headline dies if any standard recipe brings either
+fp6 grid to ≤ 2 failures in 20 across the same three tasks.
+
+**Readiness 78 % → 80 %.** Six configurations, three tasks, two training lengths, a
+measured mechanism, a statistic that matches the data, and a published falsification
+protocol. What remains: the empty hardware axis, and the fact that all thirty runs
+are still ours.

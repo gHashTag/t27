@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W947, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W948, 2026-08-20)
+
+> **W948 — THE RANGE IS FREE, AND THE FAILURES ARE DYNAMICAL.** Ten epochs instead
+> of three: among the runs that trained, TNF4 and the narrow grids land **within
+> 0.7 pp**, and on one task `fp6 e3m2` is **ahead** — so the 14.6 binades cost
+> nothing at convergence. But `fp6 e3m2` goes from **0/5 failures at three epochs to
+> 5/5 at ten** on the same task with the same recipe: noise averages out with steps,
+> a runaway consumes them. Totals over six configurations: **TNF4 0/30**,
+> `fp6 e2m3` 20/30, `fp6 e3m2` 17/30.
+>
+> **And the project is now refutable from outside**: `FALSIFY-ME.md` states five
+> claims with the experiment, the expected outcome and the result that would kill
+> each. Landed as **tf#657**. **Readiness 78 % → 80 %.** Theorem T795; lesson 1428.
 
 > **W947 — WHAT SURVIVES IS RECIPE-INSENSITIVITY, AND ITS MECHANISM IS RANGE.**
 > At six physical bits TNF4 spans **14.6 binades** against `fp6 e3m2`'s 8.8 and
