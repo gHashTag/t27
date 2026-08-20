@@ -1,3 +1,119 @@
+# NOW -- the build check had two causes; #2303 fixed one, and the other was a flag nothing ever set (2026-08-20)
+
+Last updated: 2026-08-20
+
+## fpga: record the dry-run sweep's success in the flag its own verdict reads (Closes #2304)
+
+#2303 fixed the `cli-tri` `build` check's yosys ordering bug and the check stayed
+red. It was not a regression and not a second ordering bug: the job had two
+independent causes, and only one of them was in the YAML.
+
+In `cli/tri/src/fpga.rs`, `dry_run_sweep_ok` had exactly two mentions in the
+whole file:
+
+```
+6098:    let mut dry_run_sweep_ok = false;
+6333:        && dry_run_sweep_ok
+```
+
+Declared `false`, read in the final conjunction, never assigned `true`. The
+dry-run CCLK sweep runs, succeeds, and prints its OK line -- but nothing recorded
+that it had, so `passed` was `false` for every possible input to `smoke_gate()`.
+
+The other phase flags survive this because they are read guarded --
+`(!run_verify_lean || verify_lean_ok)` is vacuously true when the caller does not
+ask for that phase. `&& dry_run_sweep_ok` is unguarded and has no such escape, so
+it failed the gate unconditionally, on every branch, for the workflow's entire
+history.
+
+### The run log named the culprit by elimination
+
+The post-#2303 master run (32352361519) shows every phase reporting success and
+the verdict still false:
+
+```
+[smoke-gate] dry-run sweep report OK (8 variants)
+[smoke-gate] verify-lean OK (source=synthetic, theorems present)
+[smoke-gate] yosys synthesis OK
+[smoke-gate] complete (passed: false)
+```
+
+`yosys synthesis OK` is #2303 working exactly as intended. With
+`bit_config_result` ok, `verify_lean_ok` true, `theorem_matrix_ok` a hardcoded
+`true`, and the `validate_lean_standalone` conjunct guarded off, `dry_run_sweep_ok`
+is the only remaining false term. That one test is the only failure in the job:
+155 passed, 1 failed.
+
+### The compiler had been saying so for twelve runs
+
+```
+warning: variable does not need to be mutable
+    --> cli/tri/src/fpga.rs:6098:9
+6098 |     let mut dry_run_sweep_ok = false;
+     |         ----^^^^^^^^^^^^^^^^ help: remove this `mut`
+```
+
+A `mut` that is never mutated is the signature of a flag whose assignment was
+lost. This job does not deny warnings, so it never turned the build red on its
+own -- it was printed and scrolled past twelve times while the failure below it
+got the attention. The same warning is still printed for
+`validate_lean_standalone_ok`; see below.
+
+### Same shape as #2228, second occurrence
+
+Line 6167 already documents this exact defect for the sibling flag
+`verify_lean_ok` -- it "stayed a declaration nothing ever set", restored from
+`494e659d8` after the batch merge that dropped seven definitions in #2228.
+`dry_run_sweep_ok` went out in that same merge and was missed on that pass. The
+fix here is a mirror of the restored code, not a new pattern: at the point where
+success is established -- after the variant-count bail, before the OK line --
+set the flag and write the report entry, in that order, exactly as the
+verify-lean phase does forty lines below.
+
+### The report entry was missing too, and the test needs it
+
+The success path was also the only place that would ever write
+`report["dry_run_sweep"]`. It was written only on *failure* (line 6148); on
+success the key kept the `null` it was initialized with at 5967. So setting the
+flag alone would have moved the failure down two assertions rather than fixing
+it -- the test walks `["bit_config", "dry_run_sweep", "verify_lean"]` and requires
+each to be an object with `status: "ok"`. Mirroring `verify_lean` supplies both
+halves because `verify_lean` sets flag and report together. That is why the
+mirror was worth following literally instead of adding a one-line assignment.
+
+### What was deliberately not done
+
+Deleting `&& dry_run_sweep_ok` would have turned the check green in one keystroke
+by making the verdict verify less -- the absence-is-not-a-value failure closed in
+#2285, #2287, and again in #2302's own note that a gate may not treat "I could
+not look" as "I looked and it was fine". The conjunction is unchanged; the
+missing half of the phase was supplied instead. `mut` stays on 6098, because the
+variable is now genuinely mutated.
+
+### Not compiled, and the boundary of that
+
+This change was written and reviewed against `origin/master` through the GitHub
+contents API. The machine it was authored on had ~148 MB of disk free, which is
+not enough to check out the repository or run `cargo`, so **it was not compiled
+and no test was run locally.** What is verified is textual and structural: the
+flag now has three mentions instead of two; the new statement sits inside the
+`if bit_path.is_file()` block after the bail, matching where `verify_lean_ok` sits
+relative to its own bail and OK line; `dry_report` and `variant_count` are both in
+scope there; and `dry_run_sweep` is an existing `Option<Value>` field on the
+`deny_unknown_fields` `SmokeGateReport` schema, so the added object cannot trip
+the schema guard. The strict-equality snapshot test is fed a hand-built literal,
+not live gate output, so extra fields cannot break it; the other snapshot
+comparison is a superset check. CI is the first real compile.
+
+### Known follow-up, filed not fixed
+
+`validate_lean_standalone_ok` (line 6100) has the same two-mention shape, and
+worse: the entire `validate_lean_standalone` phase body is absent from
+`smoke_gate()`, so the flag has no success point to attach to and cannot be fixed
+by mirroring. It is masked today only because its conjunct is guarded and both of
+its tests return early when `lake` is not on PATH. It bites the moment a runner
+has `lake` installed. Out of scope here; tracked separately.
+
 # NOW -- the cli-tri build check has never once been green (2026-08-20)
 
 Last updated: 2026-08-20
