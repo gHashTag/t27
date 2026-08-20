@@ -84,43 +84,70 @@ fn tri_exe(repo: &Path) -> anyhow::Result<PathBuf> {
     );
 }
 
-/// Load the set of spec paths that are documented as pre-existing
-/// `gen-verilog` yosys smoke failures. If the baseline file is missing, the
-/// set is empty and the suite summary falls back to a strict `acceptable ==
-/// passed` interpretation.
-fn load_gen_verilog_smoke_baseline(repo: &Path) -> HashSet<String> {
-    let path = repo
-        .join("docs")
+/// The `gen-verilog-yosys-smoke` baseline file. Always resolved against the
+/// repo root, never against the process cwd.
+fn gen_verilog_smoke_baseline_path(repo: &Path) -> PathBuf {
+    repo.join("docs")
         .join("reports")
-        .join("gen_verilog_smoke_baseline.json");
-    let raw = match fs::read_to_string(&path) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!(
-                "[suite] baseline file not readable ({}); using empty baseline",
-                e
-            );
-            return HashSet::new();
-        }
-    };
-    let json: serde_json::Value = match serde_json::from_str(&raw) {
-        Ok(j) => j,
-        Err(e) => {
-            eprintln!(
-                "[suite] baseline file invalid JSON ({}); using empty baseline",
-                e
-            );
-            return HashSet::new();
-        }
-    };
-    json.get("expected_failures")
+        .join("gen_verilog_smoke_baseline.json")
+}
+
+/// Load the set of spec paths documented as pre-existing `gen-verilog` yosys
+/// smoke failures.
+///
+/// **Three outcomes, kept distinct.** `Ok(None)` is *file absent*; `Err` is
+/// *file present but unreadable or unparseable*; `Ok(Some(set))` is *file
+/// present and valid* -- and only that last case may produce a count. This
+/// mirrors [`load_expectations`], which returns `Ok(None)` rather than an
+/// empty ledger because T31 is the bug where a gate treats "no oracle" as
+/// "pass".
+///
+/// W644: this loader collapsed all three outcomes into `HashSet::new()` behind
+/// an `eprintln!`. The caller then set `summary.baseline_failures = 0`, which
+/// feeds `summary.acceptable` -- so an absent or corrupt baseline was
+/// bit-for-bit indistinguishable from the real one, which legitimately holds
+/// zero expected failures today. The empty set was the *right* answer for the
+/// wrong reason, which is why nothing ever noticed. Absence is not amnesty
+/// (T31); a caller must decide what absence means, in the open.
+///
+/// A present file whose `expected_failures` is missing, is not an array, or
+/// holds a non-string entry is *unparseable*, not empty: each of those silently
+/// shrank the baseline, which is the same defect wearing a valid-JSON hat.
+fn load_gen_verilog_smoke_baseline(repo: &Path) -> anyhow::Result<Option<HashSet<String>>> {
+    let path = gen_verilog_smoke_baseline_path(repo);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("reading smoke baseline {}", path.display()))?;
+    let json: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parsing smoke baseline {}", path.display()))?;
+    let arr = json
+        .get("expected_failures")
         .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default()
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "smoke baseline {} has no `expected_failures` array.\n\
+                 A baseline that cannot be read is not an empty baseline -- \
+                 absence is not amnesty (T31).",
+                path.display()
+            )
+        })?;
+    let mut set = HashSet::new();
+    for (i, v) in arr.iter().enumerate() {
+        let s = v.as_str().ok_or_else(|| {
+            anyhow::anyhow!(
+                "smoke baseline {}: `expected_failures[{}]` is {}, not a string.\n\
+                 Dropping it would silently shrink the baseline -- absence is \
+                 not amnesty (T31).",
+                path.display(),
+                i,
+                v
+            )
+        })?;
+        set.insert(s.to_string());
+    }
+    Ok(Some(set))
 }
 
 fn rel_arg(repo: &Path, file: &Path) -> anyhow::Result<String> {
@@ -1867,7 +1894,21 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
     let mut p3b_fail = 0usize;
     let mut p3b_skipped = 0usize;
-    let baseline = load_gen_verilog_smoke_baseline(&repo);
+    // W644: the caller must decide what absence means, and it decides FAIL.
+    // `gen_verilog_smoke_baseline.json` is tracked, so a missing file is a
+    // broken path or a lost file -- never a reason to report `BASELINE
+    // FAILURES: 0`, which is also what the real, legitimately-empty baseline
+    // reports. `?` on the Err arm covers the present-but-unparseable case.
+    let baseline = match load_gen_verilog_smoke_baseline(&repo)? {
+        Some(b) => b,
+        None => anyhow::bail!(
+            "gen-verilog-yosys-smoke baseline is MISSING: {} does not exist.\n\
+             `baseline_failures` feeds `acceptable`, so an absent baseline would \
+             report 0 -- identical to a baseline that is genuinely clean. \
+             Absence is not amnesty (T31).",
+            gen_verilog_smoke_baseline_path(&repo).display()
+        ),
+    };
     let (p3bp, p3bf, p3b_known_failures) = if yosys_available() {
         let mut smoke_targets = specs_scratch.clone();
         for rel in igla_clean_specs() {
@@ -2378,14 +2419,23 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         // name -- an allowance that is visible, counted, and will stop applying
         // the moment somebody settles it.
         const CATALOG_ALLOWED: &[&str] = &["gfternary"];
-        let cat = std::path::Path::new("specs/numeric/formats_catalog.t27");
         // W643: the worst instance of the shape. This is a GATE -- its findings
         // count into `gate_fail` -- and it sat behind a bare `if cat.is_file()`
         // with no `else`, so a missing catalog printed `gate failures: 0` and
         // then announced the catalog gate as clean. `formats_catalog.t27` is
         // tracked; absence is a broken path, not a configuration.
-        require_target_file("catalog gate (phase 7)", cat)?;
-        match crate::catalog_gate::run(cat, std::path::Path::new("specs")) {
+        //
+        // W644: both operands were still RELATIVE, so what this gate examined --
+        // and, after W643, whether the whole suite aborted -- depended on the
+        // cwd the binary happened to be invoked from. `repo` is already
+        // canonicalized, so under the only configuration this gate has ever run
+        // in (cwd == repo root) these resolve to exactly the same two paths and
+        // not one finding changes; resolving them only removes the cwd from the
+        // answer, and makes `require_target_file` name an absolute path.
+        let cat = repo.join("specs/numeric/formats_catalog.t27");
+        let specs_root = repo.join("specs");
+        require_target_file("catalog gate (phase 7)", &cat)?;
+        match crate::catalog_gate::run(&cat, &specs_root) {
             Ok(r) => {
                 let unexpected: Vec<_> = r
                     .findings
@@ -2404,7 +2454,20 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                     println!("    FAIL [{}] {}: {}", f.check, f.id, f.detail);
                 }
             }
-            Err(e) => println!("  catalog gate: could not run ({})", e),
+            // W644: the other half of the same fail-open. `require_target_file`
+            // above proves the catalog exists, so reaching this arm means the
+            // gate could not READ a file that is right there -- and printing a
+            // line then falling through left `gate_fail` untouched and the
+            // "all clean" banner below intact. A gate that could not run is not
+            // a gate that passed. Absence is not amnesty (T31), and neither is
+            // an unreadable input.
+            Err(e) => anyhow::bail!(
+                "catalog gate (phase 7) could not run: {} ({}).\n\
+                 The file exists -- this is an unreadable or corrupt input, not \
+                 a clean gate. Absence is not amnesty (T31).",
+                cat.display(),
+                e
+            ),
         }
         println!("  gate failures: {}", gate_fail);
         if gate_fail == 0 {
@@ -3377,11 +3440,86 @@ mod tests {
             r#"{"expected_failures": ["specs/a.t27", "specs/b.t27"]}"#,
         )
         .unwrap();
-        let set = load_gen_verilog_smoke_baseline(&tmp);
+        let set = load_gen_verilog_smoke_baseline(&tmp)
+            .expect("a present, valid baseline must load")
+            .expect("a present baseline is Some, not None");
         assert!(set.contains("specs/a.t27"));
         assert!(set.contains("specs/b.t27"));
         assert_eq!(set.len(), 2);
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // W644: the counterpart, for the BASELINE, of
+    // `a_missing_ledger_is_none_not_an_empty_ledger` above. That test has kept
+    // absence out of the oracle since W628. Nothing kept absence out of the
+    // baseline, and the baseline is the harder case to spot: the tracked file
+    // legitimately holds zero expected failures, so the fail-open empty set was
+    // observationally identical to the correct answer on every run to date.
+
+    #[test]
+    fn a_missing_baseline_is_none_not_an_empty_baseline() {
+        // T31: `baseline_failures` feeds `acceptable`. An empty set for a file
+        // that is not there means "nothing was expected to fail" -- a claim the
+        // loader has no evidence for. None means "the caller decides".
+        let tmp =
+            std::env::temp_dir().join(format!("t27_no_such_baseline_644_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        assert!(
+            super::load_gen_verilog_smoke_baseline(&tmp)
+                .expect("an absent baseline is not an error, it is None")
+                .is_none(),
+            "a missing baseline must be None, never an empty set"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_corrupt_baseline_is_an_error_not_an_empty_baseline() {
+        // The three cases must stay distinguishable: absent (None), corrupt
+        // (Err), valid (Some). Only the third may produce a count. Each payload
+        // below used to yield `HashSet::new()` and a silent `BASELINE FAILURES:
+        // 0` -- indistinguishable from the genuinely clean baseline this repo
+        // actually ships.
+        let corrupt: &[(&str, &str)] = &[
+            ("not json at all", "{ not json"),
+            ("no expected_failures key", r#"{"branch": "wave-loop-455"}"#),
+            (
+                "expected_failures not an array",
+                r#"{"expected_failures": 7}"#,
+            ),
+            (
+                "a non-string entry silently dropped",
+                r#"{"expected_failures": ["specs/a.t27", 7]}"#,
+            ),
+        ];
+        for (i, (what, payload)) in corrupt.iter().enumerate() {
+            let tmp = std::env::temp_dir().join(format!(
+                "t27_corrupt_baseline_644_{}_{}",
+                std::process::id(),
+                i
+            ));
+            let _ = std::fs::remove_dir_all(&tmp);
+            let docs = tmp.join("docs").join("reports");
+            std::fs::create_dir_all(&docs).unwrap();
+            std::fs::write(docs.join("gen_verilog_smoke_baseline.json"), payload).unwrap();
+            let got = super::load_gen_verilog_smoke_baseline(&tmp);
+            assert!(
+                got.is_err(),
+                "{} must be an error, not an empty baseline",
+                what
+            );
+            // The message must name the file, or a reader cannot tell a corrupt
+            // baseline from a wrong repo root.
+            let msg = format!("{:#}", got.unwrap_err());
+            assert!(
+                msg.contains("gen_verilog_smoke_baseline.json"),
+                "{}: names the file: {}",
+                what,
+                msg
+            );
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
     }
 
     fn make_fake_tri_script(report_path: &Path, passed: bool) -> PathBuf {
