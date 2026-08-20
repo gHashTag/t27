@@ -28897,10 +28897,76 @@ degradation, and the only honest presentation is the one this theorem uses: **pr
 the per-seed list**. Five numbers per configuration cost one line and cannot be
 misread; every statistic computed from them can.
 
-Totals over eight configurations: TNF4 0/40, fp6 e2m3 29/40, fp6 e3m2 24/40. And
+Totals over eight configurations: TNF4 0/40, fp6 e2m3 28/40, fp6 e3m2 24/40. And
 TNF4's own trajectory on MNIST -- 96.76 at three epochs, 97.68 at ten, 97.82 +- 0.15
 at thirty -- converges rather than drifting, which is the behaviour the coarse-step
 worry predicted against and did not find.
+
+### T797 — A tally that is transcribed is evidence about the transcription, not the experiment
+
+**Setting.** The stability sweep closed at eight configurations of five seeds: forty
+runs per format, spanning four quantiser recipes, three tasks and three training
+lengths. The wave report stated that `fp6 e2m3` had failed **29** of them.
+Recomputing the tally from the eight records gives **28**. Nothing in the rig or in
+the data had changed. The figure had simply been carried forward by hand from one
+document into the next while the record set grew underneath it, and by the time the
+sweep closed it had been printed in three published places.
+
+**The aggravating condition.** The same measurement circulated in two polarities.
+`FALSIFY-ME.md` stated it as successes ("20 of 20 ... 12/20 ... 6/20"); the ledger
+and the status board stated it as failures ("0/40 ... 29/40 ... 24/40"). Two
+documents can carry the same quantity in opposite senses and disagree by one
+without any reader — the author included — being able to see that they are even
+about the same thing. Polarity is not presentation. It is part of the claim.
+
+**Statement.** Let a figure F be *derived* in a document if that document recomputes
+F from the primary records, and *transcribed* otherwise. A transcribed F has no
+dependency on the records: no change to the evidence can invalidate it, and it can
+be falsified only by a human re-reading it. Therefore the probability that a
+document's figures agree with its evidence decays with the number of transcriptions
+and is invariant to the quality of the experiment. Exactly one artefact in a project
+may derive a given figure; every other must cite that artefact rather than restate
+its value, and the figure must appear throughout in a single polarity with its
+denominator attached.
+
+**Remedy applied.** `verify_numbers.py` now enumerates every `stability*.json`
+record present, applies the per-task failure threshold, and asserts the tallies —
+27 checks, all passing. The counts in `REFEREE-PAGE.md` and `FALSIFY-ME.md` are the
+output of that computation, stated as successes out of forty, with the failure-side
+equivalents named explicitly so the two polarities can never again be mistaken for
+two measurements.
+
+**Consequence for the result.** The corrected tally does not move the claim: TNF4
+40/40 against 16/40 and 12/40. It moves the confidence one is entitled to have in
+any *other* number in this project that was never recomputed — which is the whole
+reason the check now runs on every record rather than on the three the report
+happened to quote.
+
+### T797a — A rig that names its output from a subset of its inputs destroys its own evidence
+
+**Observation.** `stability.py` derived its record filename from the task and the
+recipe. It did not include `EPOCHS`. A ten-epoch run and a thirty-epoch run on the
+same task and recipe therefore wrote the same path, and the second silently
+destroyed the first. Recounting from the scratch directory afterwards returned
+**thirty** runs where forty had been performed, and the two lost configurations
+survived only because they had already been copied into the repository under
+wave-suffixed names — an unrelated habit that happened to be load-bearing.
+
+**Statement.** If a rig's output path is a function of a proper subset of the
+parameters that determine its output, then two distinct experiments collide, and the
+collision is silent: the surviving file is well-formed, internally consistent and
+wrong about what it represents. Detection is impossible from the artefact alone,
+because nothing in it records what it overwrote. Hence the output path must be a
+function of *every* parameter the record's meaning depends on — here task, recipe
+**and** epoch count.
+
+**Corollary (why the miscount was recoverable at all).** The repository copy, not
+the scratch directory, is the record of this project. Scratch is a working surface
+where same-named re-runs overwrite each other; the durable copy carries the wave
+stamp. A recount performed against scratch is a recount against an unknown subset
+of the experiment. This is the second time in this project that a number was checked
+against the wrong copy of the evidence, and the first (`tri verify` comparing a
+small-net figure against a big-net record, W947) was also silent.
 
 ---
 

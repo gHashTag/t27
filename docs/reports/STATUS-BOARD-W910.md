@@ -1,4 +1,16 @@
-# Full status, both tracks — one page for whoever wakes up (W948c, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W948d, 2026-08-20)
+
+> **W948d — THE TALLY WAS TRANSCRIBED, AND IT WAS WRONG BY ONE.** The report said
+> `fp6 e2m3` failed **29** of forty; recomputing from the eight records gives **28**.
+> Nothing had changed — the figure was carried by hand into three documents while the
+> record set grew underneath it, hidden by the same measurement circulating as
+> *successes* on one page and *failures* on another. **Fixed at the root:**
+> `verify_numbers.py` now derives the tallies from every record — **27 checks, all
+> passing** — and every count is stated in one polarity with its denominator.
+> **Derived final tally: TNF4 40/40, `fp6 e3m2` 16/40, `fp6 e2m3` 12/40.** Second
+> defect: `stability.py` omitted `EPOCHS` from its record name, so two runs collided
+> silently and a scratch recount returned 30 of 40. Theorems **T797/T797a**; lessons
+> **1433/1434**. **Readiness 82 %.**
 
 > **W948c — THE SWEEP COMPLETES, AND OUR OWN STATISTIC HAS A BLIND SPOT.** MNIST at
 > thirty epochs: TNF4 **0/5** at 97.82 ± 0.15 (98.0, 97.6, 97.8, 97.9, 97.8);
@@ -6,7 +18,7 @@
 > **25.7 points below TNF4's worst** (97.6) and the distributions do not overlap.
 > **The mean hides bimodality; the failure rate hides uniform degradation; only the
 > per-seed list hides neither.** TNF4 converges (96.76 → 97.68 → 97.82) rather than
-> drifting. **Totals over eight configurations: 0/40 against 29/40 and 24/40.**
+> drifting. **Totals over eight configurations: 0/40 against 28/40 and 24/40.**
 > Landed as **tf#660**. **Readiness 82 %.** Theorem T796a; lesson 1431.
 
 > **W948b — THIRTY EPOCHS, AND THE FIRST NUMBER FROM THE BENCH.** TNF4 climbs

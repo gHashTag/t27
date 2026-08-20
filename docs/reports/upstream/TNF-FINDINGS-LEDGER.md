@@ -777,4 +777,44 @@ neither, which is now the house style for every table.
 TNF4 converges rather than drifting: **96.76 → 97.68 → 97.82 ± 0.15** across
 3 → 10 → 30 epochs.
 
-**Totals over eight configurations: TNF4 0/40, `fp6 e2m3` 29/40, `fp6 e3m2` 24/40.**
+**Totals over eight configurations: TNF4 0/40, `fp6 e2m3` 28/40, `fp6 e3m2` 24/40.**
+
+---
+
+## 24. W948d — the tally was transcribed, and it was wrong by one
+
+The sweep is closed and the claim is unchanged. The **arithmetic reporting it was
+not checked**, and it was wrong.
+
+The report stated `fp6 e2m3` failed **29** of forty runs. Recomputing the tally
+from the eight records gives **28**. Nothing in the rig or the data had changed —
+the figure had been carried forward by hand while the record set grew underneath
+it, and it reached three published documents that way.
+
+What hid it was a second habit: the same measurement circulated in **two
+polarities**. `FALSIFY-ME.md` stated successes ("20 of 20 ... 12/20 ... 6/20"),
+while the ledger and status board stated failures ("0/40 ... 29/40 ... 24/40").
+Two documents can carry one quantity in opposite senses and disagree by one
+without looking like they are about the same thing.
+
+**Both are now fixed at the root rather than in the text.** `verify_numbers.py`
+enumerates every `stability*.json` record, applies the per-task threshold and
+asserts the tallies — **27 checks, all passing**. Every count on the referee page
+and the falsification page is that computation's output, stated as successes out
+of forty with the failure-side equivalents named, so the polarities can never
+again be mistaken for two measurements.
+
+**Final tally, derived:** TNF4 **40/40** successes, `fp6 e3m2` **16/40**,
+`fp6 e2m3` **12/40** — eight configurations, four recipes, three tasks, three
+training lengths.
+
+A second defect surfaced while checking. `stability.py` named its record from the
+task and recipe but **not from `EPOCHS`**, so the ten- and thirty-epoch runs on the
+same task wrote the same path and the second destroyed the first; a recount against
+the scratch directory returned **thirty** runs where forty had been performed. The
+lost configurations survived only because each record had been copied into the
+repository under a wave-suffixed name. The rig now names records after the epoch
+count as well, and the repository copy — not scratch — is the record.
+
+Theorems **T797**, **T797a**; lessons **1433**, **1434**. This is the ninth and
+tenth correction this project has made to itself, still with no outside reviewer.
