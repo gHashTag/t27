@@ -6,6 +6,82 @@ Last updated: 2026-08-20
 
 - tri pr landed --file <path> asserts the path exists on the default branch, separately from --probe which searches content: probing for CITED_NUMBERS returned ABSENT while the file of that name was present, because a file does not contain its own name
 - Fifth way a landing probe lies, and the first with a fix in the tool rather than in the caller's habits
+# NOW -- the arXiv LUT count was the flip-flop count (2026-08-20)
+
+Last updated: 2026-08-20
+
+## docs(arxiv): XC7A100T has 63,400 LUTs, not 126,800
+
+Two arXiv sources described the platform as `QMTECH XC7A100T-1FGG676C
+(Artix-7, 126,800 LUTs, 240 DSP48E1)`. 126,800 is that part's **flip-flop**
+count. Its LUT count is 63,400. Corrected in both files, one line each:
+
+  docs/arxiv-submission/trinity-gf16.tex:296
+  docs/arxiv-trinity-gf16-draft.md:116
+
+The replacement number was verified against this repository before it was
+propagated, not taken on the source PR's word. The board table the compiler
+actually uses agrees, and so does every spec that encodes the part:
+
+  bootstrap/src/compiler.rs:10041-10042   luts: 63400, ffs: 126800
+  specs/fpga/partition.t27:36             fpga_node(.., 63400, 126800, 135, 240, 300)
+  specs/fpga/power_analysis.t27:67-68     max_luts 63400 / max_ffs 126800
+  specs/fpga/stdlib.t27:159-160           luts 63400 / ffs 126800
+
+That is also the standard 7-series decomposition -- 15,850 slices at 4 LUTs
+and 8 FFs each -- and the doc's own `240 DSP48E1` is XC7A100T's DSP count, so
+the part identification was never in doubt; only the column was wrong.
+
+Corroboration from a real utilization report already in the tree:
+`docs/phd/appendix_I.md:196` reads `FF: 27 / 126800`, using 126,800 as the FF
+denominator.
+
+**Found, not fixed here.** `docs/phd/appendix_F.md:14`, `appendix_I.md:195`
+and `docs/phd/ch28.md:87` give XC7A100T's LUT count as 101,440 -- a *different*
+wrong number (that is the marketing logic-cell figure, 63,400 x 1.6). It is
+out of scope for this change and is left for its own PR.
+
+## Honesty limits (BINDING)
+
+- **This is the uncontested subset of #2081, and nothing more.** #2081 carries
+  four fixes; this PR lands one of them.
+- **The "FPGA 35/35 at 323 MHz Artix-7" dispute is NOT settled here.** A
+  maintainer adjudicated that question on master in `59ae2aeee`. #2081 proposes
+  a different resolution in `specs/numeric/formats_catalog.t27`. That file is
+  untouched by this PR, the disagreement is unresolved, and **#2081 remains
+  open for it**. Nothing here should be read as evidence for either side.
+- **#2081's README rows were deliberately dropped, and their claims are now
+  false.** They downgraded three FPGA rows to RED on measured CI numbers. Those
+  numbers were true when written on 2026-08-11 and are not true today. Measured
+  against the GitHub API on 2026-08-20:
+    - "`fpga-synthesis` CI job failing" -- it **succeeds** in the latest runs.
+    - "last green 2026-04-14" -- last green is **2026-08-19T19:10:25Z** (run
+      32291533826, on master).
+    - "36 success / 842 failure / 3 cancelled over 881 runs" -- now
+      **50 / 932 / 15 over 997**.
+    - "`fpga-bitstream` is skipped behind `needs: fpga-synthesis`" -- it
+      **runs and succeeds**, and uploaded a 7,049-byte `.bit` artifact on
+      2026-08-19.
+  The workflow is red again today, but from `fpga-conformance`, a different
+  job. Landing that text would have replaced two roughly-right rows with three
+  rows whose every supporting figure is wrong. The README's FPGA status is
+  therefore **not re-verified by this PR** and may still be wrong in its own
+  way; it is simply not made worse.
+- **No hardware was run for this change.** The LUT figure is a datasheet
+  property of the part, cross-checked against this repo's own sealed board
+  definitions. It is not a measurement of any design.
+
+---
+
+# NOW -- tri pr ready: 'never ran' is no longer read as 'never failed' (2026-08-20)
+
+Last updated: 2026-08-20
+
+## tri pr ready: 'never ran' is no longer read as 'never failed' (Closes #2276)
+
+- A check absent from the failure baseline was reported as NOT failing on master. emit-bitexact has a paths: filter and no push: trigger — 0 master runs ever, 0 of the last 5 merged PRs — so that verdict was built from zero observations and printed as evidence.
+- The command now records what was OBSERVED, not only what was red, and gives the third state its own verdict: NO BASELINE / CANNOT TELL, which blocks the merge and names the repository's CI as the cause rather than the change.
+
 # NOW -- an enum member is a path, not a field access (2026-08-20)
 
 Last updated: 2026-08-20
@@ -57,6 +133,15 @@ Last updated: 2026-08-20
   lowering, #) that no SMT model can accept -- an emitter-level repair
 - ci-gates section 11: the seven formal layers, the artifact-logfile rule, the
   run-the-chain-locally rule, and the self-healing watch pattern
+# NOW -- half of master's smoke gate came back (2026-08-20)
+
+Last updated: 2026-08-20
+
+## half of master's smoke gate came back (Closes #2249)
+
+- The verify-lean phase was declared and never executed: run_verify_lean stayed a parameter, verify_lean_ok a variable nothing assigned, so the gate could not pass when a caller asked for that phase -- restored verbatim from 494e659d8 and it runs (generates the theorem, writes the Lean file, reports OK)
+- The sweep-validation block that sets dry_run_sweep_ok is lost the same way -- 73 lines -- but that region also carries a deliberate later edit (a hardcoded corner where history passed process_corner), so splicing history over someone's edit is not safe blind; documented in #2263 rather than guessed at
+- So master's test stays red for one remaining reason, now named precisely instead of 'smoke-gate did not pass all phases'
 
 # NOW -- the NOW gate matched a path nobody edits (2026-08-20)
 

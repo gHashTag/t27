@@ -16,7 +16,7 @@
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::process::Command;
 
 #[derive(Subcommand)]
@@ -308,6 +308,28 @@ fn failures_of(repo: &str, n: u64) -> Result<Vec<String>> {
     Ok(names)
 }
 
+/// Every check name that COMPLETED on this pull request, whatever the verdict.
+///
+/// The baseline needs this and not just the failures. A check absent from the
+/// failure list is not thereby green -- it may simply never have run, and the
+/// two are indistinguishable if you only ever collect failures.
+fn completed_of(repo: &str, n: u64) -> Result<Vec<String>> {
+    let raw = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".head.sha",
+    ])?;
+    let sha = raw.trim();
+    let runs = gh(&[
+        "api",
+        &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+        "--jq",
+        r#".check_runs[]|select(.status=="completed")|.name"#,
+    ])?;
+    Ok(runs.lines().map(|s| s.to_string()).collect())
+}
+
 /// Number of checks not yet completed on this pull request's head.
 ///
 /// Zero can mean two different things and only one of them is "finished": no
@@ -439,6 +461,14 @@ fn ready(
     // commit. So walk the last few default-branch commits and score each check
     // by the MOST RECENT commit on which it actually ran.
     let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+    // Failures alone cannot tell "green everywhere" from "never ran anywhere".
+    // A check with a `paths:` filter and no `push:` trigger runs on SOME pull
+    // requests and on no default-branch commit at all: it is then absent from
+    // every failure list, which this command used to read as a clean baseline
+    // and report as "NOT failing on recent master commits" -- a sentence built
+    // from zero observations and printed as if it were evidence. So record what
+    // was OBSERVED, not only what was red.
+    let mut observed: BTreeSet<String> = BTreeSet::new();
     let recent = gh(&[
         "api",
         &format!("repos/{repo}/commits?sha={branch}&per_page=15"),
@@ -465,6 +495,7 @@ fn ready(
         }
     }
     for (name, failing) in &decided {
+        observed.insert(name.clone());
         if *failing {
             *seen.entry(name.clone()).or_insert(0) += 1;
         }
@@ -480,6 +511,9 @@ fn ready(
             if p == n {
                 continue;
             }
+            for name in completed_of(&repo, p).unwrap_or_default() {
+                observed.insert(name);
+            }
             for name in failures_of(&repo, p).unwrap_or_default() {
                 *seen.entry(name).or_insert(0) += 1;
             }
@@ -491,13 +525,22 @@ fn ready(
         println!("  nothing is failing");
     }
     let mut new_here = Vec::new();
+    let mut no_baseline = Vec::new();
     for name in &mine {
         match seen.get(name) {
             Some(k) => {
                 println!("  {name}\n      also failing in {k} other place(s) — pre-existing")
             }
+            None if !observed.contains(name) => {
+                println!("  {name}\n      NO BASELINE — this check did not run on any recent");
+                println!("      {branch} commit nor on any of the last {baseline} merged PRs, so");
+                println!("      there is nothing to compare against. Usually a `paths:` filter");
+                println!("      with no `push:` trigger. Read the log; this command cannot say");
+                println!("      whether the failure is yours.");
+                no_baseline.push(name.clone());
+            }
             None => {
-                println!("  {name}\n      NOT failing on recent {branch} commits or in the last {baseline} merged PRs");
+                println!("  {name}\n      NOT failing on recent {branch} commits or in the last {baseline} merged PRs\n      (it ran there and passed)");
                 new_here.push(name.clone());
             }
         }
@@ -507,6 +550,26 @@ fn ready(
         println!("VERDICT: WAIT — {pending} check(s) still running, the list is incomplete.");
         if merge {
             println!("Not merging: the list is incomplete. Re-run with --wait.");
+        }
+    } else if !no_baseline.is_empty() {
+        println!(
+            "VERDICT: CANNOT TELL — {} failure(s) have no baseline to compare against:",
+            no_baseline.len()
+        );
+        for name in &no_baseline {
+            println!("  - {name}");
+        }
+        if !new_here.is_empty() {
+            println!("\nand {} failure(s) appear only here:", new_here.len());
+            for name in &new_here {
+                println!("  - {name}");
+            }
+        }
+        println!("\nThis is a finding about the repository's CI, not about the change:");
+        println!("a check that never runs on {branch} has no green state anyone has");
+        println!("ever seen. Read its log and decide by hand.");
+        if merge {
+            println!("Not merging: refusing to treat an unmeasured check as passing.");
         }
     } else if new_here.is_empty() {
         println!("VERDICT: safe to merge — every failure is failing elsewhere too.");
@@ -560,6 +623,38 @@ fn ready(
 
 #[cfg(test)]
 mod tests {
+    /// A check that never ran anywhere has no baseline, and "absent from every
+    /// failure list" is exactly what both a green check and an unrun check look
+    /// like. Classifying the second as the first is how this command reported
+    /// "NOT failing on recent master commits" about a workflow with a `paths:`
+    /// filter and no `push:` trigger -- a sentence assembled from zero
+    /// observations. The distinction is the whole point: absence of evidence
+    /// gets its own verdict.
+    #[test]
+    fn never_observed_is_not_the_same_as_never_failing() {
+        use std::collections::{BTreeMap, BTreeSet};
+        let failures_elsewhere: BTreeMap<&str, usize> = BTreeMap::new();
+        let observed: BTreeSet<&str> = ["build", "coverage"].into_iter().collect();
+
+        // "build" ran elsewhere and passed there: a real green baseline.
+        assert!(observed.contains("build"));
+        assert!(!failures_elsewhere.contains_key("build"));
+
+        // "emit-bitexact" never ran at all. Same empty failure list, and it
+        // must NOT be read as the same thing.
+        assert!(!observed.contains("emit-bitexact"));
+        assert!(!failures_elsewhere.contains_key("emit-bitexact"));
+
+        let classify = |name: &str| match failures_elsewhere.get(name) {
+            Some(_) => "pre-existing",
+            None if !observed.contains(name) => "no-baseline",
+            None => "new-here",
+        };
+        assert_eq!(classify("build"), "new-here");
+        assert_eq!(classify("emit-bitexact"), "no-baseline");
+        assert_ne!(classify("build"), classify("emit-bitexact"));
+    }
+
     /// A failure appearing on the default branch and on merged pull requests is
     /// the repository's, not this change's. A failure appearing only here is
     /// this change's until a log says otherwise -- and the default has to be
