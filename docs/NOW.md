@@ -1,6 +1,72 @@
-# NOW -- the build check had two causes; #2303 fixed one, and the other was a flag nothing ever set (2026-08-20)
+# NOW -- the build check's third cause: tri rtl check reads a submodule the workflow never checked out (2026-08-20)
 
 Last updated: 2026-08-20
+
+## ci: check out the submodule that holds the design `tri rtl check` reads (Closes #2307)
+
+Third sequential cause in the same `cli-tri` `build` job. #2303 hoisted the yosys
+install above the tests; #2305 assigned `dry_run_sweep_ok`, a verdict flag
+declared `false` and never set. With both fixed the test step reports
+`156 passed; 0 failed` and the job finally reached a step that had **never
+executed once** in the workflow's history:
+
+```
+./target/debug/tri rtl check chips/phi --json
+Error: No such file or directory (os error 2)
+verdict lines: 0
+##[error]tri rtl check emitted 0 verdicts; five checks should each emit one
+```
+
+`chips/phi` is a gitlink (mode `160000`) to `gHashTag/tt-trinity-phi`. The job's
+checkout was a bare `- uses: actions/checkout@v4` with no `with:` block, so
+`submodules` took its default of `false` and the directory was empty on the
+runner. The binary was never broken; it had nothing to read.
+
+The error arrives unattributed because `top_from_info` in `cli/tri/src/rtl.rs`
+reads the file without context:
+
+```rust
+let text = std::fs::read_to_string(dir.join("info.yaml"))?;
+```
+
+whereas its sibling `declared_sources` wraps the identical failure in
+`.with_context(|| format!("no info.yaml at {}", ...))`. Same missing file, and
+only one of the two says which path it wanted.
+
+### Why this was mechanical rather than a secrets decision
+
+`submodules: true` under the default `GITHUB_TOKEN` only clones a submodule that
+is public -- the token is scoped to this repository alone, and a private
+submodule would have turned a failing step into a failing checkout. All three
+are public:
+
+| submodule | repo | private | size |
+|---|---|---|---|
+| `chips/phi` | `gHashTag/tt-trinity-phi` | `false` | 941 KB |
+| `chips/euler` | `gHashTag/tt-trinity-euler` | `false` | 3,954 KB |
+| `chips/gamma` | `gHashTag/tt-trinity-gamma` | `false` | 5,365 KB |
+
+`true` pulls all three, ~10.2 MB, which does not move this job's cost. None has a
+nested `.gitmodules`, so `recursive` would buy nothing and `true` is the minimal
+setting. No other workflow in the repo checks out submodules, so there was no
+working configuration here to copy -- the setting was chosen from the constraint,
+not from precedent.
+
+### The fix yields five real verdicts, not merely a non-empty directory
+
+Verified against the **pinned** gitlink `f5456685c3593665153fe2765c85bb1f46ec14c2`
+(reachable in `tt-trinity-phi`, dated 2026-05-18), not against `main` -- a
+checkout resolves the pin, and an orphaned pin would fail the clone outright:
+
+- `info.yaml` is present (3,830 bytes) and sets `top_module: "tt_um_trinity_nano"`, so `top_from_info` resolves.
+- It declares 49 `source_files`; `src/` at that commit holds 51 `.v` files, and all 49 declared files resolve, so check 1 `sources resolve` PASSES rather than merely emitting a FAIL line.
+
+The other four verdicts come from one yosys pass, and yosys is on `PATH` from the
+step #2303 added directly above.
+
+The `N < 5` assertion is untouched. The step asserted five verdicts and got zero;
+that is the guard working, not the guard being wrong. `build` was not added to
+the required contexts.
 
 ## fpga: record the dry-run sweep's success in the flag its own verdict reads (Closes #2304)
 
