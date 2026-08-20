@@ -1894,6 +1894,100 @@ impl Parser {
             ));
         }
 
+        // ADR-008 (#2162): optional generic parameter list, as in
+        // `pub const Stack(T) = struct { ... };`. The grammar accepted here is
+        // exactly `Ident { "," Ident }` with `struct` on the right-hand side and
+        // nothing else, because that is the whole of what the corpus attests:
+        // 33 declarations in 28 files, every one of them a struct, parameter
+        // lists of one to three bare identifiers. Every rejection below has a
+        // negative fixture in tests/fixtures/generic_const/.
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+
+            if self.current.kind == TokenKind::RParen {
+                return Err(format!(
+                    "ADR-008: empty generic parameter list in 'const {}()'. An empty \
+                     list is ambiguous with a plain type declaration; write \
+                     'const {}' without parentheses instead",
+                    decl.name, decl.name
+                ));
+            }
+
+            let mut generic_params: Vec<(String, String)> = Vec::new();
+            loop {
+                if self.current.kind != TokenKind::Ident {
+                    return Err(format!(
+                        "ADR-008: generic parameter of 'const {}' must be a bare \
+                         identifier, got {:?} ('{}'). Parameters are names being \
+                         bound, not types being used",
+                        decl.name, self.current.kind, self.current.lexeme
+                    ));
+                }
+                // The second element stays empty on purpose: a generic parameter
+                // has no type, it IS a type. No new Node field is introduced.
+                generic_params.push((self.current.lexeme.clone(), String::new()));
+                self.advance();
+
+                if self.current.kind == TokenKind::Comma {
+                    self.advance(); // consume ,
+                    if self.current.kind == TokenKind::RParen {
+                        return Err(format!(
+                            "ADR-008: trailing comma in generic parameter list of \
+                             'const {}'. Not attested anywhere in the corpus, so \
+                             not accepted",
+                            decl.name
+                        ));
+                    }
+                    continue;
+                }
+                break;
+            }
+
+            if self.current.kind != TokenKind::RParen {
+                return Err(format!(
+                    "ADR-008: expected ')' or ',' after generic parameter of \
+                     'const {}', got {:?} ('{}'). Constrained parameters such as \
+                     '(T: Ord)' are a language feature, not a parser detail",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume )
+
+            if self.current.kind != TokenKind::Equals {
+                return Err(format!(
+                    "ADR-008: expected '=' after generic parameter list of 'const \
+                     {}', got {:?} ('{}'). A parameterised declaration with no \
+                     right-hand side is not a type declaration",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume =
+
+            if self.current.kind != TokenKind::KwStruct {
+                return Err(format!(
+                    "ADR-008: right-hand side of parameterised 'const {}' must be \
+                     'struct', got {:?} ('{}'). All 33 attested declarations are \
+                     structs; a parameterised enum or value is a separate decision",
+                    decl.name, self.current.kind, self.current.lexeme
+                ));
+            }
+            self.advance(); // consume 'struct'
+
+            // Being parameterised does not change the kind: this is a struct
+            // declaration, and a non-empty `params` is what marks it as generic.
+            decl.kind = NodeKind::StructDecl;
+            decl.params = generic_params;
+            self.expect(TokenKind::LBrace)?;
+            self.parse_struct_body(&mut decl)?;
+            self.expect(TokenKind::RBrace)?;
+            // Both ';' and no ';' are accepted, matching the non-parameterised
+            // `const Name = struct { ... }` path exactly. No new terminator.
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(decl);
+        }
+
         // Optional type annotation `: Type`
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
@@ -19751,6 +19845,13 @@ pub struct RustCodegen {
     const_types: std::collections::HashMap<String, String>,
     /// Declared Rust return type of every function in this module.
     fn_ret_types: std::collections::HashMap<String, String>,
+    /// Names of enums declared in this module.
+    ///
+    /// t27 writes an enum member as `Verdict.escalate`, which is Zig's
+    /// spelling and what the parser produces. Rust spells it
+    /// `Verdict::escalate`. Without knowing which identifiers name enums the
+    /// emitter cannot tell that access apart from a struct field.
+    enum_names: std::collections::HashSet<String>,
 }
 
 #[allow(dead_code)]
@@ -19766,6 +19867,7 @@ impl RustCodegen {
             var_types: std::collections::HashMap::new(),
             const_types: std::collections::HashMap::new(),
             fn_ret_types: std::collections::HashMap::new(),
+            enum_names: std::collections::HashSet::new(),
         }
     }
 
@@ -19912,6 +20014,9 @@ impl RustCodegen {
     }
 
     fn gen_enum(&mut self, node: &Node) {
+        // Recorded before the body is written, so a member referenced inside
+        // the same module resolves however the declarations are ordered.
+        self.enum_names.insert(node.name.clone());
         self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]");
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
@@ -20631,7 +20736,23 @@ impl RustCodegen {
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
             }
-            NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
+            NodeKind::ExprEnumValue => {
+                if node.extra_field.is_empty() {
+                    // Shorthand `.variant`. t27 takes the enum from context the
+                    // way Zig does; Rust has no such rule, so the emitter must
+                    // supply it. The context available here is the declared
+                    // return type of the function being emitted - exactly the
+                    // case the shorthand is written for. Without it the variant
+                    // was printed on the LEFT of the separator: `escalate::`.
+                    if self.enum_names.contains(&self.fn_ret_type) {
+                        format!("{}::{}", self.fn_ret_type, node.name)
+                    } else {
+                        node.name.clone()
+                    }
+                } else {
+                    format!("{}::{}", node.name, node.extra_field)
+                }
+            }
             NodeKind::ExprUnary => {
                 if !node.children.is_empty() {
                     let operand = &node.children[0];
@@ -20654,7 +20775,14 @@ impl RustCodegen {
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
-                    format!("{}.{}", self.expr_to_rust(&node.children[0]), node.name)
+                    let base = self.expr_to_rust(&node.children[0]);
+                    // An enum member is a path in Rust and a field access in
+                    // t27's Zig-shaped syntax. Only the base tells them apart.
+                    if self.enum_names.contains(&base) {
+                        format!("{}::{}", base, node.name)
+                    } else {
+                        format!("{}.{}", base, node.name)
+                    }
                 } else {
                     node.name.clone()
                 }

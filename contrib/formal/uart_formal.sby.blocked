@@ -15,7 +15,7 @@ smtbmc z3
 
 [script]
 read_verilog -formal -sv -DSIMULATION uart.v
-read_verilog uart_formal_props.v
+read_verilog -formal uart_formal_props.v
 prep -top uart_formal_props
 
 [files]
