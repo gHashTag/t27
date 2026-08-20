@@ -1,4 +1,13 @@
-# Full status, both tracks — one page for whoever wakes up (W948b, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W948c, 2026-08-20)
+
+> **W948c — THE SWEEP COMPLETES, AND OUR OWN STATISTIC HAS A BLIND SPOT.** MNIST at
+> thirty epochs: TNF4 **0/5** at 97.82 ± 0.15 (98.0, 97.6, 97.8, 97.9, 97.8);
+> `fp6 e2m3` 4/5; `fp6 e3m2` 2/5 **by threshold** — but its best run (71.9) is
+> **25.7 points below TNF4's worst** (97.6) and the distributions do not overlap.
+> **The mean hides bimodality; the failure rate hides uniform degradation; only the
+> per-seed list hides neither.** TNF4 converges (96.76 → 97.68 → 97.82) rather than
+> drifting. **Totals over eight configurations: 0/40 against 29/40 and 24/40.**
+> Landed as **tf#660**. **Readiness 82 %.** Theorem T796a; lesson 1431.
 
 > **W948b — THIRTY EPOCHS, AND THE FIRST NUMBER FROM THE BENCH.** TNF4 climbs
 > **85.50 → 87.38 → 88.77 ± 0.41** across 3 → 10 → 30 epochs with **0/5 failures

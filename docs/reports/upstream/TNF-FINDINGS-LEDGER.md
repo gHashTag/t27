@@ -756,3 +756,25 @@ human action — starting Docker — that unblocks the bitstream build.
 lengths, a measured mechanism, a falsification protocol, and now one number from
 the bench. The open edge is convolutional models at convergence, named as the first
 thing an outside replication should attack.
+
+
+### 23a. W948c — the sweep completes, and our own statistic has a blind spot
+
+Landed as **tf#660**. MNIST at thirty epochs, the last configuration:
+
+```
+TNF4       0/5 failures   98.0  97.6  97.8  97.9  97.8   (97.82 ± 0.15)
+fp6 e2m3   4/5            19.2  81.0   9.6  12.7  11.3
+fp6 e3m2   2/5            71.9  65.6  55.5  71.4  59.3
+```
+
+By threshold `fp6 e3m2` passes three of five — but its **best** run (71.9) sits
+**25.7 points below TNF4's worst** (97.6), and the distributions do not overlap.
+**A rate counts line-crossings and is silent about uniform degradation** (T796a).
+The mean hides bimodality, the rate hides this; only the per-seed list hides
+neither, which is now the house style for every table.
+
+TNF4 converges rather than drifting: **96.76 → 97.68 → 97.82 ± 0.15** across
+3 → 10 → 30 epochs.
+
+**Totals over eight configurations: TNF4 0/40, `fp6 e2m3` 29/40, `fp6 e3m2` 24/40.**
