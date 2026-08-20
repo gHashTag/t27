@@ -1,4 +1,15 @@
-# Full status, both tracks — one page for whoever wakes up (W946, 2026-08-20)
+# Full status, both tracks — one page for whoever wakes up (W947, 2026-08-20)
+
+> **W947 — WHAT SURVIVES IS RECIPE-INSENSITIVITY, AND ITS MECHANISM IS RANGE.**
+> At six physical bits TNF4 spans **14.6 binades** against `fp6 e3m2`'s 8.8 and
+> `fp6 e2m3`'s 5.9 — the φ-lattice spends its width on range, so under a max-rule
+> scale nothing underflows where a narrow grid loses everything below 1.7 % of the
+> peak. My percentile-init fix was **refuted** (it broke the configuration that
+> worked), and W946's repair proved **task-specific**. Failure counts across three
+> recipes and three tasks: **TNF4 0/20**, `fp6 e3m2` 8/20, `fp6 e2m3` 14/20; TNF4
+> on KMNIST is 87.13 ± 0.15, the tightest spread measured here. **The mean was the
+> wrong statistic** against a bimodal competitor (86.0, 86.8, 23.0, 87.3, 30.6).
+> Landed as **tf#656**. **Readiness 76 % → 78 %.** Theorem T794; lesson 1427.
 
 > **W946 — AT MATCHED WIDTH IT IS PARITY, AND THE LAST ADVANTAGE WAS OUR OWN
 > OMISSION.** Cost at six physical bits: TNF4 **51.29** cells against `fp6 e3m2`'s

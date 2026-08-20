@@ -657,3 +657,37 @@ encoding at equal width means the φ-structure costs nothing to adopt.
 claim the smallest. The paper's current hardware claim is **not supported at
 matched width**; a reframed paper on the mathematics, the parity result and the
 methodology is.
+
+
+## 21. W947 — recipe-insensitivity, and the mechanism is range
+
+Landed as **tf#656**. This closes the thread W946 left open.
+
+**Mechanism, measured at six physical bits:** TNF4 spans **14.6 binades** with 28
+positive values; `fp6 e3m2` 8.8 with 31; `fp6 e2m3` **5.9** with 31. The φ-lattice
+spends its width on range rather than precision, and under a max-rule scale that is
+the difference between a grid where nothing underflows and one whose floor sits at
+**1.7 %** of the peak.
+
+**My mitigation hypothesis was refuted.** A percentile scale init made the narrow
+grids worse and broke the one configuration that had worked:
+
+| recipe | TNF4 | `fp6 e2m3` | `fp6 e3m2` |
+|---|---:|---:|---:|
+| max init, no gradient factor | 0/5 | 3/5 | 2/5 |
+| max init, standard factor | 0/5 | 4/5 | **0/5** |
+| p99.9 init, standard factor | 0/5 | 5/5 | **4/5** |
+| KMNIST, max init, standard factor | 0/5 | 2/5 | **2/5** |
+| **total failures** | **0/20** | **14/20** | **8/20** |
+
+So W946's repair was **task-specific**. TNF4 has not failed once in twenty runs,
+at 87.13 ± 0.15 on KMNIST — the tightest spread in this project.
+
+**And the statistic was wrong before this wave.** `fp6 e3m2` on KMNIST reads 86.0,
+86.8, 23.0, 87.3, 30.6; its mean of 62.73 ± 32.94 describes no run that happened.
+The failure rate describes them all, and it makes the claim falsifiable in one run
+(T794).
+
+**Readiness 76 % → 78 %.** Three tasks, three recipes, a measured mechanism and a
+statistic that matches the data — against which the remaining gaps are the empty
+hardware axis and the absence of any external replication.
