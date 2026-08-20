@@ -1,3 +1,137 @@
+# NOW -- the workspace was throwing away a release profile, and the brief about it was measured on the wrong branch (2026-08-20)
+
+Last updated: 2026-08-20
+
+## build: stop discarding bindings/javascript [profile.release] (Closes #2295)
+
+Cargo has been printing this on every invocation in this repo:
+
+```
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   <repo>/bindings/javascript/Cargo.toml
+workspace: <repo>/Cargo.toml
+```
+
+`bindings/javascript/Cargo.toml` declares `opt-level = "z"` and `lto = true`.
+It is listed in the root `members` array, so Cargo discards both and builds the
+crate with the default release profile instead (`opt-level = 3`, `lto = false`).
+`.github/workflows/release.yml` runs `wasm-pack build --release` from inside
+that directory and publishes the result to npm; `wasm-pack` resolves the
+enclosing workspace, so the published `.wasm` has been built speed-optimized
+and un-LTO'd -- the opposite of what a browser artifact wants.
+
+### The brief I was given was measured against the wrong tree
+
+The task described `bootstrap/Cargo.toml` as declaring
+`opt-level=3, lto=true, codegen-units=1, strip=true`. **That is not true of
+`master`.** It is true of the branch `feat/wave-547/host-heapsort`, which is
+what the local checkout at `/Users/playom/t27` happens to have checked out:
+
+```
+$ git show origin/master:bootstrap/Cargo.toml | grep -c '^\[profile'
+0
+$ grep -n -A4 '\[profile' bootstrap/Cargo.toml    # on the branch
+33:[profile.release]
+34-opt-level = 3
+...
+```
+
+A workspace-wide scan of `origin/master` finds exactly one member declaring a
+profile, and it is not `bootstrap`:
+
+```
+$ git ls-tree -r --name-only origin/master | grep 'Cargo.toml$' | ...
+--- bindings/javascript/Cargo.toml (1) ---
+```
+
+Cargo's own warning names the same single file. The defect is real; the crate
+named in the brief was not. Everything below was done against `origin/master`.
+
+### Why the profile was not simply moved to the root
+
+The instinctive fix -- move `[profile.release]` verbatim into the root
+`Cargo.toml` -- would apply `opt-level = "z"` to all five other members,
+including the `t27c` compiler that 8+ workflows build with
+`cargo build --release -p t27c`. Size-optimizing the compiler is a far larger
+behavioral change than the bug being fixed, and nobody asked for it.
+
+Scoping it per-package at the root does not work either. Cargo rejects it:
+
+```
+$ cargo metadata --no-deps --offline    # root has [profile.release.package.golden-float-js] lto = true
+error: failed to parse manifest at `<repo>/Cargo.toml`
+
+Caused by:
+  `lto` may not be specified in a `package` profile
+exit=101
+```
+
+`lto`, `panic` and `rpath` cannot appear in a package profile override, so a
+root-level per-package block cannot carry `lto = true`.
+
+What was done instead: `bindings/javascript` moved from `members` to `exclude`
+in the root `Cargo.toml`. The crate becomes its own workspace root, so Cargo
+honours its existing `[profile.release]` verbatim and **only** for that crate.
+`bindings/python` and `tools/converter` were already excluded, so this follows
+existing structure. **No profile value was added, removed or tuned** -- the
+`[profile.release]` block in `bindings/javascript/Cargo.toml` is untouched by
+this change, and no other crate's build changes.
+
+### The acceptance test: the warning is gone
+
+Same command, same worktree, pristine `origin/master` (98c44f6a2) vs. the fix,
+stderr captured to a file and byte-counted:
+
+```
+$ cargo metadata --no-deps --offline --format-version 1 1>/dev/null 2>err
+BEFORE exit=0 stderr_bytes=384
+AFTER  exit=0 stderr_bytes=0
+
+=== BEFORE stderr ===
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   .../bindings/javascript/Cargo.toml
+workspace: .../Cargo.toml
+=== AFTER stderr ===
+=== (end) ===
+```
+
+And Cargo now reports the crate as its own workspace root, which is what makes
+the profile apply:
+
+```
+$ cd bindings/javascript && cargo metadata --no-deps --offline --format-version 1 | grep -m1 workspace_root
+"workspace_root":".../bindings/javascript"
+```
+
+### Honesty limits (BINDING)
+
+**What I measured.** That the warning is emitted by pristine `origin/master`
+and is absent after the change (384 stderr bytes -> 0, exit 0 both). That
+`bootstrap/Cargo.toml` on `master` declares no profile and that
+`bindings/javascript/Cargo.toml` is the sole member that does. That Cargo
+rejects `lto` in a package profile (exit 101, quoted above). That after the
+change Cargo reports `bindings/javascript` as its own `workspace_root`. That no
+workflow greps for a clean tree, and that `release.yml` `cd`s into the crate
+directory, so exclusion is transparent to it.
+
+**What I did NOT measure.** Binary size and build time, before or after -- for
+`t27c` or for the `.wasm`. The machine had **390 MiB** of free disk at the time
+of the work and `target/` for this workspace reaches ~1.1 GiB, so no release
+build was attempted. This is a real gap: I have **not** demonstrated that the
+published `.wasm` actually gets smaller, only that Cargo now honours the
+profile that was previously discarded. Anyone with disk should run
+`wasm-pack build --target bundler --release` in `bindings/javascript` before
+and after and record the two `.wasm` sizes.
+
+**What follows from exclusion, and is not yet resolved.** An excluded crate no
+longer shares the root `Cargo.lock`. `bindings/javascript` has no committed
+lock of its own, and this change does not add one, so its dependency versions
+resolve freshly at release time and it drops out of workspace-wide
+`cargo build`/`cargo test` coverage from the root. Nothing in CI depended on
+either -- `release.yml` builds it by `cd`-ing in -- but the unpinned
+dependency resolution for a published npm artifact is a genuine loose end,
+recorded here rather than silently accepted.
+
 # NOW -- master IS protected; the 404 I read it from was the wrong endpoint (2026-08-20)
 
 Last updated: 2026-08-20
