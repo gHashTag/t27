@@ -1,3 +1,87 @@
+# NOW -- master IS protected; the 404 I read it from was the wrong endpoint (2026-08-20)
+
+Last updated: 2026-08-20
+
+## docs: retract "master has no branch protection" (Refs #2292)
+
+The entry below states, in a BINDING honesty limit, that **`master` has no branch
+protection**. That is false, and this retracts it. It is the third wrong claim in
+this sequence, and like the other two it came from measuring the wrong thing
+confidently rather than from measuring nothing.
+
+**What I ran:**
+
+```
+$ gh api repos/gHashTag/t27/branches/master/protection
+404 Branch not protected
+```
+
+**Why that 404 is not the fact I read into it.** `/branches/{branch}/protection`
+reports only *legacy* branch protection. A repository protected by **rulesets** --
+the newer mechanism -- returns 404 from it while being fully protected. The correct
+query is `/repos/{owner}/{repo}/rules/branches/{branch}`, and it says:
+
+```
+$ gh api repos/gHashTag/t27/rulesets
+id=14813367  name=t27-master-protection  target=branch  enforcement=active
+
+$ gh api repos/gHashTag/t27/rules/branches/master --jq '.[].type'
+deletion
+non_fast_forward
+pull_request
+required_status_checks
+```
+
+So master is protected: PRs required, force-push and deletion blocked, and four
+required status contexts --
+
+```
+check-now-freshness
+validate
+check
+check-linked-issue
+```
+
+### What survives, and what it actually means
+
+The observation that prompted the claim is still true and is now better explained.
+PR #2291 merged at `03:57:13Z` while its own `corpus-ratchet` run started at
+`03:57:16Z` -- **three seconds before the gate it was adding began to run**. Not
+because nothing is required, but because **`corpus-ratchet` is not in the required
+four**. Neither are `coverage` or `withdrawn-live`, which is exactly why all three
+sit red on master while PRs keep merging.
+
+This sharpens the original finding rather than softening it. The `cargo test -p t27c`
+step was added to a workflow **outside the required set**, so even had it been green
+it would never have blocked a merge. The step was wrong on its numbers *and* wrong
+in its placement, and the second error would have survived fixing the first.
+
+`corpus-ratchet.yml`'s own `W632 (BLOCKING)` header is therefore aspirational.
+Making it real is a one-line ruleset change -- adding the context to
+`t27-master-protection` -- and is deliberately **not** done here: turning on a
+required check that is currently failing on master would block every PR in the repo.
+It must follow the ratchet in #2292, not precede it.
+
+### Honesty limits (BINDING)
+
+- **Three claims in this sequence were wrong, all from confident bad measurement:**
+  (1) "1221 tests pass" -- measured on `feat/wave-547/host-heapsort`, not master;
+  (2) "all pass, so land a plain gate" -- on master it is 1602 passed / 13 failed;
+  (3) "master has no branch protection" -- read from an endpoint that cannot see
+  rulesets. Each was a real command with real output, read as answering a question
+  it did not answer.
+- **The required-checks list is exact and current as of 2026-08-20.** Four contexts,
+  named above, from `rules/branches/master`. I did not verify who can bypass the
+  ruleset (`bypass_actors` was not inspected), so "protected" here means the rules
+  are active, not that no one can route around them.
+- **Nothing about the 13 failing tests changes.** They are still failing on master,
+  still a lower bound (the 21 binaries in `bootstrap/tests/` still never ran), and
+  still tracked in #2292 with #2288 and #2289 reopened.
+- **No test was edited at any point** in this sequence, and #2290 (`math_compare.rs`
+  compiled by nothing; plateau bound 2.10x tighter than its own goldens) stands.
+
+---
+
 # NOW -- the test gate landed red because the measurement was taken on the wrong tree (2026-08-20)
 
 Last updated: 2026-08-20
